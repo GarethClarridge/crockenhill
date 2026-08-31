@@ -1,7 +1,7 @@
 # Historic Video Pilot-to-Bulk Plan
 
 **Date:** 2026-08-29
-**Status:** In progress — Phases 0–6 complete and the Phase 7 canary has been dispatched and resumed under operation 3; the run, first remediation and media-output evaluation are recorded below. That evaluation found new duration, orchestration, title, boundary and song-custody blockers. Bulk processing remains NO-GO until they are implemented, the canary rows/assets are repaired, and an identical-canary replay proves zero new work and spend.
+**Status:** In progress — Phases 0–6 complete and the Phase 7 canary has been dispatched and resumed under operation 3; the run, first remediation and media-output evaluation are recorded below. That evaluation found new duration, orchestration, title, boundary and song-custody blockers, and a 2026-08-31 review of it added a source-retention blocker (M9), without which the boundary review holds have no media behind them, and a sermon-quarantine blocker (M10) matching the song-side custody gap in M4. Bulk processing remains NO-GO until they are implemented, the canary rows/assets are repaired, and an identical-canary replay proves zero new work and spend.
 **Scope:** Correct the pilot findings, prove direct private asset promotion and bounded temporary cleanup, run a fresh canary, and process the remaining historic-video corpus safely
 **Related plan:** `HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md` remains the authority for the wider historic-import programme
 
@@ -774,19 +774,49 @@ probed after extraction, and its observed duration stored separately from the
 requested plan. The requested segments remain provenance; they are not playable-
 duration authority.
 
+**Read this before starting — a misleading docblock will tell you the work is
+already done.** `MediaProcessingLog::recordedSermonExtraction()` is documented as
+returning the *"true media duration"*, and `extractedSermonMediaDuration()` reads
+that value. It is not observed duration: the body sums the planned segment spans
+(excluding the concat gap), which is the same theoretical number this finding is
+about, one step better than the outer window. The initial remediation wired the
+existing-sermon refresh to it, which is why that branch looks fixed and is not.
+Correcting that docblock is part of this work, not an aside.
+
 Implementation and proof required:
 
-1. After successful extraction, FFprobe the exact emitted video (and reject an
-   unreadable or zero-length result). Persist observed duration alongside the
-   requested segments.
-2. Pass that observed duration into fresh `SermonCreationOptions`; use it in the
-   existing-sermon refresh and the bounded duration-repair service too.
-3. Keep segment start/end as source timestamps. Do not rewrite them into output-
+1. After successful extraction, FFprobe the exact emitted video and reject an
+   unreadable or zero-length result. Do **not** add a fourth ad-hoc
+   `FFProbe::create()` — `ExtractAudioFromVideo`, `MetadataExtractionService` and
+   `StorageAdapterHelper` each build their own, and only
+   `StorageAdapterHelper::createFFMpeg()` guards that both binaries exist and are
+   executable. Reuse that guarded resolution. Note it returns `null` under
+   `app()->environment('testing')`, so the probe must be injectable and the tests
+   must supply the duration rather than shell out.
+2. Persist the result at the metadata key `trim.observed_duration`, beside the
+   existing `trim.final_duration`. `final_duration` keeps its current meaning —
+   the planned sum — and must not be redefined in place, because the bounded
+   repair and the pass-status report already read it and a silent change of
+   meaning is unauditable. Expose it as a new
+   `MediaProcessingLog::observedSermonMediaDuration()`, distinct from the existing
+   `extractedSermonMediaDuration()`, and correct the latter's docblock to say it
+   is the planned sum.
+3. Pass that observed duration into fresh `SermonCreationOptions` through the
+   existing `duration:` parameter — `resolvedDuration()` already prefers an
+   explicit non-zero duration over the segment subtraction, so no new precedence
+   rule is needed. `ExtractSermon` runs immediately before `SubmitToProcessing` in
+   every livestream chain, so the value is on the log by creation time. Use it in
+   the existing-sermon refresh and in `HistoricVideoSermonDurationRepair`, which
+   currently reads `extractedSermonMediaDuration()` at two call sites.
+4. Keep segment start/end as source timestamps. Do not rewrite them into output-
    relative timestamps merely to make subtraction work.
-4. Add regression tests for a fresh concat sermon, an existing concat sermon, a
+5. Add regression tests for a fresh concat sermon, an existing concat sermon, a
    single span truncated by source EOF and idempotent banked repair. Stored and
-   FFprobe duration must differ by no more than 1.5 seconds.
-5. Repair all affected canary rows from their verified assets after deployment;
+   FFprobe duration must differ by no more than 1.5 seconds. Extend the existing
+   `tests/Integration/Jobs/ExtractSermonTest.php` and
+   `tests/Integration/Jobs/SubmitToProcessingTest.php` and the repair service's
+   own test rather than creating new files.
+6. Repair all affected canary rows from their verified assets after deployment;
    do not pay for new analysis.
 
 #### Finding M2 — sermon video storage is outside the operation-owned chain
@@ -804,6 +834,30 @@ needed it, producing two `Audio file not found` provider errors. The rows failed
 closed to `Visiting Speaker`, but these were system failures rather than genuine
 low-confidence decisions. The same detached work explains why a terminal-looking
 chain can strand a promotion tail.
+
+> **DECISION RECORDED 2026-08-31: keep `StoreSermonVideo` nested. Do not move it
+> into the serial chain.** Register it as tracked historic nested work, and await
+> it explicitly before the promotion and cleanup segment only — not before
+> transcription. This is the finding's own stated fallback, chosen deliberately:
+> it confines the change to the historic lane and leaves the live pipeline's
+> timing untouched, at the cost of slightly more work than reordering would take.
+> The three defects below are all reachable without moving the job: quality
+> assessment must distinguish "storage pending or retryable" from "video
+> genuinely absent"; cleanup must refuse while queued, active or retryable work
+> references a path; readiness must name the job's state.
+>
+> Superseded question, retained for context — whether `StoreSermonVideo` moves
+> into the serial chain or stays nested-and-registered. The finding presents this as a preference;
+> it is a fork with consequences outside the historic lane and an implementer must
+> not choose it alone.
+>
+> **Why it is not a historic-only question:** `SubmitToProcessing` dispatches this
+> job on *every* livestream run, not only historic ones, and the dispatch is
+> deliberately independent — the comment above it reads "so it does not block
+> audio processing". Moving it into the chain therefore changes the timing of the
+> live Sunday pipeline, where video storage would gate transcription and
+> everything after it. That blast radius must be accepted explicitly, not
+> discovered.
 
 Implementation and proof required:
 
@@ -831,44 +885,106 @@ broaden itself far enough to overwrite a possibly curated event title.
 
 The durable fix is provenance, not another permissive regular expression:
 
-1. Persist whether the incumbent title was generated from filename/service-slot
-   fallback or supplied by a curator/portable fact.
-2. Allow analysis to replace only a proven generated placeholder. Preserve the
-   current regex recogniser as a legacy fallback for rows predating provenance.
-3. Preserve curated titles and slugs. Re-slug only when the replaced title also
+1. Persist how the incumbent title was produced, in a new nullable
+   `sermons.title_provenance` column cast to a new
+   `App\Enums\SermonTitleProvenance` with three cases: `Generated` (filename or
+   service-slot fallback), `AiAnalysis` (supplied by banked analysis) and
+   `Curated` (an editor, a custom title or a portable/manifest fact). **Null means
+   unknown, not generated** — it is the state of every row predating this column,
+   and it must route to the legacy recogniser rather than to overwrite.
+   Do not reuse `TitleGenerationStrategy` for this: that enum records the strategy
+   *requested* at creation, and `AiWithFallback` cannot tell you whether the
+   result came from the model or from the fallback, which is the exact question
+   here.
+2. Set it at each of the three creation paths — `SermonCreationOptions::fromAudioUpload()`,
+   `fromVideoUpload()` and `fromLivestream()` — at the point the title is
+   *resolved* in `SermonCreationService`, not from the requested strategy.
+3. Allow analysis to replace the title only where provenance is `Generated`, or
+   where provenance is null **and** the existing `PlaceholderSermonTitle`
+   recogniser matches. Never overwrite `Curated`. Preserve the regex recogniser
+   unchanged as that legacy fallback; do not broaden it.
+4. Backfill nothing. Existing rows keep a null provenance deliberately, so
+   behaviour for them is exactly what it is today.
+5. Preserve curated titles and slugs. Re-slug only when the replaced title also
    generated the current slug.
-4. Test both canary shapes, a genuine curated date/event title, reruns and banked
-   repair with zero provider calls.
-5. Repair 898 and 899 only after their provenance is proven; do not treat their
+6. Test both canary shapes, a genuine curated date/event title, a null-provenance
+   legacy row that the regex does and does not match, reruns and banked repair
+   with zero provider calls.
+7. Repair 898 and 899 only after their provenance is proven; do not treat their
    current non-null text as editorial authority merely because it exists.
 
-#### Finding M4 — song videos have no complete historic custody model
+#### Finding M4 — the song custody model exists but the historic path does not use it
 
 The canary automatically created 23 `SongVideo` rows holding about 783 MiB. Every
 row has database `publication_state = published`, null
 `historic_import_operation_id`, and a path that resolves only through the current
-global sermon disk. `SongVideo` has no per-asset disk identity and historic
-promotion handles `Sermon`, not `SongVideo`. A further nine held song candidates
-occupy about 240 MiB under section-publication paths. These files explain a
-substantial and legitimate part of retained staging, but their present rows cannot
-prove durable ownership or survive a disk/configuration change.
+global sermon disk. A further nine held song candidates occupy about 240 MiB under
+section-publication paths. These files explain a substantial and legitimate part
+of retained staging, but their present rows cannot prove durable ownership or
+survive a disk/configuration change.
+
+**Scope correction (2026-08-31).** Most of the custody model is already built, so
+this is a wiring gap rather than a new subsystem. Migration
+`2026_08_10_090000_add_publication_quarantine_to_song_videos_table` already gives
+`song_videos` a `publication_state` column and a
+`historic_import_operation_id` foreign key, both in `SongVideo::$fillable`;
+`SongVideo::scopePubliclyReleased()` already gates reads on `published`; and
+`SongVideoService::url()` already calls `HistoricStagingUrlGuard::assertAllowed()`.
+What is genuinely missing is (a) a per-row `asset_disk`, the one new column, (b)
+population of the two existing columns on the historic publication path, and (c)
+promotion coverage — `HistoricAssetPromotion` iterates `Sermon` only. Do not build
+a parallel custody model, and do not migrate columns that already exist.
+
+**What this finding is not (2026-08-31).** This is a local custody-accounting
+defect, not a production-exposure risk, and it must not be implemented as though
+it were one. The canary ran in the local environment against the local database,
+so no row it created is reachable by a visitor. More importantly, the audience
+boundary cannot be crossed by an export even if these columns stay wrong:
+`HistoricNormalOutputContract` deliberately excludes `publication_state`,
+`asset_disk` and `historic_import_operation_id` from the portable contract for
+both `sermons` and `song_videos`, on the stated grounds that the audience
+boundary is a destination decision, and `HistoricMediaGraphPersister` sets
+`Quarantined` plus the destination's own disk on every sermon and song video it
+applies. A wrong `publication_state` here therefore cannot travel.
+
+What is actually harmed is byte accounting on the working volume — the bottleneck
+this whole pass is constrained by. A row that names neither its disk nor its
+operation cannot be attributed during a custody census, which is a direct cause of
+the unclassifiable residue in M8, and it cannot be promoted or safely reclaimed.
+That is the reason to fix it before a 454-identity run, and it is a sufficient
+reason on its own. Note also that the missing operation binding does not block
+export: `HistoricProcessingResultInventory` collects song videos by
+`service_section_id`, not by operation.
 
 Before bulk:
 
-1. Give `SongVideo` a durable asset-disk identity and populate its exact historic
-   operation ownership.
-2. Create historic song rows quarantined by default. Database `published` must
+1. Add the one missing column, `song_videos.asset_disk`, mirroring
+   `sermons.asset_disk`, and populate the existing
+   `historic_import_operation_id` on the historic publication path.
+2. Create historic song rows quarantined by default, using the
+   `publication_state` column that already exists. Database `published` must
    never describe a private staging-only historic asset.
-3. Resolve URLs from the recorded disk, subject to the same private-staging guard,
-   rather than whichever disk happens to be globally configured later.
-4. Promote release-eligible and review-held song assets create-only into private
-   quarantine, verify size/hash and database linkage, then reclaim only the
-   verified duplicate working copy.
+3. Resolve URLs from the recorded disk rather than whichever disk happens to be
+   globally configured later. Keep the existing `HistoricStagingUrlGuard` call;
+   it is the private-staging guard this depends on.
+4. Extend `HistoricAssetPromotion` to song assets: promote release-eligible and
+   review-held clips create-only into private quarantine, verify size/hash and
+   database linkage, then reclaim only the verified duplicate working copy.
+   `PrepareSectionPublicationCandidates` already runs before
+   `PromoteHistoricAssets` in the livestream chain, so the assets exist by the
+   time promotion runs and no chain reordering is required.
 5. Backfill the 23 canary rows and account for the nine held candidates without
-   making anything public. The migration must follow expand/contract because the
-   existing code and rows already lack this identity.
+   making anything public. Only the new `asset_disk` column needs
+   expand/contract; the existing columns need backfill, not migration.
 6. Test create, retry, conflicting destination, partial failure, cleanup refusal,
-   URL resolution and idempotent canary repair.
+   URL resolution and idempotent canary repair. Put the promotion coverage beside
+   the existing `tests/Integration/Services/HistoricMedia/` suite.
+7. Name the canary backfill command `historic-import:repair-video-song-custody`,
+   class `RepairHistoricVideoSongCustodyCommand`, mirroring the two commands that
+   already exist — `RepairHistoricVideoSermonDurationsCommand` and
+   `RepairHistoricVideoPilotCustodyCommand`. Match their option surface exactly:
+   `--operation`, repeatable `--processing-id`, dry run by default, `--apply`
+   with `--yes` to act. Do not invent a different confirmation convention.
 
 #### Finding M5 — song publication needs a song-specific boundary gate
 
@@ -879,6 +995,13 @@ content and form the mandatory regression/review set: 894, 881, 884, 862, 824,
 `O Church Arise` asset contains roughly 29 seconds of spoken introduction and
 roughly 29 seconds of the following benediction. Section 907 retains about 27
 seconds after the singing. Several others retain 14–25 seconds of introduction.
+
+Read this with M4's scope note: song boundaries are an output-quality and
+rework-cost problem, not a publication-safety one. The destination applies its own
+quarantine on import and release is a separately authorised act, so a clip with a
+ragged edge cannot reach the public by inattention. Build the boundary evidence
+and the review routing; do not add a second safety gate to duplicate one the
+contract already enforces.
 
 This does **not** imply that the sermon must be cut at the same point. Sermon and
 song are different editorial products and may legitimately overlap in source
@@ -893,19 +1016,88 @@ time. Apply the following asymmetric policy:
   following items merged into the sermon, or an unusually long tail corroborated
   by non-duration evidence. A duration threshold may be a configurable guard but
   must never be the sole authority for a cut or review hold.
+  **Clarification (2026-08-31).** This does not condemn the existing
+  `max_sermon_duration_seconds` ceiling in
+  `SermonExtractionPlanResolver::resolveSermonEnd()`, which drops the absorbed
+  trailing sections when they would take the span past the plausible ceiling.
+  That guard never truncates detected sermon material: it declines to *extend*
+  the span and falls back to the sermon section's own end, so its failure mode is
+  a slightly short tail rather than a cut into the preaching. It exists to catch
+  under-segmentation, where a single "section" has swallowed the rest of the
+  service. Keep it. The rule above forbids using duration alone to cut into
+  material the detector attributed to the sermon, or to raise a review hold —
+  not this bounded refusal to absorb.
+> **DECISION RECORDED 2026-08-31: do not derive tighter song intervals before
+> bulk.** Keep the inclusive candidate, record the boundary evidence on the
+> section, and route only the material-risk classes to review. Sequence the
+> interval work after bulk: a measurement pass over the existing corpus first,
+> the heuristic second.
+>
+> **The evidence needed to design it survives cleanup**, which is what makes
+> deferral safe. `service_transcript_path` is deliberately excluded from
+> `MediaProcessingLog::temporaryFilePaths()` and `rms_log_path` was never in it,
+> so the timed transcript and the energy log outlive the run even though the media
+> does not. Only the eventual recut needs media back.
+>
+> **What the target actually is, when it is built (corrected 2026-08-31).** Not
+> "where does the singing start" — *where does the speech stop*. The musical
+> introduction and outro belong in the song clip; the spoken framing ("now we're
+> going to sing") does not. The cut therefore lands between the end of the spoken
+> framing and the resumption of words, and both error directions are benign:
+> slightly early keeps a second of speech, slightly late sits inside the
+> instrumental introduction.
+>
+> **Anchor the cut on the wordless gap, not on lyric recognition.** A first draft
+> of this spec proposed identifying the first cue whose text matches the matched
+> song's lyrics. Do not build that. Measured over every matched song section in
+> this database, the evidence source breaks down as `title_hint_fuzzy` 84,
+> `ocr` 46, `title_hint_canonical` 39, `title_hint_first_line` 8 — and
+> **`lyrics` zero**. Transcript-lyric matching is the last of three fallbacks in
+> `MatchSongsFromTranscript` (title hint, then OCR, then transcript lyrics), so it
+> is consulted only on sections the first two could not identify, and on every
+> such occasion it also returned nothing: those sections are the corpus's eleven
+> `unmatched` rows. There is no evidence in this corpus that lyric recognition
+> from a sung transcript works, which is consistent with how the transcriber
+> handles singing. A cut anchored on it would misclassify a garbled sung cue as
+> speech and trim into the song's opening line.
+>
+> Use the structure instead. Words produce cues; an instrumental introduction
+> produces none. Near the section start the shape is: spoken cues, then a gap with
+> no cues, then cues resume. Cut in that gap — no judgement about *what* the
+> resuming words are is required. Corroborate with the RMS log, which separates a
+> music-under-no-speech gap from dead air or a scene change. Bound the trim to a
+> configured maximum (the canary's spoken framing ran 14–29 seconds), and if the
+> first wordless gap falls beyond it, keep the inclusive clip and review. If the
+> transcriber hallucinates text across the introduction there is no gap, which
+> fails closed to the inclusive clip — the correct outcome.
+>
+> The inputs already exist and survive cleanup: the stored service transcript is
+> `{"cues":[{"start","end","text"}]}` and the RMS log is not in
+> `temporaryFilePaths()`.
+>
+> An earlier draft of this finding asked for a "defensible inner performance
+> interval derived from positive evidence" and judged the risk asymmetric on the
+> grounds that a mistimed cut clips a first line. That framing was wrong and is
+> superseded by the paragraphs above.
+
 - For the song video, the releaseable product should be the singing/performance,
   not an unrelated announcement, sermon conclusion, benediction or next item.
-  Derive a defensible inner performance interval from positive evidence, or keep
-  the existing inclusive candidate but route it to review. Never guess a tighter
-  destructive cut from title text or one transcript phrase.
+  Before bulk this means keeping the existing inclusive candidate and routing the
+  material-risk cases to review; interval derivation is deferred by the decision
+  above. Never guess a tighter destructive cut from title text or one transcript
+  phrase.
 - A matched song identity and ordinary duration do not prove clean boundaries.
   Record why the interval is release-eligible, including the evidence for its
   start and end, so an intentionally short song can still pass.
 
 Of the 12 canary services that produced sermon sections, ten had no trailing
 `other` section. The other two retained spoken bridges of approximately 44 and 11
-seconds. Both are acceptable inclusive sermon outputs under this policy and add
-zero sermon-boundary reviews. Treating either ambiguity as a hold would create a
+seconds. Both were inspected in the media evaluation and read as sermon
+conclusions rather than as separate following items, so both are acceptable
+inclusive sermon outputs under this policy and add zero sermon-boundary reviews.
+That is a judgement on two observed cases, not a measured corpus-wide rate: it is
+sufficient to reject a blanket review gate on cost grounds, and it is not
+evidence that every ambiguous tail in the remaining corpus will read as well. Treating either ambiguity as a hold would create a
 16.7% canary review rate and is explicitly rejected as too costly before a
 hundreds-of-services run. This does not relax any independent review reason, and
 it does not change the existing mandatory approval policy for children's talks.
@@ -921,11 +1113,68 @@ duration alone cannot create either a destructive sermon cut or a review hold.
 #### Finding M6 — inferred song eligibility does not enforce its stated confidence
 
 `SongPublicationHandler::isEligible()` documents a high-confidence inferred match
-but accepts every inferred match with a linked song. The link alone is
-insufficient. Apply the existing configured confidence/corroboration policy and
-route anything below it to review. Tests must cover below, exactly at and above
-the threshold, plus confirmed and independently corroborated paths. Do not encode
-the threshold a second time in the handler.
+but accepts every inferred match with a linked song: it tests
+`hasInferredSongMatch()` — a bare enum equality — and a non-null
+`churchServiceItem->song_id`. The link alone is insufficient.
+
+> **DECISION RECORDED 2026-08-31: add no threshold and no config key. Make
+> `Inferred` ineligible for automatic publication and route it to
+> `SongPublicationReviewPolicy` as a named doubt.**
+>
+> `Inferred` *is already the threshold decision*, applied upstream at match time.
+> `MatchSongsFromTranscript::applyMatch()` sets
+> `$writeCatalogueTitle = $confidence >= $writebackThreshold && ! $markerMismatch`
+> and labels the section `Confirmed` when that holds and `Inferred` when it does
+> not. The enum says the same in its own description: "the transcript suggested
+> this catalogue match below the confidence required to trust it without review."
+> Re-testing confidence in the publication handler would re-apply a test that has
+> already been applied.
+>
+> **A confidence gate would be actively harmful here, not merely redundant.** The
+> canary's inferred sections carrying a confidence value score 0.95–1.00, because
+> they were labelled `Inferred` by the *marker mismatch* half of the condition,
+> not the confidence half — the section's own title contradicts the match. A
+> confidence threshold would wave through exactly the rows the label exists to
+> warn about. The code already says so: "Confidence cannot arbitrate a naming the
+> detector already contradicted itself on: both observed mismatches scored 0.98
+> and 1.000."
+>
+> This also disposes of the seven inferred sections that carry no
+> `transcript_song_match` metadata at all, five of which have a linked `song_id`
+> and are therefore eligible today. They need no null-handling branch: they are
+> held because they are `Inferred`, like everything else in the class.
+>
+> **Not a bulk blocker.** No inferred match has ever produced a `SongVideo` — all
+> 106 song videos with a match type are `Confirmed`, at 0.95–1.00. This is a
+> latent guard, worth closing cheaply, sequenced whenever convenient.
+>
+> Superseded, retained for context — the earlier draft said to reuse an existing
+> configured confidence policy. **No such policy exists.** An earlier draft said to "apply the existing configured
+> confidence/corroboration policy" and not to "encode the threshold a second
+> time". There is no song-publication threshold in config. What exists is
+> `media-processing.song_matching.title_writeback_min_confidence` (0.75), which
+> decides whether to *display* the catalogued title in `MatchSongsFromTranscript`,
+> and `media-processing.section_publishing.require_high_confidence`, a boolean
+> read only by the children's-talk handler. **Reusing the 0.75 title threshold for
+> a publication decision would be wrong** — it governs naming, not release — and
+> it is the nearest plausible-looking key, so say so explicitly rather than
+> leaving an implementer to find it.
+>
+> **What must be decided:** the config key name, its default value, and whether
+> corroboration can substitute for confidence below the threshold.
+>
+> **What already exists to build on:** the match confidence is persisted per
+> section at `metadata.transcript_song_match.confidence`, written by
+> `MatchSongsFromTranscript::applyMatch()`, so the value is available and no new
+> plumbing is needed. `SongPublicationReviewPolicy` is the right home — it already
+> names short, adjacent-duplicate and uncorroborated-partial doubts, and this is a
+> fourth doubt of the same kind, not a new gate.
+
+Hold, do not reject: an inferred match reaches a person with its doubt recorded,
+like every other reason in `SongPublicationReviewPolicy`. Tests must cover an
+inferred match with high confidence and a marker mismatch, an inferred match with
+no confidence metadata at all, and a confirmed match that still publishes
+automatically. Do **not** reintroduce a threshold comparison in the handler.
 
 #### Finding M7 — children's-talk safety is sound, but boundaries create scale risk
 
@@ -942,6 +1191,129 @@ when the reviewer decides it is separate. Improve section evidence where possibl
 but keep mandatory approval. This is a manual-work and output-quality risk at bulk
 scale, not an unsafe automatic-publication defect while that gate remains.
 
+#### Finding M9 — a flagged run's source is deleted before anyone can review it
+
+M5 and M7 both end in "hold it for review, and recut it if the reviewer decides
+the tail is separate". Neither is executable today, because the media is gone by
+the time a reviewer opens the item.
+
+`CleanupTemporaryFiles` runs last in the same chain and deletes every path in
+`MediaProcessingLog::temporaryFilePaths()` unconditionally — `source_file_path`,
+`enhanced_audio_file_path`, `extracted_segment_path`, `extracted_audio_path` and
+`temp_video_path`. `sermons:re-extract` detects the absence and refuses by name
+rather than failing inside FFmpeg, and the import command rejects `--force` on an
+operation-bound identity, so reprocessing is not an escape either. What survives a
+completed run is the service sections, the service transcript (deliberately
+excluded from cleanup), the RMS log and the published assets — everything except
+the one thing a recut needs.
+
+For historic imports the original recording is permanent on the archive drive, so
+a source can in principle be rebuilt with the byte-identical
+`ffmpeg -f concat -c copy` restaging recipe. That is an operator procedure per
+item, not a review workflow, and it does not scale to a hundreds-of-services run
+whose whole point is to leave a reviewable backlog behind it.
+
+**Decision (2026-08-31): retain the source where the run leaves something flagged
+for review.** Cleanup becomes conditional rather than unconditional:
+
+1. At cleanup time, ask whether this run leaves any unresolved review or approval
+   obligation. The predicate is exactly these four, all of which exist today and
+   none of which depends on unbuilt work:
+   - a `ServiceSection` in `ServiceSectionPublicationStatus::PendingApproval`
+     (every children's talk reaches this by mandatory approval, and every song
+     clip held by `SongPublicationReviewPolicy` does too);
+   - a section with `needs_manual_review` set;
+   - a `SermonVideoQualityStatus::NeedsReview` verdict on the run; or
+   - a run whose own status ended in manual review.
+   If any holds, retain `source_file_path` and skip only that deletion.
+   **Deliberately not in the predicate:** M5's material-risk sermon boundary
+   class. It does not exist yet, and M9 must not block on it. When M5's pre-bulk
+   half lands, its review routing will set one of the flags above, so the
+   predicate picks it up with no change here. Do not add a fifth trigger that
+   anticipates it.
+2. Retention is bounded by resolution, not by a clock. When the last obligation
+   on a run is approved, rejected or published, the retained source becomes
+   reclaimable and a sweep deletes it. A run with nothing flagged cleans up
+   exactly as it does today, so the common case costs nothing.
+3. Retention must be measured, not assumed free. `temp_disk` pressure is the
+   known bottleneck, so the pass-status measures must report retained-for-review
+   bytes as their own line beside peak working, promoted, retained and residue,
+   and the headroom check must count them before dispatching more work.
+4. The retained source is a working copy, not a durable asset. It stays on the
+   working disk under the run's own key, is never promoted into quarantine, and
+   is never addressable over HTTP.
+5. Because sources now outlive their run, cleanup gains a second obligation: it
+   must never delete a retained source that a queued, active or retryable job
+   still references. This is the same ordering requirement as M2 and should reuse
+   whatever that finding builds rather than inventing a second reachability rule.
+
+Implementation and proof required: a run with no flagged item deletes its source
+exactly as today; a run with a held children's talk, a held song clip and a
+material-risk sermon boundary each retain it; resolving the last obligation makes
+it reclaimable and the sweep deletes it; a second sweep is a no-op; the retained
+bytes appear in the measures and in the headroom decision; and `sermons:re-extract`
+succeeds against a retained source without restaging. Note that re-extraction is
+still the sanctioned repair — the detector is not deterministic across passes, so
+a recut must reuse the existing sections rather than reprocess.
+
+This finding is a prerequisite for M5 and M7 rather than an independent
+improvement.
+
+**Correction (2026-08-31) on how urgent it is.** An earlier draft called this the
+one item bulk makes irreversible. That is wrong in every lane. Cleanup deletes the
+*working copy* under the processing key, never anyone's master: the archive drive
+holds every historic original permanently, and an ordinary run's source still
+exists wherever it was uploaded from. Nothing here is data loss. The honest case
+for doing this before bulk is cost and workflow — a hundreds-of-services run that
+leaves a review backlog with no local media turns every subsequent correction into
+a manual restage. Weigh it as such, and note that the artefacts needed to *analyse*
+a boundary (the timed service transcript and the RMS log) survive cleanup already;
+it is only the recut that needs media back.
+
+#### Finding M10 — the direct lane creates historic sermons `published`
+
+`sermons.publication_state` defaults to `Published` in
+`2026_08_09_223000_add_publication_quarantine_to_sermons_table`, and the direct
+processing lane never overrides it at creation. A historic sermon is therefore
+born `published` with a null `asset_disk`, and is *demoted* to `Quarantined` only
+when `HistoricAssetPromotion::bindToQuarantine()` runs at the end of the chain.
+Sermon 896 is the canary's instance: a valid 1,967.030-second staging video, null
+disk and operation ownership, `published` state, because its run never reached
+promotion.
+
+This is the same wiring gap M4 records for `SongVideo`, on the sermon side, and
+the bundle lane already does it correctly — `HistoricMediaGraphPersister` creates
+its sermons `Quarantined` with `asset_disk` set. The direct lane is the outlier.
+
+**Bounded like M4: this is custody accounting, not exposure.** The canary runs
+locally, and `HistoricNormalOutputContract` excludes `publication_state`,
+`asset_disk` and `historic_import_operation_id` from the portable contract, so a
+wrong state here cannot travel to a destination. What it does is leave rows that
+name neither their disk nor their operation for the whole length of a run, which
+is unattributable during a census and indistinguishable from a genuine
+publication if the run strands. With M2 making stranded tails a known reachable
+state, that window is not theoretical.
+
+Implementation and proof required:
+
+1. Create quarantined at insert on the direct lane when the run is historic. The
+   predicate is `MediaProcessingLog.historic_import_operation_id` being non-null;
+   set `publication_state` to `Quarantined`, `asset_disk` to the staging disk the
+   run is writing to, and the operation id, at the same moment the sermon row is
+   created.
+2. Leave the column default alone. An ordinary upload or livestream must keep
+   creating `Published` sermons; this narrows to the historic predicate only.
+3. Promotion keeps its current job — rebinding `asset_disk` from staging to
+   quarantine — and must become a no-op with respect to `publication_state`,
+   which is already correct by then. Verify it stays idempotent for rows created
+   before this change, which arrive `published` and must still be demoted.
+4. Test a historic run that strands before promotion (the row must be quarantined
+   and disk-bound throughout), a historic run that completes, an ordinary
+   livestream that must remain `published`, and promotion replay over both a
+   pre-change and post-change row.
+5. Repair sermon 896 through the existing recovery path in the operator sequence;
+   no separate command is needed.
+
 #### Finding M8 — current canary state still needs exact reconciliation
 
 The post-evaluation status remains 11 completed, one manual review, one failed and
@@ -950,15 +1322,21 @@ one in progress. The corrected scoped measures report 50.46 GiB peak working,
 accounted by runs, and 4.41 GiB held in quarantine. The non-zero difference still
 requires a path census; the labels above are not permission to delete it.
 
-Canary-specific repairs after M1–M7 are implemented:
+Canary-specific repairs after M1–M7, M9 and M10 are implemented:
 
 - recover `2024-03-03-morning` processing
   `127173a4-4a90-4ec7-8f0a-2184a04db4e6`; sermon 896 currently has a valid
   1,967.030-second staging video but null disk/operation ownership and a published
   state;
-- re-extract sermon 893 from a freshly verified operation-owned source, or hold it
-  explicitly: its surviving 1,128.645-second asset does not represent the current
-  2,168-second concat plan;
+- re-extract sermon 893 from a freshly verified operation-owned source, or hold
+  it explicitly: its surviving 1,128.645-second asset does not represent the
+  current 2,168-second concat plan. Establish which is possible before committing
+  to the repair: its run has completed, so under M9's predecessor behaviour its
+  source was deleted and `sermons:re-extract` will refuse by name. If the source
+  is gone, rebuild it with the byte-identical `ffmpeg -f concat -c copy` restaging
+  recipe against the archive-drive original, writing to the exact
+  `source_file_path` the log records under the batch root, and verify the
+  rebuilt duration against the structure's last section end before recutting;
 - repair the duration rows enumerated in M1 from observed media duration;
 - repair titles 898 and 899 from banked analysis only after provenance proves the
   incumbent is generated;
@@ -986,6 +1364,8 @@ Start from these existing seams; do not create a parallel historic pipeline:
 | M4 song custody | `app/Models/SongVideo.php`, `app/Services/Song/SongVideoService.php`, `app/Services/HistoricMedia/HistoricAssetPromotion.php`, filesystem schema/migrations, custody census and cleanup | Historic create/promote/resolve/retry/conflict/cleanup plus exact canary backfill replay. |
 | M5–M6 song gate | `app/Services/ChurchService/SectionPublication/SongPublicationHandler.php`, song matching/write-back, sermon/section publication candidate preparation | The boundary fixtures named in M5, including no sermon hold for the short ambiguous bridge, and threshold/corroboration cases in M6. Do not add a separate model call or blanket sermon-review rule. |
 | M7 talk review | sermon section publication handler, section candidate preparation and the existing approval/re-extraction path | Inclusive ambiguous tail remains private; reviewed recut is exact and idempotent. |
+| M10 historic sermon quarantine | `app/Services/Sermon/SermonCreationService.php`, `app/Jobs/SubmitToProcessing.php`, `app/Services/HistoricMedia/HistoricAssetPromotion.php` | Stranded historic run stays quarantined and disk-bound; ordinary livestream still publishes; promotion replay idempotent over pre- and post-change rows. |
+| M9 review-source retention | `app/Jobs/CleanupTemporaryFiles.php`, `app/Models/MediaProcessingLog.php` (`temporaryFilePaths()`), `app/Services/HistoricMedia/HistoricVideoPassMeasures.php`, `HistoricStagingHeadroom`, the reclamation sweep and `sermons:re-extract` | Unflagged run cleans up as today; each flagged shape retains its source; resolution makes it reclaimable and the sweep is idempotent; retained bytes appear in measures and headroom. |
 
 Inspect sibling tests before adding new ones. Keep PHPUnit `#[Test]` style and the
 repository's existing historic operation factories/helpers. A reported defect
@@ -994,9 +1374,18 @@ duplicate admin suites named in the repository do-not-invest list.
 
 #### Required operator sequence
 
-1. Implement M1–M7 with focused regression coverage. Run PHPStan, Pint and the
-   full parallel suite. Do not deploy only the row-repair commands while the
-   forward pipeline can recreate the same defects.
+1. Implement M1–M7, M9 and M10 with focused regression coverage. Run PHPStan, Pint
+   and the full parallel suite. Do not deploy only the row-repair commands while
+   the forward pipeline can recreate the same defects. M9 gates M5 and M7: do not
+   ship a review hold whose media the same chain then deletes.
+   **The M2, M5 and M6 decisions are recorded in their findings as of
+   2026-08-31; no open decision blocks remain.** M6 shrank to making `Inferred`
+   ineligible, and is not a bulk blocker. M5's interval work is deferred until
+   after bulk, so the pre-bulk song work is boundary evidence and review routing
+   only. M1, M3 and M4 are
+   specified to the level of exact columns, keys, commands and test files and may
+   be picked up as they stand. M9's retention predicate depends on M5's
+   material-risk definition, so settle M5 first.
 2. Deploy that exact tree and restart every historic worker so the dispatcher,
    jobs, nested-work tracking and repair commands share one fingerprint.
 3. From `historic-import:video-pass-status`, retain the exact processing ID for
@@ -1094,14 +1483,24 @@ The remainder may start only when all of these are true:
   ordered operation-owned sequence; M2 remains outstanding.
 - [ ] Historic song videos are operation-bound, quarantined, disk-identifiable and
   create-only/hash-verified before staging cleanup; M4 remains outstanding.
-- [ ] Automatically published song clips have defensible performance boundaries,
-  and inferred matches enforce the configured confidence/corroboration policy;
-  M5 and M6 remain outstanding.
+- [ ] Automatically published song clips carry recorded boundary evidence and the
+  material-risk cases route to review; tighter interval derivation is deferred
+  until after bulk by decision, so it is not a gate. M5's pre-bulk half remains
+  outstanding.
+- [ ] `Inferred` song matches no longer publish automatically and reach the review
+  policy with their doubt named; M6 remains outstanding but does not block bulk —
+  no inferred match has ever produced a `SongVideo`.
 - [ ] Short ambiguous/interwoven sermon endings are preserved inclusively without
   creating a review hold; affirmative separate-item evidence may stop them, and
   only material-risk boundary evidence routes a sermon to review.
 - [ ] Children's-talk endings are preserved inclusively, their tail evidence is
   surfaced, and the existing mandatory approval remains in force.
+- [ ] Historic sermons are created quarantined and disk-bound by the direct lane,
+  not demoted at promotion; M10 remains outstanding.
+- [ ] A run that leaves anything flagged for review retains its source until the
+  last obligation is resolved, the retained bytes are measured and counted
+  against headroom, and a recut can run without restaging; M9 remains
+  outstanding.
 - [x] Production and command paths no longer require, read or write the internal cost cap/ledger; inert schema deletion is assigned to IC8 closeout, while model/token/request telemetry, retry controls and the provider-side project limit remain.
 - [x] Unmeasurable staging capacity fails closed unless sufficient operation-bound host evidence is supplied.
 - [x] A content-read I/O failure aborts further dispatch as a stale-mount event.
