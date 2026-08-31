@@ -5,15 +5,18 @@ declare(strict_types=1);
 namespace Tests\Integration\Jobs;
 
 use App\Enums\ProcessingStatus;
+use App\Enums\ServiceSectionPublicationStatus;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\StoreSermonVideo;
 use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
 use App\Models\SermonProcessingStep;
+use App\Models\ServiceSection;
 use App\Services\Media\Video\VideoStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
@@ -44,6 +47,82 @@ class CleanupTemporaryFilesTest extends TestCase
 
         $log->refresh();
         $this->assertEquals('completed', $log->status->value);
+    }
+
+    #[Test]
+    #[DataProvider('reviewSourceRetentionCases')]
+    public function it_retains_the_source_for_each_current_review_signal(
+        ProcessingStatus $status,
+        string $currentStep,
+        ?array $sectionAttributes,
+        ?array $processingMetadata,
+    ): void {
+        $sourcePath = 'temp/source-video.mp4';
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'status' => $status,
+            'current_step' => $currentStep,
+            'source_file_path' => $sourcePath,
+            'enhanced_audio_file_path' => 'temp/enhanced-audio.mp3',
+            'processing_metadata' => $processingMetadata,
+        ]);
+
+        if ($sectionAttributes !== null) {
+            ServiceSection::factory()->create([
+                'media_processing_log_id' => $log->id,
+                ...$sectionAttributes,
+            ]);
+        }
+
+        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage->expects($this->once())
+            ->method('cleanupTemporaryFiles')
+            ->with($this->callback(static function (array $files) use ($sourcePath): bool {
+                return ! in_array($sourcePath, $files, true)
+                    && in_array('temp/enhanced-audio.mp3', $files, true);
+            }));
+
+        Log::shouldReceive('info')->atLeast()->once();
+
+        (new CleanupTemporaryFiles($log))->handle($mockStorage);
+
+        $expectedStatus = $status === ProcessingStatus::Failed
+            ? ProcessingStatus::Failed
+            : ProcessingStatus::Completed;
+
+        $this->assertSame($expectedStatus, $log->fresh()->status);
+    }
+
+    /**
+     * @return array<string, array{ProcessingStatus, string, array<string, mixed>|null, array<string, mixed>|null}>
+     */
+    public static function reviewSourceRetentionCases(): array
+    {
+        return [
+            'pending section approval' => [
+                ProcessingStatus::Completed,
+                'completed',
+                ['publication_status' => ServiceSectionPublicationStatus::PendingApproval],
+                null,
+            ],
+            'section manual review flag' => [
+                ProcessingStatus::Completed,
+                'completed',
+                ['needs_manual_review' => true],
+                null,
+            ],
+            'video quality needs review' => [
+                ProcessingStatus::Completed,
+                'completed',
+                null,
+                ['video_quality' => ['status' => 'needs_review']],
+            ],
+            'run manual review status' => [
+                ProcessingStatus::Failed,
+                'manual_review_required',
+                null,
+                null,
+            ],
+        ];
     }
 
     #[Test]

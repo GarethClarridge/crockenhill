@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
+use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
+use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\DetectServiceStructure;
 use App\Jobs\ExtractSermon;
 use App\Jobs\TranscribeFullService;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\Media\Video\VideoStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Storage;
@@ -98,6 +101,32 @@ class ReExtractSermonCommandTest extends TestCase
         });
         Bus::assertNotDispatched(DetectServiceStructure::class);
         Bus::assertNotDispatched(TranscribeFullService::class);
+    }
+
+    #[Test]
+    public function it_reextracts_from_a_source_retained_for_a_review_obligation_without_restaging(): void
+    {
+        Bus::fake();
+
+        $log = $this->completedRunWithTrailingPrayer();
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::ChildrensTalk,
+            'section_order' => 1,
+            'start_time' => 100.0,
+            'end_time' => 140.0,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval,
+        ]);
+
+        (new CleanupTemporaryFiles($log))->handle(app(VideoStorageService::class));
+
+        Storage::disk('local')->assertExists((string) $log->source_file_path);
+
+        $this->artisan('sermons:re-extract', ['processing_id' => $log->processing_id, '--yes' => true])
+            ->expectsOutputToContain('Re-extraction dispatched')
+            ->assertExitCode(0);
+
+        Bus::assertDispatched(ExtractSermon::class);
     }
 
     private function completedRunWithTrailingPrayer(bool $withSource = true): MediaProcessingLog

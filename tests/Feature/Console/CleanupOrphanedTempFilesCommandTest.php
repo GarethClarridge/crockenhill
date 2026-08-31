@@ -98,6 +98,28 @@ class CleanupOrphanedTempFilesCommandTest extends TestCase
     }
 
     #[Test]
+    public function it_does_not_delete_a_completed_run_source_when_video_quality_needs_review(): void
+    {
+        Storage::fake('local');
+
+        $filePath = 'temp/video-processing/quality-review.mp4';
+        Storage::disk('local')->put($filePath, 'video content');
+        touch(Storage::disk('local')->path($filePath), now()->subHours(48)->timestamp);
+
+        MediaProcessingLog::factory()->completed()->create([
+            'source_file_path' => $filePath,
+            'processing_metadata' => [
+                'video_quality' => ['status' => 'needs_review'],
+            ],
+        ]);
+
+        $this->artisan('media:cleanup-temp-files', ['--hours' => 1])
+            ->assertSuccessful();
+
+        Storage::disk('local')->assertExists($filePath);
+    }
+
+    #[Test]
     public function it_does_not_delete_files_referenced_by_started_logs(): void
     {
         Storage::fake('local');

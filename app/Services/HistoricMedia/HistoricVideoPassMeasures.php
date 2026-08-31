@@ -19,20 +19,20 @@ use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 /**
- * The four byte measures Phase 5 requires the canary to report.
+ * The byte measures Phase 5 and M9 require the canary to report.
  *
  * Peak working bytes, bytes promoted to private quarantine, bytes retained on
- * staging after promotion, and unexplained residue. Together they are what
+ * staging after promotion, retained review sources, and unexplained residue. Together they are what
  * decides whether the operation needs specialised reclamation at all: the plan's
  * §2.1 capacity premise turned out to be a `df` artefact, so no reclamation
  * architecture should be built until measured residue justifies one.
  *
- * Two of the measures are database-owned and two are observed:
+ * Two of the measures are database-owned and three are observed:
  *
  * - `promoted_bytes` and `peak_working_bytes` are summed and maximised from what
  *   {@see HistoricAssetPromotion} recorded on each run. They cannot disagree
  *   with what the operation actually did.
- * - `staging_retained_bytes` and `quarantine_bytes` are walked live, because the
+ * - `staging_retained_bytes`, `review_source_retained_bytes` and `quarantine_bytes` are walked live, because the
  *   question they answer is what is on the disk *now*, which no record can be
  *   trusted to know.
  *
@@ -61,6 +61,7 @@ class HistoricVideoPassMeasures
      *     reclaimed_bytes: int,
      *     peak_working_bytes: int,
      *     staging_retained_bytes: int,
+     *     review_source_retained_bytes: int,
      *     staging_accounted_bytes: int,
      *     unexplained_residue_bytes: int,
      *     quarantine_bytes: int
@@ -97,6 +98,7 @@ class HistoricVideoPassMeasures
      *     reclaimed_bytes: int,
      *     peak_working_bytes: int,
      *     staging_retained_bytes: int,
+     *     review_source_retained_bytes: int,
      *     staging_accounted_bytes: int,
      *     unexplained_residue_bytes: int,
      *     quarantine_bytes: int
@@ -131,6 +133,10 @@ class HistoricVideoPassMeasures
         $selectedPaths = $this->accountedStagingPaths($runs, $stagingContext);
         $accountedBytes = $this->bytesAtPaths($stagingSizes, $selectedPaths);
         $retainedBytes = $itemKeys === [] ? array_sum($stagingSizes) : $accountedBytes;
+        $reviewSourceRetainedBytes = $this->bytesAtPaths(
+            $stagingSizes,
+            $this->reviewSourceStagingPaths($runs, $stagingContext),
+        );
         $operationAccountedBytes = $this->bytesAtPaths(
             $stagingSizes,
             $this->accountedStagingPaths($operationRuns, $stagingContext),
@@ -143,6 +149,7 @@ class HistoricVideoPassMeasures
             'reclaimed_bytes' => $reclaimedBytes,
             'peak_working_bytes' => $peakWorkingBytes,
             'staging_retained_bytes' => $retainedBytes,
+            'review_source_retained_bytes' => $reviewSourceRetainedBytes,
             'staging_accounted_bytes' => $accountedBytes,
             'unexplained_residue_bytes' => max(0, array_sum($stagingSizes) - $operationAccountedBytes),
             'quarantine_bytes' => $this->quarantineBytes($runs, $itemKeys === [], $stagingContext),
@@ -322,6 +329,41 @@ class HistoricVideoPassMeasures
 
             foreach ($this->sectionCandidateStagingPaths(collect([$run]), $stagingContext) as $path) {
                 $paths[] = $path;
+            }
+        }
+
+        return array_values(array_unique($paths));
+    }
+
+    /**
+     * Sources that are still retained because their run has an unresolved
+     * review or approval obligation. These paths are a subset of accounted
+     * staging paths and must not be counted twice in the custody total.
+     *
+     * @param  Collection<int, MediaProcessingLog>  $runs
+     * @return list<string>
+     */
+    private function reviewSourceStagingPaths(
+        Collection $runs,
+        HistoricStagingContext $stagingContext,
+    ): array {
+        $paths = [];
+
+        foreach ($runs as $run) {
+            if (! $run->hasUnresolvedReviewObligation()) {
+                continue;
+            }
+
+            $sourcePath = $run->source_file_path;
+
+            if (! is_string($sourcePath)) {
+                continue;
+            }
+
+            $normalizedPath = $this->pathWithinActiveStaging($sourcePath, $stagingContext);
+
+            if ($normalizedPath !== null) {
+                $paths[] = $normalizedPath;
             }
         }
 

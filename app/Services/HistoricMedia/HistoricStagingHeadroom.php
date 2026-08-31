@@ -42,11 +42,12 @@ class HistoricStagingHeadroom
      *     concurrent_working_bytes: int,
      *     concurrent_transient_bytes: int,
      *     configured_worker_widths: array<string, int>,
+     *     review_source_retained_bytes: int,
      *     minimum_free_bytes: int,
      *     required_free_bytes: int
      * }
      */
-    public function report(array $workItems, int $minimumFreeGb): array
+    public function report(array $workItems, int $minimumFreeGb, int $reviewSourceRetainedBytes = 0): array
     {
         $sizes = array_map(static fn (array $item): int => (int) ($item['bytes'] ?? 0), $workItems);
         rsort($sizes);
@@ -80,6 +81,7 @@ class HistoricStagingHeadroom
             'concurrent_working_bytes' => $concurrent,
             'concurrent_transient_bytes' => $concurrent,
             'configured_worker_widths' => $workerWidths,
+            'review_source_retained_bytes' => max(0, $reviewSourceRetainedBytes),
             'minimum_free_bytes' => $minimumFreeBytes,
             'required_free_bytes' => $minimumFreeBytes + $selectedUnstagedInputBytes + $concurrent,
         ];

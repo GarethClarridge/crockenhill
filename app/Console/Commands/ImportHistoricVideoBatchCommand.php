@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Models\HistoricImportOperation;
 use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\HistoricMedia\HistoricStagingHeadroom;
+use App\Services\HistoricMedia\HistoricVideoPassMeasures;
 use App\Services\Import\HistoricImportProductionGuard;
 use App\Services\Media\Video\HistoricVideoCurationManifest;
 use App\Services\Media\Video\HistoricVideoImporter;
@@ -56,6 +57,7 @@ class ImportHistoricVideoBatchCommand extends Command
         HistoricVideoCurationManifest $curationManifest,
         HistoricStagingGuard $stagingGuard,
         HistoricImportProductionGuard $productionGuard,
+        HistoricVideoPassMeasures $passMeasures,
     ): int {
         $dirOption = $this->option('dir');
         $directory = is_string($dirOption) && trim($dirOption) !== ''
@@ -269,7 +271,30 @@ class ImportHistoricVideoBatchCommand extends Command
         $this->line('Sermon storage disk: '.config('media-processing.storage.sermon_disk', 'local'));
 
         if ($approvedWorkItems !== null) {
-            $headroom = $this->reportStagingHeadroom($approvedWorkItems, $tempDiskMinFreeGb);
+            $reviewSourceRetainedBytes = 0;
+
+            if ($operation instanceof HistoricImportOperation) {
+                $itemKeys = $this->parseOnly($this->option('only'));
+
+                if ($itemKeys === false) {
+                    return self::FAILURE;
+                }
+
+                try {
+                    $reviewSourceRetainedBytes = $passMeasures
+                        ->report($operation, $itemKeys)['review_source_retained_bytes'];
+                } catch (Throwable $exception) {
+                    $this->error('Unable to measure retained historic review sources: '.$exception->getMessage());
+
+                    return self::FAILURE;
+                }
+            }
+
+            $headroom = $this->reportStagingHeadroom(
+                $approvedWorkItems,
+                $tempDiskMinFreeGb,
+                $reviewSourceRetainedBytes,
+            );
 
             if (! $dryRun && ! $headroom['measurable']) {
                 try {
@@ -461,6 +486,7 @@ class ImportHistoricVideoBatchCommand extends Command
      *     concurrent_working_bytes:int,
      *     concurrent_transient_bytes:int,
      *     configured_worker_widths:array<string, int>,
+     *     review_source_retained_bytes:int,
      *     minimum_free_bytes:int,
      *     required_free_bytes:int
      * }
@@ -468,8 +494,13 @@ class ImportHistoricVideoBatchCommand extends Command
     private function reportStagingHeadroom(
         array $workItems,
         int $tempDiskMinFreeGb,
+        int $reviewSourceRetainedBytes = 0,
     ): array {
-        $report = app(HistoricStagingHeadroom::class)->report($workItems, $tempDiskMinFreeGb);
+        $report = app(HistoricStagingHeadroom::class)->report(
+            $workItems,
+            $tempDiskMinFreeGb,
+            $reviewSourceRetainedBytes,
+        );
         $gib = static fn (?int $bytes): string => $bytes === null
             ? 'unknown'
             : number_format($bytes / 1024 ** 3, 1).' GiB';
@@ -492,7 +523,10 @@ class ImportHistoricVideoBatchCommand extends Command
             $widths['llm'],
             $widths['orchestration'],
         ));
-        $this->line('Retained M9 review-source bytes are already represented by available free space and are not added again; use --measures for the database-owned retained-byte measure.');
+        $this->line(sprintf(
+            'Retained M9 review-source bytes: %s. Available free space already includes them, so they are not added again; --measures reports the same database-owned figure.',
+            $gib($report['review_source_retained_bytes']),
+        ));
 
         if ($report['measurable']) {
             $this->line('Staging free space: '.$gib($report['process_reported_free_bytes']).'.');

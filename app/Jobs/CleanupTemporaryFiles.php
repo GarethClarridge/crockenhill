@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Enums\ProcessingStatus;
 use App\Enums\ProcessingStep;
-use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
-use App\Models\SermonProcessingStep;
 use App\Services\Media\Video\VideoStorageService;
+use App\Services\Processing\HistoricWorkingCopyReachability;
 use App\Services\Processing\MediaProcessingRunTransitionService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -48,9 +46,11 @@ class CleanupTemporaryFiles implements ShouldQueue
 
     public function handle(
         VideoStorageService $storageService,
-        ?MediaProcessingRunTransitionService $processingRunTransitions = null
+        ?MediaProcessingRunTransitionService $processingRunTransitions = null,
+        ?HistoricWorkingCopyReachability $workingCopyReachability = null,
     ): void {
         $processingRunTransitions ??= app(MediaProcessingRunTransitionService::class);
+        $workingCopyReachability ??= app(HistoricWorkingCopyReachability::class);
 
         $processingLog = $this->processingLog->fresh();
         if (! $processingLog instanceof MediaProcessingLog) {
@@ -69,7 +69,7 @@ class CleanupTemporaryFiles implements ShouldQueue
                 'processing_type' => $this->processingLog->processing_type,
             ]);
 
-            $unsettledWork = $this->unsettledHistoricMediaWork();
+            $unsettledWork = $workingCopyReachability->unsettledWork($this->processingLog);
             if ($unsettledWork !== null) {
                 $this->refuseCleanup($unsettledWork, $processingRunTransitions);
 
@@ -77,6 +77,21 @@ class CleanupTemporaryFiles implements ShouldQueue
             }
 
             $tempFiles = $this->processingLog->temporaryFilePaths();
+            $retentionReasons = $this->processingLog->reviewSourceRetentionReasons();
+            $sourcePath = $this->processingLog->source_file_path;
+
+            if ($retentionReasons !== [] && is_string($sourcePath) && $sourcePath !== '') {
+                $tempFiles = array_values(array_filter(
+                    $tempFiles,
+                    static fn (string $path): bool => $path !== $sourcePath,
+                ));
+
+                Log::info('Retaining historic review source until its review obligations resolve', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    'source_file_path' => $sourcePath,
+                    'reasons' => $retentionReasons,
+                ]);
+            }
 
             Log::info('Cleaning up temporary files', [
                 'processing_id' => $this->processingLog->processing_id,
@@ -93,7 +108,7 @@ class CleanupTemporaryFiles implements ShouldQueue
 
             // Do not mark as completed when the run was cancelled — the CANCELLED
             // status must be preserved so nothing can revive it after cleanup.
-            if (! $isCancelled) {
+            if (! $isCancelled && ! $this->isManualReviewRun()) {
                 // Preserve a non-fatal notification failure signal while still
                 // marking the run as completed after cleanup.
                 $processingRunTransitions->markAsCompleted(
@@ -110,7 +125,7 @@ class CleanupTemporaryFiles implements ShouldQueue
             ]);
 
             // Still mark as complete even if cleanup had issues, but not for cancelled runs.
-            if (! $isCancelled) {
+            if (! $isCancelled && ! $this->isManualReviewRun()) {
                 $processingRunTransitions->markAsCompleted(
                     $this->processingLog,
                     step: $this->completionStep(),
@@ -138,6 +153,12 @@ class CleanupTemporaryFiles implements ShouldQueue
         }
 
         return null;
+    }
+
+    private function isManualReviewRun(): bool
+    {
+        return $this->processingLog->isFailed()
+            && $this->processingLog->current_step === 'manual_review_required';
     }
 
     /**
@@ -176,61 +197,5 @@ class CleanupTemporaryFiles implements ShouldQueue
             .$unsettledWork['description'].').',
             ProcessingStep::SermonSubmitted->value,
         );
-    }
-
-    /**
-     * Work that still references this run's working copies. `terminal` marks work
-     * that can no longer settle on its own, so waiting for it would never end.
-     *
-     * @return array{description:string,terminal:bool}|null
-     */
-    private function unsettledHistoricMediaWork(): ?array
-    {
-        if ($this->processingLog->historic_import_operation_id === null) {
-            return null;
-        }
-
-        $nestedStorage = HistoricImportNestedJob::query()
-            ->where('historic_import_operation_id', $this->processingLog->historic_import_operation_id)
-            ->where('media_processing_log_id', $this->processingLog->id)
-            ->where('job_key', StoreSermonVideo::nestedJobKey($this->processingLog->processing_id))
-            ->where('job_type', StoreSermonVideo::class)
-            ->whereIn('state', ['queued', 'running', 'retryable', 'failed'])
-            ->first();
-
-        if ($nestedStorage instanceof HistoricImportNestedJob) {
-            return [
-                'description' => $nestedStorage->job_key.' (state: '.$nestedStorage->state.')',
-                'terminal' => $nestedStorage->state === 'failed',
-            ];
-        }
-
-        /**
-         * Only work that is still running can be orphaned by deleting its inputs.
-         * A failed step has released them: IdentifySpeaker in particular treats a
-         * deterministic failure as non-blocking on purpose -- it records the step
-         * failed, falls back to `Visiting Speaker` and lets the chain continue --
-         * so reading that row as unsettled would turn a tolerated soft failure
-         * into a hard run failure and strand the working copies it was meant to
-         * protect.
-         */
-        $activeStep = SermonProcessingStep::query()
-            ->where('processing_id', $this->processingLog->processing_id)
-            ->whereIn('step', ['assessing_video_quality', 'identifying_speaker'])
-            ->whereIn('status', [
-                ProcessingStatus::Pending->value,
-                ProcessingStatus::Started->value,
-                ProcessingStatus::Processing->value,
-            ])
-            ->first();
-
-        if ($activeStep instanceof SermonProcessingStep) {
-            return [
-                'description' => $activeStep->step.' (state: '.$activeStep->status->value.')',
-                'terminal' => false,
-            ];
-        }
-
-        return null;
     }
 }

@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
+use App\Services\HistoricMedia\HistoricReviewSourceReclaimer;
 use App\Services\Media\Thumbnail\ThumbnailGenerationService;
 use App\Services\Media\Video\VideoExtractionService;
 use Carbon\Carbon;
@@ -32,7 +33,7 @@ class CleanupOrphanedTempFiles extends Command
     /**
      * Execute the console command.
      */
-    public function handle(): int
+    public function handle(HistoricReviewSourceReclaimer $historicReviewSourceReclaimer): int
     {
         $hours = (int) $this->option('hours');
         $dryRun = $this->option('dry-run');
@@ -115,6 +116,29 @@ class CleanupOrphanedTempFiles extends Command
         $totalSize += $size;
 
         $this->info('');
+        $this->info('Reclaiming resolved historic review sources...');
+        $historicReviewSources = $historicReviewSourceReclaimer->sweep($dryRun);
+        $totalDeleted += $historicReviewSources['deleted'];
+        $totalSkipped += $historicReviewSources['skipped'];
+        $totalSize += $historicReviewSources['bytes'];
+
+        $historicFiles = $dryRun
+            ? $historicReviewSources['eligible']
+            : $historicReviewSources['deleted'];
+        $historicVerb = $dryRun ? 'Would delete' : 'Deleted';
+
+        if ($historicFiles === 0) {
+            $this->line('  No resolved historic review sources found.');
+        } else {
+            $this->line(sprintf(
+                '  %s %d resolved historic review source(s) (%s).',
+                $historicVerb,
+                $historicFiles,
+                Number::fileSize($historicReviewSources['bytes'], precision: 2),
+            ));
+        }
+
+        $this->info('');
         $this->info('========================================');
         $totalSizeDisplay = Number::fileSize($totalSize, precision: 2);
 
@@ -125,7 +149,7 @@ class CleanupOrphanedTempFiles extends Command
         }
 
         if ($totalSkipped > 0) {
-            $this->warn("Skipped {$totalSkipped} file(s) protected by active processing logs");
+            $this->warn("Skipped {$totalSkipped} file(s) protected by active processing logs or unresolved review obligations");
         }
         $this->info('========================================');
 
@@ -138,6 +162,7 @@ class CleanupOrphanedTempFiles extends Command
                 'size_display' => $totalSizeDisplay,
                 'cutoff_hours' => $hours,
                 'cutoff_time' => $cutoffTime->toDateTimeString(),
+                'historic_review_sources' => $historicReviewSources,
             ]);
         }
 
@@ -146,7 +171,7 @@ class CleanupOrphanedTempFiles extends Command
 
     /**
      * Build a set of file paths that must not be deleted because they are
-     * referenced by active or manual-review processing logs.
+     * referenced by active processing logs or any unresolved review obligation.
      *
      * @return array<string, true>
      */
@@ -160,8 +185,7 @@ class CleanupOrphanedTempFiles extends Command
                     ProcessingStatus::Started->value,
                     ProcessingStatus::Processing->value,
                 ])->orWhere(function (Builder $query): void {
-                    $query->where('status', ProcessingStatus::Failed->value)
-                        ->where('current_step', 'manual_review_required');
+                    $query->withUnresolvedReviewObligation();
                 });
             })
             ->whereNotNull('source_file_path')

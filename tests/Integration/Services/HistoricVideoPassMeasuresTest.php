@@ -76,6 +76,29 @@ class HistoricVideoPassMeasuresTest extends TestCase
         $this->assertSame(128, $measures['quarantine_bytes']);
     }
 
+    #[Test]
+    public function it_reports_review_source_bytes_as_a_separate_subset_of_staging_retention(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $context = $this->stagingContextFor($operation);
+        $log = $this->runWithPromotion($operation, null, 'held', $context);
+        $log->forceFill(['source_file_path' => 'temp/review-source.mp4'])->save();
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval,
+        ]);
+        Storage::disk('historic_staging')->put(
+            "{$context->batchRoot}/temp/review-source.mp4",
+            str_repeat('r', 29),
+        );
+
+        $measures = app(HistoricVideoPassMeasures::class)->report($operation, ['held']);
+
+        $this->assertSame(29, $measures['review_source_retained_bytes']);
+        $this->assertSame(29, $measures['staging_retained_bytes']);
+        $this->assertSame(29, $measures['staging_accounted_bytes']);
+    }
+
     /**
      * Staging output a run still owns is accounted for, so it is not residue.
      */

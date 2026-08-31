@@ -94,4 +94,19 @@ class HistoricStagingHeadroomTest extends TestCase
         $this->assertSame(0, $report['largest_source_bytes']);
         $this->assertSame(20 * self::GIB, $report['required_free_bytes']);
     }
+
+    #[Test]
+    public function it_reports_retained_review_sources_without_double_counting_them_in_required_headroom(): void
+    {
+        Config::set('media-processing.storage.temp_disk_unmeasurable', true);
+
+        $report = app(HistoricStagingHeadroom::class)->report(
+            [['bytes' => 4 * self::GIB]],
+            minimumFreeGb: 20,
+            reviewSourceRetainedBytes: 7 * self::GIB,
+        );
+
+        $this->assertSame(7 * self::GIB, $report['review_source_retained_bytes']);
+        $this->assertSame(32 * self::GIB, $report['required_free_bytes']);
+    }
 }

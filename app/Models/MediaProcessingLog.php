@@ -13,6 +13,8 @@ use App\Data\SermonAnalysisCast;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
+use App\Enums\SermonVideoQualityStatus;
+use App\Enums\ServiceSectionPublicationStatus;
 use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\Processing\ProcessingRunOrchestrator;
 use App\Services\Processing\SermonMetadataIntegrationService;
@@ -357,6 +359,34 @@ class MediaProcessingLog extends Model
     }
 
     /**
+     * Runs that still own an unresolved review or approval obligation.
+     *
+     * Keep this predicate aligned with {@see self::reviewSourceRetentionReasons()}:
+     * these are the four current review signals, deliberately excluding any
+     * future material-risk classification until it has a real routing flag.
+     *
+     * @param  Builder<MediaProcessingLog>  $query
+     * @return Builder<MediaProcessingLog>
+     */
+    public function scopeWithUnresolvedReviewObligation(Builder $query): Builder
+    {
+        return $query->where(function (Builder $query): void {
+            $query
+                ->whereHas('serviceSections', function (Builder $query): void {
+                    $query
+                        ->where('publication_status', ServiceSectionPublicationStatus::PendingApproval->value)
+                        ->orWhere('needs_manual_review', true);
+                })
+                ->orWhere('processing_metadata->video_quality->status', SermonVideoQualityStatus::NeedsReview->value)
+                ->orWhere(function (Builder $query): void {
+                    $query
+                        ->where('status', ProcessingStatus::Failed->value)
+                        ->where('current_step', 'manual_review_required');
+                });
+        });
+    }
+
+    /**
      * @param  Builder<MediaProcessingLog>  $query
      * @return Builder<MediaProcessingLog>
      */
@@ -594,6 +624,45 @@ class MediaProcessingLog extends Model
             && $this->status === ProcessingStatus::Failed
             && $this->current_step === 'manual_review_required'
             && $this->processing_type === MediaType::Livestream;
+    }
+
+    /**
+     * Return the current review signals that require the source to remain
+     * available for a possible recut.
+     *
+     * @return list<string>
+     */
+    public function reviewSourceRetentionReasons(): array
+    {
+        $reasons = [];
+
+        if ($this->serviceSections()
+            ->where('publication_status', ServiceSectionPublicationStatus::PendingApproval->value)
+            ->exists()) {
+            $reasons[] = 'pending_approval';
+        }
+
+        if ($this->serviceSections()->where('needs_manual_review', true)->exists()) {
+            $reasons[] = 'needs_manual_review';
+        }
+
+        $qualityStatus = $this->videoQualityMetadata()['status'] ?? null;
+
+        if ($qualityStatus === SermonVideoQualityStatus::NeedsReview->value
+            || $qualityStatus === SermonVideoQualityStatus::NeedsReview) {
+            $reasons[] = 'video_quality_needs_review';
+        }
+
+        if ($this->status === ProcessingStatus::Failed && $this->current_step === 'manual_review_required') {
+            $reasons[] = 'manual_review_required';
+        }
+
+        return $reasons;
+    }
+
+    public function hasUnresolvedReviewObligation(): bool
+    {
+        return $this->reviewSourceRetentionReasons() !== [];
     }
 
     public function videoProcessingMode(): string

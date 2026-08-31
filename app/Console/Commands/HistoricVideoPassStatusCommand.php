@@ -20,7 +20,7 @@ class HistoricVideoPassStatusCommand extends Command
     protected $signature = 'historic-import:video-pass-status
                             {--operation= : Immutable historic import operation id}
                             {--only= : Comma-separated manifest item keys in this pass}
-                            {--measures : Also report the operation\'s four custody byte measures}
+                            {--measures : Also report the operation\'s custody byte measures}
                             {--performance : Also report durable run, step, stage and usage timings}
                             {--performance-report= : Create a new JSON performance report at an absolute path}';
 
@@ -291,8 +291,8 @@ class HistoricVideoPassStatusCommand extends Command
     }
 
     /**
-     * Print the four measures Phase 5's exit gate names, plus the two figures
-     * that make the fourth readable.
+     * Print the Phase 5 custody measures, plus the figures that make residue
+     * and review-source retention readable.
      *
      * @param  array{
      *     runs: int,
@@ -301,6 +301,7 @@ class HistoricVideoPassStatusCommand extends Command
      *     reclaimed_bytes: int,
      *     peak_working_bytes: int,
      *     staging_retained_bytes: int,
+     *     review_source_retained_bytes: int,
      *     staging_accounted_bytes: int,
      *     unexplained_residue_bytes: int,
      *     quarantine_bytes: int
@@ -315,6 +316,7 @@ class HistoricVideoPassStatusCommand extends Command
                 ['Peak working (sampled at promotion)', $measures['peak_working_bytes'], $this->gib($measures['peak_working_bytes'])],
                 ['Promoted to private quarantine', $measures['promoted_bytes'], $this->gib($measures['promoted_bytes'])],
                 ['Retained on staging now', $measures['staging_retained_bytes'], $this->gib($measures['staging_retained_bytes'])],
+                ['Retained for unresolved review', $measures['review_source_retained_bytes'], $this->gib($measures['review_source_retained_bytes'])],
                 ['Unexplained residue', $measures['unexplained_residue_bytes'], $this->gib($measures['unexplained_residue_bytes'])],
                 ['— of which accounted for by runs', $measures['staging_accounted_bytes'], $this->gib($measures['staging_accounted_bytes'])],
                 ['Reclaimed after promotion', $measures['reclaimed_bytes'], $this->gib($measures['reclaimed_bytes'])],
