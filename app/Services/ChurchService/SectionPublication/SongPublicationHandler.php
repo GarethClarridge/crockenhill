@@ -68,10 +68,11 @@ class SongPublicationHandler implements SectionPublicationHandler
     }
 
     /**
-     * Determine if a song section is eligible for automated publication.
+     * Determine if a song section can enter publication preparation.
      *
-     * Song publication requires either a confirmed song match or a high-confidence
-     * inferred match linked to a canonical Song record in the database.
+     * Confirmed and inferred matches with a linked canonical Song record can be
+     * prepared. The review policy keeps inferred matches from being published
+     * automatically.
      *
      * @param  ServiceSection  $section  The section to evaluate
      * @return bool True if the section is linked to a valid song

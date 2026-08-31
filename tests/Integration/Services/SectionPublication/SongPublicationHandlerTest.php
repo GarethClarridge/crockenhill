@@ -192,7 +192,7 @@ class SongPublicationHandlerTest extends TestCase
     }
 
     #[Test]
-    public function it_is_eligible_when_song_match_is_inferred_and_song_id_present(): void
+    public function it_is_eligible_for_review_when_song_match_is_inferred_and_song_id_present(): void
     {
         $song = Song::factory()->create();
 
@@ -208,6 +208,31 @@ class SongPublicationHandlerTest extends TestCase
         ]);
 
         $this->assertTrue($this->handler->isEligible($section));
+    }
+
+    #[Test]
+    public function it_requires_approval_for_an_inferred_song_match(): void
+    {
+        $song = Song::factory()->create();
+
+        $item = ChurchServiceItem::factory()->create([
+            'song_id' => $song->id,
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Inferred->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+            'start_time' => 600.0,
+            'end_time' => 840.0,
+        ]);
+
+        $this->assertTrue($this->handler->requiresApproval($section));
+        $this->assertSame(
+            ['inferred_song_match'],
+            array_column($section->metadata->toArray()['song_publication_review']['reasons'], 'kind'),
+        );
     }
 
     #[Test]

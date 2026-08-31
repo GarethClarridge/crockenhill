@@ -20,7 +20,9 @@ use App\Models\ServiceSection;
  *  - a 23-second Doxology sung straight after another hymn, which the matcher
  *    resolved to that hymn, so the same song was published twice from adjacent
  *    seconds of one recording;
- *  - a 57-second fragment from a recording graded `short_partial`.
+ *  - a 57-second fragment from a recording graded `short_partial`;
+ *  - an inferred catalogue match, whose confidence or missing metadata does not
+ *    settle the identity without a person's review.
  *
  * None of these is provably wrong: a doxology really is short, and a short
  * recording can still hold a whole hymn. That is the argument for review rather
@@ -35,6 +37,14 @@ class SongPublicationReviewPolicy
     public function reviewReasons(ServiceSection $section): array
     {
         $reasons = [];
+
+        if ($section->hasInferredSongMatch()) {
+            $reasons[] = [
+                'kind' => 'inferred_song_match',
+                'detail' => 'The catalogue song was inferred rather than confirmed, so the match needs review before publication.',
+            ];
+        }
+
         $duration = (float) $section->duration;
         $minimum = $this->minimumAutomaticDuration();
 

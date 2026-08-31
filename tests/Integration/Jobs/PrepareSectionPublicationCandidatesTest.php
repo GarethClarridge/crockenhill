@@ -552,6 +552,77 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
     }
 
     #[Test]
+    public function it_routes_inferred_song_sections_to_review_instead_of_auto_publish(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        Bus::fake([AutoPublishServiceSection::class]);
+
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => [
+                'song' => SongPublicationHandler::class,
+            ],
+        ]);
+
+        $song = Song::factory()->create();
+        $churchService = ChurchService::factory()->create();
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'song_id' => $song->id,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'source_file_path' => 'livestreams/source.mp4',
+            'church_service_id' => $churchService->id,
+        ]);
+
+        Storage::disk('local')->put('livestreams/source.mp4', 'source-video');
+        Storage::disk('local')->put('temp/section-video.mp4', 'section-video');
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'status' => ServiceSectionStatus::Identified->value,
+            'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+            'song_match_type' => ServiceSectionSongMatchType::Inferred->value,
+            'metadata' => [],
+            'start_time' => 60.0,
+            'end_time' => 300.0,
+        ]);
+
+        $videoExtractor = $this->createMock(VideoExtractionService::class);
+        $videoExtractor->expects($this->once())
+            ->method('extractSegmentAsFile')
+            ->willReturn('temp/section-video.mp4');
+        $videoExtractor->expects($this->never())
+            ->method('extractOptimizedAudio');
+
+        $job = new PrepareSectionPublicationCandidates($processingLog);
+        $job->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(SectionPublicationHandlerFactory::class),
+            app(ServiceSectionPublicationTransitionService::class)
+        );
+
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->publication_status);
+        $this->assertNotNull($section->extracted_video_path);
+        $this->assertNotNull($section->unpublished_expires_at);
+        $this->assertSame(
+            ['inferred_song_match'],
+            array_column($section->metadata->toArray()['song_publication_review']['reasons'], 'kind'),
+        );
+        Bus::assertNotDispatched(AutoPublishServiceSection::class);
+    }
+
+    #[Test]
     public function historic_completion_suppresses_notifications_and_owns_nested_publication_work(): void
     {
         Storage::fake('local');
