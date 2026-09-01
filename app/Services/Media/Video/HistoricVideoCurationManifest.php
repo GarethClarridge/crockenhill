@@ -25,26 +25,24 @@ class HistoricVideoCurationManifest
     private const SUPPORTED_EXTENSIONS = ['avi', 'mkv', 'mov', 'mp4', 'webm'];
 
     /**
-     * Build the approved plan, optionally re-reading every included recording to prove its bytes
-     * still match the frozen manifest.
+     * Build the approved plan from the frozen manifest's declared metadata.
      *
-     * `$verifySourceContents` exists because that content check reads the whole included corpus —
-     * roughly 1.0 TB, about three hours — and it is redundant for any file this pass will actually
-     * dispatch: {@see HistoricVideoImporter} re-checks path and size metadata before the existing
-     * staging copy verifies its exact destination size. Its unique coverage is the files a bounded
-     * pass does *not* dispatch, which is fail-fast evidence worth three hours before a definitive
-     * run and pure cost while iterating towards one.
+     * Every source check here is a stat call — existence, symlink, root containment and byte size —
+     * so refusing a missing, truncated, replaced or re-encoded recording costs nothing and is
+     * unconditional.
      *
-     * Skipping it never weakens the plan's identity: `manifestHash` and `planHash` are derived from
-     * the manifest's *declared* metadata, so both hashes are byte-identical either way. What a
-     * caller gives up is the stronger claim that holding a plan hash proves the whole corpus was
-     * intact at plan time. Existence, symlink, root-containment and byte-size checks always run;
-     * the selected dispatch later verifies its metadata and staging copy without re-hashing it.
+     * Contents are never re-read. `manifestHash` and `planHash` derive from the manifest's
+     * *declared* metadata, so re-hashing the corpus could not change a plan's identity, and the
+     * dispatch path never compared them either — {@see HistoricVideoImporter} records
+     * `sha256_basis` as `approved_manifest_not_reverified_at_dispatch` and proves the
+     * source-to-staging copy by exact size instead. The opt-in whole-corpus read that used to live
+     * here had one caller passing `false` and one that ran only after the manifest had been written
+     * once, where it could re-read nothing but files hashed seconds earlier; its unique coverage
+     * over the size check was same-size corruption alone, at roughly 1.0 TB and three hours a pass.
      */
     public function plan(
         string $rawDirectory,
         string $manifestPath,
-        bool $verifySourceContents = true,
     ): HistoricVideoCurationPlan {
         $rawRoot = realpath($rawDirectory);
 
@@ -116,7 +114,7 @@ class HistoricVideoCurationManifest
             $bytes = 0;
 
             foreach ($entry['files'] as $file) {
-                $files[] = $this->verifiedPath($rawRoot, $file, $verifySourceContents);
+                $files[] = $this->verifiedPath($rawRoot, $file);
                 $bytes += $file['byte_size'];
             }
 
@@ -584,16 +582,15 @@ class HistoricVideoCurationManifest
     }
 
     /**
-     * The cheap checks are unconditional; only the whole-file read is gated.
+     * Prove one declared source is present, contained by its root and the size the manifest froze.
      *
      * `filesize()` is a stat call, so refusing a missing, truncated, replaced or re-encoded source
-     * costs nothing and stays on every path. Reading the file to compare SHA-256 is the optional
-     * whole-corpus pass; selected dispatches retain the frozen value as provenance and verify the
-     * source-to-staging copy by exact size.
+     * costs nothing. Contents are not read: the selected dispatch keeps the frozen SHA-256 as
+     * recorded provenance and verifies its source-to-staging copy by exact size.
      *
      * @param  array{relative_path:string,sha256:string,byte_size:int}  $file
      */
-    private function verifiedPath(string $rawRoot, array $file, bool $verifyContents): string
+    private function verifiedPath(string $rawRoot, array $file): string
     {
         $path = "{$rawRoot}/{$file['relative_path']}";
 
@@ -609,16 +606,6 @@ class HistoricVideoCurationManifest
 
         if (filesize($realPath) !== $file['byte_size']) {
             throw new RuntimeException("Historic video source changed: {$file['relative_path']}");
-        }
-
-        if (! $verifyContents) {
-            return $realPath;
-        }
-
-        $hash = hash_file('sha256', $realPath);
-
-        if (! is_string($hash) || ! hash_equals($file['sha256'], $hash)) {
-            throw new RuntimeException("Historic video source content changed: {$file['relative_path']}");
         }
 
         return $realPath;

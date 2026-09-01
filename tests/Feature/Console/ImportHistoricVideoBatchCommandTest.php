@@ -188,7 +188,6 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         $plan = app(HistoricVideoCurationManifest::class)->plan(
             $this->temporaryDirectory,
             $manifestPath,
-            verifySourceContents: false,
         );
         $operation = $this->historicVideoOperation($plan->manifestHash);
         $approvedWorkItems = null;
@@ -210,7 +209,6 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
             '--operation' => $operation->operation_id,
             '--only' => 'approved-'.hash('sha256', $selected),
         ])
-            ->doesntExpectOutputToContain('content changed')
             ->expectsOutputToContain('Corpus contents are not re-read')
             ->expectsOutputToContain('Bounded pass: dispatching 1 of 2 approved work items.')
             ->assertSuccessful();
@@ -770,33 +768,6 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     }
 
     /**
-     * Same-length corruption is the only drift the byte-size check cannot see, so it is exactly
-     * what the opt-in content read buys — and what the importer still catches before FFmpeg.
-     */
-    #[Test]
-    public function the_manifest_rejects_same_size_corruption_only_when_verifying_contents(): void
-    {
-        $relativePath = '2021-04-12 18-02-00.mkv';
-        $path = "{$this->temporaryDirectory}/{$relativePath}";
-        $this->createFakeVideo($path);
-        $manifestPath = $this->historicManifest($relativePath, '2021-04-12', 'evening');
-
-        $handle = fopen($path, 'r+b');
-        $this->assertIsResource($handle);
-        fwrite($handle, 'corrupted');
-        fclose($handle);
-        clearstatcache(true, $path);
-
-        $plan = app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath, false);
-        $this->assertCount(1, $plan->workItems);
-
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage("Historic video source content changed: {$relativePath}");
-
-        app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath, true);
-    }
-
-    /**
      * Everything a stat call can see stays unconditional, so a truncated, replaced or re-encoded
      * source is refused on the cheap path too.
      */
@@ -812,7 +783,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage("Historic video source changed: {$relativePath}");
 
-        app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath, false);
+        app(HistoricVideoCurationManifest::class)->plan($this->temporaryDirectory, $manifestPath);
     }
 
     #[Test]

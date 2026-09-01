@@ -65,7 +65,7 @@ The pilot's livestream projection synchronises canonical service items before in
 | 3 — Song and section eligibility | Complete | Commit `bd7d1bf27`. |
 | 4 — Neutralise internal cost apparatus | Complete | Commit `82be34700` removes live cap/ledger reads and writes while retaining the inert schema and compatibility code for IC8 closeout. |
 | 5 — Canary custody instrumentation | Complete | Commits `c61c8c7af` (direct create-only promotion into quarantine), `81ca5f3d9` (cleanup confined to working-copy disks) plus this commit's four byte measures, reported by `historic-import:video-pass-status --measures`. |
-| 6 — Copy-and-enqueue dispatch | Complete | Commit `6c6b0a7a8` removes polling, adds operation-bound capacity evidence, and aborts stale mounts. Commit `3cb189f5b` adds the database-owned `historic-import:video-pass-status` report and the content-read-I/O regression test. **Its whole-corpus-verification claim was false until 2026-08-30**: `6c6b0a7a8` deleted the opt-in `--verify-corpus` flag *and* the argument it passed, so `plan()` fell back to its `true` default and every invocation — dry runs and `--only` passes included — re-read ~1.0 TB. Now fixed at the call site with `verifySourceContents: false`, proved by `a_bounded_pass_does_not_read_the_contents_of_unselected_sources`. A 14-item dry run went from over three hours to 23 seconds. |
+| 6 — Copy-and-enqueue dispatch | Complete | Commit `6c6b0a7a8` removes polling, adds operation-bound capacity evidence, and aborts stale mounts. Commit `3cb189f5b` adds the database-owned `historic-import:video-pass-status` report and the content-read-I/O regression test. **Its whole-corpus-verification claim was false until 2026-08-30**: `6c6b0a7a8` deleted the opt-in `--verify-corpus` flag *and* the argument it passed, so `plan()` fell back to its `true` default and every invocation — dry runs and `--only` passes included — re-read ~1.0 TB. Now fixed at the call site with `verifySourceContents: false`, proved by `a_bounded_pass_does_not_read_the_contents_of_unselected_sources`. A 14-item dry run went from over three hours to 23 seconds. **Superseded 2026-09-01:** the parameter and its `hash_file()` branch are deleted outright — the only other caller ran after `writeOnce()` and could re-read nothing but files hashed seconds earlier, so `capture-video-curation` was reading the corpus twice. |
 | 7 — Fresh canary | **Complete** | Operation 3 was dispatched and resumed after a stale-mount abort; the duration, orchestration, title, boundary and custody defects it surfaced were implemented and its rows and assets repaired. The identical-canary replay passed on 2026-09-01: dispatched 0, resumed 13, skipped 1, errors 0, **0 B processed**, every baseline count unchanged, in 3.9 seconds. Evidence `storage/scratch/historic-video-step10-noop-proof-20260901.md`. |
 | 8–9 | Not started | Gated on step 11, the four-identity two-worker calibration. Everything else Phase 7 required is now satisfied. |
 
@@ -510,7 +510,8 @@ None. The two that stood on 2026-08-30 are recorded as settled below.
    SMART data over USB, so filesystem verification plus ordinary read/copy
    failures are the available drive-health signals. A content hash is not a
    meaningful health monitor for a mount that disappears loudly.
-6. **Verification scope fix (2026-08-30).** Fix at the call site by passing
+6. **Verification scope fix (2026-08-30).** *Superseded 2026-09-01 — the parameter is now deleted;
+   see decision 12.* Fix at the call site by passing
    `verifySourceContents: false` rather than restoring a `--verify-corpus` flag.
    Existence, symlink, root-containment and byte-size checks still run for every
    manifest entry, and the manifest and plan hashes are unchanged. Decision 9
@@ -1621,6 +1622,8 @@ as follows:
 2. Keep `HistoricVideoCurationManifest::plan(... verifySourceContents: false)`.
    For every manifest member it must still reject a missing root, path escape,
    symlink, non-file and byte-size mismatch without opening unselected contents.
+   *Superseded 2026-09-01: the parameter is deleted and `plan()` never reads
+   contents. Every check named here is unchanged and still unconditional.*
 3. Replace `assertApprovedSourceFilesAreUnchanged()` with a metadata-only selected
    source check: approved relative path, root containment, no symlink in any path
    component, regular readable file and exact manifest byte size. Delete the
@@ -2021,6 +2024,48 @@ deliberately *not* re-frozen: operation 3 records
 in place would have invalidated the very replay step 10 depends on. Re-freeze into a
 new manifest bound to the Phase 8 operation. Full list:
 `storage/scratch/historic-video-short-item-dispositions-20260901.md`.
+
+### Decision 12 — content verification deleted, manifest re-frozen (2026-09-01)
+
+**The verification machinery is gone.** `$verifySourceContents` and the
+`hash_file()` comparison in `verifiedPath()` are deleted. Its two callers were a
+hardcoded `false` and one that ran after `PrivateEvidenceFile::writeOnce()`, so on
+any frozen manifest it was unreachable and on a fresh capture it only re-read files
+hashed seconds earlier — `historic-import:capture-video-curation` was reading ~1.0 TB
+**twice**. Decision 6's premise was also false: `assertApprovedSourceMetadata()`
+compares **byte size only** and never the hash, and the "existing tamper test" it
+cites does not exist. The unconditional stat checks are untouched. The `sha256`
+*field* stays in schema v4 — removing it is a v5 migration that would orphan the
+`manifest_hash` on completed runs, and `fileContentIdentity()` needs it as soon as a
+`duplicate_of` is declared.
+
+**Re-freeze.** Seven morning identities were replaced or augmented from the church
+PC. New manifest `historic-video-curation-manifest-20260901.json`, manifest hash
+`d25d2085…`, plan hash `9351fa4e…`, batch key unchanged. 474 identities / 517
+declared recordings; **464 includes** (up from 462: two exclusions reversed) and 10
+excludes; 292 `full`, 163 `short_partial`, 9 `fragmented`. Capture was carry-forward
+— reuse the frozen hash where `(relative_path, byte_size)` is unchanged — 504 reused,
+13 computed, 2.29 GB in 19.5s, then validated through the real `plan()`.
+
+| identity | before | after |
+| --- | --- | --- |
+| `2020-06-14-morning` | 1 file, 23.78 min | higher-bitrate `[NO NAME]` copy governs; old copy parked in a new excluded sibling. Same duration — it was **not** a more complete recording |
+| `2020-06-28-morning` | *excluded*, two 49s clips | **reversed** — 23.18 min sermon included; clips parked in an excluded sibling |
+| `2023-07-16-morning` | *excluded*, 6.75 min children's talk | **reversed** — 67.49 min, single, `full`. Its reason said the sermon "is in no file held on the drive" |
+| `2024-07-28-morning` | 5 fragments, 52.42 min | single 64.47 min, `full`. Declared but blocked by the completed run and sermon 890, left in place by operator decision |
+| `2025-05-18-morning` | 1 file, 24.62 min | 5 files, 54.38 min, `fragmented` |
+| `2025-08-10-morning` | 1 file, 24.99 min | 5 files, 52.21 min, `fragmented` |
+| `2026-03-15-morning` | 1 file, 22.88 min | 2 files, 25.15 min, `fragmented` |
+
+Grade coupling is why only two reach `full`: `corroboration === fragmented` iff more
+than one file, so an identity that *gains* segments cannot claim whole-service
+corroboration however long it now runs.
+
+**Open.** No operation is prepared for `9351fa4e…`; run
+`historic-import:prepare-operation historic-video-full-corpus-20260826 9351fa4e… --manifest=historic_video=d25d2085…`.
+The 28 runs completed under `1ae7e4fc…` will report `skip-exists` rather than
+`resume-completed`, because the resume `dedup_key` is keyed to the manifest hash —
+expected, not a corpus collision. Steps 10 and 11 re-run against the new plan.
 
 **An operator can now record why a run was excluded (`1643ab001`).** The only
 exclusion the system could express was a silent source, which `AnalyzeSegments`
