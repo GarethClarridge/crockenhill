@@ -201,6 +201,7 @@ class ProcessingRunOrchestrator
                     $lockedLog,
                     $operation,
                     checkStaleness: $claim === null,
+                    allowFailedRetry: $claim !== null,
                 );
 
                 if ($validationError !== null) {
@@ -222,12 +223,27 @@ class ProcessingRunOrchestrator
                         );
                     }
 
-                    return ProcessingResult::success(
-                        processingId: $lockedLog->processing_id,
-                        message: 'Historic promotion and cleanup tail was already claimed; no duplicate chain dispatched.',
-                        statusUrl: route('api.media.processing.status', ['processingId' => $lockedLog->processing_id]),
-                        details: ['already_claimed' => true],
+                    // A claim on a run that is still processing means the chain it
+                    // dispatched is genuinely in flight; do not duplicate it.
+                    if ($lockedLog->status === ProcessingStatus::Processing) {
+                        return ProcessingResult::success(
+                            processingId: $lockedLog->processing_id,
+                            message: 'Historic promotion and cleanup tail was already claimed; no duplicate chain dispatched.',
+                            statusUrl: route('api.media.processing.status', ['processingId' => $lockedLog->processing_id]),
+                            details: ['already_claimed' => true],
+                        );
+                    }
+
+                    // The run failed under its own claim, so that attempt has
+                    // settled and nothing is in flight. Re-claiming is what makes
+                    // AwaitHistoricSermonVideoStorage's promise true: it fails a
+                    // run precisely so that the tail stays recoverable.
+                    $this->processingRunTransitions->markAsProcessing(
+                        $lockedLog,
+                        $lockedLog->current_step,
                     );
+                    $lockedLog->refresh();
+                    $metadata = $lockedLog->processing_metadata?->toArray() ?? [];
                 }
 
                 $metadata['historic_tail_recovery'] = [
@@ -368,8 +384,14 @@ class ProcessingRunOrchestrator
         MediaProcessingLog $processingLog,
         HistoricImportOperation $operation,
         bool $checkStaleness = true,
+        bool $allowFailedRetry = false,
     ): ?array {
-        if ($processingLog->status !== ProcessingStatus::Processing) {
+        // A run that failed while holding its own tail claim is the retry case,
+        // not a foreign failure: its previous tail attempt has already settled.
+        $statusIsRecoverable = $processingLog->status === ProcessingStatus::Processing
+            || ($allowFailedRetry && $processingLog->status === ProcessingStatus::Failed);
+
+        if (! $statusIsRecoverable) {
             return [
                 'code' => 'HISTORIC_TAIL_NOT_PROCESSING',
                 'message' => 'Historic tail recovery requires a run that must still be processing.',
@@ -434,7 +456,15 @@ class ProcessingRunOrchestrator
             ];
         }
 
-        if (! in_array($this->canonicalTailStep($processingLog->current_step), self::HistoricTailSteps, true)) {
+        // AwaitHistoricSermonVideoStorage is the tail's first link and records
+        // SermonSubmitted when it fails, so a run failed under its own tail claim
+        // sits there rather than at the step it reached. Treating that as off-tail
+        // would mean the gate's failure destroyed the state its own recovery needs.
+        $tailSteps = $allowFailedRetry
+            ? [...self::HistoricTailSteps, ProcessingStep::SermonSubmitted->value]
+            : self::HistoricTailSteps;
+
+        if (! in_array($this->canonicalTailStep($processingLog->current_step), $tailSteps, true)) {
             return [
                 'code' => 'HISTORIC_TAIL_WRONG_STEP',
                 'message' => 'The processing run is not at the promotion/cleanup tail.',

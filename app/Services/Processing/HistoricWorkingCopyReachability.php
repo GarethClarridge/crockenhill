@@ -9,6 +9,7 @@ use App\Jobs\StoreSermonVideo;
 use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
 use App\Models\SermonProcessingStep;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Identifies historic work that still has a reference to a run's working copies.
@@ -34,15 +35,23 @@ final class HistoricWorkingCopyReachability
         $nestedStorage = HistoricImportNestedJob::query()
             ->where('historic_import_operation_id', $processingLog->historic_import_operation_id)
             ->where('media_processing_log_id', $processingLog->id)
-            ->whereRaw(
-                '(job_key = ? AND job_type = ?) OR (job_key = ? AND job_type = ?)',
-                [
-                    StoreSermonVideo::nestedJobKey($processingLog->processing_id),
-                    StoreSermonVideo::class,
-                    $prepareJobKey,
-                    $prepareJobType,
-                ],
-            )
+            // Grouped deliberately: a raw OR is not parenthesised by the builder,
+            // so SQL's precedence would bind the state filter to the second
+            // branch alone and leave the first unscoped — reading a *completed*
+            // store job as unsettled and deferring cleanup until the run failed.
+            ->where(function (Builder $query) use ($processingLog, $prepareJobKey, $prepareJobType): void {
+                $query
+                    ->where(function (Builder $storage) use ($processingLog): void {
+                        $storage
+                            ->where('job_key', StoreSermonVideo::nestedJobKey($processingLog->processing_id))
+                            ->where('job_type', StoreSermonVideo::class);
+                    })
+                    ->orWhere(function (Builder $prepare) use ($prepareJobKey, $prepareJobType): void {
+                        $prepare
+                            ->where('job_key', $prepareJobKey)
+                            ->where('job_type', $prepareJobType);
+                    });
+            })
             ->whereIn('state', ['queued', 'running', 'retryable', 'failed'])
             ->first();
 

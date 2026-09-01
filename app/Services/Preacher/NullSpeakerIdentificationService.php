@@ -22,7 +22,7 @@ class NullSpeakerIdentificationService implements SpeakerIdentificationInterface
         return SpeakerEmbeddingResult::failed('Null provider: speaker identification not configured');
     }
 
-    public function identify(string $audioPath, Collection $profiles): SpeakerMatchResult
+    public function identify(string $audioPath, Collection $profiles, ?string $disk = null): SpeakerMatchResult
     {
         Log::debug('NullSpeakerIdentificationService: identify called', [
             'audio_path' => $audioPath,

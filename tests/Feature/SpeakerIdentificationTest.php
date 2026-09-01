@@ -671,4 +671,111 @@ class SpeakerIdentificationTest extends TestCase
         // Processing log must NOT be marked as failed — speaker identification is non-blocking
         $this->assertNotEquals('failed', $log->status->value ?? $log->status);
     }
+
+    /**
+     * A promoted historic sermon's audio lives on its own asset disk, not the
+     * configured sermon disk. Reading the configured disk found nothing and
+     * recorded a system error as if it were a low-confidence speaker decision.
+     */
+    #[Test]
+    public function test_identify_speaker_reads_a_promoted_sermon_from_its_own_asset_disk(): void
+    {
+        config([
+            'media-processing.speaker_identification.enabled' => true,
+            'media-processing.speaker_identification.mode' => 'enforce',
+        ]);
+
+        $preacher = Preacher::factory()->create([
+            'name' => 'Asset Disk Preacher',
+            'slug' => 'asset-disk-preacher',
+        ]);
+        $profile = SpeakerProfile::factory()->create(['preacher_id' => $preacher->id, 'is_active' => true]);
+        $sermon = Sermon::factory()->create([
+            'preacher_source' => PreacherSource::Default->value,
+            'duration' => 300.0,
+            'asset_disk' => 'historic_quarantine',
+        ]);
+        $log = MediaProcessingLog::factory()->audio()->pending()->create([
+            'sermon_id' => $sermon->id,
+            'source_file_path' => 'sermons/audio/promoted.mp3',
+        ]);
+
+        $seenDisk = 'not-called';
+        $mockService = new class($profile, $seenDisk) implements SpeakerIdentificationInterface
+        {
+            public function __construct(private SpeakerProfile $profile, public mixed &$seenDisk) {}
+
+            public function extractEmbedding(string $audioPath, ?string $disk = null): SpeakerEmbeddingResult
+            {
+                return SpeakerEmbeddingResult::failure('unused');
+            }
+
+            public function identify(string $audioPath, Collection $profiles, ?string $disk = null): SpeakerMatchResult
+            {
+                $this->seenDisk = $disk;
+
+                return SpeakerMatchResult::matched($this->profile->load('preacher'), 0.90, 0.70, [$this->profile->id => 0.90]);
+            }
+
+            public function updateProfile(SpeakerProfile $profile, array $approvedEmbeddings): SpeakerProfile
+            {
+                return $profile;
+            }
+        };
+
+        (new IdentifySpeaker($log))->handle($mockService);
+
+        $this->assertSame('historic_quarantine', $seenDisk);
+    }
+
+    #[Test]
+    public function test_identify_speaker_uses_the_configured_disk_when_a_sermon_is_not_promoted(): void
+    {
+        config([
+            'media-processing.speaker_identification.enabled' => true,
+            'media-processing.speaker_identification.mode' => 'enforce',
+        ]);
+
+        $preacher = Preacher::factory()->create([
+            'name' => 'Unpromoted Preacher',
+            'slug' => 'unpromoted-preacher',
+        ]);
+        $profile = SpeakerProfile::factory()->create(['preacher_id' => $preacher->id, 'is_active' => true]);
+        $sermon = Sermon::factory()->create([
+            'preacher_source' => PreacherSource::Default->value,
+            'duration' => 300.0,
+            'asset_disk' => null,
+        ]);
+        $log = MediaProcessingLog::factory()->audio()->pending()->create([
+            'sermon_id' => $sermon->id,
+            'source_file_path' => 'sermons/audio/staged.mp3',
+        ]);
+
+        $seenDisk = 'not-called';
+        $mockService = new class($profile, $seenDisk) implements SpeakerIdentificationInterface
+        {
+            public function __construct(private SpeakerProfile $profile, public mixed &$seenDisk) {}
+
+            public function extractEmbedding(string $audioPath, ?string $disk = null): SpeakerEmbeddingResult
+            {
+                return SpeakerEmbeddingResult::failure('unused');
+            }
+
+            public function identify(string $audioPath, Collection $profiles, ?string $disk = null): SpeakerMatchResult
+            {
+                $this->seenDisk = $disk;
+
+                return SpeakerMatchResult::matched($this->profile->load('preacher'), 0.90, 0.70, [$this->profile->id => 0.90]);
+            }
+
+            public function updateProfile(SpeakerProfile $profile, array $approvedEmbeddings): SpeakerProfile
+            {
+                return $profile;
+            }
+        };
+
+        (new IdentifySpeaker($log))->handle($mockService);
+
+        $this->assertNull($seenDisk);
+    }
 }

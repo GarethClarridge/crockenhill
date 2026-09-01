@@ -118,13 +118,13 @@ class ResemblyzerSpeakerIdentificationService implements SpeakerIdentificationIn
      * @param  Collection<int, SpeakerProfile>  $profiles  Known speaker profiles to compare against
      * @return SpeakerMatchResult The match result, including top score and matched profile
      */
-    public function identify(string $audioPath, Collection $profiles): SpeakerMatchResult
+    public function identify(string $audioPath, Collection $profiles, ?string $disk = null): SpeakerMatchResult
     {
         if ($profiles->isEmpty()) {
             return SpeakerMatchResult::noProfiles();
         }
 
-        $embeddingResult = $this->extractEmbedding($audioPath);
+        $embeddingResult = $this->extractEmbedding($audioPath, $disk);
 
         if (! $embeddingResult->success || $embeddingResult->embedding === null) {
             return SpeakerMatchResult::error(

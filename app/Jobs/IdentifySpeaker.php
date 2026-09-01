@@ -146,8 +146,14 @@ class IdentifySpeaker extends ProcessingJob implements ShouldQueue
             // Resolve the audio file path
             $audioPath = $this->resolveAudioPath();
 
-            // Run identification
-            $result = $speakerService->identify($audioPath, $profiles);
+            // Run identification. A sermon whose assets have been promoted holds
+            // its audio on its own asset disk, not the configured sermon disk, so
+            // a replay after promotion must read from there or find nothing.
+            $assetDisk = is_string($sermon->asset_disk) && $sermon->asset_disk !== ''
+                ? $sermon->asset_disk
+                : null;
+
+            $result = $speakerService->identify($audioPath, $profiles, $assetDisk);
 
             $mode = config('media-processing.speaker_identification.mode', 'shadow');
 

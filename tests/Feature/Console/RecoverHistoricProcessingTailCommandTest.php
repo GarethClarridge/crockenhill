@@ -235,6 +235,76 @@ class RecoverHistoricProcessingTailCommandTest extends TestCase
         Bus::assertNothingDispatched();
     }
 
+    #[Test]
+    public function it_recovers_a_run_that_failed_under_its_own_tail_claim(): void
+    {
+        Bus::fake();
+
+        $operation = $this->createHistoricImportOperation();
+        $processingLog = $this->failedTailAttempt($operation);
+
+        $this->artisan('historic-import:recover-processing-tail', [
+            'processing_id' => $processingLog->processing_id,
+            '--operation' => $operation->operation_id,
+        ])
+            ->expectsOutputToContain('Historic promotion and cleanup tail dispatched')
+            ->assertSuccessful();
+
+        Bus::assertChained([
+            AwaitHistoricSermonVideoStorage::class,
+            PromoteHistoricAssets::class,
+            CleanupTemporaryFiles::class,
+        ]);
+
+        $processingLog->refresh();
+        self::assertSame(ProcessingStatus::Processing, $processingLog->status);
+    }
+
+    #[Test]
+    public function it_still_refuses_a_failed_run_that_never_claimed_the_tail(): void
+    {
+        Bus::fake();
+
+        $operation = $this->createHistoricImportOperation();
+        $processingLog = $this->staleHistoricRun($operation, [
+            'status' => ProcessingStatus::Failed,
+            'current_step' => 'sermon_submitted',
+        ]);
+
+        $this->artisan('historic-import:recover-processing-tail', [
+            'processing_id' => $processingLog->processing_id,
+            '--operation' => $operation->operation_id,
+        ])
+            ->expectsOutputToContain('must still be processing')
+            ->assertFailed();
+
+        Bus::assertNothingDispatched();
+    }
+
+    /**
+     * A run whose tail chain failed at its first link: the await gate marks the
+     * run failed and records SermonSubmitted, leaving the claim behind.
+     */
+    private function failedTailAttempt(HistoricImportOperation $operation): MediaProcessingLog
+    {
+        $processingLog = $this->staleHistoricRun($operation);
+        $metadata = $processingLog->processing_metadata?->toArray() ?? [];
+        $metadata['historic_tail_recovery'] = [
+            'operation_id' => $operation->operation_id,
+            'processing_id' => $processingLog->processing_id,
+            'job_key' => $processingLog->historicImportJobKey(),
+            'claimed_at' => Carbon::now()->subHour()->toISOString(),
+        ];
+
+        $processingLog->forceFill([
+            'processing_metadata' => $metadata,
+            'status' => ProcessingStatus::Failed,
+            'current_step' => 'sermon_submitted',
+        ])->save();
+
+        return $processingLog->refresh();
+    }
+
     /**
      * @param  array<string, mixed>  $attributes
      */
