@@ -1,7 +1,7 @@
 # Historic Video Pilot-to-Bulk Plan
 
 **Date:** 2026-08-29
-**Status:** In progress — Phases 0–6 complete and the Phase 7 canary has been dispatched and resumed under operation 3; the run, first remediation and media-output evaluation are recorded below. That evaluation found new duration, orchestration, title, boundary and song-custody blockers, and a 2026-08-31 review of it added a source-retention blocker (M9), without which the boundary review holds have no media behind them, and a sermon-quarantine blocker (M10) matching the song-side custody gap in M4. Bulk processing remains NO-GO until they are implemented, the canary rows/assets are repaired, and an identical-canary replay proves zero new work and spend.
+**Status:** In progress — **Phases 0–7 complete.** The Phase 7 canary ran under operation 3, its blockers were implemented and its rows and assets repaired, and on 2026-09-01 the **operator sequence reached step 10: the identical-canary replay passed**, proving zero new work and zero spend (evidence: `storage/scratch/historic-video-step10-noop-proof-20260901.md`). All fourteen canary identities now hold truthful terminal dispositions — twelve completed, two excluded. Bulk processing remains NO-GO on one remaining gate: **step 11, M12's four-identity calibration at FFmpeg width two.**
 **Scope:** Correct the pilot findings, prove direct private asset promotion and bounded temporary cleanup, run a fresh canary, and process the remaining historic-video corpus safely
 **Related plan:** `HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md` remains the authority for the wider historic-import programme
 
@@ -66,8 +66,8 @@ The pilot's livestream projection synchronises canonical service items before in
 | 4 — Neutralise internal cost apparatus | Complete | Commit `82be34700` removes live cap/ledger reads and writes while retaining the inert schema and compatibility code for IC8 closeout. |
 | 5 — Canary custody instrumentation | Complete | Commits `c61c8c7af` (direct create-only promotion into quarantine), `81ca5f3d9` (cleanup confined to working-copy disks) plus this commit's four byte measures, reported by `historic-import:video-pass-status --measures`. |
 | 6 — Copy-and-enqueue dispatch | Complete | Commit `6c6b0a7a8` removes polling, adds operation-bound capacity evidence, and aborts stale mounts. Commit `3cb189f5b` adds the database-owned `historic-import:video-pass-status` report and the content-read-I/O regression test. **Its whole-corpus-verification claim was false until 2026-08-30**: `6c6b0a7a8` deleted the opt-in `--verify-corpus` flag *and* the argument it passed, so `plan()` fell back to its `true` default and every invocation — dry runs and `--only` passes included — re-read ~1.0 TB. Now fixed at the call site with `verifySourceContents: false`, proved by `a_bounded_pass_does_not_read_the_contents_of_unselected_sources`. A 14-item dry run went from over three hours to 23 seconds. |
-| 7 — Fresh canary | Run and media evaluation complete; further remediation required | Operation 3 was dispatched and resumed after a stale-mount abort. The first duration, stranded-tail, custody-measurement and pilot-custody fixes are implemented and tested, but the output audit found fresh-sermon duration, untracked video-storage, filename-title, song-boundary and song-custody defects. The operation-bound repairs and identical-canary proof have not been run. |
-| 8–9 | Not started | The remainder and public-release phases remain gated on a clean Phase 7 acceptance. |
+| 7 — Fresh canary | **Complete** | Operation 3 was dispatched and resumed after a stale-mount abort; the duration, orchestration, title, boundary and custody defects it surfaced were implemented and its rows and assets repaired. The identical-canary replay passed on 2026-09-01: dispatched 0, resumed 13, skipped 1, errors 0, **0 B processed**, every baseline count unchanged, in 3.9 seconds. Evidence `storage/scratch/historic-video-step10-noop-proof-20260901.md`. |
+| 8–9 | Not started | Gated on step 11, the four-identity two-worker calibration. Everything else Phase 7 required is now satisfied. |
 
 #### M9, M5 and M7 implemented, 2026-09-01
 
@@ -241,9 +241,11 @@ because `VideoExtractionService` already writes its output through the same call
 The whole extraction path requires a local-path-capable temp disk, `temp_disk`
 defaults to `local`, and an unreadable path fails closed with a clear message.
 
-Still outstanding, and all operator work: M12 items 11–14 (the operation-3
-retrospective report and the four-identity two-worker calibration pass), and the
-operator sequence below.
+Still outstanding, and all operator work: **M12 items 12–14 only** — the
+four-identity two-worker calibration pass (operator sequence step 11). M12 item 11,
+the operation-3 retrospective report, was produced on 2026-09-01
+(`historic-video-canary-performance-20260901.json`), and operator sequence steps
+2–10 are complete.
 
 ### Phase 0 outcome
 
@@ -1974,6 +1976,106 @@ duplicate admin suites named in the repository do-not-invest list.
    Worker width must not regenerate or split the durable-output fingerprint. Only
    then may Phase 8 start.
 
+### Operator sequence steps 10 and the work that unblocked it, 2026-09-01
+
+Step 10 could not run while two of the fourteen identities sat in non-terminal
+states. Both are now resolved, and the replay has passed.
+
+**A drive-wide search for missing or miscategorised sources found none.** All 510
+video files on `/mnt/cbc-services` appear in the curation worksheet; none is
+unreferenced. Exactly ten directories hold more than one video and exactly ten
+worksheet entries are marked `concatenation: lossless` — a one-for-one match, so no
+multi-segment service is unconcatenated. The church's practice of stopping the
+recording for each song is real and visible (`2024-01-14` morning is five segments
+with 2.5–5 minute gaps, `2024-12-22` evening is ten), and it is already handled.
+Ninety-five audio files (73 mp3, 20 wav, 2 m4a across 86 dates) are on the drive
+referenced by nothing in the video worksheet; only two coincide with short video
+items and neither is under twenty minutes, so they fill no gap. Whether the legacy
+MP3 lane covers them is open.
+
+**Two recording practices, and the sermon gate was wrong for one of them.** Morning
+recordings run to a median of 64.8 minutes and hold the whole service; evening
+recordings run to a median of 23.8 and hold the sermon alone. Where the sermon sits
+inside the file separates them cleanly: sermon-only captures put it within 50 s of
+the start and cover 92.5–98.0% of the recording, whole-service captures 31.4–67.0%.
+`SermonCandidateConfidenceService` applied a flat 1200 s floor to both, which in a
+sermon-only recording no longer selects a sermon out of competing speech — there is
+none — but merely measures how long the sermon ran, rejecting every evening sermon
+shorter than twenty minutes.
+
+Corrected across `13501bef9` and `c0cbc3e86`. A sermon-only recording now has **no
+qualifying floor at all**; its candidate is compared with what that service's sermon
+usually runs to (morning 1500 s, evening 900 s) and, below that, routes to manual
+review under a new reason `sermon_shorter_than_typical`. Nothing is refused on
+length, because a carol service may legitimately carry an eight-minute sermon and
+length cannot distinguish that from a non-sermon item recorded on its own. An
+unnamed service takes the stricter figure. The whole-service path is untouched.
+Effect on the approved manifest: 26 items now extract automatically that no run
+could previously reach, and 10 route to review on length.
+
+**Four non-service items and four short items were excluded** in the adjudicated
+worksheet, taking approved membership from 470 to **462**. The frozen manifest was
+deliberately *not* re-frozen: operation 3 records
+`manifest_hashes.historic_video = 1ae7e4fc…`, which
+`ProcessingRunOrchestrator::stagingContextMatchesOperation()` checks, so re-freezing
+in place would have invalidated the very replay step 10 depends on. Re-freeze into a
+new manifest bound to the Phase 8 operation. Full list:
+`storage/scratch/historic-video-short-item-dispositions-20260901.md`.
+
+**An operator can now record why a run was excluded (`1643ab001`).** The only
+exclusion the system could express was a silent source, which `AnalyzeSegments`
+detects without anyone looking; a recording that simply holds no sermon needs a
+person, and that decision had nowhere to go. Exclusion reasons are now a set, with
+operator reason `no_sermon_in_source` and command `historic-import:exclude-run`
+(dry-run by default, `--apply --yes`, note required, idempotent, refusing another
+operation's run and refusing to hand-write the reason the pipeline owns). The pass
+reader tests exclusion **before** every other terminal reading, manual review
+included, and the run keeps its own status so nothing about what happened is
+rewritten.
+
+**Both blockers cleared.** `2026-04-02-evening` was restarted from `rms_generation`
+— the retry plan resumes at the failed step, which is two phases downstream of where
+the exclusion is decided — and reached `completed` in 27 s carrying
+`source_audio_silent` with 22,857 frames all `-inf`, releasing 183,569,962 stranded
+staging bytes. That is the first real-data proof of the silent-source path, at no
+provider cost. `2023-07-16-morning` was excluded through the new command with its
+transcript as the note.
+
+**Step 10 then passed**, in full, in 3.9 seconds. Every acceptance item and the path
+census are recorded in `storage/scratch/historic-video-step10-noop-proof-20260901.md`.
+Custody residue is enumerated rather than zero: 2.90 GiB, censused by path, nothing
+deleted.
+
+Three things Phase 8 must carry forward:
+
+1. **Every real dispatch requires `--host-capacity-evidence`.** Staging free space is
+   not measurable from inside the container — it reports the parent filesystem, not
+   the drive — so the figure must come from a host `df` on
+   `$CBC_HISTORIC_WORK_PATH` and be written into an operation-and-plan-bound JSON.
+2. **`queue:restart` did not cycle the workers.** The worker process age was still
+   25,382 s after the signal; the containers had to be restarted directly. Verify
+   with `ps -eo etimes,cmd | grep queue:work` inside a worker, never with container
+   uptime. A fix is not live until that check shows a fresh process.
+3. **A retry resumes at the failed step, not at the fix.** Any run that failed
+   downstream of a subsequently-fixed job must have its `current_step` pointed back
+   at a phase whose retry action is a full restart before it will re-enter the fix.
+
+Two findings outside step 10's scope, both open:
+
+- **Six pilot sermons overstate their video by 4–15 minutes** — 878, 889, 881, 891,
+  884 and 885, measured as stored duration against the probed file. All are
+  quarantined, so nothing public is affected, but they would be wrong if released.
+  Same class as the 893 truncation already repaired; no frozen-14 sermon is
+  affected. Note that `sermon_end_time - sermon_start_time` on the processing log is
+  the candidate span and **not** the authority — probe the file.
+- **The dispatcher's skip logic does not know about exclusions.** It reports
+  `2023-07-16-morning` as `[skip-pending-review] awaiting manual sermon review`
+  though the run is excluded. It skips either way, so the no-op holds, but this is
+  the same untruthfulness fixed in `HistoricVideoPassStatus::disposition()`, in a
+  second place. Fix before Phase 8 if an excluded run can remain in a manifest.
+
+**Only step 11 remains before Phase 8.**
+
 ### Phase 8 — Process the remainder as a closed pass loop
 
 For each pass:
@@ -2020,7 +2122,10 @@ The remainder may start only when all of these are true:
 
 - [ ] Pilot membership and disk ownership reconcile exactly.
 - [ ] Title, Scripture, observed-media duration and slug application pass both the
-  pilot and fresh-canary shapes; M1 and M3 remain outstanding.
+  pilot and fresh-canary shapes; M1 and M3 remain outstanding. **Observed-media
+  duration now passes for the fresh-canary shape and fails for the pilot shape:**
+  all twelve canary sermons probe within ±0.1 s of their stored duration, while six
+  pilot sermons overstate their video by 4–15 minutes (see step 10's findings).
 - [x] Service projection no longer conflicts with its own evidence.
 - [x] Fragmentary/duplicate song candidates fail closed to review.
 - [x] Sermon video storage, quality, promotion and cleanup are one truthfully
@@ -2079,6 +2184,8 @@ The remainder may start only when all of these are true:
 - [ ] A fresh untouched canary passes all acceptance criteria.
 - [ ] The canary proves direct private promotion and bounded temporary cleanup without fragmenting the cumulative evidence graph.
 - [ ] The canary's measured byte/time envelope, not an identity-count rule, sizes the first bulk pass.
-- [ ] Re-running that canary is an exact no-op with zero additional model spend.
+- [x] Re-running that canary is an exact no-op with zero additional model spend.
+  Proven 2026-09-01: dispatched 0, resumed 13, skipped 1, errors 0, 0 B processed,
+  in 3.9 s, with every baseline count identical before and after.
 
 Until then, the remaining historic-video dispatch is **NO-GO**.
