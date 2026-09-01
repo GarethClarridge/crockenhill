@@ -169,6 +169,14 @@ class ProcessingRunFailureHandler
         \Throwable $exception,
         string $message,
     ): bool {
+        // `message` is the sanitised, public-safe text (safeMessage()) — it
+        // exists to keep internal detail out of *external* notifications. A
+        // HistoricImportAlert is not external: it is a private operator
+        // record in a lane whose external notifications are disabled by
+        // construction, so it also carries the real exception message.
+        // `message`, `exception_class` and `exception_fingerprint` are left
+        // untouched — the fingerprint is used for deduplication and existing
+        // rows must stay comparable.
         return app(ProcessingNotificationRouter::class)->suppressIfHistoric(
             $processingLog,
             'failure',
@@ -176,6 +184,7 @@ class ProcessingRunFailureHandler
             [
                 'stage' => $processingLog->current_step,
                 'message' => $message,
+                'internal_message' => $exception->getMessage(),
                 'exception_class' => $exception::class,
                 'exception_fingerprint' => hash('sha256', $exception->getMessage()),
             ],

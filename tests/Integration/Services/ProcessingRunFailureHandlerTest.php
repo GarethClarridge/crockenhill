@@ -7,6 +7,7 @@ namespace Tests\Integration\Services;
 use App\Contracts\ProvidesSafeMessage;
 use App\Enums\ProcessingStatus;
 use App\Mail\LivestreamProcessingFailed;
+use App\Models\HistoricImportAlert;
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Video\VideoStorageService;
 use App\Services\Processing\MediaProcessingRunTransitionService;
@@ -15,10 +16,12 @@ use App\Services\Processing\ProcessingRunFailureHandler;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
 
 class ProcessingRunFailureHandlerTest extends TestCase
 {
+    use CreatesHistoricImportOperations;
     use RefreshDatabase;
 
     private ProcessingRunFailureHandler $handler;
@@ -177,6 +180,48 @@ class ProcessingRunFailureHandlerTest extends TestCase
 
         $this->assertSame(ProcessingStatus::Failed, $log->status);
         $this->assertSame($jobKey, $log->dedup_key);
+    }
+
+    #[Test]
+    public function historic_failure_alerts_carry_the_real_exception_message_alongside_the_safe_one(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $jobKey = hash('sha256', 'historic-failed-job-detail');
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'historic_import_operation_id' => $operation->id,
+            'source_file_path' => 'livestreams/source.mp4',
+            'dedup_key' => $jobKey,
+            'processing_metadata' => [
+                'historic_import' => [
+                    'operation_id' => $operation->operation_id,
+                    'job_key' => $jobKey,
+                ],
+            ],
+        ]);
+
+        $this->app->forgetInstance(ProcessingRunFailureHandler::class);
+
+        app(ProcessingRunFailureHandler::class)->handle(
+            $log->processing_id,
+            new \RuntimeException('Stored full-service transcript contains no cues.'),
+            ProcessingRunFailureHandler::PROFILE_LIVESTREAM,
+        );
+
+        $alert = HistoricImportAlert::query()
+            ->where('historic_import_operation_id', $operation->id)
+            ->where('kind', 'failure')
+            ->firstOrFail();
+
+        $facts = $alert->payload['facts'];
+
+        // The safe message and fingerprint are untouched — the fingerprint is
+        // used for deduplication and existing rows must stay comparable.
+        $this->assertSame('An internal error occurred during livestream processing.', $facts['message']);
+        $this->assertSame(hash('sha256', 'Stored full-service transcript contains no cues.'), $facts['exception_fingerprint']);
+
+        // The real cause travels alongside it, under a distinct key, because
+        // this alert is a private operator record, not an external notice.
+        $this->assertSame('Stored full-service transcript contains no cues.', $facts['internal_message']);
     }
 
     // ── Guard conditions ──────────────────────────────────────────────────────

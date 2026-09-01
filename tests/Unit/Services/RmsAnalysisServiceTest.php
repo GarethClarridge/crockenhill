@@ -162,6 +162,70 @@ class RmsAnalysisServiceTest extends TestCase
         $this->assertEquals(-30.0, $result['peak']);
     }
 
+    #[Test]
+    public function it_reports_honest_silence_when_every_sample_in_the_window_is_inf(): void
+    {
+        $rmsData = [
+            ['time' => 0.0, 'rms' => -999.0],
+            ['time' => 1.0, 'rms' => -999.0],
+            ['time' => 2.0, 'rms' => -999.0],
+        ];
+
+        $result = $this->service->calculateSegmentRms(0.0, 2.0, $rmsData);
+
+        // Not the fabricated "quiet but not silent" fallback (-50.0/-40.0):
+        // every sample in range was digital silence, so the window is reported
+        // as silence, not invented speech.
+        $this->assertEquals(-999.0, $result['avg']);
+        $this->assertEquals(-999.0, $result['peak']);
+    }
+
+    #[Test]
+    public function it_still_returns_the_no_data_fallback_for_a_genuinely_empty_window(): void
+    {
+        // No samples fall within the requested range at all — a different
+        // condition from every sample being silent — so the existing "quiet
+        // but not silent" fallback still applies.
+        $rmsData = [
+            ['time' => 100.0, 'rms' => -999.0],
+        ];
+
+        $result = $this->service->calculateSegmentRms(0.0, 5.0, $rmsData);
+
+        $this->assertEquals(-50.0, $result['avg']);
+        $this->assertEquals(-40.0, $result['peak']);
+    }
+
+    // ---- isEntirelySilent ----
+
+    #[Test]
+    public function it_reports_entirely_silent_when_every_sample_is_inf(): void
+    {
+        $rmsData = [
+            ['time' => 0.0, 'rms' => -999.0],
+            ['time' => 1.0, 'rms' => -999.0],
+        ];
+
+        $this->assertTrue($this->service->isEntirelySilent($rmsData));
+    }
+
+    #[Test]
+    public function it_reports_not_entirely_silent_when_any_sample_has_signal(): void
+    {
+        $rmsData = [
+            ['time' => 0.0, 'rms' => -999.0],
+            ['time' => 1.0, 'rms' => -55.0],
+        ];
+
+        $this->assertFalse($this->service->isEntirelySilent($rmsData));
+    }
+
+    #[Test]
+    public function it_reports_not_entirely_silent_for_an_empty_dataset(): void
+    {
+        $this->assertFalse($this->service->isEntirelySilent([]));
+    }
+
     // ---- getTotalDuration ----
 
     #[Test]

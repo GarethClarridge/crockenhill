@@ -7,6 +7,7 @@ namespace Tests\Feature\Console;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Services\HistoricMedia\HistoricVideoPassStatus;
+use App\Services\Processing\ProcessingNotificationRouter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -39,6 +40,59 @@ class HistoricVideoPassStatusCommandTest extends TestCase
             '--only' => 'finished,review,running,not-dispatched',
         ])
             ->expectsOutputToContain('Database-owned pass status')
+            ->assertExitCode(0);
+    }
+
+    #[Test]
+    public function it_reports_excluded_not_completed_for_a_silent_source_run(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'historic_import_operation_id' => $operation->id,
+            'status' => ProcessingStatus::Completed,
+            'current_step' => 'completed',
+            'processing_metadata' => [
+                'historic_import' => ['manifest_item_key' => '2026-04-02-evening'],
+                'exclusion' => [
+                    'reason' => 'source_audio_silent',
+                    'recorded_at' => now()->toIso8601String(),
+                    'evidence' => ['frame_count' => 21012, 'rms_log_path' => 'temp/rms.log'],
+                ],
+            ],
+        ]);
+
+        app(ProcessingNotificationRouter::class)->suppressIfHistoric(
+            $log,
+            'excluded_source_audio_silent',
+            'warning',
+            ['frame_count' => 21012, 'rms_log_path' => 'temp/rms.log'],
+        );
+
+        $report = app(HistoricVideoPassStatus::class)->report($operation, ['2026-04-02-evening']);
+        self::assertSame('excluded', $report[0]['disposition']);
+
+        $alerts = app(HistoricVideoPassStatus::class)->alerts($operation, ['2026-04-02-evening']);
+        self::assertSame(
+            ['kind' => 'excluded_source_audio_silent', 'severity' => 'warning', 'count' => 1],
+            $alerts['by_kind'][0],
+        );
+        self::assertSame('2026-04-02-evening', $alerts['items'][0]['item_key']);
+        self::assertSame(
+            'source audio is digitally silent (21012 frames, all -inf)',
+            $alerts['items'][0]['reason'],
+        );
+
+        // Overlapping substrings (e.g. "excluded" inside "excluded_source_
+        // audio_silent") make expectsOutputToContain's per-call matching
+        // unreliable across multiple assertions here, so only one distinctive,
+        // non-overlapping fragment is asserted at the console level — the
+        // service-level assertions above prove the actual content.
+        $this->artisan('historic-import:video-pass-status', [
+            '--operation' => $operation->operation_id,
+            '--only' => '2026-04-02-evening',
+        ])
+            ->expectsOutputToContain('Historic import alerts')
             ->assertExitCode(0);
     }
 

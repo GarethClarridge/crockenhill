@@ -90,15 +90,29 @@ class RmsAnalysisService
     public function calculateSegmentRms(float $startTime, float $endTime, array $rmsData): array
     {
         $segmentRms = [];
+        $windowSampleCount = 0;
 
         foreach ($rmsData as $data) {
-            if ($data['time'] >= $startTime && $data['time'] <= $endTime && $data['rms'] > -999.0) {
-                $segmentRms[] = $data['rms'];
+            if ($data['time'] >= $startTime && $data['time'] <= $endTime) {
+                $windowSampleCount++;
+
+                if ($data['rms'] > -999.0) {
+                    $segmentRms[] = $data['rms'];
+                }
             }
         }
 
         if (empty($segmentRms)) {
-            // Fallback values representing a quiet but not silent segment.
+            if ($windowSampleCount > 0) {
+                // Every sample in this window is digital silence (-inf). This is a
+                // different condition from no samples at all: report it honestly
+                // rather than fabricating a "quiet but not silent" level, which
+                // would misclassify true silence as ordinary speech.
+                return ['avg' => -999.0, 'peak' => -999.0];
+            }
+
+            // No RMS samples fall in this window at all — fallback values
+            // representing a quiet but not silent segment.
             return ['avg' => -50.0, 'peak' => -40.0];
         }
 
@@ -109,6 +123,30 @@ class RmsAnalysisService
             'avg' => round($avgRms, 1),
             'peak' => round($peakRms, 1),
         ];
+    }
+
+    /**
+     * Whether an RMS dataset has samples and every one of them is digital
+     * silence (-inf, mapped to -999.0 by {@see parseRmsLevel()}).
+     *
+     * An empty dataset is a different condition — no data was captured at
+     * all — and is deliberately not reported as silence here.
+     *
+     * @param  list<array{time: float, rms: float}>  $rmsData  Dataset from extractRmsData()
+     */
+    public function isEntirelySilent(array $rmsData): bool
+    {
+        if ($rmsData === []) {
+            return false;
+        }
+
+        foreach ($rmsData as $data) {
+            if ($data['rms'] > -999.0) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

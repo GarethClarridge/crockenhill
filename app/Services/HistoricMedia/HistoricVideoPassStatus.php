@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\HistoricMedia;
 
 use App\Enums\ProcessingStatus;
+use App\Models\HistoricImportAlert;
 use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
 
@@ -21,24 +22,7 @@ class HistoricVideoPassStatus
      */
     public function report(HistoricImportOperation $operation, array $itemKeys): array
     {
-        $runsByItemKey = [];
-
-        MediaProcessingLog::query()
-            ->where('historic_import_operation_id', $operation->id)
-            ->orderBy('id')
-            ->get([
-                'processing_id',
-                'status',
-                'current_step',
-                'processing_metadata',
-            ])
-            ->each(function (MediaProcessingLog $run) use (&$runsByItemKey): void {
-                $itemKey = $this->manifestItemKey($run);
-
-                if ($itemKey !== null) {
-                    $runsByItemKey[$itemKey][] = $run;
-                }
-            });
+        $runsByItemKey = $this->runsByItemKey($operation, $itemKeys);
 
         $status = [];
 
@@ -57,6 +41,105 @@ class HistoricVideoPassStatus
         }
 
         return $status;
+    }
+
+    /**
+     * Historic alerts scoped to this pass's runs, grouped by kind for a
+     * count-level summary and listed per identity for the operator to read
+     * the reason without hand-diagnosing it. Alerts are the only durable
+     * record for a historic run: external notifications are disabled by
+     * construction, so this is their first reader.
+     *
+     * @param  list<string>  $itemKeys
+     * @return array{
+     *     by_kind: list<array{kind:string, severity:string, count:int}>,
+     *     items: list<array{item_key:string, kind:string, severity:string, reason:string, recorded_at:string}>
+     * }
+     */
+    public function alerts(HistoricImportOperation $operation, array $itemKeys): array
+    {
+        $runsByItemKey = $this->runsByItemKey($operation, $itemKeys);
+
+        $itemKeyByLogId = [];
+        foreach ($runsByItemKey as $itemKey => $runs) {
+            foreach ($runs as $run) {
+                $itemKeyByLogId[$run->id] = $itemKey;
+            }
+        }
+
+        if ($itemKeyByLogId === []) {
+            return ['by_kind' => [], 'items' => []];
+        }
+
+        $alerts = HistoricImportAlert::query()
+            ->where('historic_import_operation_id', $operation->id)
+            ->whereIn('media_processing_log_id', array_keys($itemKeyByLogId))
+            ->orderBy('recorded_at')
+            ->get();
+
+        $counts = [];
+        foreach ($alerts as $alert) {
+            $groupKey = $alert->kind.'|'.$alert->severity;
+            $counts[$groupKey] ??= ['kind' => $alert->kind, 'severity' => $alert->severity, 'count' => 0];
+            $counts[$groupKey]['count']++;
+        }
+        ksort($counts);
+
+        $items = [];
+        foreach ($alerts as $alert) {
+            $items[] = [
+                'item_key' => $itemKeyByLogId[(int) $alert->media_processing_log_id] ?? '(unknown)',
+                'kind' => $alert->kind,
+                'severity' => $alert->severity,
+                'reason' => $this->alertReason($alert),
+                'recorded_at' => $alert->recorded_at->toIso8601String(),
+            ];
+        }
+
+        return ['by_kind' => array_values($counts), 'items' => $items];
+    }
+
+    /**
+     * @param  list<string>  $itemKeys
+     * @return array<string, list<MediaProcessingLog>>
+     */
+    private function runsByItemKey(HistoricImportOperation $operation, array $itemKeys): array
+    {
+        $runsByItemKey = [];
+
+        MediaProcessingLog::query()
+            ->where('historic_import_operation_id', $operation->id)
+            ->orderBy('id')
+            ->get([
+                'id',
+                'processing_id',
+                'status',
+                'current_step',
+                'processing_metadata',
+            ])
+            ->each(function (MediaProcessingLog $run) use (&$runsByItemKey): void {
+                $itemKey = $this->manifestItemKey($run);
+
+                if ($itemKey !== null) {
+                    $runsByItemKey[$itemKey][] = $run;
+                }
+            });
+
+        return array_intersect_key($runsByItemKey, array_flip($itemKeys));
+    }
+
+    private function alertReason(HistoricImportAlert $alert): string
+    {
+        $facts = $alert->payload['facts'] ?? null;
+        $facts = is_array($facts) ? $facts : [];
+
+        return match ($alert->kind) {
+            'excluded_source_audio_silent' => sprintf(
+                'source audio is digitally silent (%d frames, all -inf)',
+                (int) ($facts['frame_count'] ?? 0),
+            ),
+            default => is_string($facts['reason'] ?? null) ? $facts['reason'] : $alert->kind,
+        };
     }
 
     private function manifestItemKey(MediaProcessingLog $run): ?string
@@ -107,6 +190,25 @@ class HistoricVideoPassStatus
 
         if ($manualReviewRuns->isNotEmpty()) {
             return 'manual_review';
+        }
+
+        // Reported ahead of the plain status match below: an excluded run's
+        // ProcessingStatus is Completed (there was nothing to extract, so it
+        // reached the same terminal disposition as any other successful
+        // run), and only the exclusion metadata distinguishes it. Without
+        // this branch it would report as 'completed' and the operator would
+        // never learn the source recording was silent.
+        $excludedRuns = collect($runs)->filter(
+            static fn (MediaProcessingLog $run): bool => $run->status === ProcessingStatus::Completed
+                && $run->isExcludedSilentAudio(),
+        );
+
+        if ($excludedRuns->isNotEmpty() && $excludedRuns->count() !== count($runs)) {
+            return 'mixed_terminal';
+        }
+
+        if ($excludedRuns->isNotEmpty()) {
+            return 'excluded';
         }
 
         $statuses = collect($runs)->pluck('status')->unique();

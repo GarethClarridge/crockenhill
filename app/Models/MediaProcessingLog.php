@@ -89,6 +89,12 @@ class MediaProcessingLog extends Model
 
     public const VIDEO_PROCESSING_MODE_AUTO_TRIM = 'auto_trim';
 
+    /**
+     * The run's source recording has no usable audio at all — every RMS
+     * sample in its log is digital silence. See {@see isExcludedSilentAudio()}.
+     */
+    public const EXCLUSION_REASON_SOURCE_AUDIO_SILENT = 'source_audio_silent';
+
     protected $fillable = [
         'processing_id',
         'historic_import_operation_id',
@@ -764,6 +770,55 @@ class MediaProcessingLog extends Model
             ],
             $windows,
         ));
+    }
+
+    /**
+     * Whether AnalyzeSegments determined the source recording has no usable
+     * audio at all — every RMS sample in the log reads digital silence
+     * (`-inf`). The run still reaches a terminal Completed disposition (there
+     * is nothing to extract), so downstream steps read this flag to skip
+     * themselves rather than working from a transcript that cannot exist.
+     */
+    public function isExcludedSilentAudio(): bool
+    {
+        $metadata = $this->processing_metadata?->toArray() ?? [];
+        $reason = data_get($metadata, 'exclusion.reason');
+
+        return $reason === self::EXCLUSION_REASON_SOURCE_AUDIO_SILENT;
+    }
+
+    /**
+     * The evidence recorded alongside a silent-audio exclusion — frame count,
+     * the RMS log path, and (when available) the source file's historic-import
+     * provenance — or null when the run was not excluded.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function silentAudioExclusionEvidence(): ?array
+    {
+        $metadata = $this->processing_metadata?->toArray() ?? [];
+        $evidence = data_get($metadata, 'exclusion.evidence');
+
+        return is_array($evidence) ? $evidence : null;
+    }
+
+    /**
+     * Record that this run was excluded because its source audio is
+     * digitally silent, carrying the evidence for the operator to read back
+     * without hand-diagnosing the run.
+     *
+     * @param  array<string, mixed>  $evidence
+     */
+    public function putSilentAudioExclusion(array $evidence): void
+    {
+        $processingMetadata = $this->processing_metadata?->toArray() ?? [];
+        $processingMetadata['exclusion'] = [
+            'reason' => self::EXCLUSION_REASON_SOURCE_AUDIO_SILENT,
+            'recorded_at' => now()->toIso8601String(),
+            'evidence' => $evidence,
+        ];
+
+        $this->forceFill(['processing_metadata' => $processingMetadata])->save();
     }
 
     public function isAutoTrimVideoRun(): bool

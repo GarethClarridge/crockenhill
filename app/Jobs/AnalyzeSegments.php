@@ -8,8 +8,10 @@ use App\Data\LivestreamSegment;
 use App\Enums\ProcessingStep;
 use App\Models\LivestreamSegment as LivestreamSegmentModel;
 use App\Models\MediaProcessingLog;
+use App\Services\HistoricMedia\HistoricProcessingThroughput;
 use App\Services\Media\Video\VideoSegmentationService;
 use App\Services\Processing\MediaProcessingRunTransitionService;
+use App\Services\Processing\ProcessingNotificationRouter;
 use App\Services\Processing\SermonProcessingStepTransitions;
 use App\Traits\ChecksCancellation;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -76,6 +78,14 @@ class AnalyzeSegments implements ShouldQueue
             $segments = $analysisResult['segments'];
             /** @var array<string, mixed> $thresholdMetadata */
             $thresholdMetadata = $analysisResult['threshold_metadata'];
+            /** @var array{frame_count: int, rms_log_path: string}|null $silenceEvidence */
+            $silenceEvidence = $analysisResult['silence_evidence'] ?? null;
+
+            if ($silenceEvidence !== null) {
+                $this->excludeForSilentAudio($silenceEvidence, $processingStepTransitions);
+
+                return;
+            }
 
             if (empty($segments)) {
                 throw new \Exception('No segments found in analysis');
@@ -149,6 +159,64 @@ class AnalyzeSegments implements ShouldQueue
             'threshold_method' => $thresholdMetadata['method'] ?? 'unknown',
             'threshold_value' => $thresholdMetadata['threshold'] ?? null,
         ]);
+    }
+
+    /**
+     * The recording has no usable audio at all — every RMS sample is digital
+     * silence. This is a first-class terminal outcome, not a failure: record
+     * the evidence, complete the analyzing_segments step, and send the run
+     * straight to cleanup instead of through TranscribeFullService and
+     * DetectServiceStructure, which would have nothing to read.
+     *
+     * The remaining chain is cleared and CleanupTemporaryFiles is dispatched
+     * directly — mirroring PrepareSectionPublicationCandidates's standalone
+     * completion path — rather than relying on every downstream job (through
+     * ExtractSermon, which requires a resolvable sermon baseline) to notice
+     * and skip itself. Cleanup's own completion logic then marks the run
+     * Completed, matching every other run that legitimately found nothing to
+     * extract.
+     *
+     * @param  array{frame_count: int, rms_log_path: string}  $silenceEvidence
+     */
+    private function excludeForSilentAudio(
+        array $silenceEvidence,
+        SermonProcessingStepTransitions $processingStepTransitions,
+    ): void {
+        $sources = data_get($this->processingLog->processing_metadata?->toArray(), 'historic_import.sources');
+        $firstSource = is_array($sources) ? ($sources[0] ?? null) : null;
+
+        $evidence = $silenceEvidence + [
+            'source_path' => is_array($firstSource) ? ($firstSource['path'] ?? null) : null,
+            'source_sha256' => is_array($firstSource) ? ($firstSource['sha256'] ?? null) : null,
+        ];
+
+        $this->processingLog->putSilentAudioExclusion($evidence);
+
+        app(ProcessingNotificationRouter::class)->suppressIfHistoric(
+            $this->processingLog,
+            'excluded_source_audio_silent',
+            'warning',
+            $evidence,
+        );
+
+        Log::warning('Source audio is digitally silent; excluding run from speech analysis', [
+            'processing_id' => $this->processingLog->processing_id,
+            'evidence' => $evidence,
+        ]);
+
+        $processingStepTransitions->markAsCompleted(
+            $this->processingLog->processing_id,
+            ProcessingStep::AnalyzingSegments->value,
+            'Source audio is digitally silent; run excluded, nothing to extract.',
+        );
+
+        $this->chained = [];
+
+        $cleanup = CleanupTemporaryFiles::dispatch($this->processingLog);
+
+        if ($this->processingLog->historic_import_operation_id !== null) {
+            $cleanup->onQueue(app(HistoricProcessingThroughput::class)->queueForClass(CleanupTemporaryFiles::class));
+        }
     }
 
     /**

@@ -6,8 +6,19 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use LogicException;
 
+/**
+ * @property int $id
+ * @property int $historic_import_operation_id
+ * @property int|null $media_processing_log_id
+ * @property string $alert_key
+ * @property string $kind
+ * @property string $severity
+ * @property array<string, mixed> $payload
+ * @property Carbon $recorded_at
+ */
 class HistoricImportAlert extends Model
 {
     public $timestamps = false;

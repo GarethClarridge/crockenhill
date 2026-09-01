@@ -373,6 +373,49 @@ class VideoSegmentationServiceRmsTest extends TestCase
         $this->assertFalse($segments[0]->isSermonCandidate);
     }
 
+    // ---- entirely silent RMS log ----
+
+    #[Test]
+    public function it_reports_silence_evidence_instead_of_a_fabricated_whole_file_speech_segment(): void
+    {
+        $points = [];
+        for ($t = 0; $t <= 487; $t += 1) {
+            $points[] = ['time' => (float) $t, 'rms' => -999.0];
+        }
+        $logContent = $this->buildRmsLog($points);
+        Storage::disk('local')->put('temp/test_silent.log', $logContent);
+
+        $result = $this->service->analyzeSegments('temp/test_silent.log');
+
+        // No fabricated whole-file "speech" segment — a silent recording is
+        // reported as evidence, not classified as continuous speech.
+        $this->assertSame([], $result['segments']);
+        $this->assertNotNull($result['silence_evidence']);
+        $this->assertSame(488, $result['silence_evidence']['frame_count']);
+        $this->assertSame('temp/test_silent.log', $result['silence_evidence']['rms_log_path']);
+    }
+
+    #[Test]
+    public function it_does_not_report_silence_evidence_for_an_ordinary_quiet_recording(): void
+    {
+        Config::set('media-processing.segmentation.adaptive_thresholds.enabled', false);
+        $this->refreshServices();
+
+        // Quiet but not silent (-50.0, never -inf) — must still segment normally.
+        $points = [];
+        for ($t = 0; $t <= 100; $t += 1) {
+            $points[] = ['time' => (float) $t, 'rms' => -50.0];
+        }
+        $logContent = $this->buildRmsLog($points);
+        Storage::disk('local')->put('temp/test_quiet_not_silent.log', $logContent);
+
+        $result = $this->service->analyzeSegments('temp/test_quiet_not_silent.log');
+
+        $this->assertNull($result['silence_evidence']);
+        $this->assertCount(1, $result['segments']);
+        $this->assertEquals('speech', $result['segments'][0]->classification);
+    }
+
     // ---- determineThreshold tests ----
 
     #[Test]

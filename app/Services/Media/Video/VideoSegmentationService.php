@@ -136,10 +136,11 @@ class VideoSegmentationService
      *     segments: list<LivestreamSegment>,
      *     threshold_metadata: array{
      *         threshold: float,
-     *         method: 'fixed'|'adaptive'|'fallback',
+     *         method: 'fixed'|'adaptive'|'fallback'|'not_applicable',
      *         log_data: array<string, mixed>,
      *         rms_stats?: array<string, mixed>
-     *     }
+     *     },
+     *     silence_evidence: array{frame_count: int, rms_log_path: string}|null
      * }
      *
      * @throws SegmentationException If the RMS log is missing or invalid
@@ -156,6 +157,31 @@ class VideoSegmentationService
             }
 
             $logContent = $this->storageAdapter->getFileContents($rmsDisk, $rmsLogPath);
+
+            $rmsData = $this->rmsAnalysisService->extractRmsData($logContent);
+
+            if ($this->rmsAnalysisService->isEntirelySilent($rmsData)) {
+                Log::warning('RMS log is entirely digital silence; no speech to segment', [
+                    'rms_log_path' => $rmsLogPath,
+                    'frame_count' => count($rmsData),
+                ]);
+
+                return [
+                    'segments' => [],
+                    'threshold_metadata' => [
+                        'threshold' => 0.0,
+                        'method' => 'not_applicable',
+                        'log_data' => [
+                            'method' => 'not_applicable',
+                            'reason' => 'source_audio_silent',
+                        ],
+                    ],
+                    'silence_evidence' => [
+                        'frame_count' => count($rmsData),
+                        'rms_log_path' => $rmsLogPath,
+                    ],
+                ];
+            }
 
             $thresholdResult = $this->rmsAnalysisService->determineThreshold($logContent);
 
@@ -174,6 +200,7 @@ class VideoSegmentationService
             return [
                 'segments' => $segments,
                 'threshold_metadata' => $thresholdResult,
+                'silence_evidence' => null,
             ];
 
         } catch (\Exception $e) {

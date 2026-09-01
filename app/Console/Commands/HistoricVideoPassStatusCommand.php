@@ -83,6 +83,8 @@ class HistoricVideoPassStatusCommand extends Command
 
         $this->line("Database-owned pass status — {$dispositions}.");
 
+        $this->reportAlerts($status->alerts($operation, $itemKeys));
+
         if ($this->option('measures')) {
             $this->reportMeasures($measures->report($operation, $itemKeys));
         }
@@ -97,6 +99,41 @@ class HistoricVideoPassStatusCommand extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Surfaces every historic alert already on disk for this pass's runs — the
+     * only durable record of why a run stopped, since historic notification_mode
+     * is external_disabled by construction. Nothing read these before this
+     * command did: a 64-alert backlog from the canary was invisible until now.
+     *
+     * @param  array{
+     *     by_kind: list<array{kind:string, severity:string, count:int}>,
+     *     items: list<array{item_key:string, kind:string, severity:string, reason:string, recorded_at:string}>
+     * }  $alerts
+     */
+    private function reportAlerts(array $alerts): void
+    {
+        if ($alerts['items'] === []) {
+            return;
+        }
+
+        $this->newLine();
+        $this->line('Historic import alerts (no email is sent for this lane — this command is the only reader):');
+        $this->table(
+            ['Kind', 'Severity', 'Count'],
+            array_map(
+                static fn (array $row): array => [$row['kind'], $row['severity'], (string) $row['count']],
+                $alerts['by_kind'],
+            ),
+        );
+        $this->table(
+            ['Manifest item', 'Kind', 'Severity', 'Reason'],
+            array_map(
+                static fn (array $item): array => [$item['item_key'], $item['kind'], $item['severity'], $item['reason']],
+                $alerts['items'],
+            ),
+        );
     }
 
     /** @param array<string, mixed> $report */
