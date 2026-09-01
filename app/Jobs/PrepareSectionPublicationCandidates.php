@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Contracts\SectionPublicationHandler;
+use App\Data\HistoricStagingContext;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStep;
@@ -15,7 +16,9 @@ use App\Models\ServiceSection;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\HistoricMedia\HistoricProcessingThroughput;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Media\Video\VideoExtractionService;
+use App\Services\Processing\ProcessingRunOrchestrator;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Support\ChurchServiceProcessingTimeline;
 use App\Support\MediaAssetPath;
@@ -47,6 +50,13 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
      * Register and dispatch preparation started by a review-panel recut. The
      * normal pipeline supplies the cleanup successor through its chain; this
      * path must create that lifecycle explicitly because it has no chain.
+     *
+     * A recut is dispatched from a web request, where no historic staging
+     * context is active, so the queue payload would carry none and the worker
+     * would resolve `source_file_path` against the plain disk root instead of
+     * the batch root the run was staged under. Dispatch inside the run's own
+     * recorded context so the payload carries it, exactly as
+     * {@see ProcessingRunOrchestrator} does for a retry.
      */
     public static function dispatchStandalone(MediaProcessingLog $processingLog): void
     {
@@ -54,12 +64,33 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             return;
         }
 
+        $stagingContext = $processingLog->historicStagingContext();
+
+        if (! $stagingContext instanceof HistoricStagingContext) {
+            self::dispatchPrepared($processingLog);
+
+            return;
+        }
+
+        app(HistoricStagingContextRegistry::class)->within(
+            $stagingContext,
+            static fn (): null => self::dispatchPrepared($processingLog),
+        );
+    }
+
+    /**
+     * Queue the standalone preparation on the lane that owns this run.
+     */
+    private static function dispatchPrepared(MediaProcessingLog $processingLog): null
+    {
         $pendingDispatch = self::dispatch($processingLog, true);
         $queue = $processingLog->historic_import_operation_id === null
             ? (string) config('media-processing.queues.livestream', 'livestream-processing')
             : app(HistoricProcessingThroughput::class)->queueForClass(self::class);
 
         $pendingDispatch->onQueue($queue);
+
+        return null;
     }
 
     /**

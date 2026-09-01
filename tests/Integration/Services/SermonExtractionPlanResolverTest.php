@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
+use App\Enums\ChurchServiceItemSource;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
@@ -270,6 +271,11 @@ class SermonExtractionPlanResolverTest extends TestCase
         );
     }
 
+    /**
+     * Duration is never the sole authority for a review hold. A long tail that
+     * only this recording attests reads as a long conclusion, so it stays in the
+     * sermon automatically however long it runs.
+     */
     #[Test]
     public function a_long_tail_without_an_independent_boundary_does_not_create_sermon_review_on_duration_alone(): void
     {
@@ -280,11 +286,46 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $log = $this->logWithSermon(630.0, 2100.0);
         $tail = $this->section($log, ServiceSectionType::Other, 3, 2110.0, 2350.0, title: 'Long conclusion');
+        $tail->churchServiceItem->update(['source' => ChurchServiceItemSource::Livestream->value]);
+
+        // A closing song after the tail must not be mistaken for corroboration:
+        // nearly every service has one, so treating it as evidence would make
+        // this a duration trigger wearing a corroboration label.
+        $this->section($log, ServiceSectionType::Song, 4, 2400.0, 2560.0);
 
         $plan = $this->resolver->resolve($log);
 
         $this->assertSame($tail->end_time, $plan['segments'][0]['end_time']);
         $this->assertFalse($plan['metadata']['sermon_boundary']['requires_review']);
+        $this->assertSame([], $plan['metadata']['sermon_boundary']['risks']);
+    }
+
+    /**
+     * The same tail, once an order of service or service email attests it as an
+     * item of its own, is the non-duration evidence that makes it reviewable.
+     */
+    #[Test]
+    public function a_long_tail_attested_by_another_source_is_a_material_sermon_boundary_risk(): void
+    {
+        config([
+            'media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60,
+            'media-processing.section_extraction.enhanced_sermon.long_tail_review_seconds' => 120,
+        ]);
+
+        $log = $this->logWithSermon(630.0, 2100.0);
+        $tail = $this->section($log, ServiceSectionType::Other, 3, 2110.0, 2350.0, title: 'Closing prayer');
+        $tail->churchServiceItem->update(['source' => ChurchServiceItemSource::OpenLp->value]);
+
+        $plan = $this->resolver->resolve($log);
+
+        // Still cut inclusively -- the risk routes a reviewer to it, it does not
+        // move the boundary.
+        $this->assertSame($tail->end_time, $plan['segments'][0]['end_time']);
+        $this->assertTrue($plan['metadata']['sermon_boundary']['requires_review']);
+        $this->assertContains(
+            'sermon_boundary_long_tail',
+            array_column($plan['metadata']['sermon_boundary']['risks'], 'kind'),
+        );
     }
 
     #[Test]

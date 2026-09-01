@@ -26,26 +26,35 @@ use App\Services\ChurchService\Structure\ServiceStructureValidator;
 class SermonAutoExtractionPolicy
 {
     /**
-     * Boundary-risk flags disqualify extraction even when a caller has not yet
-     * copied the flag into `needs_manual_review`.
+     * A merged interruption disqualifies extraction even when a caller has not
+     * yet copied the flag into `needs_manual_review`: structure reconciliation
+     * found the section itself unsound, so there is no span worth cutting.
+     *
+     * FLAG_SERMON_BOUNDARY_MATERIAL_RISK is deliberately absent. That flag says
+     * a human should look at where the sermon ends, not that the inclusive span
+     * is wrong -- the recorded policy is to preserve it and review afterwards.
+     * Disqualifying on it would make a replay of a flagged run refuse to find
+     * any sermon section at all.
      *
      * @var array<int, string>
      */
     private const MATERIAL_BOUNDARY_FLAGS = [
         ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED,
-        ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK,
     ];
 
     /**
-     * Flags that mark OoS ordering/alignment or completeness concerns rather
-     * than boundary quality; these alone do not block auto-extraction. A
-     * missing preached reading questions what surrounds the sermon, not the
-     * sermon's own boundaries — extraction of the sermon span is still right.
+     * Flags that ask a human to look without disputing the span itself; these
+     * alone do not block auto-extraction. A missing preached reading questions
+     * what surrounds the sermon, not the sermon's own boundaries — extraction of
+     * the sermon span is still right. A material boundary risk is the same
+     * shape: the policy is to publish the inclusive span and let a reviewer
+     * decide afterwards, so refusing to extract would leave nothing to review.
      */
     private const NON_DISQUALIFYING_REVIEW_FLAGS = [
         ServiceStructureValidator::FLAG_OOS_CROSS_TYPE_INVERSION,
         ServiceStructureValidator::FLAG_OOS_SAME_TYPE_INVERSION,
         ServiceStructureValidator::FLAG_MISSING_PREACHED_READING,
+        ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK,
     ];
 
     /**

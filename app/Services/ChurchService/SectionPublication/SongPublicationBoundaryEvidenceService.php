@@ -8,6 +8,7 @@ use App\Data\ChurchServiceTranscript;
 use App\Models\ServiceSection;
 use App\Services\Media\Audio\RmsAnalysisService;
 use App\Support\ServiceArtifactDisk;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -64,6 +65,15 @@ final class SongPublicationBoundaryEvidenceService
 
     private const CANDIDATE_END_TOLERANCE_SECONDS = 5.0;
 
+    /**
+     * Statuses that mean the storage layer itself failed rather than that the
+     * artifact is genuinely absent. They are held for review just the same, but
+     * they are named separately and logged, because a misconfigured disk or an
+     * unmounted volume would otherwise convert a whole pass into a review
+     * backlog with nothing recorded to say why.
+     */
+    private const STORAGE_ERROR_STATUSES = ['unavailable', 'threshold_unavailable'];
+
     public function __construct(
         private readonly RmsAnalysisService $rmsAnalysisService,
     ) {}
@@ -78,6 +88,18 @@ final class SongPublicationBoundaryEvidenceService
         $inputs = $this->loadInputs($section);
 
         if ($this->unavailableBoundaryInputs($inputs) !== []) {
+            $storageError = $this->hasStorageError($inputs);
+
+            if ($storageError) {
+                Log::warning('Song boundary evidence could not be read from storage; holding the clip for review', [
+                    'service_section_id' => $section->id,
+                    'processing_id' => $section->processingLog->processing_id,
+                    'service_transcript_status' => $inputs['transcript_input']['status'],
+                    'rms_log_status' => $inputs['rms_input']['status'],
+                    'missing_inputs' => $this->unavailableBoundaryInputs($inputs),
+                ]);
+            }
+
             $evidence = [
                 'version' => self::VERSION,
                 'candidate' => [
@@ -93,8 +115,10 @@ final class SongPublicationBoundaryEvidenceService
                 'start_evidence' => $this->unavailableBoundaryEvidence('start', $section, $inputs),
                 'end_evidence' => $this->unavailableBoundaryEvidence('end', $section, $inputs),
                 'risks' => [[
-                    'kind' => 'song_boundary_evidence_unavailable',
-                    'detail' => $this->unavailableBoundaryDetail($inputs),
+                    'kind' => $storageError
+                        ? 'song_boundary_evidence_unreadable'
+                        : 'song_boundary_evidence_unavailable',
+                    'detail' => $this->unavailableBoundaryDetail($inputs, $storageError),
                 ]],
                 'decision' => 'review',
             ];
@@ -181,6 +205,15 @@ final class SongPublicationBoundaryEvidenceService
 
     /**
      * @param  BoundaryEvidenceInputs  $inputs
+     */
+    private function hasStorageError(array $inputs): bool
+    {
+        return in_array($inputs['transcript_input']['status'], self::STORAGE_ERROR_STATUSES, true)
+            || in_array($inputs['rms_input']['status'], self::STORAGE_ERROR_STATUSES, true);
+    }
+
+    /**
+     * @param  BoundaryEvidenceInputs  $inputs
      * @return array<string, mixed>
      */
     private function unavailableBoundaryEvidence(string $side, ServiceSection $section, array $inputs): array
@@ -193,6 +226,7 @@ final class SongPublicationBoundaryEvidenceService
             'transcript_status' => $inputs['transcript_input']['status'],
             'rms_status' => $inputs['rms_input']['status'],
             'missing_inputs' => $this->unavailableBoundaryInputs($inputs),
+            'storage_error' => $this->hasStorageError($inputs),
             'method' => 'positive_start_end_evidence_required',
         ];
     }
@@ -200,10 +234,13 @@ final class SongPublicationBoundaryEvidenceService
     /**
      * @param  BoundaryEvidenceInputs  $inputs
      */
-    private function unavailableBoundaryDetail(array $inputs): string
+    private function unavailableBoundaryDetail(array $inputs, bool $storageError = false): string
     {
-        return 'Positive transcript and RMS evidence is required at both candidate boundaries; unavailable inputs: '
-            .implode(', ', $this->unavailableBoundaryInputs($inputs)).'.';
+        $lead = $storageError
+            ? 'Boundary evidence could not be read from storage, so release eligibility cannot be established'
+            : 'Positive transcript and RMS evidence is required at both candidate boundaries';
+
+        return $lead.'; unavailable inputs: '.implode(', ', $this->unavailableBoundaryInputs($inputs)).'.';
     }
 
     /**
@@ -484,37 +521,63 @@ final class SongPublicationBoundaryEvidenceService
             return null;
         }
 
-        $lastIndex = count($cues) - 1;
+        $tailWindow = (float) config(
+            'media-processing.section_publishing.song_boundary.trailing_evidence_window_seconds',
+            60,
+        );
+        $minimumTrailingContent = (float) config(
+            'media-processing.section_publishing.song_boundary.minimum_trailing_content_seconds',
+            10,
+        );
+
+        if ($tailWindow <= 0.0) {
+            return null;
+        }
+
+        $lastCue = $cues[count($cues) - 1];
+
+        // Without timed content reaching the candidate's edge there is no tail
+        // to judge, only a candidate that stops before its recorded end.
+        if ($lastCue['end'] < $end - self::CANDIDATE_END_TOLERANCE_SECONDS) {
+            return null;
+        }
+
+        /**
+         * Take the last wordless gap inside the tail window, whatever cue
+         * follows it.
+         *
+         * Requiring the gap to sit immediately before the *final* cue only ever
+         * matched a tail transcribed as one cue. A benediction arrives as
+         * several, so the case this exists to catch -- roughly 27 seconds of
+         * speech after the singing -- matched nothing at all. Taking the last
+         * qualifying gap also measures the tail conservatively: an internal
+         * pause inside the tail shortens the measured span, which errs towards
+         * keeping the clip inclusive rather than towards a review hold.
+         */
         $gap = null;
 
         foreach (array_reverse($gaps) as $candidateGap) {
-            if ($candidateGap['next_index'] === $lastIndex) {
-                $gap = $candidateGap;
-
+            if ($candidateGap['end_time'] < $end - $tailWindow) {
                 break;
             }
+
+            $gap = $candidateGap;
+
+            break;
         }
 
         if ($gap === null) {
             return null;
         }
 
-        $tailWindow = (float) config(
-            'media-processing.section_publishing.song_boundary.trailing_evidence_window_seconds',
-            60,
-        );
-        $minimumTailCue = (float) config(
-            'media-processing.section_publishing.song_boundary.minimum_trailing_cue_seconds',
-            10,
-        );
-        $lastCue = $cues[$lastIndex];
+        /**
+         * Measure the trailing span -- the end of the gap to the end of the
+         * candidate -- not the final cue's own length. A closing cue of four
+         * seconds at the end of a 27-second tail is still a 27-second tail.
+         */
+        $trailingContentSeconds = $end - $gap['end_time'];
 
-        if (
-            $tailWindow <= 0.0
-            || $gap['start_time'] < $end - $tailWindow
-            || $lastCue['end'] < $end - self::CANDIDATE_END_TOLERANCE_SECONDS
-            || ($lastCue['end'] - $lastCue['start']) < $minimumTailCue
-        ) {
+        if ($trailingContentSeconds < $minimumTrailingContent) {
             return null;
         }
 
@@ -527,6 +590,7 @@ final class SongPublicationBoundaryEvidenceService
                 'end' => $lastCue['end'],
                 'duration' => $lastCue['end'] - $lastCue['start'],
             ],
+            'trailing_content_seconds' => $trailingContentSeconds,
             'gap' => $gap,
             'rms' => $rms,
         ];
@@ -567,13 +631,13 @@ final class SongPublicationBoundaryEvidenceService
                 ...$baseEvidence,
                 'decision' => 'review',
                 'tail_window_seconds' => $tailWindow,
-                'minimum_final_cue_seconds' => $minimumTailCue,
+                'minimum_trailing_content_seconds' => $minimumTrailingContent,
             ],
             'reason' => [
                 'kind' => 'song_boundary_trailing_content',
                 'detail' => sprintf(
                     'Timed transcript and RMS evidence show a final audio-backed wordless gap followed by %.1fs of timed content at the candidate edge; the inclusive clip is held for review.',
-                    $lastCue['end'] - $lastCue['start'],
+                    $trailingContentSeconds,
                 ),
             ],
         ];

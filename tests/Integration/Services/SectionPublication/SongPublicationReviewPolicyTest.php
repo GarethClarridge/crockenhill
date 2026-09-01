@@ -236,12 +236,40 @@ class SongPublicationReviewPolicyTest extends TestCase
 
         $assessment = $this->policy->assess($section->fresh());
 
+        // A storage-layer failure is named apart from a genuinely absent
+        // artifact. Both hold the clip, but only one of them means something is
+        // broken, and a whole pass held for the same unreadable disk must be
+        // distinguishable from a whole pass held on missing evidence.
         $this->assertSame(
-            ['song_boundary_evidence_unavailable'],
+            ['song_boundary_evidence_unreadable'],
             array_column($assessment['reasons'], 'kind'),
         );
         $this->assertSame('unavailable', $assessment['boundary_evidence']['inputs']['service_transcript']['status']);
         $this->assertSame('available', $assessment['boundary_evidence']['inputs']['rms_log']['status']);
+        $this->assertTrue($assessment['boundary_evidence']['start_evidence']['storage_error']);
+    }
+
+    #[Test]
+    public function it_names_genuinely_absent_boundary_evidence_apart_from_a_storage_failure(): void
+    {
+        $section = $this->section('full', ['livestream'], metadata: [], start: 100.0, end: 300.0);
+        $log = $section->processingLog;
+
+        Storage::disk('local')->delete([
+            'service-transcripts/test-'.$log->processing_id.'.normalized.json',
+            'service-transcripts/test-'.$log->processing_id.'.rms.json',
+        ]);
+        $log->forceFill(['rms_log_path' => null])->save();
+
+        $assessment = $this->policy->assess($section->fresh());
+
+        $this->assertSame(
+            ['song_boundary_evidence_unavailable'],
+            array_column($assessment['reasons'], 'kind'),
+        );
+        $this->assertSame('missing', $assessment['boundary_evidence']['inputs']['service_transcript']['status']);
+        $this->assertSame('not_recorded', $assessment['boundary_evidence']['inputs']['rms_log']['status']);
+        $this->assertFalse($assessment['boundary_evidence']['start_evidence']['storage_error']);
     }
 
     #[Test]
@@ -272,6 +300,73 @@ class SongPublicationReviewPolicyTest extends TestCase
         $this->assertSame(
             'timed_transcript_wordless_gap_before_final_cue',
             $assessment['boundary_evidence']['end_evidence']['basis'],
+        );
+    }
+
+    /**
+     * The M5 case this exists to catch: roughly 27 seconds of speech after the
+     * singing, transcribed as several short cues. Requiring the gap to sit
+     * immediately before a single long final cue matched none of it.
+     */
+    #[Test]
+    public function it_holds_a_multi_cue_spoken_tail_after_the_singing(): void
+    {
+        $section = $this->section('full', ['livestream'], metadata: [], start: 100.0, end: 300.0);
+        $this->storeBoundaryArtifacts(
+            $section,
+            [
+                ['start' => 100.0, 'end' => 180.0, 'text' => 'The song begins.'],
+                ['start' => 181.0, 'end' => 268.0, 'text' => 'The song continues.'],
+                ['start' => 273.0, 'end' => 281.0, 'text' => 'And now may the grace'],
+                ['start' => 281.5, 'end' => 290.0, 'text' => 'of our Lord Jesus Christ'],
+                ['start' => 290.5, 'end' => 300.0, 'text' => 'be with you all. Amen.'],
+            ],
+            [
+                ['time' => 268.0, 'rms' => -20.0],
+                ['time' => 270.0, 'rms' => -20.0],
+                ['time' => 273.0, 'rms' => -20.0],
+            ],
+        );
+
+        $assessment = $this->policy->assess($section);
+
+        $this->assertContains(
+            'song_boundary_trailing_content',
+            array_column($assessment['reasons'], 'kind'),
+        );
+        $this->assertEqualsWithDelta(
+            27.0,
+            $assessment['boundary_evidence']['end_evidence']['trailing_content_seconds'],
+            0.01,
+        );
+    }
+
+    /**
+     * A short tail is not evidence of following content, however it is cut up.
+     */
+    #[Test]
+    public function it_releases_a_song_whose_trailing_span_is_below_the_minimum(): void
+    {
+        $section = $this->section('full', ['livestream'], metadata: [], start: 100.0, end: 300.0);
+        $this->storeBoundaryArtifacts(
+            $section,
+            [
+                ['start' => 100.0, 'end' => 180.0, 'text' => 'The song begins.'],
+                ['start' => 181.0, 'end' => 294.0, 'text' => 'The song continues to its final line.'],
+                ['start' => 297.0, 'end' => 300.0, 'text' => 'Amen.'],
+            ],
+            [
+                ['time' => 294.0, 'rms' => -20.0],
+                ['time' => 295.0, 'rms' => -20.0],
+                ['time' => 297.0, 'rms' => -20.0],
+            ],
+        );
+
+        $assessment = $this->policy->assess($section);
+
+        $this->assertNotContains(
+            'song_boundary_trailing_content',
+            array_column($assessment['reasons'], 'kind'),
         );
     }
 

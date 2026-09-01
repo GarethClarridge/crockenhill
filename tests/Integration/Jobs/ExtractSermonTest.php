@@ -696,8 +696,25 @@ class ExtractSermonTest extends TestCase
     }
 
     #[Test]
-    public function it_routes_a_material_sermon_boundary_to_manual_review_before_extracting(): void
+    public function it_flags_a_material_sermon_boundary_for_review_but_still_extracts_the_inclusive_span(): void
     {
+        config(['media-processing.storage.temp_disk' => 'local']);
+        config(['filesystems.disks.local.driver' => 'local']);
+
+        $tempDir = storage_path('app/livestreams');
+        if (! is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+        $videoFile = $tempDir.'/sermon-boundary-review.mp4';
+        file_put_contents($videoFile, str_repeat("\x00", 1024));
+
+        $extractedDir = storage_path('app/extracted');
+        if (! is_dir($extractedDir)) {
+            mkdir($extractedDir, 0755, true);
+        }
+        $extractedAudioFile = $extractedDir.'/boundary-review-audio.mp3';
+        file_put_contents($extractedAudioFile, str_repeat("\xFF\xFB", 512));
+
         $log = MediaProcessingLog::factory()->livestream()->pending()->create([
             'sermon_start_time' => 600.0,
             'sermon_end_time' => 2100.0,
@@ -742,22 +759,49 @@ class ExtractSermonTest extends TestCase
         ]);
 
         $mockExtractor = $this->createMock(VideoExtractionService::class);
-        $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
-        $mockExtractor->expects($this->never())->method('extractOptimizedAudio');
+        $mockExtractor->expects($this->once())
+            ->method('extractSegmentAsFile')
+            ->willReturn('extracted/boundary-review-video.mp4');
+        $mockExtractor->expects($this->once())
+            ->method('extractOptimizedAudio')
+            ->willReturn([
+                'audio_path' => 'extracted/boundary-review-audio.mp3',
+                'full_path' => $extractedAudioFile,
+                'original_size' => 1024,
+                'final_size' => 512,
+                'compression_applied' => false,
+                'compression_ratio' => 1.0,
+                'valid_for_transcription' => true,
+            ]);
         $mockStorage = $this->createStub(VideoStorageService::class);
 
         Mail::fake();
         Log::shouldReceive('warning')->atLeast()->once();
         Log::shouldReceive('info')->zeroOrMoreTimes();
 
-        $this->runJob(new ExtractSermon($log), $mockExtractor, $mockStorage);
+        $this->runJob(
+            new ExtractSermon($log),
+            $mockExtractor,
+            $mockStorage,
+            $this->probeWithDuration(1620.0, Storage::disk('local')->path('extracted/boundary-review-video.mp4')),
+        );
 
         $log->refresh();
         $sermon->refresh();
 
-        $this->assertSame('failed', $log->status->value);
-        $this->assertSame('manual_review_required', $log->current_step);
-        $this->assertSame('sermon_boundary_material_risk', $log->manualReviewMetadata()['reason_code']);
+        // The run is not halted: a boundary risk routes the section to a
+        // reviewer, it does not abandon the sermon, the songs and the analysis.
+        $this->assertSame('extraction_complete', $log->current_step);
+        $this->assertNotSame('manual_review_required', $log->current_step);
+        Mail::assertNothingQueued();
+
+        // The inclusive span is what was cut -- both trailing sections absorbed.
+        $plan = $log->processing_metadata['sermon_extraction_plan'] ?? null;
+        $this->assertIsArray($plan);
+        $this->assertEqualsWithDelta(600.0, $plan['segments'][0]['start_time'], 0.01);
+        $this->assertEqualsWithDelta(2220.0, $plan['segments'][0]['end_time'], 0.01);
+
+        // ...and the reviewer has the evidence and the flag.
         $this->assertTrue($sermon->needs_manual_review);
         $this->assertContains(
             ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK,
@@ -767,7 +811,45 @@ class ExtractSermonTest extends TestCase
             'sermon_boundary_multiple_following_items',
             $sermon->metadata['sermon_boundary']['risks'][0]['kind'] ?? null,
         );
-        Mail::assertQueued(ManualReviewRequired::class);
+        $this->assertTrue($sermon->metadata['sermon_boundary']['requires_review']);
+
+        @unlink($videoFile);
+        @unlink($extractedAudioFile);
+    }
+
+    #[Test]
+    public function a_reviewed_sermon_boundary_flag_does_not_block_a_replay_of_the_same_span(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'sermon_start_time' => 600.0,
+            'sermon_end_time' => 2100.0,
+            'source_file_path' => 'livestreams/sermon-boundary-replay.mp4',
+        ]);
+
+        // The state a flagged run is left in by the pass above.
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'section_order' => 1,
+            'start_time' => 600.0,
+            'end_time' => 2100.0,
+            'duration' => 1500.0,
+            'confidence' => 0.98,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'review_flags' => [ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK],
+            ],
+        ]);
+
+        $plan = app(SermonExtractionPlanResolver::class)->resolve($log);
+
+        // The flagged section is still selected. Refusing it would fall back to
+        // the log's own times at best, and leave a flagged run with nothing to
+        // re-cut and nothing for the reviewer to act on at worst.
+        $this->assertSame('service_sections', $plan['source']);
+        $this->assertEqualsWithDelta(600.0, $plan['segments'][0]['start_time'], 0.01);
+        $this->assertEqualsWithDelta(2100.0, $plan['segments'][0]['end_time'], 0.01);
     }
 
     #[Test]

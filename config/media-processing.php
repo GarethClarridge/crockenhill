@@ -499,7 +499,10 @@ return [
             'minimum_wordless_gap_seconds' => (float) env('SERVICE_SECTION_SONG_MIN_WORDLESS_GAP_SECONDS', 3),
             'minimum_rms_active_ratio' => (float) env('SERVICE_SECTION_SONG_MIN_RMS_ACTIVE_RATIO', 0.25),
             'trailing_evidence_window_seconds' => (float) env('SERVICE_SECTION_SONG_TRAILING_EVIDENCE_WINDOW_SECONDS', 60),
-            'minimum_trailing_cue_seconds' => (float) env('SERVICE_SECTION_SONG_MIN_TRAILING_CUE_SECONDS', 10),
+            // Measured as the span from the end of the trailing wordless gap to the
+            // end of the candidate. A benediction arrives as several short cues, so
+            // the final cue's own length is not the quantity of interest.
+            'minimum_trailing_content_seconds' => (float) env('SERVICE_SECTION_SONG_MIN_TRAILING_CONTENT_SECONDS', 10),
         ],
     ],
 

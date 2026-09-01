@@ -337,16 +337,24 @@ class SermonExtractionPlanResolver
             120,
         );
 
+        /**
+         * Duration alone must never raise a review hold, so a long tail counts
+         * only when a source other than this recording attests the absorbed
+         * section as a service item in its own right. The mere existence of a
+         * later section is not corroboration: nearly every service has a closing
+         * song after the sermon, so testing for one would make this a pure
+         * duration trigger under a corroboration-shaped name.
+         */
         if (
             count($absorbed) === 1
-            && $separateFollowing instanceof ServiceSection
             && $longTailThreshold > 0.0
             && ((float) $absorbed[0]->end_time - (float) $absorbed[0]->start_time) >= $longTailThreshold
+            && $this->independentlyAttested($absorbed[0])
         ) {
             $risks[] = [
                 'kind' => 'sermon_boundary_long_tail',
                 'detail' => sprintf(
-                    'A %.1fs following section is corroborated by another independently timed service item after it; the sermon boundary needs review.',
+                    'A %.1fs following section was merged into the sermon, and a source other than this recording attests it as a separate service item; the sermon boundary needs review.',
                     (float) $absorbed[0]->end_time - (float) $absorbed[0]->start_time,
                 ),
             ];
@@ -481,6 +489,29 @@ class SermonExtractionPlanResolver
                 (bool) $section->needs_manual_review,
                 $this->reviewFlags($section),
             ));
+    }
+
+    /**
+     * Whether a source other than this recording attests the section as a
+     * service item of its own. An order of service or a service email naming
+     * the item is the non-duration evidence a long tail needs before it can be
+     * called a separate following item rather than a long conclusion.
+     */
+    private function independentlyAttested(ServiceSection $section): bool
+    {
+        $item = $section->churchServiceItem;
+
+        if ($item === null) {
+            return false;
+        }
+
+        foreach ($item->provenanceSources() as $source) {
+            if ($source->value !== 'livestream') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

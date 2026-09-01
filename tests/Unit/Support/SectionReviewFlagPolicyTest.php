@@ -149,10 +149,30 @@ class SectionReviewFlagPolicyTest extends TestCase
     }
 
     #[Test]
-    public function a_material_sermon_boundary_flag_never_permits_auto_extraction(): void
+    public function a_merged_interruption_never_permits_auto_extraction(): void
     {
         $this->assertFalse(SermonAutoExtractionPolicy::reviewStatePermitsAutoExtraction(
             false,
+            [ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED],
+        ));
+    }
+
+    /**
+     * The boundary flag asks a person to check where the sermon ends; the
+     * recorded policy is to preserve the inclusive span and review it after the
+     * fact. Disqualifying extraction on it would leave a flagged run with no
+     * sermon at all, which is the opposite of a reviewable outcome.
+     */
+    #[Test]
+    public function a_material_sermon_boundary_flag_still_permits_auto_extraction(): void
+    {
+        $this->assertTrue(SermonAutoExtractionPolicy::reviewStatePermitsAutoExtraction(
+            false,
+            [ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK],
+        ));
+
+        $this->assertTrue(SermonAutoExtractionPolicy::reviewStatePermitsAutoExtraction(
+            true,
             [ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK],
         ));
     }

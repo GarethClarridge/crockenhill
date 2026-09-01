@@ -69,6 +69,78 @@ The pilot's livestream projection synchronises canonical service items before in
 | 7 — Fresh canary | Run and media evaluation complete; further remediation required | Operation 3 was dispatched and resumed after a stale-mount abort. The first duration, stranded-tail, custody-measurement and pilot-custody fixes are implemented and tested, but the output audit found fresh-sermon duration, untracked video-storage, filename-title, song-boundary and song-custody defects. The operation-bound repairs and identical-canary proof have not been run. |
 | 8–9 | Not started | The remainder and public-release phases remain gated on a clean Phase 7 acceptance. |
 
+#### M9, M5 and M7 implemented, 2026-09-01
+
+The three remaining pre-bulk findings landed as `9504501d3` (M9), `8431306ce`
+(M5 song boundary evidence), `094640f4b` (M7) and `f6535a278` (review fixes on
+the first three). A review of that work found two blockers and two defects, all
+now fixed in the working tree:
+
+- **[BLOCKER] The sermon boundary gate halted whole runs, and was not scoped to
+  the historic lane.** `ExtractSermon::routeSermonBoundaryReview()` called
+  `markProcessingRunForManualReview()`, cleared `$this->chained` and emailed, so
+  a material-risk boundary ended the run at `ExtractSermon` — before
+  `PrepareSectionPublicationCandidates`, promotion and cleanup. The service
+  produced no sermon, no songs, no analysis and no boundary evidence, and its
+  staging working set was never released (then pinned by M9's own retention
+  predicate). Replayed over every service in the database this fired on **8 of
+  63 (12.7%)** — **5 of 28 ordinary weekly livestreams (17.9%)** and 3 of 35
+  historic runs — against a plan that had already rejected a 16.7% *section-level*
+  review rate as too costly. `ExtractSermon` now records the evidence, sets
+  `needs_manual_review` and `FLAG_SERMON_BOUNDARY_MATERIAL_RISK` on the sermon
+  section, and **continues the chain**, which is what "routes a sermon to review"
+  asks for. Consequently `SermonAutoExtractionPolicy` no longer treats that flag
+  as disqualifying — it never should have, because refusing to extract a flagged
+  section leaves a replay with no sermon at all to review.
+  `FLAG_SERMON_INTERRUPTION_MERGED` keeps its disqualifying behaviour.
+- **[BLOCKER] The M7 recut ran without the historic staging context.**
+  `PrepareSectionPublicationCandidates::dispatchStandalone()` is called from a
+  web request, where no `HistoricStagingContextRegistry` context is active, so
+  `queuePayload()` returned `[]` and the worker resolved `source_file_path`
+  against the plain disk root rather than the run's batch root — the same failure
+  shape as the historic retry bug fixed in `23bcea58f`. The dispatch now runs
+  inside the run's own recorded context, exactly as
+  `ProcessingRunOrchestrator::withRecordedStagingContext()` does.
+- **The long-tail risk was a duration trigger wearing a corroboration label.** It
+  required only that *some* non-trailing section followed the tail, which is the
+  closing song present in nearly every service. It now requires the absorbed
+  section to be attested by a source other than this recording
+  (`provenanceSources()` minus `livestream`) — the non-duration evidence the
+  finding actually asks for. All four long-tail hits in the corpus were of the
+  spurious kind and are gone.
+- **The song trailing-tail test could not match a real benediction.**
+  `trailingObservation()` required a wordless gap immediately before the *final*
+  cue and measured that cue's own duration against a 10-second floor. A
+  benediction arrives as several short cues, so M5's headline case — section
+  907's ~27-second tail — matched nothing. It now takes the last wordless gap
+  inside the tail window whatever follows it, and measures the trailing *span*
+  (`minimum_trailing_content_seconds`).
+- **A storage failure was indistinguishable from absent evidence.**
+  `SongPublicationBoundaryEvidenceService` mapped every `Throwable` to
+  `status = 'unavailable'` and thence to a review hold, with nothing logged. An
+  unmounted volume or a misconfigured disk would silently convert a whole pass
+  into a review backlog — and, through M9, pin every source on the bottleneck
+  disk. Storage errors are now named `song_boundary_evidence_unreadable`, carry
+  `storage_error` in the per-side evidence, and are logged at warning level;
+  genuine absence stays `song_boundary_evidence_unavailable`. Both still hold the
+  clip, which is the correct fail-closed posture.
+
+After the fixes the sermon boundary flags **3 of 35 historic runs (8.6%)** and
+**1 of 22 ordinary runs (4.5%)** for section-level review, halting none of them,
+and every risk is the genuine `sermon_boundary_multiple_following_items` class.
+Pint, PHPStan, the full parallel suite and Dusk are green.
+
+**Not measured, and the remaining known risk in this area:**
+`leadingObservation()` takes the first wordless gap in the candidate whenever a
+cue starts within five seconds of the section start, so a hymn whose singing
+begins at the boundary and which contains an inter-verse instrumental pause of
+three seconds or more can be held as "spoken framing". The plan's own rule — keep
+the inclusive clip and review when the first gap falls beyond
+`max_spoken_framing_seconds` — is implemented as written and left as written. Its
+false-positive rate could not be measured locally because the archive volume was
+not mounted, so **this rate must be read off the Phase 7 canary re-run** (step 10)
+against the eleven named M5 sections before the bulk pass is sized.
+
 #### Phase 7 remediation implemented, 2026-08-31
 
 M1–M6 and M10–M12 are implemented with focused coverage; PHPStan, Pint, the full
@@ -1827,6 +1899,10 @@ duplicate admin suites named in the repository do-not-invest list.
    and the full parallel suite. Do not deploy only the row-repair commands while
    the forward pipeline can recreate the same defects. M9 gates M5 and M7: do not
    ship a review hold whose media the same chain then deletes.
+   **Done as of 2026-09-01** — see "M9, M5 and M7 implemented" above for the two
+   blockers and two defects that review found and fixed. Steps 2–11 below are all
+   still outstanding, and step 10 now additionally has to report the
+   leading-framing false-positive rate over the eleven named M5 sections.
    **The M2, M5 and M6 decisions are recorded in their findings as of
    2026-08-31; no open decision blocks remain.** M6 shrank to making `Inferred`
    ineligible, and is not a bulk blocker. M5's interval work is deferred until
@@ -1960,25 +2036,32 @@ The remainder may start only when all of these are true:
 - [ ] Historic song videos are operation-bound, quarantined, disk-identifiable and
   create-only/size-verified before staging cleanup, with conflict-only hashing for
   an existing destination; M4 and M11 remain outstanding.
-- [ ] Automatically published song clips carry recorded boundary evidence and the
+- [x] Automatically published song clips carry recorded boundary evidence and the
   material-risk cases route to review; tighter interval derivation is deferred
-  until after bulk by decision, so it is not a gate. M5's pre-bulk half remains
-  outstanding.
+  until after bulk by decision, so it is not a gate. M5's pre-bulk half landed in
+  `8431306ce`/`f6535a278` and its trailing-tail and storage-error defects are
+  fixed. The leading-framing false-positive rate is still unmeasured and must be
+  read off the canary re-run.
 - [ ] `Inferred` song matches no longer publish automatically and reach the review
   policy with their doubt named; M6 remains outstanding but does not block bulk —
   no inferred match has ever produced a `SongVideo`.
-- [ ] Short ambiguous/interwoven sermon endings are preserved inclusively without
+- [x] Short ambiguous/interwoven sermon endings are preserved inclusively without
   creating a review hold; affirmative separate-item evidence may stop them, and
-  only material-risk boundary evidence routes a sermon to review.
-- [ ] Children's-talk endings are preserved inclusively, their tail evidence is
-  surfaced, and the existing mandatory approval remains in force.
+  only material-risk boundary evidence routes a sermon to review. Routing flags
+  the section and lets the chain finish — it never halts the run — and the long
+  tail requires attestation by a source other than this recording, so duration is
+  never the sole authority.
+- [x] Children's-talk endings are preserved inclusively, their tail evidence is
+  surfaced, and the existing mandatory approval remains in force. The reviewed
+  recut is shorten-only and now dispatches inside the run's historic staging
+  context, so a historic recut can find its own source.
 - [ ] Historic sermons are created quarantined and disk-bound by the direct lane,
   not demoted at promotion; M10 remains outstanding.
-- [ ] A run that leaves anything flagged for review retains its source until the
+- [x] A run that leaves anything flagged for review retains its source until the
   last obligation is resolved, the retained bytes are measured and visible beside
   headroom evidence without double-counting current disk use, and a recut can run
-  without restaging; M9 remains
-  outstanding.
+  without restaging. Landed in `9504501d3`; the reclamation sweep runs from the
+  already-scheduled `media:cleanup-temp-files`.
 - [x] Production and command paths no longer require, read or write the internal cost cap/ledger; inert schema deletion is assigned to IC8 closeout, while model/token/request telemetry, retry controls and the provider-side project limit remain.
 - [x] Unmeasurable staging capacity fails closed unless sufficient operation-bound host evidence is supplied.
 - [x] A source read/copy I/O failure aborts further dispatch as a stale-mount event.

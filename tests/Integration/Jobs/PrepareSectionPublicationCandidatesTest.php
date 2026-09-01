@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Jobs;
 
 use App\Contracts\SpeakerIdentificationInterface;
+use App\Data\HistoricStagingContext;
 use App\Data\SpeakerMatchResult;
 use App\Enums\ProcessingStatus;
 use App\Enums\ServiceSectionPublicationStatus;
@@ -27,6 +28,7 @@ use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFacto
 use App\Services\ChurchService\SectionPublication\SermonPublicationHandler;
 use App\Services\ChurchService\SectionPublication\SongPublicationHandler;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
@@ -35,6 +37,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
@@ -529,6 +532,80 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             $section->classificationSignature(),
             $section->metadata['publication_candidate_extraction']['classification_signature'] ?? null
         );
+    }
+
+    /**
+     * A recut is dispatched from a web request, where no staging context is
+     * active. Without this the queue payload carries none, the worker resolves
+     * `source_file_path` against the plain disk root instead of the run's batch
+     * root, and preparation fails with "source video file not found" -- the same
+     * failure shape that once blocked historic retries.
+     */
+    #[Test]
+    public function a_standalone_dispatch_enters_the_runs_recorded_historic_staging_context(): void
+    {
+        Queue::fake();
+
+        $operation = $this->createHistoricImportOperation();
+        $context = new HistoricStagingContext(
+            manifestHash: str_repeat('a', 64),
+            planHash: str_repeat('b', 64),
+            stagingDisk: 'historic_staging',
+            batchRoot: 'batches/20260901-canary',
+            storageIdentity: [
+                'driver' => 'local',
+                'bucket' => null,
+                'root_fingerprint' => str_repeat('c', 64),
+                'prefix_fingerprint' => str_repeat('d', 64),
+            ],
+        );
+
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'historic_import_operation_id' => $operation->id,
+            'source_file_path' => 'historic/source.mp4',
+            'processing_metadata' => [
+                'historic_import' => ['staging_context' => $context->toArray()],
+            ],
+        ]);
+
+        $observed = [];
+        $registry = new class(app(HistoricStagingGuard::class), $observed) extends HistoricStagingContextRegistry
+        {
+            /** @param array<int, string> $observed */
+            public function __construct(HistoricStagingGuard $guard, public array &$observed)
+            {
+                parent::__construct($guard);
+            }
+
+            public function within(HistoricStagingContext $context, \Closure $callback): mixed
+            {
+                $this->observed[] = $context->batchRoot;
+
+                return $callback();
+            }
+        };
+        app()->instance(HistoricStagingContextRegistry::class, $registry);
+
+        $this->assertFalse($registry->isActive(), 'A web request must start with no active staging context.');
+
+        PrepareSectionPublicationCandidates::dispatchStandalone($log->fresh());
+
+        $this->assertSame(['batches/20260901-canary'], $registry->observed);
+        Queue::assertPushed(PrepareSectionPublicationCandidates::class);
+    }
+
+    #[Test]
+    public function a_standalone_dispatch_for_an_ordinary_run_needs_no_staging_context(): void
+    {
+        Queue::fake();
+
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'source_file_path' => 'livestreams/source.mp4',
+        ]);
+
+        PrepareSectionPublicationCandidates::dispatchStandalone($log);
+
+        Queue::assertPushed(PrepareSectionPublicationCandidates::class);
     }
 
     #[Test]

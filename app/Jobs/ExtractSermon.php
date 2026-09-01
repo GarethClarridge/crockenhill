@@ -366,13 +366,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
         array $extractionPlan,
         SermonCandidateConfidenceService $sermonConfidenceService
     ): ?array {
-        $boundaryReview = $this->sermonBoundaryReview($extractionPlan);
-
-        if ($boundaryReview !== null) {
-            $this->routeSermonBoundaryReview($boundaryReview);
-
-            return null;
-        }
+        $this->recordSermonBoundaryEvidence($extractionPlan);
 
         if ($extractionPlan['source'] !== 'processing_log') {
             return $extractionPlan;
@@ -426,73 +420,64 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
     }
 
     /**
-     * Find a corroborated sermon-side material risk from the resolved plan or
-     * from a persisted interruption flag produced by structure reconciliation.
+     * Record the resolved sermon-boundary evidence on the sermon section, and
+     * mark it for review when that evidence names a material risk.
+     *
+     * The inclusive span is still extracted. M5's asymmetric policy is to
+     * preserve an ambiguous conclusion and let a person judge it afterwards, so
+     * a boundary risk routes the *section* to a reviewer rather than stopping
+     * the run: halting here would abandon the sermon, the songs, the analysis
+     * and the boundary evidence itself, and would leave the run's working
+     * copies stranded because cleanup is the last link in the chain.
      *
      * @param  array{metadata: array<string, mixed>, mode: string, source: string, segments: array<int, array{start_time: float, end_time: float}>}  $extractionPlan
-     * @return array{section: ServiceSection|null, evidence: array<string, mixed>}|null
      */
-    private function sermonBoundaryReview(array $extractionPlan): ?array
+    private function recordSermonBoundaryEvidence(array $extractionPlan): void
     {
         $evidence = $extractionPlan['metadata']['sermon_boundary'] ?? null;
 
-        if (is_array($evidence) && ($evidence['requires_review'] ?? false) === true) {
-            $section = $this->sermonSectionById($evidence['sermon_section_id'] ?? null);
-
-            return [
-                'section' => $section,
-                'evidence' => $evidence,
-            ];
+        if (! is_array($evidence)) {
+            return;
         }
 
-        $section = ServiceSection::query()
-            ->where('media_processing_log_id', $this->processingLog->id)
-            ->where('section_type', 'sermon')
-            ->orderBy('section_order')
-            ->orderBy('id')
-            ->get()
-            ->first(function (ServiceSection $section): bool {
-                $flags = $section->metadata?->toArray()['review_flags'] ?? [];
-
-                return is_array($flags)
-                    && array_intersect($flags, [
-                        ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED,
-                        ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK,
-                    ]) !== [];
-            });
+        $section = $this->sermonSectionById($evidence['sermon_section_id'] ?? null);
 
         if (! $section instanceof ServiceSection) {
-            return null;
+            return;
         }
 
-        $flags = $section->metadata?->toArray()['review_flags'] ?? [];
-        $materialFlag = is_array($flags) && in_array(
-            ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK,
-            $flags,
-            true,
-        )
-            ? ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK
-            : ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED;
+        $requiresReview = ($evidence['requires_review'] ?? false) === true;
+        $metadata = $section->metadata?->toArray() ?? [];
+        $metadata['sermon_boundary'] = $evidence;
 
-        return [
-            'section' => $section,
-            'evidence' => [
-                'method' => 'persisted_structure_review_flag',
-                'decision' => 'review',
-                'requires_review' => true,
-                'sermon_section_id' => $section->id,
-                'candidate_start_time' => (float) $section->start_time,
-                'candidate_end_time' => (float) $section->end_time,
-                'absorbed_section_ids' => [],
-                'separate_following_section_id' => null,
-                'overlapping_section_ids' => [],
-                'risks' => [[
-                    'kind' => $materialFlag,
-                    'detail' => 'The sermon structure carries a material boundary review flag and cannot be auto-extracted safely.',
-                ]],
-                'ceiling_applied' => false,
-            ],
-        ];
+        if ($requiresReview) {
+            $reviewFlags = is_array($metadata['review_flags'] ?? null)
+                ? array_values(array_filter($metadata['review_flags'], 'is_string'))
+                : [];
+
+            if (! in_array(ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK, $reviewFlags, true)) {
+                $reviewFlags[] = ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK;
+            }
+
+            $metadata['review_flags'] = $reviewFlags;
+            $section->needs_manual_review = true;
+        }
+
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
+
+        if ($section->isDirty()) {
+            $section->save();
+        }
+
+        if (! $requiresReview) {
+            return;
+        }
+
+        Log::warning('Sermon boundary evidence routed the section to review; the inclusive span is still extracted', [
+            'processing_id' => $this->processingLog->processing_id,
+            'sermon_section_id' => $section->id,
+            'risks' => $evidence['risks'] ?? [],
+        ]);
     }
 
     private function sermonSectionById(mixed $sectionId): ?ServiceSection
@@ -506,63 +491,6 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
             ->whereKey((int) $sectionId)
             ->where('section_type', 'sermon')
             ->first();
-    }
-
-    /**
-     * @param  array{section: ServiceSection|null, evidence: array<string, mixed>}  $boundaryReview
-     */
-    private function routeSermonBoundaryReview(array $boundaryReview): void
-    {
-        $section = $boundaryReview['section'];
-
-        if ($section instanceof ServiceSection) {
-            $metadata = $section->metadata?->toArray() ?? [];
-            $reviewFlags = is_array($metadata['review_flags'] ?? null)
-                ? array_values(array_filter($metadata['review_flags'], 'is_string'))
-                : [];
-
-            if (! in_array(ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK, $reviewFlags, true)) {
-                $reviewFlags[] = ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK;
-            }
-
-            $metadata['review_flags'] = $reviewFlags;
-            $metadata['sermon_boundary'] = $boundaryReview['evidence'];
-            $section->needs_manual_review = true;
-            $section->metadata = ServiceSectionMetadata::fromArray($metadata);
-            $section->save();
-        }
-
-        $risks = $boundaryReview['evidence']['risks'] ?? [];
-        $details = [];
-
-        if (is_array($risks)) {
-            foreach ($risks as $risk) {
-                if (is_array($risk) && is_string($risk['detail'] ?? null)) {
-                    $details[] = $risk['detail'];
-                }
-            }
-        }
-
-        $reasonMessage = 'Sermon boundary evidence requires manual review.';
-
-        if ($details !== []) {
-            $reasonMessage .= ' '.implode(' ', $details);
-        }
-
-        $this->markProcessingRunForManualReview(
-            $this->processingLog,
-            'sermon_boundary_material_risk',
-            $reasonMessage,
-        );
-        $this->processingLog->refresh();
-        $this->notifyManualReviewRequired($reasonMessage, []);
-        $this->chained = [];
-
-        Log::warning('Sermon extraction halted for material boundary review', [
-            'processing_id' => $this->processingLog->processing_id,
-            'sermon_section_id' => $section?->id,
-            'risks' => $risks,
-        ]);
     }
 
     private function manualReviewReason(string $reason): string
