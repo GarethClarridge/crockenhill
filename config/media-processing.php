@@ -444,12 +444,18 @@ return [
             // 92.5-98.0% of their recording, whole-service captures 31.4-67.0%.
             // 0.90 sits inside that empty gap.
             'sermon_only_coverage_ratio' => 0.90,
-            // The floor that replaces the 20-minute minimum for such a recording.
-            // It still has to reject a short non-sermon item that was recorded on
-            // its own: the 2023-07-16 children's talk is 405s and covers its whole
-            // recording, while the shortest evening sermon-only candidate in the
-            // approved manifest is 755s.
-            'sermon_only_min_duration_seconds' => 600,
+            // What the sermon in such a recording typically runs to, per service.
+            // A shorter one is unusual but perfectly legitimate — a carol service
+            // may carry an eight-minute sermon — so it is never rejected on length.
+            // It is routed to manual review instead, which is the only way to tell
+            // a genuinely short sermon from something that is not a sermon at all
+            // (the 2023-07-16 children's talk is 405s and covers its whole
+            // recording). A service we cannot name takes the stricter figure, so
+            // the doubt is resolved towards review.
+            'sermon_only_typical_minimum_seconds' => [
+                'morning' => 1500,
+                'evening' => 900,
+            ],
             // A long trailing section is review-worthy only when another timed
             // service item corroborates a separate boundary; duration alone is
             // never a sermon-side review trigger.

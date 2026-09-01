@@ -500,6 +500,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
             'multiple_qualifying_speech_blocks' => 'Multiple speech blocks met the 20-minute sermon threshold.',
             'ratio_below_threshold' => 'The longest speech block was not at least 1.5x longer than the next-longest speech block.',
             'candidate_exceeds_maximum_duration' => 'The longest speech block exceeded the maximum plausible sermon duration, indicating under-segmentation.',
+            'sermon_shorter_than_typical' => 'The recording is of the sermon alone, but the sermon is shorter than this service usually runs. It may be a genuinely short sermon, or it may not be a sermon at all.',
             default => 'Sermon auto-selection confidence was insufficient.',
         };
     }

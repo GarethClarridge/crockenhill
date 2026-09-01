@@ -921,6 +921,7 @@ class MediaProcessingLog extends Model
             $message !== null && str_contains($message, 'No speech block met the 20-minute sermon threshold.') => 'no_qualifying_speech_block',
             $message !== null && str_contains($message, 'Multiple speech blocks met the 20-minute sermon threshold.') => 'multiple_qualifying_speech_blocks',
             $message !== null && str_contains($message, 'The longest speech block was not at least 1.5x longer than the next-longest speech block.') => 'ratio_below_threshold',
+            $message !== null && str_contains($message, 'The recording is of the sermon alone, but the sermon is shorter than this service usually runs.') => 'sermon_shorter_than_typical',
             $message !== null && str_contains($message, 'Sermon auto-selection confidence was insufficient.') => 'manual_confidence_review',
             default => null,
         };

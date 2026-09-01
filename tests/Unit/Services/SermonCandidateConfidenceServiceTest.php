@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Enums\SermonService;
 use App\Models\LivestreamSegment;
 use App\Services\Sermon\SermonCandidateConfidenceService;
 use Illuminate\Support\Collection;
@@ -136,28 +137,115 @@ class SermonCandidateConfidenceServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_accepts_a_short_sermon_when_the_recording_is_the_sermon_alone(): void
+    public function it_accepts_a_typical_length_sermon_when_the_recording_is_the_sermon_alone(): void
     {
-        // 2025-11-02-evening in shape: a 15.3-minute capture that starts at the
-        // sermon, so its single speech block covers the whole recording. Under the
-        // whole-service floor this was rejected as "no qualifying speech block".
+        // 2026-05-24-evening in shape: a 28-minute capture that starts at the sermon,
+        // so its single speech block covers the whole recording. The whole-service
+        // floor would have taken this on length alone had the file been shorter.
         $segments = new Collection([
             LivestreamSegment::factory()->make([
                 'id' => 71,
                 'classification' => 'speech',
-                'start_time' => 12.0,
-                'end_time' => 908.0,
-                'duration' => 896.0,
+                'start_time' => 41.0,
+                'end_time' => 1693.0,
+                'duration' => 1652.0,
             ]),
         ]);
 
-        $result = $this->service->evaluate($segments, recordingDuration: 920.0);
+        $result = $this->service->evaluate($segments, 1694.7, SermonService::Evening);
 
         $this->assertTrue($result['is_clear']);
         $this->assertSame('clear', $result['reason']);
         $this->assertSame(71, $result['candidate']?->id);
         $this->assertTrue($result['sermon_only_recording']);
-        $this->assertSame(600.0, $result['minimum_duration_applied']);
+        $this->assertSame(900.0, $result['typical_minimum_duration']);
+    }
+
+    #[Test]
+    public function it_accepts_a_short_evening_sermon_that_still_reaches_the_typical_length(): void
+    {
+        // 15m20s of evening sermon: under the old 20-minute floor, over what an
+        // evening sermon usually runs to.
+        $segments = new Collection([
+            LivestreamSegment::factory()->make([
+                'id' => 72,
+                'classification' => 'speech',
+                'start_time' => 8.0,
+                'end_time' => 928.0,
+                'duration' => 920.0,
+            ]),
+        ]);
+
+        $result = $this->service->evaluate($segments, 940.0, SermonService::Evening);
+
+        $this->assertTrue($result['is_clear']);
+        $this->assertSame(72, $result['candidate']?->id);
+    }
+
+    #[Test]
+    public function it_reviews_rather_than_rejects_an_unusually_short_sermon(): void
+    {
+        // A carol service may carry an eight-minute sermon. That is legitimate, and
+        // it is also the shape a non-sermon item takes, so a person decides.
+        $segments = new Collection([
+            LivestreamSegment::factory()->make([
+                'id' => 73,
+                'classification' => 'speech',
+                'start_time' => 6.0,
+                'end_time' => 486.0,
+                'duration' => 480.0,
+            ]),
+        ]);
+
+        $result = $this->service->evaluate($segments, 490.0, SermonService::Evening);
+
+        $this->assertFalse($result['is_clear']);
+        $this->assertSame('sermon_shorter_than_typical', $result['reason']);
+        $this->assertNull($result['candidate']);
+        $this->assertTrue($result['sermon_only_recording']);
+        $this->assertSame(900.0, $result['typical_minimum_duration']);
+    }
+
+    #[Test]
+    public function it_holds_a_morning_sermon_to_a_longer_typical_length_than_an_evening_one(): void
+    {
+        $segments = new Collection([
+            LivestreamSegment::factory()->make([
+                'id' => 74,
+                'classification' => 'speech',
+                'start_time' => 10.0,
+                'end_time' => 1024.0,
+                'duration' => 1014.0,
+            ]),
+        ]);
+
+        $evening = $this->service->evaluate($segments, 1030.0, SermonService::Evening);
+        $morning = $this->service->evaluate($segments, 1030.0, SermonService::Morning);
+
+        $this->assertTrue($evening['is_clear']);
+        $this->assertFalse($morning['is_clear']);
+        $this->assertSame('sermon_shorter_than_typical', $morning['reason']);
+        $this->assertSame(1500.0, $morning['typical_minimum_duration']);
+    }
+
+    #[Test]
+    public function it_resolves_an_unnamed_service_towards_review(): void
+    {
+        $segments = new Collection([
+            LivestreamSegment::factory()->make([
+                'id' => 75,
+                'classification' => 'speech',
+                'start_time' => 10.0,
+                'end_time' => 1024.0,
+                'duration' => 1014.0,
+            ]),
+        ]);
+
+        $result = $this->service->evaluate($segments, 1030.0);
+
+        $this->assertFalse($result['is_clear']);
+        $this->assertSame('sermon_shorter_than_typical', $result['reason']);
+        $this->assertSame(1500.0, $result['typical_minimum_duration']);
     }
 
     #[Test]
@@ -175,19 +263,20 @@ class SermonCandidateConfidenceServiceTest extends TestCase
             ]),
         ]);
 
-        $result = $this->service->evaluate($segments, recordingDuration: 3000.0);
+        $result = $this->service->evaluate($segments, 3000.0, SermonService::Evening);
 
         $this->assertFalse($result['is_clear']);
         $this->assertSame('no_qualifying_speech_block', $result['reason']);
         $this->assertFalse($result['sermon_only_recording']);
         $this->assertSame(1200.0, $result['minimum_duration_applied']);
+        $this->assertNull($result['typical_minimum_duration']);
     }
 
     #[Test]
-    public function it_rejects_a_short_non_sermon_item_recorded_on_its_own(): void
+    public function it_sends_a_short_lone_item_to_review_rather_than_publishing_it(): void
     {
         // 2023-07-16-morning: 405 seconds of children's talk covering its whole
-        // recording. Full coverage must not by itself make something a sermon.
+        // recording. Full coverage must never by itself make something a sermon.
         $segments = new Collection([
             LivestreamSegment::factory()->make([
                 'id' => 91,
@@ -198,12 +287,11 @@ class SermonCandidateConfidenceServiceTest extends TestCase
             ]),
         ]);
 
-        $result = $this->service->evaluate($segments, recordingDuration: 405.2);
+        $result = $this->service->evaluate($segments, 405.2, SermonService::Morning);
 
         $this->assertFalse($result['is_clear']);
-        $this->assertSame('no_qualifying_speech_block', $result['reason']);
-        $this->assertTrue($result['sermon_only_recording']);
-        $this->assertSame(600.0, $result['minimum_duration_applied']);
+        $this->assertSame('sermon_shorter_than_typical', $result['reason']);
+        $this->assertNull($result['candidate']);
     }
 
     #[Test]

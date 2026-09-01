@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Sermon;
 
 use App\Enums\LivestreamSegmentClassification;
+use App\Enums\SermonService;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use Illuminate\Support\Collection;
@@ -20,11 +21,12 @@ use Illuminate\Support\Collection;
  *
  * @phpstan-type SermonCandidateEvaluation array{
  *     is_clear: bool,
- *     reason: 'clear'|'no_qualifying_speech_block'|'multiple_qualifying_speech_blocks'|'ratio_below_threshold'|'candidate_exceeds_maximum_duration',
+ *     reason: 'clear'|'no_qualifying_speech_block'|'multiple_qualifying_speech_blocks'|'ratio_below_threshold'|'candidate_exceeds_maximum_duration'|'sermon_shorter_than_typical',
  *     candidate: LivestreamSegment|null,
  *     qualifying_segments_count: int,
  *     next_longest_duration: float,
  *     minimum_duration_applied: float,
+ *     typical_minimum_duration: float|null,
  *     sermon_only_recording: bool,
  *     speech_segments: array<int, array{segment_id: int, start_time: float, end_time: float, duration: float}>
  * }
@@ -50,10 +52,15 @@ class SermonCandidateConfidenceService
      * @param  float|null  $recordingDuration  Length of the recording the segments came from, when
      *                                         known. Without it every recording is treated as a
      *                                         whole service, which is the stricter reading.
+     * @param  SermonService|null  $service  Which service the recording is of, used to judge whether
+     *                                       a sermon-only candidate ran to a typical length.
      * @return SermonCandidateEvaluation
      */
-    public function evaluate(Collection $speechSegments, ?float $recordingDuration = null): array
-    {
+    public function evaluate(
+        Collection $speechSegments,
+        ?float $recordingDuration = null,
+        ?SermonService $service = null,
+    ): array {
         /** @var Collection<int, LivestreamSegment> $orderedByDuration */
         $orderedByDuration = $speechSegments
             ->sortByDesc(fn (LivestreamSegment $segment): float => (float) $segment->duration)
@@ -63,9 +70,12 @@ class SermonCandidateConfidenceService
         $longestSegment = $orderedByDuration->first();
 
         $isSermonOnlyRecording = $this->isSermonOnlyRecording($longestSegment, $recordingDuration);
-        $minimumDuration = $isSermonOnlyRecording
-            ? (float) config('media-processing.section_extraction.enhanced_sermon.sermon_only_min_duration_seconds', 600)
-            : self::WholeServiceMinimumDuration;
+
+        // A sermon-only recording has no competing speech to be selected against,
+        // so nothing is disqualified on length here. A short candidate is judged
+        // below, where it is routed to review rather than discarded.
+        $minimumDuration = $isSermonOnlyRecording ? 0.0 : self::WholeServiceMinimumDuration;
+        $typicalMinimumDuration = $isSermonOnlyRecording ? $this->typicalMinimumDuration($service) : null;
 
         /**
          * Filter segments that meet the minimum sermon duration threshold.
@@ -101,6 +111,7 @@ class SermonCandidateConfidenceService
                 'qualifying_segments_count' => 0,
                 'next_longest_duration' => $nextLongestDuration,
                 'minimum_duration_applied' => $minimumDuration,
+                'typical_minimum_duration' => $typicalMinimumDuration,
                 'sermon_only_recording' => $isSermonOnlyRecording,
                 'speech_segments' => $speechSegmentSummaries,
             ];
@@ -114,6 +125,7 @@ class SermonCandidateConfidenceService
                 'qualifying_segments_count' => $qualifyingSegments->count(),
                 'next_longest_duration' => $nextLongestDuration,
                 'minimum_duration_applied' => $minimumDuration,
+                'typical_minimum_duration' => $typicalMinimumDuration,
                 'sermon_only_recording' => $isSermonOnlyRecording,
                 'speech_segments' => $speechSegmentSummaries,
             ];
@@ -137,6 +149,7 @@ class SermonCandidateConfidenceService
                 'qualifying_segments_count' => 1,
                 'next_longest_duration' => $nextLongestDuration,
                 'minimum_duration_applied' => $minimumDuration,
+                'typical_minimum_duration' => $typicalMinimumDuration,
                 'sermon_only_recording' => $isSermonOnlyRecording,
                 'speech_segments' => $speechSegmentSummaries,
             ];
@@ -150,6 +163,26 @@ class SermonCandidateConfidenceService
                 'qualifying_segments_count' => 1,
                 'next_longest_duration' => $nextLongestDuration,
                 'minimum_duration_applied' => $minimumDuration,
+                'typical_minimum_duration' => $typicalMinimumDuration,
+                'sermon_only_recording' => $isSermonOnlyRecording,
+                'speech_segments' => $speechSegmentSummaries,
+            ];
+        }
+
+        // A sermon-only recording carrying an unusually short sermon is not wrong —
+        // a carol service may run to eight minutes — but it is also the shape a
+        // non-sermon item takes when it is recorded on its own. Length alone cannot
+        // tell those apart, so neither is discarded and neither is published: the
+        // run goes to a person.
+        if ($typicalMinimumDuration !== null && (float) $candidate->duration < $typicalMinimumDuration) {
+            return [
+                'is_clear' => false,
+                'reason' => 'sermon_shorter_than_typical',
+                'candidate' => null,
+                'qualifying_segments_count' => 1,
+                'next_longest_duration' => $nextLongestDuration,
+                'minimum_duration_applied' => $minimumDuration,
+                'typical_minimum_duration' => $typicalMinimumDuration,
                 'sermon_only_recording' => $isSermonOnlyRecording,
                 'speech_segments' => $speechSegmentSummaries,
             ];
@@ -162,6 +195,7 @@ class SermonCandidateConfidenceService
             'qualifying_segments_count' => 1,
             'next_longest_duration' => $nextLongestDuration,
             'minimum_duration_applied' => $minimumDuration,
+            'typical_minimum_duration' => $typicalMinimumDuration,
             'sermon_only_recording' => $isSermonOnlyRecording,
             'speech_segments' => $speechSegmentSummaries,
         ];
@@ -198,6 +232,29 @@ class SermonCandidateConfidenceService
     }
 
     /**
+     * How long the sermon in a sermon-only recording of this service usually runs.
+     *
+     * Morning sermons at this church almost always pass 25 minutes and evening
+     * ones 15. A service we cannot name takes the stricter figure, so an unknown
+     * service is resolved towards review rather than towards publication.
+     */
+    private function typicalMinimumDuration(?SermonService $service): float
+    {
+        /** @var array<string, int|float> $typical */
+        $typical = config('media-processing.section_extraction.enhanced_sermon.sermon_only_typical_minimum_seconds', []);
+
+        $configured = $service instanceof SermonService
+            ? ($typical[$service->value] ?? null)
+            : null;
+
+        if ($configured !== null) {
+            return (float) $configured;
+        }
+
+        return $typical === [] ? 1500.0 : (float) max($typical);
+    }
+
+    /**
      * Fetch speech segments for a given processing log and evaluate them for a sermon candidate.
      *
      * @param  MediaProcessingLog  $processingLog  The log record to evaluate
@@ -217,6 +274,6 @@ class SermonCandidateConfidenceService
             ? (float) $processingLog->duration
             : null;
 
-        return $this->evaluate($speechSegments, $recordingDuration);
+        return $this->evaluate($speechSegments, $recordingDuration, $processingLog->extracted_service);
     }
 }
