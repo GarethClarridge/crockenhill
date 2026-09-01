@@ -282,7 +282,7 @@ class ImportHistoricVideoBatchCommand extends Command
 
                 try {
                     $reviewSourceRetainedBytes = $passMeasures
-                        ->report($operation, $itemKeys)['review_source_retained_bytes'];
+                        ->report($operation)['review_source_retained_bytes'];
                 } catch (Throwable $exception) {
                     $this->error('Unable to measure retained historic review sources: '.$exception->getMessage());
 

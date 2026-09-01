@@ -40,7 +40,7 @@ class ChildrensTalkBoundaryEvidenceService
         $transcriptInput = $this->loadTranscript($section);
         $followingSections = $this->followingSections($section);
 
-        return [
+        return $this->withRecordedAt($section, [
             'version' => self::VERSION,
             'candidate' => [
                 'kind' => 'inclusive',
@@ -66,8 +66,34 @@ class ChildrensTalkBoundaryEvidenceService
                     'status' => $transcriptInput['status'],
                 ],
             ],
-            'recorded_at' => now()->toIso8601String(),
-        ];
+        ]);
+    }
+
+    /**
+     * Keep a preparation pass from changing persisted evidence when its
+     * inputs and candidate geometry are unchanged. Human recut decisions are
+     * intentionally stored separately in `reviewed_recuts` and remain intact.
+     *
+     * @param  array<string, mixed>  $evidence
+     * @return array<string, mixed>
+     */
+    private function withRecordedAt(ServiceSection $section, array $evidence): array
+    {
+        $recordedAt = null;
+        $existing = $section->metadata?->toArray()[self::METADATA_KEY] ?? null;
+
+        if (is_array($existing)) {
+            $existingRecordedAt = $existing['recorded_at'] ?? null;
+            unset($existing['recorded_at']);
+
+            if ($existing == $evidence && is_string($existingRecordedAt) && $existingRecordedAt !== '') {
+                $recordedAt = $existingRecordedAt;
+            }
+        }
+
+        $evidence['recorded_at'] = $recordedAt ?? now()->toIso8601String();
+
+        return $evidence;
     }
 
     /**

@@ -77,7 +77,7 @@ class MergeAdjacentServiceSections
             && $processingLog->source_file_path !== ''
             && $this->videoStorageService->sourceVideoExistsForPath($processingLog->source_file_path)
         ) {
-            PrepareSectionPublicationCandidates::dispatch($processingLog);
+            PrepareSectionPublicationCandidates::dispatchStandalone($processingLog);
         }
 
         return null;

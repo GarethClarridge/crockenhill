@@ -11,6 +11,41 @@ use App\Support\ServiceArtifactDisk;
 use Illuminate\Support\Facades\Storage;
 
 /**
+ * @phpstan-type BoundaryEvidenceInputs array{
+ *     transcript: ChurchServiceTranscript|null,
+ *     transcript_input: array{path: string|null, status: string},
+ *     rms_data: list<array{time: float, rms: float}>,
+ *     rms_threshold: float|null,
+ *     rms_input: array{path: string|null, status: string, sample_count: int, threshold: float|null}
+ * }
+ * @phpstan-type BoundaryEvidencePayload array{
+ *     version: int,
+ *     candidate: array{kind: 'inclusive', start_time: float, end_time: float},
+ *     action: 'retain_inclusive_candidate',
+ *     inputs: array{
+ *         service_transcript: array{path: string|null, status: string},
+ *         rms_log: array{path: string|null, status: string, sample_count: int, threshold: float|null}
+ *     },
+ *     start_evidence: array<string, mixed>,
+ *     end_evidence: array<string, mixed>,
+ *     risks: list<array{kind: string, detail: string}>,
+ *     decision: 'release_eligible'|'review'
+ * }
+ * @phpstan-type BoundaryEvidence array{
+ *     version: int,
+ *     candidate: array{kind: 'inclusive', start_time: float, end_time: float},
+ *     action: 'retain_inclusive_candidate',
+ *     inputs: array{
+ *         service_transcript: array{path: string|null, status: string},
+ *         rms_log: array{path: string|null, status: string, sample_count: int, threshold: float|null}
+ *     },
+ *     start_evidence: array<string, mixed>,
+ *     end_evidence: array<string, mixed>,
+ *     risks: list<array{kind: string, detail: string}>,
+ *     decision: 'release_eligible'|'review',
+ *     recorded_at: string
+ * }
+ *
  * Records the timed evidence around an inclusive song candidate.
  *
  * This is deliberately an evidence and routing pass, not an interval cutter.
@@ -34,26 +69,39 @@ final class SongPublicationBoundaryEvidenceService
     ) {}
 
     /**
-     * @return array{
-     *     version: int,
-     *     candidate: array{kind: 'inclusive', start_time: float, end_time: float},
-     *     action: 'retain_inclusive_candidate',
-     *     inputs: array{
-     *         service_transcript: array{path: string|null, status: string},
-     *         rms_log: array{path: string|null, status: string, sample_count: int, threshold: float|null}
-     *     },
-     *     start_evidence: array<string, mixed>,
-     *     end_evidence: array<string, mixed>,
-     *     risks: list<array{kind: string, detail: string}>,
-     *     decision: 'release_eligible'|'review',
-     *     recorded_at: string
-     * }
+     * @return BoundaryEvidence
      */
     public function assess(ServiceSection $section): array
     {
         $start = (float) $section->start_time;
         $end = (float) $section->end_time;
         $inputs = $this->loadInputs($section);
+
+        if ($this->unavailableBoundaryInputs($inputs) !== []) {
+            $evidence = [
+                'version' => self::VERSION,
+                'candidate' => [
+                    'kind' => 'inclusive',
+                    'start_time' => $start,
+                    'end_time' => $end,
+                ],
+                'action' => 'retain_inclusive_candidate',
+                'inputs' => [
+                    'service_transcript' => $inputs['transcript_input'],
+                    'rms_log' => $inputs['rms_input'],
+                ],
+                'start_evidence' => $this->unavailableBoundaryEvidence('start', $section, $inputs),
+                'end_evidence' => $this->unavailableBoundaryEvidence('end', $section, $inputs),
+                'risks' => [[
+                    'kind' => 'song_boundary_evidence_unavailable',
+                    'detail' => $this->unavailableBoundaryDetail($inputs),
+                ]],
+                'decision' => 'review',
+            ];
+
+            return $this->withRecordedAt($section, $evidence);
+        }
+
         $cues = $inputs['transcript'] instanceof ChurchServiceTranscript
             ? $this->sectionCues($inputs['transcript'], $start, $end)
             : [];
@@ -93,7 +141,7 @@ final class SongPublicationBoundaryEvidenceService
             }
         }
 
-        return [
+        return $this->withRecordedAt($section, [
             'version' => self::VERSION,
             'candidate' => [
                 'kind' => 'inclusive',
@@ -109,8 +157,76 @@ final class SongPublicationBoundaryEvidenceService
             'end_evidence' => $endEvidence,
             'risks' => $risks,
             'decision' => $risks === [] ? 'release_eligible' : 'review',
-            'recorded_at' => now()->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * @param  BoundaryEvidenceInputs  $inputs
+     * @return list<string>
+     */
+    private function unavailableBoundaryInputs(array $inputs): array
+    {
+        $unavailable = [];
+
+        if ($inputs['transcript_input']['status'] !== 'available') {
+            $unavailable[] = 'service transcript ('.$inputs['transcript_input']['status'].')';
+        }
+
+        if ($inputs['rms_input']['status'] !== 'available') {
+            $unavailable[] = 'RMS log ('.$inputs['rms_input']['status'].')';
+        }
+
+        return $unavailable;
+    }
+
+    /**
+     * @param  BoundaryEvidenceInputs  $inputs
+     * @return array<string, mixed>
+     */
+    private function unavailableBoundaryEvidence(string $side, ServiceSection $section, array $inputs): array
+    {
+        return [
+            'decision' => 'review',
+            'basis' => 'boundary_evidence_unavailable',
+            'side' => $side,
+            'candidate_time' => $side === 'start' ? (float) $section->start_time : (float) $section->end_time,
+            'transcript_status' => $inputs['transcript_input']['status'],
+            'rms_status' => $inputs['rms_input']['status'],
+            'missing_inputs' => $this->unavailableBoundaryInputs($inputs),
+            'method' => 'positive_start_end_evidence_required',
         ];
+    }
+
+    /**
+     * @param  BoundaryEvidenceInputs  $inputs
+     */
+    private function unavailableBoundaryDetail(array $inputs): string
+    {
+        return 'Positive transcript and RMS evidence is required at both candidate boundaries; unavailable inputs: '
+            .implode(', ', $this->unavailableBoundaryInputs($inputs)).'.';
+    }
+
+    /**
+     * @param  BoundaryEvidencePayload  $evidence
+     * @return BoundaryEvidence
+     */
+    private function withRecordedAt(ServiceSection $section, array $evidence): array
+    {
+        $recordedAt = null;
+        $existing = $section->metadata?->toArray()[self::METADATA_KEY] ?? null;
+
+        if (is_array($existing)) {
+            $existingRecordedAt = $existing['recorded_at'] ?? null;
+            unset($existing['recorded_at']);
+
+            if ($existing == $evidence && is_string($existingRecordedAt) && $existingRecordedAt !== '') {
+                $recordedAt = $existingRecordedAt;
+            }
+        }
+
+        $evidence['recorded_at'] = $recordedAt ?? now()->toIso8601String();
+
+        return $evidence;
     }
 
     /**
@@ -254,11 +370,7 @@ final class SongPublicationBoundaryEvidenceService
     }
 
     /**
-     * @param  array{
-     *     transcript: ChurchServiceTranscript|null,
-     *     rms_data: list<array{time: float, rms: float}>,
-     *     rms_threshold: float|null
-     * }  $inputs
+     * @param  BoundaryEvidenceInputs  $inputs
      * @param  list<array{start: float, end: float, text: string}>  $cues
      * @param  list<array{
      *     start_time: float,
@@ -353,11 +465,7 @@ final class SongPublicationBoundaryEvidenceService
     }
 
     /**
-     * @param  array{
-     *     transcript: ChurchServiceTranscript|null,
-     *     rms_data: list<array{time: float, rms: float}>,
-     *     rms_threshold: float|null
-     * }  $inputs
+     * @param  BoundaryEvidenceInputs  $inputs
      * @param  list<array{start: float, end: float, text: string}>  $cues
      * @param  list<array{
      *     start_time: float,
@@ -532,28 +640,19 @@ final class SongPublicationBoundaryEvidenceService
     }
 
     /**
-     * @param  array{
-     *     transcript: ChurchServiceTranscript|null,
-     *     rms_data: list<array{time: float, rms: float}>,
-     *     rms_threshold: float|null
-     * }  $inputs
+     * @param  BoundaryEvidenceInputs  $inputs
      * @param  list<array{start: float, end: float, text: string}>  $cues
      * @return array<string, mixed>
      */
     private function defaultBoundaryEvidence(string $side, ServiceSection $section, array $cues, array $inputs): array
     {
-        $transcriptStatus = $inputs['transcript'] instanceof ChurchServiceTranscript
-            ? 'available'
-            : 'unavailable';
-        $rmsStatus = $inputs['rms_threshold'] === null ? 'unavailable' : 'available';
-
         return [
             'decision' => 'keep_inclusive',
             'basis' => 'inclusive_candidate',
             'side' => $side,
             'candidate_time' => $side === 'start' ? (float) $section->start_time : (float) $section->end_time,
-            'transcript_status' => $transcriptStatus,
-            'rms_status' => $rmsStatus,
+            'transcript_status' => $inputs['transcript_input']['status'],
+            'rms_status' => $inputs['rms_input']['status'],
             'timed_cues_in_candidate' => count($cues),
             'method' => 'no_recut_before_bulk',
         ];

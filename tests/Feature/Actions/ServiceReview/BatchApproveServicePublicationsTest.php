@@ -8,11 +8,14 @@ use App\Actions\Publication\ApproveSectionForPublication;
 use App\Actions\ServiceReview\BatchApproveServicePublications;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
+use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Jobs\PublishApprovedServiceSection;
 use App\Models\ChurchService;
+use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Models\Song;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -109,6 +112,56 @@ class BatchApproveServicePublicationsTest extends TestCase
         $this->assertSame(0, $result['approved_count']);
         $this->assertArrayHasKey('blocked by other review flags', $result['skipped_reasons']);
         $this->assertSame(1, $result['skipped_reasons']['blocked by other review flags']);
+    }
+
+    #[Test]
+    public function it_does_not_batch_approve_a_confirmed_song_with_a_material_boundary_hold(): void
+    {
+        Queue::fake();
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $service = ChurchService::factory()->create([
+            'date' => '2026-06-08',
+            'service' => SermonService::Morning,
+        ]);
+        $song = Song::factory()->create();
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'song_id' => $song->id,
+        ]);
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $service->id,
+            'extracted_date' => '2026-06-08',
+            'extracted_service' => SermonService::Morning->value,
+        ]);
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval,
+            'needs_manual_review' => false,
+            'extracted_video_path' => 'sections/material-boundary/video.mp4',
+            'extracted_audio_path' => 'sections/material-boundary/audio.mp3',
+            'metadata' => [
+                'song_publication_review' => [
+                    'reasons' => [[
+                        'kind' => 'song_boundary_evidence_unavailable',
+                        'detail' => 'The candidate has no positive boundary evidence.',
+                    ]],
+                    'decided_at' => '2026-06-08T10:00:00+00:00',
+                ],
+            ],
+        ]);
+        Storage::disk('public')->put($section->extracted_video_path, 'video');
+        Storage::disk('public')->put($section->extracted_audio_path, 'audio');
+
+        $result = $this->action->execute($service, $this->admin->id);
+
+        $this->assertSame(0, $result['approved_count']);
+        $this->assertSame(1, $result['skipped_reasons']['blocked by other review flags']);
+        $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->fresh()->publication_status);
     }
 
     #[Test]

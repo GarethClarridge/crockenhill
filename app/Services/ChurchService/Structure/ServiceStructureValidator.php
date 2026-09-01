@@ -58,6 +58,13 @@ class ServiceStructureValidator
      */
     public const FLAG_SERMON_INTERRUPTION_MERGED = 'structure_sermon_interruption_merged';
 
+    /**
+     * The sermon-side boundary evidence found a corroborated material-risk
+     * transition. This is intentionally separate from generic structure
+     * uncertainty so the extraction gate can route only this class of risk.
+     */
+    public const FLAG_SERMON_BOUNDARY_MATERIAL_RISK = 'structure_sermon_boundary_material_risk';
+
     public const FLAG_OOS_STRUCTURE_MISMATCH = 'oos_structure_mismatch';
 
     /**

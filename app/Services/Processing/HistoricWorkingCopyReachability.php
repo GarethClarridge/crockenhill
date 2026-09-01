@@ -28,11 +28,21 @@ final class HistoricWorkingCopyReachability
             return null;
         }
 
+        $prepareJobKey = 'prepare-section-publication-candidates-'.$processingLog->processing_id;
+        $prepareJobType = 'App\\Jobs\\PrepareSectionPublicationCandidates';
+
         $nestedStorage = HistoricImportNestedJob::query()
             ->where('historic_import_operation_id', $processingLog->historic_import_operation_id)
             ->where('media_processing_log_id', $processingLog->id)
-            ->where('job_key', StoreSermonVideo::nestedJobKey($processingLog->processing_id))
-            ->where('job_type', StoreSermonVideo::class)
+            ->whereRaw(
+                '(job_key = ? AND job_type = ?) OR (job_key = ? AND job_type = ?)',
+                [
+                    StoreSermonVideo::nestedJobKey($processingLog->processing_id),
+                    StoreSermonVideo::class,
+                    $prepareJobKey,
+                    $prepareJobType,
+                ],
+            )
             ->whereIn('state', ['queued', 'running', 'retryable', 'failed'])
             ->first();
 

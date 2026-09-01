@@ -6,6 +6,7 @@ namespace Tests\Integration\Services\HistoricMedia;
 
 use App\Data\HistoricStagingContext;
 use App\Enums\ServiceSectionPublicationStatus;
+use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\StoreSermonVideo;
 use App\Models\HistoricImportNestedJob;
 use App\Models\HistoricImportOperation;
@@ -100,6 +101,37 @@ class HistoricReviewSourceReclaimerTest extends TestCase
             'dispatched_at' => now(),
         ]);
         Storage::disk('historic_staging')->put("{$context->batchRoot}/{$sourcePath}", 'retryable');
+
+        $stats = app(HistoricReviewSourceReclaimer::class)->sweep();
+
+        $this->assertSame(0, $stats['eligible']);
+        $this->assertSame(1, $stats['skipped']);
+        Storage::disk('historic_staging')->assertExists("{$context->batchRoot}/{$sourcePath}");
+    }
+
+    #[Test]
+    public function it_does_not_reclaim_a_source_while_a_queued_childrens_talk_recut_is_waiting(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $context = $this->stagingContextFor($operation);
+        $sourcePath = 'temp/queued-recut-source.mp4';
+        $run = $this->createRun($operation, $context, $sourcePath);
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval,
+        ]);
+        PrepareSectionPublicationCandidates::registerHistoricNestedJob($run);
+
+        // The operator can resolve the section before the queue worker starts;
+        // the queued preparation itself must still retain its source.
+        $section->update([
+            'publication_status' => ServiceSectionPublicationStatus::Rejected,
+            'needs_manual_review' => false,
+        ]);
+        Storage::disk('historic_staging')->put(
+            "{$context->batchRoot}/{$sourcePath}",
+            str_repeat('q', 19),
+        );
 
         $stats = app(HistoricReviewSourceReclaimer::class)->sweep();
 

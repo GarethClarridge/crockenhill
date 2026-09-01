@@ -105,19 +105,34 @@ class SongPublicationHandler implements SectionPublicationHandler
     {
         $assessment = $this->reviewPolicy->assess($section);
         $reasons = $assessment['reasons'];
-        $metadata = $section->metadata?->toArray() ?? [];
+        $existingMetadata = $section->metadata?->toArray() ?? [];
+        $metadata = $existingMetadata;
         $metadata[SongPublicationBoundaryEvidenceService::METADATA_KEY] = $assessment['boundary_evidence'];
 
         if ($reasons !== []) {
+            $existingReview = $metadata['song_publication_review'] ?? null;
+            $decidedAt = is_array($existingReview)
+                && ($existingReview['reasons'] ?? null) === $reasons
+                && is_string($existingReview['decided_at'] ?? null)
+                ? $existingReview['decided_at']
+                : now()->toISOString();
+
             $metadata['song_publication_review'] = [
                 'reasons' => $reasons,
-                'decided_at' => now()->toISOString(),
+                'decided_at' => $decidedAt,
             ];
         } else {
             unset($metadata['song_publication_review']);
         }
 
-        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
+        $boundaryChanged = ($existingMetadata[SongPublicationBoundaryEvidenceService::METADATA_KEY] ?? null)
+            != $metadata[SongPublicationBoundaryEvidenceService::METADATA_KEY];
+        $reviewChanged = ($existingMetadata['song_publication_review'] ?? null)
+            != ($metadata['song_publication_review'] ?? null);
+
+        if ($boundaryChanged || $reviewChanged) {
+            $section->metadata = ServiceSectionMetadata::fromArray($metadata);
+        }
 
         if ($reasons === []) {
             return false;

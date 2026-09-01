@@ -125,7 +125,12 @@ class SermonExtractionPlanResolver
         // sections in between — a closing prayer above all — are the sermon's
         // conclusion, not separate elements. Resolve the published end before any
         // plan is built so every branch below publishes the same span.
-        [$sermonEnd, $trailingSectionIds] = $this->resolveSermonEnd($processingLog, $sermonSection);
+        [$sermonEnd, $trailingSectionIds, $sermonBoundaryEvidence] = $this->resolveSermonEnd($processingLog, $sermonSection);
+        $sermonMetadata = [
+            'sermon_section_id' => $sermonSection->id,
+            'trailing_section_ids' => $trailingSectionIds,
+            'sermon_boundary' => $sermonBoundaryEvidence,
+        ];
 
         $bibleSection = $this->selectBibleReading($processingLog, $sermonSection);
         if (! $bibleSection instanceof ServiceSection) {
@@ -138,8 +143,7 @@ class SermonExtractionPlanResolver
                 ]],
                 'metadata' => [
                     'strategy' => 'sermon_only',
-                    'sermon_section_id' => $sermonSection->id,
-                    'trailing_section_ids' => $trailingSectionIds,
+                    ...$sermonMetadata,
                 ],
             ];
         }
@@ -157,8 +161,7 @@ class SermonExtractionPlanResolver
                 ]],
                 'metadata' => [
                     'strategy' => 'sermon_only_invalid_bible_timing',
-                    'sermon_section_id' => $sermonSection->id,
-                    'trailing_section_ids' => $trailingSectionIds,
+                    ...$sermonMetadata,
                     'bible_section_id' => $bibleSection->id,
                     'gap_seconds' => $gapSeconds,
                 ],
@@ -175,8 +178,7 @@ class SermonExtractionPlanResolver
                 ]],
                 'metadata' => [
                     'strategy' => 'adjacent_bible_plus_sermon',
-                    'sermon_section_id' => $sermonSection->id,
-                    'trailing_section_ids' => $trailingSectionIds,
+                    ...$sermonMetadata,
                     'bible_section_id' => $bibleSection->id,
                     'gap_seconds' => $gapSeconds,
                 ],
@@ -196,8 +198,7 @@ class SermonExtractionPlanResolver
                 ]],
                 'metadata' => [
                     'strategy' => 'sermon_only_reading_gap_exceeded',
-                    'sermon_section_id' => $sermonSection->id,
-                    'trailing_section_ids' => $trailingSectionIds,
+                    ...$sermonMetadata,
                     'bible_section_id' => $bibleSection->id,
                     'gap_seconds' => $gapSeconds,
                     'max_pairing_gap_seconds' => $maxPairingGapSeconds,
@@ -224,8 +225,7 @@ class SermonExtractionPlanResolver
                 ],
                 'metadata' => [
                     'strategy' => 'non_adjacent_bible_plus_sermon_concat',
-                    'sermon_section_id' => $sermonSection->id,
-                    'trailing_section_ids' => $trailingSectionIds,
+                    ...$sermonMetadata,
                     'bible_section_id' => $bibleSection->id,
                     'gap_seconds' => $gapSeconds,
                 ],
@@ -241,8 +241,7 @@ class SermonExtractionPlanResolver
             ]],
             'metadata' => [
                 'strategy' => 'sermon_only_concat_disabled',
-                'sermon_section_id' => $sermonSection->id,
-                'trailing_section_ids' => $trailingSectionIds,
+                ...$sermonMetadata,
                 'bible_section_id' => $bibleSection->id,
                 'gap_seconds' => $gapSeconds,
             ],
@@ -265,7 +264,7 @@ class SermonExtractionPlanResolver
      * the sermon past the plausible ceiling, since that signals under-segmentation
      * rather than a long conclusion.
      *
-     * @return array{0: float, 1: list<int>}
+     * @return array{0: float, 1: list<int>, 2: array<string, mixed>}
      */
     private function resolveSermonEnd(MediaProcessingLog $processingLog, ServiceSection $sermonSection): array
     {
@@ -280,18 +279,33 @@ class SermonExtractionPlanResolver
             ->orderBy('start_time')
             ->get();
 
+        /** @var EloquentCollection<int, ServiceSection> $overlapping */
+        $overlapping = ServiceSection::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->where('id', '!=', $sermonSection->id)
+            ->where('start_time', '<', $sermonEnd)
+            ->where('end_time', '>', $sermonEnd)
+            ->whereColumn('end_time', '>', 'start_time')
+            ->orderBy('start_time')
+            ->get();
+
         $adjacentGapSeconds = (float) config('media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds', 60);
         $maxSermonDuration = (float) config('media-processing.section_extraction.enhanced_sermon.max_sermon_duration_seconds', 2700);
 
         $absorbed = [];
         $cursor = $sermonEnd;
+        $separateFollowing = null;
 
         foreach ($following as $section) {
             if (! in_array($section->section_type, self::SERMON_TRAILING_TYPES, true)) {
+                $separateFollowing = $section;
+
                 break;
             }
 
             if (((float) $section->start_time - $cursor) > $adjacentGapSeconds) {
+                $separateFollowing = $section;
+
                 break;
             }
 
@@ -299,15 +313,81 @@ class SermonExtractionPlanResolver
             $absorbed[] = $section;
         }
 
-        if ($absorbed === []) {
-            return [$sermonEnd, []];
+        $risks = [];
+
+        if ($overlapping->isNotEmpty()) {
+            $risks[] = [
+                'kind' => 'sermon_boundary_conflicting_evidence',
+                'detail' => 'Another timed service section crosses the detected sermon end, so the sermon boundary needs individual review.',
+            ];
         }
 
-        if ($maxSermonDuration > 0.0 && ($cursor - (float) $sermonSection->start_time) > $maxSermonDuration) {
-            return [$sermonEnd, []];
+        if (count($absorbed) > 1) {
+            $risks[] = [
+                'kind' => 'sermon_boundary_multiple_following_items',
+                'detail' => sprintf(
+                    '%d separately timed following sections were merged into the sermon candidate before the next independent item.',
+                    count($absorbed),
+                ),
+            ];
         }
 
-        return [$cursor, array_map(static fn (ServiceSection $section): int => $section->id, $absorbed)];
+        $longTailThreshold = (float) config(
+            'media-processing.section_extraction.enhanced_sermon.long_tail_review_seconds',
+            120,
+        );
+
+        if (
+            count($absorbed) === 1
+            && $separateFollowing instanceof ServiceSection
+            && $longTailThreshold > 0.0
+            && ((float) $absorbed[0]->end_time - (float) $absorbed[0]->start_time) >= $longTailThreshold
+        ) {
+            $risks[] = [
+                'kind' => 'sermon_boundary_long_tail',
+                'detail' => sprintf(
+                    'A %.1fs following section is corroborated by another independently timed service item after it; the sermon boundary needs review.',
+                    (float) $absorbed[0]->end_time - (float) $absorbed[0]->start_time,
+                ),
+            ];
+        }
+
+        $ceilingApplied = false;
+
+        if ($absorbed !== []
+            && $maxSermonDuration > 0.0
+            && ($cursor - (float) $sermonSection->start_time) > $maxSermonDuration
+        ) {
+            $cursor = $sermonEnd;
+            $absorbed = [];
+            $ceilingApplied = true;
+        }
+
+        $decision = $risks !== []
+            ? 'review'
+            : ($absorbed !== []
+                ? ($separateFollowing instanceof ServiceSection && count($absorbed) === 1
+                    ? 'retain_ambiguous_bridge'
+                    : 'retain_inclusive')
+                : ($separateFollowing instanceof ServiceSection ? 'stop_at_separate_item' : 'retain_inclusive'));
+
+        return [
+            $cursor,
+            array_map(static fn (ServiceSection $section): int => $section->id, $absorbed),
+            [
+                'method' => 'timed_service_structure',
+                'decision' => $decision,
+                'requires_review' => $risks !== [],
+                'sermon_section_id' => $sermonSection->id,
+                'candidate_start_time' => (float) $sermonSection->start_time,
+                'candidate_end_time' => $cursor,
+                'absorbed_section_ids' => array_map(static fn (ServiceSection $section): int => $section->id, $absorbed),
+                'separate_following_section_id' => $separateFollowing?->id,
+                'overlapping_section_ids' => $overlapping->map(static fn (ServiceSection $section): int => $section->id)->values()->all(),
+                'risks' => $risks,
+                'ceiling_applied' => $ceilingApplied,
+            ],
+        ];
     }
 
     /**

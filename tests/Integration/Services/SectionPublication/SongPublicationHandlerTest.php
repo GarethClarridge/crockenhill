@@ -39,6 +39,11 @@ class SongPublicationHandlerTest extends TestCase
     {
         parent::setUp();
 
+        Storage::fake('local');
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.transcript_disk' => 'local',
+        ]);
         $this->audioEnhancement = $this->mock(AudioEnhancementService::class);
 
         $this->handler = new SongPublicationHandler(
@@ -64,7 +69,7 @@ class SongPublicationHandlerTest extends TestCase
             'church_service_id' => $churchService->id,
         ]);
 
-        return ServiceSection::factory()->create([
+        $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => $item->id,
             'section_type' => ServiceSectionType::Song->value,
@@ -76,6 +81,9 @@ class SongPublicationHandlerTest extends TestCase
             'start_time' => 60.0,
             'end_time' => 240.0,
         ]);
+        $this->storeCleanBoundaryArtifacts($section);
+
+        return $section->fresh();
     }
 
     #[Test]
@@ -132,6 +140,7 @@ class SongPublicationHandlerTest extends TestCase
         $song = Song::factory()->create();
         $section = $this->makePublishableSection($song, 'sections/short-song.mp4');
         $section->forceFill(['start_time' => 515.0, 'end_time' => 534.95, 'duration' => 19.95])->save();
+        $this->storeCleanBoundaryArtifacts($section);
         $section = $section->fresh();
 
         $this->assertTrue($this->handler->requiresApproval($section));
@@ -163,6 +172,7 @@ class SongPublicationHandlerTest extends TestCase
             'end_time' => 2153.83,
             'duration' => 200.0,
         ]);
+        $this->storeCleanBoundaryArtifacts($second);
 
         $this->assertTrue($this->handler->requiresApproval($second->fresh()));
         $this->assertTrue($this->handler->requiresApproval($first->fresh()));
@@ -255,12 +265,43 @@ class SongPublicationHandlerTest extends TestCase
             'start_time' => 600.0,
             'end_time' => 840.0,
         ]);
+        $this->storeCleanBoundaryArtifacts($section);
 
         $this->assertTrue($this->handler->requiresApproval($section));
         $this->assertSame(
             ['inferred_song_match'],
             array_column($section->metadata->toArray()['song_publication_review']['reasons'], 'kind'),
         );
+    }
+
+    #[Test]
+    public function it_does_not_rewrite_song_review_timestamps_when_boundary_inputs_are_unchanged(): void
+    {
+        $song = Song::factory()->create();
+        $section = $this->makePublishableSection($song, 'sections/short-song.mp4');
+        $section->forceFill(['start_time' => 515.0, 'end_time' => 534.95, 'duration' => 19.95])->save();
+        $this->storeCleanBoundaryArtifacts($section);
+
+        $section = $section->fresh();
+        $this->handler->requiresApproval($section);
+        if ($section->isDirty()) {
+            $section->save();
+        }
+        $section->refresh();
+        $firstMetadata = $section->metadata?->toArray();
+        $firstUpdatedAt = $section->updated_at?->toISOString();
+
+        $this->travel(1)->minute();
+
+        $section = $section->fresh();
+        $this->handler->requiresApproval($section);
+        $this->assertSame([], $section->getDirty());
+        if ($section->isDirty()) {
+            $section->save();
+        }
+
+        $this->assertSame($firstMetadata, $section->fresh()->metadata?->toArray());
+        $this->assertSame($firstUpdatedAt, $section->fresh()->updated_at?->toISOString());
     }
 
     #[Test]
@@ -438,6 +479,28 @@ class SongPublicationHandlerTest extends TestCase
         $this->expectNotToPerformAssertions();
 
         $this->handler->afterExtraction($section);
+    }
+
+    private function storeCleanBoundaryArtifacts(ServiceSection $section): void
+    {
+        $processingLog = $section->processingLog;
+        $transcriptPath = 'service-transcripts/test-'.$processingLog->processing_id.'.normalized.json';
+        $rmsPath = 'service-transcripts/test-'.$processingLog->processing_id.'.rms.json';
+
+        Storage::disk('local')->put($transcriptPath, json_encode([
+            'cues' => [[
+                'start' => (float) $section->start_time,
+                'end' => (float) $section->end_time,
+                'text' => 'The song begins.',
+            ]],
+        ], JSON_THROW_ON_ERROR));
+        Storage::disk('local')->put(
+            $rmsPath,
+            "pts_time:{$section->start_time}\nlavfi.astats.Overall.RMS_level=-20.0",
+        );
+
+        $processingLog->putServiceTranscriptPath($transcriptPath);
+        $processingLog->forceFill(['rms_log_path' => $rmsPath])->save();
     }
 
     // ---- Enhancement integration tests ----

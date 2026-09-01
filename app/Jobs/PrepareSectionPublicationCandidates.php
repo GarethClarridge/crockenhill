@@ -39,8 +39,87 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
     public int $timeout = 1800;
 
     public function __construct(
-        public MediaProcessingLog $processingLog
+        public MediaProcessingLog $processingLog,
+        public bool $standalone = false,
     ) {}
+
+    /**
+     * Register and dispatch preparation started by a review-panel recut. The
+     * normal pipeline supplies the cleanup successor through its chain; this
+     * path must create that lifecycle explicitly because it has no chain.
+     */
+    public static function dispatchStandalone(MediaProcessingLog $processingLog): void
+    {
+        if (! self::registerHistoricNestedJob($processingLog)) {
+            return;
+        }
+
+        $pendingDispatch = self::dispatch($processingLog, true);
+        $queue = $processingLog->historic_import_operation_id === null
+            ? (string) config('media-processing.queues.livestream', 'livestream-processing')
+            : app(HistoricProcessingThroughput::class)->queueForClass(self::class);
+
+        $pendingDispatch->onQueue($queue);
+    }
+
+    /**
+     * Register this standalone preparation as historic nested work before the
+     * queue message is visible. A queued/running/retryable row owns the source
+     * already; terminal rows are reopened only for a new operator recut.
+     *
+     * @return bool Whether a new queue message should be dispatched
+     */
+    public static function registerHistoricNestedJob(MediaProcessingLog $processingLog): bool
+    {
+        $operationId = $processingLog->historic_import_operation_id;
+
+        if ($operationId === null) {
+            return true;
+        }
+
+        $jobKey = self::nestedJobKey($processingLog->processing_id);
+        $nestedJob = HistoricImportNestedJob::query()->firstOrNew([
+            'historic_import_operation_id' => $operationId,
+            'job_key' => $jobKey,
+        ]);
+
+        if ($nestedJob->exists
+            && ($nestedJob->media_processing_log_id !== $processingLog->id
+                || $nestedJob->job_type !== self::class)) {
+            throw new \RuntimeException(
+                'Historic section publication preparation is owned by a different processing run: '
+                .$processingLog->processing_id,
+            );
+        }
+
+        if ($nestedJob->exists && in_array($nestedJob->state, ['queued', 'running', 'retryable'], true)) {
+            return false;
+        }
+
+        if ($nestedJob->exists && ! in_array($nestedJob->state, ['failed', 'cancelled', 'completed'], true)) {
+            throw new \RuntimeException(
+                "Historic section publication preparation has an unknown nested state '{$nestedJob->state}' for processing ID: "
+                .$processingLog->processing_id,
+            );
+        }
+
+        $nestedJob->forceFill([
+            'media_processing_log_id' => $processingLog->id,
+            'job_type' => self::class,
+            'state' => 'queued',
+            'attempts' => 0,
+            'error_fingerprint' => null,
+            'dispatched_at' => now(),
+            'settled_at' => null,
+        ])->save();
+
+        return true;
+    }
+
+    public static function nestedJobKey(string $processingId): string
+    {
+        return 'prepare-section-publication-candidates-'.$processingId;
+    }
 
     /**
      * @return array<int, object>
@@ -72,24 +151,28 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         if (! (bool) config('media-processing.section_publishing.enabled', true)) {
             $this->initializeStepLogging($this->processingLog->processing_id);
             $this->logStepSkipped(ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES, 'Section publishing disabled');
+            $this->finishStandalonePreparation();
 
             return;
         }
 
         if ($this->refreshAndCheckCancellation($this->processingLog)) {
             $this->logStepSkipped(ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES, 'Processing cancelled or log missing');
+            $this->cancelStandalonePreparation();
 
             return;
         }
 
         if ($this->processingLog->processing_type !== MediaType::Livestream) {
             $this->logStepSkipped(ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES, 'Section publication preparation only runs for livestream processing');
+            $this->failStandalonePreparation('Section publication preparation requires a livestream processing run.');
 
             return;
         }
 
         $this->logStepStart(ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES);
         $this->markProcessingRunAsProcessing($this->processingLog, ProcessingStep::PreparingSectionPublicationCandidates->value);
+        $this->markHistoricNestedJobRunning();
 
         $retainHours = (int) config('media-processing.section_publishing.retain_unpublished_hours', 48);
 
@@ -101,6 +184,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
 
         if ($sections->isEmpty()) {
             $this->logStepSkipped(ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES, 'No classified sections available for publication review');
+            $this->finishStandalonePreparation();
 
             return;
         }
@@ -137,7 +221,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
                     || $section->publication_status === ServiceSectionPublicationStatus::Approved
                     || $section->publication_status === ServiceSectionPublicationStatus::Rejected
                 ) {
-                    $section->save();
+                    $this->saveSectionIfDirty($section);
 
                     continue;
                 }
@@ -148,13 +232,13 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             }
 
             if ($section->publication_status === ServiceSectionPublicationStatus::Published) {
-                $section->save();
+                $this->saveSectionIfDirty($section);
 
                 continue;
             }
 
             if (! $handler->requiresApproval($section)) {
-                $section->save();
+                $this->saveSectionIfDirty($section);
                 $jobKey = 'auto-publish-section-'.$section->id;
 
                 if ($this->processingLog->historic_import_operation_id !== null) {
@@ -193,8 +277,10 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
                 continue;
             }
 
-            $section->unpublished_expires_at = now()->addHours($retainHours);
-            $section->save();
+            if ($section->unpublished_expires_at === null) {
+                $section->unpublished_expires_at = now()->addHours($retainHours);
+            }
+            $this->saveSectionIfDirty($section);
             $pendingApprovalCount++;
         }
 
@@ -202,6 +288,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES,
             sprintf('Prepared %d approval candidate(s), dispatched %d auto-publish job(s)', $pendingApprovalCount, $autoPublishCount)
         );
+        $this->finishStandalonePreparation();
     }
 
     private function moveToNotApplicable(
@@ -217,7 +304,14 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         }
 
         $section->unpublished_expires_at = now();
-        $section->save();
+        $this->saveSectionIfDirty($section);
+    }
+
+    private function saveSectionIfDirty(ServiceSection $section): void
+    {
+        if ($section->isDirty()) {
+            $section->save();
+        }
     }
 
     private function extractCandidateMediaIfNeeded(
@@ -368,5 +462,132 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES,
             $exception->getMessage()
         );
+
+        if (! $this->standalone) {
+            return;
+        }
+
+        $processingLog = $this->processingLog->fresh() ?? $this->processingLog;
+        $this->markHistoricNestedJobFailed($exception);
+        $this->markProcessingRunAsFailed(
+            $processingLog,
+            $exception->getMessage(),
+            ProcessingStep::PreparingSectionPublicationCandidates->value,
+        );
+    }
+
+    private function finishStandalonePreparation(): void
+    {
+        if (! $this->standalone) {
+            return;
+        }
+
+        $processingLog = $this->processingLog->fresh();
+
+        if (! $processingLog instanceof MediaProcessingLog || $processingLog->isCancelled()) {
+            $this->cancelStandalonePreparation();
+
+            return;
+        }
+
+        $this->markHistoricNestedJobCompleted();
+        $this->markProcessingRunAsCompleted($processingLog, 'completed');
+
+        $cleanup = CleanupTemporaryFiles::dispatch($processingLog);
+
+        if ($processingLog->historic_import_operation_id !== null) {
+            $cleanup->onQueue(app(HistoricProcessingThroughput::class)->queueForClass(CleanupTemporaryFiles::class));
+        }
+    }
+
+    private function cancelStandalonePreparation(): void
+    {
+        if (! $this->standalone) {
+            return;
+        }
+
+        $nestedJob = $this->historicNestedJob();
+
+        if ($nestedJob instanceof HistoricImportNestedJob && $nestedJob->state !== 'completed') {
+            $nestedJob->forceFill([
+                'state' => 'cancelled',
+                'settled_at' => now(),
+            ])->save();
+        }
+    }
+
+    private function failStandalonePreparation(string $message): void
+    {
+        if (! $this->standalone) {
+            return;
+        }
+
+        $processingLog = $this->processingLog->fresh() ?? $this->processingLog;
+        $this->markHistoricNestedJobFailed(new \RuntimeException($message));
+        $this->markProcessingRunAsFailed(
+            $processingLog,
+            $message,
+            ProcessingStep::PreparingSectionPublicationCandidates->value,
+        );
+    }
+
+    private function markHistoricNestedJobRunning(): void
+    {
+        $nestedJob = $this->historicNestedJob();
+
+        if (! $nestedJob instanceof HistoricImportNestedJob) {
+            return;
+        }
+
+        $nestedJob->forceFill([
+            'state' => 'running',
+            'attempts' => $nestedJob->attempts + 1,
+            'error_fingerprint' => null,
+            'settled_at' => null,
+        ])->save();
+    }
+
+    private function markHistoricNestedJobCompleted(): void
+    {
+        $nestedJob = $this->historicNestedJob();
+
+        if (! $nestedJob instanceof HistoricImportNestedJob) {
+            return;
+        }
+
+        $nestedJob->forceFill([
+            'state' => 'completed',
+            'error_fingerprint' => null,
+            'settled_at' => now(),
+        ])->save();
+    }
+
+    private function markHistoricNestedJobFailed(\Throwable $exception): void
+    {
+        $nestedJob = $this->historicNestedJob();
+
+        if (! $nestedJob instanceof HistoricImportNestedJob) {
+            return;
+        }
+
+        $nestedJob->forceFill([
+            'state' => 'failed',
+            'error_fingerprint' => hash('sha256', $exception::class."\0".$exception->getMessage()),
+            'settled_at' => now(),
+        ])->save();
+    }
+
+    private function historicNestedJob(): ?HistoricImportNestedJob
+    {
+        if ($this->processingLog->historic_import_operation_id === null) {
+            return null;
+        }
+
+        return HistoricImportNestedJob::query()
+            ->where('historic_import_operation_id', $this->processingLog->historic_import_operation_id)
+            ->where('media_processing_log_id', $this->processingLog->id)
+            ->where('job_key', self::nestedJobKey($this->processingLog->processing_id))
+            ->where('job_type', self::class)
+            ->first();
     }
 }

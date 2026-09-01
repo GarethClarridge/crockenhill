@@ -234,6 +234,45 @@ class ServiceReviewDashboardQueryTest extends TestCase
     }
 
     #[Test]
+    public function song_boundary_review_exposes_its_reason_and_blocks_batch_readiness(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-05-27',
+            'service' => SermonService::Morning,
+        ]);
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $service->id,
+            'extracted_date' => '2026-05-27',
+            'extracted_service' => SermonService::Morning->value,
+        ]);
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Song,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval,
+            'needs_manual_review' => false,
+            'metadata' => [
+                'song_publication_review' => [
+                    'reasons' => [[
+                        'kind' => 'song_boundary_evidence_unavailable',
+                        'detail' => 'Transcript and RMS evidence are unavailable.',
+                    ]],
+                    'decided_at' => '2026-05-27T10:00:00+00:00',
+                ],
+            ],
+        ]);
+
+        $reasons = $this->query->reviewReasons($section);
+        $songReason = collect($reasons)->firstWhere('key', 'song_publication_review');
+
+        $this->assertIsArray($songReason);
+        $this->assertStringContainsString('Transcript and RMS evidence are unavailable.', $songReason['label']);
+        $this->assertSame('blocked by other review flags', $this->query->batchApprovalSkipReason($section));
+        $this->assertSame(1, $this->query->reviewCandidateSectionCount());
+        $this->assertSame($section->id, $this->query->reviewSectionsForService($service)->sole()->id);
+    }
+
+    #[Test]
     public function review_groups_generate_guarded_preview_urls_for_candidate_media(): void
     {
         Storage::fake('local');

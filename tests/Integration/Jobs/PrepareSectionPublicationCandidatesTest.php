@@ -6,11 +6,13 @@ namespace Tests\Integration\Jobs;
 
 use App\Contracts\SpeakerIdentificationInterface;
 use App\Data\SpeakerMatchResult;
+use App\Enums\ProcessingStatus;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Jobs\AutoPublishServiceSection;
+use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\SendCompletionNotification;
 use App\Models\ChurchService;
@@ -25,6 +27,7 @@ use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFacto
 use App\Services\ChurchService\SectionPublication\SermonPublicationHandler;
 use App\Services\ChurchService\SectionPublication\SongPublicationHandler;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
+use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Support\ChurchServiceProcessingTimeline;
@@ -398,6 +401,57 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
     }
 
     #[Test]
+    public function a_standalone_historic_preparation_closes_the_run_and_queues_cleanup(): void
+    {
+        Storage::fake('local');
+        Storage::fake('historic_staging');
+        Bus::fake();
+
+        config([
+            'media-processing.section_publishing.enabled' => true,
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.historic_staging_disk' => 'historic_staging',
+            'media-processing.storage.historic_quarantine_disk' => 'historic_quarantine',
+            'media-processing.storage.sermon_disk' => 'historic_staging',
+            'media-processing.storage.transcript_disk' => 'historic_staging',
+            'thumbnail-generation.storage.disk' => 'historic_staging',
+        ]);
+
+        $operation = $this->createHistoricImportOperation();
+        $context = app(HistoricStagingGuard::class)
+            ->contextForApprovedPlan($operation->manifest_hashes['video'], $operation->plan_hash);
+        $processingLog = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'historic_import_operation_id' => $operation->id,
+            'source_file_path' => 'temp/recut-source.mp4',
+            'processing_metadata' => [
+                'historic_import' => [
+                    'job_key' => 'recut-source',
+                    'staging_context' => $context->toArray(),
+                ],
+            ],
+        ]);
+
+        PrepareSectionPublicationCandidates::registerHistoricNestedJob($processingLog);
+
+        $job = new PrepareSectionPublicationCandidates($processingLog, true);
+        $videoExtractor = $this->createMock(VideoExtractionService::class);
+        $videoExtractor->expects($this->never())->method('extractSegmentAsFile');
+
+        $job->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(SectionPublicationHandlerFactory::class),
+            app(ServiceSectionPublicationTransitionService::class),
+        );
+
+        $this->assertSame(ProcessingStatus::Completed, $processingLog->fresh()->status);
+        $this->assertSame('completed', HistoricImportNestedJob::query()->sole()->state);
+        Bus::assertDispatched(CleanupTemporaryFiles::class, static function (CleanupTemporaryFiles $cleanup): bool {
+            return true;
+        });
+    }
+
+    #[Test]
     public function it_reextracts_candidate_media_when_existing_assets_belong_to_a_stale_classification_signature(): void
     {
         Storage::fake('local');
@@ -553,6 +607,9 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             app(SectionPublicationHandlerFactory::class),
             app(ServiceSectionPublicationTransitionService::class),
         );
+        $section->refresh();
+        $firstMetadata = $section->metadata?->toArray();
+        $firstUpdatedAt = $section->updated_at?->toISOString();
         $job->handle(
             $videoExtractor,
             app(StorageAdapterHelper::class),
@@ -569,6 +626,8 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->publication_status);
         $this->assertTrue($section->hasResolvedChildrensTalkSpeaker());
         $this->assertSame(760.5, $section->metadata['childrens_talk_boundary']['candidate']['end_time'] ?? null);
+        $this->assertSame($firstMetadata, $section->metadata?->toArray());
+        $this->assertSame($firstUpdatedAt, $section->updated_at?->toISOString());
     }
 
     #[Test]
@@ -615,6 +674,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'start_time' => 60.0,
             'end_time' => 300.0,
         ]);
+        $this->storeCleanSongBoundaryArtifacts($section);
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
@@ -688,6 +748,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'start_time' => 60.0,
             'end_time' => 300.0,
         ]);
+        $this->storeCleanSongBoundaryArtifacts($section);
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
@@ -866,6 +927,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'start_time' => 60.0,
             'end_time' => 300.0,
         ]);
+        $this->storeCleanSongBoundaryArtifacts($section);
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
@@ -1102,5 +1164,29 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         );
 
         return $path;
+    }
+
+    private function storeCleanSongBoundaryArtifacts(ServiceSection $section): void
+    {
+        config(['media-processing.storage.transcript_disk' => 'local']);
+
+        $processingLog = $section->processingLog;
+        $transcriptPath = 'service-transcripts/test-'.$processingLog->processing_id.'.normalized.json';
+        $rmsPath = 'service-transcripts/test-'.$processingLog->processing_id.'.rms.json';
+
+        Storage::disk('local')->put($transcriptPath, json_encode([
+            'cues' => [[
+                'start' => (float) $section->start_time,
+                'end' => (float) $section->end_time,
+                'text' => 'The song begins.',
+            ]],
+        ], JSON_THROW_ON_ERROR));
+        Storage::disk('local')->put(
+            $rmsPath,
+            "pts_time:{$section->start_time}\nlavfi.astats.Overall.RMS_level=-20.0",
+        );
+
+        $processingLog->putServiceTranscriptPath($transcriptPath);
+        $processingLog->forceFill(['rms_log_path' => $rmsPath])->save();
     }
 }

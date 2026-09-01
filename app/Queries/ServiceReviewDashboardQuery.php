@@ -353,6 +353,18 @@ class ServiceReviewDashboardQuery
             ];
         }
 
+        $songPublicationReview = $this->songPublicationReviewReason($section);
+
+        if ($songPublicationReview !== null) {
+            $reasons[] = $songPublicationReview;
+        }
+
+        $sermonBoundaryReview = $this->sermonBoundaryReviewReason($section);
+
+        if ($sermonBoundaryReview !== null) {
+            $reasons[] = $sermonBoundaryReview;
+        }
+
         if (
             $section->section_type->requiresStructuralUncertaintyReview()
             && $section->confidence !== null
@@ -398,6 +410,79 @@ class ServiceReviewDashboardQuery
         }
 
         return $reasons;
+    }
+
+    /**
+     * Keep the reason recorded by SongPublicationHandler visible on every
+     * review surface. A generic pending-approval label is not enough to make
+     * an informed batch-or-individual review decision.
+     *
+     * @return array{key:string,label:string,classes:string}|null
+     */
+    private function songPublicationReviewReason(ServiceSection $section): ?array
+    {
+        $review = data_get($section->metadata?->toArray() ?? [], 'song_publication_review');
+        $reasons = is_array($review) && is_array($review['reasons'] ?? null)
+            ? $review['reasons']
+            : [];
+        $details = [];
+
+        foreach ($reasons as $reason) {
+            if (! is_array($reason)) {
+                continue;
+            }
+
+            $detail = $reason['detail'] ?? null;
+
+            if (is_string($detail) && trim($detail) !== '') {
+                $details[] = trim($detail);
+            }
+        }
+
+        if ($details === []) {
+            return null;
+        }
+
+        return [
+            'key' => 'song_publication_review',
+            'label' => 'Song boundary review: '.implode(' ', $details),
+            'classes' => 'bg-amber-100 text-amber-800',
+        ];
+    }
+
+    /**
+     * Surface the corroborated sermon-boundary transition that stopped
+     * extraction, so a reviewer can distinguish it from generic structure
+     * uncertainty.
+     *
+     * @return array{key:string,label:string,classes:string}|null
+     */
+    private function sermonBoundaryReviewReason(ServiceSection $section): ?array
+    {
+        $metadata = $section->metadata?->toArray() ?? [];
+        $flags = is_array($metadata['review_flags'] ?? null) ? $metadata['review_flags'] : [];
+        $evidence = is_array($metadata['sermon_boundary'] ?? null) ? $metadata['sermon_boundary'] : [];
+
+        if (! in_array(ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK, $flags, true)
+            && ! in_array(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $flags, true)
+        ) {
+            return null;
+        }
+
+        $details = [];
+        $risks = is_array($evidence['risks'] ?? null) ? $evidence['risks'] : [];
+
+        foreach ($risks as $risk) {
+            if (is_array($risk) && is_string($risk['detail'] ?? null) && trim($risk['detail']) !== '') {
+                $details[] = trim($risk['detail']);
+            }
+        }
+
+        return [
+            'key' => 'sermon_boundary_review',
+            'label' => 'Sermon boundary review'.($details === [] ? '' : ': '.implode(' ', $details)),
+            'classes' => 'bg-rose-100 text-rose-800',
+        ];
     }
 
     public function isReviewCandidate(ServiceSection $section): bool
@@ -563,6 +648,7 @@ class ServiceReviewDashboardQuery
                             });
                     })
                     ->orWhereJsonContains('metadata->review_flags', 'heuristic_demotion')
+                    ->orWhereJsonLength('metadata->song_publication_review->reasons', '>', 0)
                     ->orWhere(function (Builder $query): void {
                         $query->whereIn('song_match_type', [
                             ServiceSectionSongMatchType::Inferred->value,

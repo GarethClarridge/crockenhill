@@ -197,7 +197,7 @@ class SongPublicationReviewPolicyTest extends TestCase
     }
 
     #[Test]
-    public function it_does_not_hold_a_transcript_gap_without_rms_corroboration(): void
+    public function it_holds_a_transcript_gap_when_rms_evidence_is_missing(): void
     {
         $section = $this->section('full', ['livestream'], metadata: [], start: 100.0, end: 300.0);
         $log = $section->processingLog;
@@ -209,16 +209,39 @@ class SongPublicationReviewPolicyTest extends TestCase
                 ['start' => 120.0, 'end' => 220.0, 'text' => 'We will sing now.'],
             ],
         ], JSON_THROW_ON_ERROR));
+        $log->forceFill(['rms_log_path' => null])->save();
         $log->putServiceTranscriptPath($transcriptPath);
 
-        $assessment = $this->policy->assess($section);
+        $assessment = $this->policy->assess($section->fresh());
 
-        $this->assertSame([], $assessment['reasons']);
         $this->assertSame(
-            'transcript_gap_without_rms_corroboration',
-            $assessment['boundary_evidence']['start_evidence']['basis'],
+            ['song_boundary_evidence_unavailable'],
+            array_column($assessment['reasons'], 'kind'),
         );
+        $this->assertSame('review', $assessment['boundary_evidence']['decision']);
+        $this->assertSame('review', $assessment['boundary_evidence']['start_evidence']['decision']);
+        $this->assertSame('boundary_evidence_unavailable', $assessment['boundary_evidence']['start_evidence']['basis']);
         $this->assertSame('not_recorded', $assessment['boundary_evidence']['inputs']['rms_log']['status']);
+    }
+
+    #[Test]
+    public function it_holds_a_song_when_the_transcript_artifact_is_corrupt(): void
+    {
+        $section = $this->section('full', ['livestream'], metadata: [], start: 100.0, end: 300.0);
+        $log = $section->processingLog;
+        $transcriptPath = 'service-transcripts/test-'.$log->processing_id.'.normalized.json';
+
+        Storage::disk('local')->put($transcriptPath, '{not-json');
+        $log->putServiceTranscriptPath($transcriptPath);
+
+        $assessment = $this->policy->assess($section->fresh());
+
+        $this->assertSame(
+            ['song_boundary_evidence_unavailable'],
+            array_column($assessment['reasons'], 'kind'),
+        );
+        $this->assertSame('unavailable', $assessment['boundary_evidence']['inputs']['service_transcript']['status']);
+        $this->assertSame('available', $assessment['boundary_evidence']['inputs']['rms_log']['status']);
     }
 
     #[Test]
@@ -280,7 +303,7 @@ class SongPublicationReviewPolicyTest extends TestCase
             ],
         ]);
 
-        return ServiceSection::factory()->create([
+        $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'church_service_item_id' => $item->id,
             'section_type' => ServiceSectionType::Song->value,
@@ -290,6 +313,16 @@ class SongPublicationReviewPolicyTest extends TestCase
             'duration' => $end - $start,
             'metadata' => $metadata,
         ])->fresh();
+
+        // Classification-policy tests need positive boundary evidence unless a
+        // test explicitly replaces or removes these artifacts.
+        $this->storeBoundaryArtifacts(
+            $section,
+            [['start' => $start, 'end' => $end, 'text' => 'The song begins.']],
+            [['time' => $start, 'rms' => -20.0], ['time' => $end, 'rms' => -20.0]],
+        );
+
+        return $section->fresh();
     }
 
     /**

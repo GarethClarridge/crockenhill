@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Jobs;
 
+use App\Enums\ServiceSectionType;
 use App\Jobs\ExtractSermon;
 use App\Mail\ManualReviewRequired;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\Media\ExtractedMediaDurationProbe;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Media\Video\VideoStorageService;
@@ -691,6 +693,81 @@ class ExtractSermonTest extends TestCase
         $this->assertNotEmpty($review['reason_message']);
         $this->assertNotNull($review['flagged_at']);
         $this->assertNotEmpty($review['speech_segments']);
+    }
+
+    #[Test]
+    public function it_routes_a_material_sermon_boundary_to_manual_review_before_extracting(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'sermon_start_time' => 600.0,
+            'sermon_end_time' => 2100.0,
+            'source_file_path' => 'livestreams/sermon-boundary-review.mp4',
+        ]);
+
+        $sermon = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'section_order' => 1,
+            'start_time' => 600.0,
+            'end_time' => 2100.0,
+            'duration' => 1500.0,
+            'confidence' => 0.98,
+            'needs_manual_review' => false,
+            'metadata' => ['confidence_level' => 'high'],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Prayer->value,
+            'section_order' => 2,
+            'start_time' => 2110.0,
+            'end_time' => 2160.0,
+            'duration' => 50.0,
+        ]);
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Other->value,
+            'section_order' => 3,
+            'start_time' => 2170.0,
+            'end_time' => 2220.0,
+            'duration' => 50.0,
+        ]);
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 4,
+            'start_time' => 2230.0,
+            'end_time' => 2400.0,
+            'duration' => 170.0,
+        ]);
+
+        $mockExtractor = $this->createMock(VideoExtractionService::class);
+        $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
+        $mockExtractor->expects($this->never())->method('extractOptimizedAudio');
+        $mockStorage = $this->createStub(VideoStorageService::class);
+
+        Mail::fake();
+        Log::shouldReceive('warning')->atLeast()->once();
+        Log::shouldReceive('info')->zeroOrMoreTimes();
+
+        $this->runJob(new ExtractSermon($log), $mockExtractor, $mockStorage);
+
+        $log->refresh();
+        $sermon->refresh();
+
+        $this->assertSame('failed', $log->status->value);
+        $this->assertSame('manual_review_required', $log->current_step);
+        $this->assertSame('sermon_boundary_material_risk', $log->manualReviewMetadata()['reason_code']);
+        $this->assertTrue($sermon->needs_manual_review);
+        $this->assertContains(
+            ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK,
+            $sermon->metadata['review_flags'] ?? [],
+        );
+        $this->assertSame(
+            'sermon_boundary_multiple_following_items',
+            $sermon->metadata['sermon_boundary']['risks'][0]['kind'] ?? null,
+        );
+        Mail::assertQueued(ManualReviewRequired::class);
     }
 
     #[Test]

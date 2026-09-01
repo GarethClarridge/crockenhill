@@ -194,6 +194,30 @@ class HistoricVideoPassMeasuresTest extends TestCase
     }
 
     #[Test]
+    public function retained_review_sources_from_earlier_passes_are_included_in_operation_headroom(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $context = $this->stagingContextFor($operation);
+
+        $earlierRun = $this->runWithPromotion($operation, null, 'earlier', $context);
+        $earlierRun->forceFill(['source_file_path' => 'temp/earlier-review.mp4'])->save();
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $earlierRun->id,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval,
+        ]);
+        $this->runWithPromotion($operation, null, 'current', $context);
+
+        Storage::disk('historic_staging')->put(
+            "{$context->batchRoot}/temp/earlier-review.mp4",
+            str_repeat('e', 41),
+        );
+
+        $measures = app(HistoricVideoPassMeasures::class)->report($operation, ['current']);
+
+        $this->assertSame(41, $measures['review_source_retained_bytes']);
+    }
+
+    #[Test]
     public function it_scopes_residue_to_the_recorded_batch_root(): void
     {
         $operation = $this->createHistoricImportOperation();

@@ -184,8 +184,7 @@ class SaveServiceSection
 
             $section->save();
             $section->loadMissing('processingLog');
-            PrepareSectionPublicationCandidates::dispatch($section->processingLog)
-                ->onQueue((string) config('media-processing.queues.livestream', 'livestream-processing'));
+            PrepareSectionPublicationCandidates::dispatchStandalone($section->processingLog);
 
             return;
         }
@@ -216,8 +215,7 @@ class SaveServiceSection
                 $section->save();
             } else {
                 $section->loadMissing('processingLog');
-                PrepareSectionPublicationCandidates::dispatch($section->processingLog)
-                    ->onQueue((string) config('media-processing.queues.livestream', 'livestream-processing'));
+                PrepareSectionPublicationCandidates::dispatchStandalone($section->processingLog);
             }
 
             return;

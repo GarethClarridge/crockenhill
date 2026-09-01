@@ -147,4 +147,13 @@ class SectionReviewFlagPolicyTest extends TestCase
             [ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED],
         ));
     }
+
+    #[Test]
+    public function a_material_sermon_boundary_flag_never_permits_auto_extraction(): void
+    {
+        $this->assertFalse(SermonAutoExtractionPolicy::reviewStatePermitsAutoExtraction(
+            false,
+            [ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK],
+        ));
+    }
 }

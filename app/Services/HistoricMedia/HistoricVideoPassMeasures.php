@@ -135,7 +135,10 @@ class HistoricVideoPassMeasures
         $retainedBytes = $itemKeys === [] ? array_sum($stagingSizes) : $accountedBytes;
         $reviewSourceRetainedBytes = $this->bytesAtPaths(
             $stagingSizes,
-            $this->reviewSourceStagingPaths($runs, $stagingContext),
+            // Review sources are operation-wide headroom, even when the
+            // operator is dispatching only a later pass. Earlier-pass sources
+            // still occupy the same staging root until their review clears.
+            $this->reviewSourceStagingPaths($operationRuns, $stagingContext),
         );
         $operationAccountedBytes = $this->bytesAtPaths(
             $stagingSizes,

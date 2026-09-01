@@ -434,6 +434,10 @@ return [
             // (e.g. RMS collapsing a whole service into one block). The run is routed to manual
             // review rather than silently extracting the wrong content (F10).
             'max_sermon_duration_seconds' => 2700,
+            // A long trailing section is review-worthy only when another timed
+            // service item corroborates a separate boundary; duration alone is
+            // never a sermon-side review trigger.
+            'long_tail_review_seconds' => 120,
         ],
     ],
 

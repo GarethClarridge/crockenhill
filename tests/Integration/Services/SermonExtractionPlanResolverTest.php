@@ -234,6 +234,60 @@ class SermonExtractionPlanResolverTest extends TestCase
     }
 
     #[Test]
+    public function it_keeps_a_short_ambiguous_bridge_with_the_sermon_without_reviewing_it(): void
+    {
+        config(['media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60]);
+
+        $log = $this->logWithSermon(630.0, 2100.0);
+        $bridge = $this->section($log, ServiceSectionType::Other, 3, 2110.0, 2150.0);
+        $this->section($log, ServiceSectionType::Song, 4, 2160.0, 2300.0, title: 'Song introduction');
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame(2150.0, $plan['segments'][0]['end_time']);
+        $this->assertSame([$bridge->id], $plan['metadata']['trailing_section_ids']);
+        $this->assertSame('retain_ambiguous_bridge', $plan['metadata']['sermon_boundary']['decision']);
+        $this->assertFalse($plan['metadata']['sermon_boundary']['requires_review']);
+    }
+
+    #[Test]
+    public function it_routes_multiple_following_items_as_a_material_sermon_boundary_risk(): void
+    {
+        config(['media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60]);
+
+        $log = $this->logWithSermon(630.0, 2100.0);
+        $this->section($log, ServiceSectionType::Prayer, 3, 2110.0, 2160.0);
+        $this->section($log, ServiceSectionType::Other, 4, 2170.0, 2220.0);
+        $this->section($log, ServiceSectionType::Song, 5, 2230.0, 2400.0);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame(2220.0, $plan['segments'][0]['end_time']);
+        $this->assertTrue($plan['metadata']['sermon_boundary']['requires_review']);
+        $this->assertContains(
+            'sermon_boundary_multiple_following_items',
+            array_column($plan['metadata']['sermon_boundary']['risks'], 'kind'),
+        );
+    }
+
+    #[Test]
+    public function a_long_tail_without_an_independent_boundary_does_not_create_sermon_review_on_duration_alone(): void
+    {
+        config([
+            'media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60,
+            'media-processing.section_extraction.enhanced_sermon.long_tail_review_seconds' => 120,
+        ]);
+
+        $log = $this->logWithSermon(630.0, 2100.0);
+        $tail = $this->section($log, ServiceSectionType::Other, 3, 2110.0, 2350.0, title: 'Long conclusion');
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame($tail->end_time, $plan['segments'][0]['end_time']);
+        $this->assertFalse($plan['metadata']['sermon_boundary']['requires_review']);
+    }
+
+    #[Test]
     public function it_does_not_extend_across_a_gap_wider_than_the_adjacency_window(): void
     {
         config(['media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60]);
@@ -622,11 +676,13 @@ class SermonExtractionPlanResolverTest extends TestCase
         int $order,
         float $start,
         float $end,
+        ?string $title = null,
     ): ServiceSection {
         return ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'section_type' => $type->value,
             'section_order' => $order,
+            'title' => $title,
             'start_time' => $start,
             'end_time' => $end,
             'needs_manual_review' => false,

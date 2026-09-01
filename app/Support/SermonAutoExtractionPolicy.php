@@ -26,6 +26,17 @@ use App\Services\ChurchService\Structure\ServiceStructureValidator;
 class SermonAutoExtractionPolicy
 {
     /**
+     * Boundary-risk flags disqualify extraction even when a caller has not yet
+     * copied the flag into `needs_manual_review`.
+     *
+     * @var array<int, string>
+     */
+    private const MATERIAL_BOUNDARY_FLAGS = [
+        ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED,
+        ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK,
+    ];
+
+    /**
      * Flags that mark OoS ordering/alignment or completeness concerns rather
      * than boundary quality; these alone do not block auto-extraction. A
      * missing preached reading questions what surrounds the sermon, not the
@@ -42,6 +53,10 @@ class SermonAutoExtractionPolicy
      */
     public static function reviewStatePermitsAutoExtraction(bool $needsManualReview, array $reviewFlags): bool
     {
+        if (array_intersect($reviewFlags, self::MATERIAL_BOUNDARY_FLAGS) !== []) {
+            return false;
+        }
+
         if (! $needsManualReview) {
             return true;
         }
