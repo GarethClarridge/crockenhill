@@ -128,18 +128,35 @@ class HistoricVideoPassStatus
         return array_intersect_key($runsByItemKey, array_flip($itemKeys));
     }
 
+    /**
+     * The most diagnostic text an alert carries, for the operator report.
+     *
+     * Failure alerts hold the real cause in `internal_message` and only a
+     * sanitised placeholder in `message`; manual-review alerts hold `reason`.
+     * Reading `reason` alone left every failure alert printing a bare
+     * `failure`, which is the opposite of what this reader exists for.
+     */
     private function alertReason(HistoricImportAlert $alert): string
     {
         $facts = $alert->payload['facts'] ?? null;
         $facts = is_array($facts) ? $facts : [];
 
-        return match ($alert->kind) {
-            'excluded_source_audio_silent' => sprintf(
+        if ($alert->kind === 'excluded_source_audio_silent') {
+            return sprintf(
                 'source audio is digitally silent (%d frames, all -inf)',
                 (int) ($facts['frame_count'] ?? 0),
-            ),
-            default => is_string($facts['reason'] ?? null) ? $facts['reason'] : $alert->kind,
-        };
+            );
+        }
+
+        foreach (['internal_message', 'reason', 'message'] as $key) {
+            $value = $facts[$key] ?? null;
+
+            if (is_string($value) && $value !== '') {
+                return $value;
+            }
+        }
+
+        return $alert->kind;
     }
 
     private function manifestItemKey(MediaProcessingLog $run): ?string

@@ -238,7 +238,7 @@ class ProcessingRunOrchestrator
                     // settled and nothing is in flight. Re-claiming is what makes
                     // AwaitHistoricSermonVideoStorage's promise true: it fails a
                     // run precisely so that the tail stays recoverable.
-                    $this->processingRunTransitions->markAsProcessing(
+                    $this->processingRunTransitions->markAsReopened(
                         $lockedLog,
                         $lockedLog->current_step,
                     );

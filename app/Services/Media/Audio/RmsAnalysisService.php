@@ -23,6 +23,9 @@ class RmsAnalysisService
     /** Minimum duration (seconds) for a loud section to be considered a distinct event. */
     private const float DEFAULT_MIN_SECTION_DURATION = 30.0;
 
+    /** RMS level (dB) substituted for FFmpeg's `-inf` by {@see parseRmsLevel()}. */
+    private const float DIGITAL_SILENCE_RMS = -999.0;
+
     private const string PTS_TIME_PATTERN = '/pts_time:(\d+(?:\.\d+)?)/';
 
     private const string RMS_LEVEL_PATTERN = '/lavfi\.astats\.Overall\.RMS_level=(-?\d+(?:\.\d+)?|-inf)/';
@@ -96,7 +99,7 @@ class RmsAnalysisService
             if ($data['time'] >= $startTime && $data['time'] <= $endTime) {
                 $windowSampleCount++;
 
-                if ($data['rms'] > -999.0) {
+                if (! $this->isDigitalSilence($data['rms'])) {
                     $segmentRms[] = $data['rms'];
                 }
             }
@@ -108,7 +111,7 @@ class RmsAnalysisService
                 // different condition from no samples at all: report it honestly
                 // rather than fabricating a "quiet but not silent" level, which
                 // would misclassify true silence as ordinary speech.
-                return ['avg' => -999.0, 'peak' => -999.0];
+                return ['avg' => self::DIGITAL_SILENCE_RMS, 'peak' => self::DIGITAL_SILENCE_RMS];
             }
 
             // No RMS samples fall in this window at all — fallback values
@@ -141,7 +144,7 @@ class RmsAnalysisService
         }
 
         foreach ($rmsData as $data) {
-            if ($data['rms'] > -999.0) {
+            if (! $this->isDigitalSilence($data['rms'])) {
                 return false;
             }
         }
@@ -483,10 +486,24 @@ class RmsAnalysisService
     private function parseRmsLevel(string $line): ?float
     {
         if (preg_match(self::RMS_LEVEL_PATTERN, $line, $matches)) {
-            return $matches[1] === '-inf' ? -999.0 : (float) $matches[1];
+            return $matches[1] === '-inf' ? self::DIGITAL_SILENCE_RMS : (float) $matches[1];
         }
 
         return null;
+    }
+
+    /**
+     * Whether a parsed level is the exact digital-silence sentinel.
+     *
+     * Deliberately an identity comparison rather than `<= -999.0`. The pattern
+     * accepts any numeric level, so a threshold would let an unexpected value
+     * such as `-1000.0` be reported as digital silence and exclude a service
+     * that has real audio. Silence exclusion is terminal, so a false positive
+     * silently skips a real recording.
+     */
+    private function isDigitalSilence(float $rms): bool
+    {
+        return $rms === self::DIGITAL_SILENCE_RMS;
     }
 
     /**

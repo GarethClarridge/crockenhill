@@ -97,6 +97,83 @@ class HistoricVideoPassStatusCommandTest extends TestCase
     }
 
     #[Test]
+    public function it_reports_the_real_diagnostic_for_failure_manual_review_and_success_alerts(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+
+        $failed = $this->createAlertableRun($operation->id, 'failed-item');
+        $review = $this->createAlertableRun($operation->id, 'review-item');
+        $succeeded = $this->createAlertableRun($operation->id, 'success-item');
+
+        $router = app(ProcessingNotificationRouter::class);
+
+        // The exact fact shape ProcessingRunFailureHandler writes: the real
+        // cause lives in internal_message, and `message` is only the sanitised
+        // placeholder meant for external mail.
+        $router->suppressIfHistoric($failed, 'failure', 'error', [
+            'stage' => 'notification_skipped',
+            'message' => 'An internal error occurred during livestream processing.',
+            'internal_message' => 'Stored full-service transcript contains no cues.',
+            'exception_class' => 'RuntimeException',
+            'exception_fingerprint' => hash('sha256', 'Stored full-service transcript contains no cues.'),
+        ]);
+
+        $router->suppressIfHistoric($review, 'manual_review_extraction', 'warning', [
+            'reason' => 'Sermon auto-selection confidence was insufficient.',
+            'speech_segments' => [],
+        ]);
+
+        $router->suppressIfHistoric($succeeded, 'success', 'info', [
+            'stage' => 'processing_complete',
+            'sermon_id' => 4321,
+        ]);
+
+        $alerts = app(HistoricVideoPassStatus::class)
+            ->alerts($operation, ['failed-item', 'review-item', 'success-item']);
+
+        $reasonByKind = [];
+        foreach ($alerts['items'] as $item) {
+            $reasonByKind[$item['kind']] = $item['reason'];
+        }
+
+        self::assertSame(
+            'Stored full-service transcript contains no cues.',
+            $reasonByKind['failure'],
+            'A failure alert must report its internal diagnostic, not the bare kind.',
+        );
+        self::assertSame(
+            'Sermon auto-selection confidence was insufficient.',
+            $reasonByKind['manual_review_extraction'],
+        );
+        // A success alert carries no diagnostic text of any kind, so the kind
+        // itself is the only honest thing to print.
+        self::assertSame('success', $reasonByKind['success']);
+    }
+
+    #[Test]
+    public function it_falls_back_to_the_safe_message_when_a_failure_alert_predates_internal_messages(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $log = $this->createAlertableRun($operation->id, 'legacy-item');
+
+        // The 22 failure alerts already on disk from the canary were written
+        // before D5 added internal_message; they must still read as something
+        // better than "failure".
+        app(ProcessingNotificationRouter::class)->suppressIfHistoric($log, 'failure', 'error', [
+            'stage' => 'notification_skipped',
+            'message' => 'An internal error occurred during livestream processing.',
+            'exception_class' => 'RuntimeException',
+        ]);
+
+        $alerts = app(HistoricVideoPassStatus::class)->alerts($operation, ['legacy-item']);
+
+        self::assertSame(
+            'An internal error occurred during livestream processing.',
+            $alerts['items'][0]['reason'],
+        );
+    }
+
+    #[Test]
     public function it_reports_mixed_terminal_when_manual_review_and_system_failure_both_exist(): void
     {
         $operation = $this->createHistoricImportOperation();
@@ -188,6 +265,18 @@ class HistoricVideoPassStatusCommandTest extends TestCase
         $this->artisan('historic-import:video-pass-status')
             ->expectsOutputToContain('Both --operation and a non-empty --only manifest-key list are required.')
             ->assertExitCode(1);
+    }
+
+    private function createAlertableRun(int $operationId, string $itemKey): MediaProcessingLog
+    {
+        return MediaProcessingLog::factory()->livestream()->create([
+            'historic_import_operation_id' => $operationId,
+            'status' => ProcessingStatus::Completed,
+            'current_step' => 'completed',
+            'processing_metadata' => [
+                'historic_import' => ['manifest_item_key' => $itemKey],
+            ],
+        ]);
     }
 
     private function createRun(

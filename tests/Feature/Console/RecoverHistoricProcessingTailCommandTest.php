@@ -256,8 +256,20 @@ class RecoverHistoricProcessingTailCommandTest extends TestCase
             CleanupTemporaryFiles::class,
         ]);
 
+        $startedAt = $processingLog->started_at;
         $processingLog->refresh();
         self::assertSame(ProcessingStatus::Processing, $processingLog->status);
+
+        // Reopening must clear the terminal fields with the status. A run left
+        // holding completed_at and error_message while it is processing reads
+        // as simultaneously active and failed in the status report and in the
+        // performance evidence taken from these columns.
+        self::assertNull($processingLog->completed_at);
+        self::assertNull($processingLog->error_message);
+        self::assertTrue(
+            $startedAt?->equalTo($processingLog->started_at) ?? false,
+            'started_at is the run\'s real start and must survive a reopen.',
+        );
     }
 
     #[Test]
@@ -300,6 +312,9 @@ class RecoverHistoricProcessingTailCommandTest extends TestCase
             'processing_metadata' => $metadata,
             'status' => ProcessingStatus::Failed,
             'current_step' => 'sermon_submitted',
+            // The terminal fields markAsFailed() writes alongside the status.
+            'completed_at' => Carbon::now()->subMinutes(30),
+            'error_message' => 'Historic sermon video never reached its operation-owned key.',
         ])->save();
 
         return $processingLog->refresh();

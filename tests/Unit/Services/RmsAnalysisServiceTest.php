@@ -226,6 +226,26 @@ class RmsAnalysisServiceTest extends TestCase
         $this->assertFalse($this->service->isEntirelySilent([]));
     }
 
+    #[Test]
+    public function it_treats_only_the_exact_sentinel_as_digital_silence(): void
+    {
+        // The RMS pattern accepts any numeric level, so a value below the
+        // sentinel is still a parsed measurement, not FFmpeg's `-inf`. Silence
+        // exclusion is terminal, so treating this as silence would skip a real
+        // service on an unexpected reading.
+        $rmsData = [
+            ['time' => 0.0, 'rms' => -1000.0],
+            ['time' => 1.0, 'rms' => -1000.0],
+        ];
+
+        $this->assertFalse($this->service->isEntirelySilent($rmsData));
+
+        $result = $this->service->calculateSegmentRms(0.0, 5.0, $rmsData);
+
+        $this->assertEquals(-1000.0, $result['avg']);
+        $this->assertEquals(-1000.0, $result['peak']);
+    }
+
     // ---- getTotalDuration ----
 
     #[Test]

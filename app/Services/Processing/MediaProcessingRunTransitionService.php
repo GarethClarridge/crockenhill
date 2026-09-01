@@ -58,6 +58,32 @@ class MediaProcessingRunTransitionService
     }
 
     /**
+     * Reopen a settled run so a recoverable tail can be dispatched again.
+     *
+     * Distinct from {@see markAsProcessing()}, which advances a run through
+     * steps it has not yet reached and so never has terminal fields to clear.
+     * A run reopened from a terminal state keeps its old `completed_at` and
+     * `error_message` unless they are cleared here, and then reads as
+     * simultaneously active and failed in operator reporting and performance
+     * evidence. `started_at` is deliberately preserved: it is the run's real
+     * start, and duration measures are taken from it.
+     *
+     * @param  MediaProcessingLog  $processingLog  The log record to reopen
+     * @param  string|null  $step  The step the reopened run resumes at
+     * @return bool True if the transition was successful
+     */
+    public function markAsReopened(MediaProcessingLog $processingLog, ?string $step = null): bool
+    {
+        return $this->updateRunFields($processingLog, [
+            'status' => ProcessingStatus::Processing,
+            'current_step' => ProcessingStep::canonicalize($step),
+            'started_at' => $processingLog->started_at ?? now(),
+            'completed_at' => null,
+            'error_message' => null,
+        ]);
+    }
+
+    /**
      * Transition a run to the 'completed' state.
      *
      * Marks the run as successful and records completion time. Historic runs
