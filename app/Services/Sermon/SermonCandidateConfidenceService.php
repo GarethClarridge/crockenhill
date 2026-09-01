@@ -24,40 +24,56 @@ use Illuminate\Support\Collection;
  *     candidate: LivestreamSegment|null,
  *     qualifying_segments_count: int,
  *     next_longest_duration: float,
+ *     minimum_duration_applied: float,
+ *     sermon_only_recording: bool,
  *     speech_segments: array<int, array{segment_id: int, start_time: float, end_time: float, duration: float}>
  * }
  */
 class SermonCandidateConfidenceService
 {
     /**
+     * The minimum a candidate must run when it has to be picked out of a whole
+     * service's speech. Notices, prayers and readings are all shorter than this.
+     */
+    private const float WholeServiceMinimumDuration = 1200.0;
+
+    /**
      * Identify the most likely sermon segment from a collection of speech segments.
      *
      * Evaluates candidates based on three core heuristics:
-     * 1. Minimum duration: The segment must be at least 20 minutes (1200s) long.
+     * 1. Minimum duration: see {@see self::minimumCandidateDuration()} — 20 minutes
+     *    for a whole-service recording, a lower floor for a sermon-only one.
      * 2. Maximum duration: The segment must not exceed the configured limit (default 45 mins / 2700s).
      * 3. Dominance ratio: The candidate must be at least 1.5x longer than the next-longest segment.
      *
      * @param  Collection<int, LivestreamSegment>  $speechSegments
+     * @param  float|null  $recordingDuration  Length of the recording the segments came from, when
+     *                                         known. Without it every recording is treated as a
+     *                                         whole service, which is the stricter reading.
      * @return SermonCandidateEvaluation
      */
-    public function evaluate(Collection $speechSegments): array
+    public function evaluate(Collection $speechSegments, ?float $recordingDuration = null): array
     {
         /** @var Collection<int, LivestreamSegment> $orderedByDuration */
         $orderedByDuration = $speechSegments
             ->sortByDesc(fn (LivestreamSegment $segment): float => (float) $segment->duration)
             ->values();
 
+        /** @var LivestreamSegment|null $longestSegment */
+        $longestSegment = $orderedByDuration->first();
+
+        $isSermonOnlyRecording = $this->isSermonOnlyRecording($longestSegment, $recordingDuration);
+        $minimumDuration = $isSermonOnlyRecording
+            ? (float) config('media-processing.section_extraction.enhanced_sermon.sermon_only_min_duration_seconds', 600)
+            : self::WholeServiceMinimumDuration;
+
         /**
          * Filter segments that meet the minimum sermon duration threshold.
-         *
-         * Default threshold is 20 minutes (1200.0 seconds). This is calibrated to
-         * distinguish main sermons from other speech elements like notices,
-         * prayers, or readings, which are typically shorter in this context.
          *
          * @var Collection<int, LivestreamSegment> $qualifyingSegments
          */
         $qualifyingSegments = $orderedByDuration
-            ->filter(fn (LivestreamSegment $segment): bool => (float) $segment->duration >= 1200.0)
+            ->filter(fn (LivestreamSegment $segment): bool => (float) $segment->duration >= $minimumDuration)
             ->values();
 
         $speechSegmentSummaries = $speechSegments
@@ -84,6 +100,8 @@ class SermonCandidateConfidenceService
                 'candidate' => null,
                 'qualifying_segments_count' => 0,
                 'next_longest_duration' => $nextLongestDuration,
+                'minimum_duration_applied' => $minimumDuration,
+                'sermon_only_recording' => $isSermonOnlyRecording,
                 'speech_segments' => $speechSegmentSummaries,
             ];
         }
@@ -95,6 +113,8 @@ class SermonCandidateConfidenceService
                 'candidate' => null,
                 'qualifying_segments_count' => $qualifyingSegments->count(),
                 'next_longest_duration' => $nextLongestDuration,
+                'minimum_duration_applied' => $minimumDuration,
+                'sermon_only_recording' => $isSermonOnlyRecording,
                 'speech_segments' => $speechSegmentSummaries,
             ];
         }
@@ -116,6 +136,8 @@ class SermonCandidateConfidenceService
                 'candidate' => null,
                 'qualifying_segments_count' => 1,
                 'next_longest_duration' => $nextLongestDuration,
+                'minimum_duration_applied' => $minimumDuration,
+                'sermon_only_recording' => $isSermonOnlyRecording,
                 'speech_segments' => $speechSegmentSummaries,
             ];
         }
@@ -127,6 +149,8 @@ class SermonCandidateConfidenceService
                 'candidate' => null,
                 'qualifying_segments_count' => 1,
                 'next_longest_duration' => $nextLongestDuration,
+                'minimum_duration_applied' => $minimumDuration,
+                'sermon_only_recording' => $isSermonOnlyRecording,
                 'speech_segments' => $speechSegmentSummaries,
             ];
         }
@@ -137,8 +161,40 @@ class SermonCandidateConfidenceService
             'candidate' => $candidate,
             'qualifying_segments_count' => 1,
             'next_longest_duration' => $nextLongestDuration,
+            'minimum_duration_applied' => $minimumDuration,
+            'sermon_only_recording' => $isSermonOnlyRecording,
             'speech_segments' => $speechSegmentSummaries,
         ];
+    }
+
+    /**
+     * Whether the recording is a capture of the sermon alone rather than of a
+     * whole service.
+     *
+     * The church recorded evening services, and some mornings, by starting the
+     * camera at the sermon; those recordings are one unbroken block of speech
+     * from end to end. A whole-service recording instead carries the sermon
+     * among songs, notices and prayers, so its longest speech block covers only
+     * part of the file. Coverage separates the two cleanly, and it is evidence
+     * the recording itself supplies — unlike the curation grade, which is
+     * derived from duration and cannot tell a short sermon from a fragment.
+     */
+    private function isSermonOnlyRecording(?LivestreamSegment $longestSegment, ?float $recordingDuration): bool
+    {
+        if (! $longestSegment instanceof LivestreamSegment) {
+            return false;
+        }
+
+        if ($recordingDuration === null || $recordingDuration <= 0.0) {
+            return false;
+        }
+
+        $requiredCoverage = (float) config(
+            'media-processing.section_extraction.enhanced_sermon.sermon_only_coverage_ratio',
+            0.90
+        );
+
+        return ((float) $longestSegment->duration / $recordingDuration) >= $requiredCoverage;
     }
 
     /**
@@ -157,6 +213,10 @@ class SermonCandidateConfidenceService
             ->orderBy('id')
             ->get();
 
-        return $this->evaluate($speechSegments);
+        $recordingDuration = $processingLog->duration !== null
+            ? (float) $processingLog->duration
+            : null;
+
+        return $this->evaluate($speechSegments, $recordingDuration);
     }
 }

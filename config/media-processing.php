@@ -434,6 +434,22 @@ return [
             // (e.g. RMS collapsing a whole service into one block). The run is routed to manual
             // review rather than silently extracting the wrong content (F10).
             'max_sermon_duration_seconds' => 2700,
+            // A recording that is essentially one unbroken block of speech is a
+            // sermon-only capture, not a whole service. The 20-minute floor in
+            // SermonCandidateConfidenceService exists to pick the sermon out of a
+            // service's other speech (notices, prayers, readings); in a sermon-only
+            // capture there is nothing to pick between, so that floor only measures
+            // how long the sermon itself ran. Measured on the historic corpus the
+            // two populations are widely separated: sermon-only captures cover
+            // 92.5-98.0% of their recording, whole-service captures 31.4-67.0%.
+            // 0.90 sits inside that empty gap.
+            'sermon_only_coverage_ratio' => 0.90,
+            // The floor that replaces the 20-minute minimum for such a recording.
+            // It still has to reject a short non-sermon item that was recorded on
+            // its own: the 2023-07-16 children's talk is 405s and covers its whole
+            // recording, while the shortest evening sermon-only candidate in the
+            // approved manifest is 755s.
+            'sermon_only_min_duration_seconds' => 600,
             // A long trailing section is review-worthy only when another timed
             // service item corroborates a separate boundary; duration alone is
             // never a sermon-side review trigger.
