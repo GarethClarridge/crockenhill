@@ -196,6 +196,26 @@ class HistoricVideoPassStatus
             return 'in_progress';
         }
 
+        // Tested ahead of every other terminal reading, including manual review.
+        // An exclusion is a decision about the recording that supersedes whatever
+        // state the run reached on its way there: a silent source reaches cleanup
+        // and completes, while a run an operator excluded after review is still
+        // recorded as failed at `manual_review_required`. Reading the run's own
+        // status would report the first as 'completed' and the second as a review
+        // still waiting for someone, and in neither case would the operator learn
+        // the item had been excluded or why.
+        $excludedRuns = collect($runs)->filter(
+            static fn (MediaProcessingLog $run): bool => $run->isExcluded(),
+        );
+
+        if ($excludedRuns->isNotEmpty() && $excludedRuns->count() !== count($runs)) {
+            return 'mixed_terminal';
+        }
+
+        if ($excludedRuns->isNotEmpty()) {
+            return 'excluded';
+        }
+
         $manualReviewRuns = collect($runs)->filter(
             static fn (MediaProcessingLog $run): bool => $run->status === ProcessingStatus::Failed
                 && $run->current_step === 'manual_review_required',
@@ -207,25 +227,6 @@ class HistoricVideoPassStatus
 
         if ($manualReviewRuns->isNotEmpty()) {
             return 'manual_review';
-        }
-
-        // Reported ahead of the plain status match below: an excluded run's
-        // ProcessingStatus is Completed (there was nothing to extract, so it
-        // reached the same terminal disposition as any other successful
-        // run), and only the exclusion metadata distinguishes it. Without
-        // this branch it would report as 'completed' and the operator would
-        // never learn the source recording was silent.
-        $excludedRuns = collect($runs)->filter(
-            static fn (MediaProcessingLog $run): bool => $run->status === ProcessingStatus::Completed
-                && $run->isExcludedSilentAudio(),
-        );
-
-        if ($excludedRuns->isNotEmpty() && $excludedRuns->count() !== count($runs)) {
-            return 'mixed_terminal';
-        }
-
-        if ($excludedRuns->isNotEmpty()) {
-            return 'excluded';
         }
 
         $statuses = collect($runs)->pluck('status')->unique();

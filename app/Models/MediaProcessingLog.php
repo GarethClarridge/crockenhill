@@ -30,6 +30,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use InvalidArgumentException;
 
 /**
  * @property int $id
@@ -94,6 +95,20 @@ class MediaProcessingLog extends Model
      * sample in its log is digital silence. See {@see isExcludedSilentAudio()}.
      */
     public const EXCLUSION_REASON_SOURCE_AUDIO_SILENT = 'source_audio_silent';
+
+    /**
+     * The source recording holds no sermon at all — it captured a different part
+     * of the service, or too little of it. Unlike a silent source this cannot be
+     * detected from the audio, so it is only ever recorded by an operator who has
+     * looked at the recording.
+     */
+    public const EXCLUSION_REASON_NO_SERMON_IN_SOURCE = 'no_sermon_in_source';
+
+    /** Every reason a run may be excluded under. */
+    public const EXCLUSION_REASONS = [
+        self::EXCLUSION_REASON_SOURCE_AUDIO_SILENT,
+        self::EXCLUSION_REASON_NO_SERMON_IN_SOURCE,
+    ];
 
     protected $fillable = [
         'processing_id',
@@ -781,10 +796,30 @@ class MediaProcessingLog extends Model
      */
     public function isExcludedSilentAudio(): bool
     {
-        $metadata = $this->processing_metadata?->toArray() ?? [];
-        $reason = data_get($metadata, 'exclusion.reason');
+        return $this->exclusionReason() === self::EXCLUSION_REASON_SOURCE_AUDIO_SILENT;
+    }
 
-        return $reason === self::EXCLUSION_REASON_SOURCE_AUDIO_SILENT;
+    /**
+     * Whether this run was excluded for any recorded reason. An excluded run is
+     * terminal and is not revisited; the reason says why, and the disposition
+     * reader reports `excluded` rather than the run's own status.
+     */
+    public function isExcluded(): bool
+    {
+        return $this->exclusionReason() !== null;
+    }
+
+    /**
+     * The recorded exclusion reason, or null when this run was not excluded.
+     * An unrecognised value reads as null rather than as some unknown exclusion.
+     */
+    public function exclusionReason(): ?string
+    {
+        $reason = data_get($this->processing_metadata?->toArray() ?? [], 'exclusion.reason');
+
+        return is_string($reason) && in_array($reason, self::EXCLUSION_REASONS, true)
+            ? $reason
+            : null;
     }
 
     /**
@@ -796,8 +831,18 @@ class MediaProcessingLog extends Model
      */
     public function silentAudioExclusionEvidence(): ?array
     {
-        $metadata = $this->processing_metadata?->toArray() ?? [];
-        $evidence = data_get($metadata, 'exclusion.evidence');
+        return $this->exclusionEvidence();
+    }
+
+    /**
+     * The evidence recorded alongside whichever exclusion applies, or null when
+     * this run was not excluded.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function exclusionEvidence(): ?array
+    {
+        $evidence = data_get($this->processing_metadata?->toArray() ?? [], 'exclusion.evidence');
 
         return is_array($evidence) ? $evidence : null;
     }
@@ -811,9 +856,25 @@ class MediaProcessingLog extends Model
      */
     public function putSilentAudioExclusion(array $evidence): void
     {
+        $this->putExclusion(self::EXCLUSION_REASON_SOURCE_AUDIO_SILENT, $evidence);
+    }
+
+    /**
+     * Record that this run was excluded, carrying the evidence for the operator
+     * to read back without hand-diagnosing the run.
+     *
+     * @param  value-of<self::EXCLUSION_REASONS>  $reason
+     * @param  array<string, mixed>  $evidence
+     */
+    public function putExclusion(string $reason, array $evidence): void
+    {
+        if (! in_array($reason, self::EXCLUSION_REASONS, true)) {
+            throw new InvalidArgumentException(sprintf('Unknown processing exclusion reason [%s].', $reason));
+        }
+
         $processingMetadata = $this->processing_metadata?->toArray() ?? [];
         $processingMetadata['exclusion'] = [
-            'reason' => self::EXCLUSION_REASON_SOURCE_AUDIO_SILENT,
+            'reason' => $reason,
             'recorded_at' => now()->toIso8601String(),
             'evidence' => $evidence,
         ];
