@@ -644,6 +644,50 @@ class ShowChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_surfaces_childrens_talk_boundary_evidence_and_a_bounded_end_control(): void
+    {
+        [$service, $run] = $this->workbenchServiceWithRun();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'title' => "Children's Talk",
+            'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
+            'metadata' => [
+                'childrens_talk_speaker' => [
+                    'reviewed' => [
+                        'preacher_id' => null,
+                        'preacher_name' => 'Mary Helper',
+                        'source' => 'manual',
+                    ],
+                ],
+                'childrens_talk_boundary' => [
+                    'candidate' => [
+                        'kind' => 'inclusive',
+                        'start_time' => 600.0,
+                        'end_time' => 900.0,
+                    ],
+                    'tail' => [
+                        'status' => 'available',
+                        'text' => 'Let us pray together now.',
+                    ],
+                    'following_sections' => [],
+                ],
+            ],
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Boundary evidence')
+            ->assertSee('Approval required')
+            ->assertSee('Let us pray together now.')
+            ->assertSee('Candidate end (seconds)')
+            ->assertSeeHtml('max="'.$section->end_time.'"')
+            ->assertSet('sectionEdits.'.$section->id.'.end_time', (string) $section->end_time);
+    }
+
+    #[Test]
     public function it_confirms_one_section_without_saving_the_edit_form(): void
     {
         [$service, $run] = $this->workbenchServiceWithRun();

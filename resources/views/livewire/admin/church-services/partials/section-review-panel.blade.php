@@ -6,6 +6,12 @@
     $predictedSpeaker = $section->predictedChildrensTalkSpeaker();
     $speakerOutcome = is_array($predictedSpeaker) ? ($predictedSpeaker['outcome'] ?? null) : null;
     $reviewReasons = is_array($panel['reasons'] ?? null) ? $panel['reasons'] : [];
+    $boundaryEvidence = $section->metadata?->toArray()['childrens_talk_boundary'] ?? null;
+    $boundaryTail = is_array($boundaryEvidence['tail'] ?? null) ? $boundaryEvidence['tail'] : [];
+    $followingSections = is_array($boundaryEvidence['following_sections'] ?? null)
+        ? $boundaryEvidence['following_sections']
+        : [];
+    $boundaryTailText = is_string($boundaryTail['text'] ?? null) ? trim($boundaryTail['text']) : '';
     // Only offer Confirm when a one-click confirm will actually clear the section
     // (unmatched songs and pending speaker reviews are resolved via their own
     // controls, not by Confirm).
@@ -101,6 +107,48 @@
     </div>
 
     @if($section->section_type === \App\Enums\ServiceSectionType::ChildrensTalk)
+        @if(is_array($boundaryEvidence))
+            <div class="space-y-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-3 text-sm text-amber-900">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <p class="font-medium">Boundary evidence</p>
+                    <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">Approval required</span>
+                </div>
+
+                <p>
+                    The candidate remains inclusive at
+                    <span class="font-medium tabular-nums">{{ \App\Services\ChurchService\ServiceRecordTimeline::formatTimestamp((float) ($boundaryEvidence['candidate']['start_time'] ?? $section->start_time)) }}–{{ \App\Services\ChurchService\ServiceRecordTimeline::formatTimestamp((float) ($boundaryEvidence['candidate']['end_time'] ?? $section->end_time)) }}</span>.
+                    Following material is not trimmed automatically.
+                </p>
+
+                @if($boundaryTailText !== '')
+                    <p>
+                        <span class="font-medium">Transcript near the candidate end:</span>
+                        “{{ \Illuminate\Support\Str::limit($boundaryTailText, 280) }}”
+                    </p>
+                @elseif(($boundaryTail['status'] ?? null) === 'no_cues')
+                    <p class="text-amber-800">No timed transcript cues were found near the candidate end.</p>
+                @else
+                    <p class="text-amber-800">Timed transcript evidence is {{ str_replace('_', ' ', (string) ($boundaryTail['status'] ?? 'unavailable')) }}.</p>
+                @endif
+
+                @if($followingSections !== [])
+                    @php $nextSection = $followingSections[0]; @endphp
+                    <p>
+                        <span class="font-medium">Next detected section:</span>
+                        {{ \Illuminate\Support\Str::headline((string) ($nextSection['section_type'] ?? 'section')) }}
+                        @if(is_string($nextSection['title'] ?? null) && trim($nextSection['title']) !== '')
+                            — {{ $nextSection['title'] }}
+                        @endif
+                        <span class="tabular-nums text-amber-800">({{ \App\Services\ChurchService\ServiceRecordTimeline::formatTimestamp((float) ($nextSection['start_time'] ?? 0.0)) }}–{{ \App\Services\ChurchService\ServiceRecordTimeline::formatTimestamp((float) ($nextSection['end_time'] ?? 0.0)) }})</span>
+                    </p>
+                @endif
+
+                <p class="text-xs text-amber-800">
+                    If the tail is separate, shorten the end time below and save. The clip will be re-extracted and returned to mandatory approval.
+                </p>
+            </div>
+        @endif
+
         <div class="grid gap-3 rounded-lg border border-cbc-teal/20 bg-cbc-teal-light/10 p-3 md:grid-cols-2">
             <x-input
                 label="Speaker name (recommended)"
@@ -115,6 +163,16 @@
                 :options="$preacherOptions"
                 placeholder="Choose from the speaker list..."
                 hint="Use this when the speaker is already in the list."
+            />
+
+            <x-input
+                type="number"
+                label="Candidate end (seconds)"
+                wire:model.blur="sectionEdits.{{ $section->id }}.end_time"
+                min="{{ $section->start_time }}"
+                max="{{ $section->end_time }}"
+                step="0.001"
+                hint="Optional: shorten only within this inclusive candidate."
             />
         </div>
 

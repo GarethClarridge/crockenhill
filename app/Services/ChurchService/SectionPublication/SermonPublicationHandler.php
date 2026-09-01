@@ -6,6 +6,7 @@ namespace App\Services\ChurchService\SectionPublication;
 
 use App\Contracts\SectionPublicationHandler;
 use App\Data\SermonCreationOptions;
+use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
@@ -37,6 +38,7 @@ class SermonPublicationHandler implements SectionPublicationHandler
      * @param  MediaProcessingIdentityResolver  $identityResolver  Service for resolving date/service from processing logs
      * @param  ServiceSectionPublicationTransitionService  $publicationTransitions  Service for managing section state transitions
      * @param  ExtractedSectionMediaChecker  $mediaChecker  Service for verifying existence of extracted assets
+     * @param  ChildrensTalkBoundaryEvidenceService  $childrensTalkBoundaryEvidence  Service for recording inclusive candidate tail evidence
      */
     public function __construct(
         private readonly ChildrensTalkSpeakerService $childrensTalkSpeakerService,
@@ -44,6 +46,7 @@ class SermonPublicationHandler implements SectionPublicationHandler
         private readonly MediaProcessingIdentityResolver $identityResolver,
         private readonly ServiceSectionPublicationTransitionService $publicationTransitions,
         private readonly ExtractedSectionMediaChecker $mediaChecker,
+        private readonly ChildrensTalkBoundaryEvidenceService $childrensTalkBoundaryEvidence,
     ) {}
 
     /**
@@ -84,9 +87,15 @@ class SermonPublicationHandler implements SectionPublicationHandler
      */
     public function afterExtraction(ServiceSection $section): void
     {
-        if ($section->section_type === ServiceSectionType::ChildrensTalk) {
-            $this->childrensTalkSpeakerService->detectAndStore($section);
+        if ($section->section_type !== ServiceSectionType::ChildrensTalk) {
+            return;
         }
+
+        $this->childrensTalkSpeakerService->detectAndStore($section);
+
+        $metadata = $section->metadata?->toArray() ?? [];
+        $metadata[ChildrensTalkBoundaryEvidenceService::METADATA_KEY] = $this->childrensTalkBoundaryEvidence->assess($section);
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
     }
 
     /**

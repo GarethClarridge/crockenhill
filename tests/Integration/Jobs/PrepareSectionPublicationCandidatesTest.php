@@ -478,6 +478,100 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
     }
 
     #[Test]
+    public function it_extracts_a_reviewed_childrens_talk_recut_exactly_once_and_keeps_approval_mandatory(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => ['childrens_talk' => SermonPublicationHandler::class],
+            'media-processing.speaker_identification.enabled' => false,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'source_file_path' => 'livestreams/source.mp4',
+        ]);
+        Storage::disk('local')->put('livestreams/source.mp4', 'source-video');
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'status' => ServiceSectionStatus::Identified->value,
+            'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
+            'start_time' => 600.0,
+            'end_time' => 760.5,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'childrens_talk_speaker' => [
+                    'reviewed' => [
+                        'preacher_id' => null,
+                        'preacher_name' => 'Mary Helper',
+                        'source' => 'manual',
+                    ],
+                ],
+            ],
+        ]);
+
+        $capturedSegment = null;
+        $videoExtractor = $this->createMock(VideoExtractionService::class);
+        $videoExtractor->expects($this->once())
+            ->method('extractSegmentAsFile')
+            ->willReturnCallback(function (string $inputPath, object $segment, ?string $outputFilename) use (&$capturedSegment): string {
+                $capturedSegment = [
+                    'start_time' => $segment->start_time,
+                    'end_time' => $segment->end_time,
+                ];
+                Storage::disk('local')->put('temp/reviewed-child.mp4', 'recut-video');
+
+                return 'temp/reviewed-child.mp4';
+            });
+        $videoExtractor->expects($this->once())
+            ->method('extractOptimizedAudio')
+            ->willReturnCallback(function (string $inputPath, object $segment, string $filename, string $disk, string $directory): array {
+                $audioPath = $directory.'/'.$filename;
+                Storage::disk($disk)->put($audioPath, 'recut-audio');
+
+                return [
+                    'audio_path' => $audioPath,
+                    'full_path' => Storage::disk($disk)->path($audioPath),
+                    'original_size' => 1024,
+                    'final_size' => 1024,
+                    'compression_applied' => false,
+                    'compression_ratio' => 1.0,
+                    'valid_for_transcription' => true,
+                ];
+            });
+
+        $job = new PrepareSectionPublicationCandidates($processingLog);
+        $job->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(SectionPublicationHandlerFactory::class),
+            app(ServiceSectionPublicationTransitionService::class),
+        );
+        $job->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(SectionPublicationHandlerFactory::class),
+            app(ServiceSectionPublicationTransitionService::class),
+        );
+
+        $section->refresh();
+
+        $this->assertSame([
+            'start_time' => 600.0,
+            'end_time' => 760.5,
+        ], $capturedSegment);
+        $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->publication_status);
+        $this->assertTrue($section->hasResolvedChildrensTalkSpeaker());
+        $this->assertSame(760.5, $section->metadata['childrens_talk_boundary']['candidate']['end_time'] ?? null);
+    }
+
+    #[Test]
     public function it_dispatches_auto_publish_for_confirmed_song_sections(): void
     {
         Storage::fake('local');

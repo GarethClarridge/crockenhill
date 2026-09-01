@@ -177,6 +177,112 @@ class SaveServiceSectionTest extends TestCase
     }
 
     #[Test]
+    public function it_reextracts_a_childrens_talk_when_a_reviewer_shortens_the_inclusive_end(): void
+    {
+        Bus::fake();
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $run = MediaProcessingLog::factory()->livestream()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'title' => "Children's Talk",
+            'start_time' => 600.0,
+            'end_time' => 900.0,
+            'duration' => 300.0,
+            'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
+            'extracted_video_path' => 'section-publications/child/video.mp4',
+            'extracted_audio_path' => 'section-publications/child/audio.mp3',
+            'extracted_at' => now()->subMinute(),
+            'unpublished_expires_at' => now()->addHours(48),
+            'metadata' => [
+                'childrens_talk_speaker' => [
+                    'reviewed' => [
+                        'preacher_id' => null,
+                        'preacher_name' => 'Mary Helper',
+                        'source' => 'manual',
+                    ],
+                ],
+                'childrens_talk_boundary' => [
+                    'candidate' => [
+                        'kind' => 'inclusive',
+                        'start_time' => 600.0,
+                        'end_time' => 900.0,
+                    ],
+                ],
+                'publication' => [
+                    'approved_signature' => 'old-signature',
+                    'approved_at' => now()->subMinute()->toIso8601String(),
+                ],
+            ],
+        ]);
+
+        $this->action->execute(
+            section: $section,
+            sectionEdits: [$section->id => [
+                'section_type' => ServiceSectionType::ChildrensTalk->value,
+                'title' => "Children's Talk",
+                'end_time' => '760.500',
+            ]],
+            speakerEdits: [],
+            userId: $this->admin->id,
+        );
+
+        $section->refresh();
+        $metadata = $section->metadata?->toArray() ?? [];
+
+        $this->assertSame(600.0, (float) $section->start_time);
+        $this->assertSame(760.5, (float) $section->end_time);
+        $this->assertSame(160.5, (float) $section->duration);
+        $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->publication_status);
+        $this->assertNull($section->extracted_video_path);
+        $this->assertNull($section->extracted_audio_path);
+        $this->assertNull($section->extracted_at);
+        $this->assertNull($section->unpublished_expires_at);
+        $this->assertArrayNotHasKey('approved_signature', $metadata['publication'] ?? []);
+        $this->assertSame(760.5, $metadata['childrens_talk_boundary']['reviewed_recuts'][0]['to']['end_time']);
+        Bus::assertDispatched(PrepareSectionPublicationCandidates::class);
+    }
+
+    #[Test]
+    public function it_rejects_a_childrens_talk_recut_that_extends_the_inclusive_candidate(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'start_time' => 600.0,
+            'end_time' => 900.0,
+            'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
+            'metadata' => [
+                'childrens_talk_speaker' => [
+                    'reviewed' => [
+                        'preacher_id' => null,
+                        'preacher_name' => 'Mary Helper',
+                        'source' => 'manual',
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->expectException(ValidationException::class);
+
+        $this->action->execute(
+            section: $section,
+            sectionEdits: [$section->id => [
+                'section_type' => ServiceSectionType::ChildrensTalk->value,
+                'title' => "Children's Talk",
+                'end_time' => '901',
+            ]],
+            speakerEdits: [],
+            userId: $this->admin->id,
+        );
+    }
+
+    #[Test]
     public function it_dispatches_prepare_candidates_when_publishable_but_no_media_extracted(): void
     {
         Bus::fake();

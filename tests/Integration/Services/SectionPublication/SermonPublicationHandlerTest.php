@@ -12,6 +12,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ExtractedSectionMediaChecker;
+use App\Services\ChurchService\SectionPublication\ChildrensTalkBoundaryEvidenceService;
 use App\Services\ChurchService\SectionPublication\SermonPublicationHandler;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\Preacher\ChildrensTalkSpeakerService;
@@ -39,6 +40,8 @@ class SermonPublicationHandlerTest extends TestCase
 
     private MockInterface $publicationTransitions;
 
+    private MockInterface $childrensTalkBoundaryEvidence;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -47,6 +50,7 @@ class SermonPublicationHandlerTest extends TestCase
         $this->sermonCreationService = Mockery::mock(SermonCreationService::class);
         $this->identityResolver = Mockery::mock(MediaProcessingIdentityResolver::class);
         $this->publicationTransitions = Mockery::mock(ServiceSectionPublicationTransitionService::class);
+        $this->childrensTalkBoundaryEvidence = Mockery::mock(ChildrensTalkBoundaryEvidenceService::class);
 
         $this->handler = new SermonPublicationHandler(
             $this->childrensTalkSpeakerService,
@@ -54,6 +58,7 @@ class SermonPublicationHandlerTest extends TestCase
             $this->identityResolver,
             $this->publicationTransitions,
             app(ExtractedSectionMediaChecker::class),
+            $this->childrensTalkBoundaryEvidence,
         );
     }
 
@@ -148,8 +153,24 @@ class SermonPublicationHandlerTest extends TestCase
             ->shouldReceive('detectAndStore')
             ->once()
             ->with($section);
+        $this->childrensTalkBoundaryEvidence
+            ->shouldReceive('assess')
+            ->once()
+            ->with($section)
+            ->andReturn([
+                'candidate' => [
+                    'kind' => 'inclusive',
+                    'start_time' => (float) $section->start_time,
+                    'end_time' => (float) $section->end_time,
+                ],
+            ]);
 
         $this->handler->afterExtraction($section);
+
+        $this->assertSame(
+            'inclusive',
+            $section->metadata?->toArray()['childrens_talk_boundary']['candidate']['kind'] ?? null,
+        );
     }
 
     #[Test]
@@ -162,6 +183,8 @@ class SermonPublicationHandlerTest extends TestCase
 
         $this->childrensTalkSpeakerService
             ->shouldNotReceive('detectAndStore');
+        $this->childrensTalkBoundaryEvidence
+            ->shouldNotReceive('assess');
 
         $this->handler->afterExtraction($section);
     }

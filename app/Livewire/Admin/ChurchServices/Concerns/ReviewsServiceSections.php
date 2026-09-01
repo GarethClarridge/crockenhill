@@ -20,8 +20,8 @@ use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 
 /**
- * Section review editing for the service workbench: inline type/title edits, children's-talk
- * speaker picks, batch approval, and adjacent-section merging.
+ * Section review editing for the service workbench: inline type/title/boundary edits,
+ * children's-talk speaker picks, batch approval, and adjacent-section merging.
  *
  * Edit state is seeded for review-candidate sections only — seeding every
  * section of every run would balloon the Livewire payload.
@@ -41,7 +41,7 @@ trait ReviewsServiceSections
     ];
 
     /**
-     * @var array<int, array{section_type: string, title: string}>
+     * @var array<int, array{section_type: string, title: string, end_time: string}>
      */
     public array $sectionEdits = [];
 
@@ -114,6 +114,7 @@ trait ReviewsServiceSections
         $this->sectionEdits[$section->id] = [
             'section_type' => $section->section_type->value,
             'title' => (string) ($section->title ?? ''),
+            'end_time' => (string) $section->end_time,
         ];
         $publicationSpeaker = $section->publicationChildrensTalkSpeaker();
         $this->speakerEdits[$section->id] = [
@@ -358,6 +359,7 @@ trait ReviewsServiceSections
                 $this->sectionEdits[$section->id] = [
                     'section_type' => $section->section_type->value,
                     'title' => (string) ($section->title ?? ''),
+                    'end_time' => (string) $section->end_time,
                 ];
             }
 
