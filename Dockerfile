@@ -53,6 +53,12 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
         bcmath curl exif gd intl mbstring mysqli pcntl \
         pdo_mysql pdo_sqlite soap sockets zip \
     # Build tools required for resemblyzer's native extension (webrtcvad)
+    # Debian's pip (23.0.1) compares a requested name against the wheel's
+    # metadata Name without PEP 503 normalisation, so it rejects every wheel
+    # published as typing_extensions when asked for typing-extensions, falls
+    # back to the sdist, and then needs a build backend the CPU-only index does
+    # not carry. Current pip normalises and takes the wheel.
+    && pip3 install --no-cache-dir --break-system-packages --upgrade pip \
     # Speaker identification runtime dependencies. Install PyTorch from the
     # CPU-only wheel index first; default Linux wheels include multi-GB CUDA
     # libraries that are not needed on the production server.
