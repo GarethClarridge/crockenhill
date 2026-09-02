@@ -196,6 +196,72 @@ class HistoricAssetPromotionTest extends TestCase
         }
     }
 
+    /**
+     * The counterpart to {@see self::it_refuses_to_overwrite_a_destination_holding_different_bytes()}.
+     * An operator's `sermons:re-extract` is the one differing destination that is
+     * not a conflict, and before this the re-cut video was produced correctly and
+     * then stranded in staging while promotion failed the run permanently.
+     */
+    #[Test]
+    public function it_replaces_a_quarantined_video_when_the_run_carries_replacement_authority(): void
+    {
+        [$log] = $this->historicRun();
+        $this->stage('sermons/video/pilot.mp4', 'the re-cut video');
+        Storage::disk('historic_quarantine')->put('sermons/video/pilot.mp4', 'the old vp9 cut');
+
+        $log->authoriseVideoReplacementOnPromotion();
+
+        app(HistoricAssetPromotion::class)->promoteRun($log->fresh());
+
+        $this->assertSame(
+            'the re-cut video',
+            Storage::disk('historic_quarantine')->get('sermons/video/pilot.mp4'),
+        );
+        Storage::disk('historic_quarantine')->assertMissing('sermons/video/pilot.mp4.replacing');
+    }
+
+    #[Test]
+    public function it_spends_the_replacement_authority_once_the_replacement_is_verified(): void
+    {
+        [$log] = $this->historicRun();
+        $this->stage('sermons/video/pilot.mp4', 'the re-cut video');
+        Storage::disk('historic_quarantine')->put('sermons/video/pilot.mp4', 'the old vp9 cut');
+
+        $log->authoriseVideoReplacementOnPromotion();
+
+        app(HistoricAssetPromotion::class)->promoteRun($log->fresh());
+
+        $this->assertFalse($log->fresh()?->permitsPromotionVideoReplacement());
+    }
+
+    /**
+     * A re-cut replaces the sermon video *and* every section asset cut from the
+     * same source, and those promote after it. Spending the authority on the
+     * first asset left the rest of the run's own assets refused, so it is read
+     * once for the run and cleared only at the end.
+     */
+    #[Test]
+    public function one_replacement_authority_covers_every_asset_in_the_run(): void
+    {
+        [$log] = $this->historicRun();
+        $songVideo = $this->songVideoForRun($log);
+
+        $this->stage('sermons/video/pilot.mp4', 'the re-cut video');
+        Storage::disk('historic_quarantine')->put('sermons/video/pilot.mp4', 'the old vp9 cut');
+
+        $this->stage($songVideo->video_file_path, 'the re-cut song');
+        Storage::disk('historic_quarantine')->put($songVideo->video_file_path, 'the old vp9 song');
+
+        $log->authoriseVideoReplacementOnPromotion();
+
+        app(HistoricAssetPromotion::class)->promoteRun($log->fresh());
+
+        $quarantine = Storage::disk('historic_quarantine');
+        $this->assertSame('the re-cut video', $quarantine->get('sermons/video/pilot.mp4'));
+        $this->assertSame('the re-cut song', $quarantine->get($songVideo->video_file_path));
+        $this->assertFalse($log->fresh()?->permitsPromotionVideoReplacement());
+    }
+
     #[Test]
     public function it_fails_when_a_verified_working_copy_cannot_be_deleted(): void
     {

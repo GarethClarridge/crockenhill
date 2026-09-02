@@ -243,6 +243,67 @@ class HistoricProcessingResultAssetTransferTest extends TestCase
     }
 
     #[Test]
+    public function direct_pipeline_copy_replaces_an_existing_destination_when_replacement_is_authorised(): void
+    {
+        Storage::disk('historic_staging')->put('sermons/7/video.mp4', 'the-new-cut');
+        Storage::disk('local')->put('sermons/7/video.mp4', 'the-already-published-cut');
+
+        $created = app(HistoricProcessingResultAssetTransfer::class)->copyPipelineAssetsToDestinations([[
+            'path' => 'sermons/7/video.mp4',
+            'size' => strlen('the-new-cut'),
+            'kind' => 'sermon_video',
+            'roles' => ['sermon_video'],
+        ]], ['sermon_video' => 'sermons/7/video.mp4'], true);
+
+        $this->assertSame(['sermons/7/video.mp4'], $created);
+        $this->assertSame('the-new-cut', Storage::disk('local')->get('sermons/7/video.mp4'));
+        Storage::disk('local')->assertMissing('sermons/7/video.mp4.replacing');
+    }
+
+    #[Test]
+    public function direct_pipeline_copy_still_refuses_a_differing_destination_without_replacement_authority(): void
+    {
+        Storage::disk('historic_staging')->put('sermons/7/video.mp4', 'the-new-cut');
+        Storage::disk('local')->put('sermons/7/video.mp4', 'the-already-published-cut');
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('differs in byte size');
+
+        app(HistoricProcessingResultAssetTransfer::class)->copyPipelineAssetsToDestinations([[
+            'path' => 'sermons/7/video.mp4',
+            'size' => strlen('the-new-cut'),
+            'kind' => 'sermon_video',
+            'roles' => ['sermon_video'],
+        ]], ['sermon_video' => 'sermons/7/video.mp4']);
+    }
+
+    #[Test]
+    public function an_authorised_replacement_that_fails_verification_leaves_the_published_asset_intact(): void
+    {
+        Storage::disk('historic_staging')->put('sermons/7/video.mp4', 'the-new-cut');
+        Storage::disk('local')->put('sermons/7/video.mp4', 'the-already-published-cut');
+
+        $this->expectException(RuntimeException::class);
+
+        try {
+            // A declared size the staged bytes do not match fails the staged
+            // verification, before anything published has been removed.
+            app(HistoricProcessingResultAssetTransfer::class)->copyPipelineAssetsToDestinations([[
+                'path' => 'sermons/7/video.mp4',
+                'size' => 999,
+                'kind' => 'sermon_video',
+                'roles' => ['sermon_video'],
+            ]], ['sermon_video' => 'sermons/7/video.mp4'], true);
+        } finally {
+            $this->assertSame(
+                'the-already-published-cut',
+                Storage::disk('local')->get('sermons/7/video.mp4')
+            );
+            Storage::disk('local')->assertMissing('sermons/7/video.mp4.replacing');
+        }
+    }
+
+    #[Test]
     public function direct_pipeline_copy_removes_only_new_destinations_after_a_partial_failure(): void
     {
         Storage::disk('historic_staging')->put('sermons/songs/7/1.mp4', 'song-a');

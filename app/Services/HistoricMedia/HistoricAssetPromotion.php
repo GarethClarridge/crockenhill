@@ -99,8 +99,16 @@ final class HistoricAssetPromotion
             return $totals;
         }
 
+        /**
+         * Read once for the whole run, not per asset. A re-cut replaces the
+         * sermon video and any section candidates cut from the same source, and
+         * those promote after it — so spending the authority on the first asset
+         * would strip it from the rest of its own run.
+         */
+        $replacementAuthorised = $log->permitsPromotionVideoReplacement();
+
         foreach ($this->sermonsForRun($log) as $sermon) {
-            $result = $this->promoteSermon($sermon, $log);
+            $result = $this->promoteSermon($sermon, $log, $replacementAuthorised);
 
             $totals['sermons']++;
             $totals['assets_promoted'] += $result['assets_promoted'];
@@ -110,7 +118,7 @@ final class HistoricAssetPromotion
         }
 
         foreach ($this->songVideosForRun($log) as $songVideo) {
-            $result = $this->promoteSongVideo($songVideo, $log);
+            $result = $this->promoteSongVideo($songVideo, $log, $replacementAuthorised);
 
             $totals['song_videos']++;
             $totals['assets_promoted'] += $result['assets_promoted'];
@@ -120,13 +128,22 @@ final class HistoricAssetPromotion
         }
 
         foreach ($this->heldSectionCandidatesForRun($log) as $section) {
-            $result = $this->promoteHeldSectionCandidate($section, $log);
+            $result = $this->promoteHeldSectionCandidate($section, $log, $replacementAuthorised);
 
             $totals['held_section_candidates']++;
             $totals['assets_promoted'] += $result['assets_promoted'];
             $totals['assets_already_promoted'] += $result['assets_already_promoted'];
             $totals['promoted_bytes'] += $result['promoted_bytes'];
             $totals['reclaimed_bytes'] += $result['reclaimed_bytes'];
+        }
+
+        /**
+         * Spent only once every asset in the run is verified in place, so a
+         * promotion that fails part-way can still be retried with the authority
+         * it needs.
+         */
+        if ($replacementAuthorised) {
+            $log->clearReExtraction();
         }
 
         return $totals;
@@ -200,8 +217,11 @@ final class HistoricAssetPromotion
      *     reclaimed_bytes: int
      * }
      */
-    private function promoteSermon(Sermon $sermon, MediaProcessingLog $log): array
-    {
+    private function promoteSermon(
+        Sermon $sermon,
+        MediaProcessingLog $log,
+        bool $replacementAuthorised = false,
+    ): array {
         $quarantineName = $this->transfer->targetDiskName();
         $staging = Storage::disk($this->staging->stagingDisk());
         $quarantine = Storage::disk($quarantineName);
@@ -264,6 +284,12 @@ final class HistoricAssetPromotion
          * than being overwritten. That is a genuine conflict — the same path
          * reprocessed into different output — and belongs in front of an
          * operator, not under a silent overwrite.
+         *
+         * The one exception is an operator's deliberate re-cut, which is not
+         * silent: `sermons:re-extract` asked for exactly this replacement and
+         * {@see MediaProcessingLog::authoriseVideoReplacementOnPromotion()}
+         * carries that request here. Without it a re-cut fails permanently with
+         * its correct new video stranded in staging.
          */
         $destinations = [];
 
@@ -271,7 +297,7 @@ final class HistoricAssetPromotion
             $destinations[$asset['path']] = $asset['path'];
         }
 
-        $this->transfer->copyPipelineAssetsToDestinations($pending, $destinations);
+        $this->transfer->copyPipelineAssetsToDestinations($pending, $destinations, $replacementAuthorised);
 
         $this->bindToQuarantine($sermon, $log, $quarantineName);
 
@@ -298,8 +324,11 @@ final class HistoricAssetPromotion
      *     reclaimed_bytes: int
      * }
      */
-    private function promoteSongVideo(SongVideo $songVideo, MediaProcessingLog $log): array
-    {
+    private function promoteSongVideo(
+        SongVideo $songVideo,
+        MediaProcessingLog $log,
+        bool $replacementAuthorised = false,
+    ): array {
         $path = trim($songVideo->video_file_path);
 
         if ($path === '') {
@@ -341,7 +370,7 @@ final class HistoricAssetPromotion
         $destinations = [$path => $path];
 
         if ($pending !== []) {
-            $this->transfer->copyPipelineAssetsToDestinations($pending, $destinations);
+            $this->transfer->copyPipelineAssetsToDestinations($pending, $destinations, $replacementAuthorised);
         }
 
         $this->bindSongVideoToQuarantine($songVideo, $log, $quarantineName);
@@ -471,8 +500,11 @@ final class HistoricAssetPromotion
      *     reclaimed_bytes: int
      * }
      */
-    private function promoteHeldSectionCandidate(ServiceSection $section, MediaProcessingLog $log): array
-    {
+    private function promoteHeldSectionCandidate(
+        ServiceSection $section,
+        MediaProcessingLog $log,
+        bool $replacementAuthorised = false,
+    ): array {
         $quarantineName = $this->transfer->targetDiskName();
         $staging = Storage::disk($this->staging->stagingDisk());
         $quarantine = Storage::disk($quarantineName);
@@ -526,7 +558,7 @@ final class HistoricAssetPromotion
         }
 
         if ($pending !== []) {
-            $this->transfer->copyPipelineAssetsToDestinations($pending, $destinations);
+            $this->transfer->copyPipelineAssetsToDestinations($pending, $destinations, $replacementAuthorised);
         }
 
         $this->bindSectionCandidateToQuarantine($section, $quarantineName, $stagingName);

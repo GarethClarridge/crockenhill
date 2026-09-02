@@ -309,6 +309,35 @@ class SermonMetadataIntegrationServiceTest extends TestCase
     }
 
     /**
+     * A historic re-cut passes two overwrite guards, and this one is only the
+     * first. Spending the request outright stranded the correct new video in
+     * staging while promotion refused to replace the published asset, failing
+     * the run permanently — so the request must narrow into promotion's
+     * authority here rather than disappear.
+     */
+    #[Test]
+    public function it_hands_a_re_extraction_replacement_authority_forward_to_promotion(): void
+    {
+        [$service, $log, $sermon] = $this->runReplacingAPublishedVideo(reExtraction: true);
+
+        $service->storeVideoForSermon($log->processing_id, $sermon->id);
+
+        $this->assertTrue($log->fresh()?->permitsPromotionVideoReplacement());
+    }
+
+    #[Test]
+    public function it_grants_no_promotion_replacement_authority_to_an_ordinary_run(): void
+    {
+        [$service, $log, $sermon] = $this->runReplacingAPublishedVideo(reExtraction: false);
+
+        Storage::disk('public')->delete("sermons/{$sermon->id}/video.mp4");
+
+        $service->storeVideoForSermon($log->processing_id, $sermon->id);
+
+        $this->assertFalse($log->fresh()?->permitsPromotionVideoReplacement());
+    }
+
+    /**
      * @return array{0: SermonMetadataIntegrationService, 1: MediaProcessingLog, 2: Sermon}
      */
     private function runReplacingAPublishedVideo(bool $reExtraction): array

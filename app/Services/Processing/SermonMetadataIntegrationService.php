@@ -103,7 +103,17 @@ class SermonMetadataIntegrationService
         // Simple organization by sermon ID
         $finalVideoPath = $this->organizeVideoFile($videoPath, $sermonId, $sourceFileSize, $isReExtraction);
 
-        $processing?->clearReExtraction();
+        /**
+         * The request is spent here, but a historic re-cut still has to pass
+         * promotion's own overwrite guard. Clearing outright strands the new
+         * video in staging, so the authority is narrowed rather than dropped.
+         * {@see MediaProcessingLog::authoriseVideoReplacementOnPromotion()}
+         */
+        if ($isReExtraction) {
+            $processing->authoriseVideoReplacementOnPromotion();
+        } else {
+            $processing?->clearReExtraction();
+        }
 
         return $finalVideoPath;
     }

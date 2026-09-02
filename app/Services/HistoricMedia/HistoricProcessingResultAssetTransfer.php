@@ -86,9 +86,12 @@ class HistoricProcessingResultAssetTransfer
      * @param  array<string, string>  $destinations
      * @return list<string>
      */
-    public function copyPipelineAssetsToDestinations(array $assets, array $destinations): array
-    {
-        return $this->copyPipeline($assets, $destinations);
+    public function copyPipelineAssetsToDestinations(
+        array $assets,
+        array $destinations,
+        bool $allowReplacement = false,
+    ): array {
+        return $this->copyPipeline($assets, $destinations, $allowReplacement);
     }
 
     /**
@@ -188,11 +191,18 @@ class HistoricProcessingResultAssetTransfer
      * @param  array<string, string>  $destinations
      * @return list<string>
      */
-    private function copyPipeline(array $assets, array $destinations): array
+    private function copyPipeline(array $assets, array $destinations, bool $allowReplacement = false): array
     {
         $source = $this->stagingDisk();
         $target = Storage::disk($this->targetDiskName());
         $created = [];
+
+        /**
+         * Replacements are committed, not rollback-eligible: once the old bytes
+         * are gone a later failure in this loop cannot restore them, and deleting
+         * the new ones too would leave the sermon with no video at all.
+         */
+        $replaced = [];
 
         try {
             foreach ($assets as $asset) {
@@ -211,12 +221,25 @@ class HistoricProcessingResultAssetTransfer
                     $this->guardPath($targetPath);
 
                     if ($target->exists($targetPath)) {
-                        $this->verifyExistingPipelineDestination(
+                        if (! $allowReplacement) {
+                            $this->verifyExistingPipelineDestination(
+                                $source,
+                                $sourcePath,
+                                $target,
+                                $targetPath,
+                                $size,
+                            );
+
+                            continue;
+                        }
+
+                        $replaced[] = $this->replaceExistingPipelineDestination(
                             $source,
                             $sourcePath,
                             $target,
                             $targetPath,
                             $size,
+                            $created,
                         );
 
                         continue;
@@ -247,7 +270,69 @@ class HistoricProcessingResultAssetTransfer
             throw $exception;
         }
 
-        return array_values(array_unique($created));
+        return array_values(array_unique([...$created, ...$replaced]));
+    }
+
+    /**
+     * Replace an already-promoted asset with a deliberately re-cut one.
+     *
+     * Reached only when the run carries
+     * {@see MediaProcessingLog::permitsPromotionVideoReplacement()}; without it
+     * a differing destination stays a hard conflict for an operator to see.
+     *
+     * The new bytes land beside the existing asset and are verified there before
+     * anything is removed, so a failed replacement leaves the published video in
+     * place rather than leaving the sermon with none — the same ordering
+     * {@see SermonMetadataIntegrationService::organizeVideoFile()} uses. The
+     * staged path is rollback-eligible until the swap; the destination is not.
+     *
+     * @param  list<string>  $created
+     */
+    private function replaceExistingPipelineDestination(
+        FilesystemAdapter $source,
+        string $sourcePath,
+        FilesystemAdapter $target,
+        string $targetPath,
+        int $size,
+        array &$created,
+    ): string {
+        $stagedPath = $targetPath.'.replacing';
+        $this->guardPath($stagedPath);
+
+        $target->delete($stagedPath);
+
+        $stream = $source->readStream($sourcePath);
+
+        if (! is_resource($stream)) {
+            throw new RuntimeException("Unable to open verified asset {$sourcePath} for replacement.");
+        }
+
+        try {
+            $created[] = $stagedPath;
+
+            if (! $target->writeStream($stagedPath, $stream)) {
+                throw new RuntimeException("Unable to stage the replacement for {$targetPath}.");
+            }
+        } finally {
+            fclose($stream);
+        }
+
+        $this->verifyPipelineDestinationAtPath($target, $stagedPath, $size);
+
+        $target->delete($targetPath);
+
+        if (! $target->move($stagedPath, $targetPath)) {
+            throw new RuntimeException("Unable to move the verified replacement into {$targetPath}.");
+        }
+
+        $created = array_values(array_filter(
+            $created,
+            static fn (string $path): bool => $path !== $stagedPath,
+        ));
+
+        $this->verifyPipelineDestinationAtPath($target, $targetPath, $size);
+
+        return $targetPath;
     }
 
     /**

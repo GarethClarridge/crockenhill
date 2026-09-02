@@ -518,6 +518,47 @@ class MediaProcessingLog extends Model
     }
 
     /**
+     * Hand the spent re-extraction authority forward to historic promotion.
+     *
+     * A re-cut passes two independent overwrite guards, not one. The first is
+     * {@see SermonMetadataIntegrationService::organizeVideoFile()}, which stores
+     * the new video over the pipeline copy. The second is
+     * {@see HistoricProcessingResultAssetTransfer} promoting that copy into
+     * permanent quarantine, where an existing destination holding different
+     * bytes is a genuine conflict and refused. Both are right to refuse an
+     * accidental rewrite, and both are wrong to refuse an operator's deliberate
+     * re-cut.
+     *
+     * {@see self::isReExtraction()} is consumed by the first guard, so promotion
+     * would otherwise never learn the replacement was intended and the run would
+     * fail permanently with its correct new video stranded in staging. This
+     * keeps the "one replacement, then the door closes" shape by spending the
+     * request and issuing a narrower authority for exactly the next guard.
+     */
+    public function authoriseVideoReplacementOnPromotion(): void
+    {
+        $metadata = $this->processing_metadata?->toArray() ?? [];
+        $metadata['re_extraction'] = [
+            'replacement_authorised' => true,
+            'authorised_at' => now()->toISOString(),
+        ];
+
+        $this->forceFill(['processing_metadata' => $metadata])->save();
+    }
+
+    /**
+     * Whether historic promotion may replace this run's already-promoted sermon
+     * video. See {@see self::authoriseVideoReplacementOnPromotion()}.
+     */
+    public function permitsPromotionVideoReplacement(): bool
+    {
+        return (bool) data_get(
+            $this->processing_metadata?->toArray(),
+            're_extraction.replacement_authorised'
+        );
+    }
+
+    /**
      * The staging context this run's artifacts were written under, if it was dispatched
      * as part of an approved historic batch.
      *
