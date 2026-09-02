@@ -173,8 +173,9 @@ function previousSignificantToken(array $tokens, int $index): mixed
  * subclass adding (or changing) the type of an inherited property. Requiring a
  * type on these would make the class fatal at load time.
  *
- * Sourced from Illuminate\Database\Eloquent\Model and
- * Illuminate\Console\Command.
+ * Sourced from Illuminate\Database\Eloquent\Model and the Concerns traits it
+ * composes, Illuminate\Console\Command, and
+ * Illuminate\Foundation\Support\Providers\AuthServiceProvider.
  *
  * @var list<string>
  */
@@ -185,6 +186,7 @@ const LARAVEL_INHERITED_PROPERTIES = [
     '$relations', '$touches', '$table', '$primaryKey', '$keyType',
     '$connection', '$classCastCache', '$attributeCastCache',
     '$signature', '$description',
+    '$attributes', '$policies',
 ];
 
 /**
