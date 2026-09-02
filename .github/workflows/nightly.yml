@@ -259,8 +259,12 @@ jobs:
       - name: Composer audit
         run: composer audit
 
+      # Scoped to production dependencies: every npm package that ships is
+      # built in stage 1 of the Dockerfile and never copied into the runtime
+      # image, so advisories in dev/CI tooling (Lighthouse CI, Vite, Playwright)
+      # are not deployable and must not hold this job red.
       - name: npm audit
-        run: npm audit --audit-level=high
+        run: npm audit --omit=dev --audit-level=high
 
   playwright:
     name: Visual Regression (Playwright)
