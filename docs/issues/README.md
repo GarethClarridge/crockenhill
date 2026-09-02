@@ -552,7 +552,7 @@ restore invalid conversion names.
 
 ## 🟠 Open — needs a fix, not yet owned by a plan
 
-### O52 · [P3] Dead component `resources/views/components/admin/shell.blade.php` is completely unreferenced
+### O53 · [P3] Dead component `resources/views/components/admin/shell.blade.php` is completely unreferenced
 
 **What:** Unused page shell layout component (`resources/views/components/admin/shell.blade.php`).
 
