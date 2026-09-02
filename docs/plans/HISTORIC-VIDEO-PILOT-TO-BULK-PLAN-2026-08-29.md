@@ -2061,11 +2061,60 @@ Grade coupling is why only two reach `full`: `corroboration === fragmented` iff 
 than one file, so an identity that *gains* segments cannot claim whole-service
 corroboration however long it now runs.
 
-**Open.** No operation is prepared for `9351fa4e…`; run
-`historic-import:prepare-operation historic-video-full-corpus-20260826 9351fa4e… --manifest=historic_video=d25d2085…`.
-The 28 runs completed under `1ae7e4fc…` will report `skip-exists` rather than
-`resume-completed`, because the resume `dedup_key` is keyed to the manifest hash —
-expected, not a corpus collision. Steps 10 and 11 re-run against the new plan.
+**`prepare-operation` run 2026-09-01.** New operation `historic-c24f1acfc3b4f9986882be35c917b73f`,
+same batch key, plan `9351fa4e…`, manifest `d25d2085…`, deadline `2026-09-30T23:59:59+01:00`
+(matches operation 3's). Rehearsal target, no `--runtime-evidence` supplied (optional there).
+The 28 runs completed under `1ae7e4fc…` will report `skip-exists` rather than `resume-completed`
+when replayed under this operation, because the resume `dedup_key` is keyed to the manifest
+hash — expected, not a corpus collision. Steps 10 and 11 re-run against the new plan once the
+drive is reachable again (see below).
+
+**Re-running step 10 is currently blocked on a drive-mount fault** — a new variant of the
+Docker Desktop stale-`/host_mnt`-bind class: `diskutil verifyVolume` came back clean but a
+throwaway `docker run -v /Volumes/Sonnics/Services:/x alpine ls /x` still fails with
+`open /host_mnt/…: not a directory`, i.e. Docker Desktop's VM itself holds a stale type for
+the path, not just the long-running containers. A full Docker Desktop restart was underway at
+time of writing.
+
+**A run whose source was replaced can now be retired (2026-09-02).** `historic-import:exclude-run`
+could not do this: an exclusion is terminal, it deliberately never touches
+`MediaProcessingLog.status`, and the dispatcher's date-block
+(`HistoricVideoImporter::checkExistence()`) reads only `status`, so excluding a run never
+unblocks its date. Retirement is the opposite decision — the recording changed, so the run's
+result is *withdrawn* and the identity is expected to import again.
+
+`historic-import:retire-run` (dry-run default, `--apply --yes`, note required, idempotent,
+refuses another operation's run) uses the supersession the schema already carried:
+`media_processing_logs.superseded_at`, which `ServiceSection` and the review dashboard already
+honour, so a retired run's sections drop out of every reader with no second mechanism. Two
+gaps had to close around it:
+
+- `checkExistence()`'s completed branch ignored supersession. The manual-review branch has
+  honoured it since July; the completed branch did not, so a completed-then-retired run
+  blocked its own re-import. Now `notSuperseded()`.
+- `HistoricVideoPassStatus::disposition()` would have read a retired run's own status. It now
+  filters retired runs first: an identity with only retired runs reports `retired`, and where a
+  later run exists that run alone gives the disposition, so retire-then-reimport reads
+  `completed` rather than `mixed_terminal`.
+
+The sermon needed explicit work because sermons have no supersession state, and adding one to
+`SermonPublicationState` was rejected: the enum is shared with `SongVideo` and
+`SongUsageReport`, and `SermonStorageService` branches on `=== Quarantined` in five places
+where a third state would fall through to the public disk path. Instead the sermon's assets
+move to `superseded/{operation}/{sermon}/` on their own disk, a `retirement.json` inventory is
+written beside them, the same inventory (id, slug, title, duration, paths, byte sizes, sha256)
+goes into `processing_metadata.retirement`, and the row is deleted — leaving every existing
+sermon query correct with no change. A published sermon, or one any service section has
+published, is refused; `service_sections.published_sermon_id` is `ON DELETE RESTRICT`, so the
+schema already fenced the destructive path.
+
+**Both deferred identities were retired 2026-09-02** under operation
+`historic-60b16730090144bd307984abf538a7d7`, note recorded as the manifest re-freeze:
+`2023-07-16-morning` (run 959, no sermon, 2 sections; its `no_sermon_in_source` exclusion is
+kept as true history of the *old* source) and `2024-07-28-morning` (run 943, sermon 890
+withdrawn, 4 assets / 471.2 MiB relocated, 16 sections). Verified: sermons 865 → 864, log count
+unchanged at 946, superseded logs 6 → 8, both dates now report no existence block, both
+identities report `retired`.
 
 **An operator can now record why a run was excluded (`1643ab001`).** The only
 exclusion the system could express was a silent source, which `AnalyzeSegments`

@@ -1683,7 +1683,15 @@ class HistoricVideoImporter
             ->where('extracted_service', $service->value)
             ->where('processing_type', MediaType::Livestream->value);
 
-        if ($base->clone()->where('status', ProcessingStatus::Completed->value)->exists()) {
+        // A retired run no longer speaks for its identity. Its result was
+        // withdrawn because the source it read has been replaced, so the date
+        // must dispatch again from the new source. The manual-review branch
+        // below has always honoured supersession; this branch did not, which
+        // left a completed-then-retired run blocking its own re-import.
+        if ($base->clone()
+            ->notSuperseded()
+            ->where('status', ProcessingStatus::Completed->value)
+            ->exists()) {
             return 'skip-exists';
         }
 

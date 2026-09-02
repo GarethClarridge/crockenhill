@@ -882,6 +882,46 @@ class MediaProcessingLog extends Model
         $this->forceFill(['processing_metadata' => $processingMetadata])->save();
     }
 
+    /**
+     * Whether this run has been retired: its result is withdrawn because the
+     * source it read was replaced, and the identity is expected to be processed
+     * again. Distinct from an exclusion, which is terminal.
+     */
+    public function isRetired(): bool
+    {
+        return $this->superseded_at !== null;
+    }
+
+    /**
+     * The inventory recorded when this run was retired — what the withdrawn
+     * sermon was and where its assets were moved to — or null when this run was
+     * not retired through that path.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function retirementRecord(): ?array
+    {
+        $record = data_get($this->processing_metadata?->toArray() ?? [], 'retirement');
+
+        return is_array($record) ? $record : null;
+    }
+
+    /**
+     * Record what this run's retirement withdrew, so the withdrawn sermon stays
+     * identifiable after its row is gone.
+     *
+     * @param  array<string, mixed>  $record
+     */
+    public function putRetirement(array $record): void
+    {
+        $processingMetadata = $this->processing_metadata?->toArray() ?? [];
+        $processingMetadata['retirement'] = [
+            'recorded_at' => now()->toIso8601String(),
+        ] + $record;
+
+        $this->forceFill(['processing_metadata' => $processingMetadata])->save();
+    }
+
     public function isAutoTrimVideoRun(): bool
     {
         return $this->processing_type === MediaType::Video

@@ -115,6 +115,7 @@ class HistoricVideoPassStatus
                 'processing_id',
                 'status',
                 'current_step',
+                'superseded_at',
                 'processing_metadata',
             ])
             ->each(function (MediaProcessingLog $run) use (&$runsByItemKey): void {
@@ -185,6 +186,23 @@ class HistoricVideoPassStatus
         if ($runs === []) {
             return 'not_dispatched';
         }
+
+        // A retired run's result is withdrawn, so it no longer speaks for the
+        // identity. Reading it would report the identity as completed when the
+        // sermon it completed has been deleted. Once every run is retired the
+        // identity is waiting to be dispatched again from its replaced source;
+        // where a later run exists, that run alone gives the disposition, so a
+        // retire-then-reimport reads `completed` rather than `mixed_terminal`.
+        $liveRuns = array_values(array_filter(
+            $runs,
+            static fn (MediaProcessingLog $run): bool => ! $run->isRetired(),
+        ));
+
+        if ($liveRuns === []) {
+            return 'retired';
+        }
+
+        $runs = $liveRuns;
 
         if (collect($runs)->contains(
             static fn (MediaProcessingLog $run): bool => in_array($run->status, [

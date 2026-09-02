@@ -417,6 +417,34 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
         $this->assertDatabaseCount('media_processing_logs', 1);
     }
 
+    /**
+     * A retired run's result is withdrawn because the source it read has been
+     * replaced, so it must not keep its own identity from being imported again.
+     * The manual-review branch of the existence check has always honoured
+     * supersession; the completed branch did not.
+     */
+    #[Test]
+    public function it_does_not_skip_a_completed_livestream_that_has_been_retired(): void
+    {
+        $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 10-38-15.mkv');
+
+        MediaProcessingLog::factory()->create([
+            'processing_type' => MediaType::Livestream,
+            'extracted_date' => '2022-01-16',
+            'extracted_service' => SermonService::Morning,
+            'status' => ProcessingStatus::Completed,
+            'superseded_at' => now(),
+        ]);
+
+        $this->artisan('sermons:import-historic-videos', [
+            '--dir' => $this->temporaryDirectory,
+            '--allow-local-storage' => true,
+            '--dry-run' => true,
+        ])
+            ->assertExitCode(0)
+            ->doesntExpectOutputToContain('[skip-exists]');
+    }
+
     #[Test]
     public function it_skips_in_flight_livestream_for_same_date_and_service(): void
     {
