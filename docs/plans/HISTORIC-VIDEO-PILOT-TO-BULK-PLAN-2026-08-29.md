@@ -1,7 +1,7 @@
 # Historic Video Pilot-to-Bulk Plan
 
 **Date:** 2026-08-29
-**Status:** In progress — **Phases 0–7 complete.** The Phase 7 canary ran under operation 3, its blockers were implemented and its rows and assets repaired, and on 2026-09-01 the **operator sequence reached step 10: the identical-canary replay passed**, proving zero new work and zero spend (evidence: `storage/scratch/historic-video-step10-noop-proof-20260901.md`). On 2026-09-02 **step 10 was re-run against the re-frozen manifest** `d25d2085…` under operation 4 and passed again — 0 dispatched, 12 skipped, 0 B processed in 7.2 s, every baseline count unchanged (evidence: `storage/scratch/historic-video-step10-rerun-proof-20260902.md`). The re-freeze reduced the replayable set from fourteen to twelve: `2026-04-02-evening` became a manifest-level exclusion, and `2023-07-16-morning` had its source replaced and its run retired, so it is new work rather than a replay and is **deferred to Phase 8 by operator decision**. Bulk processing remains NO-GO on one remaining gate: **step 11, M12's four-identity calibration at FFmpeg width two.**
+**Status:** **Phases 0–7 complete; step 11 closed; Phase 8 is GO at FFmpeg width one.** The Phase 7 canary ran under operation 3, its blockers were implemented and its rows and assets repaired, and on 2026-09-01 the **operator sequence reached step 10: the identical-canary replay passed**, proving zero new work and zero spend (evidence: `storage/scratch/historic-video-step10-noop-proof-20260901.md`). On 2026-09-02 **step 10 was re-run against the re-frozen manifest** `d25d2085…` under operation 4 and passed again — 0 dispatched, 12 skipped, 0 B processed in 7.2 s, every baseline count unchanged (evidence: `storage/scratch/historic-video-step10-rerun-proof-20260902.md`). The re-freeze reduced the replayable set from fourteen to twelve: `2026-04-02-evening` became a manifest-level exclusion, and `2023-07-16-morning` had its source replaced and its run retired, so it is new work rather than a replay and is **deferred to Phase 8 by operator decision**. **Step 11 (M12's four-identity calibration at FFmpeg width two) ran to completion on 2026-09-02** after the VirtioFS/exFAT mount fault was fixed: 3 of 4 identities completed cleanly (the 4th stopped at a genuine content-layer manual-review disposition, not a technical fault), and the mount held through the exact step that had killed all four the day before. **M12 item 14's gate FAILS**: queue-wait p95 improved 44–98% on every instrumented FFmpeg step, but active-duration p95 got materially worse on the two full-file steps (`extract_sermon` +69%, `prepare_section_publication_candidates` +94%) — confirmed by source-size-normalized throughput, not a bigger-files artefact — so items/hour moved only +1.7%, far short of the 25% bar either metric requires. Per the plan's own fallback, **width was reverted to one** (`.env`, workers recreated, dispatcher config confirmed). Evidence: `storage/scratch/historic-video-step11-calibration-result-20260902.md`. **Bulk processing (Phase 8) can now proceed at width one** — the only width ever proven clean.
 **Scope:** Correct the pilot findings, prove direct private asset promotion and bounded temporary cleanup, run a fresh canary, and process the remaining historic-video corpus safely
 **Related plan:** `HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md` remains the authority for the wider historic-import programme
 
@@ -67,7 +67,7 @@ The pilot's livestream projection synchronises canonical service items before in
 | 5 — Canary custody instrumentation | Complete | Commits `c61c8c7af` (direct create-only promotion into quarantine), `81ca5f3d9` (cleanup confined to working-copy disks) plus this commit's four byte measures, reported by `historic-import:video-pass-status --measures`. |
 | 6 — Copy-and-enqueue dispatch | Complete | Commit `6c6b0a7a8` removes polling, adds operation-bound capacity evidence, and aborts stale mounts. Commit `3cb189f5b` adds the database-owned `historic-import:video-pass-status` report and the content-read-I/O regression test. **Its whole-corpus-verification claim was false until 2026-08-30**: `6c6b0a7a8` deleted the opt-in `--verify-corpus` flag *and* the argument it passed, so `plan()` fell back to its `true` default and every invocation — dry runs and `--only` passes included — re-read ~1.0 TB. Now fixed at the call site with `verifySourceContents: false`, proved by `a_bounded_pass_does_not_read_the_contents_of_unselected_sources`. A 14-item dry run went from over three hours to 23 seconds. **Superseded 2026-09-01:** the parameter and its `hash_file()` branch are deleted outright — the only other caller ran after `writeOnce()` and could re-read nothing but files hashed seconds earlier, so `capture-video-curation` was reading the corpus twice. |
 | 7 — Fresh canary | **Complete** | Operation 3 was dispatched and resumed after a stale-mount abort; the duration, orchestration, title, boundary and custody defects it surfaced were implemented and its rows and assets repaired. The identical-canary replay passed on 2026-09-01: dispatched 0, resumed 13, skipped 1, errors 0, **0 B processed**, every baseline count unchanged, in 3.9 seconds. Evidence `storage/scratch/historic-video-step10-noop-proof-20260901.md`. **Re-proved 2026-09-02** under operation 4 and the re-frozen manifest `d25d2085…`: dispatched 0, skipped 12, errors 0, **0 B processed**, in 7.2 seconds, with the before/after baseline JSON differing only in its timestamp. Evidence `storage/scratch/historic-video-step10-rerun-proof-20260902.md`. |
-| 8–9 | Not started | Gated on step 11, the four-identity two-worker calibration. Everything else Phase 7 required is now satisfied. |
+| 8–9 | Not started | **Unblocked 2026-09-02.** Step 11 ran to completion; M12 item 14 failed and width reverted to one. Bulk processing may proceed at width one. |
 
 #### M9, M5 and M7 implemented, 2026-09-01
 
@@ -2227,6 +2227,68 @@ identity explicitly named as outstanding**, not as silently complete. Whichever 
 carries `2023-07-16-morning` is also the first real-data test of the
 sermon-only/short-sermon rework (`c0cbc3e86`) against a source that previously found
 no sermon at all — watch it in that pass rather than assuming it.
+
+### Step 11 — M12 item 14 calibration completed, width reverted, 2026-09-02
+
+The four runs staged the day before (970/969/968/967) had all been blocked
+identically at `rms_generation` by the VirtioFS/exFAT mount fault (see
+`storage/scratch/historic-video-step11-calibration-20260902.md`). After that fault
+was fixed by switching Docker Desktop's file sharing from VirtioFS to gRPC FUSE,
+the four runs were retried in place — via `UnifiedMediaProcessor::retry()`, the
+same code path the API's retry endpoint uses — with no re-dispatch and no re-copy
+of the 20.4 GiB already staged. Full evidence:
+`storage/scratch/historic-video-step11-calibration-result-20260902.md`.
+
+**The mount fix held under real concurrent write load.** All four runs cleared
+`rms_generation` — the exact step that killed all four the day before — with no
+recurrence.
+
+**3 of 4 completed cleanly; the 4th stopped for a content reason, not a technical
+one.** `2026-05-10-morning` failed at `manual_review_required`: the detected
+service structure had a song section overlapping the sermon section by 3.1
+seconds. The structure detector correctly stopped rather than publish an
+overlapping section — unconnected to worker width or the mount fix, and a
+separate item for an operator to look at later.
+
+**M12 item 14's gate fails, decisively.** Queue-wait p95 improved 44–98% on
+every instrumented FFmpeg step (`extract_sermon` 2,515s→278s,
+`prepare_section_publication_candidates` 2,128s→49s, `audio_enhancement`
+1,107s→621s, `assessing_video_quality` 1,229s→185s) — comfortably past the 25%
+bar. But active-duration p95 got **materially worse** on the two steps that touch
+the full source file: `extract_sermon` +69% (649s→1,096s) and
+`prepare_section_publication_candidates` +94% (482s→936s). This is not a
+bigger-files artefact: normalizing `extract_sermon`'s active duration by source
+size shows the width-two runs doing roughly half the baseline's per-GiB
+throughput on comparably-sized sources (baseline ~0.011–0.015 GiB/active-second
+vs ~0.0069–0.0088 at width two). **Two concurrent FFmpeg workers genuinely split
+the host's FFmpeg throughput rather than adding capacity for free** — the
+queue-wait gain and the active-duration loss cancel out, leaving items/hour at
++1.7% (3.021→3.074) and content-hours/wall-hour at +14.7%, both far short of the
+25% bar item 14 requires from either metric. The sample was also incomplete
+(3 of 4 clean), which item 14 itself instructs to treat as inconclusive.
+
+A confound is worth recording though it doesn't change the verdict: the width-one
+baseline was captured under VirtioFS, and this pass ran under gRPC FUSE (switched
+for the unrelated mount fault). Width and file-sharing driver changed together,
+so how much of the active-duration hit is worker contention versus gRPC FUSE's
+own I/O characteristics isn't separated by this data. Item 14 already fails on
+its stated gates regardless; a future width-two attempt should re-baseline width
+one under gRPC FUSE first to isolate the two variables cleanly.
+
+**Reverted per the plan's own pre-written fallback.** `.env` backed up to
+`.env.backup-before-step11-revert-20260902`, `HISTORIC_MEDIA_WORKERS_FFMPEG`
+restored to `1`, `sail up -d` removed the second FFmpeg worker container, worker
+1 restarted deliberately (the same stale-in-memory-config trap that applied going
+to width two), and the dispatcher confirmed reading width 1 afterwards. The three
+width-two completions keep their own recorded `worker_width: 2` execution profile
+permanently — per M12 items 8–10, width is execution tuning, not a durable-output
+fingerprint, so it doesn't collide with width-one runs on export.
+
+**Step 11 is closed. Phase 8 is unblocked at FFmpeg width one** — the only width
+ever proven clean end-to-end. Two loose ends carry forward outside step 11's
+scope: `2026-05-10-morning`'s section-17 overlap needs an operator look, and the
+31 webm/VP9 sources noted in the prior write-up still need one identity proved
+before bulk.
 
 ### Phase 8 — Process the remainder as a closed pass loop
 
