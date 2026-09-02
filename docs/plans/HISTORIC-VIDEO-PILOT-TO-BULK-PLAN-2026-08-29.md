@@ -1,7 +1,7 @@
 # Historic Video Pilot-to-Bulk Plan
 
 **Date:** 2026-08-29
-**Status:** **Phases 0–7 complete; step 11 closed; Phase 8 is GO at FFmpeg width one.** The Phase 7 canary ran under operation 3, its blockers were implemented and its rows and assets repaired, and on 2026-09-01 the **operator sequence reached step 10: the identical-canary replay passed**, proving zero new work and zero spend (evidence: `storage/scratch/historic-video-step10-noop-proof-20260901.md`). On 2026-09-02 **step 10 was re-run against the re-frozen manifest** `d25d2085…` under operation 4 and passed again — 0 dispatched, 12 skipped, 0 B processed in 7.2 s, every baseline count unchanged (evidence: `storage/scratch/historic-video-step10-rerun-proof-20260902.md`). The re-freeze reduced the replayable set from fourteen to twelve: `2026-04-02-evening` became a manifest-level exclusion, and `2023-07-16-morning` had its source replaced and its run retired, so it is new work rather than a replay and is **deferred to Phase 8 by operator decision**. **Step 11 (M12's four-identity calibration at FFmpeg width two) ran to completion on 2026-09-02** after the VirtioFS/exFAT mount fault was fixed: 3 of 4 identities completed cleanly (the 4th stopped at a genuine content-layer manual-review disposition, not a technical fault), and the mount held through the exact step that had killed all four the day before. **M12 item 14's gate FAILS**: queue-wait p95 improved 44–98% on every instrumented FFmpeg step, but active-duration p95 got materially worse on the two full-file steps (`extract_sermon` +69%, `prepare_section_publication_candidates` +94%) — confirmed by source-size-normalized throughput, not a bigger-files artefact — so items/hour moved only +1.7%, far short of the 25% bar either metric requires. Per the plan's own fallback, **width was reverted to one** (`.env`, workers recreated, dispatcher config confirmed). Evidence: `storage/scratch/historic-video-step11-calibration-result-20260902.md`. **Bulk processing (Phase 8) can now proceed at width one** — the only width ever proven clean.
+**Status:** **Phases 0–7 complete; step 11 closed; Phase 8 is GO at FFmpeg width one.** The Phase 7 canary ran under operation 3, its blockers were implemented and its rows and assets repaired, and on 2026-09-01 the **operator sequence reached step 10: the identical-canary replay passed**, proving zero new work and zero spend (evidence: `storage/scratch/historic-video-step10-noop-proof-20260901.md`). On 2026-09-02 **step 10 was re-run against the re-frozen manifest** `d25d2085…` under operation 4 and passed again — 0 dispatched, 12 skipped, 0 B processed in 7.2 s, every baseline count unchanged (evidence: `storage/scratch/historic-video-step10-rerun-proof-20260902.md`). The re-freeze reduced the replayable set from fourteen to twelve: `2026-04-02-evening` became a manifest-level exclusion, and `2023-07-16-morning` had its source replaced and its run retired, so it is new work rather than a replay and is **deferred to Phase 8 by operator decision**. **Step 11 (M12's four-identity calibration at FFmpeg width two) ran to completion on 2026-09-02** after the VirtioFS/exFAT mount fault was fixed: 3 of 4 identities completed cleanly (the 4th stopped at a genuine content-layer manual-review disposition, not a technical fault), and the mount held through the exact step that had killed all four the day before. **M12 item 14's gate FAILS**: queue-wait p95 improved 44–98% on every instrumented FFmpeg step, but active-duration p95 got materially worse on the two full-file steps (`extract_sermon` +69%, `prepare_section_publication_candidates` +94%) — confirmed by source-size-normalized throughput, not a bigger-files artefact — so items/hour moved only +1.7%, far short of the 25% bar either metric requires. Per the plan's own fallback, **width was reverted to one** (`.env`, workers recreated, dispatcher config confirmed). Evidence: `storage/scratch/historic-video-step11-calibration-result-20260902.md`. **Bulk processing (Phase 8) can now proceed at width one** — the only width ever proven clean. **On 2026-09-02 the first stratified learning batch (11 identities) ran and returned 5 failed, 6 degraded, 0 clean**: OpenAI rate limiting failed every structure-detection attempt it touched and made the transcript stage bank empty fallback analysis that reports as `completed`. The pass also exposed two operational faults — worker daemons that stop honouring `queue:restart`, and a first-job failure that strands a run in a state no retry path accepts. **Pass 2 is blocked on P1-1 (survive a sustained rate limit) and P1-2 (a degraded completion must never read as a success)**; see “Pass 1 — first stratified learning batch, 2026-09-02”.
 **Scope:** Correct the pilot findings, prove direct private asset promotion and bounded temporary cleanup, run a fresh canary, and process the remaining historic-video corpus safely
 **Related plan:** `HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md` remains the authority for the wider historic-import programme
 
@@ -2290,13 +2290,165 @@ scope: `2026-05-10-morning`'s section-17 overlap needs an operator look, and the
 31 webm/VP9 sources noted in the prior write-up still need one identity proved
 before bulk.
 
+### Pass 1 — first stratified learning batch, 2026-09-02
+
+Run as a deliberately small learning batch rather than an overnight throughput
+pass, at the operator's direction: process a few hours, then iterate the
+processing logic on what real services reveal. Selection was **stratified, not
+chronological** — the first 40 chronological items are 100% morning and 100%
+from 2020, so a chronological pass samples one service shape and teaches almost
+nothing about the corpus. The 11 chosen covered every year 2020–2026, both
+services, all three corroboration grades, both concatenation modes, and two VP9
+sources, at a 2.47 GiB mean against the corpus mean of 2.27 GiB.
+
+Evidence: `storage/scratch/pass1-{dispatch,capacity-evidence,baseline-BEFORE,
+baseline-AFTER,performance-BEFORE,performance-AFTER}-20260902.json`.
+
+**Result: 5 failed, 6 degraded, 0 clean, in 1.3 h.** The wall time is not
+throughput — it is inflated by five runs failing fast. Corpus delta: +11 runs,
++6 sermons, +10 song videos, +64 sections, +49 segments, +11 alerts.
+
+Dispatch itself was clean: 11 dispatched, 2 lossless concatenations, 0 errors,
+`aborted_stale_mount: false`, 29.1 GB staged. **The codec fix from `fc7e7ecd3`
+was confirmed firing inside a real bulk run**, not just a re-extraction:
+`Re-encoding video extract: source video codec is not deliverable`,
+`source_video_codec: vp9`.
+
+#### The binding constraint is the provider, not compute
+
+41 `Request rate limit has been exceeded` errors, escalating 1/min at 16:32 to
+7/min at 17:01. Sizing a pass on FFmpeg throughput is therefore wrong. The
+mechanism — requests-per-minute versus tokens-per-minute — was **not**
+determined, because the usage telemetry recorded nothing (see below); a
+full-service transcript is a large single call, so TPM is plausible and would
+not be relieved by lowering concurrency.
+
+#### The two paid stages disagree about what a provider failure means
+
+Both carry `tries = 3` with `backoff() = [120, 300, 600]`, so each gets a ~17
+minute window. Against a limit that persisted 40+ minutes, both exhaust — but
+they then diverge, and that divergence is the real defect:
+
+- **`DetectServiceStructure` fails hard.** `OpenAiServiceStructureService`
+  catches only `TypeError`, so a 429/503 propagates and the run fails. All five
+  failures were at this step.
+- **`ProcessTranscriptWithAI` degrades silently.** It substitutes
+  `createFallbackAnalysis()`, sets `is_degraded_completion = true`, and the run
+  **completes** (`ProcessTranscriptWithAI.php:233`).
+
+So provider pressure does not degrade output smoothly. It splits into loud
+failures and silent hollow successes, and the silent half is the half that gets
+banked. **Judged on completed count, a heavily rate-limited pass looks better
+than a lightly rate-limited one.**
+
+`createFallbackAnalysis()` returns `reference: null`, `summary: null`,
+`points: ['Main Message']` and a generated title. Observed on sermons 907–912:
+
+    sermon 907  title="Sunday 26Th January 2025 [Yo…"  ref=NULL  summary=NULL
+    sermon 909  title="Morning"                        ref=NULL  summary=NULL
+
+Titles are raw source filenames, one carrying a `[YouTube backup]` fragment.
+This is the absence of analysis recorded as completed work — arguably worse than
+failing, because a failure is retryable and this looks done.
+
+`WithoutOverlapping` on `DetectServiceStructure` is keyed per run, so it does not
+rate-limit across runs; nothing in the pipeline paces provider calls corpus-wide.
+
+#### Measured stage timings — gRPC FUSE at width one
+
+The measurement that did not previously exist. Step 11's baseline was captured
+under VirtioFS, which it flagged as an unseparated confound.
+
+| step | stage | n | p50 active | p95 active | p95 queue wait |
+|---|---|---|---|---|---|
+| rms_generation | ffmpeg | 11 | 101 s | 152 s | — |
+| analyzing_segments | ffmpeg | 11 | 1 s | 2 s | 1,029 s |
+| transcribe_full_service | whisper | 11 | 192 s | 431 s | 2,036 s |
+| detect_service_structure | llm | 11 | 35 s | 109 s | 1,243 s |
+| extract_sermon | ffmpeg | 6 | 354 s | 633 s | 457 s |
+| prepare_section_publication_candidates | ffmpeg | 6 | 18 s | 262 s | 503 s |
+
+Two findings. **Queue wait dominates active time at every stage** — Whisper
+waits 2,036 s to do 431 s of work — so the pipeline is queue-bound at width one,
+not CPU-bound. That reframes M12 item 14: step 11 rejected width two on
+*active-duration* regression, but wall time is being spent waiting, not working.
+And **`extract_sermon` p95 is 633 s under gRPC FUSE against step 11's 649 s
+under VirtioFS**, so the driver is not materially slower for extraction, which
+partially clears step 11's confound.
+
+#### Two operational faults, independent of the provider
+
+Both were hit before any run reached a paid stage, and both are recorded in
+detail in the session memory rather than repeated here:
+
+1. **The worker daemons stopped honouring `queue:restart`.** The restart key was
+   newer than the worker boot, the queue was empty, and the daemon sat idle 19
+   minutes without exiting; three `queue:restart` calls did nothing. Only
+   `docker restart` on the worker containers cleared it. Always verify worker
+   PID-1 age actually dropped before concluding anything about a code change.
+2. **A first-job failure strands a run in a state no retry path accepts.** The
+   run stays `pending` with no queued jobs; `ProcessingRunOrchestrator::retry()`
+   refuses ("not in failed or cancelled state") and `HistoricVideoImporter`
+   classifies `Pending` as `resume-inflight` and merely waits. The cause is that
+   the staging activation runs in a `Queue::before` listener
+   (`AppServiceProvider.php:168`), so an exception there never reaches the job's
+   own `failed()` handler, which would have marked the run. Recovery required
+   force-setting `status = failed` with an operator note, then retrying.
+
+Together these are the silent-wedge mode for an unattended pass: every run fails
+at the first guard, every run lands unreachable, and the pass looks identical to
+healthy queuing. **Pass monitoring must alarm on "nothing in flight while the
+pass is incomplete", not on a failure count.**
+
+#### Remediation before pass 2
+
+- **P1-1 — Make the paid stages survive a sustained rate limit.** The backoff
+  exists; the window does not match the fault. A 429 should not consume an
+  attempt on the same terms as a genuine error: widen the window well past a
+  17-minute ceiling, or pace provider calls corpus-wide so the limit is not
+  reached. Decide against the actual limit dimension (RPM vs TPM), which needs
+  the provider's rate-limit response headers — see P1-4.
+- **P1-2 — A degraded completion must never read as a success.**
+  `is_degraded_completion` exists and nothing surfaces it: not
+  `historic-import:video-pass-status`, not the throughput report, not the pass
+  summary. Name degraded runs in the pass report and exclude them from clean
+  throughput. Also settle whether `createFallbackAnalysis()` should bank at all
+  — a run that failed to analyse may be more useful left failed and retryable
+  than completed with a filename for a title.
+- **P1-3 — Re-analyse sermons 907–912.** All six carry hollow analysis: no
+  scripture reference, no summary, placeholder points, filename-derived titles.
+  The service transcripts survive, so this is an LLM re-run over existing
+  transcripts, not reprocessing. None are public — all are quarantined and
+  unreleased — so this gates public release rather than production. Do it after
+  P1-1, or it will re-degrade.
+- **P1-4 — Remove the usage/cost reporting surface rather than repair it.**
+  `op4.usage_entries` went 0 → 0 across a pass that made dozens of paid calls and
+  hit 41 rate limits, and the report shows "API response-time samples: 0", so
+  Phase 8 item 3's "monitor provider request/token anomalies" is inoperative.
+  **Operator decision, 2026-09-02: cost reporting is not wanted now the pipeline
+  uses Luna, so delete this surface instead of fixing it** — extending Phase 4's
+  neutralisation to the telemetry its third bullet had preserved.
+  `HistoricImportUsageEntry`, `HistoricImportCostLedger`, the
+  `historic_import_usage_entries` table and the usage lines in
+  `HistoricVideoPassStatusCommand` / `HistoricVideoPassPerformance` go together
+  with the Phase 9 item 13 closeout deletion.
+  **Caveat to settle while doing it:** P1-1 needs the provider's rate-limit
+  response headers to distinguish RPM from TPM. That is a diagnostic, not cost
+  reporting, and is a far smaller thing than the ledger — do not delete it along
+  with the pricing surface without deciding where that signal will come from.
+
+**Pass 2 is blocked on P1-1 and P1-2.** P1-3 is cleanup that can follow. No
+unattended overnight pass should run until a degraded completion cannot silently
+bank empty analysis, because the failure mode is invisible in the pass summary
+and compounds across every identity in the pass.
+
 ### Phase 8 — Process the remainder as a closed pass loop
 
 For each pass:
 
 1. Preflight the mount, selected-item path/size metadata, operation-bound host disk evidence, actual and configured worker widths, models, provider project limit, manifest keys and the measured byte/time envelope. Do not content-read unselected future items and do not re-hash selected ones.
 2. Metadata-check, copy and destination-size-verify only those immutable keys, enqueue them, record their processing IDs and let the dispatcher exit.
-3. Read pass status from the database and monitor terminal outcomes, provider request/token anomalies, drive health and disk watermark.
+3. Read pass status from the database and monitor terminal outcomes, **degraded completions**, provider rate-limit responses, drive health and disk watermark. **Alarm on “nothing in flight while the pass is incomplete”, not on a failure count** — the 2026-09-02 wedge made a dead pass look identical to healthy queuing. (Provider request/token *cost* reporting is being removed under P1-4, not monitored.)
 4. Stop new dispatch immediately for mount instability, unexpected provider-call growth, unexplained duplicates, destination mismatch or recurring systemic failure. Gracefully stop workers only when already-running jobs themselves must be halted.
 5. Reconcile services, sermons, sections, songs and review residue.
 6. Verify completed assets in permanent private quarantine and their database/operation ownership.
@@ -2308,7 +2460,7 @@ For each pass:
 
 The pass report must name every non-zero residue. An empty queue is not evidence of successful completion. Pass closure is operational only: all evidence remains active in the same cumulative corpus for later cross-source convergence.
 
-**Exit gate:** Every approved manifest item is completed, explicitly held/excluded, or named as unresolved; no pass retains unexplained staging data.
+**Exit gate:** Every approved manifest item is completed, explicitly held/excluded, or named as unresolved; no pass retains unexplained staging data. **A run completed with `is_degraded_completion` does not count as completed for this gate** — it is a named unresolved item until re-analysed.
 
 ### Phase 9 — Final convergence and public release
 
@@ -2398,6 +2550,18 @@ The remainder may start only when all of these are true:
 - [ ] A fresh untouched canary passes all acceptance criteria.
 - [ ] The canary proves direct private promotion and bounded temporary cleanup without fragmenting the cumulative evidence graph.
 - [ ] The canary's measured byte/time envelope, not an identity-count rule, sizes the first bulk pass.
+- [ ] The paid stages survive a sustained provider rate limit: a 429 does not spend
+  an attempt on the same terms as a genuine error, and provider calls are paced
+  corpus-wide rather than only per run (P1-1). Pass 1 exhausted both stages'
+  17-minute windows against a limit that ran 40+ minutes.
+- [ ] A degraded completion never reads as a success: `is_degraded_completion` is
+  named in the pass report and excluded from clean throughput, and it is settled
+  whether the fallback analysis should bank at all (P1-2).
+- [ ] Sermons 907-912 are re-analysed from their surviving transcripts before any
+  release membership includes them (P1-3).
+- [ ] Pass monitoring alarms on "nothing in flight while the pass is incomplete",
+  and a run whose first job fails is reachable by a retry path rather than
+  stranded `pending`.
 - [x] Re-running that canary is an exact no-op with zero additional model spend.
   Proven 2026-09-01: dispatched 0, resumed 13, skipped 1, errors 0, 0 B processed,
   in 3.9 s, with every baseline count identical before and after.
