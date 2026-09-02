@@ -211,11 +211,17 @@ class VideoExtractionServiceTest extends TestCase
 
     /**
      * Stands in for ffmpeg/ffprobe. `$probeBitrate` is what ffprobe reports for
-     * `format=bit_rate`; the ffmpeg stub records the argv it was called with so a
-     * test can assert which branch ran, then writes the output file and exits 0.
+     * `format=bit_rate` — pass 0 for the `N/A` the historic webm corpus actually
+     * returns; `$videoCodec` and `$audioCodec` answer the `stream=codec_name`
+     * queries, and an empty string makes that stream's codec unreadable. The
+     * ffmpeg stub records the argv it was called with so a test can assert which
+     * branch ran, then writes the output file and exits 0.
      */
-    private function stubFfmpegAndFfprobe(int $probeBitrate): string
-    {
+    private function stubFfmpegAndFfprobe(
+        int $probeBitrate,
+        string $videoCodec = 'h264',
+        string $audioCodec = 'aac',
+    ): string {
         $argvLog = storage_path('framework/testing/ffmpeg-argv.log');
         @unlink($argvLog);
 
@@ -229,8 +235,21 @@ class VideoExtractionServiceTest extends TestCase
         );
         chmod($ffmpegStub, 0755);
 
+        // A real ffprobe answers whichever entry it was asked for, so the stub
+        // must branch too: the codec gate and the bitrate gate query it
+        // differently, and conflating them would let either rule pass by
+        // accident. `N/A` is what the webm corpus genuinely reports for bitrate.
+        $bitrateReply = $probeBitrate > 0 ? (string) $probeBitrate : 'N/A';
         $ffprobeStub = storage_path('framework/testing/ffprobe-stub.sh');
-        file_put_contents($ffprobeStub, "#!/bin/sh\necho {$probeBitrate}\n");
+        file_put_contents(
+            $ffprobeStub,
+            "#!/bin/sh\n"
+            ."case \"$*\" in\n"
+            ."  *v:0*) echo '{$videoCodec}' ;;\n"
+            ."  *a:0*) echo '{$audioCodec}' ;;\n"
+            ."  *) echo '{$bitrateReply}' ;;\n"
+            ."esac\n"
+        );
         chmod($ffprobeStub, 0755);
 
         Config::set('media-processing.ffmpeg.ffmpeg_path', $ffmpegStub);
@@ -329,5 +348,128 @@ class VideoExtractionServiceTest extends TestCase
         $this->assertStringStartsNotWith('/', $relativePath);
         $this->assertTrue(Storage::disk('historic_temp')->exists($relativePath));
         $this->assertFalse(Storage::disk('local')->exists($relativePath));
+    }
+
+    #[Test]
+    public function it_reencodes_a_vp9_source_whose_bitrate_reads_as_unavailable(): void
+    {
+        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
+
+        // The historic webm corpus exactly: VP9, and a container reporting
+        // neither duration nor bitrate. The bitrate rule alone reads that as
+        // "nothing to do" and stream-copies VP9 into a .mp4, which muxes without
+        // error and is then unplayable in Safari and every iOS browser.
+        $argvLog = $this->stubFfmpegAndFfprobe(0, videoCodec: 'vp9');
+
+        $relativePath = $this->service->extractSegmentAsFile(
+            '/tmp/input.webm',
+            (object) ['start_time' => 1.0, 'end_time' => 5.0]
+        );
+
+        $argv = file_get_contents($argvLog);
+        $this->assertStringContainsString('libx264', $argv);
+        $this->assertStringNotContainsString('-c copy', $argv);
+        $this->assertTrue(Storage::disk('local')->exists($relativePath));
+    }
+
+    #[Test]
+    public function the_codec_rule_outranks_a_bitrate_comfortably_below_the_threshold(): void
+    {
+        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
+        $argvLog = $this->stubFfmpegAndFfprobe(1_000_000, videoCodec: 'vp9');
+
+        $this->service->extractSegmentAsFile(
+            '/tmp/input.webm',
+            (object) ['start_time' => 1.0, 'end_time' => 5.0]
+        );
+
+        $this->assertStringContainsString('libx264', file_get_contents($argvLog));
+    }
+
+    #[Test]
+    public function an_unreadable_video_codec_does_not_force_a_blind_reencode(): void
+    {
+        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
+        $argvLog = $this->stubFfmpegAndFfprobe(2_600_000, videoCodec: '');
+
+        // Acting on absent information would re-encode every source whenever
+        // ffprobe is misconfigured. The codec rule reads positively or not at all.
+        $this->service->extractSegmentAsFile(
+            '/tmp/input.mp4',
+            (object) ['start_time' => 1.0, 'end_time' => 5.0]
+        );
+
+        $this->assertStringContainsString('-c copy', file_get_contents($argvLog));
+    }
+
+    #[Test]
+    public function a_reencode_seeks_the_input_and_a_stream_copy_seeks_the_output(): void
+    {
+        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
+
+        $reencodeLog = $this->stubFfmpegAndFfprobe(0, videoCodec: 'vp9');
+        $this->service->extractSegmentAsFile(
+            '/tmp/input.webm',
+            (object) ['start_time' => 900.0, 'end_time' => 1200.0]
+        );
+        $reencodeArgv = file_get_contents($reencodeLog);
+
+        // An input seek skips work that grows with the segment's offset. It stays
+        // frame-exact on a re-encode, but on a stream copy it would move the cut
+        // to a keyframe, so only one branch may carry it.
+        $this->assertLessThan(
+            strpos($reencodeArgv, '-i '),
+            strpos($reencodeArgv, '-ss '),
+            'A re-encode must seek the input: -ss has to precede -i.'
+        );
+
+        $copyLog = $this->stubFfmpegAndFfprobe(2_600_000);
+        $this->service->extractSegmentAsFile(
+            '/tmp/input.mp4',
+            (object) ['start_time' => 900.0, 'end_time' => 1200.0]
+        );
+        $copyArgv = file_get_contents($copyLog);
+
+        $this->assertLessThan(
+            strpos($copyArgv, '-ss '),
+            strpos($copyArgv, '-i '),
+            'A stream copy must keep its output seek: -i has to precede -ss.'
+        );
+    }
+
+    #[Test]
+    public function a_reencode_copies_audio_the_container_already_carries(): void
+    {
+        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
+        $argvLog = $this->stubFfmpegAndFfprobe(0, videoCodec: 'vp9', audioCodec: 'aac');
+
+        $this->service->extractSegmentAsFile(
+            '/tmp/input.webm',
+            (object) ['start_time' => 1.0, 'end_time' => 5.0]
+        );
+
+        // Re-encoding AAC to AAC at the same bitrate spends a second generation
+        // of lossy compression for no gain in size or compatibility.
+        $argv = file_get_contents($argvLog);
+        $this->assertStringContainsString('-c:a copy', $argv);
+        $this->assertStringNotContainsString('-c:a aac', $argv);
+    }
+
+    #[Test]
+    public function a_reencode_encodes_audio_the_container_cannot_carry(): void
+    {
+        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
+        $argvLog = $this->stubFfmpegAndFfprobe(0, videoCodec: 'vp9', audioCodec: 'opus');
+
+        $this->service->extractSegmentAsFile(
+            '/tmp/input.webm',
+            (object) ['start_time' => 1.0, 'end_time' => 5.0]
+        );
+
+        // Opus is ordinary in a webm and does not mux into .mp4; copying it
+        // through would fail the extraction outright.
+        $argv = file_get_contents($argvLog);
+        $this->assertStringContainsString('-c:a aac', $argv);
+        $this->assertStringNotContainsString('-c:a copy', $argv);
     }
 }

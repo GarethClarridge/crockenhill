@@ -20,6 +20,20 @@ class VideoExtractionService
 {
     use RequiresFfmpeg;
 
+    /**
+     * Video codecs the delivered `.mp4` can carry to every browser the site
+     * serves. Deliberately narrow: anything else is re-encoded to H.264, the
+     * only universally decodable baseline.
+     */
+    private const DELIVERABLE_VIDEO_CODECS = ['h264'];
+
+    /**
+     * Audio codecs an `.mp4` carries natively, so a re-encode can copy them
+     * through untouched rather than spending a second generation of lossy
+     * compression. Deliberately narrow for the same reason.
+     */
+    private const MP4_NATIVE_AUDIO_CODECS = ['aac'];
+
     private string $tempDisk;
 
     private string $permanentDisk;
@@ -386,15 +400,24 @@ class VideoExtractionService
         try {
             $ffmpegPath = config('media-processing.ffmpeg.ffmpeg_path');
 
+            /**
+             * `-ss` precedes `-i` so FFmpeg seeks the input rather than decoding
+             * and discarding everything before the start point. Since FFmpeg 2.1
+             * an input seek still decodes from the preceding keyframe, so a
+             * re-encode stays frame-exact — the output is byte-identical, it just
+             * skips work that grows with the segment's offset. The stream-copy
+             * branch deliberately keeps its output seek, where the distinction
+             * does change where the cut lands.
+             */
             $command = [
                 $ffmpegPath,
-                '-i', escapeshellarg($inputPath),
                 '-ss', (string) $startTime,
+                '-i', escapeshellarg($inputPath),
                 '-t', (string) $duration,
                 '-c:v', 'libx264',
                 '-crf', (string) (int) config('media-processing.video_extraction.reencode_crf', 23),
                 '-preset', (string) config('media-processing.video_extraction.reencode_preset', 'medium'),
-                '-c:a', 'aac',
+                ...$this->reencodeAudioArguments($inputPath),
                 '-avoid_negative_ts', 'make_zero',
                 escapeshellarg($tempPath),
             ];
@@ -436,14 +459,34 @@ class VideoExtractionService
     }
 
     /**
-     * Whether this source is wasteful enough to be worth re-encoding its extracts.
+     * Whether this source must be re-encoded rather than stream-copied.
      *
-     * Fails safe: an unreadable bitrate, an unset threshold or a probe error all
-     * leave the existing stream-copy behaviour in place, because a stream copy is
-     * never wrong — only sometimes larger than it needs to be.
+     * Two independent reasons, checked in that order of severity. A video codec
+     * the delivery container cannot carry is a correctness failure: VP9 muxes
+     * into `.mp4` without any error, but AVFoundation reports the result
+     * unplayable, so Safari and every iOS browser silently refuse it. A bitrate
+     * far above what delivery needs is merely wasteful.
+     *
+     * Both rules act only on positive information. An unreadable codec, an
+     * unreadable bitrate, an unset threshold or a probe error all leave the
+     * existing stream-copy behaviour in place, because a blind re-encode of
+     * every source is a worse default than shipping the occasional oversized
+     * extract.
      */
     private function shouldReencodeSource(string $inputPath): bool
     {
+        $videoCodec = $this->probeStreamCodec($inputPath, 'v');
+
+        if ($videoCodec !== null && ! in_array($videoCodec, self::DELIVERABLE_VIDEO_CODECS, true)) {
+            Log::info('Re-encoding video extract: source video codec is not deliverable', [
+                'input_path' => $inputPath,
+                'source_video_codec' => $videoCodec,
+                'deliverable_codecs' => self::DELIVERABLE_VIDEO_CODECS,
+            ]);
+
+            return true;
+        }
+
         $thresholdMbps = (float) config('media-processing.video_extraction.reencode_above_mbps', 0.0);
 
         if ($thresholdMbps <= 0.0) {
@@ -463,6 +506,67 @@ class VideoExtractionService
         ]);
 
         return true;
+    }
+
+    /**
+     * FFmpeg's audio arguments for a re-encode.
+     *
+     * A source whose audio the delivery container already carries is copied
+     * through: re-encoding it would spend a second generation of lossy
+     * compression to arrive at the same codec at the same bitrate. Anything else
+     * is encoded to AAC. Copied audio cuts on a frame boundary rather than a
+     * sample, which for speech is inaudible.
+     *
+     * @return list<string>
+     */
+    private function reencodeAudioArguments(string $inputPath): array
+    {
+        $audioCodec = $this->probeStreamCodec($inputPath, 'a');
+
+        if ($audioCodec !== null && in_array($audioCodec, self::MP4_NATIVE_AUDIO_CODECS, true)) {
+            return ['-c:a', 'copy'];
+        }
+
+        return ['-c:a', 'aac'];
+    }
+
+    /**
+     * Codec name of the source's first video or audio stream, or null when
+     * ffprobe is unavailable, errors, or reports nothing usable.
+     *
+     * Unlike `format=bit_rate` this answers for the sources that matter most:
+     * the historic webm corpus reports no container bitrate at all, yet names
+     * its codec readily.
+     *
+     * @param  'a'|'v'  $streamType
+     */
+    private function probeStreamCodec(string $inputPath, string $streamType): ?string
+    {
+        $ffprobePath = config('media-processing.ffmpeg.ffprobe_path');
+
+        if (! is_string($ffprobePath) || $ffprobePath === '') {
+            return null;
+        }
+
+        $command = implode(' ', [
+            $ffprobePath,
+            '-v', 'error',
+            '-select_streams', "{$streamType}:0",
+            '-show_entries', 'stream=codec_name',
+            '-of', 'default=nw=1:nk=1',
+            escapeshellarg($inputPath),
+        ]);
+
+        $output = [];
+        exec($command.' 2>/dev/null', $output, $returnCode);
+
+        if ($returnCode !== 0) {
+            return null;
+        }
+
+        $codec = trim(implode('', $output));
+
+        return $codec === '' ? null : $codec;
     }
 
     /**
