@@ -23,6 +23,9 @@ Rules for using this folder, written for AI agents as much as humans:
 | [`design-style-guide.md`](design-style-guide.md) | **Read before any UI work.** Brand tokens, components, anti-patterns. Screenshots in `design-references/` (gitignored; regenerate per the guide). |
 | [`api/media-processing.md`](api/media-processing.md) | API reference for the media/services/webhook endpoints (`routes/api.php` wins on conflict). |
 | [`operations/production.md`](operations/production.md) | Production stack, Horizon queues, scheduler, deploy/rollback. |
+| [`operations/historic-video-pass-control.md`](operations/historic-video-pass-control.md) | **Read before running a historic-video pass.** Starting, watching, stopping and resuming one; reading its dispositions; what a provider 429 actually means. |
+| [`operations/livestream-corpus-testing.md`](operations/livestream-corpus-testing.md) | Semi-manual end-to-end regression testing of the whole livestream chain against hand-annotated real recordings. |
+| [`operations/llm-structure-promotion-soak.md`](operations/llm-structure-promotion-soak.md) | **Historical (closed 2026-07-19)**; retained for its stage summaries and backfill reference. |
 | [`operations/r8-data-convergence-runbook.md`](operations/r8-data-convergence-runbook.md) | **Superseded 2026-08-14**; retained for command reference only. The production round procedure is §7 of the incremental-convergence plan. |
 | [`operations/SEO_SETUP_GUIDE.md`](operations/SEO_SETUP_GUIDE.md) | Manual Search Console / GA4 setup steps (maintainer tasks). |
 | [`operations/section-extraction-testing.md`](operations/section-extraction-testing.md) | Local-only regression harness for section extraction against real recordings (with `structure-eval-manifest.example.json`). |

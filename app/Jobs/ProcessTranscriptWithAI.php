@@ -12,8 +12,10 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Media\Audio\TranscriptStorageService;
 use App\Services\Public\SermonRepository;
+use App\Services\Sermon\SermonAnalysisService;
 use App\Services\Sermon\SermonSeriesCorroboration;
 use App\Services\Sermon\SermonSlugGenerator;
+use App\Support\OpenAiTransientFailure;
 use App\Support\PlaceholderSermonTitle;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -175,6 +177,16 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                 'trace' => $e->getTraceAsString(),
             ]);
 
+            if ($this->shouldRetryBeforeDegrading($e)) {
+                Log::warning('AI analysis failed transiently; retrying rather than degrading', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    'attempt' => $this->attempts(),
+                    'tries' => $this->tries,
+                ]);
+
+                throw $e;
+            }
+
             // Try fallback
             $fallbackAnalysis = $this->createFallbackAnalysis();
             if ($fallbackAnalysis) {
@@ -238,6 +250,26 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                 throw $e;
             }
         }
+    }
+
+    /**
+     * Whether this failure has earned another attempt before the run degrades.
+     *
+     * `$tries` and {@see self::backoff()} were dead code until this existed: the catch above
+     * degraded on the very first exception and never rethrew, so the queue saw a successful job and
+     * the retry schedule never ran. On 2026-09-02 six runs met a provider refusal, each got exactly
+     * one attempt lasting 12-18 seconds, and each banked empty analysis as a completed sermon —
+     * output that reads as done and is therefore never retried by anyone.
+     *
+     * Only transient failures qualify. A malformed response or a validation refusal would fail
+     * identically three times over, and the fallback is the right answer for those on the first
+     * attempt. The chain is walked because the provider exception arrives wrapped
+     * ({@see SermonAnalysisService::executeAiRequest()}).
+     */
+    private function shouldRetryBeforeDegrading(\Throwable $exception): bool
+    {
+        return $this->attempts() < $this->tries
+            && OpenAiTransientFailure::isTransientInChain($exception);
     }
 
     private function createFallbackAnalysis(): ?SermonAnalysis

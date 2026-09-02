@@ -110,11 +110,18 @@ class HistoricVideoPassStatus
         MediaProcessingLog::query()
             ->where('historic_import_operation_id', $operation->id)
             ->orderBy('id')
+            /*
+             * Every column `disposition()` reads must be listed here. An omitted one is not a
+             * missing value but an absent attribute, so `isDegradedCompletion()` returns null
+             * against its `bool` return type and the report dies rather than misreporting — which
+             * is the right failure, but only because the accessor is strictly typed.
+             */
             ->get([
                 'id',
                 'processing_id',
                 'status',
                 'current_step',
+                'is_degraded_completion',
                 'superseded_at',
                 'processing_metadata',
             ])
@@ -245,6 +252,28 @@ class HistoricVideoPassStatus
 
         if ($manualReviewRuns->isNotEmpty()) {
             return 'manual_review';
+        }
+
+        /*
+         * A degraded completion is a distinct disposition, not a completion with a footnote. The
+         * run finished, but `ProcessTranscriptWithAI` substituted `createFallbackAnalysis()` — no
+         * scripture reference, no summary, placeholder points, a filename for a title — so the
+         * sermon it banked contains the absence of analysis. Reported as 'completed' it is worse
+         * than a failure, because a failure is retryable and this reads as done: the 2026-09-02
+         * pass reported six of them as successes and nothing in any report said otherwise. Phase 8's
+         * exit gate requires it not to count as completed, so the report must not call it that.
+         */
+        $degradedRuns = collect($runs)->filter(
+            static fn (MediaProcessingLog $run): bool => $run->status === ProcessingStatus::Completed
+                && $run->isDegradedCompletion(),
+        );
+
+        if ($degradedRuns->isNotEmpty() && $degradedRuns->count() !== count($runs)) {
+            return 'mixed_terminal';
+        }
+
+        if ($degradedRuns->isNotEmpty()) {
+            return 'degraded';
         }
 
         $statuses = collect($runs)->pluck('status')->unique();

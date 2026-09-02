@@ -43,6 +43,60 @@ class HistoricVideoPassStatusCommandTest extends TestCase
             ->assertExitCode(0);
     }
 
+    /**
+     * A degraded completion is the one outcome that reads as success while containing none of the
+     * work: `ProcessTranscriptWithAI` substituted empty analysis, so the banked sermon has no
+     * reference, no summary and a filename for a title. Reporting it as `completed` is how the
+     * 2026-09-02 pass presented six hollow sermons as its only successes, and why Phase 8's exit
+     * gate refuses to count one as completed.
+     */
+    #[Test]
+    public function it_reports_degraded_not_completed_for_a_run_that_banked_substituted_analysis(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+
+        MediaProcessingLog::factory()->livestream()->create([
+            'historic_import_operation_id' => $operation->id,
+            'status' => ProcessingStatus::Completed,
+            'current_step' => 'ai_analysis_fallback',
+            'is_degraded_completion' => true,
+            'processing_metadata' => [
+                'historic_import' => ['manifest_item_key' => '2025-01-26-morning'],
+            ],
+        ]);
+
+        $report = app(HistoricVideoPassStatus::class)->report($operation, ['2025-01-26-morning']);
+
+        self::assertSame('degraded', $report[0]['disposition']);
+
+        $this->artisan('historic-import:video-pass-status', [
+            '--operation' => $operation->operation_id,
+            '--only' => '2025-01-26-morning',
+        ])
+            ->expectsOutputToContain('do NOT count as completed for the pass gate')
+            ->expectsOutputToContain('2025-01-26-morning')
+            ->assertExitCode(0);
+    }
+
+    #[Test]
+    public function it_reports_mixed_terminal_when_only_some_runs_for_an_identity_degraded(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+
+        MediaProcessingLog::factory()->livestream()->create([
+            'historic_import_operation_id' => $operation->id,
+            'status' => ProcessingStatus::Completed,
+            'current_step' => 'ai_analysis_fallback',
+            'is_degraded_completion' => true,
+            'processing_metadata' => ['historic_import' => ['manifest_item_key' => 'mixed']],
+        ]);
+        $this->createRun($operation->id, 'mixed', ProcessingStatus::Completed, 'completed');
+
+        $report = app(HistoricVideoPassStatus::class)->report($operation, ['mixed']);
+
+        self::assertSame('mixed_terminal', $report[0]['disposition']);
+    }
+
     #[Test]
     public function it_reports_excluded_not_completed_for_a_silent_source_run(): void
     {

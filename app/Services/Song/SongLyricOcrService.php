@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Services\Song;
 
 use App\Support\OpenAiChatPayload;
+use App\Support\OpenAiFlexFallback;
 use App\Support\OpenAiUsageLogger;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use OpenAI\Laravel\Facades\OpenAI;
+use OpenAI\Responses\Chat\CreateResponse;
 use Symfony\Component\Process\Process;
 
 class SongLyricOcrService
@@ -149,7 +151,7 @@ class SongLyricOcrService
         $imageData = base64_encode((string) file_get_contents($fullFramePath));
         $model = (string) config('media-processing.song_matching.ocr_model', 'gpt-5.4-mini');
 
-        $response = OpenAI::chat()->create(OpenAiChatPayload::forModel([
+        $tiered = OpenAiFlexFallback::send(OpenAiChatPayload::forModel([
             'model' => $model,
             'messages' => [
                 [
@@ -173,9 +175,14 @@ class SongLyricOcrService
             // Headroom for reasoning models, whose hidden reasoning tokens share this budget with
             // the visible lyrics; classic models stop early so the ceiling costs nothing.
             'max_completion_tokens' => 2000,
-        ], reasoningEffort: (string) config('media-processing.song_matching.ocr_reasoning_effort', 'minimal')));
+        ], reasoningEffort: (string) config('media-processing.song_matching.ocr_reasoning_effort', 'minimal')),
+            static fn (array $payload): CreateResponse => OpenAI::chat()->create($payload),
+            'song_lyric_ocr',
+        );
 
-        OpenAiUsageLogger::log($response, 'song_lyric_ocr', $model, requestedReasoningEffort: (string) config('media-processing.song_matching.ocr_reasoning_effort', 'minimal'));
+        $response = $tiered->response;
+
+        OpenAiUsageLogger::log($response, 'song_lyric_ocr', $model, requestedReasoningEffort: (string) config('media-processing.song_matching.ocr_reasoning_effort', 'minimal'), serviceTier: $tiered->serviceTier);
 
         return (string) ($response->choices[0]->message->content ?? '');
     }

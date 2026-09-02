@@ -64,6 +64,27 @@ class OpenAiTransientFailure
             && in_array($exception->getStatusCode(), [429, 500, 502, 503, 504], true);
     }
 
+    /**
+     * The same question asked of a failure that has been wrapped on its way up.
+     *
+     * The OoS callers hold the provider exception directly, so {@see self::isTransient()} suffices
+     * for them. A pipeline job does not: `SermonAnalysisService` reports "OpenAI API call failed."
+     * and `ProcessTranscriptWithAI` has to decide from that whether asking again could work. Walking
+     * the chain is the same recovery {@see OpenAiRateLimitDiagnostics::fromChain()} performs, and it
+     * is only sound because that service now attaches the cause — without `previous`, this returns
+     * false for every provider failure and the job degrades on its first attempt.
+     */
+    public static function isTransientInChain(Throwable $exception): bool
+    {
+        for ($current = $exception; $current !== null; $current = $current->getPrevious()) {
+            if (self::isTransient($current)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /** Whether the provider refused because too many requests were made, rather than for any other reason. */
     public static function isRateLimit(Throwable $exception): bool
     {

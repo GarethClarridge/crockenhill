@@ -9,8 +9,10 @@ use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Support\OpenAiChatPayload;
+use App\Support\OpenAiFlexFallback;
 use App\Support\OpenAiUsageLogger;
 use OpenAI\Laravel\Facades\OpenAI;
+use OpenAI\Responses\Chat\CreateResponse;
 use RuntimeException;
 use TypeError;
 
@@ -101,19 +103,30 @@ TEXT;
         $prompt = $this->buildPrompt($transcript, $oosItems, $feedback);
 
         try {
-            $response = OpenAI::chat()->create(OpenAiChatPayload::forModel([
-                'model' => $model,
-                'messages' => [
-                    ['role' => 'system', 'content' => $prompt['system']],
-                    ['role' => 'user', 'content' => $prompt['user']],
-                ],
-                'response_format' => $this->responseFormat(),
-                'service_tier' => config('openai.service_tier'),
-                'temperature' => 0.1,
-                // Headroom for reasoning models, whose hidden reasoning tokens
-                // share this budget with the visible JSON.
-                'max_completion_tokens' => 16000,
-            ], reasoningEffort: (string) config('media-processing.service_structure.reasoning_effort', 'medium')));
+            /*
+             * Sent through the flex fallback because this is the stage flex unavailability actually
+             * bites: `detect_service_structure` runs the frontier model, whose flex pool was empty
+             * for the whole of the 2026-09-02 pass while the smaller models' pools were fine.
+             */
+            $tiered = OpenAiFlexFallback::send(
+                OpenAiChatPayload::forModel([
+                    'model' => $model,
+                    'messages' => [
+                        ['role' => 'system', 'content' => $prompt['system']],
+                        ['role' => 'user', 'content' => $prompt['user']],
+                    ],
+                    'response_format' => $this->responseFormat(),
+                    'service_tier' => config('openai.service_tier'),
+                    'temperature' => 0.1,
+                    // Headroom for reasoning models, whose hidden reasoning tokens
+                    // share this budget with the visible JSON.
+                    'max_completion_tokens' => 16000,
+                ], reasoningEffort: (string) config('media-processing.service_structure.reasoning_effort', 'medium')),
+                static fn (array $payload): CreateResponse => OpenAI::chat()->create($payload),
+                'service_structure',
+            );
+
+            $response = $tiered->response;
         } catch (TypeError $exception) {
             throw new RuntimeException(
                 'OpenAI service structure response malformed: '.$exception->getMessage(),
@@ -121,7 +134,7 @@ TEXT;
             );
         }
 
-        OpenAiUsageLogger::log($response, 'service_structure', $model, $processingId, (string) config('media-processing.service_structure.reasoning_effort', 'medium'));
+        OpenAiUsageLogger::log($response, 'service_structure', $model, $processingId, (string) config('media-processing.service_structure.reasoning_effort', 'medium'), $tiered->serviceTier);
         $this->evaluationTelemetry?->record($response);
 
         $content = $response->choices[0]->message->content ?? null;

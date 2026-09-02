@@ -10,6 +10,8 @@ use App\Services\OpenAIResponseLogger;
 use App\Services\Processing\SermonProcessingLogger;
 use App\Services\Public\SermonRepository;
 use App\Support\OpenAiChatPayload;
+use App\Support\OpenAiFlexFallback;
+use App\Support\OpenAiTieredResponse;
 use App\Support\OpenAiUsageLogger;
 use App\Traits\SanitizesLogData;
 use Exception;
@@ -208,9 +210,10 @@ class SermonAnalysisService implements SermonAnalysisInterface
         );
 
         $prompt = $this->promptBuilder->buildAnalysisPrompt($transcript, $existingSeries);
-        $response = $this->executeAiRequest($prompt, $model, $processingId);
+        $tiered = $this->executeAiRequest($prompt, $model, $processingId);
+        $response = $tiered->response;
         $apiTime = microtime(true) - $apiStartTime;
-        OpenAiUsageLogger::log($response, 'sermon_analysis', $model, $processingId, (string) config('media-processing.analysis.reasoning_effort', 'low'));
+        OpenAiUsageLogger::log($response, 'sermon_analysis', $model, $processingId, (string) config('media-processing.analysis.reasoning_effort', 'low'), $tiered->serviceTier);
         $this->evaluationTelemetry?->recordResponse($response, $apiTime);
 
         $this->logger->logApiCall(
@@ -298,7 +301,7 @@ class SermonAnalysisService implements SermonAnalysisInterface
      *
      * @throws Exception|ErrorException|\TypeError
      */
-    private function executeAiRequest(string $prompt, string $model, string $processingId): CreateResponse
+    private function executeAiRequest(string $prompt, string $model, string $processingId): OpenAiTieredResponse
     {
         try {
             $configuredReasoningEffort = (string) config('media-processing.analysis.reasoning_effort', 'low');
@@ -322,7 +325,11 @@ class SermonAnalysisService implements SermonAnalysisInterface
             ], reasoningEffort: $configuredReasoningEffort);
             $this->evaluationTelemetry?->recordRequest($processingId, $payload, $configuredReasoningEffort);
 
-            return OpenAI::chat()->create($payload);
+            return OpenAiFlexFallback::send(
+                $payload,
+                static fn (array $sent): CreateResponse => OpenAI::chat()->create($sent),
+                'sermon_analysis',
+            );
         } catch (ErrorException $e) {
             throw $e;
         } catch (\TypeError $e) {
@@ -343,8 +350,18 @@ class SermonAnalysisService implements SermonAnalysisInterface
                 'processing_id' => $processingId,
                 'error' => $e->getMessage(),
                 'model' => $model,
+                'provider_error_code' => OpenAiFlexFallback::errorCode($e) ?? '(not a 429)',
             ]));
-            throw new Exception('OpenAI API call failed.');
+
+            /*
+             * `previous` is load-bearing, not decoration. `RateLimitException` extends `Exception`
+             * rather than `ErrorException`, so a 429 skips this method's earlier rethrow and lands
+             * here; rethrowing without the cause severed the chain, and every caller downstream —
+             * including `ProcessTranscriptWithAI`, which must decide whether to retry or degrade —
+             * saw only the string "OpenAI API call failed." On 2026-09-02 that turned six flex
+             * capacity refusals into six silently banked empty analyses.
+             */
+            throw new Exception('OpenAI API call failed.', previous: $e);
         }
     }
 

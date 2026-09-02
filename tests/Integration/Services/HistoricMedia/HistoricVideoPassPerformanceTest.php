@@ -282,6 +282,48 @@ class HistoricVideoPassPerformanceTest extends TestCase
         );
     }
 
+    /**
+     * `clean_first_attempt` is the number a pass retrospective quotes as its throughput, and it is
+     * the one a degraded run silently inflates: the run reached `completed` by substituting empty
+     * analysis for a failed provider call, so counting it makes a pass that analysed nothing look
+     * like the fastest one measured. The 2026-09-02 pass had six of these and no report said so.
+     */
+    #[Test]
+    public function it_names_degraded_completions_and_keeps_them_out_of_clean_throughput(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+
+        $clean = $this->createRun(
+            $operation, 'clean-item', 'run-clean', ProcessingStatus::Completed, 1,
+            '2026-09-02 16:00:00.000000', '2026-09-02 16:00:10.000000', '2026-09-02 16:20:10.000000',
+            [], 4 * self::GIB,
+        );
+
+        $degraded = $this->createRun(
+            $operation, 'degraded-item', 'run-degraded', ProcessingStatus::Completed, 1,
+            '2026-09-02 16:00:00.000000', '2026-09-02 16:00:10.000000', '2026-09-02 16:05:10.000000',
+            [], 4 * self::GIB,
+        );
+        $degraded->update(['is_degraded_completion' => true, 'current_step' => 'ai_analysis_fallback']);
+
+        $report = app(HistoricVideoPassPerformance::class)->report($operation, ['clean-item', 'degraded-item']);
+
+        $this->assertSame('completed', $report['items'][0]['disposition']);
+        $this->assertSame('degraded', $report['items'][1]['disposition']);
+
+        $this->assertFalse($report['runs'][0]['is_degraded_completion']);
+        $this->assertTrue($report['runs'][1]['is_degraded_completion']);
+        $this->assertNotContains('degraded_completion', $report['runs'][0]['classification']);
+        $this->assertContains('degraded_completion', $report['runs'][1]['classification']);
+
+        // Both runs are timed and terminal, so only the degraded exclusion can separate the counts.
+        $this->assertSame(2, $report['all_runs']['run_count']);
+        $this->assertSame(1, $report['clean_first_attempt']['run_count']);
+        $this->assertSame(2, $report['version']);
+
+        $this->assertSame('run-clean', $clean->processing_id);
+    }
+
     private function createRun(
         HistoricImportOperation $operation,
         string $itemKey,

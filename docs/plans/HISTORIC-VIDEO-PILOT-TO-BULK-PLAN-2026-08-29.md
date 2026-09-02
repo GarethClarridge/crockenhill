@@ -1,7 +1,7 @@
 # Historic Video Pilot-to-Bulk Plan
 
 **Date:** 2026-08-29
-**Status:** **Phases 0–7 complete; step 11 closed; Phase 8 is GO at FFmpeg width one.** The Phase 7 canary ran under operation 3, its blockers were implemented and its rows and assets repaired, and on 2026-09-01 the **operator sequence reached step 10: the identical-canary replay passed**, proving zero new work and zero spend (evidence: `storage/scratch/historic-video-step10-noop-proof-20260901.md`). On 2026-09-02 **step 10 was re-run against the re-frozen manifest** `d25d2085…` under operation 4 and passed again — 0 dispatched, 12 skipped, 0 B processed in 7.2 s, every baseline count unchanged (evidence: `storage/scratch/historic-video-step10-rerun-proof-20260902.md`). The re-freeze reduced the replayable set from fourteen to twelve: `2026-04-02-evening` became a manifest-level exclusion, and `2023-07-16-morning` had its source replaced and its run retired, so it is new work rather than a replay and is **deferred to Phase 8 by operator decision**. **Step 11 (M12's four-identity calibration at FFmpeg width two) ran to completion on 2026-09-02** after the VirtioFS/exFAT mount fault was fixed: 3 of 4 identities completed cleanly (the 4th stopped at a genuine content-layer manual-review disposition, not a technical fault), and the mount held through the exact step that had killed all four the day before. **M12 item 14's gate FAILS**: queue-wait p95 improved 44–98% on every instrumented FFmpeg step, but active-duration p95 got materially worse on the two full-file steps (`extract_sermon` +69%, `prepare_section_publication_candidates` +94%) — confirmed by source-size-normalized throughput, not a bigger-files artefact — so items/hour moved only +1.7%, far short of the 25% bar either metric requires. Per the plan's own fallback, **width was reverted to one** (`.env`, workers recreated, dispatcher config confirmed). Evidence: `storage/scratch/historic-video-step11-calibration-result-20260902.md`. **Bulk processing (Phase 8) can now proceed at width one** — the only width ever proven clean. **On 2026-09-02 the first stratified learning batch (11 identities) ran and returned 5 failed, 6 degraded, 0 clean**: OpenAI rate limiting failed every structure-detection attempt it touched and made the transcript stage bank empty fallback analysis that reports as `completed`. The pass also exposed two operational faults — worker daemons that stop honouring `queue:restart`, and a first-job failure that strands a run in a state no retry path accepts. **Pass 2 is blocked on P1-1 (survive a sustained rate limit) and P1-2 (a degraded completion must never read as a success)**; see “Pass 1 — first stratified learning batch, 2026-09-02”.
+**Status:** **Phases 0–7 complete; step 11 closed; Phase 8 is GO at FFmpeg width one.** The Phase 7 canary ran under operation 3, its blockers were implemented and its rows and assets repaired, and on 2026-09-01 the **operator sequence reached step 10: the identical-canary replay passed**, proving zero new work and zero spend (evidence: `storage/scratch/historic-video-step10-noop-proof-20260901.md`). On 2026-09-02 **step 10 was re-run against the re-frozen manifest** `d25d2085…` under operation 4 and passed again — 0 dispatched, 12 skipped, 0 B processed in 7.2 s, every baseline count unchanged (evidence: `storage/scratch/historic-video-step10-rerun-proof-20260902.md`). The re-freeze reduced the replayable set from fourteen to twelve: `2026-04-02-evening` became a manifest-level exclusion, and `2023-07-16-morning` had its source replaced and its run retired, so it is new work rather than a replay and is **deferred to Phase 8 by operator decision**. **Step 11 (M12's four-identity calibration at FFmpeg width two) ran to completion on 2026-09-02** after the VirtioFS/exFAT mount fault was fixed: 3 of 4 identities completed cleanly (the 4th stopped at a genuine content-layer manual-review disposition, not a technical fault), and the mount held through the exact step that had killed all four the day before. **M12 item 14's gate FAILS**: queue-wait p95 improved 44–98% on every instrumented FFmpeg step, but active-duration p95 got materially worse on the two full-file steps (`extract_sermon` +69%, `prepare_section_publication_candidates` +94%) — confirmed by source-size-normalized throughput, not a bigger-files artefact — so items/hour moved only +1.7%, far short of the 25% bar either metric requires. Per the plan's own fallback, **width was reverted to one** (`.env`, workers recreated, dispatcher config confirmed). Evidence: `storage/scratch/historic-video-step11-calibration-result-20260902.md`. **Bulk processing (Phase 8) can now proceed at width one** — the only width ever proven clean. **On 2026-09-02 the first stratified learning batch (11 identities) ran and returned 5 failed, 6 degraded, 0 clean**: provider 429s failed every structure-detection attempt they touched and made the transcript stage bank empty fallback analysis that reports as `completed`. **Those 429s were diagnosed on 2026-09-02 and are NOT rate limiting**: every one is `service_tier: flex` capacity unavailability (`code: flex_unavailable`, `retry-after: 300`), reproduced live with a 7-token request while the account held 99.98% of both its request and token budgets. Flex capacity is per-model and independent of this project's load; `gpt-5.6-luna` — the structure-detection model — is refused 0/8 on flex and 3/3 on default. Evidence: `storage/scratch/pass1-rate-limit-diagnosis-20260902.md`. The pass also exposed two operational faults — worker daemons that stop honouring `queue:restart`, and a first-job failure that strands a run in a state no retry path accepts. **Both of pass 2's blockers were cleared the same day**: P1-1 falls a `flex_unavailable` 429 back to `service_tier: default` and logs the provider's real error code and headers (verified live while luna's pool was still empty), and P1-2 makes a degraded completion its own `degraded` disposition, names it in the pass report, keeps it out of clean throughput, and makes `ProcessTranscriptWithAI`'s previously-unreachable retry schedule real. **Pass 2 is unblocked**; P1-3 (re-analyse sermons 907–912) and P1-4 (delete the cost ledger) remain open. See “Pass 1 — first stratified learning batch, 2026-09-02”.
 **Scope:** Correct the pilot findings, prove direct private asset promotion and bounded temporary cleanup, run a fresh canary, and process the remaining historic-video corpus safely
 **Related plan:** `HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md` remains the authority for the wider historic-import programme
 
@@ -2314,20 +2314,75 @@ was confirmed firing inside a real bulk run**, not just a re-extraction:
 `Re-encoding video extract: source video codec is not deliverable`,
 `source_video_codec: vp9`.
 
-#### The binding constraint is the provider, not compute
+#### The 429s are flex-tier capacity, not rate limiting — diagnosed 2026-09-02
 
-41 `Request rate limit has been exceeded` errors, escalating 1/min at 16:32 to
-7/min at 17:01. Sizing a pass on FFmpeg throughput is therefore wrong. The
-mechanism — requests-per-minute versus tokens-per-minute — was **not**
-determined, because the usage telemetry recorded nothing (see below); a
-full-service transcript is a large single call, so TPM is plausible and would
-not be relieved by lowering concurrency.
+**Superseded reading (kept so the correction is legible):** the pass was first
+recorded as hitting "41 `Request rate limit has been exceeded` errors, escalating
+1/min at 16:32 to 7/min at 17:01", with RPM-versus-TPM undetermined. Both the
+cause and the count were wrong.
+
+`config/openai.php` sets `service_tier => env('OPENAI_SERVICE_TIER', 'flex')` and
+`.env` does not override it, so every paid call asks for flex. OpenAI answers a
+flex request it has no spare capacity for with **HTTP 429**, and
+`openai-php/client` raises every 429 as `RateLimitException` whose message is a
+**hardcoded constant**, `"Request rate limit has been exceeded."` Nothing in the
+pipeline reads the response body or headers, so the real reason never reached a
+log. Reproduced live on 2026-09-02 with a 7-token `ping`:
+
+    HTTP 429  type: resource_unavailable  code: flex_unavailable
+    "Flex does not have sufficient resources available to fulfill your request …
+     or change service_tier=default."
+    retry-after: 300
+    x-ratelimit-remaining-requests: 4999 / 5000
+    x-ratelimit-remaining-tokens:   1999997 / 2000000
+
+**Flex capacity is per-model and independent of this project's load.** Probed
+three times each, both tiers: `gpt-5.6-luna` (structure detection) **0/8 on flex,
+3/3 on default**; `gpt-5.6-terra` (analysis) and `gpt-5.4-mini` (song OCR) 3/3 on
+both. That is the pass's pattern exactly — luna failing intermittently while the
+three `song_lyric_ocr` calls at 16:40 sailed through. Swapping the detector model
+is not a workaround: the config default `gpt-5.6-sol` is **1/4 on flex**. The
+frontier structure-detection models are the starved ones.
+
+**As of this writing pass 2 cannot run at all on flex** — luna's pool is refusing
+everything, so every structure detection would fail. The analysis model is
+currently healthy, so P1-3's re-analysis of sermons 907–912 is not blocked.
+
+Three independent facts rule the rate-limit reading out:
+
+- **The budget was untouched** — 99.98% of both the request and token allowance
+  remained at the moment of a 429.
+- **The pass could not have generated load.** `DetectServiceStructure`,
+  `ProcessTranscriptWithAI` and `MatchSongsFromTranscript` all route to
+  `historic-llm` (`HistoricProcessingThroughput::JOB_STAGES`), which runs **one**
+  worker. At most one completion was ever in flight: 32 calls in 44 minutes,
+  0.73/min, serialised — and two of them succeeded 35 s apart while three
+  song-OCR calls succeeded inside 5 s.
+- **Failure does not track request size.** The **largest** transcript in the batch
+  (292,887 B → 67,806 input tokens, `168199ed` 2025-01-12) succeeded first time,
+  while the two **smallest** (55,404 B and 57,937 B, ≈14–15k tokens) failed all
+  three attempts. There is no TPM story.
+
+The "41 errors" figure counted wrapper log lines — a permanent job failure emits
+three (`Processing run failure`, `job failed permanently`, the raw exception), and
+those clustered late, manufacturing the apparent escalation. The API-level count
+is **23** (17 structure + 6 analysis), roughly flat across the window.
+
+Sizing a pass on FFmpeg throughput is still wrong, but the binding constraint is
+a provider capacity pool this project cannot influence by pacing itself.
+
+Full evidence and reproduction: `storage/scratch/pass1-rate-limit-diagnosis-20260902.md`,
+`storage/scratch/pass1-rate-limit-probe-20260902.php`.
 
 #### The two paid stages disagree about what a provider failure means
 
-Both carry `tries = 3` with `backoff() = [120, 300, 600]`, so each gets a ~17
-minute window. Against a limit that persisted 40+ minutes, both exhaust — but
-they then diverge, and that divergence is the real defect:
+`DetectServiceStructure` carries `tries = 3` with `backoff() = [120, 300, 600]`
+and used all three attempts. `ProcessTranscriptWithAI` declares the same, but
+**its retries are dead code**: `catch (\Exception $e)` at line 171 runs
+`createFallbackAnalysis()`, sets `is_degraded_completion` and returns *without
+rethrowing*, so the queue never sees a failure. All six analysis calls got exactly
+**one** attempt, 12–18 s long. The two stages diverge, and that divergence is the
+real defect:
 
 - **`DetectServiceStructure` fails hard.** `OpenAiServiceStructureService`
   catches only `TypeError`, so a 429/503 propagates and the run fails. All five
@@ -2338,8 +2393,8 @@ they then diverge, and that divergence is the real defect:
 
 So provider pressure does not degrade output smoothly. It splits into loud
 failures and silent hollow successes, and the silent half is the half that gets
-banked. **Judged on completed count, a heavily rate-limited pass looks better
-than a lightly rate-limited one.**
+banked. **Judged on completed count, a pass that met more provider refusals looks
+better than one that met fewer.**
 
 `createFallbackAnalysis()` returns `reference: null`, `summary: null`,
 `points: ['Main Message']` and a generated title. Observed on sermons 907–912:
@@ -2352,7 +2407,9 @@ This is the absence of analysis recorded as completed work — arguably worse th
 failing, because a failure is retryable and this looks done.
 
 `WithoutOverlapping` on `DetectServiceStructure` is keyed per run, so it does not
-rate-limit across runs; nothing in the pipeline paces provider calls corpus-wide.
+pace across runs — but that is moot: the whole `historic-llm` stage is one worker,
+so provider calls are already strictly serial, and corpus-wide pacing would not
+have prevented a single one of these 429s.
 
 #### Measured stage timings — gRPC FUSE at width one
 
@@ -2402,19 +2459,79 @@ pass is incomplete", not on a failure count.**
 
 #### Remediation before pass 2
 
-- **P1-1 — Make the paid stages survive a sustained rate limit.** The backoff
-  exists; the window does not match the fault. A 429 should not consume an
-  attempt on the same terms as a genuine error: widen the window well past a
-  17-minute ceiling, or pace provider calls corpus-wide so the limit is not
-  reached. Decide against the actual limit dimension (RPM vs TPM), which needs
-  the provider's rate-limit response headers — see P1-4.
-- **P1-2 — A degraded completion must never read as a success.**
-  `is_degraded_completion` exists and nothing surfaces it: not
-  `historic-import:video-pass-status`, not the throughput report, not the pass
-  summary. Name degraded runs in the pass report and exclude them from clean
-  throughput. Also settle whether `createFallbackAnalysis()` should bank at all
-  — a run that failed to analyse may be more useful left failed and retryable
-  than completed with a filename for a title.
+- **P1-1 — Make the paid stages survive flex unavailability. DONE 2026-09-02.**
+  *Rewritten after the diagnosis above; the original text called for a wider
+  backoff window or corpus-wide pacing, and neither touches the actual fault —
+  a shared capacity pool this project does not load.* All four items landed, and
+  the result was verified against the live provider while luna's flex pool was
+  still empty: the flex request was refused, the fallback re-sent it on
+  `default`, it succeeded, and both the refusal and the effective tier reached
+  the log. What was required:
+  1. **Fall back to `service_tier: default` on `flex_unavailable`** — one shared
+     helper alongside `App\Support\OpenAiTransientFailure`, used by
+     `OpenAiServiceStructureService` and `SermonAnalysisService`. This keeps the
+     flex discount whenever the pool has room and never fails a run because it did
+     not. A blanket `OPENAI_SERVICE_TIER=default` also works but pays full price
+     on all ~450 remaining structure detections.
+  2. **Honour `Retry-After`** on any retry that stays on flex.
+     `OpenAiTransientFailure::delayMs()` already does this and is wired only into
+     the OoS path; the provider asked for 300 s and the first backoff step is
+     120 s, so attempt 2 was near-certain to fail too.
+  3. **Stop discarding the cause at the client boundary.** `RateLimitException`
+     carries status, body and headers; every consumer reads only `getMessage()`,
+     which is a constant string — that alone is why this was misdiagnosed for a
+     day. Wire `App\Support\OpenAiRateLimitDiagnostics` into both paid stages, and
+     fix `SermonAnalysisService::executeAiRequest()`, which rethrows
+     `new Exception('OpenAI API call failed.')` **without** `previous`, breaking
+     the cause chain any diagnostic would walk. (`RateLimitException` extends
+     `Exception`, not `ErrorException`, so it misses that method's earlier
+     rethrow — the same class-hierarchy trap `OpenAiTransientFailure`'s docblock
+     records for the legacy OoS extractor.)
+  4. **Log `CreateResponse::meta()`** — the `x-ratelimit-*` headers OpenAI returns
+     on *successful* calls — next to the existing usage line, so headroom is
+     visible without spending anything extra.
+
+  As built: `App\Support\OpenAiFlexFallback` sends the payload, and on a 429
+  logs the provider's real `error.code` and rate-limit headers before deciding —
+  re-sending on `default` only for `flex_unavailable`, and rethrowing every other
+  429 untouched, because a genuine rate limit is about this account and changing
+  tier would neither help nor be honest. It returns an
+  `App\Support\OpenAiTieredResponse` carrying the tier the call actually ran on,
+  which `OpenAiUsageLogger` records instead of the configured value — a usage
+  line that said `flex` after a fallback would be a fresh instance of the exact
+  defect that caused this misdiagnosis. Wired into `OpenAiServiceStructureService`,
+  `SermonAnalysisService` and `SongLyricOcrService`; the OoS email path keeps its
+  own retry loop and is untouched. `SermonAnalysisService::executeAiRequest()` now
+  attaches `previous`, and `OpenAiTransientFailure::isTransientInChain()` walks
+  the chain, which is what makes P1-2's retry decision possible at all.
+  The live verification is appended to
+  `storage/scratch/pass1-rate-limit-diagnosis-20260902.md`.
+- **P1-2 — A degraded completion must never read as a success. DONE 2026-09-02.**
+  `is_degraded_completion` existed and nothing surfaced it. Now:
+  - `HistoricVideoPassStatus` returns a **`degraded` disposition** rather than
+    `completed`, and `mixed_terminal` where only some of an identity's runs
+    degraded — so the summary line and the exit gate agree by construction.
+    Adding this exposed a live defect: the report's explicit `get([...])` column
+    list omitted the field, and `isDegradedCompletion()`'s `bool` return type
+    turned the absent attribute into a hard `TypeError` rather than a silent
+    `false`. The column is now selected.
+  - `HistoricVideoPassStatusCommand` **names each degraded identity** in words,
+    with its processing id and the instruction to re-analyse.
+  - `HistoricVideoPassPerformance` carries `is_degraded_completion` per run, a
+    `degraded_completion` classification and a `degraded` terminal disposition,
+    and **excludes degraded runs from `clean_first_attempt`** — the aggregate a
+    retrospective quotes as throughput. Report **version bumped to 2**: a v1
+    `clean_first_attempt` counted runs that banked empty analysis, so the two
+    versions are not comparable.
+  - **The "should it bank at all" question is answered by making the retry real
+    rather than by removing the fallback.** `ProcessTranscriptWithAI` now
+    rethrows a transient provider failure while attempts remain, so degradation
+    happens only after three genuine attempts on `[120, 300, 600]`. Before this,
+    `tries` and `backoff()` were unreachable: the catch degraded on the first
+    exception and never rethrew, so each of pass 1's six analysis calls got
+    exactly one 12–18 s attempt. The fallback stays for failures that would fail
+    identically three times over (a malformed response, a validation refusal),
+    which is the case it was written for.
 - **P1-3 — Re-analyse sermons 907–912.** All six carry hollow analysis: no
   scripture reference, no summary, placeholder points, filename-derived titles.
   The service transcripts survive, so this is an LLM re-run over existing
@@ -2423,7 +2540,7 @@ pass is incomplete", not on a failure count.**
   P1-1, or it will re-degrade.
 - **P1-4 — Remove the usage/cost reporting surface rather than repair it.**
   `op4.usage_entries` went 0 → 0 across a pass that made dozens of paid calls and
-  hit 41 rate limits, and the report shows "API response-time samples: 0", so
+  met 23 provider refusals, and the report shows "API response-time samples: 0", so
   Phase 8 item 3's "monitor provider request/token anomalies" is inoperative.
   **Operator decision, 2026-09-02: cost reporting is not wanted now the pipeline
   uses Luna, so delete this surface instead of fixing it** — extending Phase 4's
@@ -2432,13 +2549,27 @@ pass is incomplete", not on a failure count.**
   `historic_import_usage_entries` table and the usage lines in
   `HistoricVideoPassStatusCommand` / `HistoricVideoPassPerformance` go together
   with the Phase 9 item 13 closeout deletion.
-  **Caveat to settle while doing it:** P1-1 needs the provider's rate-limit
-  response headers to distinguish RPM from TPM. That is a diagnostic, not cost
-  reporting, and is a far smaller thing than the ledger — do not delete it along
-  with the pricing surface without deciding where that signal will come from.
+  **Caveat, settled 2026-09-02:** the earlier worry was that P1-1 needed the
+  provider's rate-limit headers and deleting this surface would take them. It
+  would not have — `App\Support\OpenAiRateLimitDiagnostics` already recovers those
+  headers from a 429's response and has never depended on the ledger, and
+  `CreateResponse::meta()` carries them on successful calls. The ledger deletion
+  is unblocked; P1-1 item 3 owns the diagnostic.
 
-**Pass 2 is blocked on P1-1 and P1-2.** P1-3 is cleanup that can follow. No
-unattended overnight pass should run until a degraded completion cannot silently
+  **Note on what "recorded nothing" meant:** the DB ledger was empty, but
+  `OpenAiUsageLogger` was writing `OpenAI chat completion usage` lines to the
+  application log throughout the pass, model, effort, tier and token counts
+  included. Those lines are the source of the input-token figures in the
+  size-versus-failure table above. Log-level usage telemetry works; only the
+  ledger is inert, and only the ledger is being deleted.
+
+**Pass 2's two blockers, P1-1 and P1-2, are cleared as of 2026-09-02.** P1-3 is
+cleanup that can follow — and should, since the analysis model's flex pool is
+currently healthy and the fallback now covers it either way. P1-4 is unblocked
+and unstarted.
+
+The reasoning that made them blockers still stands and is worth keeping: no
+unattended overnight pass should run while a degraded completion can silently
 bank empty analysis, because the failure mode is invisible in the pass summary
 and compounds across every identity in the pass.
 
@@ -2448,7 +2579,7 @@ For each pass:
 
 1. Preflight the mount, selected-item path/size metadata, operation-bound host disk evidence, actual and configured worker widths, models, provider project limit, manifest keys and the measured byte/time envelope. Do not content-read unselected future items and do not re-hash selected ones.
 2. Metadata-check, copy and destination-size-verify only those immutable keys, enqueue them, record their processing IDs and let the dispatcher exit.
-3. Read pass status from the database and monitor terminal outcomes, **degraded completions**, provider rate-limit responses, drive health and disk watermark. **Alarm on “nothing in flight while the pass is incomplete”, not on a failure count** — the 2026-09-02 wedge made a dead pass look identical to healthy queuing. (Provider request/token *cost* reporting is being removed under P1-4, not monitored.)
+3. Read pass status from the database and monitor terminal outcomes, **degraded completions**, provider 429s **by their `error.code`** (`flex_unavailable` is a capacity signal about the tier, `rate_limit_exceeded` is one about this account — they need opposite responses and the client's exception message distinguishes neither), drive health and disk watermark. **Alarm on “nothing in flight while the pass is incomplete”, not on a failure count** — the 2026-09-02 wedge made a dead pass look identical to healthy queuing. (Provider request/token *cost* reporting is being removed under P1-4, not monitored.)
 4. Stop new dispatch immediately for mount instability, unexpected provider-call growth, unexplained duplicates, destination mismatch or recurring systemic failure. Gracefully stop workers only when already-running jobs themselves must be halted.
 5. Reconcile services, sermons, sections, songs and review residue.
 6. Verify completed assets in permanent private quarantine and their database/operation ownership.
@@ -2550,13 +2681,16 @@ The remainder may start only when all of these are true:
 - [ ] A fresh untouched canary passes all acceptance criteria.
 - [ ] The canary proves direct private promotion and bounded temporary cleanup without fragmenting the cumulative evidence graph.
 - [ ] The canary's measured byte/time envelope, not an identity-count rule, sizes the first bulk pass.
-- [ ] The paid stages survive a sustained provider rate limit: a 429 does not spend
-  an attempt on the same terms as a genuine error, and provider calls are paced
-  corpus-wide rather than only per run (P1-1). Pass 1 exhausted both stages'
-  17-minute windows against a limit that ran 40+ minutes.
-- [ ] A degraded completion never reads as a success: `is_degraded_completion` is
-  named in the pass report and excluded from clean throughput, and it is settled
-  whether the fallback analysis should bank at all (P1-2).
+- [x] The paid stages survive flex-tier unavailability: a `flex_unavailable` 429
+  falls back to `service_tier: default` rather than spending attempts, and the
+  429's body and headers reach a log so the next such failure is diagnosable from
+  evidence (P1-1, done 2026-09-02, verified live). Pass 1's 429s were **not** a
+  rate limit — the account held 99.98% of both budgets — and no amount of
+  corpus-wide pacing would have prevented one of them.
+- [x] A degraded completion never reads as a success: `is_degraded_completion` is
+  a `degraded` disposition, named in the pass report and excluded from clean
+  throughput, and the fallback now banks only after three genuine attempts
+  (P1-2, done 2026-09-02).
 - [ ] Sermons 907-912 are re-analysed from their surviving transcripts before any
   release membership includes them (P1-3).
 - [ ] Pass monitoring alarms on "nothing in flight while the pass is incomplete",

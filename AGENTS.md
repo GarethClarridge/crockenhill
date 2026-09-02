@@ -452,6 +452,7 @@ Skill usage rules:
 ## Other Notes
 
 - **Transcription**: OpenAI Whisper API in production, mock service in development. Configure via `TRANSCRIPTION_SERVICE_TYPE`.
+- **OpenAI chat calls**: every paid call requests `service_tier: flex` (`config/openai.php`), which OpenAI refuses with a **429** when the pool for that model is full. Send chat completions through `App\Support\OpenAiFlexFallback::send()` rather than `OpenAI::chat()->create()` directly: it re-sends a `flex_unavailable` refusal on the default tier, rethrows every other 429, and logs the provider's real `error.code`. **Never diagnose a 429 from its message** — `RateLimitException`'s "Request rate limit has been exceeded." is a hardcoded constant applied to every 429 regardless of cause, and reading it as a rate limit cost a day on 2026-09-02. Pass the tier the call actually ran on (`OpenAiTieredResponse::$serviceTier`) to `OpenAiUsageLogger::log()`, never the configured value. When wrapping a provider exception, always attach `previous`: `RateLimitException` extends `Exception`, not `ErrorException`, so it slips past status-code catches and the cause chain is the only way callers can classify it.
 - **Video processing**: Requires FFmpeg for segmentation and analysis.
 - **Authentication**: Livewire components in `app/Livewire/Auth/`.
 - **Replies**: be concise. Focus on what's important.

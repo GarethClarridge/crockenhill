@@ -83,6 +83,8 @@ class HistoricVideoPassStatusCommand extends Command
 
         $this->line("Database-owned pass status — {$dispositions}.");
 
+        $this->reportDegraded($report);
+
         $this->reportAlerts($status->alerts($operation, $itemKeys));
 
         if ($this->option('measures')) {
@@ -99,6 +101,41 @@ class HistoricVideoPassStatusCommand extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Names the identities whose runs completed with substituted analysis.
+     *
+     * The disposition table already shows `degraded`, but a pass is read by scanning the summary
+     * line, and a degraded run is the one outcome that looks like success while containing none of
+     * the work. Phase 8's exit gate treats it as unresolved, so it needs saying in words: the
+     * 2026-09-02 pass banked six of these and no report mentioned them at all.
+     *
+     * @param  list<array{item_key:string, disposition:string, processing_ids:list<string>, stages:list<string>}>  $report
+     */
+    private function reportDegraded(array $report): void
+    {
+        $degraded = array_values(array_filter(
+            $report,
+            static fn (array $item): bool => $item['disposition'] === 'degraded',
+        ));
+
+        if ($degraded === []) {
+            return;
+        }
+
+        $this->warn(sprintf(
+            '%d run(s) completed with substituted analysis and do NOT count as completed for the pass gate:',
+            count($degraded),
+        ));
+
+        foreach ($degraded as $item) {
+            $this->line(sprintf(
+                '  %s (%s) — re-analyse from the surviving transcript before release',
+                $item['item_key'],
+                implode(', ', $item['processing_ids']) ?: 'no processing id',
+            ));
+        }
     }
 
     /**

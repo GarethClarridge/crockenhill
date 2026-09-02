@@ -24,7 +24,14 @@ final class HistoricVideoPassPerformance
 {
     private const FORMAT = 'crockenhill.historic-video-pass-performance';
 
-    private const VERSION = 1;
+    /**
+     * Version 2 adds `is_degraded_completion` per run, the `degraded_completion` classification and
+     * the `degraded` terminal disposition, and removes degraded runs from the clean-first-attempt
+     * sample. A version 1 report cannot be compared like-for-like with a version 2 one: its
+     * `clean_first_attempt` aggregate counted runs that banked empty analysis, which is how the
+     * 2026-09-02 pass reported six hollow sermons inside its clean throughput.
+     */
+    private const VERSION = 2;
 
     /**
      * These are the high-cost steps whose absence is itself useful evidence.
@@ -181,6 +188,7 @@ final class HistoricVideoPassPerformance
             && $run->current_step === 'manual_review_required';
         $mountFailed = $this->isMountFailure($run, $metadata);
         $reExtraction = $run->isReExtraction();
+        $degraded = $run->status === ProcessingStatus::Completed && $run->isDegradedCompletion();
         $executionProfile = data_get($metadata, 'historic_import.execution_profile');
 
         return [
@@ -206,6 +214,7 @@ final class HistoricVideoPassPerformance
             'is_re_extraction' => $reExtraction,
             'is_manual_review' => $manualReview,
             'is_mount_failed' => $mountFailed,
+            'is_degraded_completion' => $degraded,
             'execution_profile' => is_array($executionProfile) ? $executionProfile : null,
             'api_response_times_ms' => $this->responseTimeSamples($metadata),
             'classification' => $this->classifications(
@@ -213,6 +222,7 @@ final class HistoricVideoPassPerformance
                 $reExtraction,
                 $manualReview,
                 $mountFailed,
+                $degraded,
             ),
             'steps' => $this->stepTimings($run->processingSteps),
         ];
@@ -715,11 +725,16 @@ final class HistoricVideoPassPerformance
         bool $reExtraction,
         bool $manualReview,
         bool $mountFailed,
+        bool $degraded,
     ): array {
         $classifications = [];
 
         if ($mountFailed) {
             $classifications[] = 'mount_failed';
+        }
+
+        if ($degraded) {
+            $classifications[] = 'degraded_completion';
         }
 
         if ($attemptCount !== null && $attemptCount > 1) {
@@ -744,7 +759,14 @@ final class HistoricVideoPassPerformance
             && $run['terminal_disposition'] === 'completed'
             && $run['is_re_extraction'] === false
             && $run['is_manual_review'] === false
-            && $run['is_mount_failed'] === false;
+            && $run['is_mount_failed'] === false
+            /*
+             * A degraded completion is not clean work at any speed. It reached 'completed' by
+             * substituting empty analysis for a failed provider call, so counting it in the clean
+             * throughput sample makes a pass that analysed nothing look like the fastest one yet —
+             * exactly the inversion the 2026-09-02 pass produced.
+             */
+            && $run['is_degraded_completion'] === false;
     }
 
     private function terminalDisposition(MediaProcessingLog $run): string
@@ -755,6 +777,10 @@ final class HistoricVideoPassPerformance
 
         if ($run->status === ProcessingStatus::Failed && $run->current_step === 'manual_review_required') {
             return 'manual_review';
+        }
+
+        if ($run->status === ProcessingStatus::Completed && $run->isDegradedCompletion()) {
+            return 'degraded';
         }
 
         return $run->status->value;

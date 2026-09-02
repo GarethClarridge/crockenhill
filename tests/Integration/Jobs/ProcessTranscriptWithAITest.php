@@ -11,9 +11,12 @@ use App\Jobs\ProcessTranscriptWithAI;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Public\SermonRepository;
+use GuzzleHttp\Psr7\Response;
+use Illuminate\Contracts\Queue\Job;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use OpenAI\Exceptions\RateLimitException;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
@@ -548,6 +551,93 @@ class ProcessTranscriptWithAITest extends TestCase
         $this->assertNotNull($log->ai_analysis);
         $this->assertEquals('ai_analysis_fallback', $log->current_step);
         $this->assertTrue($log->is_degraded_completion);
+    }
+
+    /**
+     * `$tries` and `backoff()` were declared but unreachable: the catch degraded on the first
+     * exception and never rethrew, so the queue saw a successful job. On 2026-09-02 six runs met a
+     * flex-capacity refusal, each got one 12-18 second attempt, and each banked empty analysis as a
+     * completed sermon. A provider refusal must cost the attempts it was given.
+     */
+    #[Test]
+    public function it_retries_rather_than_degrading_when_the_provider_failure_is_transient(): void
+    {
+        Storage::fake();
+        Storage::put('transcripts/1/transcript.txt', $this->sampleTranscript);
+
+        $sermon = Sermon::factory()->create(['title' => 'Untitled']);
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'sermon_id' => $sermon->id,
+            'transcript_file_path' => 'transcripts/1/transcript.txt',
+            'original_filename' => 'sermon-2026-01-15.mp3',
+        ]);
+
+        $mockService = $this->createMock(SermonAnalysisInterface::class);
+        $mockService->expects($this->once())
+            ->method('analyzeSermon')
+            ->willThrowException($this->wrappedFlexRefusal());
+
+        $job = new ProcessTranscriptWithAI($log);
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('OpenAI API call failed.');
+
+        try {
+            $job->handle($mockService, $this->app->make(SermonRepository::class));
+        } finally {
+            $log->refresh();
+            $this->assertFalse($log->is_degraded_completion, 'A retryable failure must not bank empty analysis.');
+            $this->assertNotEquals('ai_analysis_fallback', $log->current_step);
+        }
+    }
+
+    /**
+     * The retry budget is finite. Once it is spent the run still degrades rather than failing
+     * outright, which keeps the existing end state — but only after the provider has genuinely been
+     * asked three times.
+     */
+    #[Test]
+    public function it_degrades_once_the_retry_budget_for_a_transient_failure_is_spent(): void
+    {
+        Storage::fake();
+        Storage::put('transcripts/1/transcript.txt', $this->sampleTranscript);
+
+        $sermon = Sermon::factory()->create(['title' => 'Untitled']);
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'sermon_id' => $sermon->id,
+            'transcript_file_path' => 'transcripts/1/transcript.txt',
+            'original_filename' => 'sermon-2026-01-15.mp3',
+        ]);
+
+        $mockService = $this->createMock(SermonAnalysisInterface::class);
+        $mockService->expects($this->once())
+            ->method('analyzeSermon')
+            ->willThrowException($this->wrappedFlexRefusal());
+
+        $queueJob = $this->createMock(Job::class);
+        $queueJob->method('attempts')->willReturn(3);
+
+        $job = new ProcessTranscriptWithAI($log);
+        $job->setJob($queueJob);
+        $job->handle($mockService, $this->app->make(SermonRepository::class));
+
+        $log->refresh();
+        $this->assertTrue($log->is_degraded_completion);
+        $this->assertEquals('ai_analysis_fallback', $log->current_step);
+    }
+
+    /**
+     * A flex-capacity 429 as the analysis service actually reports it: wrapped in a generic message,
+     * with the provider exception attached as the cause. Without `previous` the job cannot tell this
+     * apart from a malformed response, and degrades immediately.
+     */
+    private function wrappedFlexRefusal(): \Exception
+    {
+        $refusal = new RateLimitException(new Response(429, [], json_encode([
+            'error' => ['message' => 'Flex does not have sufficient resources available.', 'code' => 'flex_unavailable'],
+        ], JSON_THROW_ON_ERROR)));
+
+        return new \Exception('OpenAI API call failed.', previous: $refusal);
     }
 
     #[Test]
