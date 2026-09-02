@@ -90,6 +90,73 @@ class ProcessTranscriptWithAITest extends TestCase
         $this->assertSame(1, $log->attempt_count);
     }
 
+    #[Test]
+    public function it_clears_a_previous_degraded_completion_flag_on_a_genuine_success(): void
+    {
+        Storage::fake();
+        Storage::put('transcripts/1/transcript.txt', $this->sampleTranscript);
+
+        $sermon = Sermon::factory()->create(['title' => 'Untitled Sermon', 'reference' => null]);
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'sermon_id' => $sermon->id,
+            'transcript_file_path' => 'transcripts/1/transcript.txt',
+            'is_degraded_completion' => true,
+        ]);
+
+        $mockService = $this->createMock(SermonAnalysisInterface::class);
+        $mockService->method('analyzeSermon')->willReturn($this->createAnalysis());
+
+        Log::shouldReceive('info')->atLeast()->once();
+
+        (new ProcessTranscriptWithAI($log))->handle($mockService, $this->app->make(SermonRepository::class));
+
+        $this->assertFalse($log->fresh()->is_degraded_completion, 'A genuine re-analysis must clear a prior degraded disposition.');
+    }
+
+    /**
+     * A historic sermon's transcript is a promoted asset: once its run
+     * completes and its staging batch is cleaned up, the transcript survives
+     * only on the sermon's own `asset_disk`. This is the exact shape that
+     * left the six 2026-09-02 degraded completions unrepairable until fixed.
+     */
+    #[Test]
+    public function it_reads_a_transcript_from_the_sermons_asset_disk_once_staging_no_longer_has_it(): void
+    {
+        Storage::fake('local');
+        Storage::fake('historic_quarantine');
+        // Deliberately absent from every generic candidate disk.
+
+        Storage::disk('historic_quarantine')->put('transcripts/sermon_907.md', $this->sampleTranscript);
+
+        $sermon = Sermon::factory()->create([
+            'title' => 'Sunday Backup',
+            'reference' => null,
+            'asset_disk' => 'historic_quarantine',
+        ]);
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'sermon_id' => $sermon->id,
+            'transcript_file_path' => 'transcripts/sermon_907.md',
+            'is_degraded_completion' => true,
+        ]);
+
+        $analysis = $this->createAnalysis();
+        $mockService = $this->createMock(SermonAnalysisInterface::class);
+        $mockService->expects($this->once())
+            ->method('analyzeSermon')
+            ->with($this->sampleTranscript, $this->anything(), $this->anything())
+            ->willReturn($analysis);
+
+        Log::shouldReceive('info')->atLeast()->once();
+
+        (new ProcessTranscriptWithAI($log))->handle($mockService, $this->app->make(SermonRepository::class));
+
+        $log->refresh();
+        $sermon->refresh();
+        $this->assertNotNull($log->ai_analysis);
+        $this->assertFalse($log->is_degraded_completion);
+        $this->assertEquals('John 10:1-18', $sermon->reference);
+    }
+
     /**
      * The pilot's real shape: a filename title carrying the backup suffix the
      * archive stamps on a recovered upload, with a good analysis title waiting.

@@ -263,6 +263,47 @@ class TranscriptStorageServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_reads_transcript_from_owner_disk_before_the_candidate_list(): void
+    {
+        Storage::fake('local');
+        Storage::fake('historic_quarantine');
+        config(['media-processing.storage.transcript_disk' => 'local']);
+
+        // Not on any candidate disk — only on the sermon's own asset disk, e.g.
+        // a historic sermon promoted out of staging into per-operation quarantine.
+        Storage::disk('historic_quarantine')->put('transcripts/sermon_907.md', 'Quarantined content');
+
+        $result = $this->service->readTranscriptFromPath('transcripts/sermon_907.md', 'historic_quarantine');
+
+        $this->assertSame('Quarantined content', $result);
+    }
+
+    #[Test]
+    public function it_falls_back_to_the_candidate_list_when_owner_disk_does_not_have_it(): void
+    {
+        Storage::fake('local');
+        Storage::fake('historic_quarantine');
+        config(['media-processing.storage.transcript_disk' => 'local']);
+
+        Storage::disk('local')->put('transcripts/sermon_1.md', 'Candidate content');
+
+        $result = $this->service->readTranscriptFromPath('transcripts/sermon_1.md', 'historic_quarantine');
+
+        $this->assertSame('Candidate content', $result);
+    }
+
+    #[Test]
+    public function it_ignores_a_blank_owner_disk(): void
+    {
+        Storage::fake('local');
+        config(['media-processing.storage.transcript_disk' => 'local']);
+        Storage::disk('local')->put('transcripts/sermon_1.md', 'Candidate content');
+
+        $this->assertSame('Candidate content', $this->service->readTranscriptFromPath('transcripts/sermon_1.md', null));
+        $this->assertSame('Candidate content', $this->service->readTranscriptFromPath('transcripts/sermon_1.md', '  '));
+    }
+
+    #[Test]
     public function it_skips_unconfigured_spaces_fallback_when_transcript_is_missing(): void
     {
         Storage::fake('local');

@@ -32,7 +32,7 @@ class SermonTranscriptCachingTest extends TestCase
         $this->mock(TranscriptStorageService::class, function ($mock) use ($transcriptContent) {
             $mock->shouldReceive('readTranscriptFromPath')
                 ->once()
-                ->with('transcripts/cached-test.md')
+                ->with('transcripts/cached-test.md', null)
                 ->andReturn($transcriptContent);
         });
 
@@ -59,7 +59,7 @@ class SermonTranscriptCachingTest extends TestCase
         $this->mock(TranscriptStorageService::class, function ($mock) use ($transcriptContent) {
             $mock->shouldReceive('readTranscriptFromPath')
                 ->twice()
-                ->with('transcripts/invalidate-test.md')
+                ->with('transcripts/invalidate-test.md', null)
                 ->andReturn($transcriptContent);
         });
 
@@ -89,12 +89,12 @@ class SermonTranscriptCachingTest extends TestCase
         $this->mock(TranscriptStorageService::class, function ($mock) {
             $mock->shouldReceive('readTranscriptFromPath')
                 ->once()
-                ->with('transcripts/path1.md')
+                ->with('transcripts/path1.md', null)
                 ->andReturn('Content 1');
 
             $mock->shouldReceive('readTranscriptFromPath')
                 ->once()
-                ->with('transcripts/path2.md')
+                ->with('transcripts/path2.md', null)
                 ->andReturn('Content 2');
         });
 
@@ -122,7 +122,7 @@ class SermonTranscriptCachingTest extends TestCase
             // First call fails (returns null)
             $mock->shouldReceive('readTranscriptFromPath')
                 ->once()
-                ->with('transcripts/null-test.md')
+                ->with('transcripts/null-test.md', null)
                 ->andReturn(null);
 
             // Called when logging the null result warning
@@ -133,7 +133,7 @@ class SermonTranscriptCachingTest extends TestCase
             // Second call succeeds
             $mock->shouldReceive('readTranscriptFromPath')
                 ->once()
-                ->with('transcripts/null-test.md')
+                ->with('transcripts/null-test.md', null)
                 ->andReturn('Recovered content');
         });
 

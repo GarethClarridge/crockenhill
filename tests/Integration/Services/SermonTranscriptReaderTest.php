@@ -48,6 +48,26 @@ class SermonTranscriptReaderTest extends TestCase
     }
 
     #[Test]
+    public function it_reads_from_the_sermons_own_asset_disk_before_the_candidate_list(): void
+    {
+        Storage::fake('local');
+        Storage::fake('historic_quarantine');
+
+        // Not on any generic candidate disk — only on the sermon's own asset
+        // disk, as a promoted historic sermon's transcript actually is.
+        Storage::disk('historic_quarantine')->put('transcripts/reader-test.md', 'Quarantined content');
+
+        $sermon = Sermon::factory()->create([
+            'transcript_file_path' => 'transcripts/reader-test.md',
+            'asset_disk' => 'historic_quarantine',
+        ]);
+
+        $transcript = app(SermonTranscriptReader::class)->read($sermon);
+
+        $this->assertSame('Quarantined content', $transcript);
+    }
+
+    #[Test]
     public function it_returns_null_when_the_transcript_is_missing(): void
     {
         Storage::fake('local');

@@ -1,7 +1,7 @@
 # Historic Video Pilot-to-Bulk Plan
 
 **Date:** 2026-08-29
-**Status:** **Phases 0–7 complete; step 11 closed; Phase 8 is GO at FFmpeg width one.** The Phase 7 canary ran under operation 3, its blockers were implemented and its rows and assets repaired, and on 2026-09-01 the **operator sequence reached step 10: the identical-canary replay passed**, proving zero new work and zero spend (evidence: `storage/scratch/historic-video-step10-noop-proof-20260901.md`). On 2026-09-02 **step 10 was re-run against the re-frozen manifest** `d25d2085…` under operation 4 and passed again — 0 dispatched, 12 skipped, 0 B processed in 7.2 s, every baseline count unchanged (evidence: `storage/scratch/historic-video-step10-rerun-proof-20260902.md`). The re-freeze reduced the replayable set from fourteen to twelve: `2026-04-02-evening` became a manifest-level exclusion, and `2023-07-16-morning` had its source replaced and its run retired, so it is new work rather than a replay and is **deferred to Phase 8 by operator decision**. **Step 11 (M12's four-identity calibration at FFmpeg width two) ran to completion on 2026-09-02** after the VirtioFS/exFAT mount fault was fixed: 3 of 4 identities completed cleanly (the 4th stopped at a genuine content-layer manual-review disposition, not a technical fault), and the mount held through the exact step that had killed all four the day before. **M12 item 14's gate FAILS**: queue-wait p95 improved 44–98% on every instrumented FFmpeg step, but active-duration p95 got materially worse on the two full-file steps (`extract_sermon` +69%, `prepare_section_publication_candidates` +94%) — confirmed by source-size-normalized throughput, not a bigger-files artefact — so items/hour moved only +1.7%, far short of the 25% bar either metric requires. Per the plan's own fallback, **width was reverted to one** (`.env`, workers recreated, dispatcher config confirmed). Evidence: `storage/scratch/historic-video-step11-calibration-result-20260902.md`. **Bulk processing (Phase 8) can now proceed at width one** — the only width ever proven clean. **On 2026-09-02 the first stratified learning batch (11 identities) ran and returned 5 failed, 6 degraded, 0 clean**: provider 429s failed every structure-detection attempt they touched and made the transcript stage bank empty fallback analysis that reports as `completed`. **Those 429s were diagnosed on 2026-09-02 and are NOT rate limiting**: every one is `service_tier: flex` capacity unavailability (`code: flex_unavailable`, `retry-after: 300`), reproduced live with a 7-token request while the account held 99.98% of both its request and token budgets. Flex capacity is per-model and independent of this project's load; `gpt-5.6-luna` — the structure-detection model — is refused 0/8 on flex and 3/3 on default. Evidence: `storage/scratch/pass1-rate-limit-diagnosis-20260902.md`. The pass also exposed two operational faults — worker daemons that stop honouring `queue:restart`, and a first-job failure that strands a run in a state no retry path accepts. **Both of pass 2's blockers were cleared the same day**: P1-1 falls a `flex_unavailable` 429 back to `service_tier: default` and logs the provider's real error code and headers (verified live while luna's pool was still empty), and P1-2 makes a degraded completion its own `degraded` disposition, names it in the pass report, keeps it out of clean throughput, and makes `ProcessTranscriptWithAI`'s previously-unreachable retry schedule real. **Pass 2 is unblocked**; P1-3 (re-analyse sermons 907–912) remains open. **P1-4 is done, same day**: `HistoricImportUsageEntry`, `HistoricImportCostLedger`, the `historic_import_usage_entries` table and the usage-reporting lines in `HistoricVideoPassStatusCommand`/`HistoricVideoPassPerformance` are deleted rather than repaired — the table was empty throughout pass 1, so nothing was lost. All four quality gates pass (Pint, PHPStan, 7666 tests, 55 Dusk tests). See “Pass 1 — first stratified learning batch, 2026-09-02”.
+**Status:** **Phases 0–7 complete; step 11 closed; Phase 8 is GO at FFmpeg width one.** The Phase 7 canary ran under operation 3, its blockers were implemented and its rows and assets repaired, and on 2026-09-01 the **operator sequence reached step 10: the identical-canary replay passed**, proving zero new work and zero spend (evidence: `storage/scratch/historic-video-step10-noop-proof-20260901.md`). On 2026-09-02 **step 10 was re-run against the re-frozen manifest** `d25d2085…` under operation 4 and passed again — 0 dispatched, 12 skipped, 0 B processed in 7.2 s, every baseline count unchanged (evidence: `storage/scratch/historic-video-step10-rerun-proof-20260902.md`). The re-freeze reduced the replayable set from fourteen to twelve: `2026-04-02-evening` became a manifest-level exclusion, and `2023-07-16-morning` had its source replaced and its run retired, so it is new work rather than a replay and is **deferred to Phase 8 by operator decision**. **Step 11 (M12's four-identity calibration at FFmpeg width two) ran to completion on 2026-09-02** after the VirtioFS/exFAT mount fault was fixed: 3 of 4 identities completed cleanly (the 4th stopped at a genuine content-layer manual-review disposition, not a technical fault), and the mount held through the exact step that had killed all four the day before. **M12 item 14's gate FAILS**: queue-wait p95 improved 44–98% on every instrumented FFmpeg step, but active-duration p95 got materially worse on the two full-file steps (`extract_sermon` +69%, `prepare_section_publication_candidates` +94%) — confirmed by source-size-normalized throughput, not a bigger-files artefact — so items/hour moved only +1.7%, far short of the 25% bar either metric requires. Per the plan's own fallback, **width was reverted to one** (`.env`, workers recreated, dispatcher config confirmed). Evidence: `storage/scratch/historic-video-step11-calibration-result-20260902.md`. **Bulk processing (Phase 8) can now proceed at width one** — the only width ever proven clean. **On 2026-09-02 the first stratified learning batch (11 identities) ran and returned 5 failed, 6 degraded, 0 clean**: provider 429s failed every structure-detection attempt they touched and made the transcript stage bank empty fallback analysis that reports as `completed`. **Those 429s were diagnosed on 2026-09-02 and are NOT rate limiting**: every one is `service_tier: flex` capacity unavailability (`code: flex_unavailable`, `retry-after: 300`), reproduced live with a 7-token request while the account held 99.98% of both its request and token budgets. Flex capacity is per-model and independent of this project's load; `gpt-5.6-luna` — the structure-detection model — is refused 0/8 on flex and 3/3 on default. Evidence: `storage/scratch/pass1-rate-limit-diagnosis-20260902.md`. The pass also exposed two operational faults — worker daemons that stop honouring `queue:restart`, and a first-job failure that strands a run in a state no retry path accepts. **Both of pass 2's blockers were cleared the same day**: P1-1 falls a `flex_unavailable` 429 back to `service_tier: default` and logs the provider's real error code and headers (verified live while luna's pool was still empty), and P1-2 makes a degraded completion its own `degraded` disposition, names it in the pass report, keeps it out of clean throughput, and makes `ProcessTranscriptWithAI`'s previously-unreachable retry schedule real. **Pass 2 is unblocked. P1-3 and P1-4 are both done, same day.** P1-4: `HistoricImportUsageEntry`, `HistoricImportCostLedger`, the `historic_import_usage_entries` table and the usage-reporting lines in `HistoricVideoPassStatusCommand`/`HistoricVideoPassPerformance` are deleted rather than repaired — the table was empty throughout pass 1, so nothing was lost. P1-3: sermons 907–912 are genuinely re-analysed, but the plan's own premise — "the service transcripts survive" — needed one correction first. The transcript survived, but on the sermon's own `asset_disk` (`historic_quarantine`), not on any of `TranscriptStorageService`'s hardcoded candidate disks; a naive re-dispatch would have re-banked six more hollow completions for a second, different reason. Fixed the disk resolution and a second real bug — `is_degraded_completion` never cleared on a genuine success — then re-dispatched for real: all six now carry real titles, references, summaries and points, verified against the database, not just the flag. All four quality gates pass (Pint, PHPStan, 7676 tests, 55 Dusk tests). See “Pass 1 — first stratified learning batch, 2026-09-02”.
 **Scope:** Correct the pilot findings, prove direct private asset promotion and bounded temporary cleanup, run a fresh canary, and process the remaining historic-video corpus safely
 **Related plan:** `HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md` remains the authority for the wider historic-import programme
 
@@ -2532,12 +2532,44 @@ pass is incomplete", not on a failure count.**
     exactly one 12–18 s attempt. The fallback stays for failures that would fail
     identically three times over (a malformed response, a validation refusal),
     which is the case it was written for.
-- **P1-3 — Re-analyse sermons 907–912.** All six carry hollow analysis: no
-  scripture reference, no summary, placeholder points, filename-derived titles.
-  The service transcripts survive, so this is an LLM re-run over existing
-  transcripts, not reprocessing. None are public — all are quarantined and
-  unreleased — so this gates public release rather than production. Do it after
-  P1-1, or it will re-degrade.
+- **P1-3 — Re-analyse sermons 907–912. DONE 2026-09-02.** All six carried hollow
+  analysis: no scripture reference, no summary, placeholder points,
+  filename-derived titles. None are public — all are quarantined and unreleased
+  — so this gated public release rather than production.
+  **The plan's own premise needed one correction before this could run: "the
+  service transcripts survive" was true but incomplete.** By the time of the
+  repair, each transcript had moved off `historic_staging` (swept once its run
+  completed) onto the sermon's own `asset_disk` (`historic_quarantine`) —
+  exactly like its audio and video. `TranscriptStorageService` only checked a
+  fixed candidate-disk list that has no way to know a per-operation quarantine
+  disk name, so a naive re-dispatch of `ProcessTranscriptWithAI` would have hit
+  "transcript is empty or unreadable" before ever calling the provider and
+  banked a second hollow completion — the same symptom as pass 1, a different
+  cause. **Fixed**: `TranscriptStorageService::readTranscriptFromPath()` now
+  takes an optional `$ownerDisk`, checked before the generic candidates
+  (mirroring the pattern `SermonTranscriptReader` — the public sermon-page
+  reader — already used); `ProcessTranscriptWithAI` and `SermonTranscriptReader`
+  both pass the sermon's `asset_disk` through it, and `SermonTranscriptReader`'s
+  own duplicate private method is retired in favour of the shared one.
+  **Second bug found and fixed the same way**: `ProcessTranscriptWithAI`'s
+  success path always overwrote the hollow fields but never cleared
+  `is_degraded_completion`, so a genuinely repaired run would have reported as
+  degraded forever. It is now reset to `false` on every real success.
+  **New command** `historic-import:reanalyse-degraded-completions
+  --operation=<id> --processing-id=<id>...` validates each target is a
+  completed degraded run owned by the named operation, then dispatches
+  `ProcessTranscriptWithAI` on the calibrated `historic-llm` queue — no new
+  analysis pipeline, the existing job's retry/backoff and flex-tier fallback
+  apply unchanged. **Run for real** against all six: four succeeded on the
+  first attempt, two hit a transient provider 503 (correctly classified,
+  retried per the 2/5/10-minute backoff, succeeded on attempt 2 — P1-2's fix
+  working as designed, not a new problem). All six sermons verified with real
+  titles, Scripture references, summaries and points — checked against the
+  database, not inferred from the cleared flag. Evidence: live queue-worker log
+  (`ServerException: Server error (HTTP 503)`, correctly retried) and the
+  before/after database read of sermons 907–912. All four quality gates pass:
+  Pint, PHPStan (900 files, no errors), the full suite (7676 tests, 0
+  failures) and Dusk (55 tests).
 - **P1-4 — Remove the usage/cost reporting surface rather than repair it. DONE
   2026-09-02.**
   `op4.usage_entries` went 0 → 0 across a pass that made dozens of paid calls and
@@ -2576,10 +2608,8 @@ pass is incomplete", not on a failure count.**
   size-versus-failure table above. Log-level usage telemetry works; only the
   ledger is inert, and only the ledger is being deleted.
 
-**Pass 2's two blockers, P1-1 and P1-2, are cleared as of 2026-09-02, and P1-4 is
-done the same day.** P1-3 is cleanup that can follow — and should, since the
-analysis model's flex pool is currently healthy and the fallback now covers it
-either way.
+**All four items in this batch — P1-1, P1-2, P1-3 and P1-4 — are done as of
+2026-09-02.** Pass 2 has no known blockers.
 
 The reasoning that made them blockers still stands and is worth keeping: no
 unattended overnight pass should run while a degraded completion can silently
@@ -2704,8 +2734,9 @@ The remainder may start only when all of these are true:
   a `degraded` disposition, named in the pass report and excluded from clean
   throughput, and the fallback now banks only after three genuine attempts
   (P1-2, done 2026-09-02).
-- [ ] Sermons 907-912 are re-analysed from their surviving transcripts before any
-  release membership includes them (P1-3).
+- [x] Sermons 907-912 are re-analysed from their surviving transcripts before any
+  release membership includes them (P1-3, done 2026-09-02 — verified with real
+  titles, references, summaries and points, not just a cleared flag).
 - [ ] Pass monitoring alarms on "nothing in flight while the pass is incomplete",
   and a run whose first job fails is reachable by a retry path rather than
   stranded `pending`.

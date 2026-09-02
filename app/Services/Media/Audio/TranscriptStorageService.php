@@ -231,10 +231,20 @@ class TranscriptStorageService
     /**
      * Read transcript content from a given path, trying all candidate read disks in priority order.
      *
+     * When $ownerDisk is given — a sermon's own `asset_disk`, e.g. a historic
+     * sermon's quarantine disk — it is checked first. That is where a promoted
+     * historic transcript actually lives once its staging batch has been
+     * cleaned up, and the fixed candidate list below has no way to know about
+     * it: `historic_quarantine` is per-operation, not a static config value.
+     * The candidate list is still tried afterwards, so a transcript with no
+     * owning disk is unaffected and one whose owning disk turned out wrong is
+     * still found.
+     *
      * @param  string  $transcriptPath  The storage path to the transcript file
+     * @param  string|null  $ownerDisk  The asset's own disk, checked before the generic candidates
      * @return string|null The transcript content, or null if not found on any disk
      */
-    public function readTranscriptFromPath(string $transcriptPath): ?string
+    public function readTranscriptFromPath(string $transcriptPath, ?string $ownerDisk = null): ?string
     {
         $path = trim($transcriptPath);
 
@@ -242,7 +252,12 @@ class TranscriptStorageService
             return null;
         }
 
-        foreach ($this->getTranscriptReadDisks() as $disk) {
+        $ownerDisk = trim((string) $ownerDisk);
+        $disks = $ownerDisk === ''
+            ? $this->getTranscriptReadDisks()
+            : array_unique([$ownerDisk, ...$this->getTranscriptReadDisks()]);
+
+        foreach ($disks as $disk) {
             try {
                 $storage = Storage::disk($disk);
 

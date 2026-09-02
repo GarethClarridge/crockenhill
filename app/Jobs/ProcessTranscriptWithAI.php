@@ -96,8 +96,10 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                 throw new \Exception('AI analysis produced invalid results');
             }
 
-            // Store in processing log
-            $this->processingLog->update(['ai_analysis' => $analysis]);
+            // Store in processing log. A prior attempt on this same run may have
+            // degraded to fallback analysis; a genuine analysis landing now means
+            // that disposition no longer describes this run's current content.
+            $this->processingLog->update(['ai_analysis' => $analysis, 'is_degraded_completion' => false]);
 
             // Update sermon - preserve any existing curated content; only fill in missing fields with AI data.
             // The sermon may already have been created by a richer prior pipeline run (upsert enrichment),
@@ -296,9 +298,21 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
         }
     }
 
+    /**
+     * A historic sermon's transcript is a promoted asset: once its run
+     * completes, it moves out of `historic_staging` onto the sermon's own
+     * `asset_disk` (e.g. `historic_quarantine`), and staging is cleaned up
+     * behind it. The generic candidate disks below have no way to know a
+     * per-operation quarantine disk name, so the owning sermon's disk must be
+     * checked directly or a re-analysis of an already-completed run finds
+     * nothing and wrongly degrades again.
+     */
     private function loadTranscriptFromStorage(string $transcriptPath): ?string
     {
-        return app(TranscriptStorageService::class)->readTranscriptFromPath($transcriptPath);
+        return app(TranscriptStorageService::class)->readTranscriptFromPath(
+            $transcriptPath,
+            $this->processingLog->sermon?->asset_disk,
+        );
     }
 
     private function generateFallbackTitle(): string
