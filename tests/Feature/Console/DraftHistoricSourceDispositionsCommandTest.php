@@ -6,6 +6,7 @@ namespace Tests\Feature\Console;
 
 use App\Contracts\HistoricSourceFilesystemInspector;
 use App\Services\Import\HistoricSourceAcquisitionVerifier;
+use Illuminate\Support\Facades\File;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Support\FakeHistoricSourceFilesystemInspector;
 use Tests\Support\HistoricSourceCopyFixture;
@@ -26,6 +27,8 @@ class DraftHistoricSourceDispositionsCommandTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        File::ensureDirectoryExists(storage_path('app/private'));
 
         $this->fixture = new HistoricSourceCopyFixture;
     }
