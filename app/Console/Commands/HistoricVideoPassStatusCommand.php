@@ -21,7 +21,7 @@ class HistoricVideoPassStatusCommand extends Command
                             {--operation= : Immutable historic import operation id}
                             {--only= : Comma-separated manifest item keys in this pass}
                             {--measures : Also report the operation\'s custody byte measures}
-                            {--performance : Also report durable run, step, stage and usage timings}
+                            {--performance : Also report durable run, step and stage timings}
                             {--performance-report= : Create a new JSON performance report at an absolute path}';
 
     protected $description = 'Report database-owned status for one historic-video pass without reading workers or storage';
@@ -242,18 +242,6 @@ class HistoricVideoPassStatusCommand extends Command
                 $stepRows,
             );
         }
-
-        /** @var array<string, mixed> $usage */
-        $usage = $report['usage'];
-        $this->line(sprintf(
-            'Usage evidence: %d request(s), %d call(s), %d input token(s), %d output token(s); API response-time samples: %d (%s).',
-            $usage['request_count'],
-            $usage['call_count'],
-            $usage['input_tokens'],
-            $usage['output_tokens'],
-            $usage['api_response_time_summary_ms']['count'],
-            $usage['api_response_time_source'],
-        ));
     }
 
     /**

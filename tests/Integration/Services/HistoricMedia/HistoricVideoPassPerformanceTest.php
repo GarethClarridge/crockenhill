@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services\HistoricMedia;
 
-use App\Enums\HistoricImportCheckpointState;
 use App\Enums\ProcessingStatus;
 use App\Models\HistoricImportOperation;
-use App\Models\HistoricImportUsageEntry;
 use App\Models\MediaProcessingLog;
 use App\Models\SermonProcessingStep;
 use App\Services\HistoricMedia\HistoricVideoPassPerformance;
@@ -209,62 +207,6 @@ class HistoricVideoPassPerformanceTest extends TestCase
             ['ffmpeg', 'whisper', 'llm', 'orchestration'],
             array_keys($report['observed_worker_widths']),
         );
-        $this->assertSame(2, $report['usage']['api_response_time_summary_ms']['count']);
-    }
-
-    #[Test]
-    public function it_keeps_usage_counts_scoped_to_selected_items(): void
-    {
-        $operation = $this->createHistoricImportOperation();
-        $checkpoint = $operation->checkpoints()->create([
-            'checkpoint_key' => 'performance',
-            'ordinal' => 1,
-            'membership_hash' => str_repeat('1', 64),
-            'item_keys' => ['item-one'],
-            'forecast_seconds' => 60,
-            'accepted_cost_minor_units' => 1000,
-            'state' => HistoricImportCheckpointState::Complete,
-        ]);
-
-        HistoricImportUsageEntry::query()->create([
-            'historic_import_operation_id' => $operation->id,
-            'historic_import_checkpoint_id' => $checkpoint->id,
-            'request_key' => 'selected-request',
-            'item_key' => 'item-one',
-            'provider' => 'openai',
-            'model' => 'whisper-1',
-            'calls' => 2,
-            'input_tokens' => 10,
-            'output_tokens' => 20,
-            'audio_seconds' => 30,
-            'cost_minor_units' => 4,
-            'currency' => 'GBP',
-            'recorded_at' => now(),
-        ]);
-        HistoricImportUsageEntry::query()->create([
-            'historic_import_operation_id' => $operation->id,
-            'historic_import_checkpoint_id' => $checkpoint->id,
-            'request_key' => 'unselected-request',
-            'item_key' => 'item-two',
-            'provider' => 'openai',
-            'model' => 'whisper-1',
-            'calls' => 9,
-            'input_tokens' => 90,
-            'output_tokens' => 90,
-            'audio_seconds' => 90,
-            'cost_minor_units' => 90,
-            'currency' => 'GBP',
-            'recorded_at' => now(),
-        ]);
-
-        $report = app(HistoricVideoPassPerformance::class)->report($operation, ['item-one']);
-
-        $this->assertSame(1, $report['usage']['request_count']);
-        $this->assertSame(2, $report['usage']['call_count']);
-        $this->assertSame(10, $report['usage']['input_tokens']);
-        $this->assertSame(20, $report['usage']['output_tokens']);
-        $this->assertSame(4, $report['usage']['cost_minor_units']);
-        $this->assertSame('openai/whisper-1', $report['usage']['by_model'][0]['provider'].'/'.$report['usage']['by_model'][0]['model']);
     }
 
     #[Test]
@@ -319,7 +261,7 @@ class HistoricVideoPassPerformanceTest extends TestCase
         // Both runs are timed and terminal, so only the degraded exclusion can separate the counts.
         $this->assertSame(2, $report['all_runs']['run_count']);
         $this->assertSame(1, $report['clean_first_attempt']['run_count']);
-        $this->assertSame(2, $report['version']);
+        $this->assertSame(3, $report['version']);
 
         $this->assertSame('run-clean', $clean->processing_id);
     }

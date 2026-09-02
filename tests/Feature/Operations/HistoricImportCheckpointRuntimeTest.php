@@ -10,7 +10,6 @@ use App\Enums\HistoricImportItemExpectation;
 use App\Enums\HistoricImportOperationState;
 use App\Services\Import\HistoricImportCheckpointPlanner;
 use App\Services\Import\HistoricImportCheckpointRuntime;
-use App\Services\Import\HistoricImportCostLedger;
 use App\Services\Import\HistoricImportJournal;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
@@ -64,27 +63,6 @@ class HistoricImportCheckpointRuntimeTest extends TestCase
         $runtime->afterDispatch($checkpoint, 'video-1', 'processing-1', $deduplicationKey);
 
         $restartedRuntime = new HistoricImportCheckpointRuntime(app(HistoricImportJournal::class));
-        $entry = app(HistoricImportCostLedger::class)->record(
-            $checkpoint,
-            'request-1',
-            'video-1',
-            'openai',
-            'gpt-5-mini',
-            125,
-            inputTokens: 1_000,
-            outputTokens: 100,
-        );
-        $sameEntry = app(HistoricImportCostLedger::class)->record(
-            $checkpoint,
-            'request-1',
-            'video-1',
-            'openai',
-            'gpt-5-mini',
-            125,
-            inputTokens: 1_000,
-            outputTokens: 100,
-        );
-        $this->assertTrue($entry->is($sameEntry));
 
         $restartedRuntime->settle(
             $checkpoint,
@@ -123,7 +101,6 @@ class HistoricImportCheckpointRuntimeTest extends TestCase
 
         $this->assertSame(HistoricImportCheckpointState::Complete, $checkpoint->fresh()->state);
         $this->assertSame(HistoricImportOperationState::CloseoutRequired, $operation->fresh()->state);
-        $this->assertEquals(125, $operation->usageEntries()->sum('cost_minor_units'));
         app(HistoricImportJournal::class)->verify($operation->fresh());
     }
 
@@ -177,31 +154,6 @@ class HistoricImportCheckpointRuntimeTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('failed its hash check');
         app(HistoricImportJournal::class)->verify($operation->fresh());
-    }
-
-    #[Test]
-    public function numeric_cost_thresholds_abort_before_a_usage_entry_is_written(): void
-    {
-        $operation = $this->createHistoricImportOperation(attributes: ['max_cost_minor_units' => 100]);
-        $checkpoint = app(HistoricImportCheckpointPlanner::class)->plan($operation, [
-            ['item_key' => 'video-1', 'forecast_seconds' => 60, 'accepted_cost_minor_units' => 50],
-        ])[0];
-
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('checkpoint cost threshold');
-
-        try {
-            app(HistoricImportCostLedger::class)->record(
-                $checkpoint,
-                'request-over-budget',
-                'video-1',
-                'openai',
-                'gpt-5-mini',
-                51,
-            );
-        } finally {
-            $this->assertDatabaseCount('historic_import_usage_entries', 0);
-        }
     }
 
     #[Test]

@@ -7,7 +7,6 @@ namespace App\Services\HistoricMedia;
 use App\Enums\ProcessingStatus;
 use App\Enums\ProcessingStep;
 use App\Models\HistoricImportOperation;
-use App\Models\HistoricImportUsageEntry;
 use App\Models\MediaProcessingLog;
 use App\Models\SermonProcessingStep;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -30,8 +29,13 @@ final class HistoricVideoPassPerformance
      * sample. A version 1 report cannot be compared like-for-like with a version 2 one: its
      * `clean_first_attempt` aggregate counted runs that banked empty analysis, which is how the
      * 2026-09-02 pass reported six hollow sermons inside its clean throughput.
+     *
+     * Version 3 removes the `usage` key entirely (P1-4, 2026-09-02): the internal cost ledger it
+     * read from is deleted, and its `api_response_time_summary_ms` sub-key was always empty because
+     * nothing ever wrote `api_response_times_ms` to run metadata. Ordinary provider usage telemetry
+     * survives in the application log via `OpenAiUsageLogger`; only this inert reporting surface goes.
      */
-    private const VERSION = 2;
+    private const VERSION = 3;
 
     /**
      * These are the high-cost steps whose absence is itself useful evidence.
@@ -107,7 +111,6 @@ final class HistoricVideoPassPerformance
             'current_configured_worker_widths' => $configuredWorkerWidths,
             'all_runs' => $allRuns,
             'clean_first_attempt' => $cleanFirstAttempt,
-            'usage' => $this->usageSummary($operation, $itemKeys, $runReports),
             'measurement' => [
                 'run_source' => 'media_processing_logs',
                 'step_source' => 'sermon_processing_steps',
@@ -810,96 +813,6 @@ final class HistoricVideoPassPerformance
         }
 
         return $dispositions[0] ?? 'in_progress';
-    }
-
-    /**
-     * @param  list<string>  $itemKeys
-     * @param  list<array<string, mixed>>  $runs
-     * @return array<string, mixed>
-     */
-    private function usageSummary(
-        HistoricImportOperation $operation,
-        array $itemKeys,
-        array $runs,
-    ): array {
-        $entries = HistoricImportUsageEntry::query()
-            ->where('historic_import_operation_id', $operation->id)
-            ->whereIn('item_key', $itemKeys)
-            ->orderBy('id')
-            ->get();
-        $byModel = [];
-        $responseTimes = [];
-
-        foreach ($runs as $run) {
-            $responseTimes = [
-                ...$responseTimes,
-                ...$this->responseTimesFromMetadata($run),
-            ];
-        }
-
-        foreach ($entries as $entry) {
-            $key = "{$entry->provider}/{$entry->model}";
-            $byModel[$key] ??= [
-                'provider' => $entry->provider,
-                'model' => $entry->model,
-                'requests' => 0,
-                'calls' => 0,
-                'input_tokens' => 0,
-                'output_tokens' => 0,
-                'audio_seconds' => 0,
-                'cost_minor_units' => 0,
-            ];
-            $byModel[$key]['requests']++;
-            $byModel[$key]['calls'] += (int) $entry->calls;
-            $byModel[$key]['input_tokens'] += (int) $entry->input_tokens;
-            $byModel[$key]['output_tokens'] += (int) $entry->output_tokens;
-            $byModel[$key]['audio_seconds'] += (int) $entry->audio_seconds;
-            $byModel[$key]['cost_minor_units'] += (int) $entry->cost_minor_units;
-        }
-
-        ksort($byModel);
-
-        return [
-            'source' => 'historic_import_usage_entries',
-            'request_count' => $entries->count(),
-            'call_count' => $entries->sum('calls'),
-            'input_tokens' => $entries->sum('input_tokens'),
-            'output_tokens' => $entries->sum('output_tokens'),
-            'audio_seconds' => $entries->sum('audio_seconds'),
-            'cost_minor_units' => $entries->sum('cost_minor_units'),
-            'by_model' => array_values($byModel),
-            'api_response_time_source' => $responseTimes === []
-                ? 'no durable response-time samples recorded'
-                : 'historic run metadata',
-            'api_response_time_summary_ms' => $this->percentiles($responseTimes),
-        ];
-    }
-
-    /**
-     * Response times are optional durable enrichment for producers that record
-     * them under the operation metadata. No response time is inferred from
-     * end-to-end run or step duration.
-     *
-     * @param  array<string, mixed>  $run
-     * @return list<float>
-     */
-    private function responseTimesFromMetadata(array $run): array
-    {
-        $times = $run['api_response_times_ms'] ?? null;
-
-        if (! is_array($times)) {
-            return [];
-        }
-
-        return array_values(array_filter(
-            array_map(
-                static fn (mixed $time): ?float => is_numeric($time) && (float) $time >= 0.0
-                    ? (float) $time
-                    : null,
-                $times,
-            ),
-            static fn (?float $time): bool => $time !== null && is_finite($time),
-        ));
     }
 
     /**

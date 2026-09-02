@@ -96,12 +96,6 @@ class HistoricImportOperation extends Model
         return $this->hasMany(HistoricImportItemOutcome::class);
     }
 
-    /** @return HasMany<HistoricImportUsageEntry, $this> */
-    public function usageEntries(): HasMany
-    {
-        return $this->hasMany(HistoricImportUsageEntry::class);
-    }
-
     /** @return HasMany<HistoricImportAlert, $this> */
     public function alerts(): HasMany
     {

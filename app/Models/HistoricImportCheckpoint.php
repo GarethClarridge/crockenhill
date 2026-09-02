@@ -96,12 +96,6 @@ class HistoricImportCheckpoint extends Model
         return $this->hasMany(HistoricImportItemOutcome::class);
     }
 
-    /** @return HasMany<HistoricImportUsageEntry, $this> */
-    public function usageEntries(): HasMany
-    {
-        return $this->hasMany(HistoricImportUsageEntry::class);
-    }
-
     public function transitionTo(HistoricImportCheckpointState $next): void
     {
         if (! $this->state->canTransitionTo($next)) {

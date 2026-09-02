@@ -261,10 +261,10 @@ CREATE TABLE `church_service_source_records` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `church_service_source_records_revision_unique` (`source`,`source_key_hash`,`revision_hash`),
   UNIQUE KEY `church_service_source_records_one_successor_unique` (`supersedes_id`),
-  KEY `church_service_source_records_supersedes_id_foreign` (`supersedes_id`),
   KEY `church_service_source_records_service_source_index` (`church_service_id`,`source`,`captured_at`),
   KEY `church_service_source_records_batch_hash_index` (`batch_hash`),
   KEY `church_service_source_records_created_by_user_id_foreign` (`created_by_user_id`),
+  KEY `church_service_source_records_supersedes_id_foreign` (`supersedes_id`),
   KEY `church_service_source_records_lineage_lookup_index` (`church_service_id`,`source`,`source_key_hash`),
   CONSTRAINT `church_service_source_records_church_service_id_foreign` FOREIGN KEY (`church_service_id`) REFERENCES `church_services` (`id`) ON DELETE CASCADE,
   CONSTRAINT `church_service_source_records_created_by_user_id_foreign` FOREIGN KEY (`created_by_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
@@ -642,31 +642,6 @@ CREATE TABLE `historic_import_source_snapshots` (
   CONSTRAINT `historic_snapshot_artifact_foreign` FOREIGN KEY (`historic_import_artifact_id`) REFERENCES `historic_import_artifacts` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `historic_snapshot_checkpoint_foreign` FOREIGN KEY (`historic_import_checkpoint_id`) REFERENCES `historic_import_checkpoints` (`id`) ON DELETE RESTRICT,
   CONSTRAINT `historic_snapshot_operation_foreign` FOREIGN KEY (`historic_import_operation_id`) REFERENCES `historic_import_operations` (`id`) ON DELETE RESTRICT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `historic_import_usage_entries`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `historic_import_usage_entries` (
-  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `historic_import_operation_id` bigint unsigned NOT NULL,
-  `historic_import_checkpoint_id` bigint unsigned NOT NULL,
-  `request_key` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `item_key` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `provider` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `model` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `calls` int unsigned NOT NULL DEFAULT '1',
-  `input_tokens` bigint unsigned NOT NULL DEFAULT '0',
-  `output_tokens` bigint unsigned NOT NULL DEFAULT '0',
-  `audio_seconds` bigint unsigned NOT NULL DEFAULT '0',
-  `cost_minor_units` bigint unsigned NOT NULL,
-  `currency` char(3) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `recorded_at` timestamp NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `historic_usage_operation_request_unique` (`historic_import_operation_id`,`request_key`),
-  KEY `historic_usage_checkpoint_item_index` (`historic_import_checkpoint_id`,`item_key`),
-  CONSTRAINT `historic_usage_checkpoint_foreign` FOREIGN KEY (`historic_import_checkpoint_id`) REFERENCES `historic_import_checkpoints` (`id`) ON DELETE RESTRICT,
-  CONSTRAINT `historic_usage_operation_foreign` FOREIGN KEY (`historic_import_operation_id`) REFERENCES `historic_import_operations` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `import_deferred_inbound_emails`;
@@ -1204,7 +1179,7 @@ CREATE TABLE `sermons` (
   `duration` double DEFAULT NULL,
   `filetype` varchar(8) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'mp3',
   `title` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
-  `title_provenance` varchar(20) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `title_provenance` varchar(20) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `slug` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
   `reference` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL COMMENT 'Denormalized scripture reference cache for display/search compatibility. scripture_passage_id is the canonical normalized identity when present.',
   `scripture_passage_id` bigint unsigned DEFAULT NULL COMMENT 'Canonical normalized scripture identity for the published sermon. The reference text column is a synchronized cache.',
@@ -1499,7 +1474,7 @@ CREATE TABLE `song_videos` (
   `recorded_date` date DEFAULT NULL,
   `is_featured` tinyint(1) NOT NULL DEFAULT '0',
   `publication_state` varchar(24) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'published',
-  `asset_disk` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `asset_disk` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `historic_import_operation_id` bigint unsigned DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
@@ -1840,31 +1815,32 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_29_210105_creat
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_07_29_210107_add_canonical_columns_to_church_service_tables',85);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_02_120000_add_church_service_source_revision_lineage_constraints',86);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_03_000001_add_projection_state_to_church_services_table',86);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_03_000002_add_proposal_review_metadata',86);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_03_000003_create_church_service_proposal_decision_rules',86);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_03_000004_create_church_service_proposal_class_reviews',86);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_06_121022_create_import_ingress_locks_table',87);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_06_144658_add_queue_pause_accounting_to_import_ingress_locks_table',87);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_120000_add_portable_source_key_identity_to_church_service_source_records',88);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_155251_create_song_usage_reports_table',88);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_200000_create_historic_import_operations_table',88);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_200001_create_historic_import_checkpoints_table',88);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_200002_create_historic_import_artifacts_table',88);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_200003_create_historic_import_source_snapshots_table',88);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_200004_create_historic_import_journal_entries_table',88);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_200005_create_historic_import_item_outcomes_table',88);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_210000_add_runtime_contract_to_historic_import_operations',88);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_210001_create_historic_import_usage_entries_table',88);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_210002_create_historic_import_alerts_table',88);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_210003_create_historic_import_nested_jobs_table',88);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_210004_create_historic_import_asset_transfers_table',88);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_220000_create_import_deferred_inbound_emails_table',88);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_223000_add_publication_quarantine_to_sermons_table',88);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_224000_add_runtime_fingerprint_to_historic_import_operations',88);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_10_090000_add_publication_quarantine_to_song_videos_table',88);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_13_092457_add_dispatch_lease_to_import_deferred_inbound_emails_table',89);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_13_093747_create_historic_import_release_ledger_tables',89);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_13_193205_add_publication_quarantine_to_song_usage_reports_table',90);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_31_132413_add_title_provenance_to_sermons_table',91);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_31_140000_add_asset_disk_to_song_videos_table',92);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_31_211617_add_asset_disk_to_service_sections_table',93);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_03_000002_add_proposal_review_metadata',87);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_03_000003_create_church_service_proposal_decision_rules',87);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_03_000004_create_church_service_proposal_class_reviews',88);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_06_121022_create_import_ingress_locks_table',89);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_06_144658_add_queue_pause_accounting_to_import_ingress_locks_table',90);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_120000_add_portable_source_key_identity_to_church_service_source_records',91);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_155251_create_song_usage_reports_table',91);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_200000_create_historic_import_operations_table',91);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_200001_create_historic_import_checkpoints_table',91);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_200002_create_historic_import_artifacts_table',91);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_200003_create_historic_import_source_snapshots_table',91);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_200004_create_historic_import_journal_entries_table',91);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_200005_create_historic_import_item_outcomes_table',91);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_210000_add_runtime_contract_to_historic_import_operations',91);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_210001_create_historic_import_usage_entries_table',91);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_210002_create_historic_import_alerts_table',91);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_210003_create_historic_import_nested_jobs_table',91);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_210004_create_historic_import_asset_transfers_table',91);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_220000_create_import_deferred_inbound_emails_table',91);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_223000_add_publication_quarantine_to_sermons_table',91);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_09_224000_add_runtime_fingerprint_to_historic_import_operations',92);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_10_090000_add_publication_quarantine_to_song_videos_table',92);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_13_092457_add_dispatch_lease_to_import_deferred_inbound_emails_table',93);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_13_093747_create_historic_import_release_ledger_tables',94);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_13_193205_add_publication_quarantine_to_song_usage_reports_table',95);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_31_132413_add_title_provenance_to_sermons_table',96);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_31_140000_add_asset_disk_to_song_videos_table',97);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_31_211617_add_asset_disk_to_service_sections_table',97);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_02_184415_drop_historic_import_usage_entries_table',98);
