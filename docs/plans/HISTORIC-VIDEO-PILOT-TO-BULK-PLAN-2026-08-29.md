@@ -1,7 +1,7 @@
 # Historic Video Pilot-to-Bulk Plan
 
 **Date:** 2026-08-29
-**Status:** In progress — **Phases 0–7 complete.** The Phase 7 canary ran under operation 3, its blockers were implemented and its rows and assets repaired, and on 2026-09-01 the **operator sequence reached step 10: the identical-canary replay passed**, proving zero new work and zero spend (evidence: `storage/scratch/historic-video-step10-noop-proof-20260901.md`). All fourteen canary identities now hold truthful terminal dispositions — twelve completed, two excluded. Bulk processing remains NO-GO on one remaining gate: **step 11, M12's four-identity calibration at FFmpeg width two.**
+**Status:** In progress — **Phases 0–7 complete.** The Phase 7 canary ran under operation 3, its blockers were implemented and its rows and assets repaired, and on 2026-09-01 the **operator sequence reached step 10: the identical-canary replay passed**, proving zero new work and zero spend (evidence: `storage/scratch/historic-video-step10-noop-proof-20260901.md`). On 2026-09-02 **step 10 was re-run against the re-frozen manifest** `d25d2085…` under operation 4 and passed again — 0 dispatched, 12 skipped, 0 B processed in 7.2 s, every baseline count unchanged (evidence: `storage/scratch/historic-video-step10-rerun-proof-20260902.md`). The re-freeze reduced the replayable set from fourteen to twelve: `2026-04-02-evening` became a manifest-level exclusion, and `2023-07-16-morning` had its source replaced and its run retired, so it is new work rather than a replay and is **deferred to Phase 8 by operator decision**. Bulk processing remains NO-GO on one remaining gate: **step 11, M12's four-identity calibration at FFmpeg width two.**
 **Scope:** Correct the pilot findings, prove direct private asset promotion and bounded temporary cleanup, run a fresh canary, and process the remaining historic-video corpus safely
 **Related plan:** `HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md` remains the authority for the wider historic-import programme
 
@@ -66,7 +66,7 @@ The pilot's livestream projection synchronises canonical service items before in
 | 4 — Neutralise internal cost apparatus | Complete | Commit `82be34700` removes live cap/ledger reads and writes while retaining the inert schema and compatibility code for IC8 closeout. |
 | 5 — Canary custody instrumentation | Complete | Commits `c61c8c7af` (direct create-only promotion into quarantine), `81ca5f3d9` (cleanup confined to working-copy disks) plus this commit's four byte measures, reported by `historic-import:video-pass-status --measures`. |
 | 6 — Copy-and-enqueue dispatch | Complete | Commit `6c6b0a7a8` removes polling, adds operation-bound capacity evidence, and aborts stale mounts. Commit `3cb189f5b` adds the database-owned `historic-import:video-pass-status` report and the content-read-I/O regression test. **Its whole-corpus-verification claim was false until 2026-08-30**: `6c6b0a7a8` deleted the opt-in `--verify-corpus` flag *and* the argument it passed, so `plan()` fell back to its `true` default and every invocation — dry runs and `--only` passes included — re-read ~1.0 TB. Now fixed at the call site with `verifySourceContents: false`, proved by `a_bounded_pass_does_not_read_the_contents_of_unselected_sources`. A 14-item dry run went from over three hours to 23 seconds. **Superseded 2026-09-01:** the parameter and its `hash_file()` branch are deleted outright — the only other caller ran after `writeOnce()` and could re-read nothing but files hashed seconds earlier, so `capture-video-curation` was reading the corpus twice. |
-| 7 — Fresh canary | **Complete** | Operation 3 was dispatched and resumed after a stale-mount abort; the duration, orchestration, title, boundary and custody defects it surfaced were implemented and its rows and assets repaired. The identical-canary replay passed on 2026-09-01: dispatched 0, resumed 13, skipped 1, errors 0, **0 B processed**, every baseline count unchanged, in 3.9 seconds. Evidence `storage/scratch/historic-video-step10-noop-proof-20260901.md`. |
+| 7 — Fresh canary | **Complete** | Operation 3 was dispatched and resumed after a stale-mount abort; the duration, orchestration, title, boundary and custody defects it surfaced were implemented and its rows and assets repaired. The identical-canary replay passed on 2026-09-01: dispatched 0, resumed 13, skipped 1, errors 0, **0 B processed**, every baseline count unchanged, in 3.9 seconds. Evidence `storage/scratch/historic-video-step10-noop-proof-20260901.md`. **Re-proved 2026-09-02** under operation 4 and the re-frozen manifest `d25d2085…`: dispatched 0, skipped 12, errors 0, **0 B processed**, in 7.2 seconds, with the before/after baseline JSON differing only in its timestamp. Evidence `storage/scratch/historic-video-step10-rerun-proof-20260902.md`. |
 | 8–9 | Not started | Gated on step 11, the four-identity two-worker calibration. Everything else Phase 7 required is now satisfied. |
 
 #### M9, M5 and M7 implemented, 2026-09-01
@@ -2169,6 +2169,64 @@ Two findings outside step 10's scope, both open:
   second place. Fix before Phase 8 if an excluded run can remain in a manifest.
 
 **Only step 11 remains before Phase 8.**
+
+### Step 10 re-run under the re-frozen manifest, 2026-09-02
+
+The 2026-09-01 proof ran against manifest `1ae7e4fc…` and plan `8ecec582…`, both of
+which the same evening's re-freeze retired. Step 10 was therefore re-run against
+manifest `d25d2085…`, plan `9351fa4e…` and operation 4
+(`historic-c24f1acfc3b4f9986882be35c917b73f`). Evidence:
+`storage/scratch/historic-video-step10-rerun-proof-20260902.md`.
+
+**The drive-mount fault that blocked this cleared on its own.** Both
+`/mnt/cbc-services` and `/mnt/historic-work` read normally from inside the
+containers; no Docker Desktop restart was needed.
+
+**The frozen fourteen no longer resolve to fourteen replayable identities, and the
+selection had to be split before it could be dispatched.** Twelve carry a
+byte-identical source and are replayable. `2026-04-02-evening` was promoted from a
+run-level exclusion to a **manifest-level** one, so the dispatcher refuses it in
+`--only` as "not an included work item" rather than skipping it — exclusions moving
+upstream is the stronger placement. `2023-07-16-morning` had its source replaced
+(`10-43-29.mkv`, 134,980,780 B → `Sunday 16th July 2023.mp4`, 291,240,303 B) and its
+run retired, so it is new work; including it would have dispatched a real pipeline
+run with provider spend, which is the opposite of what step 10 asserts.
+
+**The twelve replayed clean in 7.2 seconds**: dispatched 0, skipped 12, errors 0,
+0 B processed, 32.5 GiB skipped. Every acceptance item passes — no processing
+identity, no provider call, no asset, no notification, all twelve videos probing to
+their stored duration with a delta of **0.000 s**, all twelve `quarantined` on
+`historic_quarantine`, the one automatic sermon bridge still unflagged and the
+material-risk boundaries still flagged. The before/after baseline JSON differs only
+in its `captured_at` field.
+
+Three things this establishes for Phase 8:
+
+1. **A re-freeze permanently weakens the idempotency evidence for every item
+   carried across it.** The resume key is
+   `sha256("historic-video\0{manifestHash}\0{item_key}")`, so a run completed under
+   the old manifest can never match a resume key under the new one. All twelve
+   reported `skip-exists` where they previously reported `resume-completed`: the
+   dispatcher now proves "this service is already processed" rather than "this exact
+   manifest item is already processed". The no-op still holds; the claim behind it
+   is one notch weaker.
+2. **Supersession kept the section reader honest with no new code.** The
+   review-flag count fell from 13 to 12 because retired run 959's flagged section
+   dropped out of `ServiceSection`'s reader automatically — the existing mechanism
+   the retirement work deliberately reused.
+3. **Operation 4's only filesystem side effect was an empty batch-root skeleton**
+   at `staging/historic-batches/9351fa4e…` (512 K). Its custody measures are all
+   zero; total staging is unchanged at 6.1 G (op 2 1.8 G, op 3 4.3 G).
+
+**Operator decision: `2023-07-16-morning` is deferred to Phase 8**, alongside the
+other six replaced or added sources (`2020-06-14-morning`, `2020-06-28-morning`
+(new), `2024-07-28-morning`, `2025-05-18-morning`, `2025-08-10-morning`,
+`2026-03-15-morning`). No import runs before step 11 has set the FFmpeg width.
+Step 10 therefore stands as **passed for the twelve carried-over identities with one
+identity explicitly named as outstanding**, not as silently complete. Whichever pass
+carries `2023-07-16-morning` is also the first real-data test of the
+sermon-only/short-sermon rework (`c0cbc3e86`) against a source that previously found
+no sermon at all — watch it in that pass rather than assuming it.
 
 ### Phase 8 — Process the remainder as a closed pass loop
 
