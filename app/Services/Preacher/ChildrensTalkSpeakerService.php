@@ -253,7 +253,23 @@ class ChildrensTalkSpeakerService
         // about the input, and dispositioned — rather than letting the subprocess fail and
         // surface as `error`, which would open a review nobody can answer. Section audio is
         // routinely reaped after publication while the run's full audio is retained.
-        if (! Storage::disk(MediaAssetPath::disk())->exists($audioPath)) {
+        $mediaDisk = MediaAssetPath::disk();
+
+        // Ask whether the disk is there before asking about the file. A detached volume and
+        // a reaped file are indistinguishable once you are down to exists() — it answers
+        // false for both, and on a missing root it throws instead. Reading either as
+        // `missing_audio` would disposition the section and withdraw its review flag, so a
+        // dropped media volume would quietly retire open questions in bulk. That is exactly
+        // what a detached CBC drive did on 2026-09-03. `error` keeps the question open and
+        // a rerun once the mount is back gives the real answer.
+        if (! $this->mediaDiskIsReachable($mediaDisk)) {
+            return $this->basePrediction(
+                outcome: 'error',
+                reason: "Media disk '{$mediaDisk}' is not reachable; speaker identification was not attempted."
+            );
+        }
+
+        if (! Storage::disk($mediaDisk)->exists($audioPath)) {
             return $this->basePrediction(
                 outcome: 'missing_audio',
                 reason: 'Extracted section audio is no longer present on the media disk.'
@@ -310,6 +326,25 @@ class ChildrensTalkSpeakerService
             'source' => PreacherSource::SpeakerModel->value,
             'candidates' => $result->candidates,
         ]);
+    }
+
+    /**
+     * Whether the disk itself is answering, as opposed to being absent.
+     *
+     * Only local-driver disks can go missing this way, and for those the configured root is
+     * the mount point: if it is not a directory, the volume is detached and every `exists()`
+     * against it is a false negative rather than a fact about any one file. Remote drivers
+     * surface their own failures, so `exists()` is taken as authoritative there.
+     */
+    private function mediaDiskIsReachable(string $disk): bool
+    {
+        $root = config("filesystems.disks.{$disk}.root");
+
+        if (! is_string($root) || $root === '') {
+            return true;
+        }
+
+        return is_dir($root);
     }
 
     /**

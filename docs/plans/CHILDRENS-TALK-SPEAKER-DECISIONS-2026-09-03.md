@@ -418,3 +418,58 @@ Q1(b) — the calibration measurement — is **not** done. It is now cheaper tha
 described: the sermon side already stores 29 shortlists across 34 `no_match` runs
 in the same margin band, needing no audio re-cut at all (§3.4). Only the true
 preacher per run is missing, and that is operator work.
+
+---
+
+## 8. The executed run needs re-verifying — the media drive dropped mid-session
+
+**The code is sound and fully tested. The one live execution is not yet trustworthy.**
+
+The CBC drive (`/dev/disk5s1`, exFAT, holding `/mnt/historic-work` and therefore
+`historic_staging` — the disk `MediaAssetPath::disk()` resolves to) dropped at
+**19:46 BST** and macOS remounted it as `/Volumes/Sonnics 1`, while `.env` points
+`CBC_HISTORIC_WORK_PATH` at `/Volumes/Sonnics`. Every container lost the bind,
+including the long-running `laravel.test`.
+
+`services:redetect-childrens-talk-speakers --execute` ran at **19:56 BST** — ten
+minutes *after* the disk became unreachable. So its verdicts were measured against
+a disk that was not there, and **every `missing_audio` it wrote is unverified**:
+
+| what it wrote | confidence |
+|---|---|
+| §380, §413 `no_profiles` → `missing_audio`, flag withdrawn | **probably right, unverified** — earlier in the same session, *while the drive was mounted*, runs 913 and 916 showed `source_file_path`, `audio_file_path`, `enhanced_audio_file_path` and `video_file_path` all absent from every configured disk. Their section audio being gone too is near-certain but was not directly checked. |
+| 9 sections, no prediction → `missing_audio`, no flag change | **unverified** — if their audio exists, the honest outcome is a real identification, not a disposition. No review flag moved either way, so nothing entered or left the queue on this. |
+
+**The 12 `ambiguous` rows were never in scope and were not touched**, so the live
+queue count of 36 is unaffected by the fault.
+
+### Recovery, once the drive is back
+
+The command's own scope makes this self-healing: `missing_audio` is a re-askable
+outcome, so re-running re-asks exactly the rows the fault touched and nothing else.
+
+```
+docker compose up -d                                   # workers cannot start without the mount
+vendor/bin/sail artisan services:redetect-childrens-talk-speakers          # dry run first
+vendor/bin/sail artisan services:redetect-childrens-talk-speakers --execute
+```
+
+Expect 11 sections in scope. If the audio really is gone, the dry run reports no
+changes and the earlier result stands. If any of it is present, those sections get
+a real verdict and may legitimately re-raise `childrens_talk_speaker_review`.
+
+### The guard that stops this recurring
+
+The fault is now closed in code. `predictionPayload()` asks whether the disk is
+*reachable* before asking about the file: for a local-driver disk the configured
+root is the mount point, so a root that is not a directory means the volume is
+detached and every `exists()` against it is a false negative rather than a fact
+about any one file. That returns `error` — a review-opening outcome — so the
+question survives the outage instead of being dispositioned away.
+
+The ordering matters and is not cosmetic: on a missing root Flysystem's `exists()`
+*throws* rather than returning false, so the reachability check has to come first.
+
+Without this, a detached drive during Phase 8 would have withdrawn review flags
+across all 414 identities, one defensible write at a time.
+

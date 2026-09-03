@@ -358,6 +358,55 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $this->assertEquals($candidates, $fresh->metadata?->toArray()['childrens_talk_speaker']['predicted']['candidates'] ?? null);
     }
 
+    /**
+     * The fault that produced this test: the CBC media drive detached on 2026-09-03 and
+     * remounted under a different name, so every exists() against `historic_staging`
+     * answered false. Read as `missing_audio` that would have dispositioned each section
+     * and withdrawn its review flag — retiring open questions in bulk because a volume
+     * was unplugged.
+     */
+    #[Test]
+    public function it_reports_an_error_rather_than_missing_audio_when_the_media_disk_is_detached(): void
+    {
+        config([
+            'media-processing.speaker_identification.enabled' => true,
+            'media-processing.speaker_identification.min_duration' => 30,
+            'media-processing.speaker_identification.provider' => 'null',
+            'media-processing.storage.sermon_disk' => 'detached_volume',
+            'filesystems.disks.detached_volume' => [
+                'driver' => 'local',
+                'root' => '/mnt/a-volume-that-is-not-mounted',
+            ],
+        ]);
+
+        SpeakerProfile::factory()->create();
+
+        $speaker = $this->mock(SpeakerIdentificationInterface::class);
+        $speaker->shouldNotReceive('identify');
+
+        $this->app->forgetInstance(ChildrensTalkSpeakerService::class);
+
+        $log = MediaProcessingLog::factory()->livestream()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'extracted_audio_path' => 'section-publications/talk.mp3',
+            'start_time' => 0,
+            'end_time' => 300,
+            'metadata' => ['review_flags' => ['childrens_talk_speaker_review']],
+        ]);
+
+        app(ChildrensTalkSpeakerService::class)->detectAndStore($section);
+        $section->save();
+
+        $fresh = $section->fresh();
+
+        // `error` is a review-opening outcome, so the question survives the outage.
+        $this->assertSame('error', $fresh->metadata?->toArray()['childrens_talk_speaker']['predicted']['outcome'] ?? null);
+        $this->assertContains('childrens_talk_speaker_review', $fresh->metadata?->toArray()['review_flags'] ?? []);
+        $this->assertTrue($fresh->needs_manual_review);
+    }
+
     // ── storeManualReview ─────────────────────────────────────────────────────
 
     #[Test]
