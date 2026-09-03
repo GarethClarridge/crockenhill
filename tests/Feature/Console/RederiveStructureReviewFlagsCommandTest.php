@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
+use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
@@ -198,6 +199,108 @@ class RederiveStructureReviewFlagsCommandTest extends TestCase
 
         $this->assertSame(['oos_structure_mismatch'], $section->metadata?->reviewFlags);
         $this->assertTrue($section->needs_manual_review);
+    }
+
+    /**
+     * `unmatched_song_section` on a section the deleted `audio_only` heuristic classifier
+     * produced is released outright: no current review action can turn a listen into an
+     * identity, and publication already excludes an Unmatched section regardless of the flag.
+     */
+    #[Test]
+    public function it_releases_a_song_the_deleted_audio_only_classifier_left_unmatched(): void
+    {
+        [$service, $section] = $this->audioOnlyUnmatchedSong('audio_only_song_segment');
+
+        $this->artisan('services:rederive-structure-review-flags', ['--execute' => true])
+            ->assertSuccessful();
+
+        $section->refresh();
+
+        $this->assertSame([], $section->metadata?->reviewFlags);
+        $this->assertNull($section->metadata?->reviewReason);
+        $this->assertFalse($section->needs_manual_review);
+        $this->assertFalse($service->fresh()->needs_review);
+    }
+
+    /**
+     * The other sub-label the same heuristic classifier wrote — a musical intro it could
+     * not place — releases for the same reason.
+     */
+    #[Test]
+    public function it_releases_the_possible_musical_intro_sub_label_too(): void
+    {
+        [, $section] = $this->audioOnlyUnmatchedSong('possible_musical_intro');
+
+        $this->artisan('services:rederive-structure-review-flags', ['--execute' => true])
+            ->assertSuccessful();
+
+        $this->assertSame([], $section->fresh()->metadata?->reviewFlags);
+    }
+
+    /**
+     * The current pipeline still raises `unmatched_song_section` for real — a genuine
+     * transcript with no catalogue entry — and that must not be swept up by the fossil rule
+     * just because it shares a flag name with the heuristic-era cases.
+     */
+    #[Test]
+    public function it_keeps_an_unmatched_song_from_the_current_pipeline(): void
+    {
+        $service = ChurchService::factory()->create(['needs_review' => true]);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $service->id,
+            'processing_metadata' => [],
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::Song,
+            'section_order' => 1,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'classification_mode' => 'llm_structure',
+                'review_reason' => 'unmatched_song_section',
+                'review_flags' => ['unmatched_song_section'],
+            ],
+        ]);
+
+        $this->artisan('services:rederive-structure-review-flags', ['--execute' => true])
+            ->assertSuccessful();
+
+        $section->refresh();
+
+        $this->assertSame(['unmatched_song_section'], $section->metadata?->reviewFlags);
+        $this->assertTrue($section->needs_manual_review);
+    }
+
+    /**
+     * @return array{0: ChurchService, 1: ServiceSection}
+     */
+    private function audioOnlyUnmatchedSong(string $reviewReason): array
+    {
+        $service = ChurchService::factory()->create(['needs_review' => true]);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $service->id,
+            'processing_metadata' => [],
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::Song,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched,
+            'section_order' => 1,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'review_reason' => $reviewReason,
+                'review_flags' => ['unmatched_song_section'],
+            ],
+        ]);
+
+        return [$service, $section];
     }
 
     /**

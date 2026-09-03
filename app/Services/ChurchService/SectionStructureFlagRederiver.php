@@ -22,8 +22,11 @@ use App\Support\SectionReviewFlagPolicy;
  * The gap this closes: `services:recompute-section-review-flags` re-reads each section's
  * *stored* flags and re-applies {@see SectionReviewFlagPolicy} to decide
  * `needs_manual_review`. It can re-weigh a flag but never withdraw one, so every validator
- * improvement reached future runs only, and four sections were still held on
- * 2026-09-03 by flags with no raise site left in the codebase at all.
+ * improvement reached future runs only. Fourteen sections were held on 2026-09-03 by flags
+ * with no live reason to hold them: four by a flag with no raise site left in the codebase
+ * at all {@see RetiredSectionReviewFlags}, and ten by a live flag whose specific cause — a
+ * deleted heuristic classification mode — {@see self::isHeuristicAudioOnlySongFossil()} no
+ * longer applies.
  *
  * Nothing here calls a provider. The structure is banked, the rules are deterministic, and
  * the answer for a completed run is a pure function of the two — the same shape as
@@ -36,6 +39,19 @@ class SectionStructureFlagRederiver
      * tolerance exists only for the float round-trip through JSON and the database.
      */
     private const TIMING_TOLERANCE_SECONDS = 0.5;
+
+    /**
+     * `review_reason` sub-labels {@see self::isHeuristicAudioOnlySongFossil()} clears
+     * alongside the flag they explain. Neither ever named a flag by its own value, so
+     * neither can fall out of the removed-flags diff the way `song_title_marker_mismatch`
+     * or a {@see RetiredSectionReviewFlags} entry does.
+     *
+     * @var array<int, string>
+     */
+    private const HEURISTIC_AUDIO_ONLY_SONG_REASONS = [
+        'audio_only_song_segment',
+        'possible_musical_intro',
+    ];
 
     public function __construct(private ServiceStructureValidator $validator) {}
 
@@ -96,7 +112,9 @@ class SectionStructureFlagRederiver
      * The three sections still held on 2026-09-03 by `reading_reference_conflict` are all
      * heuristic-era runs that banked no structure at all — the same commit deleted both the
      * flag's raiser and the pipeline that produced those runs — so a pass that only visited
-     * runs with a banked structure would never have reached them.
+     * runs with a banked structure would never have reached them. So are the ten sections
+     * {@see self::isHeuristicAudioOnlySongFossil()} releases, for the same reason under a
+     * different name.
      *
      * @param  list<ServiceSection>  $rows
      * @return list<SectionFlagChange>
@@ -139,8 +157,9 @@ class SectionStructureFlagRederiver
 
         $retained = array_values(array_filter(
             $storedFlags,
-            static fn (string $flag): bool => ! in_array($flag, $rederivable, true)
-                && ! RetiredSectionReviewFlags::isRetired($flag),
+            fn (string $flag): bool => ! in_array($flag, $rederivable, true)
+                && ! RetiredSectionReviewFlags::isRetired($flag)
+                && ! $this->isHeuristicAudioOnlySongFossil($flag, $metadata),
         ));
 
         $rederived = array_values(array_filter(
@@ -171,8 +190,17 @@ class SectionStructureFlagRederiver
         $metadata['review_flags'] = $flags;
 
         // A review reason naming a flag that no longer applies is a label for a question
-        // nobody is being asked any more.
-        if (is_string($metadata['review_reason'] ?? null) && in_array($metadata['review_reason'], $removed, true)) {
+        // nobody is being asked any more. audio_only_song_segment and possible_musical_intro
+        // never did name a flag literally — they are sub-labels of unmatched_song_section, not
+        // flags in their own right — so they are named explicitly rather than relying on the
+        // removed-flags diff, and only when this section's own fossil predicate held.
+        $reviewReason = is_string($metadata['review_reason'] ?? null) ? $metadata['review_reason'] : null;
+
+        $isFossilSongReason = $reviewReason !== null
+            && in_array($reviewReason, self::HEURISTIC_AUDIO_ONLY_SONG_REASONS, true)
+            && $this->isHeuristicAudioOnlySongFossil('unmatched_song_section', $metadata);
+
+        if ($reviewReason !== null && (in_array($reviewReason, $removed, true) || $isFossilSongReason)) {
             unset($metadata['review_reason']);
         }
 
@@ -180,6 +208,38 @@ class SectionStructureFlagRederiver
             'needs_manual_review' => $needsManualReview,
             'metadata' => ServiceSectionMetadata::fromArray($metadata),
         ]);
+    }
+
+    /**
+     * `unmatched_song_section` on a song the deleted heuristic `audio_only` classifier
+     * produced (`SpeechSectionClassificationService` and its siblings, removed `9c1410f91`,
+     * 2026-07-20) is a fossil in every sense that matters even though the flag itself is
+     * still live for the current `llm_structure` pipeline (§361, "Happy Birthday", is a real,
+     * current, still-open case and must not be touched by this).
+     *
+     * The distinction from {@see RetiredSectionReviewFlags} is that `unmatched_song_section`
+     * itself is not dead code — only these ten sections' *reason* for carrying it is, so the
+     * predicate is conditioned on the section's own `classification_mode`, not asserted for
+     * the flag name globally.
+     *
+     * Three facts made this a release rather than a reduction:
+     *
+     *  - `classification_mode: audio_only` is written nowhere in the current codebase
+     *    (confirmed by search); it is exclusively heuristic-era data.
+     *  - {@see \App\Actions\ServiceReview\ConfirmServiceSection} is the only review action
+     *    available for an unmatched song, and it dismisses the review without ever writing an
+     *    identity — there is no path today by which a reviewer's listening becomes data.
+     *  - {@see \App\Services\ChurchService\SectionPublication\SongPublicationHandler::isEligible()}
+     *    and {@see \App\Services\Public\PublicServiceContentEligibility::applySongItemEligibility()}
+     *    both already exclude an Unmatched section from publication and the public archive
+     *    regardless of this flag, so nothing downstream reads the boolean either.
+     *
+     * @param  array<string, mixed>  $metadata
+     */
+    private function isHeuristicAudioOnlySongFossil(string $flag, array $metadata): bool
+    {
+        return $flag === 'unmatched_song_section'
+            && ($metadata['classification_mode'] ?? null) === 'audio_only';
     }
 
     /**

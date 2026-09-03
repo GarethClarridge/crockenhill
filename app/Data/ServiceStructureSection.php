@@ -179,11 +179,6 @@ final readonly class ServiceStructureSection extends JsonData
     }
 
     /**
-     * A copy carrying additional review flags (deduplicated).
-     *
-     * @param  list<string>  $flags
-     */
-    /**
      * A copy carrying no review flags.
      *
      * {@see self::withReviewFlags()} merges, because during detection a section accumulates
@@ -211,6 +206,11 @@ final readonly class ServiceStructureSection extends JsonData
         );
     }
 
+    /**
+     * A copy carrying additional review flags (deduplicated).
+     *
+     * @param  list<string>  $flags
+     */
     public function withReviewFlags(array $flags): self
     {
         return new self(
