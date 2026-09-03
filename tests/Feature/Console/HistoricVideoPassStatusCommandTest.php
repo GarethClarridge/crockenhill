@@ -333,6 +333,72 @@ class HistoricVideoPassStatusCommandTest extends TestCase
         ]);
     }
 
+    /**
+     * The 2026-09-03 wedge: five runs read `processing` for 55 minutes with every
+     * queue empty and nothing in `failed_jobs`. The disposition table shows
+     * `in_progress` for exactly that state and for a healthy one, so the pass
+     * report has to alarm on the queue being empty beside open runs.
+     */
+    #[Test]
+    public function it_alarms_when_runs_are_open_but_no_historic_queue_holds_work(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $this->createRun($operation->id, 'running', ProcessingStatus::Processing, 'transcribing_audio');
+        $this->fakeQueueDepth(0);
+
+        $this->artisan('historic-import:video-pass-status', [
+            '--operation' => $operation->operation_id,
+            '--only' => 'running',
+        ])
+            ->expectsOutputToContain('WEDGED')
+            ->assertExitCode(0);
+    }
+
+    #[Test]
+    public function it_does_not_alarm_while_historic_work_is_still_queued(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $this->createRun($operation->id, 'running', ProcessingStatus::Processing, 'transcribing_audio');
+        $this->fakeQueueDepth(3);
+
+        $this->artisan('historic-import:video-pass-status', [
+            '--operation' => $operation->operation_id,
+            '--only' => 'running',
+        ])
+            ->expectsOutputToContain('In flight:')
+            ->doesntExpectOutputToContain('WEDGED')
+            ->assertExitCode(0);
+    }
+
+    /**
+     * An empty queue with nothing open is a finished pass, not a wedge.
+     */
+    #[Test]
+    public function it_does_not_alarm_when_the_pass_has_no_open_runs(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $this->createRun($operation->id, 'finished', ProcessingStatus::Completed, 'completed');
+        $this->fakeQueueDepth(0);
+
+        $this->artisan('historic-import:video-pass-status', [
+            '--operation' => $operation->operation_id,
+            '--only' => 'finished',
+        ])
+            ->doesntExpectOutputToContain('WEDGED')
+            ->assertExitCode(0);
+    }
+
+    private function fakeQueueDepth(int $depth): void
+    {
+        $connection = $this->createStub(\Illuminate\Contracts\Queue\Queue::class);
+        $connection->method('size')->willReturn($depth);
+
+        $factory = $this->createStub(\Illuminate\Contracts\Queue\Factory::class);
+        $factory->method('connection')->willReturn($connection);
+
+        $this->app->instance(\Illuminate\Contracts\Queue\Factory::class, $factory);
+    }
+
     private function createRun(
         int $operationId,
         string $itemKey,

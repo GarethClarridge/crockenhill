@@ -85,6 +85,8 @@ class HistoricVideoPassStatusCommand extends Command
 
         $this->reportDegraded($report);
 
+        $this->reportProgress($status->progress($operation, $itemKeys));
+
         $this->reportAlerts($status->alerts($operation, $itemKeys));
 
         if ($this->option('measures')) {
@@ -171,6 +173,39 @@ class HistoricVideoPassStatusCommand extends Command
                 $alerts['items'],
             ),
         );
+    }
+
+    /**
+     * The wedge alarm Phase 8 requires: "nothing in flight while the pass is
+     * incomplete", not a failure count. An empty queue beside open runs is the
+     * one state the disposition table cannot show — a stranded run reports
+     * `in_progress` indefinitely.
+     *
+     * @param  array{wedged:bool, open_runs:int, in_flight:int, queue_depths:array<string,int>}  $progress
+     */
+    private function reportProgress(array $progress): void
+    {
+        $depths = collect($progress['queue_depths'])
+            ->map(static fn (int $depth, string $queue): string => "{$queue}: {$depth}")
+            ->implode(', ');
+
+        if ($progress['wedged']) {
+            $this->error(sprintf(
+                'WEDGED — %d run(s) still open but no historic queue holds any work (%s). '
+                .'Nothing will progress without intervention; this is not healthy queuing.',
+                $progress['open_runs'],
+                $depths ?: 'no historic queues configured',
+            ));
+
+            return;
+        }
+
+        $this->line(sprintf(
+            'In flight: %d job(s) across historic queues (%s); %d run(s) open.',
+            $progress['in_flight'],
+            $depths ?: '—',
+            $progress['open_runs'],
+        ));
     }
 
     /** @param array<string, mixed> $report */

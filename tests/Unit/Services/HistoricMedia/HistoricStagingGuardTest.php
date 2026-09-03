@@ -145,6 +145,40 @@ class HistoricStagingGuardTest extends TestCase
         $guard->activate($context);
     }
 
+    #[Test]
+    public function it_activates_the_same_context_again_when_a_prior_activation_leaked_its_batch_root(): void
+    {
+        /**
+         * The 2026-09-03 wedge: `storageIdentity()` fingerprints the live staging
+         * root, but `activate()` mutates that root to append the batch directory.
+         * If a prior activation was never restored, the next activate() compared a
+         * batch-rooted fingerprint against the context's base-rooted one and threw
+         * a misleading "restart workers" error, stranding the run.
+         */
+        $this->configure('historic_staging', 'historic_staging', 'historic_staging');
+        $guard = app(HistoricStagingGuard::class);
+        $context = $guard->contextForApprovedPlan(str_repeat('a', 64), str_repeat('b', 64));
+
+        $baseRoot = (string) config('filesystems.disks.historic_staging.root');
+
+        // Activate and deliberately do NOT restore, reproducing the leak.
+        $guard->activate($context);
+        $this->assertNotSame($baseRoot, (string) config('filesystems.disks.historic_staging.root'));
+
+        $guard->activate($context);
+
+        $this->assertSame(
+            $this->appendedBatchRoot($baseRoot, $context->batchRoot),
+            (string) config('filesystems.disks.historic_staging.root'),
+            'A repeated activation must re-apply the batch root to the pristine base, not compound onto the leaked root.'
+        );
+    }
+
+    private function appendedBatchRoot(string $base, string $batchRoot): string
+    {
+        return rtrim($base, '/').'/'.$batchRoot;
+    }
+
     private function configure(string $staging, string $sermon, string $transcript): void
     {
         config([

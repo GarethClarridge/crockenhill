@@ -11,6 +11,10 @@ use App\Models\MediaProcessingLog;
 
 class HistoricVideoPassStatus
 {
+    public function __construct(
+        private readonly HistoricPassInFlightProbe $inFlightProbe,
+    ) {}
+
     /**
      * @param  list<string>  $itemKeys
      * @return list<array{
@@ -41,6 +45,44 @@ class HistoricVideoPassStatus
         }
 
         return $status;
+    }
+
+    /**
+     * Whether this pass can still make progress.
+     *
+     * The disposition reader alone cannot answer this. `in_progress` is derived
+     * from the run's own status, so a run stranded by a pre-fire activation
+     * failure reads `in_progress` for ever while nothing is queued — which on
+     * 2026-09-03 made a dead pass look identical to a healthy one for 55
+     * minutes. Phase 8 therefore alarms on "nothing in flight while the pass is
+     * incomplete" rather than on a failure count.
+     *
+     * This is the one reading here that consults the queue backend rather than
+     * the database, because the database is precisely what cannot see it.
+     *
+     * @param  list<string>  $itemKeys
+     * @return array{wedged:bool, open_runs:int, in_flight:int, queue_depths:array<string,int>}
+     */
+    public function progress(HistoricImportOperation $operation, array $itemKeys): array
+    {
+        $runIds = [];
+
+        foreach ($this->runsByItemKey($operation, $itemKeys) as $runs) {
+            foreach ($runs as $run) {
+                $runIds[] = $run->id;
+            }
+        }
+
+        $depths = $this->inFlightProbe->depthsByQueue();
+        $openRuns = $this->inFlightProbe->openRunCount($runIds);
+        $inFlight = array_sum($depths);
+
+        return [
+            'wedged' => $openRuns > 0 && $inFlight === 0,
+            'open_runs' => $openRuns,
+            'in_flight' => $inFlight,
+            'queue_depths' => $depths,
+        ];
     }
 
     /**

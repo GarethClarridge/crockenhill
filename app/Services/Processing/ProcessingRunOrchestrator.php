@@ -16,6 +16,7 @@ use App\Jobs\PromoteHistoricAssets;
 use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
 use App\Services\HistoricMedia\HistoricProcessingThroughput;
+use App\Services\HistoricMedia\HistoricPassInFlightProbe;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Media\Video\VideoStorageService;
 use Carbon\CarbonInterface;
@@ -350,13 +351,46 @@ class ProcessingRunOrchestrator
     }
 
     /**
+     * A historic run left non-terminal with no historic work in flight.
+     *
+     * The status alone cannot say this: a run whose first job failed inside the
+     * `Queue::before` staging activation keeps reading `pending` or `processing`
+     * for ever, and `isRetryable()` accepts neither, so recovery required
+     * hand-forcing the row (2026-09-03). Requiring every historic queue to be
+     * empty is deliberately conservative — a run genuinely mid-flight holds a
+     * reserved job, so it can never be mistaken for stranded — and it means no
+     * staleness threshold has to be guessed.
+     *
+     * The probe is resolved late rather than injected, for the same reason
+     * {@see HistoricProcessingThroughput::historicQueueFor()} resolves its
+     * registry late: it depends on the queue factory, and this orchestrator is
+     * itself resolved while the queue manager is being built, so constructor
+     * injection closes a container cycle that crashes the process outright
+     * rather than raising anything catchable.
+     */
+    private function isStrandedHistoricRun(MediaProcessingLog $processingLog): bool
+    {
+        if ($processingLog->historic_import_operation_id === null) {
+            return false;
+        }
+
+        $isOpen = in_array($processingLog->status, [
+            ProcessingStatus::Pending,
+            ProcessingStatus::Started,
+            ProcessingStatus::Processing,
+        ], true);
+
+        return $isOpen && app(HistoricPassInFlightProbe::class)->inFlightCount() === 0;
+    }
+
+    /**
      * Resolve and dispatch the retry plan. Always runs with the run's historic staging
      * context active when it has one, so artifact keys resolve against the same batch root
      * the original attempt wrote them under.
      */
     private function runRetry(MediaProcessingLog $processingLog): ProcessingResult
     {
-        if (! $processingLog->status->isRetryable()) {
+        if (! $processingLog->status->isRetryable() && ! $this->isStrandedHistoricRun($processingLog)) {
             return ProcessingResult::failure(
                 processingId: $processingLog->processing_id,
                 message: 'Processing is not in failed or cancelled state',

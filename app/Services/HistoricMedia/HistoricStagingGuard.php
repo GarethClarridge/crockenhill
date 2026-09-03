@@ -31,6 +31,24 @@ class HistoricStagingGuard
     private const MediaOutputKeys = ['sermon_disk', 'transcript_disk'];
 
     /**
+     * The pristine, un-batch-rooted configuration for each staging disk this
+     * instance has activated, keyed by disk name.
+     *
+     * Why this is captured rather than read live at activation time:
+     * {@see activate()} rewrites the disk's root to append the batch directory,
+     * so once an activation is in effect the live configuration no longer
+     * describes the worker's approved storage. Comparing the context against
+     * live configuration meant a leaked activation made every subsequent job in
+     * that process fail the identity check with a misleading "restart workers"
+     * error, stranding the run (2026-09-03). Activating from the captured
+     * baseline also makes a repeated activation re-apply the batch root to the
+     * pristine base rather than compounding onto an already-batch-rooted one.
+     *
+     * @var array<string, array<string, mixed>>
+     */
+    private array $baselineStagingConfiguration = [];
+
+    /**
      * Every storage destination a historic pipeline job may write. The context
      * swaps these as one set, so worker configuration cannot leak one output
      * family into a shared/public disk.
@@ -155,11 +173,12 @@ class HistoricStagingGuard
 
         $this->assertNotPubliclyServed($context->stagingDisk);
 
-        if ($context->storageIdentity !== $this->storageIdentity($context->stagingDisk)) {
+        $originalDiskConfiguration = $this->baselineDiskConfiguration($context->stagingDisk);
+
+        if ($context->storageIdentity !== $this->storageIdentityFor($originalDiskConfiguration)) {
             throw new RuntimeException('Historic staging context does not match this worker storage identity. Restart workers with the approved storage configuration.');
         }
 
-        $originalDiskConfiguration = $this->diskConfiguration($context->stagingDisk);
         $this->requireExplicitRoot($originalDiskConfiguration);
         $diskConfiguration = $originalDiskConfiguration;
         $storageConfiguration = [];
@@ -176,10 +195,24 @@ class HistoricStagingGuard
         return new HistoricStagingActivation($context->stagingDisk, $originalDiskConfiguration, $storageConfiguration);
     }
 
+    /** @return array<string, mixed> */
+    private function baselineDiskConfiguration(string $disk): array
+    {
+        return $this->baselineStagingConfiguration[$disk] ??= $this->diskConfiguration($disk);
+    }
+
     /** @return array{driver:string,bucket:?string,root_fingerprint:string,prefix_fingerprint:string} */
     private function storageIdentity(string $disk): array
     {
-        $configuration = $this->diskConfiguration($disk);
+        return $this->storageIdentityFor($this->diskConfiguration($disk));
+    }
+
+    /**
+     * @param  array<string, mixed>  $configuration
+     * @return array{driver:string,bucket:?string,root_fingerprint:string,prefix_fingerprint:string}
+     */
+    private function storageIdentityFor(array $configuration): array
+    {
         $root = $this->resolvedRoot($configuration);
         $prefix = (string) ($configuration['prefix'] ?? '');
 

@@ -45,6 +45,7 @@ use Faker\Factory as FakerFactory;
 use Faker\Generator as FakerGenerator;
 use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -166,7 +167,30 @@ class AppServiceProvider extends ServiceProvider
         Queue::createPayloadUsing(fn (): array => app(HistoricStagingContextRegistry::class)->queuePayload());
 
         Queue::before(function (JobProcessing $event): void {
-            app(HistoricStagingContextRegistry::class)->activateQueuePayload($event->job->payload());
+            try {
+                app(HistoricStagingContextRegistry::class)->activateQueuePayload($event->job->payload());
+            } catch (\Throwable $exception) {
+                /**
+                 * This listener runs before the job fires, so an exception raised
+                 * here never reaches the job's own `failed()` handler and the run
+                 * it owns is never marked. On 2026-09-03 that stranded five
+                 * historic runs reading `processing` with every queue empty and
+                 * nothing in `failed_jobs` — indistinguishable from healthy
+                 * queuing, and a state no retry path accepts.
+                 *
+                 * Failing the job routes through its `failed()` handler, which
+                 * marks the run. The worker checks `isDeleted()` immediately after
+                 * this event, so the job body never runs against unactivated
+                 * staging configuration.
+                 */
+                Log::error('Historic staging activation failed; failing the job so its run is marked', [
+                    'job' => $event->job->resolveName(),
+                    'connection' => $event->connectionName,
+                    'error' => $exception->getMessage(),
+                ]);
+
+                $event->job->fail($exception);
+            }
         });
 
         $deactivate = static function (): void {

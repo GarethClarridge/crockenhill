@@ -235,6 +235,25 @@ final class HistoricProcessingThroughput
     }
 
     /**
+     * Every queue the historic pipeline dispatches onto, keyed by stage.
+     *
+     * Distinct queue names are returned once each, so a configuration that
+     * points two stages at one queue cannot double-count its depth.
+     *
+     * @return array<string, string>
+     */
+    public function configuredQueues(): array
+    {
+        $queues = [];
+
+        foreach (self::STAGES as $stage) {
+            $queues[$stage] = $this->stage($stage)['queue'];
+        }
+
+        return $queues;
+    }
+
+    /**
      * Resolve a persisted processing-step name to the resource stage that owns
      * it. No fallback is permitted: an unrecognised step is evidence that the
      * map needs updating, not orchestration work by default.
