@@ -438,6 +438,37 @@ class BuildHistoricItemGroundTruthCommandTest extends TestCase
     }
 
     /**
+     * The corpus binding fingerprints the catalogue the run resolved against, so it has to
+     * be the catalogue the resolver actually loaded. `SongTitleResolver::fromDatabase()`
+     * goes through `Song::query()` and so drops soft-deleted rows; the binding's own count
+     * was a raw query and did not, which counted a retired duplicate and hashed it under an
+     * empty title — a fingerprint of a catalogue nothing reads.
+     */
+    #[Test]
+    public function the_corpus_fingerprint_excludes_a_retired_song(): void
+    {
+        $this->catalogue(['Amazing Grace']);
+        $this->stageService('2023-01-01', 'morning', [['type' => 'songs', 'title' => 'Amazing Grace']]);
+        $this->writeArchive('2023-01-01', 'morning', [['type' => 'songs', 'title' => 'Amazing Grace']]);
+
+        $statements = [$this->statement('2023-01-01', 'morning', 'Amazing Grace')];
+
+        $before = $this->build($statements)['corpus'];
+
+        Song::factory()->create([
+            'title' => 'Amazing Grace',
+            'canonical_key' => 'amazing grace duplicate',
+            'alternate_title' => null,
+            'deleted_at' => now(),
+        ]);
+
+        $after = $this->build($statements)['corpus'];
+
+        $this->assertSame(1, $after['catalogue_song_count']);
+        $this->assertSame($before['catalogue_fingerprint'], $after['catalogue_fingerprint']);
+    }
+
+    /**
      * @param  list<string>  $titles
      * @return array<string, int>
      */

@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services\Song;
 
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
+
 /**
  * The catalogue's answer to the two questions a caller asks about a free-text line
  * without wanting to link anything: does it name a song at all, and which song.
  *
- * It exists so {@see \App\Services\ChurchService\Structure\ServiceStructureValidator} can
+ * It exists so {@see ServiceStructureValidator} can
  * consult the catalogue without owning it. The resolver is built at most once, on first
  * use, because it loads a lookup over the whole catalogue — a validation pass over a
  * structure with no songs must not pay for that.

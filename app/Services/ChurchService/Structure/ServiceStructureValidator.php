@@ -10,6 +10,7 @@ use App\Enums\ServiceSectionType;
 use App\Services\ChurchService\ChurchServiceSongLinker;
 use App\Services\Song\SongCatalogueNaming;
 use App\Support\SectionReviewFlagPolicy;
+use App\Support\SermonAutoExtractionPolicy;
 use App\Support\ServiceSectionConfidence;
 
 /**
@@ -77,12 +78,12 @@ class ServiceStructureValidator
      * It asks for a reviewer only when the sermon carries no `sermon_reference`
      * either (D5, 2026-09-03). The absent reading *section* costs nothing a
      * reviewer can recover — the sermon span extracts correctly either way, per
-     * {@see \App\Support\SermonAutoExtractionPolicy} — so the only actionable
+     * {@see SermonAutoExtractionPolicy} — so the only actionable
      * case is a sermon that will publish with no Scripture reference at all and
      * nobody asked to supply one. Six of the eight sermons this flag had
      * stopped already stated their passage from the preaching itself; review
      * earns its cost when the pipeline made a choice, not when it noticed a
-     * fact. {@see \App\Support\SectionReviewFlagPolicy} owns that rule.
+     * fact. {@see SectionReviewFlagPolicy} owns that rule.
      */
     public const FLAG_MISSING_PREACHED_READING = 'structure_missing_preached_reading';
 

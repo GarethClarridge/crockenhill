@@ -742,7 +742,11 @@ class HistoricItemGroundTruth
      */
     private function corpusBinding(SongTitleResolver $resolver, array $staged): array
     {
-        $songIds = DB::table('songs')->orderBy('id')->pluck('id')->all();
+        // Soft-deleted rows are excluded so the fingerprint describes the catalogue the
+        // resolver actually loaded. Song::query() applies the soft-delete scope and this
+        // raw query does not, so a retired duplicate would otherwise be counted here and
+        // hashed as an empty title — a fingerprint of a catalogue nothing reads.
+        $songIds = DB::table('songs')->whereNull('deleted_at')->orderBy('id')->pluck('id')->all();
         $itemCount = array_sum(array_map(static fn (array $service): int => $service['item_count'], $staged));
 
         return [

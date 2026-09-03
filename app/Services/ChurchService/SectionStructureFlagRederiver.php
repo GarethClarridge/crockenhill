@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService;
 
+use App\Actions\ServiceReview\ConfirmServiceSection;
 use App\Data\ServiceSectionMetadata;
 use App\Data\ServiceStructure;
+use App\Data\ServiceStructureSection;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\SectionPublication\SongPublicationHandler;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\ValidationContext;
+use App\Services\Public\PublicServiceContentEligibility;
 use App\Support\RetiredSectionReviewFlags;
 use App\Support\SectionReviewFlagPolicy;
 
@@ -58,10 +62,12 @@ class SectionStructureFlagRederiver
     /**
      * The changes this run's sections need.
      *
-     * A run this pass cannot re-derive is not passed over: its retired flags are still
-     * withdrawn, because a flag no code can raise is dead whatever the run banked. The
-     * accompanying note records what could not be re-derived, so a partial answer stays
-     * legible as one.
+     * A run whose banked structure cannot be trusted is not passed over. Its retired flags
+     * are still withdrawn — a flag no code can raise is dead whatever the run banked — and
+     * the three flags the section rows carry the facts for {@see self::structureFromRows()}
+     * are still re-derived where the row is the current pipeline's. The note then records
+     * what could *not* be re-asked, so a partial answer stays legible as one; without it a
+     * run silently skipped reads exactly like a run that agreed.
      */
     public function rederive(MediaProcessingLog $processingLog): SectionFlagRederivation
     {
@@ -79,59 +85,96 @@ class SectionStructureFlagRederiver
         $payload = $this->storedStructure($processingLog);
 
         if ($payload === null) {
-            return new SectionFlagRederivation($this->retirementsOnly($rows));
+            $note = 'no structure was banked';
+            $structure = $this->structureFromRows($rows);
+        } else {
+            $banked = ServiceStructure::fromArray($payload);
+            $note = $this->misalignment($banked, $rows);
+            $structure = $note === null ? $banked : $this->structureFromRows($rows);
         }
 
-        $structure = ServiceStructure::fromArray($payload);
-        $misalignment = $this->misalignment($structure, $rows);
+        $trusted = $note === null;
 
-        if ($misalignment !== null) {
-            return new SectionFlagRederivation($this->retirementsOnly($rows), $misalignment);
-        }
-
-        $rederivable = $this->rederivableFlags($processingLog);
+        $rederivable = $this->rederivableFlags($processingLog, $trusted);
         $annotated = $this->validator->reannotate($structure, $this->contextFor($processingLog));
 
         $changes = [];
 
         foreach ($annotated->sections as $index => $section) {
-            $change = $this->changeFor($rows[$index], $section->reviewFlags, $rederivable);
+            $row = $rows[$index];
+
+            $change = $this->changeFor(
+                $row,
+                $section->reviewFlags,
+                $trusted || $this->carriesCurrentPipelineFacts($row) ? $rederivable : [],
+            );
 
             if ($change instanceof SectionFlagChange) {
                 $changes[] = $change;
             }
         }
 
-        return new SectionFlagRederivation($changes);
+        return new SectionFlagRederivation(
+            $changes,
+            $trusted ? null : sprintf('%s; only the flags the section rows carry were re-derived', $note),
+        );
     }
 
     /**
-     * The changes available without a structure to re-derive from: retired flags withdrawn,
-     * everything else left exactly as it stands.
+     * A structure standing in for one a run never banked, or banked and has since drifted
+     * from: each row's own type, boundaries and confidence, and nothing else.
      *
-     * The three sections still held on 2026-09-03 by `reading_reference_conflict` are all
-     * heuristic-era runs that banked no structure at all — the same commit deleted both the
-     * flag's raiser and the pipeline that produced those runs — so a pass that only visited
-     * runs with a banked structure would never have reached them. So are the ten sections
-     * {@see self::isHeuristicAudioOnlySongFossil()} releases, for the same reason under a
-     * different name.
+     * Three of the four re-derived flags are made only of facts the row itself carries — a
+     * section's confidence, its duration, its end against the end of the recording — so a
+     * missing structure is no reason to leave them unasked. 26 of the 74 live runs on
+     * 2026-09-03 banked none, and they held 7 of the 10 remaining `structure_low_confidence`
+     * flags. The fourth, `song_title_marker_mismatch`, needs the banked chapter markers and
+     * is withheld here {@see self::rederivableFlags()}; with no markers to cover a section
+     * the annotation would find no disagreement and withdraw the flag on no evidence.
+     *
+     * Nothing else is carried across. A song title or an OoS claim would make this read like
+     * a second opinion on the run's content, which it is not — it is the run's own rows,
+     * restated in the shape the annotation reads.
      *
      * @param  list<ServiceSection>  $rows
-     * @return list<SectionFlagChange>
      */
-    private function retirementsOnly(array $rows): array
+    private function structureFromRows(array $rows): ServiceStructure
     {
-        $changes = [];
+        return new ServiceStructure(array_map(
+            static fn (ServiceSection $row): ServiceStructureSection => new ServiceStructureSection(
+                type: $row->section_type,
+                title: $row->title,
+                startTime: (float) $row->start_time,
+                endTime: (float) $row->end_time,
+                confidence: (float) $row->confidence,
+                oosItemId: null,
+                songTitle: null,
+                readingReference: null,
+            ),
+            $rows,
+        ));
+    }
 
-        foreach ($rows as $row) {
-            $change = $this->changeFor($row, [], []);
-
-            if ($change instanceof SectionFlagChange) {
-                $changes[] = $change;
-            }
-        }
-
-        return $changes;
+    /**
+     * Whether this row's `confidence` means what the current threshold means.
+     *
+     * It is asked only of the {@see self::structureFromRows()} path. A banked structure is
+     * the run's own reading of itself, so its confidences are its own by construction — and
+     * in fact every one of the 48 runs that banked a structure is `llm_structure` throughout.
+     * A bare `confidence` column is not self-describing: the heuristic classifiers wrote one
+     * too, on a scale of their own, and `ServiceSectionConfidence::HIGH_THRESHOLD` was
+     * calibrated on neither.
+     *
+     * Measured before this guard existed, re-deriving every structure-less row would have
+     * raised 44 new `structure_low_confidence` flags and 4 `structure_micro_section` — every
+     * one of them on an `audio_only` or `ai_transcript` row, none on an `llm_structure` row,
+     * which agreed exactly. That is the same category error this pass was written to undo,
+     * pointed the other way: a queue grown by comparing a number against a threshold that was
+     * never about it.
+     */
+    private function carriesCurrentPipelineFacts(ServiceSection $row): bool
+    {
+        return ($row->metadata?->toArray()['classification_mode'] ?? null) === 'llm_structure';
     }
 
     /**
@@ -226,11 +269,11 @@ class SectionStructureFlagRederiver
      *
      *  - `classification_mode: audio_only` is written nowhere in the current codebase
      *    (confirmed by search); it is exclusively heuristic-era data.
-     *  - {@see \App\Actions\ServiceReview\ConfirmServiceSection} is the only review action
+     *  - {@see ConfirmServiceSection} is the only review action
      *    available for an unmatched song, and it dismisses the review without ever writing an
      *    identity — there is no path today by which a reviewer's listening becomes data.
-     *  - {@see \App\Services\ChurchService\SectionPublication\SongPublicationHandler::isEligible()}
-     *    and {@see \App\Services\Public\PublicServiceContentEligibility::applySongItemEligibility()}
+     *  - {@see SongPublicationHandler::isEligible()}
+     *    and {@see PublicServiceContentEligibility::applySongItemEligibility()}
      *    both already exclude an Unmatched section from publication and the public archive
      *    regardless of this flag, so nothing downstream reads the boolean either.
      *
@@ -250,17 +293,30 @@ class SectionStructureFlagRederiver
      * Guessing the duration from the last section's end would fabricate the very measurement
      * the flag is made of.
      *
+     * The marker flag is withheld on the same principle when the banked structure is missing
+     * or no longer describes these rows: the chapter markers it compares against live only
+     * there {@see self::structureFromRows()}, and an annotation run over a structure with no
+     * markers finds no disagreement anywhere — which would withdraw the flag from every
+     * section carrying it without having looked at anything.
+     *
+     * @param  bool  $bankedStructureTrusted  Whether the chapter markers are available and still describe these rows
      * @return list<string>
      */
-    private function rederivableFlags(MediaProcessingLog $processingLog): array
+    private function rederivableFlags(MediaProcessingLog $processingLog, bool $bankedStructureTrusted): array
     {
-        if ($this->recordingDuration($processingLog) > 0.0) {
-            return ServiceStructureValidator::REANNOTATED_FLAGS;
+        $withheld = [];
+
+        if ($this->recordingDuration($processingLog) <= 0.0) {
+            $withheld[] = ServiceStructureValidator::FLAG_BENEDICTION_SUSPECT;
+        }
+
+        if (! $bankedStructureTrusted) {
+            $withheld[] = ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH;
         }
 
         return array_values(array_filter(
             ServiceStructureValidator::REANNOTATED_FLAGS,
-            static fn (string $flag): bool => $flag !== ServiceStructureValidator::FLAG_BENEDICTION_SUSPECT,
+            static fn (string $flag): bool => ! in_array($flag, $withheld, true),
         ));
     }
 

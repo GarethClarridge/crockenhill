@@ -6,7 +6,8 @@ data — every flag marks a place the pipeline could not decide — rather than 
 work list. Each cause below is characterised against the live corpus, with the
 question to investigate next.
 
-Nothing here has been changed. This is a survey.
+Written as a survey, with nothing changed. **§9 records what was then executed
+against it on 2026-09-03** — read it alongside §0, whose counts it supersedes.
 
 Prior context: [`HISTORIC-IMPORT-DECISIONS-2026-09-03.md`](HISTORIC-IMPORT-DECISIONS-2026-09-03.md)
 (§6 for what landed), plan of record
@@ -281,3 +282,53 @@ Item 3 is a design question worth its own decision record.
 - **Enumerate what a bulk command would write, grouped by column, before
   `--execute`.** A dry-run count of 26 concealed 13 harmful writes among 13 sound
   ones earlier the same day.
+
+---
+
+## 9. Outcome, and the one root cause left open
+
+**Executed 2026-09-03. The live queue went 61 → 36 sections, 62 → 57 services.**
+Items 1, 2, 4 and 5 of §7 landed on branch
+`review-queue-flag-rederivation-2026-09-03`. Item 3 (children's-talk speaker
+proposals) is untouched and remains the largest recurring cost.
+
+`song_title_marker_mismatch` fell 14 → 1 (§681, the single genuine song-vs-song
+disagreement §2 predicted), `unmatched_song_section` 11 → 1 (§361, the current
+pipeline's real case), and both fossil classes went to 0. `services:rederive-structure-review-flags`
+is the instrument §1 asked for; it is idempotent, and a second dry run over the
+live corpus reports no changes.
+
+### The praise-number gap was not what §3 described
+
+`service_sections` has no `song_id` column — the three example rows resolve
+through a different path, and all three sat on superseded runs. The live blocker
+was narrower and more interesting: **the catalogue held two rows for one hymn.**
+
+| id | title | canonical_key |
+|---|---|---|
+| 22 | Jesus I My Cross Have Taken #843 | `843 jesus i my cross have taken` |
+| 1152 | Jesus I My Cross Have Taken #843 | `jesus i my cross have taken 843` |
+
+Identical in every other field — same author, same song book, same
+`first_line_key`, same `alternate_title`. Row 1152 is soft-deleted; nothing
+referenced it, and the survivor loses nothing.
+
+**Root cause, still open.** `Song::canonicalizeKey()` lowercases and collapses
+whitespace and nothing else, so **the praise number's position in the title is
+load-bearing**. A source that emits `#843 Jesus I My Cross Have Taken` and one
+that emits `Jesus I My Cross Have Taken #843` produce two different canonical
+keys for one hymn, and the unique index on `canonical_key` — working exactly as
+designed — admits both. The dedup is title-order-sensitive.
+
+Two candidate fixes, neither taken here because this is a catalogue-integrity
+decision rather than a review-queue one:
+
+1. **Make the key number-position-insensitive** — lift a leading or trailing
+   praise number out of the title before hashing, so both forms collapse to one
+   key. Changes every stored `canonical_key`, so it needs a backfill and a
+   re-check of everything that joins on it.
+2. **Add a uniqueness check on `praise_number`** at sync time, ahead of the
+   canonical-key index. Cheaper and narrower, but it only catches numbered
+   songs — two spellings of an unnumbered hymn still slip through.
+
+Worth deciding before Phase 8 imports 414 more identities through the same sync.

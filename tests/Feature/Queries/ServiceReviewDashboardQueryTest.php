@@ -16,6 +16,7 @@ use App\Models\ServiceSection;
 use App\Models\SpeakerProfile;
 use App\Queries\ServiceReviewDashboardQuery;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Support\RetiredSectionReviewFlags;
 use App\Support\ServiceSectionConfidence;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -671,8 +672,13 @@ class ServiceReviewDashboardQueryTest extends TestCase
         $this->assertSame('blocked by other review flags', $this->query->batchApprovalSkipReason($section));
     }
 
+    /**
+     * `heuristic_demotion` used to block batch approval on its own. Its raiser was deleted
+     * with the heuristic pipeline, so the flag is retired {@see RetiredSectionReviewFlags}
+     * and a section carrying nothing else has no live question left to answer.
+     */
     #[Test]
-    public function batch_approval_skip_reason_returns_blocked_for_heuristic_demotion_flag(): void
+    public function batch_approval_is_not_blocked_by_a_retired_review_flag(): void
     {
         $run = MediaProcessingLog::factory()->livestream()->create();
 
@@ -687,7 +693,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
             ],
         ]);
 
-        $this->assertSame('blocked by other review flags', $this->query->batchApprovalSkipReason($section));
+        $this->assertNull($this->query->batchApprovalSkipReason($section));
     }
 
     #[Test]
@@ -767,8 +773,15 @@ class ServiceReviewDashboardQueryTest extends TestCase
         $this->assertSame($section->id, $result->first()->id);
     }
 
+    /**
+     * The dashboard used to pull a section into review on this flag alone, and to render it
+     * as "Heuristic classification". Nothing can raise it any more, so a section carrying
+     * only it is asking a question no code will ever ask again — it belongs nowhere near an
+     * operator's queue. This is the read side of {@see RetiredSectionReviewFlags}; the write
+     * side withdraws the flag from the rows still holding it.
+     */
     #[Test]
-    public function review_groups_includes_sections_flagged_only_by_heuristic_demotion(): void
+    public function a_section_flagged_only_by_a_retired_review_flag_is_not_in_review(): void
     {
         $run = MediaProcessingLog::factory()->livestream()->create([
             'extracted_date' => '2026-05-31',
@@ -788,14 +801,6 @@ class ServiceReviewDashboardQueryTest extends TestCase
             ],
         ]);
 
-        $groups = $this->query->reviewGroups();
-
-        $this->assertCount(1, $groups);
-        $this->assertCount(1, $groups[0]['sections']);
-        $this->assertSame('Demoted Talk', $groups[0]['sections'][0]['section']->title);
-        $this->assertContains(
-            'heuristic_demotion',
-            array_column($groups[0]['sections'][0]['reasons'], 'key')
-        );
+        $this->assertSame([], $this->query->reviewGroups());
     }
 }

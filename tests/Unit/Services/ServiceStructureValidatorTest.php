@@ -730,7 +730,7 @@ class ServiceStructureValidatorTest extends TestCase
             ['God, we praise you', 'Opening hymn'],
             ['These Are The Facts', 'Closing song'],
             ['Glory be to God the Father', 'Congregational singing'],
-            ["Bless the Lord, O my soul (10,000 Reasons)", 'Opening Songs'],
+            ['Bless the Lord, O my soul (10,000 Reasons)', 'Opening Songs'],
             ['My Heart Is Filled With Thankfulness', "Sermon: The Importance of Jesus' Burial"],
             ['We Have Heard a Joyful Sound', 'Colossians 1:13-23'],
         ] as [$sectionTitle, $markerTitle]) {

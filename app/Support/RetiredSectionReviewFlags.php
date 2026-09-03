@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Services\ChurchService\SectionStructureFlagRederiver;
+
 /**
  * Review flags whose raise site has been deleted from the codebase.
  *
@@ -24,7 +26,7 @@ namespace App\Support;
  *    the same commit. `ServiceReviewDashboardQuery` still reads it in order to render and
  *    gate it, which becomes unreachable once no row carries it.
  *
- * @see \App\Services\ChurchService\SectionStructureFlagRederiver
+ * @see SectionStructureFlagRederiver
  */
 class RetiredSectionReviewFlags
 {

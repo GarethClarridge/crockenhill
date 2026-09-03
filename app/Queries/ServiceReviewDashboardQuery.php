@@ -399,16 +399,6 @@ class ServiceReviewDashboardQuery
             ];
         }
 
-        $reviewFlags = $section->metadata['review_flags'] ?? [];
-
-        if (is_array($reviewFlags) && in_array('heuristic_demotion', $reviewFlags, true)) {
-            $reasons[] = [
-                'key' => 'heuristic_demotion',
-                'label' => 'Heuristic classification',
-                'classes' => 'bg-indigo-100 text-indigo-800',
-            ];
-        }
-
         return $reasons;
     }
 
@@ -647,7 +637,6 @@ class ServiceReviewDashboardQuery
                                     );
                             });
                     })
-                    ->orWhereJsonContains('metadata->review_flags', 'heuristic_demotion')
                     ->orWhereJsonLength('metadata->song_publication_review->reasons', '>', 0)
                     ->orWhere(function (Builder $query): void {
                         $query->whereIn('song_match_type', [

@@ -275,6 +275,112 @@ class RederiveStructureReviewFlagsCommandTest extends TestCase
     }
 
     /**
+     * 26 of the 74 live runs on 2026-09-03 banked no structure, and they held 7 of the 10
+     * remaining `structure_low_confidence` flags. Three of the four re-derived flags are made
+     * only of facts the row itself carries, so a missing structure is no reason to leave them
+     * unasked — and the run says so, rather than reporting the same silence as agreement.
+     */
+    #[Test]
+    public function it_re_derives_row_facts_for_a_run_that_banked_no_structure(): void
+    {
+        [$service, $section] = $this->structurelessRun('llm_structure', 0.95, [
+            ServiceStructureValidator::FLAG_LOW_CONFIDENCE,
+        ]);
+
+        $this->artisan('services:rederive-structure-review-flags', ['--execute' => true])
+            ->expectsOutputToContain('no structure was banked')
+            ->assertSuccessful();
+
+        $section->refresh();
+
+        $this->assertSame([], $section->metadata?->reviewFlags);
+        $this->assertFalse($section->needs_manual_review);
+        $this->assertFalse($service->fresh()->needs_review);
+    }
+
+    /**
+     * The guard that keeps the previous test from inflating the queue instead of draining it.
+     *
+     * A heuristic classifier wrote a `confidence` too, on a scale of its own, and
+     * `ServiceSectionConfidence::HIGH_THRESHOLD` was calibrated on neither. Measured over the
+     * live corpus, re-deriving every structure-less row would have raised 44 new
+     * `structure_low_confidence` flags — every one on an `audio_only` or `ai_transcript` row,
+     * none on an `llm_structure` row. Comparing that number against this threshold is the
+     * same category error the marker flag was just released from.
+     */
+    #[Test]
+    public function it_does_not_judge_a_heuristic_era_confidence_by_the_current_threshold(): void
+    {
+        [, $section] = $this->structurelessRun('ai_transcript', 0.60, []);
+
+        $this->artisan('services:rederive-structure-review-flags', ['--execute' => true])
+            ->assertSuccessful();
+
+        $section->refresh();
+
+        $this->assertSame([], $section->metadata?->reviewFlags);
+        $this->assertFalse($section->needs_manual_review);
+    }
+
+    /**
+     * The marker flag is the one of the four that a row cannot answer: the chapter markers it
+     * compares against live in the banked structure alone. Re-deriving it from a structure
+     * with no markers would find no disagreement anywhere and withdraw it from every section
+     * carrying it, having looked at nothing.
+     */
+    #[Test]
+    public function it_will_not_withdraw_the_marker_flag_without_the_markers(): void
+    {
+        [, $section] = $this->structurelessRun('llm_structure', 0.98, [
+            ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH,
+        ]);
+
+        $this->artisan('services:rederive-structure-review-flags', ['--execute' => true])
+            ->assertSuccessful();
+
+        $section->refresh();
+
+        $this->assertSame(
+            [ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH],
+            $section->metadata?->reviewFlags,
+        );
+        $this->assertTrue($section->needs_manual_review);
+    }
+
+    /**
+     * @param  list<string>  $reviewFlags
+     * @return array{0: ChurchService, 1: ServiceSection}
+     */
+    private function structurelessRun(string $classificationMode, float $confidence, array $reviewFlags): array
+    {
+        $service = ChurchService::factory()->create(['needs_review' => true]);
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'church_service_id' => $service->id,
+            'duration' => 3600.0,
+            'processing_metadata' => [],
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::Song,
+            'section_order' => 1,
+            'start_time' => 120.0,
+            'end_time' => 420.0,
+            'duration' => 300.0,
+            'confidence' => $confidence,
+            'needs_manual_review' => $reviewFlags !== [],
+            'metadata' => [
+                'classification_mode' => $classificationMode,
+                'review_flags' => $reviewFlags,
+            ],
+        ]);
+
+        return [$service, $section];
+    }
+
+    /**
      * @return array{0: ChurchService, 1: ServiceSection}
      */
     private function audioOnlyUnmatchedSong(string $reviewReason): array
