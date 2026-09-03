@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Contracts\SpeakerIdentificationInterface;
 use App\Data\SpeakerEmbeddingResult;
 use App\Enums\SampleSource;
+use App\Enums\SermonContentType;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\SpeakerProfile;
@@ -184,5 +185,54 @@ class SpeakerProfilesBootstrapCommandTest extends TestCase
                 ->whereHas('speakerProfile', fn ($query) => $query->where('preacher_id', $preacher->id))
                 ->count()
         );
+    }
+
+    /**
+     * `sermons` is polymorphic, so a children's talk is a real Sermon row with its own
+     * audio and preacher. A voice profile wants one person talking uninterrupted; a
+     * children's talk is call and response with children answering, and only the opening
+     * `extraction_duration` seconds are embedded — the part most likely to hold other
+     * voices. `orderByDesc('date')` also puts newly published children's talks first, so
+     * without this filter Phase 8 would have degraded every profile as it went.
+     */
+    public function test_bootstrap_never_samples_a_childrens_talk(): void
+    {
+        config([
+            'media-processing.speaker_identification.provider' => 'resemblyzer',
+            'media-processing.speaker_identification.model_version' => 'v1.0',
+        ]);
+
+        $preacher = Preacher::factory()->create([
+            'name' => 'Content Type Filter Test',
+            'slug' => 'content-type-filter-test',
+        ]);
+
+        $sermons = Sermon::factory()->count(2)->withPreacher($preacher)->withAudio()
+            ->sequence(['date' => '2025-01-05'], ['date' => '2025-02-09'])
+            ->create();
+
+        // Dated latest, so orderByDesc('date') reaches it first, and --max-sermons=3 leaves
+        // room for all three: only the content_type filter keeps it out.
+        $childrensTalk = Sermon::factory()->withPreacher($preacher)->withAudio()->create([
+            'content_type' => SermonContentType::ChildrensTalk,
+            'date' => '2026-08-09',
+        ]);
+
+        $mockService = $this->createMock(SpeakerIdentificationInterface::class);
+        $mockService->method('extractEmbedding')
+            ->willReturn(SpeakerEmbeddingResult::success(array_fill(0, 256, 0.1), 60.0));
+        $mockService->method('updateProfile')
+            ->willReturnCallback(fn (SpeakerProfile $profile): SpeakerProfile => $profile);
+        $this->instance(SpeakerIdentificationInterface::class, $mockService);
+
+        $this->artisan("speaker-profiles:bootstrap --preacher={$preacher->slug} --min-sermons=2 --max-sermons=3")
+            ->assertSuccessful();
+
+        $sampledSermonIds = SpeakerSample::query()->pluck('sermon_id')->all();
+
+        $this->assertCount(2, $sampledSermonIds);
+        $this->assertContains($sermons[0]->id, $sampledSermonIds);
+        $this->assertContains($sermons[1]->id, $sampledSermonIds);
+        $this->assertNotContains($childrensTalk->id, $sampledSermonIds);
     }
 }

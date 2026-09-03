@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Contracts\SpeakerIdentificationInterface;
 use App\Enums\SampleSource;
+use App\Enums\SermonContentType;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\SpeakerProfile;
@@ -231,6 +232,20 @@ class BootstrapSpeakerProfilesCommand extends Command
     {
         return Sermon::query()
             ->where('preacher_id', $preacherId)
+            // `sermons` is polymorphic: a children's talk is a real Sermon row with its own
+            // audio. A voice profile wants the cleanest available example of one person
+            // talking, and a sermon is ~36 minutes of exactly that, where a children's talk
+            // is 2-8 minutes of call and response with children answering. Only the first
+            // `extraction_duration` seconds are embedded, so it is the purity of that window
+            // that matters rather than the total length — and a children's talk's opening
+            // minute is the part most likely to contain other voices.
+            //
+            // Nothing is contaminated today, but only because the three existing
+            // children's-talk rows have no audio yet. `orderByDesc('date')` takes the newest
+            // records, and newly published children's talks are the newest, so this would
+            // have started silently degrading every profile the moment Phase 8 published one
+            // with audio — across ~33% of 414 identities.
+            ->where('content_type', SermonContentType::Sermon)
             ->whereNotNull('audio_file_path')
             ->where('audio_file_path', '!=', '')
             ->orderByDesc('date')
