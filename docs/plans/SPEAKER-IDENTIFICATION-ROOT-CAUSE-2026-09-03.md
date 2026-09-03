@@ -1,6 +1,6 @@
 # Speaker identification — root-cause record, 3 September 2026
 
-**Status:** diagnosis complete, nothing implemented. All experiments landed (§8 closed 2026-09-03). This supersedes the causal
+**Status:** diagnosis complete, nothing implemented. §10 (added 2026-09-03) reframes the problem as clustering and supersedes the §7 recommendations — read §10 first. This supersedes the causal
 account in
 [`CHILDRENS-TALK-SPEAKER-DECISIONS-2026-09-03.md`](CHILDRENS-TALK-SPEAKER-DECISIONS-2026-09-03.md)
 §8 and corrects two conclusions carried in memory. The work that record *landed*
@@ -229,6 +229,11 @@ scores sit ~0.11 higher than the historic lane's.
 
 ## 7. What follows
 
+> **Superseded by §10.** Items 1 and 3 stand. Item 2 (era-bucketed profiles) and
+> item 5 (whole-sermon embedding) are both **overtaken** by the encoder result —
+> do not build era-bucketed profiles. Kept here because the reasoning that led to
+> them is what §10 had to displace.
+
 Not decided — these are the options the evidence supports, in dependency order.
 
 1. **Deactivate the 21 zero-centroid profiles, and stop creating them active.**
@@ -326,3 +331,126 @@ Related: [[childrens-talk-speaker-shortlist-2026-09-03]],
 [[speaker-embeddings-encode-acoustic-era]],
 [[speaker-identification-live-in-prod]],
 [[speaker-identification-local-bootstrap-2026-07-25]]
+
+---
+
+## 10. First principles: it is a clustering problem, and the encoder is the defect
+
+Added 2026-09-03 after the operator reframed the question: *"we should be able to
+detect speakers solely from audio — even without names, we should be able to work
+out which recordings are from the same voice."*
+
+That is the right formulation and it changes the answer. Everything above
+measures **closed-set identification** — "which of these named centroids is
+this?" — which needs an absolute score to clear a threshold, and §4 shows the
+absolute score is largely a domain-match score. **Open-set clustering** needs no
+threshold and no names. It also uses something the current design discards: a
+speaker with 193 sermons is a *trajectory* through embedding space, not a point,
+and comparing to a single centroid cannot follow it.
+
+### 10.1 Clustering already beats identification, and it tracks voice not equipment
+
+104 archive sermons, 13 speakers, no labels used, average linkage on cosine:
+
+| clustering agrees with | ARI (Resemblyzer, whole sermon) |
+|---|---|
+| **speaker** | **0.479** |
+| year | 0.350 |
+| 3-year era | 0.196 |
+
+Era dominates the *score*, which identification consumes. It does **not**
+dominate the *structure*, which clustering consumes.
+
+One prediction made in-session was wrong and is recorded so it is not retried:
+single linkage was expected to walk the year-by-year trajectory. It is the worst
+linkage at k=13 (ARI 0.143) — it over-merges into one giant cluster. Average and
+complete linkage are the ones to use.
+
+### 10.2 The encoder is the binding constraint
+
+Resemblyzer is a 2019 GE2E model (~4–6% EER on clean VoxCeleb; ours measures 28%
+on this audio). ECAPA-TDNN (`speechbrain/spkrec-ecapa-voxceleb`, 192-dim) is
+trained with heavy noise and reverb augmentation — i.e. trained to be invariant
+to exactly what breaks us. Same 104 sermons, same evaluation:
+
+| embedding | EER | rank-1 | same-spk | diff-spk |
+|---|---|---|---|---|
+| Resemblyzer, first 60 s (**production**) | 28.0% | 73.1% | 0.828 | 0.718 |
+| Resemblyzer, whole sermon | 23.8% | 72.1% | 0.867 | 0.754 |
+| ECAPA-TDNN, first 60 s | 18.0% | 83.7% | 0.654 | 0.202 |
+| **ECAPA-TDNN, 5-window average** | **7.1%** | **95.2%** | 0.780 | 0.241 |
+
+**A 4× reduction in EER and rank-1 from 73% to 95%.** Note the last two columns:
+Resemblyzer puts *different* speakers at 0.718, so every embedding lives in a
+narrow cone and only the margin can discriminate — which is precisely why §6
+found the accept threshold inert. ECAPA puts different speakers at 0.241. The
+separation goes from 0.11 to 0.54.
+
+Robustness check — 22 dates hold two recordings (morning and evening) which share
+a channel exactly. Excluding all same-date pairs:
+
+| embedding | EER (all pairs) | EER (excl. same-date) |
+|---|---|---|
+| Resemblyzer, first 60 s | 28.0% | 28.4% |
+| Resemblyzer, whole sermon | 23.8% | 24.2% |
+| ECAPA-TDNN, 5-window average | **7.1%** | **7.3%** |
+
+Same-session leakage accounts for 0.2–0.4 points. The result stands.
+
+### 10.3 Clustering with a good encoder is essentially solved
+
+Purity, no labels used at all:
+
+| embedding | ARI @ k=13 | purity @ 13 | @ 26 | @ 35 |
+|---|---|---|---|---|
+| Resemblyzer, first 60 s | 0.335 | 0.587 | 0.827 | 0.837 |
+| Resemblyzer, whole sermon | 0.479 | 0.702 | 0.798 | 0.875 |
+| ECAPA-TDNN, first 60 s | 0.545 | 0.740 | 0.933 | 0.952 |
+| **ECAPA-TDNN, 5-window average** | **0.718** | **0.856** | **0.990** | **1.000** |
+
+**Purity 1.000 at 35 clusters over 104 recordings.** Over-cluster deliberately and
+every cluster is pure — an operator names 35 clusters instead of 104 recordings,
+and no name is wrong.
+
+### 10.4 Cross-era propagation — the failure mode, and how far it moves
+
+Hide an entire era, cluster, let hidden recordings inherit the majority name of
+their cluster (k=35):
+
+| embedding | 2003–06 | 2007–09 | 2010–13 |
+|---|---|---|---|
+| Resemblyzer, first 60 s | 0% cov | 75.0% @ 30.2% cov | 91.7% @ 31.6% cov |
+| Resemblyzer, whole sermon | 0% cov | 100% @ 20.8% cov | 100% @ 13.2% cov |
+| ECAPA-TDNN, first 60 s | 100% @ 7.7% | 94.7% @ **35.8%** | 95.8% @ **63.2%** |
+| ECAPA-TDNN, 5-window avg | 0% cov | 100% @ 30.2% | 100% @ **55.3%** |
+
+**When a cluster spans eras it is almost always right; the limit is that it often
+does not span one.** ECAPA roughly doubles cross-era coverage (13.2% → 55.3% for
+2010–13) at 100% accuracy. 2003–2006 (13 recordings, oldest and worst audio)
+remains unreachable.
+
+### 10.5 What this implies for the design
+
+1. **Replace the encoder.** ECAPA-TDNN, 5 windows averaged. This is the single
+   largest lever measured anywhere in this document and it subsumes §7 item 2 —
+   with a channel-robust encoder there is no need to bucket profiles by era.
+   *This is a dependency change and needs approval:* `speechbrain` plus a
+   `torchaudio` matching the image's `torch` (2.10.0 — the default install pulls
+   2.11.0 and its native library fails to load). Model is ~80 MB, CPU inference.
+
+2. **Stop identifying; start clustering.** Embed every recording, cluster
+   deliberately over-clustered, and have the operator **name clusters, not
+   recordings**. §10.3 says the names will be right.
+
+3. **Use the ID3 labels you already hold.** 800+ archive mp3s carry preacher
+   names (all `preacher_source=id3`, §5). Clustering all corpora together lets
+   unnamed 2020–24 video recordings inherit names from named archive audio with
+   no human input. The current design cannot use this at all.
+
+4. **Re-derive thresholds afterwards, or drop them.** §6's margin curve is a
+   property of Resemblyzer's narrow cone. On ECAPA the same reasoning does not
+   apply and the accept threshold may become meaningful again.
+
+Evidence: `storage/app/spk-diag/{ecapa,multiwindow,samples}.json` and the
+`cluster.py` / `propagate.py` / `ecapa_analyse.py` / `robust.py` scripts
+(gitignored).
