@@ -174,6 +174,40 @@ class HistoricStagingGuardTest extends TestCase
         );
     }
 
+    #[Test]
+    public function it_activates_a_context_correctly_from_a_fresh_instance_after_a_prior_instance_leaked(): void
+    {
+        /**
+         * The 2026-09-03 wedge, cross-instance form — reproduced live during
+         * bulk retries the same day. `HistoricStagingGuard` is not bound
+         * scoped/singleton, so a fresh instance is constructed for every job
+         * (the registry that holds it *is* scoped, and Laravel resets scoped
+         * bindings between queue jobs). If one job's guard activates and never
+         * restores — an unbalanced depth, an unusual failure path, anything —
+         * the live `config()` state is left batch-rooted, because config
+         * mutations are process-global and outlive any one scoped instance.
+         * The *next* job's guard is a brand-new object with an empty baseline
+         * cache, so capturing the baseline per-instance (as the first fix did)
+         * makes that fresh guard treat the already-dirty root as pristine and
+         * reject a perfectly valid context. The baseline must be shared across
+         * every guard instance for the life of the process, not just within one.
+         */
+        $this->configure('historic_staging', 'historic_staging', 'historic_staging');
+        $leakedGuard = app(HistoricStagingGuard::class);
+        $context = $leakedGuard->contextForApprovedPlan(str_repeat('a', 64), str_repeat('b', 64));
+
+        $leakedGuard->activate($context);
+        // Deliberately no restore() — simulates the prior job's leak.
+
+        $freshGuard = app(HistoricStagingGuard::class);
+        $this->assertNotSame($leakedGuard, $freshGuard);
+
+        // No exception: a fresh instance must not reject a valid context just
+        // because a different instance already left the disk batch-rooted.
+        $freshGuard->activate($context);
+        $this->addToAssertionCount(1);
+    }
+
     private function appendedBatchRoot(string $base, string $batchRoot): string
     {
         return rtrim($base, '/').'/'.$batchRoot;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests;
 
+use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\Public\MeetingListCache;
 use App\Services\Public\PageListCache;
 use App\Services\Public\PreacherListCache;
@@ -61,6 +62,13 @@ abstract class TestCase extends BaseTestCase
         $this->app->forgetInstance(PageListCache::class);
         $this->app->forgetInstance(PreacherListCache::class);
         $this->app->forgetInstance(MeetingListCache::class);
+
+        // HistoricStagingGuard caches its pristine disk baseline in a static
+        // property, deliberately outliving any one instance in production (see
+        // its docblock). Many tests configure different disk roots within one
+        // PHP process, so without this reset the first test to activate a
+        // historic staging context would poison every later one.
+        HistoricStagingGuard::resetBaselineForTesting();
 
         Cache::flush();
     }

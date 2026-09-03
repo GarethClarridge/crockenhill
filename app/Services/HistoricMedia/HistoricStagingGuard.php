@@ -31,8 +31,8 @@ class HistoricStagingGuard
     private const MediaOutputKeys = ['sermon_disk', 'transcript_disk'];
 
     /**
-     * The pristine, un-batch-rooted configuration for each staging disk this
-     * instance has activated, keyed by disk name.
+     * The pristine, un-batch-rooted configuration for each staging disk,
+     * captured the first time this process ever reads it, keyed by disk name.
      *
      * Why this is captured rather than read live at activation time:
      * {@see activate()} rewrites the disk's root to append the batch directory,
@@ -40,13 +40,25 @@ class HistoricStagingGuard
      * describes the worker's approved storage. Comparing the context against
      * live configuration meant a leaked activation made every subsequent job in
      * that process fail the identity check with a misleading "restart workers"
-     * error, stranding the run (2026-09-03). Activating from the captured
-     * baseline also makes a repeated activation re-apply the batch root to the
-     * pristine base rather than compounding onto an already-batch-rooted one.
+     * error, stranding the run (2026-09-03).
+     *
+     * Why this is `static` rather than an instance property: this class is not
+     * bound scoped or singleton, so a fresh instance is constructed for every
+     * job — the registry that holds it *is* scoped, and Laravel resets scoped
+     * bindings between queue jobs, which re-resolves this class too. An
+     * instance-level cache only protects a *repeated* activation on the same
+     * instance; it does nothing for the next job's brand-new instance, which
+     * would capture whatever the live config happens to be at that moment —
+     * already corrupted, if a prior job's activation leaked, because config
+     * mutations are process-global and outlive any one scoped instance.
+     * Reproduced live on 2026-09-03 during a real bulk retry: instance-level
+     * caching alone still let six spurious rejections through, all
+     * self-recovered by the queue's own retry rather than stranding — this
+     * closes that gap instead of relying on retry to paper over it.
      *
      * @var array<string, array<string, mixed>>
      */
-    private array $baselineStagingConfiguration = [];
+    private static array $baselineStagingConfiguration = [];
 
     /**
      * Every storage destination a historic pipeline job may write. The context
@@ -198,7 +210,21 @@ class HistoricStagingGuard
     /** @return array<string, mixed> */
     private function baselineDiskConfiguration(string $disk): array
     {
-        return $this->baselineStagingConfiguration[$disk] ??= $this->diskConfiguration($disk);
+        return self::$baselineStagingConfiguration[$disk] ??= $this->diskConfiguration($disk);
+    }
+
+    /**
+     * Clear the process-lifetime baseline cache.
+     *
+     * A real worker process never needs this — the baseline is meant to
+     * outlive every job it runs. It exists only for the test suite, where many
+     * tests configuring different disk roots share one PHP process; without a
+     * reset between them, one test's captured baseline would leak into the
+     * next the same way an unrestored production activation does.
+     */
+    public static function resetBaselineForTesting(): void
+    {
+        self::$baselineStagingConfiguration = [];
     }
 
     /** @return array{driver:string,bucket:?string,root_fingerprint:string,prefix_fingerprint:string} */
