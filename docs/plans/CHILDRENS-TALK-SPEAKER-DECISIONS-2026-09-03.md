@@ -412,12 +412,45 @@ Executed against the live corpus:
 **`childrens_talk_speaker_review` fell 14 → 12; the live review queue 38 → 36.**
 The 12 remaining are the scored `ambiguous` rows §4 decided to keep.
 
+### Also landed on this branch — profiles are built from sermons only
+
+`BootstrapSpeakerProfilesCommand::candidateSermons()` filtered on neither
+`content_type` nor anything equivalent, and `sermons` is polymorphic: a children's
+talk is a real `Sermon` row with its own audio and preacher. Nothing was
+contaminated, but only incidentally — the three children's-talk rows that exist
+have no audio, so `whereNotNull('audio_file_path')` was the sole thing excluding
+them, and that expires the moment Phase 8 publishes one. `orderByDesc('date')`
+takes the newest records, so a newly published children's talk would have gone
+straight to the front of the sampling queue for the ~33% of 414 identities that
+contain one.
+
+A profile wants one person talking uninterrupted. A sermon is ~36 minutes
+(median 2172 s) of that; a children's talk is 2–8 minutes of call and response.
+Only the first `extraction_duration` (60 s) is embedded, so it is the purity of
+that opening minute that matters, and a children's talk's opening minute is the
+part most likely to hold other voices.
+
+**This does not argue for separate children's-talk profiles — there are none.**
+`ChildrensTalkSpeakerService::eligibleProfiles()` calls the same
+`configuredForSpeakerIdentification()` the sermon path uses. Same people, same
+profiles, same thresholds. What is separate is the *code path*, and that
+separation is what dropped the shortlist in the first place.
+
 ### Still owed
 
 Q1(b) — the calibration measurement — is **not** done. It is now cheaper than §5
 described: the sermon side already stores 29 shortlists across 34 `no_match` runs
 in the same margin band, needing no audio re-cut at all (§3.4). Only the true
 preacher per run is missing, and that is operator work.
+
+**Re-frame it by era before running it.** Measured 2026-09-03 on the stored
+centroids, acoustic era dominates the embedding more than speaker identity does —
+different people from the same era average 0.8796 similarity, while the same
+population across eras averages 0.7462, and top score tracks service year at
+**r = 0.839**. The twelve ambiguous sections are 2020–2023, the era with no
+profile coverage at all (2003–2013 has ten deactivated profiles, 2025–26 has four,
+2013–2025 has none). An eval that ignores era will mis-attribute era mismatch to
+model error. Detail: `speaker-embeddings-encode-acoustic-era` in memory.
 
 ---
 
