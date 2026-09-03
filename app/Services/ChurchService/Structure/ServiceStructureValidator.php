@@ -8,6 +8,7 @@ use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Services\ChurchService\ChurchServiceSongLinker;
+use App\Services\Song\SongCatalogueNaming;
 use App\Support\SectionReviewFlagPolicy;
 use App\Support\ServiceSectionConfidence;
 
@@ -101,6 +102,16 @@ class ServiceStructureValidator
      * This flag records the disagreement only. It deliberately does not pick a
      * winner: the marker was right in both observed cases, but two cases are not a
      * rule, and guessing is what produced the defect.
+     *
+     * Its premise — that the marker is a second *naming of the song* — held for the two
+     * founding cases and for almost nothing else. Re-read against the whole live corpus on
+     * 2026-09-03, thirteen of the fourteen sections it was holding were agreement the
+     * comparison could not see: twelve markers were structural labels ("Opening worship",
+     * "Closing song", and in two cases the sermon title or the reading's reference), and the
+     * thirteenth named the same song by its first line. So the marker is now required to
+     * name a catalogued song before the comparison runs at all, and where the catalogue can
+     * name both sides the row ids decide rather than the text
+     * {@see self::songTitleContradictsChapterMarker()}.
      */
     public const FLAG_SONG_TITLE_MARKER_MISMATCH = 'song_title_marker_mismatch';
 
@@ -125,6 +136,33 @@ class ServiceStructureValidator
         self::FLAG_BENEDICTION_SUSPECT,
         self::FLAG_SONG_TITLE_MARKER_MISMATCH,
         'unknown_section_type',
+    ];
+
+    /**
+     * The only flags a re-derivation over a banked structure may add or remove
+     * {@see self::reannotate()}.
+     *
+     * Every one is a fact the structure itself carries — a section's confidence, its
+     * duration, its position against the end of the recording, the chapter marker covering
+     * it — so re-reading the banked structure re-asks exactly the question the run asked.
+     *
+     * It is deliberately narrower than {@see self::OOS_REVIEW_FLAGS} in two directions.
+     * Flags later stages write (`oos_structure_mismatch`, `unmatched_song_section`, the
+     * children's-talk pair) are cleared and rewritten by the run that owns them, and this
+     * pass holds no evidence about any of them. And the two OoS inversion flags are left
+     * alone even though the same annotation derives them: they compare *printed* item
+     * positions, which live in `church_service_items` and are rewritten by every later merge
+     * and projection, so re-deriving them from today's items answers a different question
+     * from the one the detector was asked. Banking each claimed item's position at detection
+     * time is what would make them re-derivable.
+     *
+     * @var array<int, string>
+     */
+    public const REANNOTATED_FLAGS = [
+        self::FLAG_LOW_CONFIDENCE,
+        self::FLAG_MICRO_SECTION,
+        self::FLAG_BENEDICTION_SUSPECT,
+        self::FLAG_SONG_TITLE_MARKER_MISMATCH,
     ];
 
     /**
@@ -183,6 +221,13 @@ class ServiceStructureValidator
      */
     private const BENEDICTION_END_WINDOW_SECONDS = 120.0;
 
+    /**
+     * The catalogue is consulted only to decide whether a chapter marker is a second
+     * naming of a song {@see self::songTitleContradictsChapterMarker()}; the resolver
+     * behind it is built lazily, so a structure with no songs never loads it.
+     */
+    public function __construct(private SongCatalogueNaming $songCatalogue = new SongCatalogueNaming) {}
+
     public function validate(ServiceStructure $structure, ValidationContext $context): ValidationResult
     {
         $hardFailures = [];
@@ -211,14 +256,75 @@ class ServiceStructureValidator
     }
 
     /**
-     * Does the chapter marker covering this song section name a different song than
+     * Re-derive {@see self::REANNOTATED_FLAGS} for a structure that has already been
+     * validated and persisted, so a change to these rules reaches runs that will never be
+     * detected again.
+     *
+     * Only the soft-flag half of {@see self::validate()} runs, and only for
+     * {@see self::REANNOTATED_FLAGS}. The hard checks ask whether a proposal may be persisted
+     * at all, and this structure was persisted long ago — re-asking would be judging a
+     * decision on evidence (the transcript cues) a completed run no longer has to hand.
+     * Anchoring is not walked either: the inversions it returns are measured against printed
+     * item positions that later merges rewrite, so no inversion is claimed here.
+     */
+    public function reannotate(ServiceStructure $structure, ValidationContext $context): ServiceStructure
+    {
+        return $this->annotateSoftFlags(
+            $this->withoutReviewFlags($this->dropSongsTheRecordingCannotContain($structure, $context)),
+            $context,
+            ['cross_type' => [], 'same_type' => []],
+        );
+    }
+
+    /**
+     * The same structure with every section's review flags cleared, so
+     * {@see self::annotateSoftFlags()} — which merges — reports what the current rules
+     * derive rather than that plus whatever a previous pass banked.
+     */
+    private function withoutReviewFlags(ServiceStructure $structure): ServiceStructure
+    {
+        return new ServiceStructure(
+            array_map(
+                static fn (ServiceStructureSection $section): ServiceStructureSection => $section->withoutReviewFlags(),
+                $structure->sections,
+            ),
+            $structure->notes,
+            $structure->model,
+            $structure->summary,
+            $structure->notices,
+            $structure->chapterMarkers,
+            $structure->sermonAbsence,
+        );
+    }
+
+    /**
+     * Does the chapter marker covering this song section name a *different song* than
      * the section itself?
      *
      * Only songs are checked: a marker over a prayer or a reading is a description,
-     * not a second naming of the same thing. Comparison is on normalised text with
-     * containment allowed, so "All Praise to Him" against "All Praise To Him" and
-     * "Come And See" against "Come And See #415" are agreement, not disagreement —
-     * hymnbook numbers and casing are the common benign difference.
+     * not a second naming of the same thing.
+     *
+     * The marker must itself name a song before a difference between the two can mean
+     * anything, and most markers do not — chapter markers are the detector's own content
+     * labels, so "Opening worship", "Closing song" and "Congregational singing" cover song
+     * sections routinely, and a song sitting inside a marker called "Opening worship" is
+     * exactly what correct alignment looks like. Comparing the two was a category error:
+     * of the fourteen sections this flag held on 2026-09-03, twelve compared a song title
+     * against a marker that was never a song title at all, and a thirteenth compared a song
+     * against its own first line. {@see SongCatalogueNaming::namesASong()} is the gate, and
+     * it separates the two classes cleanly — across the 311 distinct chapter markers in the
+     * corpus every structural label scores at most 0.69 against the catalogue while every
+     * song naming scores 0.93 or better.
+     *
+     * The catalogue is then allowed to prove agreement but never disagreement. Two namings
+     * that resolve to one row are the one song they are, however little the strings look
+     * alike — that is what reads "Behold Our God" and "Who has held the oceans in His hands"
+     * as agreement. Two namings that resolve to *different* rows prove nothing, because the
+     * catalogue carries duplicates: "My Hope Is Built #779" and "My hope is built on nothing
+     * less" are two rows for one hymn, and reading their ids as a contradiction would flag a
+     * section whose marker names exactly the song it found. So a disagreement still has to be
+     * a disagreement in the text, compared with containment allowed so that a hymnbook number
+     * or a casing difference stays agreement.
      *
      * @param  list<array{title: string, start_time: float, end_time: float}>|array<int|string, mixed>  $chapterMarkers
      */
@@ -228,21 +334,26 @@ class ServiceStructureValidator
             return false;
         }
 
-        $sectionTitle = self::normaliseSongTitle((string) $section->songTitle);
+        $sectionTitle = (string) $section->songTitle;
+        $markerTitle = $this->coveringChapterMarkerTitle($section, $chapterMarkers) ?? '';
 
-        if ($sectionTitle === '') {
+        if (self::normaliseSongTitle($sectionTitle) === '' || self::normaliseSongTitle($markerTitle) === '') {
             return false;
         }
 
-        $markerTitle = self::normaliseSongTitle(
-            $this->coveringChapterMarkerTitle($section, $chapterMarkers) ?? ''
-        );
-
-        if ($markerTitle === '') {
+        if (! $this->songCatalogue->namesASong($markerTitle)) {
             return false;
         }
 
-        return ! str_contains($sectionTitle, $markerTitle) && ! str_contains($markerTitle, $sectionTitle);
+        $sectionSongId = $this->songCatalogue->songId($sectionTitle);
+        $markerSongId = $this->songCatalogue->songId($markerTitle);
+
+        if ($sectionSongId !== null && $sectionSongId === $markerSongId) {
+            return false;
+        }
+
+        return ! str_contains(self::normaliseSongTitle($sectionTitle), self::normaliseSongTitle($markerTitle))
+            && ! str_contains(self::normaliseSongTitle($markerTitle), self::normaliseSongTitle($sectionTitle));
     }
 
     /**

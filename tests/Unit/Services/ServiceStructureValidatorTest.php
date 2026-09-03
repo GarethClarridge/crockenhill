@@ -7,9 +7,12 @@ namespace Tests\Unit\Services;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
+use App\Models\Song;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\ValidationContext;
 use App\Services\ChurchService\Structure\ValidationResult;
+use App\Services\Song\SongCatalogueNaming;
+use App\Services\Song\SongTitleResolver;
 use Illuminate\Support\Facades\Config;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\TestWith;
@@ -29,7 +32,53 @@ class ServiceStructureValidatorTest extends TestCase
         Config::set('media-processing.section_extraction.enhanced_sermon.max_sermon_duration_seconds', 2700);
         Config::set('media-processing.reading_references.benediction_max_duration_seconds', 60);
 
-        $this->validator = new ServiceStructureValidator;
+        $this->validator = new ServiceStructureValidator(
+            SongCatalogueNaming::using(SongTitleResolver::fromRows(self::catalogueFixture())),
+        );
+    }
+
+    /**
+     * A catalogue small enough to read, carrying every song the marker tests name.
+     *
+     * The two "Jesus Is Lord" rows are the live catalogue's, pinned deliberately: they are
+     * why the marker is asked whether it *names* a song rather than which one. The resolver
+     * refuses to choose between them, so a marker reading "Jesus Is Lord" resolves to nothing
+     * while still plainly being a song title.
+     *
+     * @return list<array{id: int, canonical_key: string, title: string, praise_number: ?string, alternate_title: ?string, first_line_key: ?string}>
+     */
+    private static function catalogueFixture(): array
+    {
+        $rows = [
+            ['How Lovely On The Mountains', null, null],
+            ['Almighty Lord Most High Draw Near #823', '823', null],
+            ['God Of Glory #244', '244', null],
+            ['Come And See #415', '415', null],
+            ['All Praise To Him', null, null],
+            ['What A Friend We Have In Jesus #614', '614', null],
+            ['Who Can Cheer The Heart Like Jesus #340', '340', null],
+            ['Who has held the oceans in His hands', null, 'Behold Our God'],
+            ["Jesus Is Lord! Creation's voice proclaims it", null, null],
+            ['Jesus Is Lord — the cry that echoes through creation', null, null],
+            // One hymn under two catalogue rows, exactly as the live catalogue carries it.
+            ['My Hope Is Built #779', '779', null],
+            ['My hope is built on nothing less', null, null],
+        ];
+
+        $catalogue = [];
+
+        foreach ($rows as $index => [$title, $praiseNumber, $alternateTitle]) {
+            $catalogue[] = [
+                'id' => $index + 1,
+                'canonical_key' => Song::canonicalizeKey($title),
+                'title' => $title,
+                'praise_number' => $praiseNumber,
+                'alternate_title' => $alternateTitle,
+                'first_line_key' => null,
+            ];
+        }
+
+        return $catalogue;
     }
 
     #[Test]
@@ -666,6 +715,83 @@ class ServiceStructureValidatorTest extends TestCase
 
             $this->assertSame([], $this->songSectionFlags($result), "{$sectionTitle} vs {$markerTitle}");
         }
+    }
+
+    /**
+     * Twelve of the fourteen sections this flag held on 2026-09-03 looked like this: a
+     * correctly-detected song sitting inside a chapter marker that describes the slot rather
+     * than naming the song. The flag was firing *because* the alignment was right.
+     */
+    #[Test]
+    public function a_marker_that_names_no_song_is_never_a_mismatch(): void
+    {
+        foreach ([
+            ['Only A Holy God', 'Opening worship'],
+            ['God, we praise you', 'Opening hymn'],
+            ['These Are The Facts', 'Closing song'],
+            ['Glory be to God the Father', 'Congregational singing'],
+            ["Bless the Lord, O my soul (10,000 Reasons)", 'Opening Songs'],
+            ['My Heart Is Filled With Thankfulness', "Sermon: The Importance of Jesus' Burial"],
+            ['We Have Heard a Joyful Sound', 'Colossians 1:13-23'],
+        ] as [$sectionTitle, $markerTitle]) {
+            $result = $this->validator->validate(
+                $this->structureWithSongMarker($sectionTitle, $markerTitle),
+                $this->context(),
+            );
+
+            $this->assertSame([], $this->songSectionFlags($result), "{$sectionTitle} vs {$markerTitle}");
+        }
+    }
+
+    /**
+     * The thirteenth: the marker names the song by its catalogued title and the section by
+     * its opening line. Resolving both to the same catalogue row reads them as the agreement
+     * they are, where no comparison of the two strings could.
+     */
+    #[Test]
+    public function two_namings_of_one_catalogued_song_agree(): void
+    {
+        $result = $this->validator->validate(
+            $this->structureWithSongMarker('Who has held the oceans in His hands', 'Behold Our God'),
+            $this->context(),
+        );
+
+        $this->assertSame([], $this->songSectionFlags($result));
+    }
+
+    /**
+     * The catalogue carries duplicates, so two different rows are not evidence of two
+     * different songs. Reading the ids as a contradiction flagged a section whose marker
+     * names precisely the hymn it found — the catalogue may prove agreement, never
+     * disagreement.
+     */
+    #[Test]
+    public function two_catalogue_rows_for_one_hymn_are_not_a_mismatch(): void
+    {
+        $result = $this->validator->validate(
+            $this->structureWithSongMarker('My hope is built on nothing less', 'My Hope Is Built'),
+            $this->context(),
+        );
+
+        $this->assertSame([], $this->songSectionFlags($result));
+    }
+
+    /**
+     * The one live section that survives the gate, and the shape the flag exists for: two
+     * markedly similar titles that are two different hymns.
+     */
+    #[Test]
+    public function two_catalogued_songs_that_are_not_the_same_song_are_flagged(): void
+    {
+        $result = $this->validator->validate(
+            $this->structureWithSongMarker('What a Friend We Have in Jesus', 'Who Can Cheer the Heart Like Jesus?'),
+            $this->context(),
+        );
+
+        $this->assertSame(
+            [ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH],
+            $this->songSectionFlags($result),
+        );
     }
 
     #[Test]

@@ -142,6 +142,38 @@ class SongTitleResolver
     }
 
     /**
+     * Whether a free-text line names a catalogued song at all, without deciding which one.
+     *
+     * {@see self::resolve()} refuses to choose between candidates it cannot separate, so a
+     * line that plainly names a song still returns null when two catalogue rows open with it
+     * — "Jesus Is Lord" opens both "Jesus Is Lord! Creation's voice proclaims it" and
+     * "'Jesus Is Lord' — the cry that echoes through creation". That refusal is right for
+     * linking, where guessing writes a wrong song onto an item, and wrong for the only other
+     * question asked of a line: whether it is a song naming at all, or a structural label
+     * ("Opening worship", "Closing song") that was never a song title.
+     *
+     * So this asks the same scoring question without the ambiguity margin. Measured over the
+     * 311 distinct chapter markers in the historic corpus, every structural label scores at
+     * most 0.69 against the catalogue while the three unresolvable song namings score
+     * 0.93–1.00 — the linking threshold separates the two classes with room to spare.
+     *
+     * The fuzzy kill-switch deliberately does not gate this: it exists because a fuzzy *link*
+     * can write a wrong song onto an item, and nothing here writes a link.
+     */
+    public function namesACataloguedSong(string $searchTitle): bool
+    {
+        if ($this->resolve($searchTitle) instanceof SongTitleMatch) {
+            return true;
+        }
+
+        [, $fuzzyProbe] = $this->buildProbes($searchTitle);
+
+        $scores = $this->fuzzyScoresBySong($fuzzyProbe, $searchTitle);
+
+        return $scores !== [] && reset($scores) >= $this->fuzzyThreshold;
+    }
+
+    /**
      * The catalogue's title for a song, or null when it is not in this resolver's rows.
      */
     public function catalogueTitle(int $songId): ?string
@@ -555,30 +587,12 @@ class SongTitleResolver
             return null;
         }
 
-        $probe = Song::matchKey($fuzzyProbe);
-        if ($probe === '') {
-            $probe = Song::matchKey($searchTitle);
-        }
-
-        if (mb_strlen($probe) < $this->fuzzyMinProbeLength || count(explode(' ', $probe)) < 2) {
-            return null;
-        }
-
-        /** @var array<int, float> $bestBySong */
-        $bestBySong = [];
-        foreach ($this->fuzzyCandidates as [$songId, $key]) {
-            $score = $this->fuzzyScore($probe, $key);
-
-            if ($score > ($bestBySong[$songId] ?? 0.0)) {
-                $bestBySong[$songId] = $score;
-            }
-        }
+        $bestBySong = $this->fuzzyScoresBySong($fuzzyProbe, $searchTitle);
 
         if ($bestBySong === []) {
             return null;
         }
 
-        arsort($bestBySong);
         $scores = array_values($bestBySong);
         $songIds = array_keys($bestBySong);
 
@@ -591,6 +605,40 @@ class SongTitleResolver
         }
 
         return new SongTitleMatch($songIds[0], SongTitleMatch::TYPE_FUZZY, round($scores[0], 4));
+    }
+
+    /**
+     * Every song's best score against the probe, highest first. Shared by the fuzzy link
+     * rung and {@see self::namesACataloguedSong()} so both read the same numbers — the two
+     * differ only in what they do with them.
+     *
+     * @return array<int, float> Song id → best score, ordered descending
+     */
+    private function fuzzyScoresBySong(string $fuzzyProbe, string $searchTitle): array
+    {
+        $probe = Song::matchKey($fuzzyProbe);
+        if ($probe === '') {
+            $probe = Song::matchKey($searchTitle);
+        }
+
+        if (mb_strlen($probe) < $this->fuzzyMinProbeLength || count(explode(' ', $probe)) < 2) {
+            return [];
+        }
+
+        /** @var array<int, float> $bestBySong */
+        $bestBySong = [];
+
+        foreach ($this->fuzzyCandidates as [$songId, $key]) {
+            $score = $this->fuzzyScore($probe, $key);
+
+            if ($score > ($bestBySong[$songId] ?? 0.0)) {
+                $bestBySong[$songId] = $score;
+            }
+        }
+
+        arsort($bestBySong);
+
+        return $bestBySong;
     }
 
     private function fuzzyScore(string $probe, string $key): float

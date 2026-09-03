@@ -183,6 +183,34 @@ final readonly class ServiceStructureSection extends JsonData
      *
      * @param  list<string>  $flags
      */
+    /**
+     * A copy carrying no review flags.
+     *
+     * {@see self::withReviewFlags()} merges, because during detection a section accumulates
+     * flags from several passes and none of them may drop another's. A re-derivation over a
+     * banked structure is the opposite case: it must start from the structure's own facts,
+     * not from the conclusions an earlier pass already reached about them, or a flag the
+     * current rules would never raise can never be withdrawn.
+     */
+    public function withoutReviewFlags(): self
+    {
+        return new self(
+            type: $this->type,
+            title: $this->title,
+            startTime: $this->startTime,
+            endTime: $this->endTime,
+            confidence: $this->confidence,
+            oosItemId: $this->oosItemId,
+            songTitle: $this->songTitle,
+            readingReference: $this->readingReference,
+            sermonReference: $this->sermonReference,
+            notes: $this->notes,
+            reviewFlags: [],
+            snapDeltas: $this->snapDeltas,
+            summary: $this->summary,
+        );
+    }
+
     public function withReviewFlags(array $flags): self
     {
         return new self(

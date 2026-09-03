@@ -53,6 +53,47 @@ class SongTitleResolverTest extends TestCase
         ], $options);
     }
 
+    /**
+     * The naming question is not the linking question. `resolve()` refuses to choose between
+     * the two catalogued settings of "Abide With Me", which is right when the answer becomes
+     * a link and wrong when the caller only needs to know the line is a song title at all.
+     */
+    #[Test]
+    public function an_ambiguous_song_title_still_names_a_catalogued_song(): void
+    {
+        $resolver = $this->resolver();
+
+        $this->assertNull($resolver->resolve('Abide With Me'));
+        $this->assertTrue($resolver->namesACataloguedSong('Abide With Me'));
+    }
+
+    #[Test]
+    public function a_resolvable_title_names_a_catalogued_song(): void
+    {
+        $this->assertTrue($this->resolver()->namesACataloguedSong('All heaven declares'));
+    }
+
+    /**
+     * The class this question exists to exclude: the detector's own chapter labels, which
+     * describe a slot in the service rather than naming what filled it.
+     */
+    #[Test]
+    public function a_structural_label_names_no_catalogued_song(): void
+    {
+        $resolver = $this->resolver();
+
+        foreach ([
+            'Opening worship',
+            'Opening Songs',
+            'Opening hymn',
+            'Closing song',
+            'Congregational singing',
+            'Closing prayer and blessing',
+        ] as $label) {
+            $this->assertFalse($resolver->namesACataloguedSong($label), $label);
+        }
+    }
+
     #[Test]
     #[DataProvider('deterministicResolutionProvider')]
     public function it_resolves_titles_through_the_deterministic_rungs(string $searchTitle, int $expectedSongId, string $expectedMatchType): void
