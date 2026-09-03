@@ -19,6 +19,7 @@ use App\Services\Song\SongLyricOcrService;
 use App\Services\Song\SongLyricsMatchingService;
 use App\Services\Song\UnmatchedSongReviewApplicator;
 use App\Support\ChurchServiceProcessingTimeline;
+use App\Support\SongCatalogueTitlePolicy;
 use App\Traits\DetectsStorageType;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -393,22 +394,19 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             // A confident match displays the catalogued title rather than the
             // heard text ("What love could remember" → "His Mercy Is More").
             // song_title_hint keeps the heard text as evidence; a shaky fuzzy
-            // match must not present a confidently wrong title.
-            $writebackThreshold = (float) config('media-processing.song_matching.title_writeback_min_confidence', 0.75);
-
-            // Confidence cannot arbitrate a naming the detector already contradicted
-            // itself on: both observed mismatches scored 0.98 and 1.000. Where the
-            // validator flagged the section's songTitle as disagreeing with its own
-            // chapter marker, hold the catalogue title back and leave the section for
-            // review — writing it through is what overwrote the heard title and broke
-            // the merge into the planned item.
+            // match must not present a confidently wrong title. The threshold
+            // and the marker-mismatch veto both live in the shared policy so the
+            // re-derivation path cannot answer this differently.
             $markerMismatch = in_array(
                 ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH,
                 $metadataArray['review_flags'] ?? [],
                 true,
             );
 
-            $writeCatalogueTitle = $confidence >= $writebackThreshold && ! $markerMismatch;
+            $writeCatalogueTitle = SongCatalogueTitlePolicy::writesCatalogueTitle(
+                $confidence,
+                $metadataArray['review_flags'] ?? [],
+            );
 
             if ($writeCatalogueTitle) {
                 $displayTitle = $this->catalogueDisplayTitle($matchedTitle);

@@ -85,6 +85,34 @@ class RecomputeSectionReviewFlagsCommandTest extends TestCase
         $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->fresh()->song_match_type);
     }
 
+    /**
+     * A marker mismatch is why these sections were demoted in the first place —
+     * they score at or near 1.0 — so re-deriving from confidence alone promoted
+     * exactly the rows the flag exists to hold back. Measured against the live
+     * corpus, 13 of 14 pending promotions were this case.
+     */
+    #[Test]
+    public function it_leaves_a_marker_mismatched_song_match_inferred_however_confident(): void
+    {
+        $service = ChurchService::factory()->create(['needs_review' => false]);
+        $run = $this->livestreamRun($service);
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Song,
+            'song_match_type' => ServiceSectionSongMatchType::Inferred,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'review_flags' => [ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH],
+                'transcript_song_match' => ['confidence' => 1.0],
+            ],
+        ]);
+
+        $this->artisan('services:recompute-section-review-flags', ['--execute' => true])
+            ->assertSuccessful();
+
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->fresh()->song_match_type);
+    }
+
     #[Test]
     public function it_strips_a_stale_service_level_structure_trigger_when_no_section_needs_review(): void
     {

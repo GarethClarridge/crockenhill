@@ -9,6 +9,7 @@ use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
 use App\Support\SectionReviewFlagPolicy;
+use App\Support\SongCatalogueTitlePolicy;
 
 /**
  * Re-derives a section's review state from its own persisted metadata, so
@@ -53,13 +54,16 @@ class SectionReviewFlagRecalculator
         }
 
         $matchConfidence = $metadata['transcript_song_match']['confidence'] ?? null;
-        $writebackThreshold = (float) config('media-processing.song_matching.title_writeback_min_confidence', 0.75);
 
+        // Promotion asks the same question the matching job asked, so it must
+        // ask it the same way: confidence alone would re-confirm the very
+        // sections a marker mismatch holds back, which score 0.95–1.00 precisely
+        // because confidence was never what demoted them.
         if (
             $section->section_type === ServiceSectionType::Song
             && $section->song_match_type === ServiceSectionSongMatchType::Inferred
             && is_numeric($matchConfidence)
-            && (float) $matchConfidence >= $writebackThreshold
+            && SongCatalogueTitlePolicy::writesCatalogueTitle((float) $matchConfidence, $reviewFlags)
         ) {
             $updates['song_match_type'] = ServiceSectionSongMatchType::Confirmed;
         }
