@@ -43,6 +43,9 @@ use App\Support\BibleCanon;
 use App\Support\ParallelTestingProcessLimiter;
 use Faker\Factory as FakerFactory;
 use Faker\Generator as FakerGenerator;
+use Closure;
+use Illuminate\Queue\Events\JobExceptionOccurred;
+use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -168,7 +171,10 @@ class AppServiceProvider extends ServiceProvider
 
         Queue::before(function (JobProcessing $event): void {
             try {
-                app(HistoricStagingContextRegistry::class)->activateQueuePayload($event->job->payload());
+                app(HistoricStagingContextRegistry::class)->activateQueuePayload(
+                    $event->job->payload(),
+                    $event->job->resolveName(),
+                );
             } catch (\Throwable $exception) {
                 /**
                  * This listener runs before the job fires, so an exception raised
@@ -193,12 +199,17 @@ class AppServiceProvider extends ServiceProvider
             }
         });
 
-        $deactivate = static function (): void {
-            app(HistoricStagingContextRegistry::class)->deactivate();
+        /**
+         * Both hooks close the same activation; they are told apart so D7's
+         * instrumentation can say whether the job finished or threw when the
+         * depth moved.
+         */
+        $deactivate = static fn (string $source): Closure => static function (JobProcessed|JobExceptionOccurred $event) use ($source): void {
+            app(HistoricStagingContextRegistry::class)->deactivate($source, $event->job->resolveName());
         };
 
-        Queue::after($deactivate);
-        Queue::exceptionOccurred($deactivate);
+        Queue::after($deactivate(HistoricStagingContextRegistry::SOURCE_QUEUE_AFTER));
+        Queue::exceptionOccurred($deactivate(HistoricStagingContextRegistry::SOURCE_QUEUE_EXCEPTION));
     }
 
     /**

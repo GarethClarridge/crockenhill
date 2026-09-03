@@ -130,6 +130,29 @@ class ProcessingRunOrchestrator
     }
 
     /**
+     * Finish a run whose service genuinely held no sermon.
+     *
+     * The detector asserted the absence and the deterministic gate accepted the
+     * structure, so the sections are real and the run has done its work; it just
+     * has no sermon to extract. Dispatching the custody tail through the same
+     * machinery as every other chain keeps the historic per-stage queue routing
+     * and the failure handler intact, which a bare `dispatch()` would lose.
+     *
+     * The service is still held unconfirmed: the run keeps its source until an
+     * operator approves the occasion, and nothing about the absence reaches a
+     * public surface before then (D1, 2026-09-03).
+     */
+    public function concludeWithoutSermon(MediaProcessingLog $processingLog): void
+    {
+        $this->dispatchChain(
+            $this->pipelineBuilder->buildSermonlessServiceChainJobs($processingLog),
+            $this->queueForPipeline($processingLog->processingPipelineProfile()),
+            $processingLog,
+            $this->failureProfileForPipeline($processingLog->processingPipelineProfile()),
+        );
+    }
+
+    /**
      * Attempt to retry a failed or cancelled processing run.
      *
      * Consults the PhaseRegistry to determine a surgical retry plan (either

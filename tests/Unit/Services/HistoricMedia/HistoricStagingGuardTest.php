@@ -208,6 +208,47 @@ class HistoricStagingGuardTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
+    /**
+     * D7 (2026-09-03) decided to instrument the leak rather than chase it: the
+     * static baseline already absorbs it, but activate/deactivate went out of
+     * balance six times in three runs in ten minutes with no evidence naming the
+     * path. This is the signature the registry logs on — a staging root still
+     * carrying a batch directory when nothing should be active — and it has to
+     * carry both paths, since the batch root is what identifies the run.
+     */
+    #[Test]
+    public function it_reports_a_leaked_activation_as_a_divergence_from_the_pristine_baseline(): void
+    {
+        $this->configure('historic_staging', 'historic_staging', 'historic_staging');
+        $guard = app(HistoricStagingGuard::class);
+        $context = $guard->contextForApprovedPlan(str_repeat('a', 64), str_repeat('b', 64));
+        $baseRoot = (string) config('filesystems.disks.historic_staging.root');
+
+        $this->assertNull($guard->leakedActivationEvidence('historic_staging'));
+
+        // Activate and deliberately do NOT restore, reproducing the leak.
+        $guard->activate($context);
+
+        $this->assertSame([
+            'baseline_root' => $baseRoot,
+            'live_root' => $this->appendedBatchRoot($baseRoot, $context->batchRoot),
+        ], $guard->leakedActivationEvidence('historic_staging'));
+
+        $this->assertSame(
+            $this->appendedBatchRoot($baseRoot, $context->batchRoot),
+            $guard->liveRoot('historic_staging'),
+        );
+    }
+
+    #[Test]
+    public function it_reports_no_leak_for_a_disk_that_has_never_been_activated(): void
+    {
+        $this->configure('historic_staging', 'historic_staging', 'historic_staging');
+
+        $this->assertNull(app(HistoricStagingGuard::class)->leakedActivationEvidence('historic_staging'));
+        $this->assertSame('', app(HistoricStagingGuard::class)->liveRoot('no_such_disk'));
+    }
+
     private function appendedBatchRoot(string $base, string $batchRoot): string
     {
         return rtrim($base, '/').'/'.$batchRoot;

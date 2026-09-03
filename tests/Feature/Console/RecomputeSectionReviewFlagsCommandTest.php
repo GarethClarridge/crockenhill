@@ -9,6 +9,7 @@ use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -251,6 +252,55 @@ class RecomputeSectionReviewFlagsCommandTest extends TestCase
         ]);
 
         return [$service, $section];
+    }
+
+    /**
+     * D5 retargeted `structure_missing_preached_reading`, so the eight sermons
+     * it had already stopped have to come back down without re-running the LLM
+     * pipeline. Six of them named their own passage.
+     */
+    #[Test]
+    public function it_clears_a_missing_preached_reading_on_a_sermon_that_names_its_passage(): void
+    {
+        $service = ChurchService::factory()->create(['needs_review' => true]);
+        $run = $this->livestreamRun($service);
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Sermon,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'review_flags' => [ServiceStructureValidator::FLAG_MISSING_PREACHED_READING],
+                'sermon_reference' => 'Malachi 3:13-18',
+            ],
+        ]);
+
+        $this->artisan('services:recompute-section-review-flags', ['--execute' => true])
+            ->assertSuccessful();
+
+        $this->assertFalse($section->fresh()->needs_manual_review);
+        $this->assertFalse($service->fresh()->needs_review);
+    }
+
+    #[Test]
+    public function it_keeps_a_missing_preached_reading_on_a_sermon_with_no_passage(): void
+    {
+        $service = ChurchService::factory()->create(['needs_review' => true]);
+        $run = $this->livestreamRun($service);
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Sermon,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'review_flags' => [ServiceStructureValidator::FLAG_MISSING_PREACHED_READING],
+                'sermon_reference' => null,
+            ],
+        ]);
+
+        $this->artisan('services:recompute-section-review-flags', ['--execute' => true])
+            ->assertSuccessful();
+
+        $this->assertTrue($section->fresh()->needs_manual_review);
+        $this->assertTrue($service->fresh()->needs_review);
     }
 
     private function livestreamRun(ChurchService $service): MediaProcessingLog

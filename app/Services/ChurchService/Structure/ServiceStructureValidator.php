@@ -72,6 +72,16 @@ class ServiceStructureValidator
      * sermon but no bible_reading section near it, and a feedback-guided
      * retry could not recover one — the reading is likely embedded in
      * another section, so the published sermon audio would lack it.
+     *
+     * It asks for a reviewer only when the sermon carries no `sermon_reference`
+     * either (D5, 2026-09-03). The absent reading *section* costs nothing a
+     * reviewer can recover — the sermon span extracts correctly either way, per
+     * {@see \App\Support\SermonAutoExtractionPolicy} — so the only actionable
+     * case is a sermon that will publish with no Scripture reference at all and
+     * nobody asked to supply one. Six of the eight sermons this flag had
+     * stopped already stated their passage from the preaching itself; review
+     * earns its cost when the pipeline made a choice, not when it noticed a
+     * fact. {@see \App\Support\SectionReviewFlagPolicy} owns that rule.
      */
     public const FLAG_MISSING_PREACHED_READING = 'structure_missing_preached_reading';
 
@@ -324,6 +334,7 @@ class ServiceStructureValidator
             $structure->summary,
             $structure->notices,
             $structure->chapterMarkers,
+            $structure->sermonAbsence,
         );
     }
 
@@ -671,6 +682,7 @@ class ServiceStructureValidator
             $structure->summary,
             $structure->notices,
             $structure->chapterMarkers,
+            $structure->sermonAbsence,
         );
     }
 

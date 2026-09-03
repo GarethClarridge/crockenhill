@@ -314,6 +314,37 @@ class RetireHistoricRunCommandTest extends TestCase
         $this->assertSame('retired', $status->report($this->operation, ['2023-07-16-morning'])[0]['disposition']);
     }
 
+    /**
+     * D4: #931, #934 and #935 were superseded when a later run of the same
+     * identity won, not by any operator decision — they carry no note, no
+     * status-when-retired and nothing the Phase 8 exit gate can read. The
+     * command has to be able to give them one.
+     */
+    #[Test]
+    public function it_records_a_disposition_for_a_run_another_path_already_superseded(): void
+    {
+        $run = $this->heldRunWithoutSermon();
+        $supersededAt = now()->subDay()->startOfSecond();
+        $run->forceFill(['superseded_at' => $supersededAt])->save();
+
+        $this->artisan('historic-import:retire-run', $this->applyArgs($run, 'Superseded by #936, which completed.'))
+            ->expectsOutputToContain('already superseded')
+            ->assertSuccessful();
+
+        $record = $run->fresh()?->retirementRecord();
+
+        $this->assertIsArray($record);
+        $this->assertSame('Superseded by #936, which completed.', $record['note']);
+        $this->assertTrue($record['superseded_before_retirement']);
+        $this->assertSame('failed', $record['status_when_retired']);
+
+        // The moment it was actually withdrawn is not rewritten.
+        $this->assertSame(
+            $supersededAt->toDateTimeString(),
+            $run->fresh()?->superseded_at?->toDateTimeString(),
+        );
+    }
+
     #[Test]
     public function it_is_idempotent(): void
     {

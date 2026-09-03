@@ -176,4 +176,50 @@ class SectionReviewFlagPolicyTest extends TestCase
             [ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK],
         ));
     }
+
+    /**
+     * D5: the flag fires on "no bible_reading section near the sermon", which
+     * the sermon span extracts correctly around either way. The only thing a
+     * reviewer could supply is the passage, so a sermon that stated its own has
+     * nothing left to ask for.
+     */
+    #[Test]
+    public function a_missing_preached_reading_is_demoted_when_the_sermon_names_its_passage(): void
+    {
+        $this->assertFalse(SectionReviewFlagPolicy::requiresManualReview(
+            ServiceSectionType::Sermon,
+            [ServiceStructureValidator::FLAG_MISSING_PREACHED_READING],
+            'Philippians 1:3-8',
+        ));
+    }
+
+    #[Test]
+    public function a_missing_preached_reading_still_reviews_a_sermon_with_no_passage_at_all(): void
+    {
+        $this->assertTrue(SectionReviewFlagPolicy::requiresManualReview(
+            ServiceSectionType::Sermon,
+            [ServiceStructureValidator::FLAG_MISSING_PREACHED_READING],
+            null,
+        ));
+
+        // A blank reference is no reference: it gives a reviewer nothing to read.
+        $this->assertTrue(SectionReviewFlagPolicy::requiresManualReview(
+            ServiceSectionType::Sermon,
+            [ServiceStructureValidator::FLAG_MISSING_PREACHED_READING],
+            '   ',
+        ));
+    }
+
+    #[Test]
+    public function a_known_passage_does_not_demote_any_other_flag_on_the_same_sermon(): void
+    {
+        $this->assertTrue(SectionReviewFlagPolicy::requiresManualReview(
+            ServiceSectionType::Sermon,
+            [
+                ServiceStructureValidator::FLAG_MISSING_PREACHED_READING,
+                ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED,
+            ],
+            'Titus 3:1-8',
+        ));
+    }
 }

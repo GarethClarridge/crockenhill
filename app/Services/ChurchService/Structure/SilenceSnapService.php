@@ -260,6 +260,7 @@ class SilenceSnapService
             $structure->summary,
             $structure->notices,
             $structure->chapterMarkers,
+            $structure->sermonAbsence,
         );
     }
 

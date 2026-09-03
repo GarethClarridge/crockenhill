@@ -47,16 +47,20 @@ class PublicChurchServiceController extends Controller
         abort_unless($serviceValue instanceof SermonService, 404);
 
         $churchService = $this->archiveService->find($dateValue, $serviceValue);
+        $publicItems = $this->archiveService->publicItems($churchService);
 
         return view('church.services.show', [
             'heading' => $this->seoPresenter->detailTitle($churchService),
-            'description' => $this->seoPresenter->detailDescription($churchService),
+            'description' => $this->seoPresenter->detailDescription(
+                $churchService,
+                $publicItems->contains(fn (array $item): bool => $item['kind'] === 'sermon'),
+            ),
             'canonical_url' => $this->seoPresenter->detailCanonical($churchService),
             'area' => 'church',
             'slug' => 'services',
             'links' => collect(),
             'churchService' => $churchService,
-            'publicItems' => $this->archiveService->publicItems($churchService),
+            'publicItems' => $publicItems,
         ]);
     }
 

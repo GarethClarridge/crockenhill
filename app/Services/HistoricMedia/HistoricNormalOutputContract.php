@@ -14,7 +14,7 @@ class HistoricNormalOutputContract
      * `scripture_passage_outcome` required, so an export can no longer omit the
      * settlement and let the apply read the omission as approval.
      */
-    public const int VERSION = 5;
+    public const int VERSION = 6;
 
     private const array ALLOWED_PRESENCE = ['required', 'nullable'];
 
@@ -223,6 +223,8 @@ class HistoricNormalOutputContract
                         'service_identity' => $this->field('required', 'portable', 'natural_key'),
                         'source' => $this->field('required', 'portable', 'none'),
                         'summary' => $this->field('nullable', 'portable', 'none'),
+                        'occasion' => $this->field('nullable', 'portable', 'none'),
+                        'occasion_confirmed_at' => $this->field('nullable', 'portable', 'none'),
                         'notices' => $this->field('nullable', 'portable', 'none'),
                         'chapter_markers' => $this->field('nullable', 'portable', 'none'),
                         'items' => $this->field('required', 'portable', 'natural_key'),
@@ -447,7 +449,7 @@ class HistoricNormalOutputContract
         return [
             'church_services' => $this->table(
                 required: ['date', 'service', 'source'],
-                nullable: ['summary', 'notices', 'chapter_markers'],
+                nullable: ['summary', 'occasion', 'occasion_confirmed_at', 'notices', 'chapter_markers'],
                 excluded: [
                     'id', 'original_filename', 'needs_review', 'review_reason', 'review_state',
                     'manual_reviewed_at', 'manual_reviewed_by_user_id', 'manual_review_reopened_at',
@@ -637,6 +639,8 @@ class HistoricNormalOutputContract
                 'service' => 'service_manifest.service',
                 'source' => 'service_manifest.source',
                 'summary' => 'service_manifest.summary',
+                'occasion' => 'service_manifest.occasion',
+                'occasion_confirmed_at' => 'service_manifest.occasion_confirmed_at',
                 'notices' => 'service_manifest.notices',
                 'chapter_markers' => 'service_manifest.chapter_markers',
             ],

@@ -17,9 +17,24 @@ use RuntimeException;
  * coming back to.
  *
  * Only reasons a person can establish belong here. A silent source is detected
- * from the audio and recorded by {@see AnalyzeSegments} without anyone
- * looking; "this recording holds no sermon" cannot be detected at all — it needs
- * someone to watch the recording — so it is written here and nowhere else.
+ * from the audio and recorded by {@see AnalyzeSegments} without anyone looking.
+ *
+ * "This recording holds no sermon" used to be written here and nowhere else, on
+ * the grounds that it could not be detected at all. That stopped being true when
+ * the LLM-first structure pipeline went `primary`: the projection reads content,
+ * and it can now say so in a structured way that the run honours
+ * ({@see \App\Data\ServiceSermonAbsence}). Two claims that sound alike have to
+ * be kept apart (D1, 2026-09-03):
+ *
+ *  - *This service held no sermon* — a mission presentation, a carol service. A
+ *    real service with real sections, and the detector proposes it while an
+ *    operator confirms the occasion. Excluding it would be wrong: exclusion is
+ *    terminal and would discard the sections and the church service that are the
+ *    whole point of importing it.
+ *  - *This recording holds no sermon* — the camera caught a different part of
+ *    the service, or too little of it. That is a fact about the capture, not
+ *    about the occasion, and it is still only establishable by a person who has
+ *    watched the recording. That is the reason this class records.
  *
  * Deletion trigger: Delete once the historic import operation is closed out and
  * no further exclusion decisions can be recorded against it.

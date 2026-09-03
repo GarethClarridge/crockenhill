@@ -71,7 +71,8 @@ class HistoricRunRetirement
      *     sermon: ?Sermon,
      *     assets: list<array{role:string, disk:string, path:string, bytes:int}>,
      *     sections: int,
-     *     already_retired: bool
+     *     already_retired: bool,
+     *     already_superseded: bool
      * }>
      */
     public function inspect(HistoricImportOperation $operation, array $processingIds): array
@@ -119,7 +120,11 @@ class HistoricRunRetirement
                 'sermon' => $sermon,
                 'assets' => $sermon instanceof Sermon ? $this->assetsFor($sermon) : [],
                 'sections' => ServiceSection::query()->where('media_processing_log_id', $run->id)->count(),
-                'already_retired' => $run->superseded_at !== null,
+                // A run superseded by another path — the projector reconciling
+                // duplicate runs against one service — is withdrawn but carries no
+                // operator disposition. It is not yet retired; it still needs one.
+                'already_retired' => $run->retirementRecord() !== null,
+                'already_superseded' => $run->superseded_at !== null,
             ];
         }
 
@@ -133,7 +138,10 @@ class HistoricRunRetirement
     /**
      * Retire each inspected run: relocate its sermon's assets, delete the sermon
      * row, mark the run superseded and record the inventory that says what was
-     * withdrawn. Re-running is a no-op for a run already retired.
+     * withdrawn. The retirement *record* is what makes a run retired, not the
+     * supersession: a run some other path already superseded still carries no
+     * operator disposition, and the Phase 8 exit gate wants one. Re-running is a
+     * no-op only once that record exists.
      *
      * Assets move before the database changes and are moved back if the
      * transaction fails, because the sermon row is the only thing naming where
@@ -147,7 +155,8 @@ class HistoricRunRetirement
      *     sermon: ?Sermon,
      *     assets: list<array{role:string, disk:string, path:string, bytes:int}>,
      *     sections: int,
-     *     already_retired: bool
+     *     already_retired: bool,
+     *     already_superseded: bool
      * }>  $entries
      * @return array{retired: int, already_retired: int, sermons_deleted: int, assets_relocated: int}
      */
@@ -165,7 +174,7 @@ class HistoricRunRetirement
         foreach ($entries as $entry) {
             $run = $entry['run'];
 
-            if ($run->superseded_at !== null) {
+            if ($run->retirementRecord() !== null) {
                 $alreadyRetired++;
 
                 continue;
@@ -186,6 +195,7 @@ class HistoricRunRetirement
                         'note' => $note,
                         'manifest_item_key' => $entry['item_key'],
                         'status_when_retired' => $entry['status_now'],
+                        'superseded_before_retirement' => $entry['already_superseded'],
                         'step_when_retired' => $run->current_step,
                         'sections_withdrawn' => $entry['sections'],
                         'sermon' => $sermon instanceof Sermon ? [
@@ -201,7 +211,9 @@ class HistoricRunRetirement
 
                     $sermon?->delete();
 
-                    $run->forceFill(['superseded_at' => now()])->save();
+                    // A run another path already superseded keeps the moment it
+                    // was withdrawn; only the operator's disposition is new.
+                    $run->forceFill(['superseded_at' => $run->superseded_at ?? now()])->save();
 
                     $this->notificationRouter->suppressIfHistoric(
                         $run->fresh() ?? $run,

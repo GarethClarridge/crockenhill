@@ -214,6 +214,54 @@ class HistoricStagingGuard
     }
 
     /**
+     * The live root of a staging disk beside its pristine baseline root, when
+     * the two have diverged — the signature of a leaked activation.
+     *
+     * Divergence is only meaningful once a baseline has been captured, and only
+     * while no activation is meant to be in effect; the caller owns that second
+     * judgement because only it knows the nesting depth. Never throws: this
+     * feeds instrumentation, and an unconfigured disk is the caller's problem
+     * to report, not this method's to raise.
+     *
+     * @return array{baseline_root: string, live_root: string}|null
+     */
+    public function leakedActivationEvidence(string $disk): ?array
+    {
+        $baseline = self::$baselineStagingConfiguration[$disk] ?? null;
+
+        if ($baseline === null) {
+            return null;
+        }
+
+        $configuration = config("filesystems.disks.{$disk}");
+
+        if (! is_array($configuration)) {
+            return null;
+        }
+
+        $baselineRoot = $this->rootOrPrefix($baseline);
+        $liveRoot = $this->rootOrPrefix($configuration);
+
+        if ($baselineRoot === $liveRoot) {
+            return null;
+        }
+
+        return ['baseline_root' => $baselineRoot, 'live_root' => $liveRoot];
+    }
+
+    /**
+     * The live root of a staging disk, as configuration currently reports it.
+     * Empty when the disk is not configured — this is read for logging, where
+     * an exception would replace the evidence with a different failure.
+     */
+    public function liveRoot(string $disk): string
+    {
+        $configuration = config("filesystems.disks.{$disk}");
+
+        return is_array($configuration) ? $this->rootOrPrefix($configuration) : '';
+    }
+
+    /**
      * Clear the process-lifetime baseline cache.
      *
      * A real worker process never needs this — the baseline is meant to
@@ -274,6 +322,20 @@ class HistoricStagingGuard
         }
 
         return $configuration;
+    }
+
+    /**
+     * Whichever of root or prefix this disk actually addresses through, raw and
+     * unresolved — {@see self::withBatchRoot()} appends the batch directory to
+     * exactly this value, so it is the one a leak shows up in.
+     *
+     * @param  array<string, mixed>  $configuration
+     */
+    private function rootOrPrefix(array $configuration): string
+    {
+        $root = (string) ($configuration['root'] ?? '');
+
+        return $root !== '' ? $root : (string) ($configuration['prefix'] ?? '');
     }
 
     /** @param  array<string, mixed>  $configuration */

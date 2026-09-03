@@ -42,7 +42,11 @@ class SectionReviewFlagRecalculator
 
         $updates = [];
 
-        $needsManualReview = SectionReviewFlagPolicy::requiresManualReview($section->section_type, $reviewFlags);
+        $needsManualReview = SectionReviewFlagPolicy::requiresManualReview(
+            $section->section_type,
+            $reviewFlags,
+            is_string($metadata['sermon_reference'] ?? null) ? $metadata['sermon_reference'] : null,
+        );
 
         if ($section->needs_manual_review !== $needsManualReview) {
             $updates['needs_manual_review'] = $needsManualReview;

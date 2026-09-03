@@ -47,6 +47,17 @@
                                 <dd>{{ $churchService->service->label() }} service</dd>
                             </div>
                         </div>
+
+                        {{-- Only a confirmed occasion is shown: an unconfirmed one is still a model proposal. --}}
+                        @if ($churchService->confirmedOccasion())
+                            <div class="flex items-center gap-3">
+                                <x-heroicon-o-tag class="h-5 w-5 shrink-0 text-cbc-teal" aria-hidden="true" />
+                                <div>
+                                    <dt class="sr-only">Occasion</dt>
+                                    <dd>{{ $churchService->confirmedOccasion()->label() }}</dd>
+                                </div>
+                            </div>
+                        @endif
                     </dl>
                 </div>
 

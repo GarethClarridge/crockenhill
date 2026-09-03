@@ -222,6 +222,29 @@ class ProcessingPipelineBuilder
     }
 
     /**
+     * The tail a run takes when its service genuinely held no sermon.
+     *
+     * Everything between extraction and notification is sermon-shaped — there is
+     * no media to enhance, no sermon row to create, nothing to transcribe,
+     * analyse or thumbnail — so those stages are not skipped so much as
+     * inapplicable. What remains is the custody transition, and it remains in
+     * full: a sermon-less service still has song sections whose videos live in
+     * staging, and {@see PromoteHistoricAssets} is what moves them and records
+     * the byte accounting the pass-level measures are summed from. Cleanup then
+     * marks the run completed, which is the point — the run produced a real
+     * service, just not a sermon (D1, 2026-09-03).
+     *
+     * @return non-empty-list<object>
+     */
+    public function buildSermonlessServiceChainJobs(MediaProcessingLog $log): array
+    {
+        return [
+            new PromoteHistoricAssets($log),
+            new CleanupTemporaryFiles($log),
+        ];
+    }
+
+    /**
      * Keep the detached video copy out of the live chain while making every
      * historic media-output step wait for its operation-owned completion row.
      *

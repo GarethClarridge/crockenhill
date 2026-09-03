@@ -11,13 +11,15 @@ use App\Services\ChurchService\Structure\ServiceStructureValidator;
  * Canonical rule for whether a section's structure review flags still warrant
  * manual review, given the section's type.
  *
- * Review flags fall into three buckets:
+ * Review flags fall into four buckets:
  *  - Always demoted: OoS cross-type inversion questions which OoS *item* a
  *    section aligns to, never the section's own quality.
  *  - Demoted on non-structural-uncertainty types (welcome/notices/prayer/other):
  *    low-confidence, micro-section, and — per OD-1 — OoS structure mismatch.
  *    For this filler the exact type has no downstream (publishing) effect, so a
  *    boundary/ordering doubt implies no operator action.
+ *  - Demoted when the section already carries the fact the flag exists to
+ *    obtain: a missing preached reading on a sermon that named its own passage.
  *  - Everything else forces review.
  *
  * Shared by the detection path (ServiceStructure::toClassifiedSections) and the
@@ -55,9 +57,15 @@ class SectionReviewFlagPolicy
 
     /**
      * @param  array<int, string>  $reviewFlags
+     * @param  string|null  $sermonReference  The passage this section expounds, when the section
+     *                                        is a sermon that named one. Decides
+     *                                        {@see ServiceStructureValidator::FLAG_MISSING_PREACHED_READING}.
      */
-    public static function requiresManualReview(ServiceSectionType $type, array $reviewFlags): bool
-    {
+    public static function requiresManualReview(
+        ServiceSectionType $type,
+        array $reviewFlags,
+        ?string $sermonReference = null,
+    ): bool {
         $requiresStructuralReview = $type->requiresStructuralUncertaintyReview();
 
         foreach ($reviewFlags as $reviewFlag) {
@@ -72,9 +80,32 @@ class SectionReviewFlagPolicy
                 continue;
             }
 
+            if (
+                $reviewFlag === ServiceStructureValidator::FLAG_MISSING_PREACHED_READING
+                && self::preachedPassageIsAlreadyKnown($sermonReference)
+            ) {
+                continue;
+            }
+
             return true;
         }
 
         return false;
+    }
+
+    /**
+     * A missing reading section is only actionable when the preached passage is
+     * unknown.
+     *
+     * The flag fires on "no bible_reading section within the pairing window
+     * before the sermon", which questions what surrounds the sermon rather than
+     * the sermon's own boundaries — the span extracts correctly either way. What
+     * a reviewer could actually supply is the Scripture reference, and a sermon
+     * that stated its own passage has already supplied it. So the review is
+     * raised only for a sermon about to publish with no reference at all.
+     */
+    private static function preachedPassageIsAlreadyKnown(?string $sermonReference): bool
+    {
+        return $sermonReference !== null && trim($sermonReference) !== '';
     }
 }

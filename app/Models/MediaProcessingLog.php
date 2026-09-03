@@ -8,6 +8,8 @@ use App\Data\HistoricStagingContext;
 use App\Data\ProcessingManualReviewMetadata;
 use App\Data\ProcessingMetadata;
 use App\Data\ProcessingMetadataCast;
+use App\Data\ServiceSermonAbsence;
+use App\Data\ServiceStructure;
 use App\Data\SermonAnalysis;
 use App\Data\SermonAnalysisCast;
 use App\Enums\MediaType;
@@ -384,14 +386,15 @@ class MediaProcessingLog extends Model
      *
      * Keep this predicate aligned with {@see self::reviewSourceRetentionReasons()}:
      * these are the four current review signals, deliberately excluding any
-     * future material-risk classification until it has a real routing flag.
+     * future material-risk classification until it has a real routing flag, and
+     * excluding retired runs entirely — a withdrawn result holds no obligation.
      *
      * @param  Builder<MediaProcessingLog>  $query
      * @return Builder<MediaProcessingLog>
      */
     public function scopeWithUnresolvedReviewObligation(Builder $query): Builder
     {
-        return $query->where(function (Builder $query): void {
+        return $query->whereNull('superseded_at')->where(function (Builder $query): void {
             $query
                 ->whereHas('serviceSections', function (Builder $query): void {
                     $query
@@ -403,6 +406,18 @@ class MediaProcessingLog extends Model
                     $query
                         ->where('status', ProcessingStatus::Failed->value)
                         ->where('current_step', 'manual_review_required');
+                })
+                ->orWhere(function (Builder $query): void {
+                    $query
+                        ->whereNotNull('processing_metadata->service_structure->sermon_absence')
+                        ->where(function (Builder $query): void {
+                            $query
+                                ->whereNull('church_service_id')
+                                ->orWhereHas(
+                                    'churchService',
+                                    fn (Builder $service): Builder => $service->whereNull('occasion_confirmed_at'),
+                                );
+                        });
                 });
         });
     }
@@ -692,10 +707,23 @@ class MediaProcessingLog extends Model
      * Return the current review signals that require the source to remain
      * available for a possible recut.
      *
+     * A retired run has none. Retirement withdraws the result outright — the
+     * sections drop out of every reader, the sermon row is gone, and the
+     * identity is expected to be reprocessed from the replacement source — so
+     * there is nothing left for a reviewer to decide and nothing this source
+     * could be recut for. Reading it any other way pins the bytes forever:
+     * {@see \App\Services\HistoricMedia\HistoricReviewSourceReclaimer} tests
+     * `Failed` before it tests obligations, and retirement does not clear
+     * `Failed` (D4, 2026-09-03).
+     *
      * @return list<string>
      */
     public function reviewSourceRetentionReasons(): array
     {
+        if ($this->isRetired()) {
+            return [];
+        }
+
         $reasons = [];
 
         if ($this->serviceSections()
@@ -719,7 +747,50 @@ class MediaProcessingLog extends Model
             $reasons[] = 'manual_review_required';
         }
 
+        if ($this->assertsUnconfirmedSermonAbsence()) {
+            $reasons[] = 'sermon_absence_unconfirmed';
+        }
+
         return $reasons;
+    }
+
+    /**
+     * The detector's assertion that this run's service genuinely held no sermon,
+     * or null when it made none.
+     *
+     * Rebuilt through {@see ServiceStructure} rather than read straight off the
+     * key, so the reconciliation that drops an assertion sitting beside a
+     * detected sermon section applies here too. Reading the key directly would
+     * let a stray assertion stop the extraction of a sermon the same structure
+     * says is there.
+     */
+    public function assertedSermonAbsence(): ?ServiceSermonAbsence
+    {
+        $structure = data_get($this->processing_metadata?->toArray() ?? [], 'service_structure');
+
+        return is_array($structure) ? ServiceStructure::fromArray($structure)->sermonAbsence : null;
+    }
+
+    /**
+     * Whether this run asserts sermon absence that no operator has confirmed.
+     *
+     * The source stays until someone has: absence is the one structural claim
+     * that cannot be checked against the run's own output, because the output is
+     * the absence. Run #935 read a whole morning service as "fragmentary opening
+     * audio" and the very next run of the same recording completed with twenty
+     * sections, so an unconfirmed verdict has to be watchable, not just readable
+     * (D1, 2026-09-03).
+     */
+    public function assertsUnconfirmedSermonAbsence(): bool
+    {
+        if (! $this->assertedSermonAbsence() instanceof ServiceSermonAbsence) {
+            return false;
+        }
+
+        $churchService = $this->churchService;
+
+        return ! $churchService instanceof ChurchService
+            || $churchService->occasion_confirmed_at === null;
     }
 
     public function hasUnresolvedReviewObligation(): bool

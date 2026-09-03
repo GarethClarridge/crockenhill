@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Services\HistoricMedia;
 
 use App\Data\HistoricStagingContext;
+use App\Enums\ProcessingStatus;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\StoreSermonVideo;
@@ -138,6 +139,43 @@ class HistoricReviewSourceReclaimerTest extends TestCase
         $this->assertSame(0, $stats['eligible']);
         $this->assertSame(1, $stats['skipped']);
         Storage::disk('historic_staging')->assertExists("{$context->batchRoot}/{$sourcePath}");
+    }
+
+    /**
+     * D4: retirement withdraws the result but leaves the run `Failed`, and the
+     * status test runs before the obligation test — so a retired run could never
+     * be released by settling anything else. #931, #934, #935 and #959 sat
+     * retired, failed and still pinning their sources because of it.
+     */
+    #[Test]
+    public function it_reclaims_a_retired_run_that_is_still_failed_and_still_flagged(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $context = $this->stagingContextFor($operation);
+        $sourcePath = 'temp/retired-source.mp4';
+        $run = $this->createRun($operation, $context, $sourcePath);
+        $run->forceFill([
+            'status' => ProcessingStatus::Failed,
+            'current_step' => 'manual_review_required',
+        ])->save();
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'needs_manual_review' => true,
+        ]);
+        Storage::disk('historic_staging')->put("{$context->batchRoot}/{$sourcePath}", str_repeat('r', 11));
+
+        $held = app(HistoricReviewSourceReclaimer::class)->sweep();
+
+        $this->assertSame(0, $held['deleted']);
+        Storage::disk('historic_staging')->assertExists("{$context->batchRoot}/{$sourcePath}");
+
+        $run->forceFill(['superseded_at' => now()])->save();
+
+        $reclaimed = app(HistoricReviewSourceReclaimer::class)->sweep();
+
+        $this->assertSame(1, $reclaimed['deleted']);
+        $this->assertSame(11, $reclaimed['bytes']);
+        Storage::disk('historic_staging')->assertMissing("{$context->batchRoot}/{$sourcePath}");
     }
 
     private function createRun(

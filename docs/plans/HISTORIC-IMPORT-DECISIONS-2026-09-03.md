@@ -1,12 +1,14 @@
 # Historic import — decision record, 3 September 2026
 
-**Status:** Decisions taken, none implemented. This file is the pick-up point for
-the next session. Plan of record remains
+**Status:** D1, D2/D3, D4, D5 and D7 are implemented and applied; D6 remains
+deferred and the §4 operator items remain open. See §6 for what landed and what
+is still owed. Plan of record remains
 [`HISTORIC-VIDEO-PILOT-TO-BULK-PLAN-2026-08-29.md`](HISTORIC-VIDEO-PILOT-TO-BULK-PLAN-2026-08-29.md);
 this record supersedes it where the two disagree.
 
 Working tree was clean when these decisions were taken (`9f3f61cc2`). No code
-changed in the session that produced them.
+changed in the session that produced them; the implementation followed in the
+next one.
 
 ---
 
@@ -191,3 +193,103 @@ Worked queue, ordered by GiB released per decision:
 - **#937's `rms_generation` failure** — *"File size exceeds maximum allowed
   size"* on a 10.98 GiB source. D4 retires the run as a duplicate, but the cap
   itself is unexamined and will recur on the next oversized source.
+
+---
+
+## 6. What was implemented, 2026-09-03
+
+Every decided item landed. D6 was not touched, and §4's operator items are still
+a person's to settle.
+
+### D1 — sermon-absence assertion
+
+`sermon_absence` is a nullable object in the projection schema, carried as
+`App\Data\ServiceSermonAbsence` (occasion + explanation) on `ServiceStructure`
+and persisted with the rest of the structure. `ServiceStructure::fromSections()`
+drops any assertion sitting beside a detected sermon section — the sections are
+the detector's own timed reading and they win — and
+`MediaProcessingLog::assertedSermonAbsence()` reads back through the same
+reconciliation so a stray assertion can never stop a real extraction.
+
+`ExtractSermon` stands down before resolving a plan when the assertion is
+present, so `SermonCandidateConfidenceService` is never consulted about a
+question RMS duration cannot answer. The run then takes
+`ProcessingRunOrchestrator::concludeWithoutSermon()`, which dispatches the
+custody tail that still applies — `PromoteHistoricAssets` (a sermon-less service
+still has song videos and byte accounting) then `CleanupTemporaryFiles`, which
+completes the run.
+
+The service is held unconfirmed by a fifth review-source retention reason,
+`sermon_absence_unconfirmed`, so the source survives for someone to watch.
+`HistoricRunExclusion`'s docblock now separates *this service held no sermon*
+(detectable, and not an exclusion) from *this recording holds no sermon* (still
+only establishable by a person, and still what that class records).
+
+### D2/D3 — `ServiceOccasion`
+
+A fixed enum with the six seed values, stored on `church_services.occasion` with
+`occasion_confirmed_at` beside it. The projector writes the proposal and never
+touches a confirmation; `ChurchService::confirmedOccasion()` is what public
+readers call, and the service page renders the label only through it.
+`services:confirm-occasion` is the operator's instrument — dry-run by default,
+`--occasion=none` is a real answer, and confirming releases the retention
+obligation. `detailDescription()` now takes whether the page actually shows a
+sermon rather than asserting one unconditionally.
+
+Both columns travel in the historic normal-output contract (version 5 → 6): the
+confirmation is a decision about what a public page may say, which is what the
+service manifest carries.
+
+### D4 — the five stale runs
+
+Retired, with notes: #931, #934, #935 (superseded by #936), #937 (dead duplicate
+of #938) and #959 (already retired 2026-09-02, unchanged).
+
+The verification the decision asked for found **two** blockers, not one.
+`HistoricReviewSourceReclaimer::isEligibleRun()` tested `Failed` before
+obligations, so a retired run could never be released by settling anything else;
+`Failed` is now allowed for a retired run, which is terminal by operator
+decision. And `reviewSourceRetentionReasons()` read a retired run's *withdrawn*
+sections as live obligations — it now returns none for a retired run, with
+`scopeWithUnresolvedReviewObligation()` matching.
+
+A third finding: `apply()` skipped any run with `superseded_at` set, so #931,
+#934 and #935 — superseded by the projector, not by an operator — could never be
+given a disposition at all. The retirement *record* is now what makes a run
+retired; the supersession timestamp it already had is preserved.
+
+### D5 — `structure_missing_preached_reading`
+
+`SectionReviewFlagPolicy` demotes the flag when the sermon carries a
+`sermon_reference`, so detection and reconciliation agree by construction.
+`services:recompute-section-review-flags`, scoped to the six affected services,
+took the class from 8 to 2 exactly as predicted: §645 (#940) and §742 (#952)
+keep it, and **#958, #966 and #979 released outright**.
+
+### D7 — staging-guard instrumentation
+
+Every activate/deactivate records the depth it moved to, which of the four call
+sites moved it, the job, and the live `historic_staging` root. A root still
+carrying a batch directory at depth zero is the leak itself, so
+`HistoricStagingGuard::leakedActivationEvidence()` detects it and the registry
+logs that case as a warning carrying both paths; balanced transitions stay at
+debug.
+
+### Released bytes
+
+2.63 GiB became reclaimable across four runs — #935 (1.19) and #959 (0.13) from
+D4, #958 (0.63) and #979 (0.68) from D5. The scheduled
+`media:cleanup-temp-files` sweep releases it; nothing was deleted by hand.
+
+### Still owed
+
+- **#978 cannot be confirmed yet.** Its stored structure predates the schema and
+  carries no assertion, and the run is still failed at `manual_review_required`.
+  It has to be reprocessed under the new pipeline before the occasion is a
+  question anyone can answer — an LLM and FFmpeg run, so an operator decision.
+- **26 further stale review rows** are sitting in
+  `services:recompute-section-review-flags`'s unscoped dry run (12 inferred song
+  matches above the write-back threshold, 12 songs with a stale
+  `needs_manual_review`, 2 others). They are pre-existing drift unrelated to D5
+  and were deliberately left alone; the command is idempotent and safe to run
+  unscoped whenever they are looked at.

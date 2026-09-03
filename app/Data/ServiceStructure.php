@@ -25,6 +25,7 @@ final readonly class ServiceStructure extends JsonData
      * @param  string|null  $summary  Automatic summary of the complete service
      * @param  list<array{title: string, details: string|null}>  $notices  Extracted notice items
      * @param  list<array{title: string, start_time: float, end_time: float}>  $chapterMarkers  Content-aware recording chapters
+     * @param  ServiceSermonAbsence|null  $sermonAbsence  The detector's assertion that this service held no sermon
      */
     public function __construct(
         public array $sections,
@@ -33,6 +34,7 @@ final readonly class ServiceStructure extends JsonData
         public ?string $summary = null,
         public array $notices = [],
         public array $chapterMarkers = [],
+        public ?ServiceSermonAbsence $sermonAbsence = null,
     ) {}
 
     /**
@@ -48,13 +50,22 @@ final readonly class ServiceStructure extends JsonData
         ?string $summary = null,
         array $notices = [],
         array $chapterMarkers = [],
+        ?ServiceSermonAbsence $sermonAbsence = null,
     ): self {
         usort(
             $sections,
             static fn (ServiceStructureSection $left, ServiceStructureSection $right): int => $left->startTime <=> $right->startTime
         );
 
-        return new self($sections, $notes, $model, $summary, self::normaliseNotices($notices), self::normaliseChapterMarkers($chapterMarkers));
+        return new self(
+            $sections,
+            $notes,
+            $model,
+            $summary,
+            self::normaliseNotices($notices),
+            self::normaliseChapterMarkers($chapterMarkers),
+            self::reconcileSermonAbsence($sermonAbsence, $sections),
+        );
     }
 
     public static function fromArray(mixed $value): self
@@ -78,6 +89,7 @@ final readonly class ServiceStructure extends JsonData
             self::stringOrNull($payload['summary'] ?? null),
             self::arrayValue($payload['notices'] ?? null),
             self::arrayValue($payload['chapter_markers'] ?? null),
+            ServiceSermonAbsence::fromArray($payload['sermon_absence'] ?? null),
         );
     }
 
@@ -96,7 +108,16 @@ final readonly class ServiceStructure extends JsonData
             'summary' => $this->summary,
             'notices' => $this->notices,
             'chapter_markers' => $this->chapterMarkers,
+            'sermon_absence' => $this->sermonAbsence?->toArray(),
         ];
+    }
+
+    /**
+     * Whether this structure asserts that the service genuinely held no sermon.
+     */
+    public function assertsSermonAbsence(): bool
+    {
+        return $this->sermonAbsence instanceof ServiceSermonAbsence;
     }
 
     /**
@@ -194,7 +215,11 @@ final readonly class ServiceStructure extends JsonData
 
     private function reviewFlagsRequireManualReview(ServiceStructureSection $section): bool
     {
-        return SectionReviewFlagPolicy::requiresManualReview($section->type, $section->reviewFlags);
+        return SectionReviewFlagPolicy::requiresManualReview(
+            $section->type,
+            $section->reviewFlags,
+            $section->sermonReference,
+        );
     }
 
     /**
@@ -267,6 +292,32 @@ final readonly class ServiceStructure extends JsonData
         }
 
         return $metadata;
+    }
+
+    /**
+     * A sermon section and an absence assertion cannot both be true. The
+     * sections are the detector's own timed reading of the recording and every
+     * downstream stage works from them, so they win: a stray assertion beside a
+     * detected sermon is dropped rather than allowed to stop extraction of a
+     * sermon that is demonstrably there.
+     *
+     * @param  list<ServiceStructureSection>  $sections
+     */
+    private static function reconcileSermonAbsence(
+        ?ServiceSermonAbsence $sermonAbsence,
+        array $sections,
+    ): ?ServiceSermonAbsence {
+        if (! $sermonAbsence instanceof ServiceSermonAbsence) {
+            return null;
+        }
+
+        foreach ($sections as $section) {
+            if ($section->type === ServiceSectionType::Sermon) {
+                return null;
+            }
+        }
+
+        return $sermonAbsence;
     }
 
     /**

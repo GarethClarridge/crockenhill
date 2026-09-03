@@ -62,7 +62,11 @@ class RetireHistoricRunCommand extends Command
                             array_sum(array_column($entry['assets'], 'bytes')),
                         ),
                         (string) $entry['sections'],
-                        $entry['already_retired'] ? 'retired (unchanged)' : 'retired',
+                        match (true) {
+                            $entry['already_retired'] => 'retired (unchanged)',
+                            $entry['already_superseded'] => 'retired (already superseded)',
+                            default => 'retired',
+                        },
                     ];
                 }, $entries),
             );

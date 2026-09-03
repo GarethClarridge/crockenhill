@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Integration\Jobs;
 
 use App\Enums\ServiceSectionType;
+use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\ExtractSermon;
+use App\Jobs\PromoteHistoricAssets;
 use App\Mail\ManualReviewRequired;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
@@ -21,6 +23,7 @@ use App\Support\ChurchServiceProcessingTimeline;
 use FFMpeg\FFProbe;
 use FFMpeg\FFProbe\DataMapping\Format;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -1281,6 +1284,92 @@ class ExtractSermonTest extends TestCase
         $log->refresh();
         $this->assertEquals('failed', $log->status->value);
         $this->assertStringContainsString('Sermon extraction failed after', $log->error_message);
+    }
+
+    /**
+     * D1: the 2024-02-11 evening was a visiting mission's presentation with no
+     * sermon in it. RMS speech duration cannot tell that from one long block of
+     * speech, so the run failed on `candidate_exceeds_maximum_duration` — a
+     * content fact reported as a defect. The structure now says it outright, and
+     * extraction stands down instead of extracting or failing.
+     */
+    #[Test]
+    public function it_concludes_without_extracting_when_the_structure_asserts_no_sermon(): void
+    {
+        Bus::fake();
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'source_file_path' => 'livestreams/mission-evening.mp4',
+            'duration' => 4401.83,
+            'processing_metadata' => [
+                'service_structure' => [
+                    'sections' => [],
+                    'sermon_absence' => [
+                        'occasion' => 'mission_presentation',
+                        'explanation' => 'A visiting mission presented its work for the whole evening.',
+                    ],
+                ],
+            ],
+        ]);
+
+        // One unbroken block of speech: exactly the shape that produced
+        // `candidate_exceeds_maximum_duration`.
+        LivestreamSegment::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'classification' => 'speech',
+            'start_time' => 0.0,
+            'end_time' => 4401.83,
+            'duration' => 4401.83,
+        ]);
+
+        $mockExtractor = $this->createMock(VideoExtractionService::class);
+        $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
+        $mockExtractor->expects($this->never())->method('extractConcatenatedSegmentAsFile');
+
+        $this->runJob(new ExtractSermon($log), $mockExtractor, $this->createStub(VideoStorageService::class));
+
+        $log->refresh();
+
+        $this->assertFalse($log->isFailed());
+        $this->assertNull($log->processing_metadata?->manualReview?->status);
+
+        // The custody tail still runs: a sermon-less service has song videos to
+        // promote and working copies to release.
+        Bus::assertChained([PromoteHistoricAssets::class, CleanupTemporaryFiles::class]);
+    }
+
+    #[Test]
+    public function it_still_extracts_when_a_sermon_section_sits_beside_a_stray_absence_assertion(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'source_file_path' => 'livestreams/test.mp4',
+            'duration' => 3600.0,
+            'sermon_start_time' => 600.0,
+            'sermon_end_time' => 2400.0,
+            'processing_metadata' => [
+                'service_structure' => [
+                    'sections' => [[
+                        'type' => 'sermon',
+                        'title' => 'A real sermon',
+                        'start_time' => 600.0,
+                        'end_time' => 2400.0,
+                        'confidence' => 0.95,
+                        'oos_item_id' => null,
+                        'song_title' => null,
+                        'reading_reference' => null,
+                        'sermon_reference' => null,
+                        'summary' => null,
+                        'notes' => [],
+                    ]],
+                    'sermon_absence' => [
+                        'occasion' => null,
+                        'explanation' => 'No preaching took place.',
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->assertNull($log->assertedSermonAbsence());
     }
 
     private function runJob(

@@ -29,6 +29,12 @@ class HistoricNormalOutputServiceManifest
             'service_identity' => $serviceIdentity,
             'source' => $service->source,
             'summary' => $service->summary,
+            // The operator's confirmation travels with the label. Without it an
+            // import lands the proposal unconfirmed and the answer has to be
+            // given twice — and unlike the review-queue state, this decision is
+            // about what the public page may say, which is what this manifest is.
+            'occasion' => $service->occasion?->value,
+            'occasion_confirmed_at' => $service->occasion_confirmed_at?->toIso8601String(),
             'notices' => $service->notices,
             'chapter_markers' => $service->chapter_markers,
             'items' => $service->items->sortBy('position')->map(

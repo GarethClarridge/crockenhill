@@ -8,6 +8,7 @@ use App\Contracts\ServiceStructureInterface;
 use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
+use App\Enums\ServiceOccasion;
 use App\Support\OpenAiChatPayload;
 use App\Support\OpenAiFlexFallback;
 use App\Support\OpenAiUsageLogger;
@@ -47,6 +48,13 @@ Rules:
 - A service has exactly ONE primary sermon unless one is genuinely absent. When you cannot tell
   which block is the sermon, choose the best candidate and report LOW confidence rather than guess
   a second sermon into existence.
+- sermon_absence: use it ONLY when the recording covers the whole service and no block in it is a
+  sermon at all — a visiting mission presenting its work, a carol service, an all-age or
+  testimony evening. Return null whenever you have labelled a sermon section, whenever the
+  recording is a partial or fragmentary capture, and whenever the audio is too poor to tell:
+  those are not services without a sermon, they are recordings you cannot read. When you do use
+  it, `explanation` says in one sentence what stood in the sermon's place, and `occasion` names
+  the recurring kind of service from the listed values, or null when none of them fits.
 - When the preacher immediately concludes the sermon with a short prayer responding to what was
   preached (before any hymn, song or handover), that prayer belongs INSIDE the sermon section —
   the sermon ends when the preacher stops speaking. A closing prayer led by a DIFFERENT speaker,
@@ -182,6 +190,7 @@ TEXT;
             $parsedStructure->summary,
             $parsedStructure->notices,
             $parsedStructure->chapterMarkers,
+            $parsedStructure->sermonAbsence,
         );
     }
 
@@ -250,7 +259,7 @@ TEXT;
                 'schema' => [
                     'type' => 'object',
                     'additionalProperties' => false,
-                    'required' => ['sections', 'summary', 'notices', 'chapter_markers', 'notes'],
+                    'required' => ['sections', 'summary', 'notices', 'chapter_markers', 'notes', 'sermon_absence'],
                     'properties' => [
                         'sections' => [
                             'type' => 'array',
@@ -329,6 +338,24 @@ TEXT;
                         'notes' => [
                             'type' => 'array',
                             'items' => ['type' => 'string'],
+                        ],
+                        /*
+                         * Null is the answer for almost every service, so the
+                         * field is a nullable object rather than a flag plus
+                         * fields that only sometimes mean anything: a structure
+                         * either carries a complete assertion or carries none.
+                         */
+                        'sermon_absence' => [
+                            'type' => ['object', 'null'],
+                            'additionalProperties' => false,
+                            'required' => ['occasion', 'explanation'],
+                            'properties' => [
+                                'occasion' => [
+                                    'type' => ['string', 'null'],
+                                    'enum' => [...ServiceOccasion::values(), null],
+                                ],
+                                'explanation' => ['type' => 'string'],
+                            ],
                         ],
                     ],
                 ],

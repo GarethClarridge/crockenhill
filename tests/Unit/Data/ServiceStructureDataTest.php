@@ -6,6 +6,7 @@ namespace Tests\Unit\Data;
 
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
+use App\Enums\ServiceOccasion;
 use App\Enums\ServiceSectionType;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -196,5 +197,94 @@ class ServiceStructureDataTest extends TestCase
         $this->assertSame('A useful summary.', $structure->summary);
         $this->assertSame([['title' => 'Valid notice', 'details' => null]], $structure->notices);
         $this->assertSame([['title' => 'Valid chapter', 'start_time' => 5.0, 'end_time' => 20.0]], $structure->chapterMarkers);
+    }
+
+    #[Test]
+    public function a_sermon_absence_assertion_survives_a_round_trip(): void
+    {
+        $structure = ServiceStructure::fromArray([
+            'sections' => [$this->sectionPayload('other', 100.0, 3000.0)],
+            'sermon_absence' => [
+                'occasion' => 'mission_presentation',
+                'explanation' => 'A visiting mission presented its work for the whole evening.',
+            ],
+        ]);
+
+        $this->assertTrue($structure->assertsSermonAbsence());
+        $this->assertSame(ServiceOccasion::MissionPresentation, $structure->sermonAbsence?->occasion);
+        $this->assertSame(
+            ['occasion' => 'mission_presentation', 'explanation' => 'A visiting mission presented its work for the whole evening.'],
+            $structure->toArray()['sermon_absence'],
+        );
+    }
+
+    #[Test]
+    public function an_unrecognised_occasion_leaves_the_assertion_standing_without_one(): void
+    {
+        $structure = ServiceStructure::fromArray([
+            'sections' => [$this->sectionPayload('other', 0.0, 900.0)],
+            'sermon_absence' => [
+                'occasion' => 'harvest_supper',
+                'explanation' => 'An all-age evening with no preaching.',
+            ],
+        ]);
+
+        $this->assertTrue($structure->assertsSermonAbsence());
+        $this->assertNull($structure->sermonAbsence?->occasion);
+    }
+
+    #[Test]
+    public function an_assertion_with_no_explanation_is_no_assertion(): void
+    {
+        $structure = ServiceStructure::fromArray([
+            'sections' => [$this->sectionPayload('other', 0.0, 900.0)],
+            'sermon_absence' => ['occasion' => 'carol_service', 'explanation' => '  '],
+        ]);
+
+        $this->assertFalse($structure->assertsSermonAbsence());
+    }
+
+    /**
+     * The sections are the detector's own timed reading of the recording and
+     * every downstream stage works from them, so a sermon it labelled outranks a
+     * stray assertion beside it — otherwise extraction would be stopped on a
+     * sermon that is demonstrably there.
+     */
+    #[Test]
+    public function an_assertion_beside_a_detected_sermon_is_dropped(): void
+    {
+        $structure = ServiceStructure::fromArray([
+            'sections' => [
+                $this->sectionPayload('other', 0.0, 500.0),
+                $this->sectionPayload('sermon', 500.0, 2200.0),
+            ],
+            'sermon_absence' => [
+                'occasion' => null,
+                'explanation' => 'No preaching took place.',
+            ],
+        ]);
+
+        $this->assertFalse($structure->assertsSermonAbsence());
+        $this->assertNull($structure->toArray()['sermon_absence']);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function sectionPayload(string $type, float $startTime, float $endTime): array
+    {
+        return [
+            'type' => $type,
+            'title' => null,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'confidence' => 0.9,
+            'oos_item_id' => null,
+            'song_title' => null,
+            'reading_reference' => null,
+            'sermon_reference' => null,
+            'summary' => null,
+            'notes' => [],
+        ];
     }
 }

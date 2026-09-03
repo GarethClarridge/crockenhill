@@ -6,6 +6,7 @@ namespace Tests\Unit\Services;
 
 use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructureSection;
+use App\Enums\ServiceOccasion;
 use App\Enums\ServiceSectionType;
 use App\Services\ChurchService\Structure\OpenAiServiceStructureService;
 use App\Services\ChurchService\Structure\ServiceStructureEvaluationTelemetry;
@@ -335,6 +336,63 @@ class OpenAiServiceStructureServiceTest extends TestCase
 
         $this->assertStringContainsString('No order of service is available', $prompt['user']);
         $this->assertStringContainsString('every oos_item_id must be null', $prompt['user']);
+    }
+
+    /**
+     * D1: the projection could always notice a service with no sermon — the
+     * system prompt has always licensed it — but had no way to say so, so the
+     * 2024-02-11 evening's finding landed in free-text notes where nothing read
+     * it. The schema now carries the assertion, and the run honours it.
+     */
+    #[Test]
+    public function it_carries_a_structured_sermon_absence_assertion(): void
+    {
+        OpenAI::fake([
+            CreateResponse::fake([
+                'choices' => [[
+                    'message' => [
+                        'content' => json_encode([
+                            'sections' => [[
+                                'type' => 'other',
+                                'title' => 'Operation Forgiveness presentation',
+                                'start_time' => 474.0,
+                                'end_time' => 3421.0,
+                                'confidence' => 0.93,
+                                'oos_item_id' => null,
+                                'song_title' => null,
+                                'reading_reference' => null,
+                                'sermon_reference' => null,
+                                'summary' => 'A visiting mission describes its work among young people.',
+                                'notes' => [],
+                            ]],
+                            'summary' => 'A mission presentation evening.',
+                            'notices' => [],
+                            'chapter_markers' => [],
+                            'notes' => [],
+                            'sermon_absence' => [
+                                'occasion' => 'mission_presentation',
+                                'explanation' => 'A visiting mission presented its work in place of the sermon.',
+                            ],
+                        ]),
+                    ],
+                ]],
+            ]),
+        ]);
+
+        $structure = $this->service->detect($this->transcript(), $this->oosItems(), 'proc-absence');
+
+        $this->assertTrue($structure->assertsSermonAbsence());
+        $this->assertSame(ServiceOccasion::MissionPresentation, $structure->sermonAbsence?->occasion);
+
+        OpenAI::assertSent(Chat::class, function (string $method, array $parameters): bool {
+            $schema = $parameters['response_format']['json_schema']['schema'];
+
+            return in_array('sermon_absence', $schema['required'], true)
+                && $schema['properties']['sermon_absence']['type'] === ['object', 'null']
+                && $schema['properties']['sermon_absence']['required'] === ['occasion', 'explanation']
+                && in_array(null, $schema['properties']['sermon_absence']['properties']['occasion']['enum'], true)
+                && in_array('carol_service', $schema['properties']['sermon_absence']['properties']['occasion']['enum'], true);
+        });
     }
 
     private function transcript(): ChurchServiceTranscript

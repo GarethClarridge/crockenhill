@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Data\LivestreamSegment;
 use App\Data\ServiceSectionMetadata;
+use App\Data\ServiceSermonAbsence;
 use App\Enums\LivestreamSegmentClassification;
 use App\Mail\ManualReviewRequired;
 use App\Models\MediaProcessingLog;
@@ -15,6 +16,7 @@ use App\Services\Media\ExtractedMediaDurationProbe;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Media\Video\VideoStorageService;
 use App\Services\Processing\ProcessingNotificationRouter;
+use App\Services\Processing\ProcessingRunOrchestrator;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Sermon\SermonCandidateConfidenceService;
 use App\Services\Sermon\SermonExtractionPlanResolver;
@@ -71,6 +73,10 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
 
             // Update status to show sermon extraction is starting
             $this->markProcessingRunAsProcessing($this->processingLog, 'extraction');
+
+            if ($this->concludeWithoutSermon()) {
+                return;
+            }
 
             $extractionPlan = $planResolver->resolve($this->processingLog);
             $extractionPlan = $this->guardAutoExtractionPolicy(
@@ -274,6 +280,50 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
 
             throw $e;
         }
+    }
+
+    /**
+     * Stop before extraction when the accepted structure says this service held
+     * no sermon, handing the run to the custody tail that completes it.
+     *
+     * Absence is a content fact and the projection is the instrument that reads
+     * content; the confidence service reads RMS speech duration, which cannot
+     * tell "no sermon happened" from "one long block of speech". Left to it, the
+     * 2024-02-11 mission-presentation evening failed on
+     * `candidate_exceeds_maximum_duration` — a right answer reached through the
+     * wrong instrument, and reported as a defect (D1, 2026-09-03).
+     *
+     * The structure has already passed the deterministic gate by the time this
+     * runs, and {@see \App\Data\ServiceStructure::fromSections()} drops any
+     * assertion that sits beside a detected sermon section, so an assertion
+     * reaching here is one nothing in the run contradicts.
+     */
+    private function concludeWithoutSermon(): bool
+    {
+        $absence = $this->processingLog->assertedSermonAbsence();
+
+        if (! $absence instanceof ServiceSermonAbsence) {
+            return false;
+        }
+
+        $this->logStepSkipped(
+            ChurchServiceProcessingTimeline::EXTRACT_SERMON,
+            'The service held no sermon: '.$absence->explanation,
+        );
+
+        Log::info('Sermon extraction skipped: the detected structure asserts this service held no sermon', [
+            'processing_id' => $this->processingLog->processing_id,
+            'occasion' => $absence->occasion?->value,
+            'explanation' => $absence->explanation,
+        ]);
+
+        // The remaining chained jobs are all sermon-shaped; the orchestrator
+        // dispatches the custody tail that still applies in their place.
+        $this->chained = [];
+
+        app(ProcessingRunOrchestrator::class)->concludeWithoutSermon($this->processingLog);
+
+        return true;
     }
 
     private function createSermonSegment(float $startTime, float $endTime): LivestreamSegment

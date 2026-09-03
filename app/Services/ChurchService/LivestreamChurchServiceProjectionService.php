@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\ChurchService;
 
 use App\Actions\IngestChurchServiceSourceRevision;
+use App\Data\ServiceSermonAbsence;
 use App\Data\ServiceStructure;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\SermonService;
@@ -76,6 +77,7 @@ class LivestreamChurchServiceProjectionService
                 }
 
                 $this->linkProcessingLogToService($processingLog, $churchService);
+                $this->persistDetectedOccasion($churchService, $processingLog);
                 $this->reviewSynchronizer->openReviewFromSections($churchService, $sections);
             }
 
@@ -150,6 +152,7 @@ class LivestreamChurchServiceProjectionService
             }
 
             $this->linkProcessingLogToService($processingLog, $churchService);
+            $this->persistDetectedOccasion($churchService, $processingLog);
 
             if ($churchService->reviewed_canonical_revision !== null) {
                 $this->ingestSourceRevision->execute(
@@ -434,6 +437,30 @@ class LivestreamChurchServiceProjectionService
         }
 
         $churchService->forceFill($structureContent)->saveQuietly();
+    }
+
+    /**
+     * Carry a detected service occasion onto the service it belongs to.
+     *
+     * Deliberately not part of the structure content fields: those are rewritten
+     * wholesale on every projection, and an occasion an operator has confirmed
+     * must survive a re-detection that no longer proposes one. The proposal is
+     * written; the confirmation is never touched, and a confirmed service is
+     * left entirely alone (D2, 2026-09-03).
+     */
+    private function persistDetectedOccasion(ChurchService $churchService, MediaProcessingLog $processingLog): void
+    {
+        if ($churchService->occasion_confirmed_at !== null) {
+            return;
+        }
+
+        $absence = $processingLog->assertedSermonAbsence();
+
+        if (! $absence instanceof ServiceSermonAbsence) {
+            return;
+        }
+
+        $churchService->forceFill(['occasion' => $absence->occasion])->saveQuietly();
     }
 
     private function linkProcessingLogToService(MediaProcessingLog $processingLog, ChurchService $churchService): void

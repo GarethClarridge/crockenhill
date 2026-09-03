@@ -283,6 +283,8 @@ CREATE TABLE `church_services` (
   `needs_review` tinyint(1) NOT NULL DEFAULT '0',
   `review_reason` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `summary` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `occasion` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `occasion_confirmed_at` timestamp NULL DEFAULT NULL,
   `notices` json DEFAULT NULL,
   `chapter_markers` json DEFAULT NULL,
   `review_state` enum('not_reviewed','reviewed','reopened') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'not_reviewed',
@@ -1179,7 +1181,7 @@ CREATE TABLE `sermons` (
   `duration` double DEFAULT NULL,
   `filetype` varchar(8) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'mp3',
   `title` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
-  `title_provenance` varchar(20) COLLATE utf8mb3_unicode_ci DEFAULT NULL,
+  `title_provenance` varchar(20) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `slug` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
   `reference` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL COMMENT 'Denormalized scripture reference cache for display/search compatibility. scripture_passage_id is the canonical normalized identity when present.',
   `scripture_passage_id` bigint unsigned DEFAULT NULL COMMENT 'Canonical normalized scripture identity for the published sermon. The reference text column is a synchronized cache.',
@@ -1325,7 +1327,7 @@ CREATE TABLE `service_sections` (
   `published_at` timestamp NULL DEFAULT NULL,
   `extracted_video_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `extracted_audio_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `asset_disk` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `asset_disk` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `extracted_at` timestamp NULL DEFAULT NULL,
   `unpublished_expires_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
@@ -1474,7 +1476,7 @@ CREATE TABLE `song_videos` (
   `recorded_date` date DEFAULT NULL,
   `is_featured` tinyint(1) NOT NULL DEFAULT '0',
   `publication_state` varchar(24) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'published',
-  `asset_disk` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `asset_disk` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `historic_import_operation_id` bigint unsigned DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
@@ -1844,3 +1846,4 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_31_132413_add_t
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_31_140000_add_asset_disk_to_song_videos_table',97);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_31_211617_add_asset_disk_to_service_sections_table',97);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_02_184415_drop_historic_import_usage_entries_table',98);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_03_104053_add_occasion_to_church_services_table',99);

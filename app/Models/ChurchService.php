@@ -8,6 +8,7 @@ use App\Data\ChurchServiceImportMetadata;
 use App\Data\ChurchServiceImportMetadataCast;
 use App\Enums\ChurchServiceCanonicalFinalization;
 use App\Enums\ChurchServiceReviewState;
+use App\Enums\ServiceOccasion;
 use App\Enums\SermonService;
 use App\Services\Public\PublicServiceContentEligibility;
 use Database\Factories\ChurchServiceFactory;
@@ -29,6 +30,8 @@ use Illuminate\Validation\Rule;
  * @property bool $needs_review
  * @property string|null $review_reason
  * @property string|null $summary
+ * @property ServiceOccasion|null $occasion
+ * @property Carbon|null $occasion_confirmed_at
  * @property list<array{title: string, details: string|null}>|null $notices
  * @property list<array{title: string, start_time: float, end_time: float}>|null $chapter_markers
  * @property ChurchServiceReviewState $review_state
@@ -80,6 +83,8 @@ class ChurchService extends Model
         'needs_review',
         'review_reason',
         'summary',
+        'occasion',
+        'occasion_confirmed_at',
         'notices',
         'chapter_markers',
         'review_state',
@@ -107,6 +112,8 @@ class ChurchService extends Model
             'date' => 'date',
             'service' => SermonService::class,
             'needs_review' => 'boolean',
+            'occasion' => ServiceOccasion::class,
+            'occasion_confirmed_at' => 'datetime',
             'notices' => 'array',
             'chapter_markers' => 'array',
             'review_state' => ChurchServiceReviewState::class,
@@ -119,6 +126,20 @@ class ChurchService extends Model
             'canonical_finalization' => ChurchServiceCanonicalFinalization::class,
             'projection_policy_version' => 'integer',
         ];
+    }
+
+    /**
+     * The occasion label this service may show publicly.
+     *
+     * A detected occasion is a model proposal like any other, so it stays
+     * invisible to visitors until an operator has confirmed it — the standing
+     * rule that no unconfirmed model output reaches a public surface. Readers
+     * should call this rather than `$service->occasion`, which is the raw
+     * proposal (D2/D3, 2026-09-03).
+     */
+    public function confirmedOccasion(): ?ServiceOccasion
+    {
+        return $this->occasion_confirmed_at === null ? null : $this->occasion;
     }
 
     /**

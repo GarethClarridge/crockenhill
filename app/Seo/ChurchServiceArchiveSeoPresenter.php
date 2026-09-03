@@ -55,9 +55,23 @@ class ChurchServiceArchiveSeoPresenter
         return $churchService->date->format('j F Y').' — '.$churchService->service->label().' service';
     }
 
-    public function detailDescription(ChurchService $churchService): string
+    /**
+     * A service with no sermon must not be described as having one. The
+     * 2024-02-11 evening was a visiting mission's presentation from beginning to
+     * end; naming a sermon in its meta description is simply false (D3,
+     * 2026-09-03).
+     *
+     * `$includesSermon` is the page's own answer rather than anything derived
+     * here: what the page shows is what the description should describe, and
+     * only the caller has already resolved which items are publicly exposable.
+     */
+    public function detailDescription(ChurchService $churchService, bool $includesSermon): string
     {
-        return 'The order of service, sermon, songs and readings for the '
+        $contents = $includesSermon
+            ? 'The order of service, sermon, songs and readings'
+            : 'The order of service, songs and readings';
+
+        return $contents.' for the '
             .strtolower($churchService->service->label()).' service on '
             .$churchService->date->format('j F Y').' at Crockenhill Baptist Church.';
     }

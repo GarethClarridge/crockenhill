@@ -89,14 +89,27 @@ final class HistoricReviewSourceReclaimer
         return $totals;
     }
 
+    /**
+     * `Failed` blocks reclamation because a failed run may still be retried from
+     * its source — unless the run has been retired, which withdraws the result
+     * and hands the identity to a replacement source, so nothing will ever be
+     * retried from this copy. The order matters: this status test runs before
+     * the obligation test, so a retired run left `Failed` could never be
+     * released by settling anything else (D4, 2026-09-03).
+     */
     private function isEligibleRun(MediaProcessingLog $run): bool
     {
-        if (in_array($run->status, [
+        $blockingStatuses = [
             ProcessingStatus::Pending,
             ProcessingStatus::Started,
             ProcessingStatus::Processing,
-            ProcessingStatus::Failed,
-        ], true)) {
+        ];
+
+        if (! $run->isRetired()) {
+            $blockingStatuses[] = ProcessingStatus::Failed;
+        }
+
+        if (in_array($run->status, $blockingStatuses, true)) {
             return false;
         }
 

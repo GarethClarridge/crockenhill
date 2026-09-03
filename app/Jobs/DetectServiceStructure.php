@@ -598,6 +598,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             $structure->summary,
             $structure->notices,
             $structure->chapterMarkers,
+            $structure->sermonAbsence,
         );
     }
 
@@ -945,6 +946,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
                 $boundResult->structure->summary,
                 $boundResult->structure->notices,
                 $boundResult->structure->chapterMarkers,
+                $boundResult->structure->sermonAbsence,
             );
         }
 
