@@ -315,13 +315,16 @@ class SermonExtractionPlanResolver
 
         $risks = [];
 
-        if ($overlapping->isNotEmpty()) {
-            $risks[] = [
-                'kind' => 'sermon_boundary_conflicting_evidence',
-                'detail' => 'Another timed service section crosses the detected sermon end, so the sermon boundary needs individual review.',
-            ];
-        }
-
+        /**
+         * A section crossing the sermon end raises no review obligation. It never
+         * reaches $cursor — the published span is decided entirely by the rule
+         * above (run forward to the next song) — so a reviewer would have no
+         * alternative span to choose, only the one the rule already produced.
+         * Review earns its cost when the pipeline made a choice, not when it
+         * noticed a fact, and a needless hold pins the run's staged source until
+         * someone clears it. The overlapping ids stay in the evidence below,
+         * where they are free to record and useful to diagnose.
+         */
         if (count($absorbed) > 1) {
             $risks[] = [
                 'kind' => 'sermon_boundary_multiple_following_items',

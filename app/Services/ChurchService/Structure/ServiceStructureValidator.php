@@ -143,9 +143,29 @@ class ServiceStructureValidator
     private const END_TOLERANCE_SECONDS = 1.0;
 
     /**
-     * Overlaps below this are treated as boundary rounding, not real overlap.
+     * Adjacent sections are allowed to overlap: the detector places seams
+     * approximately, and preserving both spans merely duplicates a few seconds
+     * across two clips, where clamping one back would fabricate a boundary the
+     * detector never asserted. Only *gross containment* — a section lying almost
+     * entirely inside its predecessor, which means it is not the item it claims
+     * to be — is incoherent enough to reject.
+     *
+     * Both conditions must hold. The fraction alone would reject a 20s section
+     * sharing 15s with its neighbour, which is a seam on a short item rather than
+     * incoherence (micro-sections are already flagged separately); the absolute
+     * floor alone would reject a long, legitimately-overlapping pair.
+     *
+     * Measured over the nine rejected proposals held in
+     * `processing_metadata.service_structure_proposal`: real seams reach at most
+     * 8.3% of the shorter section (16.9s), while the sole pathological structure
+     * — a sermon timestamped to 41410s inside a 4408s recording — overlaps by
+     * 37,179%. The gap between those is four orders of magnitude, so the exact
+     * cut is not load-bearing. That structure is independently rejected by
+     * `timestamps_outside_recording` and `sermon_duration_out_of_bounds`.
      */
-    private const OVERLAP_TOLERANCE_SECONDS = 0.05;
+    private const GROSS_CONTAINMENT_FRACTION = 0.5;
+
+    private const GROSS_CONTAINMENT_MINIMUM_SECONDS = 60.0;
 
     /**
      * A short bible_reading ending this close to the end of the recording is
@@ -331,16 +351,19 @@ class ServiceStructureValidator
             }
 
             if ($previous instanceof ServiceStructureSection
-                && $section->startTime < $previous->endTime - self::OVERLAP_TOLERANCE_SECONDS) {
+                && $this->grosslyContains($previous, $section)) {
+                $overlap = $previous->endTime - $section->startTime;
+
                 $hardFailures[] = [
                     'code' => 'non_chronological',
                     'message' => sprintf(
-                        'Section %d (%s, starts %.1fs) overlaps the previous section (%s, ends %.1fs).',
+                        'Section %d (%s, starts %.1fs) lies almost entirely inside the previous section (%s, ends %.1fs): they share %.1fs.',
                         $index + 1,
                         $section->type->value,
                         $section->startTime,
                         $previous->type->value,
-                        $previous->endTime
+                        $previous->endTime,
+                        $overlap
                     ),
                 ];
 
@@ -349,6 +372,29 @@ class ServiceStructureValidator
 
             $previous = $section;
         }
+    }
+
+    /**
+     * Does the later section lie almost entirely inside the earlier one?
+     *
+     * Measured against the shorter of the two, so a brief item swallowed by a
+     * long one is caught regardless of which side is longer.
+     */
+    private function grosslyContains(ServiceStructureSection $previous, ServiceStructureSection $section): bool
+    {
+        $overlap = $previous->endTime - $section->startTime;
+
+        if ($overlap < self::GROSS_CONTAINMENT_MINIMUM_SECONDS) {
+            return false;
+        }
+
+        $shorter = min($previous->duration(), $section->duration());
+
+        if ($shorter <= 0.0) {
+            return true;
+        }
+
+        return ($overlap / $shorter) >= self::GROSS_CONTAINMENT_FRACTION;
     }
 
     /**

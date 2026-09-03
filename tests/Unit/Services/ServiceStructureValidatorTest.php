@@ -12,6 +12,7 @@ use App\Services\ChurchService\Structure\ValidationContext;
 use App\Services\ChurchService\Structure\ValidationResult;
 use Illuminate\Support\Facades\Config;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\TestCase;
 
 class ServiceStructureValidatorTest extends TestCase
@@ -54,8 +55,14 @@ class ServiceStructureValidatorTest extends TestCase
         $this->assertSame(['no_sections'], $result->failureCodes());
     }
 
+    /**
+     * The detector places seams approximately. Preserving both spans duplicates a
+     * few seconds across two clips; clamping one back would fabricate a boundary
+     * the detector never asserted, and rejecting the structure discards the whole
+     * run's output over it.
+     */
     #[Test]
-    public function overlapping_sections_fail_hard(): void
+    public function a_seam_overlap_does_not_fail_hard(): void
     {
         $structure = ServiceStructure::fromSections([
             $this->section('welcome', 0.0, 120.0, oosItemId: 1),
@@ -65,7 +72,70 @@ class ServiceStructureValidatorTest extends TestCase
 
         $result = $this->validator->validate($structure, $this->context());
 
+        $this->assertNotContains('non_chronological', $result->failureCodes());
+    }
+
+    /**
+     * The two shapes that killed runs #967 and #971 in the first historic pass:
+     * a 3.1 s sermon/song seam and a 16.9 s song/prayer seam. Both were rejected
+     * on `non_chronological` alone.
+     *
+     * @param  float  $overlapSeconds  How far the later section starts before the earlier one ends
+     */
+    #[Test]
+    #[TestWith([3.1])]
+    #[TestWith([16.92])]
+    public function the_seam_overlaps_seen_in_the_first_historic_pass_do_not_fail_hard(float $overlapSeconds): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0, oosItemId: 1),
+            $this->section('song', 130.0, 400.0, oosItemId: 2),
+            $this->section('sermon', 500.0, 2200.0, oosItemId: 4),
+            $this->section('other', 2200.0 - $overlapSeconds, 2400.0, oosItemId: 5),
+        ]);
+
+        $result = $this->validator->validate($structure, $this->context());
+
+        $this->assertNotContains('non_chronological', $result->failureCodes());
+    }
+
+    /**
+     * A section lying almost entirely inside its predecessor is not the item it
+     * claims to be — most of this "song" is sermon hangover — so it is rejected
+     * even though every timestamp sits inside the recording.
+     */
+    #[Test]
+    public function a_grossly_contained_section_fails_hard(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0, oosItemId: 1),
+            $this->section('sermon', 500.0, 2200.0, oosItemId: 4),
+            $this->section('song', 1900.0, 2230.0, oosItemId: 2), // 300 s of its 330 s is inside the sermon
+        ]);
+
+        $result = $this->validator->validate($structure, $this->context());
+
         $this->assertContains('non_chronological', $result->failureCodes());
+    }
+
+    /**
+     * The fraction alone is not enough: a short item sharing most of its length
+     * with a neighbour is a seam on a small section, not incoherence. Micro
+     * sections are flagged separately.
+     */
+    #[Test]
+    public function a_short_section_sharing_most_of_its_length_does_not_fail_hard(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0, oosItemId: 1),
+            $this->section('song', 130.0, 400.0, oosItemId: 2),
+            $this->section('other', 385.0, 405.0, oosItemId: 5), // 15 s of its 20 s overlaps
+            $this->section('sermon', 500.0, 2200.0, oosItemId: 4),
+        ]);
+
+        $result = $this->validator->validate($structure, $this->context());
+
+        $this->assertNotContains('non_chronological', $result->failureCodes());
     }
 
     #[Test]

@@ -272,6 +272,32 @@ class SermonExtractionPlanResolverTest extends TestCase
     }
 
     /**
+     * A section crossing the sermon end is recorded but raises no review hold.
+     * The published span comes from the run-to-the-next-song rule and never
+     * consults the overlap, so a reviewer would have no alternative span to
+     * choose — and a needless hold pins the run's staged source.
+     */
+    #[Test]
+    public function a_section_crossing_the_sermon_end_is_recorded_without_obligating_review(): void
+    {
+        config(['media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60]);
+
+        $log = $this->logWithSermon(630.0, 2100.0);
+        // Starts 16.9 s before the sermon ends and runs well past it — the #971 shape.
+        $crossing = $this->section($log, ServiceSectionType::Song, 3, 2083.1, 2400.0);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame(2100.0, $plan['segments'][0]['end_time']);
+        $this->assertFalse($plan['metadata']['sermon_boundary']['requires_review']);
+        $this->assertSame([], $plan['metadata']['sermon_boundary']['risks']);
+        $this->assertSame(
+            [$crossing->id],
+            $plan['metadata']['sermon_boundary']['overlapping_section_ids'],
+        );
+    }
+
+    /**
      * Duration is never the sole authority for a review hold. A long tail that
      * only this recording attests reads as a long conclusion, so it stays in the
      * sermon automatically however long it runs.
