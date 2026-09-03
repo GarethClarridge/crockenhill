@@ -33,6 +33,7 @@ use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Support\ChurchServiceProcessingTimeline;
+use App\Support\MediaAssetPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
@@ -96,6 +97,10 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'end_time' => 420.0,
         ]);
         $expectedAudioPath = 'section-publications/'.$section->id.'-0123456789abcdef/'.$processingLog->processing_id.'_section_'.$section->id.'.mp3';
+        // The real extractor writes this file; the mock only returns its path. Speaker
+        // identification now checks the media disk before spawning a subprocess, so a
+        // section with no file resolves to `missing_audio` and never reaches identify().
+        Storage::disk(MediaAssetPath::disk())->put($expectedAudioPath, 'section-audio');
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
@@ -257,6 +262,10 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'end_time' => 420.0,
         ]);
         $expectedAudioPath = 'section-publications/'.$section->id.'-0123456789abcdef/'.$processingLog->processing_id.'_section_'.$section->id.'.mp3';
+        // The real extractor writes this file; the mock only returns its path. Speaker
+        // identification now checks the media disk before spawning a subprocess, so a
+        // section with no file resolves to `missing_audio` and never reaches identify().
+        Storage::disk(MediaAssetPath::disk())->put($expectedAudioPath, 'section-audio');
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
@@ -343,6 +352,10 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'end_time' => 680.0,
         ]);
         $expectedAudioPath = 'section-publications/'.$section->id.'-0123456789abcdef/'.$processingLog->processing_id.'_section_'.$section->id.'.mp3';
+        // The real extractor writes this file; the mock only returns its path. Speaker
+        // identification now checks the media disk before spawning a subprocess, so a
+        // section with no file resolves to `missing_audio` and never reaches identify().
+        Storage::disk(MediaAssetPath::disk())->put($expectedAudioPath, 'section-audio');
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
