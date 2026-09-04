@@ -96,11 +96,16 @@ class EditSermonTest extends TestCase
 
         Livewire::test(EditSermon::class, ['sermon' => $sermon])
             ->assertSet('form.points', ['Point 1'])
+            ->assertSeeHtml('aria-label="Remove point: 1"')
             ->call('addPoint')
             ->assertSet('form.points', ['Point 1', ''])
+            ->assertSeeHtml('aria-label="Remove point: 1"')
+            ->assertSeeHtml('aria-label="Remove point: 2"')
             ->set('form.points.1', 'New Point')
             ->call('removePoint', 0)
-            ->assertSet('form.points', ['New Point']);
+            ->assertSet('form.points', ['New Point'])
+            ->assertSeeHtml('aria-label="Remove point: 1"')
+            ->assertDontSeeHtml('aria-label="Remove point: 2"');
     }
 
     #[Test]
