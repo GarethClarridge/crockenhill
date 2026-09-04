@@ -40,6 +40,19 @@ class VideoExtractionService
 
     private string $audioPath;
 
+    /**
+     * Probe answers already paid for, keyed by file identity and question.
+     *
+     * Every `extractSegmentAsFile()` call asks ffprobe the same two or three
+     * questions about the same unchanged source, and a section-candidate run
+     * calls it once per section. Each answer costs a process spawn and a header
+     * read across the staging drive. The key carries size and mtime as well as
+     * the path so a rewritten file cannot be answered from a stale entry.
+     *
+     * @var array<string, string|float|null>
+     */
+    private array $probeCache = [];
+
     public function __construct(
         private readonly AudioCompressionService $audioCompressor,
         private readonly StorageAdapterHelper $storageHelper
@@ -110,10 +123,13 @@ class VideoExtractionService
             }
 
             // Use stream copy for maximum speed and quality preservation
+            $seek = $this->streamCopySeekArguments((float) $startTime);
+
             $command = [
                 $ffmpegPath,
+                ...$seek['input'],
                 '-i', escapeshellarg($inputPath),
-                '-ss', (string) $startTime,
+                ...$seek['output'],
                 '-t', (string) $duration,
                 '-c', 'copy',  // Stream copy - no re-encoding
                 '-avoid_negative_ts', 'make_zero',  // Handle timestamp issues
@@ -370,6 +386,47 @@ class VideoExtractionService
     }
 
     /**
+     * FFmpeg's seek arguments for a stream copy, split either side of `-i`.
+     *
+     * A stream copy cannot start mid-GOP, so where `-ss` sits decides where the
+     * cut lands: an input seek starts at the keyframe at or *before* the request
+     * and runs long, an output seek discards packets until the first keyframe at
+     * or *after* it. Those are different cuts, and this branch wants the latter.
+     *
+     * The cost of asking for it naively is that FFmpeg demuxes the whole file up
+     * to the cut point first. Measured against a 4.7 GiB source, a 300 s copy at
+     * offset 2400 s took 60 s, of which under a second was the copying — and
+     * `prepare_section_publication_candidates` pays it once per section, on songs
+     * averaging 29 minutes into a service.
+     *
+     * So seek twice. A coarse input seek lands a fixed pad short of the target,
+     * skipping the prefix read; the fine output seek then trims that pad exactly
+     * as before, and only the pad is ever demuxed and discarded. The pad only has
+     * to exceed the source's GOP length for the coarse seek to land before the
+     * keyframe the output seek would have chosen, at which point the two-stage
+     * output is not merely equivalent but *byte-identical*: verified over three
+     * corpus sources at offsets of 600 s, 2400 s and 3600 s, where the same
+     * request took 60 s one way and 0.58 s the other.
+     *
+     * @return array{input: list<string>, output: list<string>}
+     */
+    private function streamCopySeekArguments(float $startTime): array
+    {
+        $pad = (float) config('media-processing.video_extraction.copy_seek_prefix_seconds', 30.0);
+
+        // Too close to the start for a coarse seek to buy anything, or the pad is
+        // switched off: keep the single output seek this branch has always used.
+        if ($pad <= 0.0 || $startTime <= $pad) {
+            return ['input' => [], 'output' => ['-ss', (string) $startTime]];
+        }
+
+        return [
+            'input' => ['-ss', (string) ($startTime - $pad)],
+            'output' => ['-ss', (string) $pad],
+        ];
+    }
+
+    /**
      * Fallback method using re-encoding when stream copy fails
      */
     private function extractSegmentWithReencoding(string $inputPath, object $segment, ?string $outputFilename = null): string
@@ -542,6 +599,31 @@ class VideoExtractionService
      */
     private function probeStreamCodec(string $inputPath, string $streamType): ?string
     {
+        $key = $this->probeCacheKey($inputPath, 'codec:'.$streamType);
+
+        if ($key !== null && array_key_exists($key, $this->probeCache)) {
+            /** @var string|null $cached */
+            $cached = $this->probeCache[$key];
+
+            return $cached;
+        }
+
+        $codec = $this->readStreamCodec($inputPath, $streamType);
+
+        if ($key !== null) {
+            $this->probeCache[$key] = $codec;
+        }
+
+        return $codec;
+    }
+
+    /**
+     * The uncached read behind {@see probeStreamCodec()}.
+     *
+     * @param  'a'|'v'  $streamType
+     */
+    private function readStreamCodec(string $inputPath, string $streamType): ?string
+    {
         $ffprobePath = config('media-processing.ffmpeg.ffprobe_path');
 
         if (! is_string($ffprobePath) || $ffprobePath === '') {
@@ -573,6 +655,46 @@ class VideoExtractionService
      * Overall container bitrate of the source, in Mbps, or null when unreadable.
      */
     private function probeSourceBitrateMbps(string $inputPath): ?float
+    {
+        $key = $this->probeCacheKey($inputPath, 'bitrate');
+
+        if ($key !== null && array_key_exists($key, $this->probeCache)) {
+            /** @var float|null $cached */
+            $cached = $this->probeCache[$key];
+
+            return $cached;
+        }
+
+        $bitrate = $this->readSourceBitrateMbps($inputPath);
+
+        if ($key !== null) {
+            $this->probeCache[$key] = $bitrate;
+        }
+
+        return $bitrate;
+    }
+
+    /**
+     * Identity of a probe answer, or null when the file cannot be stat'd — in
+     * which case nothing is cached and the probe runs as it always did, rather
+     * than caching against a path whose contents we cannot pin down.
+     */
+    private function probeCacheKey(string $inputPath, string $question): ?string
+    {
+        $size = @filesize($inputPath);
+        $modified = @filemtime($inputPath);
+
+        if ($size === false || $modified === false) {
+            return null;
+        }
+
+        return $inputPath.'|'.$size.'|'.$modified.'|'.$question;
+    }
+
+    /**
+     * The uncached read behind {@see probeSourceBitrateMbps()}.
+     */
+    private function readSourceBitrateMbps(string $inputPath): ?float
     {
         $ffprobePath = config('media-processing.ffmpeg.ffprobe_path');
 

@@ -221,6 +221,7 @@ class VideoExtractionServiceTest extends TestCase
         int $probeBitrate,
         string $videoCodec = 'h264',
         string $audioCodec = 'aac',
+        ?string $probeCallLog = null,
     ): string {
         $argvLog = storage_path('framework/testing/ffmpeg-argv.log');
         @unlink($argvLog);
@@ -240,10 +241,15 @@ class VideoExtractionServiceTest extends TestCase
         // differently, and conflating them would let either rule pass by
         // accident. `N/A` is what the webm corpus genuinely reports for bitrate.
         $bitrateReply = $probeBitrate > 0 ? (string) $probeBitrate : 'N/A';
+        $recordCall = $probeCallLog === null
+            ? ''
+            : 'echo "$@" >> '.escapeshellarg($probeCallLog)."\n";
+
         $ffprobeStub = storage_path('framework/testing/ffprobe-stub.sh');
         file_put_contents(
             $ffprobeStub,
             "#!/bin/sh\n"
+            .$recordCall
             ."case \"$*\" in\n"
             ."  *v:0*) echo '{$videoCodec}' ;;\n"
             ."  *a:0*) echo '{$audioCodec}' ;;\n"
@@ -423,6 +429,7 @@ class VideoExtractionServiceTest extends TestCase
             'A re-encode must seek the input: -ss has to precede -i.'
         );
 
+        Config::set('media-processing.video_extraction.copy_seek_prefix_seconds', 30.0);
         $copyLog = $this->stubFfmpegAndFfprobe(2_600_000);
         $this->service->extractSegmentAsFile(
             '/tmp/input.mp4',
@@ -430,11 +437,91 @@ class VideoExtractionServiceTest extends TestCase
         );
         $copyArgv = file_get_contents($copyLog);
 
-        $this->assertLessThan(
-            strpos($copyArgv, '-ss '),
-            strpos($copyArgv, '-i '),
-            'A stream copy must keep its output seek: -i has to precede -ss.'
+        // The stream copy still seeks its output — that is what decides where the
+        // cut lands — but only across the pad. The coarse input seek ahead of it
+        // carries the rest of the offset, and buys back the prefix read.
+        $this->assertStringContainsString('-ss 870 -i ', $copyArgv);
+        $this->assertMatchesRegularExpression('/-i \S+ -ss 30 /', $copyArgv);
+    }
+
+    #[Test]
+    public function a_stream_copy_splits_its_seek_so_only_the_pad_is_demuxed(): void
+    {
+        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
+        Config::set('media-processing.video_extraction.copy_seek_prefix_seconds', 30.0);
+        $argvLog = $this->stubFfmpegAndFfprobe(2_600_000);
+
+        $this->service->extractSegmentAsFile(
+            '/tmp/input.mp4',
+            (object) ['start_time' => 2400.0, 'end_time' => 2700.0]
         );
+
+        // Verified byte-identical against the single-output-seek form on three
+        // corpus sources at 600 s, 2400 s and 3600 s: the pair of seeks sums to
+        // the requested offset and the fine half still picks the keyframe.
+        $argv = file_get_contents($argvLog);
+        $this->assertStringContainsString('-ss 2370 -i ', $argv);
+        $this->assertMatchesRegularExpression('/-i \S+ -ss 30 /', $argv);
+        $this->assertStringContainsString('-c copy', $argv);
+    }
+
+    #[Test]
+    public function a_cut_inside_the_pad_keeps_the_single_output_seek(): void
+    {
+        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
+        Config::set('media-processing.video_extraction.copy_seek_prefix_seconds', 30.0);
+        $argvLog = $this->stubFfmpegAndFfprobe(2_600_000);
+
+        $this->service->extractSegmentAsFile(
+            '/tmp/input.mp4',
+            (object) ['start_time' => 12.0, 'end_time' => 40.0]
+        );
+
+        // There is no prefix worth skipping this close to the start, and a coarse
+        // seek to a negative offset would be nonsense.
+        $argv = file_get_contents($argvLog);
+        $this->assertMatchesRegularExpression('/^\s*-i \S+ -ss 12 /', $argv);
+    }
+
+    #[Test]
+    public function a_zero_pad_restores_the_single_output_seek(): void
+    {
+        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
+        Config::set('media-processing.video_extraction.copy_seek_prefix_seconds', 0.0);
+        $argvLog = $this->stubFfmpegAndFfprobe(2_600_000);
+
+        $this->service->extractSegmentAsFile(
+            '/tmp/input.mp4',
+            (object) ['start_time' => 900.0, 'end_time' => 1200.0]
+        );
+
+        $argv = file_get_contents($argvLog);
+        $this->assertMatchesRegularExpression('/^\s*-i \S+ -ss 900 /', $argv);
+    }
+
+    #[Test]
+    public function repeated_extractions_probe_each_source_once(): void
+    {
+        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
+        $probeLog = storage_path('framework/testing/ffprobe-calls.log');
+        @unlink($probeLog);
+        $this->stubFfmpegAndFfprobe(2_600_000, probeCallLog: $probeLog);
+
+        $source = storage_path('framework/testing/probe-source.mp4');
+        file_put_contents($source, 'fake-source');
+
+        foreach ([100.0, 200.0, 300.0] as $start) {
+            $this->service->extractSegmentAsFile(
+                $source,
+                (object) ['start_time' => $start, 'end_time' => $start + 60.0]
+            );
+        }
+
+        // A section-candidate run extracts once per section from one unchanging
+        // source. Re-asking ffprobe the same question per section spends a process
+        // spawn and a staging-drive header read for an answer already held.
+        $calls = file_exists($probeLog) ? substr_count((string) file_get_contents($probeLog), "\n") : 0;
+        $this->assertSame(2, $calls, 'Three extractions must share one codec probe and one bitrate probe.');
     }
 
     #[Test]

@@ -258,7 +258,19 @@ return [
     'video_extraction' => [
         'reencode_above_mbps' => (float) env('VIDEO_EXTRACTION_REENCODE_ABOVE_MBPS', 6.0),
         'reencode_crf' => (int) env('VIDEO_EXTRACTION_REENCODE_CRF', 23),
-        'reencode_preset' => env('VIDEO_EXTRACTION_REENCODE_PRESET', 'medium'),
+        // Measured on 300 s of 1080p speech from the historic corpus, ten cores:
+        // medium 67.5 s at SSIM 0.99507, faster 36.6 s at 0.99431, veryfast 25.1 s
+        // at 0.99306. `faster` is 1.85x the throughput for eight ten-thousandths
+        // of SSIM — invisible on a static camera pointed at a pulpit — and lands a
+        // marginally smaller file. Roughly half the historic corpus re-encodes
+        // (VP9, or above the bitrate threshold), so this is the setting that
+        // decides how long a bulk pass takes.
+        'reencode_preset' => env('VIDEO_EXTRACTION_REENCODE_PRESET', 'faster'),
+        // How far before the cut a stream copy's coarse input seek lands. It only
+        // has to clear the source GOP so the fine output seek still decides where
+        // the cut falls; see VideoExtractionService::streamCopySeekArguments().
+        // Zero restores the single output seek.
+        'copy_seek_prefix_seconds' => (float) env('VIDEO_EXTRACTION_COPY_SEEK_PREFIX_SECONDS', 30.0),
     ],
 
     /*
