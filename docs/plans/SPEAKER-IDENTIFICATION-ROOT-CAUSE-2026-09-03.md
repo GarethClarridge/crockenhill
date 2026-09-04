@@ -1,6 +1,6 @@
 # Speaker identification — root-cause record, 3 September 2026
 
-**Status:** diagnosis complete, nothing implemented. §10–§11 reframe the problem as clustering and supersede the §7 recommendations — **read §11 first** (full-corpus validation, 1,009 recordings, and names for 32 of 34 unnamed). This supersedes the causal
+**Status:** diagnosis complete; the three live-pipeline fixes landed 2026-09-04 (§12) and speaker identification is disabled pending re-enrolment. §10–§11 reframe the problem as clustering and supersede the §7 recommendations — **read §11 first** (full-corpus validation, 1,009 recordings, and names for 32 of 34 unnamed); **§12 records what was implemented on 4 September** — live identification is now disabled, not deleted. This supersedes the causal
 account in
 [`CHILDRENS-TALK-SPEAKER-DECISIONS-2026-09-03.md`](CHILDRENS-TALK-SPEAKER-DECISIONS-2026-09-03.md)
 §8 and corrects two conclusions carried in memory. The work that record *landed*
@@ -229,7 +229,7 @@ scores sit ~0.11 higher than the historic lane's.
 
 ## 7. What follows
 
-> **Superseded by §10.** Items 1 and 3 stand. Item 2 (era-bucketed profiles) and
+> **Superseded by §10; items 1 and 3 are now implemented — see §12.** Item 2 (era-bucketed profiles) and
 > item 5 (whole-sermon embedding) are both **overtaken** by the encoder result —
 > do not build era-bucketed profiles. Kept here because the reasoning that led to
 > them is what §10 had to displace.
@@ -590,3 +590,78 @@ gated on an absolute threshold that only ever fires in its own domain.
 Adopting ECAPA remains a dependency decision (§10.5 item 1) and is **not taken
 here**. `speechbrain` + a pinned `torchaudio` matching the image's `torch` are
 installed in the dev container only.
+
+---
+
+## 12. What landed, 4 September 2026
+
+Commit `619634926`. Operator decision: *"I do ultimately want to keep speaker
+identification in live, but I agree we should disable it for now, especially when
+we run the historic video processing."* So the capability is **disabled, not
+deleted** — the §7 option to remove `IdentifySpeaker` from the pipeline is
+explicitly **not taken**.
+
+### 12.1 Live identification disabled
+
+`SPEAKER_IDENTIFICATION_ENABLED=false`. Gate 1 of `IdentifySpeaker` already
+handles this cleanly — it stores `outcome=skipped` and returns — so the pipeline
+is unaffected and no job chain changed. **Prod still needs the same change in
+`.env.production`.**
+
+### 12.2 The no-match fallback is gone (§7 item 3)
+
+`applyNoMatchFallback()` deleted; `recordUnresolvedSpeaker()` replaces it. A
+declined match now keeps the confidence, sets `needs_preacher_review`, and leaves
+every preacher field untouched. The ranked shortlist was already stored, so a
+reviewer still sees the model's opinion — as a proposal, not a fact.
+
+Two tests: the existing no-match case now asserts the preacher is *unchanged*,
+and a new one proves a `manual` assignment survives a decline and that no
+`visiting-speaker` preacher record is created.
+
+The 53 sermons already carrying that name are **untouched**; this stops the
+cause, it does not clean up. §11.5 covers 32 of them with proposals.
+
+### 12.3 Profiles are inactive until earned (§7 item 1)
+
+`BootstrapSpeakerProfilesCommand` now creates profiles `is_active => false` and
+activates only after `updateProfile()` writes a real centroid. New command
+`speaker-profiles:deactivate-empty` (dry-run default) retires rows created before
+the fix — **this is the one to run on prod**, where the 21 zero vectors live.
+Locally it correctly reports nothing to do.
+
+### 12.4 Samples spread across the whole history
+
+`candidateSermons()` no longer takes `orderByDesc('date')->limit($n)`. It reads
+the full history and samples evenly across it, so a profile can no longer describe
+one four-month window as if it were an identity.
+
+### 12.5 Two bugs the tests caught
+
+Both are the same mistake — trusting a declaration over the runtime — and both are
+recorded because either would have shipped silently:
+
+- **`Eloquent\Collection::only()` selects by model primary key, not array offset.**
+  The spread helper passed offsets and got an empty collection, so every preacher
+  fell below `--min-sermons` and no profile was built at all.
+- **PHPStan flagged an `is_numeric()` guard as always-true, citing the `float`
+  PHPDoc.** Removing it broke the deactivation test: the JSON column decodes whole
+  numbers as int `0`, so `$value !== 0.0` never matched and every zero vector read
+  as populated. The cast is now explicit with a comment saying why.
+
+### 12.6 Gates
+
+`pint --dirty` passed · `composer phpstan` no errors (915 files) ·
+`artisan test --parallel` **7,774 tests / 88,768 assertions / 0 failures** ·
+`artisan dusk` 55 passed.
+
+### 12.7 Still open
+
+- **Prod:** set `SPEAKER_IDENTIFICATION_ENABLED=false`, run
+  `speaker-profiles:deactivate-empty --apply`.
+- **The 53 "Visiting Speaker" sermons** need correcting; §11.5 has the proposals.
+- **Three probable mislabels** (§11.6) need an ear, not a rerun.
+- **Re-enrolment before re-enabling.** Whenever live identification comes back it
+  must not be rebuilt on four centroids from a single window — §10.5 and §11 say
+  what to build instead, and prod's ~700 `manual` sermons are the enrolment set.
+- **Adopting ECAPA remains undecided** and is a dependency change.
