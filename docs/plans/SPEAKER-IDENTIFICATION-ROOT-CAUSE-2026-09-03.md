@@ -1,6 +1,6 @@
 # Speaker identification — root-cause record, 3 September 2026
 
-**Status:** diagnosis complete, nothing implemented. §10 (added 2026-09-03) reframes the problem as clustering and supersedes the §7 recommendations — read §10 first. This supersedes the causal
+**Status:** diagnosis complete, nothing implemented. §10–§11 reframe the problem as clustering and supersede the §7 recommendations — **read §11 first** (full-corpus validation, 1,009 recordings, and names for 32 of 34 unnamed). This supersedes the causal
 account in
 [`CHILDRENS-TALK-SPEAKER-DECISIONS-2026-09-03.md`](CHILDRENS-TALK-SPEAKER-DECISIONS-2026-09-03.md)
 §8 and corrects two conclusions carried in memory. The work that record *landed*
@@ -454,3 +454,139 @@ remains unreachable.
 Evidence: `storage/app/spk-diag/{ecapa,multiwindow,samples}.json` and the
 `cluster.py` / `propagate.py` / `ecapa_analyse.py` / `robust.py` scripts
 (gitignored).
+
+---
+
+## 11. Full-corpus validation, 4 September 2026
+
+§10 rested on 104 archive sermons and 13 speakers. This section repeats it on
+**1,009 recordings spanning 2003–2026 and 111 speakers**, and produces names for
+the recordings that had none.
+
+Corpus assembled 2026-09-03/04, ECAPA-TDNN, 5 × 60 s windows averaged:
+
+| set | n | years | labels |
+|---|---|---|---|
+| archive mp3s (CBC drive) | 773 | 2003–2013 | ID3 |
+| prod sermons (Spaces, range-read) | 189 | 2012–2025 | `manual` — operator-confirmed |
+| historic video/livestream | 47 | 2020–2026 | 34 unnamed |
+
+Every record got its full 5 windows; zero extraction failures across 1,009 files.
+18 archive labels are cassette catalogue codes (`081A`, `082B`) rather than
+names, and are excluded — the ID3 field is not uniformly a preacher.
+
+### 11.1 EER holds at scale, and low bitrate is not the problem
+
+| subset | n | EER | same-spk | diff-spk |
+|---|---|---|---|---|
+| everything labelled | 944 | **9.1%** | 0.761 | 0.185 |
+| archive only (128 kbps, 2003–13) | 755 | 9.4% | 0.763 | 0.181 |
+| **prod only (32 kbps, 2012–25)** | 189 | **8.3%** | 0.729 | 0.252 |
+
+7.1% (13 speakers) → 9.1% (111 speakers) is the expected cost of a harder task,
+not degradation. **Prod's 32 kbps audio scores no worse than the archive's
+128 kbps**, which retires the worry that the production codec would break this.
+
+### 11.2 Channel invariance, measured on real cross-decade pairs
+
+25 speakers appear in both the 2003–13 archive and the 2012–25 prod set —
+different decade, different equipment, different bitrate, confirmed labels:
+
+| | mean cosine |
+|---|---|
+| same speaker, across sets | **0.662** |
+| different speakers, across sets | 0.197 |
+| **separation** | **+0.465** |
+
+Resemblyzer's separation on the equivalent comparison was **0.116**. §10.4 could
+only approximate this by hiding eras; this is the direct measurement.
+
+### 11.3 Clustering at corpus scale
+
+Labelled recordings only, no names used, average linkage on cosine:
+
+| k | ARI | purity |
+|---|---|---|
+| 111 (true speaker count) | 0.860 | 0.924 |
+| 166 (1.5×) | 0.854 | **0.964** |
+| 222 (2×) | 0.741 | 0.976 |
+
+### 11.4 The naming rule, validated before use
+
+Leave-one-out 1-nearest-neighbour over all 944 labelled recordings:
+
+**Overall accuracy 89.5%.** Similarity is a genuine confidence signal:
+
+| similarity | n | accuracy |
+|---|---|---|
+| ≥ 0.95 | 515 | 95.5% |
+| 0.90 – 0.95 | 195 | **99.5%** |
+| 0.85 – 0.90 | 91 | 87.9% |
+| 0.80 – 0.85 | 39 | 87.2% |
+| 0.70 – 0.80 | 55 | 58.2% |
+| < 0.70 | 49 | 26.5% |
+
+**Caveat that must travel with the headline: excluding Mark Drury, Bryan Martin
+and Steve Marchant — 524 of 944 recordings — accuracy falls to 76.6%.** The long
+tail of visiting preachers with two or three recordings is where this is weakest,
+and that is precisely the population "Visiting Speaker" describes. Trust the
+*margin* over the raw similarity for those.
+
+### 11.5 Names for the 34 unnamed recordings
+
+| confidence | n | expected accuracy |
+|---|---|---|
+| HIGH (sim ≥ 0.90) | **24** | 96–99% |
+| MEDIUM (0.80–0.90) | **8** | ~87% |
+| LOW (< 0.80) | 2 | do not use |
+
+Proposed: Mark Drury ×27, Joshua Bell ×2, Kevin Bracken, Peter Clarridge,
+Jon Summers. The three highest-margin proposals are not close calls —
+Kevin Bracken 2024-03-03 at 0.981 with a **0.497** margin over the next name,
+Joshua Bell 2023-11-19 at 0.933/**0.520**, Peter Clarridge 2024-08-25 at
+0.952/0.146. The two LOW rows are 2023-08-20 (Gareth Clarridge, 0.774) and
+2025-02-02 (Steve Marchant, 0.417 — effectively no match).
+
+**These are proposals for operator confirmation, not assignments.** The
+propose-and-confirm machinery from
+[`CHILDRENS-TALK-SPEAKER-DECISIONS-2026-09-03.md`](CHILDRENS-TALK-SPEAKER-DECISIONS-2026-09-03.md)
+already stores exactly this shape, including `proposal_rank`.
+
+### 11.6 Data-quality findings
+
+**Three probable mislabels** — same name, but the voices do not match across
+sets. Different people average 0.197 and the same person 0.662; these sit in
+impostor territory, so one record of each pair is wrong:
+
+| name | archive | prod | across |
+|---|---|---|---|
+| Andy Laws | 1 | 1 | **0.232** |
+| Dave Manderscheid | 1 | 3 | **0.335** |
+| John Stevens | 1 | 1 | **0.396** |
+
+**Nine name variants** merged for this analysis, of which the operator confirmed
+two on 2026-09-03: `A. Wilson` = Andrew Wilson, `Jeff Laws` = Geoff Laws (and
+**Andy Laws is a different person**). The rest are typos — Gareth Cla*r*idge,
+Adam L*ou*ghton, Mark Leve*rs*on, Terry Griffith — plus organisation suffixes
+(Meco, Sasra, Fiec). `PreacherResolutionService` is meant to catch these on
+import; each variant is currently a separate preacher record with its own public
+sermon listing.
+
+**Four existing labels disagree with the audio** — 2022-07-24 (labelled Laurie
+Everest, nearest Mark Drury 0.928), 2026-05-10 (labelled Mark Drury, nearest
+Malcolm Jones 0.885), 2024-05-12, 2025-05-18. Those labels came from the *old*
+Resemblyzer path, so the disagreement is as likely to be the old model's error as
+this one's; they need an ear, not a rerun.
+
+### 11.7 What this settles
+
+The reframing and the encoder together answer the question this document opened
+with. Speaker identity **is** recoverable from audio alone across 23 years of
+changing equipment — 0.662 vs 0.197 across decades, 96.4% cluster purity, 32 of
+34 unnamed recordings named at measurable confidence. What could not do it was a
+2019 encoder scoring against four centroids from a single four-month window,
+gated on an absolute threshold that only ever fires in its own domain.
+
+Adopting ECAPA remains a dependency decision (§10.5 item 1) and is **not taken
+here**. `speechbrain` + a pinned `torchaudio` matching the image's `torch` are
+installed in the dev container only.
