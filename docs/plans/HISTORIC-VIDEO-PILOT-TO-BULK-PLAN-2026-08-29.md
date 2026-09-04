@@ -2658,6 +2658,18 @@ Public release remains a separate human-authorised act. It is never a side effec
 
 ## 4. Go/no-go summary
 
+> **Stale as written — do not read the unticked boxes as open findings (2026-09-04).**
+> Twelve boxes below are still unticked, but M1, M3, M4, M6, M10, M11 and the
+> performance report were all closed on 31 August and 1 September; nobody returned to
+> tick the list, so this section reports the remainder as considerably more blocked
+> than it is. The boxes have deliberately **not** been ticked here, because ticking
+> them from a second document's say-so would assert a verification this edit did not
+> perform. Treat
+> [`HISTORIC-IMPORT-FINDINGS-2026-09-04.md`](HISTORIC-IMPORT-FINDINGS-2026-09-04.md)
+> as authoritative on current status — §1 for what is closed, §10 for the boundary
+> gate, §11 for the pre-run baseline and §12 for worker state. Either tick these
+> against their evidence in one pass, or delete the section in favour of that record.
+
 The remainder may start only when all of these are true:
 
 - [ ] Pilot membership and disk ownership reconcile exactly.

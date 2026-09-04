@@ -1,6 +1,8 @@
 # Historic import — findings, 4 September 2026
 
-**Status:** Phase 8 is unblocked and its governing constraint has been removed. The
+**Status:** Phase 8 is unblocked and its governing constraint has been removed.
+§10–§12 (added later the same day) settle the boundary-gate question, record the
+pre-run baseline, and correct the worker state. **Read §10 and §12 before dispatch.** The
 working mount now lives on a dedicated staging drive; the review-obligation ceiling
 that D6 was deferred on no longer exists. Two measurements settle open questions —
 one closes the VirtioFS option, one opens a cost nobody has priced.
@@ -194,6 +196,12 @@ writes 4.3× faster than the exFAT source reads.
 
 ## 5. Finding: the song boundary gate holds 34% of assessed clips
 
+> **Resolved by §10.** The 13 held clips have since been read against their
+> transcripts: 11 are genuine, 2 are spurious (84.6% precision). This section's
+> expectation that they would prove largely false positives was wrong, and its
+> framing of 34% as a cost to engineer down does not survive the measurement.
+> Read §10 before acting on anything below.
+
 The plan states the M5 leading-framing false-positive rate "must be read off the
 Phase 7 canary re-run". **That measurement never happened** — the step-10 re-run was a
 no-op replay (0 B processed, 7.2 s), which by construction produces no new boundary
@@ -296,12 +304,200 @@ considerably more blocked than it is. Tick them, or mark the section superseded.
 
 ## 9. Recommended order
 
-1. **Measure the boundary gate (§5).** Classify the 13 held clips as genuine or
-   spurious against their transcripts. Cheap, local, no provider calls, and it is an
-   input to the next step.
-2. **Decide D6** with §3's capacity and §5's real review cost in hand.
+1. ~~**Measure the boundary gate (§5).**~~ **Done — see §10.** 11 of 13 holds are
+   genuine (84.6% precision); the gate stays as it is. Optional one-constant
+   improvement: a 3 s minimum framing floor, which removes both false positives and
+   loses no genuine hold.
+2. **Decide D6** with §3's capacity and §10's measured review cost in hand — roughly
+   118 genuine recuts and 21 spurious holds across the 414, none of which gate
+   dispatch.
 3. **Run Phase 8**, budgeting the ~6.8-hour staging floor from §4.
 4. **Tick or supersede the go/no-go list (§7)** so the plan of record stops
    misreporting.
 5. Keep the Sonnics copy until a pass has run clean on the new drive; only then
    reclaim its 150 GiB.
+
+---
+
+## 10. The song boundary gate is right, and must not be relaxed
+
+§5 recommended classifying the 13 held clips before D6 sizes pass 2, and predicted
+they would prove largely spurious. **They do not.** All 13 were read against their
+service transcripts. Eleven are genuine; two are not.
+
+### Method
+
+Each held section's `song_publication_boundary` evidence was replayed against the
+banked `*.normalized.json` service transcript, printing every cue from before the
+candidate start through the flagged gap. All 13 transcripts were readable. The
+question asked of each was simply: *between the candidate start and the first sung
+line, is someone talking?*
+
+### Result
+
+| § | song | speech inside the clip | singing starts | verdict |
+|---|---|---|---|---|
+| 930 | I Hear The Words Of Love | 26.3 s | 2396.5 | **genuine** |
+| 935 | All glory be to Christ | 1.0 s (`"Amen"`) | ~309 | *spurious* |
+| 938 | When I Fear My Faith Will Fail | 18.3 s | 915.6 | **genuine** ¹ |
+| 957 | I Will Glory In My Redeemer | 37.9 s | 411.8 | **genuine** |
+| 960 | Lord I Come Before Your Throne Of Grace | 11.0 s | 1005.3 | **genuine** |
+| 965 | The Gospel Of Your Grace | 13.0 s | 3833.4 | **genuine** |
+| 1074 | Yesterday, Today, Forever | 10.4 s | 1053.7 | **genuine** |
+| 1076 | Facing a task unfinished | 25.3 s | 1215.3 | **genuine** |
+| 1080 | Your Word | 18.0 s | 2127.7 | **genuine** ¹ |
+| 1082 | To God Be The Glory | 1.2 s | 4393.3 | *spurious* |
+| 1087 | Oh How Good It Is | 16.2 s | 636.0 | **genuine** |
+| 1089 | How Deep The Father's Love For Us | 33.9 s | 1030.0 | **genuine** |
+| 1094 | I Love You O Lord You Alone | 36.2 s | 3875.3 | **genuine** |
+
+¹ Genuine defect, misleading evidence — see "the exceeds-limit variant" below.
+
+**Precision 11/13 = 84.6%.** The gate is holding real defects, not manufacturing
+work. Releasing these clips as-is would publish between 10 and 38 seconds of a
+preacher talking at the head of a song recording.
+
+§935 — the case §5 cited as "precisely the false positive the plan predicted" — is
+indeed spurious, but it is one of only two. It was reasoned from before the
+corpus-wide rate was known, and the corpus-wide rate turns out to point the other
+way.
+
+### Why the framing is so long: it is a house style, not noise
+
+The transcripts show a consistent Crockenhill pattern. The service leader announces
+the song, often names its hymn-book number, and frequently **reads the first verse
+aloud** before anyone sings:
+
+> §930 — *"We are going to sing our final hymn now. I am not sure that I have sung
+> this hymn before, but I know the tune… and the words seem so appropriate. The
+> first verse reads like this: I hear the words of love…"* — 26 s, then a 3.7 s
+> gap, then the congregation sings the same words.
+
+> §957 — *"We're going to stand and sing two songs back to back. But before we do
+> that, let me read to you from Ephesians chapter 1 and verse 7…"* — 38 s.
+
+This matters for sizing: the framing is not incidental transcription noise that a
+threshold tweak will absorb. It is a recurring liturgical habit, so the gate will
+keep firing at roughly this rate across the remaining 414 identities, and it will
+keep being right.
+
+### The actionable fix is a floor, not a higher ceiling
+
+Ranked by the gap offset the gate already records:
+
+| offset | sections | verdict |
+|---|---|---|
+| 1.0 s, 1.7 s | 935, 1082 | both *spurious* |
+| 11.3 s – 38.8 s | eight sections | all **genuine** |
+| 140.8 s, 145.9 s | 1080, 938 | genuine defect, wrong evidence |
+
+Both false positives sit at **≤ 1.7 s**; the smallest genuine framing is **11.3 s**.
+The separation is a clean order of magnitude with nothing in between. A **minimum
+framing floor of ~3 s** removes both false positives and loses no genuine hold.
+
+The existing 30 s *maximum* does no useful separating work: genuine framing measured
+1.0–37.9 s, and three genuine cases (957, 1089, 1094) sit above 30 s. The limit only
+relabels long genuine framing under a scarier risk kind. Raising it would be
+cosmetic; lowering it would be harmful.
+
+### The exceeds-limit variant hides a second defect
+
+§938 and §1080 are flagged on gaps **140.8 s and 145.9 s** into the candidate —
+deep inside the song, at an inter-verse break, not at any framing boundary. Both
+clips nevertheless *do* carry genuine spoken introductions (18.3 s and 18.0 s).
+
+The cause is structural: the gate locates the end of framing by looking for the
+first wordless gap. When the leader's speech runs continuously into the singing with
+no pause between them, there is no gap to find, so the search runs on until it hits
+the first inter-verse break. The clip is still held — fail-closed works — but the
+recorded evidence points at the wrong moment and would mislead a reviewer.
+
+A framing floor does not fix this; it needs a speech-versus-lyric distinction the
+gate does not currently have. **Not worth building before Phase 8** — the outcome is
+already correct, only the explanation is wrong.
+
+### A caution on reading "wordless gap" as "nobody sang"
+
+Transcript granularity varies enormously across the corpus. §1074's is word-level
+(0.2–0.8 s cues); §935's is whole-second and drops the singing entirely, which is
+why 29 s of sung worship reads as an empty gap with `active_ratio 0.965`. The RMS
+check correctly reports audio present, but "audio present with no cues" means *the
+transcriber emitted nothing*, which is not the same as *no one was singing*. The
+framing floor sidesteps this, because it keys on the speech before the gap rather
+than on the gap itself.
+
+### Consequence for D6
+
+Extrapolating 34% across 414 identities gives roughly 140 held clips, of which — on
+this sample — about **118 are genuine recuts and about 21 are spurious**. Adding the
+3 s floor removes nearly all of the 21 and leaves the 118 held, as they should be.
+
+This is real editorial work, but it is *correct* work, and it does not gate
+processing: every held clip sits at `publication_status = pending_approval` with the
+inclusive candidate retained, and none has ever leaked to `published` (verified: 13
+of 13 `review` sections are `pending_approval`, 0 `published`). **The queue is a
+release backlog, not a dispatch constraint.**
+
+**Recommendation: leave the gate exactly as it is for Phase 8.** Optionally add the
+3 s floor first — it is a one-constant change with a clean evidential basis. Do not
+relax the 30 s limit, and do not treat the 34% hold rate as a cost to be engineered
+down; it is the gate doing its job against a genuine house style.
+
+---
+
+## 11. Pre-run baseline, recorded 2026-09-04
+
+Recorded so post-run state is distinguishable from pre-existing state.
+
+| watermark | value |
+|---|---|
+| `failed_jobs` rows | **65** (max id **68**) |
+| `failed_jobs` span | 2026-05-07 → 2026-09-02 (all pre-date this session) |
+| `media_processing_logs` max id | **982** |
+| `service_sections` | **981** rows, **54** `needs_manual_review` |
+| historic identities completed | 50 of 464 (**414 remaining**) |
+
+Failed jobs by queue: `livestream-processing` 13, `historic-llm` 12,
+`historic-ffmpeg` 12, `audio-processing` 10, `historic-whisper` 9,
+`video-processing` 6, `historic-orchestration` 3.
+
+Leading exception classes: `UnableToCreateDirectory` 16, `RuntimeException` 12,
+`Exception` 10, `MaxAttemptsExceededException` 8, `RateLimitException` 6,
+`ProcessFailedException` 4. The 16 directory failures are consistent with the
+VirtioFS/exFAT write fault and the stale `/host_mnt` bind, both since fixed; the 6
+rate-limit failures are the flex-tier issue closed by P1-3. **Nothing here was
+cleared** — the backlog is left intact so the fixes can be judged against it.
+
+## 12. Worker state corrected before dispatch
+
+The workers were running code and configuration that both pre-dated the speaker
+merge, which `git status` alone would not have revealed.
+
+Containers were created 00:06:18 and their `queue:work` processes had an ELAPSED of
+1 h 57 m — they booted from `.env.backup-before-staging-drive-cutover-20260904`,
+which carries `SPEAKER_IDENTIFICATION_ENABLED=true`. Commit `619634926` (which
+replaced the "Visiting Speaker" fallback) landed at 01:57:03, and the flag was set to
+`false` after that. **Both the fix and the disable were invisible to the running
+workers**; a dispatch at that moment would have stamped a fabricated preacher onto
+all 414 identities.
+
+All six queue workers were restarted. Verified after: `queue:work` ELAPSED ~21 s,
+`media-processing.speaker_identification.enabled` reads `false` inside the worker,
+`historic_staging` root still `/mnt/historic-work/staging`, and the bind mount still
+reports 1.7 T available. Nothing was in flight (0 queued, 0 reserved; the single
+`processing` row is run #909, untouched since 2026-07-20).
+
+> Restart, not recreate: `SPEAKER_IDENTIFICATION_ENABLED` is not injected as a
+> container environment variable, so Laravel reads it from `.env` on the bind mount
+> and a fresh process picks it up. The bind-mount *source* still requires
+> `up -d --force-recreate` to change, as §2 records.
+
+**Consequence worth stating plainly.** With identification disabled, the children's
+talk path is disabled too: `ChildrensTalkSpeakerService::predictionPayload()` returns
+`outcome: 'skipped'`, and `skipped` is not in `REVIEW_OPENING_OUTCOMES`
+(`ambiguous`, `no_match`, `error`), so `detectAndStore()` takes the branch that
+*removes* `childrens_talk_speaker_review`. That flag is 12 of the current 54, and the
+review-queue survey named children's-talk speakers the biggest recurring cost — so
+Phase 8 will generate none of them. The trade is that 414 identities land with no
+speaker attribution, to be backfilled once profiles are re-enrolled from
+production's ~700 hand-assigned sermons. That is a metadata pass, not reprocessing.
