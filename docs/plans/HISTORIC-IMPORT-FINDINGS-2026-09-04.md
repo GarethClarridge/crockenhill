@@ -619,3 +619,82 @@ Two things follow:
    accept the sermon stays unpublished, or restore its assets first. Because the
    four song videos share a fleet-wide condition rather than a run-specific one,
    settling #909 alone would not settle them.
+
+---
+
+## 15. #909 closed — and the pre-dispatch census that closing it exposed
+
+### #909 is closed as failed
+
+Applied through `MediaProcessingRunTransitionService::markAsFailed()` — the supported
+transition, not a raw update — with an operator note recording why the tail cannot be
+recovered. Status is now `failed`, `completed_at` set.
+
+### Closing it changed whether its identity dispatches
+
+`HistoricVideoImporter::checkExistence()` skips an identity when a **completed**
+livestream log exists (`skip-exists`), or a **pending/processing** one does
+(`skip-inflight`), or one is awaiting manual sermon review (`skip-pending-review`).
+
+`2026-06-28-morning` and `2026-06-28-evening` are both `include` in the manifest and
+have no recorded outcome, so they are part of the remainder. But #909 sat at
+`processing`, so before it was closed the morning identity resolved to
+**`skip-inflight`** — it would have been silently passed over by the bulk pass, on
+the strength of a run that had been dead for six weeks. Both now resolve to
+`DISPATCHES`, and both source files are present and byte-exact against the manifest
+(`Services/2026-06-28/Morning/10-31.mkv`, `Evening/18-06.mkv`, 722,712,880 B).
+
+> **`--force` cannot rescue a skip here.** `ImportHistoricVideoBatchCommand` rejects
+> `--force`, `--limit`, `--from` and `--until` outright for a definitive manifest run.
+> A blocked identity has to be unblocked at the source, by settling the log that
+> blocks it.
+
+### The census over all 464 include entries
+
+Running `checkExistence`'s three tests across the whole manifest:
+
+| resolution | count |
+|---|---|
+| **DISPATCHES** | **400** |
+| `skip-exists` — completed by the **historic** lane | 48 |
+| `skip-exists` — completed by a **routine livestream** run | **14** |
+| `skip-pending-review` — non-historic failed runs 915, 919 | **2** |
+| total | 464 |
+
+**So "414 remaining" is really 400 that will dispatch and 16 that a non-historic run
+is holding shut.** Nothing in the dispatch reports this as an obstruction; the 16
+simply appear under "skipped".
+
+### The 14 are all the same shape as #909
+
+Every one of the fourteen carries `preacher = 'Visiting Speaker'`, and eleven also
+carry a placeholder title:
+
+```
+921 2023-05-07  867  Sunday 7Th May 2023            914 2023-09-03  862  Sunday 3Rd September 2023
+920 2023-11-05  866  Sunday 5Th November 2023       913 2024-03-10  861  Sunday 10Th March 2024
+912 2024-09-29  860  Sunday 29Th September 2024     918 2024-11-03  865  Sunday 3Rd November 2024
+911 2025-04-13  859  Sunday 13Th April 2025         917 2025-11-02  864  Sunday 2Nd November 2025
+910 2026-03-01  858  Sunday 1St March 2026          884 2026-04-26  843  Remember the trustworthy…
+883 2026-05-03  842  Hebrews 10 and Leviticus 16…   916 2026-05-03  863  Sunday 3Rd May 2026
+888 2026-06-07  851  Sunday 7Th June 2026           908 2026-07-05  870  When God's plan comes together
+```
+
+They are the fallback defect frozen in place, exactly as #909 was — the difference
+being that #909 stalled and these completed. **That difference matters:** marking a
+completed run `failed` would misreport it. The honest mechanism is supersession —
+`checkExistence` calls `notSuperseded()` specifically so "a retired run no longer
+speaks for its identity" — but `historic-import:retire-run` requires `--operation`
+and so will not accept a non-historic run. Setting `superseded_at` is the underlying
+lever; no command currently covers this case.
+
+**This is an operator decision and was not taken.** Reprocessing fourteen already
+published services through the historic lane is a content change, not a cleanup. The
+options are to supersede them so the historic lane re-imports and re-titles them, to
+leave them skipped and repair their preacher and titles in place, or to accept them
+as they are.
+
+The same question applies to logs **915** and **919** (`2023-02-26-morning`,
+`2024-05-05-morning`), both non-historic, both `failed` at
+`manual_review_required` with no recorded reason. Settling or superseding them
+releases two more identities.
