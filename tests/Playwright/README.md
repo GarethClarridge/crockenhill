@@ -32,7 +32,7 @@ docker run --rm -it \
   -v "$(pwd):/work" -w /work \
   --network host \
   -e PLAYWRIGHT_BASE_URL=http://localhost \
-  mcr.microsoft.com/playwright:v1.61.0-jammy \
+  mcr.microsoft.com/playwright:v1.62.1-jammy \
   bash -c "npm ci && npx playwright test"
 ```
 
@@ -47,7 +47,7 @@ docker run --rm -it \
   -v "$(pwd):/work" -w /work \
   --network host \
   -e PLAYWRIGHT_BASE_URL=http://localhost \
-  mcr.microsoft.com/playwright:v1.61.0-jammy \
+  mcr.microsoft.com/playwright:v1.62.1-jammy \
   bash -c "npm ci && npx playwright test --update-snapshots"
 ```
 
@@ -58,7 +58,7 @@ the PR — the new images should reflect only the intended visual change.
 
 The `playwright` job in `.github/workflows/deploy.yml`:
 
-1. Runs inside `mcr.microsoft.com/playwright:v1.61.0-jammy` (matches local).
+1. Runs inside `mcr.microsoft.com/playwright:v1.62.1-jammy` (matches local).
 2. Provisions a fresh `testing_pw` MySQL DB, migrates, seeds.
 3. Boots `php artisan serve` and waits for `/up`.
 4. Runs `npx playwright test` against `http://127.0.0.1:8000`.

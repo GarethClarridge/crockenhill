@@ -272,7 +272,7 @@ jobs:
     if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.suite == 'all' || inputs.suite == 'playwright')) || needs.changes.outputs.frontend_changed == 'true' || contains(github.event.pull_request.labels.*.name, 'needs-playwright') || contains(github.event.pull_request.labels.*.name, 'needs-visual') || contains(github.event.pull_request.labels.*.name, 'needs-browser')
     runs-on: ubuntu-latest
     container:
-      image: mcr.microsoft.com/playwright:v1.61.0-jammy
+      image: mcr.microsoft.com/playwright:v1.62.1-jammy
       options: --user 0
 
     services:
