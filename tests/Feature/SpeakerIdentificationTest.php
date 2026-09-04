@@ -466,15 +466,58 @@ class SpeakerIdentificationTest extends TestCase
         $sermon->refresh();
         $log->refresh();
 
-        // No match in enforce mode falls back to Visiting Speaker and review queue.
-        $this->assertNotEquals($originalPreacherId, $sermon->preacher_id);
-        $this->assertEquals('Visiting Speaker', $sermon->preacher);
-        $this->assertEquals(PreacherSource::Default, $sermon->preacher_source);
+        // A declined match records that the speaker is unknown; it never invents one.
+        // Assigning a "Visiting Speaker" fallback here made a declined match
+        // indistinguishable from a genuine visiting preacher, and destroyed the only
+        // evidence that could have measured whether the model worked.
+        $this->assertEquals($originalPreacherId, $sermon->preacher_id);
+        $this->assertNotEquals('Visiting Speaker', $sermon->preacher);
         $this->assertEquals(0.60, $sermon->preacher_confidence);
         $this->assertTrue($sermon->needs_preacher_review);
 
         // Decision logged.
         $this->assertEquals('no_match', $log->processing_metadata['speaker_identification']['outcome'] ?? null);
+    }
+
+    #[Test]
+    public function test_no_match_never_creates_a_visiting_speaker_preacher(): void
+    {
+        config([
+            'media-processing.speaker_identification.enabled' => true,
+            'media-processing.speaker_identification.mode' => 'enforce',
+        ]);
+
+        $preacher = Preacher::factory()->create(['name' => 'Known Preacher']);
+        SpeakerProfile::factory()->create(['preacher_id' => $preacher->id, 'is_active' => true]);
+
+        $sermon = Sermon::factory()->create([
+            'preacher_id' => $preacher->id,
+            'preacher' => 'Known Preacher',
+            'preacher_source' => PreacherSource::Manual->value,
+            'duration' => 300.0,
+        ]);
+
+        $log = MediaProcessingLog::factory()->audio()->pending()->create([
+            'sermon_id' => $sermon->id,
+            'source_file_path' => 'sermons/audio/test.mp3',
+        ]);
+
+        $mockService = $this->createStub(SpeakerIdentificationInterface::class);
+        $mockService->method('identify')->willReturn(
+            SpeakerMatchResult::noMatch(0.60, 0.55, [], 'Score below threshold')
+        );
+
+        (new IdentifySpeaker($log))->handle($mockService);
+
+        $sermon->refresh();
+
+        // The operator's own assignment survives a declined match untouched.
+        $this->assertEquals('Known Preacher', $sermon->preacher);
+        $this->assertEquals(PreacherSource::Manual, $sermon->preacher_source);
+        $this->assertEquals($preacher->id, $sermon->preacher_id);
+
+        // And no fallback preacher record is conjured into existence.
+        $this->assertDatabaseMissing('preachers', ['slug' => 'visiting-speaker']);
     }
 
     #[Test]

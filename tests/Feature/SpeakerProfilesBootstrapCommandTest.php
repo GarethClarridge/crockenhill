@@ -64,6 +64,106 @@ class SpeakerProfilesBootstrapCommandTest extends TestCase
         $this->assertTrue($samples->every(fn (SpeakerSample $sample) => $sample->source === SampleSource::Backfill));
     }
 
+    public function test_profile_is_left_inactive_when_every_extraction_fails(): void
+    {
+        config([
+            'media-processing.speaker_identification.provider' => 'resemblyzer',
+            'media-processing.speaker_identification.model_version' => 'v1.0',
+        ]);
+
+        $preacher = Preacher::factory()->create(['slug' => 'extraction-always-fails']);
+        Sermon::factory()->count(2)->withPreacher($preacher)->withAudio()->create();
+
+        $mockService = $this->createMock(SpeakerIdentificationInterface::class);
+        $mockService->method('extractEmbedding')
+            ->willReturn(SpeakerEmbeddingResult::failed('no audio'));
+
+        $this->instance(SpeakerIdentificationInterface::class, $mockService);
+
+        $this->artisan("speaker-profiles:bootstrap --preacher={$preacher->slug} --min-sermons=2 --max-sermons=2")
+            ->assertSuccessful();
+
+        $profile = SpeakerProfile::where('preacher_id', $preacher->id)->first();
+
+        // The row exists but must never be active: its centroid is the zero-vector
+        // placeholder, and cosine similarity against a zero-norm vector is 0.0 — so an
+        // active one advertises a preacher as identifiable who can never be identified.
+        // Production carried 21 profiles in exactly this state.
+        $this->assertNotNull($profile);
+        $this->assertFalse($profile->is_active);
+        $this->assertEquals(0, $profile->sample_count);
+    }
+
+    public function test_profile_is_activated_once_a_real_centroid_exists(): void
+    {
+        config([
+            'media-processing.speaker_identification.provider' => 'resemblyzer',
+            'media-processing.speaker_identification.model_version' => 'v1.0',
+        ]);
+
+        $preacher = Preacher::factory()->create(['slug' => 'extraction-succeeds']);
+        Sermon::factory()->count(2)->withPreacher($preacher)->withAudio()->create();
+
+        $mockService = $this->createMock(SpeakerIdentificationInterface::class);
+        $mockService->method('extractEmbedding')
+            ->willReturn(SpeakerEmbeddingResult::success(array_fill(0, 256, 0.1), 60.0));
+        $mockService->method('updateProfile')
+            ->willReturnCallback(function (SpeakerProfile $profile, array $approved): SpeakerProfile {
+                $profile->update(['centroid_embedding' => $approved[0], 'sample_count' => count($approved)]);
+
+                return $profile->fresh() ?? $profile;
+            });
+
+        $this->instance(SpeakerIdentificationInterface::class, $mockService);
+
+        $this->artisan("speaker-profiles:bootstrap --preacher={$preacher->slug} --min-sermons=2 --max-sermons=2")
+            ->assertSuccessful();
+
+        $this->assertTrue(SpeakerProfile::where('preacher_id', $preacher->id)->first()?->is_active);
+    }
+
+    public function test_samples_are_spread_across_history_not_taken_from_the_newest_window(): void
+    {
+        config([
+            'media-processing.speaker_identification.provider' => 'resemblyzer',
+            'media-processing.speaker_identification.model_version' => 'v1.0',
+        ]);
+
+        $preacher = Preacher::factory()->create(['slug' => 'spread-across-history']);
+
+        foreach (range(2014, 2025) as $year) {
+            Sermon::factory()->withPreacher($preacher)->withAudio()->create([
+                'date' => "{$year}-06-01",
+            ]);
+        }
+
+        $mockService = $this->createMock(SpeakerIdentificationInterface::class);
+        $mockService->method('extractEmbedding')
+            ->willReturn(SpeakerEmbeddingResult::success(array_fill(0, 256, 0.1), 60.0));
+        $mockService->method('updateProfile')
+            ->willReturnCallback(fn (SpeakerProfile $profile): SpeakerProfile => $profile);
+
+        $this->instance(SpeakerIdentificationInterface::class, $mockService);
+
+        $this->artisan("speaker-profiles:bootstrap --preacher={$preacher->slug} --min-sermons=3 --max-sermons=4")
+            ->assertSuccessful();
+
+        $profile = SpeakerProfile::where('preacher_id', $preacher->id)->first();
+        $years = SpeakerSample::where('speaker_profile_id', $profile->id)
+            ->with('sermon')
+            ->get()
+            ->map(fn (SpeakerSample $sample): int => (int) $sample->sermon?->date?->format('Y'))
+            ->sort()
+            ->values();
+
+        // Taking the newest four would give 2022-2025, a four-year window. A profile built
+        // that way describes one recording setup rather than a person: production's Mark
+        // Drury centroid spans six weeks, and his own 2013 preaching scores 0.764 against
+        // it — below the 0.75 accept threshold.
+        $this->assertCount(4, $years);
+        $this->assertGreaterThanOrEqual(8, $years->last() - $years->first());
+    }
+
     public function test_bootstrap_is_idempotent_for_profile_and_samples(): void
     {
         config([

@@ -115,9 +115,14 @@ class BootstrapSpeakerProfilesCommand extends Command
                     'model_version' => $modelVersion,
                 ],
                 [
+                    // Created INACTIVE and only activated once a real centroid exists.
+                    // A profile whose extractions all fail keeps this placeholder zero
+                    // vector, and `cosineSimilarity` returns 0.0 for a zero-norm vector — so
+                    // an active one is a profile that can never match, advertising a preacher
+                    // as identifiable when they are not. Production carried 21 of these.
                     'centroid_embedding' => array_fill(0, 256, 0.0),
                     'sample_count' => 0,
-                    'is_active' => true,
+                    'is_active' => false,
                 ]
             );
 
@@ -180,6 +185,13 @@ class BootstrapSpeakerProfilesCommand extends Command
             }
 
             $speakerService->updateProfile($profile, $approvedEmbeddings);
+
+            // Activation is earned, not assumed: only now does the profile hold a centroid
+            // computed from real audio rather than the zero-vector placeholder above.
+            if (! $profile->is_active) {
+                $profile->update(['is_active' => true]);
+            }
+
             $metrics['profiles_updated']++;
         }
 
@@ -230,7 +242,7 @@ class BootstrapSpeakerProfilesCommand extends Command
      */
     private function candidateSermons(int $preacherId, int $maxSermons): Collection
     {
-        return Sermon::query()
+        $candidates = Sermon::query()
             ->where('preacher_id', $preacherId)
             // `sermons` is polymorphic: a children's talk is a real Sermon row with its own
             // audio. A voice profile wants the cleanest available example of one person
@@ -249,7 +261,47 @@ class BootstrapSpeakerProfilesCommand extends Command
             ->whereNotNull('audio_file_path')
             ->where('audio_file_path', '!=', '')
             ->orderByDesc('date')
-            ->limit($maxSermons)
             ->get(['id', 'audio_file_path', 'date']);
+
+        return $this->spreadAcrossHistory($candidates, $maxSermons);
+    }
+
+    /**
+     * Take an evenly spaced sample across a preacher's whole recorded history.
+     *
+     * This used to be `orderByDesc('date')->limit($maxSermons)` — the newest N — which can
+     * only ever describe a preacher as they sounded in one short window. Production's four
+     * real profiles were all built that way and span four months; Mark Drury's covers six
+     * weeks of late 2025. Measured consequence: his own 2013 preaching scores 0.764 against
+     * his own profile, below the 0.75 accept threshold, while a stranger recorded in the
+     * same era as the profile reaches 0.778. A centroid built from one window is closer to a
+     * description of the recording chain than of the person.
+     *
+     * Spreading the sample does not make a Resemblyzer centroid channel-invariant — that is
+     * an encoder property and was measured separately — but it stops the profile encoding
+     * one month's microphone as if it were an identity.
+     *
+     * @param  Collection<int, Sermon>  $candidates  newest first
+     * @return Collection<int, Sermon>
+     */
+    private function spreadAcrossHistory(Collection $candidates, int $maxSermons): Collection
+    {
+        $total = $candidates->count();
+
+        if ($total <= $maxSermons) {
+            return $candidates;
+        }
+
+        // Index by position, not by `only()`: on an Eloquent collection `only()` selects by
+        // model primary key, so passing offsets to it silently returns nothing.
+        $ordered = $candidates->values()->all();
+        $step = $total / $maxSermons;
+        $picked = [];
+
+        foreach (range(0, $maxSermons - 1) as $slot) {
+            $picked[] = $ordered[(int) floor($slot * $step)];
+        }
+
+        return new Collection($picked);
     }
 }

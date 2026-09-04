@@ -9,7 +9,6 @@ use App\Data\SpeakerMatchResult;
 use App\Enums\MediaType;
 use App\Enums\PreacherSource;
 use App\Models\MediaProcessingLog;
-use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\SpeakerProfile;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -188,11 +187,7 @@ class IdentifySpeaker extends ProcessingJob implements ShouldQueue
                     'top_score' => $result->topScore,
                 ]);
             } else {
-                if ($mode === 'enforce') {
-                    $this->applyNoMatchFallback($sermon, $result);
-                } elseif ($result->topScore !== null) {
-                    $sermon->update(['preacher_confidence' => $result->topScore]);
-                }
+                $this->recordUnresolvedSpeaker($sermon, $result);
 
                 $this->storeDecision('no_match', $result->reason ?? 'Below threshold', $result->toLogArray());
 
@@ -271,25 +266,26 @@ class IdentifySpeaker extends ProcessingJob implements ShouldQueue
         ]);
     }
 
-    private function applyNoMatchFallback(Sermon $sermon, SpeakerMatchResult $result): void
+    /**
+     * Record that the speaker is unknown, without inventing an answer.
+     *
+     * This previously assigned a "Visiting Speaker" fallback whenever `enforce` mode failed
+     * to match. That was wrong in both directions: it overwrote whatever the pipeline had
+     * already established, and it stamped a specific, plausible-looking preacher onto a
+     * recording nobody had identified — so a declined match became indistinguishable from a
+     * genuine visiting preacher. The cost was not hypothetical: 53 sermons carried
+     * `preacher_source=default` with that name, and because the fallback is the model's own
+     * output, none of them could serve as ground truth for measuring whether the model
+     * worked. That is why a year of running produced no accuracy figure.
+     *
+     * Unknown is now recorded as unknown: the confidence is kept for calibration, the
+     * sermon is flagged for a person, and the preacher fields are left exactly as they were.
+     * The ranked shortlist is already stored in `processing_metadata` by the caller, so the
+     * reviewer still gets the model's opinion — as a proposal rather than as a fact.
+     */
+    private function recordUnresolvedSpeaker(Sermon $sermon, SpeakerMatchResult $result): void
     {
-        $fallbackPreacher = Preacher::query()
-            ->where('slug', 'visiting-speaker')
-            ->orWhereRaw('LOWER(name) = ?', ['visiting speaker'])
-            ->first();
-
-        if (! $fallbackPreacher) {
-            $fallbackPreacher = Preacher::query()->create([
-                'name' => 'Visiting Speaker',
-                'slug' => 'visiting-speaker',
-                'is_active' => true,
-            ]);
-        }
-
         $sermon->update([
-            'preacher_id' => $fallbackPreacher->id,
-            'preacher' => $fallbackPreacher->name,
-            'preacher_source' => PreacherSource::Default->value,
             'preacher_confidence' => $result->topScore,
             'needs_preacher_review' => true,
         ]);
