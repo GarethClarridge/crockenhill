@@ -11,6 +11,12 @@ The OoS email-parser redesign is archived and the shared semantic parser is the 
 historic implementation. The historic plan now opens with a short execution brief; its long IC1–
 IC3 narrative is evidence, not backlog.
 
+## Deploy-time actions
+
+Changes merged in code that still need applying to production by hand live in
+[`PROD-ACTIONS-PENDING.md`](PROD-ACTIONS-PENDING.md). Check it after any deploy that
+touched `.env` or production data. It is a running list, not a complete audit.
+
 ## How to use this index
 
 - The historic import has **one** plan. Its §2 decision record, §3 safety model and §4 finding

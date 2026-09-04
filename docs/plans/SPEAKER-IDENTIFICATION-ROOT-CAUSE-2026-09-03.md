@@ -657,6 +657,9 @@ recorded because either would have shipped silently:
 
 ### 12.7 Still open
 
+Items needing hands on production are tracked in
+[`PROD-ACTIONS-PENDING.md`](PROD-ACTIONS-PENDING.md) with the exact commands.
+
 - **Prod:** set `SPEAKER_IDENTIFICATION_ENABLED=false`, run
   `speaker-profiles:deactivate-empty --apply`.
 - **The 53 "Visiting Speaker" sermons** need correcting; §11.5 has the proposals.
