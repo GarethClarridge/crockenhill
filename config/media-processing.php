@@ -518,6 +518,13 @@ return [
             // a harmless framing pause. It is still kept in the inclusive clip
             // and sent to review; no pre-bulk recut is attempted.
             'max_spoken_framing_seconds' => (float) env('SERVICE_SECTION_SONG_MAX_SPOKEN_FRAMING_SECONDS', 30),
+            // Below this, the "framing" is too short to be anyone introducing anything:
+            // a trailing "Amen" caught at the candidate edge, or the leader's last few
+            // words running into the first sung line. Measured over the thirteen clips
+            // the gate held on 4 September, both false positives sat at 1.0s and 1.7s
+            // while the shortest genuine introduction was 11.3s, so a floor anywhere in
+            // that decade separates them; 3s is the conservative end of it.
+            'min_spoken_framing_seconds' => (float) env('SERVICE_SECTION_SONG_MIN_SPOKEN_FRAMING_SECONDS', 3),
             'minimum_wordless_gap_seconds' => (float) env('SERVICE_SECTION_SONG_MIN_WORDLESS_GAP_SECONDS', 3),
             'minimum_rms_active_ratio' => (float) env('SERVICE_SECTION_SONG_MIN_RMS_ACTIVE_RATIO', 0.25),
             'trailing_evidence_window_seconds' => (float) env('SERVICE_SECTION_SONG_TRAILING_EVIDENCE_WINDOW_SECONDS', 60),

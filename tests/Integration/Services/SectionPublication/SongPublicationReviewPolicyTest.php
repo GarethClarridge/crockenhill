@@ -196,6 +196,105 @@ class SongPublicationReviewPolicyTest extends TestCase
         $this->assertSame(300.0, (float) $section->end_time);
     }
 
+    /**
+     * A gap almost immediately after the candidate start is not an introduction.
+     *
+     * Reading the thirteen clips the gate held on 4 September showed both false
+     * positives at 1.0s and 1.7s of framing — a trailing "Amen" caught at the edge, and
+     * a leader's last words running into the first sung line — while the shortest
+     * genuine introduction was 11.3s. Holding a clip over one second of speech costs a
+     * reviewer more than it protects a listener.
+     */
+    #[Test]
+    public function it_does_not_hold_a_song_when_the_spoken_framing_is_below_the_floor(): void
+    {
+        $section = $this->section('full', ['livestream'], metadata: [], start: 100.0, end: 300.0);
+        $this->storeBoundaryArtifacts(
+            $section,
+            [
+                ['start' => 99.0, 'end' => 101.0, 'text' => 'Amen.'],
+                ['start' => 130.0, 'end' => 220.0, 'text' => 'To God be the glory.'],
+            ],
+            [
+                ['time' => 101.0, 'rms' => -20.0],
+                ['time' => 115.0, 'rms' => -20.0],
+                ['time' => 130.0, 'rms' => -20.0],
+            ],
+        );
+
+        $assessment = $this->policy->assess($section);
+
+        $this->assertSame([], $assessment['reasons']);
+        $this->assertSame('release_eligible', $assessment['boundary_evidence']['decision']);
+
+        $startEvidence = $assessment['boundary_evidence']['start_evidence'];
+        $this->assertSame('keep_inclusive', $startEvidence['decision']);
+        $this->assertSame('spoken_framing_below_floor', $startEvidence['basis']);
+        $this->assertEqualsWithDelta(1.0, $startEvidence['gap_offset_seconds'], 0.001);
+        $this->assertSame(100.0, (float) $section->start_time);
+        $this->assertSame(300.0, (float) $section->end_time);
+    }
+
+    #[Test]
+    public function it_still_holds_a_song_when_the_spoken_framing_reaches_the_floor(): void
+    {
+        config(['media-processing.section_publishing.song_boundary.min_spoken_framing_seconds' => 3]);
+
+        $section = $this->section('full', ['livestream'], metadata: [], start: 100.0, end: 300.0);
+        $this->storeBoundaryArtifacts(
+            $section,
+            [
+                ['start' => 100.0, 'end' => 103.0, 'text' => 'Let us stand and sing.'],
+                ['start' => 130.0, 'end' => 220.0, 'text' => 'To God be the glory.'],
+            ],
+            [
+                ['time' => 103.0, 'rms' => -20.0],
+                ['time' => 115.0, 'rms' => -20.0],
+                ['time' => 130.0, 'rms' => -20.0],
+            ],
+        );
+
+        $assessment = $this->policy->assess($section);
+
+        $this->assertSame(
+            ['song_boundary_spoken_framing'],
+            array_column($assessment['reasons'], 'kind'),
+        );
+        $this->assertSame('review', $assessment['boundary_evidence']['decision']);
+        $this->assertSame(
+            'timed_transcript_wordless_gap',
+            $assessment['boundary_evidence']['start_evidence']['basis'],
+        );
+    }
+
+    #[Test]
+    public function it_can_disable_the_spoken_framing_floor_entirely(): void
+    {
+        config(['media-processing.section_publishing.song_boundary.min_spoken_framing_seconds' => 0]);
+
+        $section = $this->section('full', ['livestream'], metadata: [], start: 100.0, end: 300.0);
+        $this->storeBoundaryArtifacts(
+            $section,
+            [
+                ['start' => 99.0, 'end' => 101.0, 'text' => 'Amen.'],
+                ['start' => 130.0, 'end' => 220.0, 'text' => 'To God be the glory.'],
+            ],
+            [
+                ['time' => 101.0, 'rms' => -20.0],
+                ['time' => 115.0, 'rms' => -20.0],
+                ['time' => 130.0, 'rms' => -20.0],
+            ],
+        );
+
+        $assessment = $this->policy->assess($section);
+
+        $this->assertSame(
+            ['song_boundary_spoken_framing'],
+            array_column($assessment['reasons'], 'kind'),
+        );
+        $this->assertSame('review', $assessment['boundary_evidence']['decision']);
+    }
+
     #[Test]
     public function it_holds_a_transcript_gap_when_rms_evidence_is_missing(): void
     {

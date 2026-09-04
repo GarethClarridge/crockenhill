@@ -501,3 +501,121 @@ review-queue survey named children's-talk speakers the biggest recurring cost �
 Phase 8 will generate none of them. The trade is that 414 identities land with no
 speaker attribution, to be backfilled once profiles are re-enrolled from
 production's ~700 hand-assigned sermons. That is a metadata pass, not reprocessing.
+
+---
+
+## 13. Decisions taken 2026-09-04, and what implementing them turned up
+
+**D6 — sized as a single pass over all 414.** Operator decision, taken with the
+throughput uncertainty in §14 stated and accepted.
+
+**The 3 s framing floor — applied.** `min_spoken_framing_seconds` (default 3,
+`SERVICE_SECTION_SONG_MIN_SPOKEN_FRAMING_SECONDS`) now short-circuits
+`leadingObservation()` before the maximum is considered, returning a `risk => false`
+observation with basis `spoken_framing_below_floor`. Three tests cover below-floor,
+at-floor and floor-disabled. Setting it to `0` restores the previous behaviour
+exactly.
+
+> **It is prospective only.** `services:recompute-section-review-flags` re-derives
+> `review_flags` from stored metadata; it does **not** re-assess
+> `song_publication_boundary`, which is recomputed only when
+> `SongPublicationHandler` runs a publication pass. A scoped dry run against the two
+> affected services (394, 990) re-derived **0 sections**, as expected. §935 and §1082
+> therefore keep their stored `review` decision until something re-publishes them.
+> Two clips are not worth forcing a publication pass for; the floor's value is the
+> ~21 spurious holds it avoids across the remaining 414.
+
+### D6's throughput basis, for the record
+
+op4 is the only post-fixes operation. Over 16 identities:
+
+| measure | value |
+|---|---|
+| span, first start → last completion | 27.1 h |
+| **actually busy** | **3.2 h — 12% utilisation** |
+| mean concurrency while busy | 3.52 |
+| mean / median / p90 run | 42 / 53.1 / 70.8 min |
+
+The *worked* rate was 14.2 identities/day (→ 29 days for 414); the *busy-time* rate
+extrapolates to 121/day (→ 3.4 days). **The entire 8.5× gap is whether the machine
+was running**, and no pass has ever run continuously, so neither figure is a
+prediction. FFmpeg is width one, so at 414 that stage may serialise in a way 16
+interleaved runs never revealed. The ~6.8 h staging-copy floor from §4 stands
+underneath either outcome.
+
+**Provider spend is not measurable in-app.** The cost ledger was deleted as an empty
+table and op4 carries `max_cost_minor_units = 0`. Analysis and structure both run
+`gpt-5.6-luna`. A single 414-identity pass therefore spends an unknown amount with no
+in-app ceiling; the OpenAI dashboard is the only check, after the fact. **Setting a
+real `max_cost_minor_units` on the next operation is the cheapest way to bound this
+without changing the pass size.**
+
+---
+
+## 14. Run #909 cannot be finished — and it is not the only one
+
+### Correcting the record
+
+An earlier reading of #909 (14 sections, 4 published, 0 `pending_approval`) was
+reported as "10 sections never got publication candidates". **That was wrong.** The
+other 10 are `not_applicable` — notices, prayers, bible readings, the children's
+talk, the sermon and one `other` — which is a resolved terminal state, not a pending
+one. The section work is complete.
+
+### What is actually wrong
+
+The run stalled *after* its sections were settled, leaving `status = processing`,
+`current_step = preparing_section_publication_candidates` since 2026-07-20 with no
+job behind it. Its sermon (857, `Sunday 28Th June 2026`) still carries the
+placeholder title and `preacher = 'Visiting Speaker'`, `preacher_source = default`,
+`needs_preacher_review = 1` — **it is one of the 53 sermons stamped by the fallback
+that commit `619634926` removed.** So #909 is not an isolated stale run; it is an
+instance of the defect the speaker work just fixed, frozen at the moment it happened.
+
+### Why re-dispatching would not fix it
+
+`PrepareSectionPublicationCandidates::dispatchStandalone()` is the right mechanism —
+it creates its own lifecycle and `finishStandalonePreparation()` marks the run
+completed. `queue.worker-video` covers `livestream-processing`, so it would be picked
+up. But:
+
+- the source, `livestream/temp/dda409b6-….mp4`, is **absent from every configured
+  disk**; and
+- `extractCandidateMediaIfNeeded()` runs *before* the status checks, and the four
+  published sections' extracted media is also absent, so `shouldReuseExtractedMedia()`
+  returns false and extraction is attempted.
+
+The job would throw `Cannot prepare section candidates: source video not found`,
+burn three attempts and land the run in `failed`. That is the honest end state, but
+it is reached expensively and it does not recover anything. **No dispatch was made.**
+
+### The larger finding
+
+Checking whether #909's four song videos were unusual showed they are not:
+
+```
+published song_videos:  61
+resolvable assets:       0
+MISSING:                61   (historic 0, non-historic 61)
+```
+
+**Every published non-historic song video in this environment is unresolvable, and
+every historic one resolves.** The distinguishing feature is a column: historic rows
+record `asset_disk`, non-historic rows have `asset_disk = NULL` and so resolve
+against whatever the current default disk happens to be — which is now
+`historic_staging`, not the disk they were written to. The `0 missing` result in §2's
+asset-graph check is consistent: it was historic-scoped, and the historic rows are
+genuinely fine.
+
+This is most likely a local artifact of disk reconfiguration rather than data loss,
+and **nothing here establishes anything about production** — that needs a read-only
+prod check, not an inference from this database.
+
+Two things follow:
+
+1. **`asset_disk` is load-bearing, and recording it is what makes the historic lane
+   safe.** Phase 8 writes it. That is a design win worth not regressing.
+2. **#909 needs an operator decision, not a retry** — close it out as failed and
+   accept the sermon stays unpublished, or restore its assets first. Because the
+   four song videos share a fleet-wide condition rather than a run-specific one,
+   settling #909 alone would not settle them.

@@ -467,6 +467,32 @@ final class SongPublicationBoundaryEvidenceService
         }
 
         $gapOffset = $gap['start_time'] - $start;
+        $minimum = (float) config(
+            'media-processing.section_publishing.song_boundary.min_spoken_framing_seconds',
+            3,
+        );
+
+        if ($minimum > 0.0 && $gapOffset < $minimum) {
+            return [
+                'risk' => false,
+                'evidence' => [
+                    ...$baseEvidence,
+                    'decision' => 'keep_inclusive',
+                    'basis' => 'spoken_framing_below_floor',
+                    'gap_offset_seconds' => $gapOffset,
+                    'minimum_spoken_framing_seconds' => $minimum,
+                ],
+                'reason' => [
+                    'kind' => 'song_boundary_spoken_framing_below_floor',
+                    'detail' => sprintf(
+                        'The first audio-backed wordless gap begins %.1fs into the candidate, below the %.1fs framing floor; too short to be an introduction, so the inclusive clip is not held.',
+                        $gapOffset,
+                        $minimum,
+                    ),
+                ],
+            ];
+        }
+
         $maximum = (float) config(
             'media-processing.section_publishing.song_boundary.max_spoken_framing_seconds',
             30,
