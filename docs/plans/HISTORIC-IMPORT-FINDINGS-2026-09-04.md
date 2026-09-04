@@ -698,3 +698,69 @@ The same question applies to logs **915** and **919** (`2023-02-26-morning`,
 `2024-05-05-morning`), both non-historic, both `failed` at
 `manual_review_required` with no recorded reason. Settling or superseding them
 releases two more identities.
+
+---
+
+## 16. Repairing the 14 in place — titles done, preacher blocked on a design fork
+
+Operator decision: leave the 14 skipped and repair them where they stand rather than
+superseding them back into the pass.
+
+### Titles: repaired
+
+The titles were never missing. Every one of them had already been generated and paid
+for, and was sitting in `media_processing_logs.ai_analysis` — the run banked the
+analysis and then stalled or failed before `ProcessTranscriptWithAI` wrote it to the
+sermon.
+
+`sermons:apply-banked-ai-titles` replays exactly that decision from banked analysis,
+calling no provider. Eligibility is the model's own
+`Sermon::titleMayBeReplacedByAnalysis()`, so the rule is the pipeline's rather than a
+new one, and a valid ID3 title still outranks analysis as it does in the pipeline.
+
+Census before applying: **65** sermons carry a banked title; 50 already match; **12
+eligible**; **3 correctly refused** on provenance (curated, or already `ai_analysis`);
+0 blocked by ID3. Applied to all 12, which is the 11 skipped identities plus sermon
+857 (#909's, still public although its run is closed). A second run reports nothing
+left.
+
+```
+851  Time to move, remember and commit to Joshua and Jesus
+857  Remembering God's mighty acts at Gilgal
+858  The Lord knows how to rescue the godly       859  From blindness to sight…
+860  The parable of the sower…                    861  Set your heart and mind on things above
+862  Christianity is Christ…                      863  Train yourself to be godly
+864  Hope on the road to Emmaus                   865  Following Jesus: cost, commitment and salt
+866  The one true gospel…                         867  The king who humbled himself
+```
+
+**Slugs were deliberately not touched.** These sermons are published and their slugs
+derive from the placeholder *title* (`sunday-7th-may-2023`), not from the pipeline's
+own placeholder *slug* pattern — so `sermons:reslug-placeholders` does not match them
+either. There is no slug-redirect table, so rewriting one 404s an address people
+already hold. `--with-slug` opts in.
+
+### Preacher: not repaired, because there is nowhere honest to put "unknown"
+
+The 53 are cleanly separable — all are `preacher_source = default`, all have
+`needs_preacher_review = 1`, and preacher 6 is used by nothing else — so there is no
+risk of clobbering a real attribution. The obstacle is that the schema has no way to
+say the speaker is unknown:
+
+| fact | consequence |
+|---|---|
+| `sermons.preacher` is **NOT NULL**, default `'Mark Drury'` | cannot be nulled |
+| **0 of 879** sermons have an empty preacher | no precedent; every sermon asserts a name |
+| the model's `preacher` setter maps blank → `null` | a latent mismatch against that NOT NULL column |
+| preacher 6 is `is_active = 1` | it appears on the public preachers index |
+| `SermonController::preacher()` binds on slug with **no `active()` scope** | `/christ/sermons/preachers/visiting-speaker` resolves even when deactivated |
+
+So "clear the fabricated name" is a schema-and-display change, not a data fix, and
+deactivating the preacher only removes the index entry while leaving its page
+reachable. The options are to make the column nullable and teach the views an unknown
+speaker, to rename preacher 6 to something honest so every surface changes at once,
+or to deactivate it and additionally scope the detail route. **Left for a decision.**
+
+Worth stating: with 21 of 25 speaker profiles holding zero vectors, the model could
+match almost nobody, so a `no_match` says nothing at all about whether the preacher
+was actually a visitor. The name is not merely unverified; it is unfounded.
