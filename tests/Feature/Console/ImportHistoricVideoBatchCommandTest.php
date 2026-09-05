@@ -1017,7 +1017,7 @@ class ImportHistoricVideoBatchCommandTest extends TestCase
     {
         return [
             'dispatched' => 0, 'concatenated' => 0, 'concatenated_reencoded' => 0,
-            'enriched' => 0, 'skipped_exists' => 0, 'resumed_completed' => 0,
+            'enriched' => 0, 'skipped_exists' => 0, 'resumed_completed' => 0, 'resumed_superseded' => 0,
             'resumed_inflight' => 0, 'retried_failed' => 0,
             'skipped_inflight' => 0, 'skipped_pending_review' => 0, 'skipped_small' => 0,
             'skipped_audio_dup' => 0, 'skipped_no_date' => 0, 'skipped_unclassified' => 0,

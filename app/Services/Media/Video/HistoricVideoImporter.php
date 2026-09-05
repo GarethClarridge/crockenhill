@@ -39,6 +39,7 @@ use Illuminate\Support\Str;
  *     enriched: int,
  *     skipped_exists: int,
  *     resumed_completed: int,
+ *     resumed_superseded: int,
  *     resumed_inflight: int,
  *     retried_failed: int,
  *     skipped_inflight: int,
@@ -99,6 +100,7 @@ class HistoricVideoImporter
      *     enriched: int,
      *     skipped_exists: int,
      *     resumed_completed: int,
+     *     resumed_superseded: int,
      *     resumed_inflight: int,
      *     retried_failed: int,
      *     skipped_inflight: int,
@@ -165,6 +167,7 @@ class HistoricVideoImporter
             'enriched' => 0,
             'skipped_exists' => 0,
             'resumed_completed' => 0,
+            'resumed_superseded' => 0,
             'resumed_inflight' => 0,
             'retried_failed' => 0,
             'skipped_inflight' => 0,
@@ -289,6 +292,23 @@ class HistoricVideoImporter
                 $jobKey = $this->jobKeyForRun($ownRun);
 
                 if ($jobKey === null || in_array($jobKey, $resumedKeys, true)) {
+                    continue;
+                }
+
+                if ($ownRun->isRetired()) {
+                    $metrics['resumed_superseded']++;
+                    $coveredKeys[] = $jobKey;
+                    $decisions[$decisionIndex] = [
+                        'decision' => 'resume-superseded',
+                        'label' => $label,
+                        'processing_id' => $ownRun->processing_id,
+                    ];
+                    $onProgress?->__invoke(
+                        '[resume-superseded]',
+                        $label,
+                        "exact manifest run superseded as processing_id={$ownRun->processing_id}",
+                    );
+
                     continue;
                 }
 
