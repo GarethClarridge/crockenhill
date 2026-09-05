@@ -44,6 +44,41 @@ class VideoSegmentationServiceRmsTest extends TestCase
 
     // ---- extractRmsData tests ----
 
+    /**
+     * RMS analysis reads nothing but audio, yet without `-vn` ffmpeg still
+     * selects the video stream for the null output and decodes every frame to
+     * discard it. Measured on a 13-minute 426x240 clip that cost 7.9s against
+     * 4.8s, for byte-identical RMS output, and decode scales with pixel count
+     * so 1080p service recordings pay far more. RMS generation was 10.1 of the
+     * 19.3 ffmpeg-hours in the 2026-09-04 bulk pass, on the single worker that
+     * gates the whole run — so this flag is pinned rather than left to be
+     * dropped by a later edit.
+     */
+    #[Test]
+    public function rms_generation_never_decodes_the_video_stream(): void
+    {
+        $capture = storage_path('app/testing-ffmpeg-args-'.bin2hex(random_bytes(4)));
+        $fake = storage_path('app/testing-fake-ffmpeg-'.bin2hex(random_bytes(4)));
+
+        file_put_contents($fake, "#!/bin/sh\nfor a in \"$@\"; do echo \"\$a\" >> {$capture}; done\nexit 1\n");
+        chmod($fake, 0755);
+
+        Config::set('media-processing.ffmpeg.ffmpeg_path', $fake);
+
+        try {
+            $this->service->generateRmsLog('/some/service-recording.mp4');
+        } catch (\Throwable) {
+            // The fake always fails; the arguments it recorded are the subject.
+        }
+
+        $arguments = array_values(array_filter(explode("\n", (string) @file_get_contents($capture))));
+
+        @unlink($fake);
+        @unlink($capture);
+
+        $this->assertContains('-vn', $arguments, 'RMS generation must not decode the video stream.');
+    }
+
     #[Test]
     public function failed_rms_generation_removes_its_incomplete_log(): void
     {

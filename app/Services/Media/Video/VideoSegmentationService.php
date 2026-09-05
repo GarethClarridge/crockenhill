@@ -75,13 +75,25 @@ class VideoSegmentationService
         chmod($fullRmsLogPath, 0644);
 
         try {
-            // Optimized command with 8kHz downsampling for faster RMS analysis
+            /**
+             * Optimised command with 8kHz downsampling for faster RMS analysis.
+             *
+             * `-vn` matters more than it looks. Without it ffmpeg still selects
+             * the video stream for the null output and decodes every frame, only
+             * to discard it — this measurement reads nothing but audio. Dropping
+             * the video stream cut a 13-minute 426x240 clip from 7.9s to 4.8s
+             * (-40%) for byte-identical RMS output, and decode cost scales with
+             * pixel count, so the saving on 1080p service recordings is larger
+             * again. RMS generation was 10.1 of the 19.3 ffmpeg-hours in the
+             * 2026-09-04 bulk pass, on the one worker that gates the whole run.
+             */
             $command = [
                 config('media-processing.ffmpeg.ffmpeg_path'),
                 '-threads', 'auto',
                 '-probesize', '32M',
                 '-analyzeduration', '10M',
                 '-i', $videoPath,
+                '-vn',
                 '-af', "aresample=8000,astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file={$fullRmsLogPath}",
                 '-f', 'null',
                 '-',
