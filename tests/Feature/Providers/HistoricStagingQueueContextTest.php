@@ -12,6 +12,7 @@ use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Queue\Events\Looping;
 use Illuminate\Support\Facades\Event;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\TestCase;
 
 class HistoricStagingQueueContextTest extends TestCase
@@ -102,6 +103,28 @@ class HistoricStagingQueueContextTest extends TestCase
     public function it_never_holds_a_worker_that_serves_no_historic_queue(): void
     {
         $this->useStagingRoot(storage_path('app/testing-no-such-staging-volume'));
+
+        $this->assertNotFalse(Event::until(new Looping('redis', 'default')));
+    }
+
+    #[Test]
+    public function it_holds_a_historic_worker_when_the_pause_guard_itself_fails(): void
+    {
+        $this->app->bind(
+            HistoricStagingQueuePause::class,
+            static fn (): never => throw new RuntimeException('pause guard failed'),
+        );
+
+        $this->assertFalse(Event::until(new Looping('redis', $this->historicQueue())));
+    }
+
+    #[Test]
+    public function it_does_not_hold_a_non_historic_worker_when_the_pause_guard_itself_fails(): void
+    {
+        $this->app->bind(
+            HistoricStagingQueuePause::class,
+            static fn (): never => throw new RuntimeException('pause guard failed'),
+        );
 
         $this->assertNotFalse(Event::until(new Looping('redis', 'default')));
     }

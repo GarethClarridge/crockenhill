@@ -154,6 +154,50 @@ class MatchSongsFromTranscriptTest extends TestCase
     }
 
     #[Test]
+    public function a_confirmed_match_does_not_restore_review_for_a_demoted_structure_flag(): void
+    {
+        Song::factory()->create([
+            'title' => 'Be Thou My Vision',
+            'canonical_key' => 'be thou my vision',
+            'lyrics_plain' => null,
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'song_title_hint' => 'Be Thou My Vision',
+                'review_flags' => [
+                    'unmatched_song_section',
+                    ServiceStructureValidator::FLAG_OOS_CROSS_TYPE_INVERSION,
+                ],
+                'review_reason' => 'unmatched_song_section',
+            ],
+        ]);
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(StorageAdapterHelper::class),
+            app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
+        );
+
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
+        $this->assertSame(
+            [ServiceStructureValidator::FLAG_OOS_CROSS_TYPE_INVERSION],
+            $section->metadata['review_flags'] ?? [],
+        );
+        $this->assertFalse($section->needs_manual_review);
+    }
+
+    #[Test]
     public function it_matches_a_first_line_hint_and_displays_the_catalogued_title(): void
     {
         // The heard "title" is the opening line, not the catalogued title.

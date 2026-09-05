@@ -991,6 +991,44 @@ SH;
     }
 
     #[Test]
+    public function it_does_not_redispatch_an_exact_manifest_run_superseded_by_a_stronger_service_record(): void
+    {
+        $path = $this->temporaryDirectory.'/2022-01-16 10-38-15.mkv';
+        $this->createFakeVideo($path);
+        $jobKey = $this->manifestJobKey([$path], $path);
+
+        $run = MediaProcessingLog::factory()->livestream()->failed()->create([
+            'processing_type' => MediaType::Livestream,
+            'extracted_date' => '2022-01-16',
+            'extracted_service' => SermonService::Morning,
+            'dedup_key' => $jobKey,
+            'processing_metadata' => [
+                'historic_import' => [
+                    'job_key' => $jobKey,
+                ],
+            ],
+        ]);
+        $run->forceFill(['superseded_at' => now()])->saveQuietly();
+
+        $processCalls = 0;
+        $processor = $this->mock(UnifiedMediaProcessor::class);
+        $processor->shouldReceive('process')
+            ->andReturnUsing(function () use (&$processCalls): ProcessingResult {
+                $processCalls++;
+
+                return ProcessingResult::success('unexpected-redispatch', 'redispatched');
+            });
+        $processor->shouldNotReceive('retry');
+
+        $metrics = $this->runImportWithProcessor($processor, perFileTimeoutSeconds: 0);
+
+        $this->assertSame(0, $processCalls);
+        $this->assertSame(1, $metrics['resumed_superseded']);
+        $this->assertSame(0, $metrics['dispatched']);
+        $this->assertSame(0, $metrics['retried_failed']);
+    }
+
+    #[Test]
     public function a_partially_inflight_item_dispatches_its_missing_segment(): void
     {
         $directory = $this->temporaryDirectory.'/2023-12-10';
