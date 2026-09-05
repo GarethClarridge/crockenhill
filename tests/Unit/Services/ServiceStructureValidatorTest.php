@@ -356,6 +356,30 @@ class ServiceStructureValidatorTest extends TestCase
         $this->assertContains('incompatible_oos_item', $result->failureCodes());
     }
 
+    /**
+     * The mirror of F15. An OoS item typed `other` may anchor any section, but
+     * until 2026-09-05 an `other` *section* claiming a typed item failed the
+     * whole run — six of the nine `incompatible_oos_item` failures on record
+     * were exactly that, every one an `other` section over an OoS `song`. The
+     * section makes no positive claim, so there is nothing to contradict.
+     */
+    #[Test]
+    public function an_untyped_section_claiming_a_typed_oos_item_is_flagged_not_failed(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('other', 0.0, 400.0, oosItemId: 2), // item 2 is a song
+            $this->section('sermon', 500.0, 2200.0),
+        ]);
+
+        $result = $this->validator->validate($structure, $this->context());
+
+        $this->assertNotContains('incompatible_oos_item', $result->failureCodes());
+        $this->assertContains(
+            ServiceStructureValidator::FLAG_OOS_TYPE_UNRESOLVED,
+            $result->structure->sections[0]->reviewFlags,
+        );
+    }
+
     #[Test]
     public function same_type_oos_items_claimed_out_of_planned_order_are_flagged_not_failed(): void
     {
