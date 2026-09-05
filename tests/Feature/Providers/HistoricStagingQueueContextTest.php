@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Providers;
 
+use App\Services\HistoricMedia\HistoricProcessingThroughput;
+use App\Services\HistoricMedia\HistoricStagingQueuePause;
+use App\Services\HistoricMedia\HistoricStagingReachability;
 use Illuminate\Contracts\Queue\Job as QueueJobContract;
 use Illuminate\Queue\Events\JobProcessing;
+use Illuminate\Queue\Events\Looping;
 use Illuminate\Support\Facades\Event;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -62,5 +66,77 @@ class HistoricStagingQueueContextTest extends TestCase
         Event::dispatch(new JobProcessing('redis', $job));
 
         $this->addToAssertionCount(1);
+    }
+
+    /**
+     * The 2026-09-05 loss: a five-second mains outage took the staging volume
+     * off the bus, and the workers went on consuming for 35 minutes, failing
+     * 371 runs against a mount that was no longer there. Returning false from
+     * `Looping` is the only hook that stops a job being taken at all — by
+     * `Queue::before` it is already reserved, and the worker fires it whatever
+     * the listener does.
+     */
+    #[Test]
+    public function it_holds_a_historic_worker_when_the_staging_volume_is_unreachable(): void
+    {
+        $this->useStagingRoot(storage_path('app/testing-no-such-staging-volume'));
+
+        $this->assertFalse(
+            Event::until(new Looping('redis', $this->historicQueue())),
+            'A historic worker must not fetch a job while the staging volume is away.',
+        );
+    }
+
+    #[Test]
+    public function it_lets_a_historic_worker_run_when_the_staging_volume_is_present(): void
+    {
+        $this->useStagingRoot($this->makeStagingRoot());
+
+        $this->assertNotFalse(Event::until(new Looping('redis', $this->historicQueue())));
+    }
+
+    /**
+     * A historic-only outage must not become a site-wide one.
+     */
+    #[Test]
+    public function it_never_holds_a_worker_that_serves_no_historic_queue(): void
+    {
+        $this->useStagingRoot(storage_path('app/testing-no-such-staging-volume'));
+
+        $this->assertNotFalse(Event::until(new Looping('redis', 'default')));
+    }
+
+    private function historicQueue(): string
+    {
+        $queues = array_values(app(HistoricProcessingThroughput::class)->configuredQueues());
+
+        return (string) $queues[0];
+    }
+
+    private function useStagingRoot(string $root): void
+    {
+        config([
+            'filesystems.disks.probe_staging' => ['driver' => 'local', 'root' => $root],
+            'media-processing.storage.historic_staging_disk' => 'probe_staging',
+        ]);
+
+        HistoricStagingReachability::resetForTesting();
+        HistoricStagingQueuePause::resetForTesting();
+    }
+
+    private function makeStagingRoot(): string
+    {
+        $root = storage_path('app/testing-staging-looping-'.bin2hex(random_bytes(4)));
+        mkdir($root, 0755, true);
+
+        $this->beforeApplicationDestroyed(static function () use ($root): void {
+            foreach (array_diff(scandir($root) ?: [], ['.', '..']) as $entry) {
+                @unlink($root.'/'.$entry);
+            }
+
+            @rmdir($root);
+        });
+
+        return $root;
     }
 }

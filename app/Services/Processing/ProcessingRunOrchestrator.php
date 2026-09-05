@@ -15,8 +15,8 @@ use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\PromoteHistoricAssets;
 use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
-use App\Services\HistoricMedia\HistoricProcessingThroughput;
 use App\Services\HistoricMedia\HistoricPassInFlightProbe;
+use App\Services\HistoricMedia\HistoricProcessingThroughput;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Media\Video\VideoStorageService;
 use Carbon\CarbonInterface;
@@ -71,7 +71,13 @@ class ProcessingRunOrchestrator
      * @throws \InvalidArgumentException If the processing pipeline profile is unrecognized
      * @throws \Throwable If dispatching the job chain or batch fails
      */
-    public function start(MediaProcessingLog $processingLog): void
+    /**
+     * @param  bool  $resuming  True when this dispatch is resuming a failed run rather
+     *                          than starting one. Only a resume may adopt the artifacts a
+     *                          previous attempt left behind; a fresh run has none, and a
+     *                          deliberate re-run is asking for the work to be redone.
+     */
+    public function start(MediaProcessingLog $processingLog, bool $resuming = false): void
     {
         match ($processingLog->processingPipelineProfile()) {
             'audio' => $this->dispatchChain(
@@ -92,7 +98,7 @@ class ProcessingRunOrchestrator
                 $processingLog,
                 ProcessingRunFailureHandler::PROFILE_VIDEO_AUTO_TRIM
             ),
-            'livestream' => $this->dispatchLivestreamStart($processingLog),
+            'livestream' => $this->dispatchLivestreamStart($processingLog, $resuming),
             default => throw new \InvalidArgumentException(
                 'Unknown processing pipeline profile: '.$processingLog->processingPipelineProfile()
             ),
@@ -666,13 +672,13 @@ class ProcessingRunOrchestrator
         $this->recordHistoricQueueDispatch($processingId, $mainChainId, mainChainDispatched: true);
     }
 
-    private function dispatchLivestreamStart(MediaProcessingLog $processingLog): void
+    private function dispatchLivestreamStart(MediaProcessingLog $processingLog, bool $resuming = false): void
     {
         $queueName = $this->livestreamQueue();
         $processingId = $processingLog->processing_id;
         $mainChainId = $this->historicMainChainId($processingLog);
-        $parallelJobs = $this->pipelineBuilder->buildLivestreamParallelJobs($processingLog);
-        $chainJobs = $this->pipelineBuilder->buildLivestreamChainJobs($processingLog);
+        $parallelJobs = $this->pipelineBuilder->buildLivestreamParallelJobs($processingLog, $resuming);
+        $chainJobs = $this->pipelineBuilder->buildLivestreamChainJobs($processingLog, $resuming);
 
         $batch = Bus::batch($parallelJobs)
             ->then(function (Batch $batch) use ($chainJobs, $queueName, $processingId): void {
@@ -714,7 +720,7 @@ class ProcessingRunOrchestrator
             'audio' => array_slice($this->pipelineBuilder->buildAudioPipeline($freshLog), $jobOffset),
             'video' => array_slice($this->pipelineBuilder->buildDirectVideoPipeline($freshLog), $jobOffset),
             'video_auto_trim' => array_slice($this->pipelineBuilder->buildAutoTrimVideoPipeline($freshLog), $jobOffset),
-            'livestream' => array_slice($this->pipelineBuilder->buildLivestreamChainJobs($freshLog), $jobOffset),
+            'livestream' => array_slice($this->pipelineBuilder->buildLivestreamChainJobs($freshLog, resuming: true), $jobOffset),
             default => [],
         };
 
@@ -781,7 +787,7 @@ class ProcessingRunOrchestrator
         $this->processingRunTransitions->resetForRetry($processingLog);
         $processingLog->segments()->delete();
 
-        $this->start($processingLog->fresh() ?? $processingLog);
+        $this->start($processingLog->fresh() ?? $processingLog, resuming: true);
 
         return ProcessingResult::success(
             processingId: $processingLog->processing_id,

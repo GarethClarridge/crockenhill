@@ -31,6 +31,16 @@ class ServiceStructureValidator
     public const FLAG_OOS_CROSS_TYPE_INVERSION = 'structure_oos_cross_type_inversion';
 
     /**
+     * The detector declined to type a section whose claimed OoS item names one.
+     *
+     * Deliberately absent from {@see self::REANNOTATED_FLAGS}, like the two
+     * inversion flags it sits beside: those are computed against the OoS items a
+     * run claimed at detection time, and a later re-annotation would be judging
+     * them against whatever items the service holds now.
+     */
+    public const FLAG_OOS_TYPE_UNRESOLVED = 'structure_oos_type_unresolved';
+
+    /**
      * A section claims an OoS item printed *before* one an earlier section
      * already claimed, within the same OpenLP item type.
      *
@@ -273,7 +283,14 @@ class ServiceStructureValidator
         return $this->annotateSoftFlags(
             $this->withoutReviewFlags($this->dropSongsTheRecordingCannotContain($structure, $context)),
             $context,
-            ['cross_type' => [], 'same_type' => []],
+            /**
+             * Empty on purpose. Every OoS-derived flag is computed against the
+             * items a run claimed when it was detected, and a re-annotation has
+             * only whatever items the service holds now — so these are neither
+             * re-added nor withdrawn here, which is why none of them appear in
+             * {@see self::REANNOTATED_FLAGS}.
+             */
+            ['cross_type' => [], 'same_type' => [], 'unresolved_type' => []],
         );
     }
 
@@ -647,9 +664,11 @@ class ServiceStructureValidator
 
     /**
      * @param  list<array{code: string, message: string}>  $hardFailures
-     * @return array{cross_type: array<int, true>, same_type: array<int, true>} Section
-     *                                                                          indices whose claimed item precedes an earlier-claimed
-     *                                                                          item, split by whether the two share an OpenLP type.
+     * @return array{cross_type: array<int, true>, same_type: array<int, true>, unresolved_type: array<int, true>}
+     *                                                                                                             Section indices whose claimed item precedes an
+     *                                                                                                             earlier-claimed item, split by whether the two share an
+     *                                                                                                             OpenLP type, plus those where the detector abstained on
+     *                                                                                                             a section whose OoS item names a type.
      */
     private function checkOosAnchoring(ServiceStructure $structure, ValidationContext $context, array &$hardFailures): array
     {
@@ -660,6 +679,7 @@ class ServiceStructureValidator
         $highestClaimedPosition = null;
         $crossTypeInversions = [];
         $sameTypeInversions = [];
+        $unresolvedTypes = [];
 
         foreach ($structure->sections as $index => $section) {
             $itemId = $section->oosItemId;
@@ -727,24 +747,65 @@ class ServiceStructureValidator
             // may anchor any section type — that ambiguity is exactly what the
             // transcript-grounded detector resolves (F15).
             if ($itemType !== ServiceSectionType::Other && $itemType !== $section->type) {
-                $hardFailures[] = [
-                    'code' => 'incompatible_oos_item',
-                    'message' => sprintf(
-                        'Section %d is a %s but claims OoS item %d, which is a %s.',
-                        $index + 1,
-                        $section->type->value,
-                        $itemId,
-                        $itemType->value
-                    ),
-                ];
+                /**
+                 * The mirror of F15, and until 2026-09-05 the missing half of it.
+                 *
+                 * `Other` on a section carries no positive claim about what the
+                 * section is — it is either the detector's own generic label or,
+                 * where the returned type was absent or unparseable, the fallback
+                 * {@see ServiceStructureSection} assigns alongside `unknown_type`.
+                 * Either way, an `other` section claiming a typed OoS item is not
+                 * a contradiction: one side is unspecific and the identification
+                 * authority answered. That is the same shape F15 already permits
+                 * in the other direction.
+                 *
+                 * Failing hard on it discarded six whole runs, every one of them
+                 * an `other` section over an OoS `song`. It is flagged rather
+                 * than silently resolved to the OoS type: adopting the item's
+                 * type would be defensible — {@see ChurchServiceItemSyncService::resolveMergedSectionType()}
+                 * already resolves the same disagreement that way — but it would
+                 * bank a type nothing had actually classified, and the operator
+                 * should see that rather than inherit it.
+                 *
+                 * Deliberately not demoted in {@see SectionReviewFlagPolicy},
+                 * even though it can only ever land on an `other` section and
+                 * that is one of the filler types whose flags are usually
+                 * demoted. The premise of that demotion is that a filler
+                 * section's exact type has no downstream effect — but the OoS
+                 * item here says `song`, and a song's type drives catalogue
+                 * linking and publishing. This flag exists precisely because the
+                 * section may not be filler at all.
+                 *
+                 * A genuine conflict, where both sides name a type and the types
+                 * differ, still fails: three of the nine on record are that, and
+                 * they mean the detector anchored a section to the wrong item.
+                 */
+                if ($section->type === ServiceSectionType::Other) {
+                    $unresolvedTypes[$index] = true;
+                } else {
+                    $hardFailures[] = [
+                        'code' => 'incompatible_oos_item',
+                        'message' => sprintf(
+                            'Section %d is a %s but claims OoS item %d, which is a %s.',
+                            $index + 1,
+                            $section->type->value,
+                            $itemId,
+                            $itemType->value
+                        ),
+                    ];
+                }
             }
         }
 
-        return ['cross_type' => $crossTypeInversions, 'same_type' => $sameTypeInversions];
+        return [
+            'cross_type' => $crossTypeInversions,
+            'same_type' => $sameTypeInversions,
+            'unresolved_type' => $unresolvedTypes,
+        ];
     }
 
     /**
-     * @param  array{cross_type: array<int, true>, same_type: array<int, true>}  $inversions
+     * @param  array{cross_type: array<int, true>, same_type: array<int, true>, unresolved_type: array<int, true>}  $inversions
      */
     private function annotateSoftFlags(ServiceStructure $structure, ValidationContext $context, array $inversions): ServiceStructure
     {
@@ -778,6 +839,10 @@ class ServiceStructureValidator
 
             if (isset($inversions['same_type'][$index])) {
                 $flags[] = self::FLAG_OOS_SAME_TYPE_INVERSION;
+            }
+
+            if (isset($inversions['unresolved_type'][$index])) {
+                $flags[] = self::FLAG_OOS_TYPE_UNRESOLVED;
             }
 
             if ($this->songTitleContradictsChapterMarker($section, $structure->chapterMarkers)) {

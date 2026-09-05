@@ -23,6 +23,7 @@ use App\Presenters\RelatedPagePresenter;
 use App\Seo\SermonArchiveSeoPresenter;
 use App\Seo\SermonItemListPresenter;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
+use App\Services\HistoricMedia\HistoricStagingQueuePause;
 use App\Services\Import\DarwinHistoricSourceFilesystemInspector;
 use App\Services\Import\FilesystemHistoricReleaseObjectStore;
 use App\Services\Import\HistoricImportMutationFreeze;
@@ -41,12 +42,13 @@ use App\Services\Sermon\SermonStorageService;
 use App\Sitemap\SermonSitemapPresenter;
 use App\Support\BibleCanon;
 use App\Support\ParallelTestingProcessLimiter;
+use Closure;
 use Faker\Factory as FakerFactory;
 use Faker\Generator as FakerGenerator;
-use Closure;
 use Illuminate\Queue\Events\JobExceptionOccurred;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
+use Illuminate\Queue\Events\Looping;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
@@ -168,6 +170,39 @@ class AppServiceProvider extends ServiceProvider
     private function registerHistoricStagingQueueContext(): void
     {
         Queue::createPayloadUsing(fn (): array => app(HistoricStagingContextRegistry::class)->queuePayload());
+
+        /**
+         * Hold historic workers still while the staging volume is away.
+         *
+         * `Looping` fires before the worker fetches a job, and returning false
+         * pauses that iteration rather than taking work. This is the only hook
+         * that can stop a job being consumed: by `Queue::before` the job is
+         * already reserved, and the worker fires it regardless of a release.
+         *
+         * Returning null rather than true when the worker may proceed leaves the
+         * decision to any other listener — `until()` stops at the first
+         * non-null response, and this listener has no opinion about workers it
+         * does not serve.
+         */
+        Queue::looping(function (Looping $event): ?bool {
+            try {
+                return app(HistoricStagingQueuePause::class)->shouldPause((string) $event->queue)
+                    ? false
+                    : null;
+            } catch (\Throwable $exception) {
+                /**
+                 * A guard that throws must not stop the queue: an unavailable
+                 * probe is not evidence the volume is gone, and a worker held
+                 * shut by a broken check is the same outage by another route.
+                 */
+                Log::warning('Historic staging pause check failed; allowing the worker to proceed', [
+                    'queue' => $event->queue,
+                    'error' => $exception->getMessage(),
+                ]);
+
+                return null;
+            }
+        });
 
         Queue::before(function (JobProcessing $event): void {
             try {

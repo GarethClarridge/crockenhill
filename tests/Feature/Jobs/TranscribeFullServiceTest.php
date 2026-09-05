@@ -10,6 +10,7 @@ use App\Jobs\TranscribeFullService;
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Audio\MockServiceTranscriptionService;
 use App\Services\Media\Audio\ServiceTranscriptRecovery;
+use App\Services\Processing\ProcessingArtifactReuse;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Support\TranscriptPromptEchoDetector;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -115,6 +116,69 @@ class TranscribeFullServiceTest extends TestCase
         );
         $this->assertSame('Second run transcript.', $stored->cues[0]['text']);
         $this->assertSame(200.0, $stored->duration);
+    }
+
+    /**
+     * Recovering the 2026-09-05 outage re-dispatches transcription for runs
+     * whose transcript survived intact on the volume. Transcription is the most
+     * expensive step in the pipeline and the recording has not changed, so a
+     * resume adopts what is there instead of paying for it again.
+     */
+    #[Test]
+    public function it_reuses_the_stored_transcript_when_resuming_a_failed_run(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        Storage::disk('local')->put((string) $log->source_file_path, 'fake video bytes');
+
+        $transcriptPath = 'temp/service_transcript_'.$log->processing_id.'.json';
+        Storage::disk('local')->put($transcriptPath, (string) json_encode(ChurchServiceTranscript::fromCues([
+            ['start' => 0.0, 'end' => 30.0, 'text' => 'Survived the outage.'],
+        ], 100.0, ChurchServiceTranscript::SOURCE_MOCK)->toArray()));
+        $log->putServiceTranscriptPath($transcriptPath);
+
+        MockServiceTranscriptionService::useTranscript(ChurchServiceTranscript::fromCues([
+            ['start' => 0.0, 'end' => 10.0, 'text' => 'A fresh transcription that must not run.'],
+        ], 50.0, ChurchServiceTranscript::SOURCE_MOCK));
+
+        $this->runJob($log->refresh(), resuming: true);
+
+        $stored = ChurchServiceTranscript::fromArray(
+            json_decode((string) Storage::disk('local')->get($transcriptPath), true)
+        );
+        $this->assertSame('Survived the outage.', $stored->cues[0]['text']);
+        $this->assertSame(100.0, $stored->duration);
+    }
+
+    /**
+     * The outage that makes reuse worth having also truncates files. A
+     * transcript with no cues cannot be told apart from an interrupted write,
+     * so a resume must re-transcribe rather than carry an empty one forward.
+     */
+    #[Test]
+    public function it_retranscribes_when_resuming_with_a_transcript_holding_no_cues(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        Storage::disk('local')->put((string) $log->source_file_path, 'fake video bytes');
+
+        $transcriptPath = 'temp/service_transcript_'.$log->processing_id.'.json';
+        Storage::disk('local')->put($transcriptPath, (string) json_encode([
+            'cues' => [],
+            'duration' => 0.0,
+            'source' => ChurchServiceTranscript::SOURCE_MOCK,
+        ]));
+        $log->putServiceTranscriptPath($transcriptPath);
+
+        MockServiceTranscriptionService::useTranscript(ChurchServiceTranscript::fromCues([
+            ['start' => 0.0, 'end' => 10.0, 'text' => 'The transcription that must run.'],
+        ], 50.0, ChurchServiceTranscript::SOURCE_MOCK));
+
+        $this->runJob($log->refresh(), resuming: true);
+
+        $log->refresh();
+        $stored = ChurchServiceTranscript::fromArray(
+            json_decode((string) Storage::disk('local')->get((string) $log->serviceTranscriptPath()), true)
+        );
+        $this->assertSame('The transcription that must run.', $stored->cues[0]['text']);
     }
 
     #[Test]
@@ -262,13 +326,17 @@ class TranscribeFullServiceTest extends TestCase
         return $cues;
     }
 
-    private function runJob(MediaProcessingLog $log, ?ServiceTranscriptRecovery $recovery = null): void
-    {
-        (new TranscribeFullService($log))->handle(
+    private function runJob(
+        MediaProcessingLog $log,
+        ?ServiceTranscriptRecovery $recovery = null,
+        bool $resuming = false,
+    ): void {
+        (new TranscribeFullService($log, $resuming))->handle(
             app(StorageAdapterHelper::class),
             app(ServiceTranscriptionInterface::class),
             app(TranscriptPromptEchoDetector::class),
             $recovery ?? app(ServiceTranscriptRecovery::class),
+            app(ProcessingArtifactReuse::class),
         );
     }
 }

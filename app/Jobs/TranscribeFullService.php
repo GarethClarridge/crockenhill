@@ -11,6 +11,7 @@ use App\Enums\ServiceStructureMode;
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Media\Audio\ServiceTranscriptRecovery;
+use App\Services\Processing\ProcessingArtifactReuse;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Support\ChurchServiceProcessingTimeline;
 use App\Support\ServiceArtifactDisk;
@@ -43,8 +44,16 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
 
     public int $timeout = 3600;
 
+    /**
+     * @param  bool  $mayReuseStoredTranscript  True only when this dispatch is resuming a
+     *                                          failed run, where re-running the step was
+     *                                          never the point. Defaults to false so a
+     *                                          fresh run, and a deliberate re-run with a
+     *                                          different model, always transcribe.
+     */
     public function __construct(
-        private MediaProcessingLog $processingLog
+        private MediaProcessingLog $processingLog,
+        private bool $mayReuseStoredTranscript = false,
     ) {
         $this->onQueue((string) config('media-processing.queues.audio', 'audio-processing'));
     }
@@ -66,6 +75,7 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
         ServiceTranscriptionInterface $transcriptionService,
         TranscriptPromptEchoDetector $promptEchoDetector,
         ServiceTranscriptRecovery $transcriptRecovery,
+        ProcessingArtifactReuse $artifactReuse,
     ): void {
         if ($this->refreshAndCheckCancellation($this->processingLog, $this->job ?? null, $this->attempts())) {
             return;
@@ -83,6 +93,34 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
 
         $this->markProcessingRunAsProcessing($this->processingLog, ProcessingStep::TranscribeFullService->value);
         $this->logStepStart(ChurchServiceProcessingTimeline::TRANSCRIBE_FULL_SERVICE);
+
+        /**
+         * Resuming a run whose stored transcript is still intact does not need
+         * the recording transcribed again — this is the most expensive step in
+         * the pipeline, and the recording it describes has not changed.
+         *
+         * Only a retry may do this, and only because the caller said so. A
+         * re-run is otherwise *expected* to re-transcribe: WP-A2 requires that
+         * a better model can be run over a recording that already has a
+         * transcript, so reuse can never be inferred from the artifact's mere
+         * presence. {@see ProcessingRunOrchestrator::retryWithChain()} is the
+         * one caller that sets this, because a resume is the one case where
+         * re-running the step was not the point of dispatching it.
+         *
+         * Stricter than the source-unavailable fallback below: there a stored
+         * transcript is the only evidence left and a weak one beats nothing.
+         * Here the source is present, so anything short of a transcript with
+         * cues is better re-transcribed than adopted.
+         */
+        if ($this->mayReuseStoredTranscript && $artifactReuse->serviceTranscriptIsUsable($this->processingLog)) {
+            $this->filterStoredTranscript($promptEchoDetector);
+            $this->logStepSkipped(
+                ChurchServiceProcessingTimeline::TRANSCRIBE_FULL_SERVICE,
+                'Reused the full-service transcript already recorded for this run'
+            );
+
+            return;
+        }
 
         try {
             [$localSourcePath, $cleanupSourcePath] = $this->resolveLocalSourceVideoPath($storageHelper);
