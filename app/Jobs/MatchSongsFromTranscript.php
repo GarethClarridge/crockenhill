@@ -19,6 +19,7 @@ use App\Services\Song\SongLyricOcrService;
 use App\Services\Song\SongLyricsMatchingService;
 use App\Services\Song\UnmatchedSongReviewApplicator;
 use App\Support\ChurchServiceProcessingTimeline;
+use App\Support\SectionReviewFlagPolicy;
 use App\Support\SongCatalogueTitlePolicy;
 use App\Traits\DetectsStorageType;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -417,7 +418,7 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             // Clear the unmatched review flag now that we have a match.
             $reviewFlags = array_values(array_filter(
                 $metadataArray['review_flags'] ?? [],
-                fn (mixed $flag): bool => $flag !== 'unmatched_song_section'
+                static fn (mixed $flag): bool => is_string($flag) && $flag !== 'unmatched_song_section'
             ));
 
             // Keep the mismatch flag: a match does not settle which naming was right.
@@ -433,7 +434,13 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             $section->song_match_type = $writeCatalogueTitle
                 ? ServiceSectionSongMatchType::Confirmed
                 : ServiceSectionSongMatchType::Inferred;
-            $section->needs_manual_review = $reviewFlags !== [];
+            $section->needs_manual_review = SectionReviewFlagPolicy::requiresManualReview(
+                $section->section_type,
+                $reviewFlags,
+                is_string($metadataArray['sermon_reference'] ?? null)
+                    ? $metadataArray['sermon_reference']
+                    : null,
+            );
             $section->metadata = ServiceSectionMetadata::fromArray($metadataArray);
             $section->save();
 
