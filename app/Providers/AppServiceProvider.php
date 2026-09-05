@@ -22,6 +22,7 @@ use App\Presenters\PageImagePresenter;
 use App\Presenters\RelatedPagePresenter;
 use App\Seo\SermonArchiveSeoPresenter;
 use App\Seo\SermonItemListPresenter;
+use App\Services\HistoricMedia\HistoricProcessingThroughput;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\HistoricMedia\HistoricStagingQueuePause;
 use App\Services\Import\DarwinHistoricSourceFilesystemInspector;
@@ -190,17 +191,7 @@ class AppServiceProvider extends ServiceProvider
                     ? false
                     : null;
             } catch (\Throwable $exception) {
-                /**
-                 * A guard that throws must not stop the queue: an unavailable
-                 * probe is not evidence the volume is gone, and a worker held
-                 * shut by a broken check is the same outage by another route.
-                 */
-                Log::warning('Historic staging pause check failed; allowing the worker to proceed', [
-                    'queue' => $event->queue,
-                    'error' => $exception->getMessage(),
-                ]);
-
-                return null;
+                return $this->historicQueueGuardFailureDecision((string) $event->queue, $exception);
             }
         });
 
@@ -245,6 +236,42 @@ class AppServiceProvider extends ServiceProvider
 
         Queue::after($deactivate(HistoricStagingContextRegistry::SOURCE_QUEUE_AFTER));
         Queue::exceptionOccurred($deactivate(HistoricStagingContextRegistry::SOURCE_QUEUE_EXCEPTION));
+    }
+
+    private function historicQueueGuardFailureDecision(string $queue, \Throwable $exception): ?bool
+    {
+        $servedQueues = array_values(array_filter(
+            array_map(trim(...), explode(',', $queue)),
+            static fn (string $name): bool => $name !== '',
+        ));
+
+        try {
+            $historicQueues = array_values(app(HistoricProcessingThroughput::class)->configuredQueues());
+        } catch (\Throwable $configurationException) {
+            Log::error('Historic staging pause check and queue classification failed; holding worker', [
+                'queue' => $queue,
+                'error' => $exception->getMessage(),
+                'classification_error' => $configurationException->getMessage(),
+            ]);
+
+            return false;
+        }
+
+        if (array_intersect($servedQueues, $historicQueues) === []) {
+            Log::warning('Historic staging pause check failed for non-historic worker; allowing it to proceed', [
+                'queue' => $queue,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return null;
+        }
+
+        Log::error('Historic staging pause check failed; holding historic worker', [
+            'queue' => $queue,
+            'error' => $exception->getMessage(),
+        ]);
+
+        return false;
     }
 
     /**
