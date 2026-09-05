@@ -8,6 +8,7 @@ use App\Models\MediaProcessingLog;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Media\Video\VideoSegmentationService;
 use App\Services\Processing\MediaProcessingRunTransitionService;
+use App\Services\Processing\ProcessingArtifactReuse;
 use App\Services\Processing\SermonProcessingStepTransitions;
 use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -27,17 +28,26 @@ class GenerateRmsLog implements ShouldQueue
 
     public int $timeout = 7200;
 
+    /**
+     * @param  bool  $mayReuseRecordedRmsLog  True only when this dispatch is resuming a
+     *                                        failed run. A fresh run has no recorded log
+     *                                        to reuse, and a deliberate re-run is asking
+     *                                        for the measurement to be taken again.
+     */
     public function __construct(
-        private MediaProcessingLog $processingLog
+        private MediaProcessingLog $processingLog,
+        private bool $mayReuseRecordedRmsLog = false,
     ) {}
 
     public function handle(
         VideoSegmentationService $segmentationService,
         ?MediaProcessingRunTransitionService $processingRunTransitions = null,
         ?SermonProcessingStepTransitions $processingStepTransitions = null,
+        ?ProcessingArtifactReuse $artifactReuse = null,
     ): void {
         $processingRunTransitions ??= app(MediaProcessingRunTransitionService::class);
         $processingStepTransitions ??= app(SermonProcessingStepTransitions::class);
+        $artifactReuse ??= app(ProcessingArtifactReuse::class);
 
         try {
             $processingLog = $this->processingLog->fresh();
@@ -74,6 +84,32 @@ class GenerateRmsLog implements ShouldQueue
                 'rms_generation',
                 'Generating RMS log.',
             );
+
+            /**
+             * A resume that already holds a parseable RMS log for this recording
+             * has nothing to gain from producing it again: the recording has not
+             * changed, and generation is the second most expensive step in the
+             * chain.
+             *
+             * Gated on the caller's intent for the same reason transcription is
+             * ({@see TranscribeFullService}): a re-run dispatched deliberately is
+             * asking for the measurement to be taken again, and inferring reuse
+             * from the artifact's presence would silently refuse to.
+             */
+            if ($this->mayReuseRecordedRmsLog && $artifactReuse->rmsLogIsUsable($this->processingLog)) {
+                Log::info('Reusing the recorded RMS log rather than regenerating it', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    'rms_log_path' => $this->processingLog->rms_log_path,
+                ]);
+
+                $processingStepTransitions->markAsSkipped(
+                    $this->processingLog->processing_id,
+                    'rms_generation',
+                    'Reused the RMS log already recorded for this run.',
+                );
+
+                return;
+            }
 
             $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
             $videoPath = Storage::disk($tempDisk)

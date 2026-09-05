@@ -115,9 +115,9 @@ class ProcessingPipelineBuilder
      *
      * @return non-empty-list<object>
      */
-    public function buildLivestreamParallelJobs(MediaProcessingLog $log): array
+    public function buildLivestreamParallelJobs(MediaProcessingLog $log, bool $resuming = false): array
     {
-        return [new GenerateRmsLog($log)];
+        return [new GenerateRmsLog($log, $resuming)];
     }
 
     /**
@@ -125,11 +125,11 @@ class ProcessingPipelineBuilder
      *
      * @return non-empty-list<object>
      */
-    public function buildLivestreamChainJobs(MediaProcessingLog $log): array
+    public function buildLivestreamChainJobs(MediaProcessingLog $log, bool $resuming = false): array
     {
         return [
             new AnalyzeSegments($log),
-            new TranscribeFullService($log),
+            new TranscribeFullService($log, $resuming),
             new DetectServiceStructure($log),
             // Provisional: song matching has not run, so this pass can only anchor
             // on automated title text and its merge findings are working guesses.
