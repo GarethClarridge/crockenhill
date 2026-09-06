@@ -8,15 +8,16 @@ use App\Data\HistoricStagingContext;
 use App\Data\ProcessingManualReviewMetadata;
 use App\Data\ProcessingMetadata;
 use App\Data\ProcessingMetadataCast;
-use App\Data\ServiceSermonAbsence;
-use App\Data\ServiceStructure;
 use App\Data\SermonAnalysis;
 use App\Data\SermonAnalysisCast;
+use App\Data\ServiceSermonAbsence;
+use App\Data\ServiceStructure;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Enums\SermonVideoQualityStatus;
 use App\Enums\ServiceSectionPublicationStatus;
+use App\Services\HistoricMedia\HistoricReviewSourceReclaimer;
 use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\Processing\ProcessingRunOrchestrator;
 use App\Services\Processing\SermonMetadataIntegrationService;
@@ -660,27 +661,59 @@ class MediaProcessingLog extends Model
      */
     public function recordedSermonExtraction(): ?array
     {
+        $spans = $this->recordedSermonExtractionSpans();
+
+        if ($spans === null) {
+            return null;
+        }
+
+        $duration = 0.0;
+        foreach ($spans as $span) {
+            $duration += $span['end'] - $span['start'];
+        }
+
+        return [
+            'start' => $spans[0]['start'],
+            'end' => $spans[count($spans) - 1]['end'],
+            'duration' => $duration,
+        ];
+    }
+
+    /**
+     * The ordered source spans the sermon media was actually cut from.
+     *
+     * A concat plan joins several spans and omits what lies between them, so
+     * anything deriving from the emitted media — the sermon transcript above
+     * all — must follow these spans rather than the run's outer bounds. Spans
+     * of zero or negative length are dropped; a plan left with none reads as
+     * absent, so callers fall back to the recorded bounds.
+     *
+     * @return list<array{start: float, end: float}>|null
+     */
+    public function recordedSermonExtractionSpans(): ?array
+    {
         $segments = data_get($this->processing_metadata?->toArray(), 'sermon_extraction_plan.segments');
 
         if (! is_array($segments) || $segments === []) {
             return null;
         }
 
-        $segments = array_values($segments);
-        $duration = 0.0;
+        $spans = [];
+
         foreach ($segments as $segment) {
-            $duration += max(0.0, (float) ($segment['end_time'] ?? 0.0) - (float) ($segment['start_time'] ?? 0.0));
+            if (! is_array($segment)) {
+                continue;
+            }
+
+            $start = (float) ($segment['start_time'] ?? 0.0);
+            $end = (float) ($segment['end_time'] ?? 0.0);
+
+            if ($end > $start) {
+                $spans[] = ['start' => $start, 'end' => $end];
+            }
         }
 
-        if ($duration <= 0.0) {
-            return null;
-        }
-
-        return [
-            'start' => (float) ($segments[0]['start_time'] ?? 0.0),
-            'end' => (float) ($segments[count($segments) - 1]['end_time'] ?? 0.0),
-            'duration' => $duration,
-        ];
+        return $spans === [] ? null : $spans;
     }
 
     public function requiresManualSermonReview(): bool
@@ -712,7 +745,7 @@ class MediaProcessingLog extends Model
      * identity is expected to be reprocessed from the replacement source — so
      * there is nothing left for a reviewer to decide and nothing this source
      * could be recut for. Reading it any other way pins the bytes forever:
-     * {@see \App\Services\HistoricMedia\HistoricReviewSourceReclaimer} tests
+     * {@see HistoricReviewSourceReclaimer} tests
      * `Failed` before it tests obligations, and retirement does not clear
      * `Failed` (D4, 2026-09-03).
      *

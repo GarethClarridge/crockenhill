@@ -129,6 +129,69 @@ class ChurchServiceTranscriptDataTest extends TestCase
     }
 
     #[Test]
+    public function slice_text_for_spans_skips_the_material_between_spans(): void
+    {
+        $transcript = ChurchServiceTranscript::fromCues([
+            ['start' => 0.0, 'end' => 10.0, 'text' => 'Before the reading.'],
+            ['start' => 10.0, 'end' => 20.0, 'text' => 'The preached reading.'],
+            ['start' => 25.0, 'end' => 35.0, 'text' => 'An intervening hymn.'],
+            ['start' => 40.0, 'end' => 50.0, 'text' => 'The sermon.'],
+            ['start' => 55.0, 'end' => 60.0, 'text' => 'The closing prayer.'],
+        ], 60.0, ChurchServiceTranscript::SOURCE_MOCK);
+
+        $this->assertSame(
+            'The preached reading. The sermon.',
+            $transcript->sliceTextForSpans([
+                ['start' => 10.0, 'end' => 20.0],
+                ['start' => 40.0, 'end' => 50.0],
+            ])
+        );
+    }
+
+    #[Test]
+    public function slice_text_for_spans_returns_each_cue_once_in_recording_order(): void
+    {
+        $transcript = ChurchServiceTranscript::fromCues([
+            ['start' => 0.0, 'end' => 30.0, 'text' => 'A cue spanning both windows.'],
+            ['start' => 30.0, 'end' => 40.0, 'text' => 'Only in the second window.'],
+        ], 40.0, ChurchServiceTranscript::SOURCE_MOCK);
+
+        $this->assertSame(
+            'A cue spanning both windows. Only in the second window.',
+            $transcript->sliceTextForSpans([
+                ['start' => 25.0, 'end' => 28.0],
+                ['start' => 5.0, 'end' => 35.0],
+            ])
+        );
+    }
+
+    #[Test]
+    public function slice_text_for_spans_matches_slice_text_for_a_single_span(): void
+    {
+        $transcript = ChurchServiceTranscript::fromCues([
+            ['start' => 0.0, 'end' => 10.0, 'text' => 'Before.'],
+            ['start' => 10.0, 'end' => 20.0, 'text' => 'Inside.'],
+            ['start' => 20.0, 'end' => 30.0, 'text' => 'After.'],
+        ], 30.0, ChurchServiceTranscript::SOURCE_MOCK);
+
+        $this->assertSame(
+            $transcript->sliceText(12.0, 18.0),
+            $transcript->sliceTextForSpans([['start' => 12.0, 'end' => 18.0]])
+        );
+    }
+
+    #[Test]
+    public function slice_text_for_spans_returns_nothing_without_usable_spans(): void
+    {
+        $transcript = ChurchServiceTranscript::fromCues([
+            ['start' => 0.0, 'end' => 10.0, 'text' => 'Some speech.'],
+        ], 10.0, ChurchServiceTranscript::SOURCE_MOCK);
+
+        $this->assertSame('', $transcript->sliceTextForSpans([]));
+        $this->assertSame('', $transcript->sliceTextForSpans([['start' => 50.0, 'end' => 60.0]]));
+    }
+
+    #[Test]
     public function speech_duration_sums_cue_coverage(): void
     {
         $transcript = ChurchServiceTranscript::fromCues([

@@ -173,6 +173,35 @@ final readonly class ChurchServiceTranscript extends JsonData
     }
 
     /**
+     * The spoken text of every cue overlapping any of the given time windows.
+     *
+     * A concatenated extraction joins several source spans and drops what lies
+     * between them, so the sermon's own transcript must be selected the same
+     * way: slicing the outer bounds instead would bank the intervening hymn or
+     * notices as sermon text and feed them to later analysis. Each cue is
+     * emitted once even when the windows overlap, and always in recording
+     * order, so the result reads as continuous speech.
+     *
+     * @param  list<array{start: float, end: float}>  $spans
+     */
+    public function sliceTextForSpans(array $spans): string
+    {
+        $texts = [];
+
+        foreach ($this->cues as $cue) {
+            foreach ($spans as $span) {
+                if ($cue['end'] > $span['start'] && $cue['start'] < $span['end']) {
+                    $texts[] = $cue['text'];
+
+                    break;
+                }
+            }
+        }
+
+        return implode(' ', $texts);
+    }
+
+    /**
      * Total seconds covered by cues — the recording's speech time, used for
      * structure coverage checks.
      */

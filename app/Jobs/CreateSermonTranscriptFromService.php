@@ -43,7 +43,7 @@ class CreateSermonTranscriptFromService extends ProcessingJob implements ShouldQ
         }
 
         $transcript = $this->loadServiceTranscript();
-        $sermonText = trim($transcript->sliceText($this->sermonStartTime(), $this->sermonEndTime()));
+        $sermonText = trim($transcript->sliceTextForSpans($this->extractedSpans()));
 
         if ($sermonText === '') {
             throw new \RuntimeException('The full-service transcript contains no sermon text for the extracted bounds.');
@@ -82,6 +82,29 @@ class CreateSermonTranscriptFromService extends ProcessingJob implements ShouldQ
         $transcriptData = json_decode((string) Storage::disk($tempDisk)->get($transcriptPath), true, 512, JSON_THROW_ON_ERROR);
 
         return ChurchServiceTranscript::fromArray($transcriptData);
+    }
+
+    /**
+     * The source spans the sermon media was cut from, so the transcript
+     * describes the recording a listener actually gets.
+     *
+     * A concatenated extraction joins the preached reading to the sermon and
+     * drops the hymn or notices between them; slicing the outer bounds instead
+     * banks that intervening material as sermon text and passes it to the
+     * analysis that follows. Runs with no recorded plan — older runs, and any
+     * whose plan holds no usable span — keep the recorded bounds.
+     *
+     * @return list<array{start: float, end: float}>
+     */
+    private function extractedSpans(): array
+    {
+        $spans = $this->processingLog->recordedSermonExtractionSpans();
+
+        if ($spans !== null) {
+            return $spans;
+        }
+
+        return [['start' => $this->sermonStartTime(), 'end' => $this->sermonEndTime()]];
     }
 
     private function sermonStartTime(): float
