@@ -8,7 +8,6 @@ use App\Data\ChurchServiceTranscript;
 use App\Jobs\CreateSermonTranscriptFromService;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Services\Media\Audio\TranscriptStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
@@ -45,7 +44,7 @@ class CreateSermonTranscriptFromServiceTest extends TestCase
         ], 300.0, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
         $log->putServiceTranscriptPath($serviceTranscriptPath);
 
-        (new CreateSermonTranscriptFromService($log))->handle(app(TranscriptStorageService::class));
+        app()->call([new CreateSermonTranscriptFromService($log), 'handle']);
 
         $log->refresh();
         $sermon->refresh();
@@ -175,7 +174,7 @@ class CreateSermonTranscriptFromServiceTest extends TestCase
         )->toArray(), JSON_THROW_ON_ERROR));
         $log->putServiceTranscriptPath($serviceTranscriptPath);
 
-        (new CreateSermonTranscriptFromService($log))->handle(app(TranscriptStorageService::class));
+        app()->call([new CreateSermonTranscriptFromService($log), 'handle']);
 
         return [$sermon, $log];
     }

@@ -4,15 +4,14 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Data\ChurchServiceTranscript;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\Media\Audio\ServiceTranscriptReader;
 use App\Services\Media\Audio\TranscriptStorageService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Storage;
 
 class CreateSermonTranscriptFromService extends ProcessingJob implements ShouldQueue
 {
@@ -28,8 +27,10 @@ class CreateSermonTranscriptFromService extends ProcessingJob implements ShouldQ
         private MediaProcessingLog $processingLog,
     ) {}
 
-    public function handle(TranscriptStorageService $transcriptStorage): void
-    {
+    public function handle(
+        TranscriptStorageService $transcriptStorage,
+        ServiceTranscriptReader $serviceTranscripts,
+    ): void {
         if ($this->refreshAndCheckCancellation($this->processingLog, $this->job ?? null, $this->attempts())) {
             return;
         }
@@ -42,7 +43,7 @@ class CreateSermonTranscriptFromService extends ProcessingJob implements ShouldQ
             throw new \RuntimeException("No sermon found for processing log: {$this->processingLog->processing_id}");
         }
 
-        $transcript = $this->loadServiceTranscript();
+        $transcript = $serviceTranscripts->read($this->processingLog);
         $sermonText = trim($transcript->sliceTextForSpans($this->extractedSpans()));
 
         if ($sermonText === '') {
@@ -62,26 +63,6 @@ class CreateSermonTranscriptFromService extends ProcessingJob implements ShouldQ
     {
         $this->initializeStepLogging($this->processingLog->processing_id);
         $this->logStepFailed('creating_sermon_transcript', $exception->getMessage());
-    }
-
-    private function loadServiceTranscript(): ChurchServiceTranscript
-    {
-        $transcriptPath = $this->processingLog->serviceTranscriptPath();
-        if ($transcriptPath === null) {
-            throw new \RuntimeException('No full-service transcript recorded for this run.');
-        }
-
-        $tempDisk = str_starts_with($transcriptPath, 'service-transcripts/')
-            ? (string) config('media-processing.storage.transcript_disk', 'local')
-            : (string) config('media-processing.storage.temp_disk', 'local');
-        if (! Storage::disk($tempDisk)->exists($transcriptPath)) {
-            throw new \RuntimeException('The recorded full-service transcript is unavailable.');
-        }
-
-        /** @var array<string, mixed> $transcriptData */
-        $transcriptData = json_decode((string) Storage::disk($tempDisk)->get($transcriptPath), true, 512, JSON_THROW_ON_ERROR);
-
-        return ChurchServiceTranscript::fromArray($transcriptData);
     }
 
     /**

@@ -252,6 +252,49 @@ class TranscriptStorageService
             return null;
         }
 
+        $disk = $this->locateTranscriptDisk($path, $ownerDisk);
+
+        if ($disk === null) {
+            return null;
+        }
+
+        try {
+            $content = Storage::disk($disk)->get($path);
+
+            return is_string($content) ? $content : null;
+        } catch (Exception $e) {
+            Log::warning('Failed to read transcript from disk', $this->sanitizeArrayForLog([
+                'disk' => $disk,
+                'transcript_file_path' => $path,
+                'error' => $e->getMessage(),
+                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
+            ]));
+
+            return null;
+        }
+    }
+
+    /**
+     * The disk a stored transcript actually lives on, or null if no candidate holds it.
+     *
+     * A repair has to write back to the disk it read from. `storeTranscript()`
+     * always writes to the *configured* transcript disk, which for a promoted
+     * historic sermon is not where its transcript sits — that is the staging
+     * batch, and writing there would orphan the new text while the sermon's
+     * recorded path still pointed at the quarantine copy. Resolving the disk
+     * separately lets a caller repair a transcript in place.
+     *
+     * @param  string  $transcriptPath  The storage path to the transcript file
+     * @param  string|null  $ownerDisk  The asset's own disk, checked before the generic candidates
+     */
+    public function locateTranscriptDisk(string $transcriptPath, ?string $ownerDisk = null): ?string
+    {
+        $path = trim($transcriptPath);
+
+        if ($path === '') {
+            return null;
+        }
+
         $ownerDisk = trim((string) $ownerDisk);
         $disks = $ownerDisk === ''
             ? $this->getTranscriptReadDisks()
@@ -259,17 +302,11 @@ class TranscriptStorageService
 
         foreach ($disks as $disk) {
             try {
-                $storage = Storage::disk($disk);
-
-                if (! $storage->exists($path)) {
-                    continue;
+                if (Storage::disk($disk)->exists($path)) {
+                    return $disk;
                 }
-
-                $content = $storage->get($path);
-
-                return is_string($content) ? $content : null;
             } catch (Exception $e) {
-                Log::warning('Failed to read transcript from disk', $this->sanitizeArrayForLog([
+                Log::warning('Failed to check transcript disk', $this->sanitizeArrayForLog([
                     'disk' => $disk,
                     'transcript_file_path' => $path,
                     'error' => $e->getMessage(),
