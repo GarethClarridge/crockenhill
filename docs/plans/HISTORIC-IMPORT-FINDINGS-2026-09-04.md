@@ -1,5 +1,13 @@
 # Historic import — findings, 4 September 2026
 
+> **Update, 2026-09-06:** Phase 8 is underway. The database-backed output review,
+> pending repairs and recommended short maintenance pause are recorded in the
+> plan of record's [Phase 8 review](HISTORIC-VIDEO-PILOT-TO-BULK-PLAN-2026-08-29.md#phase-8-review-2026-09-06--outputs-and-lessons-for-routine-services).
+> Read that update before relying on the pre-run counts below. Speaker
+> identification is deliberately paused for corpus collection and a subsequent
+> speaker-bucketing/manual-naming approach; this is not a fault to clear by
+> re-enabling identification. No processing pause has been executed by the review.
+
 **Status:** Phase 8 is unblocked and its governing constraint has been removed.
 §10–§12 (added later the same day) settle the boundary-gate question, record the
 pre-run baseline, and correct the worker state. **Read §10 and §12 before dispatch.** The

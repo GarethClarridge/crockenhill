@@ -1,5 +1,12 @@
 # Historic Video Pilot-to-Bulk Plan
 
+> **Latest update, 2026-09-06:** Phase 8 is underway. See the
+> [database-backed output review and maintenance recommendation](#phase-8-review-2026-09-06--outputs-and-lessons-for-routine-services)
+> for pending transcript, review-state and video-assessment repairs. A short
+> graceful maintenance pause is recommended but has not been executed by this
+> review. Speaker identification remains deliberately paused for corpus collection
+> and later speaker bucketing/naming. Earlier status paragraphs are dated history.
+
 **Date:** 2026-08-29
 **Status:** **Phases 0–7 complete; step 11 closed; Phase 8 is GO at FFmpeg width one.** The Phase 7 canary ran under operation 3, its blockers were implemented and its rows and assets repaired, and on 2026-09-01 the **operator sequence reached step 10: the identical-canary replay passed**, proving zero new work and zero spend (evidence: `storage/scratch/historic-video-step10-noop-proof-20260901.md`). On 2026-09-02 **step 10 was re-run against the re-frozen manifest** `d25d2085…` under operation 4 and passed again — 0 dispatched, 12 skipped, 0 B processed in 7.2 s, every baseline count unchanged (evidence: `storage/scratch/historic-video-step10-rerun-proof-20260902.md`). The re-freeze reduced the replayable set from fourteen to twelve: `2026-04-02-evening` became a manifest-level exclusion, and `2023-07-16-morning` had its source replaced and its run retired, so it is new work rather than a replay and is **deferred to Phase 8 by operator decision**. **Step 11 (M12's four-identity calibration at FFmpeg width two) ran to completion on 2026-09-02** after the VirtioFS/exFAT mount fault was fixed: 3 of 4 identities completed cleanly (the 4th stopped at a genuine content-layer manual-review disposition, not a technical fault), and the mount held through the exact step that had killed all four the day before. **M12 item 14's gate FAILS**: queue-wait p95 improved 44–98% on every instrumented FFmpeg step, but active-duration p95 got materially worse on the two full-file steps (`extract_sermon` +69%, `prepare_section_publication_candidates` +94%) — confirmed by source-size-normalized throughput, not a bigger-files artefact — so items/hour moved only +1.7%, far short of the 25% bar either metric requires. Per the plan's own fallback, **width was reverted to one** (`.env`, workers recreated, dispatcher config confirmed). Evidence: `storage/scratch/historic-video-step11-calibration-result-20260902.md`. **Bulk processing (Phase 8) can now proceed at width one** — the only width ever proven clean. **On 2026-09-02 the first stratified learning batch (11 identities) ran and returned 5 failed, 6 degraded, 0 clean**: provider 429s failed every structure-detection attempt they touched and made the transcript stage bank empty fallback analysis that reports as `completed`. **Those 429s were diagnosed on 2026-09-02 and are NOT rate limiting**: every one is `service_tier: flex` capacity unavailability (`code: flex_unavailable`, `retry-after: 300`), reproduced live with a 7-token request while the account held 99.98% of both its request and token budgets. Flex capacity is per-model and independent of this project's load; `gpt-5.6-luna` — the structure-detection model — is refused 0/8 on flex and 3/3 on default. Evidence: `storage/scratch/pass1-rate-limit-diagnosis-20260902.md`. The pass also exposed two operational faults — worker daemons that stop honouring `queue:restart`, and a first-job failure that strands a run in a state no retry path accepts. **Both of pass 2's blockers were cleared the same day**: P1-1 falls a `flex_unavailable` 429 back to `service_tier: default` and logs the provider's real error code and headers (verified live while luna's pool was still empty), and P1-2 makes a degraded completion its own `degraded` disposition, names it in the pass report, keeps it out of clean throughput, and makes `ProcessTranscriptWithAI`'s previously-unreachable retry schedule real. **Pass 2 is unblocked. P1-3 and P1-4 are both done, same day.** P1-4: `HistoricImportUsageEntry`, `HistoricImportCostLedger`, the `historic_import_usage_entries` table and the usage-reporting lines in `HistoricVideoPassStatusCommand`/`HistoricVideoPassPerformance` are deleted rather than repaired — the table was empty throughout pass 1, so nothing was lost. P1-3: sermons 907–912 are genuinely re-analysed, but the plan's own premise — "the service transcripts survive" — needed one correction first. The transcript survived, but on the sermon's own `asset_disk` (`historic_quarantine`), not on any of `TranscriptStorageService`'s hardcoded candidate disks; a naive re-dispatch would have re-banked six more hollow completions for a second, different reason. Fixed the disk resolution and a second real bug — `is_degraded_completion` never cleared on a genuine success — then re-dispatched for real: all six now carry real titles, references, summaries and points, verified against the database, not just the flag. All four quality gates pass (Pint, PHPStan, 7676 tests, 55 Dusk tests). See “Pass 1 — first stratified learning batch, 2026-09-02”.
 **Scope:** Correct the pilot findings, prove direct private asset promotion and bounded temporary cleanup, run a fresh canary, and process the remaining historic-video corpus safely
@@ -2618,6 +2625,11 @@ and compounds across every identity in the pass.
 
 ### Phase 8 — Process the remainder as a closed pass loop
 
+**2026-09-06 review:** Phase 8 is underway. The database-backed findings and proposed
+maintenance sequence below supersede earlier log-only assessments of output quality.
+Speaker identification is deliberately paused while the corpus is assembled; it is
+not a processing fault and must not be re-enabled as a backlog-clearing shortcut.
+
 For each pass:
 
 1. Preflight the mount, selected-item path/size metadata, operation-bound host disk evidence, actual and configured worker widths, models, provider project limit, manifest keys and the measured byte/time envelope. Do not content-read unselected future items and do not re-hash selected ones.
@@ -2635,6 +2647,222 @@ For each pass:
 The pass report must name every non-zero residue. An empty queue is not evidence of successful completion. Pass closure is operational only: all evidence remains active in the same cumulative corpus for later cross-source convergence.
 
 **Exit gate:** Every approved manifest item is completed, explicitly held/excluded, or named as unresolved; no pass retains unexplained staging data. **A run completed with `is_degraded_completion` does not count as completed for this gate** — it is a named unresolved item until re-analysed.
+
+#### Phase 8 review, 2026-09-06 — outputs and lessons for routine services
+
+**Status: findings recorded; implementation and data repair pending.** The operator
+requested this plan update, not a stop or a repair. No workers, configuration,
+processing records or publication decisions were changed during the review.
+
+The live database was queried through Sail after resolving sandbox access to the
+Docker socket. The initial claim that Docker was stopped was incorrect. Counts
+below are a snapshot beginning at **2026-09-06 18:28:57 UTC**, not a final census;
+queries ran sequentially while processing could continue. Scope is
+`historic_import_operation_id = 4` and `superseded_at IS NULL`, including operation
+4's earlier calibration work, not only the 400-item dispatch. Do not mix this
+denominator with the narrower restart log cohort.
+
+| Database measure | Snapshot |
+|---|---:|
+| Completed runs without the degraded flag | 156 |
+| Completed runs with the degraded flag | 1 |
+| Processing runs | 249 |
+| Failed runs | 9 |
+| Sections marked `needs_manual_review` | 295 across 145 runs |
+| Sections awaiting publication approval | 151 |
+| Runs with a concatenated extraction plan | 156, including 59 completed |
+
+Completion is a pipeline disposition, not proof that the content is correct or
+ready for public release. Publication approval and processing review can overlap
+and must remain separately reported. Seven of the nine failed runs are explicitly
+at `manual_review_required`; two retain technical failures. The degraded run is
+log **1038**, sermon **972**, dated **2025-12-14**.
+
+The surviving logs since the 5 September restart independently showed 78 distinct
+runs reaching projection (54 with the latest logged `needs_review = false`, 24
+true), 231/237 initially unmatched song candidates resolved, and four distinct
+runs encountering structural review stops. These are stage observations, not a
+success rate or an independently verified accuracy score.
+
+##### P8-Q1 — align sermon transcripts with the extracted media (first priority)
+
+**Confirmed defect.** Sermon **1058**, 2024-10-06 morning, has this banked plan:
+
+- Bible reading: **2005.65–2099.00 seconds**.
+- Sermon: **2337.00–3999.99 seconds**.
+- The **238-second gap** is omitted from the concatenated video/audio.
+
+`CreateSermonTranscriptFromService::handle()` instead slices the full-service
+transcript between `sermon_start_time` and `sermon_end_time`, the outer bounds
+stored by `ExtractSermon`. The saved `quarantine/transcripts/sermon_1058.md`
+therefore includes the intervening hymn and substantial garbled repeated lyrics.
+This unwanted material is also supplied to subsequent sermon analysis.
+
+- [ ] Write a failing regression test for non-adjacent reading/sermon spans, then
+  make transcript selection consume the same ordered extraction spans as media.
+  Cover single-span behaviour, gaps, cue overlap at boundaries and empty evidence;
+  preserve the intentional inclusion of the preached Bible reading.
+- [ ] Census all current concatenated runs using their stored plans. The **59
+  completed** runs are an audit/repair candidate set, not 59 individually proven
+  bad transcripts. Compare saved text with the text selected by the exact spans.
+- [ ] Regenerate changed transcripts from retained service transcripts without
+  re-transcribing audio or repeating video extraction. Re-analyse only affected
+  derived metadata, preserving curated fields, established provenance and public
+  URLs. Record unavailable evidence as unresolved rather than substituting blanks.
+- [ ] Verify transcript/media agreement on #1058 and a representative sample of
+  repaired single- and multi-span outputs before closing this item.
+
+##### P8-Q2 — reconcile review state with the current policy
+
+**Confirmed stored-state inconsistency; historical writer cause not yet proved.**
+**142 song sections** have `needs_manual_review = true` with
+`structure_oos_cross_type_inversion` as their **only** stored review flag.
+`SectionReviewFlagPolicy` explicitly demotes that flag on every section type.
+Examples **1331, 1333 and 1419** are on completed runs. These are candidates for
+automatic policy reconciliation, not 142 required human content decisions.
+
+Flags on the 295 reviewed sections were:
+
+| Stored flag | Sections | Interpretation |
+|---|---:|---|
+| `structure_oos_cross_type_inversion` | 156 | Informational under current policy; 142 carry no other flag |
+| `structure_low_confidence` | 90 | 76 songs, 6 readings, 5 children's talks, 3 sermons |
+| `song_title_marker_mismatch` | 25 | 13 runs; independent evidence may settle identity |
+| `unmatched_song_section` | 16 | 16 runs; investigate available matching evidence |
+| `structure_oos_same_type_inversion` | 9 | Retain review where ordering is genuinely ambiguous |
+| `childrens_talk_speaker_review` | 7 | All seven stored predictions are `ambiguous` |
+| `structure_sermon_boundary_material_risk` | 6 | Directly affects extracted/published content |
+| `structure_micro_section` | 4 | Assess downstream consequence, not duration alone |
+| `structure_missing_preached_reading` | 4 | Check whether the reference is actually unresolved |
+| `structure_sermon_interruption_merged` | 1 | Inspect the retained span and interruption |
+
+Flags overlap; their counts must not be added to estimate human tasks. In
+particular, the 156 cross-type occurrences are not all independent review causes.
+
+- [ ] Reproduce the policy/state mismatch in a regression test and determine
+  whether it comes from old worker code, unreconciled historical state or a writer
+  bypassing policy. Current `MatchSongsFromTranscript` already calls the policy;
+  do not assume the current source still contains the historical writer defect.
+- [ ] Preview and apply narrowly scoped reconciliation using current policy,
+  preserving other review reasons and separate publication restrictions. Verify
+  a subsequent match/projection/publication-preparation pass does not reinstate
+  demoted-only flags. Re-census affected services as well as section booleans.
+- [ ] Separate song **identity confidence** from **boundary confidence** in the
+  investigation. Example section 950 questions the inferred title; section 1258
+  says two songs have no observable separating boundary. A catalogue match may
+  settle the first question but cannot settle the second.
+- [ ] Evaluate targeted slide OCR/lyric corroboration for title/marker conflicts.
+  OCR fallback already exists; the gap is that a successful title match can skip
+  independent evidence and a mismatch alone need not enter the unmatched path.
+  Do not broadly lower confidence thresholds or let either title win by default.
+
+##### P8-Q3 — recover truthful video assessments
+
+**Confirmed assessment/evidence mismatch.** **83** sermons carry
+`video_quality_status = unassessed`, `video_quality_reason = missing_video_file`.
+Of these, **82** use `historic_quarantine`; every one of their corresponding
+`/Volumes/Staging/HistoricWork/quarantine/sermons/{id}/video.mp4` files was checked
+and is present and nonempty. The remaining one uses `historic_staging` and was
+not included in that file check. Existence does not prove playback quality.
+
+`AssessSermonVideoQuality` currently supplies the configured sermon disk rather
+than selecting the sermon's own `asset_disk`. This is a concrete disk-resolution
+concern; drive loss and promotion timing may also explain historical failures.
+
+- [ ] Test assessment of an asset on its owning disk, including promotion and
+  temporary storage unavailability. Fix resolution/recovery as the reproduction
+  warrants; do not turn an unavailable file into a passing assessment.
+- [ ] Reassess the named existing files and investigate the staging exception.
+  Regenerate thumbnails where a successful assessment makes that appropriate.
+  Keep the existing five rejected videos (two frozen, three mostly black) subject
+  to their own evidence; missing-file repair is not blanket quality approval.
+- [ ] For routine processing, distinguish a recoverable evidence-access failure
+  from an editorial decision and provide bounded targeted recovery.
+
+##### P8-Q4 — preserve the speaker corpus; identification remains paused
+
+**Operator clarification, 2026-09-06:** speaker identification is deliberately
+paused to assemble a corpus, try bucketing recordings into speakers, and then
+probably name those speaker buckets manually. The earlier recommendation to
+re-enable identification to clear the backlog is withdrawn.
+
+The snapshot showed **140 completed runs** recording “Speaker identification
+disabled”. Among completed runs linked to sermons, 151 retained default attribution
+with review required and four had accepted speaker-model attribution. These are
+not evidence that the currently paused model failed 140 times. Children's-talk
+predictions separately comprise seven ambiguous, 33 skipped and 120 not populated;
+many runs are still in progress, so this is not a final outcome distribution.
+
+- [ ] Keep identification paused while assembling the corpus. Preserve usable
+  speech audio and its sermon/section, service, source and extraction-span
+  provenance through cleanup and private promotion. Verify retained permanent
+  assets satisfy this need before deleting temporary copies; no blanket retention
+  of every full-service temporary video is required.
+- [ ] Design and evaluate speaker bucketing on isolated speaker speech, avoiding
+  mixed reading/sermon voices and music. A service or concatenated reading-plus-
+  sermon recording must not automatically be treated as one speaker sample.
+- [ ] Present representative samples and outliers for manual bucket naming;
+  retain uncertain/outlier assignments rather than manufacturing identities.
+  Evaluate the rebuilt approach before using it for routine automatic attribution.
+- [ ] Treat “Visiting Speaker” with default provenance as unresolved attribution,
+  not a verified identity or a clustering label. Preserve confirmed attributions.
+
+This rebuild is **not a prerequisite for resuming Phase 8 corpus collection**.
+Speaker settlement remains part of the later release QA.
+
+##### P8-Q5 — finish analysis and make remaining human checks informative
+
+- [ ] Re-analyse sermon **972** from retained valid evidence. It remains
+  quarantined with a generic title, null reference and summary, and placeholder
+  points `["Main Message"]`; do not merely clear its degraded flag.
+- [ ] Record original flags and before/after review outcomes when a human changes
+  or confirms identity, title, type or boundaries. `ConfirmServiceSection`
+  currently removes the flags and records reviewer/time, making it difficult to
+  measure which review reasons actually caught an error. Reuse the speaker-review
+  candidate-rank pattern where appropriate; avoid a parallel audit framework.
+- [ ] Make material-boundary review quick with clips around the disputed start,
+  end or join. Retain review for genuine multiple-sermon, merged-song and boundary
+  ambiguity. Five log examples merged multiple following items into a sermon;
+  the database's six material-risk sections are a different snapshot/measure.
+- [ ] Verify the already implemented corrective structure retry, projection
+  reason counts, children's-speaker outcome logging and separation of processing
+  review/publication approval in running workers. The reviewed newer projection
+  logs still lacked reason counts; source code presence is not deployment proof.
+
+Content QA so far is encouraging but limited: transcripts for **1053** (Daniel
+11:36–45), **1058** (Luke 14:1–6) and **1059** (Daniel 9:20–27) were read and their
+saved titles, references, summaries and points checked for consistency. The
+metadata fits the sermons. All three remain quarantined with unresolved speaker
+placeholders, and #1058 has the transcript defect above. No complete audiovisual
+listening/viewing audit or corpus-wide accuracy claim was made.
+
+##### Recommended maintenance sequence — not yet executed
+
+**Recommend a short controlled pause for P8-Q1 before further transcript analysis
+multiplies avoidable repair and model calls.** Take P8-Q2/P8-Q3 fixes in the same
+maintenance window if their reproductions remain bounded. Do not wait for the
+speaker rebuild, broad song adjudication or every historical repair to finish.
+
+1. Stop any still-active dispatcher and gracefully drain/pause the relevant
+   workers using the pass-control runbook. Stopping dispatch alone does not stop
+   the already queued corpus. Do not kill active FFmpeg jobs or clear queues.
+   Independent upstream work can continue only if queue routing is verified to
+   isolate it from the affected stages; otherwise use a brief coordinated drain.
+2. Implement and test the shared pipeline fixes, prioritising P8-Q1. Use red/green
+   regression tests, PHPStan, Pint and the full parallel suite for these non-trivial
+   changes; run Dusk if a later review-UI change affects browser behaviour.
+3. Deploy/reload the workers and verify they actually run the new code. Validate
+   a bounded affected example against saved spans and source text before allowing
+   new downstream analyses. Resume existing queued work without re-importing
+   completed media or changing publication authority.
+4. Run scoped, resumable repairs of saved transcripts/analysis, review state and
+   video assessments; report corrected, unchanged and unresolved counts. Retain
+   the repair membership so the 59/142/83 snapshot counts are not mistaken for
+   current targets as the corpus grows.
+5. Continue corpus collection with speaker identification paused. Complete the
+   remaining quality work before Phase 9 public-release acceptance. Quarantine
+   containment makes delayed repair possible; it does not make defective output
+   correct. No pause or release authorisation is implied by this recommendation.
 
 ### Phase 9 — Final convergence and public release
 
