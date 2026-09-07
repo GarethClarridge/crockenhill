@@ -3295,9 +3295,14 @@ usable. The original cues are known-bad, so drop them"* removed them deliberatel
 Retried twice on 2026-09-07 including a forced re-transcription; failed identically both
 times. **More unchanged blind retries are not justified.** This establishes failure under
 the current transcription/pathology configuration, not that the source audio is unusable.
-Inspect representative audio, channel/downmix and timing, then evaluate a bounded alternative
-transcription strategy before asking the operator to judge the source unusable. The recovery
-pass already re-transcribes without priming; repeating that alone is not a new strategy.
+
+**Answered later the same day, and it was the configuration, not the audio or the
+model.** The "bounded alternative transcription strategy" this paragraph asked for
+turned out not to be needed: the retry was already reading the audio correctly and
+`recover()` was discarding the result whole because one region of it looped. See
+*The blind windows were never blind* under P8-Q8. This record is kept because the
+reasoning — that a reproducible identical failure indicts the configuration rather
+than the source — was right, and only the remedy it guessed at was wrong.
 
 **How to distinguish the recorded failure:** read `unobservable_windows`.
 `retranscription_failed` means an empty or still-pathological recovery transcript; it is
@@ -3529,13 +3534,16 @@ before changing those boundaries.
   Neighbouring gaps and implausible merged song/`other` intervals are **not**
   covered, which is exactly why #1195 still escapes: its span holds dense speech
   and no window, and the loss sits in the `other` section before it.
-- [ ] Recover #1148 and the seven material-overlap candidates, plus #1195's
+- [~] Recover #1148 and the seven material-overlap candidates, plus #1195's
   missing opening, through bounded targeted transcription and structure recovery.
   Recut only when recovered evidence changes the media plan; reanalyse only when
   analysis input changes. Do not fabricate missing speech from Scripture or OoS.
-  **Still outstanding.** The gate holds *future* runs; like the mixed-song
-  restriction it is not consulted for work already banked, so the five runs it
-  would now stop or flag keep their current disposition until they are recovered.
+  **The mechanism is found and fixed; the recovery itself is not run.** The
+  evidence was not missing — `recover()` was discarding it, and #1148's sermon
+  came back in full on a re-run of the existing decode. What remains is to re-run
+  recovery over the affected runs and re-measure. The gate holds *future* runs;
+  like the mixed-song restriction it is not consulted for work already banked, so
+  the five runs it would stop or flag keep their current disposition meanwhile.
 - [x] Add regression fixtures for prayer-only surviving text, a sermon starting
   after an unobservable window, and a valid sermon followed by long silence/music.
   Preserve the intentional reading/sermon join and valid brief boundary overlaps.
@@ -3611,6 +3619,65 @@ Had the gate existed during the pass it would have failed **2** runs (#1148,
 #1043) and flagged **3** (#1299, #1135, #1252) out of 406. All five are quarantined
 and none is publicly reachable.
 
+###### The blind windows were never blind, 2026-09-07
+
+**The recovery transcribed the missing sermons and then threw them away.** The
+premise behind every "recover the evidence" item above — that these windows hold
+audio no decode has read — is wrong, and the fix is not a different decode.
+
+`ServiceTranscriptRecovery::recover()` judged the retry with a single test,
+`$retry->isEmpty() || $this->detector->detect($retry) !== []`. One pathological
+region anywhere in the retry condemned all of it: every recovered cue was
+dropped and the **whole** original window banked `retranscription_failed`. But a
+window is chosen because the *original* transcript looped, which says nothing
+about how much of the window holds speech.
+
+Re-running both fail-level windows against the live `whisper-server`
+(`large-v3-turbo`, the production decode, empty prompt — exactly what the retry
+sends) measured what was being discarded:
+
+| run / sermon | window | retry returned | pathological region | words discarded |
+|---|---:|---:|---|---:|
+| 1229 / **#1148** | 2,037 s | 1,405 cues, 3,282 words | 0–182 s, 7 × "Amen." | **3,275** |
+| 1118 / **#1043** | 1,739 s | 1,174 cues, 2,849 words | 0–214 s, 9 × "Amen." | **2,840** |
+
+Identical shape in both: whisper hallucinates a 30-second-chunk loop over the
+music or quiet at the window's **leading edge**, then transcribes normally.
+8.9% and 12.3% of each window is pathological; the rest is sermon. A 3-minute
+slice from the middle of #1148's window decodes cleanly with no intervention at
+all — 22 distinct segments of hymn lyrics.
+
+So sermon #1148 did not lose its sermon. Its sermon was transcribed, discarded by
+this branch, and the 81 words of closing prayer that survived outside the window
+became the whole evidence base for its title, its null reference and its summary.
+
+**The decode was never the defect, and the earlier reading of this — "failure
+under the current transcription/pathology configuration", inviting "a bounded
+alternative transcription strategy" — was measuring the same all-or-nothing
+branch and mistaking it for the model.** Temperature, VAD, `no_context` and the
+rest were not needed and were not changed.
+
+The recovery now accepts the retry **region by region**: sub-windows that still
+loop are recorded unobservable at their own bounds, offset back onto the
+recording's clock, and everything else is kept. A retry that loops throughout, or
+returns nothing, still marks the whole window — those paths are unchanged.
+
+- [x] Accept a partly-pathological retry by region rather than as one verdict.
+  Regression fixtures cover run 1229's shape, a retry looping throughout, an
+  empty retry, and residual-window offsetting onto the recording clock.
+- [ ] **Re-run recovery over the affected corpus.** This changes what the
+  pipeline banks in future; it does not touch a banked transcript. The named
+  runs keep their present evidence until recovery is re-run over them, and
+  #1148's and #1043's dispositions cannot be settled before that.
+- [ ] Re-measure `SermonEvidenceCoverage` afterwards. Both fail-level runs are
+  expected to fall well below the 40% line once their windows shrink to the
+  leading-edge loop, which would leave the gate's thresholds — set on the old,
+  overstated fractions — resting on figures that no longer describe the corpus.
+  **Do not re-tune them before the re-run; re-derive the census from it.**
+- [ ] Reconsider the 120-second pathology floor *after* the re-run, not before.
+  A shorter floor now also decides how much of a retry is kept, so it is no
+  longer only a detection question.
+
 ###### The neighbouring-section half: a blind region typed as a song
 
 Chasing #1195's class — evidence lost *outside* the sermon span — found the
@@ -3663,8 +3730,10 @@ the same shared-pipeline shape as the mixed-song clips.
   and retroactively over banked structure. Regression fixtures cover 1977's and
   3437's shapes, a confident over-long song, an ordinary song inside the ceiling,
   and a type with no ceiling.
-- [ ] Run the rederivation. **Not yet executed** — it raises the review queue by
-  38 and that is an operator decision, not a side effect of the code landing.
+- [x] Run the rederivation. **Executed** — 38 sections across 33 services carry
+  the flag and all 38 require review, raising the queue to 332 sections across
+  173 runs. Raising it by 38 was an operator decision, not a side effect of the
+  code landing.
 - [ ] Decide what a flagged over-long song means for each of the three classes.
   A hole (1977, 3437) needs the region re-examined and probably re-typed; mistyped
   sermon material (1511) is a content-loss case and the more serious of the two;
@@ -4020,7 +4089,9 @@ API call, so unchanged missing-file retries do not themselves incur analysis spe
    **Gates landed 2026-09-07** — sermon-span evidence coverage, over-long song
    sections, and the printed-order mixed-song route. **The recovery did not**: every
    gate holds future work only, so each named output keeps its present disposition
-   until someone acts on it. That recovery is now the leading edge of this list.
+   until someone acts on it. That recovery is now the leading edge of this list,
+   and its blocking defect is fixed: the retry accepts recovered speech region by
+   region instead of discarding a whole window over one looping passage.
 2. **Remove deterministic operational work:** P8-Q12 freshness/retry/queue isolation,
    P8-Q2 scoped policy reconciliation, P8-Q3 owning-disk recovery and P8-Q6 calibration.
 3. **Learn boundaries and metadata:** P8-Q9 framing, P8-Q11 passage reconciliation,
@@ -4084,6 +4155,13 @@ dated phase sections. It is not a current instruction to dispatch another pass.
   runs and ranked by blind *fraction*, not seconds. The **recovery is not**: the
   five runs it would stop or flag keep their present disposition, and neighbouring
   gaps (#1195's missing opening) are outside what the gate can see.
+  **The reason those spans were blind is now known and fixed**: `recover()`
+  discarded an entire retry whenever any region of it looped, throwing away 3,275
+  and 2,840 genuinely transcribed words on the two fail-level runs. It now keeps
+  the retry region by region. **Re-running recovery over the affected runs is the
+  next action**, and the gate's 40%/10% thresholds should be re-derived from that
+  re-run rather than trusted afterwards — they were set on fractions this defect
+  inflated. Note that no banked transcript changes until recovery is re-run.
 - [ ] Resolve the **four** demonstrated mixed-song generated clips (P8-Q10).
   **Two shared-pipeline gates are now in place**: `unresolved_multiple_songs`
   (OCR route) and `unlocated_adjacent_song` (printed-order route, added

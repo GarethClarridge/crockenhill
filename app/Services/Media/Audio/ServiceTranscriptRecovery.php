@@ -9,6 +9,26 @@ use App\Data\ChurchServiceTranscript;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
+/**
+ * Re-transcribe the windows where the full-service pass looped, and keep
+ * whatever the retry actually recovers.
+ *
+ * A window is chosen because its *original* transcript repeated one low
+ * information phrase across minutes. That says nothing about how much of the
+ * window holds speech, and in practice it usually holds a great deal: whisper
+ * hallucinates a 30-second-chunk loop over the music or quiet at a window's
+ * leading edge and then transcribes the rest normally. So the retry is accepted
+ * region by region — the sub-windows that still loop are recorded unobservable,
+ * everything else is kept.
+ *
+ * Judging the retry as a single verdict is what made sermon 1148 (2023-04-30,
+ * run 1229) complete holding 81 words of closing prayer. Its retry returned
+ * 1,405 cues and 3,282 words, of which one 182-second "Amen." run at the very
+ * start was pathological; the whole retry was therefore discarded, the whole
+ * 2,037-second window banked as unobservable, and the sermon inside it lost. The
+ * same shape appears in run 1118 (2,849 words behind a 214-second loop). Neither
+ * needed a different decode — the speech was already transcribed.
+ */
 class ServiceTranscriptRecovery
 {
     public function __construct(
@@ -44,10 +64,12 @@ class ServiceTranscriptRecovery
                 continue;
             }
 
-            // We did look, and the audio yields nothing usable. The original cues
-            // are known-bad, so drop them rather than leave misleading text behind.
-            if ($retry->isEmpty() || $this->detector->detect($retry) !== []) {
-                $cues = $this->withoutOverlappingCues($cues, $window['start'], $window['end']);
+            // We did look, so the original cues are known-bad either way: drop
+            // them rather than leave misleading text behind.
+            $cues = $this->withoutOverlappingCues($cues, $window['start'], $window['end']);
+
+            // The audio yields nothing at all. Nothing to keep, nothing to place.
+            if ($retry->isEmpty()) {
                 $unobservableWindows[] = [
                     'start' => $window['start'],
                     'end' => $window['end'],
@@ -57,8 +79,31 @@ class ServiceTranscriptRecovery
                 continue;
             }
 
-            $cues = $this->withoutOverlappingCues($cues, $window['start'], $window['end']);
-            foreach ($retry->cues as $cue) {
+            // A retry can loop over part of its window and transcribe the rest
+            // perfectly, so judge it by region rather than as one verdict. Run
+            // 1229's 2,037-second window returned 3,282 words of sermon behind a
+            // 182-second "Amen." loop at its leading edge; run 1118's returned
+            // 2,849 behind 214 seconds of the same. Rejecting the whole retry
+            // banked both windows as unobservable and discarded every recovered
+            // word — which is how sermon 1148 completed holding 81 words of
+            // closing prayer while its sermon sat in the discarded text.
+            $residue = $this->detector->detect($retry);
+
+            foreach ($residue as $pathological) {
+                $unobservableWindows[] = [
+                    'start' => $pathological['start'] + $window['start'],
+                    'end' => $pathological['end'] + $window['start'],
+                    'reason' => 'retranscription_failed',
+                ];
+            }
+
+            $recovered = $retry->cues;
+
+            foreach ($residue as $pathological) {
+                $recovered = $this->withoutOverlappingCues($recovered, $pathological['start'], $pathological['end']);
+            }
+
+            foreach ($recovered as $cue) {
                 $cues[] = [
                     'start' => $cue['start'] + $window['start'],
                     'end' => $cue['end'] + $window['start'],
