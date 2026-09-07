@@ -298,7 +298,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         [$result, $transcript] = $this->detectAndValidate($detector, $snapService, $validator);
 
         if (! $result->passed() && $this->detectionWorthRetrying($result)) {
-            Log::warning('Service structure output mechanically impossible; retrying detection once', [
+            Log::warning('Service structure output failed recoverable validation; retrying detection once', [
                 'processing_id' => $this->processingLog->processing_id,
                 'failure_codes' => $result->failureCodes(),
             ]);
@@ -309,7 +309,12 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
                 'failure_summary' => $result->failureSummary(),
             ]);
 
-            [$result, $transcript] = $this->detectAndValidate($detector, $snapService, $validator);
+            [$result, $transcript] = $this->detectAndValidate(
+                $detector,
+                $snapService,
+                $validator,
+                [$this->detectionRetryFeedback($result)],
+            );
         }
 
         if ($result->passed()) {
@@ -603,19 +608,29 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
     }
 
     /**
-     * Whether the validation failure indicates mechanically impossible detector
-     * output rather than a semantic judgement call.
+     * Whether one corrective detector attempt could resolve the validation failure.
      *
      * A section timestamped beyond the recording cannot be a legitimate reading
      * of the audio — it is corrupted model output (the 2023-02-26 corpus run
      * placed a sermon end at 41410s in a 4408s recording), and one fresh
-     * detection attempt is cheap relative to a manual review. Semantic failures
-     * (multiple sermons, ordering conflicts) would just re-run the same
-     * judgement, so they go straight to the reviewer.
+     * detection attempt is cheap relative to a manual review. The live corpus also
+     * showed chronology, competing-sermon classification, and incompatible OoS claims
+     * changing between attempts, so those receive the same single bounded retry.
      */
     private function detectionWorthRetrying(ValidationResult $result): bool
     {
-        return in_array('timestamps_outside_recording', $result->failureCodes(), true);
+        return array_intersect($result->failureCodes(), [
+            'timestamps_outside_recording',
+            'non_chronological',
+            'multiple_sermons',
+            'incompatible_oos_item',
+        ]) !== [];
+    }
+
+    private function detectionRetryFeedback(ValidationResult $result): string
+    {
+        return 'The previous structure failed deterministic validation. Correct these exact findings '
+            .'without inventing service content: '.$result->failureSummary();
     }
 
     /**

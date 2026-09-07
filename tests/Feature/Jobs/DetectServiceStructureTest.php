@@ -775,7 +775,7 @@ class DetectServiceStructureTest extends TestCase
     }
 
     #[Test]
-    public function primary_mode_does_not_retry_semantic_validation_failures(): void
+    public function primary_mode_retries_recoverable_semantic_validation_failures_with_feedback(): void
     {
         Config::set('media-processing.service_structure.mode', 'primary');
         Config::set('media-processing.email.admin_email', 'admin@example.com');
@@ -785,9 +785,8 @@ class DetectServiceStructureTest extends TestCase
         $this->storeTranscript($log);
         $this->coveringSegments($log);
 
-        // Two sermons is a semantic failure — a retry would just burn tokens on
-        // the same judgement. The valid structure queued behind it must never
-        // be consumed.
+        // Two sermons can be detector instability rather than genuine ambiguity.
+        // One feedback-guided attempt gets the exact validator finding and may recover.
         MockServiceStructureService::useStructureSequence(
             ServiceStructure::fromSections([
                 $this->section('sermon', 0.0, 1000.0),
@@ -799,9 +798,11 @@ class DetectServiceStructureTest extends TestCase
         $this->runJob($log);
 
         $log->refresh();
-        $this->assertSame(ProcessingStatus::Failed, $log->status);
-        $this->assertSame('manual_review_required', $log->current_step);
-        $this->assertArrayNotHasKey('service_structure_retry', $log->processing_metadata?->toArray() ?? []);
+        $this->assertNotSame(ProcessingStatus::Failed, $log->status);
+        $retry = $log->processing_metadata?->toArray()['service_structure_retry'] ?? null;
+        $this->assertIsArray($retry);
+        $this->assertContains('multiple_sermons', $retry['failure_codes']);
+        $this->assertNotSame([], MockServiceStructureService::lastFeedback());
     }
 
     #[Test]
