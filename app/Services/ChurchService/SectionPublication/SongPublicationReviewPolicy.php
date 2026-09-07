@@ -6,7 +6,9 @@ namespace App\Services\ChurchService\SectionPublication;
 
 use App\Enums\HistoricVideoCorroborationGrade;
 use App\Enums\ServiceSectionType;
+use App\Models\ChurchServiceItem;
 use App\Models\ServiceSection;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Names the reasons a song clip must reach a reviewer before it is published.
@@ -38,6 +40,15 @@ use App\Models\ServiceSection;
  */
 class SongPublicationReviewPolicy
 {
+    /**
+     * The shortest clip that could plausibly have absorbed a whole further song.
+     *
+     * The same six-minute ceiling a sung item is held to elsewhere
+     * {@see \App\Services\ChurchService\Structure\ServiceStructureValidator::FLAG_MACRO_SECTION};
+     * 1,049 of the corpus's 1,078 song sections sit inside it.
+     */
+    private const SWALLOWING_MINIMUM_SECONDS = 360.0;
+
     public function __construct(
         private readonly SongPublicationBoundaryEvidenceService $boundaryEvidence,
     ) {}
@@ -123,6 +134,18 @@ class SongPublicationReviewPolicy
             ];
         }
 
+        $unlocated = $this->unlocatedFollowingSong($section);
+
+        if ($unlocated !== null) {
+            $reasons[] = [
+                'kind' => 'unlocated_adjacent_song',
+                'detail' => sprintf(
+                    'The order of service prints "%s" next and no section holds it, so this over-long clip may contain it.',
+                    $unlocated,
+                ),
+            ];
+        }
+
         $grade = $this->corroborationGrade($section);
 
         if ($grade !== null && ! $this->independentlyCorroborated($section)) {
@@ -186,6 +209,72 @@ class SongPublicationReviewPolicy
         }
 
         return $unresolved;
+    }
+
+    /**
+     * The song the order of service prints next, when nothing holds it and this
+     * clip is long enough to have swallowed it.
+     *
+     * The second route to the same defect {@see self::unresolvedAdditionalSongs()}
+     * names, and it exists because that one reads OCR evidence that is often
+     * simply absent. Section 306 — a publicly released 510-second clip issued for
+     * "All creatures of our God and King" — has an empty `additional_song_matches`
+     * and would pass that check, yet its own notes say "Introduced as two songs
+     * together; this is the first" and the printed order's very next song, "King
+     * Of The Ages", has no section anywhere in the service.
+     *
+     * The notes were considered as the signal and rejected: of the nine sections
+     * corpus-wide whose notes mention multiple songs, three are negations — one
+     * says only one of the pair was "evident in the transcript", another merely
+     * identifies which of a pair this section is — so a gate built on free-form
+     * prose would hold sections that are correct.
+     *
+     * The printed order is checked instead, and it corroborates itself: run over
+     * the corpus it independently rediscovers section 335, the known mixed clip,
+     * and names "When I Fear My Faith Will Fail" — exactly the song already
+     * recorded as buried in it.
+     *
+     * Both conditions are required. An unlocated printed song is ordinary on its
+     * own — only 19 of 326 services have none, because a printed song may go
+     * unsung, be listed twice, or fall outside the recording — so the length is
+     * what makes it evidence. A clip cannot have absorbed a whole further song
+     * without running long.
+     */
+    private function unlocatedFollowingSong(ServiceSection $section): ?string
+    {
+        if ($section->end_time - $section->start_time <= self::SWALLOWING_MINIMUM_SECONDS) {
+            return null;
+        }
+
+        $item = $section->churchServiceItem;
+
+        if ($item === null || $item->type !== 'songs') {
+            return null;
+        }
+
+        $following = ChurchServiceItem::query()
+            ->where('church_service_id', $item->church_service_id)
+            ->where('type', 'songs')
+            ->where('position', '>', $item->position)
+            ->orderBy('position')
+            ->first();
+
+        if ($following === null) {
+            return null;
+        }
+
+        $located = ServiceSection::query()
+            ->where('church_service_item_id', $following->id)
+            ->whereHas('processingLog', fn (Builder $log): Builder => $log->whereNull('superseded_at'))
+            ->exists();
+
+        if ($located) {
+            return null;
+        }
+
+        $title = trim((string) $following->title);
+
+        return $title === '' ? 'an untitled item' : $title;
     }
 
     /**

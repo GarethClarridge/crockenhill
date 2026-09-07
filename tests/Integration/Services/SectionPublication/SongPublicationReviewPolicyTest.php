@@ -594,6 +594,90 @@ class SongPublicationReviewPolicyTest extends TestCase
         return Song::factory()->create()->id;
     }
 
+    /**
+     * Section 306 (2026-07-05): a publicly released 510-second clip issued for
+     * "All creatures of our God and King". Its `additional_song_matches` is
+     * empty, so the OCR route cannot see it — but the printed order's next song,
+     * "King Of The Ages", has no section anywhere in the service.
+     */
+    #[Test]
+    public function it_holds_an_over_long_clip_whose_next_printed_song_has_no_section(): void
+    {
+        $section = $this->section('full', ['livestream'], start: 304.0, end: 814.0);
+        $this->printFollowingSong($section, 'King Of The Ages', located: false);
+
+        $reasons = $this->policy->reviewReasons($section->fresh());
+
+        $this->assertContains('unlocated_adjacent_song', array_column($reasons, 'kind'));
+        $this->assertStringContainsString(
+            'King Of The Ages',
+            $reasons[array_search('unlocated_adjacent_song', array_column($reasons, 'kind'), true)]['detail'],
+        );
+    }
+
+    /**
+     * The printed song was found, so nothing was swallowed.
+     */
+    #[Test]
+    public function it_releases_an_over_long_clip_whose_next_printed_song_was_located(): void
+    {
+        $section = $this->section('full', ['livestream'], start: 304.0, end: 814.0);
+        $this->printFollowingSong($section, 'King Of The Ages', located: true);
+
+        $this->assertNotContains(
+            'unlocated_adjacent_song',
+            array_column($this->policy->reviewReasons($section->fresh()), 'kind'),
+        );
+    }
+
+    /**
+     * An unlocated printed song is ordinary on its own — only 19 of 326 services
+     * have none — so an ordinary-length clip must not be held by it. A clip
+     * cannot have absorbed a whole further song without running long.
+     */
+    #[Test]
+    public function it_releases_an_ordinary_length_clip_whose_next_printed_song_is_unlocated(): void
+    {
+        $section = $this->section('full', ['livestream'], start: 600.0, end: 840.0);
+        $this->printFollowingSong($section, 'King Of The Ages', located: false);
+
+        $this->assertNotContains(
+            'unlocated_adjacent_song',
+            array_column($this->policy->reviewReasons($section->fresh()), 'kind'),
+        );
+    }
+
+    /**
+     * Print a song after this section's own item in the order of service, and
+     * say whether any section claims it.
+     */
+    private function printFollowingSong(ServiceSection $section, string $title, bool $located): void
+    {
+        $item = $section->churchServiceItem;
+        $item->forceFill(['type' => 'songs', 'position' => 1])->save();
+
+        $following = ChurchServiceItem::factory()->create([
+            'church_service_id' => $item->church_service_id,
+            'song_id' => Song::factory()->create()->id,
+            'type' => 'songs',
+            'position' => 2,
+            'title' => $title,
+        ]);
+
+        if (! $located) {
+            return;
+        }
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $section->media_processing_log_id,
+            'church_service_item_id' => $following->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'start_time' => 900.0,
+            'end_time' => 1100.0,
+            'duration' => 200.0,
+        ]);
+    }
+
     private function section(
         string $grade,
         array $provenance,
