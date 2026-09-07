@@ -3670,9 +3670,64 @@ the same shared-pipeline shape as the mixed-song clips.
   sermon material (1511) is a content-loss case and the more serious of the two;
   a genuine long item (4354, 4525) should be confirmable and dismissed. The flag
   identifies the population, it does not adjudicate it.
-- [ ] 1511 is a **new class not previously recorded**: sermon material living
+- [x] 1511 is a **new class not previously recorded**: sermon material living
   outside the sermon section, invisible to the span-coverage gate because it is
   fully observed. Census it properly before generalising from one case.
+  **Censused — and it is not one class.** See below.
+
+###### What a "song" section actually contains, censused 2026-09-07
+
+**Word count cannot separate speech from song** — a sung item's transcript can
+carry *more* words than a sermon's when ASR loops on a refrain (§4525: 5,149 words
+in 770 s, 401 wpm). Prose and lyrics differ in **repetition**, so the measure used
+was the share of **distinct 5-grams**, computed over every section of every
+completed operation-4 run with 60+ words. It separates cleanly:
+
+| type | n | p10 | median |
+|---|---:|---:|---:|
+| **song** | 935 | **0.205** | **0.742** |
+| sermon | 406 | 0.861 | 0.970 |
+| prayer | 615 | 0.941 | 0.992 |
+| bible_reading | 517 | 0.954 | 0.996 |
+| childrens_talk | 165 | 0.940 | 0.985 |
+| notices / welcome / other | 644 | 0.948–0.982 | 0.995–1.000 |
+
+Eleven song sections hold 300+ words at a ratio ≥ 0.95 — long, unrepetitive prose
+inside a "song". **Reading all eleven found five different things, not one class:**
+
+| what it is | sections |
+|---|---|
+| **Sermon material absorbed** | **§1511** (a preaching illustration on Christ crucified), **§2578** (*"he declares them to be righteous in his sight"*, then the song announcement) |
+| **A prayer typed as a song** | **§988** — *"show us the guilt and pollution of sin"*. **Published, no flags, no review** |
+| Bible reading tail absorbed | §1929 |
+| Extended spoken introduction absorbed | §2490 (the carol author's story), §3308, §1457, §1728, §2486, §2487 |
+| **False positive** — genuine lyrics, simply not repetitive | §4335 (*"I cannot tell why he who angels worship"*) |
+
+So 1511's class has **two** members, not one, and the dominant pattern is the
+already-named spoken-framing category of P8-Q9 — reached by a sharper instrument.
+The distinct-5-gram ratio is therefore a candidate measure for P8-Q9's 162
+sole-reason framing cases: it distinguishes a brief announcement from an absorbed
+prayer, reading or sermon, which the single "spoken framing" reason cannot.
+
+**What the macro flag caught, and what it did not.** The four over-six-minute
+members (§1511, §2486, §2487, §2490) are now flagged. The other seven run
+218–286 s, sit inside the ceiling, and remain unflagged — **including §988, a
+prayer with a generated 218-second song clip and no review of any kind**.
+
+**Exposure.** All six generated clips in this set are `quarantined` on
+`historic_quarantine`, so none is publicly reachable. But **four publicly released
+song clips on the routine weekly pipeline exceed the ceiling** — §306 (510 s),
+§309 (500 s), §322 (458 s), §437 (369 s) — each `publication_state = published`
+with a null asset disk, the same `publiclyReleased()` posture as #335. Their
+content could **not** be verified locally: routine runs no longer retain their
+service transcripts and the assets are the known null-`asset_disk` case. All four
+are now flagged and awaiting review, as is §398, whose only previous flag was the
+always-demoted cross-type inversion — it was invisible to the review queue before.
+
+- [ ] Judge the four public over-length clips from the assets themselves, which
+  needs production access rather than a local read.
+- [ ] Decide whether a prayer or reading typed as a song should be caught by type
+  rather than by length. §988 shows the length ceiling alone does not reach it.
 
 **ASR also needs calibration below its current pathology floor.** #1181 contains
 21 consecutive “He couldn't have learned the same” cues over about 21 seconds,
