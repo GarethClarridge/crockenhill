@@ -3665,18 +3665,161 @@ returns nothing, still marks the whole window — those paths are unchanged.
 - [x] Accept a partly-pathological retry by region rather than as one verdict.
   Regression fixtures cover run 1229's shape, a retry looping throughout, an
   empty retry, and residual-window offsetting onto the recording clock.
+- [x] Measure what the fix recovers before re-running anything. **Censused over
+  130 runs the same day** — 5.01 h of 15.68 h recovered, +27,282 words, and both
+  fail-level runs fall to 0% blind. See *What the region-wise fix actually
+  recovers* below for the distribution and the 31 runs it does not help.
 - [ ] **Re-run recovery over the affected corpus.** This changes what the
   pipeline banks in future; it does not touch a banked transcript. The named
   runs keep their present evidence until recovery is re-run over them, and
-  #1148's and #1043's dispositions cannot be settled before that.
-- [ ] Re-measure `SermonEvidenceCoverage` afterwards. Both fail-level runs are
-  expected to fall well below the 40% line once their windows shrink to the
-  leading-edge loop, which would leave the gate's thresholds — set on the old,
-  overstated fractions — resting on figures that no longer describe the corpus.
-  **Do not re-tune them before the re-run; re-derive the census from it.**
+  #1148's and #1043's dispositions cannot be settled before that. **No
+  transcription is needed**: every retry is already archived — see *The discarded
+  retries were archived all along*. `historic-import:recover-calibration-transcripts`
+  is the right shape (offline, banked inputs, no processing records) but is
+  manifest-driven and calibration-scoped, and it reads the *banked* transcript
+  whose looping cues were already deleted; a re-run reads `.raw.json` plus the
+  banked retry.
+- [x] Re-measure `SermonEvidenceCoverage`. **Done as part of the census, and the
+  result is worse than expected for the gate**: the cohort's maximum blind
+  fraction falls to 11.9%, so the 40% line would fail nobody and the 10% line
+  flag one. **Do not re-tune from the census figures** — re-derive from what an
+  actual re-run banks.
+- [ ] Decide what re-analysis the recovered evidence obliges. This is where the
+  provider spend is: #1148 gains 3,243 words and its banked title, null reference
+  and summary all derive from the 81 it had. Recovery is free and local;
+  re-analysis is not.
+- [ ] Re-place boundaries where recovery moved the evidence but not the
+  structure. #1195 is the worked case — evidence back, boundary unchanged.
 - [ ] Reconsider the 120-second pathology floor *after* the re-run, not before.
   A shorter floor now also decides how much of a retry is kept, so it is no
   longer only a detection question.
+
+###### What the region-wise fix actually recovers, censused 2026-09-07
+
+The fix was diagnosed on two runs. This is the corpus.
+
+**Method.** For every run still holding both its source recording and its
+pre-recovery `.raw.json`, the real `ServiceTranscriptRecovery` was run over that
+raw transcript against that source — the same service, extractor and local
+`whisper-server` the pipeline uses. Nothing was written to the database: the
+synthetic processing id matches no `MediaProcessingLog`, so
+`ServiceArtifactStorage::record()` returns early. **No banked transcript changed.**
+
+**Scope.** **144** live runs carry unobservable windows totalling **17.5 h**, and
+**every window in the corpus is `retranscription_failed`** — no other reason
+occurs anywhere. 130 of those runs retain both artifacts, giving **15.68 h across
+178 windows** as measurable. 130 of 130 completed without error.
+
+| | blind time | windows |
+|---|---:|---:|
+| banked today | **15.68 h** | 178 |
+| after the fix | **10.67 h** | 176 |
+| **recovered** | **5.01 h (31.9%)** | |
+
+Against the banked `.normalized.json` transcripts that is **+27,282 words** of
+real speech (911,277 → 938,559).
+
+**It is not uniform, and the shortfall is the useful half.**
+
+| outcome | runs | blind before → after |
+|---|---:|---|
+| fully recovered (0 blind) | 5 | 0.79 h → 0 h |
+| partly recovered | 84 | 11.20 h → 6.54 h |
+| **unchanged** | **31** | 2.96 h → 2.96 h |
+| slightly blinder | 10 | 0.73 h → 1.17 h |
+
+The **31 unchanged runs** are those whose retry loops from end to end; there the
+audio really does defeat this decode and the window stays blind, correctly. Run
+1004's 72-minute total-loss window is unchanged to within 0.1 s, which is the
+negative control: the change does not manufacture recovery. **Those 31 runs, ~3.0 h,
+are the only population for which an alternative decode is still worth
+evaluating** — not the 15.7 h the earlier reading implied. The 10 slightly blinder
+runs are precision, not regression: a residual loop is now recorded at its own
+bounds instead of being absorbed into one larger window, so one window can become
+two that together span a little more.
+
+**The named cohort collapses.**
+
+| sermon | blind fraction of sermon span | words in span | |
+|---|---|---:|---|
+| **1148** | **96.5% → 0.0%** | **81 → 3,324** | was the false completion |
+| **1043** | **49.2% → 0.0%** | 705 → 1,177 | |
+| 1299 | 27.4% → 5.8% | 4,639 → 5,848 | |
+| 1135 | 24.5% → 2.4% | 2,973 → 3,887 | the hidden first eight minutes |
+| 1252 | 13.5% → **11.9%** | 3,418 → 3,423 | the only one still flagged |
+| 1248 | 8.3% → 7.7% | 3,647 → 3,647 | window never met the span |
+| 942 | 5.1% → 0.5% | 3,898 → 4,035 | |
+
+Sermon **1148 was never absent**. Its span now holds 3,324 words opening *"When I
+stand behind the lectern each week on a Sunday, should my legs be shaking…"* — a
+sermon's first sentence, not the closing prayer its banked title was taken from.
+
+**This voids the evidence gate's calibration.** `SermonEvidenceCoverage`'s 40% line
+was set "in the gap between 1148 at 96.5% and 1043 at 49.2% and the healthy
+remainder, whose worst case is 1299 at 27.4%". After recovery the entire cohort's
+maximum is **11.9%**: the gate would fail **0** runs where it would have failed 2,
+and flag **1** where it would have flagged 3. Both lines were drawn across a
+distribution this defect created.
+
+- [ ] **Do not retune the thresholds from these figures.** They are a fresh
+  transcription of the same audio, and whisper is not bit-deterministic between
+  runs, so they indicate the shape of the corpus, not its final values. Re-run
+  recovery for real, then re-derive the census from what gets banked.
+- [ ] The 40%/10% lines will need re-deriving against that distribution, or the
+  gate becomes inert — a fail line at 40% over a corpus topping out near 12%
+  never fires.
+
+**#1195 needs re-detection, not just recovery.** Its 1,558-second `other` section
+(3488, confidence 0.20) now holds **2,592 recovered words**, so the evidence is
+back. But its sermon boundary is still at 2855.8 and the sermon still opens
+mid-argument on *"or obedience to Jesus is a dead faith"*. The boundary was placed
+by structure detection reading the blind transcript, and recovery alone does not
+move it. **Recovering the evidence and re-placing the boundary are two steps**, and
+only the first is addressed here.
+
+###### The discarded retries were archived all along
+
+The re-run does not need transcription. **Every retry the pipeline ever made is
+still on disk**, in `service-transcripts/unknown-date/` as
+`other-<processing id>-recovery-<n>.raw.json` — 413 artifacts under 213 processing
+ids, covering **130 of 130 affected runs and 178 of 178 windows**. They land in
+`unknown-date` rather than beside their run because the recovery's synthetic id
+(`<processingId>-recovery-<n>`) matches no `MediaProcessingLog`, so
+`ServiceArtifactStorage` cannot resolve a date — the same orphaning recorded for
+the 911 raw artifacts, here working in our favour.
+
+`putJson()` archives the retry *before* `recover()` decides what to do with it. So
+the transcription was banked and the decision to discard it was taken afterwards,
+against a copy that has been sitting on the drive since 2 September.
+
+**They corroborate the census from the pipeline's own evidence**, not a fresh
+transcription of the same audio:
+
+| run 1229, attempt 3 | segments | words | loop | words outside the loop |
+|---|---:|---:|---|---:|
+| banked 2026-09-02 | 1,461 | 3,284 | 0–182 s, 7 × "amen" | **3,277** |
+| re-transcribed 2026-09-07 | 1,405 | 3,282 | 0–182 s, 7 × "amen" | 3,275 |
+
+Two independent transcriptions five days apart agree to within whisper's own
+non-determinism, and both hold the sermon.
+
+This makes the re-run **deterministic, free and auditable**: read the banked
+retry, apply the region-wise rule, compare against the banked transcript. No
+model call, no ffmpeg, no dependence on the source recording still existing — and
+it reproduces exactly what the pipeline saw rather than a fresh approximation of
+it. `historic-import:recover-calibration-transcripts` is the right shape for this
+and already reads banked artifacts offline.
+
+- [ ] **Map attempt to window by clip length, not by index.** `-recovery-<n>` is
+  the *window index within one job attempt*, and a run that was retried overwrites
+  in place, so run 1229 has three artifacts against two banked windows. Matching
+  is by the artifact's last segment end against the window's duration — and it is
+  inexact in the same direction every time: 1229's 2,037-second window matches its
+  artifact to 0.01 s, but its 184-second window's artifact ends at 175.5 s because
+  the clip's tail is silent. Treat clip end as a **lower bound** on window length
+  and resolve ambiguity explicitly; do not assume artifact *n* is window *n*.
+- [ ] Re-derive the whole census from the banked retries once that mapping is
+  settled, and prefer it to the re-transcribed figures above wherever they differ.
 
 ###### The neighbouring-section half: a blind region typed as a song
 
@@ -4158,10 +4301,13 @@ dated phase sections. It is not a current instruction to dispatch another pass.
   **The reason those spans were blind is now known and fixed**: `recover()`
   discarded an entire retry whenever any region of it looped, throwing away 3,275
   and 2,840 genuinely transcribed words on the two fail-level runs. It now keeps
-  the retry region by region. **Re-running recovery over the affected runs is the
-  next action**, and the gate's 40%/10% thresholds should be re-derived from that
-  re-run rather than trusted afterwards — they were set on fractions this defect
-  inflated. Note that no banked transcript changes until recovery is re-run.
+  the retry region by region. Censused over 130 runs on 2026-09-07: **5.01 h of
+  15.68 h of blind time recovered (31.9%), +27,282 words**, both fail-level runs
+  to **0%** blind, and sermon #1148 restored from 81 words to 3,324. **Re-running
+  recovery for real is the next action** — nothing is banked yet, and there is no
+  command that does it. The gate's 40%/10% thresholds must then be re-derived:
+  they were set on fractions this defect inflated, and over the recovered corpus
+  the fail line would never fire.
 - [ ] Resolve the **four** demonstrated mixed-song generated clips (P8-Q10).
   **Two shared-pipeline gates are now in place**: `unresolved_multiple_songs`
   (OCR route) and `unlocated_adjacent_song` (printed-order route, added
