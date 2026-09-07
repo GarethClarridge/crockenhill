@@ -141,7 +141,9 @@ class ReviewInboxQuery
                     $reviewGroup['date'],
                     $reviewGroup['service_enum'],
                     [
-                        'kind' => 'section',
+                        'kind' => collect($entry['reasons'])->every(
+                            static fn (array $reason): bool => $reason['key'] === 'pending_approval',
+                        ) ? 'publication_approval' : 'section_review',
                         'section' => $entry['section'],
                         'reasons' => $entry['reasons'],
                         'review_reason' => $entry['review_reason'],

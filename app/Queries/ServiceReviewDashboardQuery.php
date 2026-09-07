@@ -233,6 +233,19 @@ class ServiceReviewDashboardQuery
         return $this->reviewCandidateSectionsBaseQuery()->count();
     }
 
+    public function processingReviewSectionCount(): int
+    {
+        return $this->reviewCandidateSectionsBaseQuery(includePublicationApprovals: false)->count();
+    }
+
+    public function pendingPublicationApprovalCount(): int
+    {
+        return ServiceSection::query()
+            ->notSuperseded()
+            ->where('publication_status', ServiceSectionPublicationStatus::PendingApproval->value)
+            ->count();
+    }
+
     /**
      * Services awaiting a merge decision, counted once each. A service can carry both
      * a legacy structure merge and pending evidence proposals; adding the two totals
@@ -596,16 +609,19 @@ class ServiceReviewDashboardQuery
      *
      * @return Builder<ServiceSection>
      */
-    private function reviewCandidateSectionsBaseQuery(): Builder
+    private function reviewCandidateSectionsBaseQuery(bool $includePublicationApprovals = true): Builder
     {
         return ServiceSection::query()
             // Sections belonging to a superseded run (a duplicate/earlier
             // processing of the same service) are kept for audit but never
             // reviewed — the winning run owns the service's structure.
             ->notSuperseded()
-            ->where(function (Builder $query): void {
+            ->where(function (Builder $query) use ($includePublicationApprovals): void {
                 $query->where('needs_manual_review', true)
-                    ->orWhere('publication_status', ServiceSectionPublicationStatus::PendingApproval->value)
+                    ->when(
+                        $includePublicationApprovals,
+                        fn (Builder $query): Builder => $query->orWhere('publication_status', ServiceSectionPublicationStatus::PendingApproval->value),
+                    )
                     ->orWhere(function (Builder $query): void {
                         $query->whereIn('section_type', array_map(
                             static fn (ServiceSectionType $type): string => $type->value,

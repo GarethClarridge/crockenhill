@@ -62,7 +62,7 @@ class ListChurchServicesAttentionTest extends TestCase
 
         Livewire::test(ListChurchServices::class)
             ->assertSee('7 Jun 2026 — Morning')
-            ->assertSee('2 sections to confirm · 1 sermon segment needs choosing · 1 plan conflict to resolve · 1 service needs checking')
+            ->assertSee('2 processing decisions to review · 1 sermon segment needs choosing · 1 plan conflict to resolve · 1 service needs checking')
             ->assertSeeHtml(route('admin.services.show', $service))
             ->assertDontSee('Choose segment')
             ->assertDontSee('Mark reviewed');

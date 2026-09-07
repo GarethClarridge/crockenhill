@@ -36,6 +36,7 @@ class AdminAttentionCounts
      *     pending_emails: int,
      *     awaiting_segment_runs: int,
      *     flagged_sections: int,
+     *     pending_publication_approvals: int,
      *     pending_merges: int,
      *     services_needing_review: int
      * }
@@ -47,6 +48,7 @@ class AdminAttentionCounts
                 'pending_emails' => 0,
                 'awaiting_segment_runs' => 0,
                 'flagged_sections' => 0,
+                'pending_publication_approvals' => 0,
                 'pending_merges' => 0,
                 'services_needing_review' => 0,
             ];
@@ -63,6 +65,7 @@ class AdminAttentionCounts
                 ->awaitingManualSermonReview()
                 ->count(),
             'flagged_sections' => $this->flaggedSectionCount(),
+            'pending_publication_approvals' => $this->pendingPublicationApprovalCount(),
             'pending_merges' => $this->dashboardQuery->pendingMergeCount(),
             /**
              * Current era only. Historic evidence-tier imports are unreviewed by design
@@ -83,6 +86,7 @@ class AdminAttentionCounts
      *     pending_emails: int,
      *     awaiting_segment_runs: int,
      *     flagged_sections: int,
+     *     pending_publication_approvals: int,
      *     pending_merges: int,
      *     services_needing_review: int
      * }
@@ -93,7 +97,7 @@ class AdminAttentionCounts
     }
 
     /**
-     * @param  array{pending_emails: int, awaiting_segment_runs: int, flagged_sections: int, pending_merges: int, services_needing_review: int}|null  $counts
+     * @param  array{pending_emails: int, awaiting_segment_runs: int, flagged_sections: int, pending_publication_approvals: int, pending_merges: int, services_needing_review: int}|null  $counts
      */
     public function total(?array $counts = null): int
     {
@@ -106,6 +110,15 @@ class AdminAttentionCounts
             return 0;
         }
 
-        return $this->dashboardQuery->reviewCandidateSectionCount();
+        return $this->dashboardQuery->processingReviewSectionCount();
+    }
+
+    private function pendingPublicationApprovalCount(): int
+    {
+        if (! (bool) config('media-processing.section_publishing.enabled', true)) {
+            return 0;
+        }
+
+        return $this->dashboardQuery->pendingPublicationApprovalCount();
     }
 }

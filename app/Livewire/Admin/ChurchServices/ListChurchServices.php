@@ -182,7 +182,8 @@ class ListChurchServices extends Component
                 fn (array $item): bool => $item['kind'] === 'email',
             ));
             $group['summary'] = collect([
-                $this->summaryPart($kindCounts['section'] ?? 0, 'section to confirm', 'sections to confirm'),
+                $this->summaryPart($kindCounts['section_review'] ?? 0, 'processing decision to review', 'processing decisions to review'),
+                $this->summaryPart($kindCounts['publication_approval'] ?? 0, 'publication awaiting approval', 'publications awaiting approval'),
                 $this->summaryPart($kindCounts['segment'] ?? 0, 'sermon segment needs choosing', 'sermon segments need choosing'),
                 $this->summaryPart($kindCounts['merge'] ?? 0, 'plan conflict to resolve', 'plan conflicts to resolve'),
                 $this->summaryPart($kindCounts['proposal'] ?? 0, 'evidence proposal to review', 'evidence proposals to review'),

@@ -40,6 +40,7 @@ class AdminAttentionCountsTest extends TestCase
             'pending_emails' => 0,
             'awaiting_segment_runs' => 0,
             'flagged_sections' => 0,
+            'pending_publication_approvals' => 0,
             'pending_merges' => 0,
             'services_needing_review' => 0,
         ], $counts);
@@ -85,6 +86,24 @@ class AdminAttentionCountsTest extends TestCase
         ]);
 
         $this->assertSame(1, $this->query->counts()['flagged_sections']);
+    }
+
+    #[Test]
+    public function it_reports_publication_approval_separately_from_processing_review(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create();
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Prayer,
+            'needs_manual_review' => false,
+            'confidence' => 0.99,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval,
+        ]);
+
+        $counts = $this->query->counts();
+
+        $this->assertSame(0, $counts['flagged_sections']);
+        $this->assertSame(1, $counts['pending_publication_approvals']);
     }
 
     #[Test]
@@ -161,7 +180,10 @@ class AdminAttentionCountsTest extends TestCase
             'needs_manual_review' => true,
         ]);
 
-        $this->assertSame(0, $this->query->counts()['flagged_sections']);
+        $counts = $this->query->counts();
+
+        $this->assertSame(0, $counts['flagged_sections']);
+        $this->assertSame(0, $counts['pending_publication_approvals']);
     }
 
     #[Test]

@@ -278,6 +278,7 @@ class LivestreamChurchServiceProjectionService
             'is_new_service' => $isNewService,
             'items_projected' => $itemCount,
             'needs_review' => $needsReview,
+            'review_reason_counts' => $this->reviewReasonCounts($sections),
         ]);
 
         return [
@@ -397,6 +398,35 @@ class LivestreamChurchServiceProjectionService
         }
 
         return false;
+    }
+
+    /**
+     * @param  Collection<int, ServiceSection>  $sections
+     * @return array<string, int>
+     */
+    private function reviewReasonCounts(Collection $sections): array
+    {
+        $counts = [];
+
+        foreach ($sections as $section) {
+            $metadata = $section->metadata?->toArray() ?? [];
+            $flags = is_array($metadata['review_flags'] ?? null) ? $metadata['review_flags'] : [];
+
+            foreach (array_filter($flags, 'is_string') as $flag) {
+                $counts[$flag] = ($counts[$flag] ?? 0) + 1;
+            }
+
+            if ($section->needs_manual_review && $flags === []) {
+                $reason = is_string($metadata['review_reason'] ?? null)
+                    ? $metadata['review_reason']
+                    : 'unspecified_manual_review';
+                $counts[$reason] = ($counts[$reason] ?? 0) + 1;
+            }
+        }
+
+        ksort($counts);
+
+        return $counts;
     }
 
     /**

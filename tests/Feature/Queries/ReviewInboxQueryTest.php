@@ -82,7 +82,7 @@ class ReviewInboxQueryTest extends TestCase
 
         $kinds = collect($group['items'])->pluck('kind')->toArray();
         $this->assertContains('email', $kinds);
-        $this->assertContains('section', $kinds);
+        $this->assertContains('section_review', $kinds);
         $this->assertContains('segment', $kinds);
         $this->assertContains('merge', $kinds);
         $this->assertContains('service_flag', $kinds);
@@ -226,6 +226,24 @@ class ReviewInboxQueryTest extends TestCase
         $this->assertSame(1, $result['counts']['segments']);
         $this->assertSame(1, $result['counts']['sections']);
         $this->assertSame(4, $result['counts']['all']);
+    }
+
+    #[Test]
+    public function it_labels_publication_only_sections_separately_from_processing_reviews(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create();
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'confidence' => 0.99,
+            'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval,
+        ]);
+
+        $item = collect($this->query->build()['groups'])
+            ->pluck('items')->flatten(1)->first();
+
+        $this->assertSame('publication_approval', $item['kind']);
     }
 
     #[Test]

@@ -24,6 +24,7 @@ use App\Services\Public\PublicSongUsageService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -318,6 +319,31 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         $this->assertTrue(
             $churchService->fresh()->needs_review,
             'Section review state must roll up to the OoS-backed service when projection merges.'
+        );
+    }
+
+    #[Test]
+    public function test_logs_exact_review_reason_counts_when_projecting(): void
+    {
+        Log::spy();
+
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
+        [$section] = $this->createSections($log, [
+            ['type' => ServiceSectionType::Sermon, 'title' => 'Uncertain sermon', 'confidence' => 0.4],
+        ]);
+        $section->forceFill([
+            'needs_manual_review' => true,
+            'metadata' => ['review_flags' => ['structure_low_confidence', 'structure_missing_preached_reading']],
+        ])->save();
+
+        $this->service->project($log);
+
+        Log::shouldHaveReceived('info')->with(
+            'Livestream service structure projected',
+            \Mockery::on(fn (array $context): bool => $context['review_reason_counts'] === [
+                'structure_low_confidence' => 1,
+                'structure_missing_preached_reading' => 1,
+            ]),
         );
     }
 
