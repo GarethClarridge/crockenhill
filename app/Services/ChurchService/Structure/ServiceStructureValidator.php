@@ -26,6 +26,46 @@ class ServiceStructureValidator
 
     public const FLAG_MICRO_SECTION = 'structure_micro_section';
 
+    /**
+     * A section longer than its type can plausibly be.
+     *
+     * The twin of {@see self::FLAG_MICRO_SECTION}, and it exists because the
+     * detector's confidence is a judgement about how it *typed* a section, not
+     * about how much evidence underwrites the span it claimed. Section 1977
+     * (sermon 1043, 2024-12-29) claimed 29.5 minutes as one song on the strength
+     * of a 30-second spoken announcement — "let's stand and sing", then nothing —
+     * and scored itself 0.94 with no review flag at all. Section 3437 repeats it
+     * at 7.1 minutes and 0.97, its only flag one the policy always demotes.
+     *
+     * Blindness alone cannot catch these: a genuine four-minute hymn is also
+     * ~95% unobserved, because sung words are not speech. What separates them is
+     * that the claimed length is impossible for the type.
+     */
+    public const FLAG_MACRO_SECTION = 'structure_macro_section';
+
+    /**
+     * The longest a section of each type can plausibly run, in seconds.
+     *
+     * Only types with a real ceiling appear. Six minutes for a song is the
+     * operator's own figure, and the corpus agrees emphatically: of 1,078 song
+     * sections across the 406 completed operation-4 runs, **1,049 (97.3%) are
+     * inside it**, and the whole tail beyond is 20 between six and ten minutes,
+     * six to fifteen, two to twenty and one at 29.5.
+     *
+     * Deliberately not config-backed. This is domain knowledge about what a sung
+     * item is, not an operator tunable, and the existing
+     * `SERVICE_STRUCTURE_MIN_SECTION` seam has no counterpart worth adding.
+     *
+     * `other` is the obvious next candidate — it reaches 3,021 seconds against a
+     * 145-second mean — but it is a catch-all with no established ceiling, so
+     * inventing one here would manufacture review rather than measure it.
+     *
+     * @var array<string, float>
+     */
+    private const PLAUSIBLE_MAXIMUM_SECONDS = [
+        'song' => 360.0,
+    ];
+
     public const FLAG_BENEDICTION_SUSPECT = 'structure_benediction_suspect';
 
     public const FLAG_OOS_CROSS_TYPE_INVERSION = 'structure_oos_cross_type_inversion';
@@ -144,6 +184,7 @@ class ServiceStructureValidator
         'presentation_positional_fallback',
         self::FLAG_LOW_CONFIDENCE,
         self::FLAG_MICRO_SECTION,
+        self::FLAG_MACRO_SECTION,
         self::FLAG_BENEDICTION_SUSPECT,
         self::FLAG_SONG_TITLE_MARKER_MISMATCH,
         'unknown_section_type',
@@ -172,6 +213,7 @@ class ServiceStructureValidator
     public const REANNOTATED_FLAGS = [
         self::FLAG_LOW_CONFIDENCE,
         self::FLAG_MICRO_SECTION,
+        self::FLAG_MACRO_SECTION,
         self::FLAG_BENEDICTION_SUSPECT,
         self::FLAG_SONG_TITLE_MARKER_MISMATCH,
     ];
@@ -191,6 +233,7 @@ class ServiceStructureValidator
         'presentation_positional_fallback',
         self::FLAG_LOW_CONFIDENCE,
         self::FLAG_MICRO_SECTION,
+        self::FLAG_MACRO_SECTION,
         self::FLAG_BENEDICTION_SUSPECT,
         'unknown_section_type',
     ];
@@ -822,6 +865,12 @@ class ServiceStructureValidator
 
             if ($section->duration() < $minSectionSeconds) {
                 $flags[] = self::FLAG_MICRO_SECTION;
+            }
+
+            $maximumSeconds = self::PLAUSIBLE_MAXIMUM_SECONDS[$section->type->value] ?? null;
+
+            if ($maximumSeconds !== null && $section->duration() > $maximumSeconds) {
+                $flags[] = self::FLAG_MACRO_SECTION;
             }
 
             if (self::isBenedictionSuspect(

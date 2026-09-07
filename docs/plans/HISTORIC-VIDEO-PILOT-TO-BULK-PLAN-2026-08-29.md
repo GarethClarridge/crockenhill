@@ -3611,6 +3611,69 @@ Had the gate existed during the pass it would have failed **2** runs (#1148,
 #1043) and flagged **3** (#1299, #1135, #1252) out of 406. All five are quarantined
 and none is publicly reachable.
 
+###### The neighbouring-section half: a blind region typed as a song
+
+Chasing #1195's class — evidence lost *outside* the sermon span — found the
+mechanism, and it is not confined to the sermon's neighbours.
+
+**133 non-sermon sections across 102 runs hold 60 s or more of blind time**, but
+almost all are unremarkable: a sung hymn produces no speech cues, so a genuine
+four-minute song is also ~95% unobserved. Blindness alone therefore cannot
+separate a real song from a hole. **Length can**, because a sung item has a
+ceiling — six minutes, per the operator, and the corpus agrees: **1,049 of 1,078
+song sections (97.3%) sit inside it**, with the whole tail being 20 to ten
+minutes, six to fifteen, two to twenty and one at 29.5.
+
+Reading the transcript of every song over six minutes found **three distinct
+defects**, not one:
+
+| section | length | words | blind | what the text is |
+|---|---:|---:|---:|---|
+| **1977** (#1043) | 29.5 min | 96 | 98% | the spoken announcement — *"let's stand and sing"* — then **nothing for 29 minutes**. Confidence **0.94**, **no flag at all** |
+| **3437** (#1191) | 7.1 min | 28 | 97% | announcement, then silence. Confidence **0.97**; its only flag is cross-type inversion, which the policy always demotes |
+| **1511** (#974) | 19 min | 1,834 | **0%** | **sermon material** — a preaching illustration on Christ crucified — mistyped as a song |
+| 4525 (#1283) | 12.8 min | 5,149 | 0% | genuine: a hymn practice, *"let's have one more go at that"* (ASR looping at 401 wpm) |
+| 4354 (#1268) | 12 min | 606 | 0% | genuine: a carol sung through with repeats |
+
+**Confidence is decoupled from evidence.** Section 1977 claimed 29.5 minutes as
+one song on a 30-second announcement and scored itself 0.94, because confidence
+judges how a section was *typed*, not what underwrites the span it claimed. That
+is the same defect as #1148 one layer up, and #1977 sits immediately before
+#1043's sermon — the sermon that opens mid-sentence — so that sermon's true start
+is very likely inside the hole.
+
+`ServiceStructureValidator` already raises `structure_micro_section` for sections
+too *short*. `structure_macro_section` is its twin, with a per-type ceiling map
+holding only `song => 360.0`. It is deliberately not config-backed: this is domain
+knowledge about what a sung item is, not an operator tunable. `other` is the
+obvious next candidate — 3,021 s against a 145 s mean — but it is a catch-all with
+no established ceiling, and inventing one would manufacture review rather than
+measure it.
+
+Because the flag is a pure fact about banked structure it joins `REANNOTATED_FLAGS`,
+so `services:rederive-structure-review-flags` applies it retroactively with **no
+reprocessing and no provider calls**. The dry run raises it on **38 sections across
+33 services and removes nothing**.
+
+**This is not a historic-lane defect.** Of those 38, **29 are operation 4, seven
+come off the routine weekly pipeline and two from earlier historic operations** —
+the same shared-pipeline shape as the mixed-song clips.
+
+- [x] Flag song sections longer than a sung item can plausibly run, at detection
+  and retroactively over banked structure. Regression fixtures cover 1977's and
+  3437's shapes, a confident over-long song, an ordinary song inside the ceiling,
+  and a type with no ceiling.
+- [ ] Run the rederivation. **Not yet executed** — it raises the review queue by
+  38 and that is an operator decision, not a side effect of the code landing.
+- [ ] Decide what a flagged over-long song means for each of the three classes.
+  A hole (1977, 3437) needs the region re-examined and probably re-typed; mistyped
+  sermon material (1511) is a content-loss case and the more serious of the two;
+  a genuine long item (4354, 4525) should be confirmable and dismissed. The flag
+  identifies the population, it does not adjudicate it.
+- [ ] 1511 is a **new class not previously recorded**: sermon material living
+  outside the sermon section, invisible to the span-coverage gate because it is
+  fully observed. Census it properly before generalising from one case.
+
 **ASR also needs calibration below its current pathology floor.** #1181 contains
 21 consecutive “He couldn't have learned the same” cues over about 21 seconds,
 with no unobservable-window flag. `ServiceTranscriptPathologyDetector` defaults

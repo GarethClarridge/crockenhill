@@ -52,6 +52,7 @@ class SectionReviewFlagPolicy
     private const CONDITIONALLY_DEMOTED_FLAGS = [
         ServiceStructureValidator::FLAG_LOW_CONFIDENCE,
         ServiceStructureValidator::FLAG_MICRO_SECTION,
+        ServiceStructureValidator::FLAG_MACRO_SECTION,
         ServiceStructureValidator::FLAG_OOS_STRUCTURE_MISMATCH,
     ];
 

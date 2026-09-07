@@ -567,6 +567,80 @@ class ServiceStructureValidatorTest extends TestCase
         $this->assertContains(ServiceStructureValidator::FLAG_MICRO_SECTION, $result->structure->sections[0]->reviewFlags);
     }
 
+    /**
+     * Section 1977, sermon 1043: 29.5 minutes claimed as one song on a 30-second
+     * spoken announcement, scored 0.94, and previously flagged by nothing at all.
+     */
+    #[Test]
+    public function a_song_longer_than_a_sung_item_can_plausibly_run_gets_a_soft_flag(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('song', 0.0, 700.0, confidence: 0.94),
+            $this->section('sermon', 700.0, 2400.0),
+        ]);
+
+        $result = $this->validator->validate($structure, $this->context());
+
+        $this->assertTrue($result->passed());
+        $this->assertContains(ServiceStructureValidator::FLAG_MACRO_SECTION, $result->structure->sections[0]->reviewFlags);
+    }
+
+    /**
+     * High confidence must not suppress the flag: the detector's confidence
+     * describes how it typed the section, not what underwrites the span.
+     */
+    #[Test]
+    public function a_confident_over_long_song_is_still_flagged(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('song', 0.0, 424.0, confidence: 0.97),
+            $this->section('sermon', 500.0, 2200.0),
+        ]);
+
+        $result = $this->validator->validate($structure, $this->context());
+
+        $flags = $result->structure->sections[0]->reviewFlags;
+
+        $this->assertContains(ServiceStructureValidator::FLAG_MACRO_SECTION, $flags);
+        $this->assertNotContains(ServiceStructureValidator::FLAG_LOW_CONFIDENCE, $flags);
+    }
+
+    /**
+     * 1,049 of the corpus's 1,078 songs sit inside the ceiling; a six-minute
+     * hymn is ordinary and must not be held.
+     */
+    #[Test]
+    public function a_song_within_the_plausible_ceiling_is_not_flagged(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('song', 100.0, 455.0),
+            $this->section('sermon', 500.0, 2200.0),
+        ]);
+
+        $result = $this->validator->validate($structure, $this->context());
+
+        $this->assertNotContains(ServiceStructureValidator::FLAG_MACRO_SECTION, $result->structure->sections[0]->reviewFlags);
+    }
+
+    /**
+     * Only types with an established ceiling carry one. A sermon runs 26 minutes
+     * on average and `other` is a catch-all, so neither may be held by length.
+     */
+    #[Test]
+    public function types_without_a_plausible_ceiling_are_never_flagged_for_length(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('other', 0.0, 700.0),
+            $this->section('sermon', 700.0, 2400.0),
+        ]);
+
+        $result = $this->validator->validate($structure, $this->context());
+
+        foreach ($result->structure->sections as $section) {
+            $this->assertNotContains(ServiceStructureValidator::FLAG_MACRO_SECTION, $section->reviewFlags);
+        }
+    }
+
     #[Test]
     public function a_short_reading_at_the_end_of_the_service_is_flagged_as_a_possible_benediction(): void
     {
