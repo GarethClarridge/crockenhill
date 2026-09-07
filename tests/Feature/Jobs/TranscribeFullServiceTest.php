@@ -9,6 +9,7 @@ use App\Data\ChurchServiceTranscript;
 use App\Jobs\TranscribeFullService;
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Audio\MockServiceTranscriptionService;
+use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Media\Audio\ServiceTranscriptRecovery;
 use App\Services\Processing\ProcessingArtifactReuse;
 use App\Services\Processing\StorageAdapterHelper;
@@ -324,6 +325,47 @@ class TranscribeFullServiceTest extends TestCase
         }
 
         return $cues;
+    }
+
+    /**
+     * The real losing sequence: the job holds one instance of the log for the
+     * whole step, and the transcription service records its `raw` payload and
+     * archived audio against the same row through a fresh query part-way
+     * through. Writing the job's snapshot back afterwards discarded both.
+     */
+    #[Test]
+    public function it_preserves_artifacts_recorded_while_the_step_was_running(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        Storage::disk('local')->put((string) $log->source_file_path, 'fake video bytes');
+
+        MockServiceTranscriptionService::useTranscript(ChurchServiceTranscript::fromCues([
+            ['start' => 0.0, 'end' => 30.0, 'text' => 'Good morning and welcome.'],
+        ], 5400.0, ChurchServiceTranscript::SOURCE_MOCK));
+
+        // The artifact must be written *during* the step: the job refreshes the
+        // log before it starts, so anything recorded earlier is already in hand.
+        $this->app->bind(ServiceTranscriptionInterface::class, fn (): ServiceTranscriptionInterface => new class implements ServiceTranscriptionInterface
+        {
+            public function transcribeService(string $audioOrVideoPath, string $processingId, ?string $prompt = null): ChurchServiceTranscript
+            {
+                app(ServiceArtifactStorage::class)->putJson($processingId, 'raw', ['segments' => []]);
+
+                return ChurchServiceTranscript::fromCues(
+                    [['start' => 0.0, 'end' => 30.0, 'text' => 'Good morning and welcome.']],
+                    5400.0,
+                    ChurchServiceTranscript::SOURCE_MOCK,
+                );
+            }
+        });
+
+        $this->runJob($log);
+
+        $metadata = MediaProcessingLog::findOrFail($log->id)->processing_metadata?->toArray() ?? [];
+        $kinds = array_column($metadata[ServiceArtifactStorage::METADATA_KEY] ?? [], 'kind');
+
+        $this->assertContains('raw', $kinds);
+        $this->assertNotNull($metadata['service_transcript_path'] ?? null);
     }
 
     private function runJob(

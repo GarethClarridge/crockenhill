@@ -93,7 +93,13 @@ class ServiceSectionFactory extends Factory
     public function definition(): array
     {
         $startTime = (float) $this->faker->numberBetween(0, 3000);
-        $duration = (float) $this->faker->numberBetween(30, 900);
+        // Capped below the six-minute ceiling a sung item is held to
+        // {@see \App\Services\ChurchService\Structure\ServiceStructureValidator::FLAG_MACRO_SECTION}.
+        // The old 30-900s range straddled it, so a default `song` section drew a
+        // review flag about 40% of the time and any test asserting its exact
+        // flags failed at that rate. A test that wants an implausible length
+        // must now say so.
+        $duration = (float) $this->faker->numberBetween(30, 300);
         $endTime = $startTime + $duration;
 
         return [

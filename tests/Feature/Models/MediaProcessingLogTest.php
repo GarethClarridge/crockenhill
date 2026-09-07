@@ -6,13 +6,46 @@ namespace Tests\Feature\Models;
 
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
+use App\Services\Media\Audio\ServiceArtifactStorage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class MediaProcessingLogTest extends TestCase
 {
     use RefreshDatabase;
+
+    /**
+     * `TranscribeFullService` holds one instance of the log across the whole
+     * step, while `ServiceArtifactStorage::record()` writes the `raw` and
+     * `audio` artifacts through a *fresh* query part-way through it. Writing the
+     * stale in-memory snapshot back afterwards silently dropped both.
+     *
+     * It was not a rare race. Zero `raw` artifacts were recorded across all
+     * 1,362 processing logs while 911 raw files sat on disk, orphaned from the
+     * audit that enumerates them from this metadata.
+     */
+    #[Test]
+    public function it_keeps_metadata_another_writer_added_after_this_instance_loaded(): void
+    {
+        Storage::fake('local');
+        Config::set('media-processing.storage.transcript_disk', 'local');
+
+        $log = MediaProcessingLog::factory()->create();
+        $stale = MediaProcessingLog::findOrFail($log->id);
+
+        app(ServiceArtifactStorage::class)->putJson($log->processing_id, 'raw', ['segments' => []]);
+
+        $stale->putServiceTranscriptPath('service-transcripts/example.normalized.json');
+
+        $metadata = MediaProcessingLog::findOrFail($log->id)->processing_metadata?->toArray() ?? [];
+
+        $this->assertCount(1, $metadata[ServiceArtifactStorage::METADATA_KEY] ?? []);
+        $this->assertSame('raw', $metadata[ServiceArtifactStorage::METADATA_KEY][0]['kind']);
+        $this->assertSame('service-transcripts/example.normalized.json', $metadata['service_transcript_path']);
+    }
 
     #[Test]
     public function it_identifies_completed_status(): void

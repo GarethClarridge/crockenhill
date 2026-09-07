@@ -519,18 +519,20 @@ class MediaProcessingLog extends Model
 
     public function markAsReExtraction(): void
     {
-        $metadata = $this->processing_metadata?->toArray() ?? [];
-        $metadata['re_extraction'] = ['requested' => true, 'requested_at' => now()->toISOString()];
+        $this->writeProcessingMetadata(static function (array $metadata): array {
+            $metadata['re_extraction'] = ['requested' => true, 'requested_at' => now()->toISOString()];
 
-        $this->forceFill(['processing_metadata' => $metadata])->save();
+            return $metadata;
+        });
     }
 
     public function clearReExtraction(): void
     {
-        $metadata = $this->processing_metadata?->toArray() ?? [];
-        unset($metadata['re_extraction']);
+        $this->writeProcessingMetadata(static function (array $metadata): array {
+            unset($metadata['re_extraction']);
 
-        $this->forceFill(['processing_metadata' => $metadata])->save();
+            return $metadata;
+        });
     }
 
     /**
@@ -553,13 +555,14 @@ class MediaProcessingLog extends Model
      */
     public function authoriseVideoReplacementOnPromotion(): void
     {
-        $metadata = $this->processing_metadata?->toArray() ?? [];
-        $metadata['re_extraction'] = [
-            'replacement_authorised' => true,
-            'authorised_at' => now()->toISOString(),
-        ];
+        $this->writeProcessingMetadata(static function (array $metadata): array {
+            $metadata['re_extraction'] = [
+                'replacement_authorised' => true,
+                'authorised_at' => now()->toISOString(),
+            ];
 
-        $this->forceFill(['processing_metadata' => $metadata])->save();
+            return $metadata;
+        });
     }
 
     /**
@@ -863,10 +866,11 @@ class MediaProcessingLog extends Model
      */
     public function putVideoQualityMetadata(array $metadata): void
     {
-        $processingMetadata = $this->processing_metadata?->toArray() ?? [];
-        $processingMetadata['video_quality'] = $metadata;
+        $this->writeProcessingMetadata(static function (array $processingMetadata) use ($metadata): array {
+            $processingMetadata['video_quality'] = $metadata;
 
-        $this->forceFill(['processing_metadata' => $processingMetadata])->save();
+            return $processingMetadata;
+        });
     }
 
     /**
@@ -902,14 +906,50 @@ class MediaProcessingLog extends Model
         return Storage::disk($artifactDisk)->exists($transcriptPath);
     }
 
+    /**
+     * Apply a change to `processing_metadata` against the row's **current**
+     * stored state rather than this instance's snapshot.
+     *
+     * `processing_metadata` is one JSON column that many writers share, and a
+     * pipeline job holds a single model instance across a whole step while other
+     * collaborators write to the same row through fresh queries part-way
+     * through it. Saving the in-memory snapshot afterwards silently discarded
+     * everything they added.
+     *
+     * That was not a rare race but a total loss: `ServiceArtifactStorage` records
+     * the `raw` transcription payload and the archived audio mid-step, and
+     * `TranscribeFullService` then wrote its snapshot back — so **zero `raw`
+     * artifacts existed across all 1,362 processing logs while 911 raw files sat
+     * on disk**, invisible to the orphan audit that enumerates them from here.
+     *
+     * The mutation receives the fresh array and returns the array to store, so a
+     * writer that removes a key expresses that as plainly as one that sets it.
+     * The re-read narrows the window rather than closing it; these writes are
+     * infrequent and sequential within a step, and a genuinely concurrent writer
+     * still needs a column-level merge.
+     *
+     * @param  callable(array<string, mixed>): array<string, mixed>  $mutate
+     */
+    private function writeProcessingMetadata(callable $mutate): void
+    {
+        $stored = $this->exists
+            ? static::query()->whereKey($this->getKey())->first()?->processing_metadata?->toArray()
+            : null;
+
+        $metadata = $mutate($stored ?? $this->processing_metadata?->toArray() ?? []);
+
+        $this->forceFill(['processing_metadata' => $metadata])->save();
+    }
+
     /** @param  list<array{start: float, end: float, reason: string}>  $unobservableWindows */
     public function putServiceTranscriptPath(string $path, array $unobservableWindows = []): void
     {
-        $processingMetadata = $this->processing_metadata?->toArray() ?? [];
-        $processingMetadata['service_transcript_path'] = $path;
-        $processingMetadata['service_transcript_unobservable_windows'] = $unobservableWindows;
+        $this->writeProcessingMetadata(static function (array $metadata) use ($path, $unobservableWindows): array {
+            $metadata['service_transcript_path'] = $path;
+            $metadata['service_transcript_unobservable_windows'] = $unobservableWindows;
 
-        $this->forceFill(['processing_metadata' => $processingMetadata])->save();
+            return $metadata;
+        });
     }
 
     /** @return list<array{start: float, end: float, reason: string}> */
@@ -1017,14 +1057,15 @@ class MediaProcessingLog extends Model
             throw new InvalidArgumentException(sprintf('Unknown processing exclusion reason [%s].', $reason));
         }
 
-        $processingMetadata = $this->processing_metadata?->toArray() ?? [];
-        $processingMetadata['exclusion'] = [
-            'reason' => $reason,
-            'recorded_at' => now()->toIso8601String(),
-            'evidence' => $evidence,
-        ];
+        $this->writeProcessingMetadata(static function (array $processingMetadata) use ($reason, $evidence): array {
+            $processingMetadata['exclusion'] = [
+                'reason' => $reason,
+                'recorded_at' => now()->toIso8601String(),
+                'evidence' => $evidence,
+            ];
 
-        $this->forceFill(['processing_metadata' => $processingMetadata])->save();
+            return $processingMetadata;
+        });
     }
 
     /**
@@ -1059,12 +1100,13 @@ class MediaProcessingLog extends Model
      */
     public function putRetirement(array $record): void
     {
-        $processingMetadata = $this->processing_metadata?->toArray() ?? [];
-        $processingMetadata['retirement'] = [
-            'recorded_at' => now()->toIso8601String(),
-        ] + $record;
+        $this->writeProcessingMetadata(static function (array $processingMetadata) use ($record): array {
+            $processingMetadata['retirement'] = [
+                'recorded_at' => now()->toIso8601String(),
+            ] + $record;
 
-        $this->forceFill(['processing_metadata' => $processingMetadata])->save();
+            return $processingMetadata;
+        });
     }
 
     public function isAutoTrimVideoRun(): bool
