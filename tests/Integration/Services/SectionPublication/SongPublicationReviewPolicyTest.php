@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services\SectionPublication;
 
+use App\Data\ServiceSectionMetadata;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
@@ -100,6 +101,120 @@ class SongPublicationReviewPolicyTest extends TestCase
 
         $this->assertSame(
             ['inferred_song_match'],
+            array_column($this->policy->reviewReasons($section), 'kind'),
+        );
+    }
+
+    /**
+     * Section 1276 (2026-04-05) holds *Come, behold the wondrous mystery* and
+     * *Where, O grave, is your victory?* in one interval. OCR confirmed both and
+     * the outer boundary is clean, so nothing else in the policy objected and a
+     * 458.71-second clip was generated for the first song alone.
+     */
+    #[Test]
+    public function it_holds_an_interval_ocr_shows_holds_a_second_song(): void
+    {
+        $section = $this->section(
+            'full',
+            ['livestream'],
+            metadata: [
+                'additional_song_matches' => [[
+                    'song_id' => $this->otherSongId(),
+                    'title' => 'Where, O grave, is your victory?',
+                    'confidence' => 0.92,
+                    'match_source' => 'ocr',
+                ]],
+            ],
+            start: 1200.0,
+            end: 1658.71,
+        );
+
+        $assessment = $this->policy->assess($section);
+
+        $this->assertSame(
+            ['unresolved_multiple_songs'],
+            array_column($assessment['reasons'], 'kind'),
+        );
+        $this->assertStringContainsString(
+            'Where, O grave, is your victory?',
+            $assessment['reasons'][0]['detail'],
+        );
+        $this->assertSame('release_eligible', $assessment['boundary_evidence']['decision']);
+    }
+
+    /**
+     * Section 3869 (2021-10-10) is the same failure with *Jesus shall take the
+     * highest honour* and *Lord, I lift your name on high*, published as a
+     * 276.387-second clip. It is kept as a second case because the fix must not
+     * depend on one recording's OCR text or duration.
+     */
+    #[Test]
+    public function it_holds_a_second_recording_whose_interval_holds_two_songs(): void
+    {
+        $section = $this->section(
+            'full',
+            ['livestream'],
+            metadata: [
+                'additional_song_matches' => [[
+                    'song_id' => $this->otherSongId(),
+                    'title' => 'Lord, I lift your name on high',
+                    'confidence' => 0.88,
+                    'match_source' => 'ocr',
+                ]],
+            ],
+            start: 900.0,
+            end: 1176.387,
+        );
+
+        $this->assertSame(
+            ['unresolved_multiple_songs'],
+            array_column($this->policy->reviewReasons($section), 'kind'),
+        );
+    }
+
+    /**
+     * A second OCR frame resolving to the song the section is already assigned
+     * is corroboration, not a second performance.
+     */
+    #[Test]
+    public function it_releases_an_interval_whose_further_match_is_the_same_song(): void
+    {
+        $section = $this->section('full', ['livestream']);
+
+        $section->metadata = ServiceSectionMetadata::fromArray([
+            'additional_song_matches' => [[
+                'song_id' => $section->churchServiceItem->song_id,
+                'title' => 'The same hymn, read from a later frame',
+                'confidence' => 0.95,
+                'match_source' => 'ocr',
+            ]],
+        ]);
+
+        $this->assertSame([], $this->policy->reviewReasons($section));
+    }
+
+    /**
+     * Naming a second song without identifying it is still an unresolved second
+     * performance: the missing catalogue id is not evidence of a single song.
+     */
+    #[Test]
+    public function it_holds_an_unidentified_second_song(): void
+    {
+        $section = $this->section(
+            'full',
+            ['livestream'],
+            metadata: [
+                'additional_song_matches' => [[
+                    'song_id' => null,
+                    'title' => 'A second hymn OCR could not place',
+                    'confidence' => 0.4,
+                    'match_source' => 'ocr',
+                ]],
+            ],
+        );
+
+        $this->assertSame(
+            ['unresolved_multiple_songs'],
             array_column($this->policy->reviewReasons($section), 'kind'),
         );
     }
@@ -473,6 +588,12 @@ class SongPublicationReviewPolicyTest extends TestCase
      * @param  list<string>  $provenance
      * @param  array<string, mixed>  $metadata
      */
+    /** A catalogue song other than the one the section under test is assigned. */
+    private function otherSongId(): int
+    {
+        return Song::factory()->create()->id;
+    }
+
     private function section(
         string $grade,
         array $provenance,

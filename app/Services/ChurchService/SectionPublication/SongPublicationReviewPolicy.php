@@ -28,6 +28,13 @@ use App\Models\ServiceSection;
  * recording can still hold a whole hymn. That is the argument for review rather
  * than rejection. Each reason is recorded on the section so whoever opens it can
  * tell an intentionally short song from a fragment of a longer one.
+ *
+ * The Phase 8 pass added a fourth class the pilot did not reach. Sections 1276
+ * and 3869 each hold two different songs in one interval — OCR read both and
+ * `MatchSongsFromTranscript` recorded the second in `additional_song_matches` —
+ * yet a single clip was generated for the first song alone. Confident OCR
+ * establishes that both songs were sung; it does not license presenting their
+ * combined interval as one of them.
  */
 class SongPublicationReviewPolicy
 {
@@ -104,6 +111,18 @@ class SongPublicationReviewPolicy
             ];
         }
 
+        $additional = $this->unresolvedAdditionalSongs($section);
+
+        if ($additional !== []) {
+            $reasons[] = [
+                'kind' => 'unresolved_multiple_songs',
+                'detail' => sprintf(
+                    'The interval also holds %s, and no internal boundary separates them, so one clip cannot represent it.',
+                    $this->describeSongs($additional),
+                ),
+            ];
+        }
+
         $grade = $this->corroborationGrade($section);
 
         if ($grade !== null && ! $this->independentlyCorroborated($section)) {
@@ -117,6 +136,76 @@ class SongPublicationReviewPolicy
         }
 
         return $reasons;
+    }
+
+    /**
+     * Further songs OCR saw performed inside this section's interval.
+     *
+     * `MatchSongsFromTranscript` samples frames across a section precisely so
+     * back-to-back songs merged into one interval are both identified: the first
+     * becomes the section's match and the rest are banked here. A further match
+     * resolving to the song the section is already assigned is corroboration
+     * from a later frame, not a second performance, so it is not counted. One
+     * that names no catalogue song still is: failing to place a title is not
+     * evidence that only one song was sung.
+     *
+     * Nothing here clears the reason by discarding a match. The interval is
+     * resolved by separating the performances, after which each section carries
+     * a single song of its own.
+     *
+     * @return list<array{song_id: int|null, title: string|null}>
+     */
+    private function unresolvedAdditionalSongs(ServiceSection $section): array
+    {
+        $matches = $section->metadata?->toArray()['additional_song_matches'] ?? null;
+
+        if (! is_array($matches)) {
+            return [];
+        }
+
+        $songId = $this->songId($section);
+        $unresolved = [];
+
+        foreach ($matches as $match) {
+            if (! is_array($match)) {
+                continue;
+            }
+
+            $matchedSongId = is_int($match['song_id'] ?? null) ? $match['song_id'] : null;
+
+            if ($matchedSongId !== null && $matchedSongId === $songId) {
+                continue;
+            }
+
+            $title = $match['title'] ?? null;
+
+            $unresolved[] = [
+                'song_id' => $matchedSongId,
+                'title' => is_string($title) && trim($title) !== '' ? trim($title) : null,
+            ];
+        }
+
+        return $unresolved;
+    }
+
+    /**
+     * @param  list<array{song_id: int|null, title: string|null}>  $songs
+     */
+    private function describeSongs(array $songs): string
+    {
+        $described = array_map(
+            static fn (array $song): string => $song['title']
+                ?? (is_int($song['song_id']) ? 'song '.$song['song_id'] : 'a song OCR could not place'),
+            $songs,
+        );
+
+        if (count($described) === 1) {
+            return $described[0];
+        }
+
+        $last = array_pop($described);
+
+        return implode(', ', $described).' and '.$last;
     }
 
     /**

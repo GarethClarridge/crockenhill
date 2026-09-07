@@ -274,6 +274,45 @@ class SongPublicationHandlerTest extends TestCase
         );
     }
 
+    /**
+     * The Phase 8 pass generated single-song clips over intervals OCR had
+     * already shown to hold two songs (sections 1276 and 3869). The reason must
+     * reach the handler, or naming it changes nothing.
+     */
+    #[Test]
+    public function it_requires_approval_for_an_interval_holding_a_second_song(): void
+    {
+        $song = Song::factory()->create();
+        $section = $this->makePublishableSection($song, 'sections/two-songs.mp4');
+        $section->forceFill([
+            'start_time' => 600.0,
+            'end_time' => 1058.71,
+            'duration' => 458.71,
+            'metadata' => [
+                'additional_song_matches' => [[
+                    'song_id' => Song::factory()->create()->id,
+                    'title' => 'Where, O grave, is your victory?',
+                    'confidence' => 0.92,
+                    'match_source' => 'ocr',
+                ]],
+            ],
+        ])->save();
+        $this->storeCleanBoundaryArtifacts($section);
+
+        $section = $section->fresh();
+
+        $this->assertTrue($this->handler->requiresApproval($section));
+        $this->assertSame(
+            ['unresolved_multiple_songs'],
+            array_column($section->metadata->toArray()['song_publication_review']['reasons'], 'kind'),
+        );
+        $this->assertSame(
+            ['Where, O grave, is your victory?'],
+            array_column($section->metadata->toArray()['additional_song_matches'], 'title'),
+            'The second match is evidence of the service and must survive the hold.',
+        );
+    }
+
     #[Test]
     public function it_does_not_rewrite_song_review_timestamps_when_boundary_inputs_are_unchanged(): void
     {

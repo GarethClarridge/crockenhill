@@ -3556,20 +3556,48 @@ Section **#3869**, 2021-10-10, repeats the failure with *Jesus shall take the
 highest honour* and *Lord, I lift your name on high*: **SongVideo #371**, **276.387s**.
 Both generated files visibly contain the two different songs' lyrics. Both
 SongVideo records are **quarantined on `historic_quarantine`**; section status
-`published` is not proof of public exposure. There are six active sections with
-`additional_song_matches`; these two reached generated status and four did not.
+`published` is not proof of public exposure.
 
 `SongPublicationReviewPolicy` checks inferred matches, short duration, adjacent
 same-song sections, partial-source corroboration and outer boundary risks. It
 does not inspect `additional_song_matches`. Confident OCR confirms membership of
 two songs; it cannot justify presenting their combined interval as one song.
 
-- [ ] Add a shared publication restriction for unresolved multiple performed
+###### The census was understated, and this is not a historic-lane defect
+
+Enumerating `metadata->additional_song_matches` directly on 2026-09-07 finds
+**eight** active sections, not six, and **three** reached generated status, not
+two. The third is **section #335**, service **2026-03-01**, published
+**2026-07-09**: *When I fear my faith will fail* (song 349) sits inside a
+397.29-second clip issued for song 1024.
+
+Its processing log carries `historic_import_operation_id = NULL`. #335 came off
+the **routine weekly pipeline**, months before the bulk pass, and its **SongVideo
+#26 satisfies `publiclyReleased()`** — `publication_state = published`, asset
+disk null rather than `historic_quarantine`. The quarantine that contains #172
+and #371 is a property of the historic lane, not of the fix. The shared gate is
+therefore the only correct place for the restriction, and public exposure of a
+mixed-song clip is already demonstrated rather than hypothetical.
+
+The five sections that stopped at `not_applicable` — #213, #1258, #1894, #2163,
+#3627 — were held by other reasons, not by this one. Do not read them as evidence
+that the pipeline recognised the second song.
+
+- [x] Add a shared publication restriction for unresolved multiple performed
   songs in one interval. Cover both #1276 and #3869 in regression tests, including
   successful OCR and an otherwise clear outer-boundary assessment.
-- [ ] Reconcile existing mixed-song outputs before release. Keep both song
-  identities as service evidence; generate separate clips only after the internal
-  boundary is supported. Do not fix this by dropping the second match.
+  `SongPublicationReviewPolicy` now names `unresolved_multiple_songs` from
+  `additional_song_matches`, so `SongPublicationHandler::requiresApproval()` holds
+  the clip and every review surface shows the reason. A further match resolving to
+  the section's own song is corroboration from a later frame and does not hold;
+  one naming no catalogue song does, because failing to place a title is not
+  evidence that a single song was sung.
+- [ ] Reconcile the three existing mixed-song outputs, **#335 first** because it
+  is the one already public. Keep both song identities as service evidence;
+  generate separate clips only after the internal boundary is supported. Do not
+  fix this by dropping the second match. The new reason holds future clips but
+  changes nothing already published: `requiresApproval()` is not consulted for a
+  section whose status is already `published`.
 - [ ] Evaluate timed slide changes plus audio evidence to propose internal
   boundaries. Sparse title OCR alone is insufficient to establish sung onset/end.
 
@@ -3749,8 +3777,9 @@ dated phase sections. It is not a current instruction to dispatch another pass.
   according to the closeout; sampled repaired outputs contain substantive analysis.
 - [ ] Recover incomplete sermon evidence and refresh affected output/analysis
   (P8-Q8), including the newly identified false completion #1148.
-- [ ] Resolve the two demonstrated mixed-song generated clips and prevent the
-  same shared-pipeline failure (P8-Q10).
+- [ ] Resolve the three demonstrated mixed-song generated clips (P8-Q10). The
+  shared-pipeline gate is now in place; #335 is already public and is not held by
+  it, because it was published before the gate existed.
 - [ ] Reconcile stale review state, recover truthful video assessments, and
   evaluate safe reductions in boundary review (P8-Q2/Q3/Q6/Q9).
 - [ ] Resolve source identity, remaining evidence failures and editorial metadata;
