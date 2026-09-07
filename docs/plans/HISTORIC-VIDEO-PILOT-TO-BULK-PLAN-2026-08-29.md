@@ -3818,6 +3818,47 @@ that the pipeline recognised the second song.
 
   #1276 and #3869 remain published-but-quarantined and are not publicly reachable,
   so neither is urgent.
+
+  **A fourth mixed clip, #306, found 2026-09-07 by a different route and also
+  publicly released.** Chasing the four over-length public song clips turned up a
+  510-second clip issued for *All creatures of our God and King* on 2026-07-05.
+  Three sources agree it holds two songs: its notes say *"Introduced as two songs
+  together; this is the first"*, its transcript opens *"we're going to sing two
+  songs together"*, and the OpenLP order prints **five** songs where the run made
+  **four** sections — the missing one, ***King Of The Ages***, printed immediately
+  after it, has no section anywhere in the service.
+
+  **`unresolved_multiple_songs` could not see it**: `additional_song_matches` is
+  empty, because the second song was never OCR-matched. A gate keyed to one
+  evidence shape misses a defect that presents in several. So
+  `SongPublicationReviewPolicy` gained a second route,
+  **`unlocated_adjacent_song`** — the next *printed* song has no section, and this
+  clip runs over six minutes. Both conditions are required: an unlocated printed
+  song is ordinary alone (only **19 of 326** services have none), so the length is
+  what makes it evidence.
+
+  The model's own notes were considered as the signal and rejected: of the nine
+  sections corpus-wide whose notes mention multiple songs, **three are negations**
+  — one says only one of the pair was "evident in the transcript" — so a gate on
+  free-form prose would hold correct sections.
+
+  The new route corroborates itself: run over the corpus it **independently
+  rediscovers #335 and names *When I Fear My Faith Will Fail***, exactly the song
+  already recorded as buried in it, and #335 now carries both reasons at once.
+
+  **#306 withdrawn locally 2026-09-07**, gate first as with #335. `SongVideo 58`
+  and its file are gone, the section reset `published` → `not_applicable`, and
+  `requiresApproval()` now returns **true** with the new reason, so it cannot
+  silently republish. Song 1153 had **no other video**, so unlike #335 there is no
+  successor to verify — the song page simply has none. **Prod is not reconciled**;
+  #306 joins #335 in needing a command on the server.
+
+  Of the other three public over-length clips, none is held and none should be:
+  **#322**'s apparently missing fifth song is a **duplicate order-of-service row**
+  (*According To Your Gracious Word*, listed twice at position 12), **#437**'s
+  unlocated songs sit at printed positions 7–8 against its own position 4, and
+  **#309**'s song matches cleanly with nothing unlocated beside it. All three
+  remain published and are flagged `structure_macro_section` for review.
 - [ ] Evaluate timed slide changes plus audio evidence to propose internal
   boundaries. Sparse title OCR alone is insufficient to establish sung onset/end.
 
