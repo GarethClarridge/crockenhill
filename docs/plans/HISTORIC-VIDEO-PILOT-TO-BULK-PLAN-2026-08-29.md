@@ -3625,6 +3625,42 @@ that the pipeline recognised the second song.
 - [ ] Evaluate timed slide changes plus audio evidence to propose internal
   boundaries. Sparse title OCR alone is insufficient to establish sung onset/end.
 
+###### Separating the interval is not something the application can do
+
+Proposing an internal boundary is only half the work, and the plan had recorded
+only that half. **Nothing in the codebase splits a section.** `app/Actions/
+ServiceReview/` offers `MergeAdjacentServiceSections`, which joins two sections
+into one, and has no inverse. `SaveServiceSection` is the only action that moves
+a boundary at all, and it refuses this case three times over: it rejects any
+`end_time` change on a section that is not a children's talk
+(`SaveServiceSection.php:117`), requires the inclusive children's-talk candidate
+to have been prepared first (`:123`), permits only shortening (`:129`), and
+rejects a published section outright (`:133`).
+
+So the two songs cannot be given their own clips today by any supported path,
+manual review included. A reviewer looking at #335 can approve it, reject it, or
+withdraw the video; they cannot cut it in two.
+
+- [ ] Establish what separating an interval actually entails before estimating it.
+  A split is not one write: it creates a second `ServiceSection` with its own
+  `section_order`, needs a `ChurchServiceItem` for the second song (which may
+  already exist from Email or OpenLP evidence and must be matched rather than
+  duplicated), re-derives `review_flags` and OoS alignment for both halves, and
+  leaves each half needing its own extraction. Reuse the existing merge action's
+  handling of ordering and item ownership as the model for the inverse; do not
+  design the split as a bare pair of timestamp writes.
+- [ ] Decide whether the split is an operator action, a pipeline decision, or
+  both. The evidence that locates the seam is the same evidence either way, but an
+  automatic split commits to a cut point on OCR-frame spacing alone, which for
+  #335 bounds the seam only to a **139-second window** (664.5–803.5 s, between the
+  45% and 80% frames). An operator action can accept a proposed boundary it can
+  see; the pipeline cannot. Prefer proposing to a reviewer over cutting
+  unattended, and keep `unresolved_multiple_songs` as the hold until a split has
+  actually happened.
+- [ ] Treat the three known intervals as the acceptance set, and keep the
+  second song's identity through the split rather than re-deriving it: it is
+  already recorded, with its confidence and source, in `additional_song_matches`.
+
 ##### P8-Q2/Q9 refreshed — automate stale state, then evaluate framing
 
 The current **254 flagged sections across 131 runs** comprise **206 songs, 21
@@ -3804,6 +3840,9 @@ dated phase sections. It is not a current instruction to dispatch another pass.
 - [ ] Resolve the three demonstrated mixed-song generated clips (P8-Q10). The
   shared-pipeline gate is in place and #335 is withdrawn locally; the same
   withdrawal has **not** been made in production, and #1276/#3869 are untouched.
+  Giving each song its own clip additionally needs a capability the application
+  does not have: nothing splits a section, and `SaveServiceSection` only shortens
+  children's talks.
 - [ ] Reconcile stale review state, recover truthful video assessments, and
   evaluate safe reductions in boundary review (P8-Q2/Q3/Q6/Q9).
 - [ ] Resolve source identity, remaining evidence failures and editorial metadata;
