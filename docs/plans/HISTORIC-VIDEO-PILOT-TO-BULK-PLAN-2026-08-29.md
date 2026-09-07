@@ -3788,7 +3788,8 @@ that the pipeline recognised the second song.
   the section's own song is corroboration from a later frame and does not hold;
   one naming no catalogue song does, because failing to place a title is not
   evidence that a single song was sung.
-- [~] Reconcile the three existing mixed-song outputs. Keep both song identities
+- [~] Reconcile the **four** existing mixed-song outputs (three when written; #306
+  was found on 2026-09-07). Keep both song identities
   as service evidence; generate separate clips only after the internal boundary is
   supported. Do not fix this by dropping the second match. The new reason holds
   future clips but changes nothing already published: `requiresApproval()` is not
@@ -3894,7 +3895,7 @@ withdraw the video; they cannot cut it in two.
   see; the pipeline cannot. Prefer proposing to a reviewer over cutting
   unattended, and keep `unresolved_multiple_songs` as the hold until a split has
   actually happened.
-- [ ] Treat the three known intervals as the acceptance set, and keep the
+- [ ] Treat the **four** known intervals as the acceptance set, and keep the
   second song's identity through the split rather than re-deriving it: it is
   already recorded, with its confidence and source, in `additional_song_matches`.
 
@@ -4016,6 +4017,10 @@ API call, so unchanged missing-file retries do not themselves incur analysis spe
 
 1. **Prevent silent bad outputs:** P8-Q8 incomplete-evidence handling and P8-Q10
    mixed-song publication. Recover the named historic outputs as regression cases.
+   **Gates landed 2026-09-07** — sermon-span evidence coverage, over-long song
+   sections, and the printed-order mixed-song route. **The recovery did not**: every
+   gate holds future work only, so each named output keeps its present disposition
+   until someone acts on it. That recovery is now the leading edge of this list.
 2. **Remove deterministic operational work:** P8-Q12 freshness/retry/queue isolation,
    P8-Q2 scoped policy reconciliation, P8-Q3 owning-disk recovery and P8-Q6 calibration.
 3. **Learn boundaries and metadata:** P8-Q9 framing, P8-Q11 passage reconciliation,
@@ -4079,12 +4084,21 @@ dated phase sections. It is not a current instruction to dispatch another pass.
   runs and ranked by blind *fraction*, not seconds. The **recovery is not**: the
   five runs it would stop or flag keep their present disposition, and neighbouring
   gaps (#1195's missing opening) are outside what the gate can see.
-- [ ] Resolve the three demonstrated mixed-song generated clips (P8-Q10). The
-  shared-pipeline gate is in place and #335 is withdrawn locally; the same
-  withdrawal has **not** been made in production, and #1276/#3869 are untouched.
+- [ ] Resolve the **four** demonstrated mixed-song generated clips (P8-Q10).
+  **Two shared-pipeline gates are now in place**: `unresolved_multiple_songs`
+  (OCR route) and `unlocated_adjacent_song` (printed-order route, added
+  2026-09-07 because #306's OCR evidence was empty). **#335 and #306 are both
+  withdrawn locally**; neither withdrawal has been made **in production**, which
+  remains blocked on `production-audit.yml`'s missing secrets. #1276 and #3869 are
+  untouched but quarantined and not publicly reachable.
   Giving each song its own clip additionally needs a capability the application
   does not have: nothing splits a section, and `SaveServiceSection` only shortens
   children's talks.
+- [~] Reconcile stale review state (P8-Q2). `structure_macro_section` landed
+  2026-09-07 and **the rederivation has been executed**: 38 sections across 33
+  services now carry it, all 38 requiring review, raising the queue to 332
+  sections across 173 runs. The 98 cross-type-inversion-only demotions from the
+  earlier census are **not** yet reconciled.
 - [ ] Reconcile stale review state, recover truthful video assessments, and
   evaluate safe reductions in boundary review (P8-Q2/Q3/Q6/Q9).
 - [ ] Resolve source identity, remaining evidence failures and editorial metadata;
