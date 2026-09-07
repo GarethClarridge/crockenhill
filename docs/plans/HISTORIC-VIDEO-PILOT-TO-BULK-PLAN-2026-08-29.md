@@ -3592,12 +3592,36 @@ that the pipeline recognised the second song.
   the section's own song is corroboration from a later frame and does not hold;
   one naming no catalogue song does, because failing to place a title is not
   evidence that a single song was sung.
-- [ ] Reconcile the three existing mixed-song outputs, **#335 first** because it
-  is the one already public. Keep both song identities as service evidence;
-  generate separate clips only after the internal boundary is supported. Do not
-  fix this by dropping the second match. The new reason holds future clips but
-  changes nothing already published: `requiresApproval()` is not consulted for a
-  section whose status is already `published`.
+- [~] Reconcile the three existing mixed-song outputs. Keep both song identities
+  as service evidence; generate separate clips only after the internal boundary is
+  supported. Do not fix this by dropping the second match. The new reason holds
+  future clips but changes nothing already published: `requiresApproval()` is not
+  consulted for a section whose status is already `published`.
+
+  **#335 withdrawn locally on 2026-09-07** via `SongVideoService::deleteVideo()`,
+  the supported path: the file and row go, and the section resets `published` →
+  `not_applicable`. Re-preparing it then returns `requiresApproval = true` with
+  reason `unresolved_multiple_songs`, so the clip cannot silently republish — the
+  gate is what makes the withdrawal durable, and withdrawing before it existed
+  would have been undone by the next run over log 910.
+
+  **Prod is not reconciled and was never read.** All of the above is the local
+  working copy, which is not a mirror: `sermon_disk` points at `historic_staging`
+  here and neither file exists locally. `production-audit.yml` is still missing
+  its environment secrets, so confirming and repeating this needs a command on the
+  server.
+
+  **Check `SongVideo #9` before repeating it there.** Withdrawing #26 makes #9 the
+  display video for song 1024, and #9 is an orphan: `service_section_id` is NULL,
+  its path names section **264**, and no section in that range and no second
+  processing log for service 730 survive — the run it came from was deleted
+  outright, not superseded. `SongVideoService::getVideoUrl()` does not test
+  existence, so if that file is gone from the prod sermon disk the song page
+  swaps a wrong-content video for a broken player. Verify the file, not just
+  the row.
+
+  #1276 and #3869 remain published-but-quarantined and are not publicly reachable,
+  so neither is urgent.
 - [ ] Evaluate timed slide changes plus audio evidence to propose internal
   boundaries. Sparse title OCR alone is insufficient to establish sung onset/end.
 
@@ -3778,8 +3802,8 @@ dated phase sections. It is not a current instruction to dispatch another pass.
 - [ ] Recover incomplete sermon evidence and refresh affected output/analysis
   (P8-Q8), including the newly identified false completion #1148.
 - [ ] Resolve the three demonstrated mixed-song generated clips (P8-Q10). The
-  shared-pipeline gate is now in place; #335 is already public and is not held by
-  it, because it was published before the gate existed.
+  shared-pipeline gate is in place and #335 is withdrawn locally; the same
+  withdrawal has **not** been made in production, and #1276/#3869 are untouched.
 - [ ] Reconcile stale review state, recover truthful video assessments, and
   evaluate safe reductions in boundary review (P8-Q2/Q3/Q6/Q9).
 - [ ] Resolve source identity, remaining evidence failures and editorial metadata;
