@@ -14,6 +14,7 @@ use App\Models\SpeakerProfile;
 use App\Services\Preacher\ChildrensTalkSpeakerService;
 use App\Support\MediaAssetPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -62,6 +63,7 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
     #[Test]
     public function it_skips_identification_when_speaker_identification_is_disabled(): void
     {
+        Log::spy();
         config([
             'media-processing.speaker_identification.enabled' => false,
             'media-processing.speaker_identification.provider' => 'null',
@@ -87,6 +89,12 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $fresh = $section->fresh();
         $this->assertFalse($fresh->needs_manual_review);
         $this->assertSame('skipped', $fresh->metadata?->toArray()['childrens_talk_speaker']['predicted']['outcome'] ?? null);
+        Log::shouldHaveReceived('info')->with(
+            'Children\'s talk speaker identification completed',
+            \Mockery::on(fn (array $context): bool => $context['outcome'] === 'skipped'
+                && $context['auto_accepted'] === false
+                && $context['review_required'] === false),
+        );
     }
 
     #[Test]

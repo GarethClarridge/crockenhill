@@ -14,6 +14,7 @@ use App\Models\ServiceSection;
 use App\Models\SpeakerProfile;
 use App\Support\MediaAssetPath;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -108,6 +109,15 @@ class ChildrensTalkSpeakerService
 
         $metadata['childrens_talk_speaker'] = $speakerMetadata;
         $section->metadata = ServiceSectionMetadata::fromArray($metadata);
+
+        Log::info('Children\'s talk speaker identification completed', [
+            'service_section_id' => $section->id,
+            'processing_id' => $section->processingLog->processing_id,
+            'outcome' => $prediction['outcome'],
+            'auto_accepted' => $prediction['outcome'] === 'matched',
+            'review_required' => in_array((string) $prediction['outcome'], self::REVIEW_OPENING_OUTCOMES, true),
+            'candidate_count' => is_array($prediction['candidates'] ?? null) ? count($prediction['candidates']) : 0,
+        ]);
     }
 
     /**
