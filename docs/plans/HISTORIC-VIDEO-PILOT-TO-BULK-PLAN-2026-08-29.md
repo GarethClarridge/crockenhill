@@ -3521,17 +3521,95 @@ These prove incomplete/contaminated saved text and unsupported completeness, not
 the exact correct audiovisual cut points. Recover and listen to source evidence
 before changing those boundaries.
 
-- [ ] Extend P8-Q8 from **empty** evidence to **materially incomplete** evidence.
+- [~] Extend P8-Q8 from **empty** evidence to **materially incomplete** evidence.
   Validate ordered, bounded, nonempty cues and relevant unobservable windows;
   inspect neighbouring gaps and implausible merged song/other intervals as well
   as the selected span. Propagate uncertainty into the output disposition.
+  **The selected-span half is done** — see *The evidence gate, 2026-09-07* below.
+  Neighbouring gaps and implausible merged song/`other` intervals are **not**
+  covered, which is exactly why #1195 still escapes: its span holds dense speech
+  and no window, and the loss sits in the `other` section before it.
 - [ ] Recover #1148 and the seven material-overlap candidates, plus #1195's
   missing opening, through bounded targeted transcription and structure recovery.
   Recut only when recovered evidence changes the media plan; reanalyse only when
   analysis input changes. Do not fabricate missing speech from Scripture or OoS.
-- [ ] Add regression fixtures for prayer-only surviving text, a sermon starting
+  **Still outstanding.** The gate holds *future* runs; like the mixed-song
+  restriction it is not consulted for work already banked, so the five runs it
+  would now stop or flag keep their current disposition until they are recovered.
+- [x] Add regression fixtures for prayer-only surviving text, a sermon starting
   after an unobservable window, and a valid sermon followed by long silence/music.
   Preserve the intentional reading/sermon join and valid brief boundary overlaps.
+  All five are in `CreateSermonTranscriptFromServiceTest`, each built from the
+  real run that motivated it; the pre-existing join and single-span tests still pass.
+
+###### The evidence gate, 2026-09-07
+
+**The census that set the thresholds.** All **406** completed operation-4 runs
+holding a sermon were measured — 406 transcripts read, **zero unresolved** — for
+the union of their extraction spans against the union of their recorded
+unobservable windows. Evidence: `storage/scratch/p8q8-evidence-census.tsv`
+(gitignored; the figures below stand without it).
+
+**Rank by fraction, never by seconds.** The two disagree sharply on real data:
+
+| sermon | blind **s** | blind **fraction** | words | reading |
+|---|---:|---:|---:|---|
+| 1148 | 1793.2 | **96.5%** | 81 | sermon absent; opening and closing are the same prayer |
+| 1043 | 406.7 | **49.2%** | 705 | opens mid-sentence, tail blind |
+| 1299 | **710.0** | 27.4% | 4,639 | complete at both ends |
+| 1135 | 469.7 | 24.5% | 2,973 | reads perfectly; first ~8 min hidden |
+| 1252 | 275.0 | 13.5% | 3,418 | full sermon |
+| 1248 | 163.0 | 8.3% | 3,647 | full sermon |
+| 942 | 102.0 | 5.1% | 3,898 | full sermon |
+
+#1299 holds the second-largest blind interval of any run and is healthy; an
+overlap-**seconds** queue would have put it first. Only seven runs exceed 5%.
+
+**Density of surviving speech was evaluated and rejected.** Words per minute of
+span isolates #1148 spectacularly (2.62 against a p1 of 98.4, a median of 122.2).
+But measured against *observable* seconds alone the corpus is uniform — minimum
+69.2, p1 102.1, median 122.5 — and #1148's surviving fragment itself runs at a
+normal **75.5**. ASR emits ordinary-rate text wherever it emits any, so raw wpm is
+just `observable_wpm × (1 − blind_fraction)`: it re-expresses the fraction less
+legibly and adds nothing. Recorded so the metric is not re-proposed.
+
+**Coherent text does not prove completeness.** #1135 is the case that decides the
+review tier: it reads correctly at both ends — a commentary illustration opening,
+a proper benediction closing — while a window hides the sermon's first eight
+minutes. No reviewer reading that output would see the loss; only the window
+reveals it.
+
+**The gate.** `CreateSermonTranscriptFromService` measured only `$sermonText === ''`
+— a presence check standing in for a sufficiency one, which is how #1148 completed
+clean and banked a title taken from its closing prayer. It now also measures
+`App\Data\SermonEvidenceCoverage`: at **≥ 40%** blind the run fails at
+`creating_sermon_transcript` (before the analysis call, so no provider spend) and
+routes to evidence-directed retry; at **≥ 10%** it completes and the sermon
+section carries `sermon_evidence_incomplete` with the measured fraction and
+seconds. Both lines sit in real gaps in the distribution — 49.2%/27.4% and
+13.5%/8.3% — not through a cluster.
+
+The flag is deliberately **not** a `ServiceStructureValidator` constant. Those
+describe the detector's confidence in a boundary and are re-derived from banked
+structure; this one describes the recording behind the boundary, exists only once
+the extraction plan does, and must persist until the evidence is recovered.
+`SectionStructureFlagRederiver` re-derives only `REANNOTATED_FLAGS` and retains
+everything else, so a later recompute cannot withdraw it — the failure mode that
+makes `is_degraded_completion` unreliable is avoided by construction.
+
+**On the disposition choice.** `is_degraded_completion` was considered and
+rejected. `MediaProcessingLog::isDegradedCompletion()` has **no callers**; the flag
+only feeds a census measure, the promotion-bundle provenance, and
+`ReanalyseHistoricDegradedCompletionsCommand` — whose success path *clears* it. It
+would therefore have been actively harmful here: re-analysing an incomplete
+transcript succeeds and erases the marker, laundering the defect exactly as an
+unscoped song-match recompute would have on 2026-09-03. Nothing gates release on
+it; "degraded runs do not count as complete" is enforced by the operator reading a
+census when building an authorisation, not by code.
+
+Had the gate existed during the pass it would have failed **2** runs (#1148,
+#1043) and flagged **3** (#1299, #1135, #1252) out of 406. All five are quarantined
+and none is publicly reachable.
 
 **ASR also needs calibration below its current pathology floor.** #1181 contains
 21 consecutive “He couldn't have learned the same” cues over about 21 seconds,
@@ -3835,8 +3913,13 @@ dated phase sections. It is not a current instruction to dispatch another pass.
   runs; zero degraded completions. This is processing disposition, not accuracy.
 - [x] The 60 identified transcript-span repairs and their reanalyses are complete
   according to the closeout; sampled repaired outputs contain substantive analysis.
-- [ ] Recover incomplete sermon evidence and refresh affected output/analysis
-  (P8-Q8), including the newly identified false completion #1148.
+- [~] Recover incomplete sermon evidence and refresh affected output/analysis
+  (P8-Q8), including the newly identified false completion #1148. The **gate is
+  in place** — a sermon span ≥ 40% blind now fails before the analysis call and
+  ≥ 10% carries `sermon_evidence_incomplete` — measured across all 406 completed
+  runs and ranked by blind *fraction*, not seconds. The **recovery is not**: the
+  five runs it would stop or flag keep their present disposition, and neighbouring
+  gaps (#1195's missing opening) are outside what the gate can see.
 - [ ] Resolve the three demonstrated mixed-song generated clips (P8-Q10). The
   shared-pipeline gate is in place and #335 is withdrawn locally; the same
   withdrawal has **not** been made in production, and #1276/#3869 are untouched.
