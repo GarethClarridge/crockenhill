@@ -3418,18 +3418,29 @@ Reconciliation must preserve those obligations and the corresponding retained so
   **already-published** services. Supersede and re-import, repair preacher/titles in place, or
   accept as-is. No command covers it: `--force` is rejected for a definitive manifest run and
   `historic-import:retire-run` refuses non-historic runs, so `superseded_at` is the only lever.
-- [ ] **Three sermon-block decisions**, all raised by sermon extraction, none retryable:
-  `b46bffc0` (2024-08-08-am) and `56231ed5` (2025-12-21-pm) found **no** speech block meeting
-  the 20-minute threshold — the class already modelled for #978, a mission-presentation
-  evening with no sermon. `8feca773` (2024-08-11-am) has the opposite problem: **five** blocks
-  qualify and the pipeline cannot choose. Each needs a human to say which block is the sermon,
-  or that there is none.
+- [~] **Three sermon-block decisions — now one.** Reduced 2026-09-08 by asking each run
+  whether its *evidence* had changed, rather than treating all three as the same class.
+  - `56231ed5` (2025-12-21-pm, run #1035) — **CLOSED.** Not an operator decision at all:
+    it had projected one prayer from a **22-word** transcript, and the replay put 5,877
+    words back. Re-detection returned a full carol service, sermon **#1307** at confidence
+    0.99. The 20-minute threshold never ran, because
+    `ExtractSermon::guardAutoExtractionPolicy()` consults the RMS confidence service only
+    when the plan fell back to `processing_log`; a confident sermon section bypasses it.
+    The original failure was a void-damaged structure, not a short sermon.
+  - `b46bffc0` (2024-08-08-am, run #1145) — the recording is **1,014 s** long with **zero**
+    blind windows, so no 20-minute block can exist. Needs a *disposition*
+    (`historic-import:exclude-run`), not a viewing.
+  - `8feca773` (2024-08-11-am, run #1143) — **the one real decision.** Five qualifying
+    blocks, and the replay moved it 5,980 → 5,980 words, so no new evidence is coming.
+    A human must say which block is the sermon.
 - [ ] **Two review-blocked runs outside the historic lane** — `675d14f3` (2023-02-26-am,
   chronology overlap) and `10e4f30d` (2024-05-05-am, OoS ordering). Both hold a
   `skip-pending-review` identity and both sit in classes `579bc4529` now retries, but they
   carry `historic_import_operation_id = NULL`, so no `historic-import:*` command reaches them.
-- [ ] **`2026-04-26-evening`** — investigate the failed transcription recovery before
-  deciding whether the recording itself is unusable.
+- [~] **`2026-04-26-evening`** (run #1004) — the investigation is done and the answer is
+  negative: the replay found **0 words before and 0 after** across 4,317 blind seconds, so
+  both banked retries hold nothing. Its source is still present, so the remaining option is
+  a fresh transcription; there is no recovery left to attempt from what the run holds.
 
 #### Post-run evaluation, 2026-09-07 — accuracy and weekly automation
 
@@ -4592,18 +4603,31 @@ API call, so unchanged missing-file retries do not themselves incur analysis spe
 
 ##### Delivery order and proof of improvement for weekly processing
 
-1. **Prevent silent bad outputs:** P8-Q8 incomplete-evidence handling and P8-Q10
-   mixed-song publication. Recover the named historic outputs as regression cases.
-   **Gates landed 2026-09-07** — sermon-span evidence coverage, over-long song
-   sections, and the printed-order mixed-song route. **The recovery did not**: every
-   gate holds future work only, so each named output keeps its present disposition
-   until someone acts on it. That recovery is now the leading edge of this list,
-   and its blocking defect is fixed: the retry accepts recovered speech region by
-   region instead of discarding a whole window over one looping passage.
+1. **Prevent silent bad outputs — DONE 2026-09-08.** P8-Q8 incomplete-evidence
+   handling and P8-Q10 mixed-song publication. **Gates landed 2026-09-07**; the
+   recovery they could not perform was executed on 2026-09-08. The replay
+   re-applied region-wise recovery to all 146 affected runs from banked retries
+   (5.52 h of blind time recovered, +35,125 words, no provider call), structure
+   was re-derived for 19 of the 21 runs the voids had damaged (+60 min of sermon,
+   sections 231→253), and **run #1035 closed** — 1 section to 16, a whole carol
+   service with its sermon. P8-Q10's remaining work is a **capability, not a
+   recovery** (see item 4); no production exposure was ever demonstrated.
 2. **Remove deterministic operational work:** P8-Q12 freshness/retry/queue isolation,
    P8-Q2 scoped policy reconciliation, P8-Q3 owning-disk recovery and P8-Q6 calibration.
+   **This is now the leading edge.** Its cheapest concrete piece is P8-Q2's
+   demotion backlog: **96 sections** whose only stored review flag is
+   `structure_oos_cross_type_inversion`, which `SectionReviewFlagPolicy` demotes
+   on every section type, out of a queue of **329 across 173 runs**.
 3. **Learn boundaries and metadata:** P8-Q9 framing, P8-Q11 passage reconciliation,
    P8-Q7 duplicates and P8-Q4 speaker bucketing. Preserve uncertain cases for review.
+4. **New capabilities, separately scoped and not blocking.** Splitting a service
+   section so two songs in one interval can each hold a clip (P8-Q10's residue —
+   design recorded under *Separating the interval is not something the application
+   can do*), and **production reconciliation**, which is its own body of work: this
+   machine is completely separate from production, the weekly pipeline has never run
+   consistently there, and what production holds has not been read. Neither is a
+   precondition for anything in items 1–3, and neither should be planned as
+   remediation of a historic output.
 
 - [ ] Establish a reusable labelled set from this corpus, including apparently
   clean outputs as well as each failure class. Label actual source/output audio
@@ -4647,7 +4671,10 @@ Public release remains a separate human-authorised act. It is never a side effec
 
 ## 4. Current go/no-go summary
 
-**2026-09-07: bulk processing is complete; output remediation and Phase 9 remain.**
+**2026-09-08: bulk processing and evidence recovery are complete; deterministic
+state work and Phase 9 remain.** Delivery-order item 1 closed on 2026-09-08 with
+the recovery replay, the structure re-detection pass and run #1035. Item 2 —
+removing deterministic operational work — is now the leading edge.
 The old pre-bulk checklist has been replaced because it contradicted completed
 work documented above. Its underlying implementation evidence remains in the
 dated phase sections. It is not a current instruction to dispatch another pass.
@@ -4668,21 +4695,42 @@ dated phase sections. It is not a current instruction to dispatch another pass.
   and 2,840 genuinely transcribed words on the two fail-level runs. It now keeps
   the retry region by region. Censused over 130 runs on 2026-09-07: **5.01 h of
   15.68 h of blind time recovered (31.9%), +27,282 words**, both fail-level runs
-  to **0%** blind, and sermon #1148 restored from 81 words to 3,324. **Re-running
-  recovery for real is the next action** — nothing is banked yet, and there is no
-  command that does it. The gate's 40%/10% thresholds must then be re-derived:
-  they were set on fractions this defect inflated, and over the recovered corpus
-  the fail line would never fire.
-- [ ] Resolve the **four** demonstrated mixed-song generated clips (P8-Q10).
+  to **0%** blind, and sermon #1148 restored from 81 words to 3,324.
+  **EXECUTED 2026-09-08** through `historic-import:replay-transcript-recovery`
+  across all 146 runs / 202 windows, from the retries the pipeline had already
+  banked — no provider call, no ffmpeg, no dependence on the source surviving:
+  17.86 h blind → 12.34 h, **5.52 h recovered (30.9%), +35,125 words**, 0 failures.
+  Structure was then re-derived for the runs whose boundaries had been drawn over
+  the voids, and **run #1035 closed** — a *failed* run whose single prayer section
+  became sixteen, yielding sermon #1307 (*Herod's antagonism towards Jesus*,
+  Matthew 2:1-12, confidence 0.99). Op-4 failures 4 → 3.
+  The 40%/10% thresholds were **deliberately not re-derived**: the fail line's job
+  is the catastrophic case and run #1004 still shows it at ~100% blind, so "the
+  gate is now inert" is the wrong reading — it stops firing on completed runs
+  because the defect that manufactured a 96.5%-blind completion is fixed. Prefer
+  the replay's figures to the 2026-09-07 re-transcription census, which measured a
+  different question and whose headline numbers are wrong.
+- [~] Resolve the **four** demonstrated mixed-song generated clips (P8-Q10).
   **Two shared-pipeline gates are now in place**: `unresolved_multiple_songs`
   (OCR route) and `unlocated_adjacent_song` (printed-order route, added
-  2026-09-07 because #306's OCR evidence was empty). **#335 and #306 are both
-  withdrawn locally**; neither withdrawal has been made **in production**, which
-  remains blocked on `production-audit.yml`'s missing secrets. #1276 and #3869 are
-  untouched but quarantined and not publicly reachable.
-  Giving each song its own clip additionally needs a capability the application
-  does not have: nothing splits a section, and `SaveServiceSection` only shortens
-  children's talks.
+  2026-09-07 because #306's OCR evidence was empty). That is the part which
+  protects weekly processing, and it is done. **#335 and #306 are both withdrawn
+  locally**; #1276 and #3869 are untouched but quarantined.
+  **Corrected 2026-09-08 — no production exposure was ever demonstrated.** This
+  machine is completely separate from production and the weekly pipeline has
+  never run consistently there; the database here was built from 2026-05-04
+  (every table's oldest row lands in the same instant, all 523 `song_videos`
+  postdate 2026-07-06, and total sermon downloads are zero), so these four rows
+  are local artifacts. Nor is a song video anonymously reachable at all:
+  `PublicSongListController` sits behind `['auth', 'verified']`
+  (`routes/web.php:256`), and `publication_state`/`publiclyReleased()` describe a
+  column rather than the open internet. Earlier text here read "not reconciled in
+  production" — that was **unverified**, not confirmed exposure. Production
+  reconciliation is real but is **its own piece of work**, not a tail on this item.
+  What remains of P8-Q10 is therefore a **capability, not a repair**: nothing
+  splits a section, and `SaveServiceSection` only shortens children's talks. See
+  *Separating the interval is not something the application can do* above; that
+  work is not blocking and does not belong in delivery-order item 1.
 - [~] Reconcile stale review state (P8-Q2). `structure_macro_section` landed
   2026-09-07 and **the rederivation has been executed**: 38 sections across 33
   services now carry it, all 38 requiring review, raising the queue to 332
