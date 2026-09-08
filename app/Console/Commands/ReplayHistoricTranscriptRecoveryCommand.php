@@ -4,16 +4,21 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Actions\FlagIncompleteSermonEvidence;
+use App\Data\SermonEvidenceCoverage;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
 use App\Services\HistoricMedia\HistoricProcessingThroughput;
 use App\Services\HistoricMedia\HistoricSermonTranscriptSpanRepair;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\HistoricMedia\HistoricTranscriptRecoveryReplay;
 use App\Services\HistoricMedia\SermonTranscriptSpanRepairEntry;
 use App\Services\HistoricMedia\TranscriptRecoveryReplayEntry;
+use App\Services\Media\Audio\ServiceTranscriptReader;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use RuntimeException;
 use Throwable;
 
@@ -255,6 +260,11 @@ class ReplayHistoricTranscriptRecoveryCommand extends Command
             static fn (SermonTranscriptSpanRepairEntry $entry): bool => $entry->isRepairable(),
         ));
 
+        // Before the early return: the replay moved the blind windows on every
+        // run it touched, whether or not the sermon *text* changed, so the
+        // coverage verdict is stale even where the transcript is not.
+        $this->reflagEvidence($runs);
+
         if ($stale === []) {
             $this->info('No sermon transcript was staled by the replay; nothing to re-analyse.');
 
@@ -292,6 +302,59 @@ class ReplayHistoricTranscriptRecoveryCommand extends Command
         }
 
         $this->info("Dispatched {$dispatched} re-analysis job(s) onto the {$queue} queue.");
+    }
+
+    /**
+     * Re-ask the evidence-coverage question for every re-derived run.
+     *
+     * The pipeline raises this flag when it first derives a sermon transcript.
+     * Nothing re-asks it afterwards, so a run whose blind span shrank keeps a
+     * flag it no longer warrants, and — the case here — a run measured before
+     * the gate existed never got one at all. Two of the replayed runs are
+     * materially blind after recovery and carried no flag.
+     *
+     * @param  Collection<int, MediaProcessingLog>  $runs
+     */
+    private function reflagEvidence(Collection $runs): void
+    {
+        $flagger = app(FlagIncompleteSermonEvidence::class);
+        $transcripts = app(ServiceTranscriptReader::class);
+        $contexts = app(HistoricStagingContextRegistry::class);
+        $changed = 0;
+
+        foreach ($runs as $run) {
+            $spans = $run->recordedSermonExtractionSpans();
+
+            if ($spans === null || $spans === []) {
+                continue;
+            }
+
+            // The transcript key resolves only inside the run's own staging
+            // batch. Reading outside it returns null for every run, which reads
+            // as "nothing to re-flag" rather than as the failure it is.
+            $context = $run->historicStagingContext();
+            $transcript = $context === null
+                ? $transcripts->tryRead($run)
+                : $contexts->within($context, fn () => $transcripts->tryRead($run));
+
+            if ($transcript === null) {
+                continue;
+            }
+
+            $coverage = SermonEvidenceCoverage::measure($spans, $transcript);
+
+            if ($flagger($run, $coverage)) {
+                $changed++;
+                $this->line(sprintf(
+                    '  run %d: %.1f%% of its sermon span is blind — %s',
+                    $run->id,
+                    100 * $coverage->unobservableFraction(),
+                    $coverage->warrantsReview() ? 'flagged for review' : 'flag withdrawn',
+                ));
+            }
+        }
+
+        $this->info(sprintf('Re-derived the evidence flag on %d section(s).', $changed));
     }
 
     /**

@@ -4,16 +4,12 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Actions\FlagIncompleteSermonEvidence;
 use App\Data\SermonEvidenceCoverage;
-use App\Data\ServiceSectionMetadata;
-use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Models\ServiceSection;
-use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\Media\Audio\ServiceTranscriptReader;
 use App\Services\Media\Audio\TranscriptStorageService;
-use App\Support\SectionReviewFlagPolicy;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -29,13 +25,12 @@ class CreateSermonTranscriptFromService extends ProcessingJob implements ShouldQ
      * A sermon whose delivered span is materially blind
      * {@see SermonEvidenceCoverage::REVIEW_FRACTION}.
      *
-     * Deliberately not a {@see ServiceStructureValidator} flag: those describe
-     * the detector's confidence in a boundary, and are re-derived from the
-     * banked structure. This one describes the recording behind the boundary,
-     * is raised only once the extraction plan exists, and must persist until the
-     * evidence itself is recovered.
+     * The flag and the rule for raising it live in
+     * {@see FlagIncompleteSermonEvidence}, because a sermon transcript has more
+     * than one writer and a re-derivation that skipped this question would leave
+     * a materially blind sermon unflagged.
      */
-    public const FLAG_EVIDENCE_INCOMPLETE = 'sermon_evidence_incomplete';
+    public const FLAG_EVIDENCE_INCOMPLETE = FlagIncompleteSermonEvidence::FLAG;
 
     public int $tries = 3;
 
@@ -87,7 +82,7 @@ class CreateSermonTranscriptFromService extends ProcessingJob implements ShouldQ
         $message = 'Created sermon transcript from full-service transcript';
 
         if ($coverage->warrantsReview()) {
-            $this->flagIncompleteEvidence($coverage);
+            app(FlagIncompleteSermonEvidence::class)($this->processingLog, $coverage);
             $message .= sprintf(
                 '; %.1f%% of its %.0f-second span has no transcript evidence',
                 $coverage->unobservableFraction() * 100,
@@ -103,47 +98,6 @@ class CreateSermonTranscriptFromService extends ProcessingJob implements ShouldQ
     {
         $this->initializeStepLogging($this->processingLog->processing_id);
         $this->logStepFailed('creating_sermon_transcript', $exception->getMessage());
-    }
-
-    /**
-     * Ask a reviewer to look at a sermon whose span is materially blind.
-     *
-     * The flag goes on the section rather than the run because that is where a
-     * reviewer meets the sermon, and it survives
-     * {@see \App\Services\ChurchService\SectionStructureFlagRederiver}, which
-     * re-derives only {@see ServiceStructureValidator::REANNOTATED_FLAGS} and
-     * retains everything else. That matters: an evidence flag a later recompute
-     * could quietly withdraw would repeat the defect it exists to catch.
-     */
-    private function flagIncompleteEvidence(SermonEvidenceCoverage $coverage): void
-    {
-        $section = $this->processingLog->serviceSections()
-            ->where('section_type', ServiceSectionType::Sermon)
-            ->orderBy('start_time')
-            ->first();
-
-        if (! $section instanceof ServiceSection) {
-            return;
-        }
-
-        $metadata = $section->metadata?->toArray() ?? [];
-        $reviewFlags = array_values(array_filter(
-            is_array($metadata['review_flags'] ?? null) ? $metadata['review_flags'] : [],
-            'is_string',
-        ));
-        $reviewFlags[] = self::FLAG_EVIDENCE_INCOMPLETE;
-
-        $metadata['review_flags'] = array_values(array_unique($reviewFlags));
-        $metadata['sermon_evidence_unobservable_fraction'] = round($coverage->unobservableFraction(), 4);
-        $metadata['sermon_evidence_unobservable_seconds'] = round($coverage->unobservableSeconds, 2);
-
-        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
-        $section->needs_manual_review = SectionReviewFlagPolicy::requiresManualReview(
-            $section->section_type,
-            $metadata['review_flags'],
-            is_string($metadata['sermon_reference'] ?? null) ? $metadata['sermon_reference'] : null,
-        );
-        $section->save();
     }
 
     /**

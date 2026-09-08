@@ -3669,30 +3669,31 @@ returns nothing, still marks the whole window — those paths are unchanged.
   130 runs the same day** — 5.01 h of 15.68 h recovered, +27,282 words, and both
   fail-level runs fall to 0% blind. See *What the region-wise fix actually
   recovers* below for the distribution and the 31 runs it does not help.
-- [ ] **Re-run recovery over the affected corpus.** This changes what the
-  pipeline banks in future; it does not touch a banked transcript. The named
-  runs keep their present evidence until recovery is re-run over them, and
-  #1148's and #1043's dispositions cannot be settled before that. **No
-  transcription is needed**: every retry is already archived — see *The discarded
-  retries were archived all along*. `historic-import:recover-calibration-transcripts`
-  is the right shape (offline, banked inputs, no processing records) but is
-  manifest-driven and calibration-scoped, and it reads the *banked* transcript
-  whose looping cues were already deleted; a re-run reads `.raw.json` plus the
-  banked retry.
-- [x] Re-measure `SermonEvidenceCoverage`. **Done as part of the census, and the
-  result is worse than expected for the gate**: the cohort's maximum blind
-  fraction falls to 11.9%, so the 40% line would fail nobody and the 10% line
-  flag one. **Do not re-tune from the census figures** — re-derive from what an
-  actual re-run banks.
-- [ ] Decide what re-analysis the recovered evidence obliges. This is where the
-  provider spend is: #1148 gains 3,243 words and its banked title, null reference
-  and summary all derive from the 81 it had. Recovery is free and local;
-  re-analysis is not.
+- [x] **Re-run recovery over the affected corpus. Done 2026-09-08, from the
+  banked retries.** `historic-import:replay-transcript-recovery` replayed all
+  **146** affected runs and **202** windows with no provider call, no ffmpeg and
+  no dependence on the source recording: **17.86 h blind → 12.34 h, 5.52 h
+  recovered (30.9%), +35,125 words**, 146 banked, 0 failures. The replayed
+  transcript is banked under its own artifact kind so the pre-fix one survives as
+  evidence, and each run records what it replaced. See *What the banked retries
+  actually recover* below — it supersedes the re-transcription census above
+  wherever the two differ.
+- [x] Re-measure `SermonEvidenceCoverage` — **twice, and the two disagree.** The
+  re-transcription census put the cohort maximum at 11.9%; the runs' own retries
+  put it at **25.4%**, because 1043's banked retry loops where the fresh decode
+  did not. Fail line fires on 0 (was 2), review line on 2 (was 6). **Thresholds
+  left as they are** — see *The gate is not inert, and should not be retuned*.
+- [x] Decide what re-analysis the recovered evidence obliges. **13 runs of the
+  146**, 6 materially; the other 133 recovered speech outside their sermon spans.
+  Re-derived and re-analysed via `--reanalyse`.
 - [ ] Re-place boundaries where recovery moved the evidence but not the
-  structure. #1195 is the worked case — evidence back, boundary unchanged.
+  structure. #1195 is the worked case — evidence back, boundary unchanged. Still
+  open: this is structure re-detection, which the replay deliberately does not do.
 - [ ] Reconsider the 120-second pathology floor *after* the re-run, not before.
   A shorter floor now also decides how much of a retry is kept, so it is no
-  longer only a detection question.
+  longer only a detection question. **The re-run makes this concrete**: the floor
+  is why no run reaches zero blind seconds (below), so lowering it would shrink
+  every residual window in the corpus at once.
 
 ###### What the region-wise fix actually recovers, censused 2026-09-07
 
@@ -3820,6 +3821,216 @@ and already reads banked artifacts offline.
   and resolve ambiguity explicitly; do not assume artifact *n* is window *n*.
 - [ ] Re-derive the whole census from the banked retries once that mapping is
   settled, and prefer it to the re-transcribed figures above wherever they differ.
+
+###### What the banked retries actually recover, executed 2026-09-08
+
+The census above re-transcribed the audio. This replayed the retries the runs
+themselves made and discarded, which is a different question with a different
+answer — and it is the one that was banked.
+
+**Scope.** **146** runs carry unobservable windows, and **every window in the
+corpus is `retranscription_failed`**; no other reason occurs anywhere. All 146
+runs and all 202 windows still hold their retry artifacts, so the whole affected
+set is measurable — 16 more runs and 2.2 h more than the re-transcription census
+could reach, because that needed the *source recording* retained and this does
+not.
+
+| | blind time | windows |
+|---|---:|---:|
+| banked before | **17.86 h** | 202 |
+| after the replay | **12.34 h** | 206 |
+| **recovered** | **5.52 h (30.9%)** | |
+
+**+35,125 words** of real speech, 146 of 146 banked without error.
+
+| outcome | runs |
+|---|---:|
+| partly recovered | 104 |
+| **unchanged** | **36** |
+| slightly blinder | 6 |
+| fully recovered | **0** |
+
+**No run reaches zero blind seconds, and that is a certainty rather than a
+result.** Every window here was banked `retranscription_failed`, which under the
+old rule *required* `detect($retry)` to return a window — and the detector's
+`min_window_seconds` floor is 120 s. So each of these runs must retain at least
+one residual window of ≥120 s; the smallest after the replay is 122 s. The
+re-transcription census reported **5 runs fully recovering**, which is only
+possible because a fresh decode is free to not loop where the banked one did.
+Where the two censuses disagree, prefer this one: it is what the pipeline had.
+
+**The named cohort, measured as `SermonEvidenceCoverage` measures it** — blind
+fraction of the delivered sermon span, over the 142 affected runs that have one:
+
+| sermon | run | before | after | |
+|---|---|---|---|---|
+| **1148** | 1229 | **96.5%** | **0.0%** | 81 → 3,300 words in span |
+| **1043** | 1118 | **49.2%** | **25.4%** | *not* 0.0% — the corpus maximum |
+| 885 | 949 | 31.8% | 7.9% | 3,538 → 4,806 words |
+| 1299 | 1300 | 27.4% | 5.8% | 4,600 → 5,796 words |
+| 1135 | 1217 | 24.5% | 2.4% | the hidden first eight minutes |
+| 1252 | 1327 | 13.5% | 11.9% | still flagged |
+| 1248 | 1323 | 8.3% | 7.7% | window never met the span |
+| 942 | 1007 | 5.1% | 0.5% | |
+
+Sermon **1148 was never absent.** Its span held 81 words of closing prayer and
+now holds 3,300, and its banked title, its null reference and its summary were
+all derived from those 81.
+
+###### The gate is not inert, and should not be retuned
+
+The earlier reading — a 40% fail line over a corpus topping out near 12% "never
+fires", so the lines need re-deriving — does not survive the measurement.
+
+| | before | after |
+|---|---:|---:|
+| fail (≥40%) | 2 | **0** |
+| review (≥10%) | 6 | **2** |
+| corpus maximum | 96.5% | **25.4%** |
+
+Percentiles after the replay: p50 0.0%, p90 0.0%, p95 0.6%, p99 11.9%, max 25.4%.
+
+**Leave both lines where they are.**
+
+- The fail line's job is the catastrophic case, and the corpus still contains
+  one: run 1004 lost a **72-minute** window covering its whole recording, and is
+  absent from the table only because it failed before an extraction plan existed.
+  A future run of that shape reaches ~100% and is correctly refused. The line
+  does not fire on *completed* runs any more because the defect that manufactured
+  a 96.5%-blind completion is fixed — which is the line working, not failing.
+- The review line still fires on exactly the two runs with the most residual
+  blindness. Its justifying case (1135 at 24.5%, reading perfectly at both ends
+  while hiding eight minutes) is gone, but 1043 at 25.4% now occupies almost the
+  same position, so the line is doing the same work for the same reason.
+- Re-tuning down from this distribution would fit thresholds to 142 post-fix
+  observations of a corpus whose shape the fix has just changed. The honest move
+  is to leave them and re-derive if a *future* pass produces a distribution they
+  fail to describe.
+
+###### Where the retries actually were, and how they map to windows
+
+The retries are archived under `service-transcripts/unknown-date/` as
+`other-<processing id>-recovery-<n>.raw.json`, because the recovery's synthetic
+id (`<processingId>-recovery-<n>`) matches no `MediaProcessingLog` and
+`ServiceArtifactStorage` cannot resolve a date. `putJson()` archives the retry
+*before* `recover()` decides what to do with it, so the transcription was banked
+and the decision to discard it taken afterwards, against a copy still on disk.
+
+**They are under the run's own batch root**, not the bare staging root:
+`historic-batches/<plan hash>/service-transcripts/unknown-date/`. Two batch roots
+hold them (451 artifacts across `8ecec582…` and `9351fa4e…`), and the 2026-09-07
+census's *own* 320 re-transcriptions sit in the unscoped root because that census
+ran outside a staging context. Same relative path, different roots — which is
+also why that session recorded both "413 files, none of them mine" and "my
+measurement wrote nothing to the staging drive", each true of one directory and
+false of the other. A run resolves its own root from
+`processing_metadata.historic_import.staging_context.batch_root`.
+
+**The artifact index is the *detected* window index, not the banked one.** A
+window is banked unobservable only when its retry was rejected, so a run with
+four detected windows and one banked window still has four artifacts and the
+banked window may be any of them. Matching by clip length — proposed above, and
+the obvious approach — is wrong twice over:
+
+- It is **ambiguous**. Run 971 has two detected windows of exactly 152.00 s; the
+  banked one is the first, whose artifact carries the *earlier* mtime, so both
+  "nearest duration" and "most recent" pick wrongly. 1198 has two 211.00 s
+  windows and 1342 has four artifacts against one banked window.
+- The clip is **shorter than the window** whenever whisper's cue times overrun
+  the real audio — run 1004's window is 4317.64 s against 4297.57 s of clip — so
+  the tolerance needed to absorb that is larger than the gaps it must resolve.
+
+Because `ServiceTranscriptPathologyDetector::detect()` is pure and the banked
+`.raw.json` is the exact provider response, the detected list is **re-derivable**:
+rebuild the pre-recovery transcript from the raw segments, apply the prompt-echo
+filter as `TranscribeFullService` does, and run the detector. That maps all 202
+windows across all 146 runs with nothing ambiguous and nothing missing.
+
+**The rebuild is verified, not assumed.** Outside the blind windows, the replayed
+transcript is cue-for-cue identical to the banked one for all 146 runs — so the
+reconstruction reproduces exactly what the pipeline fed to recovery. (Two runs
+show a single extra cue at a window's trailing edge: a zero-length cue sitting on
+the boundary satisfies "outside" on both sides of a half-open interval test. Both
+are genuinely recovered content.)
+
+###### What the replay obliges, and what it does not
+
+A sermon transcript is derived from the service transcript and the run's
+extraction spans, so it stales the moment the replay lands. **13 of the 146 runs
+gained sermon-span text**; the other 133 recovered speech in a song, a prayer or
+the notices, and change nothing a title was drawn from.
+
+| sermon | run | words in span | |
+|---|---|---|---|
+| 1148 | 1229 | 81 → 3,300 | the false completion |
+| 885 | 949 | 3,538 → 4,806 | |
+| 1299 | 1300 | 4,600 → 5,796 | |
+| 1135 | 1217 | 2,951 → 3,848 | |
+| 1043 | 1118 | 705 → 956 | |
+| 942 | 1007 | 3,874 → 4,019 | |
+| *seven more* | | ≤ +21 words each | |
+
+`historic-import:repair-sermon-transcript-spans` is the wrong instrument for
+these: it declines a single-span plan, correctly, because *its* defect (slicing
+the outer bounds across a gap) cannot occur with one span. Ours can. The
+re-slicing mechanic is now shared rather than copied — the caller says which
+population it is asking about, and the derivation, including the disk subtlety
+for a promoted historic sermon, stays in one place.
+
+**19 runs were re-analysed, not 13.** The selection asks whether the sermon
+transcript is *stale*, not whether the replay staled it, so it also swept in six
+two-span runs still carrying the **P8-Q1 span defect** — 939, 946, 948, 954, 956
+and 962, whose transcripts *shrank* by 210–4,504 characters as the intervening
+hymn or notices came out. That is work `repair-sermon-transcript-spans` was
+already owed and had never been run; it is correct, but it was not predicted.
+
+All 19 completed, 0 failed, all still `completed`. Summaries, points and
+references were rewritten from the recovered evidence — sermon 1148's summary is
+now Jude's warnings, its reference `Jude 1:5-7`.
+
+###### The title survived the correction, and should not have
+
+**`titleMayBeReplacedByAnalysis()` treats `AiAnalysis` provenance as
+authoritative**, so a title derived from evidence later proved to be 2.4% of the
+sermon outranks one derived from the whole of it. Sermon 1148 therefore came out
+of re-analysis titled *"Preserved by God's amazing grace"* — a fair summary of
+the 81-word closing prayer — sitting above a summary about judgement on unbelief,
+rebellion and sexual immorality. The fresh analysis had produced *"Warnings from
+Jude about false teachers"* and the code discarded it.
+
+That is the same shape as the defect this whole thread began with: a correct
+answer computed, then thrown away by a rule that could not tell it was better.
+1148's title and slug were corrected by hand from the analysis already paid for
+(`warnings-from-jude-about-false-teachers`; the old values are in
+`storage/scratch/sermon-1148-title-before.json`). Nine other titles also differ
+from the fresh analysis and were **deliberately left**: they are ordinary
+paraphrase variance (*"Let your yes be yes"* vs *"A people who keep their
+word"*), not corrections. Every affected sermon is quarantined, so none of this
+was public.
+
+- [ ] Decide whether an AI title should be replaceable when the evidence behind
+  it is later shown to have been incomplete. A provenance of `AiAnalysis` records
+  *who* wrote the title, not *what it saw*, and nothing in the record
+  distinguishes a title drawn from 81 words from one drawn from 3,300.
+
+###### The evidence flag had no second writer
+
+`SermonEvidenceCoverage` was measured only where `CreateSermonTranscriptFromService`
+first derived a transcript, and **nothing re-asked it afterwards**. Zero sections
+in the corpus carried `sermon_evidence_incomplete` — the gate has never fired,
+because these runs predate it. Re-deriving a transcript outside that job would
+have left the question unasked a second time.
+
+The flag and its rule now live in `FlagIncompleteSermonEvidence`, called by both
+the job and the re-derivation, and it **withdraws** as well as raises: recovered
+evidence is exactly the event that makes a standing flag wrong. Two runs qualify
+after the replay and are now flagged — **1118 at 25.4%** and **1327 at 11.9%** —
+which is the review line doing the work the 2026-09-07 reading expected it to
+have stopped doing.
+
+**The replay re-detects no structure.** #1195 remains the worked case: evidence
+recovered, boundary unchanged, sermon still opening mid-argument. Recovering
+evidence and re-placing a boundary are two steps and only the first is done.
 
 ###### The neighbouring-section half: a blind region typed as a song
 
