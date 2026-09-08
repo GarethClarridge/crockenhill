@@ -6,6 +6,7 @@ namespace App\Services\Media\Audio;
 
 use App\Contracts\ServiceTranscriptionInterface;
 use App\Data\ChurchServiceTranscript;
+use Closure;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -43,11 +44,39 @@ class ServiceTranscriptRecovery
             return $transcript;
         }
 
+        return $this->recoverUsing(
+            $transcript,
+            fn (int $index, array $window): ?ChurchServiceTranscript => $this->retranscribe($sourcePath, $window, $processingId, $index),
+        );
+    }
+
+    /**
+     * The recovery rule itself, over retries supplied by the caller.
+     *
+     * Separated from {@see recover()} so the rule has one implementation rather
+     * than two. The pipeline supplies retries by re-transcribing; a replay over
+     * a completed run supplies the retries that run already banked, which is the
+     * only way to reproduce the decision a past run made rather than approximate
+     * it with a fresh decode of the same audio.
+     *
+     * The window index passed to the resolver is the index within *this*
+     * transcript's detected windows, which is what the pipeline names its retry
+     * artifacts by. Returning null means the retry could not be obtained at all
+     * and is never a verdict on the audio.
+     *
+     * Deliberately not gated on `transcript_recovery.enabled`: that flag decides
+     * whether the pipeline attempts recovery, not whether an operator replaying a
+     * banked one is allowed to apply the rule.
+     *
+     * @param  Closure(int, array{start: float, end: float, reason: string, cue_count: int}): ?ChurchServiceTranscript  $retryFor
+     */
+    public function recoverUsing(ChurchServiceTranscript $transcript, Closure $retryFor): ChurchServiceTranscript
+    {
         $cues = $transcript->cues;
         $unobservableWindows = $transcript->unobservableWindows;
 
         foreach ($this->detector->detect($transcript) as $index => $window) {
-            $retry = $this->retranscribe($sourcePath, $window, $processingId, $index);
+            $retry = $retryFor($index, $window);
 
             // We never got to look at the audio, so we know nothing new about the
             // window. Flag it — the projector treats any flagged window as reason

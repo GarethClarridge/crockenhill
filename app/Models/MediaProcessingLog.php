@@ -952,6 +952,34 @@ class MediaProcessingLog extends Model
         });
     }
 
+    /**
+     * Record that transcript recovery was replayed over this run, and what it
+     * replaced.
+     *
+     * Written through the same safe path as the transcript key it accompanies,
+     * because the two must not disagree: a read-modify-write here would be the
+     * lost update {@see writeProcessingMetadata} exists to prevent, and would
+     * name a superseded transcript that the row no longer points away from.
+     *
+     * @param  array<string, mixed>  $stamp
+     */
+    public function putTranscriptRecoveryReplay(array $stamp): void
+    {
+        $this->writeProcessingMetadata(static function (array $metadata) use ($stamp): array {
+            $metadata['transcript_recovery_replay'] = $stamp;
+
+            return $metadata;
+        });
+    }
+
+    /** @return array<string, mixed>|null */
+    public function transcriptRecoveryReplay(): ?array
+    {
+        $stamp = ($this->processing_metadata?->toArray() ?? [])['transcript_recovery_replay'] ?? null;
+
+        return is_array($stamp) ? $stamp : null;
+    }
+
     /** @return list<array{start: float, end: float, reason: string}> */
     public function serviceTranscriptUnobservableWindows(): array
     {
