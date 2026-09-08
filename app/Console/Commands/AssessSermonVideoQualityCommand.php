@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Enums\SermonVideoQualityStatus;
 use App\Jobs\AssessSermonVideoQuality;
 use App\Models\Sermon;
+use App\Services\Media\MediaDiskReachability;
 use Illuminate\Console\Command;
 
 class AssessSermonVideoQualityCommand extends Command
@@ -16,11 +17,18 @@ class AssessSermonVideoQualityCommand extends Command
         {--from= : Only assess sermons on or after this YYYY-MM-DD date}
         {--to= : Only assess sermons on or before this YYYY-MM-DD date}
         {--all : Include sermons that already have an assessment verdict}
+        {--reason= : Only assess sermons whose recorded assessment reason matches, e.g. missing_video_file}
         {--limit=0 : Maximum number of sermons to assess; 0 means no limit}
         {--queue : Queue assessments instead of running them sequentially}
         {--dry-run : Show matching sermons without assessing or queueing them}';
 
     protected $description = 'Assess sermon video quality for one sermon or a tightly controlled backfill batch';
+
+    public function __construct(
+        private readonly MediaDiskReachability $reachability,
+    ) {
+        parent::__construct();
+    }
 
     public function handle(): int
     {
@@ -47,6 +55,18 @@ class AssessSermonVideoQualityCommand extends Command
             $query->where('video_quality_status', SermonVideoQualityStatus::Unassessed->value);
         }
 
+        /**
+         * Bounded targeted recovery. `missing_video_file` is an evidence-access
+         * failure, not an editorial decision, and it is the only class worth
+         * replaying wholesale after a disk-resolution fix. Filtering on the
+         * recorded reason keeps that replay off the genuinely unassessed
+         * backlog and off the rejections, whose evidence stands on its own.
+         */
+        $reason = $this->option('reason');
+        if (is_string($reason) && $reason !== '') {
+            $query->where('video_quality_reason', $reason);
+        }
+
         $limit = max(0, (int) $this->option('limit'));
         if ($limit > 0) {
             $query->limit($limit);
@@ -62,11 +82,26 @@ class AssessSermonVideoQualityCommand extends Command
 
         $this->line('Assessments run sequentially by default to avoid filling temporary disk with downloaded remote videos.');
 
+        $deferred = 0;
+
         foreach ($query->lazyById(25) as $sermon) {
             $count++;
 
             if ($dryRun) {
-                $this->line("Would assess sermon #{$sermon->id}: {$sermon->title}");
+                $this->line("Would assess sermon #{$sermon->id} on disk [{$sermon->assetDisk()}]: {$sermon->title}");
+
+                continue;
+            }
+
+            /**
+             * The job holds its own state when the owning disk is unreachable,
+             * but it does so silently. Reporting it here stops a batch run over
+             * a detached volume from reading as {n} successful assessments.
+             */
+            $unreachable = $this->reachability->unreachableReason($sermon->assetDisk());
+            if ($unreachable !== null) {
+                $deferred++;
+                $this->warn("Deferred sermon #{$sermon->id}: {$unreachable}");
 
                 continue;
             }
@@ -90,7 +125,11 @@ class AssessSermonVideoQualityCommand extends Command
         }
 
         $action = $dryRun ? 'matched' : ($queue ? 'queued' : 'assessed');
-        $this->info("Sermon video quality backfill {$action} {$count} sermon(s).");
+        $this->info('Sermon video quality backfill '.$action.' '.($count - $deferred).' sermon(s).');
+
+        if ($deferred > 0) {
+            $this->warn("{$deferred} sermon(s) were deferred because their owning disk is unreachable; their existing state is unchanged.");
+        }
 
         return self::SUCCESS;
     }

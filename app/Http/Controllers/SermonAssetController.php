@@ -271,6 +271,6 @@ class SermonAssetController extends Controller
 
     private function assetDisk(Sermon $sermon, string $fallback): string
     {
-        return filled($sermon->asset_disk) ? (string) $sermon->asset_disk : $fallback;
+        return $sermon->assetDisk($fallback);
     }
 }

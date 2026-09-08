@@ -15,12 +15,14 @@ use App\Enums\SermonSourceType;
 use App\Enums\SermonTitleProvenance;
 use App\Enums\SermonVideoQualityStatus;
 use App\Enums\SermonVideoVisibilityOverride;
+use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Models\Builders\SermonBuilder;
 use App\Rules\NotEmptyString;
 use App\Rules\SermonPointElement;
 use App\Services\Sermon\HistoricBankedSermonAnalysisReplay;
 use App\Sitemap\SermonSitemapPresenter;
+use App\Support\MediaAssetPath;
 use App\Support\PlaceholderSermonTitle;
 use App\Support\SermonProcessingState;
 use Database\Factories\SermonFactory;
@@ -551,6 +553,33 @@ class Sermon extends Model implements Sitemapable
     public function hasVideo(): bool
     {
         return filled($this->video_file_path);
+    }
+
+    /**
+     * The disk this sermon's stored assets actually live on.
+     *
+     * `asset_disk` is the sermon's own record of where its bytes were written.
+     * It exists because the globally configured sermon disk is not a constant:
+     * a historic batch rebinds it to the staging volume for the duration of the
+     * run and it moves on afterwards, so resolving through configuration looks
+     * for quarantined bytes wherever the *current* process happens to point.
+     * That is how {@see AssessSermonVideoQuality} came to record 81
+     * present, nonempty videos as `missing_video_file`.
+     *
+     * Rows predating the column carry null and keep resolving through
+     * configuration exactly as before. Callers holding their own notion of the
+     * configured disk pass it as `$fallback` so this method can be the single
+     * home for the rule without changing what any of them resolve to.
+     *
+     * @see ServiceSection::extractedAssetDisk() the same rule for section media
+     */
+    public function assetDisk(?string $fallback = null): string
+    {
+        if (filled($this->asset_disk)) {
+            return (string) $this->asset_disk;
+        }
+
+        return $fallback ?? MediaAssetPath::disk();
     }
 
     /**
