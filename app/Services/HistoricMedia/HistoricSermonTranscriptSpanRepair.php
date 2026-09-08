@@ -51,15 +51,24 @@ class HistoricSermonTranscriptSpanRepair
     /**
      * Classify each run without writing anything.
      *
+     * A sermon transcript is derived from the full-service transcript and the
+     * run's extraction spans, so it goes stale whenever either changes. This
+     * repair is one such trigger; {@see HistoricTranscriptRecoveryReplay} is
+     * another, and asks with `$requireConcatenatedPlan: false` because the
+     * transcript it changed is the service one, which stales a single-span
+     * sermon exactly as readily as a concatenated one. Which runs are worth
+     * asking about is the caller's question; how the answer is derived is not,
+     * and must not become a second copy of it.
+     *
      * @param  iterable<int, MediaProcessingLog>  $runs
      * @return list<SermonTranscriptSpanRepairEntry>
      */
-    public function inspect(iterable $runs): array
+    public function inspect(iterable $runs, bool $requireConcatenatedPlan = true): array
     {
         $entries = [];
 
         foreach ($runs as $run) {
-            $entries[] = $this->inspectRun($run);
+            $entries[] = $this->inspectRun($run, $requireConcatenatedPlan);
         }
 
         return $entries;
@@ -114,7 +123,7 @@ class HistoricSermonTranscriptSpanRepair
         return ['repaired' => $repaired, 'failed' => $failed, 'failures' => $failures];
     }
 
-    private function inspectRun(MediaProcessingLog $run): SermonTranscriptSpanRepairEntry
+    private function inspectRun(MediaProcessingLog $run, bool $requireConcatenatedPlan): SermonTranscriptSpanRepairEntry
     {
         $spans = $run->recordedSermonExtractionSpans();
 
@@ -130,10 +139,16 @@ class HistoricSermonTranscriptSpanRepair
             return $entry->with(self::DISPOSITION_UNAFFECTED, 'not a completed run');
         }
 
-        if ($spans === null || count($spans) < 2) {
+        if ($spans === null || $spans === []) {
+            return $entry->with(self::DISPOSITION_UNAFFECTED, 'no recorded extraction plan');
+        }
+
+        if ($requireConcatenatedPlan && count($spans) < 2) {
             /**
              * A single-span plan sets the run bounds to that one span, so the
-             * old slicing selected exactly the same cues. Nothing to repair.
+             * old slicing selected exactly the same cues. Nothing for *this*
+             * defect to repair — a caller whose service transcript has since
+             * changed asks without this gate.
              */
             return $entry->with(self::DISPOSITION_UNAFFECTED, 'no concatenated extraction plan');
         }

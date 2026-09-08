@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace Tests\Feature\Console;
 
 use App\Data\ChurchServiceTranscript;
+use App\Enums\SermonPublicationState;
+use App\Jobs\ProcessTranscriptWithAI;
 use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
 use App\Services\HistoricMedia\HistoricTranscriptRecoveryReplay;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
@@ -144,19 +148,101 @@ class ReplayHistoricTranscriptRecoveryCommandTest extends TestCase
         self::assertSame('retranscription_unavailable', $windows[0]['reason']);
     }
 
+    #[Test]
+    public function it_refuses_to_reanalyse_without_executing(): void
+    {
+        [$operation] = $this->historicRun();
+
+        $this->artisan('historic-import:replay-transcript-recovery', [
+            '--operation' => $operation->operation_id,
+            '--reanalyse' => true,
+        ])
+            ->expectsOutputToContain('--reanalyse requires --execute')
+            ->assertFailed();
+    }
+
+    #[Test]
+    public function it_rederives_a_single_span_sermon_transcript_and_dispatches_analysis(): void
+    {
+        Queue::fake();
+        [$operation, $log] = $this->historicRun(withSermon: true);
+        $sermon = $log->sermon;
+
+        $this->artisan('historic-import:replay-transcript-recovery', [
+            '--operation' => $operation->operation_id,
+            '--execute' => true,
+            '--reanalyse' => true,
+        ])
+            ->expectsOutputToContain('Re-derived 1 sermon transcript(s).')
+            ->expectsOutputToContain('Dispatched 1 re-analysis job(s)')
+            ->assertSuccessful();
+
+        // The span repair's own defect needs two spans; this one does not, and
+        // the recovered sermon must reach the banked transcript regardless.
+        $rewritten = (string) Storage::disk('local')->get((string) $sermon?->fresh()?->transcript_file_path);
+        self::assertStringContainsString('The sermon the old rule deleted.', $rewritten);
+
+        Queue::assertPushed(ProcessTranscriptWithAI::class, 1);
+    }
+
+    #[Test]
+    public function it_reanalyses_a_run_replayed_by_an_earlier_pass(): void
+    {
+        Queue::fake();
+        [$operation] = $this->historicRun(withSermon: true);
+
+        $this->artisan('historic-import:replay-transcript-recovery', [
+            '--operation' => $operation->operation_id,
+            '--execute' => true,
+        ])->assertSuccessful();
+
+        Queue::assertNothingPushed();
+
+        $this->artisan('historic-import:replay-transcript-recovery', [
+            '--operation' => $operation->operation_id,
+            '--execute' => true,
+            '--reanalyse' => true,
+        ])
+            ->expectsOutputToContain('already replayed')
+            ->expectsOutputToContain('Dispatched 1 re-analysis job(s)')
+            ->assertSuccessful();
+
+        Queue::assertPushed(ProcessTranscriptWithAI::class, 1);
+    }
+
     /**
      * @return array{0: HistoricImportOperation, 1: MediaProcessingLog}
      */
-    private function historicRun(): array
+    private function historicRun(bool $withSermon = false): array
     {
         $operation = $this->createHistoricImportOperation();
 
         $log = MediaProcessingLog::factory()->livestream()->completed()->create([
             'historic_import_operation_id' => $operation->id,
+            'sermon_start_time' => 700.0,
+            'sermon_end_time' => 950.0,
             'processing_metadata' => [
                 'historic_import' => ['operation_id' => $operation->operation_id],
+                // One span, deliberately: the sermon-span repair declines a
+                // single-span plan because its own defect cannot occur there.
+                'sermon_extraction_plan' => ['segments' => [['start_time' => 700.0, 'end_time' => 950.0]]],
             ],
         ]);
+
+        if ($withSermon) {
+            $sermon = Sermon::factory()->fromLivestream()->create([
+                'livestream_processing_id' => $log->processing_id,
+                'historic_import_operation_id' => $operation->id,
+                'publication_state' => SermonPublicationState::Quarantined,
+                'asset_disk' => 'local',
+            ]);
+            $log->forceFill(['sermon_id' => $sermon->id])->save();
+
+            $sermonTranscriptPath = 'transcripts/sermon_'.$sermon->id.'.md';
+            $sermon->forceFill(['transcript_file_path' => $sermonTranscriptPath])->save();
+            // What the old rule left inside the span: the closing line only.
+            Storage::disk('local')->put($sermonTranscriptPath, 'After the window.');
+        }
 
         // The provider response the run banked, loop and all.
         Storage::disk('local')->put(
@@ -184,7 +270,7 @@ class ReplayHistoricTranscriptRecoveryCommandTest extends TestCase
         Storage::disk('local')->put($this->bankedTranscriptPath($log), json_encode($banked->toArray(), JSON_THROW_ON_ERROR));
         $log->putServiceTranscriptPath($this->bankedTranscriptPath($log), $banked->unobservableWindows);
 
-        return [$operation, $log->fresh()];
+        return [$operation, $log->fresh()?->load('sermon')];
     }
 
     /**

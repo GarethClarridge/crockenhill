@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Jobs\ProcessTranscriptWithAI;
 use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
+use App\Services\HistoricMedia\HistoricProcessingThroughput;
+use App\Services\HistoricMedia\HistoricSermonTranscriptSpanRepair;
 use App\Services\HistoricMedia\HistoricTranscriptRecoveryReplay;
+use App\Services\HistoricMedia\SermonTranscriptSpanRepairEntry;
 use App\Services\HistoricMedia\TranscriptRecoveryReplayEntry;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
@@ -28,11 +32,14 @@ use Throwable;
  * replayed run reports as "already replayed" afterwards, so an interrupted pass
  * resumes by simply running the command again.
  *
- * This command does not re-analyse anything. Recovered evidence can move a
- * sermon's whole basis — one sermon goes from 81 words of closing prayer to
- * 3,324 words opening mid-lectern — but re-placing a boundary and re-deriving a
- * title are separate steps with separate costs, taken deliberately once the
- * replay has landed and the change is visible.
+ * The replay itself is free. `--reanalyse` is not, and is therefore a separate
+ * opt-in: recovered evidence can move a sermon's whole basis — one sermon goes
+ * from 81 words of closing prayer to 3,300 — and the sermon transcript, being
+ * derived from the service transcript and the run's spans, is stale the moment
+ * the replay lands. It re-derives that transcript and re-dispatches analysis for
+ * the runs whose *sermon span* actually gained text, which is far fewer than the
+ * runs the replay touches: most recovered speech is a song or the notices, and
+ * changes nothing a sermon's title was drawn from.
  *
  * Deletion trigger: delete once every affected historic run is replayed and the
  * Phase 8 closeout retention window has expired.
@@ -45,15 +52,25 @@ class ReplayHistoricTranscriptRecoveryCommand extends Command
                             {--run=* : Restrict to these media processing log IDs}
                             {--limit= : Inspect at most this many runs, oldest first}
                             {--execute : Bank the replayed transcripts (default: dry run)}
+                            {--reanalyse : Also re-derive the sermon transcripts the replay staled, and re-dispatch AI analysis}
                             {--show-unaffected : List runs needing no replay as well}
                             {--json= : Also write the full per-run census to this path}';
 
     protected $description = 'Re-apply transcript recovery to historic runs using the retries they already banked';
 
-    public function handle(HistoricTranscriptRecoveryReplay $replay): int
-    {
+    public function handle(
+        HistoricTranscriptRecoveryReplay $replay,
+        HistoricSermonTranscriptSpanRepair $sermonTranscripts,
+        HistoricProcessingThroughput $throughput,
+    ): int {
         try {
             $execute = (bool) $this->option('execute');
+            $reanalyse = (bool) $this->option('reanalyse');
+
+            if ($reanalyse && ! $execute) {
+                throw new RuntimeException('--reanalyse requires --execute; analysis must not be re-dispatched against a transcript that was never banked.');
+            }
+
             $runs = $this->runsQuery()->get();
 
             if ($runs->isEmpty()) {
@@ -88,8 +105,10 @@ class ReplayHistoricTranscriptRecoveryCommand extends Command
                 $this->error($failure);
             }
 
-            if ($totals['replayed'] > 0) {
-                $this->warn('Structure and analysis banked for these runs still derive from the old transcript.');
+            if ($reanalyse) {
+                $this->reanalyse($entries, $totals['failures'], $sermonTranscripts, $throughput);
+            } elseif ($totals['replayed'] > 0) {
+                $this->warn('Structure and analysis banked for these runs still derive from the old transcript. Re-run with --execute --reanalyse to refresh what changed.');
             }
 
             return $totals['failed'] > 0 ? self::FAILURE : self::SUCCESS;
@@ -181,6 +200,98 @@ class ReplayHistoricTranscriptRecoveryCommand extends Command
             $blindBefore > 0 ? 100 * ($blindBefore - $blindAfter) / $blindBefore : 0,
         ));
         $this->line(sprintf('words     %d -> %d  (%+d)', $wordsBefore, $wordsAfter, $wordsAfter - $wordsBefore));
+    }
+
+    /**
+     * Re-derive the sermon transcripts the replay staled, then re-analyse them.
+     *
+     * Selection is on what actually changed rather than on what was replayed:
+     * the sermon transcript is re-sliced from the corrected service transcript,
+     * and only a run whose sliced text genuinely differs is written and
+     * re-analysed. A run whose recovered speech all fell outside its sermon span
+     * re-slices to the same text and costs nothing.
+     *
+     * Runs replayed by an *earlier* pass count too. The replay is idempotent and
+     * reports them as already replayed, but their sermon transcripts are just as
+     * stale — refusing them would make re-analysis reachable only in the same
+     * invocation that happened to bank the transcript.
+     *
+     * @param  list<TranscriptRecoveryReplayEntry>  $entries
+     * @param  list<string>  $failures
+     */
+    private function reanalyse(
+        array $entries,
+        array $failures,
+        HistoricSermonTranscriptSpanRepair $sermonTranscripts,
+        HistoricProcessingThroughput $throughput,
+    ): void {
+        $failed = [];
+
+        foreach ($failures as $failure) {
+            $failed[strtok($failure, ':')] = true;
+        }
+
+        $replayedIds = array_map(
+            static fn (TranscriptRecoveryReplayEntry $entry): int => $entry->logId,
+            array_values(array_filter(
+                $entries,
+                static fn (TranscriptRecoveryReplayEntry $entry): bool => ! isset($failed[$entry->processingId])
+                    && in_array($entry->disposition, [
+                        HistoricTranscriptRecoveryReplay::DISPOSITION_REPLAYABLE,
+                        HistoricTranscriptRecoveryReplay::DISPOSITION_ALREADY_REPLAYED,
+                    ], true),
+            )),
+        );
+
+        $runs = MediaProcessingLog::query()
+            ->whereIn('id', $replayedIds)
+            ->with('sermon')
+            ->orderBy('id')
+            ->get();
+
+        $sermonEntries = $sermonTranscripts->inspect($runs, requireConcatenatedPlan: false);
+        $stale = array_values(array_filter(
+            $sermonEntries,
+            static fn (SermonTranscriptSpanRepairEntry $entry): bool => $entry->isRepairable(),
+        ));
+
+        if ($stale === []) {
+            $this->info('No sermon transcript was staled by the replay; nothing to re-analyse.');
+
+            return;
+        }
+
+        $this->table(
+            ['Run', 'Sermon', 'Current', 'Re-derived', 'Change'],
+            array_map(static fn (SermonTranscriptSpanRepairEntry $entry): array => [
+                $entry->logId,
+                $entry->sermonId ?? '-',
+                (string) $entry->currentLength,
+                (string) $entry->repairedLength,
+                sprintf('%+d', -(int) $entry->removedLength()),
+            ], $stale),
+        );
+
+        $totals = $sermonTranscripts->apply($sermonEntries);
+        $this->info("Re-derived {$totals['repaired']} sermon transcript(s).");
+
+        foreach ($totals['failures'] as $failure) {
+            $this->error($failure);
+        }
+
+        $queue = $throughput->queueForClass(ProcessTranscriptWithAI::class);
+        $dispatched = 0;
+
+        foreach ($stale as $entry) {
+            $run = MediaProcessingLog::query()->find($entry->logId);
+
+            if ($run instanceof MediaProcessingLog) {
+                ProcessTranscriptWithAI::dispatch($run)->onQueue($queue);
+                $dispatched++;
+            }
+        }
+
+        $this->info("Dispatched {$dispatched} re-analysis job(s) onto the {$queue} queue.");
     }
 
     /**
