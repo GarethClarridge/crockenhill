@@ -4614,10 +4614,18 @@ API call, so unchanged missing-file retries do not themselves incur analysis spe
    recovery** (see item 4); no production exposure was ever demonstrated.
 2. **Remove deterministic operational work:** P8-Q12 freshness/retry/queue isolation,
    P8-Q2 scoped policy reconciliation, P8-Q3 owning-disk recovery and P8-Q6 calibration.
-   **This is now the leading edge.** Its cheapest concrete piece is P8-Q2's
-   demotion backlog: **96 sections** whose only stored review flag is
-   `structure_oos_cross_type_inversion`, which `SectionReviewFlagPolicy` demotes
-   on every section type, out of a queue of **329 across 173 runs**.
+   **This is now the leading edge.** P8-Q2's demotion backlog is **DONE
+   2026-09-08** (`7c55d99e4`): 99 sections / 46 services applied, taking the queue
+   from **329 sections across 173 runs to 232 across 153**, idempotent on re-run.
+   96 were the `structure_oos_cross_type_inversion` sole-flag demotions the policy
+   has always made. The other three were found only by enumerating the pass **by
+   write shape** rather than trusting its count — a residue where the spoken-
+   announcement retype stripped one song-alignment flag and left the rest on a row
+   that was no longer a song. Note the shape of the two reconcilers before relying
+   on either: `services:rederive-structure-review-flags` can re-weigh a flag but
+   never withdraw one, and `services:recompute-section-review-flags` could withdraw
+   but never notice residue on a row it had already quietened (now fixed).
+   **P8-Q12, P8-Q3 and P8-Q6 remain.**
 3. **Learn boundaries and metadata:** P8-Q9 framing, P8-Q11 passage reconciliation,
    P8-Q7 duplicates and P8-Q4 speaker bucketing. Preserve uncertain cases for review.
 4. **New capabilities, separately scoped and not blocking.** Splitting a service
