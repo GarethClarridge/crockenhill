@@ -450,17 +450,47 @@ class ProcessingRunOrchestrator
             return ['code' => 'RUN_RETIRED', 'message' => 'A retired or superseded run holds no structure worth re-deriving.'];
         }
 
-        if ($processingLog->status !== ProcessingStatus::Completed) {
+        /**
+         * A failed run belongs here as much as a completed one, and for a
+         * plainer reason: there is nothing to re-open. Run #1035 projected its
+         * structure from a transcript holding 22 words, then failed downstream
+         * at ExtractSermon on "no speech block met the 20-minute threshold" —
+         * a verdict inherited from a projection made against almost nothing.
+         * Its ordinary retry resumes at the extraction phase and re-reads that
+         * same structure, so only re-detection reaches the evidence that
+         * changed. What must stay excluded is a run still in flight.
+         */
+        if (! in_array($processingLog->status, [ProcessingStatus::Completed, ProcessingStatus::Failed], true)) {
             return [
-                'code' => 'RUN_NOT_COMPLETED',
-                'message' => 'Structure re-detection re-opens a completed run; this one is '.$processingLog->status->value.'.',
+                'code' => 'RUN_NOT_SETTLED',
+                'message' => 'Structure re-detection needs a run that has settled; this one is '.$processingLog->status->value.'.',
             ];
         }
 
-        if ($processingLog->transcriptRecoveryReplay() === null) {
+        $replay = $processingLog->transcriptRecoveryReplay();
+
+        if ($replay === null) {
             return [
                 'code' => 'TRANSCRIPT_UNCHANGED',
                 'message' => 'This run\'s transcript has not changed since its structure was projected.',
+            ];
+        }
+
+        /**
+         * The stamp says a replay ran, not that it found anything. Run #1004 is
+         * the case: 4,317 blind seconds, both banked retries empty, nought words
+         * before and nought after. Re-detecting reads the same transcript the
+         * first projection read and costs two provider calls to reach the same
+         * answer.
+         *
+         * Fail closed, like every guard around it: the stamp must *demonstrate*
+         * a gain, so a stamp that carries no counts is refused rather than
+         * assumed good.
+         */
+        if ((int) ($replay['words_after'] ?? 0) <= (int) ($replay['words_before'] ?? 0)) {
+            return [
+                'code' => 'RECOVERY_ADDED_NOTHING',
+                'message' => 'The recovery replay shows no words recovered, so re-detection would read the same evidence.',
             ];
         }
 

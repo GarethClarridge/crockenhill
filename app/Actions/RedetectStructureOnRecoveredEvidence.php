@@ -9,7 +9,7 @@ use App\Services\Processing\ProcessingRunOrchestrator;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Re-derive the service structure of a completed run whose transcript was
+ * Re-derive the service structure of a settled run whose transcript was
  * corrected after that structure was projected.
  *
  * Structure detection reads the full-service transcript. Where part of that
@@ -28,6 +28,13 @@ use Illuminate\Support\Facades\Log;
  * analysis; the run leaves `completed` while the chain runs, so an interrupted
  * chain leaves a finished run in a failed state. The structure it replaces is
  * therefore snapshotted first, on the run, before anything is dispatched.
+ *
+ * A **failed** run is eligible on the same evidence and carries less risk: it
+ * has no completed state to lose and nothing published to re-cut. Its structure
+ * is still worth re-deriving, because a run can fail *downstream* of detection
+ * on a verdict the void produced — run #1035 failed at extraction for want of a
+ * 20-minute speech block, having projected one prayer from a 22-word transcript.
+ * The ordinary retry resumes at the failing phase and never revisits detection.
  *
  * Deliberately does not select runs itself. Detection is not deterministic —
  * run #935 misread a whole service that the very next run read correctly — so

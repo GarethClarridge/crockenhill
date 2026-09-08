@@ -9,7 +9,7 @@ use App\Models\MediaProcessingLog;
 use Illuminate\Console\Command;
 
 /**
- * Operator instrument for re-deriving the structure of a completed run whose
+ * Operator instrument for re-deriving the structure of a settled run whose
  * transcript the recovery replay corrected.
  *
  * Dry-run by default, and **never selects runs on its own**. Re-detection
@@ -17,6 +17,10 @@ use Illuminate\Console\Command;
  * and replaces the projected sections — and detection is not deterministic, so
  * re-deriving a structure that happens to be right can make it worse. Each run
  * is named by an operator who has looked at it.
+ *
+ * Failed runs are eligible too: a run can fail downstream of detection on a
+ * verdict the blind transcript produced, and its ordinary retry resumes at the
+ * failing phase without ever revisiting the structure.
  *
  * Delete once every run the recovery replay corrected has either been re-derived
  * or accepted as it stands.
@@ -27,7 +31,7 @@ class RedetectRecoveredStructureCommand extends Command
         {run* : Media processing log IDs to re-derive}
         {--execute : Dispatch the re-detection; without this option the command is a dry run}';
 
-    protected $description = 'Re-derive the service structure of a completed run whose transcript recovery corrected';
+    protected $description = 'Re-derive the service structure of a settled run whose transcript recovery corrected';
 
     public function handle(RedetectStructureOnRecoveredEvidence $redetector): int
     {
@@ -36,7 +40,7 @@ class RedetectRecoveredStructureCommand extends Command
         if (! $execute) {
             $this->warn('DRY RUN enabled by default. Nothing will be dispatched; pass --execute to re-derive.');
         } else {
-            $this->warn('This re-opens completed runs: they leave `completed` while the chain runs, their sermon media is re-cut, and their analysis is re-derived.');
+            $this->warn('This re-opens settled runs: a completed one leaves `completed` while the chain runs, its sermon media is re-cut, and its analysis is re-derived.');
         }
 
         /** @var list<int> $runIds */

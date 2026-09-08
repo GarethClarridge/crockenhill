@@ -99,6 +99,61 @@ class RedetectRecoveredStructureCommandTest extends TestCase
         self::assertNotNull($snapshot['taken_at']);
     }
 
+    /**
+     * Run #1035 is the case this covers: it projected one prayer from a 22-word
+     * transcript, then failed downstream at extraction because no speech block
+     * met the 20-minute sermon threshold. Its ordinary retry plan resumes at the
+     * extraction phase and re-reads that same structure, so re-detection is the
+     * only route back to the evidence the replay restored.
+     */
+    #[Test]
+    public function it_redetects_a_failed_run_whose_transcript_was_corrected(): void
+    {
+        Bus::fake();
+        $log = $this->replayedRun(status: ProcessingStatus::Failed);
+
+        $this->artisan('historic-import:redetect-recovered-structure', ['run' => [$log->id], '--execute' => true])
+            ->expectsOutputToContain('dispatched')
+            ->assertSuccessful();
+
+        $snapshot = $log->fresh()?->processing_metadata?->toArray()[RedetectStructureOnRecoveredEvidence::SNAPSHOT_KEY] ?? null;
+
+        self::assertIsArray($snapshot);
+        self::assertCount(1, $snapshot['sections']);
+    }
+
+    #[Test]
+    public function it_refuses_a_run_that_is_still_in_flight(): void
+    {
+        Bus::fake();
+        $log = $this->replayedRun(status: ProcessingStatus::Processing);
+
+        $this->artisan('historic-import:redetect-recovered-structure', ['run' => [$log->id], '--execute' => true])
+            ->expectsOutputToContain('needs a run that has settled')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+    }
+
+    /**
+     * Run #1004's replay found nothing: 4,317 blind seconds, both banked retries
+     * empty. The stamp proves a replay ran, not that it recovered anything, so
+     * re-detection would spend two provider calls re-reading the same evidence.
+     */
+    #[Test]
+    public function it_refuses_a_run_whose_replay_recovered_no_words(): void
+    {
+        Bus::fake();
+        $log = $this->replayedRun(wordsRecovered: 0);
+
+        $this->artisan('historic-import:redetect-recovered-structure', ['run' => [$log->id], '--execute' => true])
+            ->expectsOutputToContain('no words recovered')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+        self::assertNull($log->fresh()?->processing_metadata?->toArray()[RedetectStructureOnRecoveredEvidence::SNAPSHOT_KEY] ?? null);
+    }
+
     #[Test]
     public function it_refuses_a_run_it_has_already_redetected(): void
     {
@@ -113,8 +168,11 @@ class RedetectRecoveredStructureCommandTest extends TestCase
             ->assertSuccessful();
     }
 
-    private function replayedRun(bool $replayed = true): MediaProcessingLog
-    {
+    private function replayedRun(
+        bool $replayed = true,
+        ProcessingStatus $status = ProcessingStatus::Completed,
+        int $wordsRecovered = 5_855,
+    ): MediaProcessingLog {
         $operation = $this->createHistoricImportOperation();
 
         // No staging context: the guard would refuse a fabricated storage
@@ -126,15 +184,21 @@ class RedetectRecoveredStructureCommandTest extends TestCase
         ];
 
         if ($replayed) {
-            $metadata['transcript_recovery_replay'] = ['replayed_at' => now()->toIso8601String(), 'previous_path' => 'old.json'];
+            $metadata['transcript_recovery_replay'] = [
+                'replayed_at' => now()->toIso8601String(),
+                'previous_path' => 'old.json',
+                'words_before' => 22,
+                'words_after' => 22 + $wordsRecovered,
+            ];
         }
 
         $log = MediaProcessingLog::factory()->livestream()->completed()->create([
             'historic_import_operation_id' => $operation->id,
+            'status' => $status,
             'source_file_path' => self::SOURCE,
             'sermon_start_time' => 120.0,
             'sermon_end_time' => 900.0,
-            'current_step' => 'completed',
+            'current_step' => $status === ProcessingStatus::Failed ? 'manual_review_required' : 'completed',
             'processing_metadata' => $metadata,
         ]);
 
