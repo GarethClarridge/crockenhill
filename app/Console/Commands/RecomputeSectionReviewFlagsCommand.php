@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Enums\ServiceSectionSongMatchType;
+use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ChurchServiceReviewSynchronizer;
@@ -128,9 +129,14 @@ class RecomputeSectionReviewFlagsCommand extends Command
     }
 
     /**
-     * Only rows that could change downward under current policy: a stored
-     * manual-review flag that may clear, or an inferred song match that may
-     * confirm.
+     * Rows whose stored review state can still be stale: a manual-review flag
+     * that may clear, an inferred song match that may confirm, or a section
+     * retyped away from `song` still carrying song-alignment flags.
+     *
+     * The first two arms only ever look at rows already asking for attention,
+     * so on their own this pass can withdraw review but never notice residue on
+     * a row it has already quietened. The third arm is what makes the
+     * reconciliation reach that class.
      *
      * @param  list<int>  $serviceIds
      * @return Builder<ServiceSection>
@@ -140,7 +146,21 @@ class RecomputeSectionReviewFlagsCommand extends Command
         return ServiceSection::query()
             ->where(function (Builder $query): void {
                 $query->where('needs_manual_review', true)
-                    ->orWhere('song_match_type', ServiceSectionSongMatchType::Inferred->value);
+                    ->orWhere('song_match_type', ServiceSectionSongMatchType::Inferred->value)
+                    // Third arm: a section retyped away from `song` that still
+                    // carries song-alignment flags is stale in a direction the
+                    // first two arms cannot see — its review boolean is already
+                    // false and its match type already null, so without this it
+                    // is unreachable and its residue never clears.
+                    ->orWhere(function (Builder $residue): void {
+                        $residue->where('section_type', '!=', ServiceSectionType::Song->value);
+
+                        $residue->where(function (Builder $flags): void {
+                            foreach (SectionReviewFlagRecalculator::SONG_ALIGNMENT_FLAGS as $flag) {
+                                $flags->orWhereJsonContains('metadata->review_flags', $flag);
+                            }
+                        });
+                    });
             })
             ->when($serviceIds !== [], function (Builder $query) use ($serviceIds): void {
                 $query->whereIn('id', $this->sectionIdsForServices($serviceIds));

@@ -23,6 +23,26 @@ use App\Support\SongCatalogueTitlePolicy;
 class SectionReviewFlagRecalculator
 {
     /**
+     * Flags that ask about a section's alignment to a printed *song* item, and
+     * so mean nothing once the section is retyped away from `song`.
+     *
+     * Only `unmatched_song_section` was stripped originally, which left
+     * `song_alignment_inferred` behind on a section that is no longer a song.
+     * That residue is not inert: the policy reads it as review-worthy, so the
+     * two passes disagreed about rows a retype had deliberately cleared, and
+     * {@see SectionStructureFlagRederiver} had to carry a note explaining why it
+     * declined to act on them. The retype owns this, so it strips the whole set.
+     *
+     * @var list<string>
+     */
+    public const SONG_ALIGNMENT_FLAGS = [
+        'unmatched_song_section',
+        'song_alignment_inferred',
+        'song_name_reference_only',
+        'song_title_marker_mismatch',
+    ];
+
+    /**
      * @return array<string, mixed>
      */
     public function updatesFor(ServiceSection $section): array
@@ -39,6 +59,15 @@ class SectionReviewFlagRecalculator
         // place, a later recompute would re-derive needs_manual_review from it.
         if ($this->isSpokenSongAnnouncement($section, $metadata, $reviewFlags)) {
             return $this->spokenAnnouncementUpdates($metadata, $reviewFlags);
+        }
+
+        // A section retyped away from `song` before the strip above covered the
+        // whole set keeps flags that ask about song alignment, and the retype
+        // cannot revisit it: isSpokenSongAnnouncement() requires `song`, so once
+        // retyped nothing matches it again. Strip the residue where it sits.
+        if ($section->section_type !== ServiceSectionType::Song
+            && array_intersect($reviewFlags, self::SONG_ALIGNMENT_FLAGS) !== []) {
+            return $this->songAlignmentResidueUpdates($section, $metadata, $reviewFlags);
         }
 
         $updates = [];
@@ -90,6 +119,46 @@ class SectionReviewFlagRecalculator
     }
 
     /**
+     * Drop song-alignment flags from a section that is no longer a song, and
+     * re-derive its review state from whatever genuinely remains.
+     *
+     * Deliberately re-derives rather than forcing `false`: a section may hold
+     * other flags that still warrant review on their own terms, and this pass
+     * has no standing to withdraw those.
+     *
+     * @param  array<string, mixed>  $metadata
+     * @param  array<int, string>  $reviewFlags
+     * @return array<string, mixed>
+     */
+    private function songAlignmentResidueUpdates(
+        ServiceSection $section,
+        array $metadata,
+        array $reviewFlags,
+    ): array {
+        $remaining = array_values(array_filter(
+            $reviewFlags,
+            static fn (string $flag): bool => ! in_array($flag, self::SONG_ALIGNMENT_FLAGS, true),
+        ));
+
+        $metadata['review_flags'] = $remaining;
+
+        if (in_array($metadata['review_reason'] ?? null, self::SONG_ALIGNMENT_FLAGS, true)) {
+            unset($metadata['review_reason']);
+        }
+
+        $needsManualReview = SectionReviewFlagPolicy::requiresManualReview(
+            $section->section_type,
+            $remaining,
+            is_string($metadata['sermon_reference'] ?? null) ? $metadata['sermon_reference'] : null,
+        );
+
+        return [
+            'needs_manual_review' => $needsManualReview,
+            'metadata' => ServiceSectionMetadata::fromArray($metadata),
+        ];
+    }
+
+    /**
      * @param  array<string, mixed>  $metadata
      * @param  array<int, string>  $reviewFlags
      * @return array<string, mixed>
@@ -98,10 +167,10 @@ class SectionReviewFlagRecalculator
     {
         $metadata['review_flags'] = array_values(array_filter(
             $reviewFlags,
-            static fn (string $flag): bool => $flag !== 'unmatched_song_section',
+            static fn (string $flag): bool => ! in_array($flag, self::SONG_ALIGNMENT_FLAGS, true),
         ));
 
-        if (($metadata['review_reason'] ?? null) === 'unmatched_song_section') {
+        if (in_array($metadata['review_reason'] ?? null, self::SONG_ALIGNMENT_FLAGS, true)) {
             unset($metadata['review_reason']);
         }
 

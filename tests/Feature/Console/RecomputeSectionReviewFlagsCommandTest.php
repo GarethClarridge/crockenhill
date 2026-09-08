@@ -266,6 +266,99 @@ class RecomputeSectionReviewFlagsCommandTest extends TestCase
     }
 
     /**
+     * The retype originally stripped only `unmatched_song_section`, so a section
+     * it moved to `other` kept `song_alignment_inferred` — a question about
+     * alignment to a printed *song* item, on a row that is no longer a song.
+     * Sections #123 and #220 are the live pair; the policy reads that residue as
+     * review-worthy, so the two reconciliation passes disagreed about rows a
+     * retype had deliberately quietened.
+     */
+    #[Test]
+    public function it_strips_song_alignment_residue_from_a_retyped_section_without_reopening_review(): void
+    {
+        $service = ChurchService::factory()->create(['needs_review' => false]);
+        $run = $this->livestreamRun($service);
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Other,
+            'song_match_type' => null,
+            'needs_manual_review' => false,
+            'metadata' => [
+                'review_flags' => ['song_alignment_inferred'],
+                'review_reason' => 'song_alignment_inferred',
+            ],
+        ]);
+
+        $this->artisan('services:recompute-section-review-flags', ['--execute' => true])
+            ->assertSuccessful();
+
+        $fresh = $section->fresh();
+        $metadata = $fresh->metadata?->toArray() ?? [];
+
+        self::assertSame([], $metadata['review_flags']);
+        self::assertArrayNotHasKey('review_reason', $metadata);
+        // The point of the fix: the residue goes, review does not come back.
+        self::assertFalse($fresh->needs_manual_review);
+    }
+
+    /**
+     * Section #46 is the live case: typed `other`, yet held in the queue by
+     * "this song never matched a song".
+     */
+    #[Test]
+    public function it_releases_a_retyped_section_held_in_review_by_a_song_alignment_flag(): void
+    {
+        $service = ChurchService::factory()->create(['needs_review' => true]);
+        $run = $this->livestreamRun($service);
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Other,
+            'needs_manual_review' => true,
+            'metadata' => ['review_flags' => ['unmatched_song_section']],
+        ]);
+
+        $this->artisan('services:recompute-section-review-flags', ['--execute' => true])
+            ->assertSuccessful();
+
+        $fresh = $section->fresh();
+        self::assertFalse($fresh->needs_manual_review);
+        self::assertSame([], $fresh->metadata?->toArray()['review_flags'] ?? null);
+    }
+
+    /**
+     * Stripping is scoped to the song-alignment set, not a licence to quieten a
+     * row: a flag that stands on its own terms must survive the strip and keep
+     * the section in review.
+     */
+    #[Test]
+    public function it_keeps_a_retyped_section_flagged_when_another_reason_survives_the_strip(): void
+    {
+        $service = ChurchService::factory()->create(['needs_review' => true]);
+        $run = $this->livestreamRun($service);
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Sermon,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'review_flags' => [
+                    'song_alignment_inferred',
+                    ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK,
+                ],
+            ],
+        ]);
+
+        $this->artisan('services:recompute-section-review-flags', ['--execute' => true])
+            ->assertSuccessful();
+
+        $fresh = $section->fresh();
+        $flags = $fresh->metadata?->toArray()['review_flags'] ?? [];
+
+        self::assertNotContains('song_alignment_inferred', $flags);
+        self::assertContains(ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK, $flags);
+        self::assertTrue($fresh->needs_manual_review);
+    }
+
+    /**
      * @return array{0: ChurchService, 1: ServiceSection}
      */
     private function serviceWithStaleFillerFlag(): array
