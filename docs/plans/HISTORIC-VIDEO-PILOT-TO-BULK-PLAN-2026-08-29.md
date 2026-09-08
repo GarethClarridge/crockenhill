@@ -4028,9 +4028,97 @@ after the replay and are now flagged — **1118 at 25.4%** and **1327 at 11.9%**
 which is the review line doing the work the 2026-09-07 reading expected it to
 have stopped doing.
 
-**The replay re-detects no structure.** #1195 remains the worked case: evidence
-recovered, boundary unchanged, sermon still opening mid-argument. Recovering
-evidence and re-placing a boundary are two steps and only the first is done.
+###### Structure re-detection: sized, instrumented, piloted 2026-09-08
+
+**The set is 21 runs, in two shapes that do not overlap.** Detection reads the
+full-service transcript, so where that transcript was blind the structure was
+drawn over a void — and it happened two different ways:
+
+- **Void-covered (10 runs).** A low-confidence placeholder spanning the blind
+  region. Run 1278 is the type: `other`, confidence **0.20**, 1,558.7 s, its
+  bounds sitting almost exactly on its 1,439-second window.
+- **Void-skipped (11 runs).** **No section at all.** Run 1127's structure simply
+  has a 2,068-second hole holding 4,718 recovered words; run 1035's is 2,816 s
+  and 5,855 words. This shape is invisible to any check that looks for a
+  suspicious section, because there is no section to find — the first sizing pass
+  missed all 11 for exactly that reason.
+
+The largest single case was not the named one: **run 1229's own `sermon` section**
+is confidence 0.42 over 2,070 s that was **98% blind** when the detector drew it.
+
+**The other 83 replayed runs need nothing**: median 8 recovered words, and no
+unsectioned stretch holds more than 64. Their recovered speech is in songs.
+
+**Feasibility.** 18 of 21 still hold source (50.4 GiB, mean 2.80 GiB). Runs 939
+and 1377 have lost theirs and are trivial (186 and 65 words); **run 947 has lost
+its source and is not trivial** — 2,025 words into an `other`@0.20 section, and it
+can never be re-derived. All 20 sermons are quarantined; the only public exposure
+is 27 published sections, all songs, across 15 runs.
+
+**It is not "one provider call".** Re-detection re-opens a completed run and the
+chain runs on through `ExtractSermon`, `EnhanceAudio`, `CreateSermonRecord`, the
+sermon transcript, `ProcessTranscriptWithAI`, video quality, thumbnail,
+notification, promotion and cleanup — roughly two provider calls plus a full media
+re-cut. Transcription is *not* repeated: it precedes detection, so the corrected
+transcript is exactly what detection reads.
+
+**No instrument existed.** `ProcessingRunOrchestrator::retry()` refuses anything
+not failed or cancelled and every one of these runs is *completed*, while
+`RedetectHistoricServiceStructure` accepts only failed runs held at
+`manual_review_required`. `redetectServiceStructure()` is therefore a separate
+entry point, for the reason `recoverHistoricTail()` is one — widening `retry()`'s
+guard would let every caller, the admin retry button included, re-open a terminal
+run. Its load-bearing check is the transcript-replay stamp.
+
+- [ ] **The source check must resolve `temp_disk` from config inside the run's
+  staging context.** The guard rewrites that key to the staging disk and re-roots
+  it at the batch, so the sources live under
+  `staging/historic-batches/<hash>/livestream/temp/` and are genuinely absent from
+  `historic_temp` by name. Naming a disk reports all 18 retained sources as lost —
+  the same trap as measuring artifact reuse outside `within()`.
+
+###### The pilot: run 1278 (#1195), 2026-09-08
+
+Dispatched 10:28:50Z, completed 10:41:45Z — **~13 minutes** for a 6.31 GiB source
+at 13.65 Mbps, which is above the 6 Mbps threshold so every section clip
+re-encodes rather than stream-copies. 0 failures. **The tail dominates**: detection
+and extraction were quick, and `PrepareSectionPublicationCandidates` re-cut 13
+clips at roughly 30 s each. Cost scales with source bitrate, not run count.
+
+The void resolved into real structure:
+
+| | before | after |
+|---|---|---|
+| the blind region | `other` 1297.1–2855.8, 1558.7 s, **conf 0.20** | *gone* |
+| | — | `prayer` 1139.7–1487.0 (was cut off at 1297.1) |
+| | — | **`bible_reading` 1502.0–1628.0** — invisible before |
+| | — | `song` 1641.0–1873.0 |
+| sermon | 2855.8–3640.1, **784 s**, conf 0.91 | **1873.0–3640.1, 1,767 s, conf 0.99** |
+
+**The sermon boundary moved back 982.8 seconds** and its confidence went 0.91 →
+0.99. The extraction plan became concatenated — `[1501.99–1628.01,
+1873–3640.08]` — joining the preached reading to the sermon and dropping the song
+between, which is the concatenation feature working as designed.
+
+The symptom is gone. The banked transcript opened mid-argument on *"or obedience
+to Jesus is a dead faith"*; it now opens **"The reading is from Matthew chapter 7.
+We're going to read the whole conclusion to the Sermon on the Mount…"** — Matthew
+7:13 leading into the wise and foolish builders, which is exactly the sermon's
+reference (`Matthew 7:24-27`) and its title (*Build your life on the rock*, which
+the re-analysis independently reproduced).
+
+Structural flags fell from 5 to 3: `structure_missing_preached_reading` cleared
+because there now *is* a reading, `structure_micro_section` cleared with the 6.2 s
+sliver, and `structure_low_confidence` went 3 → 1. Sections stayed at 13 and
+published sections at 1, so public exposure did not move. `needs_manual_review`
+rose 1 → 3, both additions being `song_title_marker_mismatch` on re-published
+songs — a different class, and the queue is the point.
+
+- [ ] Decide whether to run the remaining 17. The pilot argues yes: the change is
+  large, correct, verifiable against a known symptom, and cost ~13 minutes.
+
+**Recovering evidence and re-placing a boundary are two steps** — the replay does
+only the first, and this is the second.
 
 ###### The neighbouring-section half: a blind region typed as a song
 
