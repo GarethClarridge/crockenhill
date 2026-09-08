@@ -4664,10 +4664,83 @@ whole corpus rather than inferred from samples.
   range predates the 2026-09-04 FFmpeg output-seek change, which is a lead rather
   than a demonstrated cause.
 
-- [ ] P8-Q13a: decide what a video that does not span its sermon means for
+- [x] P8-Q13a: decide what a video that does not span its sermon means for
   publication, and whether the check belongs at extraction, at assessment or at
   promotion. Measure against the sermon's own audio, not against
   `sermons.duration`, which the second finding shows is not reliable for this.
+  **ROOT CAUSE FOUND 2026-09-08; prevention landed, repair not run.** The answer
+  is none of the three: see below.
+
+###### P8-Q13a resolved — the stored video is stale, not mis-cut
+
+The span comparison was measuring a symptom. **The sermon video on disk is not
+the video its own run extracted.** For #1135 the run's `trim.observed_duration`
+is **1916.83 s** and the file is **1549.27 s** — and 1549.27 s is exactly what
+the *first* extraction of that run produced, on 2026-09-05, before the run was
+retried on 2026-09-07 with corrected bounds. The stored file is byte-for-byte the
+first cut: 211,514,694 bytes, the `source_size_bytes` logged on 09-05.
+
+The sequence, from #1135's own log:
+
+1. **09-05 06:32** — extracted `concat_spans`, 1840.0→1968.97, 1549.08 s. Video
+   stored as `sermons/1135/video.mp4`; audio 1549.08 s.
+2. **09-07 01:19** — re-extracted `single_span`, 2177.34→4093.87, **1916.53 s**.
+   New audio written over the same permanent path. New video cut to temp.
+3. **09-07 01:23** — `Historic sermon video storage already completed, skipping
+   duplicate dispatch`. **The new video was never stored.**
+4. **09-07 07:30** — quality assessment approves the *stale* video.
+5. **09-07 10:35** — promotion copies the stale video and the new audio to
+   quarantine, in the same operation, one minute apart from nothing.
+6. **09-08 09:43** — the transcript is repaired to the *new* spans.
+
+So the sermon's audio, transcript, duration and structure all describe the second
+cut, and only the video describes the first.
+
+**The guard is `SubmitToProcessing::dispatchSermonVideo()`:**
+`$nestedJob->state === 'completed' && ! $this->processingLog->isReExtraction()`.
+`StoreSermonVideo::prepareHistoricNestedJob()` repeats it. Both read *the store
+job ran once* as though it meant *the stored video is current*. Only an operator
+calling `ProcessingRunOrchestrator::reExtract()` or structure re-detection ever
+raised `isReExtraction()`; an ordinary retry that resumes at the extraction phase
+re-cuts the sermon just as decisively and raised nothing.
+
+**The correlation is exact.** Comparing every stored video against its own run's
+`trim.observed_duration`: **44 of 425 disagree by more than a second, and all 44
+are sermons that hit the skip guard.** No stale video failed to hit it and no
+other cause produced one. 85 sermons hit the guard in total; the other 41 re-cut
+to the same span, so their stale copy is still the right one. 24 of the 44 hold a
+video **shorter** than their sermon (#1135 −367.6 s, #1076 −257.5 s, #1197
+−132.8 s, #1102 −73.0 s, #1107 −70.3 s) and 20 hold one that runs **past** it
+(#1100 +210.1 s, #1070 +103.0 s, #1122 +50.9 s).
+
+The full 44: 1060, 1063, 1065, 1066, 1068, 1070, 1073, 1075, 1076, 1082, 1083,
+1086, 1087, 1088, 1091, 1093, 1097, 1099, 1100, 1101, 1102, 1104, 1107, 1108,
+1113, 1114, 1116, 1117, 1118, 1119, 1120, 1121, 1122, 1123, 1128, 1129, 1130,
+1133, 1135, 1136, 1138, 1140, 1141, 1197.
+
+**Prevention landed 2026-09-08.** The check belongs at **extraction**, because
+extraction is what invalidates the stored video, and the whole re-cut path
+already exists and works — `isReExtraction()` carries a run past both store
+guards, past `organizeVideoFile()`'s overwrite refusal and into promotion's own
+authority. What was missing was only that a retry never raised it. So
+`StoreSermonVideo` now records `stored_video.observed_duration` — which cut is
+actually on disk — and `ExtractSermon` compares its fresh probe against that and
+raises the flag itself when they differ by more than 0.5 s. Nothing else changed:
+no new guard, no new refusal, no new operator step.
+
+Assessment was the wrong home: it samples frames and would have to be told the
+expected span from outside. Promotion was the wrong home too — by then the stale
+video has already been approved, and refusing there strands a finished run.
+
+- [ ] **Repair the 44 — not run, needs authorisation.** `sermons:re-extract`
+  already sets the flag explicitly, so each is a supported re-cut rather than new
+  machinery. **30 of the 44 still have their source recording; 14 do not**
+  (1065, 1066, 1073, 1075, 1076, 1088, 1097, 1100, 1102, 1107, 1108, 1120, 1121,
+  1123) and would need restaging from the Sonnics archive first, byte-identical.
+  Note the legacy fallback in `storedSermonVideoDuration()` cannot help these
+  44: their `trim` block already describes the *new* cut, so an ordinary retry
+  would compare new against new and leave the stale video in place. The explicit
+  re-extract path is the instrument for them.
 - [ ] P8-Q13b: establish which writer sets `sermons.duration` for the #871–#891
   range and whether the stale value has downstream readers. Do not "correct" the
   column from the media until that is known; the divergence is itself evidence.
