@@ -18,6 +18,7 @@ use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Enums\SermonVideoQualityStatus;
 use App\Enums\ServiceSectionPublicationStatus;
+use App\Jobs\StoreSermonVideo;
 use App\Services\HistoricMedia\HistoricReviewSourceReclaimer;
 use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\Processing\ProcessingRunOrchestrator;
@@ -525,6 +526,65 @@ class MediaProcessingLog extends Model
 
             return $metadata;
         });
+    }
+
+    /**
+     * Record which extraction produced the sermon video now on disk.
+     *
+     * Written by {@see StoreSermonVideo} at the moment it stores one,
+     * because "the store job completed" and "the stored video matches this run's
+     * current cut" are different facts and the pipeline was reading the first as
+     * though it were the second. A retry that resumes at extraction re-cuts the
+     * sermon, rewrites the audio and the transcript, and then finds the store
+     * step already marked complete -- so the sermon keeps a video from the
+     * superseded cut while everything else describes the new one.
+     *
+     * 44 sermons reached that state: 24 hold a video shorter than their own
+     * sermon (worst six minutes short) and 20 hold one that runs past it.
+     */
+    public function recordStoredSermonVideo(float $observedDuration): void
+    {
+        $this->writeProcessingMetadata(static function (array $metadata) use ($observedDuration): array {
+            $metadata['stored_video'] = [
+                'observed_duration' => $observedDuration,
+                'stored_at' => now()->toISOString(),
+            ];
+
+            return $metadata;
+        });
+    }
+
+    /**
+     * The observed duration of the sermon video currently on disk, or null when
+     * that cannot be established.
+     *
+     * Null is deliberately "cannot tell", never "nothing is stored": a caller
+     * that cannot see what is on disk must leave the stored video alone rather
+     * than assume it is stale and replace it.
+     *
+     * Runs that predate {@see self::recordStoredSermonVideo()} fall back to the
+     * previous extraction's observed duration, which is what the store step put
+     * on disk for any run whose store was not skipped -- but only where a video
+     * was actually linked to a sermon, so a first extraction is not mistaken for
+     * a replacement.
+     */
+    public function storedSermonVideoDuration(): ?float
+    {
+        $metadata = $this->processing_metadata?->toArray() ?? [];
+
+        $recorded = data_get($metadata, 'stored_video.observed_duration');
+
+        if (is_numeric($recorded) && (float) $recorded > 0.0) {
+            return (float) $recorded;
+        }
+
+        if (! filled($this->sermon?->video_file_path)) {
+            return null;
+        }
+
+        $previous = data_get($metadata, 'trim.observed_duration');
+
+        return is_numeric($previous) && (float) $previous > 0.0 ? (float) $previous : null;
     }
 
     public function clearReExtraction(): void

@@ -11,6 +11,7 @@ use App\Jobs\PromoteHistoricAssets;
 use App\Mail\ManualReviewRequired;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\Media\ExtractedMediaDurationProbe;
@@ -1370,6 +1371,122 @@ class ExtractSermonTest extends TestCase
         ]);
 
         $this->assertNull($log->assertedSermonAbsence());
+    }
+
+    #[Test]
+    public function a_re_cut_that_supersedes_a_stored_video_marks_the_run_for_replacement(): void
+    {
+        config(['media-processing.storage.temp_disk' => 'local']);
+        config(['filesystems.disks.local.driver' => 'local']);
+
+        [$videoFile, $extractedAudioFile] = $this->stageExtractionFiles();
+
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/1135/video.mp4',
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'sermon_id' => $sermon->id,
+            'sermon_start_time' => 300.0,
+            'sermon_end_time' => 2100.0,
+            'source_file_path' => 'livestreams/test-video.mp4',
+        ]);
+
+        // What the earlier extraction produced, and what StoreSermonVideo put on disk.
+        $log->recordStoredSermonVideo(1549.27);
+
+        $this->assertFalse($log->fresh()->isReExtraction());
+
+        $this->runJob(
+            new ExtractSermon($log->fresh()),
+            $this->extractorStubbedTo($extractedAudioFile),
+            $this->createStub(VideoStorageService::class),
+            $this->probeWithDuration(1916.83, Storage::disk('local')->path('extracted/sermon-video.mp4')),
+        );
+
+        $this->assertTrue(
+            $log->fresh()->isReExtraction(),
+            'A cut that no longer matches the stored video must authorise its replacement.',
+        );
+
+        @unlink($videoFile);
+        @unlink($extractedAudioFile);
+    }
+
+    #[Test]
+    public function an_unchanged_re_cut_leaves_the_stored_video_alone(): void
+    {
+        config(['media-processing.storage.temp_disk' => 'local']);
+        config(['filesystems.disks.local.driver' => 'local']);
+
+        [$videoFile, $extractedAudioFile] = $this->stageExtractionFiles();
+
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/1141/video.mp4',
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'sermon_id' => $sermon->id,
+            'sermon_start_time' => 300.0,
+            'sermon_end_time' => 2100.0,
+            'source_file_path' => 'livestreams/test-video.mp4',
+        ]);
+
+        $log->recordStoredSermonVideo(1792.25);
+
+        $this->runJob(
+            new ExtractSermon($log->fresh()),
+            $this->extractorStubbedTo($extractedAudioFile),
+            $this->createStub(VideoStorageService::class),
+            $this->probeWithDuration(1792.25, Storage::disk('local')->path('extracted/sermon-video.mp4')),
+        );
+
+        $this->assertFalse(
+            $log->fresh()->isReExtraction(),
+            'An identical re-cut is not a replacement and must not claim the authority to be one.',
+        );
+
+        @unlink($videoFile);
+        @unlink($extractedAudioFile);
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private function stageExtractionFiles(): array
+    {
+        $tempDir = storage_path('app/livestreams');
+        if (! is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+        $videoFile = $tempDir.'/test-video.mp4';
+        file_put_contents($videoFile, str_repeat("\x00", 1024));
+
+        $extractedDir = storage_path('app/extracted');
+        if (! is_dir($extractedDir)) {
+            mkdir($extractedDir, 0755, true);
+        }
+        $extractedAudioFile = $extractedDir.'/sermon-audio.mp3';
+        file_put_contents($extractedAudioFile, str_repeat("\xFF\xFB", 512));
+
+        return [$videoFile, $extractedAudioFile];
+    }
+
+    private function extractorStubbedTo(string $extractedAudioFile): VideoExtractionService
+    {
+        $extractor = $this->createMock(VideoExtractionService::class);
+        $extractor->method('extractSegmentAsFile')->willReturn('extracted/sermon-video.mp4');
+        $extractor->method('extractOptimizedAudio')->willReturn([
+            'audio_path' => 'extracted/sermon-audio.mp3',
+            'full_path' => $extractedAudioFile,
+            'original_size' => 10485760,
+            'final_size' => 5242880,
+            'compression_applied' => false,
+            'compression_ratio' => 1.0,
+            'valid_for_transcription' => true,
+        ]);
+
+        return $extractor;
     }
 
     private function runJob(

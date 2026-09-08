@@ -89,6 +89,18 @@ class StoreSermonVideo implements ShouldQueue
                 $finalVideoPath,
             );
 
+            /**
+             * Record which cut is now on disk, so a later extraction can tell
+             * whether it has superseded this video rather than inferring it from
+             * whether the store job happens to be marked complete.
+             * {@see MediaProcessingLog::recordStoredSermonVideo()}
+             */
+            $observedDuration = $processingLog->observedSermonMediaDuration();
+
+            if ($observedDuration !== null) {
+                $processingLog->recordStoredSermonVideo($observedDuration);
+            }
+
             $this->markHistoricNestedJobCompleted($processingLog);
         } catch (\Throwable $exception) {
             $this->markHistoricNestedJobRetryable($processingLog, $exception);

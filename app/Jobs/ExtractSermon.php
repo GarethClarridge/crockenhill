@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Data\LivestreamSegment;
 use App\Data\ServiceSectionMetadata;
 use App\Data\ServiceSermonAbsence;
+use App\Data\ServiceStructure;
 use App\Enums\LivestreamSegmentClassification;
 use App\Mail\ManualReviewRequired;
 use App\Models\MediaProcessingLog;
@@ -17,6 +18,7 @@ use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Media\Video\VideoStorageService;
 use App\Services\Processing\ProcessingNotificationRouter;
 use App\Services\Processing\ProcessingRunOrchestrator;
+use App\Services\Processing\SermonMetadataIntegrationService;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Sermon\SermonCandidateConfidenceService;
 use App\Services\Sermon\SermonExtractionPlanResolver;
@@ -37,6 +39,12 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
     public int $tries = 3;
 
     public int $timeout = 3600;
+
+    /**
+     * How far a fresh probe may sit from the recorded stored duration before the
+     * cut counts as changed. See {@see self::authoriseReplacementIfCutChanged()}.
+     */
+    private const StoredVideoToleranceSeconds = 0.5;
 
     public function __construct(
         private MediaProcessingLog $processingLog
@@ -204,6 +212,13 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                 'verification_method' => $this->isS3Path($audioFullPath) ? 's3_storage' : 'local_filesystem',
             ]);
 
+            /**
+             * Read before the update: the trim block about to be overwritten is
+             * the only record of what the stored video was cut from on runs that
+             * predate the stored_video signature.
+             */
+            $supersededVideoDuration = $this->processingLog->storedSermonVideoDuration();
+
             $this->processingLog->update([
                 'video_file_path' => $sermonVideoPath,
                 'audio_file_path' => $sermonAudioPath,
@@ -234,6 +249,8 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                     ]
                 ),
             ]);
+
+            $this->authoriseReplacementIfCutChanged($supersededVideoDuration, $observedDuration);
 
             if (! $audioExtractionResult['valid_for_transcription']) {
                 Log::warning('Audio file still too large after compression', [
@@ -294,10 +311,52 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
      * wrong instrument, and reported as a defect (D1, 2026-09-03).
      *
      * The structure has already passed the deterministic gate by the time this
-     * runs, and {@see \App\Data\ServiceStructure::fromSections()} drops any
+     * runs, and {@see ServiceStructure::fromSections()} drops any
      * assertion that sits beside a detected sermon section, so an assertion
      * reaching here is one nothing in the run contradicts.
      */
+    /**
+     * A cut that no longer matches the stored video is a replacement, whoever asked for it.
+     *
+     * The re-cut path already exists and works: {@see MediaProcessingLog::isReExtraction()}
+     * carries a run past the "already completed" store guard, past
+     * {@see SermonMetadataIntegrationService::organizeVideoFile()}'s
+     * overwrite refusal, and on into promotion's own guard. What was missing is
+     * that only an operator calling `reExtract()` or structure re-detection ever
+     * raised the flag. An ordinary retry that resumes at extraction produces a
+     * new cut just as decisively, and produced 44 sermons whose stored video is
+     * not the video their own run says it extracted.
+     *
+     * So extraction raises it itself, on the only evidence that settles the
+     * question: the duration of the video it just produced against the duration
+     * of the video already on disk. A null superseded duration means the stored
+     * video could not be established, and an unestablished video is left alone.
+     *
+     * The tolerance absorbs container rounding — a stored duration and a fresh
+     * probe of the same cut differ in the third decimal — without absorbing any
+     * real span change; the smallest genuine divergence measured across the
+     * corpus was 1.0 s.
+     */
+    private function authoriseReplacementIfCutChanged(?float $supersededDuration, ?float $observedDuration): void
+    {
+        if ($supersededDuration === null || $observedDuration === null) {
+            return;
+        }
+
+        if (abs($observedDuration - $supersededDuration) <= self::StoredVideoToleranceSeconds) {
+            return;
+        }
+
+        $this->processingLog->markAsReExtraction();
+
+        Log::info('Extraction superseded the stored sermon video; authorising its replacement', [
+            'processing_id' => $this->processingLog->processing_id,
+            'sermon_id' => $this->processingLog->sermon_id,
+            'stored_duration' => $supersededDuration,
+            'extracted_duration' => $observedDuration,
+        ]);
+    }
+
     private function concludeWithoutSermon(): bool
     {
         $absence = $this->processingLog->assertedSermonAbsence();
