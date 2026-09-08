@@ -2786,15 +2786,19 @@ not included in that file check. Existence does not prove playback quality.
 than selecting the sermon's own `asset_disk`. This is a concrete disk-resolution
 concern; drive loss and promotion timing may also explain historical failures.
 
-- [ ] Test assessment of an asset on its owning disk, including promotion and
+- [x] Test assessment of an asset on its owning disk, including promotion and
   temporary storage unavailability. Fix resolution/recovery as the reproduction
   warrants; do not turn an unavailable file into a passing assessment.
-- [ ] Reassess the named existing files and investigate the staging exception.
+  **DONE 2026-09-08** — see *P8-Q3 closed* below.
+- [x] Reassess the named existing files and investigate the staging exception.
   Regenerate thumbnails where a successful assessment makes that appropriate.
   Keep the existing five rejected videos (two frozen, three mostly black) subject
   to their own evidence; missing-file repair is not blanket quality approval.
-- [ ] For routine processing, distinguish a recoverable evidence-access failure
+  **DONE 2026-09-08.** The staging exception is gone from the data; no thumbnail
+  needed regenerating, and no existing rejection was touched.
+- [x] For routine processing, distinguish a recoverable evidence-access failure
   from an editorial decision and provide bounded targeted recovery.
+  **DONE 2026-09-08** — two guards plus a `--reason` filter.
 
 ##### P8-Q4 — preserve the speaker corpus; identification remains paused
 
@@ -2988,10 +2992,14 @@ fixed-camera services, not simply an archive-specific fault.
 - [ ] Reassess the 19 named-class candidates individually under a validated rule;
   do not bulk approve them or weaken the independent black-frame gate. Distinguish
   intentionally static slides, low motion and actual capture failure.
-- [ ] P8-Q3 still applies: all **83** missing-file assessments are now completed
+- [x] P8-Q3 still applies: all **83** missing-file assessments are now completed
   sermons on `historic_quarantine`; the job still supplies the configured disk.
   This review did not repeat yesterday's exhaustive file-existence check. Recover
   owning-disk access and reassess; the unchanged count is not proof of resolution.
+  **DONE 2026-09-08** — the job now resolves `asset_disk`, and all 81 remaining
+  rows were reassessed. Thirteen of them landed as rejections and are now part of
+  P8-Q6's calibration set, which grew from 26+8 to **29 frozen and 21 mostly
+  black**. See *P8-Q3 closed 2026-09-08*.
 
 ##### P8-Q7 — probable duplicate and conflicting service identity
 
@@ -4543,13 +4551,126 @@ speaker frames from their saved quarantine videos. Approved examples #1298 and
 #919 yielded plausible speaker frames too. These checks validate file access and
 counterexamples, not whole-recording playback quality.
 
-- [ ] Prioritise owner-disk assessment recovery and frozen-metric calibration
+- [~] Prioritise owner-disk assessment recovery and frozen-metric calibration
   together. Evaluate local/region motion and noise tolerance with genuine freezes,
   still slides, lectern shots, home recordings and dark services. Do not just
   disable the gate or approve all 26 rejected files.
-- [ ] Reassess affected saved assets after the shared fix; retain previous
+  **Owner-disk recovery is DONE 2026-09-08; frozen-metric calibration is not.**
+  Splitting them was the right call in the end: recovery was a disk-resolution
+  bug with a decisive reproduction, whereas calibration needs a fixture set, and
+  recovery has now enlarged that set rather than settling any of it.
+- [x] Reassess affected saved assets after the shared fix; retain previous
   evidence and compare decisions. Unsupported quality verdicts should not create
   a permanent manual backlog when evidence can be fetched automatically.
+  **DONE 2026-09-08.** No previous verdict was overwritten -- only the 81
+  missing-file rows changed -- and a settled verdict is now protected from being
+  replaced by an unreadable file.
+
+##### P8-Q3 closed 2026-09-08 — the disk was ambient state, not the file
+
+**The defect was a single line.** `AssessSermonVideoQuality` resolved
+`config('media-processing.storage.sermon_disk')` instead of the sermon's own
+`asset_disk`. A historic batch *rebinds* that config to the staging volume for
+the duration of the run, so the job asked whether the video was on
+`historic_staging` for assets whose bytes were on `historic_quarantine`.
+`Storage::exists()` answered false, and false was written down as a verdict.
+Reproduced directly before any change: for sermon #977,
+`config('…sermon_disk')` resolves to `historic_staging`, `exists()` there is
+false, and `exists()` on `historic_quarantine` is true.
+
+`Sermon::assetDisk(?string $fallback)` now owns that rule, mirroring
+{@see ServiceSection::extractedAssetDisk()}. `SermonAssetController` and
+`SermonStorageService` -- which already resolved correctly, each with its own
+copy -- delegate to it with their existing fallbacks, so three copies became one
+with no behaviour change.
+
+**All 81 missing-file rows are recovered.** The bounded replay
+(`sermons:assess-video-quality --reason=missing_video_file`) reassessed every
+one against its owning disk: **67 approved, 11 mostly black, two frozen, one
+`analysis_failed`**. The linked-sermon corpus is now **403 approved, 29 frozen
+rejections, 21 mostly-black rejections, two unassessed** -- no missing-file rows
+at all. The 13 new rejections belong to P8-Q6's calibration, not to this item;
+nothing about missing-file repair says a video is good.
+
+**The staging exception no longer exists in the data.** The single
+`historic_staging` missing-file row from the original census is gone; all 81
+were `historic_quarantine`. Separately, no thumbnail regeneration was warranted:
+all 81 are `publication_state = quarantined`, and `shouldGenerateVideoThumbnail`
+requires *published*, so the withheld thumbnails were a publication consequence
+rather than a quality one. A correct verdict unblocks that path at promotion
+time; nothing needed backfilling now.
+
+**#1005 is a genuine evidence failure, correctly labelled.** Its
+`quarantine/sermons/1005/video.mp4` is 1,114,112 bytes with no `moov` atom --
+ffprobe rejects it outright. It was written at 06:14 on 2026-09-06, inside the
+staging drive's flapping window, so it is a casualty of the faulty USB link
+rather than of disk resolution. `analysis_failed` is the truthful verdict and it
+is distinguishable from both `missing_video_file` and an editorial rejection.
+
+**Two guards now separate access failure from judgement.**
+
+1. *Unreachable disk.* `MediaDiskReachability` probes the owning disk's root
+   before assessment. When a local disk is not mounted the job writes nothing at
+   all and logs why, so a detached drive can no longer convert a batch of good
+   assets into missing-file verdicts -- the failure mode that produced this item.
+   The probe is deliberately read-only, unlike `HistoricStagingReachability`,
+   which must prove writes: a read-only archive mount serves its files perfectly
+   well and should not be refused.
+2. *Settled verdict outranks an unreadable file.* `missing_video_file` may now
+   only be recorded where nothing was ever assessed. Where an earlier run did
+   read the file and reached a verdict, its later absence is a custody problem
+   and the verdict it produced is still the best evidence anyone has; overwriting
+   it destroys evidence that re-running cannot recover, because the file is
+   exactly what is missing. This is not hypothetical -- see the thirteen below.
+
+The backfill command gained `--reason=` so recovery can be aimed at one class of
+failure, and now reports deferrals separately so a run over a detached volume
+cannot read as *n* successful assessments.
+
+###### What a full read of the corpus then showed
+
+Every linked sermon's stored video was probed with `ffprobe` (455 rows, read-only).
+
+- **441 probe cleanly. One is unreadable (#1005, above). Thirteen have no file
+  at all**: #842, #851, #858–#867 and #870, every one recorded on
+  `historic_staging`, whose `sermons/` directory does not exist -- and their
+  audio is gone too. All thirteen are **published** weekly sermons dated 2023 to
+  2026, eleven `approved` and two `rejected`, and none of their assets is present
+  on any local disk. Per *This machine is separate from production*, that is a
+  fact about this workstation, not about the recordings. **They were deliberately
+  left alone**, and guard 2 above is what stops a corpus-wide `--all` pass from
+  demoting those eleven approvals to a missing-file state.
+
+###### Two new defects this exposed — P8-Q13
+
+Both are span/duration questions rather than quality-gate questions, so they are
+recorded here and **not** repaired under P8-Q3. Both were measured across the
+whole corpus rather than inferred from samples.
+
+- **A delivered video need not cover its own sermon.** Comparing each sermon's
+  video against its own extracted audio (439 pairs, both probed), **69 differ by
+  more than two seconds**. Most of that is container rounding -- 26 sit between
+  2.0 s and 3.0 s. The tails are real: nineteen videos are *shorter* than their
+  audio, worst **#1135 at −367 s** (six minutes of sermon absent from the
+  delivered video), then #1076 −258 s and #1197 −132 s; and several are *longer*,
+  **#1100 at +210 s**, #1070 +104 s, #1122 +52 s. Every one of the large cases is
+  currently `approved`: the quality gate samples frames and has no opinion about
+  whether the span is the sermon. #1135's audio is 1916.6 s, matching its
+  recorded duration exactly, while its video is 1549.3 s.
+- **`sermons.duration` can disagree with both assets.** Forty-six rows differ
+  from their own audio by more than two seconds; seven of those are large and all
+  seven fall in **#871–#891**, up to **889 s** (#881: recorded 3298.7 s, audio
+  2409.8 s, video 2411.8 s -- the column is the outlier, not the media). That
+  range predates the 2026-09-04 FFmpeg output-seek change, which is a lead rather
+  than a demonstrated cause.
+
+- [ ] P8-Q13a: decide what a video that does not span its sermon means for
+  publication, and whether the check belongs at extraction, at assessment or at
+  promotion. Measure against the sermon's own audio, not against
+  `sermons.duration`, which the second finding shows is not reliable for this.
+- [ ] P8-Q13b: establish which writer sets `sermons.duration` for the #871–#891
+  range and whether the stale value has downstream readers. Do not "correct" the
+  column from the media until that is known; the divergence is itself evidence.
 
 ##### P8-Q11 — metadata reconciliation needs provenance and freshness
 
@@ -4613,7 +4734,8 @@ API call, so unchanged missing-file retries do not themselves incur analysis spe
    service with its sermon. P8-Q10's remaining work is a **capability, not a
    recovery** (see item 4); no production exposure was ever demonstrated.
 2. **Remove deterministic operational work:** P8-Q12 freshness/retry/queue isolation,
-   P8-Q2 scoped policy reconciliation, P8-Q3 owning-disk recovery and P8-Q6 calibration.
+   P8-Q2 scoped policy reconciliation, ~~P8-Q3 owning-disk recovery~~ (**DONE
+   2026-09-08**) and P8-Q6 calibration.
    **This is now the leading edge.** P8-Q2's demotion backlog is **DONE
    2026-09-08** (`7c55d99e4`): 99 sections / 46 services applied, taking the queue
    from **329 sections across 173 runs to 232 across 153**, idempotent on re-run.
@@ -4625,7 +4747,8 @@ API call, so unchanged missing-file retries do not themselves incur analysis spe
    on either: `services:rederive-structure-review-flags` can re-weigh a flag but
    never withdraw one, and `services:recompute-section-review-flags` could withdraw
    but never notice residue on a row it had already quietened (now fixed).
-   **P8-Q12, P8-Q3 and P8-Q6 remain.**
+   **P8-Q12 and P8-Q6 remain; P8-Q3 closed 2026-09-08**, and P8-Q13 opened from
+   what its corpus-wide read exposed.
 3. **Learn boundaries and metadata:** P8-Q9 framing, P8-Q11 passage reconciliation,
    P8-Q7 duplicates and P8-Q4 speaker bucketing. Preserve uncertain cases for review.
 4. **New capabilities, separately scoped and not blocking.** Splitting a service
@@ -4744,8 +4867,11 @@ dated phase sections. It is not a current instruction to dispatch another pass.
   services now carry it, all 38 requiring review, raising the queue to 332
   sections across 173 runs. The 98 cross-type-inversion-only demotions from the
   earlier census are **not** yet reconciled.
-- [ ] Reconcile stale review state, recover truthful video assessments, and
-  evaluate safe reductions in boundary review (P8-Q2/Q3/Q6/Q9).
+- [~] Reconcile stale review state, recover truthful video assessments, and
+  evaluate safe reductions in boundary review (P8-Q2/Q3/Q6/Q9). **P8-Q3 is done**
+  (2026-09-08): 81 missing-file verdicts recovered against their owning disks,
+  and access failures can no longer masquerade as judgements. P8-Q2, P8-Q6 and
+  P8-Q9 remain, and P8-Q13 is new.
 - [ ] Resolve source identity, remaining evidence failures and editorial metadata;
   speaker identification remains paused while its corpus/rebuild work proceeds.
 - [ ] Complete Phase 9's exact membership, asset, visibility and acceptance checks.
