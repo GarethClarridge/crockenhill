@@ -4114,8 +4114,74 @@ published sections at 1, so public exposure did not move. `needs_manual_review`
 rose 1 → 3, both additions being `song_title_marker_mismatch` on re-published
 songs — a different class, and the queue is the point.
 
-- [ ] Decide whether to run the remaining 17. The pilot argues yes: the change is
-  large, correct, verifiable against a known symptom, and cost ~13 minutes.
+###### The full pass, 2026-09-08: 19 of 21, all completed
+
+The batch of 16 ran 10:58:33Z → 13:01:17Z (**~2h03m**), serialised behind the single
+ffmpeg worker. Two more followed after their sources were restored, and the one
+failure was retried successfully. **19 runs, 0 failed.**
+
+| | before | after |
+|---|---:|---:|
+| sections | 231 | **253** |
+| total sermon time | 28,637 s | **32,255 s** (+60.3 min) |
+| sermon sections below 0.9 confidence | 2 | **0** |
+| `needs_manual_review` | 20 | **13** |
+| `structure_low_confidence` | 25 | **8** |
+| `structure_missing_preached_reading` | 4 | **1** |
+| `sermon_evidence_incomplete` | 1 | **0** |
+
+**Six sermons moved materially, and two of them got *shorter*.**
+
+| run | sermon | before | after | |
+|---|---|---|---|---|
+| 1118 | 1043 | 420 s @0.93 | **1,935 s @1.00** | +1,515 s |
+| 1127 | 1052 | 720 s @0.98 | **1,949 s @0.99** | +1,229 s, sections 9→15 |
+| 1278 | 1195 | 784 s @0.91 | 1,767 s @0.99 | +983 s |
+| 1324 | 1249 | 1,170 s @0.98 | 1,596 s @0.99 | +426 s |
+| **1229** | **1148** | 2,070 s **@0.42** | 1,799 s **@1.00** | **−272 s** |
+| **1300** | **1299** | 1,913 s **@0.84** | 1,652 s **@0.99** | **−261 s** |
+
+The two that shortened are the fix working, not failing: both had *over-long*
+sermon sections smeared across ground the detector could not see, at 0.42 and
+0.84 confidence. With the evidence restored both tightened and went to ~0.99. A
+pass that only ever lengthened sermons would have been the suspicious result.
+
+**Run 947 is the strongest section-level case and it did not move its sermon at
+all.** Its blind region had swallowed five sections into one 790-second "song"
+plus a 562-second `other`@0.20; it now reads song / prayer / **children's talk** /
+other / song / prayer, and its sermon boundary was already correct. Structural
+damage from a void is not confined to the sermon.
+
+**The one failure was real and recoverable.** Run 1196's re-detected structure was
+*rejected by the validator* — a sermon section double-claiming an OoS item that is
+a prayer — leaving a completed run failed at `manual_review_required`. That is the
+non-determinism this instrument warns about. A plain `retry()` (the run being
+genuinely failed by then, so no guard bypass) re-ran detection and the second pass
+validated. **Retry before rolling back**; the snapshot is the fallback, not the
+first move.
+
+###### Restoring a source, and why byte-identity is the bar
+
+Runs 939 and 947 had lost their sources to cleanup, and the Sonnics archive held
+both under their original filenames. **Both hash exactly to the `file_hash` the
+runs recorded**, and their durations match to the microsecond, so this was a
+restore rather than a substitution.
+
+That distinction is the whole point. The banked transcript is timed against the
+original recording; detection produces section times from it and extraction cuts
+the media at those times. A same-service capture starting even a few seconds
+differently would misplace every section with nothing in the output revealing it.
+`historic-import:restage-source` therefore refuses anything but a byte-identical
+file and re-hashes after writing, and refuses outright when a run recorded no hash
+(1377 and 1035 are in that position — for those the banked RMS log is the evidence
+to reach for). The archive was already mounted read-only at `/mnt/cbc-services`,
+so no infrastructure change was needed.
+
+- [x] Re-derive every structure the recovery replay staled. **19 of 21 done.**
+- [ ] **Run 1035** — a *failed* run holding the corpus's largest void (5,855 words
+  across 2,816 s), and its source is present. It needs a disposition decision, not
+  a source: this instrument re-opens *completed* runs only.
+- [ ] **Run 1377** is retired, so there is no structure worth re-deriving. Closed.
 
 **Recovering evidence and re-placing a boundary are two steps** — the replay does
 only the first, and this is the second.
