@@ -4732,15 +4732,133 @@ Assessment was the wrong home: it samples frames and would have to be told the
 expected span from outside. Promotion was the wrong home too — by then the stale
 video has already been approved, and refusing there strands a finished run.
 
-- [ ] **Repair the 44 — not run, needs authorisation.** `sermons:re-extract`
-  already sets the flag explicitly, so each is a supported re-cut rather than new
-  machinery. **30 of the 44 still have their source recording; 14 do not**
-  (1065, 1066, 1073, 1075, 1076, 1088, 1097, 1100, 1102, 1107, 1108, 1120, 1121,
-  1123) and would need restaging from the Sonnics archive first, byte-identical.
-  Note the legacy fallback in `storedSermonVideoDuration()` cannot help these
-  44: their `trim` block already describes the *new* cut, so an ordinary retry
-  would compare new against new and leave the stale video in place. The explicit
-  re-extract path is the instrument for them.
+- [ ] **Repair the 44 — authorised 2026-09-08, to run overnight.** 30 are ready;
+  14 are gated on an unmade decision. Procedure, pre-flight evidence and the gate
+  are in the runbook below. `sermons:re-extract` sets the flag explicitly, so
+  each is a supported re-cut rather than new machinery. Note the legacy fallback
+  in `storedSermonVideoDuration()` cannot help these 44: their `trim` block
+  already describes the *new* cut, so an ordinary retry would compare new against
+  new and leave the stale video in place. The explicit re-extract path is the
+  instrument for them.
+###### P8-Q13a repair runbook — 44 stale sermon videos
+
+Pre-flight measured 2026-09-08, not projected. **All 30 repairable runs dry-ran
+clean, and all 30 plan exactly the span the run already records** — recorded and
+planned start/end agree to within 0.5 s in every case. So this is a pure video
+correction: no section moves, no boundary changes, and the audio and transcript
+that already describe the new cut stay as they are. Strategies resolved as 25
+`non_adjacent_bible_plus_sermon_concat`, three `sermon_only`, one
+`adjacent_bible_plus_sermon`, one `unknown`.
+
+**Step 0 — before anything is dispatched.**
+
+1. The staging volume must be mounted and writable. `HistoricStagingReachability`
+   holds the workers rather than consuming jobs if it is not, so a detached drive
+   costs nothing, but starting on a flapping one wastes the night.
+2. **Restart the worker containers.** They hold the code *and* the `.env` they
+   booted with, and the fix in `8be750a68` is what makes `StoreSermonVideo` record
+   the `stored_video` signature on the way through. Without a restart the repair
+   still works — `reExtract()` sets the flag explicitly — but each repaired run
+   comes out with no signature, so the next retry is blind again.
+
+   ```
+   docker compose restart queue.worker queue.worker-video \
+     queue.worker-historic-ffmpeg queue.worker-historic-llm \
+     queue.worker-historic-orchestration queue.worker-historic-whisper
+   ```
+
+   Verify by process age, never by `docker ps`, which reports the container:
+   `docker exec crockenhill-queue.worker-historic-ffmpeg-1 ps -o etime,cmd -C php`.
+   ELAPSED must be younger than the commit.
+
+**Step 1 — repair the 30.** The command is per-run and needs `--yes`;
+`--no-interaction` alone takes the confirmation default, which is *no*. It also
+reads stdin, so a shell loop must redirect `/dev/null` into it or the loop
+consumes its own input after the first iteration.
+
+Sermons: 1060, 1063, 1068, 1070, 1082, 1083, 1086, 1087, 1091, 1093, 1099, 1101,
+1104, 1113, 1114, 1116, 1117, 1118, 1119, 1122, 1128, 1129, 1130, 1133, 1135,
+1136, 1138, 1140, 1141, 1197.
+
+Derive the processing ids at run time rather than pasting them, so a superseded
+run cannot be re-cut by a stale list:
+
+```
+for sid in 1060 1063 1068 1070 1082 1083 1086 1087 1091 1093 1099 1101 1104 \
+           1113 1114 1116 1117 1118 1119 1122 1128 1129 1130 1133 1135 1136 \
+           1138 1140 1141 1197; do
+  pid=$(./vendor/bin/sail artisan tinker --execute \
+    "echo App\\Models\\MediaProcessingLog::where('sermon_id',$sid)->where('status','completed')->value('processing_id');" \
+    2>/dev/null | tail -1)
+  ./vendor/bin/sail artisan sermons:re-extract "$pid" --yes < /dev/null
+done
+```
+
+**What the re-cut re-runs, and what it costs.** `reExtractionPlanFor()` resumes
+at `extract_sermon` and everything downstream of it runs again: store, sermon
+transcript (sliced from the banked service transcript, so no Whisper),
+**`ProcessTranscriptWithAI` — a paid LLM call per run**, video quality assessment,
+thumbnail, `PrepareSectionPublicationCandidates`, promotion and cleanup. Thirty
+paid analyses, and the section candidates are re-cut, so watch for movement in
+song/children's-talk publication state. Titles will not regress: AI-title
+provenance outranks a re-analysis.
+
+**The cost of re-opening a completed run.** `resetForRetry()` sets the run to
+Pending and clears `completed_at`, so each leaves `completed` while its chain
+runs. **An interrupted chain leaves a finished run failed.** Do not stop the
+workers mid-run, and do not start if the drive is unstable.
+
+**Step 2 — verify.** The check is the measurement that found the defect: the
+stored video's probed duration against the run's `trim.observed_duration`. They
+must now agree. Re-running the corpus comparison should return 14 stale videos,
+not 44 — the 14 whose sources are gone.
+
+**Step 3 — the 14 whose sources are gone.** *This cannot run tonight, and the
+reason is a real gate rather than a missing step.*
+
+Sermons 1065, 1066, 1073, 1075, 1076, 1088, 1097, 1100, 1102, 1107, 1108, 1120,
+1121, 1123 (runs 1140, 1141, 1152, 1156, 1157, 1169, 1178, 1181, 1183, 1188,
+1189, 1201, 1202, 1204). `CleanupTemporaryFiles` deleted `source_file_path` when
+each run finished.
+
+The media itself is present. `/Volumes/Sonnics/Services` is bind-mounted
+read-only into the containers at `/mnt/cbc-services`, laid out
+`<date>/<Morning|Evening>/<filename>`, and **every one of the 14 has a candidate
+there under exactly the filename its run recorded**. More than that, each
+candidate's duration matches the run's recorded source duration exactly — to the
+millisecond, all fourteen (e.g. run 1140: 1859.733 both sides; run 1204:
+1748.533 both sides).
+
+**But `historic-import:restage-source` will refuse all 14, and it is right to.**
+It accepts a candidate only when it hashes to the run's recorded `file_hash`, and
+**none of the 14 recorded one** — confirmed by reading the column, not inferred.
+They are all church-PC recordings named `HH-MM.mkv`, the same class as runs 1377
+and 1035. The rule exists because the banked transcript is timed against the
+original: a same-service capture starting even a few seconds differently
+misplaces every section with nothing in the output revealing it.
+
+Matching duration is corroboration, not proof of that. Two recordings of one
+service can share a duration and differ in start offset. So the honest position
+is that these 14 need a **decision plus a small code change**, not an operator
+step:
+
+- [ ] Decide what evidence may stand in for `file_hash` when a run never recorded
+  one. The candidate already named for runs 1377/1035 is the banked `.rms.json`:
+  correlating a candidate's RMS profile against it establishes timeline alignment
+  directly, which is the property that actually matters, rather than byte
+  identity, which is only a proxy for it.
+- [ ] Add that as an explicit, evidenced acceptance path in
+  `historic-import:restage-source` — never a `--force`. It must record which
+  evidence admitted the file, so a later reader can tell a hashed restore from an
+  RMS-aligned one.
+- [ ] Only then re-cut the 14 by the Step 1 procedure.
+
+Do not reach for `sermons:import-historic-videos --force --only=…`. The batch
+command rejects `--force` on a definitive manifest run by design, and the
+importer's resume-completed short-circuit runs before the force check anyway.
+`ReExtractSermonCommand`'s inline comment still recommends exactly that route and
+is **stale** — worth correcting when the 14 are picked up.
+
 - [ ] P8-Q13b: establish which writer sets `sermons.duration` for the #871–#891
   range and whether the stale value has downstream readers. Do not "correct" the
   column from the media until that is known; the divergence is itself evidence.
