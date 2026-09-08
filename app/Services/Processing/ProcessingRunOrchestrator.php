@@ -24,6 +24,7 @@ use Illuminate\Bus\Batch;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Central dispatcher and state manager for media processing runs.
@@ -320,6 +321,170 @@ class ProcessingRunOrchestrator
      * is the common case for a run that finished — see the command for what an
      * operator can do about that.
      */
+    /**
+     * Re-derive a completed run's service structure from its corrected transcript.
+     *
+     * Structure detection reads the full-service transcript. A run whose
+     * transcript was unobservable in places had its sections drawn over that
+     * void — either as a low-confidence placeholder spanning it, or as no
+     * section at all — and once recovery restores the speech, those boundaries
+     * describe evidence the run no longer holds.
+     *
+     * Deliberately separate from {@see self::retry()}, for the reason
+     * {@see self::recoverHistoricTail()} is: `retry()` refuses anything that is
+     * not failed or cancelled, and these runs are *completed*. Widening that
+     * guard would let every caller of `retry()` — the admin retry button
+     * included — re-open a terminal run. This entry point states the one case
+     * where that is intended and checks it here.
+     *
+     * The run leaves `completed` while the chain runs and is completed again by
+     * it. That is the cost of this operation: an interrupted chain leaves a run
+     * that was finished in a failed state, so the caller is expected to have
+     * recorded what it replaced.
+     *
+     * Transcription is not repeated — it precedes this phase — so the corrected
+     * transcript is exactly what detection reads. Everything after it is:
+     * extraction re-cuts the sermon media, and analysis is re-derived.
+     */
+    public function redetectServiceStructure(MediaProcessingLog $processingLog): ProcessingResult
+    {
+        try {
+            return $this->withRecordedStagingContext($processingLog, function () use ($processingLog): ProcessingResult {
+                $error = $this->structureRedetectionValidationError($processingLog);
+
+                if ($error !== null) {
+                    return ProcessingResult::failure(
+                        processingId: $processingLog->processing_id,
+                        message: $error['message'],
+                        errorCode: $error['code'],
+                    );
+                }
+
+                $plan = $this->phaseRegistry->structureRedetectionPlanFor($processingLog);
+
+                if ($plan === null) {
+                    return ProcessingResult::failure(
+                        processingId: $processingLog->processing_id,
+                        message: 'This run has no structure detection phase to resume from.',
+                        errorCode: 'NO_DETECTION_PHASE'
+                    );
+                }
+
+                // Extraction follows detection and will re-cut media this run has
+                // already published; without this the store step refuses.
+                $processingLog->markAsReExtraction();
+
+                Log::info('Re-deriving service structure from a corrected transcript', [
+                    'processing_id' => $processingLog->processing_id,
+                    'historic_import_operation_id' => $processingLog->historic_import_operation_id,
+                ]);
+
+                return $this->retryWithChainFromPlan($processingLog->fresh() ?? $processingLog, $plan);
+            });
+        } catch (\Throwable $exception) {
+            Log::error('Failed to re-derive service structure', [
+                'processing_id' => $processingLog->processing_id,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return ProcessingResult::failure(
+                processingId: $processingLog->processing_id,
+                message: 'Failed to re-derive service structure: '.$exception->getMessage(),
+                errorCode: 'STRUCTURE_REDETECTION_FAILED'
+            );
+        }
+    }
+
+    /**
+     * Why this run may not be re-detected, or null when it may — for a caller
+     * that wants to report before dispatching.
+     *
+     * Runs inside the run's staging context, because the source check does.
+     *
+     * @return array{code: string, message: string}|null
+     */
+    public function structureRedetectionRefusal(MediaProcessingLog $processingLog): ?array
+    {
+        $context = $processingLog->historicStagingContext();
+        $check = fn (): ?array => $this->structureRedetectionValidationError($processingLog);
+
+        // Mirrors withRecordedStagingContext(): a run that records no context and
+        // claims no batch resolves its keys as configured, and only a run that
+        // claims a batch without an active context cannot be resolved at all.
+        if (! $context instanceof HistoricStagingContext) {
+            if ($processingLog->historicImportJobKey() !== null && ! $this->stagingContextRegistry->isActive()) {
+                return [
+                    'code' => 'HISTORIC_STAGING_CONTEXT_MISSING',
+                    'message' => 'This historic run records no staging context, so its retained artifacts cannot be resolved.',
+                ];
+            }
+
+            return $check();
+        }
+
+        try {
+            return $this->stagingContextRegistry->within($context, $check);
+        } catch (\Throwable $exception) {
+            return ['code' => 'STAGING_CONTEXT_UNAVAILABLE', 'message' => $exception->getMessage()];
+        }
+    }
+
+    /**
+     * Why this run may not be re-detected, or null when it may.
+     *
+     * Narrow on purpose. The transcript-replay stamp is the load-bearing check:
+     * it is the evidence that this run's transcript actually changed after its
+     * structure was projected, so the set can only ever be runs a recovery
+     * replay touched. Without it this method would be a general "re-run a
+     * completed run" facility, which is not what it is for.
+     *
+     * @return array{code: string, message: string}|null
+     */
+    private function structureRedetectionValidationError(MediaProcessingLog $processingLog): ?array
+    {
+        if ($processingLog->historic_import_operation_id === null) {
+            return ['code' => 'NOT_HISTORIC_RUN', 'message' => 'Structure re-detection is a historic-import operation.'];
+        }
+
+        if ($processingLog->isRetired() || $processingLog->superseded_at !== null) {
+            return ['code' => 'RUN_RETIRED', 'message' => 'A retired or superseded run holds no structure worth re-deriving.'];
+        }
+
+        if ($processingLog->status !== ProcessingStatus::Completed) {
+            return [
+                'code' => 'RUN_NOT_COMPLETED',
+                'message' => 'Structure re-detection re-opens a completed run; this one is '.$processingLog->status->value.'.',
+            ];
+        }
+
+        if ($processingLog->transcriptRecoveryReplay() === null) {
+            return [
+                'code' => 'TRANSCRIPT_UNCHANGED',
+                'message' => 'This run\'s transcript has not changed since its structure was projected.',
+            ];
+        }
+
+        $source = $processingLog->source_file_path;
+
+        /**
+         * Resolved exactly as {@see \App\Jobs\ExtractSermon} resolves it, and
+         * only ever from inside the run's staging context: the staging guard
+         * rewrites `temp_disk` to the staging disk and re-roots that at the
+         * batch, so naming a disk here instead of asking the config would report
+         * every retained source as lost.
+         */
+        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
+
+        if (! is_string($source) || $source === '' || ! Storage::disk($tempDisk)->exists($source)) {
+            return [
+                'code' => 'SOURCE_UNAVAILABLE',
+                'message' => 'The source recording is gone, so extraction would fail after detection succeeded.',
+            ];
+        }
+
+        return null;
+    }
+
     public function reExtract(MediaProcessingLog $processingLog): ProcessingResult
     {
         try {

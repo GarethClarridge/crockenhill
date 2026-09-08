@@ -199,6 +199,40 @@ class ProcessingPhaseRegistry
     }
 
     /**
+     * Resume from structure detection, for a run whose transcript changed after
+     * its structure was projected.
+     *
+     * Detection reads the full-service transcript, so a structure derived while
+     * part of that transcript was unobservable describes evidence the run no
+     * longer holds. Re-running from here re-reads the corrected transcript —
+     * transcription itself sits *before* this phase and is not repeated.
+     *
+     * Deliberately its own plan rather than a step assignment plus
+     * {@see self::retryPlanFor()}: that path is reached only through
+     * {@see \App\Services\Processing\ProcessingRunOrchestrator::retry()},
+     * which refuses a completed run, and widening that guard would let every
+     * caller re-open a terminal run.
+     *
+     * @return RetryPlan|null
+     */
+    public function structureRedetectionPlanFor(MediaProcessingLog $processingLog): ?array
+    {
+        $phase = $this->phaseForProcessingLogStep($processingLog, 'detect_service_structure');
+
+        if ($phase === null || $phase['job_offset'] === null) {
+            return null;
+        }
+
+        return [
+            'action' => $phase['retry_action'] ?? 'dispatch_chain',
+            'pipeline' => $processingLog->processingPipelineProfile(),
+            'job_offset' => $phase['job_offset'],
+            'rerun_strategy' => 'targeted_reset',
+            'reset_scope' => 'service_structure_validation',
+        ];
+    }
+
+    /**
      * The plan for re-cutting a finished run's sermon from its existing structure.
      *
      * Re-extraction is a retry that starts at the extraction phase: the sections,

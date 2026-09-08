@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Actions\RedetectStructureOnRecoveredEvidence;
 use App\Data\HistoricStagingContext;
 use App\Data\ProcessingManualReviewMetadata;
 use App\Data\ProcessingMetadata;
@@ -967,6 +968,30 @@ class MediaProcessingLog extends Model
     {
         $this->writeProcessingMetadata(static function (array $metadata) use ($stamp): array {
             $metadata['transcript_recovery_replay'] = $stamp;
+
+            return $metadata;
+        });
+    }
+
+    /**
+     * Record the structure a re-detection is about to replace, or clear it.
+     *
+     * Written through the safe path because it is taken while the run is still
+     * completed and other writers may be touching the same column; a lost
+     * update here would leave a re-derived run with no record of what it had.
+     *
+     * @param  array<string, mixed>|null  $snapshot
+     */
+    public function putStructureRedetectionSnapshot(?array $snapshot): void
+    {
+        $this->writeProcessingMetadata(static function (array $metadata) use ($snapshot): array {
+            if ($snapshot === null) {
+                unset($metadata[RedetectStructureOnRecoveredEvidence::SNAPSHOT_KEY]);
+
+                return $metadata;
+            }
+
+            $metadata[RedetectStructureOnRecoveredEvidence::SNAPSHOT_KEY] = $snapshot;
 
             return $metadata;
         });
