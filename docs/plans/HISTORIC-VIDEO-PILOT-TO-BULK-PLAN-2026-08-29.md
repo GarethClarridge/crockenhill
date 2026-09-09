@@ -1,14 +1,14 @@
 # Historic Video Pilot-to-Bulk Plan
 
-> **Latest evaluation, 2026-09-07, 14:32–14:41 UTC:** Processing has drained:
-> 409 completed and four failed, with zero degraded completions, in the active
-> operation-4 cohort. The 60-transcript repair is closed operationally. However,
-> sampling found a completed sermon analysed from only its closing prayer, two
-> generated single-song clips containing two songs, and further false frozen-video
-> rejections. See the [post-run evaluation](#post-run-evaluation-2026-09-07--accuracy-and-weekly-automation)
-> for the current census, sample membership and prioritised follow-ups. Completion
-> is not release readiness. Speaker identification remains deliberately paused.
-> Earlier status paragraphs and checklists are dated history unless restated there.
+> **Latest correctness review, 2026-09-09:** The 413 active operation-4 runs
+> contain 410 completed and three failed runs. Completion is not correctness:
+> the wider 446-run historic census found three demonstrably incomplete sermons,
+> 125 suspect repetitive sermon transcripts, 43 active stale videos and generated
+> songs that fail current review policy. Earlier recovery work helped but has not
+> closed content QA. See the [new correctness review](#correctness-review-2026-09-09)
+> and its exact-member review register for evidence, required rework and release
+> holds. All audited historic outputs remain quarantined locally. Earlier dated
+> conclusions are history unless restated in that review.
 
 **Date:** 2026-08-29
 **Historical status, 2026-09-02:** **Phases 0–7 complete; step 11 closed; Phase 8 is GO at FFmpeg width one.** The Phase 7 canary ran under operation 3, its blockers were implemented and its rows and assets repaired, and on 2026-09-01 the **operator sequence reached step 10: the identical-canary replay passed**, proving zero new work and zero spend (evidence: `storage/scratch/historic-video-step10-noop-proof-20260901.md`). On 2026-09-02 **step 10 was re-run against the re-frozen manifest** `d25d2085…` under operation 4 and passed again — 0 dispatched, 12 skipped, 0 B processed in 7.2 s, every baseline count unchanged (evidence: `storage/scratch/historic-video-step10-rerun-proof-20260902.md`). The re-freeze reduced the replayable set from fourteen to twelve: `2026-04-02-evening` became a manifest-level exclusion, and `2023-07-16-morning` had its source replaced and its run retired, so it is new work rather than a replay and is **deferred to Phase 8 by operator decision**. **Step 11 (M12's four-identity calibration at FFmpeg width two) ran to completion on 2026-09-02** after the VirtioFS/exFAT mount fault was fixed: 3 of 4 identities completed cleanly (the 4th stopped at a genuine content-layer manual-review disposition, not a technical fault), and the mount held through the exact step that had killed all four the day before. **M12 item 14's gate FAILS**: queue-wait p95 improved 44–98% on every instrumented FFmpeg step, but active-duration p95 got materially worse on the two full-file steps (`extract_sermon` +69%, `prepare_section_publication_candidates` +94%) — confirmed by source-size-normalized throughput, not a bigger-files artefact — so items/hour moved only +1.7%, far short of the 25% bar either metric requires. Per the plan's own fallback, **width was reverted to one** (`.env`, workers recreated, dispatcher config confirmed). Evidence: `storage/scratch/historic-video-step11-calibration-result-20260902.md`. **Bulk processing (Phase 8) can now proceed at width one** — the only width ever proven clean. **On 2026-09-02 the first stratified learning batch (11 identities) ran and returned 5 failed, 6 degraded, 0 clean**: provider 429s failed every structure-detection attempt they touched and made the transcript stage bank empty fallback analysis that reports as `completed`. **Those 429s were diagnosed on 2026-09-02 and are NOT rate limiting**: every one is `service_tier: flex` capacity unavailability (`code: flex_unavailable`, `retry-after: 300`), reproduced live with a 7-token request while the account held 99.98% of both its request and token budgets. Flex capacity is per-model and independent of this project's load; `gpt-5.6-luna` — the structure-detection model — is refused 0/8 on flex and 3/3 on default. Evidence: `storage/scratch/pass1-rate-limit-diagnosis-20260902.md`. The pass also exposed two operational faults — worker daemons that stop honouring `queue:restart`, and a first-job failure that strands a run in a state no retry path accepts. **Both of pass 2's blockers were cleared the same day**: P1-1 falls a `flex_unavailable` 429 back to `service_tier: default` and logs the provider's real error code and headers (verified live while luna's pool was still empty), and P1-2 makes a degraded completion its own `degraded` disposition, names it in the pass report, keeps it out of clean throughput, and makes `ProcessTranscriptWithAI`'s previously-unreachable retry schedule real. **Pass 2 is unblocked. P1-3 and P1-4 are both done, same day.** P1-4: `HistoricImportUsageEntry`, `HistoricImportCostLedger`, the `historic_import_usage_entries` table and the usage-reporting lines in `HistoricVideoPassStatusCommand`/`HistoricVideoPassPerformance` are deleted rather than repaired — the table was empty throughout pass 1, so nothing was lost. P1-3: sermons 907–912 are genuinely re-analysed, but the plan's own premise — "the service transcripts survive" — needed one correction first. The transcript survived, but on the sermon's own `asset_disk` (`historic_quarantine`), not on any of `TranscriptStorageService`'s hardcoded candidate disks; a naive re-dispatch would have re-banked six more hollow completions for a second, different reason. Fixed the disk resolution and a second real bug — `is_degraded_completion` never cleared on a genuine success — then re-dispatched for real: all six now carry real titles, references, summaries and points, verified against the database, not just the flag. All four quality gates pass (Pint, PHPStan, 7676 tests, 55 Dusk tests). See “Pass 1 — first stratified learning batch, 2026-09-02”.
@@ -17,9 +17,10 @@
 
 ## 1. Decision
 
-**Current decision, 2026-09-07:** the bulk processing run is finished; do not
-redispatch the corpus to clear editorial or supersession obligations. Recover
-specific defective evidence and outputs, then complete Phase 9 release QA.
+**Current decision, 2026-09-09:** the bulk processing run is finished; do not
+redispatch the entire corpus to clear editorial or supersession obligations.
+Enforce correctness holds, recover specific defective evidence, correct incomplete
+sermon spans and regenerate affected outputs before Phase 9 release QA.
 The following rationale records the original pre-bulk decision.
 
 The pilot proved that the processing path can produce useful results and that failed runs can be resumed, but it also exposed launch-blocking defects in disk custody, metadata application, service projection and long-running operation control. The remainder must run as bounded, resumable passes inside one cumulative operation and database. Passes bound runtime and concurrency; they are not separate evidence islands and do not close a mini-corpus before the next begins.
@@ -4888,13 +4889,63 @@ these valid cases.
 The **60 transcript-span repairs and #972/#1087/#1005 reanalyses are operationally
 closed**, as the closeout records. The software recovery gaps remain:
 
-- [ ] Persist analysis input hash/version and desired/completed state. Reconcile
-  missing effects after queue loss or interrupted dispatch; text-only repair must
-  still permit subsequent analysis. Empty queues and a cleared degraded flag
-  cannot prove that the intended version was analysed.
-- [ ] Isolate Dusk's Redis database/connection or instance from application queues.
-  Prove a queue sentinel survives test cache clearing. Replace “remember not to
-  run Dusk” with isolation; do not execute that experiment against live queues.
+- [x] **DONE 2026-09-08.** Persist analysis input hash/version and
+  desired/completed state. Two facts had been collapsed into one: *the analysis
+  job completed* and *the banked analysis describes the transcript this run now
+  holds* — the same distinction `stored_video` draws for video under P8-Q13a.
+  `transcript_content` is written by any writer that rewrites a sermon
+  transcript; `analysed_transcript` is written by `ProcessTranscriptWithAI` from
+  the text it actually read; `analysisIsOwed()` compares them. Selection now
+  reads that instead of text equality, in **both** commands that dispatch
+  re-analysis — the replay carried the identical defect, computing its stale set
+  before `apply()` rewrote the text, **plus a second one its regression exposed**:
+  it returned early on "nothing looks stale" before the owed check could run, so
+  a pass that re-derived a transcript and then lost its dispatch — to a crash, or
+  to a queue emptied underneath it — was unrecoverable by re-running the command.
+  This closes the workflow the repair command itself advises: `--execute` and
+  then `--execute --reanalyse` dispatched **nothing**, because by the second
+  invocation every repaired row reported `already repaired`. A crash between the
+  write and the dispatch loop left the same hole. Five regressions cover it,
+  written red first: the two-invocation workflow, the crash, the loop actually
+  closing once analysis consumes the repaired text, and the case that matters
+  most — **a run with no recorded transcript change is never owed**. Silence on
+  both sides reads as "unknown", never "stale", so this cannot re-analyse the
+  400-run corpus by accident; it can only finish work a recorded repair started.
+  Nothing on the live corpus is owed today, which is the intended reading, not a
+  gap. Freshness is now answerable from the row rather than inferred from an
+  empty queue — which the 2026-09-07 loss showed proves nothing.
+  `writeProcessingMetadata()` became public in the same change, and the repair
+  service converted to it: it was one of the ~30 remaining read-modify-write
+  sites that drop other writers' keys.
+  **Scope, against the 2026-09-09 review.** That review asks P8-Q12/Q13 to "bind
+  freshness to actual inputs **and spans**". This binds it to transcript
+  *content* only; a run whose extraction spans move without changing the sliced
+  text is still not detected, and that half remains open. Nor does this repair
+  anything by itself — it is the ledger the repairs write to. The nine stale
+  older transcripts the review names will become owed as they are re-derived,
+  and their analyses can then be dispatched by evidence rather than by whether
+  someone remembered. Ranking is the review's, not this item's: P8-Q12 follows
+  the correctness blockers (P8-Q14/Q15/Q16), and nothing here changes that.
+- [x] **DONE 2026-09-08.** Isolate Dusk's Redis database/connection or instance
+  from application queues. The cause was one line: `config/database.php` defined
+  a *single* Redis connection pinned to database 0, and `config/cache.php`
+  hard-coded `'connection' => 'default'`, so the cache, every `queues:*` list and
+  Horizon all shared database 0. `Cache::store('redis')->flush()` is `FLUSHDB`
+  and ignores `CACHE_PREFIX`, so the prefix never isolated anything — only the
+  database number can. A `cache` connection now takes `REDIS_CACHE_DB` (1 by
+  default, 2 for Dusk so its per-test flush cannot even clear dev's cache).
+  `tests/Feature/Config/CacheQueueRedisIsolationTest` holds it: cache ≠ queue,
+  cache ≠ Horizon, and a sentinel survives a real flush. That third test asserts
+  the databases differ **before** it flushes, so removing the isolation fails it
+  rather than re-staging the incident against whatever the queue is holding —
+  which is what “do not execute that experiment against live queues” requires.
+  Proven end to end, not just in unit form: two sentinel jobs planted on database
+  0, six Dusk tests run, both survived. `.env.testing` replaces `.env` rather than
+  merging, so `REDIS_HOST` moved into `phpunit.xml` — without it the behavioural
+  test skips everywhere. Note the workers hold their boot-time env and code, so
+  they keep writing cache to database 0 until restarted; the orphaned keys expire
+  and nothing depends on the two sharing a database (batches are in `job_batches`,
+  and the app takes no cache locks).
 - [ ] Provide supported evidence-directed retry: invalid transcript → regenerate
   transcript and affected dependants; unavailable asset → reacquire/reassess;
   unchanged rejected evidence → bounded investigation rather than blind retry.
@@ -4915,19 +4966,22 @@ API call, so unchanged missing-file retries do not themselves incur analysis spe
 
 ##### Delivery order and proof of improvement for weekly processing
 
-1. **Prevent silent bad outputs — DONE 2026-09-08.** P8-Q8 incomplete-evidence
-   handling and P8-Q10 mixed-song publication. **Gates landed 2026-09-07**; the
+1. **Prevent silent bad outputs — REOPENED by the 2026-09-09 correctness review.**
+   P8-Q14 short transcript loops, P8-Q15 missing sermon parts and P8-Q16 current
+   review enforcement remain blocking. The following records the completed
+   P8-Q8 incomplete-evidence handling and P8-Q10 mixed-song gates. **Gates landed 2026-09-07**; the
    recovery they could not perform was executed on 2026-09-08. The replay
    re-applied region-wise recovery to all 146 affected runs from banked retries
    (5.52 h of blind time recovered, +35,125 words, no provider call), structure
    was re-derived for 19 of the 21 runs the voids had damaged (+60 min of sermon,
    sections 231→253), and **run #1035 closed** — 1 section to 16, a whole carol
-   service with its sermon. P8-Q10's remaining work is a **capability, not a
-   recovery** (see item 4); no production exposure was ever demonstrated.
+   service with its sermon. These are real recovery results, not proof that the
+   resulting structures are complete. Existing mixed-song artifacts still need
+   withholding/correction; no production exposure was ever demonstrated.
 2. **Remove deterministic operational work:** P8-Q12 freshness/retry/queue isolation,
    P8-Q2 scoped policy reconciliation, ~~P8-Q3 owning-disk recovery~~ (**DONE
    2026-09-08**) and P8-Q6 calibration.
-   **This is now the leading edge.** P8-Q2's demotion backlog is **DONE
+   **This follows the correctness blockers above.** P8-Q2's demotion backlog is **DONE
    2026-09-08** (`7c55d99e4`): 99 sections / 46 services applied, taking the queue
    from **329 sections across 173 runs to 232 across 153**, idempotent on re-run.
    96 were the `structure_oos_cross_type_inversion` sole-flag demotions the policy
@@ -4942,14 +4996,15 @@ API call, so unchanged missing-file retries do not themselves incur analysis spe
    what its corpus-wide read exposed.
 3. **Learn boundaries and metadata:** P8-Q9 framing, P8-Q11 passage reconciliation,
    P8-Q7 duplicates and P8-Q4 speaker bucketing. Preserve uncertain cases for review.
-4. **New capabilities, separately scoped and not blocking.** Splitting a service
+4. **A general editor and production reconciliation remain separately scoped.**
+   Withholding/correcting the known wrong historic clips is blocking. Splitting a service
    section so two songs in one interval can each hold a clip (P8-Q10's residue —
    design recorded under *Separating the interval is not something the application
    can do*), and **production reconciliation**, which is its own body of work: this
    machine is completely separate from production, the weekly pipeline has never run
    consistently there, and what production holds has not been read. Neither is a
-   precondition for anything in items 1–3, and neither should be planned as
-   remediation of a historic output.
+   reason to postpone the historic content holds and targeted corrections in
+   items 1–3. A general editor can follow; accepting a known wrong clip cannot.
 
 - [ ] Establish a reusable labelled set from this corpus, including apparently
   clean outputs as well as each failure class. Label actual source/output audio
@@ -4970,6 +5025,315 @@ API call, so unchanged missing-file retries do not themselves incur analysis spe
   can label and adjudicate it; use held-out machine checks rather than a second
   human approval requirement. Do not treat this investigation's unlistened examples
   as gold-standard audiovisual labels.
+
+<a id="correctness-review-2026-09-09"></a>
+
+#### Correctness review, 2026-09-09 — corpus census and source/output checks
+
+**Decision: correctness is not closed. Some delivered outputs must be redone;
+others need evidence recovery or an explicit review disposition.** The completed
+recovery passes fixed real defects, including sermon #1148, but did not establish
+that all completed services, sermon spans or generated songs are correct. This
+review supersedes the broad “Prevent silent bad outputs — DONE” and “evidence
+recovery complete” conclusions above. It does **not** recommend restarting the
+whole import or asking the operator to watch 446 services.
+
+All sermon numbers below are **sermon IDs**; runs and sections are named separately.
+“Generated” means a section has publication status `published` and a corresponding
+artifact. **All 439 historic sermons and all 462 generated historic song videos in
+this snapshot are quarantined.** This is the local processing database and mounted
+archive, not a production audit. No production exposure has been demonstrated.
+
+##### Coverage, evidence and what the numbers mean
+
+The first snapshot was taken on **2026-09-08, 19:53:20–19:53:37 UTC**. A repeat
+export on **2026-09-09, 07:00:50–07:01:07 UTC** found no changes in the audited run,
+section, sermon or transcript results. Code was inspected at HEAD `91919a80e`
+plus the existing working-tree freshness changes. Those changes were preserved.
+
+| Population | Active historic runs | Completed / failed | Linked sermons | Service sections | Generated songs |
+|---|---:|---:|---:|---:|---:|
+| Operation 4 | 413 | 410 / 3 | 407 | 3,841 | 398 |
+| All historic operations | 446 | 443 / 3 | 439 | 4,202 | 462 |
+
+The wider export contains 464 runs; routine/local fixtures are excluded from these
+historic findings. All 446 historic full-service transcripts and all 439 linked
+saved sermon transcripts were readable. The census covered section types, spans,
+review flags, publication state, saved/derived transcript agreement, repetition,
+possible duplicate sermons, populated gaps and current song-publication policy.
+It inspected **1,338 historic media paths**: 439 sermon videos, 437 separate sermon
+audios and 462 song videos. Two historic sermon rows have no separate audio path;
+that absence alone was not classified as damage. Header/stream probing is not a
+full decode of every file.
+
+Additional content checks comprised a seeded, year-stratified **56-sermon sample**
+(eight from each of 2020–26; opening, middle, closing and analysis checks), **21
+children's talks** (three per year), targeted long/prose song sections, and the 32
+populated unsectioned gaps found by the census. There were **42 frame observations
+from 14 generated song clips**, targeted source evidence, and **six 40-second
+re-transcriptions of actual saved sermon audio** using the local Whisper service.
+These were audit experiments; their results did not replace stored transcripts.
+Finally, three 20-second audio-envelope samples were compared for **every one of
+436 readable historic video/separate-audio pairs**, with follow-up on exceptions.
+
+This is substantially wider evidence than the earlier sample, but it is **not a
+measured full-corpus semantic accuracy rate**. It does not establish word-for-word
+transcript accuracy, exact sung boundaries, all omitted items, complete metadata
+support or full playback quality for every service. Agreement with the same
+transcript that generated a structure is not independent confirmation of it.
+
+The machine-readable [review register](../../storage/scratch/correctness-20260909-review-register.json)
+contains **all 446 runs and 4,202 sections**, exact affected IDs, existing flags,
+new issue reasons, evidence status and next actions. **267 runs have a specific
+audit signal; 311 have either one of those signals or an existing section hold;
+135 remain `validation_pending`.** These are overlapping diagnostic classes,
+not 311 proven-bad services or 311 requests for manual playback. No run is given
+a clean certificate merely because a diagnostic did not fire. The register keeps
+speaker review separate: **423/439** sermons already need preacher review.
+
+**These are audit-register flags, not newly applied database/admin-queue flags.**
+This review made no application-state changes, dispatched no processing or release
+jobs, and repaired no media. Until the reasons are imported/reconciled through a
+tested path and enforced at release, the register is an explicit release hold,
+not an application-enforced one. The artifacts are local and gitignored under
+`storage/scratch`; retain them with the import evidence before any scratch cleanup.
+The register records SHA-256 hashes of its supporting JSON artifacts.
+
+##### 1. Repetition survives the recovery detector — new P8-Q14, high priority
+
+**125 saved historic sermon transcripts (113 in operation 4) contain 222 suspect
+blocks of prolonged, consecutive repeated phrases.** The screen required at least
+40 words formed by repeating a 3–25-word phrase at least five times. It is a
+candidate finder, not a rule to delete valid rhetorical or musical repetition.
+**88 of the 125 have no section-level manual-review hold**; preacher review is a
+separate existing flag and must not be mistaken for evidence-quality review.
+
+The current `ServiceTranscriptPathologyDetector::detect()` requires identical
+low-information cues, at least six cues and at least **120 seconds**. Of the
+screened blocks, 221 could be located in the current service cues across 124
+sermons; **every located block is shorter than 120 seconds**, the longest 118.
+Different cue grouping also defeats exact cue-string equality. The detector's
+recorded blind intervals therefore understate unreliable evidence. A zero blind
+fraction does not establish a complete, trustworthy transcript.
+
+Examples include #921 (984 repeated words), #1262 (936), #1033 (756), #1075 (735),
+#1214 (696) and #1115 (696). Re-decoding a 40-second source-aligned audio sample
+from **each of these six** replaced the repeated passage with different content:
+Joshua's campaigns, Joseph in Egypt, a sacrificial reading, David and Bathsheba,
+prayer encouragement, and a hymn respectively. This corroborates corruption in
+all six sampled passages; it does **not** adjudicate all 125 candidates or provide
+an independent word-error benchmark, because the short retries use the same local
+model. The full 49,648 words inside candidate repetitions are neither a count of
+missing words nor a measurement of uniquely lost audio time.
+
+- [ ] P8-Q14: detect and hold short repetitions, cue-boundary variants and implausible
+  word density before structure/analysis; validate against genuine repeated speech
+  and sung refrains so the fix does not manufacture a different false-positive class.
+- [ ] Run bounded, overlapping audio recovery for exact candidates, preserving
+  originals and comparing the recovered evidence. Re-detect structure where meaning
+  or coverage changes, then regenerate sermon text and analysis from final spans.
+  Retry uncertainty remains a hold; a second model's confidence alone cannot clear it.
+- [ ] Include the separately sampled children's talk §4368, whose George Washington
+  Carver text also loops. All 181 historic children's-talk sections remain either
+  pending approval (146) or not applicable (35); the 21-sample title/content check
+  does not justify unattended approval of them.
+
+##### 2. Actual sermon material is omitted — new P8-Q15, high priority
+
+| Sermon / run | Demonstrated problem | Required redo |
+|---|---|---|
+| **#974 / #1040**, 2025-12-07 | Delivered sermon ends mid-sentence. Following “song” §1511 starts at 2930.02s but contains further preaching and prayer until the hymn introduction around 3890.5s. Early and middle output frames show the preacher; the late frame shows lyrics. SongVideo #198 is 1,142.98s long. | Correct sermon ending and song start; regenerate both outputs and downstream text/analysis. |
+| **#1003 / #1073**, 2025-08-03 | §1711 at 1653.99–2653s is labelled `other`, although the model's own notes call it the first part of the main sermon. Only the later 2894.47–3592.99s part is extracted. **16m39s is omitted.** No section-level manual-review hold. | Include both sermon parts as ordered spans across the intervening hymn; recut and reanalyse. |
+| **#1304 / #1268**, 2022-07-31 | Fresh Sept 8 re-detection keeps only 788–1856.12s. Sections §4736 and §4738 explicitly describe later parts of the same sermon but are `other` and excluded: **16m28s combined**. No section-level hold. | Include all sermon parts while excluding intervening songs; regenerate dependent outputs. |
+
+The last case is a direct counterexample to treating a successful structure
+re-detection as successful content repair. High section confidence (0.98–0.99 in
+these cases) is not a completeness guarantee.
+
+`ServiceStructureValidator::checkSermons()` permits at most one sermon section.
+`SilenceSnapService::mergeInterruptedSermon()` merges through readings/prayers,
+but a song ends that grouping. Together with downstream selection of the primary
+sermon, this leaves a representational gap for one sermon delivered in several
+parts around hymns. The notes sometimes admit this explicitly. **P8-Q15 must
+represent complete ordered sermon spans and test two- and three-part services**;
+blindly merging every long `other` section would also be wrong.
+
+Further exact candidates are in the register: #1115 includes hymn audio inside a
+section labelled Bible reading; #1279 has garbled, explicitly uncertain material
+immediately before the sermon; #1285 has additional exposition/closing material;
+and #879 is a composite source where selection of one teaching may be deliberate.
+These need evidence-led decisions. Conversely, #1041's continuation is already
+included: “continuation” in notes alone is not proof of an omission.
+
+##### 3. Stored text, files and dates still need repair or adjudication
+
+**Nine older historic saved transcripts disagree with their current span-derived
+text:** #871, #872, #874, #875, #876, #889, #881, #897 and #900. They retain material
+between intended spans. All **407 operation-4** saved texts agree with their current
+derivation, so the previously executed repair did help; the remaining nine come
+from earlier operations. Agreement proves derivation freshness, not the correctness
+of its source text or spans. Use P8-Q12's repair/reanalysis path after P8-Q14/Q15
+recovery settles the evidence. The new content-hash tracking is useful but all 439
+snapshot runs predate its stamps; unstamped historical analysis is **unknown**, not
+retroactively certified current by the new code.
+
+**43 active sermon videos still differ by more than one second from their recorded
+current `trim.observed_duration`.** These are the active subset of P8-Q13a's 44:
+#1108 belongs to a superseded run and is outside this active census. This is not
+evidence that one video was repaired overnight. The existing exact-member repair
+runbook remains necessary. Sermon **#1005's MP4 is still unreadable** (`moov atom
+not found`), and its generated songs **§1728 / SongVideo #222** and **§1734 /
+SongVideo #223** have missing files on their owning quarantine disk. Repair all
+three artifacts, not only the sermon record.
+
+The audio/video comparison found **407/436** pairs with correlation ≥0.95 at all
+three sampled positions. Of the 29 exceptions, 26 are already in the stale-video
+cohort. Follow-up distinguishes the other three:
+
+- #949 has the same matching offset throughout, with lower correlation in an
+  apparent enhancement/noise difference; this is not proof of a wrong passage.
+- #1252's unmeasurable sample is silence in both outputs; following speech matches.
+  Its existing incomplete-evidence hold remains relevant.
+- **#1257** changes from a strong match at offset −3.00s to a strong match at
+  −7.78s between later samples. Its video matches `trim.observed_duration`, so
+  this escapes the stale-video duration comparison. Investigate source timestamp
+  discontinuities and separate-audio extraction before certifying completeness.
+
+Small stable offsets are common and can reflect keyframe/encoding behaviour.
+These comparisons are between two outputs, not proof that either contains every
+intended source passage. P8-Q13a's latest prevention also compares **duration**:
+ordinary retry can reuse a video when equal-length source spans move. Bind
+freshness to source identity, ordered spans and extraction settings, and validate
+starts, endings and joins. Do not rely solely on equal duration.
+
+**Four date-disagreeing pairs contain the same recorded performance:**
+#873/#1045, #969/#1307, #1167/#1168 and the previously known #1296/#1297. High
+transcript overlap was corroborated with two or three 120-second audio samples
+per pair (envelope correlations **0.973–1.000**); an unrelated control scored
+0.186–0.222. This is strong duplication evidence, not byte-identical files or proof
+of which date is correct. **P8-Q7:** resolve canonical date/service/source against
+manifest and corroborating evidence, then repair membership; do not delete either
+row merely from filename dates. Keep duplicates in the same evaluation split.
+
+##### 4. Generated songs cannot be treated as a passed set
+
+Read-only re-evaluation of **all 462 generated historic songs** under the current
+`SongPublicationReviewPolicy` completed without errors. **38 now require review;
+34 of those do not have `needs_manual_review`.** Five are operation 4, the other
+33 earlier operations. Reasons overlap: 20 excessive spoken framing, 10 spoken
+framing, nine trailing content, three uncorroborated partial sources, three short
+clips, two adjacent same-song cases, two unresolved multiple songs and one
+unlocated adjacent song. The register preserves exact reasons and membership.
+
+**One further mixed-song output is confirmed:** §3139 / SongVideo #310, run #1251,
+2022-11-27, contains **Come Thou Fount** and **By Grace Alone**. Frames show the
+first hymn followed by “Your grace that leads this sinner home”; the next printed
+item is the second song, but `additional_song_matches` is empty. The section
+already has a macro hold and current policy also objects. This makes **five
+identified mixed intervals including the two previously withdrawn locally**;
+§1276, §3869 and §3139 remain generated and quarantined. Existing combined
+single-song outputs must be withheld/replaced before release even if a general
+song-splitting editor is separately scoped.
+
+**85 generated songs have no current section text or at least 10% recorded blind
+coverage (and more than 10 seconds); 80 have no section-level hold.** This is an
+evidence gap, not 85 demonstrated bad clips: sung audio is often missing from
+speech transcripts. Positive audio/slide identity and boundary evidence is needed
+to clear them. The current boundary evaluator treats a nonempty *whole-service*
+transcript as available even with no cues in the candidate. Empty observations
+can then yield `inclusive_candidate` / `release_eligible`; `unobservable_gap` can
+also avoid a risk. Example **§4316, Blessed Assurance**, has zero current section
+words and is release-eligible; frames support its song identity but do not prove
+its precise sung start/end. Missing evidence must remain distinguishable from
+positive evidence of an acceptable boundary.
+
+Two other targeted candidates are registered: run #1311 appears to omit a final
+In Christ Alone section, and run #985's final song §1121 may omit later verses.
+The exact cuts remain to be checked. **Correction to the earlier sample:** §988
+contains leading prayer followed by the named hymn, not a prayer-only clip.
+Its issue is the boundary. The earlier §2578 passage is opening Bible-reading
+commentary, not demonstrated missing main-sermon content.
+
+##### 5. Impossible section ends and review enforcement — P8-Q16/Q17
+
+**16 sections end 16.8–29.7 seconds beyond the recorded source duration.** Re-probing
+the original source files corroborated those durations (summing source parts for
+the one fragmented recording). Fifteen are closing `other` sections; **§3704,
+O Church Arise, is a pending song** with no manual-review flag, ending 28.55s past
+EOF. In these cases the normalized transcript itself extends beyond the media.
+An apparently plausible transcript-based section therefore fails a physical
+source check. **P8-Q17:** validate transcript cue times and section bounds against
+measured media duration; recover the last interval where possible, remove invented
+tails, and distinguish a genuinely truncated source from a complete song. This
+screen had positive stored duration for 411/446 runs; the other 35 cannot be given
+a bounds pass from that field. Resolve their duration before the release census.
+
+There are also **14 adjacent section overlaps greater than one second**, including
+sermon/song and children's-talk/song joins. Inclusive overlap is allowed by design;
+these are registered boundary-review candidates, not automatically 14 defects.
+Do not apply blanket snapping/clamping that removes real speech or song starts.
+
+**P8-Q16, high priority: flags must be enforced against current evidence at the
+point of action.** Code inspection found three separate gaps:
+
+1. `PrepareSectionPublicationCandidates::handle()` skips already
+   published sections before today's policy, leaving the 38 retrospective holds
+   without automatic reconciliation of their generated assets.
+2. `AutoPublishServiceSection::handle()` reloads/locks a section but does not
+   re-evaluate its current review reasons, policy or retired-run status before
+   dispatching to the handler. A queued action can outlive its eligibility.
+   The transition rules do block pending/rejected states; the gap concerns eligible
+   states such as approved/not-applicable that acquire new uncertainty.
+3. Historic release authorisation/publication checks signed membership, operation
+   state, ownership, storage and related settlement, but **does not enforce current
+   section content-review reasons or current song policy before release**. Bundle
+   readiness's publication-state checks likewise are not a semantic-quality gate.
+
+No release was attempted to demonstrate this: it is a read-only code finding,
+not an assertion that an unauthorised release occurred. Add regression tests that
+introduce a hold *after* queuing/signing, retire the owning run, or change transcript,
+spans or policy. The action must fail closed on stale/unknown evidence, while a
+fresh explicit resolution can proceed. A manual flag that release ignores does
+not meet the user's requirement that uncertain outputs be held for review.
+
+##### Completion sequence: automate verification, reserve human judgement
+
+1. **Enforce current correctness holds and freshness at publication/release
+   (P8-Q16, P8-Q12/Q13), and reconcile the exact audit membership.** Keep existing
+   quarantine. Do not clear uncertainty merely to reduce the queue.
+2. **Recover suspect source evidence (P8-Q14) and correct sermon representation
+   (P8-Q15), then re-detect only affected services.** Repaired evidence must be
+   checked for loops, impossible timestamps, omitted continuations and material
+   gaps. Re-running the same classifier without a corrected representation is
+   not a repair strategy.
+3. **Regenerate dependants once from settled spans:** the three proven incomplete
+   sermons and any further confirmed candidates; nine stale older texts and
+   affected analyses; 43 active stale videos; #1005's broken/missing files; wrong
+   combined-song outputs. Investigate #1257's timing separately. Reconcile the
+   38 current-policy holds and validate the 85 generated-song evidence gaps.
+4. **Adjudicate only surviving content/identity questions.** Duplicate dates,
+   genuinely ambiguous boundaries, truncated sources and uncertain speakers need
+   concise evidence packets with before/after audio or frames. Most repetition,
+   derivation, file, duration and policy checks should be performed mechanically.
+5. **Prove unattended correctness on a held-out set before clearing the rest.**
+   Use labelled source audio/video including apparently clean cases, all eras,
+   split sermons, blind/repetitive transcripts, partial/composite recordings and
+   repeated performances. Measure missing sermon content, wrong song identity/count,
+   unacceptable cuts, unsupported metadata and false automatic acceptance separately.
+   No accuracy percentage or “100% confident” claim is warranted by this review.
+   Require explicit `verified`, `review_required` or `unverified` evidence for each
+   dimension; only current positive evidence or a recorded resolution clears it.
+
+Evidence files share prefix `storage/scratch/correctness-20260908-` for the initial
+census, findings, section text, media probes, repetition/timed repetition, current
+song-policy assessments, duplicate audio matches, semantic sample, local redecodes
+and frame sheets. The repeat corpus, all-pairs audio comparison, follow-up samples,
+source-bound probes, children's sample and review register use
+`storage/scratch/correctness-20260909-`. The raw files preserve exact membership;
+counts here are not additive because findings overlap. The review register's IDs
+and section ownership were checked against the 446-run snapshot. This was an audit
+and documentation change; no application tests were added or run for a code fix.
+
 
 ### Phase 9 — Final convergence and public release
 
@@ -4993,81 +5357,36 @@ Public release remains a separate human-authorised act. It is never a side effec
 
 ## 4. Current go/no-go summary
 
-**2026-09-08: bulk processing and evidence recovery are complete; deterministic
-state work and Phase 9 remain.** Delivery-order item 1 closed on 2026-09-08 with
-the recovery replay, the structure re-detection pass and run #1035. Item 2 —
-removing deterministic operational work — is now the leading edge.
-The old pre-bulk checklist has been replaced because it contradicted completed
-work documented above. Its underlying implementation evidence remains in the
-dated phase sections. It is not a current instruction to dispatch another pass.
+**2026-09-09: bulk processing is complete; content correctness and release are NO-GO.**
+The [latest correctness review](#correctness-review-2026-09-09) is authoritative
+for the current census, remaining uncertainty and exact affected membership.
+Processing completion and successful recovery execution are not acceptance tests.
 
-- [x] The bulk queue has drained: 409 completed / four failed active operation-4
-  runs; zero degraded completions. This is processing disposition, not accuracy.
-- [x] The 60 identified transcript-span repairs and their reanalyses are complete
-  according to the closeout; sampled repaired outputs contain substantive analysis.
-- [~] Recover incomplete sermon evidence and refresh affected output/analysis
-  (P8-Q8), including the newly identified false completion #1148. The **gate is
-  in place** — a sermon span ≥ 40% blind now fails before the analysis call and
-  ≥ 10% carries `sermon_evidence_incomplete` — measured across all 406 completed
-  runs and ranked by blind *fraction*, not seconds. The **recovery is not**: the
-  five runs it would stop or flag keep their present disposition, and neighbouring
-  gaps (#1195's missing opening) are outside what the gate can see.
-  **The reason those spans were blind is now known and fixed**: `recover()`
-  discarded an entire retry whenever any region of it looped, throwing away 3,275
-  and 2,840 genuinely transcribed words on the two fail-level runs. It now keeps
-  the retry region by region. Censused over 130 runs on 2026-09-07: **5.01 h of
-  15.68 h of blind time recovered (31.9%), +27,282 words**, both fail-level runs
-  to **0%** blind, and sermon #1148 restored from 81 words to 3,324.
-  **EXECUTED 2026-09-08** through `historic-import:replay-transcript-recovery`
-  across all 146 runs / 202 windows, from the retries the pipeline had already
-  banked — no provider call, no ffmpeg, no dependence on the source surviving:
-  17.86 h blind → 12.34 h, **5.52 h recovered (30.9%), +35,125 words**, 0 failures.
-  Structure was then re-derived for the runs whose boundaries had been drawn over
-  the voids, and **run #1035 closed** — a *failed* run whose single prayer section
-  became sixteen, yielding sermon #1307 (*Herod's antagonism towards Jesus*,
-  Matthew 2:1-12, confidence 0.99). Op-4 failures 4 → 3.
-  The 40%/10% thresholds were **deliberately not re-derived**: the fail line's job
-  is the catastrophic case and run #1004 still shows it at ~100% blind, so "the
-  gate is now inert" is the wrong reading — it stops firing on completed runs
-  because the defect that manufactured a 96.5%-blind completion is fixed. Prefer
-  the replay's figures to the 2026-09-07 re-transcription census, which measured a
-  different question and whose headline numbers are wrong.
-- [~] Resolve the **four** demonstrated mixed-song generated clips (P8-Q10).
-  **Two shared-pipeline gates are now in place**: `unresolved_multiple_songs`
-  (OCR route) and `unlocated_adjacent_song` (printed-order route, added
-  2026-09-07 because #306's OCR evidence was empty). That is the part which
-  protects weekly processing, and it is done. **#335 and #306 are both withdrawn
-  locally**; #1276 and #3869 are untouched but quarantined.
-  **Corrected 2026-09-08 — no production exposure was ever demonstrated.** This
-  machine is completely separate from production and the weekly pipeline has
-  never run consistently there; the database here was built from 2026-05-04
-  (every table's oldest row lands in the same instant, all 523 `song_videos`
-  postdate 2026-07-06, and total sermon downloads are zero), so these four rows
-  are local artifacts. Nor is a song video anonymously reachable at all:
-  `PublicSongListController` sits behind `['auth', 'verified']`
-  (`routes/web.php:256`), and `publication_state`/`publiclyReleased()` describe a
-  column rather than the open internet. Earlier text here read "not reconciled in
-  production" — that was **unverified**, not confirmed exposure. Production
-  reconciliation is real but is **its own piece of work**, not a tail on this item.
-  What remains of P8-Q10 is therefore a **capability, not a repair**: nothing
-  splits a section, and `SaveServiceSection` only shortens children's talks. See
-  *Separating the interval is not something the application can do* above; that
-  work is not blocking and does not belong in delivery-order item 1.
-- [~] Reconcile stale review state (P8-Q2). `structure_macro_section` landed
-  2026-09-07 and **the rederivation has been executed**: 38 sections across 33
-  services now carry it, all 38 requiring review, raising the queue to 332
-  sections across 173 runs. The 98 cross-type-inversion-only demotions from the
-  earlier census are **not** yet reconciled.
-- [~] Reconcile stale review state, recover truthful video assessments, and
-  evaluate safe reductions in boundary review (P8-Q2/Q3/Q6/Q9). **P8-Q3 is done**
-  (2026-09-08): 81 missing-file verdicts recovered against their owning disks,
-  and access failures can no longer masquerade as judgements. P8-Q2, P8-Q6 and
-  P8-Q9 remain, and P8-Q13 is new.
-- [ ] Resolve source identity, remaining evidence failures and editorial metadata;
-  speaker identification remains paused while its corpus/rebuild work proceeds.
+- [x] Bulk queue drained: **410 completed / three failed** active operation-4 runs.
+- [x] Previously identified 60 transcript-span repairs/reanalyses, region-wise
+  recovery replay, owning-disk video reassessment and stale-flag demotions have
+  recorded closeouts. The new review does not undo that work.
+- [ ] **P8-Q14:** investigate/recover 125 suspect repetitive sermon transcripts,
+  with a shared detector that catches short loops and preserves legitimate repetition.
+- [ ] **P8-Q15:** repair three proven incomplete sermons (#974, #1003, #1304),
+  represent interrupted sermon delivery correctly and resolve the named candidates.
+- [ ] **P8-Q12/Q13:** repair nine stale older transcripts and affected analyses,
+  43 active stale videos and #1005's invalid video/two missing song files; investigate
+  #1257's changing audio/video offset. Bind freshness to actual inputs and spans.
+- [ ] **P8-Q10/Q16:** withhold/correct remaining mixed-song outputs, reconcile
+  38 generated songs that fail current policy, and validate 85 generated songs
+  with incomplete transcript evidence. Enforce current holds at action/release time.
+- [ ] **P8-Q17:** correct 16 sections extending past source end and resolve
+  missing-duration evidence and material join uncertainty.
+- [ ] **P8-Q7:** settle four duplicate-performance pairs and their correct identities.
+- [ ] Complete held-out source/output validation and evidence packets for genuine
+  ambiguities; resolve source identity, metadata and remaining failed/no-sermon runs.
+  Speaker identification remains separately paused and review-required.
 - [ ] Complete Phase 9's exact membership, asset, visibility and acceptance checks.
   Public release still requires its separate operator authorisation.
 
-Prioritise shared weekly-processing improvements and targeted historical repair.
-Do not declare release readiness from completion counts or reduce review by
-silently accepting unknown content.
+The audit register flags uncertainty explicitly; **no database review flags or
+publication states were changed by this review**. Automate evidence checks and
+bounded repairs before escalating surviving cases to the sole maintainer. Do not
+reduce review by silently accepting unknown content or claim 100% confidence from
+completion counts, model confidence or a sample alone.
