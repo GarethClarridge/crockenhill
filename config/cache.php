@@ -72,7 +72,9 @@ return [
 
         'redis' => [
             'driver' => 'redis',
-            'connection' => 'default',
+            // Its own Redis database, never the queue's — see the invariant in
+            // config/database.php. flush() is FLUSHDB and respects no prefix.
+            'connection' => env('REDIS_CACHE_CONNECTION', 'cache'),
         ],
 
     ],

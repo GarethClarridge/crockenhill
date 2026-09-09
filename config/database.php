@@ -129,11 +129,29 @@ return [
 
         'client' => 'predis',
 
+        /*
+         * INVARIANT: `cache` MUST NOT share a database with `default`.
+         *
+         * Laravel's Redis cache store implements flush() as FLUSHDB, which
+         * ignores CACHE_PREFIX and erases the entire database — the queue's
+         * `queues:*` lists, their reserved and delayed sorted sets, and
+         * Horizon's job records with them. The database number is the only
+         * thing separating a cache clear from data loss; the prefix is not.
+         *
+         * Enforced by tests/Feature/Config/CacheQueueRedisIsolationTest.php.
+         */
         'default' => [
             'host' => env('REDIS_HOST', '127.0.0.1'),
             'password' => env('REDIS_PASSWORD', null),
             'port' => env('REDIS_PORT', 6379),
-            'database' => 0,
+            'database' => env('REDIS_DB', 0),
+        ],
+
+        'cache' => [
+            'host' => env('REDIS_HOST', '127.0.0.1'),
+            'password' => env('REDIS_PASSWORD', null),
+            'port' => env('REDIS_PORT', 6379),
+            'database' => env('REDIS_CACHE_DB', 1),
         ],
 
     ],

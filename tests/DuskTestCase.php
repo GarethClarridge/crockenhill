@@ -11,6 +11,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Laravel\Dusk\TestCase as BaseTestCase;
 use PHPUnit\Framework\Attributes\BeforeClass;
+use Tests\Feature\Config\CacheQueueRedisIsolationTest;
 
 abstract class DuskTestCase extends BaseTestCase
 {
@@ -27,6 +28,14 @@ abstract class DuskTestCase extends BaseTestCase
      *
      * Local dev uses redis and CI uses file. Flush only the configured Dusk
      * store so each environment clears the cache used by its served app.
+     *
+     * This is a FLUSHDB against redis, once per test, and it respects no key
+     * prefix. It was safe to run here only after the cache was given its own
+     * Redis database: on 2026-09-07, when the cache and the queue shared
+     * database 0, this line destroyed 30 of 60 paid re-analysis jobs mid-drain
+     * — and an emptied queue is indistinguishable from a completed one.
+     * {@see CacheQueueRedisIsolationTest} holds that
+     * separation in place; do not point REDIS_CACHE_DB back at the queue's.
      */
     protected function setUp(): void
     {

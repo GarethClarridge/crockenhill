@@ -45,6 +45,11 @@
         <env name="APP_ENV" value="testing" force="true"/>
         <env name="CACHE_DRIVER" value="array"/>
         <env name="CACHE_PREFIX" value="test_process"/>
+        <!-- .env.testing replaces .env rather than merging with it, so REDIS_HOST
+             would fall back to 127.0.0.1 and every Redis-touching test would skip.
+             Not forced: a real environment variable still wins, and CI (which runs
+             no Redis service) simply skips those tests. -->
+        <env name="REDIS_HOST" value="redis"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="LOG_CHANNEL" value="testing" force="true"/>

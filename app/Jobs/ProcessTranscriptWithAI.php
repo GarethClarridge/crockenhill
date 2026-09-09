@@ -101,6 +101,19 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             // that disposition no longer describes this run's current content.
             $this->processingLog->update(['ai_analysis' => $analysis, 'is_degraded_completion' => false]);
 
+            /**
+             * Record the transcript this analysis actually consumed — the text
+             * read above, not whatever is on disk when someone later asks.
+             * "The analysis job completed" and "the banked analysis describes
+             * the transcript this run now holds" are different facts, and a
+             * transcript repair separates them without touching either the
+             * queue or the degraded flag. Freshness has to be readable from the
+             * row, because an empty queue proves nothing about what ran.
+             */
+            $this->processingLog->recordAnalysedTranscript(
+                MediaProcessingLog::hashTranscriptContent($transcript),
+            );
+
             // Update sermon - preserve any existing curated content; only fill in missing fields with AI data.
             // The sermon may already have been created by a richer prior pipeline run (upsert enrichment),
             // so we treat non-null sermon fields as authoritative regardless of what ID3 tags say.

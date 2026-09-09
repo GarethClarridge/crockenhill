@@ -18,6 +18,7 @@ use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Enums\SermonVideoQualityStatus;
 use App\Enums\ServiceSectionPublicationStatus;
+use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\StoreSermonVideo;
 use App\Services\HistoricMedia\HistoricReviewSourceReclaimer;
 use App\Services\HistoricMedia\HistoricStagingGuard;
@@ -587,6 +588,77 @@ class MediaProcessingLog extends Model
         return is_numeric($previous) && (float) $previous > 0.0 ? (float) $previous : null;
     }
 
+    /**
+     * Record the content now in the sermon transcript, so a later reader can
+     * tell whether the banked analysis still describes it.
+     *
+     * Called by every writer that rewrites a sermon transcript. Analysis is
+     * derived from that text, so rewriting the text stales the analysis even
+     * though the analysis job itself completed successfully — the same
+     * distinction {@see self::recordStoredSermonVideo()} draws for video, and
+     * for the same reason: "the job completed" and "its output matches this
+     * run's current input" are different facts.
+     */
+    public function recordTranscriptContent(string $contentHash): void
+    {
+        $this->writeProcessingMetadata(static function (array $metadata) use ($contentHash): array {
+            $metadata['transcript_content'] = [
+                'hash' => $contentHash,
+                'changed_at' => now()->toIso8601String(),
+            ];
+
+            return $metadata;
+        });
+    }
+
+    /**
+     * Record the transcript that analysis actually consumed.
+     *
+     * Written by {@see ProcessTranscriptWithAI} on success, from the
+     * text it read rather than from whatever is on disk afterwards.
+     */
+    public function recordAnalysedTranscript(string $contentHash): void
+    {
+        $this->writeProcessingMetadata(static function (array $metadata) use ($contentHash): array {
+            $metadata['analysed_transcript'] = [
+                'hash' => $contentHash,
+                'analysed_at' => now()->toIso8601String(),
+            ];
+
+            return $metadata;
+        });
+    }
+
+    public static function hashTranscriptContent(string $text): string
+    {
+        return hash('sha256', trim($text));
+    }
+
+    /**
+     * Whether this run's banked analysis is known to describe a transcript it no
+     * longer holds.
+     *
+     * False when nothing was recorded, and deliberately so. Every run completed
+     * before this was introduced has no recorded hash on either side, and
+     * reading that silence as "owed" would re-dispatch a paid analysis for the
+     * whole corpus. Only a recorded transcript change that no recorded analysis
+     * has consumed counts — so the answer is evidence, never an assumption.
+     */
+    public function analysisIsOwed(): bool
+    {
+        $metadata = $this->processing_metadata?->toArray() ?? [];
+
+        $current = data_get($metadata, 'transcript_content.hash');
+
+        if (! is_string($current) || $current === '') {
+            return false;
+        }
+
+        $analysed = data_get($metadata, 'analysed_transcript.hash');
+
+        return ! is_string($analysed) || $analysed !== $current;
+    }
+
     public function clearReExtraction(): void
     {
         $this->writeProcessingMetadata(static function (array $metadata): array {
@@ -989,9 +1061,14 @@ class MediaProcessingLog extends Model
      * infrequent and sequential within a step, and a genuinely concurrent writer
      * still needs a column-level merge.
      *
+     * Public because the writers that still need converting are not all on this
+     * model: roughly thirty job- and service-level sites still read
+     * `processing_metadata`, mutate the array and save a held instance, and each
+     * is the same lost update waiting to happen. They convert to this.
+     *
      * @param  callable(array<string, mixed>): array<string, mixed>  $mutate
      */
-    private function writeProcessingMetadata(callable $mutate): void
+    public function writeProcessingMetadata(callable $mutate): void
     {
         $stored = $this->exists
             ? static::query()->whereKey($this->getKey())->first()?->processing_metadata?->toArray()

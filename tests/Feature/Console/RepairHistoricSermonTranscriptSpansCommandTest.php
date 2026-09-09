@@ -11,6 +11,7 @@ use App\Jobs\ProcessTranscriptWithAI;
 use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\HistoricMedia\HistoricSermonTranscriptSpanRepair;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\HistoricMedia\HistoricStagingGuard;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -224,6 +225,121 @@ class RepairHistoricSermonTranscriptSpansCommandTest extends TestCase
             ->assertSuccessful();
 
         Queue::assertPushed(ProcessTranscriptWithAI::class, 1);
+    }
+
+    /**
+     * The workflow the command itself advises when run without --reanalyse.
+     *
+     * Selection by text equality cannot express "the text is right but the
+     * analysis behind it is not". After a text-only repair the row reports as
+     * `already repaired`, so the follow-up invocation the warning recommends
+     * dispatches nothing at all, and the sermon keeps analysis derived from the
+     * contaminated transcript with nothing on the record saying so.
+     */
+    #[Test]
+    public function a_text_only_repair_still_owes_analysis_on_a_later_invocation(): void
+    {
+        [$operation] = $this->historicRun();
+
+        $this->artisan('historic-import:repair-sermon-transcript-spans', [
+            '--operation' => $operation->operation_id,
+            '--execute' => true,
+        ])->assertSuccessful();
+
+        Queue::fake();
+
+        $this->artisan('historic-import:repair-sermon-transcript-spans', [
+            '--operation' => $operation->operation_id,
+            '--execute' => true,
+            '--reanalyse' => true,
+        ])
+            ->expectsOutputToContain('Dispatched 1 re-analysis job(s)')
+            ->assertSuccessful();
+
+        Queue::assertPushed(ProcessTranscriptWithAI::class, 1);
+    }
+
+    /**
+     * The same gap reached by crash rather than by choice: the text is written
+     * and the process dies before the dispatch loop. Nothing distinguishes that
+     * row from one whose analysis genuinely completed, so re-running the command
+     * must still owe the analysis.
+     */
+    #[Test]
+    public function analysis_owed_survives_a_crash_between_writing_text_and_dispatching(): void
+    {
+        [$operation, $log, $sermon] = $this->historicRun();
+
+        // The repair's own write, with no dispatch after it.
+        app(HistoricSermonTranscriptSpanRepair::class)->apply(
+            app(HistoricSermonTranscriptSpanRepair::class)->inspect([$log]),
+        );
+
+        self::assertSame(self::REPAIRED, $this->savedTranscript($sermon->fresh()));
+
+        Queue::fake();
+
+        $this->artisan('historic-import:repair-sermon-transcript-spans', [
+            '--operation' => $operation->operation_id,
+            '--execute' => true,
+            '--reanalyse' => true,
+        ])->assertSuccessful();
+
+        Queue::assertPushed(ProcessTranscriptWithAI::class, 1);
+    }
+
+    /**
+     * The other half of "owed": it has to stop being owed.
+     *
+     * Freshness bound to the transcript's content is what lets a retry
+     * establish that the input has not changed, so an unchanged run is never
+     * charged for a second analysis. Without that, "dispatch whatever is owed"
+     * would simply re-charge the whole repaired set on every invocation.
+     */
+    #[Test]
+    public function analysis_is_no_longer_owed_once_it_has_consumed_the_repaired_text(): void
+    {
+        [$operation, $log, $sermon] = $this->historicRun();
+
+        $this->artisan('historic-import:repair-sermon-transcript-spans', [
+            '--operation' => $operation->operation_id,
+            '--execute' => true,
+        ])->assertSuccessful();
+
+        self::assertTrue($log->fresh()->analysisIsOwed());
+
+        // What ProcessTranscriptWithAI records on success, from the text it read.
+        $log->fresh()->recordAnalysedTranscript(
+            MediaProcessingLog::hashTranscriptContent($this->savedTranscript($sermon->fresh())),
+        );
+
+        self::assertFalse($log->fresh()->analysisIsOwed());
+
+        Queue::fake();
+
+        $this->artisan('historic-import:repair-sermon-transcript-spans', [
+            '--operation' => $operation->operation_id,
+            '--execute' => true,
+            '--reanalyse' => true,
+        ])
+            ->expectsOutputToContain('Dispatched 0 re-analysis job(s)')
+            ->assertSuccessful();
+
+        Queue::assertNothingPushed();
+    }
+
+    /**
+     * A run nobody has repaired is not owed anything. The corpus completed long
+     * before any of this was recorded, so silence on both sides must read as
+     * "unknown", never as "stale" — otherwise this command becomes a way to
+     * re-analyse four hundred sermons by accident.
+     */
+    #[Test]
+    public function a_run_with_no_recorded_transcript_change_is_never_owed(): void
+    {
+        [, $log] = $this->historicRun();
+
+        self::assertFalse($log->fresh()->analysisIsOwed());
     }
 
     #[Test]

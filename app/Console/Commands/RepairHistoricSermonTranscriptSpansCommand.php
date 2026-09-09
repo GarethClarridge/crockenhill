@@ -90,7 +90,7 @@ class RepairHistoricSermonTranscriptSpansCommand extends Command
             }
 
             if ($reanalyse) {
-                $this->dispatchReanalysis($repairable, $totals['failures'], $throughput);
+                $this->dispatchReanalysis($entries, $totals['failures'], $throughput);
             } elseif ($totals['repaired'] > 0) {
                 $this->warn('The analysis banked for these sermons still derives from the old transcript. Re-run with --execute --reanalyse to refresh it.');
             }
@@ -158,10 +158,24 @@ class RepairHistoricSermonTranscriptSpansCommand extends Command
     }
 
     /**
-     * @param  list<SermonTranscriptSpanRepairEntry>  $repairable
+     * Dispatch analysis for every inspected run that owes it.
+     *
+     * Owed is read from the run, not from this pass's disposition. Selecting the
+     * entries that were *repairable at inspection* looked equivalent and is not:
+     * the workflow this command advises is `--execute` first and
+     * `--execute --reanalyse` afterwards, and by that second invocation every
+     * row it repaired reports as `already repaired`, so the recommended command
+     * dispatched nothing at all. A crash between writing the text and reaching
+     * this loop left the same hole with nothing on the row to show it.
+     *
+     * Runs with no recorded transcript change are not owed and are never
+     * dispatched here, so this cannot re-analyse the corpus at large — it can
+     * only finish work a recorded repair started.
+     *
+     * @param  list<SermonTranscriptSpanRepairEntry>  $entries
      * @param  list<string>  $failures
      */
-    private function dispatchReanalysis(array $repairable, array $failures, HistoricProcessingThroughput $throughput): void
+    private function dispatchReanalysis(array $entries, array $failures, HistoricProcessingThroughput $throughput): void
     {
         $failedIds = [];
 
@@ -171,21 +185,34 @@ class RepairHistoricSermonTranscriptSpansCommand extends Command
 
         $queue = $throughput->queueForClass(ProcessTranscriptWithAI::class);
         $dispatched = 0;
+        $owedButUnwritable = 0;
 
-        foreach ($repairable as $entry) {
+        foreach ($entries as $entry) {
             if (isset($failedIds[$entry->processingId])) {
                 continue;
             }
 
             $run = MediaProcessingLog::query()->find($entry->logId);
 
-            if ($run instanceof MediaProcessingLog) {
-                ProcessTranscriptWithAI::dispatch($run)->onQueue($queue);
-                $dispatched++;
+            if (! $run instanceof MediaProcessingLog || ! $run->analysisIsOwed()) {
+                continue;
             }
+
+            if ($entry->disposition === HistoricSermonTranscriptSpanRepair::DISPOSITION_UNRESOLVED) {
+                $owedButUnwritable++;
+
+                continue;
+            }
+
+            ProcessTranscriptWithAI::dispatch($run)->onQueue($queue);
+            $dispatched++;
         }
 
         $this->info("Dispatched {$dispatched} re-analysis job(s) onto the {$queue} queue.");
+
+        if ($owedButUnwritable > 0) {
+            $this->warn("{$owedButUnwritable} run(s) owe analysis but their evidence is unresolved; they remain owed.");
+        }
     }
 
     /**

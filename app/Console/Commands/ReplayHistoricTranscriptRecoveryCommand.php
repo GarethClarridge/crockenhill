@@ -265,10 +265,22 @@ class ReplayHistoricTranscriptRecoveryCommand extends Command
         // coverage verdict is stale even where the transcript is not.
         $this->reflagEvidence($runs);
 
-        if ($stale === []) {
+        /**
+         * A run whose text is already correct can still owe analysis: an earlier
+         * pass may have re-derived the transcript and then lost its dispatch —
+         * to a crash, or to a queue emptied underneath it. Returning on `$stale`
+         * alone made that unrecoverable, because by then nothing looks stale.
+         */
+        $owed = $runs->filter(static fn (MediaProcessingLog $run): bool => $run->analysisIsOwed());
+
+        if ($stale === [] && $owed->isEmpty()) {
             $this->info('No sermon transcript was staled by the replay; nothing to re-analyse.');
 
             return;
+        }
+
+        if ($stale === []) {
+            $this->info("{$owed->count()} run(s) still owe analysis from an earlier pass.");
         }
 
         $this->table(
@@ -292,10 +304,18 @@ class ReplayHistoricTranscriptRecoveryCommand extends Command
         $queue = $throughput->queueForClass(ProcessTranscriptWithAI::class);
         $dispatched = 0;
 
-        foreach ($stale as $entry) {
+        /**
+         * Selected by what each run owes, not by what was stale at inspection.
+         * `apply()` has just rewritten the text, so re-reading `$stale` here
+         * would make a resumed pass dispatch nothing — the rows now match. The
+         * owed marker outlives this process, which is the point: a dispatch lost
+         * to an interrupted pass or a flushed queue is still recoverable by
+         * running the command again.
+         */
+        foreach ($sermonEntries as $entry) {
             $run = MediaProcessingLog::query()->find($entry->logId);
 
-            if ($run instanceof MediaProcessingLog) {
+            if ($run instanceof MediaProcessingLog && $run->analysisIsOwed()) {
                 ProcessTranscriptWithAI::dispatch($run)->onQueue($queue);
                 $dispatched++;
             }

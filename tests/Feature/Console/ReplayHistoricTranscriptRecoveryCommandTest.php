@@ -211,6 +211,45 @@ class ReplayHistoricTranscriptRecoveryCommandTest extends TestCase
     }
 
     /**
+     * A dispatch that never became an analysis is still owed.
+     *
+     * The pass above re-derives the sermon transcript and dispatches, so a
+     * crash after the write — or a queue emptied underneath it, which is
+     * exactly how 30 of 60 paid jobs were lost on 2026-09-07 — leaves the
+     * transcript correct and the analysis behind it stale, with the row
+     * reporting `already replayed` either way. Selecting by what the run owes
+     * rather than by what was stale at inspection is what makes that
+     * recoverable by simply running the command again.
+     */
+    #[Test]
+    public function a_dispatch_lost_before_it_ran_is_still_owed_on_the_next_pass(): void
+    {
+        Queue::fake();
+        [$operation, $log] = $this->historicRun(withSermon: true);
+
+        $this->artisan('historic-import:replay-transcript-recovery', [
+            '--operation' => $operation->operation_id,
+            '--execute' => true,
+            '--reanalyse' => true,
+        ])->assertSuccessful();
+
+        Queue::assertPushed(ProcessTranscriptWithAI::class, 1);
+
+        // The job was dispatched and never ran, so nothing consumed the text.
+        self::assertTrue($log->fresh()->analysisIsOwed());
+
+        $this->artisan('historic-import:replay-transcript-recovery', [
+            '--operation' => $operation->operation_id,
+            '--execute' => true,
+            '--reanalyse' => true,
+        ])
+            ->expectsOutputToContain('Dispatched 1 re-analysis job(s)')
+            ->assertSuccessful();
+
+        Queue::assertPushed(ProcessTranscriptWithAI::class, 2);
+    }
+
+    /**
      * @return array{0: HistoricImportOperation, 1: MediaProcessingLog}
      */
     private function historicRun(bool $withSermon = false): array

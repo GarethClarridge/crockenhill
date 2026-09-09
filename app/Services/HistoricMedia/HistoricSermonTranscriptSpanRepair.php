@@ -217,17 +217,37 @@ class HistoricSermonTranscriptSpanRepair
             throw new \RuntimeException('Failed to write the repaired transcript.');
         }
 
-        $metadata = $run->processing_metadata?->toArray() ?? [];
-        $metadata['transcript_span_repair'] = [
-            'repaired_at' => now()->toIso8601String(),
-            'disk' => $disk,
-            'path' => $path,
-            'spans' => $run->recordedSermonExtractionSpans(),
-            'previous_length' => $entry->currentLength,
-            'repaired_length' => $entry->repairedLength,
-        ];
+        $spans = $run->recordedSermonExtractionSpans();
 
-        $run->forceFill(['processing_metadata' => $metadata])->save();
+        /**
+         * Through the model's safe writer, not a read-modify-write on the
+         * instance held across the write above: `processing_metadata` is one
+         * JSON column many writers share, and saving a stale snapshot drops
+         * their keys. {@see MediaProcessingLog::writeProcessingMetadata()}.
+         */
+        $run->writeProcessingMetadata(static function (array $metadata) use ($disk, $path, $spans, $entry): array {
+            $metadata['transcript_span_repair'] = [
+                'repaired_at' => now()->toIso8601String(),
+                'disk' => $disk,
+                'path' => $path,
+                'spans' => $spans,
+                'previous_length' => $entry->currentLength,
+                'repaired_length' => $entry->repairedLength,
+            ];
+
+            return $metadata;
+        });
+
+        /**
+         * The analysis banked for this sermon was derived from the text just
+         * replaced. Recording what the transcript now holds is what lets a
+         * later invocation — or a resumed pass after a crash between here and
+         * the dispatch loop — see that analysis is still owed. Text equality
+         * cannot express that: once repaired, the row simply looks finished.
+         */
+        $run->recordTranscriptContent(
+            MediaProcessingLog::hashTranscriptContent((string) $entry->repairedText),
+        );
 
         Log::info('Sermon transcript repaired to its extraction spans', [
             'processing_id' => $run->processing_id,

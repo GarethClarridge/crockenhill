@@ -90,6 +90,45 @@ class ProcessTranscriptWithAITest extends TestCase
         $this->assertSame(1, $log->attempt_count);
     }
 
+    /**
+     * The clearing of `is_degraded_completion` above says the job succeeded. It
+     * does not say what the job read, and those came apart the moment a repair
+     * rewrote a transcript underneath a completed run: the flag stayed clear and
+     * the queue stayed empty while the banked analysis described text that no
+     * longer existed. Recording the consumed transcript is what makes freshness
+     * answerable from the row rather than inferred from an empty queue.
+     */
+    #[Test]
+    public function it_records_the_transcript_the_analysis_consumed(): void
+    {
+        Storage::fake();
+        Storage::put('transcripts/1/transcript.txt', $this->sampleTranscript);
+
+        $sermon = Sermon::factory()->create(['title' => 'Untitled Sermon', 'reference' => null]);
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'sermon_id' => $sermon->id,
+            'transcript_file_path' => 'transcripts/1/transcript.txt',
+        ]);
+        $log->recordTranscriptContent(MediaProcessingLog::hashTranscriptContent($this->sampleTranscript));
+
+        self::assertTrue($log->fresh()->analysisIsOwed(), 'A recorded transcript with no analysis behind it owes one.');
+
+        $mockService = $this->createMock(SermonAnalysisInterface::class);
+        $mockService->method('analyzeSermon')->willReturn($this->createAnalysis());
+
+        Log::shouldReceive('info')->atLeast()->once();
+
+        (new ProcessTranscriptWithAI($log))->handle($mockService, $this->app->make(SermonRepository::class));
+
+        $fresh = $log->fresh();
+
+        self::assertSame(
+            MediaProcessingLog::hashTranscriptContent($this->sampleTranscript),
+            data_get($fresh->processing_metadata?->toArray() ?? [], 'analysed_transcript.hash'),
+        );
+        self::assertFalse($fresh->analysisIsOwed(), 'Analysis that consumed the current transcript is no longer owed.');
+    }
+
     #[Test]
     public function it_clears_a_previous_degraded_completion_flag_on_a_genuine_success(): void
     {
