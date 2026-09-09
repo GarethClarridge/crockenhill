@@ -11,6 +11,7 @@ use App\Models\MediaProcessingLog;
 use App\Services\Media\Audio\MockServiceTranscriptionService;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Media\Audio\ServiceTranscriptRecovery;
+use App\Services\Media\Audio\ServiceTranscriptRepetitionScreen;
 use App\Services\Processing\ProcessingArtifactReuse;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Support\TranscriptPromptEchoDetector;
@@ -368,6 +369,40 @@ class TranscribeFullServiceTest extends TestCase
         $this->assertNotNull($metadata['service_transcript_path'] ?? null);
     }
 
+    #[Test]
+    public function it_records_the_repetition_screen_alongside_the_stored_transcript(): void
+    {
+        // Recorded here rather than at the sermon step so structure detection
+        // and analysis both run with it already on the row: by the time a sermon
+        // section exists, the detector has already read the looping text as
+        // though it were speech.
+        $cues = [];
+
+        for ($index = 0; $index < 12; $index++) {
+            $cues[] = [
+                'start' => 100.0 + $index * 4.0,
+                'end' => 104.0 + $index * 4.0,
+                'text' => 'God did what was necessary in order to make sure they won.',
+            ];
+        }
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        Storage::disk('local')->put((string) $log->source_file_path, 'fake video bytes');
+
+        MockServiceTranscriptionService::useTranscript(
+            ChurchServiceTranscript::fromCues($cues, 5400.0, ChurchServiceTranscript::SOURCE_MOCK),
+        );
+
+        $this->runJob($log);
+
+        $blocks = $log->refresh()->recordedTranscriptSuspectBlocks();
+
+        $this->assertNotNull($blocks);
+        $this->assertCount(1, $blocks);
+        $this->assertSame('repeated_phrase_loop', $blocks[0]['reason']);
+        $this->assertSame(12, $blocks[0]['repeats']);
+    }
+
     private function runJob(
         MediaProcessingLog $log,
         ?ServiceTranscriptRecovery $recovery = null,
@@ -379,6 +414,7 @@ class TranscribeFullServiceTest extends TestCase
             app(TranscriptPromptEchoDetector::class),
             $recovery ?? app(ServiceTranscriptRecovery::class),
             app(ProcessingArtifactReuse::class),
+            app(ServiceTranscriptRepetitionScreen::class),
         );
     }
 }

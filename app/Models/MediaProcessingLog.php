@@ -22,6 +22,7 @@ use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\StoreSermonVideo;
 use App\Services\HistoricMedia\HistoricReviewSourceReclaimer;
 use App\Services\HistoricMedia\HistoricStagingGuard;
+use App\Services\Media\Audio\ServiceTranscriptRepetitionScreen;
 use App\Services\Processing\ProcessingRunOrchestrator;
 use App\Services\Processing\SermonMetadataIntegrationService;
 use App\Support\ServiceArtifactDisk;
@@ -86,6 +87,8 @@ use InvalidArgumentException;
  * @property-read Sermon|null $sermon
  * @property-read Collection<int, LivestreamSegment> $segments
  * @property-read Collection<int, ServiceSection> $serviceSections
+ *
+ * @phpstan-import-type SuspectTranscriptBlockShape from \App\Data\SuspectTranscriptBlock
  */
 class MediaProcessingLog extends Model
 {
@@ -1079,15 +1082,59 @@ class MediaProcessingLog extends Model
         $this->forceFill(['processing_metadata' => $metadata])->save();
     }
 
-    /** @param  list<array{start: float, end: float, reason: string}>  $unobservableWindows */
-    public function putServiceTranscriptPath(string $path, array $unobservableWindows = []): void
+    /**
+     * Record the stored transcript together with both descriptions of what it
+     * is worth as evidence.
+     *
+     * The windows say where the recording was looked at and yielded nothing;
+     * the suspect blocks say where it yielded text that cannot be true
+     * {@see ServiceTranscriptRepetitionScreen}.
+     * All three are written in one pass because they describe the same
+     * artifact: a metadata write that updated the path while leaving either
+     * description behind would describe the transcript this run no longer holds.
+     *
+     * A null screen means *unknown*, and clears any screen already recorded
+     * rather than leaving it: the caller is replacing the transcript, so a
+     * screen it did not supply describes text this run no longer holds. An
+     * empty array is the different claim that the transcript was screened and
+     * nothing was found.
+     *
+     * @param  list<array{start: float, end: float, reason: string}>  $unobservableWindows
+     * @param  list<SuspectTranscriptBlockShape>|null  $suspectBlocks
+     */
+    public function putServiceTranscriptPath(string $path, array $unobservableWindows = [], ?array $suspectBlocks = null): void
     {
-        $this->writeProcessingMetadata(static function (array $metadata) use ($path, $unobservableWindows): array {
+        $this->writeProcessingMetadata(static function (array $metadata) use ($path, $unobservableWindows, $suspectBlocks): array {
             $metadata['service_transcript_path'] = $path;
             $metadata['service_transcript_unobservable_windows'] = $unobservableWindows;
 
+            if ($suspectBlocks === null) {
+                unset($metadata['service_transcript_suspect_blocks']);
+
+                return $metadata;
+            }
+
+            $metadata['service_transcript_suspect_blocks'] = $suspectBlocks;
+
             return $metadata;
         });
+    }
+
+    /**
+     * The blocks the repetition screen last recorded for this run's transcript.
+     *
+     * Null is *unknown*, not clean: absent for every run that completed before
+     * the screen existed, and the 2026-09-09 correctness review found 125
+     * historic sermons looping, none of which can carry a stamp. An empty array
+     * is the positive claim that the transcript was screened and found clear.
+     *
+     * @return list<array<string, mixed>>|null
+     */
+    public function recordedTranscriptSuspectBlocks(): ?array
+    {
+        $blocks = ($this->processing_metadata?->toArray() ?? [])['service_transcript_suspect_blocks'] ?? null;
+
+        return is_array($blocks) ? array_values(array_filter($blocks, 'is_array')) : null;
     }
 
     /**

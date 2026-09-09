@@ -6,11 +6,13 @@ namespace App\Jobs;
 
 use App\Contracts\ServiceTranscriptionInterface;
 use App\Data\ChurchServiceTranscript;
+use App\Data\SuspectTranscriptBlock;
 use App\Enums\ProcessingStep;
 use App\Enums\ServiceStructureMode;
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Media\Audio\ServiceTranscriptRecovery;
+use App\Services\Media\Audio\ServiceTranscriptRepetitionScreen;
 use App\Services\Processing\ProcessingArtifactReuse;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Support\ChurchServiceProcessingTimeline;
@@ -32,6 +34,8 @@ use Illuminate\Support\Facades\Storage;
  * processing id, so re-runs overwrite) and records the path in
  * processing_metadata['service_transcript_path'] — mirroring the rms_log_path
  * precedent — for DetectServiceStructure to consume.
+ *
+ * @phpstan-import-type SuspectTranscriptBlockShape from \App\Data\SuspectTranscriptBlock
  */
 class TranscribeFullService extends ProcessingJob implements ShouldQueue
 {
@@ -76,6 +80,7 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
         TranscriptPromptEchoDetector $promptEchoDetector,
         ServiceTranscriptRecovery $transcriptRecovery,
         ProcessingArtifactReuse $artifactReuse,
+        ServiceTranscriptRepetitionScreen $repetitionScreen,
     ): void {
         if ($this->refreshAndCheckCancellation($this->processingLog, $this->job ?? null, $this->attempts())) {
             return;
@@ -113,7 +118,7 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
          * cues is better re-transcribed than adopted.
          */
         if ($this->mayReuseStoredTranscript && $artifactReuse->serviceTranscriptIsUsable($this->processingLog)) {
-            $this->filterStoredTranscript($promptEchoDetector);
+            $this->filterStoredTranscript($promptEchoDetector, $repetitionScreen);
             $this->logStepSkipped(
                 ChurchServiceProcessingTimeline::TRANSCRIBE_FULL_SERVICE,
                 'Reused the full-service transcript already recorded for this run'
@@ -130,7 +135,7 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
             // cleanup for exactly this purpose — the recording has not
             // changed, so it is still valid evidence for detection.
             if ($this->hasStoredTranscript()) {
-                $this->filterStoredTranscript($promptEchoDetector);
+                $this->filterStoredTranscript($promptEchoDetector, $repetitionScreen);
                 $this->logStepSkipped(
                     ChurchServiceProcessingTimeline::TRANSCRIBE_FULL_SERVICE,
                     'Source media unavailable; reusing the stored full-service transcript'
@@ -161,7 +166,11 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
                 $recoveredTranscript->toArray(),
             );
 
-            $this->processingLog->putServiceTranscriptPath($transcriptPath, $recoveredTranscript->unobservableWindows);
+            $this->processingLog->putServiceTranscriptPath(
+                $transcriptPath,
+                $recoveredTranscript->unobservableWindows,
+                $this->screenedBlocks($recoveredTranscript, $repetitionScreen),
+            );
 
             $this->logStepComplete(
                 ChurchServiceProcessingTimeline::TRANSCRIBE_FULL_SERVICE,
@@ -206,8 +215,10 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
         return $this->processingLog->hasStoredServiceTranscript();
     }
 
-    private function filterStoredTranscript(TranscriptPromptEchoDetector $detector): void
-    {
+    private function filterStoredTranscript(
+        TranscriptPromptEchoDetector $detector,
+        ServiceTranscriptRepetitionScreen $repetitionScreen,
+    ): void {
         $path = $this->processingLog->serviceTranscriptPath();
         if ($path === null) {
             return;
@@ -218,12 +229,42 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
             json_decode((string) Storage::disk($artifactDisk)->get($path), true)
         );
 
+        $filtered = $this->filterTranscript($transcript, $detector);
+
         Storage::disk($artifactDisk)->put(
             $path,
-            json_encode(
-                $this->filterTranscript($transcript, $detector)->toArray(),
-                JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE,
-            )
+            json_encode($filtered->toArray(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)
+        );
+
+        // Reuse is the branch that most needs the screen recorded. A resumed or
+        // reclassified run adopts a transcript this code has never screened —
+        // for historic runs, one decoded before the screen existed — and would
+        // otherwise carry the reused transcript forward with no record of what
+        // it is worth.
+        $this->processingLog->putServiceTranscriptPath(
+            $path,
+            $filtered->unobservableWindows,
+            $this->screenedBlocks($filtered, $repetitionScreen),
+        );
+    }
+
+    /**
+     * What the repetition screen makes of the transcript this run will hand on.
+     *
+     * Recorded here rather than at the sermon step so structure detection and
+     * analysis both run with it already on the row: the loop is in the
+     * full-service transcript, and by the time a sermon section exists the
+     * detector has already read the looping text as though it were speech.
+     *
+     * @return list<SuspectTranscriptBlockShape>
+     */
+    private function screenedBlocks(
+        ChurchServiceTranscript $transcript,
+        ServiceTranscriptRepetitionScreen $repetitionScreen,
+    ): array {
+        return array_map(
+            static fn (SuspectTranscriptBlock $block): array => $block->toArray(),
+            $repetitionScreen->screen($transcript),
         );
     }
 

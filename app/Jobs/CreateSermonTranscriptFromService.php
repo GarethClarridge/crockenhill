@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Actions\FlagIncompleteSermonEvidence;
+use App\Actions\FlagSuspectTranscriptRepetition;
 use App\Data\SermonEvidenceCoverage;
+use App\Data\SuspectTranscriptBlock;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Media\Audio\ServiceTranscriptReader;
+use App\Services\Media\Audio\ServiceTranscriptRepetitionScreen;
 use App\Services\Media\Audio\TranscriptStorageService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -32,6 +35,17 @@ class CreateSermonTranscriptFromService extends ProcessingJob implements ShouldQ
      */
     public const FLAG_EVIDENCE_INCOMPLETE = FlagIncompleteSermonEvidence::FLAG;
 
+    /**
+     * A sermon whose delivered span holds text the transcript contradicts.
+     *
+     * The companion to the flag above and not a substitute for it: that one
+     * measures span with *no* evidence, this one span whose evidence cannot be
+     * true. Of the 125 looping historic sermons the 2026-09-09 correctness
+     * review found, 88 carried no section hold at all, because a looping decode
+     * leaves no blind window behind.
+     */
+    public const FLAG_REPETITION_SUSPECT = FlagSuspectTranscriptRepetition::FLAG;
+
     public int $tries = 3;
 
     public int $timeout = 120;
@@ -43,6 +57,7 @@ class CreateSermonTranscriptFromService extends ProcessingJob implements ShouldQ
     public function handle(
         TranscriptStorageService $transcriptStorage,
         ServiceTranscriptReader $serviceTranscripts,
+        ServiceTranscriptRepetitionScreen $repetitionScreen,
     ): void {
         if ($this->refreshAndCheckCancellation($this->processingLog, $this->job ?? null, $this->attempts())) {
             return;
@@ -87,6 +102,26 @@ class CreateSermonTranscriptFromService extends ProcessingJob implements ShouldQ
                 '; %.1f%% of its %.0f-second span has no transcript evidence',
                 $coverage->unobservableFraction() * 100,
                 $coverage->spanSeconds,
+            );
+        }
+
+        // Raised and cleared unconditionally, unlike the coverage flag above:
+        // an empty screen is the evidence that clears a standing hold, and a
+        // sermon re-derived from recovered audio is exactly the case where the
+        // hold must be withdrawn rather than left to accumulate.
+        //
+        // The whole screen is handed over, not the sermon's slice of it: the
+        // action holds the children's talk on the same rule, and it is the only
+        // party that knows which span each section is delivered from.
+        $blocks = $repetitionScreen->screen($transcript);
+        app(FlagSuspectTranscriptRepetition::class)($this->processingLog, $blocks);
+
+        $withinSermon = $repetitionScreen->within($blocks, $spans);
+
+        if ($withinSermon !== []) {
+            $message .= sprintf(
+                '; %.0f seconds of its span repeat or exceed a plausible word rate',
+                SuspectTranscriptBlock::coveredSeconds($withinSermon),
             );
         }
 

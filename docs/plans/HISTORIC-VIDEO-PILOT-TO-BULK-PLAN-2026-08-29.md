@@ -5126,9 +5126,69 @@ an independent word-error benchmark, because the short retries use the same loca
 model. The full 49,648 words inside candidate repetitions are neither a count of
 missing words nor a measurement of uniquely lost audio time.
 
-- [ ] P8-Q14: detect and hold short repetitions, cue-boundary variants and implausible
-  word density before structure/analysis; validate against genuine repeated speech
-  and sung refrains so the fix does not manufacture a different false-positive class.
+- [x] **DONE 2026-09-09.** P8-Q14: detect and hold short repetitions, cue-boundary
+  variants and implausible word density before structure/analysis; validate against
+  genuine repeated speech and sung refrains so the fix does not manufacture a
+  different false-positive class.
+  `ServiceTranscriptRepetitionScreen` is a new, pure screen — deliberately **not**
+  a change to `ServiceTranscriptPathologyDetector`, whose ordered output names the
+  banked retry artifacts and is load-bearing history. It matches over the cue
+  *word stream* rather than cue strings, which is what makes cue-boundary variants
+  visible: the same loop is grouped into cues differently either side of a retry,
+  and exact cue equality then sees nothing. A regression asserts precisely that —
+  ten verbatim repeats split so no two cue texts are equal, invisible to the
+  existing detector and caught here.
+  **The floor was the whole defect, not the rule.** Locating all 222 blocks in the
+  service cues gives a median of 24.4 seconds and exactly one at 120, so the
+  recovery detector's 120-second minimum excludes every one of them. The screen has
+  no duration floor.
+  **Implausible word density is real but not independent.** At 400 words per minute
+  sustained over 30 seconds it flags 16,614 seconds of the historic corpus, of
+  which **30 — one block, run 929 — are not already inside a repeated-phrase block**.
+  It is kept as a backstop for near-repeats the verbatim rule cannot see, and as a
+  per-block measurement. Relaxing it is what breaks it: at 350 it returns a
+  reading of Psalm 23, at 300 a prayer, at 250 ordinary preaching. This is a
+  *local* rate inside a candidate block and does not revisit P8-Q8, where
+  whole-span words-per-minute was measured and rejected as a completeness signal.
+  **Legitimate repetition is preserved by the repeat threshold, and that was
+  checked rather than assumed.** At five or more verbatim back-to-back repeats the
+  corpus offers no genuine example — sampled song-section candidates are all
+  decode loops, including the slow ones ("let's stand" twenty-three times across
+  136 seconds at 30 words per minute). Real repetition sits at three and four:
+  "tell me the old old story", "my comfort my comfort my comfort", the doxology.
+  Density is not what separates them, so the screen does not use it to.
+  **Validated against the review's own finding.** Screening all 454 readable banked
+  transcripts finds 993 blocks across 310 runs (50,370 seconds), and **123 of the
+  review's 125 sermons** are caught inside their delivered span. The other two are
+  #871 and #881 — both on the list of nine older transcripts that *retain material
+  between their intended spans*, so their loops are caught in the service
+  transcript but fall outside the current span, which is the expected reading
+  rather than a miss. **19 sermons beyond the review's 125** are found, because the
+  review screened saved sermon text while this screens the transcript the span is
+  cut from; all 19 were inspected and are loops.
+  The hold is `transcript_repetition_suspect` on the section, raised and withdrawn
+  by `FlagSuspectTranscriptRepetition` — the sibling of
+  `FlagIncompleteSermonEvidence`, and needed *because* of it: a looping decode
+  leaves no unobservable window, so 88 of the 125 carried no hold at all. It covers
+  children's talks on the same rule, not a separate one, which is what reaches
+  §4368. Songs are deliberately excluded: a loop over sung audio is evidence about
+  a clip boundary, which P8-Q10/Q16 already judges.
+  `service:screen-transcript-repetition` applies the same rule to banked runs,
+  since no completed run will pass through the pipeline again. It reports without
+  writing unless `--apply`, and refuses to run without an explicit selection.
+  **Applied 2026-09-09 across historic operations 2, 3 and 4**: 454 transcripts
+  screened, **160 sections held — 142 sermons and 18 children's talks — across 151
+  runs**, taking the review queue from 232 sections across 153 runs to **384 across
+  253**. §4368 is among them. The one unscreened run is #937, a superseded failure
+  that stopped at `rms_generation` and has no transcript; that is the correct
+  reading, not a gap. A second pass raised and withdrew nothing, which is the
+  property that matters here — the first attempt crashed partway (a zero-duration
+  block yields an unbounded rate, and `INF` is not JSON-encodable; the rate is now
+  recorded as null with a regression covering it), and re-running simply finished
+  the work rather than double-applying it.
+  **A hold is not a repair.** These 160 sections say the evidence behind them
+  cannot be read as speech. Nothing has been re-transcribed, no structure
+  re-detected, and no sermon text or analysis regenerated.
 - [ ] Run bounded, overlapping audio recovery for exact candidates, preserving
   originals and comparing the recovered evidence. Re-detect structure where meaning
   or coverage changes, then regenerate sermon text and analysis from final spans.
@@ -5366,8 +5426,14 @@ Processing completion and successful recovery execution are not acceptance tests
 - [x] Previously identified 60 transcript-span repairs/reanalyses, region-wise
   recovery replay, owning-disk video reassessment and stale-flag demotions have
   recorded closeouts. The new review does not undo that work.
-- [ ] **P8-Q14:** investigate/recover 125 suspect repetitive sermon transcripts,
-  with a shared detector that catches short loops and preserves legitimate repetition.
+- [ ] **P8-Q14:** investigate/recover 125 suspect repetitive sermon transcripts.
+  **The shared detector is done** (2026-09-09): `ServiceTranscriptRepetitionScreen`
+  catches short loops and cue-boundary variants, preserves legitimate repetition,
+  and holds sermons and children's talks through `transcript_repetition_suspect`.
+  It reaches 123 of the 125 in their delivered span, explains the other two, and
+  adds 19. **The holds are applied** (2026-09-09): 160 sections across 151 runs,
+  queue 232 → 384. **Bounded audio recovery for the candidates has not been run**,
+  so no repetition has yet been replaced with recovered speech.
 - [ ] **P8-Q15:** repair three proven incomplete sermons (#974, #1003, #1304),
   represent interrupted sermon delivery correctly and resolve the named candidates.
 - [ ] **P8-Q12/Q13:** repair nine stale older transcripts and affected analyses,

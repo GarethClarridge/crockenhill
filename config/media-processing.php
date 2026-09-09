@@ -382,6 +382,22 @@ return [
             'max_phrase_words' => (int) env('SERVICE_TRANSCRIPT_RECOVERY_MAX_PHRASE_WORDS', 12),
             'max_gap_seconds' => (float) env('SERVICE_TRANSCRIPT_RECOVERY_MAX_GAP_SECONDS', 60),
         ],
+        // A looping decode holds the transcript for review even when the
+        // recovery detector above never fires. Measured against the 446-run
+        // historic corpus on 2026-09-09: five verbatim back-to-back repeats is
+        // the boundary above which the corpus offers no genuine example, while
+        // real hymn and liturgical repetition sits at three and four. The
+        // words-per-minute ceiling is a backstop for near-repeats the verbatim
+        // rule cannot see; relaxing it towards 250 starts returning ordinary
+        // preaching. See ServiceTranscriptRepetitionScreen.
+        'repetition_screen' => [
+            'min_repeats' => (int) env('SERVICE_TRANSCRIPT_REPETITION_MIN_REPEATS', 5),
+            'min_repeated_words' => (int) env('SERVICE_TRANSCRIPT_REPETITION_MIN_WORDS', 40),
+            'min_phrase_words' => (int) env('SERVICE_TRANSCRIPT_REPETITION_MIN_PHRASE_WORDS', 3),
+            'max_phrase_words' => (int) env('SERVICE_TRANSCRIPT_REPETITION_MAX_PHRASE_WORDS', 25),
+            'max_words_per_minute' => (float) env('SERVICE_TRANSCRIPT_REPETITION_MAX_WPM', 400),
+            'density_window_seconds' => (float) env('SERVICE_TRANSCRIPT_REPETITION_DENSITY_WINDOW_SECONDS', 30),
+        ],
     ],
 
     /*

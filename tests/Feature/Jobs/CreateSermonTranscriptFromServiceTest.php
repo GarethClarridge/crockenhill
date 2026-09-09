@@ -304,6 +304,109 @@ class CreateSermonTranscriptFromServiceTest extends TestCase
      * @param  list<array{start: float, end: float, reason: string}>  $unobservableWindows
      * @return array{0: Sermon, 1: MediaProcessingLog}
      */
+    #[Test]
+    public function it_holds_a_sermon_whose_span_loops_even_though_nothing_is_blind(): void
+    {
+        $cues = [['start' => 1990.0, 'end' => 2000.0, 'text' => 'And so we come to the sermon.']];
+
+        // Twelve verbatim repeats over 48 seconds: far inside the recovery
+        // detector's 120-second floor, and leaving no unobservable window
+        // behind, so nothing else in the pipeline would say a word about it.
+        for ($index = 0; $index < 12; $index++) {
+            $cues[] = [
+                'start' => 2000.0 + $index * 4.0,
+                'end' => 2004.0 + $index * 4.0,
+                'text' => 'God did what was necessary in order to make sure they won.',
+            ];
+        }
+
+        $cues[] = ['start' => 2048.0, 'end' => 2400.0, 'text' => 'The rest of the sermon.'];
+
+        [, $log] = $this->runWithServiceTranscript(
+            cues: $cues,
+            sermonStartTime: 1990.0,
+            sermonEndTime: 2400.0,
+            withSermonSection: true,
+        );
+
+        app()->call([new CreateSermonTranscriptFromService($log), 'handle']);
+
+        $section = $log->serviceSections()->firstOrFail();
+        $metadata = $section->metadata?->toArray() ?? [];
+
+        $this->assertContains(CreateSermonTranscriptFromService::FLAG_REPETITION_SUSPECT, $metadata['review_flags'] ?? []);
+        $this->assertNotContains(CreateSermonTranscriptFromService::FLAG_EVIDENCE_INCOMPLETE, $metadata['review_flags'] ?? []);
+        $this->assertSame(48.0, (float) ($metadata['transcript_repetition_seconds'] ?? 0));
+        $this->assertTrue($section->needs_manual_review);
+    }
+
+    #[Test]
+    public function it_leaves_a_sermon_alone_when_the_loop_is_outside_its_delivered_span(): void
+    {
+        // The loop sits in an opening hymn the extraction never cut. Holding the
+        // sermon for it would ask a reviewer to check text the sermon does not
+        // contain.
+        $cues = [];
+
+        for ($index = 0; $index < 12; $index++) {
+            $cues[] = [
+                'start' => 100.0 + $index * 4.0,
+                'end' => 104.0 + $index * 4.0,
+                'text' => 'Let us stand and sing together now.',
+            ];
+        }
+
+        $cues[] = ['start' => 2000.0, 'end' => 2400.0, 'text' => 'The sermon, delivered without incident.'];
+
+        [, $log] = $this->runWithServiceTranscript(
+            cues: $cues,
+            sermonStartTime: 2000.0,
+            sermonEndTime: 2400.0,
+            withSermonSection: true,
+        );
+
+        app()->call([new CreateSermonTranscriptFromService($log), 'handle']);
+
+        $section = $log->serviceSections()->firstOrFail();
+
+        $this->assertNotContains(
+            CreateSermonTranscriptFromService::FLAG_REPETITION_SUSPECT,
+            $section->metadata?->toArray()['review_flags'] ?? [],
+        );
+        $this->assertFalse($section->needs_manual_review);
+    }
+
+    #[Test]
+    public function it_withdraws_a_standing_repetition_hold_when_the_transcript_no_longer_loops(): void
+    {
+        // The re-derivation half of the loop: recovered audio is what makes a
+        // standing hold wrong, and this job is the writer that must withdraw it.
+        [, $log] = $this->runWithServiceTranscript(
+            cues: [['start' => 2000.0, 'end' => 2400.0, 'text' => 'The recovered sermon, in full.']],
+            sermonStartTime: 2000.0,
+            sermonEndTime: 2400.0,
+            withSermonSection: true,
+        );
+
+        $section = $log->serviceSections()->firstOrFail();
+        $section->forceFill([
+            'needs_manual_review' => true,
+            'metadata' => [
+                'review_flags' => [CreateSermonTranscriptFromService::FLAG_REPETITION_SUSPECT],
+                'transcript_repetition_seconds' => 48.0,
+            ],
+        ])->save();
+
+        app()->call([new CreateSermonTranscriptFromService($log), 'handle']);
+
+        $section->refresh();
+        $metadata = $section->metadata?->toArray() ?? [];
+
+        $this->assertNotContains(CreateSermonTranscriptFromService::FLAG_REPETITION_SUSPECT, $metadata['review_flags'] ?? []);
+        $this->assertArrayNotHasKey('transcript_repetition_seconds', $metadata);
+        $this->assertFalse($section->needs_manual_review);
+    }
+
     private function runWithServiceTranscript(
         array $cues,
         float $sermonStartTime,
