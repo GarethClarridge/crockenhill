@@ -40,6 +40,14 @@ class ScreenTranscriptRepetitionCommandTest extends TestCase
     }
 
     #[Test]
+    public function it_fails_rather_than_reporting_an_empty_pass_when_a_named_run_is_invisible(): void
+    {
+        $this->artisan('service:screen-transcript-repetition', ['--run' => [987654]])
+            ->expectsOutputToContain('could not be found')
+            ->assertFailed();
+    }
+
+    #[Test]
     public function it_reports_without_writing_anything(): void
     {
         [$log, $section] = $this->loopingRun();

@@ -5189,10 +5189,36 @@ missing words nor a measurement of uniquely lost audio time.
   **A hold is not a repair.** These 160 sections say the evidence behind them
   cannot be read as speech. Nothing has been re-transcribed, no structure
   re-detected, and no sermon text or analysis regenerated.
-- [ ] Run bounded, overlapping audio recovery for exact candidates, preserving
-  originals and comparing the recovered evidence. Re-detect structure where meaning
-  or coverage changes, then regenerate sermon text and analysis from final spans.
-  Retry uncertainty remains a hold; a second model's confidence alone cannot clear it.
+- [x] **EXECUTED 2026-09-09.** Run bounded, overlapping audio recovery for exact
+  candidates, preserving originals. **Re-detection and regeneration deliberately
+  NOT run** — see below.
+  **150 runs, 513 of 538 blocks recovered, 27,365 words of real preaching, zero
+  failures.** Each block was re-decoded with 30 seconds of context either side and
+  only the block's own span written back, so text around the loop was never at
+  risk. 22 blocks whose retry looped again were banked unobservable rather than
+  written. The pre-recovery transcript survives under its own artifact kind.
+  Validated on one run before scaling: sermon 921's 119-second "God did what was
+  necessary in order to make sure they won" loop became the continuation it had
+  buried — "It's sometimes referred to as the Northern Campaign and the summary of
+  this campaign is given in verses 16 to 23" — corroborating the review's own
+  40-second re-decode of Joshua's campaigns. That single run is also what exposed
+  the stale-derivation hole below.
+  **Restaging first recovered 50 of the 51 missing sources, byte-identical, zero
+  mismatches.** The 51st is run 950, the corpus's only multi-part recording; see
+  the concat-gate note under P8-Q12.
+  **Repetition holds fell 160 → 3.** The three are run 950 (source unverifiable),
+  run 1020 §1345 (a **zero-width block** — 72 words stamped at a single instant,
+  which recovery cannot reach: the kept-cue test is `midpoint >= start && midpoint
+  < end`, empty for a zero-width interval, and the overlap removal likewise
+  matches nothing) and run 1376 §4603 (a 5-second block whose retry did not
+  improve it). All three remain held, which is the correct state.
+  **Stale-derivation holds rose to 212** (147 sermon, 65 children's talk) and
+  **149 runs are now owed a sermon re-derivation**. The review queue moved 384 →
+  434 sections across the same 253 runs. That near-flat total is the honest
+  outcome: the loops are out of the transcripts, but the saved sermon text was
+  sliced from the transcripts they replaced and still contains every repetition.
+  Re-detection and regeneration are held for P8-Q15, which settles the spans they
+  would derive from; `sermonDerivationIsOwed()` enumerates exactly which runs.
 - [ ] Include the separately sampled children's talk §4368, whose George Washington
   Carver text also loops. All 181 historic children's-talk sections remain either
   pending approval (146) or not applicable (35); the 21-sample title/content check
@@ -5209,6 +5235,45 @@ missing words nor a measurement of uniquely lost audio time.
 The last case is a direct counterexample to treating a successful structure
 re-detection as successful content repair. High section confidence (0.98–0.99 in
 these cases) is not a completeness guarantee.
+
+**Scoping, 2026-09-09 — P8-Q15 is smaller than this section implies, and needs
+no re-detection.** The code claims above are correct: `checkSermons()` does hard-
+fail a second sermon section, and `mergeInterruptedSermon()` does stop at a song.
+But **in all three proven cases the validator is never reached**, because the
+detector typed the extra parts `other` or `song`. The information was not lost —
+it was discarded. The model's own banked notes say what they are:
+
+- §4736 "This is a continuation of the single sermon, separated by a
+  congregational song."
+- §4738 "This is the concluding continuation of the single sermon."
+- §1711 "This is the first part of the main sermon, which resumes after the
+  intervening hymn."
+
+Screening every historic `other`/`song`/`prayer`/`bible_reading` section for that
+pattern returns **6 sections across 5 runs — 42 minutes of omitted sermon —
+runs 943, 1073, 1116, 1148 and 1268**, and **five of the six carry no review flag
+at all**. Because the notes are banked, this set is addressable without
+re-detecting anything, which is what removes the conflict with P8-Q14's recovery
+pass: the two do not have to be sequenced against each other.
+
+The second shape — preaching buried inside an over-long "song", which is run 1040
+— is **8 sections across 7 runs, and all 8 are already held** by
+`structure_macro_section`. Two of those eight are nonetheless `published`
+(§1511 run 1040, §2486 run 1198), which is P8-Q16's enforcement gap rather than a
+detection one.
+
+So the work is 6 known sections plus 8 already-held macro songs, not a corpus
+pass. **The repair shape is also cheaper than a merge.** `concat_spans` already
+exists in `SermonExtractionPlanResolver` and `sliceTextForSpans()` already takes
+multiple spans; the gap is that `findPreferredSection()` returns exactly one
+section. Keeping the sections separate and letting the extraction plan span them
+avoids the destructive alternative — `mergeInterruptedSermon()` absorbs its
+interruption into one contiguous span, which is precisely why a song ends its
+group today, and extending it would publish the hymn inside the sermon. Note also
+that four historic services hard-require "exactly one sermon" outside the
+validator (`HistoricPreM2VideoStorageRegistration`, `HistoricSermonAudioRegeneration`,
+`HistoricVideoSermonTitleProvenanceRepair`, `HistoricVideoSermonDurationRepair`),
+so the constraint is wider than `checkSermons()` alone.
 
 `ServiceStructureValidator::checkSermons()` permits at most one sermon section.
 `SilenceSnapService::mergeInterruptedSermon()` merges through readings/prayers,

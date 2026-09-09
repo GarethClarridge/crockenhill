@@ -20,6 +20,7 @@ use Closure;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -70,7 +71,13 @@ class RecoverTranscriptRepetitionCommand extends Command
         FlagSuspectTranscriptRepetition $hold,
         HistoricStagingContextRegistry $stagingContexts,
     ): int {
-        $runs = $this->selection();
+        try {
+            $runs = $this->selection();
+        } catch (RuntimeException $exception) {
+            $this->error($exception->getMessage());
+
+            return self::FAILURE;
+        }
 
         if ($runs === null) {
             $this->error('Name what to recover: --run or --operation.');
@@ -300,7 +307,23 @@ class RecoverTranscriptRepetitionCommand extends Command
         $query = MediaProcessingLog::query()->orderBy('id');
 
         if ($runIds !== []) {
-            return $query->whereIn('id', array_map('intval', $runIds));
+            $wanted = array_map('intval', $runIds);
+            $found = $query->clone()->whereIn('id', $wanted)->pluck('id')->all();
+            $missing = array_values(array_diff($wanted, $found));
+
+            if ($missing !== []) {
+                // Named runs that cannot be found are an error, never an empty
+                // pass. A run is invisible whenever the app is pointed at
+                // another database — which is what `artisan dusk` does for the
+                // length of its suite — and reporting that as "nothing to do"
+                // silently skips real work while looking like success.
+                throw new RuntimeException(
+                    'These runs could not be found: '.implode(', ', $missing)
+                    .'. Check nothing has repointed the database, such as a Dusk run in progress.'
+                );
+            }
+
+            return $query->whereIn('id', $wanted);
         }
 
         if ($operationIds !== []) {

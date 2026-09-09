@@ -133,6 +133,17 @@ class RecoverTranscriptRepetitionCommandTest extends TestCase
     }
 
     #[Test]
+    public function it_fails_rather_than_reporting_an_empty_pass_when_a_named_run_is_invisible(): void
+    {
+        // A run is invisible whenever the app is pointed at another database,
+        // which `artisan dusk` does for the length of its suite. Reporting that
+        // as "nothing to do" silently skipped 34 runs of a live pass.
+        $this->artisan('service:recover-transcript-repetition', ['--run' => [987654], '--execute' => true])
+            ->expectsOutputToContain('could not be found')
+            ->assertFailed();
+    }
+
+    #[Test]
     public function it_skips_a_run_whose_source_is_gone(): void
     {
         [$log] = $this->loopingRun(withSource: false);
