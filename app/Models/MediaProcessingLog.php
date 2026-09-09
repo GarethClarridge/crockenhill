@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Actions\RedetectStructureOnRecoveredEvidence;
+use App\Data\ChurchServiceTranscript;
 use App\Data\HistoricStagingContext;
 use App\Data\ProcessingManualReviewMetadata;
 use App\Data\ProcessingMetadata;
-use App\Data\ChurchServiceTranscript;
 use App\Data\ProcessingMetadataCast;
 use App\Data\SermonAnalysis;
 use App\Data\SermonAnalysisCast;
@@ -679,9 +679,13 @@ class MediaProcessingLog extends Model
      * Whether this run's sermon text is known to have been sliced from a
      * full-service transcript it no longer holds.
      *
-     * False when either side is unrecorded, deliberately: reading silence as
-     * owed would re-derive every run banked before the stamps existed. Only a
-     * recorded change no recorded derivation has consumed counts.
+     * Asymmetric, and deliberately so. With no recorded transcript change the
+     * answer is false: every run banked before these stamps existed is silent on
+     * both sides, and reading that as owed would re-derive the whole corpus on a
+     * guess. But once a change *is* recorded — which only a pass that rewrote
+     * the transcript does — an absent derivation stamp means the text was
+     * sliced before that pass ran, and is owed. Silence on the left is unknown;
+     * silence on the right, given a recorded change, is evidence.
      */
     public function sermonDerivationIsOwed(): bool
     {

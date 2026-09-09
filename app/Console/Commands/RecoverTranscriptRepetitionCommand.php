@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Actions\FlagSermonTextPredatesEvidence;
 use App\Actions\FlagSuspectTranscriptRepetition;
 use App\Contracts\ServiceTranscriptionInterface;
 use App\Data\ChurchServiceTranscript;
@@ -92,6 +93,7 @@ class RecoverTranscriptRepetitionCommand extends Command
             'looped_words_removed' => 0,
             'words_recovered' => 0,
             'holds_withdrawn' => 0,
+            'derivation_holds_raised' => 0,
             'runs' => [],
         ];
 
@@ -213,6 +215,13 @@ class RecoverTranscriptRepetitionCommand extends Command
         $outcome = $hold($run, $blocks);
         $report['holds_withdrawn'] += $outcome['withdrawn'];
 
+        // The loop is gone from the transcript, so the repetition hold above is
+        // rightly withdrawn — but the saved sermon text was sliced from the
+        // transcript this run has just replaced and still contains every
+        // repetition. Withdrawing one hold without raising the other empties
+        // the queue while changing nothing a reader sees.
+        $report['derivation_holds_raised'] += app(FlagSermonTextPredatesEvidence::class)($run)['raised'];
+
         return sprintf(
             'recovered %d of %d block(s), %d still looping, +%d words',
             $result->recovered,
@@ -314,7 +323,8 @@ class RecoverTranscriptRepetitionCommand extends Command
             ['Blocks recovered', $report['blocks_recovered']],
             ['Blocks still looping after retry', $report['blocks_still_looping']],
             ['Words recovered', $report['words_recovered']],
-            ['Holds withdrawn', $report['holds_withdrawn']],
+            ['Repetition holds withdrawn', $report['holds_withdrawn']],
+            ['Stale-derivation holds raised', $report['derivation_holds_raised']],
         ]);
 
         if (! (bool) $report['executed']) {

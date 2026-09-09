@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Actions\FlagIncompleteSermonEvidence;
+use App\Actions\FlagSermonTextPredatesEvidence;
 use App\Actions\FlagSuspectTranscriptRepetition;
 use App\Data\SermonEvidenceCoverage;
 use App\Data\SuspectTranscriptBlock;
@@ -122,6 +123,11 @@ class CreateSermonTranscriptFromService extends ProcessingJob implements ShouldQ
         // party that knows which span each section is delivered from.
         $blocks = $repetitionScreen->screen($transcript);
         app(FlagSuspectTranscriptRepetition::class)($this->processingLog, $blocks);
+
+        // This job is the writer that re-slices the text, so it is the only
+        // event that can clear a stale-derivation hold. Run after the stamp
+        // above, which is what the hold is measured against.
+        app(FlagSermonTextPredatesEvidence::class)($this->processingLog);
 
         $withinSermon = $repetitionScreen->within($blocks, $spans);
 
