@@ -30,6 +30,21 @@ use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
 
+/**
+ * Prepare each of a run's sections for publication review.
+ *
+ * **This job promotes; it never demotes.** Each of the three branches below that
+ * meets an already-`published` section leaves it published, even when the handler
+ * now finds it ineligible or the section has since been held for review. That is
+ * deliberate, not an oversight (P8-Q16 gap 1): every re-extraction passes through
+ * here — the 30 runs of the P8-Q13a repair among them — and demoting from inside
+ * the pipeline would let a routine re-cut withdraw public content with nobody
+ * deciding to.
+ *
+ * Reconciling those sections is
+ * {@see \App\Console\Commands\DemoteHeldPublicationsCommand}'s job, which reports
+ * before it writes and names every section it would take out of view.
+ */
 class PrepareSectionPublicationCandidates extends ProcessingJob implements ShouldQueue
 {
     use DetectsStorageType;

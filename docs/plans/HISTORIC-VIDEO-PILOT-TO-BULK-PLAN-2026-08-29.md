@@ -5281,6 +5281,49 @@ missing words nor a measurement of uniquely lost audio time.
   pending approval (146) or not applicable (35); the 21-sample title/content check
   does not justify unattended approval of them.
 
+##### P8-Q16 gap 1 CLOSED 2026-09-09 — demotion, and it is 16 sections not 29
+
+`service:demote-held-publications` reconciles a published section whose own state
+no longer supports publication. **Measured before it was built: the set is 16, of
+which only 5 were visible to anyone.**
+
+- **15** held for review — 13 `structure_macro_section` (including §1511/run 1040
+  and §2486/run 1198, the two this plan names), one `structure_low_confidence`,
+  one `song_title_marker_mismatch`. Four had a publicly released video; the other
+  **11 are quarantined historic imports that were never public**.
+- **1** — §444, run 917 — that the handler no longer accepts at all: its
+  `church_service_item_id` is null, so nothing can say which song was published,
+  and its video was public.
+- **14** carrying only `structure_oos_cross_type_inversion` are **correctly
+  published and were not touched**. `SectionReviewFlagPolicy` always demotes that
+  flag because it "questions which OoS *item* a section aligns to, never the
+  section's own quality". The earlier count of 29 read the raw flag array;
+  `needs_manual_review` is the *verdict*, and reading the input instead would have
+  pulled 14 correct clips off the site.
+
+**Demotion is not deletion.** The handler's `onSectionRemoved()` deletes the video
+file and its row — right for a superseded section, wrong for one waiting on a
+person. Public visibility for a song is exactly `SongVideo::publiclyReleased()`
+(`publication_state = published`), so the row is quarantined and every artifact
+survives. A released *historic* song video is refused rather than demoted: release
+moved its asset to the delivery disk, and reverting the state alone would leave
+`publication_state` and `asset_disk` describing different decisions. None of the
+16 hit that refusal.
+
+**The schema already enforced half of this.** `service_sections_publication_link_check`
+requires `published_at` *and* `published_sermon_id` to be null off `published`, so
+a demotion clearing only the timestamp is rejected by the database rather than
+banking a half-demoted row.
+
+**Applied 2026-09-09: 16 sections demoted to `not_applicable`, 5 song videos
+quarantined, 0 refused.** Published sections **501 → 485**, publicly released song
+videos **59 → 54**, all **523** song-video rows intact. A second run reports
+nothing owed.
+
+`PrepareSectionPublicationCandidates` is deliberately unchanged and now says so:
+every re-extraction passes through it, so demoting from inside the pipeline would
+let a routine re-cut withdraw public content with nobody deciding to.
+
 ##### 2. Actual sermon material is omitted — new P8-Q15, high priority
 
 | Sermon / run | Demonstrated problem | Required redo |
