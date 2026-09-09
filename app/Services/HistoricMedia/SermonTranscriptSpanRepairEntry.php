@@ -26,6 +26,14 @@ final readonly class SermonTranscriptSpanRepairEntry
         public ?int $currentLength = null,
         public ?int $repairedLength = null,
         public ?string $repairedText = null,
+        /**
+         * The full-service transcript this text was sliced from.
+         *
+         * Carried on the verdict so the write can stamp what it derived from
+         * without re-reading the batch. Without it a repair leaves the sermon
+         * text current and the run still *claiming* it is owed a re-derivation.
+         */
+        public ?string $serviceTranscriptHash = null,
     ) {}
 
     public function isRepairable(): bool
@@ -59,6 +67,7 @@ final readonly class SermonTranscriptSpanRepairEntry
             currentLength: $this->currentLength,
             repairedLength: $this->repairedLength,
             repairedText: $this->repairedText,
+            serviceTranscriptHash: $this->serviceTranscriptHash,
         );
     }
 }

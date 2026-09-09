@@ -5232,6 +5232,50 @@ missing words nor a measurement of uniquely lost audio time.
   dispatcher for this: `CreateSermonTranscriptFromService` exists only as a
   pipeline phase, so the pass needs a small dry-runnable command in the shape of
   the existing `historic-import:repair-*` commands.
+
+  **EXECUTED 2026-09-09** via `historic-import:regenerate-owed-sermon-text`.
+  **84 sermon texts re-sliced, 5 reconciled, 0 failures**; the review queue moved
+  **434 → 309 sections across 253 → 178 runs**, and the stale-derivation holds
+  **212 → 85**. Verified against a pre-pass snapshot rather than by the counts:
+  84 of 89 texts changed, 80 shrank, **124,732 characters removed**, and every
+  ending is byte-identical, so the removals are internal rather than truncation.
+  The worst single-sentence repetition across the set fell from **×195 to ×12**
+  (run 945's "For he that is God has rescued us." ×57 → ×2). The four texts that
+  grew gained 2–41 characters of recovered boundary material.
+
+  Three things this pass established.
+
+  - **The pipeline job could not be used.** `CreateSermonTranscriptFromService`
+    writes through `TranscriptStorageService::storeTranscript()`, which targets
+    the *configured* transcript disk (`historic_staging`); the 442 quarantined
+    sermons keep their transcripts on `historic_quarantine`. Dispatching it would
+    have written fresh text to staging, left the quarantine copy holding the old
+    looping text, and then cleared the hold — because the flag is keyed to a DB
+    stamp, not to the bytes release copies. Same root cause as P8-Q3. The
+    reads are equally batch-bound: a run's `service-transcripts/…` key only
+    resolves under the staging batch root the guard installs, so read outside a
+    context every recovered transcript reports as missing.
+    `HistoricSermonTranscriptSpanRepair` already handles both, and its own
+    docblock anticipates this caller — "a caller whose service transcript has
+    since changed asks without this gate".
+  - **Re-slicing was only half a repair.** That service rewrote the text but
+    never stamped `sermon_derived_from_service_transcript`, so a repaired run
+    kept claiming a re-derivation was owed and the hold never lifted. It now
+    stamps what it actually read (never a hash that would merely make the flag
+    clear) and re-asks `FlagSermonTextPredatesEvidence`.
+  - **`already repaired` was a permanent hold.** Five runs' saved text was
+    byte-identical to a fresh slice — positive evidence the derivation is
+    current — but `apply()` skipped every non-repairable entry, so their stamp
+    never caught up. They are now reconciled from that same evidence.
+
+  **60 runs remain owed:** 58 held for unsettled spans, run 1144 (no recorded
+  extraction plan) and run 1145 (a failed run, whose spans no completed pipeline
+  ever settled). Two regenerated texts still carry a sentence repeated ×12 —
+  runs 1069 ("Does anybody want to respond to that?", plausibly genuine
+  interaction) and 1107 ("They will gain and do my life.", a garbled sung
+  refrain). Both repeats are present in the *recovered* transcript, so they are a
+  question about the P8-Q14 screen's sensitivity to slow repeats, not about this
+  pass, and neither run is held.
 - [ ] Include the separately sampled children's talk §4368, whose George Washington
   Carver text also loops. All 181 historic children's-talk sections remain either
   pending approval (146) or not applicable (35); the 21-sample title/content check

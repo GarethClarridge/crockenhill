@@ -85,6 +85,13 @@ class RepairHistoricSermonTranscriptSpansCommand extends Command
             $totals = $repair->apply($entries);
             $this->info("Repaired {$totals['repaired']} transcript(s).");
 
+            if ($totals['reconciled'] > 0) {
+                $this->info(sprintf(
+                    'Reconciled %d run(s) whose saved text already matched the current derivation.',
+                    $totals['reconciled'],
+                ));
+            }
+
             foreach ($totals['failures'] as $failure) {
                 $this->error($failure);
             }

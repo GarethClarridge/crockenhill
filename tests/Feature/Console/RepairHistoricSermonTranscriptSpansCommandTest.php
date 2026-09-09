@@ -392,6 +392,57 @@ class RepairHistoricSermonTranscriptSpansCommandTest extends TestCase
      * @param  list<array{start_time: float, end_time: float}>|null  $segments
      * @return array{0: HistoricImportOperation, 1: MediaProcessingLog, 2: Sermon}
      */
+    /**
+     * Re-slicing is only half a repair. The run records what the new text was
+     * derived from, so `sermonDerivationIsOwed()` stops claiming a
+     * re-derivation that has just happened — and any hold raised on that claim
+     * is withdrawn by the writer that made it false.
+     */
+    #[Test]
+    public function repairing_the_text_also_stamps_what_it_was_derived_from(): void
+    {
+        [$operation, $log] = $this->historicRun();
+
+        $transcript = ChurchServiceTranscript::fromArray(json_decode(
+            (string) Storage::disk('local')->get((string) $log->serviceTranscriptPath()),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        ));
+
+        // What recovery stamps when it replaces a transcript, with no matching
+        // derivation stamp yet: the run is owed a re-slice.
+        $log->recordServiceTranscriptContent(MediaProcessingLog::hashServiceTranscriptContent($transcript));
+        $this->assertTrue($log->fresh()->sermonDerivationIsOwed());
+
+        $this->artisan('historic-import:repair-sermon-transcript-spans', [
+            '--operation' => $operation->operation_id,
+            '--execute' => true,
+        ])->assertSuccessful();
+
+        $this->assertFalse($log->fresh()->sermonDerivationIsOwed());
+    }
+
+    /**
+     * The stamp records the transcript actually sliced from, not whatever would
+     * make the hold lift. A run whose recorded content hash names a transcript
+     * this repair never read stays owed, which is the honest answer.
+     */
+    #[Test]
+    public function it_stamps_the_transcript_it_read_not_the_one_the_run_claims(): void
+    {
+        [$operation, $log] = $this->historicRun();
+
+        $log->recordServiceTranscriptContent('a-hash-belonging-to-no-file');
+
+        $this->artisan('historic-import:repair-sermon-transcript-spans', [
+            '--operation' => $operation->operation_id,
+            '--execute' => true,
+        ])->assertSuccessful();
+
+        $this->assertTrue($log->fresh()->sermonDerivationIsOwed());
+    }
+
     private function historicRun(
         ?HistoricImportOperation $operation = null,
         ?array $segments = null,

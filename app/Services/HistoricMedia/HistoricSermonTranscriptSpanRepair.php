@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\HistoricMedia;
 
+use App\Actions\FlagSermonTextPredatesEvidence;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -44,6 +45,7 @@ class HistoricSermonTranscriptSpanRepair
 
     public function __construct(
         private readonly HistoricStagingContextRegistry $stagingContexts,
+        private readonly FlagSermonTextPredatesEvidence $sermonTextPredatesEvidence,
         private readonly ServiceTranscriptReader $serviceTranscripts,
         private readonly TranscriptStorageService $transcriptStorage,
     ) {}
@@ -81,15 +83,22 @@ class HistoricSermonTranscriptSpanRepair
      * changed, so a re-run is a no-op and an interrupted pass resumes cleanly.
      *
      * @param  list<SermonTranscriptSpanRepairEntry>  $entries
-     * @return array{repaired: int, failed: int, failures: list<string>}
+     * @return array{repaired: int, reconciled: int, failed: int, failures: list<string>}
      */
     public function apply(array $entries): array
     {
         $repaired = 0;
+        $reconciled = 0;
         $failed = 0;
         $failures = [];
 
         foreach ($entries as $entry) {
+            if ($entry->disposition === self::DISPOSITION_ALREADY_REPAIRED) {
+                $reconciled += $this->reconcile($entry) ? 1 : 0;
+
+                continue;
+            }
+
             if (! $entry->isRepairable()) {
                 continue;
             }
@@ -120,7 +129,32 @@ class HistoricSermonTranscriptSpanRepair
             }
         }
 
-        return ['repaired' => $repaired, 'failed' => $failed, 'failures' => $failures];
+        return ['repaired' => $repaired, 'reconciled' => $reconciled, 'failed' => $failed, 'failures' => $failures];
+    }
+
+    /**
+     * Stamp a run whose saved text already *is* the current derivation.
+     *
+     * `already repaired` is not "nothing to do": it means the saved text is
+     * identical to a fresh slice of the transcript the run holds now, which is
+     * positive evidence that the derivation is current. Without this the stamp
+     * never catches up and the stale-derivation hold stands forever on text
+     * that is demonstrably right — five runs were in exactly that state after
+     * the first pass. The evidence comes from the same read the rewrite path
+     * uses, so this reconciles a record to a fact rather than clearing a hold
+     * to tidy the queue.
+     */
+    private function reconcile(SermonTranscriptSpanRepairEntry $entry): bool
+    {
+        $run = MediaProcessingLog::query()->find($entry->logId);
+
+        if (! $run instanceof MediaProcessingLog || ! $run->sermonDerivationIsOwed()) {
+            return false;
+        }
+
+        $this->stampDerivation($run, $entry);
+
+        return true;
     }
 
     private function inspectRun(MediaProcessingLog $run, bool $requireConcatenatedPlan): SermonTranscriptSpanRepairEntry
@@ -195,6 +229,7 @@ class HistoricSermonTranscriptSpanRepair
                     currentLength: strlen($currentText),
                     repairedLength: strlen($repairedText),
                     repairedText: $repairedText,
+                    serviceTranscriptHash: MediaProcessingLog::hashServiceTranscriptContent($serviceTranscript),
                 );
             });
         } catch (Throwable $exception) {
@@ -249,6 +284,24 @@ class HistoricSermonTranscriptSpanRepair
             MediaProcessingLog::hashTranscriptContent((string) $entry->repairedText),
         );
 
+        /**
+         * Stamp what this text was sliced from, then re-ask the hold that
+         * measures the two against each other.
+         *
+         * Re-slicing is only half a repair. `sermonDerivationIsOwed()` compares
+         * `sermon_derived_from_service_transcript` against the run's current
+         * `service_transcript_content` hash, so a repair that rewrote the text
+         * and stamped neither leaves the sermon current and the run still
+         * claiming the derivation is owed — the reader sees correct text behind
+         * a hold that never lifts. This job is the writer that re-slices, so per
+         * {@see FlagSermonTextPredatesEvidence} it is the only event allowed to
+         * withdraw that hold.
+         *
+         * The hash is absent only for a verdict built before this field existed,
+         * in which case the stamp is skipped rather than guessed.
+         */
+        $this->stampDerivation($run, $entry);
+
         Log::info('Sermon transcript repaired to its extraction spans', [
             'processing_id' => $run->processing_id,
             'sermon_id' => $run->sermon_id,
@@ -256,6 +309,22 @@ class HistoricSermonTranscriptSpanRepair
             'previous_length' => $entry->currentLength,
             'repaired_length' => $entry->repairedLength,
         ]);
+    }
+
+    /**
+     * Record what the saved text was sliced from, and re-ask the hold.
+     *
+     * The hash is absent only for a verdict built before this field existed, in
+     * which case the stamp is skipped rather than guessed.
+     */
+    private function stampDerivation(MediaProcessingLog $run, SermonTranscriptSpanRepairEntry $entry): void
+    {
+        if (! is_string($entry->serviceTranscriptHash) || $entry->serviceTranscriptHash === '') {
+            return;
+        }
+
+        $run->recordSermonDerivedFrom($entry->serviceTranscriptHash);
+        ($this->sermonTextPredatesEvidence)($run->refresh());
     }
 
     /**
