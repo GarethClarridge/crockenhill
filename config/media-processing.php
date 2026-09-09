@@ -397,6 +397,11 @@ return [
             'max_phrase_words' => (int) env('SERVICE_TRANSCRIPT_REPETITION_MAX_PHRASE_WORDS', 25),
             'max_words_per_minute' => (float) env('SERVICE_TRANSCRIPT_REPETITION_MAX_WPM', 400),
             'density_window_seconds' => (float) env('SERVICE_TRANSCRIPT_REPETITION_DENSITY_WINDOW_SECONDS', 30),
+            // Context either side of a block when re-decoding it. A decoder
+            // handed 24 seconds with no lead-in has nothing to work from and
+            // invents confidently, which is the failure being repaired. Only the
+            // block's own span is written back; the padding is context.
+            'recovery_padding_seconds' => (float) env('SERVICE_TRANSCRIPT_REPETITION_RECOVERY_PADDING_SECONDS', 30),
         ],
     ],
 

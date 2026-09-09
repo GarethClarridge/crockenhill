@@ -94,6 +94,13 @@ class CreateSermonTranscriptFromService extends ProcessingJob implements ShouldQ
         $this->processingLog->update(['transcript_file_path' => $transcriptPath]);
         $sermon->update(['transcript_file_path' => $transcriptPath]);
 
+        // Which full-service transcript this text was sliced from, so a later
+        // recovery of that transcript makes the slice visibly owed rather than
+        // silently stale.
+        $this->processingLog->recordSermonDerivedFrom(
+            MediaProcessingLog::hashServiceTranscriptContent($transcript),
+        );
+
         $message = 'Created sermon transcript from full-service transcript';
 
         if ($coverage->warrantsReview()) {

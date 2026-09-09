@@ -8,6 +8,7 @@ use App\Actions\RedetectStructureOnRecoveredEvidence;
 use App\Data\HistoricStagingContext;
 use App\Data\ProcessingManualReviewMetadata;
 use App\Data\ProcessingMetadata;
+use App\Data\ChurchServiceTranscript;
 use App\Data\ProcessingMetadataCast;
 use App\Data\SermonAnalysis;
 use App\Data\SermonAnalysisCast;
@@ -632,6 +633,80 @@ class MediaProcessingLog extends Model
         });
     }
 
+    /**
+     * Record the content of the full-service transcript this run now holds.
+     *
+     * The sibling of {@see recordTranscriptContent()}, one layer earlier.
+     * That one tracks the *sermon* text, so a pass that rewrites the
+     * full-service transcript without re-deriving the sermon — which is exactly
+     * what repetition recovery does, since the spans it would derive from are
+     * not settled until P8-Q15 — records nothing at all, and the run reads as
+     * untouched. P8-Q12's closeout names that half as open; this is it.
+     *
+     * Silence still means unknown. Every run banked before this existed has no
+     * stamp on either side, and {@see sermonDerivationIsOwed()} reads that as
+     * "not known to be owed" rather than re-deriving the corpus on a guess.
+     */
+    public function recordServiceTranscriptContent(string $contentHash): void
+    {
+        $this->writeProcessingMetadata(static function (array $metadata) use ($contentHash): array {
+            $metadata['service_transcript_content'] = [
+                'hash' => $contentHash,
+                'changed_at' => now()->toIso8601String(),
+            ];
+
+            return $metadata;
+        });
+    }
+
+    /**
+     * Record the full-service transcript the sermon text was actually sliced
+     * from, written by the job that slices it.
+     */
+    public function recordSermonDerivedFrom(string $contentHash): void
+    {
+        $this->writeProcessingMetadata(static function (array $metadata) use ($contentHash): array {
+            $metadata['sermon_derived_from_service_transcript'] = [
+                'hash' => $contentHash,
+                'derived_at' => now()->toIso8601String(),
+            ];
+
+            return $metadata;
+        });
+    }
+
+    /**
+     * Whether this run's sermon text is known to have been sliced from a
+     * full-service transcript it no longer holds.
+     *
+     * False when either side is unrecorded, deliberately: reading silence as
+     * owed would re-derive every run banked before the stamps existed. Only a
+     * recorded change no recorded derivation has consumed counts.
+     */
+    public function sermonDerivationIsOwed(): bool
+    {
+        $metadata = $this->processing_metadata?->toArray() ?? [];
+
+        $current = data_get($metadata, 'service_transcript_content.hash');
+
+        if (! is_string($current) || $current === '') {
+            return false;
+        }
+
+        $derived = data_get($metadata, 'sermon_derived_from_service_transcript.hash');
+
+        return ! is_string($derived) || $derived !== $current;
+    }
+
+    /** The stable content hash of a full-service transcript's cue text. */
+    public static function hashServiceTranscriptContent(ChurchServiceTranscript $transcript): string
+    {
+        return hash('sha256', implode("\n", array_map(
+            static fn (array $cue): string => sprintf('%.3f|%.3f|%s', $cue['start'], $cue['end'], $cue['text']),
+            $transcript->cues,
+        )));
+    }
+
     public static function hashTranscriptContent(string $text): string
     {
         return hash('sha256', trim($text));
@@ -660,6 +735,89 @@ class MediaProcessingLog extends Model
         $analysed = data_get($metadata, 'analysed_transcript.hash');
 
         return ! is_string($analysed) || $analysed !== $current;
+    }
+
+    /**
+     * The sha256 this run recorded for its source recording, from whichever
+     * evidence it kept.
+     *
+     * The `file_hash` column is set by `UnifiedMediaProcessor` and holds for
+     * every operation-2 and -3 run, but for **none of the 416 operation-4 runs**:
+     * that lane records its sources in the approved manifest instead, one entry
+     * per part with a path, size and sha256. The evidence is the same evidence,
+     * so a restore that reads only the column cannot verify the newest and
+     * largest operation at all.
+     *
+     * Falls back to the manifest only for a **single-part, unconcatenated**
+     * import, and that restriction is the point rather than caution. A staged
+     * source assembled from several archive parts is an ffmpeg concat, and its
+     * bytes match no single archive file — so a manifest part's hash would prove
+     * nothing about the file being restored. Where the fallback does apply,
+     * staging is a plain copy: measured across the 2026-09-09 repetition cohort,
+     * the staged file matched the recorded manifest size for 99 of 99 usable
+     * runs and hashed identically in all three sampled.
+     *
+     * Note what the manifest hash does and does not establish. It was taken when
+     * the manifest was approved and, per `sha256_basis`, not re-verified at
+     * dispatch — so it proves the archive copy is the file the import approved,
+     * which is exactly the question a restore asks.
+     */
+    public function recordedSourceFileHash(): ?string
+    {
+        if (is_string($this->file_hash) && $this->file_hash !== '') {
+            return $this->file_hash;
+        }
+
+        $import = ($this->processing_metadata?->toArray() ?? [])['historic_import'] ?? [];
+
+        if (! is_array($import) || ($import['concatenation'] ?? null) !== 'none') {
+            return null;
+        }
+
+        $sources = $import['sources'] ?? null;
+
+        if (! is_array($sources) || count($sources) !== 1 || ! is_array($sources[0] ?? null)) {
+            return null;
+        }
+
+        $hash = $sources[0]['sha256'] ?? null;
+
+        return is_string($hash) && $hash !== '' ? $hash : null;
+    }
+
+    /**
+     * The archive path the manifest recorded for a single-part source, relative
+     * to the archive root.
+     *
+     * Paired with {@see recordedSourceFileHash()} so a sweep can name the
+     * candidate it intends to verify rather than guessing from the date.
+     *
+     * **Returned exactly as recorded, which is not uniformly relative.** Across
+     * the 2026-09-09 repetition cohort, 41 of 50 are relative to the archive
+     * root while nine are absolute — seven under the archive itself and two
+     * under `/mnt/historic-work/calibration-corpus`, a different volume
+     * entirely. A caller that blindly prefixes an archive root produces
+     * `/mnt/cbc-services//mnt/...` and concludes the recording is gone, which
+     * is indistinguishable from a reaped file. Resolve by testing for a leading
+     * separator first.
+     */
+    public function recordedArchiveSourcePath(): ?string
+    {
+        $import = ($this->processing_metadata?->toArray() ?? [])['historic_import'] ?? [];
+
+        if (! is_array($import) || ($import['concatenation'] ?? null) !== 'none') {
+            return null;
+        }
+
+        $sources = $import['sources'] ?? null;
+
+        if (! is_array($sources) || count($sources) !== 1 || ! is_array($sources[0] ?? null)) {
+            return null;
+        }
+
+        $path = $sources[0]['path'] ?? null;
+
+        return is_string($path) && $path !== '' ? $path : null;
     }
 
     public function clearReExtraction(): void

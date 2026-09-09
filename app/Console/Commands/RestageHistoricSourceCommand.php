@@ -34,6 +34,11 @@ use Throwable;
  * those the RMS log is the evidence to reach for next, since it establishes
  * timeline alignment without byte-identity.
  *
+ * The hash comes from {@see MediaProcessingLog::recordedSourceFileHash()}, which
+ * reads the `file_hash` column or, for a single-part unconcatenated import, the
+ * sha256 the approved manifest recorded. Reading only the column refused every
+ * operation-4 run — all 416 of them — while the evidence sat in their metadata.
+ *
  * One run and one file per invocation, on purpose. This is a deliberate act on a
  * terminal run, and naming exactly which file goes where is most of the safety.
  *
@@ -69,11 +74,27 @@ class RestageHistoricSourceCommand extends Command
                 throw new RuntimeException('This run records no source path to restore to.');
             }
 
-            $expected = $log->file_hash;
+            // Asked before hashing rather than inside the restore below.
+            // Hashing a 2 GB archive copy takes minutes on this drive, and a
+            // sweep resumed after an interruption — a detach mid-run is the
+            // documented failure here — would otherwise pay that for every file
+            // it had already restored before reaching the ones it had not.
+            $alreadyPresent = $this->withinContext($stagingContexts, $log, static fn (): bool => Storage::disk(
+                (string) config('media-processing.storage.temp_disk', 'local')
+            )->exists($target));
 
-            if (! is_string($expected) || $expected === '') {
+            if ($alreadyPresent) {
+                $this->warn("The source is already present at {$target}; nothing to restore.");
+
+                return self::SUCCESS;
+            }
+
+            $expected = $log->recordedSourceFileHash();
+
+            if ($expected === null) {
                 throw new RuntimeException(
-                    'This run recorded no file hash, so a candidate cannot be proved to be the same recording. '
+                    'This run recorded no usable file hash, so a candidate cannot be proved to be the same recording. '
+                    .'A multi-part import is concatenated at staging, so no single archive file can match it. '
                     .'Compare the candidate against the run\'s banked RMS log instead.'
                 );
             }
@@ -81,7 +102,8 @@ class RestageHistoricSourceCommand extends Command
             $this->line('Hashing the archive copy…');
             $observed = hash_file('sha256', $candidate);
 
-            $this->table(['', 'sha256'], [['recorded', $expected], ['candidate', (string) $observed]]);
+            $source = is_string($log->file_hash) && $log->file_hash !== '' ? 'file_hash column' : 'approved manifest';
+            $this->table(['', 'sha256'], [["recorded ({$source})", $expected], ['candidate', (string) $observed]]);
 
             if ($observed !== $expected) {
                 throw new RuntimeException(
@@ -92,15 +114,8 @@ class RestageHistoricSourceCommand extends Command
 
             $this->info('The archive copy is byte-identical to the recording this run processed.');
 
-            $context = $log->historicStagingContext();
-            $restore = function () use ($log, $candidate, $target): int {
+            $restore = function () use ($log, $candidate, $target, $expected): int {
                 $disk = (string) config('media-processing.storage.temp_disk', 'local');
-
-                if (Storage::disk($disk)->exists($target)) {
-                    $this->warn("The source is already present at {$target}; nothing to restore.");
-
-                    return self::SUCCESS;
-                }
 
                 if (! (bool) $this->option('execute')) {
                     $this->warn('VERIFY ONLY: nothing was written.');
@@ -132,7 +147,7 @@ class RestageHistoricSourceCommand extends Command
                 // like a success.
                 $written = hash_file('sha256', Storage::disk($disk)->path($target));
 
-                if ($written !== $log->file_hash) {
+                if ($written !== $expected) {
                     Storage::disk($disk)->delete($target);
 
                     throw new RuntimeException('The restored copy does not hash correctly and has been removed.');
@@ -149,11 +164,27 @@ class RestageHistoricSourceCommand extends Command
                 return self::SUCCESS;
             };
 
-            return $context === null ? $restore() : $stagingContexts->within($context, $restore);
+            return $this->withinContext($stagingContexts, $log, $restore);
         } catch (Throwable $exception) {
             $this->error($exception->getMessage());
 
             return self::FAILURE;
         }
+    }
+
+    /**
+     * Run the callback inside the run's staging context, where its recorded
+     * source path resolves to the batch root it was staged under.
+     *
+     * @template TResult
+     *
+     * @param  \Closure(): TResult  $callback
+     * @return TResult
+     */
+    private function withinContext(HistoricStagingContextRegistry $stagingContexts, MediaProcessingLog $log, \Closure $callback): mixed
+    {
+        $context = $log->historicStagingContext();
+
+        return $context === null ? $callback() : $stagingContexts->within($context, $callback);
     }
 }
