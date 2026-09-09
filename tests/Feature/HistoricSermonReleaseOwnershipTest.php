@@ -11,6 +11,7 @@ use App\Enums\SermonService;
 use App\Models\HistoricImportOperation;
 use App\Models\HistoricImportReleaseAsset;
 use App\Models\HistoricImportReleaseAttempt;
+use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Import\FilesystemHistoricReleaseObjectStore;
 use App\Services\Import\HistoricImportResourceIdentity;
@@ -436,6 +437,15 @@ class HistoricSermonReleaseOwnershipTest extends TestCase
             'transcript_file_path' => null,
             'thumbnail_file_path' => null,
         ]);
+
+
+        /**
+         * Every historic-import sermon in the corpus has a processing run — it
+         * is what the release review gate reads their service sections through.
+         * A fixture without one is not a lighter fixture, it is an impossible
+         * record.
+         */
+        MediaProcessingLog::factory()->withSermon($sermon)->create();
 
         Storage::disk('historic_quarantine')->put(self::AudioPath, self::AudioBytes);
 

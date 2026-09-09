@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Enums\SermonPublicationState;
 use App\Enums\SermonService;
 use App\Models\HistoricImportOperation;
+use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Import\HistoricSermonPublicationService;
 use Illuminate\Filesystem\FilesystemAdapter;
@@ -160,7 +161,7 @@ class HistoricSermonReleaseRaceTest extends TestCase
 
     private function quarantinedSermon(HistoricImportOperation $operation): Sermon
     {
-        return Sermon::factory()->create([
+        $sermon = Sermon::factory()->create([
             'date' => '2026-01-04',
             'service' => SermonService::Morning,
             'publication_state' => SermonPublicationState::Quarantined,
@@ -168,5 +169,15 @@ class HistoricSermonReleaseRaceTest extends TestCase
             'historic_import_operation_id' => $operation->id,
             'audio_file_path' => self::AudioPath,
         ]);
+
+        /**
+         * Every historic-import sermon in the corpus has a processing run — it
+         * is what the release review gate reads their service sections through.
+         * A fixture without one is not a lighter fixture, it is an impossible
+         * record.
+         */
+        MediaProcessingLog::factory()->withSermon($sermon)->create();
+
+        return $sermon;
     }
 }

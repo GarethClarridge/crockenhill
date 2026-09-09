@@ -81,6 +81,7 @@ class HistoricSermonPublicationService
         private readonly HistoricImportJournal $journal,
         private readonly HistoricReleaseObjectStore $objects,
         private readonly HistoricReleaseDestinationGuard $destinations,
+        private readonly HistoricReleaseReviewHolds $reviewHolds,
     ) {}
 
     public function release(HistoricImportOperation $operation, Sermon $sermon): Sermon
@@ -150,6 +151,7 @@ class HistoricSermonPublicationService
         }
 
         $this->assertQuarantined($sermons, $songVideos, $songUsageReports);
+        $this->assertNotHeldForReview($sermons, $songVideos);
         $sermonPaths = [];
 
         foreach ($sermons as $sermon) {
@@ -198,6 +200,30 @@ class HistoricSermonPublicationService
         }
 
         return $released;
+    }
+
+    /**
+     * The review holds that would refuse this batch, without releasing anything.
+     *
+     * The dry run exists so an operator learns a batch is unreleasable *before*
+     * signing it, rather than by watching a live release throw. Membership is
+     * resolved through the same accessors the release uses, so a dry run that
+     * reports no holds is a statement about the exact records the release would
+     * name and not about the ids as written.
+     *
+     * @param  list<int>  $sermonIds
+     * @param  list<int>  $songVideoIds
+     * @return list<string>
+     */
+    public function reviewHoldsFor(
+        HistoricImportOperation $operation,
+        array $sermonIds,
+        array $songVideoIds,
+    ): array {
+        return $this->reviewHolds->assess(
+            $this->operationSermons($operation, $sermonIds),
+            $this->operationSongVideos($operation, $songVideoIds),
+        );
     }
 
     /**
@@ -869,6 +895,38 @@ class HistoricSermonPublicationService
                 );
             }
         }
+    }
+
+    /**
+     * Refuse a batch whose content is still under review.
+     *
+     * P8-Q16 gap 3. This sits beside {@see assertQuarantined()} and after the
+     * completed-attempt return on purpose. A review hold is a statement about
+     * *new* publication, so re-running an already-completed batch stays the
+     * exact no-op HIR7 requires even if a section acquired a hold afterwards;
+     * only a release that would actually make something public is refused.
+     *
+     * Like its sibling it is asked after the claim, so a refusal leaves a claim
+     * to reconcile. That is the behaviour a non-quarantined record already
+     * produces, and matching it is worth more here than saving one claim: the
+     * check reads sections the claim does not lock, so asking earlier would not
+     * make the answer any fresher.
+     *
+     * @param  list<Sermon>  $sermons
+     * @param  list<SongVideo>  $songVideos
+     */
+    private function assertNotHeldForReview(array $sermons, array $songVideos): void
+    {
+        $holds = $this->reviewHolds->assess($sermons, $songVideos);
+
+        if ($holds === []) {
+            return;
+        }
+
+        throw new RuntimeException(
+            'Release is refused: the batch names records that are held for manual review. '
+            .implode(' ', $holds)
+        );
     }
 
     private function assertDistinctDisks(string $sourceDiskName, string $targetDiskName): void

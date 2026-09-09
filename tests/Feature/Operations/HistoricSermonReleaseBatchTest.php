@@ -12,11 +12,16 @@ use App\Models\ChurchService;
 use App\Models\HistoricImportOperation;
 use App\Models\HistoricImportReleaseAsset;
 use App\Models\HistoricImportReleaseAttempt;
+use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongUsageReport;
 use App\Models\SongVideo;
+use App\Enums\ServiceSectionType;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\Import\HistoricImportTargetFingerprint;
+use App\Services\Import\HistoricSermonPublicationService;
 use App\Services\Public\PublicSongUsageService;
 use App\Services\Public\SermonRepository;
 use App\Support\CanonicalJson;
@@ -394,6 +399,166 @@ class HistoricSermonReleaseBatchTest extends TestCase
         );
     }
 
+    /**
+     * P8-Q16 gap 3. Release checked signature, operation state, ownership,
+     * quarantine, disks and hashes and never asked whether the content was held
+     * for review, so a flag an operator raised did not hold anything back.
+     *
+     * The hold is raised *after* the authorisation is signed on purpose: that is
+     * the exact sequence the 2026-09-09 review asked for, and the one a signed
+     * batch makes possible.
+     */
+    #[Test]
+    public function a_hold_raised_after_signing_refuses_the_batch(): void
+    {
+        $operation = $this->completedOperation();
+        $sermon = $this->quarantinedSermon($operation);
+        $path = $this->authorisation($operation, [$sermon->id], []);
+
+        $this->holdSection($sermon, ServiceSectionType::Sermon, [
+            ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK,
+        ]);
+
+        $this->artisan('historic-import:release-batch', ['authorisation' => $path])
+            ->expectsOutputToContain('held for manual review')
+            ->assertFailed();
+
+        $this->assertQuarantineIntact($sermon);
+    }
+
+    /**
+     * The run-1040 shape: the sermon's own section is clean, and the minutes it
+     * is missing sit inside an over-long "song" that is held. §1511 and §2486
+     * are published today precisely because release only ever looked at the
+     * record in front of it.
+     */
+    #[Test]
+    public function a_song_section_that_questions_the_sermon_span_refuses_the_batch(): void
+    {
+        $operation = $this->completedOperation();
+        $sermon = $this->quarantinedSermon($operation);
+
+        $this->holdSection($sermon, ServiceSectionType::Song, [
+            ServiceStructureValidator::FLAG_MACRO_SECTION,
+        ]);
+
+        $path = $this->authorisation($operation, [$sermon->id], []);
+
+        $this->artisan('historic-import:release-batch', ['authorisation' => $path])
+            ->expectsOutputToContain('questions the sermon span')
+            ->assertFailed();
+
+        $this->assertQuarantineIntact($sermon);
+    }
+
+    /**
+     * The other half of that rule, and the reason it is a rule rather than a
+     * reflex: a hymn whose title marker did not match cannot move a sermon
+     * boundary. A gate wide enough to refuse this batch would be routed around,
+     * and a gate that is routed around enforces nothing.
+     */
+    #[Test]
+    public function a_hold_that_cannot_move_the_sermon_still_releases_it(): void
+    {
+        $operation = $this->completedOperation();
+        $sermon = $this->quarantinedSermon($operation);
+
+        $this->holdSection($sermon, ServiceSectionType::Song, [
+            ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH,
+        ]);
+
+        $path = $this->authorisation($operation, [$sermon->id], []);
+
+        $this->artisan('historic-import:release-batch', ['authorisation' => $path])
+            ->assertSuccessful();
+
+        $sermon->refresh();
+
+        $this->assertSame(SermonPublicationState::Published, $sermon->publication_state);
+    }
+
+    /**
+     * A song video names its own section, so its hold needs no inference — and
+     * refusing it must leave the whole batch, sermon included, unreleased.
+     */
+    #[Test]
+    public function a_held_song_section_refuses_its_song_video(): void
+    {
+        $operation = $this->completedOperation();
+        $sermon = $this->quarantinedSermon($operation);
+        $songVideo = $this->quarantinedSongVideo($operation);
+
+        $section = $this->holdSection($sermon, ServiceSectionType::Song, [
+            ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH,
+        ]);
+        $songVideo->forceFill(['service_section_id' => $section->id])->save();
+
+        $path = $this->authorisation($operation, [$sermon->id], [$songVideo->id]);
+
+        $this->artisan('historic-import:release-batch', ['authorisation' => $path])
+            ->expectsOutputToContain("Song video {$songVideo->id} is held for review")
+            ->assertFailed();
+
+        $this->assertQuarantineIntact($sermon);
+        $this->assertSame(SermonPublicationState::Quarantined, $songVideo->refresh()->publication_state);
+    }
+
+    /**
+     * A review hold is a statement about *new* publication, so it must not turn
+     * a completed batch's replay into a failure. HIR7 requires that replay to be
+     * an exact no-op, and the gate sits after the completed-attempt return so it
+     * stays one even for content held since.
+     *
+     * Asked of the service rather than the command, because that is the layer
+     * owning the guarantee. The command is separately not replayable at all: it
+     * writes a `release-batch-{key}` artifact each run, and
+     * `historic_import_artifacts` holds a unique index on
+     * (operation, artifact_key). That predates this gate and is left alone here.
+     */
+    #[Test]
+    public function a_hold_raised_after_release_leaves_a_replay_an_exact_no_op(): void
+    {
+        $operation = $this->completedOperation();
+        $sermon = $this->quarantinedSermon($operation);
+        $service = app(HistoricSermonPublicationService::class);
+
+        $service->releaseRecords($operation, [$sermon->id], []);
+
+        $this->assertSame(SermonPublicationState::Published, $sermon->refresh()->publication_state);
+
+        $this->holdSection($sermon, ServiceSectionType::Sermon, [
+            ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK,
+        ]);
+
+        $replayed = $service->releaseRecords($operation, [$sermon->id], []);
+
+        $this->assertSame($sermon->id, $replayed['sermons'][0]->id);
+        $this->assertSame(SermonPublicationState::Published, $sermon->refresh()->publication_state);
+    }
+
+    /**
+     * The dry run exists so an operator learns a batch is unreleasable before
+     * signing it, not by watching a live release throw partway through.
+     */
+    #[Test]
+    public function a_dry_run_reports_the_holds_that_would_refuse_the_batch(): void
+    {
+        $operation = $this->completedOperation();
+        $sermon = $this->quarantinedSermon($operation);
+
+        $this->holdSection($sermon, ServiceSectionType::Sermon, [
+            ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED,
+        ]);
+
+        $path = $this->authorisation($operation, [$sermon->id], []);
+
+        $this->artisan('historic-import:release-batch', ['authorisation' => $path, '--dry-run' => true])
+            ->expectsOutputToContain('Release would be refused')
+            ->assertFailed();
+
+        $this->assertQuarantineIntact($sermon);
+    }
+
     #[Test]
     public function a_dry_run_verifies_the_authorisation_without_publishing(): void
     {
@@ -516,7 +681,39 @@ class HistoricSermonReleaseBatchTest extends TestCase
             );
         }
 
+        /**
+         * The run is not decoration. Every one of the 442 quarantined sermons in
+         * the corpus has one, and it is the only join that reaches their service
+         * sections before release writes `published_sermon_id`. A fixture without
+         * it cannot express a held sermon at all.
+         */
+        MediaProcessingLog::factory()->withSermon($sermon)->create();
+
         return $sermon->refresh();
+    }
+
+    /**
+     * Hold one section of the run that produced this sermon.
+     *
+     * @param  list<string>  $reviewFlags
+     */
+    private function holdSection(
+        Sermon $sermon,
+        ServiceSectionType $type,
+        array $reviewFlags,
+    ): ServiceSection {
+        $log = MediaProcessingLog::query()->where('sermon_id', $sermon->id)->firstOrFail();
+
+        return ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => $type,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'classification_mode' => 'openlp_aligned',
+                'review_flags' => $reviewFlags,
+            ],
+        ]);
     }
 
     private function quarantinedSongVideo(HistoricImportOperation $operation): SongVideo

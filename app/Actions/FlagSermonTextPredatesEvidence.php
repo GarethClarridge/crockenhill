@@ -26,8 +26,15 @@ use App\Support\SectionReviewFlagPolicy;
  * Cleared by {@see CreateSermonTranscriptFromService}, which is the writer that
  * re-slices the text and so the only event that makes this false. That is
  * deliberately a different trigger from the one that raises it: recovery settles
- * the evidence, regeneration settles the text, and the two are separated here
- * because the spans regeneration needs are not settled until P8-Q15.
+ * the evidence, regeneration settles the text.
+ *
+ * Separating those triggers was right; treating "wait for P8-Q15" as a
+ * corpus-wide gate on the second one was not. Measured 2026-09-09: of the 149
+ * runs owed a re-derivation only **2** contain a P8-Q15 section, and **91** carry
+ * no span doubt anywhere on the run — no macro, micro, boundary, interruption,
+ * low-confidence, repetition or incomplete-evidence hold. Those 91 can be
+ * re-sliced from spans that are already settled. The gate is per-run and
+ * answerable from the data, not a single corpus-wide wait.
  */
 class FlagSermonTextPredatesEvidence
 {

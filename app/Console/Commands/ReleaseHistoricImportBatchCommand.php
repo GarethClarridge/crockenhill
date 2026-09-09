@@ -64,8 +64,32 @@ class ReleaseHistoricImportBatchCommand extends Command
             $this->line("Release owner: {$authorisation['roles']['release_owner']}");
             $this->line("Rollback owner: {$authorisation['roles']['rollback_owner']} until {$authorisation['observation_ends_at']}");
 
+            /**
+             * P8-Q16 gap 3: the dry run reports content holds as well as
+             * authority, so an unreleasable batch is discovered here rather
+             * than by a live release throwing halfway through.
+             */
+            $holds = $publication->reviewHoldsFor(
+                $operation,
+                $authorisation['sermon_ids'],
+                $authorisation['song_video_ids'],
+            );
+
+            foreach ($holds as $hold) {
+                $this->warn($hold);
+            }
+
             if ($this->option('dry-run')) {
-                $this->info('Release authorisation is valid. No record was published.');
+                if ($holds !== []) {
+                    $this->error(sprintf(
+                        'Release would be refused: %d held record(s) in this batch.',
+                        count($holds),
+                    ));
+
+                    return self::FAILURE;
+                }
+
+                $this->info('Release authorisation is valid and no record is held for review. No record was published.');
 
                 return self::SUCCESS;
             }

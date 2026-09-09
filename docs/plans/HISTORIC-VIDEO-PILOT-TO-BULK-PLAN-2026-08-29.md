@@ -5219,6 +5219,19 @@ missing words nor a measurement of uniquely lost audio time.
   sliced from the transcripts they replaced and still contains every repetition.
   Re-detection and regeneration are held for P8-Q15, which settles the spans they
   would derive from; `sermonDerivationIsOwed()` enumerates exactly which runs.
+
+  **Corrected 2026-09-09: that hold is per-run and measurable, not a corpus-wide
+  block.** Asked of the data rather than assumed, only **2 of the 149 owed runs**
+  contain a P8-Q15 section at all (runs 1073 and 1116). Widening the question to
+  "is any span on this run still in doubt" — any section held for a macro, micro,
+  boundary, interruption, low-confidence, repetition or incomplete-evidence
+  reason — gives **58 owed runs whose spans are unsettled and 91 that are clean**.
+  So the blanket sequencing costs about 60% of the available clearance for a
+  dependency that touches two runs. A regeneration pass should take the 91 and
+  leave the 58, not wait for P8-Q15 to settle six sections. There is no standalone
+  dispatcher for this: `CreateSermonTranscriptFromService` exists only as a
+  pipeline phase, so the pass needs a small dry-runnable command in the shape of
+  the existing `historic-import:repair-*` commands.
 - [ ] Include the separately sampled children's talk §4368, whose George Washington
   Carver text also loops. All 181 historic children's-talk sections remain either
   pending approval (146) or not applicable (35); the 21-sample title/content check
@@ -5399,7 +5412,8 @@ these are registered boundary-review candidates, not automatically 14 defects.
 Do not apply blanket snapping/clamping that removes real speech or song starts.
 
 **P8-Q16, high priority: flags must be enforced against current evidence at the
-point of action.** Code inspection found three separate gaps:
+point of action.** Code inspection found three separate gaps. **Gap 2 closed
+2026-09-09 (`dfb00d364`); gap 3 closed 2026-09-09; gap 1 remains open.**
 
 1. `PrepareSectionPublicationCandidates::handle()` skips already
    published sections before today's policy, leaving the 38 retrospective holds
@@ -5413,6 +5427,41 @@ point of action.** Code inspection found three separate gaps:
    state, ownership, storage and related settlement, but **does not enforce current
    section content-review reasons or current song policy before release**. Bundle
    readiness's publication-state checks likewise are not a semantic-quality gate.
+
+   **CLOSED 2026-09-09.** `HistoricReleaseReviewHolds` assesses a batch's records
+   against current review state and `HistoricSermonPublicationService` refuses one
+   that names a held record, beside `assertQuarantined()` and after the
+   completed-attempt return so a replay stays an exact no-op. The dry run now
+   reports the holds and exits non-zero, so a batch is found unreleasable before
+   it is signed rather than by a live release throwing partway through.
+
+   Two things the measurement changed about the obvious implementation:
+
+   - **`published_sermon_id` is null for all 442 quarantined sermons** — it is
+     written *at* publication — so `Sermon::publishedServiceSection()` reads as
+     "nothing held" for every record a release could name. A gate built on that
+     relation would have enforced nothing while appearing to. The processing run
+     is the only join that exists before release.
+   - **Asking only "is my own section held?" passes this plan's own examples.**
+     Of the 31 runs carrying a held non-sermon macro section, 21 have a clean
+     sermon section — including runs **1040 and 1198**, the two §1511/§2486 cases
+     named above as the enforcement gap. So the gate also refuses on holds that
+     question where the sermon's material lies, wherever on the run they land
+     (macro, micro, interruption, boundary risk). Measured cost: 170 → 188 of 442
+     sermons refused. `structure_low_confidence` was deliberately excluded: it
+     would refuse a further 32 while catching none of the proven omissions, which
+     carry no flag at all. A gate wide enough to be routed around enforces nothing.
+
+   Against the current quarantine the gate refuses **188 of 442 sermons and 11 of
+   464 song videos**. Regression tests cover a hold raised after signing, the
+   span-questioning shape, a hold that cannot move the sermon still releasing it,
+   a held song video, the dry-run report, and replay idempotency.
+
+   Noted, not fixed: the **command** is not replayable at all, independently of
+   this gate. It writes a `release-batch-{key}` artifact each run and
+   `historic_import_artifacts` holds a unique index on (operation, artifact_key),
+   so a second invocation of a completed batch fails on that constraint. The
+   service-level no-op is intact; only the command wrapper is affected.
 
 No release was attempted to demonstrate this: it is a read-only code finding,
 not an assertion that an unauthorised release occurred. Add regression tests that
