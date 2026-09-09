@@ -5394,6 +5394,39 @@ need re-extraction before their media and sermon text contain the recovered part
 the hold withdraws itself when they do. Review queue 309 → 310 sections, 178 → 179
 runs.
 
+**The regeneration gate was too wide, and was narrowed the same day.** The
+`SermonTextRegenerationDebt::UnsettledSpanFlags` list built for the 09-09
+regeneration pass held any run carrying a hold near its sermon. Two of those
+holds do not question the span, and the codebase already said so twice: the
+validator's own docblock says of a missing preached reading that "the sermon
+span extracts correctly either way", and `SermonAutoExtractionPolicy` names both
+`structure_missing_preached_reading` and
+`structure_sermon_boundary_material_risk` as non-disqualifying. Between them they
+blocked **26 of the 58 held runs** for facts that cannot move the bounds being
+sliced.
+
+Removing them alone would have been wrong, and by a hair. Runs **1073 and 1116**
+— the two owed runs carrying a P8-Q15 part — were each held by one of those two
+flags *and nothing else*, so the gate was guarding the omissions by coincidence.
+`sermon_parts_not_extracted` now guards them on purpose, and run 1116 is released
+because its part was already inside the published span.
+
+**EXECUTED 2026-09-09.** 25 sermon texts re-sliced, 0 failures; 33 held back.
+Verified against a pre-pass snapshot of all 25: every text changed, 24 shrank,
+one grew, **29,046 characters removed**, and the worst consecutive sentence
+repetition fell from **×106 to ×8** (run 1156's "God wonderfully saved Jonah from
+a watery." ×106 → ×2). Three endings changed rather than the usual none, and each
+is the strongest evidence in the pass — the loop sat at the sermon's tail, so
+removing it had to move the ending: run 1089 ended on "We must sing and we're not
+silent." seven times, run 1121 on "And we thank you for the love of God." six
+times, and run 1153 *grew* by recovering "O Church of God, awake". Text stays
+aligned with media throughout, because the repair slices from
+`recordedSermonExtractionSpans()` — the spans the media was cut from — not from a
+freshly resolved plan.
+
+Review queue **310 → 288 sections across 179 → 160 runs**; stale-derivation holds
+**85 → 59 sections across 60 → 35 runs**.
+
 **Newly recorded, not acted on: the same defect on the leading edge.** Four
 sections describe sermon material *before* the sermon, §4538 explicitly — "sermon-
 like exposition before the main passage reading, but it is treated as other **to

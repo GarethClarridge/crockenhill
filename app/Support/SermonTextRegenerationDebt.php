@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Actions\FlagSermonPartsNotExtracted;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\Import\HistoricReleaseReviewHolds;
@@ -37,15 +38,35 @@ final class SermonTextRegenerationDebt
      * really sermon, which changes what a re-slice should select. Release asks
      * whether to publish what exists; this asks whether to rewrite it.
      *
+     * **Two flags were removed on 2026-09-09, and one added in their place.**
+     * `structure_missing_preached_reading` and
+     * `structure_sermon_boundary_material_risk` were here on the assumption that
+     * any hold near a sermon questions its bounds. The codebase already held the
+     * opposite ruling, twice: the validator's own docblock says of a missing
+     * reading that "the sermon span extracts correctly either way", and
+     * {@see SermonAutoExtractionPolicy} names both as
+     * non-disqualifying — a missing reading "questions what surrounds the sermon,
+     * not the sermon's own boundaries", and a boundary risk carries a recorded
+     * policy to publish the inclusive span and review afterwards. Between them
+     * they blocked 26 of the 58 held runs for facts that cannot move the bounds
+     * being sliced.
+     *
+     * `sermon_parts_not_extracted` replaces them, and is the guard they were only
+     * providing by coincidence. Before P8-Q15 was represented, runs 1073 and 1116
+     * — both missing sermon parts — happened to carry one of the two removed flags
+     * and nothing else, so relaxing the list without this addition would have
+     * re-sliced a sermon to a span known to omit sixteen minutes and withdrawn the
+     * staleness hold that said so. Now the run that is actually missing material
+     * says so directly.
+     *
      * @var list<string>
      */
     public const UnsettledSpanFlags = [
         ServiceStructureValidator::FLAG_MACRO_SECTION,
         ServiceStructureValidator::FLAG_MICRO_SECTION,
         ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED,
-        ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK,
-        ServiceStructureValidator::FLAG_MISSING_PREACHED_READING,
         ServiceStructureValidator::FLAG_LOW_CONFIDENCE,
+        FlagSermonPartsNotExtracted::FLAG,
         'transcript_repetition_suspect',
         'sermon_evidence_incomplete',
     ];
