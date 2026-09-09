@@ -756,4 +756,436 @@ class SermonExtractionPlanResolverTest extends TestCase
             'metadata' => ['confidence_level' => 'high'],
         ]);
     }
+
+    #[Test]
+    public function it_spans_a_sermon_delivered_in_two_parts_around_a_hymn(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 200.0,
+        ]);
+
+        $sermon = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'section_order' => 1,
+            'start_time' => 500.0,
+            'end_time' => 1200.0,
+            'needs_manual_review' => false,
+            'metadata' => ['confidence_level' => 'high'],
+        ]);
+
+        // The hymn the preacher paused for. It must never reach the published span.
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 2,
+            'start_time' => 1200.0,
+            'end_time' => 1450.0,
+            'needs_manual_review' => false,
+            'metadata' => ['confidence_level' => 'high'],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Other->value,
+            'section_order' => 3,
+            'start_time' => 1450.0,
+            'end_time' => 1900.0,
+            'needs_manual_review' => false,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'sermon_continuation' => [
+                    'of_section_id' => $sermon->id,
+                    'evidence' => 'This is a continuation of the single sermon, separated by a congregational song.',
+                    'source' => 'detector_notes',
+                ],
+            ],
+        ]);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame('concat_spans', $plan['mode']);
+        $this->assertSame('service_sections', $plan['source']);
+        $this->assertCount(2, $plan['segments']);
+        $this->assertSame(500.0, $plan['segments'][0]['start_time']);
+        $this->assertSame(1200.0, $plan['segments'][0]['end_time']);
+        $this->assertSame(1450.0, $plan['segments'][1]['start_time']);
+        $this->assertSame(1900.0, $plan['segments'][1]['end_time']);
+    }
+
+    #[Test]
+    public function it_orders_three_sermon_parts_and_keeps_every_intervening_song_out(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 200.0,
+        ]);
+
+        $sermon = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'section_order' => 1,
+            'start_time' => 500.0,
+            'end_time' => 1000.0,
+            'needs_manual_review' => false,
+            'metadata' => ['confidence_level' => 'high'],
+        ]);
+
+        foreach ([[1000.0, 1200.0, 2], [1700.0, 1900.0, 4]] as [$start, $end, $order]) {
+            ServiceSection::factory()->create([
+                'media_processing_log_id' => $log->id,
+                'section_type' => ServiceSectionType::Song->value,
+                'section_order' => $order,
+                'start_time' => $start,
+                'end_time' => $end,
+                'needs_manual_review' => false,
+                'metadata' => ['confidence_level' => 'high'],
+            ]);
+        }
+
+        // Deliberately created out of order, so the plan cannot be right by insertion luck.
+        foreach ([[1900.0, 2300.0, 5], [1200.0, 1700.0, 3]] as [$start, $end, $order]) {
+            ServiceSection::factory()->create([
+                'media_processing_log_id' => $log->id,
+                'section_type' => ServiceSectionType::Other->value,
+                'section_order' => $order,
+                'start_time' => $start,
+                'end_time' => $end,
+                'needs_manual_review' => false,
+                'metadata' => [
+                    'confidence_level' => 'high',
+                    'sermon_continuation' => [
+                        'of_section_id' => $sermon->id,
+                        'evidence' => 'This is the concluding continuation of the single sermon.',
+                        'source' => 'detector_notes',
+                    ],
+                ],
+            ]);
+        }
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame('concat_spans', $plan['mode']);
+        $this->assertSame(
+            [[500.0, 1000.0], [1200.0, 1700.0], [1900.0, 2300.0]],
+            array_map(
+                static fn (array $segment): array => [$segment['start_time'], $segment['end_time']],
+                $plan['segments'],
+            ),
+        );
+    }
+
+    #[Test]
+    public function it_ignores_an_other_section_that_is_not_marked_as_a_sermon_continuation(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 200.0,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'section_order' => 1,
+            'start_time' => 500.0,
+            'end_time' => 1200.0,
+            'needs_manual_review' => false,
+            'metadata' => ['confidence_level' => 'high'],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 2,
+            'start_time' => 1200.0,
+            'end_time' => 1450.0,
+            'needs_manual_review' => false,
+            'metadata' => ['confidence_level' => 'high'],
+        ]);
+
+        // Run 1148's §2201 shape: a long `other` the detector explicitly declined to
+        // call sermon. Length alone must never admit a section to the published span.
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Other->value,
+            'section_order' => 3,
+            'start_time' => 1450.0,
+            'end_time' => 2500.0,
+            'needs_manual_review' => false,
+            'metadata' => ['confidence_level' => 'high'],
+        ]);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame('single_span', $plan['mode']);
+        $this->assertCount(1, $plan['segments']);
+        $this->assertSame(1200.0, $plan['segments'][0]['end_time']);
+    }
+
+    #[Test]
+    public function it_records_which_sections_the_continuation_spans_came_from(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 200.0,
+        ]);
+
+        $sermon = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'section_order' => 1,
+            'start_time' => 500.0,
+            'end_time' => 1200.0,
+            'needs_manual_review' => false,
+            'metadata' => ['confidence_level' => 'high'],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 2,
+            'start_time' => 1200.0,
+            'end_time' => 1450.0,
+            'needs_manual_review' => false,
+            'metadata' => ['confidence_level' => 'high'],
+        ]);
+
+        $continuation = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Other->value,
+            'section_order' => 3,
+            'start_time' => 1450.0,
+            'end_time' => 1900.0,
+            'needs_manual_review' => false,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'sermon_continuation' => [
+                    'of_section_id' => $sermon->id,
+                    'evidence' => 'This is the concluding continuation of the single sermon.',
+                    'source' => 'detector_notes',
+                ],
+            ],
+        ]);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame([$continuation->id], $plan['metadata']['continuation_section_ids']);
+        $this->assertStringContainsString('continuation', (string) $plan['metadata']['strategy']);
+    }
+
+    #[Test]
+    public function it_places_a_sermon_part_that_precedes_the_sermon_section_in_delivery_order(): void
+    {
+        // Run 1073's shape: §1711 is "the first part of the main sermon, which resumes
+        // after the intervening hymn" and starts twenty minutes before the section the
+        // detector typed `sermon`. Appending it would publish the sermon back to front.
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 200.0,
+        ]);
+
+        $sermon = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'section_order' => 3,
+            'start_time' => 2894.0,
+            'end_time' => 3593.0,
+            'needs_manual_review' => false,
+            'metadata' => ['confidence_level' => 'high'],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Other->value,
+            'section_order' => 1,
+            'start_time' => 1654.0,
+            'end_time' => 2653.0,
+            'needs_manual_review' => false,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'sermon_continuation' => [
+                    'of_section_id' => $sermon->id,
+                    'evidence' => 'This is the first part of the main sermon, which resumes after the intervening hymn.',
+                    'source' => 'detector_notes',
+                ],
+            ],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 2,
+            'start_time' => 2653.0,
+            'end_time' => 2894.0,
+            'needs_manual_review' => false,
+            'metadata' => ['confidence_level' => 'high'],
+        ]);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame('concat_spans', $plan['mode']);
+        $this->assertSame(
+            [[1654.0, 2653.0], [2894.0, 3593.0]],
+            array_map(
+                static fn (array $segment): array => [$segment['start_time'], $segment['end_time']],
+                $plan['segments'],
+            ),
+        );
+    }
+
+    #[Test]
+    public function it_does_not_repeat_a_marked_part_the_sermon_span_already_covers(): void
+    {
+        // `resolveSermonEnd()` runs the published span forward through trailing `other`
+        // material, so a part directly after the sermon is inside the span already.
+        // Adding it again would play the passage twice and slice its text twice.
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 200.0,
+        ]);
+
+        $sermon = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'section_order' => 1,
+            'start_time' => 500.0,
+            'end_time' => 1200.0,
+            'needs_manual_review' => false,
+            'metadata' => ['confidence_level' => 'high'],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Other->value,
+            'section_order' => 2,
+            'start_time' => 1200.0,
+            'end_time' => 1400.0,
+            'needs_manual_review' => false,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'sermon_continuation' => [
+                    'of_section_id' => $sermon->id,
+                    'evidence' => 'This is the continuation and conclusion of the primary sermon.',
+                    'source' => 'detector_notes',
+                ],
+            ],
+        ]);
+
+        $plan = $this->resolver->resolve($log);
+
+        // Absorbed by the sermon-end rule, so one contiguous span, counted once.
+        $this->assertSame('single_span', $plan['mode']);
+        $this->assertCount(1, $plan['segments']);
+        $this->assertSame(500.0, $plan['segments'][0]['start_time']);
+        $this->assertSame(1400.0, $plan['segments'][0]['end_time']);
+    }
+
+    #[Test]
+    public function it_refuses_continuation_parts_that_would_exceed_the_sermon_duration_ceiling(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 200.0,
+        ]);
+
+        $sermon = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'section_order' => 1,
+            'start_time' => 500.0,
+            'end_time' => 2600.0,
+            'needs_manual_review' => false,
+            'metadata' => ['confidence_level' => 'high'],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 2,
+            'start_time' => 2600.0,
+            'end_time' => 2900.0,
+            'needs_manual_review' => false,
+            'metadata' => ['confidence_level' => 'high'],
+        ]);
+
+        $rejected = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Other->value,
+            'section_order' => 3,
+            'start_time' => 2900.0,
+            'end_time' => 4000.0,
+            'needs_manual_review' => false,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'sermon_continuation' => [
+                    'of_section_id' => $sermon->id,
+                    'evidence' => 'This is the concluding continuation of the single sermon.',
+                    'source' => 'detector_notes',
+                ],
+            ],
+        ]);
+
+        $plan = $this->resolver->resolve($log);
+
+        // Refused, but never silently: discarding what the detector named is the
+        // defect this item exists to correct, so the refusal is on the record.
+        $this->assertSame('single_span', $plan['mode']);
+        $this->assertCount(1, $plan['segments']);
+        $this->assertTrue($plan['metadata']['continuation_ceiling_applied']);
+        $this->assertSame([$rejected->id], $plan['metadata']['continuation_rejected_section_ids']);
+    }
+
+    #[Test]
+    public function it_ignores_a_continuation_marker_naming_a_different_sermon_section(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 200.0,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'section_order' => 1,
+            'start_time' => 500.0,
+            'end_time' => 1200.0,
+            'needs_manual_review' => false,
+            'metadata' => ['confidence_level' => 'high'],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 2,
+            'start_time' => 1200.0,
+            'end_time' => 1450.0,
+            'needs_manual_review' => false,
+            'metadata' => ['confidence_level' => 'high'],
+        ]);
+
+        // A marker carried over from another run names a section this run does not
+        // hold. Presence of the marker must not be enough to admit the span.
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Other->value,
+            'section_order' => 3,
+            'start_time' => 1450.0,
+            'end_time' => 1900.0,
+            'needs_manual_review' => false,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'sermon_continuation' => [
+                    'of_section_id' => 999999,
+                    'evidence' => 'This is the concluding continuation of the single sermon.',
+                    'source' => 'detector_notes',
+                ],
+            ],
+        ]);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame('single_span', $plan['mode']);
+        $this->assertCount(1, $plan['segments']);
+    }
 }

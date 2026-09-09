@@ -84,6 +84,23 @@ class SermonExtractionPlanResolver
      */
     public function resolve(MediaProcessingLog $processingLog): array
     {
+        return $this->withSermonContinuations($processingLog, $this->resolveSermonSpan($processingLog));
+    }
+
+    /**
+     * The single-sermon plan, before any further part of the same sermon is added.
+     *
+     * @return array{
+     *     mode: 'single_span'|'concat_spans'|'baseline',
+     *     source: 'service_sections'|'processing_log'|'manual_review',
+     *     segments: array<int, array{start_time: float, end_time: float}>,
+     *     metadata: array<string, mixed>
+     * }
+     *
+     * @throws \Exception When baseline times are missing or confirmed segments cannot be found.
+     */
+    private function resolveSermonSpan(MediaProcessingLog $processingLog): array
+    {
         $confirmedSegmentId = $processingLog->manuallyConfirmedSegmentId();
         if ($confirmedSegmentId !== null) {
             return $this->confirmedSegmentPlan($processingLog, $confirmedSegmentId);
@@ -246,6 +263,170 @@ class SermonExtractionPlanResolver
                 'gap_seconds' => $gapSeconds,
             ],
         ];
+    }
+
+    /**
+     * Add the remaining parts of a sermon delivered around an intervening item.
+     *
+     * `resolveSermonEnd()` runs the published span forward through prayers and
+     * readings but stops dead at a song, which is correct — a song is a service
+     * item, not a pause in the sermon, and absorbing it would publish the hymn
+     * inside the sermon. The consequence is that where a preacher breaks for a
+     * congregational song and resumes, everything after the song is lost: six
+     * sections across five historic runs, 41.7 minutes of preaching (P8-Q15).
+     *
+     * So the parts stay separate sections and the plan spans them. Each admitted
+     * section becomes its own segment, the intervening song simply is not one,
+     * and the mode becomes `concat_spans` — the same shape already used to join a
+     * non-adjacent reading to its sermon, so nothing downstream needs to learn a
+     * new plan format. `sliceTextForSpans()` already takes the whole ordered set,
+     * which is what keeps the saved sermon text and the media agreeing.
+     *
+     * A part may precede the sermon section as easily as follow it, so the parts
+     * are ordered by time rather than appended. Run 1073's §1711 is the clearest
+     * case — "the first part of the main sermon, which resumes after the
+     * intervening hymn" — and it starts twenty minutes *before* the section the
+     * detector typed `sermon`. Appending would have published it out of order.
+     *
+     * Nothing is admitted by shape. A section qualifies only where a recorded
+     * {@see SermonContinuationMetadata} names this run's sermon and carries the
+     * evidence that named it. Length must never be enough: run 1148's §2201 is a
+     * 17-minute `other` the detector explicitly declined to call a second sermon.
+     *
+     * @param  array{
+     *     mode: 'single_span'|'concat_spans'|'baseline',
+     *     source: 'service_sections'|'processing_log'|'manual_review',
+     *     segments: array<int, array{start_time: float, end_time: float}>,
+     *     metadata: array<string, mixed>
+     * }  $plan
+     * @return array{
+     *     mode: 'single_span'|'concat_spans'|'baseline',
+     *     source: 'service_sections'|'processing_log'|'manual_review',
+     *     segments: array<int, array{start_time: float, end_time: float}>,
+     *     metadata: array<string, mixed>
+     * }
+     */
+    private function withSermonContinuations(MediaProcessingLog $processingLog, array $plan): array
+    {
+        // A baseline plan distrusts the sections outright and a manual confirmation is a
+        // human span that already wins; neither may be extended by a section marker.
+        if ($plan['source'] !== 'service_sections') {
+            return $plan;
+        }
+
+        $sermonSectionId = $plan['metadata']['sermon_section_id'] ?? null;
+
+        if (! is_int($sermonSectionId) || $plan['segments'] === []) {
+            return $plan;
+        }
+
+        $segments = array_values($plan['segments']);
+        $continuations = $this->findSermonContinuations($processingLog, $sermonSectionId, $segments);
+
+        if ($continuations === []) {
+            return $plan;
+        }
+
+        $spanSeconds = 0.0;
+
+        foreach ($segments as $segment) {
+            $spanSeconds += (float) $segment['end_time'] - (float) $segment['start_time'];
+        }
+
+        foreach ($continuations as $continuation) {
+            $spanSeconds += (float) $continuation->end_time - (float) $continuation->start_time;
+        }
+
+        // The under-segmentation ceiling still applies to the sermon as a whole. A marker
+        // that would publish more preaching than a service plausibly contains is refused
+        // rather than trusted, but the refusal is recorded: silently dropping what the
+        // detector named is the defect this whole item exists to correct.
+        $maxSermonDuration = (float) config('media-processing.section_extraction.enhanced_sermon.max_sermon_duration_seconds', 2700);
+
+        if ($maxSermonDuration > 0.0 && $spanSeconds > $maxSermonDuration) {
+            $plan['metadata']['continuation_ceiling_applied'] = true;
+            $plan['metadata']['continuation_rejected_section_ids'] = array_map(
+                static fn (ServiceSection $section): int => $section->id,
+                $continuations,
+            );
+            $plan['metadata']['continuation_span_seconds'] = $spanSeconds;
+            $plan['metadata']['max_sermon_duration_seconds'] = $maxSermonDuration;
+
+            return $plan;
+        }
+
+        foreach ($continuations as $continuation) {
+            $segments[] = [
+                'start_time' => (float) $continuation->start_time,
+                'end_time' => (float) $continuation->end_time,
+            ];
+        }
+
+        usort($segments, static fn (array $first, array $second): int => $first['start_time'] <=> $second['start_time']);
+
+        $strategy = $plan['metadata']['strategy'] ?? 'sermon_only';
+
+        return [
+            'mode' => 'concat_spans',
+            'source' => 'service_sections',
+            'segments' => $segments,
+            'metadata' => [
+                ...$plan['metadata'],
+                'strategy' => (is_string($strategy) ? $strategy : 'sermon_only').'_with_continuation',
+                'continuation_section_ids' => array_map(
+                    static fn (ServiceSection $section): int => $section->id,
+                    $continuations,
+                ),
+                'continuation_evidence' => array_map(
+                    static fn (ServiceSection $section): array => [
+                        'section_id' => $section->id,
+                        'evidence' => $section->metadata?->sermonContinuation?->evidence,
+                        'source' => $section->metadata?->sermonContinuation?->source,
+                    ],
+                    $continuations,
+                ),
+            ],
+        ];
+    }
+
+    /**
+     * Sections recorded as further parts of this sermon, in delivery order.
+     *
+     * A part overlapping a segment the plan already holds is dropped rather than
+     * repeated. `resolveSermonEnd()` runs the span forward through trailing
+     * material, so an `other` section directly after the sermon is inside the
+     * published span already; adding it again would play that passage twice and
+     * slice its text twice.
+     *
+     * @param  list<array{start_time: float, end_time: float}>  $planned
+     * @return list<ServiceSection>
+     */
+    private function findSermonContinuations(MediaProcessingLog $processingLog, int $sermonSectionId, array $planned): array
+    {
+        /** @var EloquentCollection<int, ServiceSection> $candidates */
+        $candidates = ServiceSection::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->where('id', '!=', $sermonSectionId)
+            ->whereColumn('end_time', '>', 'start_time')
+            ->orderBy('start_time')
+            ->get();
+
+        return array_values($candidates
+            ->filter(static fn (ServiceSection $section): bool => $section->metadata
+                ?->sermonContinuation
+                ?->continues($sermonSectionId) === true)
+            ->reject(function (ServiceSection $section) use ($planned): bool {
+                foreach ($planned as $segment) {
+                    if ((float) $section->start_time < $segment['end_time']
+                        && (float) $section->end_time > $segment['start_time']
+                    ) {
+                        return true;
+                    }
+                }
+
+                return false;
+            })
+            ->all());
     }
 
     /**

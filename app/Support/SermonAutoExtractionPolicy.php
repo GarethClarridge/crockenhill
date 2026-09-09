@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Actions\FlagSermonPartsNotExtracted;
+use App\Actions\FlagSermonTextPredatesEvidence;
+
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 
 /**
@@ -49,12 +52,29 @@ class SermonAutoExtractionPolicy
      * the sermon span is still right. A material boundary risk is the same
      * shape: the policy is to publish the inclusive span and let a reviewer
      * decide afterwards, so refusing to extract would leave nothing to review.
+     *
+     * The last two are about the sermon's *text* and its *media*, and neither
+     * moves the span. Disqualifying on them inverts the repair each one asks for.
+     *
+     * `sermon_text_predates_evidence` says the saved text was sliced from a
+     * transcript the run has since replaced. Refusing the section plan drops the
+     * run to the coarse baseline bounds, so the very re-extraction that would
+     * re-derive the text would cut a different span than the one the sections
+     * describe — and quietly, since a baseline plan is a valid plan.
+     *
+     * `sermon_parts_not_extracted` is worse still, because it disqualifies its own
+     * precondition. It is raised by comparing the section plan against the stored
+     * media; if raising it forces the baseline path, the next comparison finds
+     * nothing missing and withdraws the hold. The flag would erase itself and
+     * leave a sermon missing sixteen minutes looking clean (P8-Q15).
      */
     private const NON_DISQUALIFYING_REVIEW_FLAGS = [
         ServiceStructureValidator::FLAG_OOS_CROSS_TYPE_INVERSION,
         ServiceStructureValidator::FLAG_OOS_SAME_TYPE_INVERSION,
         ServiceStructureValidator::FLAG_MISSING_PREACHED_READING,
         ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK,
+        FlagSermonTextPredatesEvidence::FLAG,
+        FlagSermonPartsNotExtracted::FLAG,
     ];
 
     /**

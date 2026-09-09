@@ -5347,6 +5347,64 @@ and #879 is a composite source where selection of one teaching may be deliberate
 These need evidence-led decisions. Conversely, #1041's continuation is already
 included: “continuation” in notes alone is not proof of an omission.
 
+**REPRESENTED 2026-09-09 — and the omission is smaller than this section says.**
+`SermonExtractionPlanResolver` now spans a sermon delivered in several parts, and
+`service:screen-sermon-continuations` records which sections those are. Screening
+all **1362** runs finds exactly the **6 sections across 5 runs (41.6 minutes)**
+named above and nothing else — zero false positives corpus-wide.
+
+**But only 3 of the 6 are actually missing from the published media: 33.1 minutes
+across 2 runs.** §773 (run 943), §1951 (run 1116) and §2207 (run 1148) — 8.5
+minutes — are already inside the delivered span, because `resolveSermonEnd()` runs
+the published span forward through trailing `other` material and had absorbed them.
+The "42 minutes of omitted sermon" above counted sections whose *notes* name them
+as sermon parts; the omission is what those notes leave outside the *recorded
+spans*, which is a different question. The two genuinely short sermons are exactly
+the two this section proved: **#1003/run 1073** (16.6 min) and **#1304/run 1268**
+(16.5 min, a real three-part sermon now planned as `788–1856, 2029–2321,
+2491–3187`).
+
+Three things this established.
+
+- **The rule was read, not guessed.** Sixty non-sermon sections corpus-wide
+  mention a sermon in their notes; all sixty were read before a pattern was
+  written. What it must exclude is the instructive part: rival candidates ("the
+  later Joshua exposition is the clearest primary sermon", §1147/§643/§766) ask
+  *which* section is the sermon, and framing ("treated as the planned presentation
+  rather than a second sermon", §2201) sits on run 1148 *beside* a genuine part —
+  so length, type and position all fail to separate them, and only the sentence
+  does.
+- **A part can precede the sermon section.** Run 1073's §1711 starts twenty
+  minutes before the section typed `sermon`, so parts are ordered by time rather
+  than appended, and a part already inside a planned segment is dropped rather
+  than repeated.
+- **The hold nearly erased itself.** `FlagSermonPartsNotExtracted` derives the
+  hold by comparing the section plan against the stored spans — but
+  `SermonAutoExtractionPolicy` disqualified a flagged section from auto-extraction,
+  so raising the hold dropped the run to the baseline plan, the next comparison
+  found nothing missing, and the hold would have been withdrawn. The same trap had
+  already silenced run 1073 through `sermon_text_predates_evidence`: **any run owed
+  a re-derivation resolved to baseline**, which would also have made the P8-Q13a
+  re-extraction cut coarse bounds instead of its sections. Both flags are now
+  explicitly non-disqualifying, on the reasoning that policy already records for a
+  missing preached reading — they question the text and the media, not the span.
+
+**Not a repair.** Runs 1073 and 1268 are held by `sermon_parts_not_extracted` and
+need re-extraction before their media and sermon text contain the recovered parts;
+the hold withdraws itself when they do. Review queue 309 → 310 sections, 178 → 179
+runs.
+
+**Newly recorded, not acted on: the same defect on the leading edge.** Four
+sections describe sermon material *before* the sermon, §4538 explicitly — "sermon-
+like exposition before the main passage reading, but it is treated as other **to
+preserve one primary sermon**" (also §1871, §4791, §2385). These are deliberately
+excluded: their wording is not separable from ordinary introductions ("This is an
+introduction to the sermon rather than a separate sermon", §2015/§4006/§4568),
+which may be the preacher's own opening or a service leader introducing the
+preacher. Admitting them on the same words would publish a stranger's introduction
+inside the sermon. They need evidence the banked notes do not carry.
+
+
 ##### 3. Stored text, files and dates still need repair or adjudication
 
 **Nine older historic saved transcripts disagree with their current span-derived

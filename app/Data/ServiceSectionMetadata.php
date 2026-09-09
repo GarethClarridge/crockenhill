@@ -24,6 +24,7 @@ final readonly class ServiceSectionMetadata extends JsonData
         public ?SectionOosAlignment $oosAlignment = null,
         public ?ChildrensTalkSpeakerMetadata $childrensTalkSpeaker = null,
         public ?SectionPublicationMetadata $publication = null,
+        public ?SermonContinuationMetadata $sermonContinuation = null,
         public array $raw = [],
     ) {}
 
@@ -45,6 +46,7 @@ final readonly class ServiceSectionMetadata extends JsonData
             oosAlignment: SectionOosAlignment::fromArray($payload['oos_alignment'] ?? null),
             childrensTalkSpeaker: ChildrensTalkSpeakerMetadata::fromArray($payload['childrens_talk_speaker'] ?? null),
             publication: SectionPublicationMetadata::fromArray($payload['publication'] ?? null),
+            sermonContinuation: SermonContinuationMetadata::fromArray($payload['sermon_continuation'] ?? null),
             raw: $payload,
         );
     }
@@ -106,6 +108,10 @@ final readonly class ServiceSectionMetadata extends JsonData
 
         if ($this->publication instanceof SectionPublicationMetadata) {
             $data['publication'] = $this->publication->toArray();
+        }
+
+        if ($this->sermonContinuation instanceof SermonContinuationMetadata) {
+            $data['sermon_continuation'] = $this->sermonContinuation->toArray();
         }
 
         return $data;
