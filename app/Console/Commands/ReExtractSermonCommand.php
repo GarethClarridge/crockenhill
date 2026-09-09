@@ -83,10 +83,15 @@ class ReExtractSermonCommand extends Command
         if (! $sourceExists) {
             // CleanupTemporaryFiles deletes source_file_path when a run completes,
             // so a finished run usually has nothing left to cut from. The media has
-            // to be restaged before this can run — for a historic import that means
-            // `sermons:import-historic-videos --force --only=<item key>`.
+            // to be restaged before this can run — for a historic import that is
+            // `historic-import:restage-source`.
+            //
+            // It is deliberately NOT `sermons:import-historic-videos --force`: the
+            // batch command rejects `--force` on a definitive manifest run by design,
+            // and the importer's resume-completed short-circuit runs before the force
+            // check anyway, so that route reports success while doing nothing.
             $this->error("The source media for this run is gone ({$sourcePath}), so it cannot be re-cut.");
-            $this->line('Restage the source first, or reprocess the item from its original recording.');
+            $this->line('Restage it first with `historic-import:restage-source`, which accepts a candidate only when it matches the hash the run recorded.');
 
             return self::FAILURE;
         }

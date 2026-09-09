@@ -548,6 +548,90 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
     }
 
     /**
+     * A candidate is always cut to the configured candidate disk, so a section
+     * still naming the disk a previous promotion moved it to describes bytes that
+     * are somewhere else.
+     *
+     * Found by P8-Q13a step 1: section 2714 on run 1220 had been promoted to
+     * `historic_quarantine` on 2026-09-07 and its quarantine copy later went
+     * missing. The re-cut wrote the replacement to staging and left `asset_disk`
+     * naming quarantine, so `extractedAssetDisk()` kept reading the wrong disk and
+     * `HistoricAssetPromotion` failed the whole run with "on neither staging nor
+     * quarantine". Same root cause as P8-Q3: the writer used the configured disk
+     * and the row went on naming another.
+     */
+    #[Test]
+    public function it_records_the_disk_a_recut_candidate_was_actually_written_to(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        Storage::fake('elsewhere');
+
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => ['childrens_talk' => SermonPublicationHandler::class],
+            'media-processing.section_publishing.retain_unpublished_hours' => 48,
+            'media-processing.speaker_identification.enabled' => false,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'source_file_path' => 'livestreams/source.mp4',
+        ]);
+
+        Storage::disk('local')->put('livestreams/source.mp4', 'source-video');
+        Storage::disk('local')->put('temp/section-video.mp4', 'fresh-section-video');
+
+        // Promoted to another disk once, and that copy is gone — nothing on
+        // `elsewhere` holds the recorded path any more.
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'status' => ServiceSectionStatus::Identified->value,
+            'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
+            'metadata' => ['confidence_level' => 'high'],
+            'extracted_video_path' => 'section-publications/gone/video.mp4',
+            'extracted_audio_path' => 'section-publications/gone/audio.mp3',
+            'asset_disk' => 'elsewhere',
+            'start_time' => 120.0,
+            'end_time' => 420.0,
+        ]);
+
+        $expectedAudioPath = 'section-publications/'.$section->id.'-0123456789abcdef/'.$processingLog->processing_id.'_section_'.$section->id.'.mp3';
+        Storage::disk('local')->put($expectedAudioPath, 'fresh-section-audio');
+
+        $videoExtractor = $this->createMock(VideoExtractionService::class);
+        $videoExtractor->method('extractSegmentAsFile')->willReturn('temp/section-video.mp4');
+        $videoExtractor->method('extractOptimizedAudio')->willReturn([
+            'audio_path' => $expectedAudioPath,
+            'full_path' => Storage::disk('local')->path($expectedAudioPath),
+            'original_size' => 1024,
+            'final_size' => 1024,
+            'compression_applied' => false,
+            'compression_ratio' => 1.0,
+            'valid_for_transcription' => true,
+        ]);
+
+        $job = new PrepareSectionPublicationCandidates($processingLog);
+        $job->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(SectionPublicationHandlerFactory::class),
+            app(ServiceSectionPublicationTransitionService::class)
+        );
+
+        $section->refresh();
+
+        $this->assertSame(MediaAssetPath::disk(), $section->extractedAssetDisk());
+        $this->assertTrue(
+            Storage::disk($section->extractedAssetDisk())->exists((string) $section->extracted_video_path),
+            'the row must name the disk the candidate was written to',
+        );
+    }
+
+    /**
      * A recut is dispatched from a web request, where no staging context is
      * active. Without this the queue payload carries none, the worker resolves
      * `source_file_path` against the plain disk root instead of the run's batch

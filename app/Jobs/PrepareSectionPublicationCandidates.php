@@ -432,6 +432,13 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
                 $section->extracted_audio_path = $audioResult['audio_path'];
             }
 
+            // The candidate was written to the *candidate* disk, so the row has to
+            // say so. A section promoted to another disk once keeps naming it
+            // otherwise, and every later read — `hasReusableExtractedMedia()`,
+            // `HistoricAssetPromotion` — looks where the bytes are not. That is how
+            // run 1220 failed a whole re-extraction with "on neither staging nor
+            // quarantine" while the replacement sat on staging (P8-Q3's root cause).
+            $section->asset_disk = $this->candidateDisk();
             $section->extracted_at = now();
             $section->metadata = ServiceSectionMetadata::fromArray(array_replace(
                 $section->metadata?->toArray() ?? [],

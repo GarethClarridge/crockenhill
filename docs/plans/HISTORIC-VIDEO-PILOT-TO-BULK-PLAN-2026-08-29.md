@@ -4814,6 +4814,63 @@ stored video's probed duration against the run's `trim.observed_duration`. They
 must now agree. Re-running the corpus comparison should return 14 stale videos,
 not 44 — the 14 whose sources are gone.
 
+**STEP 1 EXECUTED 2026-09-09 — 30 of 30 repaired, verified.**
+
+Pre-flight was re-measured rather than taken from the 09-08 record, because the
+P8-Q14 recovery has raised and cleared holds since: staging mounted with 612 GB
+free and writable, **all 30 still plan exactly the span they record** (30 agree,
+0 differ), and all 30 measured stale before the pass.
+
+**The worker restart was load-bearing, not ceremony.** The workers had been up
+20h18m, putting their boot at ~20:21 on 09-08 — and `8be750a68`, the commit that
+makes `StoreSermonVideo` record the `stored_video` signature, landed at
+**20:28:15**, seven minutes later. Every run would have completed correctly and
+signature-less, leaving the next retry as blind as the one that caused this
+defect. `docker ps` reported "Up 29 hours" and said nothing; only the PHP process
+age did.
+
+**Result: 30 repaired, 0 still stale, `stored_video` signature 30/30**, measured
+the way the defect was found — the stored video's probed duration against the
+run's `trim.observed_duration`. Step 2's prediction holds exactly: the corpus
+comparison now returns **14** stale videos, and they are precisely the
+source-gone set below. Serial, one run at a time, ~5–7 minutes each.
+
+Run 1070 is also run 1148, one of P8-Q15's five. Its continuation §2207 lies
+inside the recorded span, so the resolver's overlap check dropped it: spans
+unchanged, `continuation_section_ids` null. The guard against publishing a part
+twice is now exercised on real data, not only in tests.
+
+###### One run failed, and the defect it exposed is P8-Q3's
+
+Run 1220 (sermon 1138) failed at promotion with "Service section 2714 references
+candidate asset …, which is on neither staging nor quarantine" — *after* its
+sermon video was correctly re-cut. §2714 is a `pending_approval` song candidate
+promoted to `historic_quarantine` on 09-07 whose quarantine copy later went
+missing, leaving the row pointing at nothing. It is the only section in the whole
+batch in that shape, which is why the other 29 runs were unaffected.
+
+**A first census said 57 candidate assets were missing; the true figure is 4.**
+The other 53 read as missing only because the check ran outside the run's staging
+context, where the same relative key names a different root — the identical trap
+that once made 149 recovered transcripts look destroyed. Measured inside each
+run's own context: **119 present, 4 missing**, and three of those four are
+`published` sections whose candidate was moved and deleted by
+`promoteExtractedVideo()` at publication, which is expected.
+
+Re-cutting the candidate exposed the real defect. `extractCandidateMediaIfNeeded`
+writes to the *configured* candidate disk and records the path, the timestamp and
+its provenance — but never `asset_disk`. So a section carrying a disk from an
+earlier promotion goes on naming it while the replacement sits elsewhere, and
+`extractedAssetDisk()`, `hasReusableExtractedMedia()` and `HistoricAssetPromotion`
+all read the wrong disk. **Same root cause as P8-Q3.** The job now records the
+disk it wrote to, with a regression covering it; §2714's row was corrected to the
+disk that actually holds its bytes, and run 1220 is `completed`.
+
+Still open, recorded not fixed: **how the quarantine copy disappeared**. It was
+not an orderly expiry — `ExpireSectionPublicationAssets` clears the path,
+`extracted_at` and `unpublished_expires_at` and transitions the section, and
+§2714 had none of that.
+
 **Step 3 — the 14 whose sources are gone.** *This cannot run tonight, and the
 reason is a real gate rather than a missing step.*
 
@@ -4860,6 +4917,7 @@ importer's resume-completed short-circuit runs before the force check anyway.
 `ReExtractSermonCommand`'s inline comment still recommends exactly that route and
 is **stale** — worth correcting when the 14 are picked up.
 
+- [x] **P8-Q13a step 1 DONE 2026-09-09** — 30 of 30 repaired and verified; steps 2 and 3 as recorded above.
 - [ ] P8-Q13b: establish which writer sets `sermons.duration` for the #871–#891
   range and whether the stale value has downstream readers. Do not "correct" the
   column from the media until that is known; the divergence is itself evidence.
