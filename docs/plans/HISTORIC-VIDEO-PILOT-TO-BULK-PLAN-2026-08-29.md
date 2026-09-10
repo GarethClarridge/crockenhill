@@ -5909,9 +5909,43 @@ becomes a song video can never reach the release gate at all.
     pre-clamp bound — and a `short_song_clip` reason still reading "runs 52.0s" when
     the clamped section is 23.43s. The hold stands; only the recorded detail is stale.
 
-  *Still open:* re-deriving boundary evidence for the 93 (and for §3704) requires
-  running under a staging activation, or an equivalent batch-root-aware reader.
-  Mixed-song outputs still need withholding or correction.
+  **Every one of the 93 is re-derivable: all eleven owning non-historic sources
+  survive, byte-identical.** The 93 sections belong to 30 runs. Nineteen are historic
+  (op2/op3) and carry a recorded `HistoricStagingContext`, so their artifacts are
+  reachable by reactivating it. The other eleven runs — 908–913, 916–918, 920, 921,
+  owning the 32 non-historic sections — recorded *temp-disk* keys
+  (`temp/service_transcript_<uuid>.json`), and the temp disk has been reaped: of 426
+  surviving temp files, **zero** match `service_transcript_*`. The derived artifacts
+  are genuinely gone.
+
+  **Their sources are not.** These eleven are the July corpus test set. Each has a
+  `livestream.mp4` preserved in the Sonnics archive under
+  `crockenhill-scratch-archive-2026-08-21/july-test-files/<date>/` (six) and
+  `july-test-set-2/<date>/` (five). All eleven match the run's recorded `file_size`
+  exactly and their recorded SHA-256 `file_hash` exactly — verified 2026-09-10, so the
+  restore-only-if-byte-identical rule is satisfied outright. These are single uploaded
+  files, not concat sources, so `file_hash` is the correct gate here.
+
+  | 2026-07-05 | 2026-06-28 | 2026-03-01 | 2025-04-13 | 2024-09-29 | 2024-03-10 |
+  |---|---|---|---|---|---|
+  | **2026-05-03** | **2025-11-02** | **2024-11-03** | **2023-11-05** | **2023-05-07** | all `IDENTICAL` |
+
+  So the work splits into two mechanical passes, and neither needs a production
+  read-path change: **61 sections** re-derive under their run's own staging context via
+  `HistoricStagingContextRegistry::within()`, and **32 sections** re-derive after
+  restaging the byte-identical source and re-running transcription and RMS.
+
+  **This also reopens run #909.** It was closed as failed on 2026-09-04 on the finding
+  that its source was gone. The finding was that the source was absent from every
+  *configured disk*, which was true and remains true — but the file itself survives in
+  the archive and hashes identically (`dad7899f…`). "Not on a configured disk" is not
+  "gone", the same confusion this item's own false `evidence_unavailable` reading rests
+  on. Whether to finish #909 or leave it closed is an operator decision, but it is no
+  longer forced by the media.
+
+  *Still open:* running those two passes, and §3704's stale banked evidence, which
+  re-derives with its run's batch. Mixed-song outputs still need withholding or
+  correction.
 - [x] **P8-Q17 — CLOSED 2026-09-10. Root cause found, fixed at source, and every
   impossible bound resolved.** **No section now ends past its own media.**
 
