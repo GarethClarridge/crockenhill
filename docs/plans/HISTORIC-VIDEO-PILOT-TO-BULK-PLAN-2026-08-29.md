@@ -5968,25 +5968,46 @@ becomes a song video can never reach the release gate at all.
   finished the tail with no error. §326 and §329 remain published; sermon 857 is
   quarantined and carries a real title rather than the placeholder recorded earlier.
 
-  *Still open — the 32, and they are blocked on a decision rather than on media.*
-  Restoring a source does **not** restore derived artifacts: these runs'
-  `temp/service_transcript_*.json` and `temp/rms_*.log` are reaped, so a transcript
-  and RMS log must be **re-derived** before anything can be assessed. Two obstacles,
-  neither of which should be worked around quietly:
+  **Pass two EXECUTED 2026-09-10 — the evidence gap is CLOSED. Every published and
+  pending song section now holds banked boundary evidence: 427 published + 448
+  pending, and none without.**
 
-  - **No standalone dispatch path exists** for `GenerateRmsLog` or
-    `TranscribeFullService` — only `PrepareSectionPublicationCandidates` has one.
-    Re-opening the run via `MediaProcessingRunTransitionService::markAsReopened()`
-    and dispatching the chain would continue into `DetectServiceStructure` and
-    **rewrite the published sections' times**, which is the one outcome this whole
-    lane exists to prevent. A narrow two-job path has to be built and tested first.
-  - **The provenance differs, and the banked evidence must say so.** RMS is a
-    deterministic measurement of identical bytes, so it would be exactly what the
-    original was. The transcript would not: the section times came from the
-    *original* transcript, and a re-derived one is independent corroboration of
-    those bounds rather than recovery of the evidence behind them. That is a
-    stronger check in some ways and a different claim in others, and banking it
-    unlabelled would repeat the error this item already records.
+  The bespoke two-job command described above was **not built, and should not have
+  been proposed.** Re-running the whole pipeline was both simpler and produced
+  *better* evidence, because the transcript and the section times then come from
+  the same pass — the provenance caveat only existed because a re-derived transcript
+  would have been judged against section times derived from the old one.
+
+  **Rewriting the sections is safe by design, which the earlier note missed.**
+  `ServiceSectionSyncService::sync()` keys existing rows by `section_order` and
+  updates them **in place**, so a section that comes back keeps its identity and its
+  `song_videos.service_section_id`. One that does not come back is deleted through
+  `notifyHandlerOfRemoval()` → `SongPublicationHandler::onSectionRemoved()`, which
+  deletes the clip file and its row. The orphaned-video hazard recorded for SongVideo
+  #9 comes from deleting a section *outside* that path — #9's run was "deleted
+  outright, not superseded" — not from re-running. Verified after the pass: all 22
+  orphans in the table were created 2026-07-06 with `updated_at == created_at`, so
+  this pass created none.
+
+  Method: `MediaProcessingRunTransitionService::markAsReopened()` then
+  `ProcessingRunOrchestrator::start()`, on the eleven runs whose sources had been
+  restored byte-identical. Pre-flight confirmed the providers were real rather than
+  the silent-mock default — transcription `local` (whisper.cpp, reachable) and
+  detector `openai`.
+
+  **Ten of eleven completed.** Run 918 stopped at `manual_review_required`:
+  *"OoS item 4079 is claimed by more than one section."* That is the structure
+  validator failing closed on a real conflict, and it belongs in the review queue.
+  Its published song §455 carries evidence; its two other songs are `not_applicable`
+  and so are correctly outside the evidence population.
+
+  **What the pass changed, on the pilot run 908.** Sections 14 → 12 and the song
+  videos were replaced. Before: four song sections, two published with **no evidence
+  at all**. After: two published with `release_eligible` and `inputs=available`, and
+  **§306 — the fourth known mixed-song clip — correctly held for review**. The
+  closing song survived at a different order rather than being lost. The sermon was
+  re-derived and published. This is the policy making real decisions for the first
+  time on these services, because until now there was nothing to decide on.
 
   Also still open: §3704's stale banked evidence, which re-derives with its run's
   batch, and mixed-song outputs, which still need withholding or correction.
