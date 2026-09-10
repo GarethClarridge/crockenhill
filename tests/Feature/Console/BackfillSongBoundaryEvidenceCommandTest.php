@@ -146,6 +146,42 @@ class BackfillSongBoundaryEvidenceCommandTest extends TestCase
         self::assertNotNull($this->bankedEvidence($fresh));
     }
 
+    /**
+     * P8-Q17 clamped eighteen section bounds, which left their banked candidates
+     * describing clips that no longer exist. Evidence that disagrees with its own
+     * section is not evidence about that section, so it has to be re-derived
+     * rather than trusted — the same rule as an unreadable input.
+     */
+    #[Test]
+    public function it_re_derives_evidence_whose_banked_bounds_no_longer_match_the_section(): void
+    {
+        $section = $this->songSection(withArtifacts: true, banked: true);
+
+        // The banked candidate claims an end the section no longer reaches.
+        $metadata = $section->metadata->toArray();
+        $metadata['song_publication_boundary'] = [
+            'version' => 1,
+            'decision' => 'release_eligible',
+            'candidate' => [
+                'kind' => 'inclusive',
+                'start_time' => $section->start_time,
+                'end_time' => $section->end_time + 28.55,
+            ],
+        ];
+        $section->forceFill(['metadata' => $metadata])->save();
+
+        $this->artisan('service:backfill-song-boundary-evidence', ['--execute' => true])
+            ->assertSuccessful();
+
+        $evidence = $this->bankedEvidence($section->fresh());
+
+        self::assertSame(
+            (float) $section->end_time,
+            (float) $evidence['candidate']['end_time'],
+            'the re-derived candidate should describe the section as it now stands',
+        );
+    }
+
     #[Test]
     public function it_is_a_no_op_when_run_a_second_time(): void
     {

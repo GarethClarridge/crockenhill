@@ -4892,26 +4892,47 @@ millisecond, all fourteen (e.g. run 1140: 1859.733 both sides; run 1204:
 **But `historic-import:restage-source` will refuse all 14, and it is right to.**
 It accepts a candidate only when it hashes to the run's recorded `file_hash`, and
 **none of the 14 recorded one** — confirmed by reading the column, not inferred.
-They are all church-PC recordings named `HH-MM.mkv`, the same class as runs 1377
-and 1035. The rule exists because the banked transcript is timed against the
+
+**CORRECTED 2026-09-10: that reading was wrong, and the gate does not exist.**
+Reading the *column* is exactly the mistake `recordedSourceFileHash()` was written
+to prevent — its own docblock records that reading only the column "refused every
+operation-4 run — all 416 of them — while the evidence sat in their metadata".
+Asked through that method instead, **all 14 return a usable manifest sha256**.
+Re-verified against the archive: every one of the 14 candidates is present, and
+`historic-import:restage-source` **accepts all of them** — no refusals. Several
+did not even need restoring: their sources were never gone, and read as absent
+only because the earlier check ran outside the run's staging context, the same
+batch-root blindness that produced P8-Q10's false `evidence_unavailable`.
+
+So the two decision items below are **void**. There is no evidence question to
+settle and no acceptance path to build: byte-identity is available for all 14, and
+that is the standard the rule already wanted. What remains is the operator step —
+restore the ones that need it and re-cut all 14 by the Step 1 procedure.
+
+The reasoning that follows is kept because it still governs any run that genuinely
+records no hash: the rule exists because the banked transcript is timed against the
 original: a same-service capture starting even a few seconds differently
 misplaces every section with nothing in the output revealing it.
 
 Matching duration is corroboration, not proof of that. Two recordings of one
-service can share a duration and differ in start offset. So the honest position
-is that these 14 need a **decision plus a small code change**, not an operator
-step:
+service can share a duration and differ in start offset.
 
-- [ ] Decide what evidence may stand in for `file_hash` when a run never recorded
+**The two items below are VOID for these 14** — byte-identity turned out to be
+available for all of them, as recorded above. They are kept only as the standing
+answer for a run that genuinely records no hash at all:
+
+- [~] Decide what evidence may stand in for `file_hash` when a run never recorded
   one. The candidate already named for runs 1377/1035 is the banked `.rms.json`:
   correlating a candidate's RMS profile against it establishes timeline alignment
   directly, which is the property that actually matters, rather than byte
   identity, which is only a proxy for it.
-- [ ] Add that as an explicit, evidenced acceptance path in
+- [~] Add that as an explicit, evidenced acceptance path in
   `historic-import:restage-source` — never a `--force`. It must record which
   evidence admitted the file, so a later reader can tell a hashed restore from an
   RMS-aligned one.
-- [ ] Only then re-cut the 14 by the Step 1 procedure.
+- [ ] **Re-cut the 14 by the Step 1 procedure** — now the only remaining step, and
+  an operator one. Restore the sources that need it (several are already present)
+  and re-cut.
 
 Do not reach for `sermons:import-historic-videos --force --only=…`. The batch
 command rejects `--force` on a definitive manifest run by design, and the
@@ -5843,8 +5864,13 @@ becomes a song video can never reach the release gate at all.
   the hold withdraws itself when the plan and the media agree.
 - [ ] **P8-Q12/Q13 — partly done.** **30 of the 43 active stale videos are
   repaired and verified** (0 still stale, `stored_video` signature 30/30); the
-  **14 that remain are exactly the source-gone set**, gated on the `file_hash`
-  decision in step 3 below, not on an operator step. *Still open:* the nine older
+  **14 that remain are exactly the source-gone set** — and the `file_hash` gate on
+  them turned out not to exist. **Verified 2026-09-10: all 14 accepted, 0 refused**
+  — ten hash byte-identical to their archive copy, and four were never gone at all
+  (their sources are present; the earlier census read them as absent from outside
+  the run's staging context). The earlier reading took `file_hash` from the *column*
+  rather than `recordedSourceFileHash()`, which is the mistake that method exists to
+  prevent. Only the re-cut remains, and it is an operator step. *Still open:* the nine older
   saved transcripts (#871, #872, #874, #875, #876, #881, #889, #897, #900) —
   none is *owed* a re-derivation, but they predate the content-hash stamps, so
   that reads as **unknown, not current**, and needs a direct text-vs-slice
@@ -5858,6 +5884,24 @@ becomes a song video can never reach the release gate at all.
   published section whose own state stopped supporting it — 16 demoted, 5 song
   videos quarantined, 0 refused, and **no published section is held for review
   any more**.
+- [ ] **A published song clip can carry the WRONG song identity, 2026-09-10.**
+  §335 (run 910) was published as song 349 "When I Fear My Faith Will Fail" with
+  `song_match_type = confirmed`, while its own transcript reads *"It's number 723 in
+  the Praise Hymn book"* followed by the lyrics of "All I Once Held Dear" (song 59).
+  Its SongVideo was `published` with a null `asset_disk`, so publicly released in
+  this local database. **Withdrawn and held** under a new
+  `song_identity_contradicted_by_transcript` flag; withdrawal alone is not durable,
+  because `additional_song_matches` is now null and the `unresolved_multiple_songs`
+  gate no longer fires on it.
+
+  Detected by resolving the hymn number the transcript announces against the
+  section's assigned song. Corpus-wide that names **11 of 58 checkable published
+  song sections**, but every one except §386 is quarantined, so §335 was the only
+  exposure — and §386 is a false positive (its transcript names the title
+  "immortal honors" and the lyrics match; only the spoken number is off by one).
+  **Precision is around 50%, so this is a review signal and not a gate**; the
+  remaining candidates worth adjudicating are §1121, §1254, §3212 and §3218, all
+  quarantined.
 - [ ] **P8-Q10 — re-measured 2026-09-10 from banked evidence; the two stale counts
   resolve differently than expected, and the live re-evaluation the earlier census
   performed is no longer reproducible.**
@@ -6077,7 +6121,32 @@ becomes a song video can never reach the release gate at all.
   still records the pre-clamp candidate and its `release_eligible` decision. It is
   now inert — the hold refuses the section at every gate — but re-deriving song
   boundary evidence belongs with **P8-Q10**, which already owes a re-measurement.
-- [ ] **P8-Q7:** settle four duplicate-performance pairs and their correct identities.
+- [ ] **P8-Q7 — evidenced 2026-09-10; the canonical row in each pair is identified,
+  and only the membership repair is left.** All eight sermons are quarantined, so
+  nothing here is public and nothing is urgent.
+
+  Asking each pair for its day of the week settles it, and the answer is the same
+  shape four times: **one row falls on a real service day and names a raw capture;
+  the other falls on an adjacent non-service day and is a `[YouTube backup]`
+  re-upload**, whose date is the upload rather than the service.
+
+  | pair | canonical | duplicate | why |
+  |---|---|---|---|
+  | 873 / 1045 | **#873** 2024-12-22 **Sunday**, `2024-12-22 evening.mkv` | #1045 2024-12-23 Monday | `Carols by Candlelight 2024 [YouTube backup].mp4` |
+  | 969 / 1307 | **#1307** 2025-12-21 **Sunday**, `18-00.mkv` | #969 2025-12-22 Monday | `Carols by Candlelight 2025 [YouTube backup].mp4` |
+  | 1167 / 1168 | **#1167** 2022-12-11 **Sunday** | #1168 2022-12-10 Saturday | its own filename says "Sunday 10th December 2022", and 10 Dec 2022 was a Saturday — the filename contradicts itself |
+  | 1296 / 1297 | **#1296** 2020-04-12 **Sunday** | #1297 2020-04-11 Saturday | both are titled "Easter Sunday"; Easter Sunday 2020 was 12 April |
+
+  This is more than the filename dates the earlier note rightly refused to act on:
+  the day of the week is independent of the filename, the two Easter rows agree on
+  the event and disagree with the calendar, and #1168's filename is internally
+  inconsistent. Combined with the envelope correlations of 0.973–1.000 already
+  recorded, each pair is one performance recorded once and imported twice.
+
+  *Left deliberately undone:* the membership repair itself. Merging or retiring a
+  sermon row is an editorial mutation, and with all eight quarantined there is no
+  pressure to make it before the operator confirms the reading above. Do not delete
+  either row until then, and keep both in the same evaluation split.
 - [ ] Complete held-out source/output validation and evidence packets for genuine
   ambiguities; resolve source identity, metadata and remaining failed/no-sermon runs.
   Speaker identification remains separately paused and review-required.

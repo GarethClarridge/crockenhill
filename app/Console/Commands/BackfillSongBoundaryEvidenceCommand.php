@@ -34,6 +34,22 @@ class BackfillSongBoundaryEvidenceCommand extends Command
 
     protected $description = 'Assess and bank boundary evidence for song sections that hold none';
 
+    /**
+     * Whether the banked candidate's bound has drifted from the section's own,
+     * beyond a tolerance that ignores float representation.
+     *
+     * Written as literal strings rather than built with sprintf: `whereRaw()`
+     * accepts only a literal-string, which is what keeps interpolated SQL out of
+     * the query builder.
+     */
+    private const CandidateStartDisagrees = 'ABS(CAST(JSON_UNQUOTE(JSON_EXTRACT(metadata, "$.'
+        .SongPublicationBoundaryEvidenceService::METADATA_KEY
+        .'.candidate.start_time")) AS DECIMAL(14,3)) - start_time) > 0.01';
+
+    private const CandidateEndDisagrees = 'ABS(CAST(JSON_UNQUOTE(JSON_EXTRACT(metadata, "$.'
+        .SongPublicationBoundaryEvidenceService::METADATA_KEY
+        .'.candidate.end_time")) AS DECIMAL(14,3)) - end_time) > 0.01';
+
     public function handle(SongBoundaryEvidenceBackfill $backfill): int
     {
         $sections = $this->sectionsQuery()->get();
@@ -155,10 +171,25 @@ class BackfillSongBoundaryEvidenceCommand extends Command
      */
     private function sectionsQuery(): Builder
     {
+        $key = SongPublicationBoundaryEvidenceService::METADATA_KEY;
+
         $query = ServiceSection::query()
             ->notSuperseded()
             ->where('section_type', ServiceSectionType::Song->value)
-            ->whereNull('metadata->'.SongPublicationBoundaryEvidenceService::METADATA_KEY)
+            ->where(function (Builder $query) use ($key): void {
+                /*
+                 * Absent evidence and stale evidence are the same problem. A
+                 * banked candidate whose bounds disagree with the section's own
+                 * describes a clip that no longer exists — P8-Q17's clamp left
+                 * exactly this behind — and reading it as though it still spoke
+                 * for the section is the fail-open half of this item. Deriving
+                 * membership from the disagreement means a bounds change heals
+                 * itself on the next pass rather than needing to be remembered.
+                 */
+                $query->whereNull('metadata->'.$key)
+                    ->orWhereRaw(self::CandidateStartDisagrees)
+                    ->orWhereRaw(self::CandidateEndDisagrees);
+            })
             ->orderBy('id');
 
         if (! (bool) $this->option('include-not-applicable')) {
