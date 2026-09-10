@@ -6,13 +6,13 @@ namespace App\Services\Media\Video;
 
 use App\Enums\HistoricVideoCorroborationGrade;
 use App\Enums\SermonService;
+use App\Services\Media\PacketCountedMediaDuration;
 use FFMpeg\FFProbe;
 use FilesystemIterator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use RuntimeException;
 use SplFileInfo;
-use Symfony\Component\Process\Process;
 use Throwable;
 
 /**
@@ -48,6 +48,10 @@ class HistoricVideoCurationDraft
      * per service date, split into the two Sunday services.
      */
     private const IDENTITY_PATTERN = '#\A(?<date>\d{4}-\d{2}-\d{2})/(?<service>Morning|Evening)/[^/]+\z#';
+
+    public function __construct(
+        private readonly PacketCountedMediaDuration $packetCountedDuration,
+    ) {}
 
     /**
      * @return array{
@@ -251,61 +255,16 @@ class HistoricVideoCurationDraft
     }
 
     /**
-     * The 2020 corpus contains WebM pulled down as YouTube backups, and those
-     * carry no duration in either the format or the stream header — the ordinary
-     * probe returns N/A for roughly a tenth of the corpus, every one of which is
-     * a full-length service that would otherwise be graded "unknown" and quietly
-     * excluded from corroboration.
+     * Minutes from the packet count, for a container that declares no duration.
      *
-     * Counting packets and dividing by the frame rate recovers the real length.
-     * It costs about a second per file because ffprobe reads packet headers
-     * rather than decoding, and it reproduces the operator's hand-measured
-     * durations exactly.
+     * The measurement itself lives in {@see PacketCountedMediaDuration}, which
+     * P8-Q17's source-duration backfill needs for the same reason curation does:
+     * a YouTube-backup WebM answers `N/A` in every duration field it has.
      */
     private function durationMinutesFromPacketCount(string $absolutePath): ?float
     {
-        $process = new Process([
-            (string) config('media-processing.ffmpeg.ffprobe_path'),
-            '-v', 'error',
-            '-select_streams', 'v:0',
-            '-count_packets',
-            '-show_entries', 'stream=nb_read_packets,avg_frame_rate',
-            '-of', 'default=noprint_wrappers=1',
-            $absolutePath,
-        ]);
+        $seconds = $this->packetCountedDuration->seconds($absolutePath);
 
-        try {
-            $process->setTimeout(300)->run();
-        } catch (Throwable) {
-            return null;
-        }
-
-        if (! $process->isSuccessful()) {
-            return null;
-        }
-
-        $values = [];
-
-        foreach (explode("\n", $process->getOutput()) as $line) {
-            if (str_contains($line, '=')) {
-                [$key, $value] = explode('=', trim($line), 2);
-                $values[$key] = $value;
-            }
-        }
-
-        $packets = $values['nb_read_packets'] ?? null;
-        $frameRate = $values['avg_frame_rate'] ?? null;
-
-        if (! is_numeric($packets) || ! is_string($frameRate) || ! str_contains($frameRate, '/')) {
-            return null;
-        }
-
-        [$numerator, $denominator] = array_map('floatval', explode('/', $frameRate, 2));
-
-        if ($denominator <= 0.0 || $numerator <= 0.0 || (float) $packets <= 0.0) {
-            return null;
-        }
-
-        return (float) $packets / ($numerator / $denominator) / 60.0;
+        return $seconds === null ? null : $seconds / 60.0;
     }
 }

@@ -5644,18 +5644,29 @@ tails, and distinguish a genuinely truncated source from a complete song. This
 screen had positive stored duration for 411/446 runs; the other 35 cannot be given
 a bounds pass from that field. Resolve their duration before the release census.
 
+**CLOSED 2026-09-10 — see the exit-gate entry for the full finding.** The cause was
+`ChurchServiceTranscript::fromCues()` taking `max($duration, $lastCueEnd)`, letting
+Whisper's padded final cue ("Thank you.", in all 18 cases) lengthen the recording.
+Fixed at source; 18 bounds clamped reversibly; §3704 held as genuinely truncated;
+all 35 missing durations recovered by packet count.
+
 There are also **14 adjacent section overlaps greater than one second**, including
 sermon/song and children's-talk/song joins. Inclusive overlap is allowed by design;
 these are registered boundary-review candidates, not automatically 14 defects.
 Do not apply blanket snapping/clamping that removes real speech or song starts.
 
 **P8-Q16, high priority: flags must be enforced against current evidence at the
-point of action.** Code inspection found three separate gaps. **Gap 2 closed
-2026-09-09 (`dfb00d364`); gap 3 closed 2026-09-09; gap 1 remains open.**
+point of action.** Code inspection found three separate gaps. **All three are now
+closed: gap 2 (`dfb00d364`), gap 3 (`1741ecb32`) and gap 1 (`1199a4de8`), all
+2026-09-09.**
 
 1. `PrepareSectionPublicationCandidates::handle()` skips already
    published sections before today's policy, leaving the 38 retrospective holds
    without automatic reconciliation of their generated assets.
+
+   **CLOSED 2026-09-09** (`1199a4de8`). A published section whose own state stopped
+   supporting it is demoted: 16 demoted, 5 song videos quarantined, 0 refused, and
+   no published section is held for review any more.
 2. `AutoPublishServiceSection::handle()` reloads/locks a section but does not
    re-evaluate its current review reasons, policy or retired-run status before
    dispatching to the handler. A queued action can outlive its eligibility.
@@ -5779,13 +5790,22 @@ is actually left. Every figure below was measured, not carried forward.
 Processing completion and successful recovery execution are still not acceptance
 tests.
 
-**Current census.** Operation 4: **413 completed / 3 failed**. Review queue:
-**291 sections across 162 runs**. Historic corpus: **442 quarantined sermons**,
-**469 quarantined song videos**, **485 published sections** (none held), **54
-publicly released song videos**. The release gate refuses **84 of 442 sermons and
-15 of 469 song videos** — down from 188 sermons, because the recovery,
-regeneration and flag-verdict passes below cleared the holds rather than because
-the gate was relaxed.
+**Current census, re-measured 2026-09-10.** Operation 4: **413 completed / 3
+failed**. Review queue: **292 sections across 163 runs**. Historic corpus: **442
+quarantined sermons**, **469 quarantined song videos**, **485 published sections**
+(none held), **54 publicly released song videos**. The release gate refuses **84 of
+442 sermons and 15 of 469 song videos** — down from 188 sermons, because the
+recovery, regeneration and flag-verdict passes below cleared the holds rather than
+because the gate was relaxed.
+
+The queue moved by exactly one from the 2026-09-09 reconciliation: P8-Q17 held
+§3704, and nothing else changed. **The release-gate figures did not move, and that
+is correct rather than an oversight.** §3704 has no song video yet, and
+`section_truncated_by_source` is not a span-questioning flag, so it cannot refuse
+run 1068's sermon. The hold binds *earlier* than the release gate — at
+`PrepareSectionPublicationCandidates` and `AutoPublishServiceSection` — which is
+where a `pending_approval` section has to be stopped, because a section that never
+becomes a song video can never reach the release gate at all.
 
 - [x] Bulk queue drained: **413 completed / three failed** active operation-4 runs.
 - [x] Previously identified 60 transcript-span repairs/reanalyses, region-wise
@@ -5831,15 +5851,72 @@ the gate was relaxed.
   evidence) predate the recovery, regeneration and demotion passes and have **not**
   been re-measured; treat them as stale rather than as current findings. Mixed-song
   outputs still need withholding or correction.
-- [ ] **P8-Q17 — measured 2026-09-09, unchanged and now sized.** **16 sections end
-  16.8–29.7 seconds past their own source**, reproducing the review's range
-  exactly. Fifteen are closing `other` sections at `not_applicable`; **§3704 (run
-  1068, O Church Arise) is a `song` at `pending_approval` carrying no review flag**,
-  ending 28.55s past the end of its media, so it could be approved and published
-  with a boundary that does not physically exist. Separately, **47 runs hold no
-  source duration at all** and so cannot be bounds-checked (the review said 35);
-  **37 of those still have their source on disk**, so the duration is recoverable
-  by probing rather than lost.
+- [x] **P8-Q17 — CLOSED 2026-09-10. Root cause found, fixed at source, and every
+  impossible bound resolved.** **No section now ends past its own media.**
+
+  **The cause was one `max()`.** `ChurchServiceTranscript::fromCues()` computed
+  `duration: max($duration, $lastCueEnd, …)`, and every caller passes the
+  *measured* length of the audio the cues came from — so that `max()` could only
+  ever move the answer the wrong way. Whisper pads a final partial window out to
+  a full window and transcribes the padding; across all 18 affected runs that cue
+  reads **"Thank you."** and nothing else. The inflated duration reached structure
+  detection, which ended the closing section there, and FFmpeg — which stops at
+  EOF whatever it is asked for — then emitted a clip shorter than the row claimed.
+  **§3704's row said 52.01s; its video on disk is 23.43s.** The asset was right
+  all along; only the row was wrong. Fixed so a positive supplied duration is
+  authoritative: cue and window ends are clamped to it and intervals wholly beyond
+  it are dropped, with the cue-extent fall-back kept for `duration <= 0`. Stored
+  transcripts read back unchanged, because their own stored duration is already
+  the inflated one — this stops new inflation rather than rewriting the corpus.
+
+  **18 sections clamped, not 16.** The extra two (§4808 run 1355, §4498 run 1357)
+  were invisible until the durations below were recovered, and carry the identical
+  signature: one overrunning cue, 25–28s. Seventeen are closing `other` at
+  `not_applicable` whose invented tail simply goes; **§3704 (run 1068, O Church
+  Arise) is held** by the new `section_truncated_by_source` flag, so it is refused
+  by `PrepareSectionPublicationCandidates` and by `AutoPublishServiceSection` —
+  the Q16 gates carry it with no further change. Review queue +1, which is the
+  correct cost: it was `release_eligible` with a boundary that does not physically
+  exist. Filler is clamped but not held; there is no decision to queue.
+
+  The release-gate counts are deliberately unchanged at 84/15. §3704 has no song
+  video yet and `section_truncated_by_source` is not a span-questioning flag, so
+  `HistoricReleaseReviewHolds` has nothing to refuse — it would refuse the song
+  video if one were ever generated, but the hold has already stopped the section
+  two gates earlier, which is where a `pending_approval` section must be caught.
+
+  **The clamp is reversible and the hold is derived.** The detector's claim is
+  preserved at `source_bounds.recorded_end` and the overrun is measured from it
+  every run, so a re-run is a no-op that still shows its working (verified: 18
+  unchanged), and a restage supplying a longer source restores the original bound
+  and withdraws the hold. Deriving the overrun from `end_time` instead would have
+  inverted the flag on the second pass, since a clamped section ends exactly at
+  the measured duration.
+
+  **All 35 missing durations recovered.** Measured counts, which do not match the
+  figures recorded on 2026-09-09: **42 runs held no positive duration, not 47**
+  (7 remain plus the 35 recovered). **36 of those held sections** — the 35
+  recoverable ones and the `seed-prodigal-son-processing` fixture, which is not
+  corpus. The remaining six hold no sections at all and are owed no bounds check.
+  The earlier 47/37 could not be reproduced and no scoping was found that yields
+  them; treat 42/36/35 as the measured figures. **The durations were never lost —
+  they never existed.** These are YouTube
+  live-capture WebM, which declare no duration in the format *or* the stream
+  headers; `ffprobe` answers `N/A` in every field, which is why the pipeline stored
+  null. Recovered by packet count — the measurement
+  `HistoricVideoCurationDraft` has used on this corpus since it was drafted, now
+  extracted to `PacketCountedMediaDuration` so both callers share it. It agreed
+  with an independent full demux to 0.03s. Identity is checked against the approved
+  manifest size before any duration is believed, with `--verify-hash` for
+  byte-identity.
+
+  Commands: `historic-import:backfill-source-durations` then
+  `historic-import:screen-section-bounds`, both dry-run by default.
+
+  *Left open, deliberately:* §3704's banked `publication_candidate_boundary_evidence`
+  still records the pre-clamp candidate and its `release_eligible` decision. It is
+  now inert — the hold refuses the section at every gate — but re-deriving song
+  boundary evidence belongs with **P8-Q10**, which already owes a re-measurement.
 - [ ] **P8-Q7:** settle four duplicate-performance pairs and their correct identities.
 - [ ] Complete held-out source/output validation and evidence packets for genuine
   ambiguities; resolve source identity, metadata and remaining failed/no-sermon runs.

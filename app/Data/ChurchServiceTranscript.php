@@ -38,6 +38,25 @@ final readonly class ChurchServiceTranscript extends JsonData
      * Cues with empty text or non-numeric timings are dropped; end times are
      * clamped to be at least the start time; cues are sorted chronologically.
      *
+     * **A supplied positive duration is the recording's true length and wins.**
+     * Every caller measures the audio the cues were produced from — the API's
+     * reported duration, `getAudioDuration()`, a retry clip's own length — so a
+     * cue reaching past it is describing time the media does not contain, and
+     * cue ends and unobservable windows are clamped back to it. Whisper pads a
+     * final partial window out to a full window and transcribes the padding,
+     * which is where those cues come from: across the historic corpus every one
+     * of them reads "Thank you.".
+     *
+     * This used to take `max($duration, $lastCueEnd)`, which let that padding
+     * lengthen the recording. P8-Q17 traced 16 impossible section ends to it:
+     * structure detection reads this duration, ended the closing section at the
+     * hallucinated cue, and FFmpeg — which stops at EOF whatever it is asked
+     * for — then emitted a clip shorter than the row claimed. §3704's row said
+     * 52.01s and its video is 23.43s.
+     *
+     * The fall-back to cue extent survives for `$duration <= 0`, where nothing
+     * measured the media and the cues are the only evidence of its length.
+     *
      * @param  array<int, mixed>  $cues
      * @param  array<int, mixed>  $unobservableWindows
      */
@@ -74,16 +93,62 @@ final readonly class ChurchServiceTranscript extends JsonData
 
         usort($normalised, static fn (array $left, array $right): int => $left['start'] <=> $right['start']);
 
-        $lastCueEnd = $normalised === [] ? 0.0 : max(array_column($normalised, 'end'));
         $normalisedWindows = self::normaliseUnobservableWindows($unobservableWindows);
+        $measured = $duration > 0.0 ? $duration : null;
+
+        if ($measured !== null) {
+            $held = [];
+
+            foreach ($normalised as $cue) {
+                $end = self::heldWithin($cue['start'], $cue['end'], $measured);
+
+                if ($end !== null) {
+                    $held[] = ['start' => $cue['start'], 'end' => $end, 'text' => $cue['text']];
+                }
+            }
+
+            $normalised = $held;
+            $heldWindows = [];
+
+            foreach ($normalisedWindows as $window) {
+                $end = self::heldWithin($window['start'], $window['end'], $measured);
+
+                if ($end !== null) {
+                    $heldWindows[] = ['start' => $window['start'], 'end' => $end, 'reason' => $window['reason']];
+                }
+            }
+
+            $normalisedWindows = $heldWindows;
+        }
+
+        $lastCueEnd = $normalised === [] ? 0.0 : max(array_column($normalised, 'end'));
         $lastWindowEnd = $normalisedWindows === [] ? 0.0 : max(array_column($normalisedWindows, 'end'));
 
         return new self(
             cues: $normalised,
-            duration: max(0.0, $duration, $lastCueEnd, $lastWindowEnd),
+            duration: $measured ?? max(0.0, $lastCueEnd, $lastWindowEnd),
             source: $source,
             unobservableWindows: $normalisedWindows,
         );
+    }
+
+    /**
+     * The end this interval may keep inside a recording of `$duration`, or null
+     * where the interval lies wholly outside it.
+     *
+     * An interval starting at or after the end is dropped outright — there is
+     * no media under any of it. One that merely overruns is truncated, because
+     * the part before the end is real: the padded final window of a 2370.34s
+     * recording still covers its last 0.16 seconds of genuine audio, and
+     * discarding the whole cue would throw that away with the padding.
+     *
+     * Only the timings are judged. Whether the text over a surviving sliver is
+     * a hallucination is a separate question this cannot answer, and answering
+     * it here would delete evidence on a guess.
+     */
+    private static function heldWithin(float $start, float $end, float $duration): ?float
+    {
+        return $start >= $duration ? null : min($end, $duration);
     }
 
     public static function fromArray(mixed $value): self

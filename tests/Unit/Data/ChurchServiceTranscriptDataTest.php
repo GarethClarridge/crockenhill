@@ -48,12 +48,49 @@ class ChurchServiceTranscriptDataTest extends TestCase
         $this->assertSame(120.0, $transcript->duration);
     }
 
+    /**
+     * P8-Q17. This asserted the opposite until 2026-09-10: a cue overrunning the
+     * measured duration used to lengthen the recording. That is how 16 sections
+     * came to end up to 29.7 seconds past media that stops sooner.
+     */
     #[Test]
-    public function duration_is_extended_to_cover_the_final_cue(): void
+    public function a_measured_duration_is_not_extended_by_an_overrunning_cue(): void
     {
         $transcript = ChurchServiceTranscript::fromCues([
             ['start' => 0.0, 'end' => 200.0, 'text' => 'Cue running past the reported duration.'],
         ], 150.0, ChurchServiceTranscript::SOURCE_MOCK);
+
+        $this->assertSame(150.0, $transcript->duration);
+        $this->assertSame(150.0, $transcript->cues[0]['end'], 'The overrunning cue is truncated, not dropped.');
+    }
+
+    #[Test]
+    public function cues_and_windows_beyond_the_measured_duration_are_dropped(): void
+    {
+        $transcript = ChurchServiceTranscript::fromCues(
+            [
+                ['start' => 100.0, 'end' => 140.0, 'text' => 'Inside the recording.'],
+                ['start' => 150.0, 'end' => 180.0, 'text' => 'Thank you.'],
+            ],
+            150.0,
+            ChurchServiceTranscript::SOURCE_LOCAL_WHISPER,
+            [
+                ['start' => 0.0, 'end' => 100.0, 'reason' => 'retranscription_failed'],
+                ['start' => 160.0, 'end' => 190.0, 'reason' => 'retranscription_failed'],
+            ],
+        );
+
+        $this->assertSame(['Inside the recording.'], array_column($transcript->cues, 'text'));
+        $this->assertCount(1, $transcript->unobservableWindows);
+        $this->assertSame(100.0, $transcript->unobservableWindows[0]['end']);
+    }
+
+    #[Test]
+    public function cue_extent_still_supplies_the_duration_when_nothing_measured_the_media(): void
+    {
+        $transcript = ChurchServiceTranscript::fromCues([
+            ['start' => 0.0, 'end' => 200.0, 'text' => 'The only evidence of how long this is.'],
+        ], 0.0, ChurchServiceTranscript::SOURCE_MOCK);
 
         $this->assertSame(200.0, $transcript->duration);
     }
