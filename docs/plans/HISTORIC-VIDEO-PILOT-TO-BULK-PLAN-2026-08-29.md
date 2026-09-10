@@ -5943,9 +5943,53 @@ becomes a song video can never reach the release gate at all.
   on. Whether to finish #909 or leave it closed is an operator decision, but it is no
   longer forced by the media.
 
-  *Still open:* running those two passes, and §3704's stale banked evidence, which
-  re-derives with its run's batch. Mixed-song outputs still need withholding or
-  correction.
+  **Pass one EXECUTED 2026-09-10; run #909 finished.** New command
+  `service:backfill-song-boundary-evidence` (dry-run by default, membership
+  re-derived from the absence of the evidence so a re-run is a no-op) assessed all
+  96 sections inside each run's own staging context. **64 banked, 37 newly held**;
+  `service:demote-held-publications --all --apply` then demoted **34** to
+  `not_applicable` — **0 song videos quarantined and 0 publicly visible**, because
+  every one is a quarantined historic import. This corrected state rather than
+  withdrawing anything public. Reasons named: spoken framing exceeding the limit 18,
+  spoken framing 13, short clip 8, trailing content 6, uncorroborated partial
+  recording 3, adjacent same song 2 — framing dominating is consistent with the
+  2026-09-04 finding that long framing is a house style the gate is right to name.
+
+  Two rules the command encodes, both of them this item's own lesson: an unreadable
+  input is **reported and never banked**, because recording "we could not look" in
+  the same shape as "we looked and it was clean" is exactly the confusion P8-Q10
+  is made of; and the dry run states its blast radius, since banking a doubt sets
+  `needs_manual_review` on an already published clip. Demotion stays a separate
+  command — `PublishedSectionReconciler::assess()` keys off `needs_manual_review`,
+  which is what the backfill sets.
+
+  **Run #909 is now `completed`.** Its source was restored from the archive and
+  verified byte-identical, then `PrepareSectionPublicationCandidates::dispatchStandalone()`
+  finished the tail with no error. §326 and §329 remain published; sermon 857 is
+  quarantined and carries a real title rather than the placeholder recorded earlier.
+
+  *Still open — the 32, and they are blocked on a decision rather than on media.*
+  Restoring a source does **not** restore derived artifacts: these runs'
+  `temp/service_transcript_*.json` and `temp/rms_*.log` are reaped, so a transcript
+  and RMS log must be **re-derived** before anything can be assessed. Two obstacles,
+  neither of which should be worked around quietly:
+
+  - **No standalone dispatch path exists** for `GenerateRmsLog` or
+    `TranscribeFullService` — only `PrepareSectionPublicationCandidates` has one.
+    Re-opening the run via `MediaProcessingRunTransitionService::markAsReopened()`
+    and dispatching the chain would continue into `DetectServiceStructure` and
+    **rewrite the published sections' times**, which is the one outcome this whole
+    lane exists to prevent. A narrow two-job path has to be built and tested first.
+  - **The provenance differs, and the banked evidence must say so.** RMS is a
+    deterministic measurement of identical bytes, so it would be exactly what the
+    original was. The transcript would not: the section times came from the
+    *original* transcript, and a re-derived one is independent corroboration of
+    those bounds rather than recovery of the evidence behind them. That is a
+    stronger check in some ways and a different claim in others, and banking it
+    unlabelled would repeat the error this item already records.
+
+  Also still open: §3704's stale banked evidence, which re-derives with its run's
+  batch, and mixed-song outputs, which still need withholding or correction.
 - [x] **P8-Q17 — CLOSED 2026-09-10. Root cause found, fixed at source, and every
   impossible bound resolved.** **No section now ends past its own media.**
 
