@@ -5790,13 +5790,25 @@ is actually left. Every figure below was measured, not carried forward.
 Processing completion and successful recovery execution are still not acceptance
 tests.
 
-**Current census, re-measured 2026-09-10.** Operation 4: **413 completed / 3
-failed**. Review queue: **292 sections across 163 runs**. Historic corpus: **442
-quarantined sermons**, **469 quarantined song videos**, **485 published sections**
-(none held), **54 publicly released song videos**. The release gate refuses **84 of
-442 sermons and 15 of 469 song videos** — down from 188 sermons, because the
+**Current census, re-measured 2026-09-10.** Operation 4: **413 active runs — 410
+completed / 3 failed**. (An earlier revision of this line read "413 completed / 3
+failed"; 413 is the run total, as the census table above already records.) Historic
+corpus: **442 quarantined sermons**, **469 quarantined song videos**, **485 published
+sections** (none held), **54 publicly released song videos**. The release gate refuses
+**84 of 442 sermons and 15 of 469 song videos** — down from 188 sermons, because the
 recovery, regeneration and flag-verdict passes below cleared the holds rather than
 because the gate was relaxed.
+
+**Review queue: state the query with the number.** The previously recorded "292
+sections across 163 runs" could not be reproduced on 2026-09-10 and no scoping was
+found that yields it. The measurable figures, each with the predicate that produces
+it, are: **non-superseded sections with `needs_manual_review` — 265 sections / 153
+runs**; the same plus `pending_approval` sections carrying review flags — **284 /
+157**; and the full contract-C1 candidate set,
+`ServiceReviewDashboardQuery::reviewCandidateSectionCount()` — **853**, which is
+deliberately wider because it also sweeps in all 581 `pending_approval` sections and
+low-confidence structural sections that carry no flag at all. Quote whichever is
+meant, but name the predicate: "queue" without one is not checkable by the next pass.
 
 The queue moved by exactly one from the 2026-09-09 reconciliation: P8-Q17 held
 §3704, and nothing else changed. **The release-gate figures did not move, and that
@@ -5846,11 +5858,60 @@ becomes a song video can never reach the release gate at all.
   published section whose own state stopped supporting it — 16 demoted, 5 song
   videos quarantined, 0 refused, and **no published section is held for review
   any more**.
-- [ ] **P8-Q10 — song policy unverified since these passes.** The recorded counts
-  (38 generated songs failing current policy, 85 with incomplete transcript
-  evidence) predate the recovery, regeneration and demotion passes and have **not**
-  been re-measured; treat them as stale rather than as current findings. Mixed-song
-  outputs still need withholding or correction.
+- [ ] **P8-Q10 — re-measured 2026-09-10 from banked evidence; the two stale counts
+  resolve differently than expected, and the live re-evaluation the earlier census
+  performed is no longer reproducible.**
+
+  **A live re-evaluation now returns a 100% false positive, and must not be trusted.**
+  Calling `SongPublicationReviewPolicy::reviewReasons()` outside a historic staging
+  activation reports **483 of 483** published song sections failing, every one on
+  `song_boundary_evidence_unavailable`. That is the measurement being wrong, not the
+  corpus. `SongPublicationBoundaryEvidenceService::loadInputs()` reads the recorded
+  transcript and RMS keys as **disk-relative**, but historic artifacts live under
+  `historic-batches/<planHash>/`; `HistoricStagingGuard::activate()` rewrites the
+  staging disk root to include that prefix only for the duration of a historic job.
+  Outside it the same path resolves to nothing, `exists()` is false, and the status
+  reads `missing`. It fails closed, so nothing unsafe follows — but it makes the whole
+  corpus look broken. The service's own `song_boundary_evidence_unreadable` (a storage
+  *error*) versus `unavailable` (simply absent) distinction is the tell. Proof it is
+  the measurement: all **837** song sections holding banked `song_publication_boundary`
+  recorded `service_transcript.status = "available"` at bank time on 2026-09-07, from
+  the identical paths that read `missing` today.
+
+  **Measured from banked `song_publication_boundary` / `song_publication_review`
+  metadata instead** (read the raw JSON column — `metadata` casts to the
+  `ServiceSectionMetadata` DTO, so array access on it silently yields nothing):
+
+  | status | banked boundary | none banked |
+  |---|---:|---:|
+  | `published` | 390, all `release_eligible`, **0 carrying any review reason** | **93** |
+  | `pending_approval` | 432 — 392 `review`, 40 `release_eligible` | 3 |
+  | `not_applicable` | 15 | 322 |
+
+  - *"38 generated songs failing current policy"* → **0** published song sections carry
+    a banked policy objection. Published sections are never re-assessed
+    (`requiresApproval()` is not consulted once status is `published`), so this count
+    cannot move on its own. The 431 banked review reasons all sit on
+    `pending_approval`, which is where the real song queue lives.
+  - *"85 with incomplete transcript evidence"* → the closest obtainable analogue is
+    **93 published song sections with no banked boundary evidence at all** — *larger*
+    than the recorded figure. None is operation 4: op2 (12), op3 (49) and
+    non-historic (32). Boundary-evidence banking begins at `version: 1`,
+    `recorded_at` 2026-09-07, so everything published before that pass lacks evidence
+    by construction rather than by defect.
+  - **32 of the 93 are non-historic**, `publication_state = published` with
+    `asset_disk = null`, so they satisfy `publiclyReleased()` **in this local
+    database**. This machine is not a production mirror and production was not read,
+    so that is a class of clip published without boundary evidence, **not** a
+    demonstration of public exposure. Confirming it needs a command on the server.
+  - **§3704's banked evidence is confirmed stale**, as the P8-Q17 entry predicted:
+    `decision: release_eligible`, `risks: []`, `candidate.end_time: 2033` — the
+    pre-clamp bound — and a `short_song_clip` reason still reading "runs 52.0s" when
+    the clamped section is 23.43s. The hold stands; only the recorded detail is stale.
+
+  *Still open:* re-deriving boundary evidence for the 93 (and for §3704) requires
+  running under a staging activation, or an equivalent batch-root-aware reader.
+  Mixed-song outputs still need withholding or correction.
 - [x] **P8-Q17 — CLOSED 2026-09-10. Root cause found, fixed at source, and every
   impossible bound resolved.** **No section now ends past its own media.**
 
