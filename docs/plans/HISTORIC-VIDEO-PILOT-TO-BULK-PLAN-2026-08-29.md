@@ -4930,9 +4930,27 @@ answer for a run that genuinely records no hash at all:
   `historic-import:restage-source` — never a `--force`. It must record which
   evidence admitted the file, so a later reader can tell a hashed restore from an
   RMS-aligned one.
-- [ ] **Re-cut the 14 by the Step 1 procedure** — now the only remaining step, and
-  an operator one. Restore the sources that need it (several are already present)
-  and re-cut.
+- [x] **Re-cut the 14 — EXECUTED 2026-09-10. All 14 completed, 0 failed, and the
+  corpus now holds no stale sermon video at all.**
+
+  Ten sources were restored from the archive and verified byte-identical; four were
+  already present. **All 14 dry-run plans matched what the run already records** —
+  Recorded and Planned spans agree exactly on every one — so this was the pure video
+  correction Step 1 promised: no section moved and no boundary changed.
+
+  **Verification.** `stored_video.observed_duration` against the run's
+  `trim.observed_duration`: **14 of 14 now carry a real signature rather than the
+  pre-signature fallback, and 0 are stale**. Across all 407 op-4 runs holding a
+  sermon, **0 stale**. P8-Q13a is closed.
+
+  **The worker restart was again load-bearing.** The workers had booted at 11:43 and
+  two commits landed after them. Neither touched `app/Jobs`, so the pipeline code was
+  in fact unchanged — but restarting is what guarantees a real signature rather than
+  the fallback, and all 14 came out with one. Verified by PHP process age, never
+  `docker ps`.
+
+  Cost, as predicted: 14 paid `ProcessTranscriptWithAI` calls, serial, and the runs
+  passed through `ai_analysis_completed` before the tail.
 
 Do not reach for `sermons:import-historic-videos --force --only=…`. The batch
 command rejects `--force` on a definitive manifest run by design, and the
@@ -5870,7 +5888,8 @@ becomes a song video can never reach the release gate at all.
   (their sources are present; the earlier census read them as absent from outside
   the run's staging context). The earlier reading took `file_hash` from the *column*
   rather than `recordedSourceFileHash()`, which is the mistake that method exists to
-  prevent. Only the re-cut remains, and it is an operator step. *Still open:* the nine older
+  prevent. **The re-cut was executed 2026-09-10: 14 of 14 completed, 0 failed, 0 stale
+  across all 407 op-4 runs. P8-Q13a is closed.** *Still open:* the nine older
   saved transcripts (#871, #872, #874, #875, #876, #881, #889, #897, #900) —
   none is *owed* a re-derivation, but they predate the content-hash stamps, so
   that reads as **unknown, not current**, and needs a direct text-vs-slice
@@ -6121,32 +6140,107 @@ becomes a song video can never reach the release gate at all.
   still records the pre-clamp candidate and its `release_eligible` decision. It is
   now inert — the hold refuses the section at every gate — but re-deriving song
   boundary evidence belongs with **P8-Q10**, which already owes a re-measurement.
-- [ ] **P8-Q7 — evidenced 2026-09-10; the canonical row in each pair is identified,
-  and only the membership repair is left.** All eight sermons are quarantined, so
-  nothing here is public and nothing is urgent.
+- [x] **P8-Q7 — all four pairs resolved 2026-09-10. Identity is settled for every
+  one, and the repair is NOT the deletion it looked like.** All eight sermons are
+  quarantined, so nothing here is public.
 
-  Asking each pair for its day of the week settles it, and the answer is the same
-  shape four times: **one row falls on a real service day and names a raw capture;
-  the other falls on an adjacent non-service day and is a `[YouTube backup]`
-  re-upload**, whose date is the upload rather than the service.
+  **Two corrections to earlier readings.** The first said each duplicate was a
+  `[YouTube backup]` re-upload dated to the upload day; that was never tested and is
+  not what the evidence shows. The tell that carries two pairs is **whether the
+  service record predates the historic import**: a `church_services` row created in
+  May 2026 came from the email/OpenLP stream independently, whereas one created on
+  2026-09-04 was manufactured *by* the import from the file's own date, so citing it
+  to validate that date is circular.
 
-  | pair | canonical | duplicate | why |
-  |---|---|---|---|
-  | 873 / 1045 | **#873** 2024-12-22 **Sunday**, `2024-12-22 evening.mkv` | #1045 2024-12-23 Monday | `Carols by Candlelight 2024 [YouTube backup].mp4` |
-  | 969 / 1307 | **#1307** 2025-12-21 **Sunday**, `18-00.mkv` | #969 2025-12-22 Monday | `Carols by Candlelight 2025 [YouTube backup].mp4` |
-  | 1167 / 1168 | **#1167** 2022-12-11 **Sunday** | #1168 2022-12-10 Saturday | its own filename says "Sunday 10th December 2022", and 10 Dec 2022 was a Saturday — the filename contradicts itself |
-  | 1296 / 1297 | **#1296** 2020-04-12 **Sunday** | #1297 2020-04-11 Saturday | both are titled "Easter Sunday"; Easter Sunday 2020 was 12 April |
+  **The second correction matters more. Deleting the duplicate would throw away the
+  better master in three of the four pairs.**
 
-  This is more than the filename dates the earlier note rightly refused to act on:
-  the day of the week is independent of the filename, the two Easter rows agree on
-  the event and disagree with the calendar, and #1168's filename is internally
-  inconsistent. Combined with the envelope correlations of 0.973–1.000 already
-  recorded, each pair is one performance recorded once and imported twice.
+  | pair | canonical identity | its media | duplicate's media |
+  |---|---|---|---:|
+  | 873 / 1045 | **#873** Sun 2024-12-22 | 1080p, 2.66 Mbps, 870 MB | **8.01 Mbps, 3427 MB** |
+  | 969 / 1307 | **#1307** Sun 2025-12-21 | 1080p, bitrate unreportable, 1207 MB | **11.39 Mbps, 5204 MB** |
+  | 1167 / 1168 | **#1167** Sun 2022-12-11 | 1080p, 9.55 Mbps, 4519 MB | identical file, 9.55 Mbps, 4519 MB |
+  | 1296 / 1297 | **#1296** Sun 2020-04-12 | **720p**, 0.88 Mbps, 142 MB | **1080p, 21.74 Mbps, 3518 MB** |
 
-  *Left deliberately undone:* the membership repair itself. Merging or retiring a
-  sermon row is an editorial mutation, and with all eight quarantined there is no
-  pressure to make it before the operator confirms the reading above. Do not delete
-  either row until then, and keep both in the same evaluation split.
+  So the resolution splits in two, and only 1167/1168 is a plain duplicate:
+  **keep the canonical row's identity and date, but adopt the *other* row's file as
+  the source.** Retiring the mis-dated row first would destroy the better recording.
+
+  **Evidence per pair.**
+  - **873/1045** and **1167/1168** — the canonical service record predates the import
+    by four months (`cs#617` and `cs#425`, both 2026-05-08) while the duplicate's was
+    import-created. 1168's filename also contradicts itself: "Sunday 10th December
+    2022", and 10 Dec 2022 was a Saturday. 1167/1168's files are byte-equal in size
+    and bitrate, so that pair alone is a straight double import.
+  - **969/1307** — both records import-created, so creation date proves nothing. The
+    **Sunday** record holds a clean carol liturgy (*O Little Town*, *Once in Royal
+    David's City*, *Hark the Herald*, *While Shepherds Watched*); the Monday record
+    has duplicate positions at 2, 4, 5 and 7 and merged content including the Herod
+    sermon title. Note the "corrupted duplicate" tell does **not** generalise — in
+    the 2024 pair *both* records carry colliding positions and carol songs.
+  - **1296/1297 — investigated 2026-09-10 and now settled, not merely probable.**
+    Neither date came from file metadata: both were taken from the **archive
+    directory path** the manifest recorded, `2020-04-12/Morning/…` and
+    `2020-04-11/Morning/…`. Each directory holds exactly one file. The mis-filing is
+    in the archive, not the import. Their mtimes date it: the correctly-filed 720p
+    copy is from **2023-12-28**, while the 1080p master under `2020-04-11` was
+    written **2026-07-30** — during the archive reorganisation whose plan file still
+    sits at the drive root. Both files are named "Easter Sunday_ Sermon", and Easter
+    Sunday 2020 was **12 April**. So a high-quality master was produced during the
+    reorg and filed one day early.
+
+  Combined with the envelope correlations of 0.973–1.000 against a 0.186–0.222
+  control, each pair is one performance recorded once and imported twice.
+
+  **Resolution taken 2026-09-10: retire the one true duplicate, defer the rest.**
+
+  **1167/1168 is retired.** Its two files share the *same* sha256
+  (`d4cc4a987e6d1f05`) — one file imported under two archive paths — so there is no
+  better master to preserve and nothing to weigh. Run **1249 is now recorded as
+  superseded by run 1248**, which is precisely what that column pair means: two runs
+  projecting the same service, one authoritative. Review candidates fell 901 → 898 and
+  sermon #1168 stays quarantined. Supersession is not deletion; both rows survive for
+  audit.
+
+  Note this had to be written directly rather than through
+  `ProcessingRunSupersessionService`, whose docblock describes this exact case ("the
+  same livestream uploaded twice"). It reconciles runs **matched to one service**, and
+  these two sit on different dates, so each service sees only its own run and it
+  supersedes nothing. Re-pointing the loser at the real service first would leave its
+  sections referencing another service's OoS items, which is a worse state than the
+  one being fixed.
+
+  **The other three are deferred to Phase 9's release manifest, and must not be
+  "deduplicated" by deleting a row.** In every one, the mis-dated row holds the
+  *better* master, so retiring it destroys the best recording of that service:
+
+  | pair | canonical identity | its media | the duplicate's media |
+  |---|---|---:|---:|
+  | 873 / 1045 | #873 | 2.66 Mbps, 870 MB | **8.01 Mbps, 3427 MB** |
+  | 969 / 1307 | #1307 | bitrate unreportable, 1207 MB | **11.39 Mbps, 5204 MB** |
+  | 1296 / 1297 | #1296 | **720p**, 0.88 Mbps, 142 MB | **1080p, 21.74 Mbps, 3518 MB** |
+
+  **And the obvious repair is forbidden, correctly.** `historic-import:restage-source`
+  compares a candidate against the canonical run's own recorded hash, and the better
+  master is a different file, so it refuses all three — `e441e253` vs `02645a36`,
+  `529f722a` vs `ffd8d2ab`, `4ff2dbe5` vs `35ed3e76`. That rule exists because the
+  canonical run's transcript and section times are timed against its own source;
+  dropping a different encode underneath them is the substitution it prevents. **This
+  is the case the RMS-alignment acceptance path was designed for** — void for the
+  P8-Q13a fourteen, which had hashes, but live here.
+
+  A cheaper alternative exists and is *not* obviously safe: the mis-dated row is
+  already internally consistent, so correcting its date and retiring the other costs
+  nothing. But it flips which row survives, and the health data does not point one
+  way — #1045 carries 21 sections to #873's 14, with 4 holds to 1. That could mean the
+  higher-bitrate source resolved more structure, or that the corrupted Monday service
+  record it aligned against produced spurious sections. Those have opposite
+  implications, and media quality alone cannot separate them.
+
+  **Archive corrected 2026-09-10**: the 1080p Easter master was moved from
+  `2020-04-11/Morning/` to `2020-04-12/Morning/`, verified byte-identical either side
+  of the move (`35ed3e76…`), and the emptied `2020-04-11` directory removed. Run
+  1375's manifest still records the old path, which is now stale by design.
 - [ ] Complete held-out source/output validation and evidence packets for genuine
   ambiguities; resolve source identity, metadata and remaining failed/no-sermon runs.
   Speaker identification remains separately paused and review-required.
