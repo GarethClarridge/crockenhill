@@ -239,14 +239,7 @@ class SubmitToProcessing implements ShouldQueue
             'segment_end_time' => $this->processingLog->sermon_end_time,
         ];
 
-        $duration = $this->processingLog->observedSermonMediaDuration();
-
-        if ($duration === null
-            && $this->processingLog->sermon_start_time !== null
-            && $this->processingLog->sermon_end_time !== null
-            && $this->processingLog->sermon_end_time > $this->processingLog->sermon_start_time) {
-            $duration = $this->processingLog->sermon_end_time - $this->processingLog->sermon_start_time;
-        }
+        $duration = $this->processingLog->sermonDurationForRecord();
 
         if ($duration !== null) {
             $updates['duration'] = $duration;

@@ -4959,9 +4959,29 @@ importer's resume-completed short-circuit runs before the force check anyway.
 is **stale** — worth correcting when the 14 are picked up.
 
 - [x] **P8-Q13a step 1 DONE 2026-09-09** — 30 of 30 repaired and verified; steps 2 and 3 as recorded above.
-- [ ] P8-Q13b: establish which writer sets `sermons.duration` for the #871–#891
-  range and whether the stale value has downstream readers. Do not "correct" the
-  column from the media until that is known; the divergence is itself evidence.
+- [x] **P8-Q13b ANSWERED AND REPAIRED 2026-09-10.** The writer is
+  `SermonCreationOptions::resolvedDuration()`'s **outer-bounds fallback**, reached
+  from `SubmitToProcessing`. That factory passes
+  `duration: $log->observedSermonMediaDuration()`; when `trim.observed_duration` is
+  absent the DTO falls back to `segmentEndTime - segmentStartTime` — the true source
+  *window*, which for a `concat_spans` plan includes the gap between spans and so
+  describes material the emitted media never held. Same defect family as P8-Q1: outer
+  bounds standing in for the spans the media was cut from.
+
+  **The causal test is clean.** Of 201 concat runs, **193 carry
+  `trim.observed_duration` and exactly 8 do not** — and those 8 are precisely the rows
+  whose column equals the outer window rather than the summed spans: #871 (+727 s),
+  #874 (+284 s), #875 (+546 s), #876 (+62 s), #881 (+887 s), #884 (+394 s),
+  #885 (+298 s), #891 (+253 s), all operation 2 and 3. The earlier census's "7 large
+  ones" is these minus #876.
+
+  Repaired with the existing `historic-import:repair-video-sermon-durations`, whose
+  `measured` source reads the durable asset; every repaired value matched an
+  independent `ffprobe` of the promoted video. `MediaProcessingLog::sermonDurationForRecord()`
+  now supplies the precedence (observed, then `extractedSermonMediaDuration()`, never
+  the outer window) to both the creation and the refresh path, which had each
+  hand-rolled the fallback. Regression coverage in
+  `tests/Integration/Models/SermonDurationForRecordTest.php`.
 
 ##### P8-Q11 — metadata reconciliation needs provenance and freshness
 
@@ -5582,24 +5602,50 @@ inside the sermon. They need evidence the banked notes do not carry.
 
 ##### 3. Stored text, files and dates still need repair or adjudication
 
-**Nine older historic saved transcripts disagree with their current span-derived
-text:** #871, #872, #874, #875, #876, #889, #881, #897 and #900. They retain material
-between intended spans. All **407 operation-4** saved texts agree with their current
-derivation, so the previously executed repair did help; the remaining nine come
-from earlier operations. Agreement proves derivation freshness, not the correctness
-of its source text or spans. Use P8-Q12's repair/reanalysis path after P8-Q14/Q15
-recovery settles the evidence. The new content-hash tracking is useful but all 439
-snapshot runs predate its stamps; unstamped historical analysis is **unknown**, not
-retroactively certified current by the new code.
+**RESOLVED 2026-09-10 — it was six, not nine, and all six are repaired.** Asked
+directly with `historic-import:repair-sermon-transcript-spans`, three of the nine
+(#872, #874, #889) already agreed with their span-derived text: their "unknown" was
+the absence of a stamp, not a disagreement. The other six did retain material between
+spans — #871 18.0%, #875 21.1%, #876 3.1%, #881 25.9%, #897 7.2%, #900 7.4%, **24,218
+characters in all**. Every removal is service material, not preaching: the pastoral
+prayer and hymn between the reading and the sermon (#871), children leaving for their
+lesson (#876), a service leader handing over (#897), and in #881 an ASR loop
+("We're going to sing again." ×14) sitting inside the discarded region. Each repaired
+text resumes exactly at the sermon's own opening.
+
+The six were re-analysed — `--execute` then `--execute --reanalyse`, six jobs, no
+failures — and every run now reports `analysisIsOwed() === false`. The banked titles
+match the recovered text (#871 Joshua 8 covenant renewal, #881 Psalm 77, #897 Job,
+#900 John 8). All **407 operation-4** saved texts continue to agree with their current
+derivation.
+
+Note what the repair does *not* promise. Agreement proves derivation freshness, not the
+correctness of the source text or the spans; and text fidelity here means fidelity to
+the clip, not to English — #900's repaired text cuts mid-sentence at the span boundary
+because the **media cuts there too**.
 
 **43 active sermon videos still differ by more than one second from their recorded
 current `trim.observed_duration`.** These are the active subset of P8-Q13a's 44:
 #1108 belongs to a superseded run and is outside this active census. This is not
 evidence that one video was repaired overnight. The existing exact-member repair
-runbook remains necessary. Sermon **#1005's MP4 is still unreadable** (`moov atom
-not found`), and its generated songs **§1728 / SongVideo #222** and **§1734 /
-SongVideo #223** have missing files on their owning quarantine disk. Repair all
-three artifacts, not only the sermon record.
+runbook remains necessary.
+
+**#1005 RESOLVED 2026-09-10 — nothing was lost; the promotion was.** The sermon MP4
+read `moov atom not found` because its **quarantine copy** was truncated to 1,114,112
+bytes, and both song clips were absent from quarantine — while all three sat intact in
+the run's staging batch (215,377,800 / 20,527,959 / 18,060,093 bytes). The staging
+sermon video probes at **2001.071680 s**, matching the run's `trim.observed_duration`
+to the microsecond. The custody failure is one event, not three artifacts to repair
+separately.
+
+Re-promoted with `historic-import:repair-video-pilot-custody`, 8 assets and
+320,187,046 bytes, after `authoriseVideoReplacementOnPromotion()` — the truncated file
+is a genuine destination conflict and the transfer is right to refuse it unauthorised.
+All three quarantine copies now hash **sha256-identical** to the staging originals.
+
+`sermons:re-extract` was deliberately **not** used. It re-runs
+`SermonExtractionPlanResolver`, which can resolve different spans than the recorded
+plan — so a command meant to restore a byte-correct artifact could quietly change it.
 
 The audio/video comparison found **407/436** pairs with correlation ≥0.95 at all
 three sampled positions. Of the 29 exceptions, 26 are already in the stale-video
@@ -5609,10 +5655,26 @@ cohort. Follow-up distinguishes the other three:
   apparent enhancement/noise difference; this is not proof of a wrong passage.
 - #1252's unmeasurable sample is silence in both outputs; following speech matches.
   Its existing incomplete-evidence hold remains relevant.
-- **#1257** changes from a strong match at offset −3.00s to a strong match at
-  −7.78s between later samples. Its video matches `trim.observed_duration`, so
-  this escapes the stale-video duration comparison. Investigate source timestamp
-  discontinuities and separate-audio extraction before certifying completeness.
+- **#1257 CERTIFIED COMPLETE 2026-09-10; the offset finding does not reproduce.**
+  Its audio and video are byte-unchanged since 2026-09-07 06:10, before that sweep
+  ran, and `stored_video`/`re_extraction` are both null, so nothing re-cut them.
+  Measured against each other they agree at **0.00 s across 31 positions** spanning
+  the whole 1,894 s (correlation 0.992–1.000), and at the sweep's own parameters
+  (120 s windows at 300/600/900) in **both** directions: +0.00 audio→video, −0.02
+  video→audio.
+
+  The concern behind the finding is answered properly by comparing the clip to its
+  **source**, which the sweep never did. Against the archive original the clip maps
+  with two different *constant* offsets — **−0.08 s** for span 1 (1973.94–2168.80)
+  and **−0.42 s** for span 2 (2386.46–4085.98) — a 0.34 s step at the concat seam.
+  Each span is internally rigid, so nothing is missing or time-warped; the step is
+  keyframe alignment at each cut point. The one low-correlation sample (0.300 at
+  clip t=180) is the window straddling the seam at 194.86 s, which independently
+  confirms where the seam is.
+
+  "A/V offset" was the wrong frame for the question: audio and video share the same
+  seam, so they step *together* and agree perfectly. The offset only exists between
+  clip and source, and there it is a third of a second.
 
 Small stable offsets are common and can reflect keyframe/encoding behaviour.
 These comparisons are between two outputs, not proof that either contains every
@@ -5889,14 +5951,26 @@ becomes a song video can never reach the release gate at all.
   the run's staging context). The earlier reading took `file_hash` from the *column*
   rather than `recordedSourceFileHash()`, which is the mistake that method exists to
   prevent. **The re-cut was executed 2026-09-10: 14 of 14 completed, 0 failed, 0 stale
-  across all 407 op-4 runs. P8-Q13a is closed.** *Still open:* the nine older
-  saved transcripts (#871, #872, #874, #875, #876, #881, #889, #897, #900) —
-  none is *owed* a re-derivation, but they predate the content-hash stamps, so
-  that reads as **unknown, not current**, and needs a direct text-vs-slice
-  comparison; **#1005's video is present but unreadable** and its song videos
-  **#222/#223 have missing files** (both quarantined, so not publicly exposed);
-  #1257's changing audio/video offset is uninvestigated; and P8-Q13b — which
-  writer sets `sermons.duration` for #871–#891 — is unanswered.
+  across all 407 op-4 runs. P8-Q13a is closed.**
+
+  **P8-Q12/Q13 CLOSED 2026-09-10.** Every remaining item resolved, three of the four
+  by measurement rather than by the work each had been scoped for:
+
+  - The nine older saved transcripts were **six**: #872, #874 and #889 already agreed
+    with their span-derived text. The six that did not are repaired and re-analysed
+    (24,218 characters of prayers, hymns and hand-overs removed), and all six now
+    report `analysisIsOwed() === false`.
+  - **#1005's media was never lost** — the sermon video and both song clips were intact
+    in staging; only the quarantine promotion copies were truncated or absent.
+    Re-promoted, and all three now hash sha256-identical to the staging originals.
+  - **#1257 is certified complete.** Its audio and video agree at 0.00 s across 31
+    positions, on bytes unchanged since before the sweep that flagged them; against the
+    archive source the clip is rigid within each span, offset by 0.08 s and 0.42 s with
+    a 0.34 s step at the concat seam.
+  - **P8-Q13b is answered**: the outer-bounds fallback in
+    `SermonCreationOptions::resolvedDuration()`, reached only by the 8 concat runs with
+    no `trim.observed_duration`. All 8 repaired, and the fallback replaced by
+    `MediaProcessingLog::sermonDurationForRecord()`.
 - [x] **P8-Q16 — all three enforcement gaps closed.** Gap 2 (`dfb00d364`)
   re-asks eligibility under the lock at publish time; gap 3 (`1741ecb32`) refuses
   a release naming content held for review; gap 1 (`1199a4de8`) demotes a
@@ -5918,9 +5992,44 @@ becomes a song video can never reach the release gate at all.
   song sections**, but every one except §386 is quarantined, so §335 was the only
   exposure — and §386 is a false positive (its transcript names the title
   "immortal honors" and the lyrics match; only the spoken number is off by one).
-  **Precision is around 50%, so this is a review signal and not a gate**; the
-  remaining candidates worth adjudicating are §1121, §1254, §3212 and §3218, all
-  quarantined.
+  **Precision is around 50%, so this is a review signal and not a gate.**
+
+  **All four remaining candidates adjudicated 2026-09-10: three real, one false
+  positive — and the three are not one defect but two.** All four were quarantined
+  throughout, so none was ever exposed.
+
+  - **§3212 (run 1257) is CORRECT — a false positive of exactly the kind that keeps
+    this a signal.** Its transcript reads *"Number 452, yes, sorry, no, 875, be gone,
+    unbelief"*: the speaker **corrected himself**, the regex caught the retracted
+    number, and the lyrics that follow are Newton's hymn. Assigned song #118
+    "Begone Unbelief #875" stands. Not held.
+  - **§3218 (run 1258) is an off-by-one against the printed order.** Announced number
+    #177, and the sung text is unmistakably the Te Deum paraphrase — *"true apostles,
+    faithful prophets ... Jesus Christ, the King of glory"* — i.e. song #304 "God We
+    Praise You #177". The section is bound to printed position 4, "Glory In The
+    Highest #176", while **position 5, God We Praise You, has no section at all**.
+    Same shape as `unlocated_adjacent_song`.
+  - **§1121 (run 985) and §1254 (run 1007) are a different class: the printed order
+    and what was actually sung diverge.** §1121's transcript announces *"number 968 ...
+    Christ has prepared a place for us"* and adds *"we were going to sing a couple of
+    songs ... due to time, we'll just sing this song"* — a substitution and a cut,
+    against a printed final item of "Come People Of The Risen King". §1254's announces
+    *"number 476 in the Praise Hymn Book, 'The Lord is Risen Indeed'"*, and #476
+    **appears nowhere in that service's printed order**. In both the detector matched
+    the printed item faithfully; the printed item is not what happened. This is the
+    source-authority model biting: OpenLP identifies, the livestream is what occurred.
+
+  Neither §1121 nor §1254 has sung text in its transcript — 428 and 327 characters for
+  230 s and 174 s — so the announcement is the whole of the evidence. That is weaker
+  than §3218's, where number and lyrics agree, and is recorded as such.
+
+  **The three are held, not withdrawn, and that is sufficient.** Adding
+  `song_identity_contradicted_by_transcript` and setting `needs_manual_review` makes
+  `HistoricReleaseReviewHolds::songVideoHolds()` refuse their song videos outright —
+  verified: videos 152, 169 and 318 are refused, and 317 (§3212) is not. §335 needed
+  withdrawal because it was already released with a null `asset_disk`; these are
+  quarantined, so the release gate is the binding control and no local row is
+  destroyed.
 - [ ] **P8-Q10 — re-measured 2026-09-10 from banked evidence; the two stale counts
   resolve differently than expected, and the live re-evaluation the earlier census
   performed is no longer reproducible.**

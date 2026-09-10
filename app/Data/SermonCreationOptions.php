@@ -87,6 +87,13 @@ final readonly class SermonCreationOptions
      * recording. Where FFprobe has observed the emitted media length, that
      * explicit duration wins; where it is absent or zero, the source span
      * supplies the fallback.
+     *
+     * That last fallback is the outer source *window*, which for a concat plan
+     * spans the gap between the extracted spans and so overstates the emitted
+     * media — P8-Q13b, eight sermons by up to 887 s. It is correct only for a
+     * single-span cut. Callers whose run may be a concat must supply `duration`
+     * from {@see MediaProcessingLog::sermonDurationForRecord()} rather than let
+     * this fallback answer.
      */
     public function resolvedDuration(): ?float
     {
@@ -201,7 +208,7 @@ final readonly class SermonCreationOptions
             needsPreacherReview: $facts?->speaker === null ? null : false,
             service: $log->extracted_service,
             date: $log->extracted_date?->toDateString(),
-            duration: $log->observedSermonMediaDuration(),
+            duration: $log->sermonDurationForRecord(),
             editorialFacts: $facts,
         );
     }

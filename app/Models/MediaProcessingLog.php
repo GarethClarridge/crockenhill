@@ -939,6 +939,26 @@ class MediaProcessingLog extends Model
     }
 
     /**
+     * The duration to record on a Sermon row, in seconds.
+     *
+     * Prefers what was measured in the emitted media, and falls back to the
+     * planned sum of the extraction spans. Callers must not fall back to
+     * `sermon_end_time - sermon_start_time` instead: those bounds are the true
+     * source *window*, so for a concat plan they include the gap between spans
+     * and describe material the emitted media never contained. Eight op-2/op-3
+     * sermons carried that inflated value (P8-Q13b), overstating by up to 887 s,
+     * because they predate `trim.observed_duration` and the outer-bounds
+     * fallback was the only one left.
+     *
+     * Returns null only when the run recorded neither, in which case the caller
+     * has no measurement and should leave the column alone.
+     */
+    public function sermonDurationForRecord(): ?float
+    {
+        return $this->observedSermonMediaDuration() ?? $this->extractedSermonMediaDuration();
+    }
+
+    /**
      * Planned duration of the sermon extraction, in seconds.
      *
      * A concat plan joins several source spans across a gap, so this sums the
