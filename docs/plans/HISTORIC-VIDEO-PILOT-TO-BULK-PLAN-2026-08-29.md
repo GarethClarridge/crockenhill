@@ -162,6 +162,21 @@ Read-only measurements taken to size §4. Nothing was written, held or moved.
   16 sections with one 1,216 s sermon yet failed on multiple 20-minute speech blocks.
   Run 1145 (Thursday 2024-08-08) has four sections and only a 706 s children's talk,
   matching the no-sermon event class of #978.
+- **Sermons show no new unheld class.** On completed operation-4 runs, no published
+  or pending sermon or children's-talk section carries an unheld structure flag. The
+  six unheld sermons under 10 minutes are genuine: a funeral (run 1051), a carol
+  service (1196) and short homilies (1019, 1031, 1065, 1198).
+- **Song identity is the largest unmeasured dimension.** 387 of 390 published
+  operation-4 songs are `confirmed` and unheld, yet lyric matching has never matched
+  and the 2026-09-10 transcript check found 3 of 4 candidates wrongly identified.
+  32 published, unheld songs carry `structure_oos_cross_type_inversion`, which
+  `SectionReviewFlagPolicy` always demotes because it "questions which OoS item a
+  section aligns to". For a song, that item is its identity. Unverified; §4.1a
+  samples it.
+- **Dimensions no current item audits:** song identity beyond the four adjudicated
+  cases, AI analysis content (titles, Scripture references, summaries), speaker
+  attribution (paused), sermon start boundaries, hymns inside a sermon section, and
+  playback beyond header probes. §4.1a measures them.
 
 ## 4. Remaining work in execution order
 
@@ -184,6 +199,37 @@ Read-only measurements taken to size §4. Nothing was written, held or moved.
   class, invisible to current policy).
 - [ ] Recheck the live content-review gate and record exact before/after evidence.
 - [ ] Keep the assets quarantined while their text or cuts are recovered.
+
+### 4.1a Measure what the known defects do not cover
+
+The defects in §4.1–4.4 are what one review's instruments could see. Every Phase 8
+review found a class its predecessor had no instrument for, so treat this plan as
+"known defects", not "all defects". Measure the residual rate before designing the
+heavier repairs, because a new class could change them. Run this after §4.1's holds
+and before §4.2–4.4.
+
+- [ ] Draw a random, stratified held-out sample of about 30 services across eras and
+  service kinds (Sunday, special, concatenated/partial recordings). Exclude members
+  already named in §4.1–4.4 so the sample measures the unknown residue.
+- [ ] Check every sampled service against one fixed checklist, from source media and
+  the saved outputs:
+  - song identity and count, against the audio and the order of service;
+  - song clip boundaries;
+  - sermon start and end, including a hymn inside the sermon section;
+  - saved sermon-text integrity, including loops and missing passages;
+  - Scripture references, title and summary;
+  - children's-talk span;
+  - playback, decoding the clip rather than probing its header.
+- [ ] Record per-dimension results. Zero defects in 30 bounds that dimension's rate
+  below about 10% at 95% confidence (rule of three); report the bound, not "clean".
+- [ ] Probe song identity directly, alongside the sample:
+  - sample about 8 of the 32 published, unheld songs carrying
+    `structure_oos_cross_type_inversion`;
+  - compare title with transcript on a random set of `confirmed` published songs.
+- [ ] Take every defect found as a class to census corpus-wide, contain it through the
+  §4.1 hold path and add it to §4.2–4.4. Do not repair from the sample alone.
+- [ ] Keep the 27 unvalidated short-loop candidates out of the sample; they are
+  §4.2's.
 
 ### 4.2 Close the transcript-loop blind spot
 
@@ -231,7 +277,8 @@ Read-only measurements taken to size §4. Nothing was written, held or moved.
   reason, or an explicit accepted hold).
 - [ ] Design how operation 4 reaches `Complete` (§3.1 item 5) now, before
   convergence work depends on it, without manufacturing checkpoint or closeout state.
-- [ ] Run held-out source/output validation across eras and apparently clean cases,
+- [ ] Re-run §4.1a's held-out validation on a fresh sample after repairs, as final
+  acceptance evidence, across eras and apparently clean cases,
   covering split sermons, partial/composite recordings, corrupt transcripts,
   repeated performances, song identity/count and boundary quality.
 - [ ] Regenerate corpus membership and the proposal census.
