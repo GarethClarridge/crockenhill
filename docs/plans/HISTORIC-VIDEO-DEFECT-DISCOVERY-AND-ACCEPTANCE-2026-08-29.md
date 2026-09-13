@@ -460,13 +460,13 @@ or a recorded decision that the field is not produced for historic runs.
 | Sermon `meta_description` | — | not produced (0/438; derived from summary at render) | check the rendered value in consumer-side rendering |
 | Sermon `points`, `show_points` | — | none | transcript; summary |
 | Sermon `slug` | — | none | title; uniqueness; placeholder pattern (`ReslugPlaceholderSermons`) |
-| Sermon `preacher`, `preacher_id`, `preacher_source`, `preacher_confidence`, `needs_preacher_review` | — (speaker ID paused) | none | OoS email preacher; speaker model; census of `preacher_source = default` |
+| Sermon `preacher`, `preacher_id`, `preacher_source`, `preacher_confidence`, `needs_preacher_review` | coverage census 2026-09-14 (422/438 `default`) | not produced until retraining (ruling 2026-09-14) | OoS email preacher; retrained speaker model |
 | Sermon `series` | — | none | OoS; adjacent weeks' series; empty census |
 | Sermon `segment_start_time`, `segment_end_time`, `duration` | sample (start/end); decode sample | sample | decoded media length; section span; source duration; MP3 vs video length |
 | Sermon audio (MP3) content | decode sample (59 files) | sample | audio equals video track (fingerprint or duration+RMS profile); loudness; clipping; the 2–8 s shortfall above |
 | Sermon video content | decode sample (59 files); header probe of 1,334 paths | corpus (headers) / sample (decode) | A/V sync at start, middle, end; resolution/fps/codec census; `video_quality_status` reason |
 | Sermon `transcript_file_path` text | saved-vs-derived census (29 held); loop screen; cadence census | corpus | fresh re-transcription of a random minute; word rate; unobservable windows |
-| Sermon `thumbnail_file_path`, `thumbnail_metadata` | coverage census 2026-09-14 | **defect**: 31/438, quarantine blocks generation | fix generation first; then frame inside the span, not black or a slide |
+| Sermon `thumbnail_file_path`, `thumbnail_metadata` | coverage census 2026-09-14 | not produced until release (ruling 2026-09-14; 31/438) | after release-time generation: frame inside the span, not black or a slide |
 | Sermon `video_quality_status`, `video_quality_reason`, `video_visibility_override` | coverage census 2026-09-14 (values only) | none | 47 `rejected` (26 frozen, 21 black) hide the video publicly: frames at the flagged timestamps |
 | Children's talk span, speaker | sample (span, 17 services) | sample | OoS item; `CHILDRENS-TALK-SPEAKER-DECISIONS` shortlist; duration band |
 | ChurchService `occasion`, `occasion_confirmed_at` | — | none | OoS email; special-service strata; calendar |
@@ -505,17 +505,22 @@ or a recorded decision that the field is not produced for historic runs.
     view), service `summary`/`notices`/`chapter_markers` (AI-written, not rendered
     on the public service page), item metadata, run `trim`/`audio_compression`/
     `service_transcript_suspect_blocks`, and the 579 pending-approval sections.
-  - **Defect found: no quarantined sermon gets a thumbnail.** `GenerateThumbnail`
-    asks `SermonExposurePolicy::shouldGenerateVideoThumbnail()`, which requires
-    `publication_state = published`. All 409 historic runs from 2026-09-01 were
-    skipped with the step message "Video quality verdict does not allow a public
-    thumbnail", which names the wrong reason. Only 31 of 438 have one, made before
-    quarantine or by manual regeneration. No release-path code generates
-    thumbnails, so every released historic sermon would ship without one. → §4.3a.
-  - **Findings needing a census or ruling (now matrix rows):** preacher is the
-    default "Visiting Speaker" on 422/438 (speaker identification disabled for 393
-    runs, 38 below threshold); 47 videos are auto-`rejected` (26 frozen frames, 21
-    mostly black), which hides them publicly, and nobody has looked at them;
+  - **Quarantined sermons get no thumbnail — accepted (operator ruling
+    2026-09-14).** `GenerateThumbnail` asks
+    `SermonExposurePolicy::shouldGenerateVideoThumbnail()`, which requires
+    `publication_state = published`, so all 409 historic runs from 2026-09-01
+    skipped it (step message: "Video quality verdict does not allow a public
+    thumbnail"). Only 31 of 438 have one. This is wanted: thumbnails cost money to
+    generate and should wait until the sermon details are settled. Nothing in the
+    release path generates them, though, so §4.5 carries the obligation.
+  - **Default preacher — accepted (operator ruling 2026-09-14).** 422/438 sermons
+    carry "Visiting Speaker" because speaker identification was deliberately
+    disabled (393 runs; 38 more below threshold): the model was not working, and
+    the plan is to retrain it once the video corpus is larger. The field is
+    therefore not produced yet, not wrong; §4.5 carries the retraining.
+  - **Findings needing a census or ruling (now matrix rows):** 47 videos are
+    auto-`rejected` (26 frozen frames, 21 mostly black), which hides them
+    publicly, and nobody has looked at them;
     `occasion` is set on 1 of 443 services; no historic children's talk has a
     Sermon row (145 are pending approval, 16 held); references missing on sermons
     888, 957, 961, 1069 and 1090, and passage ids missing on 908–910 and 912–915.
@@ -677,8 +682,6 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
 | Sermon duration / MP3 / video length disagree | §4.1b | no | — | **new**: duration-agreement flag after encode |
 | Hymn inside the sermon section (#885) | 09-10 review | no | — | **new**: lyric scorer over sermon-span windows with singing-like RMS |
 | Duplicate/date pair identity | P8-Q7 | no | — | §4.4 |
-| Quarantined sermon never gets a thumbnail; skip message blames video quality | §4.1b matrix | no (409 silent skips) | `coverage-20260914-field-census.php` | **new**: generate thumbnails independently of publication state (expose, not generate, is the public decision), give the skip its true reason, and backfill the 407 |
-| Preacher left at the default speaker | §4.1b matrix | no (422/438 `default`) | — | **new**: flag `preacher_source = default` on historic rows for editorial QA; decide whether to run speaker ID |
 | Automatic video-quality rejection hides a good video | §4.1b matrix | no (47 unexamined) | — | **new**: adjudicate the 47 by frames; decide whether rejection needs review before it hides a video |
 | Silent source producing nothing (955) | §4.1a r2 | yes (`SILENT-SOURCE-EXCLUSION` plan) | — | keep |
 
@@ -730,8 +733,15 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
 - [ ] Re-evaluate previously uncorroborated services and disagreements against the
   full-grade video evidence.
 - [ ] Resolve surviving proposals by class where a safe deterministic rule exists.
+- [ ] Retrain speaker identification on the historic video corpus (disabled
+  deliberately; operator ruling 2026-09-14), then re-attribute the 422 default
+  preachers, or accept "Visiting Speaker" explicitly for the release batch.
 - [ ] Complete editorial QA for titles, slugs, references, series, speakers, songs,
   children's talks and occasions.
+- [ ] Generate thumbnails for the exact release membership only after its editorial
+  QA passes (deferred for cost; operator ruling 2026-09-14). The weekly job skips
+  unpublished sermons and no release-path code generates them, so this must be an
+  explicit step, then checked (frame inside the span, not black or a slide).
 - [ ] Audit exact assets, Scripture settlement, quarantine visibility and
   notification containment.
 - [ ] Regenerate the hymn-usage apply artifact against the exact converged graph.
