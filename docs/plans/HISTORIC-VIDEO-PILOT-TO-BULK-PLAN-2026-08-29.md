@@ -187,17 +187,37 @@ Read-only measurements taken to size §4. Nothing was written, held or moved.
 
 ### 4.1 Contain confirmed missing holds first
 
-- [ ] Decide and build the hold path (§3.1 item 2): a narrowly scoped, tested action
+- [x] Decide and build the hold path (§3.1 item 2): a narrowly scoped, tested action
   that holds a named section with a recorded reason and evidence reference, and that
-  the review-flag recomputes cannot silently clear. Do not wait on 4.2's detector
-  change for rows already audio-confirmed.
-- [ ] Put effective holds on sermons 872, 943, 1106, 1214 and 1242 on their **sermon
+  the review-flag recomputes cannot silently clear. **Built 2026-09-13:**
+  `HoldSectionForContentReview` raises `content_defect_hold` and records each reason
+  and evidence under `content_holds`. It refuses types the release gate cannot refuse
+  on (anything but sermon, children's talk and song). `service:hold-section-content
+  --section=… --reason=… --evidence=… [--execute]` is dry-run by default and
+  all-or-nothing over the named membership.
+  - The flag recompute and the structure rederive keep the flag; tests prove both.
+  - The two spoken-announcement retypes and both children's-talk speaker-naming
+    paths used to force the review column false; they now keep a content hold.
+  - Only operator confirmation releases the hold; the recorded reasons remain as
+    history.
+  - Re-running a service replaces section metadata from detection, and with it the
+    hold. Re-apply the hold after any re-run.
+  - Dry run on 2026-09-13 mapped §531/§1263/§2411/§3703/§4032 to sermons
+    872/943/1106/1214/1242, and §988/§1457/§3869 to song videos 135/191/371.
+    Executed the same day; see the gate recheck below.
+- [x] Put effective holds on sermons 872, 943, 1106, 1214 and 1242 on their **sermon
   sections** (§531, §1263, §2411, §3703, §4032). Holds on other sections of those
   runs do not refuse the sermon.
-- [ ] Put effective holds on song sections 3869 and 988.
-- [ ] Put an effective hold on §1457 alongside §988 (§3.2: same absorbed-speech
+- [x] Put effective holds on song sections 3869 and 988.
+- [x] Put an effective hold on §1457 alongside §988 (§3.2: same absorbed-speech
   class, invisible to current policy).
-- [ ] Recheck the live content-review gate and record exact before/after evidence.
+- [x] Recheck the live content-review gate and record exact before/after evidence.
+  **2026-09-13, local database.** Before (17:34:35 UTC), `HistoricReleaseReviewHolds`
+  returned no refusal for sermons 872/943/1106/1214/1242 or song videos 135/191/371.
+  After holding all eight (17:34:53 UTC) it refuses every one. Each sermon is refused
+  on its own sermon section's `content_defect_hold`; each song video is refused
+  because its section awaits review. All eight remain `quarantined`. Evidence:
+  `storage/scratch/content-holds-20260913-gate-before.json` and `-gate-after.json`.
 - [ ] Keep the assets quarantined while their text or cuts are recovered.
 
 ### 4.1a Measure what the known defects do not cover

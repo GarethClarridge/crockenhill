@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
+use App\Actions\HoldSectionForContentReview;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
@@ -96,6 +97,28 @@ class RederiveStructureReviewFlagsCommandTest extends TestCase
         $section->refresh();
 
         $this->assertSame(['childrens_talk_speaker_review'], $section->metadata?->reviewFlags);
+        $this->assertTrue($section->needs_manual_review);
+    }
+
+    /**
+     * An operator's content hold is the case where "a flag another stage owns" matters
+     * most: nothing in the banked structure can see the defect it records.
+     */
+    #[Test]
+    public function it_keeps_an_operator_content_hold(): void
+    {
+        [, $section] = $this->runWithMarkerMismatch(
+            'Only A Holy God',
+            'Opening worship',
+            extraFlags: [HoldSectionForContentReview::FLAG],
+        );
+
+        $this->artisan('services:rederive-structure-review-flags', ['--execute' => true])
+            ->assertSuccessful();
+
+        $section->refresh();
+
+        $this->assertSame([HoldSectionForContentReview::FLAG], $section->metadata?->reviewFlags);
         $this->assertTrue($section->needs_manual_review);
     }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
+use App\Actions\HoldSectionForContentReview;
 use App\Contracts\SpeakerIdentificationInterface;
 use App\Data\SpeakerMatchResult;
 use App\Enums\ServiceSectionType;
@@ -170,6 +171,64 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $this->assertSame('matched', $speakerData['predicted']['outcome'] ?? null);
         $this->assertSame('auto_accepted', $speakerData['reviewed']['review_mode'] ?? null);
         $this->assertSame($preacher->id, $speakerData['reviewed']['preacher_id'] ?? null);
+    }
+
+    /**
+     * Naming the speaker answers the speaker question, not whether the talk's own
+     * content is acceptable, so neither naming path may withdraw a content hold.
+     */
+    #[Test]
+    public function naming_the_speaker_keeps_an_operator_content_hold(): void
+    {
+        config([
+            'media-processing.speaker_identification.enabled' => true,
+            'media-processing.speaker_identification.min_duration' => 30,
+            'media-processing.speaker_identification.provider' => 'null',
+        ]);
+
+        $preacher = Preacher::factory()->create(['name' => 'Jane Smith']);
+        SpeakerProfile::factory()->create(['preacher_id' => $preacher->id]);
+
+        $speaker = $this->mock(SpeakerIdentificationInterface::class);
+        $speaker->shouldReceive('identify')->once()->andReturn(new SpeakerMatchResult(
+            matched: true,
+            matchedPreacherId: $preacher->id,
+            matchedPreacherName: $preacher->name,
+            topScore: 0.92,
+            secondScore: 0.45,
+            margin: 0.47,
+        ));
+
+        $this->stageSectionAudio();
+        $this->app->forgetInstance(ChildrensTalkSpeakerService::class);
+
+        $log = MediaProcessingLog::factory()->livestream()->create();
+        $autoAccepted = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'extracted_audio_path' => 'sections/talk.mp3',
+            'duration' => 120,
+            'needs_manual_review' => true,
+            'metadata' => ['review_flags' => [HoldSectionForContentReview::FLAG]],
+        ]);
+
+        app(ChildrensTalkSpeakerService::class)->detectAndStore($autoAccepted);
+        $autoAccepted->save();
+
+        $this->assertTrue($autoAccepted->fresh()->needs_manual_review);
+
+        $named = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'needs_manual_review' => true,
+            'metadata' => ['review_flags' => [HoldSectionForContentReview::FLAG, 'childrens_talk_speaker_review']],
+        ]);
+
+        app(ChildrensTalkSpeakerService::class)->storeManualReview($named, $preacher->id, null, null);
+        $named->save();
+
+        $this->assertTrue($named->fresh()->needs_manual_review);
+        $this->assertSame([HoldSectionForContentReview::FLAG], $named->fresh()->metadata?->reviewFlags);
     }
 
     #[Test]

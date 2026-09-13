@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Song;
 
+use App\Actions\HoldSectionForContentReview;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
@@ -85,7 +86,7 @@ class UnmatchedSongReviewApplicator
 
         $section->section_type = ServiceSectionType::Other;
         $section->song_match_type = null;
-        $section->needs_manual_review = false;
+        $section->needs_manual_review = HoldSectionForContentReview::isHeld($metadata['review_flags']);
         $section->metadata = ServiceSectionMetadata::fromArray($metadata);
 
         return $section;

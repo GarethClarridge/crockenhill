@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService;
 
+use App\Actions\HoldSectionForContentReview;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
@@ -174,10 +175,12 @@ class SectionReviewFlagRecalculator
             unset($metadata['review_reason']);
         }
 
+        // The retype settles whether this is a song. It says nothing about an
+        // operator's content hold, so it must not withdraw one.
         return [
             'section_type' => ServiceSectionType::Other,
             'song_match_type' => null,
-            'needs_manual_review' => false,
+            'needs_manual_review' => HoldSectionForContentReview::isHeld($metadata['review_flags']),
             'metadata' => ServiceSectionMetadata::fromArray($metadata),
         ];
     }

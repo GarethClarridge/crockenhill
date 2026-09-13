@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Preacher;
 
+use App\Actions\HoldSectionForContentReview;
 use App\Contracts\SpeakerIdentificationInterface;
 use App\Data\ServiceSectionMetadata;
 use App\Data\SpeakerMatchResult;
@@ -90,7 +91,7 @@ class ChildrensTalkSpeakerService
 
             unset($metadata['review_reason']);
             $metadata['review_flags'] = $this->removeReviewFlag($metadata['review_flags'] ?? [], 'childrens_talk_speaker_review');
-            $section->needs_manual_review = false;
+            $section->needs_manual_review = HoldSectionForContentReview::isHeld($metadata['review_flags']);
         } elseif (! in_array((string) $prediction['outcome'], self::REVIEW_OPENING_OUTCOMES, true)) {
             unset($speakerMetadata['reviewed']);
             $metadata['review_flags'] = $this->removeReviewFlag($metadata['review_flags'] ?? [], 'childrens_talk_speaker_review');
@@ -185,8 +186,10 @@ class ChildrensTalkSpeakerService
         unset($metadata['review_reason']);
         $metadata['review_flags'] = $this->removeReviewFlag($metadata['review_flags'] ?? [], 'childrens_talk_speaker_review');
 
+        // Naming the speaker answers the speaker question only; an operator's
+        // content hold on the talk itself stays until the talk is confirmed.
         $section->metadata = ServiceSectionMetadata::fromArray($metadata);
-        $section->needs_manual_review = false;
+        $section->needs_manual_review = HoldSectionForContentReview::isHeld($metadata['review_flags']);
     }
 
     /**
