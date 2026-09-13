@@ -49,6 +49,11 @@ The following constraints remain binding:
   approved source-adoption path.
 - Public release is a separate, exact-membership, human-authorised act. It is
   never a side effect of processing, promotion, cleanup or bundle generation.
+- **Repair only through the standard video processing pipeline (operator rule,
+  2026-09-14).** Do not correct outputs, verdicts or media by hand. Fix the
+  pipeline, then re-run the affected runs through it, so every repair also
+  protects future services. A hold through the tested hold path is containment,
+  not repair, and remains allowed.
 
 ## 2. Completed work and archived evidence
 
@@ -565,9 +570,27 @@ class in the §4.3a detector table and a hold through the §4.1 path.
     transcribing both files' last 20 s. 11 lose closing-prayer or sermon words
     (1266 ends "it's another thing to put,"; 1270 ends "will guard your heart"),
     and 1096 loses only a hymn announcement. All decode without error, so the loss
-    is in the cut. Sermon sections 2310, 2358, 2446, 2479, 2558, 2572, 3804,
-    4215, 4386 and 4508 are unheld; 4321 and 4495 are already held.
-    The cause is not yet traced (11 of the 12 are concat plans). → §4.3a.
+    is in the cut. Sermon sections 4321 and 4495 were already held. 2310, 2358,
+    2446, 2479, 2558, 2572, 3804, 4215, 4386 and 4508 were **held 2026-09-14**
+    through `service:hold-section-content` (operator approval). Before (20:23 UTC)
+    the gate refused none of their ten sermons for this defect; after, it refuses
+    all ten. All remain quarantined
+    (`storage/scratch/duration-20260914-gate-{before,after}.json`).
+  - **Cause (traced 2026-09-14): the MP3 is cut to the plan's length from a video
+    that is longer than the plan.** For `concat_spans`, `ExtractSermon` stream-copies
+    each span, and each piece starts at the keyframe before its cut, so the joined
+    file carries every piece's lead-in. It then cuts the MP3 from that joined file
+    as `clip(0, plannedDuration)`, so the tail beyond the planned length is dropped:
+    the sermon's final seconds. 1257 is the one `single_span` case; its MP3 is cut
+    from the source, so its 4.8 s loss has a second, untraced cause.
+    Not a repair artefact: video and MP3 were written in the same minute for all 12.
+    Its time clustering (09-07 and 09-09) follows when most runs were processed.
+  - **Why the picture starts after the sound (ruling 3a context).** A stream copy
+    cannot start a video mid-GOP: the first picture it can show is a keyframe, while
+    audio frames can start almost anywhere. The joined file therefore opens with up
+    to one GOP (1–5 s here) of sound before its first picture. Nothing about the
+    content differs; it is an artefact of cutting without re-encoding. The same
+    cut causes the MP3 tail loss, so one extraction fix can remove both.
   - The six short MP3s from §4.1a's samples are the lower end of the same
     distribution (2–8 s raw gap), not a separate class.
 - [ ] SongVideo `duration` against decoded length and section span.
@@ -646,10 +669,13 @@ class in the §4.3a detector table and a hold through the §4.1 path.
   (`selectBibleReading()`), the long song videos, video 970's
   timestamps, and any ruling §4.1b adds. (The short MP3s were resolved as a defect
   2026-09-14, not a ruling.) Added 2026-09-14:
-  - whether a picture starting up to about 5 s after its audio is acceptable;
-  - 1225's partial video: show it with the card, cut it, or hide it;
-  - whether the 7 whole-recording cards count as "no video", as the rejection now
-    treats them. A ruling made in passing by the reviewer is
+  - whether a picture starting up to about 5 s after its audio is acceptable
+    (open; the delay comes from the same stream-copy cut as the MP3 tail loss);
+  - **1225's partial video: show it (operator ruling 2026-09-14).** The repaired
+    detector must approve it, since most of the recording is real preaching;
+  - **whole-recording cards count as no video (operator ruling 2026-09-14).** The
+    7 card rejections are correct, and the repaired detector must keep rejecting
+    them. A ruling made in passing by the reviewer is
   not a decision.
 - [ ] **Stopping rule (replaces round 2's).** Discovery stops when the coverage
   matrix has no **none** row, every cheap instrument has run over all 442 runs with
@@ -735,11 +761,11 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
 | Source audio dropout inside a talk (≥15 s at ≤ −80 dB) | §4.1a r1 | no | `residue-20260913-dropouts.py` | **new**: RMS dropout flag on the section; not repairable, so the flag is the outcome |
 | Published title/reference contradicts summary or transcript (881, 954, 844/845/850) | §4.1a r1 | no | `residue-20260913-references.php` | **new**: published-vs-heard reference check and title↔summary overlap at analysis time; null-provenance adopted rows refuse publication |
 | Saved sermon text predates evidence (P8-Q1) | P8-Q1 | yes (`sermon_text_predates_evidence`) | — | keep |
-| Sermon MP3 loses closing words (12; stream-copied video vs plan-cut audio) | §4.1b duration census | no | `duration-20260914-census.json` (`duration − picture delay − MP3 length`) | **new**: trace the cut, make audio and video end together, and flag an MP3 more than 1.5 s short of its video after the picture delay |
+| Sermon MP3 loses closing words (12; stream-copied video vs plan-cut audio) | §4.1b duration census | no | `duration-20260914-census.json` (`duration − picture delay − MP3 length`) | **new**: in `ExtractSermon`, cut the concat MP3 from the source spans (or from the joined file's measured length), never `clip(0, plannedDuration)` of an over-long join; trace 1257's single-span loss; flag an MP3 more than 1.5 s short of its video after the picture delay; then re-run the 12 through the pipeline and clear their holds only on a clean re-measure |
 | Video picture starts after its audio (stream-copy keyframe lead-in; 12 over 3 s) | §4.1b duration census | no | same | **new**: record the delay after extraction; decide whether to re-encode the head or accept it |
 | Hymn inside the sermon section (#885) | 09-10 review | no | — | **new**: lyric scorer over sermon-span windows with singing-like RMS |
 | Duplicate/date pair identity | P8-Q7 | no | — | §4.4 |
-| Automatic video-quality rejection hides a good video (27 of 47: static camera, dim lighting) | §4.1b matrix | the detector *is* the defect | `vq-20260914-register.json`; ffmpeg `freezedetect` over 4 min separated all 47 | **new**: replace the 1.5 s 16×16 burst with a long-window freeze/black measure, calibrated on the 47; decide whether a rejection needs review before it hides a video |
+| Automatic video-quality rejection hides a good video (27 of 47: static camera, dim lighting) | §4.1b matrix | the detector *is* the defect | `vq-20260914-register.json`; ffmpeg `freezedetect` over 4 min separated all 47 | **new**: replace the 1.5 s 16×16 burst with a long-window freeze/black measure, calibrated on the 47; decide whether a rejection needs review before it hides a video; then re-run quality assessment through the pipeline for the 27 wrong rows and 1225, never by hand (operator 2026-09-14), and confirm the 19 correct rejections stay rejected |
 | Quality verdict written without run evidence (13, `sermons:assess-video-quality`) | §4.1b matrix | no | — | **new**: the command path records its assessment on the owning run |
 | Silent source producing nothing (955) | §4.1a r2 | yes (`SILENT-SOURCE-EXCLUSION` plan) | — | keep |
 
