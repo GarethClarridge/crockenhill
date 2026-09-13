@@ -5,7 +5,7 @@ and applied; later execution and review superseded its D6 and §4 status. See §
 for what landed. The complete dated execution context is in the
 [archived video log](../archived-plans/HISTORIC-VIDEO-PILOT-TO-BULK-EXECUTION-LOG-2026-08-29-TO-2026-09-11.md);
 current containment and acceptance work is in the
-[focused video plan](HISTORIC-VIDEO-PILOT-TO-BULK-PLAN-2026-08-29.md).
+[focused video plan](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md).
 
 Working tree was clean when these decisions were taken (`9f3f61cc2`). No code
 changed in the session that produced them; the implementation followed in the

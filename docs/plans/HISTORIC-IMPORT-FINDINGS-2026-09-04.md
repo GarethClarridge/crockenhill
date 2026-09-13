@@ -16,7 +16,7 @@ that D6 was deferred on no longer exists. Two measurements settle open questions
 one closes the VirtioFS option, one opens a cost nobody has priced.
 
 Plan of record remains
-[`HISTORIC-VIDEO-PILOT-TO-BULK-PLAN-2026-08-29.md`](HISTORIC-VIDEO-PILOT-TO-BULK-PLAN-2026-08-29.md);
+[`HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md`](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md);
 decisions remain
 [`HISTORIC-IMPORT-DECISIONS-2026-09-03.md`](HISTORIC-IMPORT-DECISIONS-2026-09-03.md).
 This record supersedes both where they disagree on disk capacity.

@@ -1,4 +1,8 @@
-# Historic Video Pilot-to-Bulk Plan
+# Historic Video Defect Discovery and Acceptance Plan
+
+> Formerly `HISTORIC-VIDEO-PILOT-TO-BULK-PLAN-2026-08-29.md`. Renamed 2026-09-14
+> once bulk processing was complete and the remaining work became discovering,
+> containing and detecting defects, then proving acceptance.
 
 > **Status — 2026-09-12: bulk processing is complete; content acceptance and
 > public release are NO-GO.** The 2026-09-10/11 follow-up review found incorrect
@@ -18,6 +22,9 @@
 
 **Original date:** 2026-08-29
 **Last condensed:** 2026-09-12
+**Last reviewed:** 2026-09-14 — §4.1a's stopping rule withdrawn; §4.1b (coverage
+matrix, disagreement censuses, tails, whole-output and rendered checks) and §4.3a
+(a pipeline detector per class) added; §4.5 sample frame and regression set widened.
 
 ## 1. Outcome and boundaries
 
@@ -340,10 +347,38 @@ with a stopping rule: **sample again until a round finds no new class.**
   | Children's-talk span | 0/9 | — |
   | Playback (full decode) | 0/84 files | 29 sermon videos, 29 sermon MP3s and 26 song videos decode end to end. Video 970 (1036) logs 880 duplicate-timestamp warnings from the discard output, but its stored packets are strictly increasing and it decodes cleanly: a note, not a failure |
 
-  **No new class.** Both defects belong to classes round 1 already found, so the
-  stopping rule is met. Across both rounds, 9 of 60 services had a defect outside the
-  known list (95% upper bound 26%). Run 955 produced nothing because both source
-  files are silent, although the video shows the service; that is correct.
+  **No new class within the checklist.** Both defects belong to classes round 1
+  already found, so the round 2 stopping rule is met *as written*. Across both
+  rounds, 9 of 60 services had a defect outside the known list (95% upper bound
+  26%). Run 955 produced nothing because both source files are silent, although the
+  video shows the service; that is correct.
+
+  **Review correction (2026-09-14).** That stopping rule is checklist-bounded and
+  is withdrawn as an acceptance signal. "No new class" means no new class in the
+  seven dimensions the checklist opens; a checklist cannot report a dimension it
+  never asks about, and every new class this programme has found came from a new
+  instrument (the cadence scan, the lyric scorer, the hint census, the RMS dropout
+  scan, the published-versus-heard reference comparison), not from a further sample.
+  Thirty draws also leave about a one-in-five chance of missing a class present in
+  5% of services, and two rounds do not change that below about 5%. Both samples
+  further excluded every held run, so a run held for one reason has had its other
+  fields examined by nobody. The 26% bound is a rate for the known dimensions on
+  the unheld population; it is not evidence about unknown dimensions. §4.1b replaces
+  the stopping rule with a coverage rule and moves discovery from sampling to
+  corpus-wide instruments.
+
+  **Notes reclassified as open items (2026-09-14).** Three observations were
+  recorded above as "a note, not a failure" without investigation. Under the
+  programme's definition (an error in any field, media or data), each is an
+  unclassified finding until shown otherwise, and is carried into §4.1b:
+  - six sermon MP3s run 2–8 s short of their stored `duration` (either the field or
+    the encode is wrong; determine which and whether the tail is lost speech);
+  - two song videos run 2–3.5 s longer than their section span;
+  - video 970 (1036) logs 880 duplicate-timestamp warnings on decode;
+  - §1216 (1001) was passed on slide evidence although its transcript loops
+    "and the risen lamb, who never is" for the whole second half, which the §4.3
+    lyric-coverage check cannot score. Looping song transcripts are a class of
+    their own, not a property of the identity check.
 - [x] Census song identity directly, rather than sampling it further.
   - **Lyric instrument:** score each song section's transcript against every song's
     lyrics. It flags 5 of 7 known-wrong clips and 0 of 38 frame-verified correct
@@ -375,6 +410,156 @@ with a stopping rule: **sample again until a round finds no new class.**
   before (19:01:55 UTC) and all 24 after (19:02:03 UTC); all remain `quarantined`.
   Evidence: `storage/scratch/residue-20260914-register.json`.
 
+### 4.1b Find the unknown unknowns — coverage, not sampling
+
+Added 2026-09-14 after the review of round 2. The aim of the programme is that
+every future service processes correctly, so the question is not "what is the
+residue rate on the seven checked dimensions" but "which outputs has no instrument
+ever opened". This section runs after §4.1 and before the heavier repairs in
+§4.2–4.4 are finalised, because a class found here changes their design, exactly
+as §4.1a's classes did. It does not replace §4.1a's sample; it supplies the
+dimensions the sample must cover next time.
+
+**Method.** Three discovery mechanisms that do not depend on guessing the class in
+advance, plus two changes of examiner modality:
+
+1. *Field coverage matrix.* Enumerate every column, file and derived artifact the
+   pipeline writes and record its check. Unchecked rows are the unknown-unknown
+   inventory.
+2. *Disagreement census.* For every field, find a second, independent derivation
+   and census the disagreement corpus-wide. Two views of one fact disagree exactly
+   where one is wrong, without knowing which class of wrong. This is how every
+   wrong song and wrong reference to date was found.
+3. *Tail inspection.* For every numeric field, examine the extreme few percent by
+   hand. New classes cluster in tails.
+4. *Whole-output consumption.* Watch and listen to complete outputs as a
+   congregant would, on the rendered pages, not as frames and excerpts.
+5. *Consumer-side rendering.* Render the whole quarantined membership through the
+   public surfaces. Errors that appear only when data is rendered are a class the
+   data census cannot see.
+
+With 442 runs, any check that is cheap to automate runs over the whole corpus.
+Sampling is reserved for checks that need a human, and §4.5's fresh sample bounds
+those.
+
+#### Field coverage matrix (drafted 2026-09-14 from the schema; keep current)
+
+Status: **corpus** = an instrument has run over every active historic run;
+**sample** = checked only in the §4.1a samples (60 services); **none** = never
+opened by any instrument. "Second view" names the independent derivation to census
+against. Every **none** and every **sample** row needs either a corpus instrument
+or a recorded decision that the field is not produced for historic runs.
+
+| Output | Existing check | Status | Second view to census |
+|---|---|---|---|
+| Sermon `date`, `service` slot | `identity_correct` in the item ground truth (IC3) | corpus | source filename/mtime; OoS date; SongVideo `recorded_date` |
+| Sermon `content_type` (sermon vs children's talk) | sample checklist | sample | OoS item section type; duration band |
+| Sermon `title`, `title_provenance` | sample; adopted-row census (§4.1a) | sample | `summary`; OoS sermon title; opening minute of transcript |
+| Sermon `reference`, `scripture_passage_id` | published-vs-heard census (§4.1a) | corpus (reference only) | passage id ↔ reference text; OoS reading item; spoken reference in transcript |
+| Sermon `summary`, `meta_description`, `show_summary` | sample (summary vs video) | sample | title; transcript keyword overlap; length/empty census |
+| Sermon `points`, `show_points` | — | none | transcript; summary |
+| Sermon `slug` | — | none | title; uniqueness; placeholder pattern (`ReslugPlaceholderSermons`) |
+| Sermon `preacher`, `preacher_id`, `preacher_source`, `preacher_confidence`, `needs_preacher_review` | — (speaker ID paused) | none | OoS email preacher; speaker model; census of `preacher_source = default` |
+| Sermon `series` | — | none | OoS; adjacent weeks' series; empty census |
+| Sermon `segment_start_time`, `segment_end_time`, `duration` | sample (start/end); decode sample | sample | decoded media length; section span; source duration; MP3 vs video length |
+| Sermon audio (MP3) content | decode sample (59 files) | sample | audio equals video track (fingerprint or duration+RMS profile); loudness; clipping; the 2–8 s shortfall above |
+| Sermon video content | decode sample (59 files); header probe of 1,334 paths | corpus (headers) / sample (decode) | A/V sync at start, middle, end; resolution/fps/codec census; `video_quality_status` reason |
+| Sermon `transcript_file_path` text | saved-vs-derived census (29 held); loop screen; cadence census | corpus | fresh re-transcription of a random minute; word rate; unobservable windows |
+| Sermon `thumbnail_file_path`, `thumbnail_metadata` | — | none | file exists and decodes; frame is inside the sermon span and shows a person, not a slide or black |
+| Sermon `video_quality_status`, `video_quality_reason`, `video_visibility_override` | — | none | census of values on historic rows; what the public page does with each |
+| Children's talk span, speaker | sample (span, 17 services) | sample | OoS item; `CHILDRENS-TALK-SPEAKER-DECISIONS` shortlist; duration band |
+| ChurchService `occasion`, `occasion_confirmed_at` | — | none | OoS email; special-service strata; calendar |
+| ChurchService `summary`, `notices` | — | none | empty census; transcript |
+| ChurchService `chapter_markers` | — | none | section starts; monotonic and inside source duration |
+| ChurchService items: `position`, `section_type`, `song_id`, `title`, `source = livestream` | song identity census (items written from wrong song) | corpus (song id) / sample (count, order) | detected sections, count and order, all 442 runs; OpenLP/email items where present |
+| ChurchService `review_state`, canonical revision/hash | gate rechecks | corpus | — |
+| Sections: type, bounds, `song_title_hint`, match state, flags, `needs_manual_review` | sample; policy reassessment; hint and lyric censuses | corpus | unsectioned-span census (sum of sections vs source duration; the dossiers already compute it) |
+| Sections: sung material typed non-song | census (2 found; floor) | corpus (floor) | lyric scorer over `other`/`prayer`/`bible_reading` sections with singing-like RMS |
+| Sections: song transcript loops | — | none | repeat screen applied to song sections (currently sermon-only) |
+| SongVideo `song_id` | hint + lyric censuses | corpus (floor) | slides frame OCR/hash against the song's lyrics for the `confirmed`-and-looping set |
+| SongVideo `video_file_path` content | decode sample (50 files); five frames | sample | full decode all 464; A/V sync; loudness; first/last frame not a speaker |
+| SongVideo `duration`, `recorded_date`, `is_featured` | — (duration delta noted) | none | section span; owning service date; featured census |
+| Scripture passage enrichment (`EnrichHistoricScripturePassages`) | — | none | reference ↔ passage rows; orphan/duplicate passages |
+| Hymn usage apply artifact | §4.5 regeneration | pending | song identity census results |
+| Search index / embeddings for historic sermons | — | none | index membership equals exact release membership; stale text after transcript repair |
+| Public pages, sitemap, podcast feed, structured data | — | none | render every quarantined row locally; 404s, missing thumbnails, duplicate slugs, broken song links |
+| Quarantine visibility and notifications | §4.5 audit | pending | — |
+
+- [ ] Verify the matrix against the writers: grep every `Sermon`, `ChurchService`,
+  `ChurchServiceItem`, `ServiceSection` and `SongVideo` write in the pipeline and
+  add any field the schema draft above missed. Record fields the historic path
+  never writes as "not produced" rather than "none".
+- [ ] Give the matrix a home the next review can update
+  (`storage/scratch/coverage-matrix-YYYYMMDD.json` beside the registers), with
+  the instrument path and run date per row.
+
+#### Disagreement censuses to run (all 442 active runs unless stated)
+
+Each is cheap, read-only, and produces a candidate list to adjudicate by the
+§4.1a method (frames, fresh audio, slides). Every confirmed disagreement becomes a
+class in the §4.3a detector table and a hold through the §4.1 path.
+
+- [ ] Preacher against the OoS email preacher and, where the paused speaker model
+  has a stored verdict, against that. Census `preacher_source` values first; a
+  corpus of `default` is itself a finding.
+- [ ] Sermon `duration` against decoded MP3 length, decoded video length and
+  `segment_end_time − segment_start_time`. Resolve the six short MP3s here.
+- [ ] SongVideo `duration` against decoded length and section span.
+- [ ] OoS item count and order against detected section count and order, per
+  service. A song item with no section is the 944 "My Hope Is Built" class.
+- [ ] Reference against passage id, against the OoS reading item and against the
+  reference spoken in the sermon's first two minutes.
+- [ ] Title against summary (the 944 class) by keyword overlap; adjudicate the
+  bottom decile.
+- [ ] SongVideo `recorded_date` and sermon `date` against the owning service and
+  the source file's own date.
+- [ ] Sum of sections against source duration; list every unsectioned span over
+  60 s with its transcript density, corpus-wide (the dossiers compute this for the
+  sampled runs only).
+- [ ] Sermon audio against sermon video: duration, and an RMS profile correlation
+  at three offsets, so a mismatched or mis-cut MP3 cannot hide behind a good video.
+- [ ] Thumbnail frame timestamp inside the sermon span, and the frame not black or
+  a slide.
+- [ ] Apply the repetition screen to song sections and census looping song
+  transcripts (the §1216 class).
+
+#### Tail inspections (by hand, corpus-wide)
+
+- [ ] Shortest and longest 2% of sermons, children's talks and song clips.
+- [ ] Largest gaps between consecutive sections; lowest transcript word rate per
+  section; highest silence fraction per section.
+- [ ] Largest audio-to-video duration delta; smallest bytes-per-second; any
+  resolution, frame rate or codec that differs from the modal value.
+- [ ] Earliest section start and latest section end relative to source duration.
+
+#### Changes of examiner modality
+
+- [ ] Watch and listen to five complete services' outputs end to end on the
+  rendered local pages (sermon page with video and MP3, each song page), drawn
+  across eras and including at least one held-then-repaired run. Record A/V sync,
+  level, thumbnail, slug, series, title and page layout. This is a human check and
+  is not delegable to frames.
+- [ ] Render every quarantined sermon and song video through the public routes
+  locally (Dusk or Playwright over the exact membership), plus sitemap, podcast
+  feed and structured data. Fail on 404, missing thumbnail, duplicate slug,
+  broken song link, empty summary rendered as content, or any exception.
+
+#### Rulings and stopping rule
+
+- [ ] Put every "not a defect" ruling to the operator explicitly, with the evidence,
+  and record the decision here: the hymn cut from sermon videos
+  (`selectBibleReading()`), the short MP3s, the long song videos, video 970's
+  timestamps, and any ruling §4.1b adds. A ruling made in passing by the reviewer is
+  not a decision.
+- [ ] **Stopping rule (replaces round 2's).** Discovery stops when the coverage
+  matrix has no **none** row, every cheap instrument has run over all 442 runs with
+  its candidates adjudicated, the tails and the whole-output checks are recorded,
+  and the operator has ratified the rulings. §4.5's fresh sample then bounds the
+  residue of the human-only checks; it is not the discovery mechanism.
+- [ ] Sample the held population on the other dimensions: draw 15 held runs and
+  run the full checklist plus the matrix rows on them, so that clearing a hold for
+  its recorded reason does not release an unexamined row.
+
 ### 4.2 Close the transcript-loop blind spot
 
 - [ ] Validate the remaining short-loop candidates against their audio; distinguish
@@ -387,6 +572,9 @@ with a stopping rule: **sample again until a round finds no new class.**
   30 s apart inside dense speech. Regression cases §3739 (1112) and §3490 (1278);
   negative cases are "Amen"/"Thank you" cadences over music and 1089's silent source.
 - [ ] Add 1347's reading loop ("the Lord" ×16, 32 words) to the short-loop candidates.
+- [ ] Extend the repetition screen to song sections (§4.1b, the §1216 class). A
+  looping song transcript is unusable for lyric coverage and must demote the
+  match, not pass silently.
 
 ### 4.3 Refresh song policy for existing outputs
 
@@ -414,6 +602,52 @@ with a stopping rule: **sample again until a round finds no new class.**
   anyone approves them.
 - [ ] Add a lyric-coverage check (calibrated in §4.1a) before a song match is recorded
   as `confirmed`.
+- [ ] Redefine `confirmed` as two independent agreeing signals (any two of: exact or
+  alternate title hint, lyric coverage, OoS position with an email or OpenLP item).
+  One signal, or a looping transcript, yields `inferred` and a review flag. The
+  lyric instrument alone is blind to looping transcripts (§4.1a round 2), so it
+  cannot be the sole gate.
+
+### 4.3a Put a detector in the pipeline for every class found
+
+Added 2026-09-14. The programme's aim is that future services process correctly,
+so containment of the historic corpus is not complete until each class found has
+a detector on the weekly path. Flagging for review is sufficient for now; repair
+automation is later. Most classes already have a working prototype under
+`storage/scratch/residue-2026091*`; promote them into tested application code
+rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b or
+§4.5 gets a row here before its holds are cleared.
+
+| Class | Found by | Detector on the pipeline today | Prototype | Pipeline item |
+|---|---|---|---|---|
+| Sermon transcript loops (≥5 repeats, ≥40 words) | P8-Q14 | yes (`service:screen-transcript-repetition`) | — | extend per §4.2 |
+| Short, few-word and number-varying loops | 09-10 review | no | `correctness-20260910-unheld-short-loops` | §4.2 |
+| Sparse 30 s-cadence transcript loss | §4.1a r1 | no | `residue-20260913-cadence.py` | §4.2 |
+| Reading loop inside sermon text (1347) | §4.1a r1 | no | — | §4.2 |
+| Looping song transcript (§1216) | §4.1b | no | — | §4.2 |
+| Mixed-song clip (§3869) | P8-Q10/16 | policy returns `unresolved_multiple_songs`, never written to the review column | `correctness-20260910-song-policy` | §4.3 |
+| Song clip with continuous spoken lead-in or tail (§988, §1457, §2897, §1475) | 09-10 review; §4.1a | no (gap-based only) | — | §4.3 |
+| Wrong song from `title_hint_fuzzy` (25 clips) | §4.1a r2 | no | `residue-20260914-hint-census.php`, `residue-20260914-lyric-identity.py` | §4.3 |
+| OoS items written from the wrong song | §4.1a r2 | no | same | §4.3 (re-resolve and rewrite) |
+| Sung item typed reading/prayer/other (1253, 1349, 944 §666) | §4.1a r2 | no | `residue-20260914-sung-other.py` | **new**: lyric scorer plus singing-like RMS over non-song sections → retype candidate flag |
+| OoS song with no detected section (944) | §4.1a r1 | no | — | **new**: OoS-vs-sections count/order flag (§4.1b census) |
+| Talk cut by end of its only source (§1684, §1793, §3943) or starting mid-thought (§1421, 980) | §4.1a r2 | no | `residue-20260913-text-signals.json` | **new**: section within N s of source start/end plus mid-sentence transcript edge → `source_truncates_talk` flag |
+| Source audio dropout inside a talk (≥15 s at ≤ −80 dB) | §4.1a r1 | no | `residue-20260913-dropouts.py` | **new**: RMS dropout flag on the section; not repairable, so the flag is the outcome |
+| Published title/reference contradicts summary or transcript (881, 954, 844/845/850) | §4.1a r1 | no | `residue-20260913-references.php` | **new**: published-vs-heard reference check and title↔summary overlap at analysis time; null-provenance adopted rows refuse publication |
+| Saved sermon text predates evidence (P8-Q1) | P8-Q1 | yes (`sermon_text_predates_evidence`) | — | keep |
+| Sermon duration / MP3 / video length disagree | §4.1b | no | — | **new**: duration-agreement flag after encode |
+| Hymn inside the sermon section (#885) | 09-10 review | no | — | **new**: lyric scorer over sermon-span windows with singing-like RMS |
+| Duplicate/date pair identity | P8-Q7 | no | — | §4.4 |
+| Silent source producing nothing (955) | §4.1a r2 | yes (`SILENT-SOURCE-EXCLUSION` plan) | — | keep |
+
+- [ ] Fill the table's "pipeline item" column with a tested change or a recorded
+  decision not to detect, for every row, before §4.5 acceptance.
+- [ ] Each promoted detector ships with the corpus cases in this plan as regression
+  fixtures (positive and negative), under `tests/Fixtures/StructureEval` or
+  beside it, following the existing fixture conventions.
+- [ ] Re-run every promoted detector over all 442 runs and reconcile its output
+  with the holds already placed by hand, so the hand-placed set is a subset of what
+  the pipeline would now flag.
 
 ### 4.4 Bind deferred identity disputes
 
@@ -438,7 +672,18 @@ with a stopping rule: **sample again until a round finds no new class.**
 - [ ] Re-run §4.1a's held-out validation on a fresh sample after repairs, as final
   acceptance evidence, across eras and apparently clean cases,
   covering split sermons, partial/composite recordings, corrupt transcripts,
-  repeated performances, song identity/count and boundary quality.
+  repeated performances, song identity/count and boundary quality. The sample
+  frame must include repaired and previously held runs, not only the never-named
+  population (§4.1a's two samples excluded them), and the checklist must cover
+  every row of the §4.1b coverage matrix, not the original seven dimensions.
+- [ ] Build a pipeline regression set from operator-reviewed weekly services
+  (recent weeks with email, OpenLP and a completed review). Re-run the weekly path
+  on them after each §4.2/4.3/4.3a change and measure per-field agreement against
+  the reviewed values, so a fix for one class cannot silently regress another
+  field. Extend the existing `tests/Fixtures/StructureEval` and
+  `TypingBaseline` fixtures rather than starting a new harness.
+- [ ] Confirm every §4.3a detector is live on the weekly path before the historic
+  release, so the next weekly service is protected by what the corpus taught.
 - [ ] Regenerate corpus membership and the proposal census.
 - [ ] Re-evaluate previously uncorroborated services and disagreements against the
   full-grade video evidence.
@@ -463,7 +708,7 @@ with a stopping rule: **sample again until a round finds no new class.**
 |---|---|---|
 | Processing | GO | Definitive passes drained; three failures remain explicit rather than hidden. |
 | Containment | **NO-GO** | Every confirmed defect, current-policy objection and deferred identity row is held, excluded or repaired, and the live gate is rechecked. |
-| Content acceptance | **NO-GO** | Held-out validation and current-policy reassessment show that unheld exact membership is safe to accept. |
+| Content acceptance | **NO-GO** | The §4.1b coverage matrix has no unchecked row, every corpus census and tail inspection is adjudicated, the operator has ratified the not-defect rulings, every §4.3a class has a pipeline detector or a recorded decision, and a fresh held-out sample drawn from the whole population (including repaired runs) shows that unheld exact membership is safe to accept. |
 | Public release | **NO-GO** | Phase 9 convergence and QA pass, then the operator signs an exact era-sized batch. |
 
 <a id="correctness-review-2026-09-10-followup"></a>

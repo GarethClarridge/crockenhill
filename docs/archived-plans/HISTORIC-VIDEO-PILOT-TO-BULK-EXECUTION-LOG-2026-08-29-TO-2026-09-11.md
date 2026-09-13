@@ -4,7 +4,7 @@
 > correctness-review record formerly kept in the active pilot-to-bulk plan. It is
 > retained for dated findings, measurements and decisions, but it is not an
 > executable plan. Current work lives in the
-> [slimmed active plan](../plans/HISTORIC-VIDEO-PILOT-TO-BULK-PLAN-2026-08-29.md),
+> [slimmed active plan](../plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md),
 > which preserves the 2026-09-10/11 missing-holds review and owns Phase 9.
 
 > **Latest correctness review, 2026-09-09:** The 413 active operation-4 runs
