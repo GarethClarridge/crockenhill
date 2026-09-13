@@ -484,7 +484,8 @@ or a recorded decision that the field is not produced for historic runs.
 | Sections: song transcript loops | — | none | repeat screen applied to song sections (currently sermon-only) |
 | SongVideo `song_id` | hint + lyric censuses | corpus (floor) | slides frame OCR/hash against the song's lyrics for the `confirmed`-and-looping set |
 | SongVideo `video_file_path` content | decode sample (50 files); five frames | sample | full decode all 464; A/V sync; loudness; first/last frame not a speaker |
-| SongVideo `duration`, `recorded_date`, `is_featured` | — (duration delta noted) | none | section span; owning service date; featured census |
+| SongVideo `duration` | duration census 2026-09-14 | corpus | **defect**: copied from the span, never probed; 89 frozen openings, 23 carry the preceding item's audio |
+| SongVideo `recorded_date`, `is_featured` | owning-service date census 2026-09-14 (0 differ); `is_featured` not produced | corpus (service date) | source file date |
 | Scripture passage enrichment (`EnrichHistoricScripturePassages`) | — | none | reference ↔ passage rows; orphan/duplicate passages |
 | Hymn usage apply artifact | §4.5 regeneration | pending | song identity census results |
 | Search index / embeddings for historic sermons | — | none | index membership equals exact release membership; stale text after transcript repair |
@@ -548,9 +549,12 @@ Each is cheap, read-only, and produces a candidate list to adjudicate by the
 §4.1a method (frames, fresh audio, slides). Every confirmed disagreement becomes a
 class in the §4.3a detector table and a hold through the §4.1 path.
 
-- [ ] Preacher against the OoS email preacher and, where the paused speaker model
+- [x] Preacher against the OoS email preacher and, where the paused speaker model
   has a stored verdict, against that. Census `preacher_source` values first; a
-  corpus of `default` is itself a finding.
+  corpus of `default` is itself a finding. **Closed as not produced (2026-09-14):**
+  422/438 are `default` because speaker identification is deliberately disabled
+  until it is retrained on this corpus (operator ruling). §4.5 carries the retraining;
+  census the retrained output then.
 - [x] Sermon `duration` against decoded MP3 length, decoded video length and
   `segment_end_time − segment_start_time`. Resolve the six short MP3s here.
   **Done 2026-09-14, read-only, all 438 sermons**
@@ -593,7 +597,31 @@ class in the §4.3a detector table and a hold through the §4.1 path.
     cut causes the MP3 tail loss, so one extraction fix can remove both.
   - The six short MP3s from §4.1a's samples are the lower end of the same
     distribution (2–8 s raw gap), not a separate class.
-- [ ] SongVideo `duration` against decoded length and section span.
+- [x] SongVideo `duration` against decoded length and section span.
+  **Done 2026-09-14, read-only, all 464 song videos**
+  (`storage/scratch/songdur-20260914-{census,register}.json`).
+  - **Stored `duration` never measures the file.** `SongVideoService` copies it from
+    the section span, so it equals the span on all 464 by construction. 25 files
+    actually run over 1 s longer.
+  - **The same keyframe effect as the sermon videos, in two shapes** (fast-copied
+    h264 clips, 452 of 464):
+    - *Frozen opening picture* (89 over 1 s; 9 at 3–6 s; 1 at 7.7 s). The audio
+      starts exactly at the section start, but the picture waits for the next
+      keyframe, so the first frame shows frozen. Verified on 174, 233 and 451
+      against the service transcript (451's first words are the 510.4 s cue for a
+      510.0 s start).
+    - *Audio from the preceding item* (23 over 1 s; 12 at 3–6 s). The picture
+      covers the span, but the audio starts about 4–5 s early with the end of the
+      previous item. 464 opens on the 501 s cue for a 506.9 s start; 399 on 536.9 s
+      for 541.7 s.
+  - **No song clip loses its ending.** Every audio stream is at least the span.
+    Unlike the sermon MP3, no second cut is taken to a planned length.
+  - The 12 re-encoded (vp9-source) clips are exact to 0.12 s, but their picture
+    still starts 0.2–1.0 s after the sound.
+  - Spoken song introductions at the start of all six sampled clips lie inside the
+    section bounds: that is §4.3's spoken-framing class, not an extraction effect.
+  - Before this census, the two over-long song videos from the §4.1a samples were
+    unexplained notes; both are part of this class.
 - [ ] OoS item count and order against detected section count and order, per
   service. A song item with no section is the 944 "My Hope Is Built" class.
 - [ ] Reference against passage id, against the OoS reading item and against the
@@ -636,8 +664,10 @@ class in the §4.3a detector table and a hold through the §4.1 path.
     `sermons:assess-video-quality`, which writes no processing log. Their runs
     still say `unassessed / missing_video_file`, and the evidence exists only in
     `laravel.log`.
-- [ ] Thumbnail frame timestamp inside the sermon span, and the frame not black or
-  a slide.
+- [x] Thumbnail frame timestamp inside the sermon span, and the frame not black or
+  a slide. **Closed as not produced (2026-09-14):** thumbnails are deliberately
+  generated only after editorial QA, for the exact release membership (operator
+  ruling). §4.5 carries generation and this check.
 - [ ] Apply the repetition screen to song sections and census looping song
   transcripts (the §1216 class).
 
@@ -764,7 +794,7 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
 | Published title/reference contradicts summary or transcript (881, 954, 844/845/850) | §4.1a r1 | no | `residue-20260913-references.php` | **new**: published-vs-heard reference check and title↔summary overlap at analysis time; null-provenance adopted rows refuse publication |
 | Saved sermon text predates evidence (P8-Q1) | P8-Q1 | yes (`sermon_text_predates_evidence`) | — | keep |
 | Sermon MP3 loses closing words (12; stream-copied video vs plan-cut audio) | §4.1b duration census | no | `duration-20260914-census.json` (`duration − picture delay − MP3 length`) | **new**: in `ExtractSermon`, produce the MP3 from the final sermon video's audio track: the whole track, with no second cut from the source and no length taken from the plan, for both `single_span` and `concat_spans` (this also removes the independent single-span cut behind 1257's loss); flag an MP3 whose length differs from its video's audio track; then re-run the 12 through the pipeline and clear their holds only on a clean re-measure |
-| Video picture starts after its audio (stream-copy keyframe lead-in; 12 over 3 s) | §4.1b duration census | no | same | **new** (ruling 3a: smart cut): re-encode only from each cut point to the next keyframe and stream-copy the rest, so every piece starts exactly on its planned time with picture and sound together and no lead-in from the preceding item; verify with a picture-delay check after extraction (0 within one frame); re-run affected sermons through the pipeline |
+| Video picture starts after its audio, or audio carries the preceding item (stream-copy keyframe lead-in): sermons 12 over 3 s; song clips 89 frozen openings and 23 with lead-in audio over 1 s | §4.1b duration censuses | no | `duration-20260914-census.json`, `songdur-20260914-census.json` | **new** (ruling 3a: smart cut): in the shared `VideoExtractionService`, which cuts both sermon pieces and song clips, re-encode only from each cut point to the next keyframe and stream-copy the rest, so every piece starts exactly on its planned time with picture and sound together; check picture delay and length after every extraction (0 within one frame; length equals the span); make the re-encode path meet the same check (its clips still lag 0.2–1.0 s); write `SongVideo.duration` from the probed file, not the section; re-run affected sermons and song clips through the pipeline |
 | Hymn inside the sermon section (#885) | 09-10 review | no | — | **new**: lyric scorer over sermon-span windows with singing-like RMS |
 | Duplicate/date pair identity | P8-Q7 | no | — | §4.4 |
 | Automatic video-quality rejection hides a good video (27 of 47: static camera, dim lighting) | §4.1b matrix | the detector *is* the defect | `vq-20260914-register.json`; ffmpeg `freezedetect` over 4 min separated all 47 | **new**: replace the 1.5 s 16×16 burst with a long-window freeze/black measure, calibrated on the 47; decide whether a rejection needs review before it hides a video; then re-run quality assessment through the pipeline for the 27 wrong rows and 1225, never by hand (operator 2026-09-14), and confirm the 19 correct rejections stay rejected |
