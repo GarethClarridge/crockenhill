@@ -189,8 +189,8 @@ Read-only measurements taken to size §4. Nothing was written, held or moved.
 
 ### 4.0 Stabilise the plan's references
 
-- [ ] Commit the 2026-09-12 plan condensation and archived execution log so the
-  evidence anchors this plan links to are stable.
+- [x] Commit the 2026-09-12 plan condensation and archived execution log so the
+  evidence anchors this plan links to are stable. Done in `211c7f10b`.
 
 ### 4.1 Contain confirmed missing holds first
 
@@ -456,7 +456,8 @@ or a recorded decision that the field is not produced for historic runs.
 | Sermon `content_type` (sermon vs children's talk) | sample checklist | sample | OoS item section type; duration band |
 | Sermon `title`, `title_provenance` | sample; adopted-row census (§4.1a) | sample | `summary`; OoS sermon title; opening minute of transcript |
 | Sermon `reference`, `scripture_passage_id` | published-vs-heard census (§4.1a) | corpus (reference only) | passage id ↔ reference text; OoS reading item; spoken reference in transcript |
-| Sermon `summary`, `meta_description`, `show_summary` | sample (summary vs video) | sample | title; transcript keyword overlap; length/empty census |
+| Sermon `summary`, `show_summary` | sample (summary vs video) | sample | title; transcript keyword overlap; run `ai_analysis` |
+| Sermon `meta_description` | — | not produced (0/438; derived from summary at render) | check the rendered value in consumer-side rendering |
 | Sermon `points`, `show_points` | — | none | transcript; summary |
 | Sermon `slug` | — | none | title; uniqueness; placeholder pattern (`ReslugPlaceholderSermons`) |
 | Sermon `preacher`, `preacher_id`, `preacher_source`, `preacher_confidence`, `needs_preacher_review` | — (speaker ID paused) | none | OoS email preacher; speaker model; census of `preacher_source = default` |
@@ -465,8 +466,8 @@ or a recorded decision that the field is not produced for historic runs.
 | Sermon audio (MP3) content | decode sample (59 files) | sample | audio equals video track (fingerprint or duration+RMS profile); loudness; clipping; the 2–8 s shortfall above |
 | Sermon video content | decode sample (59 files); header probe of 1,334 paths | corpus (headers) / sample (decode) | A/V sync at start, middle, end; resolution/fps/codec census; `video_quality_status` reason |
 | Sermon `transcript_file_path` text | saved-vs-derived census (29 held); loop screen; cadence census | corpus | fresh re-transcription of a random minute; word rate; unobservable windows |
-| Sermon `thumbnail_file_path`, `thumbnail_metadata` | — | none | file exists and decodes; frame is inside the sermon span and shows a person, not a slide or black |
-| Sermon `video_quality_status`, `video_quality_reason`, `video_visibility_override` | — | none | census of values on historic rows; what the public page does with each |
+| Sermon `thumbnail_file_path`, `thumbnail_metadata` | coverage census 2026-09-14 | **defect**: 31/438, quarantine blocks generation | fix generation first; then frame inside the span, not black or a slide |
+| Sermon `video_quality_status`, `video_quality_reason`, `video_visibility_override` | coverage census 2026-09-14 (values only) | none | 47 `rejected` (26 frozen, 21 black) hide the video publicly: frames at the flagged timestamps |
 | Children's talk span, speaker | sample (span, 17 services) | sample | OoS item; `CHILDRENS-TALK-SPEAKER-DECISIONS` shortlist; duration band |
 | ChurchService `occasion`, `occasion_confirmed_at` | — | none | OoS email; special-service strata; calendar |
 | ChurchService `summary`, `notices` | — | none | empty census; transcript |
@@ -485,13 +486,51 @@ or a recorded decision that the field is not produced for historic runs.
 | Public pages, sitemap, podcast feed, structured data | — | none | render every quarantined row locally; 404s, missing thumbnails, duplicate slugs, broken song links |
 | Quarantine visibility and notifications | §4.5 audit | pending | — |
 
-- [ ] Verify the matrix against the writers: grep every `Sermon`, `ChurchService`,
+- [x] Verify the matrix against the writers: grep every `Sermon`, `ChurchService`,
   `ChurchServiceItem`, `ServiceSection` and `SongVideo` write in the pipeline and
   add any field the schema draft above missed. Record fields the historic path
   never writes as "not produced" rather than "none".
-- [ ] Give the matrix a home the next review can update
+  **Done 2026-09-14, read-only.** Grep alone cannot say what is produced, because
+  writers pass arrays and variables. A populated-column census over every column
+  and JSON metadata key of the five tables and the run row therefore decided it
+  (445 runs, 438 sermons, 443 services, 7,301 items, 4,190 sections, 460 song
+  videos), with writers traced by grep and the step ledger.
+  - **Not produced:** `sermons.meta_description` (derived from the summary at
+    render), `download_count`, section `matched_item_id`/`expected_item_id`
+    (scrubbed legacy) and `published_sermon_id` (approval path only), SongVideo
+    `is_featured`, and the run's visual-analysis columns.
+  - **Rows the draft missed:** run `ai_analysis` (the seed of the sermon fields),
+    section `sermon_reference`/`reading_reference` (a stored second view of the
+    published reference), `song_ocr_text` on 73 sections (a stored third identity
+    view), service `summary`/`notices`/`chapter_markers` (AI-written, not rendered
+    on the public service page), item metadata, run `trim`/`audio_compression`/
+    `service_transcript_suspect_blocks`, and the 579 pending-approval sections.
+  - **Defect found: no quarantined sermon gets a thumbnail.** `GenerateThumbnail`
+    asks `SermonExposurePolicy::shouldGenerateVideoThumbnail()`, which requires
+    `publication_state = published`. All 409 historic runs from 2026-09-01 were
+    skipped with the step message "Video quality verdict does not allow a public
+    thumbnail", which names the wrong reason. Only 31 of 438 have one, made before
+    quarantine or by manual regeneration. No release-path code generates
+    thumbnails, so every released historic sermon would ship without one. → §4.3a.
+  - **Findings needing a census or ruling (now matrix rows):** preacher is the
+    default "Visiting Speaker" on 422/438 (speaker identification disabled for 393
+    runs, 38 below threshold); 47 videos are auto-`rejected` (26 frozen frames, 21
+    mostly black), which hides them publicly, and nobody has looked at them;
+    `occasion` is set on 1 of 443 services; no historic children's talk has a
+    Sermon row (145 are pending approval, 16 held); references missing on sermons
+    888, 957, 961, 1069 and 1090, and passage ids missing on 908–910 and 912–915.
+  - **Checked clean:** sermon and SongVideo dates agree with their owning service
+    (0 disagree); slugs are unique within the historic rows.
+  - **Baseline caveat:** the 15 non-historic runs predate current detection code
+    (13 of their 17 weekly-only section metadata keys no longer exist in `app/`).
+    They are not a current-pipeline comparison; §4.5's regression set must re-run
+    weekly services.
+- [x] Give the matrix a home the next review can update
   (`storage/scratch/coverage-matrix-YYYYMMDD.json` beside the registers), with
-  the instrument path and run date per row.
+  the instrument path and run date per row. **`storage/scratch/coverage-matrix-20260914.json`**
+  (44 rows, each with its writer, historic population, check, status and second
+  view), built from `coverage-20260914-field-census.{php,json}`. The table above
+  is the summary; the JSON is authoritative where they differ.
 
 #### Disagreement censuses to run (all 442 active runs unless stated)
 
@@ -638,6 +677,9 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
 | Sermon duration / MP3 / video length disagree | §4.1b | no | — | **new**: duration-agreement flag after encode |
 | Hymn inside the sermon section (#885) | 09-10 review | no | — | **new**: lyric scorer over sermon-span windows with singing-like RMS |
 | Duplicate/date pair identity | P8-Q7 | no | — | §4.4 |
+| Quarantined sermon never gets a thumbnail; skip message blames video quality | §4.1b matrix | no (409 silent skips) | `coverage-20260914-field-census.php` | **new**: generate thumbnails independently of publication state (expose, not generate, is the public decision), give the skip its true reason, and backfill the 407 |
+| Preacher left at the default speaker | §4.1b matrix | no (422/438 `default`) | — | **new**: flag `preacher_source = default` on historic rows for editorial QA; decide whether to run speaker ID |
+| Automatic video-quality rejection hides a good video | §4.1b matrix | no (47 unexamined) | — | **new**: adjudicate the 47 by frames; decide whether rejection needs review before it hides a video |
 | Silent source producing nothing (955) | §4.1a r2 | yes (`SILENT-SOURCE-EXCLUSION` plan) | — | keep |
 
 - [ ] Fill the table's "pipeline item" column with a tested change or a recorded
