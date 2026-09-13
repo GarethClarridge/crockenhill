@@ -228,10 +228,16 @@ review found a class its predecessor had no instrument for, so treat this plan a
 heavier repairs, because a new class could change them. Run this after §4.1's holds
 and before §4.2–4.4.
 
-- [ ] Draw a random, stratified held-out sample of about 30 services across eras and
+- [x] Draw a random, stratified held-out sample of about 30 services across eras and
   service kinds (Sunday, special, concatenated/partial recordings). Exclude members
   already named in §4.1–4.4 so the sample measures the unknown residue.
-- [ ] Check every sampled service against one fixed checklist, from source media and
+  **Drawn 2026-09-13** (seed 20260913) from 442 completed active historic runs, less
+  92 already named (§4.1–4.4, the 09-11 register, text-evidence and continuation
+  holds, adjudicated song identity): 3 concatenated, 4 special, 15 Sunday morning
+  across 2020–2026, 8 Sunday evening. Runs: 940, 944, 1014, 1234, 1246, 1260, 1233,
+  938, 1347, 1325, 1307, 1255, 1259, 1197, 1243, 1182, 1137, 1167, 1112, 1102, 983,
+  1001, 980, 1175, 1141, 1094, 1116, 1071, 1010, 992.
+- [x] Check every sampled service against one fixed checklist, from source media and
   the saved outputs:
   - song identity and count, against the audio and the order of service;
   - song clip boundaries;
@@ -240,16 +246,78 @@ and before §4.2–4.4.
   - Scripture references, title and summary;
   - children's-talk span;
   - playback, decoding the clip rather than probing its header.
-- [ ] Record per-dimension results. Zero defects in 30 bounds that dimension's rate
+  Method: per-run dossiers of sections against the order of service, boundary
+  transcript excerpts, saved-versus-derived text diffs, ≥3-repeat loop scans; five
+  frames per generated song clip; targeted source-audio re-transcription, loudness
+  and frames wherever a signal appeared; a full container decode of every sermon
+  video, sermon audio and song video (84 files).
+- [x] Record per-dimension results. Zero defects in 30 bounds that dimension's rate
   below about 10% at 95% confidence (rule of three); report the bound, not "clean".
-- [ ] Probe song identity directly, alongside the sample:
+  Services with a defect, with the two-sided 95% upper bound:
+
+  | Dimension | Found | Upper bound | Defects |
+  |---|---|---|---|
+  | Song identity and count | 2/30 | 22% | §3024 bound to the wrong song; 944's "My Hope Is Built" typed `other`, so no clip |
+  | Song clip boundaries | 1/30 | 17% | §2897 ends in ~25 s of spoken benediction; policy silent |
+  | Sermon start/end, hymn inside | 1/30 | 17% | 980's recording starts mid-sermon over a silent opening |
+  | Saved sermon-text integrity | 2/30 | 22% | 1112 lost ~12 min to a new ASR class (below); 1347's reading has "the Lord" ×16 (§4.2 class) |
+  | Scripture, title, summary | 1/30 | 17% | 944's title and reference describe a different talk from its summary and video |
+  | Children's-talk span | 0/8 | 37% | Only 8 sampled services have one |
+  | Playback (full decode) | 0/84 files | 4.3% | 30 sermon videos, 30 sermon MP3s, 24 song videos decode end to end with no errors; six MP3s run 2–8 s short of the stored duration and two song videos 2–3.5 s long (a note, not a failure) |
+
+  Not defects: in 11 runs the saved text omits the prayer and hymn between the
+  reading and the sermon, and 26/30 sermon videos equal reading plus sermon to
+  within a second, so the intervening hymn is cut by design
+  (`SermonExtractionPlanResolver::selectBibleReading()`).
+- [x] Probe song identity directly, alongside the sample:
   - sample about 8 of the 32 published, unheld songs carrying
     `structure_oos_cross_type_inversion`;
   - compare title with transcript on a random set of `confirmed` published songs.
-- [ ] Take every defect found as a class to census corpus-wide, contain it through the
+  **Result:** only 20 such songs remain published, unheld and with a video (15
+  outside known runs); 0/8 sampled are wrong (§2598 plausible, not proven). Of 12
+  random `confirmed` songs, 1 is wrong (§631, upper bound 38%). The inversion flag
+  is not the identity signal; divergence between printed and sung order is.
+- [x] Take every defect found as a class to census corpus-wide, contain it through the
   §4.1 hold path and add it to §4.2–4.4. Do not repair from the sample alone.
-- [ ] Keep the 27 unvalidated short-loop candidates out of the sample; they are
+  Censuses (all 442 runs unless stated) and containment, 2026-09-13:
+  - **Sparse 30-second-cadence transcript loss (new).** Whisper emits one short cue
+    per 30 s chunk instead of the speech inside it. Too few repeats for the loop
+    screen, too few words for the density fallback, and no unobservable window.
+    178 cadence spans in 139 runs are almost all "Amen"/"Thank you" over music;
+    those flanked by dense speech inside a talk are 1112 §3739 and 1278 §3490, both
+    confirmed by fresh audio, and 1362 (already held). → §4.2.
+  - **Wrong song identity in `confirmed`, unheld clips.** Heard section title versus
+    bound song over 460 generated videos found §508, §519, §631, §2350 and §2638
+    wrong, confirmed by the sung lyrics and announcements; §2683 was a false positive.
+    §3024 escapes that census because its heard title agrees with the wrong binding,
+    so the census is a floor. Mechanism in §3024: printed and sung order diverge
+    around a reading or a back-to-back pair. → §4.3.
+  - **Published title/reference describes another talk.** Published versus heard
+    reference over 438 sermons: 422 agree, 10 have no heard reference, 6 disagree.
+    Confirmed: sermon 881 (944); 954 (1019, 3 John published, 2 John preached);
+    844/845/850 (1380–1382), pre-existing rows created 2026-05-28 with null title
+    provenance that keep other weeks' titles. Candidate: 899 (963, a carol-service
+    reading as reference). → §4.5 editorial QA.
+  - **Source audio dropout inside a talk.** RMS ≤ −80 dB for ≥15 s: confirmed 1089
+    §1790 (frames show the preacher) and 980 §1016; unheld candidates 988 §1152,
+    1080 §1748 (children's talk), 1087 §3711, 1088 §1786, 1339 §4291 and 1043 §1530
+    (also a §4.2 candidate); 940, 1322, 1360, 1362 already held. Not repairable from
+    the pipeline; accept or exclude by operator decision.
+  - **Held through `service:hold-section-content`:** sermon sections 3739, 3490, 667,
+    4666, 4667, 4678, 1335, 1790, 1016; song sections 3024, 631, 508, 519, 2350, 2638,
+    2897. The gate before (18:01:28 UTC) refused only sermon 1220, for an unrelated
+    macro-section flag; after (18:02:04 UTC) it refuses all 9 sermons and 7 song
+    videos, all still `quarantined`.
+  - Evidence: `storage/scratch/residue-20260913-register.json` and the
+    `residue-20260913-*` files beside it.
+- [x] Keep the 27 unvalidated short-loop candidates out of the sample; they are
   §4.2's.
+
+**Conclusion.** The known list is not the whole defect population: the sample found
+defects in 7 of 30 services outside §4.1–4.4, and three new classes (cadence
+transcript loss, title/reference drift on adopted rows, source dropouts), plus a
+wider song-identity problem than the four adjudicated cases. The heavier repairs
+should be designed with these classes in, and §4.5's fresh sample stays mandatory.
 
 ### 4.2 Close the transcript-loop blind spot
 
@@ -259,6 +327,10 @@ and before §4.2–4.4.
   and number-varying loops.
 - [ ] Verify recovered full-service evidence and saved sermon text independently.
   Agreement between two copies of the same corrupt text is not proof.
+- [ ] Detect sparse 30-second-cadence loss (§4.1a): consecutive short cues exactly
+  30 s apart inside dense speech. Regression cases §3739 (1112) and §3490 (1278);
+  negative cases are "Amen"/"Thank you" cadences over music and 1089's silent source.
+- [ ] Add 1347's reading loop ("the Lord" ×16, 32 words) to the short-loop candidates.
 
 ### 4.3 Refresh song policy for existing outputs
 
@@ -276,6 +348,11 @@ and before §4.2–4.4.
   through its tested write path (§3.2). Measured: the 3-second floor accounts for
   none of the 27 candidates, so it is not a substitute.
 - [ ] Use §988 and §1457 as regression cases for the continuous-speech check.
+  Add §2897 (spoken benediction tail) as a trailing-speech case.
+- [ ] Bind song identity to what was sung, not the printed position (§4.1a): §3024,
+  §631, §508, §519, §2350 and §2638 are held. Census beyond the heard-title floor
+  (e.g. announced title or number against the bound song) before trusting
+  `confirmed`.
 
 ### 4.4 Bind deferred identity disputes
 
