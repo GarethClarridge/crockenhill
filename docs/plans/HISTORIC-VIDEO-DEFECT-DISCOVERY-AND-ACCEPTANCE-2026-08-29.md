@@ -669,8 +669,10 @@ class in the §4.3a detector table and a hold through the §4.1 path.
   (`selectBibleReading()`), the long song videos, video 970's
   timestamps, and any ruling §4.1b adds. (The short MP3s were resolved as a defect
   2026-09-14, not a ruling.) Added 2026-09-14:
-  - whether a picture starting up to about 5 s after its audio is acceptable
-    (open; the delay comes from the same stream-copy cut as the MP3 tail loss);
+  - **Picture starting after its audio: not acceptable; use a smart cut (operator
+    ruling 2026-09-14).** Re-encode only from each cut point to the next keyframe
+    and copy the rest. Pieces then start exactly on time, without the lead-in from
+    the preceding item, at close to stream-copy speed and quality.
   - **1225's partial video: show it (operator ruling 2026-09-14).** The repaired
     detector must approve it, since most of the recording is real preaching;
   - **whole-recording cards count as no video (operator ruling 2026-09-14).** The
@@ -761,8 +763,8 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
 | Source audio dropout inside a talk (≥15 s at ≤ −80 dB) | §4.1a r1 | no | `residue-20260913-dropouts.py` | **new**: RMS dropout flag on the section; not repairable, so the flag is the outcome |
 | Published title/reference contradicts summary or transcript (881, 954, 844/845/850) | §4.1a r1 | no | `residue-20260913-references.php` | **new**: published-vs-heard reference check and title↔summary overlap at analysis time; null-provenance adopted rows refuse publication |
 | Saved sermon text predates evidence (P8-Q1) | P8-Q1 | yes (`sermon_text_predates_evidence`) | — | keep |
-| Sermon MP3 loses closing words (12; stream-copied video vs plan-cut audio) | §4.1b duration census | no | `duration-20260914-census.json` (`duration − picture delay − MP3 length`) | **new**: in `ExtractSermon`, cut the concat MP3 from the source spans (or from the joined file's measured length), never `clip(0, plannedDuration)` of an over-long join; trace 1257's single-span loss; flag an MP3 more than 1.5 s short of its video after the picture delay; then re-run the 12 through the pipeline and clear their holds only on a clean re-measure |
-| Video picture starts after its audio (stream-copy keyframe lead-in; 12 over 3 s) | §4.1b duration census | no | same | **new**: record the delay after extraction; decide whether to re-encode the head or accept it |
+| Sermon MP3 loses closing words (12; stream-copied video vs plan-cut audio) | §4.1b duration census | no | `duration-20260914-census.json` (`duration − picture delay − MP3 length`) | **new**: in `ExtractSermon`, produce the MP3 from the final sermon video's audio track: the whole track, with no second cut from the source and no length taken from the plan, for both `single_span` and `concat_spans` (this also removes the independent single-span cut behind 1257's loss); flag an MP3 whose length differs from its video's audio track; then re-run the 12 through the pipeline and clear their holds only on a clean re-measure |
+| Video picture starts after its audio (stream-copy keyframe lead-in; 12 over 3 s) | §4.1b duration census | no | same | **new** (ruling 3a: smart cut): re-encode only from each cut point to the next keyframe and stream-copy the rest, so every piece starts exactly on its planned time with picture and sound together and no lead-in from the preceding item; verify with a picture-delay check after extraction (0 within one frame); re-run affected sermons through the pipeline |
 | Hymn inside the sermon section (#885) | 09-10 review | no | — | **new**: lyric scorer over sermon-span windows with singing-like RMS |
 | Duplicate/date pair identity | P8-Q7 | no | — | §4.4 |
 | Automatic video-quality rejection hides a good video (27 of 47: static camera, dim lighting) | §4.1b matrix | the detector *is* the defect | `vq-20260914-register.json`; ffmpeg `freezedetect` over 4 min separated all 47 | **new**: replace the 1.5 s 16×16 burst with a long-window freeze/black measure, calibrated on the 47; decide whether a rejection needs review before it hides a video; then re-run quality assessment through the pipeline for the 27 wrong rows and 1225, never by hand (operator 2026-09-14), and confirm the 19 correct rejections stay rejected |
