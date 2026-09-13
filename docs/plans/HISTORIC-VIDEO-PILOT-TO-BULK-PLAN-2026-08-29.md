@@ -319,6 +319,62 @@ transcript loss, title/reference drift on adopted rows, source dropouts), plus a
 wider song-identity problem than the four adjudicated cases. The heavier repairs
 should be designed with these classes in, and §4.5's fresh sample stays mandatory.
 
+#### Round 2 — 2026-09-13/14
+
+Seven problem services in 30 was too many to stop on, so a second sample was drawn
+with a stopping rule: **sample again until a round finds no new class.**
+
+- [x] Draw a second seeded sample (20260914) of 30 from the 305 runs not already
+  sampled, held or named as candidates, with the same strata. Runs: 955, 973, 975,
+  1306, 1195, 1293, 1329, 1372, 933, 1323, 1316, 1285, 1286, 1214, 1222, 1118,
+  1142, 1165, 1106, 1036, 1011, 997, 949, 1188, 1186, 1046, 1081, 1065, 996, 1017.
+- [x] Check it against the same checklist.
+
+  | Dimension | Found | Defects |
+  |---|---|---|
+  | Song identity and count | 0/30 | Slides or audio agree with all 26 generated clips |
+  | Song clip boundaries | 1/30 | §1475 (1036) ends in ~40 s announcing and starting the reading |
+  | Sermon start/end, hymn inside | 1/30 | §1684 (1065) ends "fourthly, worship" at the end of its only source file |
+  | Saved sermon-text integrity | 0/30 | Gaps are songs, and a seated reading (1323) |
+  | Scripture, title, summary | 0/30 | — |
+  | Children's-talk span | 0/9 | — |
+  | Playback (full decode) | 0/84 files | 29 sermon videos, 29 sermon MP3s and 26 song videos decode end to end. Video 970 (1036) logs 880 duplicate-timestamp warnings from the discard output, but its stored packets are strictly increasing and it decodes cleanly: a note, not a failure |
+
+  **No new class.** Both defects belong to classes round 1 already found, so the
+  stopping rule is met. Across both rounds, 9 of 60 services had a defect outside the
+  known list (95% upper bound 26%). Run 955 produced nothing because both source
+  files are silent, although the video shows the service; that is correct.
+- [x] Census song identity directly, rather than sampling it further.
+  - **Lyric instrument:** score each song section's transcript against every song's
+    lyrics. It flags 5 of 7 known-wrong clips and 0 of 38 frame-verified correct
+    ones; the misses have looping transcripts. It flagged 15 published, unheld clips,
+    and slides confirm all 15 are wrong.
+  - **Hint instrument:** compare `song_title_hint` with the bound song. It found 4
+    more, confirmed by slides (§1956, §4070, §4372, §4533). Most of its other
+    disagreements are alternate titles for the same song (It Is Well / When Peace Like
+    A River, The Servant King / From Heaven You Came).
+  - **Mechanism, the same in every case:** the detector hears the right title, and
+    `title_hint_fuzzy` resolves it to a song that shares a title or first-line word.
+    Rock of Ages → O Safe To The Rock; O Lord My God → Fill All My Life; Behold Our
+    God → All glory be to Christ; God of Glory → Almighty Lord Most High; I Know That
+    My Redeemer Lives #462 → #907; King of Kings → Listen! Wisdom Cries Aloud.
+    Livestream-sourced order-of-service items are then written from the wrong song.
+  - **25 generated clips confirmed wrong** in total (6 in round 1, 19 now).
+  - **31 pending-approval sections** carry the same hint disagreement (one, §3580, is
+    an alternate title). They have no clip yet, and approving them would publish the
+    wrong song. They are not held; they are listed in the register.
+- [x] Census talks cut by the recording itself: §1684 (1065), §1793 (1090) and §3943
+  (1310) end mid-flow at the end of their only source file, and §1421 (1031) starts
+  mid-thought. There is no second part on the archive for any of them.
+- [x] Census sung items typed as non-songs: 2 (a sung Psalm 46 typed as a reading in
+  1253, a sung hymn typed as prayer in 1349), neither inside a sermon span. This is a
+  floor: 944's §666 escapes it because its transcript loops.
+- [x] **Held:** song sections 991, 1007, 1054, 1326, 1817, 2213, 2750, 2929, 2994,
+  3054, 3122, 3191, 4134, 4184, 4250, 1956, 4070, 4372, 4533 and 1475; sermon sections
+  1684, 1793, 3943 and 1421. The gate refused none of the 4 sermons and 20 song videos
+  before (19:01:55 UTC) and all 24 after (19:02:03 UTC); all remain `quarantined`.
+  Evidence: `storage/scratch/residue-20260914-register.json`.
+
 ### 4.2 Close the transcript-loop blind spot
 
 - [ ] Validate the remaining short-loop candidates against their audio; distinguish
@@ -349,10 +405,15 @@ should be designed with these classes in, and §4.5's fresh sample stays mandato
   none of the 27 candidates, so it is not a substitute.
 - [ ] Use §988 and §1457 as regression cases for the continuous-speech check.
   Add §2897 (spoken benediction tail) as a trailing-speech case.
-- [ ] Bind song identity to what was sung, not the printed position (§4.1a): §3024,
-  §631, §508, §519, §2350 and §2638 are held. Census beyond the heard-title floor
-  (e.g. announced title or number against the bound song) before trusting
-  `confirmed`.
+- [ ] Fix `title_hint_fuzzy` song resolution (§4.1a round 2): a shared title or
+  first-line word must not beat an exact or alternate title. Use the 25 held wrong
+  clips as regression cases, and the alternate-title pairs as cases that must still
+  resolve. Re-resolve affected sections, and correct livestream-sourced order-of-service
+  items written from the wrong song.
+- [ ] Settle the 31 pending-approval sections with the same hint disagreement before
+  anyone approves them.
+- [ ] Add a lyric-coverage check (calibrated in §4.1a) before a song match is recorded
+  as `confirmed`.
 
 ### 4.4 Bind deferred identity disputes
 
