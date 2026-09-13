@@ -462,12 +462,12 @@ or a recorded decision that the field is not produced for historic runs.
 | Sermon `slug` | — | none | title; uniqueness; placeholder pattern (`ReslugPlaceholderSermons`) |
 | Sermon `preacher`, `preacher_id`, `preacher_source`, `preacher_confidence`, `needs_preacher_review` | coverage census 2026-09-14 (422/438 `default`) | not produced until retraining (ruling 2026-09-14) | OoS email preacher; retrained speaker model |
 | Sermon `series` | — | none | OoS; adjacent weeks' series; empty census |
-| Sermon `segment_start_time`, `segment_end_time`, `duration` | sample (start/end); decode sample | sample | decoded media length; section span; source duration; MP3 vs video length |
-| Sermon audio (MP3) content | decode sample (59 files) | sample | audio equals video track (fingerprint or duration+RMS profile); loudness; clipping; the 2–8 s shortfall above |
+| Sermon `segment_start_time`, `segment_end_time`, `duration` | duration census 2026-09-14 | corpus | span gaps are by-design concat plans; 902 plan ends past its recording |
+| Sermon audio (MP3) content | decode sample (59); duration census and tail transcripts 2026-09-14 | corpus (length) / sample (loudness, clipping) | **defect**: 12 MP3s lose closing words; loudness and clipping still unchecked |
 | Sermon video content | decode sample (59 files); header probe of 1,334 paths | corpus (headers) / sample (decode) | A/V sync at start, middle, end; resolution/fps/codec census; `video_quality_status` reason |
 | Sermon `transcript_file_path` text | saved-vs-derived census (29 held); loop screen; cadence census | corpus | fresh re-transcription of a random minute; word rate; unobservable windows |
 | Sermon `thumbnail_file_path`, `thumbnail_metadata` | coverage census 2026-09-14 | not produced until release (ruling 2026-09-14; 31/438) | after release-time generation: frame inside the span, not black or a slide |
-| Sermon `video_quality_status`, `video_quality_reason`, `video_visibility_override` | coverage census 2026-09-14 (values only) | none | 47 `rejected` (26 frozen, 21 black) hide the video publicly: frames at the flagged timestamps |
+| Sermon `video_quality_status`, `video_quality_reason`, `video_visibility_override` | every rejection adjudicated 2026-09-14 | corpus (rejections) / none (approvals) | **defect**: 27 of 47 rejections hide good video; approvals never sampled |
 | Children's talk span, speaker | sample (span, 17 services) | sample | OoS item; `CHILDRENS-TALK-SPEAKER-DECISIONS` shortlist; duration band |
 | ChurchService `occasion`, `occasion_confirmed_at` | — | none | OoS email; special-service strata; calendar |
 | ChurchService `summary`, `notices` | — | none | empty census; transcript |
@@ -546,8 +546,30 @@ class in the §4.3a detector table and a hold through the §4.1 path.
 - [ ] Preacher against the OoS email preacher and, where the paused speaker model
   has a stored verdict, against that. Census `preacher_source` values first; a
   corpus of `default` is itself a finding.
-- [ ] Sermon `duration` against decoded MP3 length, decoded video length and
+- [x] Sermon `duration` against decoded MP3 length, decoded video length and
   `segment_end_time − segment_start_time`. Resolve the six short MP3s here.
+  **Done 2026-09-14, read-only, all 438 sermons**
+  (`storage/scratch/duration-20260914-{census,register}.json`).
+  - Video length equals `duration` for all 438, to within 1 s.
+  - The span exceeds `duration` by over 30 s on 192 sermons (up to 887.5 s). Every
+    one is a `concat_spans` plan whose segments sum to the duration: the hymn cut
+    between reading and sermon. Not a defect.
+  - Sermon 902's `sermon_only` plan ends at 1,349 s but its recording is 1,320.3 s.
+    The media end at the recording; no section ends past its source corpus-wide.
+  - **The short MP3s are a real defect: the MP3 loses the closing words.**
+    Stream-copy cuts start the video's picture at the keyframe before the cut,
+    after its audio, while the MP3 is cut to the plan. So `duration − picture
+    delay − MP3 length` estimates speech missing from the MP3's end; it matched the
+    measured offset within 0.1 s. 424 of 436 sit at or under 1.5 s (1102, at a 2 s
+    raw gap, ends on identical words). The 12 over 3 s were all confirmed by
+    transcribing both files' last 20 s. 11 lose closing-prayer or sermon words
+    (1266 ends "it's another thing to put,"; 1270 ends "will guard your heart"),
+    and 1096 loses only a hymn announcement. All decode without error, so the loss
+    is in the cut. Sermon sections 2310, 2358, 2446, 2479, 2558, 2572, 3804,
+    4215, 4386 and 4508 are unheld; 4321 and 4495 are already held.
+    The cause is not yet traced (11 of the 12 are concat plans). → §4.3a.
+  - The six short MP3s from §4.1a's samples are the lower end of the same
+    distribution (2–8 s raw gap), not a separate class.
 - [ ] SongVideo `duration` against decoded length and section span.
 - [ ] OoS item count and order against detected section count and order, per
   service. A song item with no section is the 944 "My Hope Is Built" class.
@@ -560,8 +582,37 @@ class in the §4.3a detector table and a hold through the §4.1 path.
 - [ ] Sum of sections against source duration; list every unsectioned span over
   60 s with its transcript density, corpus-wide (the dossiers compute this for the
   sampled runs only).
-- [ ] Sermon audio against sermon video: duration, and an RMS profile correlation
+- [x] Sermon audio against sermon video: duration, and an RMS profile correlation
   at three offsets, so a mismatched or mis-cut MP3 cannot hide behind a good video.
+  **Done 2026-09-14.** Duration and the tail-loss estimate for all 436 with an MP3
+  (above). RMS alignment at five points on 1266, 1128 and 1226 found a constant
+  offset equal to each video's picture delay (3.9, 4.5, 4.6 s), so nothing is lost
+  or shifted at the join and picture stays in sync after the opening. The picture
+  starts after the audio by under 0.5 s in 186 videos, 0.5–1 s in 55, 1–3 s in
+  185, 3–6 s in 11, and 8.3 s in 1206 (a camera-disconnected card).
+- [x] Adjudicate every automatic video-quality rejection (added 2026-09-14; the
+  public page hides a rejected video). **Done, read-only, all 48 rows**
+  (`storage/scratch/vq-20260914-register.json`, contact sheets under
+  `vq-20260914-frames/`). Of the 47 in the active scope:
+  - **19 correct**: 12 are black for the whole recording; 7 are cards for the
+    whole recording (OBS end and start cards, "EOS Webcam Utility", "Sorry,
+    there's a problem with the camera").
+  - **1 partial**: 1225 shows about 8 minutes of preaching, then the camera-problem
+    card, then a second camera.
+  - **27 wrong**, normal preaching hidden from the public:
+    - 24 `frozen_frames` on static cameras. The detector shrinks frames 1.5 s apart
+      to 16×16 luminance and calls a pair frozen at ≤ 1% difference. Replayed on
+      978, 1070 and 1241 it scored 0.004–0.008 at 1.5 s but 0.013–0.066 at 60–300 s;
+      black 984 scored exactly 0.
+    - 3 `mostly_black` on dim lighting (903, 969/1307): brightness 0.07 against a
+      0.08 threshold.
+  - ffmpeg `freezedetect` over a 4-minute window separates the two populations
+    completely: every correct rejection is still frozen at the window's end, and
+    no wrong one freezes at all.
+  - 13 verdicts (978–1038) were re-assessed on 2026-09-08 by
+    `sermons:assess-video-quality`, which writes no processing log. Their runs
+    still say `unassessed / missing_video_file`, and the evidence exists only in
+    `laravel.log`.
 - [ ] Thumbnail frame timestamp inside the sermon span, and the frame not black or
   a slide.
 - [ ] Apply the repetition screen to song sections and census looping song
@@ -592,8 +643,13 @@ class in the §4.3a detector table and a hold through the §4.1 path.
 
 - [ ] Put every "not a defect" ruling to the operator explicitly, with the evidence,
   and record the decision here: the hymn cut from sermon videos
-  (`selectBibleReading()`), the short MP3s, the long song videos, video 970's
-  timestamps, and any ruling §4.1b adds. A ruling made in passing by the reviewer is
+  (`selectBibleReading()`), the long song videos, video 970's
+  timestamps, and any ruling §4.1b adds. (The short MP3s were resolved as a defect
+  2026-09-14, not a ruling.) Added 2026-09-14:
+  - whether a picture starting up to about 5 s after its audio is acceptable;
+  - 1225's partial video: show it with the card, cut it, or hide it;
+  - whether the 7 whole-recording cards count as "no video", as the rejection now
+    treats them. A ruling made in passing by the reviewer is
   not a decision.
 - [ ] **Stopping rule (replaces round 2's).** Discovery stops when the coverage
   matrix has no **none** row, every cheap instrument has run over all 442 runs with
@@ -679,10 +735,12 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
 | Source audio dropout inside a talk (≥15 s at ≤ −80 dB) | §4.1a r1 | no | `residue-20260913-dropouts.py` | **new**: RMS dropout flag on the section; not repairable, so the flag is the outcome |
 | Published title/reference contradicts summary or transcript (881, 954, 844/845/850) | §4.1a r1 | no | `residue-20260913-references.php` | **new**: published-vs-heard reference check and title↔summary overlap at analysis time; null-provenance adopted rows refuse publication |
 | Saved sermon text predates evidence (P8-Q1) | P8-Q1 | yes (`sermon_text_predates_evidence`) | — | keep |
-| Sermon duration / MP3 / video length disagree | §4.1b | no | — | **new**: duration-agreement flag after encode |
+| Sermon MP3 loses closing words (12; stream-copied video vs plan-cut audio) | §4.1b duration census | no | `duration-20260914-census.json` (`duration − picture delay − MP3 length`) | **new**: trace the cut, make audio and video end together, and flag an MP3 more than 1.5 s short of its video after the picture delay |
+| Video picture starts after its audio (stream-copy keyframe lead-in; 12 over 3 s) | §4.1b duration census | no | same | **new**: record the delay after extraction; decide whether to re-encode the head or accept it |
 | Hymn inside the sermon section (#885) | 09-10 review | no | — | **new**: lyric scorer over sermon-span windows with singing-like RMS |
 | Duplicate/date pair identity | P8-Q7 | no | — | §4.4 |
-| Automatic video-quality rejection hides a good video | §4.1b matrix | no (47 unexamined) | — | **new**: adjudicate the 47 by frames; decide whether rejection needs review before it hides a video |
+| Automatic video-quality rejection hides a good video (27 of 47: static camera, dim lighting) | §4.1b matrix | the detector *is* the defect | `vq-20260914-register.json`; ffmpeg `freezedetect` over 4 min separated all 47 | **new**: replace the 1.5 s 16×16 burst with a long-window freeze/black measure, calibrated on the 47; decide whether a rejection needs review before it hides a video |
+| Quality verdict written without run evidence (13, `sermons:assess-video-quality`) | §4.1b matrix | no | — | **new**: the command path records its assessment on the owning run |
 | Silent source producing nothing (955) | §4.1a r2 | yes (`SILENT-SOURCE-EXCLUSION` plan) | — | keep |
 
 - [ ] Fill the table's "pipeline item" column with a tested change or a recorded
