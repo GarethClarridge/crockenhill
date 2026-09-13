@@ -1,10 +1,11 @@
 # Historic import — decision record, 3 September 2026
 
-**Status:** D1, D2/D3, D4, D5 and D7 are implemented and applied; D6 remains
-deferred and the §4 operator items remain open. See §6 for what landed and what
-is still owed. Plan of record remains
-[`HISTORIC-VIDEO-PILOT-TO-BULK-PLAN-2026-08-29.md`](HISTORIC-VIDEO-PILOT-TO-BULK-PLAN-2026-08-29.md);
-this record supersedes it where the two disagree.
+**Status:** Historical decision record. D1, D2/D3, D4, D5 and D7 were implemented
+and applied; later execution and review superseded its D6 and §4 status. See §6
+for what landed. The complete dated execution context is in the
+[archived video log](../archived-plans/HISTORIC-VIDEO-PILOT-TO-BULK-EXECUTION-LOG-2026-08-29-TO-2026-09-11.md);
+current containment and acceptance work is in the
+[focused video plan](HISTORIC-VIDEO-PILOT-TO-BULK-PLAN-2026-08-29.md).
 
 Working tree was clean when these decisions were taken (`9f3f61cc2`). No code
 changed in the session that produced them; the implementation followed in the

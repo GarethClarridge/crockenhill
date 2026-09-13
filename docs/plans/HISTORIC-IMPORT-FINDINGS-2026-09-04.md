@@ -2,7 +2,7 @@
 
 > **Update, 2026-09-06:** Phase 8 is underway. The database-backed output review,
 > pending repairs and recommended short maintenance pause are recorded in the
-> plan of record's [Phase 8 review](HISTORIC-VIDEO-PILOT-TO-BULK-PLAN-2026-08-29.md#phase-8-review-2026-09-06--outputs-and-lessons-for-routine-services).
+> archived [Phase 8 review](../archived-plans/HISTORIC-VIDEO-PILOT-TO-BULK-EXECUTION-LOG-2026-08-29-TO-2026-09-11.md#phase-8-review-2026-09-06--outputs-and-lessons-for-routine-services).
 > Read that update before relying on the pre-run counts below. Speaker
 > identification is deliberately paused for corpus collection and a subsequent
 > speaker-bucketing/manual-naming approach; this is not a fault to clear by

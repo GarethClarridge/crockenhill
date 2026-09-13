@@ -3,7 +3,7 @@
 **Date:** 2026-09-01
 **Status:** Implemented 2026-09-01 (`bbea58c0a`, review fixes follow). D1–D5 landed and acceptance criteria 1–5 and 7 are met by test. **Criterion 6 is outstanding**: the real `2026-04-02-evening` rerun has not been performed, so the exclusion is proven by fixture, not by the recording that motivated the plan.
 **Scope:** Make a recording with no usable audio an explicit, self-explaining exclusion instead of an opaque late failure, and give the historic lane's alert channel a reader
-**Related plan:** `HISTORIC-VIDEO-PILOT-TO-BULK-PLAN-2026-08-29.md` — this is Phase 8 robustness work, not a step 10 blocker
+**Related evidence:** [historic-video execution log](../archived-plans/HISTORIC-VIDEO-PILOT-TO-BULK-EXECUTION-LOG-2026-08-29-TO-2026-09-11.md) — this was Phase 8 robustness work, not a step 10 blocker
 **Related evidence:** `storage/scratch/historic-video-operator-sequence-20260901.md`
 
 ## 1. Decision
