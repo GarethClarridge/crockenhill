@@ -457,7 +457,7 @@ or a recorded decision that the field is not produced for historic runs.
 
 | Output | Existing check | Status | Second view to census |
 |---|---|---|---|
-| Sermon `date`, `service` slot | `identity_correct` in the item ground truth (IC3) | corpus | source filename/mtime; OoS date; SongVideo `recorded_date` |
+| Sermon `date`, `service` slot | `identity_correct` in the item ground truth (IC3); date census 2026-09-14 (service, filename, mtime, weekday, pre-import service row) | corpus | no new mis-dated row (P8-Q7 sermons 969, 1045, 1297 reconfirmed); **class**: Saturday rehearsals imported as services (1043, 1089); funerals 1051 and 1098; both excluded by ruling 2026-09-14 |
 | Sermon `content_type` (sermon vs children's talk) | sample checklist | sample | OoS item section type; duration band |
 | Sermon `title`, `title_provenance` | sample; adopted-row census (§4.1a); title census 2026-09-14 (summary, section title, transcript, `ai_analysis`) | corpus | no new wrong title (844, 845, 850, 881 reconfirmed); null provenance on 31 rows is pre-tracking, not adoption |
 | Sermon `reference`, `scripture_passage_id` | published-vs-heard census (§4.1a); Scripture census 2026-09-14 (passage verses, listed, plan and page reading, spoken) | corpus | **defects**: multi-passage truncation on link (4), whole-letter references rejected (2), 7 never linked, page names the wrong reading (157), wrong reference 899 |
@@ -485,7 +485,7 @@ or a recorded decision that the field is not produced for historic runs.
 | SongVideo `song_id` | hint + lyric censuses | corpus (floor) | slides frame OCR/hash against the song's lyrics for the `confirmed`-and-looping set |
 | SongVideo `video_file_path` content | decode sample (50 files); five frames | sample | full decode all 464; A/V sync; loudness; first/last frame not a speaker |
 | SongVideo `duration` | duration census 2026-09-14 | corpus | **defect**: copied from the span, never probed; 89 frozen openings, 23 carry the preceding item's audio |
-| SongVideo `recorded_date`, `is_featured` | owning-service date census 2026-09-14 (0 differ); `is_featured` not produced | corpus (service date) | source file date |
+| SongVideo `recorded_date`, `is_featured` | owning-service date census 2026-09-14 (0 differ); date census 2026-09-14 against the source (0 differ); `is_featured` not produced | corpus | funeral hymns (211, 231, 232) excluded with their runs (ruling 2026-09-14) |
 | Scripture passage enrichment (`EnrichHistoricScripturePassages`) | Scripture census 2026-09-14: 426 passages' api range and HTML verses equal the reference | corpus | orphan/duplicate passages still unchecked; 7 sermons never linked |
 | Hymn usage apply artifact | §4.5 regeneration | pending | song identity census results |
 | Search index / embeddings for historic sermons | — | none | index membership equals exact release membership; stale text after transcript repair |
@@ -794,8 +794,62 @@ class in the §4.3a detector table and a hold through the §4.1 path.
     08-26 to 08-30, predate provenance tracking (`b6e8dec71`, 2026-08-31). The §4.3a rule
     that null-provenance adopted rows refuse publication must therefore tell adopted
     rows from pre-tracking ones, or it refuses 31 correct sermons.
-- [ ] SongVideo `recorded_date` and sermon `date` against the owning service and
+- [x] SongVideo `recorded_date` and sermon `date` against the owning service and
   the source file's own date.
+  **Done 2026-09-14, read-only, all 442 runs (438 sermons, 460 song videos, 481 source
+  files)** (`storage/scratch/date-20260914-{census.php,census.json,register.json,occasion.php}`).
+  - **Sermons and song videos agree with their service: 0 differ** on date, slot or
+    service id. The run's `extracted_date`, manifest key and archive directory also
+    equal the service date on all 441 runs with a service (955 has none).
+  - **What "the file's own date" can be.** Container tags carry no date (ffmpeg remuxes,
+    YouTube exports). The archive directory is where the importer took the date, so
+    agreeing with it is circular. The independent views are a dated filename (154 with a
+    year, 81 day and month, 2 year only), an mtime on the service day (237 of 481; 230
+    carry later copy dates), the weekday, and a service row from the OpenLP or email
+    stream that predates the import (290 runs). Only 7 runs rest on the directory
+    alone: 930, 932 and 936 have pre-import service rows, 1374 and 1375 are named
+    "Easter Sunday", 955 produced nothing, and 928 ("10-31.mkv" on a Sunday) is
+    checked by weekday and slot only.
+  - **No new mis-dated row.** The only source dates that contradict a service are the
+    P8-Q7 rows: 1375's Easter master in a Saturday directory (the file has since moved
+    to 2020-04-12, so its manifest path no longer resolves), and the Monday carol
+    services 1034 and 1120, whose only tell here is the weekday. 1248's "Sunday 10th
+    December 2022" is a typo (the 10th was a Saturday); 983, 1075 and 1100 are exports
+    written one to seven days later.
+  - **Slot agrees**, by filename time and by mtime minus duration, except the 2 pm main
+    service of 2022-02-27 to 2022-04-24 (968, 1278–1285), stored as `morning`. In those
+    weeks the OpenLP stream has an evening service and no morning one, so the 2 pm
+    service is the main slot: not a defect. OBS filenames run one hour ahead of the
+    mtime-derived start in 40 of 202 comparable recordings (a recorder clock left on
+    summer time) and agree within 5 minutes in the rest; no recording is near
+    midnight, so no date moves.
+  - **Non-Sunday services (14):** Christmas Day (1033, 1119, 1195, 1293, 1344), Good
+    Friday (1233) and the three P8-Q7 rows. The other five are occasions, and none has
+    `occasion` set:
+    - **Two funerals are pending publication as sermons.** 1051 (Friday 2025-10-31,
+      sermon 985, song video 211) and 1098 (Wednesday 2025-04-09, sermon 1025, song
+      videos 231 and 232). 1098's welcome gives thanks for the life of a church member,
+      and a family eulogy follows. The dates are right; the question is whether a
+      private funeral belongs in the public sermon archive. §4.1a called 1051 a genuine
+      short sermon but ruled nothing on exposure. **Excluded (operator ruling
+      2026-09-14, below).**
+    - A holiday-club presentation evening, 1144 (Thursday 2024-08-08): no sermon, no
+      song video.
+    - **Saturday rehearsals of Sunday's sermon (new class).** 1089 (Saturday 2025-05-24,
+      20:16, sermon 1016) and 1043 (Saturday 2025-11-29, 14:02, sermon 977) are
+      sermon-only recordings of the talk preached the next morning, which has its own
+      run: 1088 (sermon 1015, same reference and title; its transcript repeats the
+      Saturday opening on the assisted dying bill) and 1042 (sermon 976, same reference;
+      it repeats "a bit weird" and "Stephen saw him"). 1089 opens with a sound check.
+      Each talk therefore has two Sermon rows, and each rehearsal was given a manufactured
+      Saturday service. Two earlier findings are in these recordings: 1089's source
+      dropout and 1043 §1528's prayer verse typed as a reading. **Excluded (operator
+      ruling 2026-09-14, below).**
+  - **Screen for more of the class:** every pair of sermons sharing a reference within
+    7 days (17). Beside the 2 rehearsals and 2 P8-Q7 pairs (1296/1297, 969/1307), 9 are
+    a series preached over consecutive weeks (about 5% of 6-word phrases shared) and 4
+    are Christmas services (1114/1115/1116, 967/968; 11–18%) whose shared stretches are
+    all the Bible reading. The rehearsals share 21% and 31%, in the sermon itself.
 - [ ] Sum of sections against source duration; list every unsectioned span over
   60 s with its transcript density, corpus-wide (the dossiers compute this for the
   sampled runs only).
@@ -890,6 +944,16 @@ class in the §4.3a detector table and a hold through the §4.1 path.
     **1043 is not covered by this ruling:** its "reading" is a verse quoted inside the
     prayer before the sermon, and the detector should not type that as a reading at
     all (§4.3a).
+  - **Saturday rehearsals are excluded (operator ruling 2026-09-14).** 1043 and 1089
+    duplicate the sermons that Sunday runs 1042 and 1088 carry; the Sunday runs stay.
+  - **Funerals are excluded (operator ruling 2026-09-14), for a different reason.**
+    1051 and 1098 are right-dated real services, but they do not belong in the sermon
+    archive. Their sermons (985, 1025) and song videos (211, 231, 232) go with them.
+  - **No existing path records either exclusion.** `historic-import:exclude-run`
+    accepts only `no_sermon_in_source`, and `HistoricRunExclusion` (D1) rules that a real
+    service must not be excluded that way. Both rulings need a recorded reason of their
+    own and a defined effect on the Sermon and SongVideo rows the runs already created.
+    Until that exists, all four runs stay quarantined and must not enter release membership.
 - [ ] **Stopping rule (replaces round 2's).** Discovery stops when the coverage
   matrix has no **none** row, every cheap instrument has run over all 442 runs with
   its candidates adjudicated, the tails and the whole-output checks are recorded,
@@ -977,7 +1041,7 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
 | Whole single-chapter letter rejected as a reference (957, 1090) | §4.1b Scripture census | no | same | **new**: accept a single-chapter book as its whole chapter in `validateBibleReference`; re-run analysis for the two |
 | Sermon reference never linked to a passage (908–910, 912–915) | §4.1b Scripture census | no (Bundle A refuses at release) | same | **new**: a reconciliation check that every sermon with a parseable reference has a passage or a recorded absence; re-dispatch enrichment for the seven |
 | Preached reading dropped from sermon media by an order flag (1075, 1254, 1286, 1299) | §4.1b Scripture census | no | same | **new**: in `selectBibleReading()`, do not exclude a reading held only for an order-of-service flag when its reference matches the sermon, or record the omission as a plan risk; re-plan the four through the pipeline |
-| Verse quoted inside a prayer typed as a Bible reading (1043 §1528) | §4.1b Scripture census; operator 2026-09-14 | no | `scripture-20260914-register.json` | **new**: the structure detector keeps a verse quoted within a prayer inside the prayer section, not a `bible_reading` (census: 1043 is the only case of 587 readings); re-detect 1043 through the pipeline |
+| Verse quoted inside a prayer typed as a Bible reading (1043 §1528) | §4.1b Scripture census; operator 2026-09-14 | no | `scripture-20260914-register.json` | **new**: the structure detector keeps a verse quoted within a prayer inside the prayer section, not a `bible_reading` (census: 1043 is the only case of 587 readings); no re-detection is due, because 1043 is excluded as a Saturday rehearsal (date census; ruling 2026-09-14) |
 | Structure boundary written one minute late: `m:ss` prompt times converted to seconds (confirmed 1203 §2535, 1183 §2391, 1305 §3894; probable 962 §924, 1141 §2137) | §4.1b Scripture census | no (a slipped time still matches a real cue) | `scripture-20260914-register.json` | **new**: render prompt cue times in the unit the model returns (seconds), or have it return cue indices; flag a section that starts mid-sentence after an unsectioned or foreign-content minute; screen every run for a strong boundary cue exactly 60 s before a section start; re-detect the five through the pipeline and check media that crossed the slipped minute (sermon 1102, song video 122) |
 | Sermon page names the service's first reading, not the sermon's (157 of 438) | §4.1b Scripture census | no | `scripture-20260914-page-reading.txt` | **new**: `SermonPageContextService` shows the plan's reading, or the reading matching the reference, else none |
 | Saved sermon text predates evidence (P8-Q1) | P8-Q1 | yes (`sermon_text_predates_evidence`) | — | keep |
@@ -987,6 +1051,8 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
 | Duplicate/date pair identity | P8-Q7 | no | — | §4.4 |
 | Automatic video-quality rejection hides a good video (27 of 47: static camera, dim lighting) | §4.1b matrix | the detector *is* the defect | `vq-20260914-register.json`; ffmpeg `freezedetect` over 4 min separated all 47 | **new**: replace the 1.5 s 16×16 burst with a long-window freeze/black measure, calibrated on the 47; decide whether a rejection needs review before it hides a video; then re-run quality assessment through the pipeline for the 27 wrong rows and 1225, never by hand (operator 2026-09-14), and confirm the 19 correct rejections stay rejected |
 | Quality verdict written without run evidence (13, `sermons:assess-video-quality`) | §4.1b matrix | no | — | **new**: the command path records its assessment on the owning run |
+| Rehearsal recording imported as its own service (1043, 1089: Saturday sermon-only takes of Sunday's sermon) | §4.1b date census | no | `date-20260914-register.json` (same reference within 7 days, 6-word phrase overlap) | **new**: after analysis, flag a sermon whose reference matches another sermon's within 7 days with transcript overlap over 20% (rehearsals 21–31%, Christmas readings 11–18%, series about 5%), and flag a sermon-only source dated the day before a Sunday service; add an operator exclusion reason for a rehearsal (`HistoricRunExclusion` accepts only `no_sermon_in_source`) that also withdraws the run's Sermon and SongVideo rows; exclude 1043 and 1089 (ruling 2026-09-14) |
+| Non-Sunday occasion with no `occasion` (funerals 1051, 1098; holiday club 1144) | §4.1b date census | no | same | **new**: flag a non-Sunday service without `occasion` for review before publication; add an operator exclusion reason for a private occasion, with the same withdrawal of Sermon and SongVideo rows; exclude 1051 and 1098 (ruling 2026-09-14) |
 | Silent source producing nothing (955) | §4.1a r2 | yes (`SILENT-SOURCE-EXCLUSION` plan) | — | keep |
 
 - [ ] Fill the table's "pipeline item" column with a tested change or a recorded
