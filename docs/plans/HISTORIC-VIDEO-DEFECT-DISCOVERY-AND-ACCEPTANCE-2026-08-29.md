@@ -460,7 +460,7 @@ or a recorded decision that the field is not produced for historic runs.
 | Sermon `date`, `service` slot | `identity_correct` in the item ground truth (IC3) | corpus | source filename/mtime; OoS date; SongVideo `recorded_date` |
 | Sermon `content_type` (sermon vs children's talk) | sample checklist | sample | OoS item section type; duration band |
 | Sermon `title`, `title_provenance` | sample; adopted-row census (§4.1a) | sample | `summary`; OoS sermon title; opening minute of transcript |
-| Sermon `reference`, `scripture_passage_id` | published-vs-heard census (§4.1a) | corpus (reference only) | passage id ↔ reference text; OoS reading item; spoken reference in transcript |
+| Sermon `reference`, `scripture_passage_id` | published-vs-heard census (§4.1a); Scripture census 2026-09-14 (passage verses, listed, plan and page reading, spoken) | corpus | **defects**: multi-passage truncation on link (4), whole-letter references rejected (2), 7 never linked, page names the wrong reading (157), wrong reference 899 |
 | Sermon `summary`, `show_summary` | sample (summary vs video) | sample | title; transcript keyword overlap; run `ai_analysis` |
 | Sermon `meta_description` | — | not produced (0/438; derived from summary at render) | check the rendered value in consumer-side rendering |
 | Sermon `points`, `show_points` | — | none | transcript; summary |
@@ -486,7 +486,7 @@ or a recorded decision that the field is not produced for historic runs.
 | SongVideo `video_file_path` content | decode sample (50 files); five frames | sample | full decode all 464; A/V sync; loudness; first/last frame not a speaker |
 | SongVideo `duration` | duration census 2026-09-14 | corpus | **defect**: copied from the span, never probed; 89 frozen openings, 23 carry the preceding item's audio |
 | SongVideo `recorded_date`, `is_featured` | owning-service date census 2026-09-14 (0 differ); `is_featured` not produced | corpus (service date) | source file date |
-| Scripture passage enrichment (`EnrichHistoricScripturePassages`) | — | none | reference ↔ passage rows; orphan/duplicate passages |
+| Scripture passage enrichment (`EnrichHistoricScripturePassages`) | Scripture census 2026-09-14: 426 passages' api range and HTML verses equal the reference | corpus | orphan/duplicate passages still unchecked; 7 sermons never linked |
 | Hymn usage apply artifact | §4.5 regeneration | pending | song identity census results |
 | Search index / embeddings for historic sermons | — | none | index membership equals exact release membership; stale text after transcript repair |
 | Public pages, sitemap, podcast feed, structured data | — | none | render every quarantined row locally; 404s, missing thumbnails, duplicate slugs, broken song links |
@@ -672,8 +672,82 @@ class in the §4.3a detector table and a hold through the §4.1 path.
   - **Unadjudicated:** reading inversions in 1075, 1254, 1286 and 1299; 963's "While
     Shepherds Watched" item links §863, but the lyrics place it at §859; 1234 §2897;
     37 services whose `.osz` upload and embedded names disagree.
-- [ ] Reference against passage id, against the OoS reading item and against the
+- [x] Reference against passage id, against the OoS reading item and against the
   reference spoken in the sermon's first two minutes.
+  **Done 2026-09-14, read-only, all 438 sermons**
+  (`storage/scratch/scripture-20260914-{census.php,census.json,register.json,page-reading.txt,passages.json}`).
+  - **Passage rows are sound.** 426 are linked; each passage's api.bible range and
+    the verse numbers in its HTML cover exactly the verses its reference names. That
+    the published reference equals the passage's display text proves nothing:
+    `SermonIdentitySyncService` writes it so.
+  - **Listed reading:** only 143 sermons have one (146 listed services list no Bible
+    item). 134 agree. The 8 disagreements are the wrong references below, plus four
+    lists that omit a text read or told inside the sermon (1047, 1174, 1264, 1267).
+  - **Spoken:** the preacher names a reference in the first 120 s in only 183 of 438
+    sermons, so this view is thin. Every disagreement is benign: cross-references,
+    last week's chapter, a second reading, an anecdote, one ASR slip (1078) and one
+    parser artefact (1157).
+  - **Wrong published reference, one more:** sermon 899 (963) is published as
+    Matthew 2:1-12, the carol reading before it; at 2,296 s the preacher gives his text
+    as 2 Corinthians 9:15, which the title and heard reference match. §4.1a's
+    candidate is confirmed. 881, 954 and 844/845/850 disagree on every view again.
+  - **Multi-passage references lose all but the first passage (new, code).**
+    `ScriptureOperatorService::enrichSermon` keys the passage on `normalize()`, which
+    keeps the first passage only; linking then makes `SermonIdentitySyncService`
+    rewrite `reference` to that passage. 1105 (Hosea 5:8-15 of 5:8–6:3), 1240, 1271
+    and 1306. The validator upstream deliberately keeps every passage.
+  - **A whole single-chapter letter cannot be a reference (new, code).**
+    `SermonAnalysisValidator::validateBibleReference` rejects a bare book, and
+    "2 John 1-13" or "Philemon 1-25" normalise to the bare name. 957 (2 John read
+    whole) and 1090 (Philemon read whole) have no reference. 888, 961 and 1069 are
+    topical and rightly have none.
+  - **Seven references were never linked (new).** 908–910 and 912–915, all created
+    09-02 16:32 to 09-03 06:42, have no enrichment log line; neighbours from the same
+    window were linked only by a later pass on 09-07. 915's passage row existed since
+    08-30, so it is not an API failure, and nothing reconciles. Bundle A would refuse
+    them (`HistoricScripturePassageRequirements::keyFor` throws), but nothing earlier
+    notices.
+  - **An order flag drops the preached reading from the sermon media (new).** In
+    1075, 1254, 1286 and 1299 the sermon's own reading carries
+    `structure_oos_same_type_inversion`, and `selectBibleReading()` filters held
+    readings before ranking, so the one reading matching the sermon never competes.
+    1075 and 1299 join a different reading instead (Philippians 2, Psalm 46); 1254
+    and 1286 get none. The inversions are real (listed first, read second, just
+    before the sermon), which settles the four reading inversions the OoS census left
+    open. Excluded by `structure_low_confidence` instead: 1198, 1235, 1319, 1322 (the
+    readings score 0.66–0.72; conservative, not counted as defects).
+  - **The sermon page names the wrong reading on 157 of 438 (new, consumer-side).**
+    `SermonPageContextService` shows the run's first reading by section order under
+    "Reading", beneath "Passage": 936 shows Passage 1 Peter 4:7-11, Reading Psalm
+    100. In 131 of the 157 the plan holds a matching reading the page ignores.
+  - **Non-matching reading joined to the sermon: not a defect (operator ruling
+    2026-09-14, below).** When no reading matches the sermon, the selector joins the
+    nearest one (930, 1120, 967, 1044, 1059, 1174, 1264, 1267, 1311); all published
+    references are correct. **Except 1043, a defect:** its "reading" (§1528, 40 s,
+    Colossians 3:1-2) is a verse quoted inside the prayer before the sermon, typed
+    `bible_reading` by the structure detector.
+  - **Prayer-verse census (2026-09-14, all 587 reading sections in 386 runs):** 1043 is
+    the only case. By hand I read the 23 short, unannounced readings beside a prayer and
+    the 26 with prayer language inside. The rest are genuine readings, mostly announced
+    call-to-worship psalms; 1340, 1359 and 1274 are listed items in their order of
+    service. Screen: `scripture-20260914-prayer-verse.{php,json}`.
+  - **A reading's start absorbed by the section before it (new).** 1203 §2535 holds only
+    the last 20 s of Colossians 1:9-14: the announcement (1,517 s) and verses 9-12 sit in
+    the prayer section, which runs to 1,577 s, so sermon 1122's media carry only the
+    reading's tail. Of 88 readings with an announcement-like phrase in the preceding
+    section, I read the 42 with 25 or more words between phrase and reading start:
+    1203 is the only confirmed case. Minor candidates: 1141 (the reading starts inside
+    Daniel 6:4) and 1359 (one sentence of Hebrews 9 falls in the song). The rest are
+    prayers for the reading, notices, a reading inside a children's talk (1328) or a
+    hand-over. Screen: `scripture-20260914-reading-start.{php,json}`. Not held.
+  - **Held 2026-09-14** through `service:hold-section-content` (operator approval):
+    sermon sections 1732 (1075) and 4753 (1299), whose media join a different reading in
+    place of the sermon's own. Before (10:00:28 UTC) the gate refused neither sermon;
+    after (10:01:44 UTC) it refuses sermons 1005 and 1305 for `content_defect_hold`
+    (`storage/scratch/scripture-20260914-gate-{before,after}.json`). 1254 and 1286 (no
+    reading at all), the wrong reference 899 and the code-defect rows are not held: the
+    reference goes to §4.5 editorial QA as in §4.1a, and the rest are re-run through the
+    pipeline once fixed.
 - [ ] Title against summary (the 944 class) by keyword overlap; adjudicate the
   bottom decile.
 - [ ] SongVideo `recorded_date` and sermon `date` against the owning service and
@@ -763,6 +837,15 @@ class in the §4.3a detector table and a hold through the §4.1 path.
     keep a song section the evidence supports and demote only join fragments; the
     five affected runs (940, 942, 944, 973, 1014) are then re-detected through the
     pipeline.
+  - **A non-matching reading stays joined to the sermon (operator ruling
+    2026-09-14).** When no reading matches the sermon's reference,
+    `selectBibleReading()` joins the nearest one, across a hymn if need be, and that
+    is kept: the media reflect what the congregation heard, and a preceding passage
+    (1059, 967) is a useful lead-in. Carol services (930, 1120) fit badly but are a
+    couple a year. Applies to 930, 1120, 967, 1044, 1059, 1174, 1264, 1267 and 1311.
+    **1043 is not covered by this ruling:** its "reading" is a verse quoted inside the
+    prayer before the sermon, and the detector should not type that as a reading at
+    all (§4.3a).
 - [ ] **Stopping rule (replaces round 2's).** Discovery stops when the coverage
   matrix has no **none** row, every cheap instrument has run over all 442 runs with
   its candidates adjudicated, the tails and the whole-output checks are recorded,
@@ -845,7 +928,14 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
 | OoS song with no detected section (944) | §4.1a r1 | no | — | **new**: OoS-vs-sections count/order flag (§4.1b census) |
 | Talk cut by end of its only source (§1684, §1793, §3943) or starting mid-thought (§1421, 980) | §4.1a r2 | no | `residue-20260913-text-signals.json` | **new**: section within N s of source start/end plus mid-sentence transcript edge → `source_truncates_talk` flag |
 | Source audio dropout inside a talk (≥15 s at ≤ −80 dB) | §4.1a r1 | no | `residue-20260913-dropouts.py` | **new**: RMS dropout flag on the section; not repairable, so the flag is the outcome |
-| Published title/reference contradicts summary or transcript (881, 954, 844/845/850) | §4.1a r1 | no | `residue-20260913-references.php` | **new**: published-vs-heard reference check and title↔summary overlap at analysis time; null-provenance adopted rows refuse publication |
+| Published title/reference contradicts summary or transcript (881, 954, 844/845/850, 899) | §4.1a r1; §4.1b Scripture census | no | `residue-20260913-references.php`, `scripture-20260914-census.php` | **new**: published-vs-heard reference check and title↔summary overlap at analysis time; null-provenance adopted rows refuse publication |
+| Multi-passage reference cut to its first passage on link (1031, 1159, 1188, 1233) | §4.1b Scripture census | no | `scripture-20260914-register.json` | **new**: link a passage per part (or the envelope) without rewriting `reference` to the first part; flag a linked reference that no longer covers the analysis reference; re-link the four |
+| Whole single-chapter letter rejected as a reference (957, 1090) | §4.1b Scripture census | no | same | **new**: accept a single-chapter book as its whole chapter in `validateBibleReference`; re-run analysis for the two |
+| Sermon reference never linked to a passage (908–910, 912–915) | §4.1b Scripture census | no (Bundle A refuses at release) | same | **new**: a reconciliation check that every sermon with a parseable reference has a passage or a recorded absence; re-dispatch enrichment for the seven |
+| Preached reading dropped from sermon media by an order flag (1075, 1254, 1286, 1299) | §4.1b Scripture census | no | same | **new**: in `selectBibleReading()`, do not exclude a reading held only for an order-of-service flag when its reference matches the sermon, or record the omission as a plan risk; re-plan the four through the pipeline |
+| Verse quoted inside a prayer typed as a Bible reading (1043 §1528) | §4.1b Scripture census; operator 2026-09-14 | no | `scripture-20260914-register.json` | **new**: the structure detector keeps a verse quoted within a prayer inside the prayer section, not a `bible_reading` (census: 1043 is the only case of 587 readings); re-detect 1043 through the pipeline |
+| Reading's announcement and opening verses absorbed by the preceding section (1203 §2535; minor: 1141, 1359) | §4.1b Scripture census | no | `scripture-20260914-reading-start.php` | **new**: start a reading section at its announcement or first verse when the preceding section's tail holds them; flag a reading section that opens mid-verse; re-detect 1203 through the pipeline |
+| Sermon page names the service's first reading, not the sermon's (157 of 438) | §4.1b Scripture census | no | `scripture-20260914-page-reading.txt` | **new**: `SermonPageContextService` shows the plan's reading, or the reading matching the reference, else none |
 | Saved sermon text predates evidence (P8-Q1) | P8-Q1 | yes (`sermon_text_predates_evidence`) | — | keep |
 | Sermon MP3 loses closing words (12; stream-copied video vs plan-cut audio) | §4.1b duration census | no | `duration-20260914-census.json` (`duration − picture delay − MP3 length`) | **new**: in `ExtractSermon`, produce the MP3 from the final sermon video's audio track: the whole track, with no second cut from the source and no length taken from the plan, for both `single_span` and `concat_spans` (this also removes the independent single-span cut behind 1257's loss); flag an MP3 whose length differs from its video's audio track; then re-run the 12 through the pipeline and clear their holds only on a clean re-measure |
 | Video picture starts after its audio, or audio carries the preceding item (stream-copy keyframe lead-in): sermons 12 over 3 s; song clips 89 frozen openings and 23 with lead-in audio over 1 s | §4.1b duration censuses | no | `duration-20260914-census.json`, `songdur-20260914-census.json` | **new** (ruling 3a: smart cut): in the shared `VideoExtractionService`, which cuts both sermon pieces and song clips, re-encode only from each cut point to the next keyframe and stream-copy the rest, so every piece starts exactly on its planned time with picture and sound together; check picture delay and length after every extraction (0 within one frame; length equals the span); make the re-encode path meet the same check (its clips still lag 0.2–1.0 s); write `SongVideo.duration` from the probed file, not the section; re-run affected sermons and song clips through the pipeline |
