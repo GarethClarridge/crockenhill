@@ -588,12 +588,29 @@ the others. Human-only checks may remain sampled with a justified design and bou
 
 #### Blind source review and evidence independence
 
-- [ ] Select a bounded discovery set before opening the generated answers, across
+- [x] Select a bounded discovery set before opening the generated answers, across
   eras, recording formats, ordinary and special services, partial/composite sources
   and availability of external evidence. Include held and apparently clean runs.
   Record membership and the selection method. Start with five varied services;
   this is discovery, not a statistically sufficient acceptance sample. The same
   operator can do source review and later comparison; no second reviewer is required.
+  **Selected 2026-09-14** (`storage/scratch/blind-20260914-{select.php,selection.json}`,
+  seed phrase `historic-blind-source-review-2026-09-14`; inventory form
+  `blind-20260914-inventory-template.md`). The selection reads only date, slot,
+  weekday, concatenation, OoS availability and held state, never a generated value.
+  One seeded pick per stratum from 438 completed runs minus the four ruled exclusions,
+  preferring runs not named in this plan:
+  - 2020–21 without an independent OoS, not held: **run 1336** (2021-02-14 morning).
+  - 2022–23 with an OoS, single source, not held: **run 1221** (2023-07-02 morning).
+  - 2024 onwards, composite source, not held: **run 936** (2024-01-14 morning, five
+    joined `.mkv` files). Only 3 runs were eligible and all are named in this plan,
+    so this pick is not untouched. Its windows are on the joined timeline; with the
+    files in name order they fall at 10-40 13:04 and 15:46, and 11-09 6:39.
+  - Special or non-standard: **run 1097** (2025-04-13 evening, 21 minutes).
+  - Held: **run 1066** (2025-08-31, sermon-only recording).
+  - *Limitation:* every source is h264/AAC stereo, and every service is on a Sunday.
+    The set exercises no mono, other-codec or weekday recording. Add a format stratum
+    to the next draw.
 - [ ] Listen to the original recordings first and record the actual sequence,
   identities, boundaries, interruptions and absent content. Do not show the reviewer
   generated sections, transcripts, labels or warnings until this source inventory
@@ -676,11 +693,23 @@ or separate harness is required.
 | Interrupt after extraction, during replacement upload, after row linking, or before verdict/publication preparation | Resume reaches a consistent generation with correct assets, identities and effective holds; no duplicates, dangling paths or old verdict certifying new bytes. |
 | Replace media served at an existing URL | The real delivery path returns the new artifact and seeks correctly; stale caches cannot silently serve the earlier cut. |
 
-- [ ] Start the equal-duration test at `ExtractSermon::authoriseReplacementIfCutChanged`
+- [x] Start the equal-duration test at `ExtractSermon::authoriseReplacementIfCutChanged`
   and `StoreSermonVideo::prepareHistoricNestedJob`: replacement detection compares
   duration, and completed historic storage may skip without its flag. This is a
   code-supported test target, not a newly confirmed corpus defect. Test an ordinary
   extraction retry as well as explicitly requested re-extraction.
+  **Fixed test-first 2026-09-14 (`62591d5e7`).** A span moved by one minute at an
+  unchanged 1,800 s left the run unmarked, so storage would have skipped. The test
+  failed, confirming the bug. `StoreSermonVideo` now records the stored video's spans
+  (`stored_video.segments`). Extraction marks a replacement when the spans *or* the
+  duration differ by more than 0.5 s. The duration and moved-span cases run
+  through an ordinary extraction without a requested re-extraction. Explicit
+  `reExtract()` already sets the flag.
+  - *Remaining limit:* no existing stored video has recorded spans. They fall back to
+    `trim.segments`, which cannot reveal an **earlier** equal-length retry whose
+    storage was skipped. The corpus-wide content alignment census above is the check
+    for those.
+  - Interruption and replacement-failure tests remain open below.
 - [ ] Exercise failure around old-file removal and replacement upload in
   `SermonMetadataIntegrationService::organizeVideoFile`, plus downstream row linking
   and review recomputation. Compare clean processing with interrupted/resumed
