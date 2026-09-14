@@ -608,9 +608,24 @@ the others. Human-only checks may remain sampled with a justified design and bou
     files in name order they fall at 10-40 13:04 and 15:46, and 11-09 6:39.
   - Special or non-standard: **run 1097** (2025-04-13 evening, 21 minutes).
   - Held: **run 1066** (2025-08-31, sermon-only recording).
-  - *Limitation:* every source is h264/AAC stereo, and every service is on a Sunday.
-    The set exercises no mono, other-codec or weekday recording. Add a format stratum
-    to the next draw.
+  - **Widened the same day, before any listening.** All five picks above were h264/AAC
+    stereo, 1080p at 30 fps, and on a Sunday. A host ffprobe of every census source
+    (`blind-20260914-source-formats.tsv`) found real variation: 33 VP9/WebM sources,
+    14 mono, and 720p/480p, 29.97 fps or 25 fps H.264. It also found 11 eligible
+    non-Sunday runs. A second seeded draw (seed phrase `…-widening`) added one pick per
+    group. The first five were left exactly as drawn, which is verified by re-running.
+    - Mono audio: **run 1314** (2021-07-18 morning).
+    - VP9/WebM source: **run 1358** (2020-09-20 morning, 720p, held).
+    - H.264 below 1080p or not 30 fps: **run 950** (2020-05-31, a sermon joined from
+      two 29.97 fps parts, held).
+    - Not a Sunday: **run 1034** (Monday 2025-12-22, Carols by Candlelight, held).
+      All 11 eligible runs are named in this plan, so this pick is not untouched. It
+      owns sermon 969 of a deferred duplicate pair (§4.4).
+    - *Selection trap:* the script skips runs named in the plan, so recording the picks
+      in the plan would redraw them on any re-run. It now reads the plan as it stood at
+      `0436e3d37` (`blind-20260914-plan-at-selection.md`).
+    - *Still not covered:* 25 fps (one source), 480p, 44.1 kHz versus 48 kHz as a
+      deliberate contrast, and the audio-only or unprobeable sources (runs 955, 1375).
 - [ ] Listen to the original recordings first and record the actual sequence,
   identities, boundaries, interruptions and absent content. Do not show the reviewer
   generated sections, transcripts, labels or warnings until this source inventory
