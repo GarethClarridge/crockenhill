@@ -1588,7 +1588,7 @@ class ExtractSermonTest extends TestCase
 
     private function extractorStubbedTo(string $extractedAudioFile): VideoExtractionService
     {
-        $extractor = $this->createMock(VideoExtractionService::class);
+        $extractor = $this->createStub(VideoExtractionService::class);
         $extractor->method('extractSegmentAsFile')->willReturn('extracted/sermon-video.mp4');
         $extractor->method('extractOptimizedAudio')->willReturn([
             'audio_path' => 'extracted/sermon-audio.mp3',
