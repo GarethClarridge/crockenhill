@@ -479,7 +479,7 @@ or a recorded decision that the field is not produced for historic runs.
 | ChurchService `chapter_markers` | — | none | section starts; monotonic and inside source duration |
 | ChurchService items: `position`, `section_type`, `song_id`, `title`, `source = livestream` | song identity census (items written from wrong song) | corpus (song id) / sample (count, order) | detected sections, count and order, all 442 runs; OpenLP/email items where present |
 | ChurchService `review_state`, canonical revision/hash | gate rechecks | corpus | — |
-| Sections: type, bounds, `song_title_hint`, match state, flags, `needs_manual_review` | sample; policy reassessment; hint and lyric censuses | corpus | unsectioned-span census (sum of sections vs source duration; the dossiers already compute it) |
+| Sections: type, bounds, `song_title_hint`, match state, flags, `needs_manual_review` | sample; policy reassessment; hint and lyric censuses; section coverage census 2026-09-14 (every span over 60 s, fresh audio) | corpus | **defects**: closing prayer left out of 7 sermons; 8 song sections cut short and 10 songs with no section (singing invisible to the transcript); 6 spans need a listen |
 | Sections: sung material typed non-song | census (2 found; floor) | corpus (floor) | lyric scorer over `other`/`prayer`/`bible_reading` sections with singing-like RMS |
 | Sections: song transcript loops | — | none | repeat screen applied to song sections (currently sermon-only) |
 | SongVideo `song_id` | hint + lyric censuses | corpus (floor) | slides frame OCR/hash against the song's lyrics for the `confirmed`-and-looping set |
@@ -850,9 +850,59 @@ class in the §4.3a detector table and a hold through the §4.1 path.
     a series preached over consecutive weeks (about 5% of 6-word phrases shared) and 4
     are Christmas services (1114/1115/1116, 967/968; 11–18%) whose shared stretches are
     all the Bible reading. The rehearsals share 21% and 31%, in the sermon itself.
-- [ ] Sum of sections against source duration; list every unsectioned span over
+- [x] Sum of sections against source duration; list every unsectioned span over
   60 s with its transcript density, corpus-wide (the dossiers compute this for the
   sampled runs only).
+  **Done 2026-09-14, read-only, all 442 runs**
+  (`storage/scratch/sections-20260914-{census,screen}.{php,json}`, `sections-20260914-register.json`;
+  fresh audio `sections-20260914-sung-probe.sh` with its candidate and probe TSVs).
+  - **Coverage is high and bounded.** Sections cover a median 99% of the source (10th
+    percentile 94%); no section ends past its source; only 955 (silent) has none. 106
+    unsectioned spans exceed 60 s: 52 lead-ins, 42 interior, 12 tails. Each was scored
+    for transcript words and for loudness (share of RMS samples above the run's own
+    threshold; the mean is useless because digital silence logs −999 dB). Every quiet
+    or wordless span over 60 s with sound in it (29 interior or tail, 28 lead-ins) was
+    re-transcribed from 30 s of its source with local Whisper.
+  - **The closing prayer is left out of 7 sermons (new, code).** In 1100, 1047, 1276,
+    1300, 1254, 1052 and 1057 (sermons 1027, 981, 1193, 1299, 1172, 986, 990) a closing
+    prayer of 61–185 s has no section, and the published sermon stops before it. The
+    operator's rule is that a sermon runs to the next song, closing prayer included, but
+    `SermonExtractionPlanResolver::resolveSermonEnd()` absorbs only following *sections*
+    and stops at the first song, so unsectioned speech before that song is dropped at
+    any length. Sermon sections 1562, 1606, 1634, 1849, 3173, 3463 and 4648 were **held
+    2026-09-14** through `service:hold-section-content` (operator approval). Before
+    (14:53:48 UTC) the gate refused none of the seven sermons; after (14:53:51 UTC) it
+    refuses all seven for `content_defect_hold`. All remain quarantined
+    (`storage/scratch/sections-20260914-gate-{before,after}.json`). A screen of every sermon's plan
+    end found 59 tails of 5 s or more; the other 52 are hymn announcements, "Amen",
+    musicians setting up or silence.
+  - **Songs the transcript cannot see (new, detection).** Whisper leaves singing as
+    unobservable windows or "Thank you"/"Amen" loops, and the structure model works from
+    the transcript alone, so it omits a song or times it across the transcribed lines only.
+    1241's recorded model output places "And Can It Be" at 4,498 s; the singing is heard
+    from 4,388 s. Fresh audio sorted the loud, wordless spans into:
+    - *song section cut short (8):* 965 §889 Behold Our God (78 s of a 231 s song), 1109
+      §1909, 1196 §2456 O Come All You Faithful (starts 130 s late), 1241 §3003, 1269 §3368
+      Your Word (59 of 246 s), 1287 §3597, 1341 §4310 Amazing Grace (16 of 231 s), 1379
+      §4629. None has a song video, so no clip is cut; item timing and song usage are
+      wrong, and a later video would be.
+    - *song with no section (10):* carols in 963 (O Little Town of Bethlehem, O Come All
+      You Faithful, As With Gladness, all listed), 1034 (a P8-Q7 row) and 1195 (opening
+      carol); 1244's listed In Christ Alone (the OoS census scored it "not heard");
+      closing songs in 1001 (His Mercy Is More), 1135 (listed Who Is There Like You), 1231
+      and 1311.
+    - *spoken:* a Bible reading (1138), notices (1245), a prayer's start (1324), a welcome
+      (1352), and welcome or notices before the first section in six lead-ins; the other
+      lead-ins are pre-service music.
+    - *unclear from 30 s:* 1129, 1233, 1240, 1266, 1276 and 1316 need a listen.
+  - **Limits.** Only spans of 60 s or more with sound in them were probed. A song cut by
+    less, or sung inside another section's span, is not covered; the §4.1b lyric-scorer
+    row (sung material typed non-song) remains the instrument for the second.
+  - **Two earlier candidates resolved.** 985 §1121: the 181 s after it sing "Come People
+    Of The Risen King" while its own transcript announces hymn 968, which supports its
+    existing `song_identity_contradicted_by_transcript` hold. 1174 158–240 s is not the
+    first verse of §2330 (that section opens with its own announcement); it is
+    unadjudicated.
 - [x] Sermon audio against sermon video: duration, and an RMS profile correlation
   at three offsets, so a mismatched or mis-cut MP3 cannot hide behind a good video.
   **Done 2026-09-14.** Duration and the tail-loss estimate for all 436 with an MP3
@@ -1053,6 +1103,8 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
 | Quality verdict written without run evidence (13, `sermons:assess-video-quality`) | §4.1b matrix | no | — | **new**: the command path records its assessment on the owning run |
 | Rehearsal recording imported as its own service (1043, 1089: Saturday sermon-only takes of Sunday's sermon) | §4.1b date census | no | `date-20260914-register.json` (same reference within 7 days, 6-word phrase overlap) | **new**: after analysis, flag a sermon whose reference matches another sermon's within 7 days with transcript overlap over 20% (rehearsals 21–31%, Christmas readings 11–18%, series about 5%), and flag a sermon-only source dated the day before a Sunday service; add an operator exclusion reason for a rehearsal (`HistoricRunExclusion` accepts only `no_sermon_in_source`) that also withdraws the run's Sermon and SongVideo rows; exclude 1043 and 1089 (ruling 2026-09-14) |
 | Non-Sunday occasion with no `occasion` (funerals 1051, 1098; holiday club 1144) | §4.1b date census | no | same | **new**: flag a non-Sunday service without `occasion` for review before publication; add an operator exclusion reason for a private occasion, with the same withdrawal of Sermon and SongVideo rows; exclude 1051 and 1098 (ruling 2026-09-14) |
+| Closing prayer left out of the sermon when it has no section (7: sermons 1027, 981, 1193, 1299, 1172, 986, 990) | §4.1b section coverage census | no | `sections-20260914-register.json` | **new**: `resolveSermonEnd()` runs the span through unsectioned time to the next song as well as through trailing sections, under the same ceiling; test a sermon → unsectioned prayer → song fixture; re-plan and re-extract the seven through the pipeline |
+| Singing invisible to the transcript: song section cut to its transcribed lines (8: 965, 1109, 1196, 1241, 1269, 1287, 1341, 1379) or no section at all (10: 963 ×3, 1001, 1034, 1135, 1195, 1231, 1244, 1311) | §4.1b section coverage census | no | `sections-20260914-screen.json` (RMS active ratio), `sections-20260914-sung-probe.sh` | **new**: before or after structure detection, flag any unsectioned span, or song section edge, where the RMS log shows sustained sound and the transcript shows an unobservable window or a "Thank you"/"Amen" loop; widen a song section across such sound up to the neighbouring speech, and propose a song section for a listed song with no section when the span fits; re-detect the 17 runs through the pipeline and listen to 1129, 1233, 1240, 1266, 1276 and 1316 |
 | Silent source producing nothing (955) | §4.1a r2 | yes (`SILENT-SOURCE-EXCLUSION` plan) | — | keep |
 
 - [ ] Fill the table's "pipeline item" column with a tested change or a recorded
@@ -1082,6 +1134,30 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
 
 - [ ] Give runs 1004, 1143 and 1145 terminal dispositions (repair, exclude with
   reason, or an explicit accepted hold).
+- [ ] **Build and apply the occasion exclusions ruled 2026-09-14** (Saturday
+  rehearsals 1043, 1089; funerals 1051, 1098). Today nothing can execute them:
+  `HistoricRunExclusion::OPERATOR_REASONS` holds only `no_sermon_in_source`, its D1
+  docblock forbids excluding a real service that way, and exclusion is read only by
+  `HistoricVideoPassStatus`. Neither release (`ReleaseHistoricImportBatchCommand`
+  refuses holds, not exclusions) nor `ChurchServiceCorpusMembership` consults it, so
+  an excluded run's rows would still be released. Work, test first:
+  - Add two operator reasons, one for a rehearsal that duplicates another run's
+    sermon (recording the kept run: 1042, 1088) and one for a private occasion.
+    Update the D1 docblock to say these differ from "this service held no sermon".
+  - Make exclusion reach the rows the run already created. Sermons 977, 1016, 985 and
+    1025 and song videos 211, 231 and 232 must be refused by release and absent from
+    exact membership, the hymn usage artifact, search, sitemap and feeds. Either the
+    exclusion withdraws them, or release refuses any row whose run is excluded; choose
+    one and test it at both the release command and the membership builder.
+  - Decide the service rows. The rehearsals' Saturday services (1019, 1021) were
+    manufactured by the import and have no other source, so withdraw them with their
+    runs. The funeral services (1020, 1022) are real occasions: keep or withdraw them
+    as an explicit decision, and never show them on a public service page either way.
+  - Apply through the command with an operator note citing this ruling; confirm with a
+    dry run first, and record the release gate before and after, as for holds.
+  - Acceptance: a feature test per reason proves the rows cannot be released; the
+    gate after application refuses all four runs for their exclusion; the Sunday
+    sermons 976 and 1015 are unaffected.
 - [ ] Design how operation 4 reaches `Complete` (§3.1 item 5) now, before
   convergence work depends on it, without manufacturing checkpoint or closeout state.
 - [ ] Re-run §4.1a's held-out validation on a fresh sample after repairs, as final
