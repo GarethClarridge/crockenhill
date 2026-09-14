@@ -22,9 +22,12 @@
 
 **Original date:** 2026-08-29
 **Last condensed:** 2026-09-12
-**Last reviewed:** 2026-09-14 — §4.1a's stopping rule withdrawn; §4.1b (coverage
-matrix, disagreement censuses, tails, whole-output and rendered checks) and §4.3a
-(a pipeline detector per class) added; §4.5 sample frame and regression set widened.
+**Last reviewed:** 2026-09-14 — discovery strengthened with blind source review,
+evidence lineage, content alignment, controlled variations and interruption tests;
+coverage and detector acceptance now require measured limitations, false positives
+and reserved evaluation data. Actual browser delivery remains separate from the
+completed HTTP-kernel census. These additions are planned work, not new measured
+corpus defects. Earlier §4.1a/4.1b findings and operator rulings remain evidence.
 
 ## 1. Outcome and boundaries
 
@@ -425,35 +428,64 @@ ever opened". This section runs after §4.1 and before the heavier repairs in
 as §4.1a's classes did. It does not replace §4.1a's sample; it supplies the
 dimensions the sample must cover next time.
 
-**Method.** Three discovery mechanisms that do not depend on guessing the class in
-advance, plus two changes of examiner modality:
+**Method.** Complementary discovery mechanisms, including checks that can expose
+classes not named in advance. None establishes that all possible errors are covered:
 
-1. *Field coverage matrix.* Enumerate every column, file and derived artifact the
-   pipeline writes and record its check. Unchecked rows are the unknown-unknown
-   inventory.
+1. *Field and expected-output coverage.* Enumerate every column, file and derived
+   artifact the pipeline should produce, including outputs with no row yet, and
+   record its check. Unchecked rows identify gaps in the current instruments.
 2. *Disagreement census.* For every field, find a second, independent derivation
-   and census the disagreement corpus-wide. Two views of one fact disagree exactly
-   where one is wrong, without knowing which class of wrong. This is how every
-   wrong song and wrong reference to date was found.
+   and census the disagreement corpus-wide. Disagreements are candidates to
+   adjudicate; agreement can share an upstream error. Trace evidence lineage before
+   counting two views as corroboration, including planned versus performed content.
 3. *Tail inspection.* For every numeric field, examine the extreme few percent by
    hand. New classes cluster in tails.
 4. *Whole-output consumption.* Watch and listen to complete outputs as a
    congregant would, on the rendered pages, not as frames and excerpts.
 5. *Consumer-side rendering.* Render the whole quarantined membership through the
-   public surfaces. Errors that appear only when data is rendered are a class the
-   data census cannot see.
+   public surfaces, then verify representative playback through the real server and
+   browser delivery path. An in-process render does not exercise media transport.
+6. *Blind source review.* Record what happened in the original recording before
+   opening generated answers, including random interior passages and meaning.
+7. *Content alignment across handoffs.* Compare source, planned spans, extracted,
+   stored and delivered content, including joins and audio channels.
+8. *Controlled variations and interruptions.* Change a real input in a way with a
+   known expected relationship, or interrupt and resume processing, to expose hidden
+   assumptions without needing a perfect expected answer for every field.
 
-With 442 runs, any check that is cheap to automate runs over the whole corpus.
-Sampling is reserved for checks that need a human, and §4.5's fresh sample bounds
-those.
+With 442 completed runs in the recorded baseline, cheap automated checks run over
+the whole eligible corpus. Reconcile current membership before each new census,
+including failed runs and missing-output cases where applicable; do not silently
+reuse 442 as every denominator. Sampling is reserved for expensive or human checks,
+with its scope and uncertainty reported. Prioritise blind source review, content
+alignment and controlled variations before finalising the heavier repairs.
 
 #### Field coverage matrix (drafted 2026-09-14 from the schema; keep current)
 
-Status: **corpus** = an instrument has run over every active historic run;
-**sample** = checked only in the §4.1a samples (60 services); **none** = never
-opened by any instrument. "Second view" names the independent derivation to census
-against. Every **none** and every **sample** row needs either a corpus instrument
-or a recorded decision that the field is not produced for historic runs.
+Status: **corpus** = the named instrument ran over its recorded eligible population;
+**sample** = it ran over a stated subset; **none** = no check yet. These describe
+execution coverage, not correctness or detector sensitivity. A "second view" is a
+proposed comparison whose independence must be established. Each row must distinguish
+presence, internal consistency and source-truth checks; passing one does not pass
+the others. Human-only checks may remain sampled with a justified design and bound.
+
+- [ ] Extend the machine-readable matrix with exact eligible membership and its
+  hash, counts actually checked and unassessable (with reasons), check kind,
+  instrument/version, thresholds, run date, input/output evidence hashes, evidence
+  lineage, known blind spots and adjudication state. An unavailable transcript,
+  source or external plan is unassessable, never a pass. Reprocessing or changed
+  policy invalidates dependent evidence until the relevant checks run again.
+- [ ] Split mixed populations and partially checked rows. "Not produced" requires
+  a scoped reason and decision, not an empty-column inference. Deferring the 422
+  default preacher assignments does not validate the 16 non-default assignments;
+  audit those against source evidence. Likewise inspect the 31 existing thumbnails
+  even though generation for the remaining membership is deferred.
+- [ ] Reconcile expected outputs against actual outputs from source truth and
+  applicable pipeline contracts: talks, readings, songs, media, passage enrichment
+  and downstream artifacts. Include failed runs, no-output runs, pending candidates
+  and held rows. Distinguish legitimate absence, deferred approval/generation,
+  exclusion and unexplained omission. A planned OoS item alone does not prove it was
+  performed. Existing-row scans and writer scans cannot establish completeness.
 
 | Output | Existing check | Status | Second view to census |
 |---|---|---|---|
@@ -465,13 +497,13 @@ or a recorded decision that the field is not produced for historic runs.
 | Sermon `meta_description` | — | not produced (0/438; derived from summary at render) | check the rendered value in consumer-side rendering |
 | Sermon `points`, `show_points` | — | none | transcript; summary |
 | Sermon `slug` | — | none | title; uniqueness; placeholder pattern (`ReslugPlaceholderSermons`) |
-| Sermon `preacher`, `preacher_id`, `preacher_source`, `preacher_confidence`, `needs_preacher_review` | coverage census 2026-09-14 (422/438 `default`) | not produced until retraining (ruling 2026-09-14) | OoS email preacher; retrained speaker model |
+| Sermon `preacher`, `preacher_id`, `preacher_source`, `preacher_confidence`, `needs_preacher_review` | coverage census 2026-09-14 (422/438 `default`) | 422 defaults deferred until retraining (ruling 2026-09-14); 16 non-default assignments unchecked | source identification; OoS email preacher; retrained speaker model |
 | Sermon `series` | — | none | OoS; adjacent weeks' series; empty census |
 | Sermon `segment_start_time`, `segment_end_time`, `duration` | duration census 2026-09-14 | corpus | span gaps are by-design concat plans; 902 plan ends past its recording |
 | Sermon audio (MP3) content | decode sample (59); duration census and tail transcripts 2026-09-14 | corpus (length) / sample (loudness, clipping) | **defect**: 12 MP3s lose closing words; loudness and clipping still unchecked |
 | Sermon video content | decode sample (59 files); header probe of 1,334 paths; format census against the source fingerprint 2026-09-14 (all 438 equal) | corpus (headers, format) / sample (decode) | A/V sync at start, middle, end; `video_quality_status` reason |
 | Sermon `transcript_file_path` text | saved-vs-derived census (29 held); loop screen; cadence census | corpus | fresh re-transcription of a random minute; word rate; unobservable windows |
-| Sermon `thumbnail_file_path`, `thumbnail_metadata` | coverage census 2026-09-14 | not produced until release (ruling 2026-09-14; 31/438) | after release-time generation: frame inside the span, not black or a slide |
+| Sermon `thumbnail_file_path`, `thumbnail_metadata` | coverage census 2026-09-14 | generation deferred for remaining membership; 31 existing thumbnails unchecked | check existing and subsequently generated thumbnails: frame inside the span, not black or a slide |
 | Sermon `video_quality_status`, `video_quality_reason`, `video_visibility_override` | every rejection adjudicated 2026-09-14 | corpus (rejections) / none (approvals) | **defect**: 27 of 47 rejections hide good video; approvals never sampled |
 | Children's talk span, speaker | sample (span, 17 services) | sample | OoS item; `CHILDRENS-TALK-SPEAKER-DECISIONS` shortlist; duration band |
 | ChurchService `occasion`, `occasion_confirmed_at` | — | none | OoS email; special-service strata; calendar |
@@ -491,6 +523,13 @@ or a recorded decision that the field is not produced for historic runs.
 | Search index / embeddings for historic sermons | — | none | index membership equals exact release membership; stale text after transcript repair |
 | Public pages, sitemap, podcast feed, structured data | consumer-side rendering 2026-09-14 (all 442 sermons, 225 song pages, 441 service pages, listings, 2,150 sitemap URLs, feeds, internal links, as if released) | corpus | clean; **latent**: public sermon query omits `asset_disk`; sermon 857's MP3 missing; service links built while the archive is disabled |
 | Quarantine visibility and notifications | §4.5 audit | pending | — |
+| Expected outputs absent from the graph | song-gap and missing-enrichment findings only | partial; cross-output reconciliation pending | blind source inventory; applicable pipeline contracts; explicit absence or deferral |
+| Transcript and analysis meaning | loop/cadence screens; summary samples | partial; blind semantic review pending | source audio, speaker attribution and time-bound support for each reviewed claim |
+| Source → spans → extracted → stored → delivered content | duration census; RMS alignment on three runs | sample (alignment); handoff verification pending | content alignment at boundaries, interiors and every join; byte hashes where no transformation occurs |
+| Cross-corpus duplicate content | date/reference-constrained pair screen | partial; unrestricted candidate search pending | audio fingerprints and transcript similarity without date/reference prefilters |
+| Audio channel preservation and continuity | format census and limited loudness samples | channel/downmix and drift checks pending | each source channel versus final audio; speech retention, clipping, levels and join continuity |
+| Retry/replacement generation consistency | archived canary/idempotence evidence | controlled interruption and equal-duration replacement tests pending | clean versus resumed processing; source, plan, media and verdict generation bindings |
+| Actual browser playback and delivery | HTTP-kernel render census only | pending | real URLs, seeking/ranges, headers, access controls and replacement cache freshness |
 
 - [x] Verify the matrix against the writers: grep every `Sermon`, `ChurchService`,
   `ChurchServiceItem`, `ServiceSection` and `SongVideo` write in the pipeline and
@@ -523,7 +562,8 @@ or a recorded decision that the field is not produced for historic runs.
     carry "Visiting Speaker" because speaker identification was deliberately
     disabled (393 runs; 38 more below threshold): the model was not working, and
     the plan is to retrain it once the video corpus is larger. The field is
-    therefore not produced yet, not wrong; §4.5 carries the retraining.
+    therefore deferred for those default assignments; §4.5 carries the retraining.
+    This does not exempt the 16 non-default assignments from source verification.
   - **Findings needing a census or ruling (now matrix rows):** 47 videos are
     auto-`rejected` (26 frozen frames, 21 mostly black), which hides them
     publicly, and nobody has looked at them;
@@ -541,7 +581,119 @@ or a recorded decision that the field is not produced for historic runs.
   the instrument path and run date per row. **`storage/scratch/coverage-matrix-20260914.json`**
   (44 rows, each with its writer, historic population, check, status and second
   view), built from `coverage-20260914-field-census.{php,json}`. The table above
-  is the summary; the JSON is authoritative where they differ.
+  is the summary; the JSON is the underlying measurement snapshot. The strengthened
+  requirements above govern subsequent checks; older JSON statuses cannot satisfy
+  them by themselves. Update the matrix with new evidence when those checks run,
+  without rewriting the preserved baseline as though that work already happened.
+
+#### Blind source review and evidence independence
+
+- [ ] Select a bounded discovery set before opening the generated answers, across
+  eras, recording formats, ordinary and special services, partial/composite sources
+  and availability of external evidence. Include held and apparently clean runs.
+  Record membership and the selection method. Start with five varied services;
+  this is discovery, not a statistically sufficient acceptance sample. The same
+  operator can do source review and later comparison; no second reviewer is required.
+- [ ] Listen to the original recordings first and record the actual sequence,
+  identities, boundaries, interruptions and absent content. Do not show the reviewer
+  generated sections, transcripts, labels or warnings until this source inventory
+  is saved. Keep uncertainty explicit. Then compare all expected and actual outputs,
+  including material for which the pipeline created no section or file.
+- [ ] Draw and save random interior source windows before consulting detector
+  results, alongside complete-source review. Check fluent but incorrect words,
+  missing negation, names and numbers, missing sentences, quotation attribution and
+  speaker changes. After unblinding, check reviewed titles, summaries and points for
+  unsupported claims or a changed meaning, citing source timestamps for support or
+  contradiction. Keyword overlap and normal word density are insufficient.
+- [ ] For each corroborating signal, record its original evidence and every
+  transformation that could have inherited another signal's answer. The structure
+  model receives both transcript and OoS: its title hint is not automatically
+  independent of either. Published fields versus `ai_analysis`, linked passage text
+  versus a rewritten reference, or two copies of one transcript count as consistency
+  checks, not independent confirmation.
+- [ ] Separate intended from performed content. An OoS entry and a matching slide
+  can both describe a song that was changed. Require performance evidence for a
+  performed identity; a fresh ASR pass, even using another model, is a comparison
+  whose disagreements need adjudication, not ground truth by default. Preserve
+  unassessable cases rather than resolving them by majority vote among derived fields.
+- [ ] Give the 152 runs without an independent OoS in the recorded census their
+  own coverage and result breakdown. Source listening and channel/content checks
+  must cover them; no missing corroboration may become a clean agreement. Apply
+  the same distinction to runs lacking usable lyrics, intelligible audio or slides.
+
+#### Content alignment across processing handoffs
+
+- [ ] Census content alignment across every eligible sermon MP3/video pair and
+  generated clip versus its source spans. Use audio fingerprints or waveform
+  alignment tolerant of the actual encoding/enhancement, checking the beginning,
+  interior, end and both sides of every concatenation join. Measure offsets, drift,
+  missing, duplicated and reordered material. Low-information or ambiguous matches
+  are unassessable and require another view. Codec fingerprints and equal durations
+  establish format/length only; alignments against a plan establish extraction
+  fidelity, while blind source review establishes whether the plan was right.
+- [ ] Bind source identity/hash, ordered extraction spans, final artifact hashes,
+  stored object identity and applicable policy/version in the evidence for a run.
+  Compare byte hashes at copy-only handoffs; compare decoded content where encoding
+  changes. Verify that delivered media correspond to the stored artifact through
+  the actual-delivery checks below. A new plan or new bytes must not retain a verdict
+  certifying an earlier generation without revalidation.
+- [ ] Compare each source audio channel with final MP3 and video audio. Look for
+  speech confined to one channel, cancellation during mono downmix, processing-added
+  dropouts, clipping, abrupt level changes and progressive A/V drift, especially
+  after joins. Distinguish source faults from introduced loss; calibrate thresholds
+  on good outputs and confirm candidates by listening. Full decode is still needed
+  but cannot establish intelligibility or synchronisation.
+- [ ] Search the whole source/output corpus for exact and near-duplicate content
+  using hashes, audio fingerprints and transcript similarity without first
+  requiring equal dates, references or titles. Adjudicate reused Bible readings,
+  repeated hymns, rehearsals, alternate encodes and repeated performances separately.
+  Similarity is a candidate signal, never automatic deletion or source substitution.
+
+#### Controlled variations and interruption tests
+
+Use small, local fixtures derived from representative recordings and existing
+test conventions. Record the transformation, expected relationship, tolerance and
+input/output hashes. These tests expose assumptions without requiring an exact
+answer to every field; they complement tests against source-reviewed truth. This
+applies behavioural testing principles described in
+[CheckList (ACL 2020)](https://aclanthology.org/2020.acl-main.442/); no new dependency
+or separate harness is required.
+
+- [ ] Implement and evaluate the following relations on the affected pipeline
+  stages, then exercise representative cases through the weekly path. Where a model
+  call can vary, judge semantic and timing tolerances fixed before the run, rather
+  than byte-for-byte wording. Preserve captured responses for deterministic
+  regression tests and report live-model evaluation separately from mocked tests.
+
+| Variation or interruption | Expected relationship / failure to detect |
+|---|---|
+| Add ten seconds of leading silence | Content identities and order stay the same; source-relative boundaries shift by ten seconds within the declared tolerance. |
+| Split and losslessly rejoin at a safe boundary | Same content inventory and identities; no duplicated/missing join material or blanket suppression of songs because a source is concatenated. |
+| Remove the OoS | Uncertainty may increase; the pipeline must not invent content or replace the observed performance with a familiar service pattern. |
+| Supply a deliberately wrong planned song | Actual performance evidence must trigger disagreement or uncertainty, rather than two descendants of the wrong plan confirming each other. |
+| Shift a cut while preserving duration | The stored video, MP3, transcript and review evidence follow the new ordered spans; equal duration must not preserve the old file. |
+| Put speech in only one stereo channel; use a cancellation-prone fixture | Final audio preserves intelligible speech or explicitly flags inability to do so; a successful mono encode alone does not pass. |
+| Interrupt after extraction, during replacement upload, after row linking, or before verdict/publication preparation | Resume reaches a consistent generation with correct assets, identities and effective holds; no duplicates, dangling paths or old verdict certifying new bytes. |
+| Replace media served at an existing URL | The real delivery path returns the new artifact and seeks correctly; stale caches cannot silently serve the earlier cut. |
+
+- [ ] Start the equal-duration test at `ExtractSermon::authoriseReplacementIfCutChanged`
+  and `StoreSermonVideo::prepareHistoricNestedJob`: replacement detection compares
+  duration, and completed historic storage may skip without its flag. This is a
+  code-supported test target, not a newly confirmed corpus defect. Test an ordinary
+  extraction retry as well as explicitly requested re-extraction.
+- [ ] Exercise failure around old-file removal and replacement upload in
+  `SermonMetadataIntegrationService::organizeVideoFile`, plus downstream row linking
+  and review recomputation. Compare clean processing with interrupted/resumed
+  processing by content, graph membership and evidence validity. Retries need not
+  reproduce model wording, but must never combine incompatible generations.
+- [ ] Include a held-then-reprocessed run. The current re-detection path can remove
+  section metadata and its hold (§4.1); prove an effective hold is preserved or
+  re-established against the new sections before acceptance can proceed. Clearing
+  a hold requires current evidence for its reason and the other required dimensions.
+- [ ] Confirm each new regression fixture fails for its intended reason before
+  fixing a reported bug, then passes through the standard pipeline. Keep paid
+  evaluations bounded and explicitly report actual calls separately from local
+  fixture tests; another paid corpus replay is not the default discovery method.
 
 #### Disagreement censuses to run (all 442 active runs unless stated)
 
@@ -906,14 +1058,17 @@ class in the §4.3a detector table and a hold through the §4.1 path.
     existing `song_identity_contradicted_by_transcript` hold. 1174 158–240 s is not the
     first verse of §2330 (that section opens with its own announcement); it is
     unadjudicated.
-- [x] Sermon audio against sermon video: duration, and an RMS profile correlation
-  at three offsets, so a mismatched or mis-cut MP3 cannot hide behind a good video.
-  **Done 2026-09-14.** Duration and the tail-loss estimate for all 436 with an MP3
+- [ ] Complete sermon audio/video content alignment corpus-wide, including source
+  spans and joins, under the handoff checks above.
+  **Partial evidence, 2026-09-14:** duration and the tail-loss estimate for all 436 with an MP3
   (above). RMS alignment at five points on 1266, 1128 and 1226 found a constant
   offset equal to each video's picture delay (3.9, 4.5, 4.6 s), so nothing is lost
   or shifted at the join and picture stays in sync after the opening. The picture
   starts after the audio by under 0.5 s in 186 videos, 0.5–1 s in 55, 1–3 s in
   185, 3–6 s in 11, and 8.3 s in 1206 (a camera-disconnected card).
+  **Scope correction:** alignment on those three runs does not establish corpus-wide
+  content identity or sync. Equal-length shifted cuts, wrong files and untested joins
+  remain open even where duration agrees; this task is therefore not complete.
 - [x] Adjudicate every automatic video-quality rejection (added 2026-09-14; the
   public page hides a rejected video). **Done, read-only, all 48 rows**
   (`storage/scratch/vq-20260914-register.json`, contact sheets under
@@ -1077,11 +1232,13 @@ at 2% each side (minimum 5) and adjudicated in `tails-20260914-register.json`.
   rendered local pages (sermon page with video and MP3, each song page), drawn
   across eras and including at least one held-then-repaired run. Record A/V sync,
   level, thumbnail, slug, series, title and page layout. This is a human check and
-  is not delegable to frames.
-- [x] Render every quarantined sermon and song video through the public routes
-  locally (Dusk or Playwright over the exact membership), plus sitemap, podcast
-  feed and structured data. Fail on 404, missing thumbnail, duplicate slug,
-  broken song link, empty summary rendered as content, or any exception.
+  is not delegable to frames. These may be the blind-review services after their
+  source inventories have been saved and compared; consuming generated outputs
+  does not replace first reviewing the original source.
+- [x] Exercise the public route rendering of every quarantined sermon and song
+  video in-process, plus sitemap, podcast feed and structured data. Check 404s,
+  missing thumbnails, duplicate slugs, broken song links, empty summaries rendered
+  as content and exceptions; record the scoped exceptions below.
   **Done 2026-09-14, read-only** (`storage/scratch/render-20260914-{pass,feeds}.php`,
   `render-20260914-register.json`). Not Dusk, which swaps `.env` and repoints the database:
   one rolled-back transaction released all 442 quarantined sermons and 464 song videos the
@@ -1115,6 +1272,25 @@ at 2% each side (minimum 5) and adjudicated in `tails-20260914-register.json`.
     evening feed items, so release publishes about 190 episodes to subscribers at once.
   - *Harness trap:* `GET /sitemap.xml` regenerates the real file when it is missing, so the
     simulated state leaked into `public/sitemap.xml` (gitignored); it was deleted.
+
+- [ ] Verify playback through an actual server and browser on a representative
+  set spanning source codecs, frame rates, mono/stereo, concatenation joins and
+  repaired artifacts. Use isolated fixture data for Dusk behavioural tests; retain
+  Playwright only for pixel-level checks. Do not repoint a browser-test environment
+  at the historic working database. Keep human whole-output listening above.
+- [ ] Through real media URLs, test starting playback, seeking near the middle,
+  across joins and near the end, and resuming playback. Check range requests and
+  partial responses, correct MIME and length headers, and CORS where cross-origin
+  delivery requires it. Exercise the applicable member/public access contexts and
+  confirm quarantine remains inaccessible through unauthorised routes.
+- [ ] Verify replacement at an existing URL returns the current artifact through
+  storage/server/cache delivery, including a browser that has loaded the old one.
+  Compare returned bytes where unchanged and decoded content otherwise. Distinguish
+  a successful local origin check from an untested CDN/storage environment.
+- [ ] Carry these journeys into the separately authorised release's observation
+  window on the actual destination, with exact asset membership checks before
+  release and representative delivery checks after it. Local simulations do not
+  certify remote transport; use the existing rollback process if delivery fails.
 
 #### Rulings and stopping rule
 
@@ -1163,11 +1339,20 @@ at 2% each side (minimum 5) and adjudicated in `tails-20260914-register.json`.
     1135, 1304 and 1224 end 14–20 s after the song section starts, and sermon 1049 ends on
     the leader reading the hymn's first verse aloud. None contains singing, so no
     detector or re-plan is due; 1224 and 1049 need no hold.
-- [ ] **Stopping rule (replaces round 2's).** Discovery stops when the coverage
-  matrix has no **none** row, every cheap instrument has run over all 442 runs with
-  its candidates adjudicated, the tails and the whole-output checks are recorded,
-  and the operator has ratified the rulings. §4.5's fresh sample then bounds the
-  residue of the human-only checks; it is not the discovery mechanism.
+- [ ] **Stopping rule (replaces round 2's; strengthened 2026-09-14).** Close this
+  discovery round only when each coverage row has an explicit eligible population,
+  check kind, actually checked and unassessable counts, evidence lineage/version,
+  limitations and adjudicated results; expected-output omissions are reconciled;
+  and every cheap instrument has run over its current eligible membership. Complete
+  blind source review, handoff alignment, controlled variations/interruption tests,
+  tail inspection, local browser delivery and whole-output checks. Human-only
+  dimensions need justified samples; inapplicable/deferred subsets need scoped
+  reasons and decisions, not blanket exemptions. No unexplained or unassessable
+  case may silently become a pass. Record effective containment or an explicit
+  operator disposition for residual uncertainty and ratify the not-defect rulings.
+  §4.3a's detector evaluation and §4.5's acceptance evidence must then pass their
+  predeclared criteria. Closing a round is a bounded decision on this corpus and
+  these instruments, not proof that unknown classes cannot remain.
 - [ ] Sample the held population on the other dimensions: draw 15 held runs and
   run the full checklist plus the matrix rows on them, so that clearing a hold for
   its recorded reason does not release an unexamined row.
@@ -1180,6 +1365,10 @@ at 2% each side (minimum 5) and adjudicated in `tails-20260914-register.json`.
   and number-varying loops.
 - [ ] Verify recovered full-service evidence and saved sermon text independently.
   Agreement between two copies of the same corrupt text is not proof.
+- [ ] Apply §4.1b's blind interior-window review to fluent transcription errors and
+  omitted or meaning-changing speech, as well as loops. Re-transcription is a
+  candidate comparison; validate against source audio and record unassessable
+  speech. Check dependent analysis claims again after transcript recovery.
 - [ ] Detect sparse 30-second-cadence loss (§4.1a): consecutive short cues exactly
   30 s apart inside dense speech. Regression cases §3739 (1112) and §3490 (1278);
   negative cases are "Amen"/"Thank you" cadences over music and 1089's silent source.
@@ -1214,19 +1403,25 @@ at 2% each side (minimum 5) and adjudicated in `tails-20260914-register.json`.
   anyone approves them.
 - [ ] Add a lyric-coverage check (calibrated in §4.1a) before a song match is recorded
   as `confirmed`.
-- [ ] Redefine `confirmed` as two independent agreeing signals (any two of: exact or
-  alternate title hint, lyric coverage, OoS position with an email or OpenLP item).
-  One signal, or a looping transcript, yields `inferred` and a review flag. The
-  lyric instrument alone is blind to looping transcripts (§4.1a round 2), so it
-  cannot be the sole gate.
+- [ ] Redefine `confirmed` as two agreeing evidence sources whose lineage is
+  demonstrably independent, with at least one supporting the actual performed
+  song. Candidate signals are exact/alternate title hints, usable sung lyric
+  coverage and independently sourced OoS items, but do not count them by field
+  name alone: the structure model reads the OoS and transcript, so its hint may
+  inherit either answer. Slides and the OoS can both retain an unperformed plan.
+  One underlying source or unassessable performance yields `inferred` and a review
+  flag. A looping transcript cannot supply lyric confirmation; alternative usable
+  performance evidence must be recorded before confirmation. Apply §4.1b's lineage
+  rules and test the intentionally wrong-OoS case.
 
 ### 4.3a Put a detector in the pipeline for every class found
 
 Added 2026-09-14. The programme's aim is that future services process correctly,
-so containment of the historic corpus is not complete until each class found has
-a detector on the weekly path. Flagging for review is sufficient for now; repair
-automation is later. Most classes already have a working prototype under
-`storage/scratch/residue-2026091*`; promote them into tested application code
+so each class found needs a tested prevention/detection response on the weekly
+path, or an explicit recorded decision not to detect it. Flagging for review can
+contain a defect before automated repair exists, but promotion also requires the
+false-positive and review-burden evaluation below. Most classes already have a
+working prototype under `storage/scratch/residue-2026091*`; promote them into tested application code
 rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b or
 §4.5 gets a row here before its holds are cleared.
 
@@ -1236,7 +1431,7 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
 | Short, few-word and number-varying loops | 09-10 review | no | `correctness-20260910-unheld-short-loops` | §4.2 |
 | Sparse 30 s-cadence transcript loss | §4.1a r1 | no | `residue-20260913-cadence.py` | §4.2 |
 | Reading loop inside sermon text (1347) | §4.1a r1 | no | — | §4.2 |
-| Looping song transcript (§1216; 229 song sections, 65 half loop) | §4.1b song-loop census | no (the P8-Q14 screen runs, but no song check reads its blocks) | `songloop-20260914-census.php`, `songloop-20260914-score.php` | **new** (§4.2): record the screen's blocks per song section as a demotion, not a hold (P8-Q14 keeps songs out of the hold); `SongPublicationBoundaryEvidenceService` treats loop blocks like unobservable windows; a song whose section is half loop or more reads as identity-unverified, not `confirmed`, until lyric or OCR evidence supports it; flag a song section whose loop crosses into a neighbouring section, or whose audio is speech under looped sung text (967 §1082, 1268 §4731, 1348 §4390); re-detect 1287 through the pipeline |
+| Looping song transcript (§1216; 229 song sections, 65 half loop) | §4.1b song-loop census | no (the P8-Q14 screen runs, but no song check reads its blocks) | `songloop-20260914-census.php`, `songloop-20260914-score.php` | **new** (§4.2): record the screen's blocks per song section as a demotion, not an automatic content-defect hold (P8-Q14 keeps songs out of that hold); `SongPublicationBoundaryEvidenceService` treats loop blocks like unobservable windows; a song whose section is half loop or more reads as identity-unverified with §4.3's review flag until usable independent evidence of the performance meets that section's confirmation rule; OCR or another ASR pass alone does not suffice. Flag a song section whose loop crosses into a neighbouring section, or whose audio is speech under looped sung text (967 §1082, 1268 §4731, 1348 §4390); re-detect 1287 through the pipeline |
 | Mixed-song clip (§3869) | P8-Q10/16 | policy returns `unresolved_multiple_songs`, never written to the review column | `correctness-20260910-song-policy` | §4.3 |
 | Song clip with continuous spoken lead-in or tail (§988, §1457, §2897, §1475) | 09-10 review; §4.1a | no (gap-based only) | — | §4.3 |
 | Wrong song from `title_hint_fuzzy` (25 clips) | §4.1a r2 | no | `residue-20260914-hint-census.php`, `residue-20260914-lyric-identity.py` | §4.3 |
@@ -1279,8 +1474,46 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
   fixtures (positive and negative), under `tests/Fixtures/StructureEval` or
   beside it, following the existing fixture conventions.
 - [ ] Re-run every promoted detector over all 442 runs and reconcile its output
-  with the holds already placed by hand, so the hand-placed set is a subset of what
-  the pipeline would now flag.
+  with the holds already placed by hand, using current eligible membership if the
+  baseline changes. Every still-present confirmed defect must be detected or have
+  a recorded containment/decision; repaired positive cases remain regression
+  fixtures and should not keep firing merely to reproduce a historical hold list.
+
+#### Detector quality and automation benefit
+
+- [ ] For each detector, record a source-adjudicated evaluation of true and false
+  positives, false negatives and unassessable cases, with exact denominators and
+  uncertainty. Report precision (how often a flag is right), recall (how many known
+  defects it catches), and false-positive rate on verified correct cases. Recall
+  over the known defect set is not recall over unknown classes.
+- [ ] Draw detector-negative and approved examples independently of its alerts and
+  review them against source evidence. Include video-quality approvals, correctly
+  rejected black/card recordings, valid static-camera footage, legitimate repeated
+  lyrics and short talks. A census of flags alone cannot measure missed defects or
+  justify treating all non-flags as correct.
+- [ ] Separate known-defect regression fixtures, development data used to choose
+  thresholds/prompts, and a reserved evaluation set frozen before tuning. Keep the
+  same service, alternate encodes, duplicate/rehearsal recordings and their derived
+  clips in the same group. Record prior inspection and calibration use; a newly
+  sampled old run is not untouched if its answers already influenced development.
+  If no suitable untouched historic set remains, use prospectively reserved weekly
+  services and describe historic results as retrospective validation. Once a test
+  case informs a fix it becomes regression/development evidence for that fix.
+- [ ] Before evaluating a candidate, record acceptance thresholds by defect
+  severity, tolerances and allowed review burden. Require all applicable confirmed
+  regression defects to be prevented or contained, then compare candidate versus
+  incumbent on the same reserved cases. Report incorrect flags, missed defects,
+  percentage safely processed without intervention, flags per service and operator
+  review minutes. Increasing holds alone is not an automation improvement.
+- [ ] Break results down by era, codec/channel setup, service kind and availability
+  of independent evidence, explicitly including the no-OoS group. Use service or
+  source groups for uncertainty; correlated clips from one service are not separate
+  independent trials. Keep targeted challenge/repair samples separate from random
+  prevalence estimates, or use the recorded sampling weights.
+- [ ] Bind results to code, model/prompt, policy and evidence versions. Recheck
+  affected metrics when these change, and retain periodic source-reviewed weekly
+  spot checks for new recording conditions and new classes. Extend the existing
+  evaluator and pipeline tests; do not turn this into a second processing system.
 
 ### 4.4 Bind deferred identity disputes
 
@@ -1332,13 +1565,30 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
   repeated performances, song identity/count and boundary quality. The sample
   frame must include repaired and previously held runs, not only the never-named
   population (§4.1a's two samples excluded them), and the checklist must cover
-  every row of the §4.1b coverage matrix, not the original seven dimensions.
+  every row of the §4.1b coverage matrix, not the original seven dimensions. Record
+  sample membership, seed, selection probabilities, applicable denominators and
+  acceptance limits before inspection. Include source-first review and randomly
+  selected interior passages. Report repaired/targeted challenge cases separately
+  from population-rate estimates. This release-membership audit includes familiar
+  cases and does not replace §4.3a's reserved evaluation of generalisation; report
+  both results without calling previously used tuning cases untouched.
 - [ ] Build a pipeline regression set from operator-reviewed weekly services
   (recent weeks with email, OpenLP and a completed review). Re-run the weekly path
   on them after each §4.2/4.3/4.3a change and measure per-field agreement against
   the reviewed values, so a fix for one class cannot silently regress another
-  field. Extend the existing `tests/Fixtures/StructureEval` and
-  `TypingBaseline` fixtures rather than starting a new harness.
+  field. Extend the existing `tests/Fixtures/StructureEval` and appropriate media
+  job/service fixtures rather than starting a new harness. `TypingBaseline` tests
+  PHP typing conventions and is not a media-processing regression set. Keep tests
+  using mock detector responses distinct from evaluations of live model behaviour.
+- [ ] Complete §4.1b's source-to-delivery alignment and expected-output
+  reconciliation for the exact proposed membership; repeat affected checks after
+  repairs and bind acceptance to current artifacts and policy. Confirm the
+  controlled-variation and interruption tests pass, including equal-duration
+  re-cuts, replacement failures and held-then-reprocessed runs.
+- [ ] Meet §4.3a's predeclared detector and automation criteria on the reserved
+  evaluation set, with subgroup results, unassessable counts and review burden
+  reported. Preserve failures as findings; do not move thresholds after seeing
+  the evaluation answers and continue calling the same set held out.
 - [ ] Confirm every §4.3a detector is live on the weekly path before the historic
   release, so the next weekly service is protected by what the corpus taught.
 - [ ] Regenerate corpus membership and the proposal census.
@@ -1348,21 +1598,33 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
 - [ ] Retrain speaker identification on the historic video corpus (disabled
   deliberately; operator ruling 2026-09-14), then re-attribute the 422 default
   preachers, or accept "Visiting Speaker" explicitly for the release batch.
+  Independently verify the 16 existing non-default assignments; neither deferral
+  nor retraining exempts them. Keep reserved evaluation recordings out of speaker
+  training, including alternate encodes of those recordings.
 - [ ] Complete editorial QA for titles, slugs, references, series, speakers, songs,
-  children's talks and occasions.
+  children's talks and occasions, including source-supported summary/point claims
+  and meaning-changing transcript errors under §4.1b's blind review method.
 - [ ] Generate thumbnails for the exact release membership only after its editorial
   QA passes (deferred for cost; operator ruling 2026-09-14). The weekly job skips
   unpublished sermons and no release-path code generates them, so this must be an
   explicit step, then checked (frame inside the span, not black or a slide).
+  Existing thumbnails are checked against current cuts and editorial values too;
+  deferral never certifies them.
 - [ ] Audit exact assets, Scripture settlement, quarantine visibility and
   notification containment.
 - [ ] Regenerate the hymn-usage apply artifact against the exact converged graph.
 - [ ] Generate and verify authoritative Bundle A, optionally split by release era.
-- [ ] Complete truth-set checks and public acceptance journeys.
+- [ ] Complete truth-set checks, full-output human listening and actual-server
+  browser acceptance journeys under §4.1b, including seeking, range responses,
+  access contexts and replacement cache freshness. Record the tested environment
+  and remaining destination checks; the completed in-process census alone cannot
+  close browser or delivery acceptance.
 - [ ] Create separately signed, era-sized release authorisations.
 - [ ] Run `historic-import:release-batch --dry-run` for each authorised batch.
 - [ ] Release only exact authorised membership, observe the rollback window and
-  retain the release ledger.
+  retain the release ledger. Verify representative playback and current artifact
+  delivery on the actual destination during that window; act through the existing
+  rollback process if it fails.
 - [ ] At IC8, retire the remaining one-shot historic-import surface and the inert
   cost-accounting residue together.
 
@@ -1372,8 +1634,8 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
 |---|---|---|
 | Processing | GO | Definitive passes drained; three failures remain explicit rather than hidden. |
 | Containment | **NO-GO** | Every confirmed defect, current-policy objection and deferred identity row is held, excluded or repaired, and the live gate is rechecked. |
-| Content acceptance | **NO-GO** | The §4.1b coverage matrix has no unchecked row, every corpus census and tail inspection is adjudicated, the operator has ratified the not-defect rulings, every §4.3a class has a pipeline detector or a recorded decision, and a fresh held-out sample drawn from the whole population (including repaired runs) shows that unheld exact membership is safe to accept. |
-| Public release | **NO-GO** | Phase 9 convergence and QA pass, then the operator signs an exact era-sized batch. |
+| Content acceptance | **NO-GO** | §4.1b's strengthened stopping rule passes: scoped coverage and limitations, omission reconciliation, independent source evidence, content handoffs, controlled variations/interruption tests, tail and whole-output reviews. Every §4.3a class has a tested response or recorded decision; detector errors and review burden meet predeclared criteria on reserved data. The fresh release-membership sample includes repaired/held runs, reports uncertainty and unassessable cases, and meets its separate predeclared limits. Evidence is bound to current artifacts; operator rulings are recorded. |
+| Public release | **NO-GO** | Phase 9 convergence, QA and actual-server browser checks pass, then the operator signs an exact era-sized batch. Actual-destination delivery checks are scheduled within the authorised release's rollback window and must pass to close observation. |
 
 <a id="correctness-review-2026-09-10-followup"></a>
 
