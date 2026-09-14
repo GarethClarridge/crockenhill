@@ -489,7 +489,7 @@ or a recorded decision that the field is not produced for historic runs.
 | Scripture passage enrichment (`EnrichHistoricScripturePassages`) | Scripture census 2026-09-14: 426 passages' api range and HTML verses equal the reference | corpus | orphan/duplicate passages still unchecked; 7 sermons never linked |
 | Hymn usage apply artifact | §4.5 regeneration | pending | song identity census results |
 | Search index / embeddings for historic sermons | — | none | index membership equals exact release membership; stale text after transcript repair |
-| Public pages, sitemap, podcast feed, structured data | — | none | render every quarantined row locally; 404s, missing thumbnails, duplicate slugs, broken song links |
+| Public pages, sitemap, podcast feed, structured data | consumer-side rendering 2026-09-14 (all 442 sermons, 225 song pages, 441 service pages, listings, 2,150 sitemap URLs, feeds, internal links, as if released) | corpus | clean; **latent**: public sermon query omits `asset_disk`; sermon 857's MP3 missing; service links built while the archive is disabled |
 | Quarantine visibility and notifications | §4.5 audit | pending | — |
 
 - [x] Verify the matrix against the writers: grep every `Sermon`, `ChurchService`,
@@ -1078,10 +1078,43 @@ at 2% each side (minimum 5) and adjudicated in `tails-20260914-register.json`.
   across eras and including at least one held-then-repaired run. Record A/V sync,
   level, thumbnail, slug, series, title and page layout. This is a human check and
   is not delegable to frames.
-- [ ] Render every quarantined sermon and song video through the public routes
+- [x] Render every quarantined sermon and song video through the public routes
   locally (Dusk or Playwright over the exact membership), plus sitemap, podcast
   feed and structured data. Fail on 404, missing thumbnail, duplicate slug,
   broken song link, empty summary rendered as content, or any exception.
+  **Done 2026-09-14, read-only** (`storage/scratch/render-20260914-{pass,feeds}.php`,
+  `render-20260914-register.json`). Not Dusk, which swaps `.env` and repoints the database:
+  one rolled-back transaction released all 442 quarantined sermons and 464 song videos the
+  way release does (published, same paths, a URL-capable disk over the quarantine bytes),
+  and 5,281 requests went through the HTTP kernel in-process with caches in memory and
+  rate limits passed through. Song pages rendered as a verified member; the service
+  archive with its start date at the earliest historic service. Rollback was verified.
+  - **Clean.** No exception or 5xx anywhere. All 442 sermon pages, 225 song pages, 441
+    service pages, every listing and archive year, and all 2,150 sitemap URLs return 200.
+    Canonical links match, JSON-LD parses, and no page renders an empty title or
+    description, placeholder text or an empty summary. There are no duplicate slugs, and
+    every slug route redirects to its dated URL. Every historic podcast enclosure matches
+    its file's length, with no duplicate GUIDs. The only 404s are assets that are meant to
+    be hidden: missing thumbnails (the accepted deferral), the 48 rejected videos, and
+    audio for 844, 845 and 857. The only broken internal links were artefacts of the
+    render disk and one static PDF that nginx serves.
+  - **Latent: the public sermon query never selects `asset_disk`.** Listings, browse,
+    service lists and the feed resolve media through `SERMON_STORAGE_DISK`, while the
+    sermon page uses the row's own disk. Release writes that same disk, so they agree
+    today; any divergence gives wrong enclosure URLs and zero-length enclosures, which
+    podcast clients reject.
+  - **Sermon 857** (quarantined, non-historic) records an MP3 that does not exist on the
+    quarantine disk.
+  - **Service links with the archive disabled:** `publicUrlFor()` treats a null
+    `public_from` as no bound, but the archive treats null as disabled, so members-only
+    song pages link to service pages that 404.
+  - Services 1093, 1029 and 551 render with no sermon: the no-sermon class, correct.
+    Excluded runs (1043, 1089, 1051, 1098) still render service pages under simulation,
+    which the pending exclusion path must prevent.
+  - *For release planning:* the historic sermons fill 90 of 100 morning and 99 of 100
+    evening feed items, so release publishes about 190 episodes to subscribers at once.
+  - *Harness trap:* `GET /sitemap.xml` regenerates the real file when it is missing, so the
+    simulated state leaked into `public/sitemap.xml` (gitignored); it was deleted.
 
 #### Rulings and stopping rule
 
@@ -1235,6 +1268,9 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
 | Duplicate OoS item binds a clip to the previous song (1337 §4275, video 410: #699 listed twice, hint "Shine Your Light" matched `confirmed`) | §4.1b tail inspections | no | same | **new**: a section whose hint does not match its bound song's title or lyrics cannot be `confirmed` to that song; flag consecutive items with the same `song_id` (joins the OoS census duplicate-item class); re-resolve 1337 |
 | Song clip audio upsampled to 96 kHz and re-encoded at 128 kbps (245 of 464) | §4.1b tail inspections (format census) | no | `tails-20260914-fingerprint.php` | **new**: in `AudioEnhancementService::enhanceVideo()` pass `-ar` equal to the input's sample rate (the `loudnorm` 192 kHz output), and a bitrate no lower than the source's; probe every clip after publication for sample rate equal to the source fingerprint; re-publish clips through the pipeline once the song-edge and smart-cut changes land, so each is re-encoded once |
 | Song section with no song in it, above the 15 s micro floor (74: announcement only; 83: doxology as a second copy of the hymn) | §4.1b tail inspections | no (held only by generic review) | `tails-20260914-register.json` | **new**: flag a song section under 60 s whose transcript is all announcement, or whose lyrics belong to the preceding section's song; decide whether the doxology is its own catalogue item |
+| Public sermon query resolves media through config, not the row's `asset_disk` (listings, browse, service lists, podcast feed) | §4.1b consumer-side rendering | no | `render-20260914-feeds.php` | **new**: add `asset_disk` to `SermonRepository::basePublicSermonQuery()` and fail loudly when it is not loaded, as `isWholeContentPublic()` does for `publication_state`; test a feed item whose `asset_disk` differs from `SERMON_STORAGE_DISK` |
+| Quarantined sermon records a media file that does not exist (857 MP3) | §4.1b consumer-side rendering | no | `render-20260914-register.json` | **new**: before release, check every recorded asset path exists on its `asset_disk` and refuse the row otherwise; trace 857 |
+| Service URL offered while the service archive is disabled (null `public_from`) | §4.1b consumer-side rendering | no | same | **new**: `publicUrlFor()` returns null when `publicFrom()` is null, matching `applyDateEligibility()` |
 | Silent source producing nothing (955) | §4.1a r2 | yes (`SILENT-SOURCE-EXCLUSION` plan) | — | keep |
 
 - [ ] Fill the table's "pipeline item" column with a tested change or a recorded
