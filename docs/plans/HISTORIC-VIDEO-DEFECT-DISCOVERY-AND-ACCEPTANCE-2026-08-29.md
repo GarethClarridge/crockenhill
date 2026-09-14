@@ -459,7 +459,7 @@ or a recorded decision that the field is not produced for historic runs.
 |---|---|---|---|
 | Sermon `date`, `service` slot | `identity_correct` in the item ground truth (IC3) | corpus | source filename/mtime; OoS date; SongVideo `recorded_date` |
 | Sermon `content_type` (sermon vs children's talk) | sample checklist | sample | OoS item section type; duration band |
-| Sermon `title`, `title_provenance` | sample; adopted-row census (§4.1a) | sample | `summary`; OoS sermon title; opening minute of transcript |
+| Sermon `title`, `title_provenance` | sample; adopted-row census (§4.1a); title census 2026-09-14 (summary, section title, transcript, `ai_analysis`) | corpus | no new wrong title (844, 845, 850, 881 reconfirmed); null provenance on 31 rows is pre-tracking, not adoption |
 | Sermon `reference`, `scripture_passage_id` | published-vs-heard census (§4.1a); Scripture census 2026-09-14 (passage verses, listed, plan and page reading, spoken) | corpus | **defects**: multi-passage truncation on link (4), whole-letter references rejected (2), 7 never linked, page names the wrong reading (157), wrong reference 899 |
 | Sermon `summary`, `show_summary` | sample (summary vs video) | sample | title; transcript keyword overlap; run `ai_analysis` |
 | Sermon `meta_description` | — | not produced (0/438; derived from summary at render) | check the rendered value in consumer-side rendering |
@@ -769,8 +769,31 @@ class in the §4.3a detector table and a hold through the §4.1 path.
     reading at all), the wrong reference 899 and the code-defect rows are not held: the
     reference goes to §4.5 editorial QA as in §4.1a, and the rest are re-run through the
     pipeline once fixed.
-- [ ] Title against summary (the 944 class) by keyword overlap; adjudicate the
+- [x] Title against summary (the 944 class) by keyword overlap; adjudicate the
   bottom decile.
+  **Done 2026-09-14, read-only, all 438 sermons**
+  (`storage/scratch/title-20260914-{census.php,census.json,register.json}`).
+  - **No new wrong title.** Each title's content words were scored against its summary
+    and points, and against two views that do not share the AI analysis: the structure
+    detector's sermon section title and the sermon transcript. The known wrong titles
+    calibrate it: 845, 850, 881 and 844 rank 4th, 5th, 7th and 15th of 438, all with no
+    title word in the summary or the section title.
+  - **Bottom decile (44), by hand:** the four known rows; three all-stop-word titles
+    ("God is just") that sort first by construction; 37 paraphrases where summary and
+    title name the same idea in different words ("Known, held and led by God" against
+    "God knows… guides and holds").
+  - **Independent view:** the summary comes from the same call as the title, so a pair
+    wrong together would pass. 56 more sermons share no word with their section title;
+    all are two phrasings of the same sermon that fit its reference ("Let your yes be
+    yes" / "Truthfulness and Keeping Promises"). The transcript view cannot separate
+    anything: title words occur in the transcript for 90% of sermons.
+  - **78 published titles differ from the run's `ai_analysis.title`,** all rewordings
+    of the same meaning; none is an adopted title.
+  - **Null `title_provenance` on 34 is not the adopted-row class.** 844, 845 and 850
+    (created 2026-05-28) are; 868 (07-18) agrees on every view; the other 30, created
+    08-26 to 08-30, predate provenance tracking (`b6e8dec71`, 2026-08-31). The §4.3a rule
+    that null-provenance adopted rows refuse publication must therefore tell adopted
+    rows from pre-tracking ones, or it refuses 31 correct sermons.
 - [ ] SongVideo `recorded_date` and sermon `date` against the owning service and
   the source file's own date.
 - [ ] Sum of sections against source duration; list every unsectioned span over
@@ -949,7 +972,7 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
 | OoS song with no detected section (944) | §4.1a r1 | no | — | **new**: OoS-vs-sections count/order flag (§4.1b census) |
 | Talk cut by end of its only source (§1684, §1793, §3943) or starting mid-thought (§1421, 980) | §4.1a r2 | no | `residue-20260913-text-signals.json` | **new**: section within N s of source start/end plus mid-sentence transcript edge → `source_truncates_talk` flag |
 | Source audio dropout inside a talk (≥15 s at ≤ −80 dB) | §4.1a r1 | no | `residue-20260913-dropouts.py` | **new**: RMS dropout flag on the section; not repairable, so the flag is the outcome |
-| Published title/reference contradicts summary or transcript (881, 954, 844/845/850, 899) | §4.1a r1; §4.1b Scripture census | no | `residue-20260913-references.php`, `scripture-20260914-census.php` | **new**: published-vs-heard reference check and title↔summary overlap at analysis time; null-provenance adopted rows refuse publication |
+| Published title/reference contradicts summary or transcript (881, 954, 844/845/850, 899) | §4.1a r1; §4.1b Scripture census | no | `residue-20260913-references.php`, `scripture-20260914-census.php` | **new**: published-vs-heard reference check and title↔section-title overlap at analysis time (summary overlap alone shares the title's source); adopted rows with null provenance refuse publication, distinguished from the 31 rows created before provenance tracking (2026-08-31), which must not be refused |
 | Multi-passage reference cut to its first passage on link (1031, 1159, 1188, 1233) | §4.1b Scripture census | no | `scripture-20260914-register.json` | **new**: link a passage per part (or the envelope) without rewriting `reference` to the first part; flag a linked reference that no longer covers the analysis reference; re-link the four |
 | Whole single-chapter letter rejected as a reference (957, 1090) | §4.1b Scripture census | no | same | **new**: accept a single-chapter book as its whole chapter in `validateBibleReference`; re-run analysis for the two |
 | Sermon reference never linked to a passage (908–910, 912–915) | §4.1b Scripture census | no (Bundle A refuses at release) | same | **new**: a reconciliation check that every sermon with a parseable reference has a passage or a recorded absence; re-dispatch enrichment for the seven |
