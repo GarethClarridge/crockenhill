@@ -731,15 +731,36 @@ class in the §4.3a detector table and a hold through the §4.1 path.
     the 26 with prayer language inside. The rest are genuine readings, mostly announced
     call-to-worship psalms; 1340, 1359 and 1274 are listed items in their order of
     service. Screen: `scripture-20260914-prayer-verse.{php,json}`.
-  - **A reading's start absorbed by the section before it (new).** 1203 §2535 holds only
-    the last 20 s of Colossians 1:9-14: the announcement (1,517 s) and verses 9-12 sit in
-    the prayer section, which runs to 1,577 s, so sermon 1122's media carry only the
-    reading's tail. Of 88 readings with an announcement-like phrase in the preceding
-    section, I read the 42 with 25 or more words between phrase and reading start:
-    1203 is the only confirmed case. Minor candidates: 1141 (the reading starts inside
-    Daniel 6:4) and 1359 (one sentence of Hebrews 9 falls in the song). The rest are
-    prayers for the reading, notices, a reading inside a children's talk (1328) or a
-    hand-over. Screen: `scripture-20260914-reading-start.{php,json}`. Not held.
+  - **The structure model writes a boundary one minute late (new, code).** 1203 §2535
+    holds only the last 20 s of Colossians 1:9-14: the prayer's "Amen" and the reading's
+    announcement are at 25:17 (1,517 s), but the model returned 1,577 s (26:17) for both
+    the prayer's end and the reading's start, so sermon 1122's media carry only the
+    reading's tail. The error is exactly 60.0 s with the seconds digits unchanged, and the
+    model's own recorded output carries it (snap moved it 0.01 s; no reading recheck ran).
+    Cause: `ChurchServiceTranscript::toPromptText()` renders cue times as `m:ss`, while
+    `OpenAiServiceStructureService` demands `start_time`/`end_time` in seconds, so the
+    model converts every boundary; a one-minute slip lands on another real cue a second
+    apart, and the "times must come from cues" rule cannot catch it. Present since the
+    pipeline was built (371bb3a60, 2026-07-01), so the weekly path is exposed.
+    Ruled out: prayer-end judgement (the chosen line is right), short cues (27 of 60
+    sampled runs have them), the reading being a Pauline prayer (6 other such readings
+    are correct), post-processing.
+    **Corpus screen:** of 3,729 section starts, 35 have a strong boundary cue ("Amen", an
+    announcement, "let's pray/sing") 60 ± 1.5 s earlier and none at the start itself; by
+    hand:
+    - confirmed: 1203 §2535 (above); 1183 §2391, whose sermon starts mid-sentence at 5:11
+      after a 60.2 s unsectioned gap following the prayer's 4:11 "Amen", so sermon 1102's
+      media lose the opening minute (not held); 1305 §3894, whose prayer starts
+      mid-sentence at 62:21 while "Let's pray together" is at 61:22 inside the song
+      section §3893 (already held; no song video);
+    - probable: 962 §924, "Your Word" starting 58 s after the prayer with only a looping
+      "Amen" between, so song video 122 may miss its opening (section already held);
+      1141 §2137, the Daniel 6 reading starting at 1:00 with its first words in the gap;
+    - not slips (30): a hymn's sung "Amen" before the next item, starts a few seconds late
+      (1260, 1300, 1379), or a reader's own introduction left unsectioned (1250).
+    The earlier reading-start screen (`scripture-20260914-reading-start.{php,json}`, 88
+    readings, 42 read by hand) found only 1203 and 1141; 1359's one sentence in the song is
+    a separate, minor case.
   - **Held 2026-09-14** through `service:hold-section-content` (operator approval):
     sermon sections 1732 (1075) and 4753 (1299), whose media join a different reading in
     place of the sermon's own. Before (10:00:28 UTC) the gate refused neither sermon;
@@ -934,7 +955,7 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
 | Sermon reference never linked to a passage (908–910, 912–915) | §4.1b Scripture census | no (Bundle A refuses at release) | same | **new**: a reconciliation check that every sermon with a parseable reference has a passage or a recorded absence; re-dispatch enrichment for the seven |
 | Preached reading dropped from sermon media by an order flag (1075, 1254, 1286, 1299) | §4.1b Scripture census | no | same | **new**: in `selectBibleReading()`, do not exclude a reading held only for an order-of-service flag when its reference matches the sermon, or record the omission as a plan risk; re-plan the four through the pipeline |
 | Verse quoted inside a prayer typed as a Bible reading (1043 §1528) | §4.1b Scripture census; operator 2026-09-14 | no | `scripture-20260914-register.json` | **new**: the structure detector keeps a verse quoted within a prayer inside the prayer section, not a `bible_reading` (census: 1043 is the only case of 587 readings); re-detect 1043 through the pipeline |
-| Reading's announcement and opening verses absorbed by the preceding section (1203 §2535; minor: 1141, 1359) | §4.1b Scripture census | no | `scripture-20260914-reading-start.php` | **new**: start a reading section at its announcement or first verse when the preceding section's tail holds them; flag a reading section that opens mid-verse; re-detect 1203 through the pipeline |
+| Structure boundary written one minute late: `m:ss` prompt times converted to seconds (confirmed 1203 §2535, 1183 §2391, 1305 §3894; probable 962 §924, 1141 §2137) | §4.1b Scripture census | no (a slipped time still matches a real cue) | `scripture-20260914-register.json` | **new**: render prompt cue times in the unit the model returns (seconds), or have it return cue indices; flag a section that starts mid-sentence after an unsectioned or foreign-content minute; screen every run for a strong boundary cue exactly 60 s before a section start; re-detect the five through the pipeline and check media that crossed the slipped minute (sermon 1102, song video 122) |
 | Sermon page names the service's first reading, not the sermon's (157 of 438) | §4.1b Scripture census | no | `scripture-20260914-page-reading.txt` | **new**: `SermonPageContextService` shows the plan's reading, or the reading matching the reference, else none |
 | Saved sermon text predates evidence (P8-Q1) | P8-Q1 | yes (`sermon_text_predates_evidence`) | — | keep |
 | Sermon MP3 loses closing words (12; stream-copied video vs plan-cut audio) | §4.1b duration census | no | `duration-20260914-census.json` (`duration − picture delay − MP3 length`) | **new**: in `ExtractSermon`, produce the MP3 from the final sermon video's audio track: the whole track, with no second cut from the source and no length taken from the plan, for both `single_span` and `concat_spans` (this also removes the independent single-span cut behind 1257's loss); flag an MP3 whose length differs from its video's audio track; then re-run the 12 through the pipeline and clear their holds only on a clean re-measure |
