@@ -622,8 +622,56 @@ class in the §4.3a detector table and a hold through the §4.1 path.
     section bounds: that is §4.3's spoken-framing class, not an extraction effect.
   - Before this census, the two over-long song videos from the §4.1a samples were
     unexplained notes; both are part of this class.
-- [ ] OoS item count and order against detected section count and order, per
+- [x] OoS item count and order against detected section count and order, per
   service. A song item with no section is the 944 "My Hope Is Built" class.
+  **Done 2026-09-14, read-only, all 442 completed runs**
+  (`storage/scratch/oosorder-20260914-{census,gaps,gap-lyrics,register}.*`).
+  Listed order is each service's own `.osz`, re-parsed with `OpenLpServiceParser`
+  (259 exact, 28 partly paired, 3 email/manual lists in id order). Pairing is the
+  stored item ↔ section link; unlinked songs were then matched by song id, title or
+  hint, and interior gaps were lyric-scored against the service transcript.
+  - **No second view for 152 runs (34%).** They have no email, OpenLP or manual
+    item: 43/43 in 2020, 43/55 in 2021. This census cannot cover them.
+  - **Not defects:** 88 runs under 45 minutes list songs but have no song section.
+    These are sermon-only recordings (2026-09-01 finding). Listed songs before the
+    first anchor or after the last are where the recording starts late or ends
+    early. The song/song inversions in 946, 961 and 1237 are lyric-verified real
+    reorderings; 1288 lists "Your Word" twice.
+  - **The 944 class is not a missing song.** 944 is a concatenated recording, and
+    `dropSongsTheRecordingCannotContain` retypes every song in one. The rule covers
+    11 song-titled `other` sections in 940, 942, 944, 973 and 1014 (5–134 s). The
+    942 and 973 stubs are join fragments, but 944's §666 (134 s) was heard sung in
+    §4.1a, so "concatenated means songless" is wrong at least once. **Ruled
+    2026-09-14: a concatenated recording can contain a song** (below).
+  - **Wrong song under the listed title:** 35 sections, of which 27 are already
+    known (round-2 register, lyric flag or hold). The OoS view adds §1814 (1096,
+    *published*: lyrics favour the listed #462 over the bound #907, on only 10 words)
+    and §3658 (1292: announced #360, bound #370). Both **held 2026-09-14** through
+    `service:hold-section-content` (operator approval). Before (09:23:23 UTC) the gate
+    refused nothing; after, it refuses song video 229 and both sections await review
+    (`storage/scratch/oosorder-20260914-gate-{before,after}.json`).
+  - **Duplicate catalogue rows:** §529, §2402, §2783, §2875, §3073 and §3249 bind the
+    listed hymn's twin song row (He Is Exalted 339/340, Here Is Love 358/359, All
+    Creatures, Amazing Grace, This Earth Belongs To God). Right song, wrong row, so
+    usage counts and song pages split.
+  - **Listed song not anchored, so the service lists it twice (new class).** 14
+    sections share the listed item's song id but are not linked to it. In 977 the
+    livestream song items were projected with `song_id` null before transcript
+    matching, and later syncs never anchored the OpenLP items. Corpus-wide: 20
+    services, 28 duplicate pairs (21 with a null livestream song id), 6 on
+    published sections.
+  - **Interior listed songs with no section (38, plus 7 readings).** Lyric scoring
+    of each gap found 3 sung there, all already lyric-flagged wrong bindings (§4735,
+    §3363, §3627); 9 where another song was heard; 8 weak; 18 not heard. Whisper
+    drops singing, so "not heard" is not proof of absence: 26 need audio.
+  - **The validator orders by merged position (candidate).** `ValidationContext::for()`
+    and `SectionStructureFlagRederiver` read `church_service_items.position` as the
+    planned order. Merges rewrite it: it differs from export order in 73 services,
+    for songs or readings in 50. The OoS inversion flags (214 cross-type, 9
+    same-type) may be computed on a rewritten order. Not yet shown to change a flag.
+  - **Unadjudicated:** reading inversions in 1075, 1254, 1286 and 1299; 963's "While
+    Shepherds Watched" item links §863, but the lyrics place it at §859; 1234 §2897;
+    37 services whose `.osz` upload and embedded names disagree.
 - [ ] Reference against passage id, against the OoS reading item and against the
   reference spoken in the sermon's first two minutes.
 - [ ] Title against summary (the 944 class) by keyword overlap; adjudicate the
@@ -709,6 +757,12 @@ class in the §4.3a detector table and a hold through the §4.1 path.
     7 card rejections are correct, and the repaired detector must keep rejecting
     them. A ruling made in passing by the reviewer is
   not a decision.
+  - **A concatenated recording can contain a song (operator ruling 2026-09-14).**
+    `dropSongsTheRecordingCannotContain` retypes every song section in a concatenated
+    recording, which loses a song caught between segments (944 §666). The rule must
+    keep a song section the evidence supports and demote only join fragments; the
+    five affected runs (940, 942, 944, 973, 1014) are then re-detected through the
+    pipeline.
 - [ ] **Stopping rule (replaces round 2's).** Discovery stops when the coverage
   matrix has no **none** row, every cheap instrument has run over all 442 runs with
   its candidates adjudicated, the tails and the whole-output checks are recorded,
