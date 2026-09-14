@@ -218,6 +218,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
              * predate the stored_video signature.
              */
             $supersededVideoDuration = $this->processingLog->storedSermonVideoDuration();
+            $supersededVideoSpans = $this->processingLog->storedSermonVideoSpans();
 
             $this->processingLog->update([
                 'video_file_path' => $sermonVideoPath,
@@ -250,7 +251,12 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                 ),
             ]);
 
-            $this->authoriseReplacementIfCutChanged($supersededVideoDuration, $observedDuration);
+            $this->authoriseReplacementIfCutChanged(
+                $supersededVideoDuration,
+                $observedDuration,
+                $supersededVideoSpans,
+                $extractionPlan['segments'],
+            );
 
             if (! $audioExtractionResult['valid_for_transcription']) {
                 Log::warning('Audio file still too large after compression', [
@@ -327,23 +333,35 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
      * new cut just as decisively, and produced 44 sermons whose stored video is
      * not the video their own run says it extracted.
      *
-     * So extraction raises it itself, on the only evidence that settles the
-     * question: the duration of the video it just produced against the duration
-     * of the video already on disk. A null superseded duration means the stored
-     * video could not be established, and an unestablished video is left alone.
+     * So extraction raises it itself, on two pieces of evidence: the source spans
+     * it just cut against the spans the stored video was cut from, and the
+     * duration of the video it just produced against the duration of the video
+     * already on disk. Either differing is a new cut. Duration alone misses a
+     * span that moved without changing length, which is exactly what correcting
+     * a boundary written one minute late produces. A null superseded value means
+     * that evidence could not be established, and unestablished evidence
+     * authorises nothing.
      *
      * The tolerance absorbs container rounding — a stored duration and a fresh
      * probe of the same cut differ in the third decimal — without absorbing any
      * real span change; the smallest genuine divergence measured across the
      * corpus was 1.0 s.
+     *
+     * @param  list<array{start: float, end: float}>|null  $supersededSpans
+     * @param  array<int, array{start_time: float, end_time: float}>  $plannedSegments
      */
-    private function authoriseReplacementIfCutChanged(?float $supersededDuration, ?float $observedDuration): void
-    {
-        if ($supersededDuration === null || $observedDuration === null) {
-            return;
-        }
+    private function authoriseReplacementIfCutChanged(
+        ?float $supersededDuration,
+        ?float $observedDuration,
+        ?array $supersededSpans,
+        array $plannedSegments,
+    ): void {
+        $spansChanged = $supersededSpans !== null && $this->spansDiffer($supersededSpans, $plannedSegments);
+        $durationChanged = $supersededDuration !== null
+            && $observedDuration !== null
+            && abs($observedDuration - $supersededDuration) > self::StoredVideoToleranceSeconds;
 
-        if (abs($observedDuration - $supersededDuration) <= self::StoredVideoToleranceSeconds) {
+        if (! $spansChanged && ! $durationChanged) {
             return;
         }
 
@@ -354,7 +372,31 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
             'sermon_id' => $this->processingLog->sermon_id,
             'stored_duration' => $supersededDuration,
             'extracted_duration' => $observedDuration,
+            'stored_spans' => $supersededSpans,
+            'extracted_segments' => $plannedSegments,
         ]);
+    }
+
+    /**
+     * @param  list<array{start: float, end: float}>  $supersededSpans
+     * @param  array<int, array{start_time: float, end_time: float}>  $plannedSegments
+     */
+    private function spansDiffer(array $supersededSpans, array $plannedSegments): bool
+    {
+        $plannedSegments = array_values($plannedSegments);
+
+        if (count($supersededSpans) !== count($plannedSegments)) {
+            return true;
+        }
+
+        foreach ($supersededSpans as $index => $span) {
+            if (abs($span['start'] - (float) $plannedSegments[$index]['start_time']) > self::StoredVideoToleranceSeconds
+                || abs($span['end'] - (float) $plannedSegments[$index]['end_time']) > self::StoredVideoToleranceSeconds) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function concludeWithoutSermon(): bool

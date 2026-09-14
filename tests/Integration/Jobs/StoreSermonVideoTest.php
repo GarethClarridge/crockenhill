@@ -96,6 +96,33 @@ class StoreSermonVideoTest extends TestCase
     }
 
     #[Test]
+    public function storing_a_video_records_the_spans_it_was_cut_from(): void
+    {
+        $segments = [
+            ['start_time' => 300.0, 'end_time' => 1200.0],
+            ['start_time' => 1260.0, 'end_time' => 2100.0],
+        ];
+
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'video_file_path' => 'temp/sermon.mp4',
+            'processing_metadata' => [
+                'trim' => ['observed_duration' => 1740.0, 'segments' => $segments],
+            ],
+        ]);
+        $sermon = Sermon::factory()->create();
+
+        $mockMetadataService = $this->createStub(SermonMetadataIntegrationService::class);
+        $mockMetadataService->method('storeVideoForSermon')->willReturn("sermons/{$sermon->id}/video.mp4");
+
+        (new StoreSermonVideo($log, $sermon->id))->handle($mockMetadataService);
+
+        $storedVideo = data_get($log->fresh()->processing_metadata?->toArray(), 'stored_video');
+
+        $this->assertEquals(1740.0, $storedVideo['observed_duration']);
+        $this->assertEquals($segments, $storedVideo['segments']);
+    }
+
+    #[Test]
     public function retryable_storage_is_recorded_before_the_exception_is_rethrown(): void
     {
         $operation = $this->createHistoricImportOperation();

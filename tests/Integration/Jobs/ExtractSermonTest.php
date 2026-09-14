@@ -1450,6 +1450,120 @@ class ExtractSermonTest extends TestCase
         @unlink($extractedAudioFile);
     }
 
+    #[Test]
+    public function a_re_cut_that_moves_the_span_without_changing_its_length_marks_the_run_for_replacement(): void
+    {
+        config(['media-processing.storage.temp_disk' => 'local']);
+        config(['filesystems.disks.local.driver' => 'local']);
+
+        [$videoFile, $extractedAudioFile] = $this->stageExtractionFiles();
+
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/1203/video.mp4',
+        ]);
+
+        // The corrected plan: the same 30 minutes, one minute later.
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'sermon_id' => $sermon->id,
+            'sermon_start_time' => 360.0,
+            'sermon_end_time' => 2160.0,
+            'source_file_path' => 'livestreams/test-video.mp4',
+        ]);
+
+        // The stored video was cut from the slipped span.
+        $log->recordStoredSermonVideo(1800.0, [['start_time' => 300.0, 'end_time' => 2100.0]]);
+
+        $this->runJob(
+            new ExtractSermon($log->fresh()),
+            $this->extractorStubbedTo($extractedAudioFile),
+            $this->createStub(VideoStorageService::class),
+            $this->probeWithDuration(1800.0, Storage::disk('local')->path('extracted/sermon-video.mp4')),
+        );
+
+        $this->assertTrue(
+            $log->fresh()->isReExtraction(),
+            'A cut from different source time is a replacement even when its length is unchanged.',
+        );
+
+        @unlink($videoFile);
+        @unlink($extractedAudioFile);
+    }
+
+    #[Test]
+    public function a_moved_span_is_detected_from_the_previous_trim_when_the_stored_video_predates_its_spans(): void
+    {
+        config(['media-processing.storage.temp_disk' => 'local']);
+        config(['filesystems.disks.local.driver' => 'local']);
+
+        [$videoFile, $extractedAudioFile] = $this->stageExtractionFiles();
+
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/1183/video.mp4',
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'sermon_id' => $sermon->id,
+            'sermon_start_time' => 360.0,
+            'sermon_end_time' => 2160.0,
+            'source_file_path' => 'livestreams/test-video.mp4',
+            'processing_metadata' => [
+                'trim' => [
+                    'observed_duration' => 1800.0,
+                    'segments' => [['start_time' => 300.0, 'end_time' => 2100.0]],
+                ],
+            ],
+        ]);
+
+        $this->runJob(
+            new ExtractSermon($log->fresh()),
+            $this->extractorStubbedTo($extractedAudioFile),
+            $this->createStub(VideoStorageService::class),
+            $this->probeWithDuration(1800.0, Storage::disk('local')->path('extracted/sermon-video.mp4')),
+        );
+
+        $this->assertTrue(
+            $log->fresh()->isReExtraction(),
+            'The previous extraction\'s spans describe the stored video on runs that predate the recorded spans.',
+        );
+
+        @unlink($videoFile);
+        @unlink($extractedAudioFile);
+    }
+
+    #[Test]
+    public function a_re_cut_from_the_same_spans_leaves_the_stored_video_alone(): void
+    {
+        config(['media-processing.storage.temp_disk' => 'local']);
+        config(['filesystems.disks.local.driver' => 'local']);
+
+        [$videoFile, $extractedAudioFile] = $this->stageExtractionFiles();
+
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/1305/video.mp4',
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'sermon_id' => $sermon->id,
+            'sermon_start_time' => 360.0,
+            'sermon_end_time' => 2160.0,
+            'source_file_path' => 'livestreams/test-video.mp4',
+        ]);
+
+        $log->recordStoredSermonVideo(1800.0, [['start_time' => 360.0, 'end_time' => 2160.0]]);
+
+        $this->runJob(
+            new ExtractSermon($log->fresh()),
+            $this->extractorStubbedTo($extractedAudioFile),
+            $this->createStub(VideoStorageService::class),
+            $this->probeWithDuration(1800.0, Storage::disk('local')->path('extracted/sermon-video.mp4')),
+        );
+
+        $this->assertFalse($log->fresh()->isReExtraction());
+
+        @unlink($videoFile);
+        @unlink($extractedAudioFile);
+    }
+
     /**
      * @return array{0: string, 1: string}
      */

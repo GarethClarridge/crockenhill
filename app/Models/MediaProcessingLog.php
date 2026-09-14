@@ -546,14 +546,24 @@ class MediaProcessingLog extends Model
      *
      * 44 sermons reached that state: 24 hold a video shorter than their own
      * sermon (worst six minutes short) and 20 hold one that runs past it.
+     *
+     * The spans are recorded as well as the duration because a corrected cut can
+     * keep its length exactly: a boundary written one minute late moves both ends
+     * of the sermon by the same minute.
+     *
+     * @param  array<int, array{start_time: float, end_time: float}>|null  $segments
      */
-    public function recordStoredSermonVideo(float $observedDuration): void
+    public function recordStoredSermonVideo(float $observedDuration, ?array $segments = null): void
     {
-        $this->writeProcessingMetadata(static function (array $metadata) use ($observedDuration): array {
+        $this->writeProcessingMetadata(static function (array $metadata) use ($observedDuration, $segments): array {
             $metadata['stored_video'] = [
                 'observed_duration' => $observedDuration,
                 'stored_at' => now()->toISOString(),
             ];
+
+            if ($segments !== null) {
+                $metadata['stored_video']['segments'] = $segments;
+            }
 
             return $metadata;
         });
@@ -590,6 +600,36 @@ class MediaProcessingLog extends Model
         $previous = data_get($metadata, 'trim.observed_duration');
 
         return is_numeric($previous) && (float) $previous > 0.0 ? (float) $previous : null;
+    }
+
+    /**
+     * The ordered source spans the sermon video currently on disk was cut from,
+     * or null when that cannot be established.
+     *
+     * Null carries the same "cannot tell" meaning as
+     * {@see self::storedSermonVideoDuration()}. Videos stored before the spans
+     * were recorded fall back to the previous extraction's spans, on the same
+     * terms as that duration fallback: only where a video is linked to the sermon.
+     * That fallback cannot see an earlier equal-length re-cut whose storage was
+     * skipped; only a content comparison of the stored file can.
+     *
+     * @return list<array{start: float, end: float}>|null
+     */
+    public function storedSermonVideoSpans(): ?array
+    {
+        $metadata = $this->processing_metadata?->toArray() ?? [];
+
+        $recorded = self::positiveSpans(data_get($metadata, 'stored_video.segments'));
+
+        if ($recorded !== null) {
+            return $recorded;
+        }
+
+        if (! filled($this->sermon?->video_file_path)) {
+            return null;
+        }
+
+        return self::positiveSpans(data_get($metadata, 'trim.segments'));
     }
 
     /**
@@ -1013,8 +1053,14 @@ class MediaProcessingLog extends Model
      */
     public function recordedSermonExtractionSpans(): ?array
     {
-        $segments = data_get($this->processing_metadata?->toArray(), 'sermon_extraction_plan.segments');
+        return self::positiveSpans(data_get($this->processing_metadata?->toArray(), 'sermon_extraction_plan.segments'));
+    }
 
+    /**
+     * @return list<array{start: float, end: float}>|null
+     */
+    private static function positiveSpans(mixed $segments): ?array
+    {
         if (! is_array($segments) || $segments === []) {
             return null;
         }

@@ -98,7 +98,12 @@ class StoreSermonVideo implements ShouldQueue
             $observedDuration = $processingLog->observedSermonMediaDuration();
 
             if ($observedDuration !== null) {
-                $processingLog->recordStoredSermonVideo($observedDuration);
+                $extractedSegments = data_get($processingLog->processing_metadata?->toArray(), 'trim.segments');
+
+                $processingLog->recordStoredSermonVideo(
+                    $observedDuration,
+                    is_array($extractedSegments) && $extractedSegments !== [] ? $extractedSegments : null,
+                );
             }
 
             $this->markHistoricNestedJobCompleted($processingLog);
