@@ -469,7 +469,7 @@ or a recorded decision that the field is not produced for historic runs.
 | Sermon `series` | — | none | OoS; adjacent weeks' series; empty census |
 | Sermon `segment_start_time`, `segment_end_time`, `duration` | duration census 2026-09-14 | corpus | span gaps are by-design concat plans; 902 plan ends past its recording |
 | Sermon audio (MP3) content | decode sample (59); duration census and tail transcripts 2026-09-14 | corpus (length) / sample (loudness, clipping) | **defect**: 12 MP3s lose closing words; loudness and clipping still unchecked |
-| Sermon video content | decode sample (59 files); header probe of 1,334 paths | corpus (headers) / sample (decode) | A/V sync at start, middle, end; resolution/fps/codec census; `video_quality_status` reason |
+| Sermon video content | decode sample (59 files); header probe of 1,334 paths; format census against the source fingerprint 2026-09-14 (all 438 equal) | corpus (headers, format) / sample (decode) | A/V sync at start, middle, end; `video_quality_status` reason |
 | Sermon `transcript_file_path` text | saved-vs-derived census (29 held); loop screen; cadence census | corpus | fresh re-transcription of a random minute; word rate; unobservable windows |
 | Sermon `thumbnail_file_path`, `thumbnail_metadata` | coverage census 2026-09-14 | not produced until release (ruling 2026-09-14; 31/438) | after release-time generation: frame inside the span, not black or a slide |
 | Sermon `video_quality_status`, `video_quality_reason`, `video_visibility_override` | every rejection adjudicated 2026-09-14 | corpus (rejections) / none (approvals) | **defect**: 27 of 47 rejections hide good video; approvals never sampled |
@@ -483,7 +483,7 @@ or a recorded decision that the field is not produced for historic runs.
 | Sections: sung material typed non-song | census (2 found; floor) | corpus (floor) | lyric scorer over `other`/`prayer`/`bible_reading` sections with singing-like RMS |
 | Sections: song transcript loops | song-loop census 2026-09-14 (P8-Q14 screen over every song section; fresh audio on the 65 half-loop sections) | corpus | **defects**: 229 song sections loop unnoticed by boundary and identity checks; 1287 §3597 wrong song; loops over speech let song sections swallow prayers (967, 1268, 1348); 13 unverifiable by audio |
 | SongVideo `song_id` | hint + lyric censuses | corpus (floor) | slides frame OCR/hash against the song's lyrics for the `confirmed`-and-looping set |
-| SongVideo `video_file_path` content | decode sample (50 files); five frames | sample | full decode all 464; A/V sync; loudness; first/last frame not a speaker |
+| SongVideo `video_file_path` content | decode sample (50 files); five frames; format census and song-edge lyric census 2026-09-14 | sample (decode) / corpus (format, edges from transcript) | **defects**: 7 clips lose their own verses to a neighbouring section, 206 carries the next song, 410 is the wrong song; 245 clips upsampled to 96 kHz; still: full decode all 464, A/V sync, first/last frame not a speaker |
 | SongVideo `duration` | duration census 2026-09-14 | corpus | **defect**: copied from the span, never probed; 89 frozen openings, 23 carry the preceding item's audio |
 | SongVideo `recorded_date`, `is_featured` | owning-service date census 2026-09-14 (0 differ); date census 2026-09-14 against the source (0 differ); `is_featured` not produced | corpus | funeral hymns (211, 231, 232) excluded with their runs (ruling 2026-09-14) |
 | Scripture passage enrichment (`EnrichHistoricScripturePassages`) | Scripture census 2026-09-14: 426 passages' api range and HTML verses equal the reference | corpus | orphan/duplicate passages still unchecked; 7 sermons never linked |
@@ -983,12 +983,93 @@ class in the §4.3a detector table and a hold through the §4.1 path.
 
 #### Tail inspections (by hand, corpus-wide)
 
-- [ ] Shortest and longest 2% of sermons, children's talks and song clips.
-- [ ] Largest gaps between consecutive sections; lowest transcript word rate per
+**Done 2026-09-14, read-only, all 442 runs** (4,170 sections, 438 sermons, 464 song
+videos). Every value is in `storage/scratch/tails-20260914-census.json`; tails were cut
+at 2% each side (minimum 5) and adjudicated in `tails-20260914-register.json`.
+
+- [x] Shortest and longest 2% of sermons, children's talks and song clips.
+  - *Sermons* (median 1,790 s). Short tail: 954 is held for its reference, but its
+    source also opens on 534 s of digital silence and the sermon starts mid-sentence
+    (truncated at source); 966 is held as cut off; 1003 publishes only the second half
+    of a talk interrupted by a hymn (the first 999 s is typed `other`), which
+    `sermon_parts_not_extracted` already flags and the gate refuses; 985 and 1025 are
+    the excluded funerals; 1117, 903, 899 and 969 are short Christmas talks. The long
+    tail (2,449–2,676 s) holds single talks only.
+  - *Children's talks* (179 sections, median 355 s; there are no historic children's-talk
+    Sermon rows): 1182 §2386 is a 14 s dismissal typed as a talk; 947's talk is split into
+    §693 (97 s) and §694 typed `other` (the "Heroes of Faith" series that 1309 §3924 types
+    correctly). The long tail is genuine family talks.
+  - *Song clips* (median 189 s): **74** (20 s) is an announcement with no song in the
+    lockdown recording; **83** (23.5 s) is the doxology cut as a second "All People That On
+    Earth Do Dwell" clip (duplicate-item class). Both sit above the 15 s micro floor and are
+    held only by generic review; 100 (57 s) is a genuine short chorus. Every clip over six
+    minutes carries `structure_macro_section` and is refused.
+- [x] Largest gaps between consecutive sections; lowest transcript word rate per
   section; highest silence fraction per section.
-- [ ] Largest audio-to-video duration delta; smallest bytes-per-second; any
+  - *Gaps.* The top 2% (75 of 3,729) run down to 32 s. The 42 over 60 s were all
+    adjudicated by the section coverage census. The 33 of 32–60 s, read by hand
+    (`tails-20260914-midgaps.json`), are song introductions and Amen/Thank-you filler, and
+    eight hold sung lyrics just outside a song section, which led to the song-edge census
+    below.
+  - *Overlaps.* Four single-span sermon plans end 14–20 s into the following song (942,
+    1135, 1304 held for other reasons; **1224 unheld**). The extra seconds are the hymn
+    announcement and introduction, with no singing: put to the operator below.
+  - *Word rate.* The lowest sermon, 1112 §3739 (65 wpm against 118), is already in the
+    §4.1a cadence-loss census. The lowest readings, welcomes and `other` sections are
+    Thank-you loops or unobservable windows; 930 §534 is 12 minutes of pre-service silence
+    then a spoken welcome transcribed as loops. Prayers 1102 §1854 and 978 §1033 were not
+    probed.
+  - *Silence.* The fraction is measured against each run's own RMS threshold, which varies
+    by era, so a high value is not quiet output: the three readings that open sermon videos
+    1248, 1252 and 1275 (0.85–0.91) measure −17 to −22 LUFS, and song clips 449 and 454
+    (0.85–0.89) measure −14 and −16 LUFS. No published output is silent.
+  - **Song-edge census** (added, `songedge-20260914-*`). For all 1,079 song sections with a
+    bound song, cues within 90 s of each edge were scored against the song's lyrics: 248
+    edges on 234 sections, 105 with a clip. After removing announcements and title words, 63
+    edges were read by hand and every plausible one probed with fresh audio from the source.
+    It is a floor: clip 192 was missed because Whisper misheard "heaven-born".
+    - **Seven unheld clips lose their own verses:** 114 (final verse, unsectioned after),
+      192 (final verse, unsectioned after), 543 (first verse, unsectioned before), 240 (final
+      verse and chorus inside the following prayer), 539 (opening verses inside the
+      preceding reading), 360 and 207 (first verse inside the preceding song, whose boundary
+      is 30–60 s late). **206** therefore ends with a minute of the next song.
+    - **410 is the wrong song:** the OoS lists #699 twice, and §4275's own hint "Shine Your
+      Light" was matched `confirmed` to the second copy; the audio is a song not in the
+      catalogue.
+    - About 35 of the 63 are spoken quotations (Psalm readings, prayers, a leader reading
+      the verse before singing it: 253, whose sermon 1049 ends on that framing like 1224).
+    - Before any hold, the gate refused none of the nine: all quarantined, no flags, no
+      manual review (`songedge-20260914-gate-before.json`). **Held 2026-09-14 (operator
+      approval)** through `service:hold-section-content`: sections 909, 1459, 1571, 1896,
+      2458, 3640 and 4813 (verses lost), 1570 (carries the next song) and 4275 (wrong song).
+      After (16:25 UTC) every section carries `content_defect_hold` and the gate refuses all
+      nine clips (`songedge-20260914-gate-after.json`). Clear only after re-detection and
+      re-extraction through the pipeline.
+- [x] Largest audio-to-video duration delta; smallest bytes-per-second; any
   resolution, frame rate or codec that differs from the modal value.
-- [ ] Earliest section start and latest section end relative to source duration.
+  - *Sermon videos* equal their run's source `codec_fingerprint` in all 438: the 27 at 720p
+    or 480p, the 18 at 29.97 or 25 fps, the 44.1 kHz audio and the 14 mono files (runs
+    1311–1324, mono at source) are all source properties. Four files report an unknown
+    profile and pixel format (1206, 1290, 1296, song clip 174); all decode cleanly from an
+    I-frame, and ffprobe's header window simply ends before their late picture. The lowest
+    bitrates (1233, 1206) are cards already in the vq register; the highest (875) follows its
+    source.
+  - *MP3s*: 436 at 48 kbps mono. **Sermons 844 and 845 have no MP3** and no recorded reason
+    (both rows predate the import); open.
+  - **Song clip audio is re-encoded and 245 of 464 are upsampled to 96 kHz.**
+    `SongPublicationHandler` (line 204) sends every clip through
+    `AudioEnhancementService::enhanceVideo()`, which encodes `-c:a aac -b:a 128k` with no
+    `-ar`; when the chain includes `loudnorm` (only when loudness is outside tolerance) the
+    filter outputs 192 kHz and AAC falls back to 96 kHz, which is why rates mix within a run
+    (945). Playback is correct (clip 79 decodes to its container length and transcribes at
+    normal pace), but the clips lose up to half their source bitrate and spend it above
+    20 kHz.
+  - The largest audio-to-video deltas are the duration censuses' tail-loss and
+    picture-delay cases; nothing new.
+- [x] Earliest section start and latest section end relative to source duration.
+  No section ends past its source. The latest first starts (1195, 1019, 1051, 1035, 1196,
+  1367, 1199, 1098) and earliest last ends (962, 1311, 1135, 1001, 1341, 1231, 985) are all
+  leads and tails already adjudicated by the section coverage census; 955 has no sections.
 
 #### Changes of examiner modality
 
@@ -1044,6 +1125,11 @@ class in the §4.3a detector table and a hold through the §4.1 path.
     service must not be excluded that way. Both rulings need a recorded reason of their
     own and a defined effect on the Sermon and SongVideo rows the runs already created.
     Until that exists, all four runs stay quarantined and must not enter release membership.
+  - **A sermon video may end on the next hymn's announcement and instrumental
+    introduction: not a defect (operator ruling 2026-09-14).** Single-span plans for 942,
+    1135, 1304 and 1224 end 14–20 s after the song section starts, and sermon 1049 ends on
+    the leader reading the hymn's first verse aloud. None contains singing, so no
+    detector or re-plan is due; 1224 and 1049 need no hold.
 - [ ] **Stopping rule (replaces round 2's).** Discovery stops when the coverage
   matrix has no **none** row, every cheap instrument has run over all 442 runs with
   its candidates adjudicated, the tails and the whole-output checks are recorded,
@@ -1145,6 +1231,10 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
 | Non-Sunday occasion with no `occasion` (funerals 1051, 1098; holiday club 1144) | §4.1b date census | no | same | **new**: flag a non-Sunday service without `occasion` for review before publication; add an operator exclusion reason for a private occasion, with the same withdrawal of Sermon and SongVideo rows; exclude 1051 and 1098 (ruling 2026-09-14) |
 | Closing prayer left out of the sermon when it has no section (7: sermons 1027, 981, 1193, 1299, 1172, 986, 990) | §4.1b section coverage census | no | `sections-20260914-register.json` | **new**: `resolveSermonEnd()` runs the span through unsectioned time to the next song as well as through trailing sections, under the same ceiling; test a sermon → unsectioned prayer → song fixture; re-plan and re-extract the seven through the pipeline |
 | Singing invisible to the transcript: song section cut to its transcribed lines (7: 965, 1109, 1196, 1241, 1269, 1341, 1379), songs shifted one slot (1287) or no section at all (10: 963 ×3, 1001, 1034, 1135, 1195, 1231, 1244, 1311) | §4.1b section coverage census | no | `sections-20260914-screen.json` (RMS active ratio), `sections-20260914-sung-probe.sh` | **new**: before or after structure detection, flag any unsectioned span, or song section edge, where the RMS log shows sustained sound and the transcript shows an unobservable window or a "Thank you"/"Amen" loop; widen a song section across such sound up to the neighbouring speech, and propose a song section for a listed song with no section when the span fits; re-detect the 17 runs through the pipeline and listen to 1129, 1233, 1240, 1266, 1276 and 1316 |
+| Song clip loses its own verses to a neighbouring section (114, 192, 543 unsectioned; 240 prayer; 539 reading; 360, 207 preceding song, so 206 carries the next song) | §4.1b tail inspections (song-edge census) | no (clip duration is checked only against its own span) | `songedge-20260914-census.php`, `songedge-20260914-probe.php`, `tails-20260914-register.json` | **new**: at publication, score transcript cues within 90 s outside each song section against the bound song's lyrics (ignoring announcement lines and title words) and flag a match for review; since the transcript misses much singing, also flag an edge where RMS shows sustained sound running into an unsectioned span or a non-song section; widen the section to the singing and re-extract through the pipeline; re-detect 960, 1034, 1035, 1049, 1108, 1196 and 1291 |
+| Duplicate OoS item binds a clip to the previous song (1337 §4275, video 410: #699 listed twice, hint "Shine Your Light" matched `confirmed`) | §4.1b tail inspections | no | same | **new**: a section whose hint does not match its bound song's title or lyrics cannot be `confirmed` to that song; flag consecutive items with the same `song_id` (joins the OoS census duplicate-item class); re-resolve 1337 |
+| Song clip audio upsampled to 96 kHz and re-encoded at 128 kbps (245 of 464) | §4.1b tail inspections (format census) | no | `tails-20260914-fingerprint.php` | **new**: in `AudioEnhancementService::enhanceVideo()` pass `-ar` equal to the input's sample rate (the `loudnorm` 192 kHz output), and a bitrate no lower than the source's; probe every clip after publication for sample rate equal to the source fingerprint; re-publish clips through the pipeline once the song-edge and smart-cut changes land, so each is re-encoded once |
+| Song section with no song in it, above the 15 s micro floor (74: announcement only; 83: doxology as a second copy of the hymn) | §4.1b tail inspections | no (held only by generic review) | `tails-20260914-register.json` | **new**: flag a song section under 60 s whose transcript is all announcement, or whose lyrics belong to the preceding section's song; decide whether the doxology is its own catalogue item |
 | Silent source producing nothing (955) | §4.1a r2 | yes (`SILENT-SOURCE-EXCLUSION` plan) | — | keep |
 
 - [ ] Fill the table's "pipeline item" column with a tested change or a recorded
