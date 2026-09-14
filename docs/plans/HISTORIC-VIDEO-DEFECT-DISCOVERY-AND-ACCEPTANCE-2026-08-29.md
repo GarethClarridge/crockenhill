@@ -481,7 +481,7 @@ or a recorded decision that the field is not produced for historic runs.
 | ChurchService `review_state`, canonical revision/hash | gate rechecks | corpus | — |
 | Sections: type, bounds, `song_title_hint`, match state, flags, `needs_manual_review` | sample; policy reassessment; hint and lyric censuses; section coverage census 2026-09-14 (every span over 60 s, fresh audio) | corpus | **defects**: closing prayer left out of 7 sermons; 8 song sections cut short and 10 songs with no section (singing invisible to the transcript); 6 spans need a listen |
 | Sections: sung material typed non-song | census (2 found; floor) | corpus (floor) | lyric scorer over `other`/`prayer`/`bible_reading` sections with singing-like RMS |
-| Sections: song transcript loops | — | none | repeat screen applied to song sections (currently sermon-only) |
+| Sections: song transcript loops | song-loop census 2026-09-14 (P8-Q14 screen over every song section; fresh audio on the 65 half-loop sections) | corpus | **defects**: 229 song sections loop unnoticed by boundary and identity checks; 1287 §3597 wrong song; loops over speech let song sections swallow prayers (967, 1268, 1348); 13 unverifiable by audio |
 | SongVideo `song_id` | hint + lyric censuses | corpus (floor) | slides frame OCR/hash against the song's lyrics for the `confirmed`-and-looping set |
 | SongVideo `video_file_path` content | decode sample (50 files); five frames | sample | full decode all 464; A/V sync; loudness; first/last frame not a speaker |
 | SongVideo `duration` | duration census 2026-09-14 | corpus | **defect**: copied from the span, never probed; 89 frozen openings, 23 carry the preceding item's audio |
@@ -883,9 +883,12 @@ class in the §4.3a detector table and a hold through the §4.1 path.
     from 4,388 s. Fresh audio sorted the loud, wordless spans into:
     - *song section cut short (8):* 965 §889 Behold Our God (78 s of a 231 s song), 1109
       §1909, 1196 §2456 O Come All You Faithful (starts 130 s late), 1241 §3003, 1269 §3368
-      Your Word (59 of 246 s), 1287 §3597, 1341 §4310 Amazing Grace (16 of 231 s), 1379
-      §4629. None has a song video, so no clip is cut; item timing and song usage are
-      wrong, and a later video would be.
+      Your Word (59 of 246 s), 1341 §4310 Amazing Grace (16 of 231 s), 1379 §4629; and 1287,
+      where the song-loop census showed the songs shifted one slot rather than cut:
+      §3596 Praise the Lord You Heavens ends 52 s in, §3597 "There Is A Higher Throne"
+      holds that hymn's later verses, and Higher Throne is the unsectioned 299–463 s. None
+      has a song video, so no clip is cut; item timing and song usage are wrong, and a
+      later video would be.
     - *song with no section (10):* carols in 963 (O Little Town of Bethlehem, O Come All
       You Faithful, As With Gladness, all listed), 1034 (a P8-Q7 row) and 1195 (opening
       carol); 1244's listed In Christ Alone (the OoS census scored it "not heard");
@@ -938,8 +941,45 @@ class in the §4.3a detector table and a hold through the §4.1 path.
   a slide. **Closed as not produced (2026-09-14):** thumbnails are deliberately
   generated only after editorial QA, for the exact release membership (operator
   ruling). §4.5 carries generation and this check.
-- [ ] Apply the repetition screen to song sections and census looping song
+- [x] Apply the repetition screen to song sections and census looping song
   transcripts (the §1216 class).
+  **Done 2026-09-14, read-only, all 1,177 song sections of the 442 runs**
+  (`storage/scratch/songloop-20260914-{census.php,census.json,candidates.tsv,probe.tsv,score.php,score.json,register.json}`).
+  - **The class is large and invisible to the song checks.** Re-running the P8-Q14 screen on
+    each run's current transcript reproduced the stored blocks exactly (442 of 442). 229
+    song sections (19%) overlap a loop: 65 are at least half loop, 88 a fifth to a half.
+    All 358 blocks are repeated-phrase loops; §1216 (1001, "who never is and the risen lamb"
+    ×64, 42% of the section) is caught. Only 6 blocks repeat a phrase within twice its
+    count in the bound lyrics, which is genuine chorus repetition; the rest repeat it up to
+    465 times against one lyric line.
+  - **Nothing downstream knows.** `SongPublicationBoundaryEvidenceService` discounts transcript
+    gaps inside unobservable windows but never reads the repetition blocks, so looped cues
+    count as timed evidence at a clip edge. The `song_identity_contradicted_by_transcript`
+    flag has no pipeline writer (only `storage/scratch/p8q10-hold.php` set it), and the
+    §4.1a lyric-identity census scored just 16 of the 229. Identity rests on title hints for
+    191, OCR for 9 and nothing recorded for 29, so a loop does not change a match, but it
+    leaves the match unverified while it reads as `confirmed`.
+  - **Fresh audio on the 65 half-loop sections** (30 s from inside the largest loop, scored
+    against every song's lyrics):
+    - 39 are the bound song, including all 23 checkable song videos among them;
+    - 13 yield no words (Whisper again returns "Thank you" or nothing; videos 259, 400,
+      455 and 529 remain unverified);
+    - **1287 §3597 is the wrong song** (18 lyric bigrams for the listed, unlinked "Praise the
+      Lord You Heavens" #797, 0 for the bound #934; no video): the section census's 1287
+      entry is corrected above. **Held 2026-09-14** through `service:hold-section-content`
+      (operator approval). With no song video the release gate has nothing to refuse, so the
+      section state is the record: before, its flags were `structure_low_confidence` only;
+      after (15:08:25 UTC) they include `content_defect_hold` with the reason in
+      `content_holds` (`storage/scratch/songloop-20260914-gate-after.json`). 939 §631 is already held; 1194 §2439 and 1223 §2755 are the
+      right song with no catalogue link;
+    - **a loop can manufacture sung text over speech**, so a song section swallows the
+      neighbouring prayer or talk: 1268 §4731 loops "we honour and adore you" ×63 over the
+      prayer that §4732 then continues; 967 §1082 and 1348 §4390 likewise, all three
+      unflagged and without videos. 1035 §4816, 1353 §4449 and 1361 §4525 are the same
+      shape but already flagged for review; 1098 §1827 is the excluded funeral; 1264 §3316
+      and 1279 §3496 are unintelligible singing.
+  - **Loops also cross section edges:** 8 run 30 s or more past a song section into the item
+    before it, mostly prayers, which neither screen holds.
 
 #### Tail inspections (by hand, corpus-wide)
 
@@ -1077,7 +1117,7 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
 | Short, few-word and number-varying loops | 09-10 review | no | `correctness-20260910-unheld-short-loops` | §4.2 |
 | Sparse 30 s-cadence transcript loss | §4.1a r1 | no | `residue-20260913-cadence.py` | §4.2 |
 | Reading loop inside sermon text (1347) | §4.1a r1 | no | — | §4.2 |
-| Looping song transcript (§1216) | §4.1b | no | — | §4.2 |
+| Looping song transcript (§1216; 229 song sections, 65 half loop) | §4.1b song-loop census | no (the P8-Q14 screen runs, but no song check reads its blocks) | `songloop-20260914-census.php`, `songloop-20260914-score.php` | **new** (§4.2): record the screen's blocks per song section as a demotion, not a hold (P8-Q14 keeps songs out of the hold); `SongPublicationBoundaryEvidenceService` treats loop blocks like unobservable windows; a song whose section is half loop or more reads as identity-unverified, not `confirmed`, until lyric or OCR evidence supports it; flag a song section whose loop crosses into a neighbouring section, or whose audio is speech under looped sung text (967 §1082, 1268 §4731, 1348 §4390); re-detect 1287 through the pipeline |
 | Mixed-song clip (§3869) | P8-Q10/16 | policy returns `unresolved_multiple_songs`, never written to the review column | `correctness-20260910-song-policy` | §4.3 |
 | Song clip with continuous spoken lead-in or tail (§988, §1457, §2897, §1475) | 09-10 review; §4.1a | no (gap-based only) | — | §4.3 |
 | Wrong song from `title_hint_fuzzy` (25 clips) | §4.1a r2 | no | `residue-20260914-hint-census.php`, `residue-20260914-lyric-identity.py` | §4.3 |
@@ -1104,7 +1144,7 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
 | Rehearsal recording imported as its own service (1043, 1089: Saturday sermon-only takes of Sunday's sermon) | §4.1b date census | no | `date-20260914-register.json` (same reference within 7 days, 6-word phrase overlap) | **new**: after analysis, flag a sermon whose reference matches another sermon's within 7 days with transcript overlap over 20% (rehearsals 21–31%, Christmas readings 11–18%, series about 5%), and flag a sermon-only source dated the day before a Sunday service; add an operator exclusion reason for a rehearsal (`HistoricRunExclusion` accepts only `no_sermon_in_source`) that also withdraws the run's Sermon and SongVideo rows; exclude 1043 and 1089 (ruling 2026-09-14) |
 | Non-Sunday occasion with no `occasion` (funerals 1051, 1098; holiday club 1144) | §4.1b date census | no | same | **new**: flag a non-Sunday service without `occasion` for review before publication; add an operator exclusion reason for a private occasion, with the same withdrawal of Sermon and SongVideo rows; exclude 1051 and 1098 (ruling 2026-09-14) |
 | Closing prayer left out of the sermon when it has no section (7: sermons 1027, 981, 1193, 1299, 1172, 986, 990) | §4.1b section coverage census | no | `sections-20260914-register.json` | **new**: `resolveSermonEnd()` runs the span through unsectioned time to the next song as well as through trailing sections, under the same ceiling; test a sermon → unsectioned prayer → song fixture; re-plan and re-extract the seven through the pipeline |
-| Singing invisible to the transcript: song section cut to its transcribed lines (8: 965, 1109, 1196, 1241, 1269, 1287, 1341, 1379) or no section at all (10: 963 ×3, 1001, 1034, 1135, 1195, 1231, 1244, 1311) | §4.1b section coverage census | no | `sections-20260914-screen.json` (RMS active ratio), `sections-20260914-sung-probe.sh` | **new**: before or after structure detection, flag any unsectioned span, or song section edge, where the RMS log shows sustained sound and the transcript shows an unobservable window or a "Thank you"/"Amen" loop; widen a song section across such sound up to the neighbouring speech, and propose a song section for a listed song with no section when the span fits; re-detect the 17 runs through the pipeline and listen to 1129, 1233, 1240, 1266, 1276 and 1316 |
+| Singing invisible to the transcript: song section cut to its transcribed lines (7: 965, 1109, 1196, 1241, 1269, 1341, 1379), songs shifted one slot (1287) or no section at all (10: 963 ×3, 1001, 1034, 1135, 1195, 1231, 1244, 1311) | §4.1b section coverage census | no | `sections-20260914-screen.json` (RMS active ratio), `sections-20260914-sung-probe.sh` | **new**: before or after structure detection, flag any unsectioned span, or song section edge, where the RMS log shows sustained sound and the transcript shows an unobservable window or a "Thank you"/"Amen" loop; widen a song section across such sound up to the neighbouring speech, and propose a song section for a listed song with no section when the span fits; re-detect the 17 runs through the pipeline and listen to 1129, 1233, 1240, 1266, 1276 and 1316 |
 | Silent source producing nothing (955) | §4.1a r2 | yes (`SILENT-SOURCE-EXCLUSION` plan) | — | keep |
 
 - [ ] Fill the table's "pipeline item" column with a tested change or a recorded
