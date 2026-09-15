@@ -1512,6 +1512,41 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
 | Service URL offered while the service archive is disabled (null `public_from`) | §4.1b consumer-side rendering | no | same | **new**: `publicUrlFor()` returns null when `publicFrom()` is null, matching `applyDateEligibility()` |
 | Silent source producing nothing (955) | §4.1a r2 | yes (`SILENT-SOURCE-EXCLUSION` plan) | — | keep |
 
+**Small fixes built test-first 2026-09-15** (operator agreed the eight). Code only: every
+re-run named below is still due, and each waits so a run goes through the pipeline once,
+after its last fix. No hold was cleared.
+
+- *Public sermon query and `asset_disk`* (`bc582626b`). Added to
+  `basePublicSermonQuery()` and to the sermon API's select, which had the same gap.
+  `Sermon::assetDisk()` now throws `MissingAttributeException` for a persisted row loaded
+  without the column. No re-run.
+- *Service URL with the archive disabled* (`41abb7445`). `publicUrlFor()` returns null when
+  `publicFrom()` is null. No re-run.
+- *Whole single-chapter letter* (`235f18595`). The parser collapses "2 John 1-13" to
+  "2 John"; a bare book with one chapter now validates and is stored in that form. Due:
+  re-run analysis for 957 and 1090.
+- *Sermon page reading* (`07be2c070`, fixture `d3214ddb4`). The page names the reading
+  inside the run's recorded extraction spans, else the one whose reference overlaps the
+  sermon's, else none. It reads the recorded spans because the stored plan audit does not
+  keep `bible_section_id`. No re-run.
+- *Closing prayer outside the sermon* (`643e5de1f`). When a song is the next separate item,
+  `resolveSermonEnd()` runs to its start through unsectioned time and trailing sections,
+  under the same ceiling. With no song ahead the 60 s adjacency rule is unchanged. Four
+  existing fixtures now end at the song's start. Due: re-plan and re-extract the seven. A
+  song section that starts late (the singing-invisible class above) would now carry its
+  first sung lines into the sermon, so re-extract those runs after that detection change.
+- *Preached reading dropped by an order flag* (`643e5de1f`). Chosen: keep the reading, not
+  record a plan risk. A reading held only for a same- or cross-type inversion stays a
+  candidate when its reference overlaps the sermon's. Due: re-plan the four.
+- *Quality verdict without run evidence* (`85867b2c2`). A command run records the verdict on
+  the run that published the sermon, else its livestream or latest run. The thumbnail
+  handoff still keys on the pipeline's own run. The 13 past verdicts are not backfilled;
+  they are re-assessed under the video-quality row.
+- *Song clip audio upsampled* (`5cc597cbf`). `enhanceVideo()` probes the source and passes
+  its sample rate, and its bitrate when above 128 kbps; this was checked by a real ffmpeg
+  encode. Not built: the post-publication sample-rate probe. Re-publish waits for the
+  song-edge and smart-cut changes, as the row says.
+
 - [ ] Fill the table's "pipeline item" column with a tested change or a recorded
   decision not to detect, for every row, before §4.5 acceptance.
 - [ ] Each promoted detector ships with the corpus cases in this plan as regression
