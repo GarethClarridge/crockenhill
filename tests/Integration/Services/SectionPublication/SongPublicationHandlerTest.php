@@ -17,8 +17,11 @@ use App\Services\ChurchService\SectionPublication\SongPublicationHandler;
 use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\Media\Audio\AudioEnhancementService;
+use App\Services\Media\ExtractedMediaDurationProbe;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Song\SongVideoService;
+use FFMpeg\FFProbe;
+use FFMpeg\FFProbe\DataMapping\Format;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -46,12 +49,31 @@ class SongPublicationHandlerTest extends TestCase
         ]);
         $this->audioEnhancement = $this->mock(AudioEnhancementService::class);
 
-        $this->handler = new SongPublicationHandler(
+        $this->handler = $this->handlerMeasuringClips();
+    }
+
+    /**
+     * A handler whose clip-length probe answers `$clipSeconds`, or cannot measure
+     * anything when null (the binaries are unavailable under `testing`).
+     */
+    private function handlerMeasuringClips(?float $clipSeconds = null): SongPublicationHandler
+    {
+        $ffprobe = null;
+
+        if ($clipSeconds !== null) {
+            $format = $this->createStub(Format::class);
+            $format->method('get')->willReturn($clipSeconds);
+            $ffprobe = $this->createStub(FFProbe::class);
+            $ffprobe->method('format')->willReturn($format);
+        }
+
+        return new SongPublicationHandler(
             app(SongVideoService::class),
             app(ServiceSectionPublicationTransitionService::class),
             $this->audioEnhancement,
             app(StorageAdapterHelper::class),
             app(SongPublicationReviewPolicy::class),
+            new ExtractedMediaDurationProbe(app(StorageAdapterHelper::class), $ffprobe),
         );
     }
 
@@ -424,6 +446,24 @@ class SongPublicationHandlerTest extends TestCase
         $this->assertEquals($expectedPath, $songVideo->video_file_path);
         $this->assertEquals($section->duration, $songVideo->duration);
         $this->assertEquals('2026-03-15', $songVideo->recorded_date->toDateString());
+    }
+
+    #[Test]
+    public function a_published_song_video_records_its_measured_clip_length(): void
+    {
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+        $this->audioEnhancement->shouldReceive('enhanceVideo')->andReturn(null);
+
+        $song = Song::factory()->create();
+        $videoPath = 'section-publications/99-abcdef0123456789/video.mp4';
+        Storage::disk('public')->put($videoPath, 'extracted-video-content');
+        $section = $this->makePublishableSection($song, $videoPath);
+
+        $this->handlerMeasuringClips(238.37)->publish($section);
+
+        $songVideo = SongVideo::query()->where('service_section_id', $section->id)->firstOrFail();
+        $this->assertSame(238.37, $songVideo->duration);
     }
 
     #[Test]

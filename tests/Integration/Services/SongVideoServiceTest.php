@@ -232,6 +232,29 @@ class SongVideoServiceTest extends TestCase
         $this->assertFalse($video->is_featured);
     }
 
+    /**
+     * The §4.1b song duration census found `duration` copied from the section
+     * span on every clip, so it could not show a clip that lost its opening.
+     */
+    #[Test]
+    public function it_records_the_measured_clip_length_rather_than_the_section_span(): void
+    {
+        $song = Song::factory()->create();
+        $item = ChurchServiceItem::factory()->create(['song_id' => $song->id]);
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'start_time' => 100.0,
+            'end_time' => 340.5,
+        ]);
+
+        $video = $this->service->createFromExtraction($section, 'sermons/songs/'.$song->id.'/'.$section->id.'.mp4', 238.37);
+
+        $this->assertSame(238.37, $video->duration);
+    }
+
     #[Test]
     public function historic_extraction_creates_a_private_operation_bound_video(): void
     {

@@ -139,11 +139,15 @@ class SongVideoService
      *
      * @param  ServiceSection  $section  The service section the video was extracted from
      * @param  string  $videoPath  The path to the extracted video file in storage
+     * @param  float|null  $clipSeconds  The length measured from the published file. The section
+     *                                   span is only what was asked for, and copying it hid every
+     *                                   clip that lost its opening; it stands in only when the file
+     *                                   could not be measured.
      * @return SongVideo The newly created video record
      *
      * @throws \RuntimeException If the section does not have a linked song or church service item
      */
-    public function createFromExtraction(ServiceSection $section, string $videoPath): SongVideo
+    public function createFromExtraction(ServiceSection $section, string $videoPath, ?float $clipSeconds = null): SongVideo
     {
         $item = $section->churchServiceItem;
         if (! $item instanceof ChurchServiceItem || $item->song_id === null) {
@@ -158,7 +162,7 @@ class SongVideoService
             'service_section_id' => $section->id,
             'church_service_id' => $processingLog->church_service_id,
             'video_file_path' => $videoPath,
-            'duration' => $section->duration,
+            'duration' => $clipSeconds ?? $section->duration,
             'recorded_date' => $churchService?->date,
             'is_featured' => false,
         ];

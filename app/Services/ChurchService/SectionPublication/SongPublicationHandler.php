@@ -12,6 +12,7 @@ use App\Models\ServiceSection;
 use App\Models\SongVideo;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\Media\Audio\AudioEnhancementService;
+use App\Services\Media\ExtractedMediaDurationProbe;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Song\SongVideoService;
 use App\Traits\SanitizesLogData;
@@ -43,6 +44,7 @@ class SongPublicationHandler implements SectionPublicationHandler
         private readonly AudioEnhancementService $audioEnhancement,
         private readonly StorageAdapterHelper $storageHelper,
         private readonly SongPublicationReviewPolicy $reviewPolicy,
+        private readonly ExtractedMediaDurationProbe $durationProbe,
     ) {}
 
     /**
@@ -186,6 +188,7 @@ class SongPublicationHandler implements SectionPublicationHandler
 
         $localTempDownload = null;
         $enhancedTempPath = null;
+        $clipSeconds = null;
 
         try {
             $sourceDiskName = $section->extractedAssetDisk();
@@ -202,6 +205,7 @@ class SongPublicationHandler implements SectionPublicationHandler
             }
 
             $enhancedTempPath = $this->audioEnhancement->enhanceVideo($localInputPath, 'song-'.$section->id);
+            $clipSeconds = $this->measuredClipSeconds($enhancedTempPath ?? $localInputPath, $section);
 
             $promotedPath = $enhancedTempPath !== null
                 ? $this->promoteLocalFileAsVideo($section, $enhancedTempPath)
@@ -218,7 +222,7 @@ class SongPublicationHandler implements SectionPublicationHandler
 
         $section->extracted_video_path = $promotedPath;
 
-        $this->songVideoService->createFromExtraction($section, $promotedPath);
+        $this->songVideoService->createFromExtraction($section, $promotedPath, $clipSeconds);
 
         if (! $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::Published)) {
             throw new \RuntimeException('Invalid state transition when publishing song section');
@@ -227,6 +231,25 @@ class SongPublicationHandler implements SectionPublicationHandler
         $section->published_at = now();
         $section->unpublished_expires_at = null;
         $section->save();
+    }
+
+    /**
+     * The length of the clip about to be published, or null when it cannot be
+     * measured, in which case the song video falls back to the section span.
+     */
+    private function measuredClipSeconds(string $localClipPath, ServiceSection $section): ?float
+    {
+        try {
+            return $this->durationProbe->durationOf($localClipPath);
+        } catch (\RuntimeException $exception) {
+            Log::warning('Song clip length could not be measured; recording the section span instead', [
+                'service_section_id' => $section->id,
+                'clip_path' => $localClipPath,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 
     /**
