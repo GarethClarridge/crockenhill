@@ -1683,9 +1683,31 @@ half; operator chose to hold all three holder groups). Code only, as above.
   3332, and was not seen failing.
 - Not covered: song-edge lines Whisper never transcribed (clip 192), and verses lost to a
   neighbour without sustained sound under them.
-- Due: backfill boundary evidence at version 2 through `service:backfill-song-boundary-evidence`
-  so existing clips gain the holds. Then re-detect the song-into-song runs through the pipeline
-  before re-publishing clips, once the widening re-detections above are batched with them.
+- Due: re-detect the song-into-song runs through the pipeline before re-publishing clips, once
+  the widening re-detections above are batched with them.
+
+**Evidence backfill at version 2, applied 2026-09-15** (operator: bank all 881). This also
+closes §4.3's stale-verdict item for boundary evidence.
+
+- *Command change* (test-first): `service:backfill-song-boundary-evidence` now also selects
+  evidence banked under an earlier `SongPublicationBoundaryEvidenceService::VERSION`. Absent,
+  drifted and stale evidence are one membership rule, so the next version bump heals itself.
+- *Blast radius before executing* (`storage/scratch/lyricedge-20260915-backfill-delta.json`).
+  The default selection held 881 published or pending song sections, all at version 1. The
+  command's "would newly hold 488" counts every section with a reason.
+  - 38 published clips gain their first hold. 15 are lyric edges; 23 are spoken-framing or
+    trailing-content reasons their 09-07 evidence lacked. Their inputs changed after banking,
+    most likely in the 09-08 transcript recovery; not traced.
+  - 22 pending sections change reasons: 33 lyric kinds added, plus older boundary kinds added
+    and removed.
+  - 409 pending sections keep their banked reasons, and only `needs_manual_review` flips.
+    Pending approval already stopped them publishing, so this adds them to the review queue.
+  - 393 have no reasons; 19 were already held.
+- *Applied* (`lyricedge-20260915-backfill-execute.txt`). Banked 881; held rose from 52 to 521.
+  The check (`lyricedge-20260915-backfill-verify.php`) found every section at version 2, banked
+  reasons equal to the dry run, no section released, and a second dry run selecting nothing.
+- Not run: `service:demote-held-publications` for the 38 newly held published clips. The
+  historic ones are quarantined; the operator decides the rest.
 
 - [ ] Fill the table's "pipeline item" column with a tested change or a recorded
   decision not to detect, for every row, before §4.5 acceptance.
