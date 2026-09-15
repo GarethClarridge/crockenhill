@@ -7,6 +7,7 @@ namespace App\Services\Sermon;
 use App\Data\SermonAnalysis;
 use App\Services\BritishEnglishConverter;
 use App\Services\Scripture\ScriptureReferenceResolver;
+use App\Support\BibleCanon;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -24,6 +25,7 @@ class SermonAnalysisValidator
     public function __construct(
         private readonly BritishEnglishConverter $britishEnglishConverter,
         private readonly ScriptureReferenceResolver $scriptureReferenceResolver,
+        private readonly BibleCanon $bibleCanon = new BibleCanon,
     ) {}
 
     /**
@@ -159,7 +161,9 @@ class SermonAnalysisValidator
      *
      * A bare whole-book reference (e.g. "John", "Genesis") is rejected: a primary
      * sermon passage must identify at least a chapter, and a whole book belongs in
-     * the series field rather than the reference.
+     * the series field rather than the reference. A book of one chapter is the
+     * exception: the parser collapses "2 John 1-13" to "2 John", and that whole
+     * book is exactly one chapter.
      *
      * @param  string  $reference  Raw Bible reference
      * @return string|null Canonical reference or null if it cannot be parsed
@@ -180,15 +184,21 @@ class SermonAnalysisValidator
      *
      * The parser collapses a whole-book passage to the bare book name (e.g. "John",
      * "1 John"), so once any leading book ordinal is removed a chapter is present
-     * only when a digit remains.
+     * only when a digit remains, or when the bare book has a single chapter.
      */
     private function referenceIncludesChapter(string $canonicalReference): bool
     {
         return collect(explode(',', $canonicalReference))
             ->every(function (string $passage): bool {
-                $withoutBookOrdinal = preg_replace('/^\s*[1-3]\s+/', '', trim($passage));
+                $passage = trim($passage);
+                $withoutBookOrdinal = preg_replace('/^\s*[1-3]\s+/', '', $passage);
 
-                return (bool) preg_match('/\d/', (string) $withoutBookOrdinal);
+                if (preg_match('/\d/', (string) $withoutBookOrdinal)) {
+                    return true;
+                }
+
+                return $this->bibleCanon->hasBook($passage)
+                    && $this->bibleCanon->chaptersInBook($passage) === 1;
             });
     }
 

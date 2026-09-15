@@ -131,6 +131,17 @@ class SermonAnalysisValidatorTest extends TestCase
     }
 
     #[Test]
+    public function it_accepts_a_whole_single_chapter_book_as_its_one_chapter(): void
+    {
+        // The parser collapses a whole passage to the bare book name. For a
+        // one-chapter book that is a chapter, not a series-sized whole book.
+        $this->assertEquals('2 John', $this->validator->validateBibleReference('2 John 1-13'));
+        $this->assertEquals('Jude', $this->validator->validateBibleReference('Jude 1-25'));
+        $this->assertEquals('Obadiah', $this->validator->validateBibleReference('Obadiah 1-21'));
+        $this->assertEquals('Philemon', $this->validator->validateBibleReference('Philemon'));
+    }
+
+    #[Test]
     public function it_rejects_invalid_bible_references(): void
     {
         $this->assertNull($this->validator->validateBibleReference('Not a reference'));
