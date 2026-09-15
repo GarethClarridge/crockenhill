@@ -1644,6 +1644,49 @@ option below). Code only, as above.
   seven closing-prayer sermons and the widened song clips. Clips still wait for the lyric
   half of the song-edge row, so each is re-encoded once.
 
+**Song lyrics outside the clip, built 2026-09-15** (row "Song clip loses its own verses", lyric
+half; operator chose to hold all three holder groups). Code only, as above.
+
+- *Measured first* (`storage/scratch/lyricedge-20260915-{features,score,probe,replay}`).
+  - The 09-14 bigram screen flagged 248 edges.
+  - Sound under the lyric lines separates the labelled cases. All 6 confirmed sung edges are at
+    least half sustained; 0 of 11 spoken quotations are. The two doxologies really are sung.
+  - What remained were stock phrases ("praise him", "adore him") and announcements. Comparing
+    each line with the neighbouring song's own lyrics removes the stock phrases; a narrow
+    announcement pattern removes the announcements. Plain counts selected the same 41 edges as
+    catalogue-rarity weights, so no catalogue scan is needed.
+- *Adjudicated by fresh audio* (41 edges). Inside another song's section: 12 real of 16.
+  Unsectioned: 6 of 7. Inside a prayer, reading, welcome or other section: 5 of 14. The misses
+  there are announcements and readings over music. Two edges were unclear (1109, 1287).
+  - New song-into-song class: ten clips open with their first line inside the previous song's
+    section (1154, 1221, 1222, 1224, 1236, 1250, 1270, 1281, 1288, 1199, beside 360 and 207).
+  - New edges into prayers or readings: 1195, 1308, 1342. Unsectioned: 960, 985, 1200, 1367.
+- *`SongLyricsOutsideSection`*, called from `SongPublicationBoundaryEvidenceService` (evidence
+  `version` 2, with observations under `lyric_edges`). It never moves a boundary.
+  - It reads transcript lines within 90 s outside the section. A line counts as this song's
+    when it shares word pairs with the song's lyrics and is not an announcement.
+  - Inside another song's section, the line must share more pairs with this song than with
+    that song. A line repeated more than 3 times in the window is a transcription loop and
+    counts as no evidence.
+  - An edge carrying at least 2 pairs, with at least half its bins sustained, raises risk
+    `song_lyrics_outside_section`, so the clip is held. Otherwise the edge is recorded as a
+    quotation.
+  - `SustainedSound` (`App\Services\Media\Audio`) now holds the one definition of sustained sound
+    for both this check and `SustainedSoundSongSections`. `ServiceSection::resolvedSongId()`
+    replaces the review policy's private song lookup.
+- *Corpus replay of the built check.* It raises 40 holds and records 181 edges as quotations. The
+  replay matches the adjudicated set except for two changes made by the loop rule:
+  - 1266 §3332 no longer raises. Fresh audio heard a different song under a 37-fold loop.
+  - 1287 §3596 is dropped. It was unclear, and that run is already held and due for re-detection.
+  - Of the 40: 23 real, 1 unclear, 16 wrong.
+- Test-first except the loop rule. Its test was written with the fix, after the replay found
+  3332, and was not seen failing.
+- Not covered: song-edge lines Whisper never transcribed (clip 192), and verses lost to a
+  neighbour without sustained sound under them.
+- Due: backfill boundary evidence at version 2 through `service:backfill-song-boundary-evidence`
+  so existing clips gain the holds. Then re-detect the song-into-song runs through the pipeline
+  before re-publishing clips, once the widening re-detections above are batched with them.
+
 - [ ] Fill the table's "pipeline item" column with a tested change or a recorded
   decision not to detect, for every row, before §4.5 acceptance.
 - [ ] Each promoted detector ships with the corpus cases in this plan as regression
