@@ -23,7 +23,9 @@ class SermonPageContextServiceTest extends TestCase
     public function it_resolves_reading_reference_from_published_section_processing_context(): void
     {
         $sermon = Sermon::factory()->create();
-        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $processingLog = MediaProcessingLog::factory()->livestream()->create([
+            'processing_metadata' => ['sermon_extraction_plan' => ['segments' => [['start_time' => 0.0, 'end_time' => 3600.0]]]],
+        ]);
 
         $publishedSection = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
@@ -78,7 +80,9 @@ class SermonPageContextServiceTest extends TestCase
             'livestream_processing_id' => null,
         ]);
 
-        $processingLog = MediaProcessingLog::factory()->livestream()->withSermon($sermon)->create();
+        $processingLog = MediaProcessingLog::factory()->livestream()->withSermon($sermon)->create([
+            'processing_metadata' => ['sermon_extraction_plan' => ['segments' => [['start_time' => 0.0, 'end_time' => 3600.0]]]],
+        ]);
 
         $readingItem = ChurchServiceItem::factory()->create([
             'title' => 'Psalm 121',
@@ -108,7 +112,9 @@ class SermonPageContextServiceTest extends TestCase
     {
         $sermon = Sermon::factory()->create(['livestream_processing_id' => null]);
 
-        $processingLog = MediaProcessingLog::factory()->livestream()->withSermon($sermon)->create();
+        $processingLog = MediaProcessingLog::factory()->livestream()->withSermon($sermon)->create([
+            'processing_metadata' => ['sermon_extraction_plan' => ['segments' => [['start_time' => 0.0, 'end_time' => 3600.0]]]],
+        ]);
 
         $readingItem = ChurchServiceItem::factory()->create(['title' => 'Acts 2:1-12']);
 
