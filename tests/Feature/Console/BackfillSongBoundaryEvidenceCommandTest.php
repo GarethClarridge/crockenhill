@@ -11,6 +11,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
+use App\Services\ChurchService\SectionPublication\SongPublicationBoundaryEvidenceService;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Support\ServiceArtifactDisk;
@@ -160,7 +161,7 @@ class BackfillSongBoundaryEvidenceCommandTest extends TestCase
         // The banked candidate claims an end the section no longer reaches.
         $metadata = $section->metadata->toArray();
         $metadata['song_publication_boundary'] = [
-            'version' => 1,
+            'version' => SongPublicationBoundaryEvidenceService::VERSION,
             'decision' => 'release_eligible',
             'candidate' => [
                 'kind' => 'inclusive',
@@ -179,6 +180,36 @@ class BackfillSongBoundaryEvidenceCommandTest extends TestCase
             (float) $section->end_time,
             (float) $evidence['candidate']['end_time'],
             'the re-derived candidate should describe the section as it now stands',
+        );
+    }
+
+    /**
+     * Version 2 added the lyric edge check (2026-09-15). A clip cleared under version 1 was never
+     * asked whether its own verses are sung outside it, so its banked clearance is stale.
+     */
+    #[Test]
+    public function it_re_assesses_evidence_banked_under_an_earlier_version(): void
+    {
+        $section = $this->songSection(withArtifacts: true);
+        $metadata = $section->metadata->toArray();
+        $metadata['song_publication_boundary'] = [
+            'version' => SongPublicationBoundaryEvidenceService::VERSION - 1,
+            'decision' => 'release_eligible',
+            'candidate' => [
+                'kind' => 'inclusive',
+                'start_time' => $section->start_time,
+                'end_time' => $section->end_time,
+            ],
+        ];
+        $section->forceFill(['metadata' => $metadata])->save();
+
+        $this->artisan('service:backfill-song-boundary-evidence', ['--execute' => true])
+            ->expectsOutputToContain('Assessing 1 song section(s)')
+            ->assertSuccessful();
+
+        self::assertSame(
+            SongPublicationBoundaryEvidenceService::VERSION,
+            $this->bankedEvidence($section->fresh())['version'],
         );
     }
 
@@ -274,7 +305,10 @@ class BackfillSongBoundaryEvidenceCommandTest extends TestCase
         $metadata = ['confidence_level' => 'high'];
 
         if ($banked) {
-            $metadata['song_publication_boundary'] = ['version' => 1, 'decision' => 'release_eligible'];
+            $metadata['song_publication_boundary'] = [
+                'version' => SongPublicationBoundaryEvidenceService::VERSION,
+                'decision' => 'release_eligible',
+            ];
         }
 
         $processingMetadata = ['service_transcript_path' => $transcriptPath];

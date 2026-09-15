@@ -32,7 +32,7 @@ class BackfillSongBoundaryEvidenceCommand extends Command
                             {--include-not-applicable : Also assess sections that are not published or pending}
                             {--execute : Bank the assessed evidence (default: dry run)}';
 
-    protected $description = 'Assess and bank boundary evidence for song sections that hold none';
+    protected $description = 'Assess and bank boundary evidence for song sections that hold none, or hold stale evidence';
 
     /**
      * Whether the banked candidate's bound has drifted from the section's own,
@@ -49,6 +49,15 @@ class BackfillSongBoundaryEvidenceCommand extends Command
     private const CandidateEndDisagrees = 'ABS(CAST(JSON_UNQUOTE(JSON_EXTRACT(metadata, "$.'
         .SongPublicationBoundaryEvidenceService::METADATA_KEY
         .'.candidate.end_time")) AS DECIMAL(14,3)) - end_time) > 0.01';
+
+    /**
+     * Evidence banked before the assessment last changed. Version 2 added the lyric edge check,
+     * so a clip cleared under version 1 was never asked whether its own verses lie outside it.
+     */
+    private const EvidenceVersionStale = 'COALESCE(CAST(JSON_UNQUOTE(JSON_EXTRACT(metadata, "$.'
+        .SongPublicationBoundaryEvidenceService::METADATA_KEY
+        .'.version")) AS UNSIGNED), 0) < '
+        .SongPublicationBoundaryEvidenceService::VERSION;
 
     public function handle(SongBoundaryEvidenceBackfill $backfill): int
     {
@@ -188,7 +197,8 @@ class BackfillSongBoundaryEvidenceCommand extends Command
                  */
                 $query->whereNull('metadata->'.$key)
                     ->orWhereRaw(self::CandidateStartDisagrees)
-                    ->orWhereRaw(self::CandidateEndDisagrees);
+                    ->orWhereRaw(self::CandidateEndDisagrees)
+                    ->orWhereRaw(self::EvidenceVersionStale);
             })
             ->orderBy('id');
 

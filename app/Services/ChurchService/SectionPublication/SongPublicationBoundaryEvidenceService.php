@@ -62,8 +62,11 @@ final class SongPublicationBoundaryEvidenceService
 {
     public const METADATA_KEY = 'song_publication_boundary';
 
-    /** 2 (2026-09-15): records {@see SongLyricsOutsideSection} observations under `lyric_edges`. */
-    private const VERSION = 2;
+    /**
+     * 2 (2026-09-15): records {@see SongLyricsOutsideSection} observations under `lyric_edges`.
+     * Evidence banked under an earlier version is stale, and the backfill re-assesses it.
+     */
+    public const VERSION = 2;
 
     private const LEADING_CUE_WINDOW_SECONDS = 5.0;
 
