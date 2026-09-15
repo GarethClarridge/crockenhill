@@ -124,6 +124,17 @@ class Sermon extends Model implements Sitemapable
     use HasFactory;
 
     /**
+     * A new sermon carries `asset_disk` from the start, so {@see assetDisk()}
+     * refuses only a row read by a query that did not select the column, not
+     * one created in this request.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'asset_disk' => null,
+    ];
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var list<string>

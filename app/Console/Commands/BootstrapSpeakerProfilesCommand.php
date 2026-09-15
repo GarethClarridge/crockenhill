@@ -261,7 +261,7 @@ class BootstrapSpeakerProfilesCommand extends Command
             ->whereNotNull('audio_file_path')
             ->where('audio_file_path', '!=', '')
             ->orderByDesc('date')
-            ->get(['id', 'audio_file_path', 'date']);
+            ->get(['id', 'audio_file_path', 'asset_disk', 'date']);
 
         return $this->spreadAcrossHistory($candidates, $maxSermons);
     }
