@@ -1547,6 +1547,25 @@ after its last fix. No hold was cleared.
   encode. Not built: the post-publication sample-rate probe. Re-publish waits for the
   song-edge and smart-cut changes, as the row says.
 
+**Next pair built test-first 2026-09-15** (operator: these two, committed to master). Code
+only, as above.
+
+- *Structure boundary one minute late, cause only* (`6b7696356`). `toPromptText()` shows cue
+  times as whole seconds, the unit `start_time` and `end_time` use, and the prompt header
+  says so. Not built: the mid-sentence start flag and the screen for a strong cue exactly
+  60 s before a section start. Due: re-detect the five through the pipeline, then check
+  sermon 1102 and song video 122.
+- *Sermon MP3 loses closing words* (`4cc3fb02e`). `ExtractSermon` probes the final video,
+  then makes the MP3 from its whole audio track, from 0 to that probed length, for both
+  `single_span` and `concat_spans`. No MP3 length comes from the plan any more, and no
+  single span is cut twice. The job measures the MP3 and records `trim.audio_duration`.
+  When the MP3 and video differ by more than 1 s, every sermon section on the run is held
+  with `sermon_audio_length_mismatch`. A clean re-extraction withdraws the hold, and the
+  flag does not block auto-extraction. An MP3 the probe cannot read makes no claim either
+  way. A zero-length video is now refused before any audio is cut. Due: re-run the 12 and
+  clear their holds only on a clean re-measure; decide smart cut first, so each sermon is
+  re-extracted once.
+
 - [ ] Fill the table's "pipeline item" column with a tested change or a recorded
   decision not to detect, for every row, before §4.5 acceptance.
 - [ ] Each promoted detector ships with the corpus cases in this plan as regression
