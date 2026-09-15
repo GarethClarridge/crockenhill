@@ -8,6 +8,7 @@ use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
 use App\Services\Public\SermonRepository;
 use App\Services\Public\SitemapService;
+use Illuminate\Database\Eloquent\MissingAttributeException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -49,6 +50,46 @@ class SermonListingNPlusOneTest extends TestCase
         $this->assertNotNull($sermon);
 
         $this->assertStringContainsString('Some unique summary', app(SermonViewPresenter::class)->metaDescription($sermon));
+    }
+
+    #[Test]
+    public function repository_query_resolves_media_through_the_rows_own_asset_disk(): void
+    {
+        config([
+            'media-processing.storage.sermon_disk' => 'public',
+            'thumbnail-generation.storage.disk' => 'public',
+            'filesystems.disks.release_test' => [
+                'driver' => 'local',
+                'root' => storage_path('framework/testing/disks/release_test'),
+                'url' => 'https://release.test/media',
+            ],
+        ]);
+
+        $created = Sermon::factory()->create([
+            'asset_disk' => 'release_test',
+            'thumbnail_file_path' => 'thumbnails/listing.jpg',
+            'thumbnail_generated_at' => now(),
+        ]);
+
+        $sermon = app(SermonRepository::class)->publicSermonQuery()->whereKey($created->id)->first();
+
+        $this->assertNotNull($sermon);
+        $this->assertStringStartsWith(
+            'https://release.test/media/thumbnails/listing.jpg',
+            (string) app(SermonViewPresenter::class)->presentForList($sermon)['thumbnail_url'],
+        );
+    }
+
+    #[Test]
+    public function asset_disk_refuses_a_persisted_sermon_loaded_without_the_column(): void
+    {
+        $created = Sermon::factory()->create(['asset_disk' => 'release_test']);
+
+        $sermon = Sermon::query()->select(['id', 'title'])->whereKey($created->id)->firstOrFail();
+
+        $this->expectException(MissingAttributeException::class);
+
+        $sermon->assetDisk('public');
     }
 
     #[Test]

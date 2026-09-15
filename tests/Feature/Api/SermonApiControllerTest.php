@@ -60,6 +60,31 @@ class SermonApiControllerTest extends TestCase
     }
 
     #[Test]
+    public function api_index_resolves_media_through_the_rows_own_asset_disk(): void
+    {
+        config([
+            'thumbnail-generation.storage.disk' => 'public',
+            'filesystems.disks.release_test' => [
+                'driver' => 'local',
+                'root' => storage_path('framework/testing/disks/release_test'),
+                'url' => 'https://release.test/media',
+            ],
+        ]);
+
+        Sermon::factory()->create([
+            'content_type' => SermonContentType::Sermon,
+            'asset_disk' => 'release_test',
+            'thumbnail_file_path' => 'thumbnails/api.jpg',
+            'thumbnail_generated_at' => now(),
+        ]);
+
+        $response = $this->getJson('/api/sermons');
+
+        $response->assertStatus(200);
+        $this->assertStringStartsWith('https://release.test/media/thumbnails/api.jpg', (string) $response->json('data.0.thumbnail_url'));
+    }
+
+    #[Test]
     public function api_index_filters_by_service(): void
     {
         Sermon::factory()->create([

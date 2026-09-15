@@ -52,6 +52,7 @@ class SermonRepository
                 'source_type',
                 'content_type',
                 'publication_state',
+                'asset_disk',
                 'updated_at',
                 'meta_description',
                 'summary',

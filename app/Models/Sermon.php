@@ -21,6 +21,7 @@ use App\Models\Builders\SermonBuilder;
 use App\Rules\NotEmptyString;
 use App\Rules\SermonPointElement;
 use App\Services\Sermon\HistoricBankedSermonAnalysisReplay;
+use App\Services\Sermon\SermonExposurePolicy;
 use App\Sitemap\SermonSitemapPresenter;
 use App\Support\MediaAssetPath;
 use App\Support\PlaceholderSermonTitle;
@@ -30,6 +31,7 @@ use Illuminate\Database\Eloquent\Attributes\UseEloquentBuilder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\MissingAttributeException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -571,10 +573,21 @@ class Sermon extends Model implements Sitemapable
      * configured disk pass it as `$fallback` so this method can be the single
      * home for the rule without changing what any of them resolve to.
      *
+     * A column-restricted `select()` that omits `asset_disk` would read as null
+     * and quietly resolve through configuration, so a persisted row loaded
+     * without the column is a programming error, as for `publication_state` in
+     * {@see SermonExposurePolicy::isWholeContentPublic()}.
+     *
      * @see ServiceSection::extractedAssetDisk() the same rule for section media
+     *
+     * @throws MissingAttributeException
      */
     public function assetDisk(?string $fallback = null): string
     {
+        if ($this->exists && ! array_key_exists('asset_disk', $this->getAttributes())) {
+            throw new MissingAttributeException($this, 'asset_disk');
+        }
+
         if (filled($this->asset_disk)) {
             return (string) $this->asset_disk;
         }
