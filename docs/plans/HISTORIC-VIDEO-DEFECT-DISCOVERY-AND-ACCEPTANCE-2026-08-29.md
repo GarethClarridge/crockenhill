@@ -1718,8 +1718,14 @@ closes §4.3's stale-verdict item for boundary evidence.
     stand in for fresh audio. Both holds are real but small. §320's opening line starts 1.5 s
     before the section (319.4 s). §434's own lines run about 5 s past its end (1728.3 s) into
     §435.
-  - 43 published song sections remain held from before today; demoting them is a separate
-    decision.
+  - **The 43 held from before today were demoted too** (operator, same day). A fresh `--all`
+    dry run listed 45: those 43 and the two ineligible funeral sections, which were excluded.
+    None was visible or refused.
+    - Applied by `--section` (`storage/scratch/demote-20260915-apply-43.json`): 43 moved to
+      `not_applicable`, still held. No video needed quarantining; all were already in the
+      historic quarantine.
+    - Their holds: 39 `content_defect_hold`, 3 `song_identity_contradicted_by_transcript`, and 1
+      order-of-service cross-type inversion with a content hold.
 
 - [ ] Fill the table's "pipeline item" column with a tested change or a recorded
   decision not to detect, for every row, before §4.5 acceptance.
