@@ -7,6 +7,7 @@ namespace Tests\Unit\Services;
 use App\Services\Media\Audio\AudioEnhancementService;
 use Illuminate\Support\Facades\Config;
 use PHPUnit\Framework\Attributes\Test;
+use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
 class AudioEnhancementServiceTest extends TestCase
@@ -170,6 +171,62 @@ class AudioEnhancementServiceTest extends TestCase
         $this->assertEquals($mp3Chain, $mp4Chain);
         $this->assertNotNull($mp4Chain);
         $this->assertStringContainsString('afftdn', $mp4Chain);
+    }
+
+    /**
+     * `loudnorm` resamples to 192 kHz, and without `-ar` AAC settled at 96 kHz:
+     * 245 of 464 historic song clips were upsampled and cut to 128 kbps.
+     */
+    #[Test]
+    public function enhance_video_keeps_the_source_sample_rate_and_bitrate(): void
+    {
+        if (! is_executable('/usr/bin/ffmpeg') || ! is_executable('/usr/bin/ffprobe')) {
+            $this->markTestSkipped('ffmpeg and ffprobe are required to check the encoded audio format.');
+        }
+
+        Config::set('media-processing.audio_enhancement.noise_reduction', false);
+        Config::set('media-processing.audio_enhancement.dynamic_norm', false);
+        Config::set('media-processing.audio_enhancement.loudness_norm', true);
+        Config::set('media-processing.audio_enhancement.skip_if_within_tolerance', false);
+
+        $directory = storage_path('app/testing/audio-enhancement');
+        if (! is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        $sourcePath = "{$directory}/source.mp4";
+        $enhancedPath = null;
+
+        try {
+            (new Process([
+                '/usr/bin/ffmpeg', '-y',
+                '-f', 'lavfi', '-i', 'color=c=black:s=64x64:d=3',
+                '-f', 'lavfi', '-i', 'anoisesrc=sample_rate=48000:amplitude=0.3:duration=3',
+                '-c:v', 'mpeg4', '-c:a', 'aac', '-b:a', '256k', '-shortest',
+                $sourcePath,
+            ]))->mustRun();
+
+            $enhancedPath = $this->service->enhanceVideo($sourcePath, 'enhance-video-format-test');
+
+            $this->assertNotNull($enhancedPath);
+
+            $probe = (new Process([
+                '/usr/bin/ffprobe', '-v', 'error', '-select_streams', 'a:0',
+                '-show_entries', 'stream=sample_rate,bit_rate', '-of', 'json', $enhancedPath,
+            ]))->mustRun();
+
+            /** @var array{streams: list<array{sample_rate: string, bit_rate: string}>} $streams */
+            $streams = json_decode($probe->getOutput(), true);
+
+            $this->assertSame('48000', $streams['streams'][0]['sample_rate']);
+            $this->assertGreaterThan(200_000, (int) $streams['streams'][0]['bit_rate']);
+        } finally {
+            @unlink($sourcePath);
+
+            if ($enhancedPath !== null) {
+                @unlink($enhancedPath);
+            }
+        }
     }
 
     #[Test]
