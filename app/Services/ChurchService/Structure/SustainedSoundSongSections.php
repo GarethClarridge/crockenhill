@@ -9,6 +9,7 @@ use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Exceptions\SegmentationException;
 use App\Services\Media\Audio\RmsAnalysisService;
+use App\Services\Media\Audio\SustainedSound;
 
 /**
  * Singing the transcript cannot see, recovered from the RMS log.
@@ -16,13 +17,8 @@ use App\Services\Media\Audio\RmsAnalysisService;
  * Whisper leaves congregational singing as an unobservable window or a "Thank you."/"Amen."
  * loop, so a transcript-only detector either cuts a song section to the lines it did
  * transcribe or returns no section for the song at all. The §4.1b section coverage census
- * (2026-09-14) found eight songs cut short and ten with no section.
- *
- * The level log separates the two without the transcript. Measured over the historic corpus
- * on 2026-09-15, per section against the run's own threshold: song sections are at least 84%
- * active and break below the threshold at most 6.8 times a minute (10th and 90th percentiles);
- * sermons, prayers, readings and notices are at most 81% active and break at least 8.3 times a
- * minute. A speaker pauses between phrases; a congregation singing over instruments does not.
+ * (2026-09-14) found eight songs cut short and ten with no section. {@see SustainedSound}
+ * tells singing from speech without the transcript.
  *
  * Two repairs follow, both confined to time no section holds:
  *  - a song section widens across sustained sound beside it;
@@ -35,17 +31,6 @@ use App\Services\Media\Audio\RmsAnalysisService;
 class SustainedSoundSongSections
 {
     public const PROPOSED_TITLE = 'Unidentified singing';
-
-    private const BIN_SECONDS = 5.0;
-
-    /** Six bins: each bin is judged on the 30 s around it, so one breath does not split a song. */
-    private const WINDOW_BINS = 6;
-
-    private const MINIMUM_ACTIVE_RATIO = 0.8;
-
-    private const MAXIMUM_PAUSES_PER_MINUTE = 8.0;
-
-    private const MINIMUM_PAUSE_SECONDS = 0.3;
 
     /**
      * Every corpus widening under 30 s that fresh audio heard as speech was 25 s or less; of the
@@ -79,7 +64,7 @@ class SustainedSoundSongSections
 
         $sound = $this->sustainedSound($rmsLogContent);
 
-        if ($sound === null) {
+        if (! $sound instanceof SustainedSound) {
             return $structure;
         }
 
@@ -106,10 +91,9 @@ class SustainedSoundSongSections
      * detected so that one song's widening never decides another's.
      *
      * @param  list<ServiceStructureSection>  $sections
-     * @param  array{bins: list<bool>, audio_end: float}  $sound
      * @return list<ServiceStructureSection>
      */
-    private function widenSongs(array $sections, array $sound): array
+    private function widenSongs(array $sections, SustainedSound $sound): array
     {
         $widened = $sections;
 
@@ -148,16 +132,14 @@ class SustainedSoundSongSections
 
     /**
      * @param  list<ServiceStructureSection>  $sections
-     * @param  array{bins: list<bool>, audio_end: float}  $sound
      */
-    private function widenedEnd(array $sections, int $index, array $sound): ?float
+    private function widenedEnd(array $sections, int $index, SustainedSound $sound): ?float
     {
         $section = $sections[$index];
-        $bins = $sound['bins'];
         $lastBin = null;
 
-        for ($bin = (int) floor($section->endTime / self::BIN_SECONDS); $bin < count($bins) && $bins[$bin]; $bin++) {
-            $holder = $this->holderAt($sections, ($bin + 0.5) * self::BIN_SECONDS, $index);
+        for ($bin = (int) floor($section->endTime / SustainedSound::BIN_SECONDS); $bin < $sound->binCount() && $sound->isSustainedBin($bin); $bin++) {
+            $holder = $this->holderAt($sections, ($bin + 0.5) * SustainedSound::BIN_SECONDS, $index);
 
             if ($holder instanceof ServiceStructureSection) {
                 if ($holder->type === ServiceSectionType::Song) {
@@ -174,7 +156,7 @@ class SustainedSoundSongSections
             return null;
         }
 
-        $nextStart = $sound['audio_end'];
+        $nextStart = $sound->audioEnd;
 
         foreach ($sections as $otherIndex => $other) {
             if ($otherIndex !== $index && $other->startTime >= $section->endTime) {
@@ -182,23 +164,21 @@ class SustainedSoundSongSections
             }
         }
 
-        $end = min(($lastBin + 1) * self::BIN_SECONDS, $nextStart);
+        $end = min(($lastBin + 1) * SustainedSound::BIN_SECONDS, $nextStart);
 
         return $end - $section->endTime >= self::MINIMUM_WIDENING_SECONDS ? $end : null;
     }
 
     /**
      * @param  list<ServiceStructureSection>  $sections
-     * @param  array{bins: list<bool>, audio_end: float}  $sound
      */
-    private function widenedStart(array $sections, int $index, array $sound): ?float
+    private function widenedStart(array $sections, int $index, SustainedSound $sound): ?float
     {
         $section = $sections[$index];
-        $bins = $sound['bins'];
         $firstBin = null;
 
-        for ($bin = (int) ceil($section->startTime / self::BIN_SECONDS) - 1; $bin >= 0 && $bin < count($bins) && $bins[$bin]; $bin--) {
-            $holder = $this->holderAt($sections, ($bin + 0.5) * self::BIN_SECONDS, $index);
+        for ($bin = (int) ceil($section->startTime / SustainedSound::BIN_SECONDS) - 1; $bin >= 0 && $bin < $sound->binCount() && $sound->isSustainedBin($bin); $bin--) {
+            $holder = $this->holderAt($sections, ($bin + 0.5) * SustainedSound::BIN_SECONDS, $index);
 
             if ($holder instanceof ServiceStructureSection) {
                 if ($holder->type === ServiceSectionType::Song) {
@@ -223,7 +203,7 @@ class SustainedSoundSongSections
             }
         }
 
-        $start = max($firstBin * self::BIN_SECONDS, $previousEnd);
+        $start = max($firstBin * SustainedSound::BIN_SECONDS, $previousEnd);
 
         return $section->startTime - $start >= self::MINIMUM_WIDENING_SECONDS ? $start : null;
     }
@@ -237,10 +217,9 @@ class SustainedSoundSongSections
      * was too short to trust, or it ran on into another song and belongs to one of the two.
      *
      * @param  list<ServiceStructureSection>  $sections
-     * @param  array{bins: list<bool>, audio_end: float}  $sound
      * @return list<ServiceStructureSection>
      */
-    private function proposeSongs(array $sections, array $sound): array
+    private function proposeSongs(array $sections, SustainedSound $sound): array
     {
         $firstStart = INF;
 
@@ -250,12 +229,10 @@ class SustainedSoundSongSections
 
         $proposed = [];
         $openBin = null;
-        $bins = $sound['bins'];
 
-        for ($bin = 0; $bin <= count($bins); $bin++) {
-            $mid = ($bin + 0.5) * self::BIN_SECONDS;
-            $unheld = $bin < count($bins)
-                && $bins[$bin]
+        for ($bin = 0; $bin <= $sound->binCount(); $bin++) {
+            $mid = ($bin + 0.5) * SustainedSound::BIN_SECONDS;
+            $unheld = $sound->isSustainedBin($bin)
                 && $mid > $firstStart
                 && ! $this->holderAt($sections, $mid, null) instanceof ServiceStructureSection;
 
@@ -266,7 +243,7 @@ class SustainedSoundSongSections
             }
 
             if ($openBin !== null) {
-                $proposal = $this->proposal($sections, $openBin * self::BIN_SECONDS, $bin * self::BIN_SECONDS, $sound['audio_end']);
+                $proposal = $this->proposal($sections, $openBin * SustainedSound::BIN_SECONDS, $bin * SustainedSound::BIN_SECONDS, $sound->audioEnd);
 
                 if ($proposal instanceof ServiceStructureSection) {
                     $proposed[] = $proposal;
@@ -288,11 +265,11 @@ class SustainedSoundSongSections
         $end = min($to, $audioEnd);
 
         foreach ($sections as $section) {
-            if ($section->endTime <= $from + self::BIN_SECONDS) {
+            if ($section->endTime <= $from + SustainedSound::BIN_SECONDS) {
                 $start = max($start, $section->endTime);
             }
 
-            if ($section->startTime >= $to - self::BIN_SECONDS) {
+            if ($section->startTime >= $to - SustainedSound::BIN_SECONDS) {
                 $end = min($end, $section->startTime);
             }
         }
@@ -303,7 +280,7 @@ class SustainedSoundSongSections
 
         foreach ($sections as $section) {
             if ($section->type === ServiceSectionType::Song
-                && (abs($section->endTime - $start) <= self::BIN_SECONDS || abs($section->startTime - $end) <= self::BIN_SECONDS)) {
+                && (abs($section->endTime - $start) <= SustainedSound::BIN_SECONDS || abs($section->startTime - $end) <= SustainedSound::BIN_SECONDS)) {
                 return null;
             }
         }
@@ -341,13 +318,7 @@ class SustainedSoundSongSections
         return null;
     }
 
-    /**
-     * Whether each 5 s bin of the recording lies inside sustained sound, judged on the window
-     * around it, and where the audio ends. Null when the log holds no samples.
-     *
-     * @return array{bins: list<bool>, audio_end: float}|null
-     */
-    private function sustainedSound(string $rmsLogContent): ?array
+    private function sustainedSound(string $rmsLogContent): ?SustainedSound
     {
         $samples = $this->rmsAnalysisService->extractRmsData($rmsLogContent);
 
@@ -361,46 +332,6 @@ class SustainedSoundSongSections
             $threshold = $this->rmsAnalysisService->getRmsThreshold();
         }
 
-        $audioEnd = $samples[count($samples) - 1]['time'];
-        $binCount = (int) floor($audioEnd / self::BIN_SECONDS) + 1;
-        $active = array_fill(0, $binCount, 0);
-        $total = array_fill(0, $binCount, 0);
-        $pauses = array_fill(0, $binCount, 0);
-        $pauseStart = null;
-
-        foreach ($samples as $sample) {
-            $bin = min($binCount - 1, max(0, (int) floor($sample['time'] / self::BIN_SECONDS)));
-            $total[$bin]++;
-
-            if ($sample['rms'] <= $threshold) {
-                $pauseStart ??= $sample['time'];
-
-                continue;
-            }
-
-            $active[$bin]++;
-
-            if ($pauseStart !== null && $sample['time'] - $pauseStart >= self::MINIMUM_PAUSE_SECONDS) {
-                $pauses[$bin]++;
-            }
-
-            $pauseStart = null;
-        }
-
-        $half = intdiv(self::WINDOW_BINS, 2);
-        $bins = [];
-
-        for ($bin = 0; $bin < $binCount; $bin++) {
-            $from = max(0, $bin - $half);
-            $length = min($binCount, $bin + $half) - $from;
-            $windowTotal = array_sum(array_slice($total, $from, $length));
-            $minutes = $length * self::BIN_SECONDS / 60.0;
-
-            $bins[] = $windowTotal > 0
-                && array_sum(array_slice($active, $from, $length)) / $windowTotal >= self::MINIMUM_ACTIVE_RATIO
-                && array_sum(array_slice($pauses, $from, $length)) / $minutes <= self::MAXIMUM_PAUSES_PER_MINUTE;
-        }
-
-        return ['bins' => $bins, 'audio_end' => $audioEnd];
+        return SustainedSound::fromSamples($samples, $threshold);
     }
 }

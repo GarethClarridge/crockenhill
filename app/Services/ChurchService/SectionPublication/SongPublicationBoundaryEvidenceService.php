@@ -7,6 +7,7 @@ namespace App\Services\ChurchService\SectionPublication;
 use App\Data\ChurchServiceTranscript;
 use App\Models\ServiceSection;
 use App\Services\Media\Audio\RmsAnalysisService;
+use App\Services\Media\Audio\SustainedSound;
 use App\Support\ServiceArtifactDisk;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -29,6 +30,7 @@ use Illuminate\Support\Facades\Storage;
  *     },
  *     start_evidence: array<string, mixed>,
  *     end_evidence: array<string, mixed>,
+ *     lyric_edges: list<array<string, mixed>>,
  *     risks: list<array{kind: string, detail: string}>,
  *     decision: 'release_eligible'|'review'
  * }
@@ -42,6 +44,7 @@ use Illuminate\Support\Facades\Storage;
  *     },
  *     start_evidence: array<string, mixed>,
  *     end_evidence: array<string, mixed>,
+ *     lyric_edges: list<array<string, mixed>>,
  *     risks: list<array{kind: string, detail: string}>,
  *     decision: 'release_eligible'|'review',
  *     recorded_at: string
@@ -59,7 +62,8 @@ final class SongPublicationBoundaryEvidenceService
 {
     public const METADATA_KEY = 'song_publication_boundary';
 
-    private const VERSION = 1;
+    /** 2 (2026-09-15): records {@see SongLyricsOutsideSection} observations under `lyric_edges`. */
+    private const VERSION = 2;
 
     private const LEADING_CUE_WINDOW_SECONDS = 5.0;
 
@@ -76,6 +80,7 @@ final class SongPublicationBoundaryEvidenceService
 
     public function __construct(
         private readonly RmsAnalysisService $rmsAnalysisService,
+        private readonly SongLyricsOutsideSection $lyricsOutsideSection,
     ) {}
 
     /**
@@ -114,6 +119,7 @@ final class SongPublicationBoundaryEvidenceService
                 ],
                 'start_evidence' => $this->unavailableBoundaryEvidence('start', $section, $inputs),
                 'end_evidence' => $this->unavailableBoundaryEvidence('end', $section, $inputs),
+                'lyric_edges' => [],
                 'risks' => [[
                     'kind' => $storageError
                         ? 'song_boundary_evidence_unreadable'
@@ -165,6 +171,20 @@ final class SongPublicationBoundaryEvidenceService
             }
         }
 
+        $lyricEdges = $inputs['transcript'] instanceof ChurchServiceTranscript
+            ? $this->lyricsOutsideSection->observe(
+                $section,
+                $inputs['transcript'],
+                $inputs['rms_threshold'] === null ? null : SustainedSound::fromSamples($inputs['rms_data'], $inputs['rms_threshold']),
+            )
+            : [];
+
+        foreach ($lyricEdges as $lyricEdge) {
+            if ($lyricEdge['risk']) {
+                $risks[] = ['kind' => SongLyricsOutsideSection::RISK_KIND, 'detail' => $lyricEdge['detail']];
+            }
+        }
+
         return $this->withRecordedAt($section, [
             'version' => self::VERSION,
             'candidate' => [
@@ -179,6 +199,7 @@ final class SongPublicationBoundaryEvidenceService
             ],
             'start_evidence' => $startEvidence,
             'end_evidence' => $endEvidence,
+            'lyric_edges' => $lyricEdges,
             'risks' => $risks,
             'decision' => $risks === [] ? 'release_eligible' : 'review',
         ]);

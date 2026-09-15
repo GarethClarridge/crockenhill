@@ -725,10 +725,209 @@ class SongPublicationReviewPolicyTest extends TestCase
     }
 
     /**
+     * 1291 §3640 (clip 360) and 1222: a song's first lines are sung inside the tail of the song
+     * before it, because the boundary between the two came late.
+     */
+    #[Test]
+    public function it_holds_a_clip_whose_opening_lines_are_sung_inside_the_previous_song(): void
+    {
+        $section = $this->lyricSection('God of the ages history\'s maker planning our pathway holding us fast');
+        $previous = $this->neighbour($section, 'song', 380.0, 600.0, 'Great is thy faithfulness O God my Father morning by morning new mercies I see');
+        $this->storeLyricArtifacts($section, [
+            ['start' => 400.0, 'end' => 420.0, 'text' => 'Great is thy faithfulness, O God my Father.'],
+            ['start' => 560.0, 'end' => 570.0, 'text' => 'God of the ages, history\'s maker,'],
+            ['start' => 570.0, 'end' => 580.0, 'text' => 'planning our pathway, holding us fast,'],
+            ['start' => 620.0, 'end' => 830.0, 'text' => 'God of the ages, history\'s maker.'],
+        ], [[380, 1000, 'sung']]);
+
+        $reasons = $this->policy->reviewReasons($section->fresh());
+
+        $this->assertContains('song_lyrics_outside_section', array_column($reasons, 'kind'));
+        $detail = $reasons[array_search('song_lyrics_outside_section', array_column($reasons, 'kind'), true)]['detail'];
+        $this->assertStringContainsString('before', $detail);
+        $this->assertStringContainsString((string) $previous->id, $detail);
+    }
+
+    /**
+     * 1108 §1896 (clip 240): the final verse and chorus run on inside the prayer that follows.
+     */
+    #[Test]
+    public function it_holds_a_clip_whose_last_verse_is_sung_inside_the_following_prayer(): void
+    {
+        $section = $this->lyricSection('Bless the Lord O my soul worship his holy name ten thousand years and then forevermore');
+        $this->neighbour($section, 'prayer', 840.0, 1000.0);
+        $this->storeLyricArtifacts($section, [
+            ['start' => 620.0, 'end' => 830.0, 'text' => 'Bless the Lord, O my soul.'],
+            ['start' => 850.0, 'end' => 860.0, 'text' => 'Ten thousand years and then forevermore.'],
+            ['start' => 860.0, 'end' => 870.0, 'text' => 'Bless the Lord, O my soul, worship his holy name.'],
+            ['start' => 885.0, 'end' => 990.0, 'text' => 'Lord, we thank you for this morning.'],
+        ], [[580, 875, 'sung'], [875, 1000, 'speech']]);
+
+        $this->assertContains(
+            'song_lyrics_outside_section',
+            array_column($this->policy->reviewReasons($section->fresh()), 'kind'),
+        );
+    }
+
+    /**
+     * 1337 §4268 (clip 409) and 1291 §3642: a prayer or talk quotes the hymn. Spoken lines pause
+     * between phrases, so the sound under them is not sustained.
+     */
+    #[Test]
+    public function it_releases_a_clip_whose_lyrics_are_quoted_in_speech_beside_it(): void
+    {
+        $section = $this->lyricSection('Bless the Lord O my soul worship his holy name ten thousand years and then forevermore');
+        $this->neighbour($section, 'prayer', 840.0, 1000.0);
+        $this->storeLyricArtifacts($section, [
+            ['start' => 620.0, 'end' => 830.0, 'text' => 'Bless the Lord, O my soul.'],
+            ['start' => 850.0, 'end' => 860.0, 'text' => 'Ten thousand years and then forevermore.'],
+            ['start' => 860.0, 'end' => 870.0, 'text' => 'Bless the Lord, O my soul, worship his holy name.'],
+        ], [[580, 840, 'sung'], [840, 1000, 'speech']]);
+
+        $this->assertNotContains(
+            'song_lyrics_outside_section',
+            array_column($this->policy->reviewReasons($section->fresh()), 'kind'),
+        );
+    }
+
+    /**
+     * 1262 §3283: "praise him" and "adore him" are in many hymns. A line the neighbouring song's
+     * own lyrics explain better is that song being sung, not this one.
+     */
+    #[Test]
+    public function it_releases_a_clip_when_the_line_belongs_to_the_neighbouring_song(): void
+    {
+        $section = $this->lyricSection('All people that on earth do dwell sing to the Lord with cheerful voice praise him');
+        $this->neighbour($section, 'song', 380.0, 600.0, 'Praise my soul the King of heaven praise him praise him angels help us to adore him');
+        $this->storeLyricArtifacts($section, [
+            ['start' => 560.0, 'end' => 570.0, 'text' => 'Praise him, praise him, angels help us to adore him.'],
+            ['start' => 575.0, 'end' => 585.0, 'text' => 'Praise him, praise him, angels help us to adore him.'],
+            ['start' => 620.0, 'end' => 830.0, 'text' => 'All people that on earth do dwell.'],
+        ], [[380, 1000, 'sung']]);
+
+        $this->assertNotContains(
+            'song_lyrics_outside_section',
+            array_column($this->policy->reviewReasons($section->fresh()), 'kind'),
+        );
+    }
+
+    /**
+     * 1224 and 1127: the leader names the song before it starts, over the introduction.
+     */
+    #[Test]
+    public function it_releases_a_clip_whose_title_is_only_announced_beside_it(): void
+    {
+        $section = $this->lyricSection('Lord I lift your name on high Lord I love to sing your praises');
+        $this->neighbour($section, 'welcome', 380.0, 600.0);
+        $this->storeLyricArtifacts($section, [
+            ['start' => 570.0, 'end' => 590.0, 'text' => 'It\'s number 314, let\'s stand and sing Lord I lift your name on high.'],
+            ['start' => 620.0, 'end' => 830.0, 'text' => 'Lord, I lift your name on high.'],
+        ], [[380, 1000, 'sung']]);
+
+        $this->assertNotContains(
+            'song_lyrics_outside_section',
+            array_column($this->policy->reviewReasons($section->fresh()), 'kind'),
+        );
+    }
+
+    /**
+     * 1266 §3332: the next section has no identified song, and its transcript loops one garbled
+     * line 37 times over a different song. The loop shared three word pairs with this song.
+     */
+    #[Test]
+    public function it_releases_a_clip_when_the_matching_line_beside_it_is_a_transcription_loop(): void
+    {
+        $section = $this->lyricSection('Jesus is Lord the judge of all will take his children home');
+        $this->neighbour($section, 'song', 840.0, 1000.0);
+        $loop = array_map(
+            static fn (int $index): array => ['start' => 850.0 + $index, 'end' => 851.0 + $index, 'text' => 'The judge will take his children home.'],
+            range(0, 36),
+        );
+        $this->storeLyricArtifacts($section, [
+            ['start' => 620.0, 'end' => 830.0, 'text' => 'Jesus is Lord.'],
+            ...$loop,
+        ], [[580, 1000, 'sung']]);
+
+        $this->assertNotContains(
+            'song_lyrics_outside_section',
+            array_column($this->policy->reviewReasons($section->fresh()), 'kind'),
+        );
+    }
+
+    /**
+     * A confirmed song section from 600 s to 840 s whose catalogue song carries these lyrics.
+     */
+    private function lyricSection(string $lyrics): ServiceSection
+    {
+        $section = $this->section('full', ['livestream']);
+        Song::query()->whereKey($section->churchServiceItem->song_id)->update(['lyrics_plain' => $lyrics]);
+
+        return $section->fresh();
+    }
+
+    /**
+     * Another section on the same run; a song neighbour gets its own catalogue song and lyrics.
+     */
+    private function neighbour(ServiceSection $section, string $type, float $start, float $end, ?string $lyrics = null): ServiceSection
+    {
+        $itemId = null;
+
+        if ($lyrics !== null) {
+            $itemId = ChurchServiceItem::factory()->create([
+                'church_service_id' => $section->churchServiceItem->church_service_id,
+                'song_id' => Song::factory()->create(['lyrics_plain' => $lyrics])->id,
+            ])->id;
+        }
+
+        return ServiceSection::factory()->create([
+            'media_processing_log_id' => $section->media_processing_log_id,
+            'church_service_item_id' => $itemId,
+            'section_type' => $type,
+            'song_match_type' => $lyrics !== null ? ServiceSectionSongMatchType::Confirmed->value : null,
+            'start_time' => $start,
+            'end_time' => $end,
+            'duration' => $end - $start,
+        ]);
+    }
+
+    /**
+     * Transcript cues over a 1000 s recording, and an RMS log sampled every 0.1 s: singing holds
+     * -18 dB without a break, speech pauses half a second every 3 s, anything unlisted is
+     * silence. A fixed threshold keeps the adaptive percentile from reading the singing as quiet.
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  list<array{0: int, 1: int, 2: 'sung'|'speech'}>  $spans
+     */
+    private function storeLyricArtifacts(ServiceSection $section, array $cues, array $spans): void
+    {
+        config([
+            'media-processing.segmentation.adaptive_thresholds.enabled' => false,
+            'media-processing.segmentation.rms_threshold' => -45.0,
+        ]);
+
+        $samples = [];
+
+        for ($tenth = 0; $tenth < 10000; $tenth++) {
+            $time = $tenth / 10;
+            $level = -60.0;
+
+            foreach ($spans as [$from, $to, $kind]) {
+                if ($time >= $from && $time < $to) {
+                    $level = $kind === 'sung' ? -18.0 : (fmod($time, 3.0) < 2.5 ? -25.0 : -60.0);
+                }
+            }
+
+            $samples[] = ['time' => $time, 'rms' => $level];
+        }
+
+        $this->storeBoundaryArtifacts($section, $cues, $samples, duration: 1000.0);
+    }
+
+    /**
      * @param  list<array{start: float, end: float, text: string}>  $cues
      * @param  list<array{time: float, rms: float}>  $samples
      */
-    private function storeBoundaryArtifacts(ServiceSection $section, array $cues, array $samples): void
+    private function storeBoundaryArtifacts(ServiceSection $section, array $cues, array $samples, ?float $duration = null): void
     {
         $log = $section->processingLog;
         $transcriptPath = 'service-transcripts/test-'.$log->processing_id.'.normalized.json';
@@ -736,7 +935,7 @@ class SongPublicationReviewPolicyTest extends TestCase
 
         Storage::disk('local')->put($transcriptPath, json_encode([
             'cues' => $cues,
-            'duration' => (float) $section->end_time,
+            'duration' => $duration ?? (float) $section->end_time,
             'source' => 'mock',
         ], JSON_THROW_ON_ERROR));
         Storage::disk('local')->put($rmsPath, $this->rmsLog($samples));

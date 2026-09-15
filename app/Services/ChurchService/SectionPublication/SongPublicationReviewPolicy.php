@@ -346,15 +346,7 @@ class SongPublicationReviewPolicy
 
     private function songId(ServiceSection $section): ?int
     {
-        $songId = $section->churchServiceItem?->song_id;
-
-        if (is_int($songId)) {
-            return $songId;
-        }
-
-        $matched = $section->metadata?->toArray()['transcript_song_match']['song_id'] ?? null;
-
-        return is_int($matched) ? $matched : null;
+        return $section->resolvedSongId();
     }
 
     /** The corroboration grade of a partial historic recording, or null when it is whole. */

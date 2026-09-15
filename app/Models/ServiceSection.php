@@ -257,6 +257,23 @@ class ServiceSection extends Model
     }
 
     /**
+     * The catalogue song this section is bound to: its order-of-service item's song, else the
+     * song the transcript matcher recorded.
+     */
+    public function resolvedSongId(): ?int
+    {
+        $songId = $this->churchServiceItem?->song_id;
+
+        if (is_int($songId)) {
+            return $songId;
+        }
+
+        $matched = $this->metadata?->toArray()['transcript_song_match']['song_id'] ?? null;
+
+        return is_int($matched) ? $matched : null;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function childrensTalkSpeakerMetadata(): array
