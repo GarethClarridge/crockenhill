@@ -1566,6 +1566,43 @@ only, as above.
   clear their holds only on a clean re-measure; decide smart cut first, so each sermon is
   re-extracted once.
 
+**Smart cut built test-first 2026-09-15** (ruling 3a; operator: "build it"). Code only, as
+above.
+
+- *Video picture starts after its audio, or audio carries the preceding item*
+  (`2fc0931ef`). Every span now goes through a smart cut in `VideoExtractionService`, which
+  both sermons and song candidates use.
+  - It reads the source's video packets over the span plus 30 s either side, about 1 s
+    for a 40-minute sermon.
+  - It re-encodes from the start to the first keyframe, and from the last keyframe to the
+    end. It copies the exact frame count between them: a copy's `-t` overshoots by the
+    B-frames it has reordered.
+  - The pieces are joined through MPEG-TS, so each carries its own H.264 parameter sets.
+  - The sound is cut on its own and muxed beside the picture: an output-seek copy for AAC,
+    otherwise encoded. The re-encode path cuts its sound the same way; a copied audio
+    stream under an input seek is what started the sound at the previous keyframe.
+  - These are re-encoded whole instead: sources with leading pictures (open GOP), which
+    produced 226 undecodable frames in a synthetic join; spans holding no whole GOP; and
+    unreadable packets. Every H.264 source probed was closed-GOP: weekly run 919 and the
+    historic `.mkv` sources.
+  - Every cut is measured the way the censuses measured. Picture and sound must start
+    within one frame plus one AAC frame, and each run within 0.1 s of the span. That is
+    wider than the row's "one frame": a 40-minute weekly cut ran 60 ms long. A smart cut
+    that fails falls back to a re-encode; a re-encode that fails throws. Joined sermon
+    spans are checked against their parts' measured lengths.
+  - Measured on real sources: a 297 s song span from a historic `.mkv` came out 8,923
+    frames (8,923.2 expected), started together, with no decode errors, in 5 s. A 40-minute
+    weekly sermon came out 2 frames long with no decode errors, in 13 s.
+- *`SongVideo.duration`* (`2a0ae93bc`). `SongPublicationHandler` probes the clip it
+  publishes and records that length. The section span stands in only when the file cannot
+  be measured.
+- Not verified: playback of a TS-joined cut on Safari and iOS, which decode the in-band
+  parameter set change. Check one sermon and one song clip on a device before re-running
+  the corpus.
+- Due: restart the queue workers onto this code, then re-run the affected sermons and song
+  clips through the pipeline. Song clips still wait for the song-edge change, so each is
+  re-encoded once.
+
 - [ ] Fill the table's "pipeline item" column with a tested change or a recorded
   decision not to detect, for every row, before §4.5 acceptance.
 - [ ] Each promoted detector ships with the corpus cases in this plan as regression
