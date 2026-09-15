@@ -1706,8 +1706,20 @@ closes §4.3's stale-verdict item for boundary evidence.
 - *Applied* (`lyricedge-20260915-backfill-execute.txt`). Banked 881; held rose from 52 to 521.
   The check (`lyricedge-20260915-backfill-verify.php`) found every section at version 2, banked
   reasons equal to the dry run, no section released, and a second dry run selecting nothing.
-- Not run: `service:demote-held-publications` for the 38 newly held published clips. The
-  historic ones are quarantined; the operator decides the rest.
+- **Demoted 2026-09-15** (operator: run `service:demote-held-publications` for the 38).
+  - Dry runs: the 38 named by `--section` were all demotable, none refused.
+    `--all` would have reached 83 published sections, 45 outside the 38 (43 held before
+    today, and funerals §1588 and §1832, ineligible). They were left alone.
+  - Applied (`storage/scratch/demote-20260915-apply-38.txt`): 38 sections moved to
+    `not_applicable`, still held. 2 song videos were quarantined; the other 36 were already
+    in the historic quarantine. All 38 video rows remain.
+  - Two of the 38 were visible on this machine (not production): §320 (run 909) and §434
+    (run 917). Their weekly runs have no source on the mounts, so the stored transcripts
+    stand in for fresh audio. Both holds are real but small. §320's opening line starts 1.5 s
+    before the section (319.4 s). §434's own lines run about 5 s past its end (1728.3 s) into
+    §435.
+  - 43 published song sections remain held from before today; demoting them is a separate
+    decision.
 
 - [ ] Fill the table's "pipeline item" column with a tested change or a recorded
   decision not to detect, for every row, before §4.5 acceptance.
