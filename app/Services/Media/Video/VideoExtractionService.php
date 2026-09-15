@@ -421,12 +421,12 @@ class VideoExtractionService
     }
 
     /**
-     * FFmpeg's seek arguments for a stream copy, split either side of `-i`.
+     * FFmpeg's seek arguments for a copy of the sound, split either side of `-i`.
      *
-     * A stream copy cannot start mid-GOP, so where `-ss` sits decides where the
-     * cut lands: an input seek starts at the keyframe at or *before* the request
-     * and runs long, an output seek discards packets until the first keyframe at
-     * or *after* it. Those are different cuts, and this branch wants the latter.
+     * Only the sound uses these, where every packet stands alone and an output
+     * seek trims to within one audio frame. The picture copy must not: an output
+     * seek drops packets by decode time, so a keyframe followed by B-frames is
+     * dropped and the copy starts a whole GOP late (see writeSmartCut()).
      *
      * The cost of asking for it naively is that FFmpeg demuxes the whole file up
      * to the cut point first. Measured against a 4.7 GiB source, a 300 s copy at
@@ -630,7 +630,7 @@ class VideoExtractionService
      * across those decoded as garbage in testing, 226 frames of a 34 s cut. Every
      * historic and weekly H.264 source probed was closed-GOP.
      *
-     * @return array{keyframe: float, last_keyframe: float, copy_frames: int, cut_end: float, expected_duration: float, frame_seconds: float}|null
+     * @return array{keyframe: float, last_keyframe: float, copy_frames: int, opening_start: float, opening_frames: int, closing_frames: int, cut_end: float, expected_duration: float, frame_seconds: float}|null
      */
     private function smartCutPlan(string $inputPath, float $startTime, float $endTime): ?array
     {
@@ -669,16 +669,22 @@ class VideoExtractionService
             return null;
         }
 
-        $copyFrames = count(array_filter(
-            $packets,
-            static fn (array $packet): bool => $packet[0] >= $keyframe - self::TIMESTAMP_EPSILON_SECONDS
-                && $packet[0] < $lastKeyframe - self::TIMESTAMP_EPSILON_SECONDS,
+        $framesFrom = static fn (float $from, float $until): array => array_values(array_filter(
+            array_column($packets, 0),
+            static fn (float $timestamp): bool => $timestamp >= $from - self::TIMESTAMP_EPSILON_SECONDS
+                && $timestamp < $until - self::TIMESTAMP_EPSILON_SECONDS,
         ));
+
+        $openingFrames = $framesFrom($startTime, $keyframe);
+        $closingFrames = $framesFrom($lastKeyframe, $geometry['cut_end']);
 
         return [
             'keyframe' => $keyframe,
             'last_keyframe' => $lastKeyframe,
-            'copy_frames' => $copyFrames,
+            'copy_frames' => count($framesFrom($keyframe, $lastKeyframe)),
+            'opening_start' => $openingFrames === [] ? $keyframe : min($openingFrames),
+            'opening_frames' => count($openingFrames),
+            'closing_frames' => count($closingFrames),
             ...$geometry,
         ];
     }
@@ -731,10 +737,15 @@ class VideoExtractionService
 
     /**
      * The source's video packets around a span, in decode order, as
-     * `[presentation time, is keyframe]`.
+     * `[presentation time, is keyframe]`, timed from the start of the file.
      *
      * Read over the span and a pad either side only, which cost about a second
      * for a 40-minute sermon on a weekly recording.
+     *
+     * ffprobe reads and reports the container's own timestamps, while a span and
+     * FFmpeg's `-ss` count from the file's first timestamp. On a source that does
+     * not start at zero the two disagree by that start, which planned a cut 1.4 s
+     * off its keyframes, so both the window and the answers are shifted by it.
      *
      * @return list<array{0: float, 1: bool}>
      */
@@ -746,13 +757,15 @@ class VideoExtractionService
             return [];
         }
 
+        $fileStart = $this->probeFileStartSeconds($inputPath);
+
         $command = implode(' ', [
             $ffprobePath,
             '-v', 'error',
             '-read_intervals', escapeshellarg(sprintf(
                 '%s%%%s',
-                $this->seconds(max(0.0, $startTime - self::PACKET_WINDOW_PAD_SECONDS)),
-                $this->seconds($endTime + self::PACKET_WINDOW_PAD_SECONDS),
+                $this->seconds($fileStart + max(0.0, $startTime - self::PACKET_WINDOW_PAD_SECONDS)),
+                $this->seconds($fileStart + $endTime + self::PACKET_WINDOW_PAD_SECONDS),
             )),
             '-select_streams', 'v:0',
             '-show_entries', 'packet=pts_time,flags',
@@ -773,7 +786,7 @@ class VideoExtractionService
             [$timestamp, $flags] = array_pad(explode(',', trim($line), 2), 2, '');
 
             if (is_numeric($timestamp)) {
-                $packets[] = [(float) $timestamp, str_contains($flags, 'K')];
+                $packets[] = [(float) $timestamp - $fileStart, str_contains($flags, 'K')];
             }
         }
 
@@ -781,11 +794,47 @@ class VideoExtractionService
     }
 
     /**
+     * The file's first timestamp, from which FFmpeg counts `-ss`, cached like the
+     * other probes. Zero when it cannot be read, which is what most sources hold.
+     */
+    private function probeFileStartSeconds(string $inputPath): float
+    {
+        $key = $this->probeCacheKey($inputPath, 'format:start_time');
+
+        if ($key !== null && array_key_exists($key, $this->probeCache)) {
+            return (float) $this->probeCache[$key];
+        }
+
+        $ffprobePath = config('media-processing.ffmpeg.ffprobe_path');
+        $start = 0.0;
+
+        if (is_string($ffprobePath) && $ffprobePath !== '') {
+            $output = [];
+            exec(implode(' ', [
+                $ffprobePath,
+                '-v', 'error',
+                '-show_entries', 'format=start_time',
+                '-of', 'default=nw=1:nk=1',
+                escapeshellarg($inputPath),
+            ]).' 2>/dev/null', $output, $returnCode);
+
+            $read = trim(implode('', $output));
+            $start = $returnCode === 0 && is_numeric($read) ? (float) $read : 0.0;
+        }
+
+        if ($key !== null) {
+            $this->probeCache[$key] = $start;
+        }
+
+        return $start;
+    }
+
+    /**
      * Write a smart cut of the span: the opening re-encoded up to the first
      * keyframe, the whole GOPs after it copied, the closing re-encoded from the
      * last keyframe, the pieces joined, and the sound cut beside them.
      *
-     * @param  array{keyframe: float, last_keyframe: float, copy_frames: int, cut_end: float, expected_duration: float, frame_seconds: float}  $plan
+     * @param  array{keyframe: float, last_keyframe: float, copy_frames: int, opening_start: float, opening_frames: int, closing_frames: int, cut_end: float, expected_duration: float, frame_seconds: float}  $plan
      *
      * @throws VideoProcessingException
      */
@@ -797,18 +846,33 @@ class VideoExtractionService
         try {
             $parts = [];
 
-            if ($plan['keyframe'] - $startTime > self::TIMESTAMP_EPSILON_SECONDS) {
-                $parts[] = $this->encodeVideoPart($inputPath, $startTime, $plan['keyframe'] - $startTime, "{$workDirectory}/opening.mp4");
+            /*
+             * Every piece seeks half a frame before its first frame and is counted
+             * in frames, never timed. A seek or `-t` falling on a frame's own time
+             * kept or lost that frame on rounding alone: on a source starting at
+             * 1.378 s the opening took the keyframe too and showed it twice, and a
+             * `-t` ending half a frame past the last frame still dropped it.
+             */
+            $halfFrame = $plan['frame_seconds'] / 2;
+
+            if ($plan['opening_frames'] > 0) {
+                $parts[] = $this->encodeVideoPart($inputPath, $plan['opening_start'] - $halfFrame, $plan['opening_frames'], "{$workDirectory}/opening.mp4");
             }
 
+            /*
+             * An input seek, never an output one. An output seek on a copy drops
+             * packets by decode time, and a keyframe followed by B-frames decodes
+             * before it shows: the keyframe at 15.00 s decodes at 14.92 s, so it
+             * was dropped and the copy began a whole GOP late while running exactly
+             * as long. An input seek lands on the keyframe at or before its target,
+             * and half a frame past a keyframe that is always the keyframe itself.
+             */
             $copiedPath = "{$workDirectory}/copied.mp4";
-            $seek = $this->streamCopySeekArguments($plan['keyframe']);
 
             $this->runFfmpeg([
                 $ffmpegPath,
-                ...$seek['input'],
+                '-ss', $this->seconds($plan['keyframe'] + $halfFrame),
                 '-i', escapeshellarg($inputPath),
-                ...$seek['output'],
                 '-map', '0:v:0',
                 '-an',
                 '-frames:v', (string) $plan['copy_frames'],
@@ -818,11 +882,11 @@ class VideoExtractionService
             ], 'stream copy');
             $parts[] = $copiedPath;
 
-            if ($plan['cut_end'] - $plan['last_keyframe'] > self::TIMESTAMP_EPSILON_SECONDS) {
+            if ($plan['closing_frames'] > 0) {
                 $parts[] = $this->encodeVideoPart(
                     $inputPath,
-                    $plan['last_keyframe'],
-                    $plan['cut_end'] - $plan['last_keyframe'],
+                    $plan['last_keyframe'] - $halfFrame,
+                    $plan['closing_frames'],
                     "{$workDirectory}/closing.mp4",
                 );
             }
@@ -843,7 +907,7 @@ class VideoExtractionService
      *
      * @throws VideoProcessingException
      */
-    private function encodeVideoPart(string $inputPath, float $startTime, float $duration, string $outputPath): string
+    private function encodeVideoPart(string $inputPath, float $startTime, int $frames, string $outputPath): string
     {
         $pixelFormat = $this->probeStreamEntry($inputPath, 'v', 'pix_fmt');
         $timeBase = $this->probeStreamEntry($inputPath, 'v', 'time_base');
@@ -855,7 +919,7 @@ class VideoExtractionService
             (string) config('media-processing.ffmpeg.ffmpeg_path'),
             '-ss', $this->seconds($startTime),
             '-i', escapeshellarg($inputPath),
-            '-t', $this->seconds($duration),
+            '-frames:v', (string) $frames,
             '-map', '0:v:0',
             '-an',
             ...$this->videoEncoderArguments(),

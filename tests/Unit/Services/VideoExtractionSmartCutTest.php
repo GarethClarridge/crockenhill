@@ -122,6 +122,49 @@ class VideoExtractionSmartCutTest extends TestCase
         $this->assertStartsTogetherAndRunsFor($output, 5.0);
     }
 
+    #[Test]
+    public function a_smart_cut_shows_the_source_frames_of_its_span(): void
+    {
+        $source = $this->frameNumberedSource();
+        $output = $this->cut($source, 12.3, 30.7);
+
+        $this->assertStartsTogetherAndRunsFor($output, 18.4);
+        $this->assertShowsSourceFramesFrom($output, $source, 12.3);
+    }
+
+    #[Test]
+    public function a_smart_cut_of_a_source_whose_timestamps_do_not_start_at_zero_shows_the_frames_of_its_span(): void
+    {
+        $source = $this->frameNumberedSource(['-output_ts_offset', '1.4'], 'frame-numbered-offset.mp4');
+        $output = $this->cut($source, 12.3, 30.7);
+
+        $this->assertStartsTogetherAndRunsFor($output, 18.4);
+        $this->assertShowsSourceFramesFrom($output, $source, 12.3);
+    }
+
+    #[Test]
+    public function a_smart_cut_past_the_coarse_seek_pad_shows_the_source_frames_of_its_span(): void
+    {
+        Config::set('media-processing.video_extraction.copy_seek_prefix_seconds', 2.0);
+
+        $source = $this->frameNumberedSource();
+        $output = $this->cut($source, 12.3, 30.7);
+
+        $this->assertStartsTogetherAndRunsFor($output, 18.4);
+        $this->assertShowsSourceFramesFrom($output, $source, 12.3);
+    }
+
+    #[Test]
+    public function a_re_encoded_cut_shows_the_source_frames_of_its_span(): void
+    {
+        Config::set('media-processing.video_extraction.reencode_above_mbps', 0.001);
+
+        $source = $this->frameNumberedSource();
+        $output = $this->cut($source, 12.3, 30.7);
+
+        $this->assertShowsSourceFramesFrom($output, $source, 12.3);
+    }
+
     private function cut(string $source, float $start, float $end): string
     {
         $relativePath = $this->service->extractSegmentAsFile($source, (object) ['start_time' => $start, 'end_time' => $end]);
@@ -173,6 +216,94 @@ class VideoExtractionSmartCutTest extends TestCase
         ];
     }
 
+    /**
+     * Duration and start times cannot see a cut that shows the wrong picture: a
+     * copied middle one GOP late runs exactly as long. So read the frame number
+     * each picture carries and require every frame to be the source's own frame
+     * for its time, within the one frame an exact seek may round to.
+     */
+    private function assertShowsSourceFramesFrom(string $path, string $source, float $start): void
+    {
+        $shown = $this->shownFrameNumbers($path);
+
+        // A span counts from the file's first timestamp, which the sound may hold
+        // ahead of the picture, so frame 0 shows that far into the span.
+        $starts = (new Process([
+            '/usr/bin/ffprobe', '-v', 'error', '-select_streams', 'v:0',
+            '-show_entries', 'format=start_time:stream=start_time', '-of', 'json', $source,
+        ]))->setTimeout(60)->mustRun();
+        /** @var array{format: array{start_time: string}, streams: list<array{start_time: string}>} $probed */
+        $probed = json_decode($starts->getOutput(), true);
+        $pictureLead = (float) $probed['streams'][0]['start_time'] - (float) $probed['format']['start_time'];
+
+        $firstFrame = (int) ceil(($start - $pictureLead) * 25 - 0.001);
+
+        $this->assertNotEmpty($shown, 'The cut must show frames.');
+
+        $misplaced = collect($shown)
+            ->map(fn (int $frameNumber, int $index): int => $frameNumber - ($firstFrame + $index))
+            ->filter(fn (int $offset): bool => abs($offset) > 1);
+
+        $this->assertTrue($misplaced->isEmpty(), sprintf(
+            '%d of %d frames show the wrong source frame; the first, output frame %d, shows source frame %d where %d was due.',
+            $misplaced->count(),
+            count($shown),
+            $misplaced->keys()->first() ?? 0,
+            $shown[$misplaced->keys()->first() ?? 0],
+            $firstFrame + ($misplaced->keys()->first() ?? 0),
+        ));
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function shownFrameNumbers(string $path): array
+    {
+        $directory = dirname($path);
+        $lowFile = "{$directory}/frame-numbers-low.txt";
+        $highFile = "{$directory}/frame-numbers-high.txt";
+
+        (new Process([
+            '/usr/bin/ffmpeg', '-v', 'error', '-i', $path,
+            '-filter_complex',
+            "[0:v]format=gray,crop=iw/2-8:ih-8:4:4,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file={$lowFile}[low];"
+            ."[0:v]format=gray,crop=iw/2-8:ih-8:iw/2+4:4,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file={$highFile}[high]",
+            '-map', '[low]', '-f', 'null', '-',
+            '-map', '[high]', '-f', 'null', '-',
+        ]))->setTimeout(120)->mustRun();
+
+        $levels = fn (string $file): array => collect(file($file) ?: [])
+            ->filter(fn (string $line): bool => str_contains($line, 'YAVG='))
+            ->map(fn (string $line): int => (int) round(((float) substr($line, strpos($line, '=') + 1) - 16) / 4))
+            ->values()
+            ->all();
+
+        $low = $levels($lowFile);
+        $high = $levels($highFile);
+
+        unlink($lowFile);
+        unlink($highFile);
+
+        return array_map(fn (int $lowLevel, int $highLevel): int => $highLevel * 50 + $lowLevel, $low, $high);
+    }
+
+    /**
+     * A 40 s recording whose every picture carries its own frame number: the left
+     * half's brightness is the number modulo 50 and the right half's the count of
+     * fifties, four levels apart so compression cannot move one to the next.
+     *
+     * @param  list<string>  $extraArguments
+     */
+    private function frameNumberedSource(array $extraArguments = [], string $name = 'frame-numbered.mp4'): string
+    {
+        return $this->source($name, [
+            '-c:v', 'libx264', '-preset', 'veryfast', '-g', '125', '-keyint_min', '125', '-sc_threshold', '0',
+            '-bf', '2', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '128k',
+            ...$extraArguments,
+        ], 'color=c=black:size=160x120:rate=25:duration=40,format=gray,'
+            .'geq=lum=if(lt(X\,W/2)\,16+4*mod(N\,50)\,16+4*mod(floor(N/50)\,50))');
+    }
+
     private function closedGopSource(): string
     {
         return $this->source('closed-gop.mp4', [
@@ -188,7 +319,7 @@ class VideoExtractionSmartCutTest extends TestCase
      *
      * @param  list<string>  $encoderArguments
      */
-    private function source(string $name, array $encoderArguments): string
+    private function source(string $name, array $encoderArguments, string $picture = 'testsrc2=size=320x240:rate=25:duration=40'): string
     {
         $path = "{$this->sourceDirectory}/{$name}";
 
@@ -200,7 +331,7 @@ class VideoExtractionSmartCutTest extends TestCase
 
         (new Process([
             '/usr/bin/ffmpeg', '-v', 'error', '-y',
-            '-f', 'lavfi', '-i', 'testsrc2=size=320x240:rate=25:duration=40',
+            '-f', 'lavfi', '-i', $picture,
             '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000:duration=40',
             ...$encoderArguments,
             $partial,

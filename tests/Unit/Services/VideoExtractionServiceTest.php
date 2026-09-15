@@ -493,7 +493,7 @@ class VideoExtractionServiceTest extends TestCase
         // There is no prefix worth skipping this close to the start, and a coarse
         // seek to a negative offset would be nonsense.
         $argv = file_get_contents($argvLog);
-        $this->assertMatchesRegularExpression('/^\s*-i \S+ -ss 12 /', $argv);
+        $this->assertMatchesRegularExpression('/^\s*-i \S+ -ss 12 .*-c:a copy/m', $argv);
     }
 
     #[Test]
@@ -509,7 +509,30 @@ class VideoExtractionServiceTest extends TestCase
         );
 
         $argv = file_get_contents($argvLog);
-        $this->assertMatchesRegularExpression('/^\s*-i \S+ -ss 900 /', $argv);
+        $this->assertMatchesRegularExpression('/^\s*-i \S+ -ss 900 .*-c:a copy/m', $argv);
+    }
+
+    #[Test]
+    public function a_smart_cut_copies_its_picture_from_an_input_seek_to_the_keyframe(): void
+    {
+        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
+        Config::set('media-processing.video_extraction.copy_seek_prefix_seconds', 30.0);
+        $argvLog = $this->stubFfmpegAndFfprobe(2_600_000);
+
+        $this->service->extractSegmentAsFile(
+            '/tmp/input.mp4',
+            (object) ['start_time' => 900.0, 'end_time' => 1200.0]
+        );
+
+        // An output seek on a copy drops a keyframe that decodes before it shows,
+        // and the copy then starts a whole GOP late. The picture copy must seek
+        // its input, half a frame past the keyframe, and never its output.
+        $copyLine = collect(explode("\n", (string) file_get_contents($argvLog)))
+            ->first(fn (string $line): bool => str_contains($line, '-map 0:v:0') && str_contains($line, '-c copy'));
+
+        $this->assertNotNull($copyLine, 'The smart cut must copy the picture.');
+        $this->assertMatchesRegularExpression('/^\s*-ss 900\.01\d* -i \S+ -map 0:v:0/', $copyLine);
+        $this->assertDoesNotMatchRegularExpression('/-i \S+ .*-ss /', $copyLine);
     }
 
     #[Test]
@@ -538,7 +561,7 @@ class VideoExtractionServiceTest extends TestCase
         $calls = collect(file_exists($probeLog) ? file($probeLog, FILE_IGNORE_NEW_LINES) : [])
             ->reject(fn (string $call): bool => str_contains($call, 'packet=') || str_contains($call, 'stream=codec_type,start_time,duration'))
             ->count();
-        $this->assertSame(3, $calls, 'Three extractions must share one video codec, one bitrate and one audio codec probe.');
+        $this->assertSame(4, $calls, 'Three extractions must share one video codec, one bitrate, one audio codec and one file start probe.');
     }
 
     #[Test]
