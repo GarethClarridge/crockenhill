@@ -1577,7 +1577,7 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
 
 - [ ] Give runs 1004, 1143 and 1145 terminal dispositions (repair, exclude with
   reason, or an explicit accepted hold).
-- [ ] **Build and apply the occasion exclusions ruled 2026-09-14** (Saturday
+- [x] **Build and apply the occasion exclusions ruled 2026-09-14** (Saturday
   rehearsals 1043, 1089; funerals 1051, 1098). Today nothing can execute them:
   `HistoricRunExclusion::OPERATOR_REASONS` holds only `no_sermon_in_source`, its D1
   docblock forbids excluding a real service that way, and exclusion is read only by
@@ -1601,7 +1601,7 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
   - Acceptance: a feature test per reason proves the rows cannot be released; the
     gate after application refuses all four runs for their exclusion; the Sunday
     sermons 976 and 1015 are unaffected.
-  - **Built test-first 2026-09-15 (not yet applied).** Two operator reasons,
+  - **Built test-first 2026-09-15 (`8585de074`, `61ae5b34f`) and applied.** Two operator reasons,
     `rehearsal_duplicate` and `private_occasion`. A rehearsal must name its kept run with
     `--duplicates`, and that run must be a different run of the same operation that is
     not itself excluded. *Chosen: release refuses, nothing is withdrawn.*
@@ -1616,13 +1616,25 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
     of the seven rows, only sermons 1016 and 1025 and song video 231 are refused, and only
     for unrelated review holds. **Sermons 977 and 985 and song videos 211 and 232 are
     releasable today.** Sunday sermons 976 and 1015 carry no refusal.
-  - **Dry runs 2026-09-15:** 1043 (kept run 1042), 1089 (kept run 1088), and 1051 and 1098
-    as `private_occasion` each resolve to the intended run, all `completed`. Applying them,
-    and recording the gate after, awaits operator confirmation.
-  - *Service rows still to decide.* The public archive is disabled locally
-    (`public_from` null). Funeral services 1020 and 1022 carry song and Bible items, so
-    wherever the archive is enabled they get public service pages whatever their sermons'
-    state. Rehearsal service 1019 has a Bible item; 1021 has none that is public.
+  - **Service rows: removed (operator ruling 2026-09-15).** Neither a funeral nor a
+    rehearsal would have been uploaded had the week been processed by hand, so both
+    reasons also delete the service the run created. All four services (1019, 1020, 1021,
+    1022) were made by the import on 2026-09-04 from their run's livestream source record
+    alone. Removal is refused when another source or another run describes the service.
+    `no_sermon_in_source` keeps its service (D1). The evidence records a snapshot of the
+    removed service. An excluded run no longer projects, so a retry or re-detection
+    cannot bring its service back.
+  - **Applied 2026-09-15** after dry runs naming each service. The removed rows are saved
+    in `storage/scratch/exclusion-20260915-removed-services-snapshot.json` (sha256
+    `0f195069…3ff59`): 4 services, 29 items, 6 source records, 38 assertions, 2 merge
+    proposals, and the links on 21 sections, 4 runs and 3 song videos. After application no
+    row of the four services remains. Services 706 and 654 and runs 1042 and 1088 are
+    unchanged.
+  - **Gate after** (`exclusion-20260915-gate-after.json`): all seven rows are refused as
+    excluded (sermons 977, 985, 1016, 1025; song videos 211, 231, 232), and 1016, 1025 and
+    231 still carry their review holds. Sunday sermons 976 and 1015 carry no refusal.
+  - *Worker code:* the projection guard reaches the queue workers only after they restart.
+    No projection is due for these runs, which are completed and terminal.
 - [ ] Design how operation 4 reaches `Complete` (§3.1 item 5) now, before
   convergence work depends on it, without manufacturing checkpoint or closeout state.
 - [ ] Re-run §4.1a's held-out validation on a fresh sample after repairs, as final
