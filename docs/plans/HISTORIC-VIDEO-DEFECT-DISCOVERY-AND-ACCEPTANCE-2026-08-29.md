@@ -1718,7 +1718,15 @@ closes §4.3's stale-verdict item for boundary evidence.
   `song_boundary` config), and the command also selects sections whose fingerprint is missing
   or differs, comparing inside each run's staging context. `VERSION` stays 2. Every section
   banked above has no fingerprint, so the **next dry run selects all of them once**; its
-  reason delta against today's banking is the real measure of input drift. Not yet run.
+  reason delta against today's banking is the real measure of input drift.
+  - Dry run the same evening (`storage/scratch/fingerprint-20260915-backfill-dryrun.txt`),
+    after the full suite (8183 passed) and Dusk (55 passed): 798 selected, all for a missing
+    fingerprint — the 881 less the 83 now `not_applicable`. Its "would newly hold 440" counts
+    every section with a reason, not a change.
+  - Delta (`fingerprint-20260915-drift-delta.php` → `.json`, read-only, through the backfill's
+    own `inspect()`): **798 of 798 reasons and decisions unchanged, 0 would newly need review.**
+    No input drift since this morning's banking, as expected within a day. Executing would
+    only add fingerprints; no review state or publication would change.
 - **Demoted 2026-09-15** (operator: run `service:demote-held-publications` for the 38).
   - Dry runs: the 38 named by `--section` were all demotable, none refused.
     `--all` would have reached 83 published sections, 45 outside the 38 (43 held before
