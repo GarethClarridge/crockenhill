@@ -195,6 +195,123 @@ class ExcludeHistoricRunCommandTest extends TestCase
     }
 
     #[Test]
+    public function it_records_a_rehearsal_with_the_run_whose_sermon_it_duplicates(): void
+    {
+        $rehearsal = $this->heldRun('2025-11-29-morning');
+        $sunday = $this->heldRun('2025-11-30-morning');
+
+        $this->artisan('historic-import:exclude-run', [
+            '--operation' => $this->operation->operation_id,
+            '--processing-id' => [$rehearsal->processing_id],
+            '--reason' => MediaProcessingLog::EXCLUSION_REASON_REHEARSAL_DUPLICATE,
+            '--duplicates' => $sunday->processing_id,
+            '--note' => 'Saturday rehearsal of the Sunday sermon (ruling 2026-09-14).',
+            '--apply' => true,
+            '--yes' => true,
+        ])->assertSuccessful();
+
+        $fresh = $rehearsal->fresh();
+
+        $this->assertSame(MediaProcessingLog::EXCLUSION_REASON_REHEARSAL_DUPLICATE, $fresh?->exclusionReason());
+        $this->assertSame($sunday->processing_id, $fresh?->exclusionEvidence()['duplicates_processing_id'] ?? null);
+        $this->assertFalse($sunday->fresh()?->isExcluded());
+    }
+
+    #[Test]
+    public function it_refuses_a_rehearsal_that_does_not_name_the_run_it_duplicates(): void
+    {
+        $rehearsal = $this->heldRun();
+
+        $this->artisan('historic-import:exclude-run', [
+            '--operation' => $this->operation->operation_id,
+            '--processing-id' => [$rehearsal->processing_id],
+            '--reason' => MediaProcessingLog::EXCLUSION_REASON_REHEARSAL_DUPLICATE,
+            '--note' => 'A rehearsal of nothing in particular.',
+            '--apply' => true,
+            '--yes' => true,
+        ])->expectsOutputToContain('--duplicates')->assertFailed();
+
+        $this->assertFalse($rehearsal->fresh()?->isExcluded());
+    }
+
+    #[Test]
+    public function it_refuses_a_rehearsal_that_duplicates_itself(): void
+    {
+        $rehearsal = $this->heldRun();
+
+        $this->artisan('historic-import:exclude-run', [
+            '--operation' => $this->operation->operation_id,
+            '--processing-id' => [$rehearsal->processing_id],
+            '--reason' => MediaProcessingLog::EXCLUSION_REASON_REHEARSAL_DUPLICATE,
+            '--duplicates' => $rehearsal->processing_id,
+            '--note' => 'Names itself as the kept run.',
+            '--apply' => true,
+            '--yes' => true,
+        ])->assertFailed();
+
+        $this->assertFalse($rehearsal->fresh()?->isExcluded());
+    }
+
+    #[Test]
+    public function it_refuses_a_rehearsal_whose_kept_run_is_itself_excluded(): void
+    {
+        $rehearsal = $this->heldRun('2025-11-29-morning');
+        $sunday = $this->heldRun('2025-11-30-morning');
+        $sunday->putExclusion(MediaProcessingLog::EXCLUSION_REASON_NO_SERMON_IN_SOURCE, ['note' => 'Earlier decision.']);
+
+        $this->artisan('historic-import:exclude-run', [
+            '--operation' => $this->operation->operation_id,
+            '--processing-id' => [$rehearsal->processing_id],
+            '--reason' => MediaProcessingLog::EXCLUSION_REASON_REHEARSAL_DUPLICATE,
+            '--duplicates' => $sunday->processing_id,
+            '--note' => 'The kept run is gone, so this would exclude the only copy.',
+            '--apply' => true,
+            '--yes' => true,
+        ])->assertFailed();
+
+        $this->assertFalse($rehearsal->fresh()?->isExcluded());
+    }
+
+    #[Test]
+    public function it_refuses_a_duplicated_run_for_any_other_reason(): void
+    {
+        $run = $this->heldRun('2025-10-31-morning');
+        $other = $this->heldRun('2025-11-02-morning');
+
+        $this->artisan('historic-import:exclude-run', [
+            '--operation' => $this->operation->operation_id,
+            '--processing-id' => [$run->processing_id],
+            '--reason' => MediaProcessingLog::EXCLUSION_REASON_PRIVATE_OCCASION,
+            '--duplicates' => $other->processing_id,
+            '--note' => 'A funeral does not duplicate anything.',
+            '--apply' => true,
+            '--yes' => true,
+        ])->assertFailed();
+
+        $this->assertFalse($run->fresh()?->isExcluded());
+    }
+
+    #[Test]
+    public function it_records_a_private_occasion(): void
+    {
+        $funeral = $this->heldRun('2025-10-31-morning');
+
+        $this->artisan('historic-import:exclude-run', [
+            '--operation' => $this->operation->operation_id,
+            '--processing-id' => [$funeral->processing_id],
+            '--reason' => MediaProcessingLog::EXCLUSION_REASON_PRIVATE_OCCASION,
+            '--note' => 'A funeral: a real service that does not belong in the sermon archive (ruling 2026-09-14).',
+            '--apply' => true,
+            '--yes' => true,
+        ])->assertSuccessful();
+
+        $fresh = $funeral->fresh();
+
+        $this->assertSame(MediaProcessingLog::EXCLUSION_REASON_PRIVATE_OCCASION, $fresh?->exclusionReason());
+        $this->assertSame('excluded_private_occasion', HistoricImportAlert::query()->sole()->kind);
+    }
+
+    #[Test]
     public function it_will_not_overwrite_a_silent_source_exclusion(): void
     {
         $run = $this->heldRun();

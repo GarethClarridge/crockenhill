@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
@@ -534,6 +535,92 @@ class HistoricSermonReleaseBatchTest extends TestCase
 
         $this->assertSame($sermon->id, $replayed['sermons'][0]->id);
         $this->assertSame(SermonPublicationState::Published, $sermon->refresh()->publication_state);
+    }
+
+    /**
+     * An exclusion is recorded on the run, but the sermon and song videos that run
+     * created were already in quarantine and nothing withdrew them. Release has to
+     * refuse them, or a funeral reaches the public archive by being named in a batch.
+     * The Sunday sermon a rehearsal duplicates is a different run and still releases.
+     */
+    #[Test]
+    #[DataProvider('operatorExclusionReasons')]
+    public function a_batch_naming_an_excluded_runs_records_is_refused(string $reason): void
+    {
+        $operation = $this->completedOperation();
+        $excludedSermon = $this->quarantinedSermon($operation);
+        $keptSermon = $this->quarantinedSermon($operation);
+        $excludedRun = MediaProcessingLog::query()->where('sermon_id', $excludedSermon->id)->firstOrFail();
+        $songVideo = $this->quarantinedSongVideo($operation);
+        $songVideo->forceFill([
+            'service_section_id' => ServiceSection::factory()->create([
+                'media_processing_log_id' => $excludedRun->id,
+                'section_type' => ServiceSectionType::Song,
+                'needs_manual_review' => false,
+            ])->id,
+        ])->save();
+
+        $excludedRun->putExclusion($reason, ['recorded_by' => 'operator', 'note' => 'Ruling 2026-09-14.']);
+
+        $path = $this->authorisation($operation, [$excludedSermon->id, $keptSermon->id], [$songVideo->id]);
+
+        $this->artisan('historic-import:release-batch', ['authorisation' => $path, '--dry-run' => true])
+            ->expectsOutputToContain("Sermon {$excludedSermon->id} is excluded")
+            ->assertFailed();
+
+        $this->artisan('historic-import:release-batch', ['authorisation' => $path])
+            ->expectsOutputToContain('excluded')
+            ->assertFailed();
+
+        $this->assertQuarantineIntact($excludedSermon);
+        $this->assertQuarantineIntact($keptSermon);
+        $this->assertSame(SermonPublicationState::Quarantined, $songVideo->refresh()->publication_state);
+
+        $withoutExcluded = $this->authorisation($operation, [$keptSermon->id], [], overrides: [
+            'batch_key' => 'batch-two',
+            'authorisation_id' => 'release-2026-08-11',
+        ]);
+
+        $this->artisan('historic-import:release-batch', ['authorisation' => $withoutExcluded])
+            ->assertSuccessful();
+
+        $this->assertSame(SermonPublicationState::Published, $keptSermon->refresh()->publication_state);
+        $this->assertQuarantineIntact($excludedSermon);
+    }
+
+    #[Test]
+    public function a_song_video_from_an_excluded_run_is_refused_on_its_own(): void
+    {
+        $operation = $this->completedOperation();
+        $run = MediaProcessingLog::factory()->create(['historic_import_operation_id' => $operation->id]);
+        $songVideo = $this->quarantinedSongVideo($operation);
+        $songVideo->forceFill([
+            'service_section_id' => ServiceSection::factory()->create([
+                'media_processing_log_id' => $run->id,
+                'section_type' => ServiceSectionType::Song,
+                'needs_manual_review' => false,
+            ])->id,
+        ])->save();
+
+        $run->putExclusion(MediaProcessingLog::EXCLUSION_REASON_PRIVATE_OCCASION, ['note' => 'Funeral.']);
+
+        $path = $this->authorisation($operation, [], [$songVideo->id]);
+
+        $this->artisan('historic-import:release-batch', ['authorisation' => $path])
+            ->expectsOutputToContain("Song video {$songVideo->id} is excluded")
+            ->assertFailed();
+
+        $this->assertSame(SermonPublicationState::Quarantined, $songVideo->refresh()->publication_state);
+    }
+
+    /** @return array<string, array{string}> */
+    public static function operatorExclusionReasons(): array
+    {
+        return [
+            'rehearsal' => [MediaProcessingLog::EXCLUSION_REASON_REHEARSAL_DUPLICATE],
+            'private occasion' => [MediaProcessingLog::EXCLUSION_REASON_PRIVATE_OCCASION],
+            'no sermon in source' => [MediaProcessingLog::EXCLUSION_REASON_NO_SERMON_IN_SOURCE],
+        ];
     }
 
     /**

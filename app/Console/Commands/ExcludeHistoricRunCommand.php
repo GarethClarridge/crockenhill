@@ -24,6 +24,7 @@ class ExcludeHistoricRunCommand extends Command
                             {--operation= : Exact immutable historic operation that owns the runs}
                             {--processing-id=* : Exact processing ID to exclude; repeat for every run}
                             {--reason=no_sermon_in_source : Recorded exclusion reason}
+                            {--duplicates= : For a rehearsal, the processing ID of the kept run whose sermon it duplicates}
                             {--note= : The operator note that justifies the exclusion}
                             {--apply : Write the exclusion (default: dry-run)}
                             {--yes : Confirm the guarded --apply operation}';
@@ -43,7 +44,10 @@ class ExcludeHistoricRunCommand extends Command
                 throw new RuntimeException('--apply requires --yes confirmation; no changes were written.');
             }
 
-            $entries = $exclusion->inspect($operation, $processingIds, $reason);
+            $duplicates = $this->option('duplicates');
+            $duplicates = is_string($duplicates) && trim($duplicates) !== '' ? trim($duplicates) : null;
+
+            $entries = $exclusion->inspect($operation, $processingIds, $reason, $duplicates);
 
             $this->table(
                 ['Processing ID', 'Manifest item', 'Disposition now', 'Becomes'],
@@ -56,6 +60,11 @@ class ExcludeHistoricRunCommand extends Command
             );
 
             $this->line("Reason: {$reason}");
+
+            if ($duplicates !== null) {
+                $this->line("Kept:   {$duplicates}");
+            }
+
             $this->line('Note:   '.($note === '' ? '(none given)' : $note));
             $this->line('An exclusion is terminal and is not revisited. The run keeps its own status; only the disposition changes.');
 

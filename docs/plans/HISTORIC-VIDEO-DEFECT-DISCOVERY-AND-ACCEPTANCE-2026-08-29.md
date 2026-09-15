@@ -1601,6 +1601,28 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
   - Acceptance: a feature test per reason proves the rows cannot be released; the
     gate after application refuses all four runs for their exclusion; the Sunday
     sermons 976 and 1015 are unaffected.
+  - **Built test-first 2026-09-15 (not yet applied).** Two operator reasons,
+    `rehearsal_duplicate` and `private_occasion`. A rehearsal must name its kept run with
+    `--duplicates`, and that run must be a different run of the same operation that is
+    not itself excluded. *Chosen: release refuses, nothing is withdrawn.*
+    `HistoricReleaseReviewHolds` refuses any sermon whose run is excluded, and any song
+    video whose section's run is excluded, for every exclusion reason. The dry run and
+    live release both go through it. Search, sitemap, feeds and hymn usage only read
+    published rows, and none of the four services has a song usage report. There is no
+    membership builder to change: the signed authorisation is the membership, and the
+    gate refuses it. The tests cover each reason, the dry run, a live release, a song
+    video on its own, and the kept sermon releasing once the excluded record is dropped.
+  - **Gate before application** (`storage/scratch/exclusion-20260915-gate-before.json`):
+    of the seven rows, only sermons 1016 and 1025 and song video 231 are refused, and only
+    for unrelated review holds. **Sermons 977 and 985 and song videos 211 and 232 are
+    releasable today.** Sunday sermons 976 and 1015 carry no refusal.
+  - **Dry runs 2026-09-15:** 1043 (kept run 1042), 1089 (kept run 1088), and 1051 and 1098
+    as `private_occasion` each resolve to the intended run, all `completed`. Applying them,
+    and recording the gate after, awaits operator confirmation.
+  - *Service rows still to decide.* The public archive is disabled locally
+    (`public_from` null). Funeral services 1020 and 1022 carry song and Bible items, so
+    wherever the archive is enabled they get public service pages whatever their sermons'
+    state. Rehearsal service 1019 has a Bible item; 1021 has none that is public.
 - [ ] Design how operation 4 reaches `Complete` (§3.1 item 5) now, before
   convergence work depends on it, without manufacturing checkpoint or closeout state.
 - [ ] Re-run §4.1a's held-out validation on a fresh sample after repairs, as final

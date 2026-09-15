@@ -114,10 +114,26 @@ class MediaProcessingLog extends Model
      */
     public const EXCLUSION_REASON_NO_SERMON_IN_SOURCE = 'no_sermon_in_source';
 
+    /**
+     * The recording is a rehearsal of a sermon another run already carries — a
+     * Saturday take of Sunday's sermon, imported as a service of its own. The
+     * evidence names the kept run, so the exclusion cannot discard the only copy.
+     */
+    public const EXCLUSION_REASON_REHEARSAL_DUPLICATE = 'rehearsal_duplicate';
+
+    /**
+     * A real, correctly dated service that does not belong in the public archive,
+     * such as a funeral. Unlike the other reasons this is a ruling about the
+     * occasion, not a fact about the capture.
+     */
+    public const EXCLUSION_REASON_PRIVATE_OCCASION = 'private_occasion';
+
     /** Every reason a run may be excluded under. */
     public const EXCLUSION_REASONS = [
         self::EXCLUSION_REASON_SOURCE_AUDIO_SILENT,
         self::EXCLUSION_REASON_NO_SERMON_IN_SOURCE,
+        self::EXCLUSION_REASON_REHEARSAL_DUPLICATE,
+        self::EXCLUSION_REASON_PRIVATE_OCCASION,
     ];
 
     protected $fillable = [

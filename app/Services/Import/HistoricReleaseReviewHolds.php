@@ -26,6 +26,9 @@ use App\Services\ChurchService\Structure\ServiceStructureValidator;
  * a refused release is supposed to leave untouched. The stored
  * `needs_manual_review` column is the same fact the review queue shows an
  * operator, and agreeing with that is the point.
+ *
+ * A record whose run an operator excluded is refused the same way. Exclusion
+ * leaves the run's rows where they are, so release is the one place it binds.
  */
 class HistoricReleaseReviewHolds
 {
@@ -79,9 +82,93 @@ class HistoricReleaseReviewHolds
     public function assess(array $sermons, array $songVideos): array
     {
         return [
+            ...$this->sermonExclusions($sermons),
+            ...$this->songVideoExclusions($songVideos),
             ...$this->sermonHolds($sermons),
             ...$this->songVideoHolds($songVideos),
         ];
+    }
+
+    /**
+     * An exclusion is recorded on the run, but the sermon it created was already
+     * in quarantine and nothing withdraws it. Without this, a funeral or a
+     * rehearsal becomes public simply by being named in a batch.
+     *
+     * Any excluded run speaks for the sermon: a later run of the same sermon does
+     * not undo an operator's ruling about the recording.
+     *
+     * @param  list<Sermon>  $sermons
+     * @return list<string>
+     */
+    private function sermonExclusions(array $sermons): array
+    {
+        if ($sermons === []) {
+            return [];
+        }
+
+        $runs = MediaProcessingLog::query()
+            ->whereIn('sermon_id', array_map(static fn (Sermon $sermon): int => $sermon->id, $sermons))
+            ->orderBy('id')
+            ->get(['id', 'sermon_id', 'processing_id', 'processing_metadata']);
+
+        $exclusions = [];
+
+        foreach ($runs as $run) {
+            $reason = $run->exclusionReason();
+
+            if ($reason === null) {
+                continue;
+            }
+
+            $exclusions[] = "Sermon {$run->sermon_id} is excluded: run {$run->processing_id} is excluded as {$reason}.";
+        }
+
+        return $exclusions;
+    }
+
+    /**
+     * A song video reaches its run through the section it names.
+     *
+     * @param  list<SongVideo>  $songVideos
+     * @return list<string>
+     */
+    private function songVideoExclusions(array $songVideos): array
+    {
+        $sectionIds = array_values(array_filter(array_map(
+            static fn (SongVideo $video): ?int => $video->service_section_id,
+            $songVideos,
+        )));
+
+        if ($sectionIds === []) {
+            return [];
+        }
+
+        /** @var array<int, int> $runIdBySection */
+        $runIdBySection = ServiceSection::query()
+            ->whereIn('id', $sectionIds)
+            ->whereNotNull('media_processing_log_id')
+            ->pluck('media_processing_log_id', 'id')
+            ->all();
+
+        $excludedRuns = MediaProcessingLog::query()
+            ->whereIn('id', array_values(array_unique($runIdBySection)))
+            ->get(['id', 'processing_id', 'processing_metadata'])
+            ->filter(static fn (MediaProcessingLog $run): bool => $run->isExcluded())
+            ->keyBy('id');
+
+        $exclusions = [];
+
+        foreach ($songVideos as $video) {
+            $run = $excludedRuns->get($runIdBySection[$video->service_section_id] ?? 0);
+
+            if (! $run instanceof MediaProcessingLog) {
+                continue;
+            }
+
+            $exclusions[] = "Song video {$video->id} is excluded: run {$run->processing_id} is excluded as {$run->exclusionReason()}.";
+        }
+
+        return $exclusions;
     }
 
     /**

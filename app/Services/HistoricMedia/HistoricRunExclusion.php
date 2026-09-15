@@ -34,7 +34,21 @@ use RuntimeException;
  *  - *This recording holds no sermon* — the camera caught a different part of
  *    the service, or too little of it. That is a fact about the capture, not
  *    about the occasion, and it is still only establishable by a person who has
- *    watched the recording. That is the reason this class records.
+ *    watched the recording. That reason is recorded here.
+ *
+ * Two further reasons were ruled on 2026-09-14, and neither is "this service held
+ * no sermon" either:
+ *
+ *  - *This recording rehearses a sermon another run carries* — a Saturday take of
+ *    Sunday's sermon. The rehearsal's sermon is a real sermon, but a second copy.
+ *    The kept run is named and must itself stand, so the only copy is never the
+ *    one excluded.
+ *  - *This is a private occasion* — a funeral. A real, correctly dated service
+ *    whose sermon and songs do not belong in the public archive.
+ *
+ * Exclusion does not withdraw the rows a run already created. Release refuses
+ * them instead ({@see \App\Services\Import\HistoricReleaseReviewHolds}), so the
+ * ruling stays reversible and the quarantined bytes stay where they are.
  *
  * Deletion trigger: Delete once the historic import operation is closed out and
  * no further exclusion decisions can be recorded against it.
@@ -44,6 +58,8 @@ class HistoricRunExclusion
     /** Reasons an operator may record. Silent audio is excluded: the pipeline owns it. */
     public const OPERATOR_REASONS = [
         MediaProcessingLog::EXCLUSION_REASON_NO_SERMON_IN_SOURCE,
+        MediaProcessingLog::EXCLUSION_REASON_REHEARSAL_DUPLICATE,
+        MediaProcessingLog::EXCLUSION_REASON_PRIVATE_OCCASION,
     ];
 
     public function __construct(
@@ -55,12 +71,17 @@ class HistoricRunExclusion
      * them would do, without writing anything.
      *
      * @param  list<string>  $processingIds
-     * @return list<array{run: MediaProcessingLog, item_key: string, disposition_now: string, already_excluded: bool}>
+     * @return list<array{run: MediaProcessingLog, item_key: string, disposition_now: string, already_excluded: bool, duplicates: ?MediaProcessingLog}>
      */
-    public function inspect(HistoricImportOperation $operation, array $processingIds, string $reason): array
-    {
+    public function inspect(
+        HistoricImportOperation $operation,
+        array $processingIds,
+        string $reason,
+        ?string $duplicatesProcessingId = null,
+    ): array {
         $this->guardReason($reason);
 
+        $duplicates = $this->keptRun($operation, $processingIds, $reason, $duplicatesProcessingId);
         $entries = [];
 
         foreach ($processingIds as $processingId) {
@@ -93,6 +114,7 @@ class HistoricRunExclusion
                 'item_key' => (string) (data_get($run->processing_metadata?->toArray(), 'historic_import.manifest_item_key') ?? '(unknown)'),
                 'disposition_now' => $this->runDisposition($run),
                 'already_excluded' => $run->isExcluded(),
+                'duplicates' => $duplicates,
             ];
         }
 
@@ -108,7 +130,7 @@ class HistoricRunExclusion
      * makes the reason readable in the pass report. Re-running is a no-op for a
      * run already excluded under the same reason.
      *
-     * @param  list<array{run: MediaProcessingLog, item_key: string, disposition_now: string, already_excluded: bool}>  $entries
+     * @param  list<array{run: MediaProcessingLog, item_key: string, disposition_now: string, already_excluded: bool, duplicates: ?MediaProcessingLog}>  $entries
      * @return array{excluded: int, already_excluded: int}
      */
     public function apply(HistoricImportOperation $operation, array $entries, string $reason, string $note): array
@@ -132,13 +154,14 @@ class HistoricRunExclusion
             }
 
             DB::transaction(function () use ($run, $operation, $reason, $note, $entry): void {
-                $run->putExclusion($reason, [
+                $run->putExclusion($reason, array_filter([
                     'recorded_by' => 'operator',
                     'note' => $note,
                     'manifest_item_key' => $entry['item_key'],
                     'status_when_excluded' => $run->status->value,
                     'step_when_excluded' => $run->current_step,
-                ]);
+                    'duplicates_processing_id' => $entry['duplicates']?->processing_id,
+                ], static fn (mixed $value): bool => $value !== null));
 
                 $this->notificationRouter->suppressIfHistoric(
                     $run->fresh() ?? $run,
@@ -170,6 +193,58 @@ class HistoricRunExclusion
                 implode(', ', self::OPERATOR_REASONS),
             ));
         }
+    }
+
+    /**
+     * The run a rehearsal duplicates. It is required for that reason and refused
+     * for every other, and it must be a different run of the same operation that
+     * still stands — excluding a rehearsal whose kept run is gone would discard
+     * the sermon's only copy.
+     *
+     * @param  list<string>  $processingIds
+     */
+    private function keptRun(
+        HistoricImportOperation $operation,
+        array $processingIds,
+        string $reason,
+        ?string $duplicatesProcessingId,
+    ): ?MediaProcessingLog {
+        $isRehearsal = $reason === MediaProcessingLog::EXCLUSION_REASON_REHEARSAL_DUPLICATE;
+
+        if ($duplicatesProcessingId === null) {
+            if ($isRehearsal) {
+                throw new RuntimeException('A rehearsal exclusion must name the run whose sermon it duplicates with --duplicates.');
+            }
+
+            return null;
+        }
+
+        if (! $isRehearsal) {
+            throw new RuntimeException(sprintf(
+                '--duplicates applies only to [%s], not [%s].',
+                MediaProcessingLog::EXCLUSION_REASON_REHEARSAL_DUPLICATE,
+                $reason,
+            ));
+        }
+
+        if (in_array($duplicatesProcessingId, $processingIds, true)) {
+            throw new RuntimeException("Run [{$duplicatesProcessingId}] cannot be both excluded and the run it duplicates.");
+        }
+
+        $kept = MediaProcessingLog::query()
+            ->where('processing_id', $duplicatesProcessingId)
+            ->where('historic_import_operation_id', $operation->id)
+            ->first();
+
+        if (! $kept instanceof MediaProcessingLog) {
+            throw new RuntimeException("No run [{$duplicatesProcessingId}] exists in operation [{$operation->operation_id}].");
+        }
+
+        if ($kept->isExcluded()) {
+            throw new RuntimeException("Run [{$duplicatesProcessingId}] is itself excluded, so it cannot be the copy that is kept.");
+        }
+
+        return $kept;
     }
 
     private function runDisposition(MediaProcessingLog $run): string
