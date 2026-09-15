@@ -299,6 +299,7 @@ class SermonPagesTest extends TestCase
     {
         $processingLog = MediaProcessingLog::factory()->livestream()->create([
             'processing_id' => 'processing-reading',
+            'processing_metadata' => ['sermon_extraction_plan' => ['segments' => [['start_time' => 0.0, 'end_time' => 3600.0]]]],
         ]);
 
         $sermon = Sermon::factory()->create([
