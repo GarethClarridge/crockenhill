@@ -4,12 +4,19 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
+use App\Enums\ChurchServiceSource;
 use App\Enums\ProcessingStatus;
+use App\Enums\SermonService;
+use App\Models\ChurchService;
+use App\Models\ChurchServiceItem;
+use App\Models\ChurchServiceSourceRecord;
 use App\Models\HistoricImportAlert;
 use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
+use App\Services\ChurchService\SourceAdapters\LivestreamSourceAdapter;
 use App\Services\HistoricMedia\HistoricVideoPassStatus;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
@@ -41,6 +48,27 @@ class ExcludeHistoricRunCommandTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    /**
+     * The shape the historic import leaves: a service the run's projection created,
+     * described by that run's livestream source record alone.
+     */
+    private function serviceOwnedBy(MediaProcessingLog $run): ChurchService
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2025-11-29',
+            'service' => SermonService::Morning->value,
+        ]);
+        ChurchServiceItem::factory()->livestream()->create(['church_service_id' => $service->id]);
+        ChurchServiceSourceRecord::factory()->create([
+            'church_service_id' => $service->id,
+            'source' => ChurchServiceSource::Livestream,
+            'source_key' => $run->processing_id.'|v'.LivestreamSourceAdapter::FORMAT_VERSION,
+        ]);
+        $run->forceFill(['church_service_id' => $service->id])->save();
+
+        return $service;
     }
 
     #[Test]
@@ -309,6 +337,125 @@ class ExcludeHistoricRunCommandTest extends TestCase
 
         $this->assertSame(MediaProcessingLog::EXCLUSION_REASON_PRIVATE_OCCASION, $fresh?->exclusionReason());
         $this->assertSame('excluded_private_occasion', HistoricImportAlert::query()->sole()->kind);
+    }
+
+    /**
+     * A funeral or a rehearsal would never have been uploaded had the week been
+     * processed by hand, so its service goes too (operator ruling 2026-09-15). The
+     * service was manufactured from this run alone, and nothing is lost with it.
+     */
+    #[Test]
+    #[DataProvider('occasionReasons')]
+    public function an_occasion_exclusion_removes_the_service_the_run_alone_created(string $reason): void
+    {
+        $sunday = $this->heldRun('2025-11-30-morning');
+        $run = $this->heldRun('2025-11-29-morning');
+        $service = $this->serviceOwnedBy($run);
+
+        $this->artisan('historic-import:exclude-run', [
+            '--operation' => $this->operation->operation_id,
+            '--processing-id' => [$run->processing_id],
+            '--reason' => $reason,
+            '--duplicates' => $reason === MediaProcessingLog::EXCLUSION_REASON_REHEARSAL_DUPLICATE ? $sunday->processing_id : null,
+            '--note' => 'Ruling 2026-09-15.',
+        ])->expectsOutputToContain("service {$service->id}")->assertSuccessful();
+
+        $this->assertModelExists($service);
+
+        $this->artisan('historic-import:exclude-run', [
+            '--operation' => $this->operation->operation_id,
+            '--processing-id' => [$run->processing_id],
+            '--reason' => $reason,
+            '--duplicates' => $reason === MediaProcessingLog::EXCLUSION_REASON_REHEARSAL_DUPLICATE ? $sunday->processing_id : null,
+            '--note' => 'Ruling 2026-09-15.',
+            '--apply' => true,
+            '--yes' => true,
+        ])->assertSuccessful();
+
+        $this->assertModelMissing($service);
+        $this->assertSame(0, ChurchServiceItem::query()->where('church_service_id', $service->id)->count());
+        $this->assertSame(0, ChurchServiceSourceRecord::query()->where('church_service_id', $service->id)->count());
+
+        $fresh = $run->fresh();
+
+        $this->assertTrue($fresh?->isExcluded());
+        $this->assertNull($fresh?->church_service_id);
+        $this->assertSame($service->id, $fresh?->exclusionEvidence()['removed_service']['id'] ?? null);
+        $this->assertSame('2025-11-29', $fresh?->exclusionEvidence()['removed_service']['date'] ?? null);
+    }
+
+    /** @return array<string, array{string}> */
+    public static function occasionReasons(): array
+    {
+        return [
+            'rehearsal' => [MediaProcessingLog::EXCLUSION_REASON_REHEARSAL_DUPLICATE],
+            'private occasion' => [MediaProcessingLog::EXCLUSION_REASON_PRIVATE_OCCASION],
+        ];
+    }
+
+    /**
+     * A recording that holds no sermon still belongs to a real service (D1), so
+     * that reason never removes one.
+     */
+    #[Test]
+    public function a_no_sermon_exclusion_keeps_the_service(): void
+    {
+        $run = $this->heldRun();
+        $service = $this->serviceOwnedBy($run);
+
+        $this->artisan('historic-import:exclude-run', [
+            '--operation' => $this->operation->operation_id,
+            '--processing-id' => [$run->processing_id],
+            '--note' => 'The recording is the children\'s talk only.',
+            '--apply' => true,
+            '--yes' => true,
+        ])->assertSuccessful();
+
+        $this->assertModelExists($service);
+        $this->assertSame($service->id, $run->fresh()?->church_service_id);
+    }
+
+    #[Test]
+    public function it_refuses_to_remove_a_service_another_source_describes(): void
+    {
+        $run = $this->heldRun('2025-10-31-morning');
+        $service = $this->serviceOwnedBy($run);
+        ChurchServiceSourceRecord::factory()->create([
+            'church_service_id' => $service->id,
+            'source' => ChurchServiceSource::Email,
+        ]);
+
+        $this->artisan('historic-import:exclude-run', [
+            '--operation' => $this->operation->operation_id,
+            '--processing-id' => [$run->processing_id],
+            '--reason' => MediaProcessingLog::EXCLUSION_REASON_PRIVATE_OCCASION,
+            '--note' => 'Funeral with an emailed order of service.',
+            '--apply' => true,
+            '--yes' => true,
+        ])->expectsOutputToContain('another source')->assertFailed();
+
+        $this->assertModelExists($service);
+        $this->assertFalse($run->fresh()?->isExcluded());
+    }
+
+    #[Test]
+    public function it_refuses_to_remove_a_service_another_run_belongs_to(): void
+    {
+        $run = $this->heldRun('2025-10-31-morning');
+        $service = $this->serviceOwnedBy($run);
+        MediaProcessingLog::factory()->create(['church_service_id' => $service->id]);
+
+        $this->artisan('historic-import:exclude-run', [
+            '--operation' => $this->operation->operation_id,
+            '--processing-id' => [$run->processing_id],
+            '--reason' => MediaProcessingLog::EXCLUSION_REASON_PRIVATE_OCCASION,
+            '--note' => 'Another run shares the service.',
+            '--apply' => true,
+            '--yes' => true,
+        ])->expectsOutputToContain('another run')->assertFailed();
+
+        $this->assertModelExists($service);
+        $this->assertFalse($run->fresh()?->isExcluded());
     }
 
     #[Test]

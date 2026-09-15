@@ -50,12 +50,15 @@ class ExcludeHistoricRunCommand extends Command
             $entries = $exclusion->inspect($operation, $processingIds, $reason, $duplicates);
 
             $this->table(
-                ['Processing ID', 'Manifest item', 'Disposition now', 'Becomes'],
+                ['Processing ID', 'Manifest item', 'Disposition now', 'Becomes', 'Service'],
                 array_map(static fn (array $entry): array => [
                     $entry['run']->processing_id,
                     $entry['item_key'],
                     $entry['disposition_now'],
                     $entry['already_excluded'] ? 'excluded (unchanged)' : 'excluded',
+                    $entry['removes_service'] === null
+                        ? 'kept'
+                        : "removes service {$entry['removes_service']->id} ({$entry['removes_service']->date->toDateString()})",
                 ], $entries),
             );
 

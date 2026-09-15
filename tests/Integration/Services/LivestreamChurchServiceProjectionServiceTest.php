@@ -104,6 +104,27 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
         );
     }
 
+    /**
+     * An excluded run's service was removed by the operator's ruling. A retry or
+     * re-detection that projects the run again must not bring it back.
+     */
+    #[Test]
+    public function test_an_excluded_run_projects_no_service(): void
+    {
+        $log = $this->createProcessingLog('2025-10-31', SermonService::Morning);
+        $this->createSections($log, [
+            ['type' => ServiceSectionType::Song, 'title' => 'Abide With Me', 'confidence' => 0.95],
+        ]);
+        $log->putExclusion(MediaProcessingLog::EXCLUSION_REASON_PRIVATE_OCCASION, ['note' => 'Funeral.']);
+
+        $result = $this->service->project($log);
+
+        $this->assertFalse($result['projected']);
+        $this->assertStringContainsString('excluded', $result['reason']);
+        $this->assertSame(0, ChurchService::query()->count());
+        $this->assertNull($log->refresh()->church_service_id);
+    }
+
     #[Test]
     public function test_creates_new_service_and_items_when_no_matching_service_exists(): void
     {

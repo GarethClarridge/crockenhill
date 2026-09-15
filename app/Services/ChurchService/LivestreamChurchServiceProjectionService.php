@@ -50,6 +50,12 @@ class LivestreamChurchServiceProjectionService
      */
     public function project(MediaProcessingLog $processingLog, bool $refining = true): array
     {
+        // An operator excluded this run, which may have removed its service. A
+        // retry or re-detection must not bring that service back.
+        if ($processingLog->isExcluded()) {
+            return $this->skipped("Run is excluded ({$processingLog->exclusionReason()})");
+        }
+
         $identity = $this->identityResolver->resolve($processingLog);
 
         if ($identity === null) {
