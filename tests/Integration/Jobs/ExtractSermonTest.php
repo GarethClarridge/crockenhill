@@ -799,11 +799,12 @@ class ExtractSermonTest extends TestCase
         $this->assertNotSame('manual_review_required', $log->current_step);
         Mail::assertNothingQueued();
 
-        // The inclusive span is what was cut -- both trailing sections absorbed.
+        // The inclusive span is what was cut -- both trailing sections absorbed,
+        // running on to the next song's start.
         $plan = $log->processing_metadata['sermon_extraction_plan'] ?? null;
         $this->assertIsArray($plan);
         $this->assertEqualsWithDelta(600.0, $plan['segments'][0]['start_time'], 0.01);
-        $this->assertEqualsWithDelta(2220.0, $plan['segments'][0]['end_time'], 0.01);
+        $this->assertEqualsWithDelta(2230.0, $plan['segments'][0]['end_time'], 0.01);
 
         // ...and the reviewer has the evidence and the flag.
         $this->assertTrue($sermon->needs_manual_review);

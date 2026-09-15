@@ -439,11 +439,16 @@ class SermonExtractionPlanResolver
      * as the 2024-07-28 corpus run did by publishing to 2690s and losing the closing
      * appeal that ran to ~3055s.
      *
-     * This is the forward mirror of the reading pairing above: the same
-     * `adjacent_gap_seconds` guard, so a section beyond that gap is a separate element
-     * and ends the span. A song always ends it. The result is refused if it would take
-     * the sermon past the plausible ceiling, since that signals under-segmentation
-     * rather than a long conclusion.
+     * When a song is the next separate item, the span runs to that song's start,
+     * through unsectioned time as well as trailing sections: a closing prayer the
+     * detector left unsectioned is still the sermon's conclusion, and walking
+     * sections alone dropped it from seven sermons. With no song ahead — a
+     * concatenated recording with its songs excised, or a notice before the song —
+     * this is the forward mirror of the reading pairing above: the same
+     * `adjacent_gap_seconds` guard, so a section beyond that gap is a separate
+     * element and ends the span. The result is refused if it would take the sermon
+     * past the plausible ceiling, since that signals under-segmentation rather than
+     * a long conclusion.
      *
      * @return array{0: float, 1: list<int>, 2: array<string, mixed>}
      */
@@ -477,6 +482,11 @@ class SermonExtractionPlanResolver
         $cursor = $sermonEnd;
         $separateFollowing = null;
 
+        $nextSeparateItem = $following->first(
+            static fn (ServiceSection $section): bool => ! in_array($section->section_type, self::SERMON_TRAILING_TYPES, true),
+        );
+        $runsToNextSong = $nextSeparateItem?->section_type === ServiceSectionType::Song;
+
         foreach ($following as $section) {
             if (! in_array($section->section_type, self::SERMON_TRAILING_TYPES, true)) {
                 $separateFollowing = $section;
@@ -484,7 +494,7 @@ class SermonExtractionPlanResolver
                 break;
             }
 
-            if (((float) $section->start_time - $cursor) > $adjacentGapSeconds) {
+            if (! $runsToNextSong && ((float) $section->start_time - $cursor) > $adjacentGapSeconds) {
                 $separateFollowing = $section;
 
                 break;
@@ -492,6 +502,10 @@ class SermonExtractionPlanResolver
 
             $cursor = (float) $section->end_time;
             $absorbed[] = $section;
+        }
+
+        if ($runsToNextSong) {
+            $cursor = max($cursor, (float) $nextSeparateItem->start_time);
         }
 
         $risks = [];
@@ -546,7 +560,7 @@ class SermonExtractionPlanResolver
 
         $ceilingApplied = false;
 
-        if ($absorbed !== []
+        if ($cursor > $sermonEnd
             && $maxSermonDuration > 0.0
             && ($cursor - (float) $sermonSection->start_time) > $maxSermonDuration
         ) {
@@ -561,7 +575,9 @@ class SermonExtractionPlanResolver
                 ? ($separateFollowing instanceof ServiceSection && count($absorbed) === 1
                     ? 'retain_ambiguous_bridge'
                     : 'retain_inclusive')
-                : ($separateFollowing instanceof ServiceSection ? 'stop_at_separate_item' : 'retain_inclusive'));
+                : ($cursor > $sermonEnd
+                    ? 'retain_unsectioned_to_next_song'
+                    : ($separateFollowing instanceof ServiceSection ? 'stop_at_separate_item' : 'retain_inclusive')));
 
         return [
             $cursor,
@@ -716,27 +732,29 @@ class SermonExtractionPlanResolver
      * Select the bible reading most likely to be the preached text, ranked by evidence rather
      * than mere service order (F5). Overlapping readings are still returned when they are the
      * best candidate, so the caller's invalid-timing branch can handle them — the selection
-     * must not silently remove that branch.
+     * must not silently remove that branch. A held reading stays out unless it is the
+     * preached text held only for its place in the printed order.
      */
     private function selectBibleReading(MediaProcessingLog $processingLog, ServiceSection $sermonSection): ?ServiceSection
     {
+        $sermonStart = (float) $sermonSection->start_time;
+        $sermonReference = $this->sermonReference($sermonSection);
+
         /** @var EloquentCollection<int, ServiceSection> $candidates */
         $candidates = ServiceSection::query()
             ->where('media_processing_log_id', $processingLog->id)
             ->where('section_type', ServiceSectionType::BibleReading->value)
             ->where('status', ServiceSectionStatus::Identified->value)
-            ->where('needs_manual_review', false)
             ->where('confidence', '>=', ServiceSectionConfidence::HIGH_THRESHOLD)
             ->whereColumn('end_time', '>', 'start_time')
             ->with('churchServiceItem')
-            ->get();
+            ->get()
+            ->filter(fn (ServiceSection $reading): bool => ! $reading->needs_manual_review
+                || $this->isPreachedReadingHeldOnlyForOrder($reading, $sermonReference));
 
         if ($candidates->isEmpty()) {
             return null;
         }
-
-        $sermonStart = (float) $sermonSection->start_time;
-        $sermonReference = $this->sermonReference($sermonSection);
         $minReadingDuration = (float) config(
             'media-processing.section_extraction.enhanced_sermon.min_reading_duration_seconds',
             90
@@ -757,6 +775,26 @@ class SermonExtractionPlanResolver
         $reference = $sermonSection->metadata['sermon_reference'] ?? null;
 
         return is_string($reference) && trim($reference) !== '' ? $reference : null;
+    }
+
+    /**
+     * Whether a held reading is still the passage the sermon expounds.
+     *
+     * An OoS inversion questions where the reading sits in the printed order, not
+     * its own boundaries, so it must not drop the preached reading from the sermon
+     * media, as it did for 1075, 1254, 1286 and 1299. Only a reading whose reference
+     * overlaps the sermon's qualifies, and only when an inversion is its sole flag.
+     */
+    private function isPreachedReadingHeldOnlyForOrder(ServiceSection $reading, ?string $sermonReference): bool
+    {
+        $flags = $this->reviewFlags($reading);
+        $readingReference = $reading->metadata['reading_reference'] ?? null;
+
+        return $sermonReference !== null
+            && $flags !== []
+            && array_diff($flags, ['structure_oos_same_type_inversion', 'structure_oos_cross_type_inversion']) === []
+            && is_string($readingReference)
+            && $this->scriptureReferences->referencesOverlap($readingReference, $sermonReference);
     }
 
     /**

@@ -230,8 +230,58 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertSame(2100.0, $plan['segments'][0]['end_time']);
+        $this->assertSame(2110.0, $plan['segments'][0]['end_time']);
         $this->assertSame([], $plan['metadata']['trailing_section_ids']);
+    }
+
+    /**
+     * The §4.1b section coverage census: a closing prayer the detector left
+     * unsectioned was never published, because the span walked sections only.
+     * Seven sermons (1027, 981, 1193, 1299, 1172, 986, 990) lost theirs.
+     */
+    #[Test]
+    public function it_extends_the_published_span_through_an_unsectioned_closing_prayer_to_the_next_song(): void
+    {
+        config(['media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60]);
+
+        $log = $this->logWithSermon(630.0, 2100.0);
+        $this->section($log, ServiceSectionType::Song, 3, 2250.0, 2450.0);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame(2250.0, $plan['segments'][0]['end_time']);
+        $this->assertSame([], $plan['metadata']['trailing_section_ids']);
+    }
+
+    #[Test]
+    public function it_extends_through_trailing_sections_beyond_the_adjacency_window_when_a_song_follows(): void
+    {
+        config(['media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60]);
+
+        $log = $this->logWithSermon(630.0, 2100.0);
+        $prayer = $this->section($log, ServiceSectionType::Prayer, 3, 2400.0, 2500.0);
+        $this->section($log, ServiceSectionType::Song, 4, 2530.0, 2700.0);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame(2530.0, $plan['segments'][0]['end_time']);
+        $this->assertSame([$prayer->id], $plan['metadata']['trailing_section_ids']);
+    }
+
+    #[Test]
+    public function it_refuses_an_unsectioned_extension_that_would_pass_the_sermon_ceiling(): void
+    {
+        config([
+            'media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60,
+            'media-processing.section_extraction.enhanced_sermon.max_sermon_duration_seconds' => 1500,
+        ]);
+
+        $log = $this->logWithSermon(630.0, 2100.0);
+        $this->section($log, ServiceSectionType::Song, 3, 2200.0, 2400.0);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame(2100.0, $plan['segments'][0]['end_time']);
     }
 
     #[Test]
@@ -245,7 +295,7 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertSame(2150.0, $plan['segments'][0]['end_time']);
+        $this->assertSame(2160.0, $plan['segments'][0]['end_time']);
         $this->assertSame([$bridge->id], $plan['metadata']['trailing_section_ids']);
         $this->assertSame('retain_ambiguous_bridge', $plan['metadata']['sermon_boundary']['decision']);
         $this->assertFalse($plan['metadata']['sermon_boundary']['requires_review']);
@@ -263,7 +313,7 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertSame(2220.0, $plan['segments'][0]['end_time']);
+        $this->assertSame(2230.0, $plan['segments'][0]['end_time']);
         $this->assertTrue($plan['metadata']['sermon_boundary']['requires_review']);
         $this->assertContains(
             'sermon_boundary_multiple_following_items',
@@ -321,7 +371,7 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertSame($tail->end_time, $plan['segments'][0]['end_time']);
+        $this->assertSame(2400.0, $plan['segments'][0]['end_time']);
         $this->assertFalse($plan['metadata']['sermon_boundary']['requires_review']);
         $this->assertSame([], $plan['metadata']['sermon_boundary']['risks']);
     }
@@ -603,6 +653,66 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $this->assertSame($philippians->id, $plan['metadata']['bible_section_id']);
         $this->assertSame(1106.0, $plan['segments'][0]['start_time']);
+    }
+
+    /**
+     * The §4.1b Scripture census: a same-type OoS inversion held the preached
+     * reading, and the held-reading filter then dropped it from the sermon
+     * media (1075, 1254, 1286, 1299). An ordering flag says nothing about the
+     * reading's own boundaries.
+     */
+    #[Test]
+    public function it_keeps_a_reading_held_only_for_an_ordering_flag_when_it_matches_the_sermon_reference(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 200.0,
+        ]);
+
+        $this->reading($log, order: 1, start: 548.0, end: 716.0, reference: 'Psalm 72');
+
+        $preachedText = $this->reading($log, order: 2, start: 1106.0, end: 1278.0, reference: 'Philippians 2:5-11');
+        $preachedText->update([
+            'needs_manual_review' => true,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'reading_reference' => 'Philippians 2:5-11',
+                'review_flags' => ['structure_oos_same_type_inversion'],
+            ],
+        ]);
+
+        $this->sermon($log, order: 3, start: 1300.0, end: 2914.0, reference: 'Philippians 2:5-11');
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame($preachedText->id, $plan['metadata']['bible_section_id']);
+        $this->assertSame(1106.0, $plan['segments'][0]['start_time']);
+    }
+
+    #[Test]
+    public function it_still_excludes_a_held_reading_that_does_not_match_the_sermon_reference(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 200.0,
+        ]);
+
+        $heldReading = $this->reading($log, order: 1, start: 1106.0, end: 1278.0, reference: 'Psalm 72');
+        $heldReading->update([
+            'needs_manual_review' => true,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'reading_reference' => 'Psalm 72',
+                'review_flags' => ['structure_oos_same_type_inversion'],
+            ],
+        ]);
+
+        $this->sermon($log, order: 2, start: 1300.0, end: 2914.0, reference: 'Philippians 2:5-11');
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertNull($plan['metadata']['bible_section_id'] ?? null);
+        $this->assertSame(1300.0, $plan['segments'][0]['start_time']);
     }
 
     #[Test]
