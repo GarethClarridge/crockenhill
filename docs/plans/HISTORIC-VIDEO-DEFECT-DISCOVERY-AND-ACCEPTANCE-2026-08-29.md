@@ -1726,6 +1726,11 @@ closes §4.3's stale-verdict item for boundary evidence.
       historic quarantine.
     - Their holds: 39 `content_defect_hold`, 3 `song_identity_contradicted_by_transcript`, and 1
       order-of-service cross-type inversion with a content hold.
+  - **The two funeral song sections were demoted too** (operator, same day): §1588 (run 1051)
+    and §1832 (run 1098), `handler_ineligible`, neither visible nor refused. They are now
+    `not_applicable`; their song videos (211 for §1588, 232 for §1832) remain, and release
+    already refuses them because their runs are excluded. A fresh `--all` dry run now finds nothing to demote
+    across 355 published sections.
 
 - [ ] Fill the table's "pipeline item" column with a tested change or a recorded
   decision not to detect, for every row, before §4.5 acceptance.
