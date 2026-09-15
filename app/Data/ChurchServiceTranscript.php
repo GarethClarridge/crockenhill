@@ -186,11 +186,13 @@ final readonly class ChurchServiceTranscript extends JsonData
      */
     public function toPromptText(): string
     {
-        $format = static function (float $seconds): string {
-            $totalSeconds = (int) floor($seconds);
-
-            return sprintf('%d:%02d', intdiv($totalSeconds, 60), $totalSeconds % 60);
-        };
+        /**
+         * Seconds, the unit the model must return. Shown as `m:ss`, "25:17" came
+         * back as 1577 rather than 1517: a real cue exactly one minute late, which
+         * grounding validation cannot tell from a correct answer (1203 §2535,
+         * 1183 §2391, 1305 §3894).
+         */
+        $format = static fn (float $seconds): string => (string) (int) floor($seconds);
 
         $entries = array_map(
             static fn (array $cue): array => [

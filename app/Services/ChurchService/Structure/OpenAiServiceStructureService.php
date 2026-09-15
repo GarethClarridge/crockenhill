@@ -237,7 +237,7 @@ TEXT;
             }
         }
 
-        $lines[] = 'Timestamped transcript ([start-end] as minutes:seconds, then the spoken text):';
+        $lines[] = 'Timestamped transcript ([start-end] in seconds into the recording, the unit start_time and end_time use, then the spoken text):';
         $lines[] = $transcript->toPromptText();
 
         return [

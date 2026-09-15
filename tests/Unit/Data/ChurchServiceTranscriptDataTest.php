@@ -23,7 +23,7 @@ class ChurchServiceTranscriptDataTest extends TestCase
         $restored = ChurchServiceTranscript::fromArray($transcript->toArray());
 
         $this->assertSame($transcript->unobservableWindows, $restored->unobservableWindows);
-        $this->assertStringContainsString('[0:00-20:00] TRANSCRIPT UNOBSERVABLE', $restored->toPromptText());
+        $this->assertStringContainsString('[0-1200] TRANSCRIPT UNOBSERVABLE', $restored->toPromptText());
     }
 
     #[Test]
@@ -130,7 +130,10 @@ class ChurchServiceTranscriptDataTest extends TestCase
         ], 5600.0, ChurchServiceTranscript::SOURCE_MOCK);
 
         $this->assertSame(
-            "[0:00-0:05] Welcome everyone.\n[1:05-1:10] Our first hymn.\n[92:05-92:10] A closing word.",
+            // Seconds, the unit the model must return: shown as `m:ss`, 25:17 came
+            // back as 26:17 (1203 §2535, 1183 §2391, 1305 §3894), a real cue
+            // exactly one minute late that validation could not catch.
+            "[0-5] Welcome everyone.\n[65-70] Our first hymn.\n[5525-5530] A closing word.",
             $transcript->toPromptText()
         );
     }
