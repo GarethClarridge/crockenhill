@@ -166,7 +166,7 @@ class ServiceStructureClassifiedSectionsTest extends TestCase
 
         $this->assertSame('service_sections', $plan['source']);
         $this->assertSame(420.0, $plan['segments'][0]['start_time'], 'The paired reading opens the extraction.');
-        $this->assertSame(2200.0, $plan['segments'][array_key_last($plan['segments'])]['end_time']);
+        $this->assertSame(2210.0, $plan['segments'][array_key_last($plan['segments'])]['end_time'], 'The span runs to the next song.');
     }
 
     #[Test]
