@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Jobs;
 
+use App\Actions\FlagSermonAudioLengthMismatch;
 use App\Enums\ServiceSectionType;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\ExtractSermon;
@@ -236,8 +237,17 @@ class ExtractSermonTest extends TestCase
             )
             ->willReturn('extracted/classified-preferred-video.mp4');
 
+        // A single span is cut once, as video; the MP3 is that video's whole audio
+        // track, never a second independent cut from the source.
         $mockExtractor->expects($this->once())
             ->method('extractOptimizedAudio')
+            ->with(
+                Storage::disk('local')->path('extracted/classified-preferred-video.mp4'),
+                $this->callback(fn ($segment): bool => $segment instanceof \App\Data\LivestreamSegment
+                    && $segment->startTime === 0.0
+                    && $segment->endTime === 1800.0),
+                $this->anything()
+            )
             ->willReturn([
                 'audio_path' => 'extracted/classified-preferred.mp3',
                 'full_path' => $extractedAudioFile,
@@ -500,11 +510,14 @@ class ExtractSermonTest extends TestCase
         $mockExtractor->expects($this->once())
             ->method('extractOptimizedAudio')
             ->with(
+                // The MP3 is the final video's whole audio track: the stream-copied
+                // join runs longer or shorter than the plan, and cutting it to the
+                // planned 1380 s lost the closing words of 12 historic sermons.
                 $concatVideo,
                 $this->callback(function ($segment): bool {
                     return $segment instanceof \App\Data\LivestreamSegment
                         && $segment->startTime === 0.0
-                        && $segment->endTime === 1380.0;
+                        && $segment->endTime === 1325.25;
                 }),
                 $this->anything()
             )
@@ -1240,17 +1253,9 @@ class ExtractSermonTest extends TestCase
         $mockExtractor->expects($this->once())
             ->method('extractSegmentAsFile')
             ->willReturn('extracted/zero-duration-video.mp4');
-        $mockExtractor->expects($this->once())
-            ->method('extractOptimizedAudio')
-            ->willReturn([
-                'audio_path' => 'extracted/zero-duration-audio.mp3',
-                'full_path' => $extractedAudioFile,
-                'original_size' => 1024,
-                'final_size' => 512,
-                'compression_applied' => false,
-                'compression_ratio' => 1.0,
-                'valid_for_transcription' => true,
-            ]);
+        // The MP3 is made from the measured video, so an empty video is refused
+        // before any audio is cut from it.
+        $mockExtractor->expects($this->never())->method('extractOptimizedAudio');
 
         $mockStorage = $this->createStub(VideoStorageService::class);
 
@@ -1604,6 +1609,82 @@ class ExtractSermonTest extends TestCase
         return $extractor;
     }
 
+    /**
+     * The §4.1b duration census: 12 sermon MP3s lost their closing words while
+     * their videos kept them. An MP3 that is not its video's whole audio track is
+     * held, whatever produced it.
+     */
+    #[Test]
+    public function it_holds_the_sermon_when_its_mp3_is_shorter_than_its_video(): void
+    {
+        $sourceDirectory = storage_path('app/livestreams');
+        if (! is_dir($sourceDirectory)) {
+            mkdir($sourceDirectory, 0755, true);
+        }
+        file_put_contents($sourceDirectory.'/audio-length.mp4', str_repeat("\x00", 1024));
+
+        $extractedDirectory = storage_path('app/extracted');
+        if (! is_dir($extractedDirectory)) {
+            mkdir($extractedDirectory, 0755, true);
+        }
+        $extractedAudioFile = $extractedDirectory.'/audio-length.mp3';
+        file_put_contents($extractedAudioFile, str_repeat("\xFF\xFB", 512));
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'sermon_start_time' => null,
+            'sermon_end_time' => null,
+            'source_file_path' => 'livestreams/audio-length.mp4',
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => 'sermon',
+            'start_time' => 420.0,
+            'end_time' => 1980.0,
+            'duration' => 1560.0,
+            'needs_manual_review' => false,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'classification_mode' => 'openlp_aligned',
+            ],
+        ]);
+
+        $extractor = $this->createStub(VideoExtractionService::class);
+        $extractor->method('extractSegmentAsFile')->willReturn('extracted/audio-length-video.mp4');
+        $extractor->method('extractOptimizedAudio')->willReturn([
+            'audio_path' => 'extracted/audio-length.mp3',
+            'full_path' => $extractedAudioFile,
+            'original_size' => 1024,
+            'final_size' => 1024,
+            'compression_applied' => false,
+            'compression_ratio' => 1.0,
+            'valid_for_transcription' => true,
+        ]);
+
+        $videoLength = $this->createStub(Format::class);
+        $videoLength->method('get')->willReturn(1560.0);
+        $audioLength = $this->createStub(Format::class);
+        $audioLength->method('get')->willReturn(1548.0);
+
+        $ffprobe = $this->createStub(FFProbe::class);
+        $ffprobe->method('format')->willReturnCallback(
+            fn (string $path): Format => str_ends_with($path, '.mp3') ? $audioLength : $videoLength,
+        );
+
+        Log::shouldReceive('info')->zeroOrMoreTimes();
+        Log::shouldReceive('warning')->zeroOrMoreTimes();
+
+        $this->runJob(new ExtractSermon($log), $extractor, $this->createStub(VideoStorageService::class), $ffprobe);
+
+        $log->refresh();
+        $section->refresh();
+
+        $this->assertSame('extraction_complete', $log->current_step);
+        $this->assertEqualsWithDelta(1548.0, $log->processing_metadata['trim']['audio_duration'] ?? null, 0.01);
+        $this->assertContains(FlagSermonAudioLengthMismatch::FLAG, $section->metadata?->toArray()['review_flags'] ?? []);
+        $this->assertTrue($section->needs_manual_review);
+    }
+
     private function runJob(
         ExtractSermon $job,
         VideoExtractionService $mockExtractor,
@@ -1635,10 +1716,11 @@ class ExtractSermonTest extends TestCase
             return $ffprobe;
         }
 
+        // The final video is measured, then the MP3 made from it.
         $ffprobe = $this->createMock(FFProbe::class);
-        $ffprobe->expects($this->once())
+        $ffprobe->expects($this->exactly(2))
             ->method('format')
-            ->with($expectedPath)
+            ->with($this->logicalOr($expectedPath, $this->stringEndsWith('.mp3')))
             ->willReturn($format);
 
         return $ffprobe;

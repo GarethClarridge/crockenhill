@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Actions\FlagSermonAudioLengthMismatch;
 use App\Actions\FlagSermonPartsNotExtracted;
 use App\Actions\FlagSermonTextPredatesEvidence;
-
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 
 /**
@@ -53,7 +53,7 @@ class SermonAutoExtractionPolicy
      * shape: the policy is to publish the inclusive span and let a reviewer
      * decide afterwards, so refusing to extract would leave nothing to review.
      *
-     * The last two are about the sermon's *text* and its *media*, and neither
+     * The last three are about the sermon's *text* and its *media*, and none
      * moves the span. Disqualifying on them inverts the repair each one asks for.
      *
      * `sermon_text_predates_evidence` says the saved text was sliced from a
@@ -67,6 +67,9 @@ class SermonAutoExtractionPolicy
      * media; if raising it forces the baseline path, the next comparison finds
      * nothing missing and withdraws the hold. The flag would erase itself and
      * leave a sermon missing sixteen minutes looking clean (P8-Q15).
+     *
+     * `sermon_audio_length_mismatch` is the same shape: only a re-extraction can
+     * make the MP3 agree with its video again and withdraw it.
      */
     private const NON_DISQUALIFYING_REVIEW_FLAGS = [
         ServiceStructureValidator::FLAG_OOS_CROSS_TYPE_INVERSION,
@@ -75,6 +78,7 @@ class SermonAutoExtractionPolicy
         ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK,
         FlagSermonTextPredatesEvidence::FLAG,
         FlagSermonPartsNotExtracted::FLAG,
+        FlagSermonAudioLengthMismatch::FLAG,
     ];
 
     /**

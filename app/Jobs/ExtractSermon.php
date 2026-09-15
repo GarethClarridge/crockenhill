@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Actions\FlagSermonAudioLengthMismatch;
 use App\Data\LivestreamSegment;
 use App\Data\ServiceSectionMetadata;
 use App\Data\ServiceSermonAbsence;
@@ -158,37 +159,35 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                         $extractionPlan['segments'],
                         $this->processingLog->processing_id.'_sermon.mp4'
                     );
-
-                    $sermonVideoAbsolutePath = Storage::disk($tempDisk)->path($sermonVideoPath);
-                    $audioSegment = $this->createSermonSegment(0.0, $plannedDuration);
-
-                    $audioExtractionResult = $videoExtractor->extractOptimizedAudio(
-                        $sermonVideoAbsolutePath,
-                        $audioSegment,
-                        $this->processingLog->processing_id.'_sermon.mp3'
-                    );
                 } else {
-                    $sermonSegment = $this->createSermonSegment(
-                        (float) $firstSegment['start_time'],
-                        (float) $firstSegment['end_time']
-                    );
-
                     $sermonVideoPath = $videoExtractor->extractSegmentAsFile(
                         $videoPath,
-                        $sermonSegment,
+                        $this->createSermonSegment(
+                            (float) $firstSegment['start_time'],
+                            (float) $firstSegment['end_time']
+                        ),
                         $this->processingLog->processing_id.'_sermon.mp4'
-                    );
-                    $sermonVideoAbsolutePath = Storage::disk($tempDisk)->path($sermonVideoPath);
-
-                    $audioExtractionResult = $videoExtractor->extractOptimizedAudio(
-                        $videoPath,
-                        $sermonSegment,
-                        $this->processingLog->processing_id.'_sermon.mp3'
                     );
                 }
 
-                $sermonAudioPath = $audioExtractionResult['audio_path'];
+                $sermonVideoAbsolutePath = Storage::disk($tempDisk)->path($sermonVideoPath);
                 $observedDuration = $durationProbe->durationOf($sermonVideoAbsolutePath);
+
+                /**
+                 * The MP3 is the final video's whole audio track, in both modes.
+                 * It used to be cut again: from the stream-copied join to the
+                 * planned length for a concat plan, and independently from the
+                 * source for a single span. The copied video runs past the plan
+                 * from its keyframe, so either cut could drop the closing words,
+                 * and 12 historic sermons lost them.
+                 */
+                $audioExtractionResult = $videoExtractor->extractOptimizedAudio(
+                    $sermonVideoAbsolutePath,
+                    $this->createSermonSegment(0.0, $observedDuration),
+                    $this->processingLog->processing_id.'_sermon.mp3'
+                );
+
+                $sermonAudioPath = $audioExtractionResult['audio_path'];
             } finally {
                 // Clean up temporary S3 download file if we created one
                 if ($isS3TempDisk) {
@@ -212,6 +211,9 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                 'verification_method' => $this->isS3Path($audioFullPath) ? 's3_storage' : 'local_filesystem',
             ]);
 
+            $audioDuration = $this->measuredAudioDuration($durationProbe, $audioFullPath);
+            (new FlagSermonAudioLengthMismatch)($this->processingLog, $observedDuration, $audioDuration);
+
             /**
              * Read before the update: the trim block about to be overwritten is
              * the only record of what the stored video was cut from on runs that
@@ -233,6 +235,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                             'original_duration' => $this->processingLog->duration,
                             'final_duration' => $plannedDuration,
                             'observed_duration' => $observedDuration,
+                            'audio_duration' => $audioDuration,
                             'trim_start' => (float) $extractionPlan['segments'][0]['start_time'],
                             'trim_end' => (float) $extractionPlan['segments'][count($extractionPlan['segments']) - 1]['end_time'],
                             'segments' => $extractionPlan['segments'],
@@ -629,6 +632,28 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
             'sermon_section_id' => $section->id,
             'risks' => $evidence['risks'] ?? [],
         ]);
+    }
+
+    /**
+     * The length of the MP3 just written, or null when it cannot be measured.
+     *
+     * Unmeasured is not a mismatch: an audio path the probe cannot reach makes no
+     * claim about the MP3, so {@see FlagSermonAudioLengthMismatch} leaves the hold
+     * as it was rather than raising or withdrawing it on no evidence.
+     */
+    private function measuredAudioDuration(ExtractedMediaDurationProbe $durationProbe, string $audioFullPath): ?float
+    {
+        try {
+            return $durationProbe->durationOf($audioFullPath);
+        } catch (\RuntimeException $exception) {
+            Log::warning('Sermon MP3 length could not be measured against its video', [
+                'processing_id' => $this->processingLog->processing_id,
+                'audio_full_path' => $audioFullPath,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 
     private function sermonSectionById(mixed $sectionId): ?ServiceSection
