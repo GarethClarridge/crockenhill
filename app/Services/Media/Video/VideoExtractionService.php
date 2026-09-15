@@ -34,6 +34,24 @@ class VideoExtractionService
      */
     private const MP4_NATIVE_AUDIO_CODECS = ['aac'];
 
+    /** Presentation times read back as text differ from their packets by rounding. */
+    private const TIMESTAMP_EPSILON_SECONDS = 0.001;
+
+    /** One frame at 24 fps, the longest frame a cut assumes when it cannot read one. */
+    private const DEFAULT_FRAME_SECONDS = 1 / 24;
+
+    /**
+     * How far a cut's streams may run from its span. A 40-minute weekly cut ran
+     * 60 ms long; the census defects ran to seconds.
+     */
+    private const LENGTH_TOLERANCE_SECONDS = 0.1;
+
+    /** One AAC frame at 44.1 kHz, the step an output-seek copy of the sound lands on. */
+    private const AUDIO_FRAME_SECONDS = 0.025;
+
+    /** Packets read either side of a span, enough to reach its keyframes. */
+    private const PACKET_WINDOW_PAD_SECONDS = 30.0;
+
     private string $tempDisk;
 
     private string $permanentDisk;
@@ -109,9 +127,6 @@ class VideoExtractionService
             // Ensure temp directory exists using storage disk
             Storage::disk($tempDisk)->makeDirectory(dirname($relativePath));
 
-            $ffmpegPath = config('media-processing.ffmpeg.ffmpeg_path');
-            $duration = $endTime - $startTime;
-
             /**
              * A stream copy inherits the source bitrate, which is right for the
              * current recording setup but wasteful for camera-original material.
@@ -122,34 +137,21 @@ class VideoExtractionService
                 return $this->extractSegmentWithReencoding($inputPath, $segment, $outputFilename);
             }
 
-            // Use stream copy for maximum speed and quality preservation
-            $seek = $this->streamCopySeekArguments((float) $startTime);
+            $plan = $this->smartCutPlan($inputPath, (float) $startTime, (float) $endTime);
 
-            $command = [
-                $ffmpegPath,
-                ...$seek['input'],
-                '-i', escapeshellarg($inputPath),
-                ...$seek['output'],
-                '-t', (string) $duration,
-                '-c', 'copy',  // Stream copy - no re-encoding
-                '-avoid_negative_ts', 'make_zero',  // Handle timestamp issues
-                escapeshellarg($tempPath),
-            ];
+            if ($plan === null) {
+                return $this->extractSegmentWithReencoding($inputPath, $segment, $outputFilename);
+            }
 
-            $commandString = implode(' ', $command);
-            Log::info('Executing FFmpeg stream copy command', [
-                'command' => $commandString,
-                'start_time' => $startTime,
-                'duration' => $duration,
-            ]);
-
-            exec($commandString.' 2>&1', $output, $returnCode);
-
-            if ($returnCode !== 0) {
-                Log::warning('Stream copy failed, attempting fallback to re-encoding', [
-                    'return_code' => $returnCode,
-                    'output' => implode("\n", $output),
+            try {
+                $this->writeSmartCut($inputPath, (float) $startTime, $plan, $tempPath);
+            } catch (VideoProcessingException $exception) {
+                Log::warning('Smart cut failed, attempting fallback to re-encoding', [
+                    'input_path' => $inputPath,
+                    'start_time' => $startTime,
+                    'error' => $exception->getMessage(),
                 ]);
+                Storage::disk($tempDisk)->delete($relativePath);
 
                 return $this->extractSegmentWithReencoding($inputPath, $segment, $outputFilename);
             }
@@ -159,13 +161,26 @@ class VideoExtractionService
                 throw new VideoProcessingException('Output file was not created: '.$tempPath);
             }
 
-            Log::info('Video segment extracted with stream copy (original quality)', [
+            if (! $this->cutIsAligned($tempPath, $plan['expected_duration'], $plan['frame_seconds'])) {
+                Log::warning('Smart cut did not start picture and sound together for its span; re-encoding instead', [
+                    'input_path' => $inputPath,
+                    'start_time' => $startTime,
+                    'end_time' => $endTime,
+                ]);
+                Storage::disk($tempDisk)->delete($relativePath);
+
+                return $this->extractSegmentWithReencoding($inputPath, $segment, $outputFilename);
+            }
+
+            Log::info('Video segment extracted with a smart cut (copied between its keyframes)', [
                 'input_path' => $inputPath,
                 'output_path' => $tempPath,
                 'relative_path' => $relativePath,
                 'start_time' => $startTime,
                 'end_time' => $endTime,
-                'duration' => $duration,
+                'keyframe' => $plan['keyframe'],
+                'last_keyframe' => $plan['last_keyframe'],
+                'copied_frames' => $plan['copy_frames'],
                 'output_size' => $this->getFileSize($relativePath, $tempDisk),
             ]);
 
@@ -245,24 +260,28 @@ class VideoExtractionService
             file_put_contents($concatFileAbsolutePath, $concatListContent);
 
             $ffmpegPath = (string) config('media-processing.ffmpeg.ffmpeg_path');
-            $concatCommand = [
-                $ffmpegPath,
-                '-f', 'concat',
-                '-safe', '0',
-                '-i', escapeshellarg($concatFileAbsolutePath),
-                '-c', 'copy',
-                '-y',
-                escapeshellarg($outputAbsolutePath),
-            ];
+            $clipAbsolutePaths = array_map(
+                static fn (string $clipRelativePath): string => Storage::disk($tempDisk)->path($clipRelativePath),
+                $clipRelativePaths,
+            );
 
-            $concatCommandString = implode(' ', $concatCommand);
-            exec($concatCommandString.' 2>&1', $concatOutput, $concatReturnCode);
+            /**
+             * Each part now opens on a short re-encode, so its parameter sets differ
+             * from the copied frames after it. The MPEG-TS join carries them in-band
+             * before every keyframe; a copied `.mp4` join keeps only the first
+             * part's, which a stricter decoder applies to frames they do not fit.
+             */
+            try {
+                $this->joinThroughTransportStream($clipAbsolutePaths, $outputAbsolutePath, withAudio: true);
+                $concatReturnCode = 0;
+            } catch (VideoProcessingException $exception) {
+                $concatReturnCode = 1;
+                Log::warning('FFmpeg concat stream copy failed; retrying with re-encode fallback', [
+                    'error' => $exception->getMessage(),
+                ]);
+            }
 
             if ($concatReturnCode !== 0) {
-                Log::warning('FFmpeg concat stream copy failed; retrying with re-encode fallback', [
-                    'command' => $concatCommandString,
-                    'output' => implode("\n", $concatOutput),
-                ]);
 
                 $fallbackCommand = [
                     $ffmpegPath,
@@ -285,6 +304,22 @@ class VideoExtractionService
 
             if (! $this->fileExists($outputRelativePath, $tempDisk)) {
                 throw new VideoProcessingException('Concatenated output file was not created');
+            }
+
+            $partSeconds = array_map(
+                fn (string $clipAbsolutePath): ?float => $this->cutStreams($clipAbsolutePath)['video']['duration'] ?? null,
+                $clipAbsolutePaths,
+            );
+
+            if (! in_array(null, $partSeconds, true)
+                && ! $this->cutIsAligned(
+                    $outputAbsolutePath,
+                    array_sum($partSeconds),
+                    self::DEFAULT_FRAME_SECONDS,
+                    self::LENGTH_TOLERANCE_SECONDS * count($partSeconds),
+                )
+            ) {
+                throw new VideoProcessingException('Joined spans do not start picture and sound together for the length of their parts');
             }
 
             return $outputRelativePath;
@@ -455,40 +490,54 @@ class VideoExtractionService
         Storage::disk($tempDisk)->makeDirectory(dirname($relativePath));
 
         try {
-            $ffmpegPath = config('media-processing.ffmpeg.ffmpeg_path');
+            $ffmpegPath = (string) config('media-processing.ffmpeg.ffmpeg_path');
+            $workDirectory = $this->makeWorkDirectory($tempPath);
 
-            /**
-             * `-ss` precedes `-i` so FFmpeg seeks the input rather than decoding
-             * and discarding everything before the start point. Since FFmpeg 2.1
-             * an input seek still decodes from the preceding keyframe, so a
-             * re-encode stays frame-exact — the output is byte-identical, it just
-             * skips work that grows with the segment's offset. The stream-copy
-             * branch deliberately keeps its output seek, where the distinction
-             * does change where the cut lands.
-             */
-            $command = [
-                $ffmpegPath,
-                '-ss', (string) $startTime,
-                '-i', escapeshellarg($inputPath),
-                '-t', (string) $duration,
-                '-c:v', 'libx264',
-                '-crf', (string) (int) config('media-processing.video_extraction.reencode_crf', 23),
-                '-preset', (string) config('media-processing.video_extraction.reencode_preset', 'medium'),
-                ...$this->reencodeAudioArguments($inputPath),
-                '-avoid_negative_ts', 'make_zero',
-                escapeshellarg($tempPath),
-            ];
+            try {
+                $videoPath = "{$workDirectory}/video.mp4";
 
-            exec(implode(' ', $command).' 2>&1', $output, $returnCode);
+                /**
+                 * `-ss` precedes `-i` so FFmpeg seeks the input rather than decoding
+                 * and discarding everything before the start point. Since FFmpeg 2.1
+                 * an input seek still decodes from the preceding keyframe, so a
+                 * re-encode stays frame-exact — the output is byte-identical, it just
+                 * skips work that grows with the segment's offset.
+                 *
+                 * That holds only for encoded streams. An input seek starts every
+                 * *copied* stream at the preceding keyframe, so the picture is cut
+                 * here on its own and the sound beside it: copied with the audio,
+                 * 23 song clips carried the item before them.
+                 */
+                $this->runFfmpeg([
+                    $ffmpegPath,
+                    '-ss', $this->seconds((float) $startTime),
+                    '-i', escapeshellarg($inputPath),
+                    '-t', $this->seconds((float) $duration),
+                    '-map', '0:v:0',
+                    '-an',
+                    ...$this->videoEncoderArguments(),
+                    '-avoid_negative_ts', 'make_zero',
+                    '-y', escapeshellarg($videoPath),
+                ], 're-encode');
 
-            if ($returnCode !== 0) {
-                throw new VideoProcessingException(
-                    'FFmpeg re-encode failed: '.implode("\n", $output)
-                );
+                $expected = $this->expectedCut($inputPath, (float) $startTime, (float) $endTime);
+
+                $this->muxWithSourceAudio($inputPath, (float) $startTime, $expected['expected_duration'], $videoPath, $tempPath, $workDirectory);
+            } finally {
+                $this->removeWorkDirectory($workDirectory);
             }
 
             if (! $this->fileExists($relativePath, $tempDisk)) {
                 throw new VideoProcessingException('Re-encoded output file was not created: '.$tempPath);
+            }
+
+            if (! $this->cutIsAligned($tempPath, $expected['expected_duration'], $expected['frame_seconds'])) {
+                throw new VideoProcessingException(sprintf(
+                    'Re-encoded cut does not start picture and sound together for its span (%s to %s s): %s',
+                    $startTime,
+                    $endTime,
+                    $tempPath,
+                ));
             }
 
             Log::info('Video segment extracted with re-encoding', [
@@ -566,25 +615,554 @@ class VideoExtractionService
     }
 
     /**
-     * FFmpeg's audio arguments for a re-encode.
+     * Where a smart cut may copy, or null when the whole span must be re-encoded.
      *
-     * A source whose audio the delivery container already carries is copied
-     * through: re-encoding it would spend a second generation of lossy
-     * compression to arrive at the same codec at the same bitrate. Anything else
-     * is encoded to AAC. Copied audio cuts on a frame boundary rather than a
-     * sample, which for speech is inaudible.
+     * A stream copy starts the picture at the next keyframe while the sound starts
+     * on time: 89 historic song clips opened on a frozen frame and 12 sermons lost
+     * over 3 s of picture (ruling 3a, 2026-09-14). So only the frames from the
+     * first keyframe at or after the start up to the last keyframe at or before
+     * the end are copied, counted exactly because a copy's `-t` overshoots by the
+     * B-frames it has reordered. The stretch either side is re-encoded.
      *
-     * @return list<string>
+     * Refused, so the caller re-encodes: a source whose packets cannot be read; a
+     * span holding no whole GOP; and a source with leading pictures (open GOP),
+     * whose first frames after a keyframe reference the GOP before it. A join
+     * across those decoded as garbage in testing, 226 frames of a 34 s cut. Every
+     * historic and weekly H.264 source probed was closed-GOP.
+     *
+     * @return array{keyframe: float, last_keyframe: float, copy_frames: int, cut_end: float, expected_duration: float, frame_seconds: float}|null
      */
-    private function reencodeAudioArguments(string $inputPath): array
+    private function smartCutPlan(string $inputPath, float $startTime, float $endTime): ?array
     {
-        $audioCodec = $this->probeStreamCodec($inputPath, 'a');
+        $packets = $this->videoPackets($inputPath, $startTime, $endTime);
 
-        if ($audioCodec !== null && in_array($audioCodec, self::MP4_NATIVE_AUDIO_CODECS, true)) {
-            return ['-c:a', 'copy'];
+        if ($packets === []) {
+            return null;
         }
 
-        return ['-c:a', 'aac'];
+        $geometry = $this->cutGeometry($packets, $startTime, $endTime);
+        $keyframe = null;
+        $lastKeyframe = null;
+        $latestKeyframe = null;
+
+        foreach ($packets as [$timestamp, $isKeyframe]) {
+            if ($isKeyframe) {
+                $latestKeyframe = $timestamp;
+
+                if ($keyframe === null && $timestamp >= $startTime - self::TIMESTAMP_EPSILON_SECONDS) {
+                    $keyframe = $timestamp;
+                }
+
+                if ($timestamp <= $geometry['cut_end'] + self::TIMESTAMP_EPSILON_SECONDS) {
+                    $lastKeyframe = $timestamp;
+                }
+
+                continue;
+            }
+
+            if ($latestKeyframe !== null && $timestamp < $latestKeyframe - self::TIMESTAMP_EPSILON_SECONDS) {
+                return null;
+            }
+        }
+
+        if ($keyframe === null || $lastKeyframe === null || $lastKeyframe <= $keyframe + self::TIMESTAMP_EPSILON_SECONDS) {
+            return null;
+        }
+
+        $copyFrames = count(array_filter(
+            $packets,
+            static fn (array $packet): bool => $packet[0] >= $keyframe - self::TIMESTAMP_EPSILON_SECONDS
+                && $packet[0] < $lastKeyframe - self::TIMESTAMP_EPSILON_SECONDS,
+        ));
+
+        return [
+            'keyframe' => $keyframe,
+            'last_keyframe' => $lastKeyframe,
+            'copy_frames' => $copyFrames,
+            ...$geometry,
+        ];
+    }
+
+    /**
+     * How long a cut of the span should run, and how long one frame lasts,
+     * read from the source's own packets.
+     *
+     * @return array{cut_end: float, expected_duration: float, frame_seconds: float}
+     */
+    private function expectedCut(string $inputPath, float $startTime, float $endTime): array
+    {
+        $packets = $this->videoPackets($inputPath, $startTime, $endTime);
+
+        if ($packets === []) {
+            return [
+                'cut_end' => $endTime,
+                'expected_duration' => max(0.0, $endTime - $startTime),
+                'frame_seconds' => self::DEFAULT_FRAME_SECONDS,
+            ];
+        }
+
+        return $this->cutGeometry($packets, $startTime, $endTime);
+    }
+
+    /**
+     * A span that runs past the end of its source can only hold what the source
+     * holds, so the cut ends at the earlier of the two.
+     *
+     * @param  non-empty-list<array{0: float, 1: bool}>  $packets
+     * @return array{cut_end: float, expected_duration: float, frame_seconds: float}
+     */
+    private function cutGeometry(array $packets, float $startTime, float $endTime): array
+    {
+        $timestamps = array_column($packets, 0);
+        sort($timestamps);
+
+        $count = count($timestamps);
+        $frameSeconds = $count > 1
+            ? ($timestamps[$count - 1] - $timestamps[0]) / ($count - 1)
+            : self::DEFAULT_FRAME_SECONDS;
+        $cutEnd = min($endTime, $timestamps[$count - 1] + $frameSeconds);
+
+        return [
+            'cut_end' => $cutEnd,
+            'expected_duration' => max(0.0, $cutEnd - $startTime),
+            'frame_seconds' => $frameSeconds > 0.0 ? $frameSeconds : self::DEFAULT_FRAME_SECONDS,
+        ];
+    }
+
+    /**
+     * The source's video packets around a span, in decode order, as
+     * `[presentation time, is keyframe]`.
+     *
+     * Read over the span and a pad either side only, which cost about a second
+     * for a 40-minute sermon on a weekly recording.
+     *
+     * @return list<array{0: float, 1: bool}>
+     */
+    private function videoPackets(string $inputPath, float $startTime, float $endTime): array
+    {
+        $ffprobePath = config('media-processing.ffmpeg.ffprobe_path');
+
+        if (! is_string($ffprobePath) || $ffprobePath === '') {
+            return [];
+        }
+
+        $command = implode(' ', [
+            $ffprobePath,
+            '-v', 'error',
+            '-read_intervals', escapeshellarg(sprintf(
+                '%s%%%s',
+                $this->seconds(max(0.0, $startTime - self::PACKET_WINDOW_PAD_SECONDS)),
+                $this->seconds($endTime + self::PACKET_WINDOW_PAD_SECONDS),
+            )),
+            '-select_streams', 'v:0',
+            '-show_entries', 'packet=pts_time,flags',
+            '-of', 'csv=p=0',
+            escapeshellarg($inputPath),
+        ]);
+
+        $output = [];
+        exec($command.' 2>/dev/null', $output, $returnCode);
+
+        if ($returnCode !== 0) {
+            return [];
+        }
+
+        $packets = [];
+
+        foreach ($output as $line) {
+            [$timestamp, $flags] = array_pad(explode(',', trim($line), 2), 2, '');
+
+            if (is_numeric($timestamp)) {
+                $packets[] = [(float) $timestamp, str_contains($flags, 'K')];
+            }
+        }
+
+        return $packets;
+    }
+
+    /**
+     * Write a smart cut of the span: the opening re-encoded up to the first
+     * keyframe, the whole GOPs after it copied, the closing re-encoded from the
+     * last keyframe, the pieces joined, and the sound cut beside them.
+     *
+     * @param  array{keyframe: float, last_keyframe: float, copy_frames: int, cut_end: float, expected_duration: float, frame_seconds: float}  $plan
+     *
+     * @throws VideoProcessingException
+     */
+    private function writeSmartCut(string $inputPath, float $startTime, array $plan, string $outputPath): void
+    {
+        $ffmpegPath = (string) config('media-processing.ffmpeg.ffmpeg_path');
+        $workDirectory = $this->makeWorkDirectory($outputPath);
+
+        try {
+            $parts = [];
+
+            if ($plan['keyframe'] - $startTime > self::TIMESTAMP_EPSILON_SECONDS) {
+                $parts[] = $this->encodeVideoPart($inputPath, $startTime, $plan['keyframe'] - $startTime, "{$workDirectory}/opening.mp4");
+            }
+
+            $copiedPath = "{$workDirectory}/copied.mp4";
+            $seek = $this->streamCopySeekArguments($plan['keyframe']);
+
+            $this->runFfmpeg([
+                $ffmpegPath,
+                ...$seek['input'],
+                '-i', escapeshellarg($inputPath),
+                ...$seek['output'],
+                '-map', '0:v:0',
+                '-an',
+                '-frames:v', (string) $plan['copy_frames'],
+                '-c', 'copy',
+                '-avoid_negative_ts', 'make_zero',
+                '-y', escapeshellarg($copiedPath),
+            ], 'stream copy');
+            $parts[] = $copiedPath;
+
+            if ($plan['cut_end'] - $plan['last_keyframe'] > self::TIMESTAMP_EPSILON_SECONDS) {
+                $parts[] = $this->encodeVideoPart(
+                    $inputPath,
+                    $plan['last_keyframe'],
+                    $plan['cut_end'] - $plan['last_keyframe'],
+                    "{$workDirectory}/closing.mp4",
+                );
+            }
+
+            $videoPath = "{$workDirectory}/video.mp4";
+            $this->joinThroughTransportStream($parts, $videoPath, withAudio: false);
+            $this->muxWithSourceAudio($inputPath, $startTime, $plan['expected_duration'], $videoPath, $outputPath, $workDirectory);
+        } finally {
+            $this->removeWorkDirectory($workDirectory);
+        }
+    }
+
+    /**
+     * Re-encode one stretch of picture to join copied frames from the same source.
+     *
+     * The pixel format and track timescale follow the source so the join changes
+     * as little as it can between the encoded and the copied frames.
+     *
+     * @throws VideoProcessingException
+     */
+    private function encodeVideoPart(string $inputPath, float $startTime, float $duration, string $outputPath): string
+    {
+        $pixelFormat = $this->probeStreamEntry($inputPath, 'v', 'pix_fmt');
+        $timeBase = $this->probeStreamEntry($inputPath, 'v', 'time_base');
+        $timescale = $timeBase !== null && preg_match('#^1/(\d+)$#', $timeBase, $matches) === 1
+            ? ['-video_track_timescale', $matches[1]]
+            : [];
+
+        $this->runFfmpeg([
+            (string) config('media-processing.ffmpeg.ffmpeg_path'),
+            '-ss', $this->seconds($startTime),
+            '-i', escapeshellarg($inputPath),
+            '-t', $this->seconds($duration),
+            '-map', '0:v:0',
+            '-an',
+            ...$this->videoEncoderArguments(),
+            ...($pixelFormat !== null ? ['-pix_fmt', escapeshellarg($pixelFormat)] : []),
+            '-fps_mode', 'passthrough',
+            ...$timescale,
+            '-y', escapeshellarg($outputPath),
+        ], 'part re-encode');
+
+        return $outputPath;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function videoEncoderArguments(): array
+    {
+        return [
+            '-c:v', 'libx264',
+            '-crf', (string) (int) config('media-processing.video_extraction.reencode_crf', 23),
+            '-preset', (string) config('media-processing.video_extraction.reencode_preset', 'medium'),
+        ];
+    }
+
+    /**
+     * Join MP4 pieces through MPEG-TS, where each piece's H.264 parameter sets
+     * travel in-band before its keyframes. A copied `.mp4` join keeps only the
+     * first piece's, and a re-encoded opening's differ from the copied frames.
+     *
+     * @param  list<string>  $partPaths
+     *
+     * @throws VideoProcessingException
+     */
+    private function joinThroughTransportStream(array $partPaths, string $outputPath, bool $withAudio): void
+    {
+        if (count($partPaths) === 1) {
+            rename($partPaths[0], $outputPath);
+
+            return;
+        }
+
+        $ffmpegPath = (string) config('media-processing.ffmpeg.ffmpeg_path');
+        $transportPaths = [];
+
+        try {
+            foreach ($partPaths as $index => $partPath) {
+                $transportPath = "{$outputPath}.part-{$index}.ts";
+
+                $this->runFfmpeg([
+                    $ffmpegPath,
+                    '-i', escapeshellarg($partPath),
+                    '-c', 'copy',
+                    '-bsf:v', 'h264_mp4toannexb',
+                    '-f', 'mpegts',
+                    '-y', escapeshellarg($transportPath),
+                ], 'transport stream remux');
+
+                $transportPaths[] = $transportPath;
+            }
+
+            $this->runFfmpeg([
+                $ffmpegPath,
+                '-i', escapeshellarg('concat:'.implode('|', $transportPaths)),
+                '-c', 'copy',
+                ...($withAudio ? ['-bsf:a', 'aac_adtstoasc'] : []),
+                '-avoid_negative_ts', 'make_zero',
+                '-movflags', '+faststart',
+                '-y', escapeshellarg($outputPath),
+            ], 'transport stream join');
+        } finally {
+            foreach ($transportPaths as $transportPath) {
+                if (file_exists($transportPath)) {
+                    unlink($transportPath);
+                }
+            }
+        }
+    }
+
+    /**
+     * Put the source's sound for the span beside a cut picture.
+     *
+     * The sound is always cut on its own. AAC, which the `.mp4` carries, is copied
+     * with an output seek, which trims it to within one audio frame; anything else
+     * is encoded from an exact start. A source whose audio codec cannot be read
+     * keeps its picture alone.
+     *
+     * @throws VideoProcessingException
+     */
+    private function muxWithSourceAudio(
+        string $inputPath,
+        float $startTime,
+        float $duration,
+        string $videoPath,
+        string $outputPath,
+        string $workDirectory,
+    ): void {
+        $audioCodec = $this->probeStreamCodec($inputPath, 'a');
+
+        if ($audioCodec === null) {
+            rename($videoPath, $outputPath);
+
+            return;
+        }
+
+        $ffmpegPath = (string) config('media-processing.ffmpeg.ffmpeg_path');
+        $audioPath = "{$workDirectory}/audio.m4a";
+
+        if (in_array($audioCodec, self::MP4_NATIVE_AUDIO_CODECS, true)) {
+            $seek = $this->streamCopySeekArguments($startTime);
+
+            $this->runFfmpeg([
+                $ffmpegPath,
+                ...$seek['input'],
+                '-i', escapeshellarg($inputPath),
+                ...$seek['output'],
+                '-t', $this->seconds($duration),
+                '-map', '0:a:0',
+                '-c:a', 'copy',
+                '-y', escapeshellarg($audioPath),
+            ], 'audio copy');
+        } else {
+            $this->runFfmpeg([
+                $ffmpegPath,
+                '-ss', $this->seconds($startTime),
+                '-i', escapeshellarg($inputPath),
+                '-t', $this->seconds($duration),
+                '-map', '0:a:0',
+                '-c:a', 'aac',
+                '-y', escapeshellarg($audioPath),
+            ], 'audio encode');
+        }
+
+        $this->runFfmpeg([
+            $ffmpegPath,
+            '-i', escapeshellarg($videoPath),
+            '-i', escapeshellarg($audioPath),
+            '-map', '0:v:0',
+            '-map', '1:a:0',
+            '-c', 'copy',
+            '-movflags', '+faststart',
+            '-y', escapeshellarg($outputPath),
+        ], 'mux');
+    }
+
+    /**
+     * Whether a cut starts picture and sound together and runs for its span.
+     *
+     * This is the measure the §4.1b duration censuses used: each stream's start
+     * and length. The defects ran to seconds; the tolerances allow container
+     * rounding (a 40-minute weekly cut ran 60 ms long). A cut that cannot be
+     * measured is let through, as every rule here acts only on what it can read.
+     */
+    private function cutIsAligned(
+        string $path,
+        float $expectedSeconds,
+        float $frameSeconds,
+        float $lengthTolerance = self::LENGTH_TOLERANCE_SECONDS,
+    ): bool {
+        $streams = $this->cutStreams($path);
+
+        if (! isset($streams['video'])) {
+            Log::warning('Cut alignment could not be measured', ['path' => $path]);
+
+            return true;
+        }
+
+        if (abs($streams['video']['duration'] - $expectedSeconds) > $lengthTolerance) {
+            return false;
+        }
+
+        if (! isset($streams['audio'])) {
+            return true;
+        }
+
+        return abs($streams['video']['start'] - $streams['audio']['start']) <= $frameSeconds + self::AUDIO_FRAME_SECONDS
+            && abs($streams['audio']['duration'] - $expectedSeconds) <= $lengthTolerance;
+    }
+
+    /**
+     * @return array{video?: array{start: float, duration: float}, audio?: array{start: float, duration: float}}
+     */
+    private function cutStreams(string $path): array
+    {
+        $ffprobePath = config('media-processing.ffmpeg.ffprobe_path');
+
+        if (! is_string($ffprobePath) || $ffprobePath === '') {
+            return [];
+        }
+
+        $output = [];
+        exec(implode(' ', [
+            $ffprobePath,
+            '-v', 'error',
+            '-show_entries', 'stream=codec_type,start_time,duration',
+            '-of', 'csv=p=0',
+            escapeshellarg($path),
+        ]).' 2>/dev/null', $output, $returnCode);
+
+        if ($returnCode !== 0) {
+            return [];
+        }
+
+        $streams = [];
+
+        foreach ($output as $line) {
+            $fields = explode(',', trim($line));
+
+            if (count($fields) < 3
+                || ! in_array($fields[0], ['video', 'audio'], true)
+                || isset($streams[$fields[0]])
+                || ! is_numeric($fields[1])
+                || ! is_numeric($fields[2])
+            ) {
+                continue;
+            }
+
+            $streams[$fields[0]] = ['start' => (float) $fields[1], 'duration' => (float) $fields[2]];
+        }
+
+        return $streams;
+    }
+
+    /**
+     * One stream entry of the source's first video or audio stream, cached like
+     * the codec probe, or null when it cannot be read.
+     *
+     * @param  'a'|'v'  $streamType
+     */
+    private function probeStreamEntry(string $inputPath, string $streamType, string $entry): ?string
+    {
+        $key = $this->probeCacheKey($inputPath, "entry:{$streamType}:{$entry}");
+
+        if ($key !== null && array_key_exists($key, $this->probeCache)) {
+            /** @var string|null $cached */
+            $cached = $this->probeCache[$key];
+
+            return $cached;
+        }
+
+        $ffprobePath = config('media-processing.ffmpeg.ffprobe_path');
+        $value = null;
+
+        if (is_string($ffprobePath) && $ffprobePath !== '') {
+            $output = [];
+            exec(implode(' ', [
+                $ffprobePath,
+                '-v', 'error',
+                '-select_streams', "{$streamType}:0",
+                '-show_entries', "stream={$entry}",
+                '-of', 'default=nw=1:nk=1',
+                escapeshellarg($inputPath),
+            ]).' 2>/dev/null', $output, $returnCode);
+
+            $read = trim(implode('', $output));
+            $value = $returnCode === 0 && $read !== '' ? $read : null;
+        }
+
+        if ($key !== null) {
+            $this->probeCache[$key] = $value;
+        }
+
+        return $value;
+    }
+
+    /**
+     * @param  list<string>  $arguments  Already shell-escaped where needed
+     *
+     * @throws VideoProcessingException
+     */
+    private function runFfmpeg(array $arguments, string $step): void
+    {
+        $output = [];
+        exec(implode(' ', $arguments).' 2>&1', $output, $returnCode);
+
+        if ($returnCode !== 0) {
+            throw new VideoProcessingException("FFmpeg {$step} failed: ".implode("\n", $output));
+        }
+    }
+
+    /**
+     * Seconds as FFmpeg reads them: fixed-point, never PHP's exponent form.
+     */
+    private function seconds(float $seconds): string
+    {
+        return rtrim(rtrim(sprintf('%.6F', $seconds), '0'), '.');
+    }
+
+    private function makeWorkDirectory(string $besidePath): string
+    {
+        $workDirectory = dirname($besidePath).'/cut-'.Str::uuid();
+
+        if (! is_dir($workDirectory)) {
+            mkdir($workDirectory, 0755, true);
+        }
+
+        return $workDirectory;
+    }
+
+    private function removeWorkDirectory(string $workDirectory): void
+    {
+        foreach (glob("{$workDirectory}/*") ?: [] as $file) {
+            unlink($file);
+        }
+
+        if (is_dir($workDirectory)) {
+            rmdir($workDirectory);
+        }
     }
 
     /**

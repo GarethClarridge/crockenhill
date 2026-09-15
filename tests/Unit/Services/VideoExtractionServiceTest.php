@@ -251,6 +251,11 @@ class VideoExtractionServiceTest extends TestCase
             "#!/bin/sh\n"
             .$recordCall
             ."case \"$*\" in\n"
+            // The smart cut's packet read: 30 fps with a keyframe every 2 s, over
+            // the window asked for, so a cut at a whole even second lands on one.
+            ."  *packet=*)\n"
+            ."    for arg in \"\$@\"; do [ \"\$previous\" = '-read_intervals' ] && window=\"\$arg\"; previous=\"\$arg\"; done\n"
+            ."    awk -v window=\"\$window\" 'BEGIN { split(window, bounds, \"%\"); for (f = int(bounds[1] * 30); f <= bounds[2] * 30; f++) printf \"%.6f,%s\\n\", f / 30, (f % 60 == 0 ? \"K__\" : \"___\") }' ;;\n"
             ."  *v:0*) echo '{$videoCodec}' ;;\n"
             ."  *a:0*) echo '{$audioCodec}' ;;\n"
             ."  *) echo '{$bitrateReply}' ;;\n"
@@ -275,9 +280,12 @@ class VideoExtractionServiceTest extends TestCase
             (object) ['start_time' => 1.0, 'end_time' => 5.0]
         );
 
+        // Below the threshold the cut is a smart cut: the frames between its
+        // keyframes are copied, counted exactly, and only the stretches either
+        // side are re-encoded.
         $argv = file_get_contents($argvLog);
+        $this->assertStringContainsString('-frames:v', $argv);
         $this->assertStringContainsString('-c copy', $argv);
-        $this->assertStringNotContainsString('libx264', $argv);
         $this->assertTrue(Storage::disk('local')->exists($relativePath));
     }
 
@@ -296,7 +304,7 @@ class VideoExtractionServiceTest extends TestCase
         $argv = file_get_contents($argvLog);
         $this->assertStringContainsString('libx264', $argv);
         $this->assertStringContainsString('-crf 23', $argv);
-        $this->assertStringNotContainsString('-c copy', $argv);
+        $this->assertStringNotContainsString('-frames:v', $argv);
         $this->assertTrue(Storage::disk('local')->exists($relativePath));
     }
 
@@ -311,17 +319,19 @@ class VideoExtractionServiceTest extends TestCase
             (object) ['start_time' => 1.0, 'end_time' => 5.0]
         );
 
-        $this->assertStringContainsString('-c copy', file_get_contents($argvLog));
+        $this->assertStringContainsString('-frames:v', file_get_contents($argvLog));
     }
 
     #[Test]
-    public function an_unreadable_source_bitrate_falls_back_to_stream_copy(): void
+    public function a_source_whose_packets_cannot_be_read_is_re_encoded(): void
     {
         Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
         $argvLog = $this->stubFfmpegAndFfprobe(0);
 
-        // ffprobe reporting nothing usable must not be read as "below threshold"
-        // by accident; a stream copy is never wrong, only sometimes larger.
+        // This used to stream-copy, on the premise that a copy is never wrong,
+        // only sometimes larger. The §4.1b censuses disproved that: a copy that
+        // cannot see the keyframes starts its picture late. With nothing readable
+        // the cut cannot be placed, so it is re-encoded, which is exact.
         $ffprobeStub = storage_path('framework/testing/ffprobe-stub.sh');
         file_put_contents($ffprobeStub, "#!/bin/sh\nexit 1\n");
         chmod($ffprobeStub, 0755);
@@ -331,7 +341,9 @@ class VideoExtractionServiceTest extends TestCase
             (object) ['start_time' => 1.0, 'end_time' => 5.0]
         );
 
-        $this->assertStringContainsString('-c copy', file_get_contents($argvLog));
+        $argv = file_get_contents($argvLog);
+        $this->assertStringContainsString('libx264', $argv);
+        $this->assertStringNotContainsString('-frames:v', $argv);
     }
 
     #[Test]
@@ -374,7 +386,7 @@ class VideoExtractionServiceTest extends TestCase
 
         $argv = file_get_contents($argvLog);
         $this->assertStringContainsString('libx264', $argv);
-        $this->assertStringNotContainsString('-c copy', $argv);
+        $this->assertStringNotContainsString('-frames:v', $argv);
         $this->assertTrue(Storage::disk('local')->exists($relativePath));
     }
 
@@ -399,13 +411,14 @@ class VideoExtractionServiceTest extends TestCase
         $argvLog = $this->stubFfmpegAndFfprobe(2_600_000, videoCodec: '');
 
         // Acting on absent information would re-encode every source whenever
-        // ffprobe is misconfigured. The codec rule reads positively or not at all.
+        // ffprobe is misconfigured. The codec rule reads positively or not at all;
+        // the packets are still readable, so the smart cut copies between keyframes.
         $this->service->extractSegmentAsFile(
             '/tmp/input.mp4',
             (object) ['start_time' => 1.0, 'end_time' => 5.0]
         );
 
-        $this->assertStringContainsString('-c copy', file_get_contents($argvLog));
+        $this->assertStringContainsString('-frames:v', file_get_contents($argvLog));
     }
 
     #[Test]
@@ -519,9 +532,13 @@ class VideoExtractionServiceTest extends TestCase
 
         // A section-candidate run extracts once per section from one unchanging
         // source. Re-asking ffprobe the same question per section spends a process
-        // spawn and a staging-drive header read for an answer already held.
-        $calls = file_exists($probeLog) ? substr_count((string) file_get_contents($probeLog), "\n") : 0;
-        $this->assertSame(2, $calls, 'Three extractions must share one codec probe and one bitrate probe.');
+        // spawn and a staging-drive header read for an answer already held. The
+        // packet read around each span and the measure of each cut differ per
+        // extraction, so only the questions about the source itself are counted.
+        $calls = collect(file_exists($probeLog) ? file($probeLog, FILE_IGNORE_NEW_LINES) : [])
+            ->reject(fn (string $call): bool => str_contains($call, 'packet=') || str_contains($call, 'stream=codec_type,start_time,duration'))
+            ->count();
+        $this->assertSame(3, $calls, 'Three extractions must share one video codec, one bitrate and one audio codec probe.');
     }
 
     #[Test]
