@@ -256,6 +256,27 @@ class AssessSermonVideoQuality extends ProcessingJob implements ShouldBeUnique, 
             'video_quality_assessed_at' => now(),
         ])->save();
 
-        $processingLog?->putVideoQualityMetadata($result->toArray());
+        ($processingLog ?? $this->owningRun($sermon))?->putVideoQualityMetadata($result->toArray());
+    }
+
+    /**
+     * The run that published the sermon, for a verdict reached outside the
+     * pipeline.
+     *
+     * `sermons:assess-video-quality` dispatches with a sermon id alone, and the
+     * 13 historic verdicts written that way left their evidence in laravel.log
+     * only. It is used for the record alone: the thumbnail handoff above still
+     * keys on the pipeline's own run, because no thumbnail job follows a
+     * command run to clean up the local copy.
+     */
+    private function owningRun(Sermon $sermon): ?MediaProcessingLog
+    {
+        $publishedRunId = $sermon->publishedServiceSection?->media_processing_log_id;
+
+        if ($publishedRunId !== null) {
+            return MediaProcessingLog::query()->find($publishedRunId);
+        }
+
+        return $sermon->livestreamProcessing ?? $sermon->latestProcessingLog;
     }
 }

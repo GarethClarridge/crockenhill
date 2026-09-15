@@ -6,9 +6,11 @@ namespace Tests\Integration\Jobs;
 
 use App\Data\SermonVideoQualityAssessmentResult;
 use App\Enums\SermonVideoQualityStatus;
+use App\Enums\ServiceSectionType;
 use App\Jobs\AssessSermonVideoQuality;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Models\ServiceSection;
 use App\Services\Media\MediaDiskReachability;
 use App\Services\Media\Video\FrameExtractionService;
 use App\Services\Media\Video\SermonVideoQualityAssessmentService;
@@ -20,6 +22,80 @@ use Tests\TestCase;
 class AssessSermonVideoQualityTest extends TestCase
 {
     use RefreshDatabase;
+
+    /**
+     * `sermons:assess-video-quality` dispatches with a sermon id only, and 13
+     * historic verdicts written that way left their evidence in laravel.log
+     * alone. The verdict belongs on the run that published the sermon.
+     */
+    #[Test]
+    public function a_sermon_only_assessment_records_its_verdict_on_the_run_that_published_the_sermon(): void
+    {
+        $sermon = Sermon::factory()->create(['video_file_path' => 'sermons/video.mp4', 'livestream_processing_id' => null]);
+        $owningRun = MediaProcessingLog::factory()->livestream()->create();
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $owningRun->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'published_sermon_id' => $sermon->id,
+        ]);
+
+        $service = $this->createMock(SermonVideoQualityAssessmentService::class);
+        $service->method('assessAndRetainLocalPath')->willReturn([
+            'result' => new SermonVideoQualityAssessmentResult(
+                status: SermonVideoQualityStatus::Rejected,
+                reason: 'frozen_frames',
+                sampleCount: 5,
+                sampleTimestamps: [1.5, 3.0],
+                blankFrameRatio: 0.0,
+                frozenPairRatio: 1.0,
+                lowDetailRatio: 0.0,
+                aggregateScore: 0.1,
+            ),
+            'localVideoPath' => '/tmp/assess-owning-run.mp4',
+        ]);
+
+        // No thumbnail job follows a command run, so the job must still clean
+        // up its local copy rather than hand it to one through the run.
+        $exposurePolicy = $this->createStub(SermonExposurePolicy::class);
+        $exposurePolicy->method('shouldGenerateVideoThumbnail')->willReturn(true);
+        $frameExtractionService = $this->createMock(FrameExtractionService::class);
+        $frameExtractionService->expects($this->once())
+            ->method('cleanupDownloadedVideo')
+            ->with('/tmp/assess-owning-run.mp4');
+
+        (new AssessSermonVideoQuality(sermonId: $sermon->id))->handle($service, $frameExtractionService, $exposurePolicy, new MediaDiskReachability);
+
+        $owningRun->refresh();
+
+        $this->assertSame('rejected', $owningRun->videoQualityMetadata()['status'] ?? null);
+        $this->assertSame('frozen_frames', $owningRun->videoQualityMetadata()['reason'] ?? null);
+        $this->assertArrayNotHasKey('cached_local_video_path', $owningRun->processing_metadata?->toArray() ?? []);
+    }
+
+    #[Test]
+    public function a_sermon_only_assessment_falls_back_to_the_sermons_livestream_run(): void
+    {
+        $owningRun = MediaProcessingLog::factory()->livestream()->create(['processing_id' => 'assess-livestream-run']);
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/video.mp4',
+            'livestream_processing_id' => 'assess-livestream-run',
+        ]);
+
+        $service = $this->createMock(SermonVideoQualityAssessmentService::class);
+        $service->method('assessAndRetainLocalPath')->willReturn([
+            'result' => $this->approvedResult(),
+            'localVideoPath' => null,
+        ]);
+
+        (new AssessSermonVideoQuality(sermonId: $sermon->id))->handle(
+            $service,
+            $this->createStub(FrameExtractionService::class),
+            $this->createStub(SermonExposurePolicy::class),
+            new MediaDiskReachability,
+        );
+
+        $this->assertSame('approved', $owningRun->fresh()->videoQualityMetadata()['status'] ?? null);
+    }
 
     #[Test]
     public function it_persists_sermon_summary_and_processing_metadata(): void
