@@ -1603,6 +1603,47 @@ above.
   clips through the pipeline. Song clips still wait for the song-edge change, so each is
   re-encoded once.
 
+**Songs recovered from sustained sound, built test-first 2026-09-15** (rows "Singing invisible
+to the transcript" and, for its RMS half, "Song clip loses its own verses"; operator chose each
+option below). Code only, as above.
+
+- *Measured first* (`storage/scratch/songwiden-20260915-{measure,features,simulate,probe,replay}`).
+  "Loud and wordless" fails: ASR loops and unobservable windows also fall on sermons, prayers
+  and notices. Sound level separates the two without the transcript. Across all sections,
+  songs are at least 0.84 active and pause at most 6.8 times a minute (10th and 90th
+  percentiles). Sermons, prayers, readings and notices are at most 0.81 active and pause at
+  least 8.3 times a minute. Every one of 438 sermon sections reads as speech.
+- *`SustainedSoundSongSections`*, run after silence snapping in `DetectServiceStructure` and
+  `structure:evaluate`. A 5 s bin is sustained when the 30 s around it is at least 0.8 active
+  with at most 8 pauses (≥ 0.3 s) a minute. Nothing changes on a concatenated recording.
+  - A song section widens across sustained sound that no section holds, when the widening is
+    30 s or more. Every widening under 30 s that fresh audio heard as speech was 25 s or less.
+  - A widening over 90 s is kept but flagged `structure_song_widened_to_sustained_sound`.
+    A short silence between two songs does not survive the window, so a long widening can take
+    the next song (985 §1121, 1244 §3037). The real truncations run 40–150 s, so length alone
+    cannot tell them apart.
+  - When the sound runs from one song into the next, neither widens (1215, 1337).
+  - Sustained sound of 45 s or more, after the first section and beside no song, becomes a
+    song section "Unidentified singing". It has confidence 0.5, no OoS item, and the flag
+    `structure_unidentified_singing`, so it is held for review. Before the first section is
+    excluded, because music before a service sounds like an opening song.
+- *Decision not to detect from sound: a song running on into a neighbouring section.* Fresh
+  audio heard 21 of 38 such corpus cases as speech, and 12 as singing. A leader at a
+  microphone is as loud and unbroken as singing. Those clips (240 into prayer §1897, 539 into
+  reading §2457) stay with the row's lyric check, which is not built. Song-into-song edges
+  (360, 207) and singing before the first section (1195) are also beyond the sound level.
+- *Corpus replay of the built service* (stored sections, read-only). 23 widenings, 8 of them
+  flagged, and 17 proposals. All 18 in-scope known cases are recovered, including 1341 and the
+  four closing songs. Of the 12 widenings not already known, fresh audio heard 10 as singing
+  and 1 as music. The last is 985, a second song, which is flagged. Of the 6 proposals not
+  already known, 2 are newly found carols (1196 at 1925 s, 1276 at 640 s), 3 are unclear and
+  1 is speech (1352, held). Review burden: 25 held sections across 442 runs.
+- Not built: real RMS-log fixtures (the logs run to megabytes). The unit tests reproduce each
+  corpus shape synthetically and name its case.
+- Due: re-detect the 17 runs through the pipeline (plus 1196 and 1276), then re-extract the
+  seven closing-prayer sermons and the widened song clips. Clips still wait for the lyric
+  half of the song-edge row, so each is re-encoded once.
+
 - [ ] Fill the table's "pipeline item" column with a tested change or a recorded
   decision not to detect, for every row, before §4.5 acceptance.
 - [ ] Each promoted detector ships with the corpus cases in this plan as regression
