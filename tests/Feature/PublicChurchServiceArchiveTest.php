@@ -207,6 +207,19 @@ class PublicChurchServiceArchiveTest extends TestCase
     }
 
     #[Test]
+    public function no_service_url_is_offered_while_the_archive_is_disabled(): void
+    {
+        [$service] = $this->processedService();
+        $archive = app(PublicChurchServiceArchiveService::class);
+
+        $this->assertSame($this->showUrl($service), $archive->publicUrlFor($service));
+
+        config(['church.services.public_from' => null]);
+
+        $this->assertNull($archive->publicUrlFor($service));
+    }
+
+    #[Test]
     public function order_follows_the_detected_service_order_not_the_item_positions(): void
     {
         [$service] = $this->processedService();

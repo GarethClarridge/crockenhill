@@ -128,7 +128,9 @@ class PublicChurchServiceArchiveService
      * Used by surfaces that already know a service is relevant — a song's usage
      * history, a sermon's page — to link back into the archive without offering a
      * link that would 404. Content eligibility is implied by the caller's context;
-     * only the date window is re-checked, so this costs no query.
+     * only the date window is re-checked, so this costs no query. An unset
+     * `public_from` disables the archive, exactly as in
+     * {@see PublicServiceContentEligibility::applyDateEligibility()}.
      */
     public function publicUrlFor(?ChurchService $churchService): ?string
     {
@@ -142,7 +144,11 @@ class PublicChurchServiceArchiveService
 
         $publicFrom = $this->eligibility->publicFrom();
 
-        if ($publicFrom instanceof Carbon && $churchService->date->startOfDay()->isBefore($publicFrom)) {
+        if (! $publicFrom instanceof Carbon) {
+            return null;
+        }
+
+        if ($churchService->date->startOfDay()->isBefore($publicFrom)) {
             return null;
         }
 
