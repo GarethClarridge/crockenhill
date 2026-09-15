@@ -126,6 +126,52 @@ final class SongLyricsOutsideSection
     }
 
     /**
+     * What {@see self::observe()} reads beyond the transcript and the sound: the song,
+     * the run's other sections that can hold an edge, and the lyrics of every song among
+     * them. Banked evidence fingerprints this so a retyped neighbour or edited lyrics
+     * make it stale.
+     *
+     * @return array{
+     *     song_id: int|null,
+     *     others: list<array{id: int, section_type: string, start_time: float, end_time: float, song_id: int|null}>,
+     *     lyrics_sha256: array<int, string>
+     * }
+     */
+    public function inputs(ServiceSection $section): array
+    {
+        $others = $section->processingLog->serviceSections()
+            ->where('id', '!=', $section->id)
+            ->orderBy('id')
+            ->get();
+
+        $summaries = array_values($others->map(fn (ServiceSection $other): array => [
+            'id' => $other->id,
+            'section_type' => $other->section_type->value,
+            'start_time' => (float) $other->start_time,
+            'end_time' => (float) $other->end_time,
+            'song_id' => $other->section_type === ServiceSectionType::Song ? $other->resolvedSongId() : null,
+        ])->all());
+
+        $songIds = array_values(array_unique(array_filter([
+            $section->resolvedSongId(),
+            ...array_column($summaries, 'song_id'),
+        ], static fn (?int $songId): bool => $songId !== null)));
+
+        $lyrics = Song::query()
+            ->whereKey($songIds)
+            ->orderBy('id')
+            ->pluck('lyrics_plain', 'id')
+            ->map(static fn (?string $text): string => hash('sha256', (string) $text))
+            ->all();
+
+        return [
+            'song_id' => $section->resolvedSongId(),
+            'others' => $summaries,
+            'lyrics_sha256' => $lyrics,
+        ];
+    }
+
+    /**
      * @param  'before'|'after'  $edge
      * @param  list<ServiceSection>  $others
      * @param  array<string, true>  $ownPairs

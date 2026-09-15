@@ -52,7 +52,48 @@ class SongBoundaryEvidenceBackfill
     public function __construct(
         private readonly SongPublicationReviewPolicy $reviewPolicy,
         private readonly HistoricStagingContextRegistry $stagingContexts,
+        private readonly SongPublicationBoundaryEvidenceService $boundaryEvidence,
     ) {}
+
+    /**
+     * The sections whose banked evidence no longer describes what it was read from.
+     *
+     * Bounds and version are compared in SQL. What the assessment read — the
+     * transcript, the RMS log, the song, its neighbours and their lyrics — can only
+     * be compared by reading it again, inside the run's own staging context. Evidence
+     * banked before its inputs were fingerprinted cannot be compared, so it counts.
+     *
+     * @param  Collection<int, ServiceSection>  $sections
+     * @return Collection<int, ServiceSection>
+     */
+    public function withChangedInputs(Collection $sections): Collection
+    {
+        $changed = [];
+
+        foreach ($sections->groupBy('media_processing_log_id') as $runId => $runSections) {
+            $context = $this->stagingContextFor(MediaProcessingLog::find($runId));
+
+            $compare = function () use ($runSections, &$changed): void {
+                foreach ($runSections as $section) {
+                    $banked = $section->metadata?->toArray()[SongPublicationBoundaryEvidenceService::METADATA_KEY]['inputs_fingerprint'] ?? null;
+
+                    if ($banked !== $this->boundaryEvidence->inputsFingerprint($section)) {
+                        $changed[] = $section;
+                    }
+                }
+            };
+
+            if ($context === null) {
+                $compare();
+
+                continue;
+            }
+
+            $this->stagingContexts->within($context, $compare);
+        }
+
+        return collect($changed);
+    }
 
     /**
      * Assess every section, grouped so each run's staging context is entered once.

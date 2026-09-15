@@ -18,7 +18,9 @@ use Illuminate\Support\Facades\Storage;
  *     transcript_input: array{path: string|null, status: string},
  *     rms_data: list<array{time: float, rms: float}>,
  *     rms_threshold: float|null,
- *     rms_input: array{path: string|null, status: string, sample_count: int, threshold: float|null}
+ *     rms_input: array{path: string|null, status: string, sample_count: int, threshold: float|null},
+ *     transcript_sha256: string|null,
+ *     rms_sha256: string|null
  * }
  * @phpstan-type BoundaryEvidencePayload array{
  *     version: int,
@@ -31,6 +33,7 @@ use Illuminate\Support\Facades\Storage;
  *     start_evidence: array<string, mixed>,
  *     end_evidence: array<string, mixed>,
  *     lyric_edges: list<array<string, mixed>>,
+ *     inputs_fingerprint: string,
  *     risks: list<array{kind: string, detail: string}>,
  *     decision: 'release_eligible'|'review'
  * }
@@ -45,6 +48,7 @@ use Illuminate\Support\Facades\Storage;
  *     start_evidence: array<string, mixed>,
  *     end_evidence: array<string, mixed>,
  *     lyric_edges: list<array<string, mixed>>,
+ *     inputs_fingerprint: string,
  *     risks: list<array{kind: string, detail: string}>,
  *     decision: 'release_eligible'|'review',
  *     recorded_at: string
@@ -123,6 +127,7 @@ final class SongPublicationBoundaryEvidenceService
                 'start_evidence' => $this->unavailableBoundaryEvidence('start', $section, $inputs),
                 'end_evidence' => $this->unavailableBoundaryEvidence('end', $section, $inputs),
                 'lyric_edges' => [],
+                'inputs_fingerprint' => $this->fingerprintOf($section, $inputs),
                 'risks' => [[
                     'kind' => $storageError
                         ? 'song_boundary_evidence_unreadable'
@@ -203,9 +208,36 @@ final class SongPublicationBoundaryEvidenceService
             'start_evidence' => $startEvidence,
             'end_evidence' => $endEvidence,
             'lyric_edges' => $lyricEdges,
+            'inputs_fingerprint' => $this->fingerprintOf($section, $inputs),
             'risks' => $risks,
             'decision' => $risks === [] ? 'release_eligible' : 'review',
         ]);
+    }
+
+    /**
+     * A fingerprint of everything an assessment of this section reads, taken now.
+     *
+     * Bounds and version cannot see a transcript replaced under a banked clearance:
+     * the version-2 backfill found 23 published clips newly held that way. Compare
+     * this with the banked `inputs_fingerprint` to know the evidence is still current.
+     */
+    public function inputsFingerprint(ServiceSection $section): string
+    {
+        return $this->fingerprintOf($section, $this->loadInputs($section));
+    }
+
+    /**
+     * @param  BoundaryEvidenceInputs  $inputs
+     */
+    private function fingerprintOf(ServiceSection $section, array $inputs): string
+    {
+        return hash('sha256', json_encode([
+            'candidate' => [(float) $section->start_time, (float) $section->end_time],
+            'service_transcript' => [$inputs['transcript_input']['status'], $inputs['transcript_sha256']],
+            'rms_log' => [$inputs['rms_input']['status'], $inputs['rms_sha256']],
+            'lyric_inputs' => $this->lyricsOutsideSection->inputs($section),
+            'policy' => config('media-processing.section_publishing.song_boundary', []),
+        ], JSON_THROW_ON_ERROR));
     }
 
     /**
@@ -296,7 +328,9 @@ final class SongPublicationBoundaryEvidenceService
      *     transcript_input: array{path: string|null, status: string},
      *     rms_data: list<array{time: float, rms: float}>,
      *     rms_threshold: float|null,
-     *     rms_input: array{path: string|null, status: string, sample_count: int, threshold: float|null}
+     *     rms_input: array{path: string|null, status: string, sample_count: int, threshold: float|null},
+     *     transcript_sha256: string|null,
+     *     rms_sha256: string|null
      * }
      */
     private function loadInputs(ServiceSection $section): array
@@ -304,6 +338,7 @@ final class SongPublicationBoundaryEvidenceService
         $processingLog = $section->processingLog;
         $transcriptPath = $processingLog->serviceTranscriptPath();
         $transcript = null;
+        $transcriptSha256 = null;
         $transcriptStatus = $transcriptPath === null ? 'not_recorded' : 'missing';
 
         if ($transcriptPath !== null) {
@@ -311,8 +346,10 @@ final class SongPublicationBoundaryEvidenceService
                 $disk = ServiceArtifactDisk::for($transcriptPath);
 
                 if (Storage::disk($disk)->exists($transcriptPath)) {
+                    $transcriptContent = (string) Storage::disk($disk)->get($transcriptPath);
+                    $transcriptSha256 = hash('sha256', $transcriptContent);
                     $decoded = json_decode(
-                        (string) Storage::disk($disk)->get($transcriptPath),
+                        $transcriptContent,
                         true,
                         512,
                         JSON_THROW_ON_ERROR,
@@ -331,6 +368,7 @@ final class SongPublicationBoundaryEvidenceService
             : null;
         $rmsData = [];
         $rmsThreshold = null;
+        $rmsSha256 = null;
         $rmsStatus = $rmsPath === null ? 'not_recorded' : 'missing';
 
         if ($rmsPath !== null) {
@@ -339,6 +377,7 @@ final class SongPublicationBoundaryEvidenceService
 
                 if (Storage::disk($disk)->exists($rmsPath)) {
                     $rmsContent = (string) Storage::disk($disk)->get($rmsPath);
+                    $rmsSha256 = hash('sha256', $rmsContent);
                     $rmsData = $this->rmsAnalysisService->extractRmsData($rmsContent);
 
                     if ($rmsData === []) {
@@ -373,6 +412,8 @@ final class SongPublicationBoundaryEvidenceService
                 'sample_count' => count($rmsData),
                 'threshold' => $rmsThreshold,
             ],
+            'transcript_sha256' => $transcriptSha256,
+            'rms_sha256' => $rmsSha256,
         ];
     }
 

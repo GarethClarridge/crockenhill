@@ -1712,6 +1712,13 @@ closes §4.3's stale-verdict item for boundary evidence.
 - *Applied* (`lyricedge-20260915-backfill-execute.txt`). Banked 881; held rose from 52 to 521.
   The check (`lyricedge-20260915-backfill-verify.php`) found every section at version 2, banked
   reasons equal to the dry run, no section released, and a second dry run selecting nothing.
+- **Inputs fingerprinted 2026-09-15** (Codex review P3). Bounds and version cannot see the
+  23 clips' inputs changing under a banked clearance. Evidence now banks `inputs_fingerprint`
+  (transcript and RMS bytes, bounds, the song, the run's other sections, their lyrics, the
+  `song_boundary` config), and the command also selects sections whose fingerprint is missing
+  or differs, comparing inside each run's staging context. `VERSION` stays 2. Every section
+  banked above has no fingerprint, so the **next dry run selects all of them once**; its
+  reason delta against today's banking is the real measure of input drift. Not yet run.
 - **Demoted 2026-09-15** (operator: run `service:demote-held-publications` for the 38).
   - Dry runs: the 38 named by `--section` were all demotable, none refused.
     `--all` would have reached 83 published sections, 45 outside the 38 (43 held before

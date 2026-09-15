@@ -62,6 +62,10 @@ class BackfillSongBoundaryEvidenceCommand extends Command
     public function handle(SongBoundaryEvidenceBackfill $backfill): int
     {
         $sections = $this->sectionsQuery()->get();
+        $changedInputs = $backfill->withChangedInputs(
+            $this->baseQuery()->whereNotIn('id', $sections->modelKeys())->get(),
+        );
+        $sections = $sections->merge($changedInputs)->sortBy('id')->values();
 
         if ($sections->isEmpty()) {
             $this->info('Every selected song section already holds banked boundary evidence.');
@@ -69,7 +73,11 @@ class BackfillSongBoundaryEvidenceCommand extends Command
             return self::SUCCESS;
         }
 
-        $this->line(sprintf('Assessing %d song section(s) with no banked boundary evidence.', $sections->count()));
+        $this->line(sprintf('Assessing %d song section(s) with missing or stale boundary evidence.', $sections->count()));
+
+        if ($changedInputs->isNotEmpty()) {
+            $this->line(sprintf('  %d hold evidence whose inputs changed since it was banked.', $changedInputs->count()));
+        }
 
         $entries = $backfill->inspect($sections);
         $this->report($entries);
@@ -182,9 +190,7 @@ class BackfillSongBoundaryEvidenceCommand extends Command
     {
         $key = SongPublicationBoundaryEvidenceService::METADATA_KEY;
 
-        $query = ServiceSection::query()
-            ->notSuperseded()
-            ->where('section_type', ServiceSectionType::Song->value)
+        return $this->baseQuery()
             ->where(function (Builder $query) use ($key): void {
                 /*
                  * Absent evidence and stale evidence are the same problem. A
@@ -199,7 +205,19 @@ class BackfillSongBoundaryEvidenceCommand extends Command
                     ->orWhereRaw(self::CandidateStartDisagrees)
                     ->orWhereRaw(self::CandidateEndDisagrees)
                     ->orWhereRaw(self::EvidenceVersionStale);
-            })
+            });
+    }
+
+    /**
+     * The song sections this pass may consider, whatever their evidence holds.
+     *
+     * @return Builder<ServiceSection>
+     */
+    private function baseQuery(): Builder
+    {
+        $query = ServiceSection::query()
+            ->notSuperseded()
+            ->where('section_type', ServiceSectionType::Song->value)
             ->orderBy('id');
 
         if (! (bool) $this->option('include-not-applicable')) {

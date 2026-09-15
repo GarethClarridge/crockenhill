@@ -25,6 +25,70 @@ class BackfillSongBoundaryEvidenceCommandTest extends TestCase
 {
     use RefreshDatabase;
 
+    private const TRANSCRIPT_PATH = 'service-transcripts/2024-01-07/morning-test.normalized.json';
+
+    private const RMS_PATH = 'service-transcripts/2024-01-07/morning-test.rms.json';
+
+    /**
+     * Codex review 2026-09-15 P3. Bounds and version held still while the transcript
+     * under a banked clearance was replaced: 23 published clips newly held when the
+     * version-2 backfill happened to re-read them. Evidence must notice its inputs moved.
+     */
+    #[Test]
+    public function it_re_assesses_evidence_whose_transcript_changed_after_it_was_banked(): void
+    {
+        $section = $this->songSection(withArtifacts: true);
+        $this->artisan('service:backfill-song-boundary-evidence', ['--execute' => true])->assertSuccessful();
+
+        Storage::disk(ServiceArtifactDisk::for(self::TRANSCRIPT_PATH))->put(self::TRANSCRIPT_PATH, json_encode([
+            'duration' => 3600.0,
+            'source' => 'test',
+            'cues' => [
+                ['start' => 11.0, 'end' => 15.0, 'text' => 'Let us pray'],
+                ['start' => 245.0, 'end' => 249.0, 'text' => 'That saved a wretch like me'],
+            ],
+        ]));
+
+        $this->artisan('service:backfill-song-boundary-evidence')
+            ->expectsOutputToContain('Assessing 1 song section(s)')
+            ->expectsOutputToContain('1 hold evidence whose inputs changed')
+            ->assertSuccessful();
+
+        self::assertNotNull($this->bankedEvidence($section->fresh()));
+    }
+
+    #[Test]
+    public function it_re_assesses_evidence_whose_song_lyrics_changed_after_it_was_banked(): void
+    {
+        $section = $this->songSection(withArtifacts: true);
+        $this->artisan('service:backfill-song-boundary-evidence', ['--execute' => true])->assertSuccessful();
+
+        $section->churchServiceItem->song->forceFill(['lyrics_plain' => 'Amazing grace how sweet the sound'])->save();
+
+        $this->artisan('service:backfill-song-boundary-evidence')
+            ->expectsOutputToContain('Assessing 1 song section(s)')
+            ->assertSuccessful();
+    }
+
+    /**
+     * Evidence banked before its inputs were fingerprinted cannot say whether they
+     * have changed since, so it is re-assessed once rather than trusted.
+     */
+    #[Test]
+    public function it_re_assesses_evidence_banked_without_an_inputs_fingerprint(): void
+    {
+        $section = $this->songSection(withArtifacts: true, banked: true);
+        $metadata = $section->metadata->toArray();
+        unset($metadata['song_publication_boundary']['inputs_fingerprint']);
+        $section->forceFill(['metadata' => $metadata])->save();
+
+        $this->artisan('service:backfill-song-boundary-evidence', ['--execute' => true])
+            ->expectsOutputToContain('Assessing 1 song section(s)')
+            ->assertSuccessful();
+
+        self::assertIsString($this->bankedEvidence($section->fresh())['inputs_fingerprint'] ?? null);
+    }
+
     #[Test]
     public function it_reports_an_empty_pass_when_every_section_already_holds_evidence(): void
     {
@@ -271,8 +335,8 @@ class BackfillSongBoundaryEvidenceCommandTest extends TestCase
         $song = Song::factory()->create();
         $item = ChurchServiceItem::factory()->create(['song_id' => $song->id]);
 
-        $transcriptPath = 'service-transcripts/2024-01-07/morning-test.normalized.json';
-        $rmsPath = 'service-transcripts/2024-01-07/morning-test.rms.json';
+        $transcriptPath = self::TRANSCRIPT_PATH;
+        $rmsPath = self::RMS_PATH;
 
         // Whichever disk the estate resolves these durable keys to — the reader
         // goes through ServiceArtifactDisk, so the fake has to as well.
@@ -303,13 +367,6 @@ class BackfillSongBoundaryEvidenceCommandTest extends TestCase
         }
 
         $metadata = ['confidence_level' => 'high'];
-
-        if ($banked) {
-            $metadata['song_publication_boundary'] = [
-                'version' => SongPublicationBoundaryEvidenceService::VERSION,
-                'decision' => 'release_eligible',
-            ];
-        }
 
         $processingMetadata = ['service_transcript_path' => $transcriptPath];
 
@@ -349,6 +406,15 @@ class BackfillSongBoundaryEvidenceCommandTest extends TestCase
             'extracted_video_path' => $published ? 'sermons/songs/'.$song->id.'/'.$section->id.'.mp4' : null,
             'extracted_at' => $published ? now() : null,
         ])->save();
+
+        if ($banked) {
+            // Banked as the assessment would bank it, inputs fingerprint included,
+            // so a banked section is current until something it read changes.
+            $section->forceFill(['metadata' => [
+                ...$section->metadata->toArray(),
+                SongPublicationBoundaryEvidenceService::METADATA_KEY => app(SongPublicationBoundaryEvidenceService::class)->assess($section->fresh()),
+            ]])->save();
+        }
 
         return $section->fresh();
     }
