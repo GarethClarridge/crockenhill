@@ -379,6 +379,42 @@ class DetectServiceStructureTest extends TestCase
         $this->assertSame('The sermon explains God’s faithfulness from Joshua chapter one.', $structurePayload['sections'][2]['summary']);
     }
 
+    /**
+     * The 963 shape: a carol the transcript cannot see, between the welcome and the reading.
+     * The detector returns no section for it; the RMS log shows it, and the proposal waits
+     * for review rather than publishing.
+     */
+    #[Test]
+    public function primary_mode_proposes_a_held_song_for_singing_the_detector_left_unsectioned(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        Config::set('media-processing.segmentation.adaptive_thresholds.enabled', false);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+        $this->storeRmsLog($log, sungFrom: 130, sungTo: 410);
+        MockServiceStructureService::useStructure($this->validStructure());
+
+        $this->runJob($log);
+
+        $sections = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->orderBy('section_order')
+            ->get();
+
+        $this->assertSame(
+            ['welcome', 'song', 'bible_reading', 'sermon', 'song'],
+            $sections->pluck('section_type')->map(fn ($type) => $type->value)->all()
+        );
+        $this->assertSame('Unidentified singing', $sections[1]->title);
+        $this->assertTrue($sections[1]->needs_manual_review);
+        $this->assertContains(
+            ServiceStructureValidator::FLAG_UNIDENTIFIED_SINGING,
+            $sections[1]->metadata?->toArray()['review_flags'] ?? [],
+        );
+    }
+
     #[Test]
     public function auto_trim_primary_mode_uses_the_llm_sequence_and_produces_plausible_sermon_boundaries(): void
     {
@@ -1024,6 +1060,26 @@ class DetectServiceStructureTest extends TestCase
         $path = 'temp/service_transcript_'.$log->processing_id.'.json';
         Storage::disk('local')->put($path, (string) json_encode($transcript));
         $log->putServiceTranscriptPath($path);
+    }
+
+    /**
+     * An RMS log for the stored transcript's 2430 s recording, sampled every 0.1 s: speech with
+     * a half-second pause every 3 s throughout, except unbroken singing between the given times.
+     */
+    private function storeRmsLog(MediaProcessingLog $log, int $sungFrom, int $sungTo): void
+    {
+        $lines = [];
+
+        for ($tenth = 0; $tenth < 24300; $tenth++) {
+            $time = $tenth / 10;
+            $level = $time >= $sungFrom && $time < $sungTo ? -18.0 : (fmod($time, 3.0) < 2.5 ? -25.0 : -60.0);
+            $lines[] = sprintf('frame:%d pts:%d pts_time:%.1f', $tenth, $tenth * 800, $time);
+            $lines[] = sprintf('lavfi.astats.Overall.RMS_level=%.1f', $level);
+        }
+
+        $path = 'temp/rms_'.$log->processing_id.'.log';
+        Storage::disk('local')->put($path, implode("\n", $lines)."\n");
+        $log->forceFill(['rms_log_path' => $path])->save();
     }
 
     private function coveringSegments(MediaProcessingLog $log): void

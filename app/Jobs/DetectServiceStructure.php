@@ -19,6 +19,7 @@ use App\Services\ChurchService\ChurchServiceReviewSynchronizer;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
+use App\Services\ChurchService\Structure\SustainedSoundSongSections;
 use App\Services\ChurchService\Structure\ValidationContext;
 use App\Services\ChurchService\Structure\ValidationResult;
 use App\Services\Processing\MediaProcessingIdentityResolver;
@@ -765,7 +766,13 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             return $structure;
         }
 
-        return $snapService->snap($structure, (string) Storage::disk($artifactDisk)->get($rmsLogPath));
+        $rmsLogContent = (string) Storage::disk($artifactDisk)->get($rmsLogPath);
+
+        return app(SustainedSoundSongSections::class)->apply(
+            $snapService->snap($structure, $rmsLogContent),
+            $rmsLogContent,
+            ValidationContext::recordingOmitsSongs($this->processingLog->processing_metadata),
+        );
     }
 
     /**

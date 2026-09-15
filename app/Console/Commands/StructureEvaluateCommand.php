@@ -14,6 +14,7 @@ use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\Structure\ServiceStructureEvaluationTelemetry;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
+use App\Services\ChurchService\Structure\SustainedSoundSongSections;
 use App\Services\ChurchService\Structure\ValidationContext;
 use App\Support\ServiceArtifactDisk;
 use Illuminate\Console\Command;
@@ -416,7 +417,13 @@ class StructureEvaluateCommand extends Command
             return $structure;
         }
 
-        return $snapService->snap($structure, (string) Storage::disk($rmsDisk)->get($rmsLogPath));
+        $rmsLogContent = (string) Storage::disk($rmsDisk)->get($rmsLogPath);
+
+        return app(SustainedSoundSongSections::class)->apply(
+            $snapService->snap($structure, $rmsLogContent),
+            $rmsLogContent,
+            ValidationContext::recordingOmitsSongs($log->processing_metadata),
+        );
     }
 
     /**

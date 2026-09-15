@@ -120,6 +120,18 @@ class ServiceStructureValidator
     public const FLAG_OOS_STRUCTURE_MISMATCH = 'oos_structure_mismatch';
 
     /**
+     * A song section widened across so much unsectioned sustained sound that the sound may be
+     * a second song. Raised by {@see SustainedSoundSongSections}, not by validation.
+     */
+    public const FLAG_SONG_WIDENED_TO_SUSTAINED_SOUND = 'structure_song_widened_to_sustained_sound';
+
+    /**
+     * A song section proposed over sustained sound no section held. Raised by
+     * {@see SustainedSoundSongSections}, not by validation.
+     */
+    public const FLAG_UNIDENTIFIED_SINGING = 'structure_unidentified_singing';
+
+    /**
      * Applied by DetectServiceStructure when a validated structure has a
      * sermon but no bible_reading section near it, and a feedback-guided
      * retry could not recover one — the reading is likely embedded in
