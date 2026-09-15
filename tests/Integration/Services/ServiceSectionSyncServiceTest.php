@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
+use App\Actions\HoldSectionForContentReview;
+use App\Actions\ServiceReview\ConfirmServiceSection;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
+use App\Exceptions\UnplacedContentHoldException;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
+use App\Models\User;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -20,6 +24,10 @@ use Tests\TestCase;
 class ServiceSectionSyncServiceTest extends TestCase
 {
     use RefreshDatabase;
+
+    private const HOLD_REASON = 'Saved text repeats a sentence the audio does not';
+
+    private const HOLD_EVIDENCE = 'docs/plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md';
 
     private ServiceSectionSyncService $service;
 
@@ -316,6 +324,165 @@ class ServiceSectionSyncServiceTest extends TestCase
 
         $this->assertSame('Existing section transcript', $section->metadata['transcript'] ?? null);
         $this->assertSame('openlp_aligned', $section->metadata['classification_mode'] ?? null);
+    }
+
+    #[Test]
+    public function a_re_detection_keeps_the_content_hold_on_an_unchanged_section(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $section = $this->heldSection($processingLog, ServiceSectionType::Sermon, sectionOrder: 1, startTime: 600.0, endTime: 1800.0);
+
+        $this->service->sync($processingLog, [
+            $this->sectionData(null, 1, ServiceSectionType::Sermon->value, startTime: 600.0, endTime: 1800.0, duration: 1200.0),
+        ]);
+
+        $this->assertHeld($section->refresh());
+    }
+
+    #[Test]
+    public function a_re_detection_that_moves_the_held_section_keeps_its_content_hold(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $section = $this->heldSection($processingLog, ServiceSectionType::Song, sectionOrder: 1, startTime: 300.0, endTime: 500.0);
+
+        $this->service->sync($processingLog, [
+            $this->sectionData(null, 1, ServiceSectionType::Song->value, startTime: 290.0, endTime: 520.0, duration: 230.0),
+        ]);
+
+        $section->refresh();
+
+        $this->assertArrayHasKey('superseded', $section->metadata?->toArray() ?? []);
+        $this->assertHeld($section);
+    }
+
+    /**
+     * Rows are kept by order, so after a re-detection shifts the orders the held
+     * row can hold different content. The hold follows its content instead.
+     */
+    #[Test]
+    public function a_content_hold_follows_its_content_to_a_new_order(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $this->heldSection($processingLog, ServiceSectionType::Sermon, sectionOrder: 2, startTime: 600.0, endTime: 1800.0);
+
+        $this->service->sync($processingLog, [
+            $this->sectionData(null, 1, ServiceSectionType::Welcome->value, startTime: 0.0, endTime: 50.0, duration: 50.0),
+            $this->sectionData(null, 2, ServiceSectionType::Song->value, startTime: 60.0, endTime: 180.0, duration: 120.0),
+            $this->sectionData(null, 3, ServiceSectionType::Sermon->value, startTime: 610.0, endTime: 1790.0, duration: 1180.0),
+        ]);
+
+        $this->assertHeld($this->sectionAt($processingLog, 3));
+        $this->assertNotHeld($this->sectionAt($processingLog, 2));
+    }
+
+    #[Test]
+    public function a_content_hold_is_not_spread_to_content_it_does_not_cover(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $this->heldSection($processingLog, ServiceSectionType::Song, sectionOrder: 1, startTime: 300.0, endTime: 500.0);
+
+        $this->service->sync($processingLog, [
+            $this->sectionData(null, 1, ServiceSectionType::Song->value, startTime: 300.0, endTime: 500.0, duration: 200.0),
+            $this->sectionData(null, 2, ServiceSectionType::Song->value, startTime: 600.0, endTime: 800.0, duration: 200.0),
+            $this->sectionData(null, 3, ServiceSectionType::Prayer->value, startTime: 400.0, endTime: 450.0, duration: 50.0),
+        ]);
+
+        $this->assertHeld($this->sectionAt($processingLog, 1));
+        $this->assertNotHeld($this->sectionAt($processingLog, 2));
+        $this->assertNotHeld($this->sectionAt($processingLog, 3));
+    }
+
+    /**
+     * Only an operator releases a hold. A re-detection that no longer finds the
+     * held content cannot say whether the defect went with it, so it refuses to
+     * write sections rather than let the hold vanish.
+     */
+    #[Test]
+    public function a_re_detection_that_leaves_a_content_hold_nowhere_to_go_writes_nothing(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $section = $this->heldSection($processingLog, ServiceSectionType::Sermon, sectionOrder: 1, startTime: 600.0, endTime: 1800.0);
+
+        try {
+            $this->service->sync($processingLog, [
+                $this->sectionData(null, 1, ServiceSectionType::Song->value, startTime: 60.0, endTime: 180.0, duration: 120.0),
+            ]);
+            $this->fail('A re-detection dropped a content hold.');
+        } catch (UnplacedContentHoldException $exception) {
+            $this->assertStringContainsString("section {$section->id}", $exception->getMessage());
+        }
+
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionType::Sermon, $section->section_type);
+        $this->assertHeld($section);
+        $this->assertSame(1, $processingLog->serviceSections()->count());
+    }
+
+    #[Test]
+    public function a_released_content_hold_stays_released_and_keeps_its_history(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $section = $this->heldSection($processingLog, ServiceSectionType::Sermon, sectionOrder: 1, startTime: 600.0, endTime: 1800.0);
+        app(ConfirmServiceSection::class)->execute($section->refresh(), User::factory()->create()->id);
+
+        $this->service->sync($processingLog, [
+            $this->sectionData(null, 1, ServiceSectionType::Sermon->value, startTime: 590.0, endTime: 1810.0, duration: 1220.0),
+        ]);
+
+        $section->refresh();
+
+        $this->assertNotHeld($section);
+        $this->assertCount(1, $section->metadata?->toArray()[HoldSectionForContentReview::METADATA_KEY] ?? []);
+    }
+
+    private function heldSection(
+        MediaProcessingLog $processingLog,
+        ServiceSectionType $type,
+        int $sectionOrder,
+        float $startTime,
+        float $endTime,
+    ): ServiceSection {
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => $type->value,
+            'section_order' => $sectionOrder,
+            'title' => null,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'duration' => $endTime - $startTime,
+            'needs_manual_review' => false,
+            'metadata' => ['review_flags' => []],
+        ]);
+
+        app(HoldSectionForContentReview::class)($section, self::HOLD_REASON, self::HOLD_EVIDENCE);
+
+        return $section->refresh();
+    }
+
+    private function sectionAt(MediaProcessingLog $processingLog, int $sectionOrder): ServiceSection
+    {
+        return ServiceSection::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->where('section_order', $sectionOrder)
+            ->firstOrFail();
+    }
+
+    private function assertHeld(ServiceSection $section): void
+    {
+        $metadata = $section->metadata?->toArray() ?? [];
+
+        $this->assertTrue($section->needs_manual_review, "Section {$section->id} must stay in manual review.");
+        $this->assertContains(HoldSectionForContentReview::FLAG, $metadata['review_flags'] ?? [], "Section {$section->id} must carry the hold flag.");
+        $this->assertSame(self::HOLD_REASON, $metadata[HoldSectionForContentReview::METADATA_KEY][0]['reason'] ?? null);
+        $this->assertSame(self::HOLD_EVIDENCE, $metadata[HoldSectionForContentReview::METADATA_KEY][0]['evidence'] ?? null);
+    }
+
+    private function assertNotHeld(ServiceSection $section): void
+    {
+        $this->assertFalse($section->needs_manual_review, "Section {$section->id} must not be held.");
+        $this->assertNotContains(HoldSectionForContentReview::FLAG, $section->metadata?->toArray()['review_flags'] ?? []);
     }
 
     /**

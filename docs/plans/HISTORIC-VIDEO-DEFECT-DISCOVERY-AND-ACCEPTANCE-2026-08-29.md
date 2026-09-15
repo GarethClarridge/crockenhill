@@ -216,7 +216,13 @@ Read-only measurements taken to size §4. Nothing was written, held or moved.
   - Only operator confirmation releases the hold; the recorded reasons remain as
     history.
   - Re-running a service replaces section metadata from detection, and with it the
-    hold. Re-apply the hold after any re-run.
+    hold. Re-apply the hold after any re-run. **Superseded 2026-09-15:**
+    `ServiceSectionSyncService::sync()` now carries a live hold to every incoming
+    section of its type that overlaps the held span (rows are kept by order, so the
+    hold follows content, not the row), keeps released holds' history, and refuses
+    the whole write with `UnplacedContentHoldException` when a live hold overlaps
+    nothing. Section merges (`removeSection`) are not yet covered. The
+    held-then-reprocessed *run* below is still required.
   - Dry run on 2026-09-13 mapped §531/§1263/§2411/§3703/§4032 to sermons
     872/943/1106/1214/1242, and §988/§1457/§3869 to song videos 135/191/371.
     Executed the same day; see the gate recheck below.

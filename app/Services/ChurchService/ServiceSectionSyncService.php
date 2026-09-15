@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService;
 
+use App\Actions\HoldSectionForContentReview;
 use App\Enums\ServiceSectionPublicationStatus;
+use App\Exceptions\UnplacedContentHoldException;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
@@ -42,6 +44,13 @@ use Illuminate\Support\Facades\Validator;
  *     source_segment_ids: array<int, int>,
  *     metadata: array<string, mixed>
  * }
+ * @phpstan-type HeldContent array{
+ *     id: int,
+ *     section_type: string,
+ *     start_time: float,
+ *     end_time: float,
+ *     holds: list<array<string, mixed>>
+ * }
  */
 class ServiceSectionSyncService
 {
@@ -77,6 +86,23 @@ class ServiceSectionSyncService
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('section_order');
+
+            /*
+             * Read before any row is rewritten: a held row can be refilled with other
+             * content earlier in this loop than the section its hold belongs on.
+             */
+            $heldContent = array_values($existingByOrder
+                ->filter(fn (ServiceSection $section): bool => HoldSectionForContentReview::isHeld($this->reviewFlagsOf($section->metadata?->toArray() ?? [])))
+                ->map(fn (ServiceSection $section): array => [
+                    'id' => $section->id,
+                    'section_type' => $section->section_type->value,
+                    'start_time' => (float) $section->start_time,
+                    'end_time' => (float) $section->end_time,
+                    'holds' => $this->contentHoldsOf($section),
+                ])
+                ->all());
+
+            $this->refuseUnplacedContentHolds($heldContent, $classifiedSections);
 
             $incomingOrders = [];
 
@@ -125,14 +151,14 @@ class ServiceSectionSyncService
                         $payload['metadata'] = $this->mergeExistingMetadata($existing, $payload['metadata']);
                     }
 
-                    $existing->fill($payload);
+                    $existing->fill($this->withContentHolds($payload, $existing, $heldContent));
                     $existing->save();
 
                     continue;
                 }
 
                 ServiceSection::query()->create(array_merge(
-                    $payload,
+                    $this->withContentHolds($payload, null, $heldContent),
                     [
                         'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
                         'song_match_type' => null,
@@ -336,6 +362,106 @@ class ServiceSectionSyncService
         $existingMetadata = $existing->metadata?->toArray() ?? [];
 
         return array_merge($existingMetadata, $incomingMetadata);
+    }
+
+    /**
+     * Refuse, before anything is written, a re-detection that leaves an operator's
+     * content hold with no section to carry it.
+     *
+     * Rows are kept by order, and a hold used to be overwritten with the rest of the
+     * detection's review state, so a re-run could release content an operator had
+     * proven wrong. Whether the defect went with the content only an operator can say.
+     *
+     * @param  list<HeldContent>  $heldContent
+     * @param  array<int, ClassifiedSection>  $classifiedSections
+     *
+     * @throws UnplacedContentHoldException
+     */
+    private function refuseUnplacedContentHolds(array $heldContent, array $classifiedSections): void
+    {
+        $unplaced = array_values(array_filter(
+            $heldContent,
+            fn (array $held): bool => ! collect($classifiedSections)
+                ->contains(fn (array $sectionData): bool => $this->coversHeldContent($held, $sectionData)),
+        ));
+
+        if ($unplaced !== []) {
+            throw UnplacedContentHoldException::forSections($unplaced);
+        }
+    }
+
+    /**
+     * Carry each content hold to the incoming sections of its type that overlap the
+     * held span, and keep a row's own hold history whether or not it is still held.
+     *
+     * A hold follows its content, not its row: after a re-detection shifts the
+     * orders, the held row can hold different content and the held content can
+     * arrive at another order. Released holds stay released; their reasons are kept.
+     *
+     * @param  array<string, mixed>  $payload
+     * @param  list<HeldContent>  $heldContent
+     * @return array<string, mixed>
+     */
+    private function withContentHolds(array $payload, ?ServiceSection $existing, array $heldContent): array
+    {
+        $covering = collect($heldContent)->filter(fn (array $held): bool => $this->coversHeldContent($held, $payload));
+
+        /** @var array<string, mixed> $metadata */
+        $metadata = $payload['metadata'];
+        $holds = collect($existing instanceof ServiceSection ? $this->contentHoldsOf($existing) : [])
+            ->merge($covering->flatMap(fn (array $held): array => $held['holds']))
+            ->unique(fn (array $hold): string => json_encode([$hold['reason'] ?? null, $hold['evidence'] ?? null], JSON_THROW_ON_ERROR))
+            ->values()
+            ->all();
+
+        if ($holds !== []) {
+            $metadata[HoldSectionForContentReview::METADATA_KEY] = $holds;
+        }
+
+        if ($covering->isNotEmpty()) {
+            $flags = $this->reviewFlagsOf($metadata);
+            $metadata['review_flags'] = HoldSectionForContentReview::isHeld($flags)
+                ? $flags
+                : [...$flags, HoldSectionForContentReview::FLAG];
+            $payload['needs_manual_review'] = true;
+        }
+
+        $payload['metadata'] = $metadata;
+
+        return $payload;
+    }
+
+    /**
+     * @param  HeldContent  $held
+     * @param  array<string, mixed>  $sectionData
+     */
+    private function coversHeldContent(array $held, array $sectionData): bool
+    {
+        return $sectionData['section_type'] === $held['section_type']
+            && (float) $sectionData['start_time'] < $held['end_time']
+            && (float) $sectionData['end_time'] > $held['start_time'];
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     * @return list<string>
+     */
+    private function reviewFlagsOf(array $metadata): array
+    {
+        return array_values(array_filter(
+            is_array($metadata['review_flags'] ?? null) ? $metadata['review_flags'] : [],
+            'is_string',
+        ));
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function contentHoldsOf(ServiceSection $section): array
+    {
+        $holds = $section->metadata?->toArray()[HoldSectionForContentReview::METADATA_KEY] ?? [];
+
+        return array_values(array_filter(is_array($holds) ? $holds : [], 'is_array'));
     }
 
     private function cleanupExtractedAssets(ServiceSection $section): void
