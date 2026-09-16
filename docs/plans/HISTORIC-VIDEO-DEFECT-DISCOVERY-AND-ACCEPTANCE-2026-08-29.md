@@ -1793,17 +1793,43 @@ closes §4.3's stale-verdict item for boundary evidence.
   cases: "The Servant King" (§1284), "It Is Well with My Soul" (§928) and "How Great Thou Art"
   (§1588, §3580) — each a lyric line rather than a catalogued title. Full suite 8192 passed,
   PHPStan clean.
-- **The 2026-09-14 census's `source` column does not say how a section was bound.** "Behold Our
-  God" reaches "All glory be to Christ" on 8 sections, but that song's lyrics do not contain the
-  phrase, while song 1047 does and carries "Behold our God" as its alternate title. Those bindings
-  cannot have come from `matchTitleHint`: the stored `match_source` is the transcript matcher's own
-  last answer and survives a later order-of-service link that chose a different song. The 81 hint
-  disagreements are therefore not one class, and the re-resolve membership has to be measured per
-  binding path before anything is re-run.
-- Due: measure that membership, then re-resolve the affected sections and correct the
-  livestream-sourced order-of-service items written from the wrong song, through the pipeline;
-  settle the 31 pending-approval sections before anyone approves them. No hold was cleared and no
-  re-run was done.
+- **Corrected 2026-09-16 by the measurement below.** This note first claimed the "Behold Our God"
+  bindings could not have come from `matchTitleHint`, because a raw `LIKE '%behold our god%'` finds
+  the phrase in song 1047 and not in "All glory be to Christ" (836). That test is
+  punctuation-sensitive and the matcher is not: `normalize()` strips punctuation and collapses
+  newlines, after which **both** songs' lyrics contain the phrase, and
+  `matchFromLyrics('Behold Our God')` returns 836 at confidence 1.0. It is the same containment tie
+  as "Rock Of Ages", won by the lower row id — one class, not two. Of the 15 sections carrying that
+  hint, 11 were bound by the hint path, 3 by their order-of-service item and 1 is unbound; the
+  repair resolves all 15 to 1047 through the alternate-title rung. The general caution still holds
+  and is now measured: 12 of the 75 changed sections were bound by their item, not by the hint.
+
+**Re-resolve membership measured 2026-09-16** (`storage/scratch/hintresolve-20260916-blast-radius.php`,
+read-only; register `hintresolve-20260916-blast-radius.json`). Nothing was written.
+
+- 1,160 active historic song sections carry a heard title hint. Under the repair they resolve as
+  701 catalogue title, 314 canonical, 10 first line, 88 still through the lyrics fallback, and 47
+  to nothing.
+- **75 sections now name a different song from the one they are bound to.** 26 have a generated
+  clip, 2 are published, 38 await approval, and 9 carry no hold. By the path that chose the current
+  binding: 62 transcript-and-item agreeing, 12 the order-of-service item alone, 1 the transcript
+  alone.
+- **72 of the 75 are deterministic catalogue-title resolutions** — the repaired class, covering the
+  named regression cases and the recurring wrong bindings (`Behold Our God` ×11, `God of Glory` ×7,
+  `I Know That My Redeemer Lives` ×4, `Man of Sorrows` ×3, `Love Divine` ×3, `Bless the Lord, O My
+  Soul` ×7, `O Lord My God` ×3).
+- **The other 3 come from the unchanged lyrics fallback and must not be re-resolved automatically:**
+  §2304 (`This Earth Belongs To God #024b` → `#24b`, a zero-padding duplicate), §2718 (`King of
+  Kings` → `Listen! Wisdom Cries Aloud #669`, the very pairing §4.1a r2 recorded as wrong) and
+  §2683 (`Jesus Is Lord` → `How Lovely On The Mountains`, where the bound
+  `'Jesus Is Lord'—the cry that echoes through creation` is the better answer and two catalogue rows
+  open with the hint, so the resolver rightly refuses to choose). These wait on §4.3's lyric
+  coverage check and the redefinition of `confirmed`; the fix neither helps nor harms them.
+- **Both published changes are unheld:** §4156 (`O Lord My God` → `#190`, a repair) and §2683
+  (above, not a repair). Treat the published pair as the first to settle.
+- Due: re-resolve the 72 through the pipeline and correct the livestream-sourced order-of-service
+  items written from the wrong song; adjudicate the 3 fallback rows individually; settle the 31
+  pending-approval sections before anyone approves them. No hold was cleared and no re-run was done.
 
 - [ ] Fill the table's "pipeline item" column with a tested change or a recorded
   decision not to detect, for every row, before §4.5 acceptance.
