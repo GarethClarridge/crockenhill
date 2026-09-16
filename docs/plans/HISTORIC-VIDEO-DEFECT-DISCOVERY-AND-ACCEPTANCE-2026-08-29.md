@@ -110,10 +110,11 @@ substituted for these relationship-defined populations.
   published sections with `needs_manual_review`. All **36** publicly published
   SongVideos are outside the historic lane and none of their sections is held.
   This is local exposure, not a production assertion. Evidence:
-  `plan-review-20260916-demotion-dry-run.json`. **Superseded at 17:52 UTC:** the
-  §4.4 identity holds put seven song sections into `published` with
-  `needs_manual_review`, so the zero no longer holds. Their media stayed
-  quarantined; the demotion is outstanding in §4.4.
+  `plan-review-20260916-demotion-dry-run.json`. **Broken and restored the same
+  day:** the §4.4 identity holds put seven song sections into `published` with
+  `needs_manual_review` at 17:52 UTC, and demoting them at 18:22 UTC returned the
+  corpus-wide count to zero. The zero now holds over a population that includes
+  the newly held rows, which the original measurement predated.
 - The saved title-resolution comparison remains **75 changed bindings: 72
   deterministic catalogue resolutions and 3 fallback cases**. Refreshing those
   exact rows now finds **7 unheld**, §§872, 935, 2901, 3128, 3323, 3587 and 4156,
@@ -2141,14 +2142,21 @@ read-only; register `hintresolve-20260916-blast-radius.json`). Nothing was writt
     seven song videos were `quarantined` throughout; none was publicly exposed.
     Evidence: `storage/scratch/identity-20260916-gate-{before,after}.json` and the
     recorder `identity-20260916-gate.php`.
-- [ ] **Demote the seven song sections, which are now published while held.** They
-  carry `publication_status = published` with `needs_manual_review = 1`, published
+- [x] **Demote the seven song sections the holds left published.** They carried
+  `publication_status = published` with `needs_manual_review = 1`, published
   2026-09-06 to 09-08. The holds created this inconsistency; the media stayed
-  quarantined, so this is an internal state mismatch rather than public exposure.
-  `service:demote-held-publications` is the tested path and is all-or-nothing, so
-  scope it to those seven ids: the six sermon sections are `not_applicable` and
-  would refuse the whole run. This also supersedes §3's "zero demotable/refused
-  cases", which was measured before these holds existed.
+  quarantined, so it was internal state drift rather than public exposure.
+  **Applied 2026-09-16 at 18:22 UTC** through `service:demote-held-publications
+  --apply`, scoped to those seven ids — the command is all-or-nothing and the six
+  sermon sections are `not_applicable`, so naming all 13 refuses the whole run.
+  The dry run assessed 7 published, 7 not-to-be-published, **0 currently visible,
+  0 refused**, each reason reading `held for review: content_defect_hold`. After:
+  all seven are `not_applicable` with `published_at` cleared, and no song video was
+  quarantined because all seven already were. **The containment is undisturbed:**
+  the gate still returns the same **14** refusals and **13** held sections across
+  the demotion, so demoting a held row does not release its hold. Corpus-wide
+  published-while-held is back to **0**, which restores §3's claim on a basis that
+  now includes these rows. Evidence: `identity-20260916-gate-after-demotion.json`.
 - [ ] Resolve source adoption for pairs 873/1045, 969/1307 and 1296/1297 without
   deleting the better master or substituting media beneath existing timings.
 - [ ] Update exact release membership only after each identity decision is
@@ -2298,7 +2306,7 @@ read-only; register `hintresolve-20260916-blast-radius.json`). Nothing was writt
 |---|---|---|
 | Processing | GO | Definitive passes drained; three failures remain explicit rather than hidden. |
 | Queued repair readiness | **NO-GO** | Six worker processes predate the fixes. Verify idle queues, restart/verify workers and pass §4.0a's source-content/device canary before bulk reprocessing. |
-| Containment | **NO-GO** | The six disputed sermons and their seven song videos were held on 2026-09-16 (§4.4), so the identity gate-clear gap is closed. Remaining: demote the seven song sections those holds left published, then clear the current-policy and unassessable residue. Containment is not adoption — the three pairs are still undecided, and a hold is what makes deferring them safe. |
+| Containment | **NO-GO** | The six disputed sermons and their seven song videos were held on 2026-09-16 and the sections those holds left published were demoted the same hour (§4.4), so the identity gate-clear gap is closed and published-while-held is zero again. Remaining: the current-policy and unassessable residue. Containment is not adoption — the three pairs are still undecided, and the holds are what make deferring them safe. |
 | Content acceptance | **NO-GO** | §4.1b's strengthened stopping rule passes: scoped coverage and limitations, omission reconciliation, independent source evidence, content handoffs, controlled variations/interruption tests, tail and whole-output reviews. Every §4.3a class has a tested response or recorded decision; detector errors and review burden meet predeclared criteria on reserved data. The fresh release-membership sample includes repaired/held runs, reports uncertainty and unassessable cases, and meets its separate predeclared limits. Evidence is bound to current artifacts; operator rulings are recorded. |
 | Public release | **NO-GO** | Phase 9 convergence, QA and actual-server browser checks pass, then the operator signs an exact era-sized batch. Actual-destination delivery checks are scheduled within the authorised release's rollback window and must pass to close observation. |
 
