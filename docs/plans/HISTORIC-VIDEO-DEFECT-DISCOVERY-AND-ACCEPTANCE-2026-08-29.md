@@ -1523,6 +1523,41 @@ rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b
 | Service URL offered while the service archive is disabled (null `public_from`) | §4.1b consumer-side rendering | no | same | **new**: `publicUrlFor()` returns null when `publicFrom()` is null, matching `applyDateEligibility()` |
 | Silent source producing nothing (955) | §4.1a r2 | yes (`SILENT-SOURCE-EXCLUSION` plan) | — | keep |
 
+**Audit of the `new` markers, 2026-09-16.** The table overstates what is left by
+about half. Of the 29 rows still marked `**new**`, **14 are already built**, checked
+against the code rather than against commit subjects: the single-chapter reference
+(`chaptersInBook($passage) === 1` in `SermonAnalysisValidator`); the preached reading
+held only for an order flag (`isPreachedReadingHeldOnlyForOrder()` inside
+`selectBibleReading()`); prompt cue times in seconds; the sermon page's own reading;
+the MP3 taken from the final video's whole audio track; the smart cut, with a song
+clip's length probed rather than copied from its section; the rehearsal and
+private-occasion exclusion reasons (`EXCLUSION_REASON_REHEARSAL_DUPLICATE`,
+`EXCLUSION_REASON_PRIVATE_OCCASION`); the sermon span running through unsectioned
+time to the next song (`$runsToNextSong` in `resolveSermonEnd()`); song recovery from
+sustained sound; the hold for lyrics sung outside a section; `enhanceVideo()` passing
+`-ar` from the probed input rate; `asset_disk` in `basePublicSermonQuery()`; and no
+service URL while the archive is disabled.
+
+**Two are partial.** The talk cut by the end of its source has
+`FlagSectionTruncatedBySource`, but it is raised only by the offline
+`ScreenSectionSourceBounds` command, and neither the mid-sentence transcript edge nor
+the talk *starting* mid-thought is detected. The duplicate OoS item has the adjacent
+same-song flag in `SongPublicationReviewPolicy`, but nothing refuses `confirmed` when
+a section's hint matches neither its bound song's title nor its lyrics.
+
+**Eleven are genuinely unbuilt**: the song-loop demotion, sung items typed as
+reading or prayer, an OoS song with no detected section, the audio-dropout flag, the
+published title or reference contradicting what was heard, multi-passage linking
+(`ScriptureReferenceResolver::normalize()` still returns `$passages[0]`, which is the
+defect itself), references never linked to a passage, a verse quoted in prayer typed
+as a reading, a hymn inside the sermon section, an announcement-only song section,
+and the check that a recorded asset path exists before release. Two more rows were
+opened by the 2026-09-16 approvals census and are open by construction.
+
+Each remaining row should be re-checked this way before anyone builds it, and rows
+that share evidence should be batched: the song-loop, sung-item, hymn-in-sermon and
+announcement-only rows all want one transcript-and-RMS pass over the same corpus.
+
 **Small fixes built test-first 2026-09-15** (operator agreed the eight). Code only: every
 re-run named below is still due, and each waits so a run goes through the pipeline once,
 after its last fix. No hold was cleared.
