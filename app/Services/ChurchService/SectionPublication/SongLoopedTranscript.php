@@ -76,35 +76,7 @@ final class SongLoopedTranscript
         $start = (float) $section->start_time;
         $end = (float) $section->end_time;
 
-        $clipped = [];
-        $phrases = [];
-        $crosses = false;
-
-        foreach ($recorded as $row) {
-            $block = SuspectTranscriptBlock::fromArray($row);
-
-            if (! $block->overlaps($start, $end)) {
-                continue;
-            }
-
-            if ($block->start < $start || $block->end > $end) {
-                $crosses = true;
-            }
-
-            if (is_string($block->phrase) && $block->phrase !== '') {
-                $phrases[] = $block->phrase;
-            }
-
-            $clipped[] = new SuspectTranscriptBlock(
-                start: max($start, $block->start),
-                end: min($end, $block->end),
-                reason: $block->reason,
-                words: $block->words,
-                wordsPerMinute: $block->wordsPerMinute,
-                phrase: $block->phrase,
-                repeats: $block->repeats,
-            );
-        }
+        ['blocks' => $clipped, 'crosses' => $crosses, 'phrases' => $phrases] = $this->clip($section);
 
         if ($clipped === []) {
             return [];
@@ -129,6 +101,62 @@ final class SongLoopedTranscript
             phrases: array_values(array_unique($phrases)),
             risk: $risk,
         )];
+    }
+
+    /**
+     * The recorded blocks overlapping this section, clipped to it.
+     *
+     * Exposed because a looping transcript is not only a reason to withhold the whole clip: the
+     * silence between two looped cues is not evidence of where the singing began or ended
+     * either, so {@see SongPublicationBoundaryEvidenceService} discounts a gap that falls inside
+     * one, the way it already discounts a gap inside an unobservable window.
+     *
+     * @return list<SuspectTranscriptBlock>
+     */
+    public function blocksFor(ServiceSection $section): array
+    {
+        return $this->clip($section)['blocks'];
+    }
+
+    /**
+     * @return array{blocks: list<SuspectTranscriptBlock>, crosses: bool, phrases: list<string>}
+     */
+    private function clip(ServiceSection $section): array
+    {
+        $start = (float) $section->start_time;
+        $end = (float) $section->end_time;
+
+        $blocks = [];
+        $phrases = [];
+        $crosses = false;
+
+        foreach ($section->processingLog->recordedTranscriptSuspectBlocks() ?? [] as $row) {
+            $block = SuspectTranscriptBlock::fromArray($row);
+
+            if (! $block->overlaps($start, $end)) {
+                continue;
+            }
+
+            if ($block->start < $start || $block->end > $end) {
+                $crosses = true;
+            }
+
+            if (is_string($block->phrase) && $block->phrase !== '') {
+                $phrases[] = $block->phrase;
+            }
+
+            $blocks[] = new SuspectTranscriptBlock(
+                start: max($start, $block->start),
+                end: min($end, $block->end),
+                reason: $block->reason,
+                words: $block->words,
+                wordsPerMinute: $block->wordsPerMinute,
+                phrase: $block->phrase,
+                repeats: $block->repeats,
+            );
+        }
+
+        return ['blocks' => $blocks, 'crosses' => $crosses, 'phrases' => $phrases];
     }
 
     /**

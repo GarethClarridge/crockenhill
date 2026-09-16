@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\ChurchService\SectionPublication;
 
 use App\Data\ChurchServiceTranscript;
+use App\Data\SuspectTranscriptBlock;
 use App\Models\ServiceSection;
 use App\Services\Media\Audio\RmsAnalysisService;
 use App\Services\Media\Audio\SustainedSound;
@@ -20,7 +21,8 @@ use Illuminate\Support\Facades\Storage;
  *     rms_threshold: float|null,
  *     rms_input: array{path: string|null, status: string, sample_count: int, threshold: float|null},
  *     transcript_sha256: string|null,
- *     rms_sha256: string|null
+ *     rms_sha256: string|null,
+ *     loop_blocks: list<SuspectTranscriptBlock>
  * }
  * @phpstan-type BoundaryEvidencePayload array{
  *     version: int,
@@ -72,9 +74,13 @@ final class SongPublicationBoundaryEvidenceService
      * 2 (2026-09-15): records {@see SongLyricsOutsideSection} observations under `lyric_edges`.
      * 3 (2026-09-16): records {@see SongLoopedTranscript} observations under `looped_transcript`,
      * so a clip resting on a decode loop reaches a reviewer instead of publishing itself.
+     * 4 (2026-09-16): a wordless gap inside a repetition block no longer counts as boundary
+     * evidence, so a clip held for spoken framing the loop invented is released. This changes
+     * what banked evidence says without changing what it was read from, which the fingerprint
+     * cannot see — the version is the only thing that makes those rows stale.
      * Evidence banked under an earlier version is stale, and the backfill re-assesses it.
      */
-    public const VERSION = 3;
+    public const VERSION = 4;
 
     private const LEADING_CUE_WINDOW_SECONDS = 5.0;
 
@@ -373,7 +379,8 @@ final class SongPublicationBoundaryEvidenceService
      *     rms_threshold: float|null,
      *     rms_input: array{path: string|null, status: string, sample_count: int, threshold: float|null},
      *     transcript_sha256: string|null,
-     *     rms_sha256: string|null
+     *     rms_sha256: string|null,
+     *     loop_blocks: list<SuspectTranscriptBlock>
      * }
      */
     private function loadInputs(ServiceSection $section): array
@@ -457,6 +464,9 @@ final class SongPublicationBoundaryEvidenceService
             ],
             'transcript_sha256' => $transcriptSha256,
             'rms_sha256' => $rmsSha256,
+            // Read from the run's metadata, so they are available even when the transcript
+            // artifact above could not be reached.
+            'loop_blocks' => $this->loopedTranscript->blocksFor($section),
         ];
     }
 
@@ -555,6 +565,21 @@ final class SongPublicationBoundaryEvidenceService
                 'reason' => [
                     'kind' => 'song_boundary_unobservable_gap',
                     'detail' => 'The first transcript gap overlaps an unobservable window, so it is not treated as evidence for a song boundary.',
+                ],
+            ];
+        }
+
+        if ($this->gapIsLooped($inputs['loop_blocks'], $gap['start_time'], $gap['end_time'])) {
+            return [
+                'risk' => false,
+                'evidence' => [
+                    ...$baseEvidence,
+                    'decision' => 'keep_inclusive',
+                    'basis' => 'looped_gap',
+                ],
+                'reason' => [
+                    'kind' => 'song_boundary_looped_gap',
+                    'detail' => 'The first transcript gap falls inside a repetition block, so the cues around it are not a record of what was said and the gap is not treated as evidence for a song boundary.',
                 ],
             ];
         }
@@ -744,6 +769,21 @@ final class SongPublicationBoundaryEvidenceService
             ];
         }
 
+        if ($this->gapIsLooped($inputs['loop_blocks'], $gap['start_time'], $gap['end_time'])) {
+            return [
+                'risk' => false,
+                'evidence' => [
+                    ...$baseEvidence,
+                    'decision' => 'keep_inclusive',
+                    'basis' => 'looped_gap',
+                ],
+                'reason' => [
+                    'kind' => 'song_boundary_looped_gap',
+                    'detail' => 'The final transcript gap falls inside a repetition block, so the cues around it are not a record of what was said and the gap is not treated as evidence of following content.',
+                ],
+            ];
+        }
+
         if ($rms['status'] !== 'audio_present') {
             return [
                 'risk' => false,
@@ -854,6 +894,28 @@ final class SongPublicationBoundaryEvidenceService
             'timed_cues_in_candidate' => count($cues),
             'method' => 'no_recut_before_bulk',
         ];
+    }
+
+    /**
+     * Whether a repetition block covers this gap.
+     *
+     * A wordless gap is evidence only because the cues around it are a record of what was said.
+     * Inside a loop they are not: the decode repeated a phrase the audio did not produce, so the
+     * silence it leaves between two of those cues says nothing about whether the singing had
+     * started or stopped. The same reasoning as {@see self::gapIsUnobservable()}, reached by a
+     * different route — there the transcript never saw the stretch, here it misreports it.
+     *
+     * @param  list<SuspectTranscriptBlock>  $blocks
+     */
+    private function gapIsLooped(array $blocks, float $start, float $end): bool
+    {
+        foreach ($blocks as $block) {
+            if ($block->overlaps($start, $end)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function gapIsUnobservable(?ChurchServiceTranscript $transcript, float $start, float $end): bool

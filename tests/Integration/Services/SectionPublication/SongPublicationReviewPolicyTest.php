@@ -719,6 +719,151 @@ class SongPublicationReviewPolicyTest extends TestCase
      * forget the screen", so recording blocks first would wipe them and a different key would
      * orphan the artifacts the boundary evidence reads.
      */
+    /**
+     * The control for the discount below. Without it the discount test could pass because the
+     * fixture never raised a framing risk at all, which would prove nothing.
+     */
+    #[Test]
+    public function it_holds_a_clip_whose_opening_gap_follows_spoken_framing(): void
+    {
+        $section = $this->framedSection();
+
+        $this->assertContains(
+            'song_boundary_spoken_framing',
+            array_column($this->policy->reviewReasons($section), 'kind'),
+        );
+    }
+
+    /**
+     * A looping transcript's cues are not a record of what was said, so the silence between two
+     * of them is not evidence of where the singing began. That is the same reason an unobservable
+     * window discounts a gap: in both cases the transcript was never a witness to that stretch.
+     */
+    #[Test]
+    public function it_does_not_read_a_gap_inside_a_loop_as_spoken_framing(): void
+    {
+        $section = $this->framedSection();
+        $this->recordLoopBlocks($section, 602.0, 650.0);
+
+        $assessment = $this->policy->assess($section->fresh());
+
+        $this->assertNotContains('song_boundary_spoken_framing', array_column($assessment['reasons'], 'kind'));
+
+        // A discount is the absence of a risk, so it is recorded in the evidence a reviewer
+        // reads rather than in the reasons that withhold the clip — as `unobservable_gap` is.
+        $this->assertSame('looped_gap', $assessment['boundary_evidence']['start_evidence']['basis']);
+    }
+
+    /**
+     * The block covers only a fifth of this section, well under the share that withholds a clip,
+     * so the gap discount is doing the work here rather than the looped-transcript demotion.
+     */
+    #[Test]
+    public function it_discounts_the_gap_without_demoting_the_whole_section(): void
+    {
+        $section = $this->framedSection();
+        $this->recordLoopBlocks($section, 602.0, 650.0);
+
+        $this->assertNotContains(
+            \App\Services\ChurchService\SectionPublication\SongLoopedTranscript::RISK_KIND,
+            array_column($this->policy->reviewReasons($section->fresh()), 'kind'),
+        );
+    }
+
+    /** The control for the trailing discount: this fixture really does raise a trailing risk. */
+    #[Test]
+    public function it_holds_a_clip_whose_closing_gap_precedes_further_content(): void
+    {
+        $section = $this->tailGapSection();
+
+        $this->assertContains(
+            'song_boundary_trailing_content',
+            array_column($this->policy->reviewReasons($section), 'kind'),
+        );
+    }
+
+    /**
+     * The same reasoning at the other edge. A gap between two looped cues says nothing about
+     * whether the singing had stopped, so it cannot be evidence of content after the song.
+     */
+    #[Test]
+    public function it_does_not_read_a_gap_inside_a_loop_as_trailing_content(): void
+    {
+        $section = $this->tailGapSection();
+        $this->recordLoopBlocks($section, 788.0, 812.0);
+
+        $assessment = $this->policy->assess($section->fresh());
+
+        $this->assertNotContains('song_boundary_trailing_content', array_column($assessment['reasons'], 'kind'));
+        $this->assertSame('looped_gap', $assessment['boundary_evidence']['end_evidence']['basis']);
+    }
+
+    /**
+     * A song section whose singing is followed by an audio-backed wordless gap near its end,
+     * with thirty seconds of further content after it.
+     */
+    private function tailGapSection(): ServiceSection
+    {
+        config([
+            'media-processing.segmentation.adaptive_thresholds.enabled' => false,
+            'media-processing.segmentation.rms_threshold' => -45.0,
+        ]);
+
+        $section = $this->section('full', ['livestream']);
+
+        $samples = [];
+
+        for ($tenth = 0; $tenth <= 9000; $tenth++) {
+            $time = $tenth / 10;
+            $samples[] = ['time' => $time, 'rms' => ($time >= 600.0 && $time <= 840.0) ? -20.0 : -60.0];
+        }
+
+        $this->storeBoundaryArtifacts(
+            $section,
+            [
+                ['start' => 600.0, 'end' => 790.0, 'text' => 'Amazing grace how sweet the sound that saved a wretch like me.'],
+                ['start' => 810.0, 'end' => 840.0, 'text' => 'Let us pray together now.'],
+            ],
+            $samples,
+            duration: 900.0,
+        );
+
+        return $section->fresh();
+    }
+
+    /**
+     * A song section whose opening cue is followed by an audio-backed wordless gap: spoken
+     * framing five seconds in, which the boundary evidence holds for review.
+     */
+    private function framedSection(): ServiceSection
+    {
+        config([
+            'media-processing.segmentation.adaptive_thresholds.enabled' => false,
+            'media-processing.segmentation.rms_threshold' => -45.0,
+        ]);
+
+        $section = $this->section('full', ['livestream']);
+
+        $samples = [];
+
+        for ($tenth = 0; $tenth <= 9000; $tenth++) {
+            $time = $tenth / 10;
+            $samples[] = ['time' => $time, 'rms' => ($time >= 600.0 && $time <= 840.0) ? -20.0 : -60.0];
+        }
+
+        $this->storeBoundaryArtifacts(
+            $section,
+            [
+                ['start' => 600.0, 'end' => 605.0, 'text' => 'Let us stand and sing together.'],
+                ['start' => 640.0, 'end' => 840.0, 'text' => 'Amazing grace how sweet the sound.'],
+            ],
+            $samples,
+            duration: 900.0,
+        );
+
+        return $section->fresh();
+    }
+
     private function recordLoopBlocks(ServiceSection $section, float $start, float $end): void
     {
         $log = $section->processingLog;
