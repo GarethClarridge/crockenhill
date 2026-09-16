@@ -132,6 +132,23 @@ class ServiceStructureValidator
     public const FLAG_UNIDENTIFIED_SINGING = 'structure_unidentified_singing';
 
     /**
+     * A section typed as something other than a song whose audio is sung.
+     *
+     * Raised by {@see MistypedSungSections}, not by validation. Measured over the corpus on
+     * 2026-09-16: sound alone calls 48 non-song sections fully active, nearly all notices and
+     * welcomes against a compressed noise floor, so word rate is the second axis — §1301 "Lo He
+     * Comes With Clouds Descending" runs at 44 words a minute against 88–227 for the spoken
+     * ones. Together they leave 13 sections, of which exactly one is absorbed into a sermon's
+     * span; the extraction planner applies that second test, because the span it would be
+     * absorbed into does not exist yet when structure is detected.
+     *
+     * Never raised on a sermon, song or children's talk. A sermon section carrying an
+     * unregistered flag would fail {@see \App\Support\SermonAutoExtractionPolicy}'s final test
+     * and quietly stop the sermon extracting automatically.
+     */
+    public const FLAG_SECTION_READS_AS_SUNG = 'structure_section_reads_as_sung';
+
+    /**
      * Applied by DetectServiceStructure when a validated structure has a
      * sermon but no bible_reading section near it, and a feedback-guided
      * retry could not recover one — the reading is likely embedded in

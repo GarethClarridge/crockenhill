@@ -19,6 +19,7 @@ use App\Services\ChurchService\ChurchServiceReviewSynchronizer;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
+use App\Services\ChurchService\Structure\MistypedSungSections;
 use App\Services\ChurchService\Structure\SustainedSoundSongSections;
 use App\Services\ChurchService\Structure\ValidationContext;
 use App\Services\ChurchService\Structure\ValidationResult;
@@ -654,7 +655,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             $feedback
         );
 
-        $structure = $this->snapToSilences($structure, $snapService);
+        $structure = $this->snapToSilences($structure, $snapService, $transcript);
 
         $result = $validator->validate($structure, ValidationContext::for(
             $transcript,
@@ -752,8 +753,11 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         );
     }
 
-    private function snapToSilences(ServiceStructure $structure, SilenceSnapService $snapService): ServiceStructure
-    {
+    private function snapToSilences(
+        ServiceStructure $structure,
+        SilenceSnapService $snapService,
+        ChurchServiceTranscript $transcript,
+    ): ServiceStructure {
         $rmsLogPath = $this->processingLog->rms_log_path;
 
         if (! is_string($rmsLogPath) || $rmsLogPath === '') {
@@ -768,11 +772,15 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
 
         $rmsLogContent = (string) Storage::disk($artifactDisk)->get($rmsLogPath);
 
-        return app(SustainedSoundSongSections::class)->apply(
+        $structure = app(SustainedSoundSongSections::class)->apply(
             $snapService->snap($structure, $rmsLogContent),
             $rmsLogContent,
             ValidationContext::recordingOmitsSongs($this->processingLog->processing_metadata),
         );
+
+        // Runs after the sound stage has settled the song sections, so a section still typed as
+        // something else is one no song claimed.
+        return app(MistypedSungSections::class)->apply($structure, $rmsLogContent, $transcript);
     }
 
     /**

@@ -14,6 +14,7 @@ use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\Structure\ServiceStructureEvaluationTelemetry;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
+use App\Services\ChurchService\Structure\MistypedSungSections;
 use App\Services\ChurchService\Structure\SustainedSoundSongSections;
 use App\Services\ChurchService\Structure\ValidationContext;
 use App\Support\ServiceArtifactDisk;
@@ -220,7 +221,7 @@ class StructureEvaluateCommand extends Command
             $usage = $usageTelemetry->take();
             $costUsd = $usage === null || $priceSnapshot === null ? null : round($this->cost($usage, $priceSnapshot), 8);
 
-            $structure = $this->snapIfPossible($structure, $log, $snapService);
+            $structure = $this->snapIfPossible($structure, $log, $snapService, $transcript);
 
             $result = $validator->validate(
                 $structure,
@@ -404,6 +405,7 @@ class StructureEvaluateCommand extends Command
         ServiceStructure $structure,
         ?MediaProcessingLog $log,
         SilenceSnapService $snapService,
+        ChurchServiceTranscript $transcript,
     ): ServiceStructure {
         $rmsLogPath = $log?->rms_log_path;
 
@@ -419,11 +421,15 @@ class StructureEvaluateCommand extends Command
 
         $rmsLogContent = (string) Storage::disk($rmsDisk)->get($rmsLogPath);
 
-        return app(SustainedSoundSongSections::class)->apply(
+        $structure = app(SustainedSoundSongSections::class)->apply(
             $snapService->snap($structure, $rmsLogContent),
             $rmsLogContent,
             ValidationContext::recordingOmitsSongs($log->processing_metadata),
         );
+
+        // Runs after the sound stage has settled the song sections, so a section still typed as
+        // something else is one no song claimed.
+        return app(MistypedSungSections::class)->apply($structure, $rmsLogContent, $transcript);
     }
 
     /**

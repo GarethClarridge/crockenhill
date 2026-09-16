@@ -10,6 +10,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\Scripture\ScriptureReferenceResolver;
 use App\Support\SermonAutoExtractionPolicy;
 use App\Support\ServiceSectionConfidence;
@@ -554,6 +555,40 @@ class SermonExtractionPlanResolver
                 'detail' => sprintf(
                     'A %.1fs following section was merged into the sermon, and a source other than this recording attests it as a separate service item; the sermon boundary needs review.',
                     (float) $absorbed[0]->end_time - (float) $absorbed[0]->start_time,
+                ),
+            ];
+        }
+
+        /**
+         * A sung item swallowed by the sermon's span.
+         *
+         * Run 1014's §1301 is the case: "Lo He Comes With Clouds Descending", 290 s of
+         * congregational singing typed `other`, sitting between the sermon section and the
+         * closing prayer. `other` is a trailing type, so the span absorbs it exactly as intended
+         * for a closing prayer, and the published sermon media (0–1501 s) contains the hymn.
+         *
+         * The structure stage decides which sections read as sung, from sustained sound and a
+         * word rate no speaker holds; it cannot decide this, because the span that absorbs them
+         * does not exist until the plan is resolved. Measured over the corpus on 2026-09-16:
+         * thirteen sections read as sung and exactly one is absorbed, so this is a narrow risk
+         * rather than a second opinion about section types.
+         */
+        $sungAbsorbed = array_values(array_filter(
+            $absorbed,
+            fn (ServiceSection $section): bool => in_array(
+                ServiceStructureValidator::FLAG_SECTION_READS_AS_SUNG,
+                $this->reviewFlags($section),
+                true,
+            ),
+        ));
+
+        if ($sungAbsorbed !== []) {
+            $risks[] = [
+                'kind' => 'sermon_absorbed_sung_item',
+                'detail' => sprintf(
+                    '%d section(s) merged into the sermon candidate (%s) read as sung rather than spoken, so the published sermon media would contain the singing.',
+                    count($sungAbsorbed),
+                    implode(', ', array_map(static fn (ServiceSection $section): string => '#'.$section->id, $sungAbsorbed)),
                 ),
             ];
         }

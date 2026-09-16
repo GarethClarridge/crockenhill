@@ -23,6 +23,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\Structure\MockServiceStructureService;
+use App\Enums\ServiceSectionType;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
 use App\Services\Processing\ProcessingPipelineBuilder;
@@ -412,6 +413,69 @@ class DetectServiceStructureTest extends TestCase
         $this->assertContains(
             ServiceStructureValidator::FLAG_UNIDENTIFIED_SINGING,
             $sections[1]->metadata?->toArray()['review_flags'] ?? [],
+        );
+    }
+
+    /**
+     * §1301's shape reaching the pipeline: a section typed as something other than a song whose
+     * audio is sung without a break and whose transcript holds almost no words. The structure
+     * stage records that it reads as sung; the extraction planner decides what it means, because
+     * only there is it known whether the sermon's span swallowed it.
+     */
+    #[Test]
+    public function primary_mode_flags_a_non_song_section_whose_audio_is_sung(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        Config::set('media-processing.segmentation.adaptive_thresholds.enabled', false);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+        $this->storeRmsLog($log, sungFrom: 420, sungTo: 590);
+        MockServiceStructureService::useStructure($this->validStructure());
+
+        $this->runJob($log);
+
+        $reading = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->where('section_type', ServiceSectionType::BibleReading->value)
+            ->firstOrFail();
+
+        $this->assertContains(
+            ServiceStructureValidator::FLAG_SECTION_READS_AS_SUNG,
+            $reading->metadata?->toArray()['review_flags'] ?? [],
+        );
+    }
+
+    /**
+     * The flag must never land on a sermon, whatever its audio.
+     * {@see \App\Support\SermonAutoExtractionPolicy} permits automatic extraction only when every
+     * flag on the chosen section is registered as non-disqualifying, so an unregistered flag here
+     * would quietly stop the sermon extracting. This paints the sermon's own span as unbroken
+     * sound, where only the type exclusion stands between it and the flag.
+     */
+    #[Test]
+    public function primary_mode_never_flags_a_sermon_section_as_reading_sung(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        Config::set('media-processing.segmentation.adaptive_thresholds.enabled', false);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+        $this->storeRmsLog($log, sungFrom: 600, sungTo: 2200);
+        MockServiceStructureService::useStructure($this->validStructure());
+
+        $this->runJob($log);
+
+        $sermon = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->where('section_type', ServiceSectionType::Sermon->value)
+            ->firstOrFail();
+
+        $this->assertNotContains(
+            ServiceStructureValidator::FLAG_SECTION_READS_AS_SUNG,
+            $sermon->metadata?->toArray()['review_flags'] ?? [],
         );
     }
 

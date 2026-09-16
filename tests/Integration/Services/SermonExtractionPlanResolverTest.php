@@ -10,6 +10,7 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\Sermon\SermonExtractionPlanResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -26,6 +27,83 @@ class SermonExtractionPlanResolverTest extends TestCase
         parent::setUp();
 
         $this->resolver = app(SermonExtractionPlanResolver::class);
+    }
+
+    /**
+     * §1301 on run 1014: "Lo He Comes With Clouds Descending", 290 s of congregational singing
+     * typed `other`, sitting between the sermon section and the closing prayer. Because `other`
+     * is a trailing type the span absorbs it, so the published sermon media (0–1501 s) contains
+     * the hymn — the harm this risk exists to surface.
+     *
+     * The structure stage says which sections read as sung; only here is it known that the
+     * sermon's span swallowed one, because the span does not exist until the plan is resolved.
+     */
+    #[Test]
+    public function it_raises_a_risk_when_the_sermon_absorbs_a_section_that_reads_as_sung(): void
+    {
+        $log = $this->runWithAbsorbedSection([ServiceStructureValidator::FLAG_SECTION_READS_AS_SUNG]);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertContains(
+            'sermon_absorbed_sung_item',
+            array_column($plan['metadata']['sermon_boundary']['risks'], 'kind'),
+        );
+    }
+
+    /**
+     * The control. An absorbed closing prayer is the rule working as intended — the sermon's
+     * conclusion, not a separate item — so absorbing one on its own raises nothing.
+     */
+    #[Test]
+    public function it_raises_no_risk_when_the_absorbed_section_does_not_read_as_sung(): void
+    {
+        $log = $this->runWithAbsorbedSection([]);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertNotContains(
+            'sermon_absorbed_sung_item',
+            array_column($plan['metadata']['sermon_boundary']['risks'], 'kind'),
+        );
+    }
+
+    /**
+     * A sermon followed by one trailing `other` section carrying the given review flags.
+     *
+     * Deliberately a single absorbed section with no order-of-service item behind it, so neither
+     * `sermon_boundary_multiple_following_items` nor the independently-attested long tail fires
+     * and the risk under test is the only one that can.
+     *
+     * @param  list<string>  $flags
+     */
+    private function runWithAbsorbedSection(array $flags): MediaProcessingLog
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 200.0,
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'start_time' => 0.0,
+            'end_time' => 1157.0,
+            'needs_manual_review' => false,
+            'metadata' => ['confidence_level' => 'high'],
+        ]);
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Other->value,
+            'title' => 'Lo He Comes With Clouds Descending',
+            'start_time' => 1159.0,
+            'end_time' => 1448.0,
+            'needs_manual_review' => false,
+            'metadata' => ['confidence_level' => 'high', 'review_flags' => $flags],
+        ]);
+
+        return $log;
     }
 
     #[Test]
