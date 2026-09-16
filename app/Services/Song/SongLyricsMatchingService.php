@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Song;
 
+use App\Data\SongTitleMatch;
 use App\Models\Song;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -13,6 +14,33 @@ class SongLyricsMatchingService
      * Number of characters from the start of lyrics_plain to compare against.
      */
     private const int LYRICS_COMPARISON_LENGTH = 200;
+
+    /**
+     * Resolver rungs that name a song by a catalogued title rather than by
+     * resemblance, and so must outrank a lyrics comparison.
+     *
+     * {@see SongTitleMatch::TYPE_FIRST_LINE} is deliberately absent: a first-line
+     * hint is already answered below at a lower confidence (0.95) than a title,
+     * because the opening line a congregation sings is weaker evidence of which
+     * catalogue row was meant than the title itself. Taking the resolver's
+     * first-line rung here would silently promote those matches to 1.0.
+     * {@see SongTitleMatch::TYPE_FUZZY} and {@see SongTitleMatch::TYPE_HYMNBOOK_ABSENT}
+     * are absent because both are resemblance, which the lyrics comparison
+     * judges better for a heard line.
+     */
+    private const array CATALOGUE_TITLE_MATCH_TYPES = [
+        SongTitleMatch::TYPE_EXACT,
+        SongTitleMatch::TYPE_PRAISE_NUMBER,
+        SongTitleMatch::TYPE_STRIPPED_NUMBER,
+        SongTitleMatch::TYPE_LOOSE_TITLE,
+        SongTitleMatch::TYPE_ALTERNATE_TITLE,
+    ];
+
+    /**
+     * Built once per instance: the catalogue does not change within a run, and
+     * {@see SongTitleResolver::fromDatabase()} reads every song to build it.
+     */
+    private ?SongTitleResolver $titleResolver = null;
 
     /**
      * Given a short transcript excerpt (e.g. first 30s of a song), attempt to match
@@ -53,6 +81,12 @@ class SongLyricsMatchingService
      */
     public function matchTitleHint(string $titleHint): array
     {
+        $catalogued = $this->catalogueTitleMatch($titleHint);
+
+        if ($catalogued !== null) {
+            return $catalogued;
+        }
+
         $result = $this->matchFromLyrics($titleHint);
 
         if ($result['song_id'] === null) {
@@ -71,6 +105,54 @@ class SongLyricsMatchingService
             : Song::query()->whereIn('first_line_key', $keys)->limit(2)->get();
 
         return [...$result, 'match_source' => $firstLineMatches->count() === 1 ? 'title_hint_first_line' : 'title_hint_fuzzy'];
+    }
+
+    /**
+     * The song a hint names outright — by its catalogued title, by the Praise!
+     * number form of that title, or by an alternate title.
+     *
+     * A title hint is a *title*, but {@see self::matchFromLyrics()} scores it
+     * against lyrics bodies, and {@see self::bestWindowScore()} returns 1.0 on
+     * bare containment. So a hymn quoted inside another song's verse — "O
+     * blessed Rock of ages, I'm hiding in you", in Praise! 887 — ties with the
+     * hymn the hint actually names, and whichever row is scanned first wins.
+     * The named hymn's own title carries a trailing hymn number ("rock of ages
+     * 705"), so the exact-key rung never reaches it and the quotation takes the
+     * clip. A tie at 1.0 also clears the write-back threshold, so the wrong song
+     * is stored as Confirmed and its title replaces the heard text.
+     *
+     * {@see SongTitleResolver} already answers this question for the order of
+     * service: it strips the trailing number, indexes alternate titles, and
+     * drops any key two songs share rather than guessing between them. Only its
+     * deterministic rungs are taken {@see self::CATALOGUE_TITLE_MATCH_TYPES}, so
+     * a hint naming no catalogued title still falls through to the lyrics
+     * comparison — which is what resolves a heard line such as "The Servant
+     * King", catalogued only as "From Heaven You Came #396".
+     *
+     * @return array{song_id: int, confidence: float, matched_title: string|null, match_source: string}|null
+     */
+    private function catalogueTitleMatch(string $titleHint): ?array
+    {
+        $resolver = $this->titleResolver ??= SongTitleResolver::fromDatabase();
+
+        $match = $resolver->resolve($titleHint);
+
+        if (! $match instanceof SongTitleMatch) {
+            return null;
+        }
+
+        if (! in_array($match->matchType, self::CATALOGUE_TITLE_MATCH_TYPES, true)) {
+            return null;
+        }
+
+        return [
+            'song_id' => $match->songId,
+            'confidence' => $match->confidence,
+            'matched_title' => $resolver->catalogueTitle($match->songId),
+            'match_source' => $match->matchType === SongTitleMatch::TYPE_EXACT
+                ? 'title_hint_canonical'
+                : 'title_hint_catalogue_title',
+        ];
     }
 
     /**

@@ -1763,6 +1763,48 @@ closes §4.3's stale-verdict item for boundary evidence.
     already refuses them because their runs are excluded. A fresh `--all` dry run now finds nothing to demote
     across 355 published sections.
 
+**Title hints resolved against the catalogue, built test-first 2026-09-16** (§4.3's
+`title_hint_fuzzy` item; table row "Wrong song from `title_hint_fuzzy`"). Code only, as above.
+
+- *Cause, measured rather than assumed.* `SongLyricsMatchingService::matchTitleHint()` scored a
+  *title* against every song's lyrics body, and `bestWindowScore()` returns 1.0 on bare
+  containment. A hymn quoted inside another song's verse therefore ties with the hymn the hint
+  names, and the row scanned first wins. "Rock Of Ages" (§991, video 137) lost to "O Safe To The
+  Rock That Is Higher Than I #887", whose fourth line is "O blessed Rock of ages, I'm hiding in
+  you". The named hymn's own catalogue key carries its Praise! number ("rock of ages 705"), so the
+  exact-key rung never reached it. A tie at 1.0 also clears the 0.75 write-back threshold, so the
+  wrong song was stored `Confirmed` and its catalogue title replaced the heard text — which is how
+  these passed review.
+- *Fixed through the catalogue's own resolver* (`4c` below): `catalogueTitleMatch()` asks
+  `SongTitleResolver`, which already strips the trailing number, indexes alternate titles, and
+  drops any key two songs share rather than guessing between them. Only its deterministic rungs
+  are taken (exact, praise number, stripped number, loose title, alternate title). `first_line` is
+  deliberately excluded, so the existing first-line answer keeps its lower 0.95 confidence; `fuzzy`
+  and `hymnbook_absent` are excluded as resemblance, which the lyrics comparison judges better for
+  a heard line. A hint naming no catalogued title still falls through to that comparison, which is
+  what resolves "The Servant King" (§1284) to "From Heaven You Came #396". The resolver is built
+  once per instance.
+- *Evidence label:* a catalogue-title resolution records `title_hint_catalogue_title`.
+  `title_hint_canonical` (1.0) and `title_hint_first_line` (0.95) are unchanged, and nothing in the
+  application branches on the value.
+- *Regression cases taken from the corpus with verbatim catalogue lyrics:* "Rock Of Ages" (§991)
+  and "God of Glory" (§519, §1288, §2782, §2929, §3024, §3191, §3769), where both the named hymn
+  and "Almighty Lord Most High Draw Near #823" contain the phrase and the lower id won. Preserved
+  cases: "The Servant King" (§1284), "It Is Well with My Soul" (§928) and "How Great Thou Art"
+  (§1588, §3580) — each a lyric line rather than a catalogued title. Full suite 8192 passed,
+  PHPStan clean.
+- **The 2026-09-14 census's `source` column does not say how a section was bound.** "Behold Our
+  God" reaches "All glory be to Christ" on 8 sections, but that song's lyrics do not contain the
+  phrase, while song 1047 does and carries "Behold our God" as its alternate title. Those bindings
+  cannot have come from `matchTitleHint`: the stored `match_source` is the transcript matcher's own
+  last answer and survives a later order-of-service link that chose a different song. The 81 hint
+  disagreements are therefore not one class, and the re-resolve membership has to be measured per
+  binding path before anything is re-run.
+- Due: measure that membership, then re-resolve the affected sections and correct the
+  livestream-sourced order-of-service items written from the wrong song, through the pipeline;
+  settle the 31 pending-approval sections before anyone approves them. No hold was cleared and no
+  re-run was done.
+
 - [ ] Fill the table's "pipeline item" column with a tested change or a recorded
   decision not to detect, for every row, before §4.5 acceptance.
 - [ ] Each promoted detector ships with the corpus cases in this plan as regression

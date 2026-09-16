@@ -266,6 +266,154 @@ class SongLyricsMatchingServiceTest extends TestCase
         $this->assertNull($result['song_id']);
     }
 
+    // ---- Title hint resolution ----
+
+    /**
+     * §991 (run 974, song video 137): the detector heard "Rock Of Ages" and the
+     * clip was published as "O Safe To The Rock That Is Higher Than I", which
+     * quotes the phrase in its fourth line.
+     *
+     * Both songs' lyrics contain "rock of ages", so {@see bestWindowScore()}
+     * returns 1.0 for each on bare containment and the first row scanned wins.
+     * The song the hint actually names is catalogued as "rock of ages 705", so
+     * the exact-key rung misses it over the trailing Praise! number and never
+     * gets the chance to beat the quotation. A confidence of 1.0 then clears the
+     * 0.75 write-back threshold, so the wrong song is recorded as Confirmed.
+     */
+    #[Test]
+    public function it_prefers_the_song_a_hint_names_over_another_song_quoting_the_phrase(): void
+    {
+        $quotingSong = Song::factory()->create([
+            'title' => 'O Safe To The Rock That Is Higher Than I #887',
+            'canonical_key' => '887 o safe to the rock that is higher than i',
+            'praise_number' => '887',
+            'alternate_title' => null,
+            'first_line_key' => 'o safe to the rock that is higher than i',
+            'lyrics_plain' => "O safe to the Rock that is higher than I\nMy soul, in its conflicts and sorrows, would fly;\nThough sinful and weary, my vows I renew;\nO blessed Rock of ages, I'm hiding in you.",
+        ]);
+
+        $namedSong = Song::factory()->create([
+            'title' => 'Rock Of Ages #705',
+            'canonical_key' => 'rock of ages 705',
+            'praise_number' => '705',
+            'alternate_title' => '#705 Rock Of Ages',
+            'first_line_key' => 'rock of ages, cleft for me,',
+            'lyrics_plain' => "Rock of ages, cleft for me,\nHide me now, my refuge be;\nLet the water and the blood,\nFrom your wounded side which flowed,",
+        ]);
+
+        $result = $this->service->matchTitleHint('Rock Of Ages');
+
+        $this->assertSame(
+            $namedSong->id,
+            $result['song_id'],
+            'A song whose catalogued title is the hint must beat a song that merely quotes it.',
+        );
+        $this->assertNotSame($quotingSong->id, $result['song_id']);
+        $this->assertSame('title_hint_catalogue_title', $result['match_source']);
+    }
+
+    /**
+     * §519, §1288, §2782, §2929, §3024, §3191 and §3769 (7 sections): the hint
+     * "God of Glory" is Praise! 244's own title, but "Almighty Lord Most High
+     * Draw Near #823" closes on "the God of glory, grace and love" and is
+     * scanned first. The same containment tie, reached through a hymn's own
+     * title rather than through a quotation of another hymn's.
+     */
+    #[Test]
+    public function it_prefers_a_hymns_own_numbered_title_to_a_later_verse_elsewhere(): void
+    {
+        $quotingSong = Song::factory()->create([
+            'title' => 'Almighty Lord Most High Draw Near #823',
+            'canonical_key' => 'almighty lord most high draw near 823',
+            'praise_number' => '823',
+            'alternate_title' => '#823 Almighty Lord Most High Draw Near',
+            'first_line_key' => 'almighty lord most high, draw near,',
+            'lyrics_plain' => "Almighty Lord most high, draw near,\nwhose awesome splendour none can bear;\n\nand sing through everlasting days\nthe God of glory, grace and love.",
+        ]);
+
+        $namedSong = Song::factory()->create([
+            'title' => 'God Of Glory #244',
+            'canonical_key' => 'god of glory 244',
+            'praise_number' => '244',
+            'alternate_title' => '#244 God Of Glory',
+            'first_line_key' => 'god of glory, we exalt your name,',
+            'lyrics_plain' => "God of glory, we exalt Your name,\nYou who reign in majesty.\nWe lift our hearts to You\nAnd we will worship, praise and magnify\nYour holy name.",
+        ]);
+
+        $result = $this->service->matchTitleHint('God of Glory');
+
+        $this->assertSame($namedSong->id, $result['song_id']);
+        $this->assertNotSame($quotingSong->id, $result['song_id']);
+    }
+
+    /**
+     * The fallback this must not cost us. "The Servant King" is not a catalogued
+     * title or alternate title anywhere — it is a line inside "From Heaven You
+     * Came #396" ("This is our God, the Servant King"), which is the hymn the
+     * congregation sang. §1284 (run 1011) resolves this way today and must keep
+     * doing so: the deterministic rungs have nothing to say about it.
+     */
+    #[Test]
+    public function it_still_matches_a_lyric_phrase_that_names_no_catalogue_title(): void
+    {
+        $song = Song::factory()->create([
+            'title' => 'From Heaven You Came #396',
+            'canonical_key' => 'from heaven you came 396',
+            'praise_number' => '396',
+            'alternate_title' => '#396 From Heaven You Came',
+            'first_line_key' => 'from heaven you came, helpless babe,',
+            'lyrics_plain' => "From heaven You came, helpless babe,\nEntered our world, Your glory veiled;\nNot to be served but to serve,\nAnd give Your life that we might live.\n\nThis is our God, the Servant King,\nHe calls us now to follow Him,",
+        ]);
+
+        $result = $this->service->matchTitleHint('The Servant King');
+
+        $this->assertSame($song->id, $result['song_id']);
+    }
+
+    /**
+     * The same fallback for a refrain rather than a verse line: §928 (run 970)
+     * heard "It Is Well with My Soul", the refrain of "When Peace Like A River
+     * #804", which is how that hymn is catalogued.
+     */
+    #[Test]
+    public function it_still_matches_a_refrain_that_names_no_catalogue_title(): void
+    {
+        $song = Song::factory()->create([
+            'title' => 'When Peace Like A River #804',
+            'canonical_key' => 'when peace like a river 804',
+            'praise_number' => '804',
+            'alternate_title' => '#804 When Peace Like A River',
+            'first_line_key' => 'when peace, like a river,',
+            'lyrics_plain' => "When peace, like a river,\nattends all my way,\nWhen sorrows like sea-billows roll,\nWhatever my path,\nYou have taught me to say,\n'It is well, it is well with my soul.'",
+        ]);
+
+        $result = $this->service->matchTitleHint('It Is Well with My Soul');
+
+        $this->assertSame($song->id, $result['song_id']);
+    }
+
+    /**
+     * §1588 and §3580 heard "How Great Thou Art", a hymn catalogued under its
+     * first line as "O Lord My God #190". Nothing deterministic connects the two
+     * names, so the lyrics fallback is the only thing that resolves it.
+     */
+    #[Test]
+    public function it_still_matches_a_hymn_catalogued_under_its_first_line(): void
+    {
+        $song = Song::factory()->create([
+            'title' => 'O Lord My God #190',
+            'canonical_key' => 'o lord my god 190',
+            'praise_number' => '190',
+            'alternate_title' => '#190 O Lord My God',
+            'first_line_key' => 'o lord my god!',
+            'lyrics_plain' => "O Lord my God!\nWhen I in awesome wonder\nConsider all the works\nThy hand hath made,\n\nThen sings my soul,\nmy Saviour God to Thee,\nHow great Thou art!\nHow great Thou art!",
+        ]);
+
+        $result = $this->service->matchTitleHint('How Great Thou Art');
+
+        $this->assertSame($song->id, $result['song_id']);
+    }
+
     // ---- Confidence value is returned ----
 
     #[Test]
