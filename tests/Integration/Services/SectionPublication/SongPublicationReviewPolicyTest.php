@@ -696,16 +696,38 @@ class SongPublicationReviewPolicyTest extends TestCase
     }
 
     /**
-     * Below the line the loop is recorded but does not withhold the clip: 85 sections sit
-     * between a fifth and a half, and holding them all would be breadth, not coverage.
+     * A chorus repeats because the song repeats, however much of the section it covers.
+     *
+     * This test used to assert that a *brief* loop is released, on the reasoning that it sits
+     * under the share that withholds a clip. Adjudicating the corpus on 2026-09-16 overturned
+     * that: below the half-loop line, 59 of 85 sections repeat phrases their song does not
+     * contain — a 69% defect rate against 80% above it. The share barely discriminates, so the
+     * phrase decides, and what earns release is the words being the song's own.
      */
     #[Test]
-    public function it_releases_a_clip_whose_transcript_loops_only_briefly(): void
+    public function it_releases_a_clip_whose_looped_phrase_is_the_song_repeating_itself(): void
+    {
+        $section = $this->section('full', ['livestream']);
+        $this->recordLoopBlocks($section, 600.0, 760.0, phrase: self::SONGS_OWN_PHRASE);
+
+        $this->assertNotContains(
+            \App\Services\ChurchService\SectionPublication\SongLoopedTranscript::RISK_KIND,
+            array_column($this->policy->reviewReasons($section->fresh()), 'kind'),
+        );
+    }
+
+    /**
+     * The other half of that change, and the reason it was worth making: a loop covering only a
+     * twelfth of the section still withholds the clip when its phrase is nowhere in the song.
+     * Fourteen such sections were held by hand on 2026-09-16 at shares of 0.22 to 0.48.
+     */
+    #[Test]
+    public function it_holds_a_clip_whose_brief_loop_repeats_words_the_song_does_not_contain(): void
     {
         $section = $this->section('full', ['livestream']);
         $this->recordLoopBlocks($section, 600.0, 620.0);
 
-        $this->assertNotContains(
+        $this->assertContains(
             \App\Services\ChurchService\SectionPublication\SongLoopedTranscript::RISK_KIND,
             array_column($this->policy->reviewReasons($section->fresh()), 'kind'),
         );
@@ -755,14 +777,16 @@ class SongPublicationReviewPolicyTest extends TestCase
     }
 
     /**
-     * The block covers only a fifth of this section, well under the share that withholds a clip,
-     * so the gap discount is doing the work here rather than the looped-transcript demotion.
+     * The loop here repeats the song's own words, so the section is not demoted and the gap
+     * discount is unambiguously the thing under test. Isolating it that way matters more since
+     * the demotion stopped depending on the share: a phrase the song lacks now withholds the
+     * clip at any coverage, which would mask what this test exists to prove.
      */
     #[Test]
     public function it_discounts_the_gap_without_demoting_the_whole_section(): void
     {
         $section = $this->framedSection();
-        $this->recordLoopBlocks($section, 602.0, 650.0);
+        $this->recordLoopBlocks($section, 602.0, 650.0, phrase: self::SONGS_OWN_PHRASE);
 
         $this->assertNotContains(
             \App\Services\ChurchService\SectionPublication\SongLoopedTranscript::RISK_KIND,
@@ -864,7 +888,7 @@ class SongPublicationReviewPolicyTest extends TestCase
         return $section->fresh();
     }
 
-    private function recordLoopBlocks(ServiceSection $section, float $start, float $end): void
+    private function recordLoopBlocks(ServiceSection $section, float $start, float $end, string $phrase = 'for the lord i will stand'): void
     {
         $log = $section->processingLog;
 
@@ -877,11 +901,19 @@ class SongPublicationReviewPolicyTest extends TestCase
                 reason: \App\Data\SuspectTranscriptBlock::REASON_REPEATED_PHRASE,
                 words: 160,
                 wordsPerMinute: 120.0,
-                phrase: 'for the lord i will stand',
+                phrase: $phrase,
                 repeats: 40,
             )->toArray()],
         );
     }
+
+    /**
+     * The phrase the section's bound song actually contains.
+     *
+     * {@see \Database\Factories\SongFactory} writes `Verse line one` as the catalogue lyrics, so
+     * a loop repeating that is the congregation singing rather than the decode looping.
+     */
+    private const SONGS_OWN_PHRASE = 'Verse line one';
 
     private function section(
         string $grade,

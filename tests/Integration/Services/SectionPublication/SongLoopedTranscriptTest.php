@@ -6,8 +6,10 @@ namespace Tests\Integration\Services\SectionPublication;
 
 use App\Data\SuspectTranscriptBlock;
 use App\Enums\ServiceSectionType;
+use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Models\Song;
 use App\Services\ChurchService\SectionPublication\SongLoopedTranscript;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -147,6 +149,100 @@ class SongLoopedTranscriptTest extends TestCase
         );
 
         $this->assertNotSame($before, $this->loopedTranscript->inputs($section->fresh()));
+    }
+
+    /**
+     * The share is not what separates a defect from legitimate repetition.
+     *
+     * Adjudicating the corpus on 2026-09-16 measured that directly: below the half-loop line 59
+     * of 85 sections repeat phrases their bound song does not contain, a 69% defect rate against
+     * 80% above it. A line that barely changes the defect rate as it is crossed is not
+     * discriminating. What decides it is whether the looped phrase is in the song's own words.
+     */
+    #[Test]
+    public function it_raises_a_risk_when_a_looped_phrase_is_absent_from_the_bound_song(): void
+    {
+        $section = $this->songSectionBoundTo(
+            lyrics: 'Amazing grace how sweet the sound that saved a wretch like me',
+            blocks: [$this->block(start: 100.0, end: 140.0, phrase: 'for the lord i will stand', repeats: 40)],
+        );
+
+        $observations = $this->loopedTranscript->observe($section);
+
+        $this->assertTrue($observations[0]['risk']);
+        $this->assertSame(0.2, $observations[0]['looped_share']);
+    }
+
+    /**
+     * §3750 (run 1154): a chorus repeats because the song repeats. It loops well past the share
+     * that would withhold a clip, and the 2026-09-14 census named it one of six genuine choruses.
+     * Holding it was a false positive of the share, and this is where that stops.
+     */
+    #[Test]
+    public function it_clears_a_section_whose_looped_phrase_is_the_song_repeating_itself(): void
+    {
+        $section = $this->songSectionBoundTo(
+            lyrics: 'Praise him praise him all ye little children God is love God is love',
+            blocks: [$this->block(start: 100.0, end: 220.0, phrase: 'praise him praise him', repeats: 30)],
+        );
+
+        $observations = $this->loopedTranscript->observe($section);
+
+        $this->assertFalse($observations[0]['risk']);
+        $this->assertSame(0.6, $observations[0]['looped_share']);
+    }
+
+    /**
+     * The lyrics test has a blind spot the share does not: 11 of the 85 band sections are bound
+     * to songs carrying no catalogue lyrics, so nothing can be compared. There the share still
+     * decides, rather than the section reading as clean because the catalogue is thin.
+     */
+    #[Test]
+    public function it_falls_back_to_the_share_when_the_bound_song_has_no_lyrics(): void
+    {
+        $section = $this->songSectionBoundTo(
+            lyrics: null,
+            blocks: [$this->block(start: 100.0, end: 220.0, phrase: 'for the lord i will stand', repeats: 40)],
+        );
+
+        $observations = $this->loopedTranscript->observe($section);
+
+        $this->assertTrue($observations[0]['risk']);
+    }
+
+    /** A song with no lyrics and a loop under the share is left alone, as the share says. */
+    #[Test]
+    public function it_leaves_a_lesser_loop_alone_when_the_bound_song_has_no_lyrics(): void
+    {
+        $section = $this->songSectionBoundTo(
+            lyrics: null,
+            blocks: [$this->block(start: 100.0, end: 140.0, phrase: 'for the lord i will stand', repeats: 40)],
+        );
+
+        $this->assertFalse($this->loopedTranscript->observe($section)[0]['risk']);
+    }
+
+    /**
+     * A song section bound to a catalogue song, whose lyrics the looped phrase is judged against.
+     *
+     * @param  list<array<string, mixed>>|null  $blocks
+     */
+    private function songSectionBoundTo(?string $lyrics, ?array $blocks): ServiceSection
+    {
+        $song = Song::factory()->create(['lyrics_plain' => $lyrics]);
+        $item = ChurchServiceItem::factory()->create(['song_id' => $song->id]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $processingLog->putServiceTranscriptPath('service-transcripts/looped.normalized.json', [], $blocks);
+
+        return ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 1,
+            'start_time' => 100.0,
+            'end_time' => 300.0,
+        ]);
     }
 
     /**

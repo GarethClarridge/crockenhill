@@ -78,9 +78,13 @@ final class SongPublicationBoundaryEvidenceService
      * evidence, so a clip held for spoken framing the loop invented is released. This changes
      * what banked evidence says without changing what it was read from, which the fingerprint
      * cannot see — the version is the only thing that makes those rows stale.
+     * 5 (2026-09-16): {@see SongLoopedTranscript} judges a loop by whether its phrase is in the
+     * bound song's own lyrics rather than by how much of the section it covers. The fingerprint
+     * catches sections with a bound song, whose lyrics it now hashes, but a section with none
+     * keeps both its fingerprint and its evidence, so only the version reaches those.
      * Evidence banked under an earlier version is stale, and the backfill re-assesses it.
      */
-    public const VERSION = 4;
+    public const VERSION = 5;
 
     private const LEADING_CUE_WINDOW_SECONDS = 5.0;
 
