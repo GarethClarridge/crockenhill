@@ -33,6 +33,7 @@ use Illuminate\Support\Facades\Storage;
  *     start_evidence: array<string, mixed>,
  *     end_evidence: array<string, mixed>,
  *     lyric_edges: list<array<string, mixed>>,
+ *     looped_transcript: list<array<string, mixed>>,
  *     inputs_fingerprint: string,
  *     risks: list<array{kind: string, detail: string}>,
  *     decision: 'release_eligible'|'review'
@@ -48,6 +49,7 @@ use Illuminate\Support\Facades\Storage;
  *     start_evidence: array<string, mixed>,
  *     end_evidence: array<string, mixed>,
  *     lyric_edges: list<array<string, mixed>>,
+ *     looped_transcript: list<array<string, mixed>>,
  *     inputs_fingerprint: string,
  *     risks: list<array{kind: string, detail: string}>,
  *     decision: 'release_eligible'|'review',
@@ -68,9 +70,11 @@ final class SongPublicationBoundaryEvidenceService
 
     /**
      * 2 (2026-09-15): records {@see SongLyricsOutsideSection} observations under `lyric_edges`.
+     * 3 (2026-09-16): records {@see SongLoopedTranscript} observations under `looped_transcript`,
+     * so a clip resting on a decode loop reaches a reviewer instead of publishing itself.
      * Evidence banked under an earlier version is stale, and the backfill re-assesses it.
      */
-    public const VERSION = 2;
+    public const VERSION = 3;
 
     private const LEADING_CUE_WINDOW_SECONDS = 5.0;
 
@@ -88,6 +92,7 @@ final class SongPublicationBoundaryEvidenceService
     public function __construct(
         private readonly RmsAnalysisService $rmsAnalysisService,
         private readonly SongLyricsOutsideSection $lyricsOutsideSection,
+        private readonly SongLoopedTranscript $loopedTranscript,
     ) {}
 
     /**
@@ -98,6 +103,10 @@ final class SongPublicationBoundaryEvidenceService
         $start = (float) $section->start_time;
         $end = (float) $section->end_time;
         $inputs = $this->loadInputs($section);
+
+        // Read from the run's own metadata rather than the transcript artifact, so a screen
+        // still speaks for the section when the file behind it can no longer be reached.
+        $looped = $this->loopedTranscript->observe($section);
 
         if ($this->unavailableBoundaryInputs($inputs) !== []) {
             $storageError = $this->hasStorageError($inputs);
@@ -127,13 +136,17 @@ final class SongPublicationBoundaryEvidenceService
                 'start_evidence' => $this->unavailableBoundaryEvidence('start', $section, $inputs),
                 'end_evidence' => $this->unavailableBoundaryEvidence('end', $section, $inputs),
                 'lyric_edges' => [],
+                'looped_transcript' => $looped,
                 'inputs_fingerprint' => $this->fingerprintOf($section, $inputs),
-                'risks' => [[
-                    'kind' => $storageError
-                        ? 'song_boundary_evidence_unreadable'
-                        : 'song_boundary_evidence_unavailable',
-                    'detail' => $this->unavailableBoundaryDetail($inputs, $storageError),
-                ]],
+                'risks' => [
+                    [
+                        'kind' => $storageError
+                            ? 'song_boundary_evidence_unreadable'
+                            : 'song_boundary_evidence_unavailable',
+                        'detail' => $this->unavailableBoundaryDetail($inputs, $storageError),
+                    ],
+                    ...$this->loopedRisks($looped),
+                ],
                 'decision' => 'review',
             ];
 
@@ -193,6 +206,8 @@ final class SongPublicationBoundaryEvidenceService
             }
         }
 
+        $risks = [...$risks, ...$this->loopedRisks($looped)];
+
         return $this->withRecordedAt($section, [
             'version' => self::VERSION,
             'candidate' => [
@@ -208,6 +223,7 @@ final class SongPublicationBoundaryEvidenceService
             'start_evidence' => $startEvidence,
             'end_evidence' => $endEvidence,
             'lyric_edges' => $lyricEdges,
+            'looped_transcript' => $looped,
             'inputs_fingerprint' => $this->fingerprintOf($section, $inputs),
             'risks' => $risks,
             'decision' => $risks === [] ? 'release_eligible' : 'review',
@@ -236,8 +252,35 @@ final class SongPublicationBoundaryEvidenceService
             'service_transcript' => [$inputs['transcript_input']['status'], $inputs['transcript_sha256']],
             'rms_log' => [$inputs['rms_input']['status'], $inputs['rms_sha256']],
             'lyric_inputs' => $this->lyricsOutsideSection->inputs($section),
+            'looped_inputs' => $this->loopedTranscript->inputs($section),
             'policy' => config('media-processing.section_publishing.song_boundary', []),
         ], JSON_THROW_ON_ERROR));
+    }
+
+    /**
+     * The review risks among {@see SongLoopedTranscript}'s observations.
+     *
+     * An observation that raises nothing is still recorded in the evidence: a reviewer opening
+     * a clip should see that its transcript was screened and what the screen found, rather than
+     * an absence they cannot tell from "never looked".
+     *
+     * @param  list<array<string, mixed>>  $observations
+     * @return list<array{kind: string, detail: string}>
+     */
+    private function loopedRisks(array $observations): array
+    {
+        $risks = [];
+
+        foreach ($observations as $observation) {
+            if (($observation['risk'] ?? false) === true) {
+                $risks[] = [
+                    'kind' => SongLoopedTranscript::RISK_KIND,
+                    'detail' => (string) ($observation['detail'] ?? ''),
+                ];
+            }
+        }
+
+        return $risks;
     }
 
     /**

@@ -572,6 +572,13 @@ return [
             'min_spoken_framing_seconds' => (float) env('SERVICE_SECTION_SONG_MIN_SPOKEN_FRAMING_SECONDS', 3),
             'minimum_wordless_gap_seconds' => (float) env('SERVICE_SECTION_SONG_MIN_WORDLESS_GAP_SECONDS', 3),
             'minimum_rms_active_ratio' => (float) env('SERVICE_SECTION_SONG_MIN_RMS_ACTIVE_RATIO', 0.25),
+            // The share of a song section its repetition blocks must cover before the clip is
+            // withheld for review. A looping transcript claims text the audio did not produce,
+            // so it cannot evidence which song was sung or where it began. Measured over the
+            // corpus on 2026-09-16: 63 song sections reach half or more and 85 sit between a
+            // fifth and a half, so this is a choice about what may publish itself unreviewed
+            // rather than a natural boundary; the 85 below it are recorded and unaddressed.
+            'looped_transcript_minimum_share' => (float) env('SERVICE_SECTION_SONG_LOOPED_TRANSCRIPT_MIN_SHARE', 0.5),
             'trailing_evidence_window_seconds' => (float) env('SERVICE_SECTION_SONG_TRAILING_EVIDENCE_WINDOW_SECONDS', 60),
             // Measured as the span from the end of the trailing wordless gap to the
             // end of the candidate. A benediction arrives as several short cues, so

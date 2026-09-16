@@ -54,6 +54,31 @@ final readonly class SuspectTranscriptBlock
         public ?int $repeats = null,
     ) {}
 
+    /**
+     * Rebuild a block from the shape {@see self::toArray()} records on a run.
+     *
+     * A block read back from a run is the same claim as the one the screen made, so a consumer
+     * reading `service_transcript_suspect_blocks` need not re-screen a transcript file that may
+     * no longer be reachable. Unknown keys are ignored and absent ones take their defaults: the
+     * density blocks carry no phrase or repeat count.
+     *
+     * @param  array<string, mixed>  $block
+     */
+    public static function fromArray(array $block): self
+    {
+        return new self(
+            start: (float) ($block['start'] ?? 0.0),
+            end: (float) ($block['end'] ?? 0.0),
+            reason: (string) ($block['reason'] ?? self::REASON_REPEATED_PHRASE),
+            words: (int) ($block['words'] ?? 0),
+            wordsPerMinute: isset($block['words_per_minute']) && is_numeric($block['words_per_minute'])
+                ? (float) $block['words_per_minute']
+                : null,
+            phrase: isset($block['phrase']) && is_string($block['phrase']) ? $block['phrase'] : null,
+            repeats: isset($block['repeats']) && is_numeric($block['repeats']) ? (int) $block['repeats'] : null,
+        );
+    }
+
     public function seconds(): float
     {
         return $this->end - $this->start;

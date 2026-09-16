@@ -678,6 +678,66 @@ class SongPublicationReviewPolicyTest extends TestCase
         ]);
     }
 
+    /**
+     * A looping transcript claims text the audio did not produce, so it cannot evidence which
+     * song was sung or where it began. The §4.1b census found 226 song sections carrying
+     * repetition blocks and 63 at half loop or more, and no song check had ever read them.
+     */
+    #[Test]
+    public function it_holds_a_clip_whose_transcript_is_mostly_a_decode_loop(): void
+    {
+        $section = $this->section('full', ['livestream']);
+        $this->recordLoopBlocks($section, 600.0, 760.0);
+
+        $this->assertContains(
+            \App\Services\ChurchService\SectionPublication\SongLoopedTranscript::RISK_KIND,
+            array_column($this->policy->reviewReasons($section->fresh()), 'kind'),
+        );
+    }
+
+    /**
+     * Below the line the loop is recorded but does not withhold the clip: 85 sections sit
+     * between a fifth and a half, and holding them all would be breadth, not coverage.
+     */
+    #[Test]
+    public function it_releases_a_clip_whose_transcript_loops_only_briefly(): void
+    {
+        $section = $this->section('full', ['livestream']);
+        $this->recordLoopBlocks($section, 600.0, 620.0);
+
+        $this->assertNotContains(
+            \App\Services\ChurchService\SectionPublication\SongLoopedTranscript::RISK_KIND,
+            array_column($this->policy->reviewReasons($section->fresh()), 'kind'),
+        );
+    }
+
+    /**
+     * Record a repetition block on the section's run.
+     *
+     * Deliberately after {@see self::storeBoundaryArtifacts()} and on the same transcript key:
+     * `putServiceTranscriptPath()` reads a null block list as "this transcript was replaced,
+     * forget the screen", so recording blocks first would wipe them and a different key would
+     * orphan the artifacts the boundary evidence reads.
+     */
+    private function recordLoopBlocks(ServiceSection $section, float $start, float $end): void
+    {
+        $log = $section->processingLog;
+
+        $log->putServiceTranscriptPath(
+            'service-transcripts/test-'.$log->processing_id.'.normalized.json',
+            [],
+            [new \App\Data\SuspectTranscriptBlock(
+                start: $start,
+                end: $end,
+                reason: \App\Data\SuspectTranscriptBlock::REASON_REPEATED_PHRASE,
+                words: 160,
+                wordsPerMinute: 120.0,
+                phrase: 'for the lord i will stand',
+                repeats: 40,
+            )->toArray()],
+        );
+    }
+
     private function section(
         string $grade,
         array $provenance,
