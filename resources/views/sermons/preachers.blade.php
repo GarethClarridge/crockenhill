@@ -44,7 +44,7 @@
             <li class="flex justify-center">
                 <x-clickable-card
                     :heading="$preacher->name"
-                    link="preachers/{{ $preacher->slug }}"
+                    :link="route('sermons.preacher', $preacher->slug)"
                     class="w-full">
                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-cbc-teal-dark text-white">
                         {{ $preacher->sermons_count }} {{ \Illuminate\Support\Str::plural('sermon', $preacher->sermons_count) }}
