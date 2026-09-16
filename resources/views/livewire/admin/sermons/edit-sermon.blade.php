@@ -118,7 +118,7 @@
                                 <x-form-button variant="ghost" size="sm" icon="trash" class="text-red-600 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity focus-visible:opacity-100"
                                     wire:click="removePoint({{ $index }})"
                                     wire:confirm="Remove this sermon point?"
-                                    aria-label="Remove point" />
+                                    aria-label="Remove point: {{ $index + 1 }}" />
                             </div>
                         @empty
                             <p class="text-sm text-gray-500 italic py-2">
