@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Media\Video;
 
 use App\Data\SermonVideoQualityAssessmentResult;
+use App\Data\VideoDeadPictureWindow;
 use App\Enums\SermonVideoQualityStatus;
 use App\Models\Sermon;
 use App\Services\Processing\StorageAdapterHelper;
@@ -15,21 +16,27 @@ use Illuminate\Support\Facades\Storage;
 /**
  * Small, explainable video-quality gate for obvious sermon video failures.
  *
- * @phpstan-type FrameMetrics array{brightness: float, variance: float, detail_score: float, aggregate_score: float, blank: bool, low_detail: bool}
- * @phpstan-type FrozenWindowMetrics array{ratio: float, pair_count: int}
+ * The gate asks one question: how much of this recording has no usable picture?
+ * It measures freeze and black time with ffmpeg's own detectors over windows
+ * spread across the whole file, and lets the *coverage* of that dead time decide
+ * how far the verdict may go — a recording dead throughout is rejected and
+ * hidden, one dead in part goes to review, and everything else is approved.
+ *
+ * The detector this replaced judged appearance instead of duration: frames
+ * 1.5 s apart that looked alike, or an absolute brightness floor. Both misread
+ * ordinary preaching — a static camera on a small subject barely changes in
+ * 1.5 s, and dimly lit staging sits under the floor — and wrongly hid 27 of the
+ * 47 historic sermon videos it rejected (plan §4.1b/§4.3a, 2026-09-14).
  */
 class SermonVideoQualityAssessmentService
 {
     use SanitizesLogData;
 
-    private string $tempDisk;
-
     public function __construct(
         private readonly FrameExtractionService $frameExtractionService,
         private readonly StorageAdapterHelper $storageHelper,
-    ) {
-        $this->tempDisk = (string) config('thumbnail-generation.processing.temp_disk', 'local');
-    }
+        private readonly VideoDeadPictureProbe $deadPictureProbe,
+    ) {}
 
     /**
      * @throws \Throwable
@@ -127,428 +134,87 @@ class SermonVideoQualityAssessmentService
         $metadata = $this->frameExtractionService->getVideoMetadata($localVideoPath);
         $duration = max(0.0, (float) ($metadata['duration'] ?? 0.0));
 
-        $coarseTimestamps = $this->coarseSampleTimestamps($duration);
-        $burstTimestamps = $this->burstSampleTimestamps($duration);
+        $windows = $this->deadPictureProbe->probe($localVideoPath, $duration);
 
-        $coarseMetrics = $this->extractMetricsForTimestamps($localVideoPath, $coarseTimestamps);
-        $frozenWindowMetrics = $this->frozenWindowMetrics($localVideoPath, $burstTimestamps);
-
-        if ($coarseMetrics === []) {
+        /*
+         * No window measured is no evidence. A recording whose picture cannot be
+         * read at all must not pass as a healthy one, so it records the failure
+         * and stays eligible for reassessment.
+         */
+        if ($windows === []) {
             return SermonVideoQualityAssessmentResult::failed();
         }
 
-        return $this->buildResult($coarseMetrics, $coarseTimestamps, $frozenWindowMetrics);
+        return $this->buildResult($windows);
     }
 
     /**
-     * @return list<float>
+     * @param  list<VideoDeadPictureWindow>  $windows
      */
-    private function coarseSampleTimestamps(float $duration): array
+    private function buildResult(array $windows): SermonVideoQualityAssessmentResult
     {
-        $count = max(1, (int) config('media-processing.video_quality.sampling.coarse_sample_count', 8));
+        $minimumDeadRatio = (float) config('media-processing.video_quality.thresholds.dead_window_seconds_ratio', 0.5);
 
-        if ($duration <= 0.0) {
-            return [0.0];
-        }
+        $deadWindows = array_values(array_filter(
+            $windows,
+            static fn (VideoDeadPictureWindow $window): bool => $window->isDead($minimumDeadRatio),
+        ));
 
-        $startRatio = $this->boundedRatio((float) config('media-processing.video_quality.sampling.middle_start_ratio', 0.2), 0.0, 0.9);
-        $endRatio = $this->boundedRatio((float) config('media-processing.video_quality.sampling.middle_end_ratio', 0.8), $startRatio + 0.01, 1.0);
+        $deadWindowRatio = count($deadWindows) / count($windows);
+        $freezeSeconds = array_sum(array_map(static fn (VideoDeadPictureWindow $window): float => $window->freezeSeconds, $windows));
+        $blackSeconds = array_sum(array_map(static fn (VideoDeadPictureWindow $window): float => $window->blackSeconds, $windows));
+        $measuredSeconds = array_sum(array_map(static fn (VideoDeadPictureWindow $window): float => $window->length, $windows));
+        $deadSeconds = array_sum(array_map(static fn (VideoDeadPictureWindow $window): float => $window->deadSeconds(), $deadWindows));
 
-        $start = $duration * $startRatio;
-        $end = $duration * $endRatio;
-
-        if ($end <= $start) {
-            $start = 0.0;
-            $end = $duration;
-        }
-
-        if ($count === 1) {
-            return [round(($start + $end) / 2, 3)];
-        }
-
-        $timestamps = [];
-        $interval = ($end - $start) / ($count - 1);
-
-        for ($index = 0; $index < $count; $index++) {
-            $timestamps[] = round(min($duration, max(0.0, $start + ($interval * $index))), 3);
-        }
-
-        return array_values(array_unique($timestamps));
-    }
-
-    /**
-     * @return list<list<float>>
-     */
-    private function burstSampleTimestamps(float $duration): array
-    {
-        if ($duration <= 0.0) {
-            return [];
-        }
-
-        $windowCount = max(1, (int) config('media-processing.video_quality.sampling.burst_window_count', 2));
-        $framesPerWindow = max(2, (int) config('media-processing.video_quality.sampling.burst_frames_per_window', 5));
-        $gap = max(0.25, (float) config('media-processing.video_quality.sampling.burst_frame_gap_seconds', 1.5));
-        $span = $gap * ($framesPerWindow - 1);
-
-        $windows = [];
-        for ($window = 1; $window <= $windowCount; $window++) {
-            $center = $duration * ($window / ($windowCount + 1));
-            $start = max(0.0, min($duration, $center - ($span / 2)));
-            $timestamps = [];
-
-            for ($index = 0; $index < $framesPerWindow; $index++) {
-                $timestamps[] = round(min($duration, $start + ($gap * $index)), 3);
-            }
-
-            $windows[] = array_values(array_unique($timestamps));
-        }
-
-        return $windows;
-    }
-
-    /**
-     * @param  list<float>  $timestamps
-     * @return list<FrameMetrics>
-     */
-    private function extractMetricsForTimestamps(string $localVideoPath, array $timestamps): array
-    {
-        $metrics = [];
-
-        foreach ($timestamps as $timestamp) {
-            $framePath = $this->frameExtractionService->extractBaseFrame($localVideoPath, $timestamp);
-
-            if (! is_string($framePath) || $framePath === '') {
-                continue;
-            }
-
-            try {
-                $frameMetrics = $this->analyzeFrame($framePath);
-
-                if ($frameMetrics !== null) {
-                    $metrics[] = $frameMetrics;
-                }
-            } finally {
-                $this->cleanupFrame($framePath);
-            }
-        }
-
-        return $metrics;
-    }
-
-    /**
-     * @param  list<list<float>>  $burstWindows
-     * @return list<FrozenWindowMetrics>
-     */
-    private function frozenWindowMetrics(string $localVideoPath, array $burstWindows): array
-    {
-        $windowMetrics = [];
-
-        foreach ($burstWindows as $timestamps) {
-            $previousFingerprint = null;
-            $pairDiffs = [];
-
-            foreach ($timestamps as $timestamp) {
-                $framePath = $this->frameExtractionService->extractBaseFrame($localVideoPath, $timestamp);
-
-                if (! is_string($framePath) || $framePath === '') {
-                    continue;
-                }
-
-                try {
-                    $fingerprint = $this->frameFingerprint($framePath);
-
-                    if ($fingerprint !== [] && $previousFingerprint !== null) {
-                        $pairDiffs[] = $this->fingerprintDiff($previousFingerprint, $fingerprint);
-                    }
-
-                    if ($fingerprint !== []) {
-                        $previousFingerprint = $fingerprint;
-                    }
-                } finally {
-                    $this->cleanupFrame($framePath);
-                }
-            }
-
-            $windowMetrics[] = [
-                'ratio' => $this->ratio($pairDiffs, static fn (float $diff): bool => $diff <= (float) config('media-processing.video_quality.thresholds.frozen_frame_diff', 0.01)),
-                'pair_count' => count($pairDiffs),
-            ];
-        }
-
-        return $windowMetrics;
-    }
-
-    /**
-     * @return FrameMetrics|null
-     */
-    private function analyzeFrame(string $framePath): ?array
-    {
-        $image = $this->imageFromTempFrame($framePath);
-
-        if (! $image instanceof \GdImage) {
-            return null;
-        }
-
-        try {
-            $width = imagesx($image);
-            $height = imagesy($image);
-            $stepX = max(1, (int) floor($width / 48));
-            $stepY = max(1, (int) floor($height / 48));
-            $luminanceValues = [];
-            $detailAccumulator = 0.0;
-            $previousRowLuminanceByColumn = [];
-
-            for ($y = 0; $y < $height; $y += $stepY) {
-                $previousColumnLuminance = null;
-
-                for ($x = 0; $x < $width; $x += $stepX) {
-                    $luminance = $this->pixelLuminance($image, $x, $y);
-                    $luminanceValues[] = $luminance;
-
-                    if ($previousColumnLuminance !== null) {
-                        $detailAccumulator += abs($luminance - $previousColumnLuminance);
-                    }
-
-                    if (array_key_exists($x, $previousRowLuminanceByColumn)) {
-                        $detailAccumulator += abs($luminance - $previousRowLuminanceByColumn[$x]);
-                    }
-
-                    $previousRowLuminanceByColumn[$x] = $luminance;
-                    $previousColumnLuminance = $luminance;
-                }
-            }
-
-            $sampleCount = count($luminanceValues);
-            $averageBrightness = array_sum($luminanceValues) / ($sampleCount * 255);
-            $variance = array_sum(array_map(
-                static fn (float $value): float => (($value / 255) - $averageBrightness) ** 2,
-                $luminanceValues,
-            )) / $sampleCount;
-            $detailScore = min(1.0, ($detailAccumulator / $sampleCount) / 80.0);
-            $contrastScore = min(1.0, sqrt($variance) / 0.25);
-            $brightnessScore = max(0.0, 1 - (abs($averageBrightness - 0.5) / 0.5));
-
-            $blank = $averageBrightness <= (float) config('media-processing.video_quality.thresholds.blank_dark_brightness', 0.08)
-                || $averageBrightness >= (float) config('media-processing.video_quality.thresholds.blank_light_brightness', 0.97)
-                || ($variance <= (float) config('media-processing.video_quality.thresholds.blank_variance', 0.0005) && $detailScore <= (float) config('media-processing.video_quality.thresholds.low_detail_score', 0.04));
-
-            $lowDetail = $detailScore <= (float) config('media-processing.video_quality.thresholds.low_detail_score', 0.04);
-
-            return [
-                'brightness' => round($averageBrightness, 6),
-                'variance' => round($variance, 6),
-                'detail_score' => round($detailScore, 6),
-                'aggregate_score' => round(($brightnessScore * 0.25) + ($contrastScore * 0.35) + ($detailScore * 0.40), 6),
-                'blank' => $blank,
-                'low_detail' => $lowDetail,
-            ];
-        } finally {
-            imagedestroy($image);
-        }
-    }
-
-    /**
-     * @param  list<FrameMetrics>  $coarseMetrics
-     * @param  list<float>  $coarseTimestamps
-     * @param  list<FrozenWindowMetrics>  $frozenWindowMetrics
-     */
-    private function buildResult(array $coarseMetrics, array $coarseTimestamps, array $frozenWindowMetrics): SermonVideoQualityAssessmentResult
-    {
-        $sampleCount = count($coarseMetrics);
-        $blankFrameRatio = $this->ratio($coarseMetrics, static fn (array $metric): bool => $metric['blank']);
-        $lowDetailRatio = $this->ratio($coarseMetrics, static fn (array $metric): bool => $metric['low_detail']);
-        $frozenPairCount = (int) array_sum(array_column($frozenWindowMetrics, 'pair_count'));
-        $frozenPairRatio = $frozenWindowMetrics === [] ? 0.0 : min(array_column($frozenWindowMetrics, 'ratio'));
-        $aggregateScore = array_sum(array_column($coarseMetrics, 'aggregate_score')) / $sampleCount;
-        $averageBrightness = array_sum(array_column($coarseMetrics, 'brightness')) / $sampleCount;
-        $averageDetail = array_sum(array_column($coarseMetrics, 'detail_score')) / $sampleCount;
-        $averageVariance = array_sum(array_column($coarseMetrics, 'variance')) / $sampleCount;
-
-        [$status, $reason] = $this->verdict(
-            blankFrameRatio: $blankFrameRatio,
-            lowDetailRatio: $lowDetailRatio,
-            frozenPairRatio: $frozenPairRatio,
-            frozenPairCount: $frozenPairCount,
-            averageBrightness: $averageBrightness,
-        );
+        [$status, $reason] = $this->verdict($deadWindowRatio, $deadSeconds, $blackSeconds);
 
         return new SermonVideoQualityAssessmentResult(
             status: $status,
             reason: $reason,
-            sampleCount: $sampleCount,
-            sampleTimestamps: $coarseTimestamps,
-            blankFrameRatio: round($blankFrameRatio, 6),
-            frozenPairRatio: round($frozenPairRatio, 6),
-            lowDetailRatio: round($lowDetailRatio, 6),
-            aggregateScore: round($aggregateScore, 6),
+            windowCount: count($windows),
+            deadWindowCount: count($deadWindows),
+            deadWindowRatio: round($deadWindowRatio, 6),
+            freezeSeconds: round($freezeSeconds, 3),
+            blackSeconds: round($blackSeconds, 3),
+            measuredSeconds: round($measuredSeconds, 3),
             metrics: [
-                'avg_brightness' => round($averageBrightness, 6),
-                'avg_detail_score' => round($averageDetail, 6),
-                'avg_luminance_variance' => round($averageVariance, 6),
-                'frozen_pair_count' => $frozenPairCount,
-                'frozen_window_count' => count($frozenWindowMetrics),
-                'frozen_window_ratios' => array_map(
-                    static fn (array $metrics): float => round($metrics['ratio'], 6),
-                    $frozenWindowMetrics,
+                'windows' => array_map(
+                    static fn (VideoDeadPictureWindow $window): array => $window->toArray(),
+                    $windows,
                 ),
             ],
         );
     }
 
     /**
+     * Coverage decides how far the verdict may go.
+     *
+     * Rejection hides the video from the public page, so it is reserved for a
+     * recording whose picture is dead throughout — the whole-recording black
+     * screens and holding cards. A recording that is dead only in part carries
+     * preaching someone can watch, so it is flagged for a person to judge
+     * rather than withheld automatically (plan §4.3a).
+     *
      * @return array{SermonVideoQualityStatus, string|null}
      */
-    private function verdict(
-        float $blankFrameRatio,
-        float $lowDetailRatio,
-        float $frozenPairRatio,
-        int $frozenPairCount,
-        float $averageBrightness,
-    ): array {
-        if ($blankFrameRatio >= (float) config('media-processing.video_quality.thresholds.blank_frame_ratio_reject', 0.75)) {
+    private function verdict(float $deadWindowRatio, float $deadSeconds, float $blackSeconds): array
+    {
+        $blackDominates = $deadSeconds > 0.0 && $blackSeconds >= $deadSeconds * 0.5;
+
+        if ($deadWindowRatio >= (float) config('media-processing.video_quality.thresholds.dead_window_ratio_reject', 0.75)) {
             return [
                 SermonVideoQualityStatus::Rejected,
-                $averageBrightness <= (float) config('media-processing.video_quality.thresholds.blank_dark_brightness', 0.08)
-                    ? 'mostly_black'
-                    : 'blank_screen',
+                $blackDominates ? 'mostly_black' : 'frozen_frames',
             ];
         }
 
-        if (
-            $frozenPairCount >= 4
-            && $frozenPairRatio >= (float) config('media-processing.video_quality.thresholds.frozen_pair_ratio_reject', 0.95)
-        ) {
-            if ((bool) config('media-processing.video_quality.auto_reject_frozen_frames', true)) {
-                return [SermonVideoQualityStatus::Rejected, 'frozen_frames'];
-            }
-
-            return [SermonVideoQualityStatus::NeedsReview, 'frozen_frames'];
-        }
-
-        if ($lowDetailRatio >= (float) config('media-processing.video_quality.thresholds.low_detail_ratio_reject', 0.95)) {
-            return [SermonVideoQualityStatus::Rejected, 'very_low_detail'];
-        }
-
-        if ($lowDetailRatio >= (float) config('media-processing.video_quality.thresholds.low_detail_ratio_review', 0.75)) {
-            return [SermonVideoQualityStatus::NeedsReview, 'very_low_detail'];
+        if ($deadWindowRatio >= (float) config('media-processing.video_quality.thresholds.dead_window_ratio_review', 0.01)) {
+            return [
+                SermonVideoQualityStatus::NeedsReview,
+                $blackDominates ? 'partially_black' : 'partially_frozen',
+            ];
         }
 
         return [SermonVideoQualityStatus::Approved, null];
-    }
-
-    /**
-     * @return list<int>
-     */
-    private function frameFingerprint(string $framePath): array
-    {
-        $source = $this->imageFromTempFrame($framePath);
-
-        if (! $source instanceof \GdImage) {
-            return [];
-        }
-
-        $fingerprint = [];
-        $target = imagecreatetruecolor(16, 16);
-
-        try {
-            imagecopyresampled($target, $source, 0, 0, 0, 0, 16, 16, imagesx($source), imagesy($source));
-
-            for ($y = 0; $y < 16; $y++) {
-                for ($x = 0; $x < 16; $x++) {
-                    $fingerprint[] = (int) round($this->pixelLuminance($target, $x, $y));
-                }
-            }
-        } finally {
-            imagedestroy($target);
-            imagedestroy($source);
-        }
-
-        return $fingerprint;
-    }
-
-    /**
-     * @param  list<int>  $left
-     * @param  list<int>  $right
-     */
-    private function fingerprintDiff(array $left, array $right): float
-    {
-        $count = min(count($left), count($right));
-
-        if ($count === 0) {
-            return 1.0;
-        }
-
-        $total = 0.0;
-        for ($index = 0; $index < $count; $index++) {
-            $total += abs($left[$index] - $right[$index]) / 255;
-        }
-
-        return $total / $count;
-    }
-
-    private function pixelLuminance(\GdImage $image, int $x, int $y): float
-    {
-        $rgb = (int) imagecolorat($image, $x, $y);
-        $red = ($rgb >> 16) & 0xFF;
-        $green = ($rgb >> 8) & 0xFF;
-        $blue = $rgb & 0xFF;
-
-        return (0.2126 * $red) + (0.7152 * $green) + (0.0722 * $blue);
-    }
-
-    private function imageFromTempFrame(string $framePath): ?\GdImage
-    {
-        $fullPath = Storage::disk($this->tempDisk)->path($framePath);
-        $contents = @file_get_contents($fullPath);
-
-        if (! is_string($contents) || $contents === '') {
-            return null;
-        }
-
-        $image = @imagecreatefromstring($contents);
-
-        return $image instanceof \GdImage ? $image : null;
-    }
-
-    private function cleanupFrame(string $framePath): void
-    {
-        try {
-            if ((bool) config('thumbnail-generation.processing.cleanup_temp_files', true)) {
-                Storage::disk($this->tempDisk)->delete($framePath);
-            }
-        } catch (\Throwable $e) {
-            Log::warning('Failed to cleanup video-quality frame', $this->sanitizeArrayForLog([
-                'frame_path' => $framePath,
-                'error' => $e->getMessage(),
-                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
-            ]));
-        }
-    }
-
-    private function boundedRatio(float $value, float $min, float $max): float
-    {
-        return max($min, min($value, $max));
-    }
-
-    /**
-     * @template T
-     *
-     * @param  list<T>  $items
-     * @param  callable(T): bool  $predicate
-     */
-    private function ratio(array $items, callable $predicate): float
-    {
-        if ($items === []) {
-            return 0.0;
-        }
-
-        $matches = 0;
-        foreach ($items as $item) {
-            if ($predicate($item)) {
-                $matches++;
-            }
-        }
-
-        return $matches / count($items);
     }
 }

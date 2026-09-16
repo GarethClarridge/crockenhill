@@ -146,8 +146,8 @@ class AssessSermonVideoQuality extends ProcessingJob implements ShouldBeUnique, 
                 'video_path' => $sermon->video_file_path,
                 'verdict' => $result->status->value,
                 'reason' => $result->reason,
-                'sample_count' => $result->sampleCount,
-                'aggregate_score' => $result->aggregateScore,
+                'window_count' => $result->windowCount,
+                'dead_window_ratio' => $result->deadWindowRatio,
                 'runtime_ms' => (int) round((microtime(true) - $startedAt) * 1000),
             ]);
 

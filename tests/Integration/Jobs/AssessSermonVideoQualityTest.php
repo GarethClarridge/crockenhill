@@ -44,12 +44,12 @@ class AssessSermonVideoQualityTest extends TestCase
             'result' => new SermonVideoQualityAssessmentResult(
                 status: SermonVideoQualityStatus::Rejected,
                 reason: 'frozen_frames',
-                sampleCount: 5,
-                sampleTimestamps: [1.5, 3.0],
-                blankFrameRatio: 0.0,
-                frozenPairRatio: 1.0,
-                lowDetailRatio: 0.0,
-                aggregateScore: 0.1,
+                windowCount: 6,
+                deadWindowCount: 6,
+                deadWindowRatio: 1.0,
+                freezeSeconds: 180.0,
+                blackSeconds: 0.0,
+                measuredSeconds: 180.0,
             ),
             'localVideoPath' => '/tmp/assess-owning-run.mp4',
         ]);
@@ -109,12 +109,12 @@ class AssessSermonVideoQualityTest extends TestCase
         $assessmentResult = new SermonVideoQualityAssessmentResult(
             status: SermonVideoQualityStatus::Rejected,
             reason: 'mostly_black',
-            sampleCount: 8,
-            sampleTimestamps: [24.0, 48.0],
-            blankFrameRatio: 1.0,
-            frozenPairRatio: 0.0,
-            lowDetailRatio: 1.0,
-            aggregateScore: 0.01,
+            windowCount: 6,
+            deadWindowCount: 6,
+            deadWindowRatio: 1.0,
+            freezeSeconds: 180.0,
+            blackSeconds: 174.0,
+            measuredSeconds: 180.0,
         );
 
         $service = $this->createMock(SermonVideoQualityAssessmentService::class);
@@ -342,12 +342,12 @@ class AssessSermonVideoQualityTest extends TestCase
         return new SermonVideoQualityAssessmentResult(
             status: SermonVideoQualityStatus::Approved,
             reason: null,
-            sampleCount: 8,
-            sampleTimestamps: [24.0, 48.0],
-            blankFrameRatio: 0.0,
-            frozenPairRatio: 0.0,
-            lowDetailRatio: 0.0,
-            aggregateScore: 0.9,
+            windowCount: 6,
+            deadWindowCount: 0,
+            deadWindowRatio: 0.0,
+            freezeSeconds: 0.0,
+            blackSeconds: 0.0,
+            measuredSeconds: 180.0,
         );
     }
 }

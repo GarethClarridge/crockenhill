@@ -9,18 +9,17 @@ use App\Enums\SermonVideoQualityStatus;
 final readonly class SermonVideoQualityAssessmentResult
 {
     /**
-     * @param  list<float>  $sampleTimestamps
      * @param  array<string, mixed>  $metrics
      */
     public function __construct(
         public SermonVideoQualityStatus $status,
         public ?string $reason,
-        public int $sampleCount,
-        public array $sampleTimestamps,
-        public float $blankFrameRatio,
-        public float $frozenPairRatio,
-        public float $lowDetailRatio,
-        public float $aggregateScore,
+        public int $windowCount,
+        public int $deadWindowCount,
+        public float $deadWindowRatio,
+        public float $freezeSeconds,
+        public float $blackSeconds,
+        public float $measuredSeconds,
         public array $metrics = [],
     ) {}
 
@@ -29,12 +28,12 @@ final readonly class SermonVideoQualityAssessmentResult
         return new self(
             status: SermonVideoQualityStatus::Unassessed,
             reason: $reason,
-            sampleCount: 0,
-            sampleTimestamps: [],
-            blankFrameRatio: 0.0,
-            frozenPairRatio: 0.0,
-            lowDetailRatio: 0.0,
-            aggregateScore: 0.0,
+            windowCount: 0,
+            deadWindowCount: 0,
+            deadWindowRatio: 0.0,
+            freezeSeconds: 0.0,
+            blackSeconds: 0.0,
+            measuredSeconds: 0.0,
         );
     }
 
@@ -46,12 +45,12 @@ final readonly class SermonVideoQualityAssessmentResult
         return [
             'status' => $this->status->value,
             'reason' => $this->reason,
-            'sample_count' => $this->sampleCount,
-            'sample_timestamps' => $this->sampleTimestamps,
-            'blank_frame_ratio' => $this->blankFrameRatio,
-            'frozen_pair_ratio' => $this->frozenPairRatio,
-            'low_detail_ratio' => $this->lowDetailRatio,
-            'aggregate_score' => $this->aggregateScore,
+            'window_count' => $this->windowCount,
+            'dead_window_count' => $this->deadWindowCount,
+            'dead_window_ratio' => $this->deadWindowRatio,
+            'freeze_seconds' => $this->freezeSeconds,
+            'black_seconds' => $this->blackSeconds,
+            'measured_seconds' => $this->measuredSeconds,
             'metrics' => $this->metrics,
         ];
     }

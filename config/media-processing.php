@@ -510,25 +510,37 @@ return [
         'enabled' => env('SERMON_VIDEO_QUALITY_ENABLED', true),
         'enforce_public_visibility' => env('SERMON_VIDEO_QUALITY_ENFORCE_VISIBILITY', true),
         'hide_needs_review' => env('SERMON_VIDEO_QUALITY_HIDE_NEEDS_REVIEW', false),
-        'auto_reject_frozen_frames' => env('SERMON_VIDEO_QUALITY_AUTO_REJECT_FROZEN', true),
-        'sampling' => [
-            'coarse_sample_count' => (int) env('SERMON_VIDEO_QUALITY_COARSE_SAMPLES', 8),
-            'middle_start_ratio' => (float) env('SERMON_VIDEO_QUALITY_MIDDLE_START_RATIO', 0.2),
-            'middle_end_ratio' => (float) env('SERMON_VIDEO_QUALITY_MIDDLE_END_RATIO', 0.8),
-            'burst_window_count' => (int) env('SERMON_VIDEO_QUALITY_BURST_WINDOWS', 2),
-            'burst_frames_per_window' => (int) env('SERMON_VIDEO_QUALITY_BURST_FRAMES', 5),
-            'burst_frame_gap_seconds' => (float) env('SERMON_VIDEO_QUALITY_BURST_GAP_SECONDS', 1.5),
+
+        /*
+         * The detector measures how long the picture is dead, over windows
+         * spread across the whole recording. Calibrated 2026-09-16 on the 48
+         * historic rejections (`storage/scratch/vq-20260916-windows.json`): the
+         * 19 unusable recordings read dead in 6 of 6 windows, the 28 wrongly
+         * rejected static-camera and dim-light recordings in 0 of 6, and 1225 —
+         * eight minutes of preaching, then a camera-fault card — in 2 of 6.
+         */
+        'probe' => [
+            'window_count' => (int) env('SERMON_VIDEO_QUALITY_WINDOW_COUNT', 6),
+            'window_seconds' => (float) env('SERMON_VIDEO_QUALITY_WINDOW_SECONDS', 30.0),
+            'frames_per_second' => (float) env('SERMON_VIDEO_QUALITY_PROBE_FPS', 1.0),
+            'freeze_noise_db' => (float) env('SERMON_VIDEO_QUALITY_FREEZE_NOISE_DB', -60.0),
+            'freeze_min_seconds' => (float) env('SERMON_VIDEO_QUALITY_FREEZE_MIN_SECONDS', 20.0),
+            'black_min_seconds' => (float) env('SERMON_VIDEO_QUALITY_BLACK_MIN_SECONDS', 5.0),
+            'black_pixel_threshold' => (float) env('SERMON_VIDEO_QUALITY_BLACK_PIXEL_THRESHOLD', 0.10),
+            'timeout_seconds' => (int) env('SERMON_VIDEO_QUALITY_PROBE_TIMEOUT', 120),
         ],
         'thresholds' => [
-            'blank_dark_brightness' => (float) env('SERMON_VIDEO_QUALITY_BLANK_DARK_BRIGHTNESS', 0.08),
-            'blank_light_brightness' => (float) env('SERMON_VIDEO_QUALITY_BLANK_LIGHT_BRIGHTNESS', 0.97),
-            'blank_variance' => (float) env('SERMON_VIDEO_QUALITY_BLANK_VARIANCE', 0.0005),
-            'blank_frame_ratio_reject' => (float) env('SERMON_VIDEO_QUALITY_BLANK_FRAME_RATIO_REJECT', 0.75),
-            'low_detail_score' => (float) env('SERMON_VIDEO_QUALITY_LOW_DETAIL_SCORE', 0.04),
-            'low_detail_ratio_review' => (float) env('SERMON_VIDEO_QUALITY_LOW_DETAIL_RATIO_REVIEW', 0.75),
-            'low_detail_ratio_reject' => (float) env('SERMON_VIDEO_QUALITY_LOW_DETAIL_RATIO_REJECT', 0.95),
-            'frozen_frame_diff' => (float) env('SERMON_VIDEO_QUALITY_FROZEN_FRAME_DIFF', 0.01),
-            'frozen_pair_ratio_reject' => (float) env('SERMON_VIDEO_QUALITY_FROZEN_PAIR_RATIO_REJECT', 0.95),
+            // Share of a window's own length that must be dead for it to count.
+            'dead_window_seconds_ratio' => (float) env('SERMON_VIDEO_QUALITY_DEAD_WINDOW_SECONDS_RATIO', 0.5),
+
+            /*
+             * Only a recording that is dead throughout is hidden automatically.
+             * Anything less goes to review, because a rejection hides the video
+             * from the public page and a recording that carries real preaching
+             * for part of its length is not the detector's to withhold.
+             */
+            'dead_window_ratio_reject' => (float) env('SERMON_VIDEO_QUALITY_DEAD_WINDOW_RATIO_REJECT', 0.75),
+            'dead_window_ratio_review' => (float) env('SERMON_VIDEO_QUALITY_DEAD_WINDOW_RATIO_REVIEW', 0.01),
         ],
     ],
 
