@@ -1730,6 +1730,13 @@ closes §4.3's stale-verdict item for boundary evidence.
     own `inspect()`): **798 of 798 reasons and decisions unchanged, 0 would newly need review.**
     No input drift since this morning's banking, as expected within a day. Executing would
     only add fingerprints; no review state or publication would change.
+  - *Executed 2026-09-16* (`storage/scratch/fingerprint-20260916-backfill-execute.txt`,
+    operator: execute). Banked 798. Its "440 newly hold" counts every section holding a
+    reason, not a change: the check after it found **0 published sections held** (so
+    `service:demote-held-publications` was not needed), the 440 held are all
+    `pending_approval` and were already held this morning, and a second dry run selects
+    nothing. 798 sections now carry `inputs_fingerprint` (447 pending, 351 published); the
+    452 `not_applicable` sections are outside the default pass and carry none.
 - **Demoted 2026-09-15** (operator: run `service:demote-held-publications` for the 38).
   - Dry runs: the 38 named by `--section` were all demotable, none refused.
     `--all` would have reached 83 published sections, 45 outside the 38 (43 held before
