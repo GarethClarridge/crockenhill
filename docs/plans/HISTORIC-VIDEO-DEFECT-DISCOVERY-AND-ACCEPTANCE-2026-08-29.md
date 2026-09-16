@@ -308,6 +308,9 @@ before exercising a repaired run. Work in this order:
   video and historic workers. Record revision, fresh process starts and the code
   seen in their mounted checkout. Current §3 processes are not ready. Restart is
   a prerequisite to the canary, not evidence that existing outputs are repaired.
+  - *Working disk, 2026-09-16:* 2.6 GB free of 460 GB on the host, with MySQL live.
+    The canary's re-encodes and transport-stream intermediates need headroom;
+    free space before dispatching, not during.
 - [ ] Exercise the supported pipeline re-extraction/replacement path, including an
   equal-duration recut and a held-then-reprocessed run. A matching old duration must
   not cause the repaired output to be silently reused. Verify a failed/interrupted
@@ -321,6 +324,31 @@ before exercising a repaired run. Work in this order:
 - [ ] Play one repaired sermon and song clip on Safari/iOS, including seeking
   across joins, then test the real served URLs/ranges and cache freshness in the
   recorded environment. Local/device proof does not replace destination checks.
+  - **Desktop Safari plays a transport-stream join cleanly (2026-09-16).** The
+    unverified item in the 09-15 smart-cut note is answered for macOS Safari only.
+    A two-minute artifact was cut from run 1066's own source through
+    `VideoExtractionService::extractConcatenatedSegmentAsFile()` — the last minute
+    of its preached reading (145–204.994) joined to the first minute of its sermon
+    (382.998–442.998), so the join falls at 60 s
+    (`storage/scratch/safari-20260916-cut.php`, output
+    `storage/scratch/safari-20260916/run1066-join.mp4`). Measured before playback:
+    a clean full decode, a keyframe at 60.066 s, audio continuous across the join
+    (5,167 packets, 0.066–120.043 s, no gap), matched levels either side (−33.0 and
+    −33.7 dB mean), and `moov` before `mdat`. The operator played it in macOS Safari
+    with seeking across the join: **no stall, no desync**. This matters beyond one
+    file because **192 of 438 completed runs (44%) are `concat_spans`** and every
+    one is joined by `joinThroughTransportStream`.
+  - *Not covered by that result:* iOS Safari, a real *repaired* output, a song clip,
+    a full-length file, the planned span starts, range requests over the actual
+    server, and cache freshness after replacement. The temp disk was overridden to
+    `local` for the artifact, so it was not produced on the staging volume.
+- [ ] **Restore the staging volume before any extraction (found 2026-09-16).**
+  `MEDIA_PROCESSING_TEMP_DISK=historic_temp` roots at `/mnt/historic-work/temp`,
+  and that bind mount is stale: `mount` lists it, `ls` reports it missing and the
+  parent shows `d?????????`, because the drive detached. Every extraction path
+  fails at `UnableToCreateDirectory` until it is back. Remount the host volume
+  (`diskutil verifyVolume /Volumes/Staging`); restarting Docker does not clear a
+  stale `/host_mnt` entry. This is a canary prerequisite alongside the workers.
 - [ ] Confirm content holds follow the affected content after replacement and
   merges, and unrelated holds remain. Re-assess current evidence only after final
   song bindings and boundaries are settled. No automatic clearance follows merely
