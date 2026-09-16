@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
+use App\Actions\HoldSectionForContentReview;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
@@ -52,7 +53,25 @@ class ScrubPromptEchoSectionsCommandTest extends TestCase
         $this->assertModelMissing($superseded);
     }
 
-    private function echoSection(bool $superseded = false): ServiceSection
+    /**
+     * A hold is the only record that an operator proved this content wrong; scrubbing
+     * the section would delete it along with the row.
+     */
+    #[Test]
+    public function a_held_section_is_kept_and_named(): void
+    {
+        $section = $this->echoSection(sectionType: ServiceSectionType::Sermon);
+        app(HoldSectionForContentReview::class)($section, 'Saved text repeats a sentence the audio does not', 'plan §4.1a');
+
+        $this->artisan('service:scrub-prompt-echo-sections --apply')
+            ->expectsOutputToContain('Kept 1 held section(s)')
+            ->expectsOutputToContain('Removed 0 section(s)')
+            ->assertSuccessful();
+
+        $this->assertModelExists($section);
+    }
+
+    private function echoSection(bool $superseded = false, ServiceSectionType $sectionType = ServiceSectionType::Other): ServiceSection
     {
         $service = ChurchService::factory()->create();
         $run = MediaProcessingLog::factory()->livestream()->failed()->create([
@@ -63,7 +82,7 @@ class ScrubPromptEchoSectionsCommandTest extends TestCase
         return ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::Other,
+            'section_type' => $sectionType,
             'metadata' => [
                 'transcript' => 'This is a Christian sermon preached at Crockenhill Baptist Church, in the British conservative evangelical tradition.',
             ],

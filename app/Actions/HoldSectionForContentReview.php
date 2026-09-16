@@ -74,6 +74,60 @@ class HoldSectionForContentReview
     }
 
     /**
+     * Carry a removed section's live holds onto the section that replaces it.
+     *
+     * A merge keeps one section and deletes the other, and the survivor takes the
+     * removed section's span with it. Its holds have to travel too: the review
+     * column is merged by both mergers, but the flag and the recorded reasons were
+     * left on the row being deleted, so a later confirmation would have released
+     * content nobody settled.
+     *
+     * Released holds stay released — their reasons are history on the row that is
+     * going away, and re-raising them here would undo an operator's decision.
+     */
+    public function carry(ServiceSection $from, ServiceSection $to): void
+    {
+        $metadata = $from->metadata?->toArray() ?? [];
+
+        if (! self::isHeld(self::reviewFlagsIn($metadata))) {
+            return;
+        }
+
+        foreach (self::holdsIn($metadata) as $hold) {
+            $reason = $hold['reason'] ?? null;
+            $evidence = $hold['evidence'] ?? null;
+
+            if (is_string($reason) && is_string($evidence)) {
+                $this($to, $reason, $evidence);
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     * @return list<string>
+     */
+    private static function reviewFlagsIn(array $metadata): array
+    {
+        return array_values(array_filter(
+            is_array($metadata['review_flags'] ?? null) ? $metadata['review_flags'] : [],
+            'is_string',
+        ));
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     * @return list<array<string, mixed>>
+     */
+    private static function holdsIn(array $metadata): array
+    {
+        return array_values(array_filter(
+            is_array($metadata[self::METADATA_KEY] ?? null) ? $metadata[self::METADATA_KEY] : [],
+            'is_array',
+        ));
+    }
+
+    /**
      * Raise the hold, returning whether the section changed.
      *
      * @throws InvalidArgumentException when the section's type cannot be refused at
@@ -95,14 +149,8 @@ class HoldSectionForContentReview
         }
 
         $metadata = $section->metadata?->toArray() ?? [];
-        $flags = array_values(array_filter(
-            is_array($metadata['review_flags'] ?? null) ? $metadata['review_flags'] : [],
-            'is_string',
-        ));
-        $holds = array_values(array_filter(
-            is_array($metadata[self::METADATA_KEY] ?? null) ? $metadata[self::METADATA_KEY] : [],
-            'is_array',
-        ));
+        $flags = self::reviewFlagsIn($metadata);
+        $holds = self::holdsIn($metadata);
 
         $alreadyRecorded = array_filter(
             $holds,

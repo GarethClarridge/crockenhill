@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services\ChurchService;
 
+use App\Actions\HoldSectionForContentReview;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
@@ -111,6 +112,37 @@ class SongContinuationMergerTest extends TestCase
         $groups = app(SongContinuationMerger::class)->preview($run, conservative: false);
         $this->assertSame($anchor->id, $groups[0]['anchor']->id);
         $this->assertSame([$fragment->id], $groups[0]['absorbed']->pluck('id')->all());
+    }
+
+    /**
+     * The anchor absorbs the other section's span, so it absorbs its hold too.
+     */
+    #[Test]
+    public function an_absorbed_sections_content_hold_travels_to_the_anchor(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->create();
+        $anchor = $this->section($run, 1, ServiceSectionType::Song, 0.0, 80.0, [
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed,
+            'metadata' => ['song_id' => 594, 'review_flags' => []],
+            'needs_manual_review' => false,
+        ]);
+        $absorbed = $this->section($run, 2, ServiceSectionType::Song, 80.0, 190.0, [
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched,
+            'metadata' => ['confidence_level' => 'low', 'review_flags' => []],
+            'needs_manual_review' => false,
+        ]);
+
+        app(HoldSectionForContentReview::class)($absorbed, 'Two songs in one clip', 'plan §4.1b');
+
+        app(SongContinuationMerger::class)->merge($run, conservative: false);
+
+        $anchor->refresh();
+        $metadata = $anchor->metadata?->toArray() ?? [];
+
+        $this->assertTrue($anchor->needs_manual_review);
+        $this->assertContains(HoldSectionForContentReview::FLAG, $metadata['review_flags'] ?? []);
+        $this->assertSame('Two songs in one clip', $metadata[HoldSectionForContentReview::METADATA_KEY][0]['reason'] ?? null);
+        $this->assertDatabaseMissing('service_sections', ['id' => $absorbed->id]);
     }
 
     /**

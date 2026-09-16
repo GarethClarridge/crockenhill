@@ -221,7 +221,10 @@ Read-only measurements taken to size §4. Nothing was written, held or moved.
     section of its type that overlaps the held span (rows are kept by order, so the
     hold follows content, not the row), keeps released holds' history, and refuses
     the whole write with `UnplacedContentHoldException` when a live hold overlaps
-    nothing. Section merges (`removeSection`) are not yet covered. The
+    nothing. **Merges covered 2026-09-16:** both mergers re-raise a removed section's
+    live holds on the survivor through `HoldSectionForContentReview::carry()`, and
+    `service:scrub-prompt-echo-sections` keeps and names a held section rather than
+    deleting its containment. Released holds are never re-raised. The
     held-then-reprocessed *run* below is still required.
   - Dry run on 2026-09-13 mapped §531/§1263/§2411/§3703/§4032 to sermons
     872/943/1106/1214/1242, and §988/§1457/§3869 to song videos 135/191/371.

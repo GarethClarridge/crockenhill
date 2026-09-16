@@ -6,6 +6,7 @@ namespace App\Services\ChurchService;
 
 use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionPublicationStatus;
+use App\Actions\HoldSectionForContentReview;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
@@ -17,6 +18,7 @@ use Illuminate\Support\Str;
 class SongContinuationMerger
 {
     public function __construct(
+        private readonly HoldSectionForContentReview $contentHolds,
         private readonly ServiceSectionSyncService $syncService,
     ) {}
 
@@ -118,6 +120,7 @@ class SongContinuationMerger
             $anchor->save();
 
             foreach ($absorbed as $section) {
+                $this->contentHolds->carry($section, $anchor);
                 $this->syncService->removeSection($section);
             }
         });

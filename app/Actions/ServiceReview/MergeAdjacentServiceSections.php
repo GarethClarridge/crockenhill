@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\ServiceReview;
 
+use App\Actions\HoldSectionForContentReview;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Jobs\PrepareSectionPublicationCandidates;
@@ -15,6 +16,7 @@ use App\Services\Media\Video\VideoStorageService;
 class MergeAdjacentServiceSections
 {
     public function __construct(
+        private readonly HoldSectionForContentReview $contentHolds,
         private readonly ServiceSectionSyncService $syncService,
         private readonly VideoStorageService $videoStorageService,
         private readonly ExtractedSectionMediaChecker $mediaChecker,
@@ -69,6 +71,7 @@ class MergeAdjacentServiceSections
         $primary->metadata = ServiceSectionMetadata::fromArray($metadata);
         $primary->save();
 
+        $this->contentHolds->carry($secondary, $primary);
         $this->syncService->removeSection($secondary);
 
         $processingLog = $primary->processingLog;

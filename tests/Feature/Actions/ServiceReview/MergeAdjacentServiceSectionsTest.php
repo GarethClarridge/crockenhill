@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Actions\ServiceReview;
 
+use App\Actions\HoldSectionForContentReview;
+use App\Actions\ServiceReview\ConfirmServiceSection;
 use App\Actions\ServiceReview\MergeAdjacentServiceSections;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
@@ -68,6 +70,64 @@ class MergeAdjacentServiceSectionsTest extends TestCase
         $this->assertEquals([1, 2, 3], $section1->source_segment_ids);
 
         $this->assertDatabaseMissing('service_sections', ['id' => $section2->id]);
+    }
+
+    /**
+     * The merged row takes the removed section's span, so it takes its holds. Both
+     * mergers merged the review column but left the flag and the recorded reasons on
+     * the row they deleted, and a later confirmation would have released content an
+     * operator proved wrong (Codex review 2026-09-15 P2).
+     */
+    #[Test]
+    public function a_merge_carries_the_removed_sections_content_hold(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create();
+        $primary = $this->songSection($log, 1, 100.0, 200.0);
+        $secondary = $this->songSection($log, 2, 201.0, 260.0);
+
+        app(HoldSectionForContentReview::class)($secondary, 'Clip opens on a prayer', 'plan §3.2');
+
+        $this->assertNull($this->action->execute($primary, $secondary->refresh(), $this->admin->id));
+
+        $primary->refresh();
+        $metadata = $primary->metadata?->toArray() ?? [];
+
+        $this->assertTrue($primary->needs_manual_review);
+        $this->assertContains(HoldSectionForContentReview::FLAG, $metadata['review_flags'] ?? []);
+        $this->assertSame('Clip opens on a prayer', $metadata[HoldSectionForContentReview::METADATA_KEY][0]['reason'] ?? null);
+        $this->assertDatabaseMissing('service_sections', ['id' => $secondary->id]);
+    }
+
+    #[Test]
+    public function a_merge_does_not_re_raise_a_hold_an_operator_released(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create();
+        $primary = $this->songSection($log, 1, 100.0, 200.0);
+        $secondary = $this->songSection($log, 2, 201.0, 260.0);
+
+        app(HoldSectionForContentReview::class)($secondary, 'Clip opens on a prayer', 'plan §3.2');
+        app(ConfirmServiceSection::class)->execute($secondary->refresh(), $this->admin->id);
+
+        $this->action->execute($primary, $secondary->refresh(), $this->admin->id);
+
+        $primary->refresh();
+
+        $this->assertFalse($primary->needs_manual_review);
+        $this->assertNotContains(HoldSectionForContentReview::FLAG, $primary->metadata?->toArray()['review_flags'] ?? []);
+    }
+
+    private function songSection(MediaProcessingLog $log, int $order, float $start, float $end): ServiceSection
+    {
+        return ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song,
+            'section_order' => $order,
+            'start_time' => $start,
+            'end_time' => $end,
+            'duration' => $end - $start,
+            'needs_manual_review' => false,
+            'metadata' => ['review_flags' => []],
+        ]);
     }
 
     #[Test]

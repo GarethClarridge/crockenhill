@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\ServiceSection;
+use App\Actions\HoldSectionForContentReview;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Support\TranscriptPromptEchoDetector;
 use Illuminate\Console\Command;
@@ -41,8 +42,19 @@ class ScrubPromptEchoSectionsCommand extends Command
 
         $this->line($apply ? '<fg=yellow>APPLYING</> — removing prompt-echo sections:' : '<fg=cyan>DRY RUN</> — prompt-echo sections that would be removed:');
         $rows = [];
+        $held = [];
 
         foreach ($sections as $section) {
+            /*
+             * A held section's content an operator has proven wrong; deleting it
+             * would take the containment with it and leave nothing to settle.
+             */
+            if (HoldSectionForContentReview::isHeld($section->metadata?->toArray()['review_flags'] ?? [])) {
+                $held[] = $section->id;
+
+                continue;
+            }
+
             $rows[] = [
                 $section->processingLog->church_service_id,
                 $section->media_processing_log_id,
@@ -57,7 +69,15 @@ class ScrubPromptEchoSectionsCommand extends Command
         }
 
         $this->table(['svc', 'run', 'section', 'order', 'prompt echo'], $rows);
-        $this->info(sprintf('%s %d section(s).', $apply ? 'Removed' : 'Would remove', $sections->count()));
+        $this->info(sprintf('%s %d section(s).', $apply ? 'Removed' : 'Would remove', count($rows)));
+
+        if ($held !== []) {
+            $this->warn(sprintf(
+                'Kept %d held section(s): %s — settle the content hold before scrubbing them.',
+                count($held),
+                implode(', ', $held),
+            ));
+        }
         $this->dryRunNotice($apply);
 
         return self::SUCCESS;
