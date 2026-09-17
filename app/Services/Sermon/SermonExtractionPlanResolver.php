@@ -73,7 +73,13 @@ class SermonExtractionPlanResolver
      *   substantive duration, proximity) rather than simple order to find the most likely
      *   preached text.
      *
+     * An operator may name a content-held sermon section as safe to cut from
+     * ({@see MediaProcessingLog::authoriseHeldSermonSpan()}). The recorded authority
+     * applies unless one is passed, which is how a dry run shows the plan an
+     * execution would follow before anything is recorded.
+     *
      * @param  MediaProcessingLog  $processingLog  The log of the current processing run
+     * @param  array{section_id: int, start_time: float, end_time: float}|null  $heldSpanAuthority
      * @return array{
      *     mode: 'single_span'|'concat_spans'|'baseline',
      *     source: 'service_sections'|'processing_log'|'manual_review',
@@ -83,9 +89,12 @@ class SermonExtractionPlanResolver
      *
      * @throws \Exception When baseline times are missing or confirmed segments cannot be found.
      */
-    public function resolve(MediaProcessingLog $processingLog): array
+    public function resolve(MediaProcessingLog $processingLog, ?array $heldSpanAuthority = null): array
     {
-        return $this->withSermonContinuations($processingLog, $this->resolveSermonSpan($processingLog));
+        return $this->withSermonContinuations(
+            $processingLog,
+            $this->resolveSermonSpan($processingLog, $heldSpanAuthority ?? $processingLog->authorisedHeldSermonSpan()),
+        );
     }
 
     /**
@@ -98,9 +107,11 @@ class SermonExtractionPlanResolver
      *     metadata: array<string, mixed>
      * }
      *
+     * @param  array{section_id: int, start_time: float, end_time: float}|null  $heldSpanAuthority
+     *
      * @throws \Exception When baseline times are missing or confirmed segments cannot be found.
      */
-    private function resolveSermonSpan(MediaProcessingLog $processingLog): array
+    private function resolveSermonSpan(MediaProcessingLog $processingLog, ?array $heldSpanAuthority): array
     {
         $confirmedSegmentId = $processingLog->manuallyConfirmedSegmentId();
         if ($confirmedSegmentId !== null) {
@@ -121,6 +132,11 @@ class SermonExtractionPlanResolver
         }
 
         $sermonSection = $this->findPreferredSection($processingLog, ServiceSectionType::Sermon);
+        $authorisedHeldSection = $sermonSection instanceof ServiceSection
+            ? null
+            : $this->findAuthorisedHeldSermon($processingLog, $heldSpanAuthority);
+        $sermonSection ??= $authorisedHeldSection;
+
         if (! $sermonSection instanceof ServiceSection) {
             return $this->baselinePlan($processingLog, ['reason' => 'no_high_confidence_sermon_section']);
         }
@@ -149,6 +165,10 @@ class SermonExtractionPlanResolver
             'trailing_section_ids' => $trailingSectionIds,
             'sermon_boundary' => $sermonBoundaryEvidence,
         ];
+
+        if ($authorisedHeldSection instanceof ServiceSection) {
+            $sermonMetadata['held_span_authorised_section_id'] = $authorisedHeldSection->id;
+        }
 
         $bibleSection = $this->selectBibleReading($processingLog, $sermonSection);
         if (! $bibleSection instanceof ServiceSection) {
@@ -724,6 +744,47 @@ class SermonExtractionPlanResolver
                 (bool) $section->needs_manual_review,
                 $this->reviewFlags($section),
             ));
+    }
+
+    /**
+     * The content-held sermon an operator named, while it still has the span they named.
+     *
+     * The section must pass every test {@see self::findPreferredSection()} applies
+     * except the hold itself.
+     *
+     * @param  array{section_id: int, start_time: float, end_time: float}|null  $authority
+     */
+    private function findAuthorisedHeldSermon(MediaProcessingLog $processingLog, ?array $authority): ?ServiceSection
+    {
+        if ($authority === null) {
+            return null;
+        }
+
+        $section = ServiceSection::query()
+            ->whereKey($authority['section_id'])
+            ->where('media_processing_log_id', $processingLog->id)
+            ->where('section_type', ServiceSectionType::Sermon->value)
+            ->where('status', ServiceSectionStatus::Identified->value)
+            ->where('confidence', '>=', ServiceSectionConfidence::HIGH_THRESHOLD)
+            ->whereColumn('end_time', '>', 'start_time')
+            ->first();
+
+        if (! $section instanceof ServiceSection) {
+            return null;
+        }
+
+        $spanUnchanged = abs((float) $section->start_time - $authority['start_time']) < 0.001
+            && abs((float) $section->end_time - $authority['end_time']) < 0.001;
+
+        if (! $spanUnchanged) {
+            return null;
+        }
+
+        if (! SermonAutoExtractionPolicy::reviewStatePermitsHeldSpanRepair($this->reviewFlags($section))) {
+            return null;
+        }
+
+        return $section;
     }
 
     /**

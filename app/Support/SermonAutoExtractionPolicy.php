@@ -7,6 +7,7 @@ namespace App\Support;
 use App\Actions\FlagSermonAudioLengthMismatch;
 use App\Actions\FlagSermonPartsNotExtracted;
 use App\Actions\FlagSermonTextPredatesEvidence;
+use App\Actions\HoldSectionForContentReview;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 
 /**
@@ -80,6 +81,25 @@ class SermonAutoExtractionPolicy
         FlagSermonPartsNotExtracted::FLAG,
         FlagSermonAudioLengthMismatch::FLAG,
     ];
+
+    /**
+     * Whether an operator's named repair may cut from a content-held section.
+     *
+     * The authority answers the hold and nothing else: every other flag on the
+     * section is judged as it would be without the hold.
+     *
+     * @param  array<int, string>  $reviewFlags
+     */
+    public static function reviewStatePermitsHeldSpanRepair(array $reviewFlags): bool
+    {
+        if (! HoldSectionForContentReview::isHeld($reviewFlags)) {
+            return false;
+        }
+
+        $remainingFlags = array_values(array_diff($reviewFlags, [HoldSectionForContentReview::FLAG]));
+
+        return self::reviewStatePermitsAutoExtraction($remainingFlags !== [], $remainingFlags);
+    }
 
     /**
      * @param  array<int, string>  $reviewFlags

@@ -890,6 +890,68 @@ class MediaProcessingLog extends Model
     }
 
     /**
+     * Let the extraction plan cut this run's sermon from a section an operator holds.
+     *
+     * A content hold keeps a sermon from release, and it also keeps the plan off
+     * the section: the same hold records disputed spans, so the resolver cannot
+     * tell a wrong span from wrong media cut from a right one. When an operator
+     * names the section, the span becomes usable again and the hold stays, so the
+     * repaired media is still refused at release until someone settles it.
+     *
+     * The authority records the span it vouches for. A re-detection that moves the
+     * section leaves it describing a span nobody looked at, and the resolver then
+     * ignores it; it is kept here, not in `re_extraction`, because every later plan
+     * resolution for the run (the parts-not-extracted screen among them) has to
+     * reach the same answer as the cut did.
+     */
+    public function authoriseHeldSermonSpan(ServiceSection $section): void
+    {
+        $authority = [
+            ...self::heldSermonSpanAuthorityFor($section),
+            'authorised_at' => now()->toISOString(),
+        ];
+
+        $this->writeProcessingMetadata(static function (array $metadata) use ($authority): array {
+            $metadata['held_sermon_span'] = $authority;
+
+            return $metadata;
+        });
+    }
+
+    /**
+     * @return array{section_id: int, start_time: float, end_time: float}
+     */
+    public static function heldSermonSpanAuthorityFor(ServiceSection $section): array
+    {
+        return [
+            'section_id' => $section->id,
+            'start_time' => (float) $section->start_time,
+            'end_time' => (float) $section->end_time,
+        ];
+    }
+
+    /**
+     * @return array{section_id: int, start_time: float, end_time: float}|null
+     */
+    public function authorisedHeldSermonSpan(): ?array
+    {
+        $authority = data_get($this->processing_metadata?->toArray(), 'held_sermon_span');
+
+        if (! is_array($authority)
+            || ! is_int($authority['section_id'] ?? null)
+            || ! is_numeric($authority['start_time'] ?? null)
+            || ! is_numeric($authority['end_time'] ?? null)) {
+            return null;
+        }
+
+        return [
+            'section_id' => $authority['section_id'],
+            'start_time' => (float) $authority['start_time'],
+            'end_time' => (float) $authority['end_time'],
+        ];
+    }
+
+    /**
      * Hand the spent re-extraction authority forward to historic promotion.
      *
      * A re-cut passes two independent overwrite guards, not one. The first is

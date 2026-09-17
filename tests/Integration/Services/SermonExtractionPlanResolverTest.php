@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
+use App\Actions\HoldSectionForContentReview;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
@@ -1375,5 +1376,120 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $this->assertSame('single_span', $plan['mode']);
         $this->assertCount(1, $plan['segments']);
+    }
+
+    /**
+     * Run 1209 (§2572), 2026-09-17 canary. A content hold says the sermon cannot be
+     * released as it stands. On its own it also has to keep automatic extraction off
+     * the section: the same hold records disputed spans, and nothing in it says which
+     * kind of defect it is.
+     */
+    #[Test]
+    public function it_does_not_cut_a_content_held_sermon_without_authority(): void
+    {
+        [$log] = $this->runWithHeldSermon();
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame('processing_log', $plan['source']);
+        $this->assertSame('no_high_confidence_sermon_section', $plan['metadata']['reason']);
+    }
+
+    /**
+     * The repair for 1209 is a re-cut of the span the hold does not dispute (its MP3
+     * lost the closing words). An operator names the section; the plan then comes from
+     * it, and says so.
+     */
+    #[Test]
+    public function it_cuts_a_content_held_sermon_an_operator_authorised(): void
+    {
+        [$log, $sermon] = $this->runWithHeldSermon();
+        $log->authoriseHeldSermonSpan($sermon);
+
+        $plan = $this->resolver->resolve($log->fresh());
+
+        $this->assertSame('service_sections', $plan['source']);
+        $this->assertSame([['start_time' => 2123.0, 'end_time' => 3740.0]], $plan['segments']);
+        $this->assertSame($sermon->id, $plan['metadata']['sermon_section_id']);
+        $this->assertSame($sermon->id, $plan['metadata']['held_span_authorised_section_id']);
+    }
+
+    /**
+     * A dry run has to show the plan an execution would follow, before anything is
+     * recorded on the run.
+     */
+    #[Test]
+    public function it_resolves_an_authority_offered_without_recording_it(): void
+    {
+        [$log, $sermon] = $this->runWithHeldSermon();
+
+        $plan = $this->resolver->resolve($log, MediaProcessingLog::heldSermonSpanAuthorityFor($sermon));
+
+        $this->assertSame('service_sections', $plan['source']);
+        $this->assertNull($log->fresh()->authorisedHeldSermonSpan());
+    }
+
+    /**
+     * The authority vouches for one span. A re-detection that moves the section has
+     * produced a span nobody looked at, so the authority no longer applies.
+     */
+    #[Test]
+    public function it_ignores_an_authority_once_the_held_sermon_has_moved(): void
+    {
+        [$log, $sermon] = $this->runWithHeldSermon();
+        $log->authoriseHeldSermonSpan($sermon);
+        $sermon->update(['end_time' => 3700.0, 'duration' => 1577.0]);
+
+        $plan = $this->resolver->resolve($log->fresh());
+
+        $this->assertSame('processing_log', $plan['source']);
+    }
+
+    /**
+     * Naming a section lifts the content hold only. A flag that says the span itself
+     * is unsound still refuses it.
+     */
+    #[Test]
+    public function it_still_refuses_an_authorised_sermon_whose_span_is_unsound(): void
+    {
+        [$log, $sermon] = $this->runWithHeldSermon([ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED]);
+        $log->authoriseHeldSermonSpan($sermon);
+
+        $plan = $this->resolver->resolve($log->fresh());
+
+        $this->assertSame('processing_log', $plan['source']);
+    }
+
+    /**
+     * @param  list<string>  $extraFlags
+     * @return array{MediaProcessingLog, ServiceSection}
+     */
+    private function runWithHeldSermon(array $extraFlags = []): array
+    {
+        $log = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'sermon_start_time' => 1758.0,
+            'sermon_end_time' => 3740.0,
+        ]);
+
+        $sermon = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'section_order' => 1,
+            'start_time' => 2123.0,
+            'end_time' => 3740.0,
+            'duration' => 1617.0,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'review_flags' => [HoldSectionForContentReview::FLAG, ...$extraFlags],
+                HoldSectionForContentReview::METADATA_KEY => [[
+                    'reason' => 'Sermon MP3 ends before its video and loses the closing words',
+                    'evidence' => 'duration census',
+                    'held_at' => '2026-09-13T20:23:31+00:00',
+                ]],
+            ],
+        ]);
+
+        return [$log, $sermon];
     }
 }
