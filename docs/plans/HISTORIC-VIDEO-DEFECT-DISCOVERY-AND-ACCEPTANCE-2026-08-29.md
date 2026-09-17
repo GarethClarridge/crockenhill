@@ -435,6 +435,33 @@ three live runs (1007, 1041, 1217) were cut from a dominant RMS block while a
 low-confidence or interruption-merged sermon section existed; whether those cuts
 are right is unmeasured.
 
+**Those three runs, measured 2026-09-17 — the RMS cuts are right, and the narrow
+scope is confirmed.** Local Whisper on the quarantined sermon MP3s: 1007 opens
+"the younger ones are going to go out now… open your Bibles at 1 Timothy",
+1217 opens "A beggar sits beside the road", 1041 opens "I thought I'd follow
+Ralph's example and bring a few visual aids"; 1007 and 1217 close with the prayer
+and "Let's stand… and sing", before the singing. The service audio confirms singing
+ends exactly where each cut starts. So **the sections are wrong, not the media**:
+§1258 "No One Is Good" (2241–2672) overruns 92 s into the sermon and §2675
+"O Church Arise" (2000–2647) overruns 475 s, while §1259 and §2676 start that much
+late. Parking a disqualified (unheld) sermon would have replaced better media with
+worse in two of three cases, so the parking rule stays scoped to content holds.
+
+**New defect class: an overlong song section swallows the sermon's opening.** The
+late sermon section truncates what is sliced from it: §2676's text begins mid-
+sentence "In an experiential way…", missing the beggar illustration, and §1259's
+begins 92 s in. Corpus screen — a song section over 360 s ending within 60 s of a
+sermon start, live historic runs: **8** (1217/§2675 647 s, 1060/§1647 507 s,
+1009/§1276 459 s, 1340/§4298 447 s, 1007/§1258 431 s, 1274/§3437 424 s,
+1303/§3861 391 s, 948/§709 385 s); all 8 carry `structure_macro_section`, and
+948, 1009 and 1060 published a song clip from that section. Six were cut from the
+sections, so their **media** starts late too: verified on 1060, where the service
+audio has the preacher from ~2180 ("the little ones are going out… turn to Luke 23")
+through the whole A.J. Gordon bird-cage illustration, while the published sermon
+starts at 2342 and loses ~2.7 minutes. 1009, 1274, 1303, 1340 and 948 are the same
+shape and unlistened. Whether the 09-17 song speech-edge trim reaches spoken tails
+this long is untested; §2897's continuous speech over organ is the known gap.
+
 - **Execution authorised 2026-09-17:** the operator requested this plan update,
   a commit to master, then the bounded canary. This authorises the necessary local
   pipeline repair and readiness work, not release or automatic hold clearance.
@@ -1940,7 +1967,8 @@ immediately below the table governs their interpretation.
 |---|---|---|---|---|
 | Full pipeline re-run cuts a content-held sermon from the RMS baseline without error (1314 §3992, 17:04) | 17 September canary | Fixed `283a6cd90`: extraction parks held sermons; 1314 repaired with `--held-section` | `canary-20260917-dispatch-1314-recut.txt` | Refuse or park extraction when a sermon section exists but is held and no authority names it; failing test first |
 | Content-held sermon cannot reach its intended repair; re-extraction dry run conceals fallback refusal (1209 §2572) | 17 September canary | Fixed `6c7d33539` (`--held-section`); 1209 repaired, hold retained | `canary-20260917-failure-1209-plan.json` | Separate bounded repair authority from release acceptance; preserve hold and validate the actual execution plan in dry run. Do not globally exempt content holds from boundary checks |
-| Sermon cut from a dominant RMS block while a disqualified (not held) sermon section exists (1007, 1041, 1217) | 17 September blocker sizing | Unmeasured; operator decision | `media_processing_logs.processing_metadata.sermon_extraction_plan` | Listen to the three cuts before deciding whether any disqualified sermon should park |
+| Overlong song section swallows the sermon's opening; sermon text and (where cut from sections) media start late — 8 runs, verified on 1007, 1217, 1060 | 17 September blocker sizing | Measured, unrepaired | `structure_macro_section` song sections over 360 s adjacent to a sermon | Re-detect with the song speech-edge trim, then confirm the sermon opening by ear; check the three published song clips (948, 1009, 1060) for preaching |
+| Sermon cut from a dominant RMS block while a disqualified (not held) sermon section exists (1007, 1041, 1217) | 17 September blocker sizing | **Closed**: all three cuts are right; the sections are wrong | `media_processing_logs.processing_metadata.sermon_extraction_plan`; Whisper on the three MP3s | No change: parking stays scoped to content holds |
 | Unplaced-hold refusal is retried by the detection job and the refused detection is not kept (1314 §3994) | 17 September canary | Run stopped as designed; operator decision on §3994 pending | `storage/logs/laravel.log` 16:45–16:54 UTC | Fail without retry on `UnplacedContentHoldException`; keep the refused section list for operator inspection |
 | Held section candidates remain on the staging volume only (1221 §2718/§2719/§2721) | 17 September canary | Recorded; re-cut clips verified to new bounds | `section-publications/27{18,19,21}-*` on staging | Decide whether held candidates promote to quarantine before staging is retired |
 | One-word sentence drift and context-carried loops (1314, 1343, 1258; partial 980) | Blind BC-08 | Prevention implemented; pipeline recovery and wider sizing pending | `blind-20260916-comparison/bc08-20260917/` | §4.2: context options, four-run recovery, raw-transcript census and independent source checks |
