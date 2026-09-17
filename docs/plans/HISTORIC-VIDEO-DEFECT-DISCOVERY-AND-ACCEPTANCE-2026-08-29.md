@@ -421,6 +421,20 @@ held-sermon repair work on these three runs. Blockers before wider repair:
 job retrying an unplaced-hold refusal. Holds on all three runs remain for operator
 review; nothing is authorised for release.
 
+**Blocker (a) fixed, `283a6cd90`, 2026-09-17.** When no sermon section is usable and
+the run has a content-held sermon, the resolver's fallback plan now carries reason
+`sermon_section_content_held` (with the held section ids), and `ExtractSermon` parks
+the run at `manual_review_required` before the RMS check, offering no speech blocks
+and naming the `sermons:re-extract … --held-section=<id>` repair. A plain retry
+resumes at extraction and parks again; `RedetectHistoricServiceStructure` does not
+treat the reason as re-derivable. 230 tests across the neighbouring suites pass;
+Pint and PHPStan clean; workers restarted onto it (queues empty). Read-only plan
+resolution over all 46 live runs with a content-held sermon: 44 now park, and
+1209/1314 cut from their authorised sections. Not covered, and a separate decision:
+three live runs (1007, 1041, 1217) were cut from a dominant RMS block while a
+low-confidence or interruption-merged sermon section existed; whether those cuts
+are right is unmeasured.
+
 - **Execution authorised 2026-09-17:** the operator requested this plan update,
   a commit to master, then the bounded canary. This authorises the necessary local
   pipeline repair and readiness work, not release or automatic hold clearance.
@@ -1924,8 +1938,9 @@ immediately below the table governs their interpretation.
 
 | Class | Found by | Current response — reviewed 2026-09-17 | Prototype | Specification and dated execution evidence |
 |---|---|---|---|---|
-| Full pipeline re-run cuts a content-held sermon from the RMS baseline without error (1314 §3992, 17:04) | 17 September canary | **Blocks bulk re-runs of held runs**; 1314 repaired with `--held-section` | `canary-20260917-dispatch-1314-recut.txt` | Refuse or park extraction when a sermon section exists but is held and no authority names it; failing test first |
+| Full pipeline re-run cuts a content-held sermon from the RMS baseline without error (1314 §3992, 17:04) | 17 September canary | Fixed `283a6cd90`: extraction parks held sermons; 1314 repaired with `--held-section` | `canary-20260917-dispatch-1314-recut.txt` | Refuse or park extraction when a sermon section exists but is held and no authority names it; failing test first |
 | Content-held sermon cannot reach its intended repair; re-extraction dry run conceals fallback refusal (1209 §2572) | 17 September canary | Fixed `6c7d33539` (`--held-section`); 1209 repaired, hold retained | `canary-20260917-failure-1209-plan.json` | Separate bounded repair authority from release acceptance; preserve hold and validate the actual execution plan in dry run. Do not globally exempt content holds from boundary checks |
+| Sermon cut from a dominant RMS block while a disqualified (not held) sermon section exists (1007, 1041, 1217) | 17 September blocker sizing | Unmeasured; operator decision | `media_processing_logs.processing_metadata.sermon_extraction_plan` | Listen to the three cuts before deciding whether any disqualified sermon should park |
 | Unplaced-hold refusal is retried by the detection job and the refused detection is not kept (1314 §3994) | 17 September canary | Run stopped as designed; operator decision on §3994 pending | `storage/logs/laravel.log` 16:45–16:54 UTC | Fail without retry on `UnplacedContentHoldException`; keep the refused section list for operator inspection |
 | Held section candidates remain on the staging volume only (1221 §2718/§2719/§2721) | 17 September canary | Recorded; re-cut clips verified to new bounds | `section-publications/27{18,19,21}-*` on staging | Decide whether held candidates promote to quarantine before staging is retired |
 | One-word sentence drift and context-carried loops (1314, 1343, 1258; partial 980) | Blind BC-08 | Prevention implemented; pipeline recovery and wider sizing pending | `blind-20260916-comparison/bc08-20260917/` | §4.2: context options, four-run recovery, raw-transcript census and independent source checks |
