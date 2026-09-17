@@ -4,13 +4,17 @@
 > once bulk processing was complete and the remaining work became discovering,
 > containing and detecting defects, then proving acceptance.
 
-> **Status — 2026-09-16: bulk processing is drained; containment, content
+> **Status — 2026-09-17: bulk processing is drained; containment, content
 > acceptance and public release remain NO-GO.** Prevention and containment have
 > advanced substantially, but most media repairs await pipeline reprocessing.
-> The fresh local census in §3 supersedes earlier status counts. Five disputed
-> sermon identities still pass the content gate without identity containment.
-> All six processing workers predate the fixes; restart and verify them before
-> any repair canary. No production state was inspected in this reconciliation.
+> The dated local census in §3 supersedes earlier counts. The six disputed
+> sermons and seven associated videos were contained on 16 September; source
+> adoption remains undecided. The nine-service source comparison is complete,
+> but interior semantic checks and independent acceptance remain open. Whisper
+> context and song-edge fixes are implemented, not applied corpus repairs.
+> Recheck workers, staging mounts and disk headroom before the repair canary;
+> their last measurements are blockers, not a fresh readiness assessment.
+> No production state was inspected in this review.
 >
 > Phases 0–8, their implementation diary, pass measurements and earlier reviews
 > have moved unchanged to the
@@ -24,11 +28,11 @@
 
 **Original date:** 2026-08-29
 **Last condensed:** 2026-09-12
-**Last reviewed:** 2026-09-16 — code, saved evidence and the local database reconciled;
-implementation, application, verification and containment separated. §4's execution
-order now prioritises independent source review and a bounded repair canary before
-dependency-grouped reruns. Earlier measurements and operator rulings remain evidence,
-not current status where a later reconciliation supersedes them.
+**Last reviewed:** 2026-09-17 — recent commits and saved blind-review evidence
+reconciled with the execution tasks. The database census remains dated 16 September;
+this review does not refresh it. Prioritise bounded transcription/boundary repair
+and independent verification before dependency-grouped reruns. Earlier measurements
+and operator rulings remain evidence, not current status where superseded.
 
 ## 1. Outcome and boundaries
 
@@ -141,12 +145,13 @@ repaired corpus, and a correct hold is not a confirmed defect.
 
 | Workstream | Implemented | Applied / verified on existing outputs | Remaining |
 |---|---|---|---|
-| Explicit holds and occasion exclusions | Yes; holds survive sync and merges | Named holds, four occasion exclusions and publication demotions applied; current state above | Identity containment; held-then-reprocessed canary |
+| Explicit holds and occasion exclusions | Yes; holds survive sync and merges | Named holds, identity containment, four occasion exclusions and publication demotions applied; dated state above | Reconcile blind-review holds; held-then-reprocessed canary; source-adoption decisions |
 | Song boundary/loop evidence | Version 5, input fingerprints, lyric-edge and loop risks | Successive backfills and demotions recorded in §4.3a | Current-policy scope/limitations; independent audio evaluation; identity confirmation |
 | Smart cut, MP3, source audio format | Yes, including `fda414eb2` source-frame correction | Tests and limited real-source measurements; no completed corpus repair pass recorded | Device/source-content canary, then affected media reruns |
-| Structure and song identity | Prompt seconds, closing prayer/reading retention, sustained singing, mistyped sung-item risk and catalogue-title priority | Retrospective measurements and tests | Per-run re-detection/re-resolution, then extraction and derived-item repair |
+| Structure and song identity | Prompt seconds, closing prayer/reading retention, sustained singing, mistyped sung-item risk, catalogue-title priority and 17 September speech-edge trim | Retrospective measurements and tests; trim replay is not a corpus write | Per-run re-detection/re-resolution, then extraction and derived-item repair; speech-edge exceptions |
+| Local Whisper decoding | Context carry disabled; initial prompt retained on both request paths; options fingerprinted | Seven-run experiment and MP3-form check; request/fingerprint tests | Pipeline retranscription of 1314/1343/1258/980; wider raw-transcript census; dependent structure/analysis and independent audio checks |
 | Video-quality detector | Dead-picture coverage and owning-run evidence | 48 prior rejections reassessed (28 approve/19 reject/1 review); seven prior approvals moved to review | 862 where its output lives; 897/1005 unassessed; source-versus-cut black-picture causes; independent negatives |
-| Acceptance and release | Existing signed release machinery | Not complete; no new release authorised | Blind review, canary, bounded repairs, operation closeout, exact-membership QA and delivery |
+| Acceptance and release | Existing signed release machinery | Nine-service source inventories compared; acceptance incomplete; no new release authorised | Interior semantic review, fresh reserved evaluation, canary, bounded repairs, operation closeout, exact-membership QA and delivery |
 
 The 10–11 September transcript/media-readability census and its missing-hold list
 remain in the preserved follow-up review at the end of this document. They are not
@@ -256,24 +261,27 @@ Read-only measurements taken to size §4. Nothing was written, held or moved.
 
 ## 4. Remaining work in execution order
 
-**Execution order revised 2026-09-16.** The detailed sections retain their stable
+**Execution order revised 2026-09-17.** The detailed sections retain their stable
 numbers and evidence anchors; they are not a requirement to finish every detector
 before exercising a repaired run. Work in this order:
 
 1. **Reconcile and contain.** The read-only status/exposure reconciliation is done
-   in §3. Act on the remaining identity gap (§4.4), current-policy discrepancies and
+   in §3, including subsequent identity containment (§4.4). Reconcile the blind-review
+   hold status against dated gate evidence; act on current-policy discrepancies and
    unassessable evidence below through the tested paths. Keep historic and weekly
    populations separate; inspect both whenever a shared rule changes.
-2. **Independent source review now, before more threshold tuning.** Complete the
-   nine-service blind selection in §4.1b (1336, 1221, 936, 1097, 1066, 1314, 1358,
-   950, 1034), plus its preselected interior windows. Record prior exposure and
-   expected outputs before unblinding. Add bounded positive and detector-negative
+2. **Finish independent review without reusing discovery as acceptance.** The
+   nine-service inventory/comparison in §4.1b is complete (1336, 1221, 936, 1097,
+   1066, 1314, 1358, 950, 1034). Complete outstanding interior semantic checks and
+   BC-05's source replay. Preserve recorded prior exposure; these cases now inform
+   tuning and are regression evidence, not untouched evaluation. Add bounded positive and detector-negative
    audio checks for song loops and lyric edges; lyric agreement alone is not audio
    adjudication. Preserve the reserved evaluation set separately. This is discovery
    and validation, not a nine-service claim of corpus accuracy.
 3. **Prove one bounded repair canary (§4.0a).** Source-content alignment, device
-   playback and hold persistence must pass before a bulk rerun. Include the latest
-   smart-cut correction, not just its initial duration checks.
+   playback and hold persistence must pass before a bulk rerun. Cover the Whisper
+   context fix and changed song boundaries as well as the latest smart-cut correction;
+   inspect dependent sermon endings and analysis, not just durations.
 4. **Repair by each run's dependencies.** Freeze a deduplicated run membership,
    required stages, code/evidence versions and expected outcomes before dispatch.
    Transcript recovery precedes dependent structure/analysis; structure and song
@@ -282,8 +290,9 @@ before exercising a repaired run. Work in this order:
    an unrelated detector. Do not repeatedly encode a run whose boundaries are
    still under repair. Preserve holds until its independent acceptance passes.
 5. **Close substantive gaps and operation state alongside the repairs.** Prioritise
-   §4.2's short/varying loops and sparse loss; §4.3's performed-song confirmation
-   and continuous speech; hymns wholly inside sermons; Scripture linking and
+   §4.2's context-drift recovery, short/varying loops and sparse loss; §4.3's
+   performed-song confirmation and unresolved speech-edge cases; quoted hymns
+   mistaken for singing and hymns wholly inside sermons; Scripture linking and
    missing assets. Source dropouts/truncation can end in a reasoned hold or accepted
    limitation rather than attempted reconstruction. Resolve the three failed runs,
    deferred source-adoption pairs and operation 4's legitimate completion route
@@ -300,6 +309,14 @@ before exercising a repaired run. Work in this order:
 
 ### 4.0a Repair canary and run dependencies — added 2026-09-16
 
+- **Execution authorised 2026-09-17:** the operator requested this plan update,
+  a commit to master, then the bounded canary. This authorises the necessary local
+  pipeline repair and readiness work, not release or automatic hold clearance.
+- [ ] Include run 1314 for context drift and the quoted-hymn/sermon-ending challenge,
+  plus the smallest additional membership needed for a concatenated sermon, known
+  MP3 tail loss, effective pre-existing hold and an eligible speech-edge trim.
+  A still-wrong quoted-hymn boundary is a recorded canary failure, not permission
+  to adjust it manually. Freeze exact membership and expected outcomes before writes.
 - [ ] Select the smallest set of runs covering a live content hold, a concatenated
   sermon, a known MP3 tail loss and a changed song boundary. Cases may overlap;
   include different recording formats where the extraction path differs. Bind the
@@ -871,6 +888,11 @@ the others. Human-only checks may remain sampled with a justified design and bou
   - **Holds proposed, not yet run** (the dry runs were blocked by a session permission
     rule): §3994+§3992 (BC-01), §1461 (BC-02), the seven BC-03 sections, and §3992/§3227/§4334
     (BC-08). Dry run first, operator approval before `--execute`.
+    **Status reconciliation due 2026-09-17:** this is the comparison session's
+    historical state. The later unsung-song measurement says §3994 is held; no
+    dated gate result here reconciles that claim with this list. Read the exact
+    sections before the canary, record existing reasons/refusals and apply any
+    necessary containment through the tested path under the canary authorisation.
 - [ ] Draw and save random interior source windows before consulting detector
   results, alongside complete-source review. Check fluent but incorrect words,
   missing negation, names and numbers, missing sentences, quotation attribution and
@@ -1648,6 +1670,18 @@ at 2% each side (minimum 5) and adjudicated in `tails-20260914-register.json`.
 
 ### 4.2 Close the transcript-loop blind spot
 
+- [x] Implement the BC-08 context-drift prevention: both local Whisper requests
+  send `max_context=0` and `carry_initial_prompt=true`, recorded in the processing
+  fingerprint (`7bed913ac`). Request tests prove propagation, not transcription
+  accuracy; the seven-run experiment in §4.1b is separate measured evidence.
+- [ ] After readiness verification, re-transcribe 1314, 1343, 1258 and 980 through
+  the pipeline in the canary/bounded batches. Check full-service and saved sermon
+  text against source speech, including missing/changed words, not punctuation alone.
+  Re-run dependent structure, song resolution and analysis before extraction.
+- [ ] Size wider recovery from raw service-transcript one-word-segment and loop-word
+  rates, including partial drift in 1221/1336. Do not infer that all old fingerprints
+  require a rerun, or that a normal section-text ratio proves clean transcription.
+  Compare fresh reserved healthy and defective cases before broadening the batch.
 - [ ] Validate the remaining short-loop candidates against their audio; distinguish
   genuine rhetoric or singing from corrupt transcription.
 - [ ] Add regression coverage for four repetitions, fewer than 40 repeated words,
@@ -1690,8 +1724,9 @@ at 2% each side (minimum 5) and adjudicated in `tails-20260914-register.json`.
   Implemented for version, bounds and input fingerprints. The 16 September
   reconciliation dry run selects nothing; its default scope excludes superseded
   runs and `not_applicable` sections, so this is not all-row acceptance.
-- [x] Use §988 and §1457 as regression cases for the continuous-speech check.
-  Add §2897 (spoken benediction tail) as a trailing-speech case.
+- [x] Implement the general speech-edge trim at structure detection, with synthetic
+  RMS unit coverage and corpus replay. This does not close the original §988,
+  §1457 and §2897 real-source regression requirement.
   **Built test-first 2026-09-17 as `SongSpeechEdges`**, run in `DetectServiceStructure` and
   `structure:evaluate` straight after the sustained-sound widening. **It is a trim, not a hold,
   because the class is large.** Replayed over 1,177 corpus songs, a 25 s spoken lead-in or 20 s
@@ -1723,6 +1758,17 @@ at 2% each side (minimum 5) and adjudicated in `tails-20260914-register.json`.
     add false holds and no containment.
   - **Due:** re-detection through the pipeline. Existing sections change only when a run is
     re-run; the replay lists the 396 (`songspeech-20260917-replay.json`).
+- [ ] Independently verify repaired starts and tails, including clean negatives,
+  no lost singing, and the adjoining sermon ending (135 replay trims follow sermons).
+  Record acceptable remaining speech explicitly; the replay retained 1–26 seconds.
+- [ ] Keep §988/§1475 (below the half-sustained floor), §2897 (speech over organ;
+  proposed start trim unverified), and §1457's actual repaired output as explicit
+  real-source checks. Adjudicate §1284/§3508/§3079 before any floor change.
+  Synthetic unit patterns and an unchanged lyric-risk count do not close these cases.
+- [ ] Preserve the rejected broad unsung-song rule as a measured decision: 14 of
+  21 candidates were sung. Separately resolve BC-01's spoken hymn quotation and
+  restore run 1314's complete sermon through the pipeline; low sustained sound
+  alone is not a reliable speech-versus-song classifier.
 - [x] Give deterministic catalogue titles priority over lyrics containment in
   `title_hint_fuzzy` resolution. Built 16 September, with measured wrong-binding
   and preserved alternate-title/first-line regressions (§4.3a).
@@ -1757,14 +1803,20 @@ working prototype under `storage/scratch/residue-2026091*`; promote them into te
 rather than leaving them as one-off scripts. Every class found by §4.1a, §4.1b or
 §4.5 gets a row here before its holds are cleared.
 
-The response column is current as of the 16 September reconciliation. The final
+The response column includes the 17 September implementation/evidence review;
+application counts retain their individual measurement dates. The final
 column preserves specifications and execution history, including superseded
 intermediate results. In particular, its song-loop “defect” labels describe a
 catalogue-lyrics comparison, not independent listening; the evidence correction
 immediately below the table governs their interpretation.
 
-| Class | Found by | Current response — reconciled 2026-09-16 | Prototype | Specification and dated execution evidence |
+| Class | Found by | Current response — reviewed 2026-09-17 | Prototype | Specification and dated execution evidence |
 |---|---|---|---|---|
+| One-word sentence drift and context-carried loops (1314, 1343, 1258; partial 980) | Blind BC-08 | Prevention implemented; pipeline recovery and wider sizing pending | `blind-20260916-comparison/bc08-20260917/` | §4.2: context options, four-run recovery, raw-transcript census and independent source checks |
+| Spoken hymn quotation typed as singing, cutting off sermon ending (1314 §3994/§3992) | Blind BC-01 | Specific response/decision and repaired ending pending; hold status to reconcile | `blind-20260916-comparison/blind-20260916-comparison-register.json` | Re-detect after transcript recovery; verify quotation retained in sermon; do not substitute the rejected broad unsung-song rule |
+| Performed song lacks linked song identity (1221 §2722) | Blind BC-06 | Livestream-item correction pending | Same blind register | Add to per-run binding repair; reconcile song usage after independent performance confirmation |
+| Children's talk typed `other` (1221 §2721, 1358 §4684) | Blind BC-07 | Operator classification ruling and scoped census pending | Same blind register | Settle catechism/presentation classification before retyping or counting missing outputs |
+| Sermon ending possibly absorbed by song (1336 §4263/§4264) | Blind BC-05 | Unresolved; source replay required | Same blind register | Listen at 3320–3380; distinguish preaching from announcement and verify the repaired sermon ending |
 | Sermon transcript loops (≥5 repeats, ≥40 words) | P8-Q14 | Implemented: standard screen; shorter/varying cases remain §4.2 | — | extend per §4.2 |
 | Short, few-word and number-varying loops | 09-10 review | Unbuilt extension | `correctness-20260910-unheld-short-loops` | §4.2 |
 | Sparse 30 s-cadence transcript loss | §4.1a r1 | Unbuilt | `residue-20260913-cadence.py` | §4.2 |
