@@ -45,17 +45,22 @@ class ServiceTranscriptRecovery
         private readonly ServiceTranscriptionInterface $transcriptionService,
         private readonly RmsAnalysisService $rmsAnalysis,
         private readonly PathologicalWindowSoundSpans $soundSpans,
+        private readonly SupersededTranscriptFallback $supersededFallback,
     ) {}
 
     /**
      * @param  string|null  $rmsLogContent  the run's astats log, when it has one;
      *                                      without it every window is retried whole
+     * @param  ChurchServiceTranscript|null  $superseded  the transcript this pass
+     *                                                    replaces, consulted for
+     *                                                    any window it cannot decode
      */
     public function recover(
         ChurchServiceTranscript $transcript,
         string $sourcePath,
         string $processingId,
         ?string $rmsLogContent = null,
+        ?ChurchServiceTranscript $superseded = null,
     ): ChurchServiceTranscript {
         if (! (bool) config('media-processing.service_structure.transcript_recovery.enabled', true)) {
             return $transcript;
@@ -78,7 +83,10 @@ class ServiceTranscriptRecovery
             ),
         );
 
-        return $this->withSilentWindowsNamed($recovered);
+        return $this->supersededFallback->apply(
+            $this->withSilentWindowsNamed($recovered),
+            $superseded,
+        );
     }
 
     /**

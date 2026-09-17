@@ -11,6 +11,7 @@ use App\Enums\ProcessingStep;
 use App\Enums\ServiceStructureMode;
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Audio\ServiceArtifactStorage;
+use App\Services\Media\Audio\ServiceTranscriptReader;
 use App\Services\Media\Audio\ServiceTranscriptRecovery;
 use App\Services\Media\Audio\ServiceTranscriptRepetitionScreen;
 use App\Services\Processing\ProcessingArtifactReuse;
@@ -147,6 +148,11 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
             throw $exception;
         }
 
+        // Read before the new transcript overwrites it. A re-run used to
+        // discard whatever a previous pass had recovered for the same audio;
+        // recovery now consults it for any window this pass cannot decode.
+        $supersededTranscript = app(ServiceTranscriptReader::class)->tryRead($this->processingLog);
+
         try {
             $transcript = $transcriptionService->transcribeService(
                 $localSourcePath,
@@ -159,6 +165,7 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
                 $localSourcePath,
                 $this->processingLog->processing_id,
                 $this->rmsLogContent(),
+                $supersededTranscript,
             );
 
             $transcriptPath = app(ServiceArtifactStorage::class)->putJson(

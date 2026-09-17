@@ -11,6 +11,7 @@ use App\Services\Media\Audio\RmsAnalysisService;
 use App\Services\Media\Audio\ServiceAudioWindowExtractor;
 use App\Services\Media\Audio\ServiceTranscriptPathologyDetector;
 use App\Services\Media\Audio\ServiceTranscriptRecovery;
+use App\Services\Media\Audio\SupersededTranscriptFallback;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
@@ -38,6 +39,7 @@ class ServiceTranscriptRecoveryTest extends TestCase
             $transcription,
             new RmsAnalysisService,
             new PathologicalWindowSoundSpans,
+            new SupersededTranscriptFallback(new ServiceTranscriptPathologyDetector),
         ))->recover($this->pathologicalTranscript(), '/recording.mp4', 'run-1');
 
         $this->assertSame('Once in royal David’s city.', $recovered->cues[0]['text']);
@@ -62,6 +64,7 @@ class ServiceTranscriptRecoveryTest extends TestCase
             $transcription,
             new RmsAnalysisService,
             new PathologicalWindowSoundSpans,
+            new SupersededTranscriptFallback(new ServiceTranscriptPathologyDetector),
         ))->recover($this->pathologicalTranscript(), '/recording.mp4', 'run-1');
 
         $this->assertSame(['Closing prayer.'], array_column($recovered->cues, 'text'));
@@ -90,6 +93,7 @@ class ServiceTranscriptRecoveryTest extends TestCase
             $transcription,
             new RmsAnalysisService,
             new PathologicalWindowSoundSpans,
+            new SupersededTranscriptFallback(new ServiceTranscriptPathologyDetector),
         ))->recover($this->pathologicalTranscript(), '/recording.mp4', 'run-1');
 
         $this->assertSame(['Closing prayer.'], array_column($recovered->cues, 'text'));
@@ -121,6 +125,7 @@ class ServiceTranscriptRecoveryTest extends TestCase
             $transcription,
             new RmsAnalysisService,
             new PathologicalWindowSoundSpans,
+            new SupersededTranscriptFallback(new ServiceTranscriptPathologyDetector),
         ))->recover($this->pathologicalTranscript(), '/recording.mp4', 'run-1');
 
         $this->assertSame([[
@@ -156,6 +161,7 @@ class ServiceTranscriptRecoveryTest extends TestCase
             $transcription,
             new RmsAnalysisService,
             new PathologicalWindowSoundSpans,
+            new SupersededTranscriptFallback(new ServiceTranscriptPathologyDetector),
         ))->recover($this->pathologicalTranscript(600.0), '/recording.mp4', 'run-1');
 
         $this->assertSame([[
@@ -191,6 +197,7 @@ class ServiceTranscriptRecoveryTest extends TestCase
             $transcription,
             new RmsAnalysisService,
             new PathologicalWindowSoundSpans,
+            new SupersededTranscriptFallback(new ServiceTranscriptPathologyDetector),
         ))->recover($this->pathologicalTranscript(), '/recording.mp4', 'run-1');
 
         $this->assertSame([], $recovered->unobservableWindows);
@@ -212,6 +219,7 @@ class ServiceTranscriptRecoveryTest extends TestCase
             $transcription,
             new RmsAnalysisService,
             new PathologicalWindowSoundSpans,
+            new SupersededTranscriptFallback(new ServiceTranscriptPathologyDetector),
         ))->recover($this->pathologicalTranscript(), '/recording.mp4', 'run-1');
 
         $this->assertCount(41, $recovered->cues, 'An infrastructure failure must not destroy transcript content.');
@@ -238,6 +246,7 @@ class ServiceTranscriptRecoveryTest extends TestCase
             $transcription,
             new RmsAnalysisService,
             new PathologicalWindowSoundSpans,
+            new SupersededTranscriptFallback(new ServiceTranscriptPathologyDetector),
         ))->recover($this->pathologicalTranscript(), '/recording.mp4', 'run-1');
 
         $this->assertCount(41, $recovered->cues, 'A transcription outage must not destroy transcript content.');
@@ -275,6 +284,7 @@ class ServiceTranscriptRecoveryTest extends TestCase
             $transcription,
             new RmsAnalysisService,
             new PathologicalWindowSoundSpans,
+            new SupersededTranscriptFallback(new ServiceTranscriptPathologyDetector),
         ))->recover(
             $this->transcriptLoopingBetween(1355.0, 1595.0),
             '/recording.mp4',
@@ -312,6 +322,7 @@ class ServiceTranscriptRecoveryTest extends TestCase
             $transcription,
             new RmsAnalysisService,
             new PathologicalWindowSoundSpans,
+            new SupersededTranscriptFallback(new ServiceTranscriptPathologyDetector),
         ))->recover(
             $this->transcriptLoopingBetween(1355.0, 1595.0),
             '/recording.mp4',
@@ -351,10 +362,141 @@ class ServiceTranscriptRecoveryTest extends TestCase
             $transcription,
             new RmsAnalysisService,
             new PathologicalWindowSoundSpans,
+            new SupersededTranscriptFallback(new ServiceTranscriptPathologyDetector),
         ))->recover($this->transcriptLoopingBetween(1355.0, 1595.0), '/recording.mp4', 'run-1');
 
         $sentence = collect($recovered->cues)->firstWhere('text', 'This tells the story of a woman living in France.');
         $this->assertEqualsWithDelta(1576.0, $sentence['start'], 0.01);
+    }
+
+    /**
+     * The five 09-17 macro-song re-runs each came back pointing at a fresh
+     * transcript whose window the new pass had failed to decode, while the
+     * recovered file holding real speech for that window sat on the disk
+     * untouched. When the retry still fails, the transcript being replaced is
+     * consulted before the window is written off.
+     */
+    #[Test]
+    public function it_carries_a_failed_windows_speech_from_the_transcript_it_replaces(): void
+    {
+        $extractor = Mockery::mock(ServiceAudioWindowExtractor::class);
+        $extractor->shouldReceive('extract')->once()->andReturn('/clip.mp3');
+        $extractor->shouldReceive('delete')->once()->with('/clip.mp3');
+
+        // This pass decodes nothing for the window.
+        $transcription = Mockery::mock(ServiceTranscriptionInterface::class);
+        $transcription->shouldReceive('transcribeService')->once()->andReturn(
+            ChurchServiceTranscript::fromCues([], 240.0, ChurchServiceTranscript::SOURCE_LOCAL_WHISPER),
+        );
+
+        $superseded = ChurchServiceTranscript::fromCues([
+            ['start' => 1347.3, 'end' => 1348.3, 'text' => 'And I will be able to find the way.'],
+            ['start' => 1576.3, 'end' => 1595.3, 'text' => 'Montgomery Boyce tells the story of a woman living in...'],
+        ], 1615.0, ChurchServiceTranscript::SOURCE_LOCAL_WHISPER);
+
+        $recovered = (new ServiceTranscriptRecovery(
+            new ServiceTranscriptPathologyDetector,
+            $extractor,
+            $transcription,
+            new RmsAnalysisService,
+            new PathologicalWindowSoundSpans,
+            new SupersededTranscriptFallback(new ServiceTranscriptPathologyDetector),
+        ))->recover(
+            $this->transcriptLoopingBetween(1355.0, 1595.0),
+            '/recording.mp4',
+            'run-1',
+            null,
+            $superseded,
+        );
+
+        $texts = array_column($recovered->cues, 'text');
+        $this->assertContains('Montgomery Boyce tells the story of a woman living in...', $texts);
+
+        // 1347.3 falls *before* the window, so the fallback does not reach it.
+        // The window is the unit of repair: a cue the fresh pass simply did not
+        // produce outside one is not this path's to restore, and inventing a
+        // wider reach would carry old text over new on sound the pass did read.
+        $this->assertNotContains('And I will be able to find the way.', $texts);
+
+        // The text is real but it did not come from this decode, so the window
+        // stays recorded — with a reason that says where the words came from.
+        $this->assertSame([[
+            'start' => 1355.0,
+            'end' => 1595.0,
+            'reason' => SupersededTranscriptFallback::REASON,
+        ]], $recovered->unobservableWindows);
+    }
+
+    /**
+     * Measured silence is not a gap an older transcript may fill: if this pass
+     * found no sound there, an older transcript claiming speech was inventing
+     * it, and carrying that forward would reinstate a hallucination.
+     */
+    #[Test]
+    public function it_does_not_carry_speech_into_a_window_measured_as_silent(): void
+    {
+        $extractor = Mockery::mock(ServiceAudioWindowExtractor::class);
+        $extractor->shouldNotReceive('extract');
+
+        $transcription = Mockery::mock(ServiceTranscriptionInterface::class);
+        $transcription->shouldNotReceive('transcribeService');
+
+        $superseded = ChurchServiceTranscript::fromCues([
+            ['start' => 1400.0, 'end' => 1420.0, 'text' => 'Speech no microphone ever heard.'],
+        ], 1615.0, ChurchServiceTranscript::SOURCE_LOCAL_WHISPER);
+
+        $recovered = (new ServiceTranscriptRecovery(
+            new ServiceTranscriptPathologyDetector,
+            $extractor,
+            $transcription,
+            new RmsAnalysisService,
+            new PathologicalWindowSoundSpans,
+            new SupersededTranscriptFallback(new ServiceTranscriptPathologyDetector),
+        ))->recover(
+            $this->transcriptLoopingBetween(1355.0, 1595.0),
+            '/recording.mp4',
+            'run-1',
+            $this->silentRmsLog(1355.0, 1595.0),
+            $superseded,
+        );
+
+        $this->assertNotContains('Speech no microphone ever heard.', array_column($recovered->cues, 'text'));
+        $this->assertSame('window_holds_no_sound', $recovered->unobservableWindows[0]['reason']);
+    }
+
+    /**
+     * An older transcript can loop in the same place. Carrying its loop forward
+     * would re-create the defect this whole path exists to clear.
+     */
+    #[Test]
+    public function it_does_not_carry_a_loop_the_superseded_transcript_had_in_the_same_window(): void
+    {
+        $extractor = Mockery::mock(ServiceAudioWindowExtractor::class);
+        $extractor->shouldReceive('extract')->once()->andReturn('/clip.mp3');
+        $extractor->shouldReceive('delete')->once()->with('/clip.mp3');
+
+        $transcription = Mockery::mock(ServiceTranscriptionInterface::class);
+        $transcription->shouldReceive('transcribeService')->once()->andReturn(
+            ChurchServiceTranscript::fromCues([], 240.0, ChurchServiceTranscript::SOURCE_LOCAL_WHISPER),
+        );
+
+        $recovered = (new ServiceTranscriptRecovery(
+            new ServiceTranscriptPathologyDetector,
+            $extractor,
+            $transcription,
+            new RmsAnalysisService,
+            new PathologicalWindowSoundSpans,
+            new SupersededTranscriptFallback(new ServiceTranscriptPathologyDetector),
+        ))->recover(
+            $this->transcriptLoopingBetween(1355.0, 1595.0),
+            '/recording.mp4',
+            'run-1',
+            null,
+            $this->transcriptLoopingBetween(1355.0, 1595.0),
+        );
+
+        $this->assertNotContains('Thank you.', array_column($recovered->cues, 'text'));
+        $this->assertSame('retranscription_failed', $recovered->unobservableWindows[0]['reason']);
     }
 
     /**
