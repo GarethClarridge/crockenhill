@@ -11,9 +11,14 @@
 > sermons and seven associated videos were contained on 16 September; source
 > adoption remains undecided. The nine-service source comparison is complete,
 > but interior semantic checks and independent acceptance remain open. Whisper
-> context and song-edge fixes are implemented, not applied corpus repairs.
-> Recheck workers, staging mounts and disk headroom before the repair canary;
-> their last measurements are blockers, not a fresh readiness assessment.
+> context and song-edge fixes are implemented and now applied to nine runs
+> (canary 1221/1209/1314; macro-song re-runs 1060/1009/948/1274/1303/1340), not
+> to the corpus. Readiness was verified and the workers restarted twice on
+> 17 September; re-verify before the next batch rather than citing those numbers.
+> **The repair canary passed on content** (§4.0a) and its two blockers are recorded:
+> the silent baseline re-cut of held sermons is fixed (`283a6cd90`); the detection
+> job still retries an unplaced-hold refusal. **Device playback remains unproven** —
+> every 17 September check was transcription and stream measurement, not playback.
 > No production state was inspected in this review.
 >
 > Phases 0–8, their implementation diary, pass measurements and earlier reviews
@@ -278,8 +283,11 @@ before exercising a repaired run. Work in this order:
    audio checks for song loops and lyric edges; lyric agreement alone is not audio
    adjudication. Preserve the reserved evaluation set separately. This is discovery
    and validation, not a nine-service claim of corpus accuracy.
-3. **Prove one bounded repair canary (§4.0a).** Source-content alignment, device
-   playback and hold persistence must pass before a bulk rerun. Cover the Whisper
+3. **Prove one bounded repair canary (§4.0a).** **Done 2026-09-17 for source-content
+   alignment and hold persistence; device playback is still unproven and remains
+   required before a bulk rerun.** The canary also proved that re-running is not
+   automatically safe for a sermon span (1340 below), so every re-run is checked
+   against its opening words, not just its job status. Cover the Whisper
    context fix and changed song boundaries as well as the latest smart-cut correction;
    inspect dependent sermon endings and analysis, not just durations.
 4. **Repair by each run's dependencies.** Freeze a deduplicated run membership,
@@ -309,7 +317,7 @@ before exercising a repaired run. Work in this order:
 
 ### 4.0a Repair canary and run dependencies — added 2026-09-16
 
-**Canary execution record — 2026-09-17 (in progress).** Plan revision `2f21812eb`.
+**Canary execution record — 2026-09-17 (complete; see the verdict below).** Plan revision `2f21812eb`.
 Frozen membership is **1314, 1221, 1209**: full pipeline reruns for 1314's context
 drift/quoted-hymn ending and 1221's spoken song edges; extraction-tail rerun for
 1209's held concatenated WebM sermon (#1128, measured MP3 tail loss 8.2 s).
@@ -554,12 +562,18 @@ appear at similar rates in old and new transcripts (111 in 1007's old text again
   fails at `UnableToCreateDirectory` until it is back. Remount the host volume
   (`diskutil verifyVolume /Volumes/Staging`); restarting Docker does not clear a
   stale `/host_mnt` entry. This is a canary prerequisite alongside the workers.
-- [ ] Confirm content holds follow the affected content after replacement and
-  merges, and unrelated holds remain. Re-assess current evidence only after final
+- [x] Confirm content holds follow the affected content after replacement, and
+  unrelated holds remain. **Proven 2026-09-17 on replacement only**: 1221's three
+  song holds, 1303's §3858 hold and 1314's §3992 sermon hold all carried onto the
+  re-detected sections, and the guard refused 1314 outright when §3994's held content
+  ceased to exist. **Merges are still uncovered.**
+- [ ] Confirm the same across merges. Re-assess current evidence only after final
   song bindings and boundaries are settled. No automatic clearance follows merely
   from a clean new detector result; adjudicate carried holds explicitly.
-- [ ] Save canary results and failures against the exact code and artifacts. Only
-  then dispatch bounded repair batches with per-run dependency lists. Measure
+- [x] Save canary results and failures against the exact code and artifacts. Done
+  2026-09-17: `canary-20260917-*` and `redetect-20260917-*` under `storage/scratch`,
+  media backups under `/mnt/historic-work/redetect-20260917/`, and the commits named
+  in this section. Before dispatching bounded repair batches with per-run dependency lists. Measure
   correct outputs, unassessable outputs, false flags and review time, not just job
   completion or hold counts.
 
@@ -1862,8 +1876,10 @@ at 2% each side (minimum 5) and adjudicated in `tails-20260914-register.json`.
   send `max_context=0` and `carry_initial_prompt=true`, recorded in the processing
   fingerprint (`7bed913ac`). Request tests prove propagation, not transcription
   accuracy; the seven-run experiment in §4.1b is separate measured evidence.
-- [ ] After readiness verification, re-transcribe 1314, 1343, 1258 and 980 through
-  the pipeline in the canary/bounded batches. Check full-service and saved sermon
+- [ ] After readiness verification, re-transcribe 1343, 1258 and 980 through
+  the pipeline in the canary/bounded batches. **1314 is done (2026-09-17, §4.0a):**
+  868 cues against 3712, its sermon text's period-per-word ratio 0.89 → 0.07, and
+  its structure and media re-cut from the repaired transcript. Check full-service and saved sermon
   text against source speech, including missing/changed words, not punctuation alone.
   Re-run dependent structure, song resolution and analysis before extraction.
 - [ ] Size wider recovery from raw service-transcript one-word-segment and loop-word
@@ -1900,6 +1916,12 @@ at 2% each side (minimum 5) and adjudicated in `tails-20260914-register.json`.
   section 3869.
 - [ ] Add a boundary check for continuous spoken material that does not depend
   solely on finding a wordless gap, using section 988 as the regression case.
+  **Real-source evidence 2026-09-17:** re-detection pulled continuous spoken tails
+  of 101 s (948 §709), 135 s (1274 §3437) and 225 s (1303 §3861, which split into
+  song + reading + prayer) off their songs, and split two macro songs outright
+  (1060, 1009). So the trim does reach long tails in the cases measured; §988,
+  §1457 and §2897 themselves are still not re-run, and §2897's speech over organ
+  remains the known gap.
 - [x] Write current-policy objections into `needs_manual_review` (§3.1 item 3), and
   make sure no recompute or backfill clears a hold because an older banked verdict
   said `release_eligible`. The gate itself already reads only the stored column.
@@ -2677,7 +2699,7 @@ read-only; register `hintresolve-20260916-blast-radius.json`). Nothing was writt
 | Gate | State | Required evidence to turn green |
 |---|---|---|
 | Processing | GO | Definitive passes drained; three failures remain explicit rather than hidden. |
-| Queued repair readiness | **NO-GO** | Six worker processes predate the fixes. Verify idle queues, restart/verify workers and pass §4.0a's source-content/device canary before bulk reprocessing. |
+| Queued repair readiness | **NO-GO** | Workers were restarted onto the current code twice on 2026-09-17 with idle queues, and §4.0a's canary passed on source-content alignment and hold persistence. Still required: the device-playback leg, which no 17 September check covered; a response to the detection job retrying an unplaced-hold refusal; and a per-run check of the sermon opening after each re-run, since 1340 regressed 19 s while four siblings repaired. |
 | Containment | **NO-GO** | The six disputed sermons and their seven song videos were held on 2026-09-16 and the sections those holds left published were demoted the same hour (§4.4), so the identity gate-clear gap is closed and published-while-held is zero again. Remaining: the current-policy and unassessable residue. Containment is not adoption — the three pairs are still undecided, and the holds are what make deferring them safe. |
 | Content acceptance | **NO-GO** | §4.1b's strengthened stopping rule passes: scoped coverage and limitations, omission reconciliation, independent source evidence, content handoffs, controlled variations/interruption tests, tail and whole-output reviews. Every §4.3a class has a tested response or recorded decision; detector errors and review burden meet predeclared criteria on reserved data. The fresh release-membership sample includes repaired/held runs, reports uncertainty and unassessable cases, and meets its separate predeclared limits. Evidence is bound to current artifacts; operator rulings are recorded. |
 | Public release | **NO-GO** | Phase 9 convergence, QA and actual-server browser checks pass, then the operator signs an exact era-sized batch. Actual-destination delivery checks are scheduled within the authorised release's rollback window and must pass to close observation. |
