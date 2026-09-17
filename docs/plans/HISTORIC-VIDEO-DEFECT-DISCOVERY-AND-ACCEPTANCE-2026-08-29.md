@@ -309,6 +309,76 @@ before exercising a repaired run. Work in this order:
 
 ### 4.0a Repair canary and run dependencies — added 2026-09-16
 
+**Canary execution record — 2026-09-17 (in progress).** Plan revision `2f21812eb`.
+Frozen membership is **1314, 1221, 1209**: full pipeline reruns for 1314's context
+drift/quoted-hymn ending and 1221's spoken song edges; extraction-tail rerun for
+1209's held concatenated WebM sermon (#1128, measured MP3 tail loss 8.2 s).
+No stale manual segment confirmation is recorded on these runs. Expected outcomes:
+fresh non-fragmented text and a source-correct ending on 1314; retained singing
+with reduced speech on 1221; aligned joined picture/audio and a complete MP3 on
+1209; coherent replacement and preserved holds everywhere. An unplaceable hold
+must stop the run, not be cleared to make the canary pass. Tests and real-artifact
+checks remain separately reported; no public release is authorised.
+
+Readiness: all nine configured queues were empty (including reserved/delayed),
+all six workers started at 16:26:11–12 UTC with the current Whisper/edge code
+hashes, and staging/temp paths were readable in every worker. Host headroom was
+20 GiB; staging had 606 GiB. Operation 4 still records `external_disabled`.
+The existing focused suites passed **72 tests / 265 assertions**. Evidence prefix:
+`storage/scratch/canary-20260917-`; source hashes, row snapshots and prior-media
+backup paths are frozen in `canary-20260917-frozen-baseline.json` before dispatch.
+
+Containment reconciliation: §3994 was already held (without the explicit content
+hold); §3992/§3227/§4334 had no own review hold. The three transcript sections and
+the nine BC-01/02/03 song sections now carry explicit evidence-backed content holds.
+§4264 was demoted through the application path; §2719 was already not applicable.
+This supersedes the comparison-session's proposed-only hold status, not its findings.
+
+**First failure, 16:42:10 UTC: 1209 stopped before media extraction.** The existing
+`sermons:re-extract` command dispatched successfully, but the resolver rejects
+sermon §2572's `content_defect_hold` even though this particular hold describes
+MP3 tail loss, not disputed bounds. It falls back to `processing_log` bounds
+(`no_high_confidence_sermon_section`), then the extraction job refuses multiple
+qualifying RMS blocks. The dry run printed bounds and success without exposing
+that execution refusal. This is a repair-path gap: a held output needs a tested,
+explicitly bounded repair route that retains its release hold, not blanket
+permission to extract every content-held span. Do not clear the hold or manually
+confirm an RMS segment to manufacture a pass. Evidence: `canary-20260917-failure-1209-plan.json`
+and `canary-20260917-failure-1209-integrity.json`. MP3-tail and joined-output acceptance
+remain untested by this attempt; no bulk repair is authorised by the canary.
+Side effect: run 1209 now reads `failed / manual_review_required`; its previous
+sermon media is untouched (no extraction ran). Cause in code:
+`SermonExtractionPlanResolver::resolveSermonSpan()` takes the baseline branch
+whenever `findPreferredSection()` returns nothing, and a held sermon is not preferred.
+
+**1221 — PASS with notes (completed 16:57:18 UTC).** Fresh transcript (new
+context settings); re-detection placed every hold (§2718, §2719, §2722 still held).
+Song bounds against the blind inventory: §2718 114.1–251.1 (singing ~115; was
+96.1, 18 s of lead-in removed); §2719 251.1–423.3 (prayer from 422; 24 s of prayer
+removed); §2722 1120.0–1284.7 (singing 1122; 24 s removed). Held candidate clips
+were re-cut to exactly those spans (137.0 / 172.3 s, plus §2721 435.0 s) and stay on
+the staging volume only: held sections move to `not_applicable`, and promotion copies
+`pending_approval` candidates alone. SongVideo 506 (§2719, carried 27 s of prayer)
+was withdrawn; §2726 re-cut to SongVideo 568 (quarantined). Sermon #1139 re-cut:
+1800.3 → 1777.9 s, MP3 and video hashes both changed; the forgotten-video
+announcement (2445–2461) is now its own section, but the sermon start 2465.1 clips
+~3 s ("Do have your Bibles open at John chapter 10", from 2461.8). §2721 is now
+typed `childrens_talk`, the inventory's view; the BC-07 ruling is still open.
+
+**1314 — stopped by the hold guard, 16:54:34 UTC.** The fresh transcript is clean
+(868 cues, was 3712) and reads, at 3370–3418: "I thought I'd quote it as I finish
+… It's all about meekness", then the two Wesley verses as speech, then "well let's
+sing". All three detection attempts produced no song over 3381–3420, so
+`UnplacedContentHoldException` refused §3994 (`song, 3380.99–3419.99`) and wrote
+nothing. This is the BC-01 defect disappearing with its content, which the guard
+cannot distinguish from lost content; resolution is an operator decision. The
+sermon hold §3992 would carry onto the new sermon (same type, overlapping), so the
+repaired ending stays held for review either way. Two further findings:
+`DetectServiceStructure` retried a deterministic refusal twice (three paid
+detection calls, 13 minutes), and each retry is a fresh sample that could have
+re-created the wrong song span just to satisfy the guard; and the refused
+detection is not persisted, so its proposed replacement cannot be inspected.
+
 - **Execution authorised 2026-09-17:** the operator requested this plan update,
   a commit to master, then the bounded canary. This authorises the necessary local
   pipeline repair and readiness work, not release or automatic hold clearance.
@@ -1812,6 +1882,9 @@ immediately below the table governs their interpretation.
 
 | Class | Found by | Current response — reviewed 2026-09-17 | Prototype | Specification and dated execution evidence |
 |---|---|---|---|---|
+| Content-held sermon cannot reach its intended repair; re-extraction dry run conceals fallback refusal (1209 §2572) | 17 September canary | Blocked before extraction; existing hold retained | `canary-20260917-failure-1209-plan.json` | Separate bounded repair authority from release acceptance; preserve hold and validate the actual execution plan in dry run. Do not globally exempt content holds from boundary checks |
+| Unplaced-hold refusal is retried by the detection job and the refused detection is not kept (1314 §3994) | 17 September canary | Run stopped as designed; operator decision on §3994 pending | `storage/logs/laravel.log` 16:45–16:54 UTC | Fail without retry on `UnplacedContentHoldException`; keep the refused section list for operator inspection |
+| Held section candidates remain on the staging volume only (1221 §2718/§2719/§2721) | 17 September canary | Recorded; re-cut clips verified to new bounds | `section-publications/27{18,19,21}-*` on staging | Decide whether held candidates promote to quarantine before staging is retired |
 | One-word sentence drift and context-carried loops (1314, 1343, 1258; partial 980) | Blind BC-08 | Prevention implemented; pipeline recovery and wider sizing pending | `blind-20260916-comparison/bc08-20260917/` | §4.2: context options, four-run recovery, raw-transcript census and independent source checks |
 | Spoken hymn quotation typed as singing, cutting off sermon ending (1314 §3994/§3992) | Blind BC-01 | Specific response/decision and repaired ending pending; hold status to reconcile | `blind-20260916-comparison/blind-20260916-comparison-register.json` | Re-detect after transcript recovery; verify quotation retained in sermon; do not substitute the rejected broad unsung-song rule |
 | Performed song lacks linked song identity (1221 §2722) | Blind BC-06 | Livestream-item correction pending | Same blind register | Add to per-run binding repair; reconcile song usage after independent performance confirmation |
