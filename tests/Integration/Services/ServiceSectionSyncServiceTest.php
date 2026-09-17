@@ -436,6 +436,63 @@ class ServiceSectionSyncServiceTest extends TestCase
         $this->assertCount(1, $section->metadata?->toArray()[HoldSectionForContentReview::METADATA_KEY] ?? []);
     }
 
+    /**
+     * A re-detection can merge as well as move: the 09-17 song trim turned two
+     * detected songs into one, and the canary only proved holds carry when the
+     * replacement is one-for-one. Both holds must land on the surviving row —
+     * losing either would release content an operator proved wrong.
+     */
+    #[Test]
+    public function a_merge_into_one_section_carries_every_hold_it_covers(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $first = $this->heldSection($processingLog, ServiceSectionType::Song, sectionOrder: 1, startTime: 300.0, endTime: 420.0);
+        $second = $this->heldSection($processingLog, ServiceSectionType::Song, sectionOrder: 2, startTime: 430.0, endTime: 560.0);
+        app(HoldSectionForContentReview::class)($second, 'Second song is misidentified', 'canary-20260917-merge');
+
+        // One song now covers the span both held sections occupied.
+        $this->service->sync($processingLog, [
+            $this->sectionData(null, 1, ServiceSectionType::Song->value, startTime: 300.0, endTime: 560.0, duration: 260.0),
+        ]);
+
+        $this->assertSame(1, $processingLog->serviceSections()->count());
+
+        $merged = $this->sectionAt($processingLog, 1);
+        $this->assertHeld($merged);
+
+        $reasons = array_column(
+            $merged->metadata?->toArray()[HoldSectionForContentReview::METADATA_KEY] ?? [],
+            'reason'
+        );
+        $this->assertContains(self::HOLD_REASON, $reasons, "The first section's hold was lost in the merge.");
+        $this->assertContains('Second song is misidentified', $reasons, "The second section's hold was lost in the merge.");
+        $this->assertCount(2, $reasons, 'Each covered hold is recorded once.');
+
+        $this->assertDatabaseMissing('service_sections', ['id' => $second->id]);
+        unset($first);
+    }
+
+    /**
+     * The other direction: a split leaves a hold covering two rows. Holding both
+     * is the safe error — an operator can release what turns out to be sound,
+     * but nothing can recover content released while still wrong.
+     */
+    #[Test]
+    public function a_split_holds_every_section_the_held_content_still_covers(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $this->heldSection($processingLog, ServiceSectionType::Song, sectionOrder: 1, startTime: 300.0, endTime: 560.0);
+
+        // The macro song splits into the two real songs inside it.
+        $this->service->sync($processingLog, [
+            $this->sectionData(null, 1, ServiceSectionType::Song->value, startTime: 300.0, endTime: 420.0, duration: 120.0),
+            $this->sectionData(null, 2, ServiceSectionType::Song->value, startTime: 430.0, endTime: 560.0, duration: 130.0),
+        ]);
+
+        $this->assertHeld($this->sectionAt($processingLog, 1));
+        $this->assertHeld($this->sectionAt($processingLog, 2));
+    }
+
     private function heldSection(
         MediaProcessingLog $processingLog,
         ServiceSectionType $type,

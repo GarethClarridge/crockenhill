@@ -98,6 +98,59 @@ class MergeAdjacentServiceSectionsTest extends TestCase
         $this->assertDatabaseMissing('service_sections', ['id' => $secondary->id]);
     }
 
+    /**
+     * The existing cases carry the removed row's hold. The survivor's own hold
+     * has to stay too, and the two must not collapse into one: the merged row
+     * now holds both pieces of content, so it needs both reasons.
+     */
+    #[Test]
+    public function a_merge_keeps_the_surviving_sections_own_hold_alongside_the_carried_one(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create();
+        $primary = $this->songSection($log, 1, 100.0, 200.0);
+        $secondary = $this->songSection($log, 2, 201.0, 260.0);
+
+        app(HoldSectionForContentReview::class)($primary, 'Clip starts mid-verse', 'plan §4.1b');
+        app(HoldSectionForContentReview::class)($secondary, 'Clip opens on a prayer', 'plan §3.2');
+
+        $this->assertNull($this->action->execute($primary->refresh(), $secondary->refresh(), $this->admin->id));
+
+        $primary->refresh();
+        $metadata = $primary->metadata?->toArray() ?? [];
+        $reasons = array_column($metadata[HoldSectionForContentReview::METADATA_KEY] ?? [], 'reason');
+
+        $this->assertTrue($primary->needs_manual_review);
+        $this->assertContains(HoldSectionForContentReview::FLAG, $metadata['review_flags'] ?? []);
+        $this->assertContains('Clip starts mid-verse', $reasons, "The survivor's own hold was overwritten.");
+        $this->assertContains('Clip opens on a prayer', $reasons, "The removed section's hold was lost.");
+        $this->assertDatabaseMissing('service_sections', ['id' => $secondary->id]);
+    }
+
+    /**
+     * The action promotes the longer section to primary, so a held caller-primary
+     * can become the row that is deleted. Its hold must still survive.
+     */
+    #[Test]
+    public function a_merge_carries_the_hold_when_the_held_section_is_the_shorter_one(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create();
+        $short = $this->songSection($log, 1, 100.0, 140.0);
+        $long = $this->songSection($log, 2, 141.0, 320.0);
+
+        app(HoldSectionForContentReview::class)($short, 'Clip starts mid-verse', 'plan §4.1b');
+
+        // Passed short-first; the action swaps, so the held row is the one removed.
+        $this->assertNull($this->action->execute($short->refresh(), $long->refresh(), $this->admin->id));
+
+        $long->refresh();
+        $metadata = $long->metadata?->toArray() ?? [];
+
+        $this->assertTrue($long->needs_manual_review);
+        $this->assertContains(HoldSectionForContentReview::FLAG, $metadata['review_flags'] ?? []);
+        $this->assertSame('Clip starts mid-verse', $metadata[HoldSectionForContentReview::METADATA_KEY][0]['reason'] ?? null);
+        $this->assertDatabaseMissing('service_sections', ['id' => $short->id]);
+    }
+
     #[Test]
     public function a_merge_does_not_re_raise_a_hold_an_operator_released(): void
     {
