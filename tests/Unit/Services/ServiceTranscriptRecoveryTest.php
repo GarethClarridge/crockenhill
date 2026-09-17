@@ -6,6 +6,8 @@ namespace Tests\Unit\Services;
 
 use App\Contracts\ServiceTranscriptionInterface;
 use App\Data\ChurchServiceTranscript;
+use App\Services\Media\Audio\PathologicalWindowSoundSpans;
+use App\Services\Media\Audio\RmsAnalysisService;
 use App\Services\Media\Audio\ServiceAudioWindowExtractor;
 use App\Services\Media\Audio\ServiceTranscriptPathologyDetector;
 use App\Services\Media\Audio\ServiceTranscriptRecovery;
@@ -34,6 +36,8 @@ class ServiceTranscriptRecoveryTest extends TestCase
             new ServiceTranscriptPathologyDetector,
             $extractor,
             $transcription,
+            new RmsAnalysisService,
+            new PathologicalWindowSoundSpans,
         ))->recover($this->pathologicalTranscript(), '/recording.mp4', 'run-1');
 
         $this->assertSame('Once in royal David’s city.', $recovered->cues[0]['text']);
@@ -56,6 +60,8 @@ class ServiceTranscriptRecoveryTest extends TestCase
             new ServiceTranscriptPathologyDetector,
             $extractor,
             $transcription,
+            new RmsAnalysisService,
+            new PathologicalWindowSoundSpans,
         ))->recover($this->pathologicalTranscript(), '/recording.mp4', 'run-1');
 
         $this->assertSame(['Closing prayer.'], array_column($recovered->cues, 'text'));
@@ -82,6 +88,8 @@ class ServiceTranscriptRecoveryTest extends TestCase
             new ServiceTranscriptPathologyDetector,
             $extractor,
             $transcription,
+            new RmsAnalysisService,
+            new PathologicalWindowSoundSpans,
         ))->recover($this->pathologicalTranscript(), '/recording.mp4', 'run-1');
 
         $this->assertSame(['Closing prayer.'], array_column($recovered->cues, 'text'));
@@ -111,6 +119,8 @@ class ServiceTranscriptRecoveryTest extends TestCase
             new ServiceTranscriptPathologyDetector,
             $extractor,
             $transcription,
+            new RmsAnalysisService,
+            new PathologicalWindowSoundSpans,
         ))->recover($this->pathologicalTranscript(), '/recording.mp4', 'run-1');
 
         $this->assertSame([[
@@ -144,6 +154,8 @@ class ServiceTranscriptRecoveryTest extends TestCase
             new ServiceTranscriptPathologyDetector,
             $extractor,
             $transcription,
+            new RmsAnalysisService,
+            new PathologicalWindowSoundSpans,
         ))->recover($this->pathologicalTranscript(600.0), '/recording.mp4', 'run-1');
 
         $this->assertSame([[
@@ -177,6 +189,8 @@ class ServiceTranscriptRecoveryTest extends TestCase
             new ServiceTranscriptPathologyDetector,
             $extractor,
             $transcription,
+            new RmsAnalysisService,
+            new PathologicalWindowSoundSpans,
         ))->recover($this->pathologicalTranscript(), '/recording.mp4', 'run-1');
 
         $this->assertSame([], $recovered->unobservableWindows);
@@ -196,6 +210,8 @@ class ServiceTranscriptRecoveryTest extends TestCase
             new ServiceTranscriptPathologyDetector,
             $extractor,
             $transcription,
+            new RmsAnalysisService,
+            new PathologicalWindowSoundSpans,
         ))->recover($this->pathologicalTranscript(), '/recording.mp4', 'run-1');
 
         $this->assertCount(41, $recovered->cues, 'An infrastructure failure must not destroy transcript content.');
@@ -220,10 +236,172 @@ class ServiceTranscriptRecoveryTest extends TestCase
             new ServiceTranscriptPathologyDetector,
             $extractor,
             $transcription,
+            new RmsAnalysisService,
+            new PathologicalWindowSoundSpans,
         ))->recover($this->pathologicalTranscript(), '/recording.mp4', 'run-1');
 
         $this->assertCount(41, $recovered->cues, 'A transcription outage must not destroy transcript content.');
         $this->assertSame('retranscription_unavailable', $recovered->unobservableWindows[0]['reason']);
+    }
+
+    /**
+     * Run 1340's shape (2021-01-17). The looping window ran 1355–1595, but the
+     * recording holds only a −52 dB noise floor to 1520, then sixty seconds of
+     * digital silence, with speech resuming about 1576. Decoding the window
+     * whole hands the model a clip that is five-sixths silence and it loops
+     * again; a clip around the speech edge transcribes the sentence cleanly.
+     */
+    #[Test]
+    public function it_aims_the_retry_at_the_sound_rather_than_the_whole_looping_window(): void
+    {
+        $extractor = Mockery::mock(ServiceAudioWindowExtractor::class);
+        // Only the sound-bearing edge is cut: 1574 (1576 less the margin) to
+        // the window end, not the 1,200 s window.
+        $extractor->shouldReceive('extract')->once()
+            ->with('/recording.mp4', 1574.0, 1595.0, 'run-1')
+            ->andReturn('/clip.mp3');
+        $extractor->shouldReceive('delete')->once()->with('/clip.mp3');
+
+        $transcription = Mockery::mock(ServiceTranscriptionInterface::class);
+        $transcription->shouldReceive('transcribeService')->once()->with('/clip.mp3', 'run-1-recovery-1', '')->andReturn(
+            ChurchServiceTranscript::fromCues([
+                ['start' => 2.0, 'end' => 20.0, 'text' => 'This tells the story of a woman living in France.'],
+            ], 21.0, ChurchServiceTranscript::SOURCE_LOCAL_WHISPER),
+        );
+
+        $recovered = (new ServiceTranscriptRecovery(
+            new ServiceTranscriptPathologyDetector,
+            $extractor,
+            $transcription,
+            new RmsAnalysisService,
+            new PathologicalWindowSoundSpans,
+        ))->recover(
+            $this->transcriptLoopingBetween(1355.0, 1595.0),
+            '/recording.mp4',
+            'run-1',
+            $this->rmsLogWithSpeechFrom(1576.0, 1595.0, 1355.0),
+        );
+
+        // The sentence lands at its real recording time, not at the window start.
+        $texts = array_column($recovered->cues, 'text');
+        $this->assertContains('This tells the story of a woman living in France.', $texts);
+
+        $sentence = collect($recovered->cues)->firstWhere('text', 'This tells the story of a woman living in France.');
+        $this->assertEqualsWithDelta(1576.0, $sentence['start'], 0.01);
+        $this->assertSame([], $recovered->unobservableWindows);
+    }
+
+    /**
+     * When the window really is silent there is nothing to decode, and paying a
+     * provider to confirm it is waste. It is recorded as a property of the
+     * recording rather than as a retry that failed — the acceptance accounting
+     * treats unfinished work and a silent service differently.
+     */
+    #[Test]
+    public function it_skips_the_decode_and_names_a_window_that_holds_no_sound(): void
+    {
+        $extractor = Mockery::mock(ServiceAudioWindowExtractor::class);
+        $extractor->shouldNotReceive('extract');
+
+        $transcription = Mockery::mock(ServiceTranscriptionInterface::class);
+        $transcription->shouldNotReceive('transcribeService');
+
+        $recovered = (new ServiceTranscriptRecovery(
+            new ServiceTranscriptPathologyDetector,
+            $extractor,
+            $transcription,
+            new RmsAnalysisService,
+            new PathologicalWindowSoundSpans,
+        ))->recover(
+            $this->transcriptLoopingBetween(1355.0, 1595.0),
+            '/recording.mp4',
+            'run-1',
+            $this->silentRmsLog(1355.0, 1595.0),
+        );
+
+        $this->assertSame([[
+            'start' => 1355.0,
+            'end' => 1595.0,
+            'reason' => 'window_holds_no_sound',
+        ]], $recovered->unobservableWindows);
+    }
+
+    /**
+     * Without an RMS log there is nothing to narrow by, so the window is
+     * retried whole — the behaviour this replaced — and keeps the historic
+     * `…-recovery-N` artifact name the replay addresses banked retries by.
+     */
+    #[Test]
+    public function it_retries_the_whole_window_and_keeps_the_legacy_artifact_name_without_an_rms_log(): void
+    {
+        $extractor = Mockery::mock(ServiceAudioWindowExtractor::class);
+        $extractor->shouldReceive('extract')->once()->with('/recording.mp4', 1355.0, 1595.0, 'run-1')->andReturn('/clip.mp3');
+        $extractor->shouldReceive('delete')->once()->with('/clip.mp3');
+
+        $transcription = Mockery::mock(ServiceTranscriptionInterface::class);
+        $transcription->shouldReceive('transcribeService')->once()->with('/clip.mp3', 'run-1-recovery-1', '')->andReturn(
+            ChurchServiceTranscript::fromCues([
+                ['start' => 221.0, 'end' => 239.0, 'text' => 'This tells the story of a woman living in France.'],
+            ], 240.0, ChurchServiceTranscript::SOURCE_LOCAL_WHISPER),
+        );
+
+        $recovered = (new ServiceTranscriptRecovery(
+            new ServiceTranscriptPathologyDetector,
+            $extractor,
+            $transcription,
+            new RmsAnalysisService,
+            new PathologicalWindowSoundSpans,
+        ))->recover($this->transcriptLoopingBetween(1355.0, 1595.0), '/recording.mp4', 'run-1');
+
+        $sentence = collect($recovered->cues)->firstWhere('text', 'This tells the story of a woman living in France.');
+        $this->assertEqualsWithDelta(1576.0, $sentence['start'], 0.01);
+    }
+
+    /**
+     * A transcript whose only pathology is one 30-second-chunk loop between the
+     * given times, with real speech either side.
+     */
+    private function transcriptLoopingBetween(float $start, float $end): ChurchServiceTranscript
+    {
+        $cues = [['start' => $start - 20.0, 'end' => $start, 'text' => 'Refresh my soul in death.']];
+
+        for ($at = $start; $at < $end; $at += 30.0) {
+            $cues[] = ['start' => $at, 'end' => min($at + 30.0, $end), 'text' => 'Thank you.'];
+        }
+
+        $cues[] = ['start' => $end + 6.0, 'end' => $end + 16.0, 'text' => 'It became known as her promise box.'];
+
+        return ChurchServiceTranscript::fromCues($cues, $end + 20.0, ChurchServiceTranscript::SOURCE_LOCAL_WHISPER);
+    }
+
+    /**
+     * An astats log reading digital silence across the window except for speech
+     * between $speechFrom and $speechTo.
+     */
+    private function rmsLogWithSpeechFrom(float $speechFrom, float $speechTo, float $windowStart): string
+    {
+        $lines = [];
+
+        for ($at = $windowStart - 30.0; $at <= $speechTo + 10.0; $at += 1.0) {
+            $level = $at >= $speechFrom && $at <= $speechTo ? '-26.500000' : '-inf';
+            $lines[] = sprintf('frame:0    pts:0       pts_time:%.3f', $at);
+            $lines[] = 'lavfi.astats.Overall.RMS_level='.$level;
+        }
+
+        return implode("\n", $lines);
+    }
+
+    private function silentRmsLog(float $from, float $to): string
+    {
+        $lines = [];
+
+        for ($at = $from; $at <= $to; $at += 1.0) {
+            $lines[] = sprintf('frame:0    pts:0       pts_time:%.3f', $at);
+            // The noise floor run 1340 actually records where it is not silent.
+            $lines[] = 'lavfi.astats.Overall.RMS_level=-52.000000';
+        }
+
+        return implode("\n", $lines);
     }
 
     /**

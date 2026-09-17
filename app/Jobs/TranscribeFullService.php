@@ -158,6 +158,7 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
                 $filteredTranscript,
                 $localSourcePath,
                 $this->processingLog->processing_id,
+                $this->rmsLogContent(),
             );
 
             $transcriptPath = app(ServiceArtifactStorage::class)->putJson(
@@ -213,6 +214,31 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
     private function hasStoredTranscript(): bool
     {
         return $this->processingLog->hasStoredServiceTranscript();
+    }
+
+    /**
+     * The run's astats log, so transcript recovery can aim a retry at the sound
+     * rather than at a whole looping window.
+     *
+     * `GenerateRmsLog` runs before this job in every pipeline that reaches
+     * here, so the log is normally present; a null simply leaves each window
+     * retried whole, which is the behaviour this replaced.
+     */
+    private function rmsLogContent(): ?string
+    {
+        $path = $this->processingLog->rms_log_path;
+
+        if (! is_string($path) || $path === '') {
+            return null;
+        }
+
+        $disk = ServiceArtifactDisk::for($path);
+
+        if (! Storage::disk($disk)->exists($path)) {
+            return null;
+        }
+
+        return (string) Storage::disk($disk)->get($path);
     }
 
     private function filterStoredTranscript(

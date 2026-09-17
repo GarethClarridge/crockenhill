@@ -32,21 +32,89 @@ use Throwable;
  */
 class ServiceTranscriptRecovery
 {
+    /**
+     * Windows this pass found to hold no sound at all, in absolute seconds.
+     *
+     * @var list<array{start: float, end: float}>
+     */
+    private array $silentWindows = [];
+
     public function __construct(
         private readonly ServiceTranscriptPathologyDetector $detector,
         private readonly ServiceAudioWindowExtractor $extractor,
         private readonly ServiceTranscriptionInterface $transcriptionService,
+        private readonly RmsAnalysisService $rmsAnalysis,
+        private readonly PathologicalWindowSoundSpans $soundSpans,
     ) {}
 
-    public function recover(ChurchServiceTranscript $transcript, string $sourcePath, string $processingId): ChurchServiceTranscript
-    {
+    /**
+     * @param  string|null  $rmsLogContent  the run's astats log, when it has one;
+     *                                      without it every window is retried whole
+     */
+    public function recover(
+        ChurchServiceTranscript $transcript,
+        string $sourcePath,
+        string $processingId,
+        ?string $rmsLogContent = null,
+    ): ChurchServiceTranscript {
         if (! (bool) config('media-processing.service_structure.transcript_recovery.enabled', true)) {
             return $transcript;
         }
 
-        return $this->recoverUsing(
+        $this->silentWindows = [];
+        $rmsData = is_string($rmsLogContent) && $rmsLogContent !== ''
+            ? $this->rmsAnalysis->extractRmsData($rmsLogContent)
+            : [];
+
+        $recovered = $this->recoverUsing(
             $transcript,
-            fn (int $index, array $window): ?ChurchServiceTranscript => $this->retranscribe($sourcePath, $window, $processingId, $index),
+            fn (int $index, array $window): ?ChurchServiceTranscript => $this->retranscribe(
+                $sourcePath,
+                $window,
+                $processingId,
+                $index,
+                $rmsData,
+                $transcript->source,
+            ),
+        );
+
+        return $this->withSilentWindowsNamed($recovered);
+    }
+
+    /**
+     * Re-label the windows this pass measured as silent.
+     *
+     * `recoverUsing()` only sees an empty retry, which it banks as
+     * `retranscription_failed` — accurate when a decode came back with nothing,
+     * misleading when no decode was attempted because the recording holds no
+     * sound there. The distinction matters to the acceptance accounting, where a
+     * silent stretch of the original service is a property of the recording and
+     * a failed decode is unfinished work.
+     */
+    private function withSilentWindowsNamed(ChurchServiceTranscript $transcript): ChurchServiceTranscript
+    {
+        if ($this->silentWindows === []) {
+            return $transcript;
+        }
+
+        $windows = array_map(
+            function (array $window): array {
+                foreach ($this->silentWindows as $silent) {
+                    if (abs($window['start'] - $silent['start']) < 0.01 && abs($window['end'] - $silent['end']) < 0.01) {
+                        return ['start' => $window['start'], 'end' => $window['end'], 'reason' => 'window_holds_no_sound'];
+                    }
+                }
+
+                return $window;
+            },
+            $transcript->unobservableWindows,
+        );
+
+        return ChurchServiceTranscript::fromCues(
+            $transcript->cues,
+            $transcript->duration,
+            $transcript->source,
+            $windows,
         );
     }
 
@@ -145,29 +213,114 @@ class ServiceTranscriptRecovery
     }
 
     /**
-     * Re-transcribe one window in isolation, or null when the attempt could not
-     * be made at all. A null is an infrastructure outcome, never a verdict on
-     * the audio.
+     * Re-transcribe the sound inside one window, or null when the attempt could
+     * not be made at all. A null is an infrastructure outcome, never a verdict
+     * on the audio.
+     *
+     * The window is decoded span by span rather than whole, so a stretch that
+     * is mostly silence does not hand the model the very conditions that made
+     * it loop. Cues come back relative to the window start, which is what
+     * {@see recoverUsing()} offsets.
      *
      * @param  array{start: float, end: float, reason: string, cue_count: int}  $window
+     * @param  list<array{time: float, rms: float}>  $rmsData
+     * @param  string  $source  the recovered transcript's source, carried onto
+     *                          the per-window result so it stays self-describing
      */
-    private function retranscribe(string $sourcePath, array $window, string $processingId, int $index): ?ChurchServiceTranscript
+    private function retranscribe(
+        string $sourcePath,
+        array $window,
+        string $processingId,
+        int $index,
+        array $rmsData,
+        string $source,
+    ): ?ChurchServiceTranscript {
+        $spans = $this->soundSpans->for($rmsData, $window['start'], $window['end']);
+
+        // Measured silence, so there is nothing to decode and no reason to pay
+        // for a provider call that can only confirm it. Recorded as a silent
+        // window rather than a failed retry.
+        if ($spans === []) {
+            $this->silentWindows[] = ['start' => $window['start'], 'end' => $window['end']];
+
+            Log::info('Targeted transcript re-transcription skipped: the window holds no sound', [
+                'processing_id' => $processingId,
+                'window_start' => $window['start'],
+                'window_end' => $window['end'],
+            ]);
+
+            return ChurchServiceTranscript::fromCues([], $window['end'] - $window['start'], $source);
+        }
+
+        $cues = [];
+        $attempted = false;
+
+        foreach ($spans as $position => $span) {
+            // Each span is decoded on its own and placed back relative to the
+            // window, because `recoverUsing()` offsets what it gets by the
+            // window start. Decoding the window whole is what reproduces the
+            // loop: 1340's clip was five-sixths silence.
+            // A window that was not narrowed keeps the historic artifact name,
+            // `…-recovery-N` by detected-window index, so banked retries stay
+            // addressable by the same rule the replay relies on. Only a window
+            // actually split into spans gains a sub-index.
+            $retry = $this->retranscribeSpan(
+                $sourcePath,
+                $span,
+                $processingId,
+                count($spans) === 1
+                    ? (string) ($index + 1)
+                    : sprintf('%d-%d', $index + 1, $position + 1),
+            );
+
+            if ($retry === null) {
+                continue;
+            }
+
+            $attempted = true;
+            $offset = $span['start'] - $window['start'];
+
+            foreach ($retry->cues as $cue) {
+                $cues[] = [
+                    'start' => $cue['start'] + $offset,
+                    'end' => $cue['end'] + $offset,
+                    'text' => $cue['text'],
+                ];
+            }
+        }
+
+        // Every span failed to extract or decode, so the audio was never seen.
+        if (! $attempted) {
+            return null;
+        }
+
+        usort($cues, static fn (array $a, array $b): int => $a['start'] <=> $b['start']);
+
+        return ChurchServiceTranscript::fromCues($cues, $window['end'] - $window['start'], $source);
+    }
+
+    /**
+     * Decode one sound-bearing span, or null when the attempt could not be made.
+     *
+     * @param  array{start: float, end: float}  $span
+     */
+    private function retranscribeSpan(string $sourcePath, array $span, string $processingId, string $label): ?ChurchServiceTranscript
     {
         $clipPath = null;
 
         try {
-            $clipPath = $this->extractor->extract($sourcePath, $window['start'], $window['end'], $processingId);
+            $clipPath = $this->extractor->extract($sourcePath, $span['start'], $span['end'], $processingId);
 
             // No priming. The configured full-service prompt describes a whole
             // service, and on a music-only window it makes the model invent
             // service-shaped speech instead of transcribing what is there —
             // reproducing the pathology this retry exists to clear.
-            return $this->transcriptionService->transcribeService($clipPath, $processingId.'-recovery-'.($index + 1), '');
+            return $this->transcriptionService->transcribeService($clipPath, $processingId.'-recovery-'.$label, '');
         } catch (Throwable $throwable) {
             Log::warning('Targeted transcript re-transcription could not be attempted', [
                 'processing_id' => $processingId,
-                'window_start' => $window['start'],
-                'window_end' => $window['end'],
+                'window_start' => $span['start'],
+                'window_end' => $span['end'],
                 'error' => $throwable->getMessage(),
             ]);
 
