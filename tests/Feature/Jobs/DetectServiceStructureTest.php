@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Jobs;
 
+use App\Actions\HoldSectionForContentReview;
 use App\Contracts\ServiceStructureInterface;
 use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructure;
@@ -1134,6 +1135,126 @@ class DetectServiceStructureTest extends TestCase
         $this->assertFalse($proposal['passed_validation']);
 
         Mail::assertNotQueued(ManualReviewRequired::class);
+    }
+
+    /**
+     * Run 1314's canary shape: a song section was held because its bounds were
+     * wrong, the fixed transcript no longer contains a song there, and the sync
+     * guard refuses the replacement. The refusal is deterministic, so the job
+     * must park rather than throw — a throw put it back on the queue, and each
+     * retry paid for a fresh detection that could have re-created the very span
+     * the hold was placed against.
+     */
+    #[Test]
+    public function an_unplaced_content_hold_parks_the_run_instead_of_retrying_the_paid_detection(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        Config::set('media-processing.email.admin_email', 'admin@example.com');
+        Mail::fake();
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+
+        $held = $this->heldSection($log, ServiceSectionType::Song, sectionOrder: 4, startTime: 2210.0, endTime: 2400.0);
+
+        // The repaired structure keeps the sermon but finds no song at the end.
+        MockServiceStructureService::useStructure(ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('bible_reading', 420.0, 590.0),
+            $this->section('sermon', 600.0, 2400.0),
+        ], ['Fixture structure.'], 'mock'));
+
+        $job = new DetectServiceStructure($log);
+        $job->handle(
+            app(ServiceStructureInterface::class),
+            app(SilenceSnapService::class),
+            app(ServiceStructureValidator::class),
+            app(ServiceSectionSyncService::class),
+            app(SermonCandidateConfidenceService::class),
+        );
+
+        $log->refresh();
+        $this->assertSame(ProcessingStatus::Failed, $log->status);
+        $this->assertSame('manual_review_required', $log->current_step);
+        $this->assertSame('unplaced_content_hold', $log->manualReviewMetadata()['reason_code'] ?? null);
+        $this->assertSame([], $job->chained, 'The remaining chained jobs are cancelled.');
+
+        // Nothing was written: the held section keeps its type, bounds and hold.
+        $held->refresh();
+        $this->assertSame(ServiceSectionType::Song, $held->section_type);
+        $this->assertSame(2210.0, (float) $held->start_time);
+        $this->assertSame(1, ServiceSection::query()->where('media_processing_log_id', $log->id)->count());
+
+        // The refused replacement is inspectable, and distinguishable from a
+        // proposal that failed validation: this one passed.
+        $proposal = $log->processing_metadata?->toArray()['service_structure_proposal'] ?? null;
+        $this->assertIsArray($proposal);
+        $this->assertTrue($proposal['passed_validation']);
+        $this->assertSame('unplaced_content_hold', $proposal['refused_reason']);
+        $this->assertSame([$held->id], $proposal['unplaced_content_hold_section_ids']);
+        $this->assertCount(3, $proposal['sections']);
+    }
+
+    /**
+     * A reconcile re-detection runs against a completed run, so a refusal there
+     * must leave the run and its sections exactly as they were.
+     */
+    #[Test]
+    public function a_reconcile_refusal_leaves_the_completed_run_and_its_sections_alone(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        Mail::fake();
+
+        $log = MediaProcessingLog::factory()->livestream()->completed()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+
+        $held = $this->heldSection($log, ServiceSectionType::Song, sectionOrder: 4, startTime: 2210.0, endTime: 2400.0);
+
+        MockServiceStructureService::useStructure(ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('bible_reading', 420.0, 590.0),
+            $this->section('sermon', 600.0, 2400.0),
+        ], ['Fixture structure.'], 'mock'));
+
+        $this->runJob($log, reconcile: true);
+
+        $log->refresh();
+        $this->assertSame(ProcessingStatus::Completed, $log->status);
+        $this->assertSame(1, ServiceSection::query()->where('media_processing_log_id', $log->id)->count());
+        $this->assertSame(ServiceSectionType::Song, $held->refresh()->section_type);
+
+        Mail::assertNothingQueued();
+    }
+
+    private function heldSection(
+        MediaProcessingLog $log,
+        ServiceSectionType $type,
+        int $sectionOrder,
+        float $startTime,
+        float $endTime,
+    ): ServiceSection {
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'church_service_item_id' => null,
+            'section_type' => $type->value,
+            'section_order' => $sectionOrder,
+            'title' => null,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'duration' => $endTime - $startTime,
+            'needs_manual_review' => false,
+            'metadata' => ['review_flags' => []],
+        ]);
+
+        app(HoldSectionForContentReview::class)(
+            $section,
+            'Song bounds contradicted by the transcript.',
+            'canary-20260917-detection-retry',
+        );
+
+        return $section->refresh();
     }
 
     private function runJob(MediaProcessingLog $log, bool $reconcile = false): void

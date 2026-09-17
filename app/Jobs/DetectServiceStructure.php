@@ -10,6 +10,7 @@ use App\Data\ServiceStructure;
 use App\Enums\ProcessingStep;
 use App\Enums\ServiceSectionType;
 use App\Enums\ServiceStructureMode;
+use App\Exceptions\UnplacedContentHoldException;
 use App\Mail\ManualReviewRequired;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
@@ -273,7 +274,14 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
 
         $classified = $result->structure->toClassifiedSections($this->processingLog, $transcript);
 
-        $syncService->sync($this->processingLog, $classified);
+        try {
+            $syncService->sync($this->processingLog, $classified);
+        } catch (UnplacedContentHoldException $exception) {
+            $this->refuseUnplacedContentHold($exception, $result, $classified);
+
+            return;
+        }
+
         $this->putStructureMetadata('service_structure', $result->structure->toArray());
 
         if ($this->reconcile) {
@@ -1002,6 +1010,95 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
      * detected structure and the run stays scoreable. Persistence problems
      * here must never block the manual-review routing itself.
      */
+    /**
+     * Stop, without retrying, when the hold guard refused the replacement.
+     *
+     * The refusal is deterministic: the sections were rejected because an
+     * operator's content hold had nothing of its type to land on, and nothing
+     * about that changes on a second attempt. Letting the exception escape put
+     * the job back on the queue, so run 1314 paid for three detections in
+     * thirteen minutes — and each retry was a fresh sample that could have
+     * re-created the very span the hold was placed against, satisfying the
+     * guard by regenerating the defect. The proposal is recorded first so the
+     * refused replacement can be inspected, then the run parks for the operator,
+     * who either releases the hold or re-holds it against the new content.
+     *
+     * @param  array<int, array<string, mixed>>  $classified
+     */
+    private function refuseUnplacedContentHold(
+        UnplacedContentHoldException $exception,
+        ValidationResult $result,
+        array $classified,
+    ): void {
+        $sectionIds = $exception->unplacedSectionIds();
+
+        $this->persistRefusedProposal($exception, $result, $classified);
+
+        if ($this->reconcile) {
+            // A completed run keeps its sections: a reconcile re-detection that
+            // cannot carry a hold must not re-open it.
+            $reasonMessage = 'Reconcile re-detection refused: '.$exception->getMessage();
+            $this->logStepSkipped(ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE, $reasonMessage);
+
+            Log::warning('Service structure reconcile re-detection left a content hold unplaced; existing sections retained', [
+                'processing_id' => $this->processingLog->processing_id,
+                'unplaced_section_ids' => $sectionIds,
+            ]);
+
+            return;
+        }
+
+        $this->markProcessingRunForManualReview(
+            $this->processingLog,
+            'unplaced_content_hold',
+            $exception->getMessage()
+        );
+        $this->processingLog->refresh();
+
+        $this->notifyManualReviewRequired($exception->getMessage(), []);
+
+        // No speech segments are offered and the chain stops: confirming a span
+        // here would be the same guess the hold already rejected.
+        $this->chained = [];
+
+        $this->logStepFailed(ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE, $exception->getMessage());
+
+        Log::warning('Service structure detection refused: a content hold had no section to carry it', [
+            'processing_id' => $this->processingLog->processing_id,
+            'unplaced_section_ids' => $sectionIds,
+        ]);
+    }
+
+    /**
+     * Record the replacement the hold guard refused, so it can be inspected.
+     *
+     * It shares `service_structure_proposal` with a validation-rejected
+     * proposal: both describe a revision that was never applied, and the key is
+     * already classified as local review state by the portable-inventory
+     * serializer, which fails closed on any proposal key nobody has listed.
+     * `refused_reason` tells the two apart — this one passed validation.
+     *
+     * @param  array<int, array<string, mixed>>  $classified
+     */
+    private function persistRefusedProposal(
+        UnplacedContentHoldException $exception,
+        ValidationResult $result,
+        array $classified,
+    ): void {
+        try {
+            $this->putStructureMetadata('service_structure_proposal', $this->proposalPayload($result, $classified) + [
+                'refused_reason' => 'unplaced_content_hold',
+                'unplaced_content_hold_section_ids' => $exception->unplacedSectionIds(),
+                'unplaced_content_holds' => $exception->unplacedContent,
+            ]);
+        } catch (\Throwable $throwable) {
+            Log::warning('Failed to persist refused service structure proposal, continuing to manual review', [
+                'processing_id' => $this->processingLog->processing_id,
+                'error' => $throwable->getMessage(),
+            ]);
+        }
+    }
+
     private function persistFailedProposal(ValidationResult $result, ChurchServiceTranscript $transcript): void
     {
         try {

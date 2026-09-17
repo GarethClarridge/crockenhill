@@ -13,6 +13,17 @@ use RuntimeException;
 class UnplacedContentHoldException extends RuntimeException
 {
     /**
+     * The held content that no incoming section covered.
+     *
+     * Kept structured, not only described in the message: the detection job
+     * records these ids on the run so an operator can see which holds refused
+     * the replacement without parsing prose.
+     *
+     * @var list<array{id: int, section_type: string, start_time: float, end_time: float}>
+     */
+    public array $unplacedContent = [];
+
+    /**
      * @param  list<array{id: int, section_type: string, start_time: float, end_time: float}>  $heldContent
      */
     public static function forSections(array $heldContent): self
@@ -28,9 +39,24 @@ class UnplacedContentHoldException extends RuntimeException
             $heldContent,
         ));
 
-        return new self(
+        $exception = new self(
             "Re-detection left content holds with no overlapping section of their type: {$described}. "
             .'Confirm or re-hold these sections before re-running.',
+        );
+
+        $exception->unplacedContent = $heldContent;
+
+        return $exception;
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function unplacedSectionIds(): array
+    {
+        return array_map(
+            static fn (array $held): int => $held['id'],
+            $this->unplacedContent,
         );
     }
 }
