@@ -379,6 +379,48 @@ detection calls, 13 minutes), and each retry is a fresh sample that could have
 re-created the wrong song span just to satisfy the guard; and the refused
 detection is not persisted, so its proposed replacement cannot be inspected.
 
+**Operator decisions, 17:00 UTC.** (1) Release §3994 and retry 1314 from detection;
+(2) build a bounded repair route for a held sermon, then re-run 1209.
+§3994 was released through `ConfirmServiceSection` as user 1 with the transcript
+evidence recorded under `manual_review.release_note`
+(`canary-20260917-release-3994.json`); 1314 was retried at 17:03:49 from
+`DetectServiceStructure` (job offset 2, fresh transcript reused).
+
+**1314 retry — structure right, sermon media WRONG, 17:10 UTC.** Every hold
+placed: §3985 and §3992 still held, §3994 is now the closing benediction, and the
+sermon §3992 runs 1712–3417 with the quotation inside it (BC-01 structure fixed).
+But the held §3992 sent the plan to the baseline, the RMS check found one dominant
+block, and **ExtractSermon silently re-cut the sermon as 1016.5–3436.0** (testimony,
+prayer and reading included). Nothing was released (quarantined, held). **A full
+pipeline re-run of any content-held sermon therefore degrades its media without an
+error; no bulk re-run of held runs may proceed until that path refuses or parks
+instead of cutting from the baseline.**
+
+**Repair route landed, `6c7d33539`.** `sermons:re-extract --held-section=<id>`
+records the named section's current span on the run (`held_sermon_span`); every
+plan resolution then cuts from that section while its span is unchanged and no
+other flag disqualifies it. The hold stays. The command now refuses a
+recorded-bounds fallback plan, dry run included, and names any held sermon.
+13 new/updated tests; focused suites 85 passed; Pint and PHPStan clean. Workers
+restarted at 17:10 onto this code (queues empty).
+
+**1209 — PASS, 17:17:19 UTC.** Plan unchanged from 09-09 (reading 1758.86–1872.99
++ sermon 2123–3742.0, was 3740.08). MP3 1733.17 s against video 1733.15 s (was
+8.2 s short); local Whisper on both last 20 s ends "…in Jesus' name. Amen.";
+streams start together (0.066 s) and end within 12 ms. §2572 still held.
+A listen across the join (114 s) is still to do.
+
+**1314 re-cut — PASS, 17:20:53 UTC.** `--held-section=3992`: reading + sermon
+1614.0–3421.2; media 1807.2 s (audio and video agree); head transcribes as the
+Philippians 2 reading, tail as the full Wesley quotation then "Well, let's sing."
+Sermon text period-per-word ratio 0.07 (was 0.89; BC-08 fixed on this run).
+
+**Canary verdict:** retranscription, song-edge trimming, hold placement and the
+held-sermon repair work on these three runs. Blockers before wider repair:
+(a) the silent baseline re-cut of held sermons on a full re-run; (b) the detection
+job retrying an unplaced-hold refusal. Holds on all three runs remain for operator
+review; nothing is authorised for release.
+
 - **Execution authorised 2026-09-17:** the operator requested this plan update,
   a commit to master, then the bounded canary. This authorises the necessary local
   pipeline repair and readiness work, not release or automatic hold clearance.
@@ -1882,7 +1924,8 @@ immediately below the table governs their interpretation.
 
 | Class | Found by | Current response — reviewed 2026-09-17 | Prototype | Specification and dated execution evidence |
 |---|---|---|---|---|
-| Content-held sermon cannot reach its intended repair; re-extraction dry run conceals fallback refusal (1209 §2572) | 17 September canary | Blocked before extraction; existing hold retained | `canary-20260917-failure-1209-plan.json` | Separate bounded repair authority from release acceptance; preserve hold and validate the actual execution plan in dry run. Do not globally exempt content holds from boundary checks |
+| Full pipeline re-run cuts a content-held sermon from the RMS baseline without error (1314 §3992, 17:04) | 17 September canary | **Blocks bulk re-runs of held runs**; 1314 repaired with `--held-section` | `canary-20260917-dispatch-1314-recut.txt` | Refuse or park extraction when a sermon section exists but is held and no authority names it; failing test first |
+| Content-held sermon cannot reach its intended repair; re-extraction dry run conceals fallback refusal (1209 §2572) | 17 September canary | Fixed `6c7d33539` (`--held-section`); 1209 repaired, hold retained | `canary-20260917-failure-1209-plan.json` | Separate bounded repair authority from release acceptance; preserve hold and validate the actual execution plan in dry run. Do not globally exempt content holds from boundary checks |
 | Unplaced-hold refusal is retried by the detection job and the refused detection is not kept (1314 §3994) | 17 September canary | Run stopped as designed; operator decision on §3994 pending | `storage/logs/laravel.log` 16:45–16:54 UTC | Fail without retry on `UnplacedContentHoldException`; keep the refused section list for operator inspection |
 | Held section candidates remain on the staging volume only (1221 §2718/§2719/§2721) | 17 September canary | Recorded; re-cut clips verified to new bounds | `section-publications/27{18,19,21}-*` on staging | Decide whether held candidates promote to quarantine before staging is retired |
 | One-word sentence drift and context-carried loops (1314, 1343, 1258; partial 980) | Blind BC-08 | Prevention implemented; pipeline recovery and wider sizing pending | `blind-20260916-comparison/bc08-20260917/` | §4.2: context options, four-run recovery, raw-transcript census and independent source checks |
