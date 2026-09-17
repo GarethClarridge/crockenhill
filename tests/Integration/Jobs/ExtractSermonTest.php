@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Jobs;
 
 use App\Actions\FlagSermonAudioLengthMismatch;
+use App\Actions\HoldSectionForContentReview;
 use App\Enums\ServiceSectionType;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\ExtractSermon;
@@ -1027,6 +1028,70 @@ class ExtractSermonTest extends TestCase
             'historic_import_operation_id' => $operation->id,
             'kind' => 'manual_review_extraction',
         ]);
+    }
+
+    /**
+     * Run 1314, 2026-09-17. A full re-run reached extraction with its sermon under a
+     * content hold, fell back to the recorded bounds, found one dominant speech
+     * block and cut it: 1016-3436 s, a testimony, a prayer and a reading included,
+     * with no error. An operator's hold is the one case where a clear RMS block is
+     * no evidence at all, because the operator has already said the automated
+     * account of this sermon cannot be trusted.
+     */
+    #[Test]
+    public function it_parks_a_run_whose_sermon_is_content_held_even_when_one_speech_block_dominates(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'sermon_start_time' => 1016.5,
+            'sermon_end_time' => 3436.0,
+            'source_file_path' => 'livestreams/held-sermon.mp4',
+        ]);
+
+        $sermon = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'section_order' => 1,
+            'start_time' => 1712.0,
+            'end_time' => 3417.0,
+            'duration' => 1705.0,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'review_flags' => [HoldSectionForContentReview::FLAG],
+                HoldSectionForContentReview::METADATA_KEY => [[
+                    'reason' => 'Transcript split into one-word sentences',
+                    'evidence' => 'blind comparison register',
+                    'held_at' => '2026-09-17T16:37:02+00:00',
+                ]],
+            ],
+        ]);
+
+        // One 40-minute block and nothing near it: the RMS guard alone would cut it.
+        LivestreamSegment::factory()->speech()->create([
+            'media_processing_log_id' => $log->id,
+            'segment_index' => 1,
+            'segment_order' => 1,
+            'start_time' => 1016.5,
+            'end_time' => 3436.0,
+            'duration' => 2419.5,
+        ]);
+
+        $mockExtractor = $this->createMock(VideoExtractionService::class);
+        $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
+        $mockExtractor->expects($this->never())->method('extractConcatenatedSegmentAsFile');
+        $mockExtractor->expects($this->never())->method('extractOptimizedAudio');
+
+        Mail::fake();
+        Log::shouldReceive('warning')->atLeast()->once();
+        Log::shouldReceive('info')->zeroOrMoreTimes();
+
+        $this->runJob(new ExtractSermon($log), $mockExtractor, $this->createStub(VideoStorageService::class));
+
+        $log->refresh();
+        $this->assertSame('failed', $log->status->value);
+        $this->assertSame('manual_review_required', $log->current_step);
+        $this->assertStringContainsString("--held-section={$sermon->id}", $log->error_message ?? '');
+        $this->assertTrue(HoldSectionForContentReview::isHeld($sermon->fresh()->metadata->reviewFlags ?? []));
     }
 
     #[Test]

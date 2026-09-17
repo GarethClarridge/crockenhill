@@ -1392,7 +1392,8 @@ class SermonExtractionPlanResolverTest extends TestCase
         $plan = $this->resolver->resolve($log);
 
         $this->assertSame('processing_log', $plan['source']);
-        $this->assertSame('no_high_confidence_sermon_section', $plan['metadata']['reason']);
+        $this->assertSame('sermon_section_content_held', $plan['metadata']['reason']);
+        $this->assertSame([$log->serviceSections()->sole()->id], $plan['metadata']['held_sermon_section_ids']);
     }
 
     /**
@@ -1443,6 +1444,7 @@ class SermonExtractionPlanResolverTest extends TestCase
         $plan = $this->resolver->resolve($log->fresh());
 
         $this->assertSame('processing_log', $plan['source']);
+        $this->assertSame('sermon_section_content_held', $plan['metadata']['reason']);
     }
 
     /**

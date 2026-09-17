@@ -526,6 +526,12 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
             return $extractionPlan;
         }
 
+        if (($extractionPlan['metadata']['reason'] ?? null) === 'sermon_section_content_held') {
+            $this->parkForHeldSermon($extractionPlan['metadata']['held_sermon_section_ids'] ?? []);
+
+            return null;
+        }
+
         $evaluation = $sermonConfidenceService->evaluateForProcessingLog($this->processingLog);
         $speechSegments = $evaluation['speech_segments'];
 
@@ -667,6 +673,32 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
             ->whereKey((int) $sectionId)
             ->where('section_type', 'sermon')
             ->first();
+    }
+
+    /**
+     * Stop before cutting anything when the sermon is under a content hold.
+     *
+     * A clear dominant speech block is no evidence here: the operator has already
+     * said the automated account of this sermon is wrong, and a full re-run of run
+     * 1314 cut a testimony, a prayer and a reading as its sermon. No speech blocks
+     * are offered for confirmation, since confirming one would be that same guess.
+     * The repair is a re-cut of the named section once its span is checked.
+     */
+    private function parkForHeldSermon(mixed $heldSectionIds): void
+    {
+        $sectionIds = is_array($heldSectionIds) ? array_values(array_filter($heldSectionIds, 'is_int')) : [];
+        $suggestion = implode(' or ', array_map(static fn (int $id): string => "--held-section={$id}", $sectionIds));
+        $reasonMessage = "The sermon section is under a content hold, so no span was cut. Once its span is checked, re-cut it with `sermons:re-extract {$this->processingLog->processing_id} {$suggestion}`; the hold stays.";
+
+        $this->markProcessingRunForManualReview($this->processingLog, 'sermon_section_content_held', $reasonMessage);
+        $this->processingLog->refresh();
+        $this->notifyManualReviewRequired($reasonMessage, []);
+        $this->chained = [];
+
+        Log::warning('Sermon extraction halted: the sermon section is under a content hold', [
+            'processing_id' => $this->processingLog->processing_id,
+            'held_sermon_section_ids' => $sectionIds,
+        ]);
     }
 
     private function manualReviewReason(string $reason): string

@@ -144,7 +144,7 @@ class ReExtractSermonCommandTest extends TestCase
         [$log, $sermon] = $this->completedRunWithHeldSermon();
 
         $this->artisan('sermons:re-extract', ['processing_id' => $log->processing_id, '--dry-run' => true])
-            ->expectsOutputToContain('no_high_confidence_sermon_section')
+            ->expectsOutputToContain('sermon_section_content_held')
             ->expectsOutputToContain("--held-section={$sermon->id}")
             ->assertExitCode(1);
 

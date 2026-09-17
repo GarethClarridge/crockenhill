@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Sermon;
 
+use App\Actions\HoldSectionForContentReview;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
@@ -100,14 +101,13 @@ class SermonExtractionPlanResolver
     /**
      * The single-sermon plan, before any further part of the same sermon is added.
      *
+     * @param  array{section_id: int, start_time: float, end_time: float}|null  $heldSpanAuthority
      * @return array{
      *     mode: 'single_span'|'concat_spans'|'baseline',
      *     source: 'service_sections'|'processing_log'|'manual_review',
      *     segments: array<int, array{start_time: float, end_time: float}>,
      *     metadata: array<string, mixed>
      * }
-     *
-     * @param  array{section_id: int, start_time: float, end_time: float}|null  $heldSpanAuthority
      *
      * @throws \Exception When baseline times are missing or confirmed segments cannot be found.
      */
@@ -138,6 +138,18 @@ class SermonExtractionPlanResolver
         $sermonSection ??= $authorisedHeldSection;
 
         if (! $sermonSection instanceof ServiceSection) {
+            $heldSermonIds = $this->contentHeldSermonIds($processingLog);
+
+            // An operator's hold says the automated account of this sermon cannot be
+            // trusted, so the recorded bounds are no fallback. The reason is its own
+            // so extraction parks the run instead of cutting a dominant speech block.
+            if ($heldSermonIds !== []) {
+                return $this->baselinePlan($processingLog, [
+                    'reason' => 'sermon_section_content_held',
+                    'held_sermon_section_ids' => $heldSermonIds,
+                ]);
+            }
+
             return $this->baselinePlan($processingLog, ['reason' => 'no_high_confidence_sermon_section']);
         }
 
@@ -744,6 +756,22 @@ class SermonExtractionPlanResolver
                 (bool) $section->needs_manual_review,
                 $this->reviewFlags($section),
             ));
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function contentHeldSermonIds(MediaProcessingLog $processingLog): array
+    {
+        return array_values(ServiceSection::query()
+            ->where('media_processing_log_id', $processingLog->id)
+            ->where('section_type', ServiceSectionType::Sermon->value)
+            ->orderBy('section_order')
+            ->orderBy('id')
+            ->get()
+            ->filter(fn (ServiceSection $section): bool => HoldSectionForContentReview::isHeld($this->reviewFlags($section)))
+            ->map(fn (ServiceSection $section): int => $section->id)
+            ->all());
     }
 
     /**
