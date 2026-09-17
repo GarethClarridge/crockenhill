@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\HistoricMedia;
 
 use App\Data\HistoricStagingContext;
+use App\Services\Media\Audio\LocalWhisperDecoding;
 use App\Support\CanonicalJson;
 use RuntimeException;
 use Symfony\Component\Process\Process;
@@ -56,6 +57,7 @@ final class HistoricProcessingFingerprint
             'transcription' => [
                 'service' => config('media-processing.transcription.service'),
                 'local_whisper_model' => config('media-processing.transcription.local_whisper_model'),
+                'local_whisper_decoding' => LocalWhisperDecoding::OPTIONS,
                 'service_transcription_service' => config('media-processing.service_structure.transcription_service'),
                 'service_transcription_model' => config('media-processing.service_structure.transcription_model'),
                 'prompts' => [

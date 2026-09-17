@@ -187,6 +187,7 @@ class LocalWhisperTranscriptionService implements TranscriptionServiceInterface
                     'language' => 'en',
                     'response_format' => 'text',
                     'prompt' => (string) config('media-processing.transcription.prompts.sermon'),
+                    ...LocalWhisperDecoding::OPTIONS,
                 ]);
         } catch (Exception $e) {
             $apiTime = microtime(true) - $apiStartTime;

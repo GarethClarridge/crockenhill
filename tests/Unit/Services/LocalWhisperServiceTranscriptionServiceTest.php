@@ -108,6 +108,38 @@ class LocalWhisperServiceTranscriptionServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_stops_the_decoder_carrying_its_own_text_forward_while_keeping_the_prompt(): void
+    {
+        $sourcePath = $this->makeTempFile('source video bytes');
+        $compressedPath = $this->makeTempFile('compressed audio');
+
+        $this->chunkingService->shouldReceive('compressAudioForTranscription')
+            ->once()
+            ->andReturn($compressedPath);
+
+        Http::fake([
+            'whisper:8000/v1/audio/transcriptions' => Http::response([
+                'duration' => 20.0,
+                'segments' => [
+                    ['id' => 0, 'start' => 0.0, 'end' => 20.0, 'text' => 'Good morning and welcome.'],
+                ],
+            ]),
+        ]);
+
+        $this->service->transcribeService($sourcePath, 'proc-local-context');
+
+        Http::assertSent(function ($request): bool {
+            $fields = collect($request->data())
+                ->reject(fn (array $part): bool => $part['name'] === 'file')
+                ->mapWithKeys(fn (array $part): array => [$part['name'] => $part['contents']]);
+
+            return $fields->get('max_context') === '0'
+                && $fields->get('carry_initial_prompt') === 'true'
+                && $fields->get('prompt') === (string) config('media-processing.transcription.prompts.full_service');
+        });
+    }
+
+    #[Test]
     public function it_throws_when_the_server_returns_no_segments(): void
     {
         $sourcePath = $this->makeTempFile('source video bytes');

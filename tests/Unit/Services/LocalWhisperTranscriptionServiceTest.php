@@ -110,6 +110,30 @@ class LocalWhisperTranscriptionServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_stops_the_decoder_carrying_its_own_text_forward_while_keeping_the_prompt(): void
+    {
+        $transcript = 'This sermon discusses Romans chapter eight and the sovereignty of God over all things.';
+
+        Http::fake([
+            'http://whisper:8000/v1/audio/transcriptions' => Http::response($transcript, 200),
+        ]);
+
+        Storage::disk('local')->put('sermon-context.mp3', str_repeat('x', 100));
+
+        $this->service->transcribe('sermon-context.mp3', 'test-id');
+
+        Http::assertSent(function ($request): bool {
+            $fields = collect($request->data())
+                ->reject(fn (array $part): bool => $part['name'] === 'file')
+                ->mapWithKeys(fn (array $part): array => [$part['name'] => $part['contents']]);
+
+            return $fields->get('max_context') === '0'
+                && $fields->get('carry_initial_prompt') === 'true'
+                && $fields->get('prompt') === (string) config('media-processing.transcription.prompts.sermon');
+        });
+    }
+
+    #[Test]
     public function it_accepts_openai_style_json_transcription_responses(): void
     {
         $transcript = 'This sermon explains Romans chapter eight and the assurance believers have in Christ.';

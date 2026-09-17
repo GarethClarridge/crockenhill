@@ -38,6 +38,17 @@ class HistoricProcessingFingerprintTest extends TestCase
     }
 
     #[Test]
+    public function it_records_the_whisper_decoding_options_as_a_transcription_input(): void
+    {
+        $fingerprint = app(HistoricProcessingFingerprint::class)->forStagingContext($this->context());
+
+        $this->assertSame(
+            ['max_context' => '0', 'carry_initial_prompt' => 'true'],
+            $fingerprint['transcription']['local_whisper_decoding'],
+        );
+    }
+
+    #[Test]
     public function it_normalizes_the_known_legacy_throughput_field_before_comparison(): void
     {
         $fingerprintService = app(HistoricProcessingFingerprint::class);

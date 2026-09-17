@@ -115,6 +115,7 @@ class LocalWhisperServiceTranscriptionService implements ServiceTranscriptionInt
                     'response_format' => 'verbose_json',
                     'timestamp_granularities[]' => 'word',
                     'prompt' => $prompt ?? (string) config('media-processing.transcription.prompts.full_service'),
+                    ...LocalWhisperDecoding::OPTIONS,
                 ]);
         } catch (Exception $e) {
             $this->logger->logApiCall(
