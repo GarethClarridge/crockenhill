@@ -804,11 +804,73 @@ the others. Human-only checks may remain sampled with a justified design and bou
       `0436e3d37` (`blind-20260914-plan-at-selection.md`).
     - *Still not covered:* 25 fps (one source), 480p, 44.1 kHz versus 48 kHz as a
       deliberate contrast, and the audio-only or unprobeable sources (runs 955, 1375).
-- [ ] Listen to the original recordings first and record the actual sequence,
+- [x] Listen to the original recordings first and record the actual sequence,
   identities, boundaries, interruptions and absent content. Do not show the reviewer
   generated sections, transcripts, labels or warnings until this source inventory
   is saved. Keep uncertainty explicit. Then compare all expected and actual outputs,
   including material for which the pipeline created no section or file.
+  **Inventories saved 2026-09-16 20:59–21:54 UTC; compared 23:17–23:25 UTC**
+  (`storage/scratch/blind-20260916-comparison/`: `00-prior-exposure.json` written before
+  unblinding, `01-sections-raw.json` generated snapshot, `02-strips-*.txt` source-only
+  sound measurements from `sound_strip.py`, register
+  `blind-20260916-comparison-register.json`). A disagreement counts as confirmed only when
+  the listened inventory and a source-only sound measurement agree against the pipeline;
+  transcript text was a comparison only. Inventory 110 sections, generated 102.
+  - **Identity is sound; bounds and type are not.** 23 of 23 sectioned performed songs
+    carry the song named by ear (three differ only because the catalogue files them under
+    a first line). Only 9 of 23 are within ~12 s at both ends. 8 of 8 sermon passages
+    agree. Every planned-but-unperformed song has no section.
+  - **Spoken lead-ins and tails are common, not rare (BC-03).** Seven unheld song
+    sections carry 19–60 s of speech before or after the singing: 1336 §4264 (46 s + 23 s,
+    published section, SongVideo 408), 1221 §2718 (24), §2719 (27 s of prayer, SongVideo
+    506), §2722 (36), 1066 §1686 (23), §1688 (60), 1358 §4682 (19). Three more at 11–16 s.
+    This widens the §4.3 "continuous spoken lead-in or tail" row from four named cases to
+    roughly a third of the songs in a blind draw.
+  - **New: a quoted hymn typed as a sung song (BC-01).** 1314 §3994 "You that do your
+    master's will" (lyric-matched, `confirmed`) is spoken. The preacher says he will
+    "quote it as I finish", and the audio stays speech until 3436. The sermon media stops at
+    3381, before the quotation. This is the inverse of the mistyped-sung check.
+  - **New: one-word-sentence transcripts (BC-08).** From 1314's sermon onwards every word
+    ends a sentence ("One. Of. The. Amazing. Things."). A census of 438 sermon sections
+    finds three (1314 §3992, 1258 §3227, 1343 §4334, ratio 0.85–0.89; next 0.47; 419 below
+    0.1), all local large-v3-turbo; 980 is a partial fourth (sermon 0.31).
+    **Cause established 2026-09-17** (`blind-20260916-comparison/bc08-20260917/`): the raw
+    whisper.cpp output already drifts into one-word "Word." segments (1314 from 2028 s,
+    1343 from 2251 s, 1258 from 2400 s), carried forward by unlimited text context
+    (`whisper-server` default `--max-context -1`); normalization only copies it. A 180 s
+    slice of 1314's broken span transcribes normally on its own, and a full rerun with
+    production settings drifts again. **Sending `max_context=0` with
+    `carry_initial_prompt=true`** (both per-request fields) removed the drift on all four
+    runs (one-word segments 68–82% → 5–8%). It also **removed the decode loops on all seven
+    runs tested** (loop words 10–2,142 → 0–21), including 1358's, where production loops had
+    replaced a reading and a prayer. Timing held (median offset 0.1–0.4 s, p90 ≤ 1.7 s)
+    and the prompt was not echoed. Healthy-looking 1221 and 1336 show 19–23% one-word
+    segments in production, a partial drift that the section-text census cannot see. This
+    bears directly on §4.2.
+    **Adopted 2026-09-17 (operator), test-first.** `LocalWhisperDecoding::OPTIONS` is sent
+    by both local whisper requests (service and sermon-only; recovery and repetition
+    replays share the service path) and is recorded as
+    `transcription.local_whisper_decoding` in the processing fingerprint. The fingerprint
+    is recorded and compared per bundle, not enforced as a gate, so existing runs are not
+    blocked. Rechecked on production's 32 kbps mono MP3 form: run 1314 had 57 one-word
+    segments of 884, full stops per word 0.06, and 0.978 agreement with the WAV run. Gates:
+    Pint and PHPStan clean, full suite 8,235 passing; Dusk not run (session permission).
+    **Due:** restart the whisper, general and historic workers before any transcription;
+    re-transcribe 1314, 1343, 1258 and 980 through the pipeline in the canary or a bounded
+    batch. A corpus-wide re-transcription for loops is a §4.2 sizing question, measured
+    first by one-word-segment and loop-word rates in the raw service transcripts.
+  - Also: 1034 §1461 loses ~81 s of its carol to reading §1460 (BC-02, unheld; same class
+    as §1459). 1221 §2722 is bound to a livestream item with no song id while OpenLP
+    carries song 64 (BC-06). Two of four children's talks are typed `other` (1221 §2721,
+    1358 §4684; needs a ruling, BC-07). 1336's sermon may end inside §4264 (replay
+    3320–3380, BC-05). The inventory, not the pipeline, was wrong on 936 §619 and 950 §727
+    (song announcements) and on 1034's 742 song start (digital silence 740–767).
+  - Blind re-confirmation of existing holds: 1034 §1457, §1459, the unsectioned "O little
+    town", and 1097's video rejection (no picture on the source). 8 of 9 sermons carry the
+    default preacher (accepted deferral).
+  - **Holds proposed, not yet run** (the dry runs were blocked by a session permission
+    rule): §3994+§3992 (BC-01), §1461 (BC-02), the seven BC-03 sections, and §3992/§3227/§4334
+    (BC-08). Dry run first, operator approval before `--execute`.
 - [ ] Draw and save random interior source windows before consulting detector
   results, alongside complete-source review. Check fluent but incorrect words,
   missing negation, names and numbers, missing sentences, quotation attribution and
@@ -830,6 +892,11 @@ the others. Human-only checks may remain sampled with a justified design and bou
   own coverage and result breakdown. Source listening and channel/content checks
   must cover them; no missing corroboration may become a clean agreement. Apply
   the same distinction to runs lacking usable lyrics, intelligible audio or slides.
+  *Blind set, 2026-09-16:* five of the nine have no independent OoS (1336, 1314, 1358,
+  950, 1034). Song identity was right on all 16 of their sectioned songs, so the
+  missing plan did not cost identity. Their confirmed defects (BC-01/02/03/05/07/08) are
+  bounds, type and text, and the OoS would not have caught those anyway, because it
+  carries no timing.
 
 #### Content alignment across processing handoffs
 
