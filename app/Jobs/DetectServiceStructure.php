@@ -19,6 +19,7 @@ use App\Services\ChurchService\ChurchServiceReviewSynchronizer;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
+use App\Services\ChurchService\Structure\SongSpeechEdges;
 use App\Services\ChurchService\Structure\MistypedSungSections;
 use App\Services\ChurchService\Structure\SustainedSoundSongSections;
 use App\Services\ChurchService\Structure\ValidationContext;
@@ -772,11 +773,15 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
 
         $rmsLogContent = (string) Storage::disk($artifactDisk)->get($rmsLogPath);
 
+        $recordingOmitsSongs = ValidationContext::recordingOmitsSongs($this->processingLog->processing_metadata);
         $structure = app(SustainedSoundSongSections::class)->apply(
             $snapService->snap($structure, $rmsLogContent),
             $rmsLogContent,
-            ValidationContext::recordingOmitsSongs($this->processingLog->processing_metadata),
+            $recordingOmitsSongs,
         );
+
+        // After widening, so a song that grew across unsectioned singing is judged at its new edges.
+        $structure = app(SongSpeechEdges::class)->apply($structure, $rmsLogContent, $recordingOmitsSongs);
 
         // Runs after the sound stage has settled the song sections, so a section still typed as
         // something else is one no song claimed.

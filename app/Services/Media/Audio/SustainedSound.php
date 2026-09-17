@@ -14,14 +14,24 @@ namespace App\Services\Media\Audio;
  * congregation singing over instruments does not. Every one of 438 sermon sections reads as
  * speech by this measure.
  *
- * The recording is judged in 5 s bins, each on the 30 s around it, so one breath does not split
- * a song. Fresh audio adjudicated what it finds: {@see \App\Services\ChurchService\Structure\SustainedSoundSongSections}.
+ * The recording is judged in 5 s bins, each on the 30 s around it by default, so one breath does
+ * not split a song. Fresh audio adjudicated what it finds: {@see \App\Services\ChurchService\Structure\SustainedSoundSongSections}.
  */
 final readonly class SustainedSound
 {
     public const BIN_SECONDS = 5.0;
 
-    private const WINDOW_BINS = 6;
+    /**
+     * Thirty seconds, so one breath does not split a song.
+     */
+    public const WINDOW_BINS = 6;
+
+    /**
+     * Ten seconds, for placing an edge. The long window blurs a sung/spoken boundary by up to
+     * 15 s either way, and invented a 37 s spoken lead-in on a clean song (1221 §2729) that the
+     * short window placed within 7 s. Measured 2026-09-17 against fresh-audio onsets.
+     */
+    public const EDGE_WINDOW_BINS = 2;
 
     private const MINIMUM_ACTIVE_RATIO = 0.8;
 
@@ -43,8 +53,9 @@ final readonly class SustainedSound
      *
      * @param  list<array{time: float, rms: float}>  $samples  Dataset from {@see RmsAnalysisService::extractRmsData()}
      * @param  float  $threshold  The run's silence threshold
+     * @param  int  $windowBins  How many 5 s bins each bin is judged on
      */
-    public static function fromSamples(array $samples, float $threshold): ?self
+    public static function fromSamples(array $samples, float $threshold, int $windowBins = self::WINDOW_BINS): ?self
     {
         if ($samples === []) {
             return null;
@@ -76,7 +87,7 @@ final readonly class SustainedSound
             $pauseStart = null;
         }
 
-        $half = intdiv(self::WINDOW_BINS, 2);
+        $half = intdiv($windowBins, 2);
         $bins = [];
 
         for ($bin = 0; $bin < $binCount; $bin++) {

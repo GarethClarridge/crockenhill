@@ -14,6 +14,7 @@ use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\Structure\ServiceStructureEvaluationTelemetry;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
+use App\Services\ChurchService\Structure\SongSpeechEdges;
 use App\Services\ChurchService\Structure\MistypedSungSections;
 use App\Services\ChurchService\Structure\SustainedSoundSongSections;
 use App\Services\ChurchService\Structure\ValidationContext;
@@ -421,11 +422,15 @@ class StructureEvaluateCommand extends Command
 
         $rmsLogContent = (string) Storage::disk($rmsDisk)->get($rmsLogPath);
 
+        $recordingOmitsSongs = ValidationContext::recordingOmitsSongs($log->processing_metadata);
         $structure = app(SustainedSoundSongSections::class)->apply(
             $snapService->snap($structure, $rmsLogContent),
             $rmsLogContent,
-            ValidationContext::recordingOmitsSongs($log->processing_metadata),
+            $recordingOmitsSongs,
         );
+
+        // After widening, so a song that grew across unsectioned singing is judged at its new edges.
+        $structure = app(SongSpeechEdges::class)->apply($structure, $rmsLogContent, $recordingOmitsSongs);
 
         // Runs after the sound stage has settled the song sections, so a section still typed as
         // something else is one no song claimed.

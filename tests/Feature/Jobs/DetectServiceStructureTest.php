@@ -417,6 +417,41 @@ class DetectServiceStructureTest extends TestCase
     }
 
     /**
+     * The blind comparison's commonest shape: the detector starts a song where the leader
+     * announces it, so the clip would open on 40 s of "Let's stand and sing…".
+     */
+    #[Test]
+    public function primary_mode_trims_a_spoken_announcement_off_the_start_of_a_song(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        Config::set('media-processing.segmentation.adaptive_thresholds.enabled', false);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+        $this->storeRmsLog($log, sungFrom: 170, sungTo: 410, alsoSung: [[2210, 2400]]);
+        MockServiceStructureService::useStructure(ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('song', 130.0, 410.0),
+            $this->section('bible_reading', 420.0, 590.0),
+            $this->section('sermon', 600.0, 2200.0),
+            $this->section('song', 2210.0, 2400.0),
+        ], ['Fixture structure.'], 'mock'));
+
+        $this->runJob($log);
+
+        $song = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->where('section_type', 'song')
+            ->orderBy('section_order')
+            ->firstOrFail();
+
+        $this->assertEqualsWithDelta(160.0, $song->start_time, 5.0);
+        $this->assertLessThanOrEqual(170.0, $song->start_time);
+        $this->assertStringContainsString('Start trimmed', implode(' ', $song->metadata?->toArray()['ai_notes'] ?? []));
+    }
+
+    /**
      * §1301's shape reaching the pipeline: a section typed as something other than a song whose
      * audio is sung without a break and whose transcript holds almost no words. The structure
      * stage records that it reads as sung; the extraction planner decides what it means, because
@@ -1130,13 +1165,18 @@ class DetectServiceStructureTest extends TestCase
      * An RMS log for the stored transcript's 2430 s recording, sampled every 0.1 s: speech with
      * a half-second pause every 3 s throughout, except unbroken singing between the given times.
      */
-    private function storeRmsLog(MediaProcessingLog $log, int $sungFrom, int $sungTo): void
+    /**
+     * @param  list<array{0: int, 1: int}>  $alsoSung
+     */
+    private function storeRmsLog(MediaProcessingLog $log, int $sungFrom, int $sungTo, array $alsoSung = []): void
     {
         $lines = [];
+        $sung = [[$sungFrom, $sungTo], ...$alsoSung];
 
         for ($tenth = 0; $tenth < 24300; $tenth++) {
             $time = $tenth / 10;
-            $level = $time >= $sungFrom && $time < $sungTo ? -18.0 : (fmod($time, 3.0) < 2.5 ? -25.0 : -60.0);
+            $isSung = array_filter($sung, static fn (array $span): bool => $time >= $span[0] && $time < $span[1]) !== [];
+            $level = $isSung ? -18.0 : (fmod($time, 3.0) < 2.5 ? -25.0 : -60.0);
             $lines[] = sprintf('frame:%d pts:%d pts_time:%.1f', $tenth, $tenth * 800, $time);
             $lines[] = sprintf('lavfi.astats.Overall.RMS_level=%.1f', $level);
         }
