@@ -429,6 +429,107 @@ held-sermon repair work on these three runs. Blockers before wider repair:
 job retrying an unplaced-hold refusal. Holds on all three runs remain for operator
 review; nothing is authorised for release.
 
+**Blocker (b) fixed, `690ae1d5d`, 2026-09-18.** An unplaced content hold is a
+deterministic refusal, and the exception escaped `handle()`, so the queue's three
+tries re-ran the detector — 1314 paid for three detections in thirteen minutes,
+and each retry was a fresh sample that could have re-created the very span the
+hold was placed against, satisfying the guard by regenerating the defect. The job
+now catches the refusal, records the refused replacement under
+`service_structure_proposal` with `refused_reason: unplaced_content_hold` (so it
+is distinguishable from a proposal that failed validation — this one *passed*),
+and parks the run at `manual_review_required` with reason `unplaced_content_hold`.
+That code is deliberately new: neither `ProcessingPhaseRegistry` nor
+`HistoricVideoImporter` treats it as re-derivable, so nothing re-detects it
+automatically. No speech segments are offered and the chain stops. A reconcile
+refusal leaves the completed run and its sections untouched. Both blockers in the
+canary verdict are now closed.
+
+**Merge-case hold persistence: verified, no defect, `8d98e45b8`, 2026-09-18.**
+The canary left merges uncovered. Both merge paths turn out to be correct already:
+`ServiceSectionSyncService::withContentHolds()` filters *every* held span
+overlapping each incoming section and dedupes the holds on `(reason, evidence)`,
+so a merge lands all of them on the surviving row and a split holds both new
+rows; `MergeAdjacentServiceSections` and `SongContinuationMerger` each carry
+before removing. Four missing cases are now pinned: a re-detection merging two
+held songs keeps both reasons; a re-detection splitting a held macro song holds
+both halves (over-holding costs a release click, under-holding publishes content
+an operator proved wrong — the asymmetry is irreversible); a manual merge keeps
+the survivor's own hold alongside the carried one; and because the action
+promotes the *longer* section to primary, the row passed in as primary can be the
+one deleted, so a held shorter section still has its hold carried first.
+
+<a id="run-1340-transcript-regression"></a>
+
+### 1340's regression is a transcript regression — measured 2026-09-17/18
+
+**Not a detection or media fault. The macro-song split worked (447 s → 195 s).**
+The source recording has a genuine 240-second hole: the left channel is dead
+throughout (−107 to −111 dB), the right sits on a −52 dB noise floor to 1520, and
+**1520–1580 is absolute digital silence (`-inf`)**. There is no preached reading
+in the recording, so `structure_missing_preached_reading` is a true statement
+about the source, not a processing defect.
+
+Today's fresh pass filled that hole with **eight consecutive 30-second
+`Thank you.` cues, 1355.1 → 1595.1**. The pathology detector did catch it (8 cues
+≥ 6; 240 s ≥ 120 s) and banked `1355.08–1595.06` as `retranscription_failed`, so
+the in-pipeline retry failed too. **But the loop's final cue overran the
+resumption of speech.** Speech restarts at ~1576 (source RMS −26.6 dB, peak
+−0.01 dB) and the filler ran to 1595.1, swallowing it; normalisation stripped the
+filler, leaving a hole, so the sermon could only start at 1595. Independent local
+Whisper on the source at 1555–1625, temperature 0: *"…tells the story of a woman
+living in France who, when she was young, wrote lots of promises from the Bible on
+little pieces of paper."* The sentence is real and in the source.
+
+**So an "unobservable window" is not necessarily unobservable content.** The
+window's bounds are the *loop's* cue bounds, and a loop's last cue can extend past
+the point where speech resumes. The existing reading — blind windows are ASR loops,
+not lost evidence — holds for a window's interior and breaks at its trailing edge,
+which is exactly where a sermon starts.
+
+**A re-transcription was discarding previous recovery.** The recovery replay
+repoints a run *at* the recovered artifact, so a fresh pass writing
+`normalized.json` silently reverts it. Measured: **146 live runs carry a
+`transcript_recovery_replay` stamp, and exactly the five re-run on 09-17 (948,
+1009, 1274, 1303, 1340) now point at a plain `normalized.json`** — each stamp now
+misdescribes its run. The recovered files survive on disk, so it is reversible.
+Checked before acting: **1343, 1258 and 980 carry no stamp and no recovered
+artifact on disk**, so the three pending re-transcriptions are not exposed.
+Evidence: `storage/scratch/recovery-exposure-20260917.php`,
+`recovery-loss-v2-20260917.php` and `recovery-loss-20260917.json`.
+
+**Operator ruling, 2026-09-18: fix the retry window first, then add the fallback.**
+
+**Retry window fixed, `c933889b9`.** `PathologicalWindowSoundSpans` narrows a
+window to the spans whose RMS clears −45 dB (bridging pauses under 5 s, dropping
+spans under 4 s, padding by 2 s), and recovery decodes those instead of the whole
+window — a 240-second clip that is five-sixths silence hands the model the very
+conditions that made it loop, while a 70-second clip around the speech edge
+decodes cleanly. A window with **no** sound is not decoded at all and is recorded
+`window_holds_no_sound`, not `retranscription_failed`: a silent stretch of the
+service is a property of the recording, a failed decode is unfinished work, and
+the acceptance accounting needs them apart. Two compatibility points: an
+unnarrowed window keeps the historic `…-recovery-N` artifact name that the replay
+addresses banked retries by (only a split window gains a sub-index), and
+`recoverUsing()` is untouched, so a replay still reproduces the decision its run
+actually made.
+
+**Superseded-transcript fallback landed, `7d6bbde95`.** `TranscribeFullService`
+reads the stored transcript before overwriting it and hands it to recovery, which
+consults it for any window still ending as `retranscription_failed`. Three limits:
+a window measured as holding no sound is not filled (an older transcript claiming
+speech there was hallucinating); a loop the older transcript had in the same window
+is not carried; and carried cues keep a window entry of their own, reason
+`carried_from_superseded_transcript`, because the text is real but did not come
+from this decode. One known limit: 1340's other lost cue (1347.3, *"And I will be
+able to find the way."*) falls *before* the banked window, so the fallback does
+not reach it — the window is the unit of repair, and reaching wider would overwrite
+new text on audio the fresh pass did read.
+
+**1340's repair is therefore a re-run on this code, not a span edit**, and
+§4299's content hold stops extraction until an operator names it
+(`--held-section=4299`). Not yet executed: workers still hold the pre-`c933889b9`
+code.
+
 **Blocker (a) fixed, `283a6cd90`, 2026-09-17.** When no sermon section is usable and
 the run has a content-held sermon, the resolver's fallback plan now carries reason
 `sermon_section_content_held` (with the held section ids), and `ExtractSermon` parks
@@ -567,8 +668,11 @@ appear at similar rates in old and new transcripts (111 in 1007's old text again
   song holds, 1303's §3858 hold and 1314's §3992 sermon hold all carried onto the
   re-detected sections, and the guard refused 1314 outright when §3994's held content
   ceased to exist. **Merges are still uncovered.**
-- [ ] Confirm the same across merges. Re-assess current evidence only after final
-  song bindings and boundaries are settled. No automatic clearance follows merely
+- [x] Confirm the same across merges. **Done 2026-09-18 (`8d98e45b8`): verified,
+  no defect.** Both merge paths already carry every covered hold and dedupe on
+  reason and evidence; merge, split, survivor's-own-hold and the longer-section
+  swap are now pinned by tests. Re-assess current evidence only after final song
+  bindings and boundaries are settled. No automatic clearance follows merely
   from a clean new detector result; adjudicate carried holds explicitly.
 - [x] Save canary results and failures against the exact code and artifacts. Done
   2026-09-17: `canary-20260917-*` and `redetect-20260917-*` under `storage/scratch`,
@@ -1870,13 +1974,83 @@ at 2% each side (minimum 5) and adjudicated in `tails-20260914-register.json`.
   run the full checklist plus the matrix rows on them, so that clearing a hold for
   its recorded reason does not release an unexamined row.
 
+### 4.1c BC-06 and BC-07 rulings — 2026-09-18
+
+**BC-06 — closed for the deterministic class (`ecfa94d31`).** A song section
+takes its identity *through its order-of-service item*; `service_sections` has no
+`song_id` column. §2722's item (11909) held the title "All of Us in Sin Were
+Dying" with `song_id` NULL while catalogue song 64 carries exactly that title, so
+the section read `song_match_type = confirmed` with nothing behind it. Census:
+**66 confirmed song sections linked to an unbound item, plus 12 with no item at
+all; every one `not_applicable`**, so containment was never at risk.
+
+Operator ruling: bind the deterministic matches, adjudicate the rest.
+`service-tracking:bind-confirmed-song-identities` walks only the items a confirmed
+section depends on and binds only `exact`, `praise_number`, `stripped_number`,
+`loose_title` and `alternate_title`. Deliberately **not**
+`service-tracking:link-songs`: its dry run over all 2,193 song items reports
+**389 links updated and 3 cleared**, far wider than this authorises.
+
+Applied: **55 bound, 66 → 11**. §2722 now resolves to song 64 and keeps its
+content hold (that hold is about the song's bounds, not its identity). The
+residue, held for adjudication and *not* bound, because a resemblance is not an
+identity and the corpus already holds sections `confirmed` against the wrong song:
+
+- **Inferred (7):** items 7092, 11564, 11912 (`first_line`); 11380, 11525, 11567,
+  11873 (`fuzzy`, 0.956–0.98).
+- **No catalogue match (4):** 11520 "Psalm 11 hymn", and — more surprisingly —
+  11720 "How Great Thou Art", 11753 "The Servant King", 11920 "Jesus Is Lord".
+  Those three look like **catalogue gaps**, not title problems, so they need a
+  catalogue decision rather than a match.
+
+**BC-07 — the census overturns the premise of the chosen option; the ruling needs
+re-asking.** The operator chose "rule that a catechism or named-figure
+presentation in the children's-talk slot IS a `childrens_talk`, retype §4684,
+census the rest". The census then showed that ruling cannot be applied by title
+**or** by item type:
+
+- **191 `other` sections over 120 s**; 107 runs have a long `other` and no
+  `childrens_talk`. All unpublished.
+- A title screen puts 162 in a "presentation" bucket, but that bucket mixes
+  genuine children's teaching ("Joseph's reunion", "Tyndale and the Bible in
+  English", "Thomas Bilney") with **adult mission presentations** ("Release
+  International", "Operation Forgiveness presentation", "Persecution of
+  Christians in Nigeria"), an **ordinance** ("Baptism of Roy"), a **mis-typed
+  reading** (§38 "Bible Reading") and **adult exposition** ("Christ in 1 and 2
+  Samuel", "Nehemiah: pointing to Jesus"). Retyping the bucket would publish
+  those as children's talks — and children's talks are stored as sermons.
+- The OoS item is no better a signal: of the 61 that have one, **41 are
+  `presentations` (a `.pptx`), 9 `images`, 6 `media`, 4 `custom`, 1 `songs`**.
+  `other` on a long section means *"a projected item was showing"*, which says
+  nothing about whether the content is for children. §2721 only resolved because
+  its item was a `custom` entry literally titled "Heidelberg Catechism: the fall".
+
+**§4684 read by hand.** Its transcript is unmistakably a children's talk —
+"on a Sunday morning, just for a little while, we're looking at the heroes of
+faith", a joke that Augustine "didn't have anything to do with hippopotamuses",
+"he was a very naughty boy… he belonged to a gang" — and it sits at order 4,
+between the opening prayer and a song, well before the sermon at 1486: the
+children's-talk slot. **But the detector was right under its own rule.** The
+prompt requires a *structural* cue — children addressed, called forward or
+dismissed, or parents addressed about them — and §4684 has none; no dismissal
+follows it either. Register alone is what would sweep in the 162-strong bucket.
+
+So the open question is narrower than BC-07 was framed: **should a slide-backed
+series talk pitched at children, with no explicit address to or dismissal of
+children, be a `childrens_talk`?** Nothing was retyped, and §4684 stays `other`
+pending that ruling. Two consequences to weigh: keeping the rule means the
+detector is already correct and BC-07 closes with no retyping; relaxing it needs
+a cue narrow enough to exclude adult mission presentations, and the repair is then
+a prompt change plus a re-detection of run 1358, not a hand edit.
+
 ### 4.2 Close the transcript-loop blind spot
 
 - [x] Implement the BC-08 context-drift prevention: both local Whisper requests
   send `max_context=0` and `carry_initial_prompt=true`, recorded in the processing
   fingerprint (`7bed913ac`). Request tests prove propagation, not transcription
   accuracy; the seven-run experiment in §4.1b is separate measured evidence.
-- [ ] After readiness verification, re-transcribe 1343, 1258 and 980 through
+- [ ] After readiness verification, and **on workers running `7d6bbde95` or
+  later**, re-transcribe 1343, 1258 and 980 through
   the pipeline in the canary/bounded batches. **1314 is done (2026-09-17, §4.0a):**
   868 cues against 3712, its sermon text's period-per-word ratio 0.89 → 0.07, and
   its structure and media re-cut from the repaired transcript. Check full-service and saved sermon
@@ -2030,8 +2204,8 @@ immediately below the table governs their interpretation.
 | Held section candidates remain on the staging volume only (1221 §2718/§2719/§2721) | 17 September canary | Recorded; re-cut clips verified to new bounds | `section-publications/27{18,19,21}-*` on staging | Decide whether held candidates promote to quarantine before staging is retired |
 | One-word sentence drift and context-carried loops (1314, 1343, 1258; partial 980) | Blind BC-08 | Prevention implemented; pipeline recovery and wider sizing pending | `blind-20260916-comparison/bc08-20260917/` | §4.2: context options, four-run recovery, raw-transcript census and independent source checks |
 | Spoken hymn quotation typed as singing, cutting off sermon ending (1314 §3994/§3992) | Blind BC-01 | Specific response/decision and repaired ending pending; hold status to reconcile | `blind-20260916-comparison/blind-20260916-comparison-register.json` | Re-detect after transcript recovery; verify quotation retained in sermon; do not substitute the rejected broad unsung-song rule |
-| Performed song lacks linked song identity (1221 §2722) | Blind BC-06 | Livestream-item correction pending | Same blind register | Add to per-run binding repair; reconcile song usage after independent performance confirmation |
-| Children's talk typed `other` (1221 §2721, 1358 §4684) | Blind BC-07 | Operator classification ruling and scoped census pending | Same blind register | Settle catechism/presentation classification before retyping or counting missing outputs |
+| Performed song lacks linked song identity (1221 §2722) | Blind BC-06 | **Closed for the deterministic class 09-18** (`ecfa94d31`); 11 adjudications remain | Same blind register | See the BC-06 ruling below |
+| Children's talk typed `other` (1221 §2721, 1358 §4684) | Blind BC-07 | §2721 fixed by re-detection; **census done 09-18 and it overturns a bulk retype**; §4684 still open | Same blind register | See the BC-07 census below — the ruling needs re-asking |
 | Sermon ending possibly absorbed by song (1336 §4263/§4264) | Blind BC-05 | Unresolved; source replay required | Same blind register | Listen at 3320–3380; distinguish preaching from announcement and verify the repaired sermon ending |
 | Sermon transcript loops (≥5 repeats, ≥40 words) | P8-Q14 | Implemented: standard screen; shorter/varying cases remain §4.2 | — | extend per §4.2 |
 | Short, few-word and number-varying loops | 09-10 review | Unbuilt extension | `correctness-20260910-unheld-short-loops` | §4.2 |
@@ -2699,7 +2873,7 @@ read-only; register `hintresolve-20260916-blast-radius.json`). Nothing was writt
 | Gate | State | Required evidence to turn green |
 |---|---|---|
 | Processing | GO | Definitive passes drained; three failures remain explicit rather than hidden. |
-| Queued repair readiness | **NO-GO** | Workers were restarted onto the current code twice on 2026-09-17 with idle queues, and §4.0a's canary passed on source-content alignment and hold persistence. Still required: the device-playback leg, which no 17 September check covered; a response to the detection job retrying an unplaced-hold refusal; and a per-run check of the sermon opening after each re-run, since 1340 regressed 19 s while four siblings repaired. |
+| Queued repair readiness | **NO-GO** | Both canary blockers are now closed: the silent baseline re-cut (`283a6cd90`) and the detection job's retry of an unplaced-hold refusal (`690ae1d5d`). Merge-case hold persistence is verified (`8d98e45b8`), and 1340's regression is explained and fixed at source — a looping retry over a five-sixths-silent window (`c933889b9`) plus the superseded-transcript fallback (`7d6bbde95`). Still required: **workers restarted onto `7d6bbde95`** (they hold pre-fix code, so no re-run may be dispatched yet); the **device-playback leg**, which no check has covered; and a per-run check of the sermon opening after each re-run. |
 | Containment | **NO-GO** | The six disputed sermons and their seven song videos were held on 2026-09-16 and the sections those holds left published were demoted the same hour (§4.4), so the identity gate-clear gap is closed and published-while-held is zero again. Remaining: the current-policy and unassessable residue. Containment is not adoption — the three pairs are still undecided, and the holds are what make deferring them safe. |
 | Content acceptance | **NO-GO** | §4.1b's strengthened stopping rule passes: scoped coverage and limitations, omission reconciliation, independent source evidence, content handoffs, controlled variations/interruption tests, tail and whole-output reviews. Every §4.3a class has a tested response or recorded decision; detector errors and review burden meet predeclared criteria on reserved data. The fresh release-membership sample includes repaired/held runs, reports uncertainty and unassessable cases, and meets its separate predeclared limits. Evidence is bound to current artifacts; operator rulings are recorded. |
 | Public release | **NO-GO** | Phase 9 convergence, QA and actual-server browser checks pass, then the operator signs an exact era-sized batch. Actual-destination delivery checks are scheduled within the authorised release's rollback window and must pass to close observation. |
