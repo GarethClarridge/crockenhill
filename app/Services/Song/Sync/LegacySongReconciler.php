@@ -188,10 +188,6 @@ class LegacySongReconciler
             $selectColumns[] = 'praise_number';
         }
 
-        if (Schema::hasColumn('songs', 'alternative_title')) {
-            $selectColumns[] = 'alternative_title';
-        }
-
         if (Schema::hasColumn('songs', 'alternate_title')) {
             $selectColumns[] = 'alternate_title';
         }
@@ -217,7 +213,7 @@ class LegacySongReconciler
     {
         $variants = [];
 
-        foreach (['title', 'alternative_title', 'alternate_title'] as $attribute) {
+        foreach (['title', 'alternate_title'] as $attribute) {
             $normalizedTitle = $this->normalizedSongTitle($song->getAttribute($attribute));
 
             if ($normalizedTitle === null || in_array($normalizedTitle, $variants, true)) {

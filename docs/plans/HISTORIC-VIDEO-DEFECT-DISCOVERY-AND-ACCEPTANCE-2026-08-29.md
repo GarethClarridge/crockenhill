@@ -527,12 +527,39 @@ new text on audio the fresh pass did read.
 
 **1340's repair is therefore a re-run on this code, not a span edit**, and
 §4299's content hold stops extraction until an operator names it
-(`--held-section=4299`). **Not yet executed.** All six worker containers have
-been up 13 hours (started 17:10 UTC on 09-17, so they carry `283a6cd90`-era
-code), and all queues are empty. They must be restarted onto `7d6bbde95` or
-later before any re-run is dispatched, or the run will repeat the same loss.
+(`--held-section=4299`). All six worker containers had been up 13 hours
+(started 17:10 UTC on 09-17, so they carried `283a6cd90`-era code), and all
+queues were empty. They had to be restarted onto `7d6bbde95` or later before any
+re-run was dispatched, or the run would repeat the same loss.
 Full suite after these changes: **8,273 tests, 90,288 assertions, no failures**;
 Pint and PHPStan clean.
+
+**Executed 2026-09-18, and the regression is repaired.** Workers were restarted
+onto `1c65dd104` first (all six confirmed at ~10 s elapsed; every queue list,
+delayed zset and reserved zset measured 0 beforehand, so nothing was dropped),
+then run 1340 was re-transcribed at 11:10 UTC through
+`storage/scratch/retranscribe-20260918-1340-dispatch.php` — `start()`, not
+`retry()`, inside the staging context, with a staged-source guard. Outcome:
+
+- **The lost sentence is back.** The transcript now carries *"Montgomery Boyce
+  tells the story of a woman living in…"* at **1582.3**, and §4299 starts at
+  **1582** — on the cue, not after it. Sermon start 1595 → 1582; end 3279.
+- **No window survived as `retranscription_failed`.**
+  `service_transcript_unobservable_windows` is now `[]`, where the 09-17 pass
+  banked `1355.08–1595.06`. The narrowed retry decoded the sound it was aimed at,
+  so the superseded-transcript fallback was not needed here.
+- **The hold behaved as designed.** Extraction parked the run at
+  `manual_review_required` naming the repair, rather than cutting a truncated
+  sermon. The span was then checked against the transcript *before* authorising
+  the re-cut, and `sermons:re-extract … --held-section=4299` dispatched at
+  11:23 UTC with §4299's hold retained.
+- Still true of the source, and not a processing defect: there is no preached
+  reading in the recording, so 1339.6–1582 stays unsectioned and
+  `structure_missing_preached_reading` stays raised. The second lost cue at
+  1347.3 falls before the banked window and is still not reached, as recorded.
+
+Baseline `storage/scratch/snapshot-1340-20260918-before.json`.
+**So the macro-song class is now 5 of 5 repaired.**
 
 **Blocker (a) fixed, `283a6cd90`, 2026-09-17.** When no sermon section is usable and
 the run has a content-held sermon, the resolver's fallback plan now carries reason
@@ -660,6 +687,15 @@ appear at similar rates in old and new transcripts (111 in 1007's old text again
     a full-length file, the planned span starts, range requests over the actual
     server, and cache freshness after replacement. The temp disk was overridden to
     `local` for the artifact, so it was not produced on the staging volume.
+  - **iOS playback closed as an accepted limitation, 2026-09-18 (operator): "I
+    don't have an iOS device, so I think we've probably done as much testing as is
+    reasonable."** The substantive risk — whether a transport-stream join plays and
+    seeks — was answered on macOS Safari, and 192 of 438 completed runs are
+    `concat_spans` joined the same way. This is an accepted limitation, not a
+    passed test: iOS Safari remains unexercised. The residue that does **not**
+    depend on a device (range requests over the real server, cache freshness after
+    replacement, a real repaired output and a song clip) stays required and moves
+    to the release checks in §4.5.
 - [ ] **Restore the staging volume before any extraction (found 2026-09-16).**
   `MEDIA_PROCESSING_TEMP_DISK=historic_temp` roots at `/mnt/historic-work/temp`,
   and that bind mount is stale: `mount` lists it, `ls` reports it missing and the
@@ -2007,6 +2043,73 @@ identity and the corpus already holds sections `confirmed` against the wrong son
   Those three look like **catalogue gaps**, not title problems, so they need a
   catalogue decision rather than a match.
 
+**That last reading was wrong — corrected 2026-09-18 (operator).** They are not
+catalogue gaps. The catalogue files those hymns under their **first lines**:
+"How Great Thou Art" is song 712, titled `O Lord My God #190`; "The Servant King"
+is song 254, titled `From Heaven You Came #396`. What is missing is the name the
+church actually uses, and `songs.alternate_title` is the field for it.
+
+**Why the field does not hold it: 686 of 799 populated alternate titles are
+derivable noise.** They are the song's own title with its Praise! number moved to
+the other end (`O Lord My God #190` → `#190 O Lord My God`), and
+`SongTitleResolver::looseTitleKeys()` already indexes the canonical key, the
+number-stripped canonical key and the raw title — so those 686 values add no
+lookup key that the title did not already give. Song 712 is the whole case in one
+row: an item titled "O Lord My God" binds by `stripped_number`, an item titled
+"How Great Thou Art" does not bind at all, and the one slot that could fix it is
+spent storing the form that already works. Only 113 alternate titles carry
+genuinely different words. **No new table is needed** — the field is right, the
+data is wrong.
+
+**Corpus measurement, not sampling.** The resolver was run read-only over all
+**65 unbound song items** (3.0% of 2,193;
+`storage/scratch/probe-unbound-20260918.php`):
+
+| Outcome | n | What it needs |
+|---|---|---|
+| Resolves deterministically today (`stripped_number` 16, `loose_title` 9, `exact` 3, `first_line` 5, `praise_number` 1) | **34** | nothing but a binding pass |
+| `fuzzy` | 7 | adjudication, as with the BC-06 residue |
+| Not a catalogue song ("Song" ×4, "Opening songs" ×2, "Opening worship song", "Happy Birthday", "Birthday song") | 9 | no action |
+| **Needs a real alternate title** | **6** | the correction below |
+| Ambiguous — "Jesus Is Lord" ×2 | 2 | 385/504/505 all plausible; the resolver is right to refuse |
+| Not found in the catalogue at all | 7 items, 6 distinct titles | "My God How Wonderful Thou Art" (×2), "Welcome Home", "Great Providence of Heaven", "Praise the Word from everlasting", "God's Love to Be with You", "Psalm 11 hymn" — **these** are the genuine catalogue question |
+
+**The correction belongs in OpenLP, not here — ruled 2026-09-18.**
+`SongCatalogSyncService` writes `alternate_title` straight from the OpenLP row on
+every `service-tracking:sync-songs`, and **all 1,160 live songs are sync-managed**
+(every one carries `import_metadata.source_representative_song_id`). A local
+`UPDATE` would therefore be reverted silently at the next sync. OpenLP is the
+system of record for the catalogue, so that is where the field is corrected. The
+six edits, each verified against the catalogue's own lyrics (a refrain phrase
+found in `lyrics_plain`), not guessed from the name:
+
+| Song | Catalogue title | `alternate_title` should become |
+|---|---|---|
+| 712 | `O Lord My God #190` | How Great Thou Art |
+| 254 | `From Heaven You Came #396` | The Servant King |
+| 644 | `My Jesus My Saviour #319` | Shout to the Lord |
+| 606 | `Lord You Were Rich #366` | Thou Who Wast Rich Beyond All Splendour |
+| 996 | `We Trust In You #769` | We Rest On Thee |
+| 980 | `We Are Here To Praise You #200` | We Are Here To Praise Him |
+
+The last three are the same hymn under an archaic or modernised text (Praise! 366,
+769 and 200 respectively), which is why one catalogue row legitimately answers to
+both names. Applied here, only `alternative_title` was dropped (below); **no alias
+value was written locally**, precisely because it would not survive.
+
+**`alternative_title` dropped, 2026-09-18.** A legacy twin of `alternate_title`
+that no code wrote and **0 of 1,160 rows populated**. `LegacySongReconciler`
+already guarded its only read with `Schema::hasColumn()`, so it was written to
+survive removal; that guard and its `legacyTitleVariants()` entry are gone with
+it, along with its line in `HistoricNormalOutputContract`.
+
+**Not done, and deliberately not expanded into:** the 34 items that already
+resolve are a binding pass of their own. 29 fall under the match types BC-06
+authorised (`exact`, `praise_number`, `stripped_number`, `loose_title`,
+`alternate_title`); the 5 `first_line` matches do not, and neither do the 7
+`fuzzy`. `service-tracking:link-songs` remains far wider than this authorises
+(389 links updated, 3 cleared on a dry run) and is still not the instrument.
+
 **BC-07 — the census overturns the premise of the chosen option; the ruling needs
 re-asking.** The operator chose "rule that a catechism or named-figure
 presentation in the children's-talk slot IS a `childrens_talk`, retype §4684,
@@ -2046,6 +2149,55 @@ pending that ruling. Two consequences to weigh: keeping the rule means the
 detector is already correct and BC-07 closes with no retyping; relaxing it needs
 a cue narrow enough to exclude adult mission presentations, and the repair is then
 a prompt change plus a re-detection of run 1358, not a hand edit.
+
+**Reframed 2026-09-18 (operator); the decision is parked for a later session.**
+The operator's reading is that differentiating a "children's talk" is hard because
+the *category* is wrong, not because the detector is weak: what the corpus holds
+is **non-sermon talks**, some of which are aimed at children. The proposal is a
+`short_talk` category covering all of them.
+
+That fits the evidence better than either BC-07 option. The 162-strong bucket is
+**heterogeneous by audience but homogeneous by structure** — a projected item, not
+the sermon, substantial length — which is exactly why a structural cue can find it
+and an audience rule cannot. It also matches what the OoS item says: `other` on a
+long section means *"a projected item was showing"*, and 41 of the 61 that have an
+item are `presentations`.
+
+**The codebase already has the seam this needs.** Two axes exist and are presently
+conflated:
+
+- `ServiceSectionType` — **detection**: what the detector can see from structure.
+- `SermonContentType` (`sermon` | `childrens_talk`) — **publication**: what
+  `ChildrensCornerController` filters on to build the public Children's Corner.
+
+So `short_talk` can be added to the *detection* axis without touching a public
+surface: the detector stops being asked to judge audience, and the audience call
+moves to approval time, where a human makes it once against material already in
+front of them. That also removes the asymmetry driving BC-07 — retyping §4684 to
+`childrens_talk` is presently a *publication* act, because children's talks are
+stored as sermons.
+
+**The open question is presentation, and it is a product decision, not a detection
+one.** There are two destinations today and no third, and all 191 long `other`
+sections are unpublished — so the status quo is that none of this material is
+presented, and nothing breaks by leaving it so. The options differ in what they
+commit the site to:
+
+- **Internal type only.** `short_talk` makes the corpus honest and the review
+  queue accurate, creating no public obligation. Cheapest and reversible.
+- **A third public surface** ("Talks"). Most work: routes, SEO, listing, and a
+  name that means something to a visitor.
+- **Fold into the sermon listing** with a visible sub-label. No new surface, but
+  it changes what "Sermons" means to a visitor.
+
+**Weigh separately from category design:** the bucket contains an ordinance
+("Baptism of Roy") and named-individual mission presentations. That is materially
+different from preaching whatever it is called, and may carry consent
+considerations a sermon does not.
+
+Nothing is retyped and §4684 stays `other`. **This blocks nothing:** `short_talk`
+as an internal type is separable from the presentation question, and the 191
+sections stay unpublished either way.
 
 ### 4.2 Close the transcript-loop blind spot
 

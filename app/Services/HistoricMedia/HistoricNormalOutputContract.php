@@ -478,7 +478,7 @@ class HistoricNormalOutputContract
                 nullable: ['canonical_key'],
                 excluded: [
                     'id', 'slug', 'praise_number', 'author', 'lyrics', 'copyright', 'created_at', 'updated_at',
-                    'alternative_title', 'current', 'notes', 'major_category', 'minor_category',
+                    'current', 'notes', 'major_category', 'minor_category',
                     'first_line_key', 'alternate_title', 'lyrics_xml', 'lyrics_plain', 'verse_order',
                     'comments', 'ccli_number', 'import_metadata', 'deleted_at',
                 ],
