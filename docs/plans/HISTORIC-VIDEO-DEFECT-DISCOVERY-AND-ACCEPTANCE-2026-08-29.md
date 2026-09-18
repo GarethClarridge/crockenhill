@@ -9,8 +9,13 @@
 > advanced substantially, but most media repairs await pipeline reprocessing.
 > The dated local census in §3 supersedes earlier counts. The six disputed
 > sermons and seven associated videos were contained on 16 September; source
-> adoption remains undecided. The nine-service source comparison is complete,
-> but interior semantic checks and independent acceptance remain open. Whisper
+> adoption remains undecided. The nine-service source comparison and 18 frozen
+> interior semantic windows are complete. One window found an already-contained
+> 11-second Scripture omission in run 950; none of the linked generated analyses
+> contradicted the source. BC-05 is also resolved: run 1336 does not preach into
+> the following song, but the stored sermon loses most of its final “Amen”; §4263
+> is now content-held. Independent song-audio listening, the frozen 15-run held
+> sample and reserved acceptance remain open. Whisper
 > context and song-edge fixes are implemented and now applied to nine runs
 > (canary 1221/1209/1314; macro-song re-runs 1060/1009/948/1274/1303/1340), not
 > to the corpus. Both canary blockers are fixed (`283a6cd90`, `690ae1d5d`), and
@@ -281,8 +286,9 @@ before exercising a repaired run. Work in this order:
    populations separate; inspect both whenever a shared rule changes.
 2. **Finish independent review without reusing discovery as acceptance.** The
    nine-service inventory/comparison in §4.1b is complete (1336, 1221, 936, 1097,
-   1066, 1314, 1358, 950, 1034). Complete outstanding interior semantic checks and
-   BC-05's source replay. Preserve recorded prior exposure; these cases now inform
+   1066, 1314, 1358, 950, 1034). **The 18 frozen interior semantic windows and
+   BC-05 source replay completed 2026-09-18 (§4.1d).** Preserve recorded prior exposure;
+   these cases now inform
    tuning and are regression evidence, not untouched evaluation. Add bounded positive and detector-negative
    audio checks for song loops and lyric edges; lyric agreement alone is not audio
    adjudication. Preserve the reserved evaluation set separately. This is discovery
@@ -2233,6 +2239,71 @@ Nothing is retyped and §4684 stays `other`. **This blocks nothing:** `short_tal
 as an internal type is separable from the presentation question, and the 191
 sections stay unpublished either way.
 
+**Split out 2026-09-18 — BC-07 is now owned by
+[`TALKS-AND-SHORT-TALK-DETECTION-2026-09-18.md`](TALKS-AND-SHORT-TALK-DETECTION-2026-09-18.md).**
+The operator took the four decisions there the same day: keep the `sermons` table and model
+and rename `SermonContentType` to `TalkType`; types are sermon, children's talk, partner
+update and testimony; one type-parameterised public surface (Children's Corner becomes its
+`childrens_talk` instance); non-sermon types members-only by default. Detection gains
+`short_talk` with a *proposed* type confirmed at approval. This plan keeps only the
+consequence that matters here: the 191 long `other` sections (§3 of that plan holds the
+census and the hand-read truth table) are not retyped by hand and stay unpublished until
+that plan's PR5 re-detects their 142 runs through the pipeline.
+
+### 4.1d Interior semantic review and BC-05 replay — 2026-09-18
+
+The nine discovery runs remain prior-exposed development evidence, not an untouched
+evaluation set. Before opening any stored transcript or generated analysis, two
+60-second interior windows per run were frozen using seed
+`historic-blind-interior-2026-09-18`. Each window was extracted from the original
+source (including source-timeline mapping for concatenated runs 936 and 950) and
+freshly decoded with local Whisper `large-v3-turbo`, `max_context=0` and
+`carry_initial_prompt=true`. The source-first outputs were then compared with the
+overlapping stored cues and the linked sermon title, reference, summary and points.
+The selection, extraction manifest, raw decodes, hashes and adjudication are under
+`storage/scratch/blind-20260918-*`.
+
+**Result: 18 windows — 13 preserve meaning, two carry contained minor discrepancies,
+one has a substantive omission, and two require actual listening.** Run 936 repeats
+“1 Peter chapter 1” four times where the fresh decode says it twice. Run 1097 says
+“reverence is made” twice for “reference is made”; the surrounding Bethel/Beth-Avon
+contrast preserves the intended meaning. Run 950's stored cues omit the complete
+approximately 11-second Hebrews 12:11 sentence between “we read” and “then in verse
+3”. Its title, reference, summary and points remain supported, and §726 already has
+`needs_manual_review` with `transcript_repetition_suspect`; publication is
+`not_applicable` and sermon 886 remains quarantined. No new exposure or hold is
+needed. The sung carol window in 1034 and the Ali/Alec proper-name disagreement in
+1358 are unassessable through text comparison alone. Fresh ASR is a second decode,
+not human listening, so neither is silently counted as a pass.
+
+**BC-05 is resolved, and the original suspicion was slightly wrong.** Independent
+source replay over 3290–3440 in run 1336 places the closing prayer through 3326.38,
+“Amen” at 3327.16–3327.78, the song announcement at 3330.44 and singing at 3371.92.
+The sermon therefore does **not** continue into §4264, but its stored bound at
+3327.20 and the final stored MP3 omit most of the last word. Section 4263 was placed
+on a reversible content hold through `service:hold-section-content` with reason
+`sermon_closing_amen_truncated`; sermon 1261 remains quarantined. Evidence is
+`storage/scratch/bc05-1336-20260918.json`. Repair the end through the pipeline and
+retain the hold until the stored MP3 and video both contain the complete closing.
+
+The separate held-population sample is now frozen, not yet adjudicated. Seed
+`historic-held-other-dimensions-2026-09-18` drew 15 of 316 eligible completed,
+non-superseded, non-excluded historic runs with at least one held section:
+**1343, 1154, 971, 1321, 1172, 1194, 1299, 1030, 1087, 1338, 1135, 1255, 946,
+1336 and 1138**. Membership was saved before their details were opened in
+`storage/scratch/held-other-dimensions-20260918-selection.json`; the full checklist
+and matrix review remain due.
+
+Four bounded song-audio cases were likewise frozen and extracted before fresh audio
+inspection: loop positive 1034 §1465, loop detector-negative 1154 §3750, lyric-edge
+positive 1034 §1459, and lyric-edge detector-negative 929 §529. Their source clips,
+durations and SHA-256 hashes are recorded in
+`storage/scratch/song-audio-evaluation-20260918-selection.json`. Actual listening
+remains open: this review has no auditory playback channel, and ASR or agreement
+with the catalogue lyrics will not be substituted for independent audio
+adjudication. These four are also prior-exposed development cases; keep the reserved
+evaluation membership separate.
+
 ### 4.2 Close the transcript-loop blind spot
 
 - [x] Implement the BC-08 context-drift prevention: both local Whisper requests
@@ -2395,8 +2466,8 @@ immediately below the table governs their interpretation.
 | One-word sentence drift and context-carried loops (1314, 1343, 1258; partial 980) | Blind BC-08 | Prevention implemented; pipeline recovery and wider sizing pending | `blind-20260916-comparison/bc08-20260917/` | §4.2: context options, four-run recovery, raw-transcript census and independent source checks |
 | Spoken hymn quotation typed as singing, cutting off sermon ending (1314 §3994/§3992) | Blind BC-01 | Specific response/decision and repaired ending pending; hold status to reconcile | `blind-20260916-comparison/blind-20260916-comparison-register.json` | Re-detect after transcript recovery; verify quotation retained in sermon; do not substitute the rejected broad unsung-song rule |
 | Performed song lacks linked song identity (1221 §2722) | Blind BC-06 | **Closed for the deterministic class 09-18** (`ecfa94d31`); 11 adjudications remain | Same blind register | See the BC-06 ruling below |
-| Children's talk typed `other` (1221 §2721, 1358 §4684) | Blind BC-07 | §2721 fixed by re-detection; **census done 09-18 and it overturns a bulk retype**; §4684 still open | Same blind register | See the BC-07 census below — the ruling needs re-asking |
-| Sermon ending possibly absorbed by song (1336 §4263/§4264) | Blind BC-05 | Unresolved; source replay required | Same blind register | Listen at 3320–3380; distinguish preaching from announcement and verify the repaired sermon ending |
+| Children's talk typed `other` (1221 §2721, 1358 §4684) | Blind BC-07 | §2721 fixed by re-detection; **census done 09-18 and it overturns a bulk retype**; **split out 09-18 to the talks plan** | Same blind register | Owned by `TALKS-AND-SHORT-TALK-DETECTION-2026-09-18.md`; §4684 and the 191-section bucket are re-detected there (PR5), never retyped by hand |
+| Sermon ending possibly absorbed by song (1336 §4263/§4264) | Blind BC-05 | **Resolved and contained 2026-09-18:** no preaching enters the song; final “Amen” is truncated and §4263 is held | `bc05-1336-20260918.json` | Repair the sermon end through the pipeline; verify the complete closing in stored MP3 and video before clearing the hold |
 | Sermon transcript loops (≥5 repeats, ≥40 words) | P8-Q14 | Implemented: standard screen; shorter/varying cases remain §4.2 | — | extend per §4.2 |
 | Short, few-word and number-varying loops | 09-10 review | Unbuilt extension | `correctness-20260910-unheld-short-loops` | §4.2 |
 | Sparse 30 s-cadence transcript loss | §4.1a r1 | Unbuilt | `residue-20260913-cadence.py` | §4.2 |
