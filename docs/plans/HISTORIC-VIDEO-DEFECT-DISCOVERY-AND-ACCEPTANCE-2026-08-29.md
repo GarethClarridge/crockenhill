@@ -4,7 +4,7 @@
 > once bulk processing was complete and the remaining work became discovering,
 > containing and detecting defects, then proving acceptance.
 
-> **Status — 2026-09-17: bulk processing is drained; containment, content
+> **Status — 2026-09-18: bulk processing is drained; containment, content
 > acceptance and public release remain NO-GO.** Prevention and containment have
 > advanced substantially, but most media repairs await pipeline reprocessing.
 > The dated local census in §3 supersedes earlier counts. The six disputed
@@ -13,13 +13,17 @@
 > but interior semantic checks and independent acceptance remain open. Whisper
 > context and song-edge fixes are implemented and now applied to nine runs
 > (canary 1221/1209/1314; macro-song re-runs 1060/1009/948/1274/1303/1340), not
-> to the corpus. Readiness was verified and the workers restarted twice on
-> 17 September; re-verify before the next batch rather than citing those numbers.
-> **The repair canary passed on content** (§4.0a) and its two blockers are recorded:
-> the silent baseline re-cut of held sermons is fixed (`283a6cd90`); the detection
-> job still retries an unplaced-hold refusal. **Device playback remains unproven** —
-> every 17 September check was transcription and stream measurement, not playback.
-> No production state was inspected in this review.
+> to the corpus. Both canary blockers are fixed (`283a6cd90`, `690ae1d5d`), and
+> merge-case hold persistence is verified (`8d98e45b8`). Workers were restarted
+> onto `1c65dd104` before 1340's successful repair on 18 September; re-verify their
+> code, queues and mounts before the next batch rather than citing that snapshot.
+> macOS Safari playback across a transport-stream join passed; iOS is an accepted
+> untested limitation. Actual-server range, repaired-output, song-clip and cache
+> checks remain release evidence, not queued-repair prerequisites. A read-only
+> comparison of 948/1009/1274/1303 found no material sermon-text loss; 1303 lost
+> genuine sung evidence outside its sermon, but that song remains held and replaying
+> the older whole transcript would restore substantial loop artefacts. No production
+> state was inspected in this review.
 >
 > Phases 0–8, their implementation diary, pass measurements and earlier reviews
 > have moved unchanged to the
@@ -33,11 +37,12 @@
 
 **Original date:** 2026-08-29
 **Last condensed:** 2026-09-12
-**Last reviewed:** 2026-09-17 — recent commits and saved blind-review evidence
-reconciled with the execution tasks. The database census remains dated 16 September;
-this review does not refresh it. Prioritise bounded transcription/boundary repair
-and independent verification before dependency-grouped reruns. Earlier measurements
-and operator rulings remain evidence, not current status where superseded.
+**Last reviewed:** 2026-09-18 — execution state, current worker snapshot and the
+four-run transcript-recovery comparison reconciled with the execution tasks. The
+database census remains dated 16 September; this review does not refresh it.
+Prioritise independent verification and bounded transcription/boundary repair before
+dependency-grouped reruns. Earlier measurements and operator rulings remain evidence,
+not current status where superseded.
 
 ## 1. Outcome and boundaries
 
@@ -134,13 +139,12 @@ substituted for these relationship-defined populations.
   runs. Runs **1004, 1143 and 1145** remain unexcluded and need terminal
   dispositions. `external_disabled` remains its notification mode; this is not a
   fresh end-to-end notification audit.
-- **Worker readiness is NO-GO for queued repairs.** All six long-lived queue
-  processes started on **12 September**: video, historic FFmpeg, Whisper and
-  orchestration at 00:21:27 UTC; general and historic LLM at 02:06:45 UTC. They
-  predate the 15–16 September changes. Shared files on disk do not refresh classes
-  already loaded into PHP workers. No restart was performed during this review.
-  Evidence: `plan-review-20260916-workers.txt`. The canary must first verify idle
-  queues, restart the relevant workers and record fresh process/code evidence.
+- **Worker readiness is GO only for a freshly preflighted bounded repair.** The
+  16 September NO-GO snapshot is superseded: all six workers were restarted onto
+  `1c65dd104` before 1340's successful repair on 18 September, and the current
+  container snapshot shows all six running. This is not reusable evidence for a
+  later dispatch. Recheck empty queued/reserved/delayed sets, mounted staging/temp
+  paths, process starts and loaded code immediately before each bounded batch.
 
 **Status vocabulary used below:** *implemented* means the response exists in code;
 *applied* means named existing rows were processed through it; *verified* names the
@@ -150,11 +154,11 @@ repaired corpus, and a correct hold is not a confirmed defect.
 
 | Workstream | Implemented | Applied / verified on existing outputs | Remaining |
 |---|---|---|---|
-| Explicit holds and occasion exclusions | Yes; holds survive sync and merges | Named holds, identity containment, four occasion exclusions and publication demotions applied; dated state above | Reconcile blind-review holds; held-then-reprocessed canary; source-adoption decisions |
+| Explicit holds and occasion exclusions | Yes; holds survive sync and merges | Named holds, identity containment, four occasion exclusions, publication demotions and held-then-reprocessed canary applied; dated state above | Current-policy residue; source-adoption decisions |
 | Song boundary/loop evidence | Version 5, input fingerprints, lyric-edge and loop risks | Successive backfills and demotions recorded in §4.3a | Current-policy scope/limitations; independent audio evaluation; identity confirmation |
-| Smart cut, MP3, source audio format | Yes, including `fda414eb2` source-frame correction | Tests and limited real-source measurements; no completed corpus repair pass recorded | Device/source-content canary, then affected media reruns |
+| Smart cut, MP3, source audio format | Yes, including `fda414eb2` source-frame correction | Tests, source-content canary and limited real-source measurements; no completed corpus repair pass recorded | Affected media reruns; actual-server delivery checks at release |
 | Structure and song identity | Prompt seconds, closing prayer/reading retention, sustained singing, mistyped sung-item risk, catalogue-title priority and 17 September speech-edge trim | Retrospective measurements and tests; trim replay is not a corpus write | Per-run re-detection/re-resolution, then extraction and derived-item repair; speech-edge exceptions |
-| Local Whisper decoding | Context carry disabled; initial prompt retained on both request paths; options fingerprinted | Seven-run experiment and MP3-form check; request/fingerprint tests | Pipeline retranscription of 1314/1343/1258/980; wider raw-transcript census; dependent structure/analysis and independent audio checks |
+| Local Whisper decoding | Context carry disabled; initial prompt retained on both request paths; options fingerprinted | Seven-run experiment, MP3-form check, 1314/1340 repairs and four-run recovery reconciliation; request/fingerprint tests | Pipeline retranscription of 1343/1258/980; wider raw-transcript census; dependent structure/analysis and independent audio checks |
 | Video-quality detector | Dead-picture coverage and owning-run evidence | 48 prior rejections reassessed (28 approve/19 reject/1 review); seven prior approvals moved to review | 862 where its output lives; 897/1005 unassessed; source-versus-cut black-picture causes; independent negatives |
 | Acceptance and release | Existing signed release machinery | Nine-service source inventories compared; acceptance incomplete; no new release authorised | Interior semantic review, fresh reserved evaluation, canary, bounded repairs, operation closeout, exact-membership QA and delivery |
 
@@ -284,8 +288,10 @@ before exercising a repaired run. Work in this order:
    adjudication. Preserve the reserved evaluation set separately. This is discovery
    and validation, not a nine-service claim of corpus accuracy.
 3. **Prove one bounded repair canary (§4.0a).** **Done 2026-09-17 for source-content
-   alignment and hold persistence; device playback is still unproven and remains
-   required before a bulk rerun.** The canary also proved that re-running is not
+   alignment and hold persistence.** macOS Safari playback across the shared join
+   path passed; iOS is an accepted untested limitation. The remaining actual-server,
+   repaired-output, song-clip and cache checks stay in §4.5's release evidence rather
+   than blocking bounded repairs. The canary also proved that re-running is not
    automatically safe for a sermon span (1340 below), so every re-run is checked
    against its opening words, not just its job status. Cover the Whisper
    context fix and changed song boundaries as well as the latest smart-cut correction;
@@ -497,6 +503,35 @@ artifact on disk**, so the three pending re-transcriptions are not exposed.
 Evidence: `storage/scratch/recovery-exposure-20260917.php`,
 `recovery-loss-v2-20260917.php` and `recovery-loss-20260917.json`.
 
+**Four-run reconciliation — 2026-09-18, read-only.** Re-running the exposure and
+window comparisons against the mounted staging volume still finds exactly five
+newer `normalized.json` artifacts and no missing window of 30 seconds or more.
+The database still points 948, 1009, 1274 and 1303 at those current normalized
+artifacts while retaining recovery stamps, so the stamps are stale evidence
+lineage rather than current transcript identity.
+
+- **948, 1009 and 1274 need no replay.** Current word counts are higher than the
+  recovered artifacts (8,378 vs 8,113; 7,341 vs 6,792; 8,120 vs 7,596). Every
+  recovered cue flagged inside their current sermon plans is present in the fresh
+  transcript with shifted timing; 1274's only exception is the fragment *"in the"*,
+  where the current transcript carries the complete surrounding sentence.
+- **1303's sermon needs no replay.** Its three substantive flagged sermon phrases
+  are present in the current transcript; the fourth is filler across the sermon
+  boundary. The lower total (7,263 vs 8,105 words) largely removes repetition:
+  service time 900–960 alone falls from 561 recovered words to 89 current words.
+- **1303 did lose genuine sung evidence outside the sermon.** An independent local
+  Whisper pass over source time 130–380 seconds confirms the Psalm 57 song and the
+  prayer after it; the current full-service transcript largely omits the singing.
+  This is contained: §3858 retains its content hold and its clip was withdrawn on
+  17 September. Repointing to the older whole transcript would reintroduce its loop
+  artefacts, so no replay or row change is justified. Preserve both generations and
+  use the source-backed song evidence when that hold is adjudicated.
+
+Evidence: `storage/scratch/recovery-reconciliation-20260918.json`. No database row,
+transcript pointer, hold, section or media asset was changed. A later re-transcription
+should supersede or clear the stale replay stamp explicitly; until then it must not
+be cited as proof of the current transcript's provenance.
+
 **Operator ruling, 2026-09-18: fix the retry window first, then add the fallback.**
 
 **Retry window fixed, `c933889b9`.** `PathologicalWindowSoundSpans` narrows a
@@ -640,19 +675,19 @@ appear at similar rates in old and new transcripts (111 in 1007's old text again
 - **Execution authorised 2026-09-17:** the operator requested this plan update,
   a commit to master, then the bounded canary. This authorises the necessary local
   pipeline repair and readiness work, not release or automatic hold clearance.
-- [ ] Include run 1314 for context drift and the quoted-hymn/sermon-ending challenge,
+- [x] Include run 1314 for context drift and the quoted-hymn/sermon-ending challenge,
   plus the smallest additional membership needed for a concatenated sermon, known
   MP3 tail loss, effective pre-existing hold and an eligible speech-edge trim.
   A still-wrong quoted-hymn boundary is a recorded canary failure, not permission
   to adjust it manually. Freeze exact membership and expected outcomes before writes.
-- [ ] Select the smallest set of runs covering a live content hold, a concatenated
+- [x] Select the smallest set of runs covering a live content hold, a concatenated
   sermon, a known MP3 tail loss and a changed song boundary. Cases may overlap;
   include different recording formats where the extraction path differs. Bind the
   selection to source hashes and expected content, with approvals/releases disabled.
-- [ ] Verify queue backlog/reserved jobs before restarting the relevant general,
+- [x] Verify queue backlog/reserved jobs before restarting the relevant general,
   video and historic workers. Record revision, fresh process starts and the code
-  seen in their mounted checkout. Current §3 processes are not ready. Restart is
-  a prerequisite to the canary, not evidence that existing outputs are repaired.
+  seen in their mounted checkout. Done for the canary and 1340 repair; repeat as a
+  prerequisite to each new batch, not as evidence that existing outputs are repaired.
   - *Working disk, 2026-09-16:* 2.6 GB free of 460 GB on the host, with MySQL live.
     The canary's re-encodes and transport-stream intermediates need headroom;
     free space before dispatching, not during.
@@ -666,8 +701,8 @@ appear at similar rates in old and new transcripts (111 in 1007's old text again
   the initial smart-cut defect. Verify no generation mixes old media with new text,
   bounds or verdicts. Missing/unreadable measurements are **unassessable**, never a
   successful cut; resolve or explicitly contain them before acceptance.
-- [ ] Play one repaired sermon and song clip on Safari/iOS, including seeking
-  across joins, then test the real served URLs/ranges and cache freshness in the
+- [x] Resolve the canary's device-playback decision, including seeking across joins;
+  test the real served URLs/ranges and cache freshness in the
   recorded environment. Local/device proof does not replace destination checks.
   - **Desktop Safari plays a transport-stream join cleanly (2026-09-16).** The
     unverified item in the 09-15 smart-cut note is answered for macOS Safari only.
@@ -683,7 +718,7 @@ appear at similar rates in old and new transcripts (111 in 1007's old text again
     with seeking across the join: **no stall, no desync**. This matters beyond one
     file because **192 of 438 completed runs (44%) are `concat_spans`** and every
     one is joined by `joinThroughTransportStream`.
-  - *Not covered by that result:* iOS Safari, a real *repaired* output, a song clip,
+  - *Not covered by that result:* a real *repaired* output, a song clip,
     a full-length file, the planned span starts, range requests over the actual
     server, and cache freshness after replacement. The temp disk was overridden to
     `local` for the artifact, so it was not produced on the staging volume.
@@ -696,13 +731,12 @@ appear at similar rates in old and new transcripts (111 in 1007's old text again
     depend on a device (range requests over the real server, cache freshness after
     replacement, a real repaired output and a song clip) stays required and moves
     to the release checks in §4.5.
-- [ ] **Restore the staging volume before any extraction (found 2026-09-16).**
-  `MEDIA_PROCESSING_TEMP_DISK=historic_temp` roots at `/mnt/historic-work/temp`,
-  and that bind mount is stale: `mount` lists it, `ls` reports it missing and the
-  parent shows `d?????????`, because the drive detached. Every extraction path
-  fails at `UnableToCreateDirectory` until it is back. Remount the host volume
-  (`diskutil verifyVolume /Volumes/Staging`); restarting Docker does not clear a
-  stale `/host_mnt` entry. This is a canary prerequisite alongside the workers.
+- [x] **Restore the staging volume before any extraction (found 2026-09-16).**
+  Restored for the 17 September canary and still mounted for the 18 September
+  read-only reconciliation. `MEDIA_PROCESSING_TEMP_DISK=historic_temp` roots at
+  `/mnt/historic-work/temp`; when the drive detached, the stale bind mount made
+  every extraction fail at `UnableToCreateDirectory`. Recheck the mount before
+  each batch: restarting Docker alone does not clear a stale `/host_mnt` entry.
 - [x] Confirm content holds follow the affected content after replacement, and
   unrelated holds remain. **Proven 2026-09-17 on replacement only**: 1221's three
   song holds, 1303's §3858 hold and 1314's §3992 sermon hold all carried onto the
@@ -3029,7 +3063,7 @@ read-only; register `hintresolve-20260916-blast-radius.json`). Nothing was writt
 | Gate | State | Required evidence to turn green |
 |---|---|---|
 | Processing | GO | Definitive passes drained; three failures remain explicit rather than hidden. |
-| Queued repair readiness | **NO-GO** | Both canary blockers are now closed: the silent baseline re-cut (`283a6cd90`) and the detection job's retry of an unplaced-hold refusal (`690ae1d5d`). Merge-case hold persistence is verified (`8d98e45b8`), and 1340's regression is explained and fixed at source — a looping retry over a five-sixths-silent window (`c933889b9`) plus the superseded-transcript fallback (`7d6bbde95`). Still required: **workers restarted onto `7d6bbde95`** (they hold pre-fix code, so no re-run may be dispatched yet); the **device-playback leg**, which no check has covered; and a per-run check of the sermon opening after each re-run. |
+| Queued repair readiness | **CONDITIONAL GO** | Both canary blockers are closed (`283a6cd90`, `690ae1d5d`), merge-case hold persistence is verified (`8d98e45b8`), and 1340's transcript regression is repaired (`c933889b9`, `7d6bbde95`). Workers were restarted onto `1c65dd104` before that repair, and macOS Safari join playback passed; iOS is an accepted limitation. Every new bounded batch must still pass an immediate queue/mount/worker-code preflight and verify each sermon opening against source speech. Actual-server range, repaired-output, song-clip and cache checks remain release evidence. |
 | Containment | **NO-GO** | The six disputed sermons and their seven song videos were held on 2026-09-16 and the sections those holds left published were demoted the same hour (§4.4), so the identity gate-clear gap is closed and published-while-held is zero again. Remaining: the current-policy and unassessable residue. Containment is not adoption — the three pairs are still undecided, and the holds are what make deferring them safe. |
 | Content acceptance | **NO-GO** | §4.1b's strengthened stopping rule passes: scoped coverage and limitations, omission reconciliation, independent source evidence, content handoffs, controlled variations/interruption tests, tail and whole-output reviews. Every §4.3a class has a tested response or recorded decision; detector errors and review burden meet predeclared criteria on reserved data. The fresh release-membership sample includes repaired/held runs, reports uncertainty and unassessable cases, and meets its separate predeclared limits. Evidence is bound to current artifacts; operator rulings are recorded. |
 | Public release | **NO-GO** | Phase 9 convergence, QA and actual-server browser checks pass, then the operator signs an exact era-sized batch. Actual-destination delivery checks are scheduled within the authorised release's rollback window and must pass to close observation. |
