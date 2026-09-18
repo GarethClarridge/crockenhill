@@ -6,11 +6,13 @@
 Verified against code at `b6cbd9acf`.
 **Scope:** Replace the sermon-or-children's-talk split with a single *talk* concept carrying a
 type, make the detector find *short talks* structurally instead of judging audience, move the
-audience/type call to approval, and present non-sermon talks through one type-parameterised
-public surface. Nothing in the historic lane blocks on this: the 191 long `other` sections stay
+audience/type call to approval, and present every talk on one page, `/christ/talks`, with a
+type switch (D3 revised 2026-09-18 from per-type pages). Nothing in the historic lane blocks on this: the 191 long `other` sections stay
 unpublished until PR5 re-detects them.
 **Cannot proceed without the operator:** the four decisions in §2 (taken 2026-09-18); the
 per-type confirmation of every short talk at approval (§6); the production env rename (PR1);
+the podcast feed-URL update in Apple Podcasts Connect and Spotify after the `/christ/talks`
+move (PR2, §4.4);
 dispatching the re-detection pass (PR5 — auto mode blocks pipeline dispatch, see memory
 `retranscribing_a_completed_historic_run`).
 
@@ -40,7 +42,7 @@ second call once, at approval, with the material in front of them.
 |---|---|---|---|
 | D1 | Storage naming | **Keep the `sermons` table and `Sermon` model.** Rename `SermonContentType` → `TalkType`; keep the `content_type` column name. | The table already *is* the talk store (children's talks are Sermon rows). A table/model rename touches routes, SEO, the API, promotion bundles and the historic output contract for no behaviour. A later `Sermon` → `Talk` class rename stays mechanical. |
 | D2 | Talk types | **`sermon`, `childrens_talk`, `partner_update`, `testimony`.** No catch-all. | These are the clusters the census actually shows. Baptisms, tributes, eulogies and pre-service audio are not talks and stay `other`, unpublished. A generic "other talk" would become the lazy default at approval. |
-| D3 | Public presentation | **One type-parameterised talks surface.** Children's Corner becomes the `childrens_talk` instance of shared listing/show/card views; each new type gets a page from the same views. The sermon archive is untouched. | Children's Corner is already a trimmed copy of the sermon views (card differs from `sermon-card` by 230 diff lines, mostly the route name). A third copy is the thing to avoid. |
+| D3 | Public presentation | **One page, `/christ/talks`, with a talk-type switch** (revised 2026-09-18 from "one page per type"). The existing sermon archive moves to `/christ/talks`, defaults to sermons, and gains a type filter; Children's Corner becomes a filtered deep link. `/christ/sermons/*` 301s. | The counts are tiny (3 children's talks published; the historic corpus adds ~185 children's talks, 15–20 partner updates, <10 testimonies), so per-type pages would look abandoned and a visitor must already know our filing to find them. `BrowseSermons` already has URL-backed filters, chips and a filter-derived SEO presenter; a type is one more filter. Children's Corner is a trimmed copy of the sermon views; this deletes it rather than generalising it. |
 | D4 | Exposure | **Members-only by default, per-type flip.** One per-type rule replaces `CHILDRENS_TALKS_PUBLIC`. Sermons public; every other type behind verified login until flipped. | Partner updates and testimonies name individuals. The existing verified-email gate is the right shape; it just needs to key on type rather than on one boolean. |
 
 Two related rulings carried in from the historic plan: nothing in the 191-section bucket is
@@ -89,8 +91,7 @@ enum TalkType: string
     case Testimony = 'testimony';
 
     public function label(): string;        // Sermon · Children's talk · Partner update · Testimony
-    public function pluralLabel(): string;  // Sermons · Children's Corner · Partner updates · Testimonies
-    public function routeSlug(): string;    // sermons · childrens-corner · partner-updates · testimonies
+    public function pluralLabel(): string;  // Sermons · Children's talks · Partner updates · Testimonies
     public function isSermon(): bool;
     /** @return list<self> */
     public static function nonSermon(): array;
@@ -99,14 +100,16 @@ enum TalkType: string
 
 - `SermonContentType` is deleted, not aliased. Every consumer (60 app files, 90 test files —
   `grep -rln SermonContentType`) moves to `TalkType`. The `sermons.content_type` enum widens.
-- Presentation copy that varies by type (page heading, meta description, empty-state text,
-  card eyebrow) lives in **one** presenter, `TalkTypePresenter`, not on the enum and not in
-  four Blade files.
+- Presentation copy that varies by type (page heading and description when a type is
+  selected, empty-state text, card eyebrow) lives in `SermonArchiveSeoPresenter`, which
+  already derives title, description and canonical from the active filters — the type is one
+  more filter, not a new presenter.
 - `SermonExposurePolicy` gains `isTypePublic(TalkType)` and `canAccessType(TalkType, ?User)`.
-  `childrensTalksArePublic()` and `canAccessChildrensCorner()` are deleted; all seven callers
-  (`SermonBuilder::whereVisibleInSitemap`, `SitemapService`, `Header`,
-  `EnsureChildrensCornerAccess`, `SermonAssetController`, `exposesContentTypeOnChurchService`,
-  `shouldIncludeInSitemap`) pass the talk's type. Config becomes one list:
+  `childrensTalksArePublic()` and `canAccessChildrensCorner()` are deleted; the surviving
+  callers (`SermonBuilder::whereVisibleInSitemap`, `SitemapService`, `SermonAssetController`,
+  `exposesContentTypeOnChurchService`, `shouldIncludeInSitemap`, and `BrowseSermons` for the
+  type switch) pass the talk's type; `Header` and `EnsureChildrensCornerAccess` are deleted
+  with the Children's Corner surface (§4.4). Config becomes one list:
 
   ```php
   // config/church.php
@@ -115,8 +118,9 @@ enum TalkType: string
 
   `sermon` is always public regardless of the list (the policy enforces it; the list cannot
   hide sermons). `CHILDRENS_TALKS_PUBLIC` is removed, with a `PROD-ACTIONS-PENDING` entry.
-- `publicRouteName()` / `canonicalUrl()`: sermons keep `sermons.show.dated`; every other type
-  routes to `talks.show` with the type's slug (§4.4).
+- `publicRouteName()` / `canonicalUrl()`: **one route for every type**, the dated
+  `sermons.show.dated` (now under `/christ/talks`). The route-name branching in the policy is
+  deleted, not generalised (§4.4).
 - **Upsert key.** `SermonCreationService::findByDateAndServiceAndContentType()` keys a talk on
   `(date, service, content_type)`. Two testimonies in one service (run 1311 "Baptismal
   testimonies" is one section today, but the class is real) would overwrite each other. For a
@@ -209,31 +213,67 @@ choose-or-type speaker control. A short talk gets one more control in the same b
 No new screen. No bulk-type control: each short talk is confirmed one at a time, because the
 census showed no bulk rule is safe.
 
-### 4.4 Public surface: one set of views, four instances
+### 4.4 Public surface: one page at `/christ/talks`, one type switch
 
-| Today | Becomes |
+The sermon archive *is* the talks page. It moves to `/christ/talks`, defaults to the sermon
+type, and gains a type switch. Nothing else is built for listing talks.
+
+**The listing.**
+
+- `BrowseSermons` gains `#[Url(as: 'type', except: 'sermon')] public string $typeFilter`.
+  The default view is therefore sermons only, with a clean URL, the same canonical and the
+  same sitemap entry as today.
+- **A visible type switch above the grid**, not inside the filter drawer: `Sermons ·
+  Children's talks · Partner updates · Testimonies`, rendered as the existing filter-chip
+  style. Only types the viewer may access appear (`canAccessType()`), so a guest sees just
+  Sermons until a type is flipped public. Selecting one sets `?type=…`, which gives shareable
+  deep links for free.
+- **Sermon-only filters hide when another type is selected**: book, chapter and series mean
+  nothing for a testimony. "Preacher" relabels to "Speaker" outside sermons. The empty-state
+  copy names the selected type.
+- **Heading follows the type.** H1 and `<title>` read "Sermons" by default and "Children's
+  talks" etc. when selected, so the page Google already ranks keeps the word it ranks for.
+  `SermonArchiveSeoPresenter` derives this from the type filter as it does for the others.
+- A guest opening a members-only type is sent to login, as Children's Corner does today.
+  Members-only types are excluded from the sitemap and rendered `noindex`.
+
+**The show page: one route, two templates.** `sermons.show.dated` (now
+`/christ/talks/{year}/{month}/{slug}`) serves every type. `SermonController::renderSermon()`
+chooses the template by `TalkType`: the rich sermon page (`sermons/sermon.blade.php`, 510
+lines: points, transcript, scripture filters, series, related sermons) for sermons; the
+current Children's Corner show page (147 lines: date, speaker, watch, listen, back link),
+renamed `sermons/talk.blade.php`, for everything else. Its "back" link returns to the
+listing with the type preselected. Merging the two templates is a design-refresh question,
+not this plan's (§8). A testimony's URL therefore reads `/christ/talks/2024/05/…`, which is
+the reason the path is `talks` and not `sermons`.
+
+**The URL move, `/christ/sermons` → `/christ/talks`.**
+
+| Dependency | Change |
 |---|---|
-| `ChildrensCornerController` (index, show) | `TalkController` (index, show) taking a `TalkType` resolved from the route's `{type}` slug; 404 on `sermons` (the sermon archive owns that slug) |
-| `/christ/childrens-corner`, `/christ/childrens-corner/{sermon:slug}` | `/christ/{type}` and `/christ/{type}/{sermon:slug}` where `{type}` is constrained to the non-sermon `routeSlug()`s. **The Children's Corner URLs are byte-identical**, so no redirect and no SEO change. Route names `talks.index`, `talks.show`. |
-| `childrens-corner.access` middleware | `talks.access` — resolves the type from the route and calls `canAccessType()` |
-| `childrens-corner/index.blade.php`, `show.blade.php`, `components/childrens-talk-card.blade.php` | `talks/index.blade.php`, `talks/show.blade.php`, `components/talk-card.blade.php` — the existing files moved and parameterised; copy comes from `TalkTypePresenter` |
-| Header nav's single Children's Corner entry | One loop over `TalkType::nonSermon()`, rendering each type the viewer can access, in the same list item style |
-| Sitemap: `childrens-corner.index` when public | One entry per public non-sermon type; per-talk entries via `shouldIncludeInSitemap()` |
-| Service archive page: `kind` = `sermon` \| `childrens_talk` with a hard-coded label pair | `kind` = `talk`, label from `TalkType::label()`; `PublicChurchServiceArchiveService::sermonEntry()` finds the section by `ShortTalk` for any non-sermon type |
-| `analytics-context`: content group "Children's Corner" vs "Sermons" | content group = `pluralLabel()` |
-| Admin sermons list badge + edit screen `isChildrensTalk` branches | Badge shows `label()`; a type filter joins the existing filter bar; edit screen branches on `isSermon()` and says "Speaker" for every non-sermon type |
+| The ~20 routes under the `christ/sermons` prefix group | Prefix becomes `christ/talks`. **Route names stay `sermons.*`** — the name is internal and renaming it is churn across the codebase for no behaviour; do it later if the drift grates. |
+| Old URLs | One catch-all `Route::permanentRedirect`-style handler for `/christ/sermons/{any}` → `/christ/talks/{any}`, kept indefinitely. `/christ/childrens-corner` → `/christ/talks?type=childrens_talk`; `/christ/childrens-corner/{slug}` → the dated route. |
+| 17 hard-coded `christ/sermons` strings (`BreadcrumbPresenter`, `schema/person`, `PageCardPresenter`, `page-card`, footer, `media-upload/status`, `RouteCanaryRegistry`, `sermons/preacher`) | Replaced with `route()` calls — the cleanup that should have existed. Canaries assert the 301s. |
+| Nav `Page` row `slug = sermons` (id 58) | Slug → `talks`, heading "Talks"; the H1 on the page itself still says "Sermons" by default. One data change, recorded in `PROD-ACTIONS-PENDING`. |
+| **Podcast feeds** at `/christ/sermons/{morning,evening}/feed` (`config/podcast.php`) | Move with the prefix; the 301 covers subscribers' apps; the feed emits `<itunes:new-feed-url>` for a period; **operator updates the feed URL in Apple Podcasts Connect and Spotify for Podcasters** — the one step that cannot be automated and the one place a mistake loses something (subscribers). Recorded in `PROD-ACTIONS-PENDING`. |
+| 823 indexed sermon URLs, GA4 path-based content grouping | 301s carry the equity; expect a few weeks' wobble. GA reports split at the changeover. Both accepted. |
 
-**Two show templates, not four and not one.** The sermon page (`sermons/sermon.blade.php`,
-510 lines: points, transcript, scripture filters, series, related sermons) stays the sermon
-page. The talk page is the current Children's Corner page (147 lines: date, speaker, watch,
-listen, back link) with the type's copy substituted. Merging them is a design-refresh
-question, not this plan's (§8).
+**What is deleted rather than generalised:** `ChildrensCornerController`,
+`EnsureChildrensCornerAccess` and its alias, `childrens-corner/index.blade.php`,
+`components/childrens-talk-card.blade.php`, the `childrens-corner.*` route names, the header's
+dedicated Children's Corner entry (replaced by nothing; the type switch is the entry — add a
+deep link in the nav later if it is missed), `publicRouteName()`'s branch, and the
+`kind === 'childrens_talk'` label pair in the service archive page (`kind` becomes `talk`
+with `TalkType::label()`). `analytics-context`'s content group becomes `pluralLabel()`.
+
+**Admin:** sermons list badge shows `label()` and gains a type filter in the existing filter
+bar; the edit screen branches on `isSermon()` and says "Speaker" for every non-sermon type.
 
 Design rules (from `.claude/skills/frontend-design/SKILL.md`, which stays authoritative):
-public pages on `x-page.shell`, `x-card`, teal palette, `wire:navigate`, `x-button` variants;
-the card keeps its aspect-video thumbnail and eyebrow; empty state per type through `x-card`;
-touch targets and focus rings as today. No new components — the card, page shell and CTA
-already exist.
+the type switch reuses the filter-chip markup already in `browse-sermons.blade.php`; the
+existing `sermon-card` serves every type with its eyebrow reading the type label; `x-page.shell`,
+`x-card`, teal palette, `wire:navigate`, focus rings and 44 px targets as today. **No new
+components and no new listing view.**
 
 ### 4.5 Schema changes
 
@@ -270,7 +310,7 @@ suite and Dusk — **never while a data pass is running** (`dusk_repoints_db_dur
 | PR | Outcome the operator can see | Depends on | Blast radius |
 |---|---|---|---|
 | **PR1 — `TalkType` and per-type exposure** | `SermonContentType` gone; `sermons.content_type` widened; `PUBLIC_TALK_TYPES=sermon,childrens_talk` behaves exactly as `CHILDRENS_TALKS_PUBLIC=true` did (existing `SermonExposurePolicyTest`, `ChildrensCornerPagesTest`, sitemap and archive tests pass unchanged in behaviour). Upsert-by-section for published talks with the two-testimonies test. `PROD-ACTIONS-PENDING` entry for the env rename. | — | Live public read path; one prod migration; one env rename |
-| **PR2 — Talks surface** | `/christ/childrens-corner` unchanged to a visitor; `/christ/partner-updates` and `/christ/testimonies` exist with their empty states behind verified login; header shows each accessible type; Children's Corner views, controller, middleware and card are gone, replaced by the `talks/*` set; admin list filters by type. Dusk covers one talk page per type and the nav. | PR1 | Public views, routes (additive), header |
+| **PR2 — Talks page** | The sermon archive answers at `/christ/talks` with a type switch; `/christ/sermons/*` and `/christ/childrens-corner*` 301; the default view, canonical and sitemap entry are unchanged in content; a verified member can switch to Children's talks and see the three published ones on the same page; sermon-only filters hide off-type; the dated route renders the talk template for non-sermon types; Children's Corner controller, middleware, views and card are deleted; the 17 hard-coded paths become `route()` calls; podcast feeds emit `new-feed-url`; admin list filters by type. Dusk covers the switch, the redirects and one show page per template. `PROD-ACTIONS-PENDING` gains the nav-page slug change and the podcast directory update. | PR1 | Every public sermon URL (via 301), podcast feeds, header |
 | **PR3 — `short_talk` detection** | Detector emits `short_talk` plus a `talk_type` proposal; migrations 2–3 applied; every `ChildrensTalk` consumer renamed; mock detector and structure tests updated; proposal visible in the workbench panel (read-only). Measurement artifact: the new prompt run read-only (`shadow` mode) over the nine blind runs and the 61 item-bearing long-`other` sections, scored against §3's truth table for (a) is it a short talk, (b) proposed type; recorded in `storage/scratch/` with counts in this plan's §9. | PR1 | Detector contract, three enum columns, JSON metadata of 202 rows, ~40 files |
 | **PR4 — Approval and publication** | Talk-type select and blocker in the panel; signature includes the reviewed type; `TalkPublicationHandler` under the `short_talk` key; `SermonCreationOptions::fromServiceSection()` maps the reviewed type. End-to-end test (the existing `ChildrensTalkPublicationWorkflowTest`, generalised) drives a `testimony` from prepare → approve → publish and asserts it renders at `/christ/testimonies/{slug}` for a verified member and 404s for a guest. | PR1, PR3 | Section publication path (already the children's-talk path); workbench panel |
 | **PR5 — Re-detection pass** | Gate: PR3's measurement shows the new prompt finds ≥ the talks the truth table names in the 61 with no false `short_talk` on the "not talks" rows; anything short of that is a prompt fix first (`feedback_measure_before_generalizing_a_fix`). Then the 142 runs with a long `other` and no short talk are re-detected **through the pipeline** (detection phase only, transcript reused; workers restarted first — `queue_workers_run_stale_code_after_commit`), operator-dispatched, respecting the historic lane's staging and dispatch rules. Outcome: short-talk candidates in the workbench for the operator to type, speaker and approve. | PR4 | Data only; no code |
@@ -284,9 +324,11 @@ is a calendar gate (`feedback_no_calendar_time_gates`).
    (or none), a predicted speaker (or a shortlist), and the boundary evidence it has today.
 2. The operator confirms the type and the speaker in the panel and presses Approve. Either
    missing → the blocker names it.
-3. Publication creates the Sermon row with that type. It appears on `/christ/{type}` for
-   whoever `PUBLIC_TALK_TYPES` admits, and on the service archive page with the type's label.
-4. Flipping a type public is an env change and a deploy; the sitemap, nav and archive follow.
+3. Publication creates the Sermon row with that type. It appears under that type on
+   `/christ/talks` for whoever `PUBLIC_TALK_TYPES` admits, and on the service archive page
+   with the type's label.
+4. Flipping a type public is an env change and a deploy; the type switch, sitemap and archive
+   follow, and the filtered view becomes an indexable page titled for the type.
 
 Consent is an editorial judgement at step 2, not a machine gate: partner updates and
 testimonies name people, and the default of members-only (D4) is what makes approval safe to
@@ -294,9 +336,9 @@ do first and reconsider later.
 
 ## 7. Acceptance
 
-1. `grep -rn "SermonContentType\|ChildrensTalk\b\|childrens_talk_speaker\|childrens-corner\.\(index\|show\)\|CHILDRENS_TALKS_PUBLIC" app config routes resources` returns nothing after PR4 (the Children's Corner *route path* and the `childrens_talk` *enum value* legitimately remain).
-2. A visitor's experience of `/christ/childrens-corner` and `/christ/sermons` is unchanged (Playwright baselines, `playwright_visual_regression`).
-3. `ChildrensTalkPublicationWorkflowTest`'s generalised successor passes for each of the three non-sermon types.
+1. `grep -rn "SermonContentType\|ChildrensTalk\b\|childrens_talk_speaker\|childrens-corner\|ChildrensCorner\|CHILDRENS_TALKS_PUBLIC\|christ/sermons" app config routes resources` returns nothing after PR4 except the redirect definitions in `routes/web.php` (the `childrens_talk` *enum value* legitimately remains).
+2. `/christ/talks` renders what `/christ/sermons` rendered, and every old sermon, preacher, series, service and feed URL 301s to its new path (route canaries assert this; Playwright baselines re-pointed, `playwright_visual_regression`).
+3. `ChildrensTalkPublicationWorkflowTest`'s generalised successor passes for each of the three non-sermon types, and the published talk renders at the dated route with the talk template.
 4. Two testimonies published from one service produce two Sermon rows.
 5. Changing a reviewed talk type after approval blocks publication until re-approval.
 6. The PR3 measurement artifact exists and PR5's gate is stated against it with numbers.
