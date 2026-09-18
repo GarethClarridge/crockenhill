@@ -527,8 +527,12 @@ new text on audio the fresh pass did read.
 
 **1340's repair is therefore a re-run on this code, not a span edit**, and
 §4299's content hold stops extraction until an operator names it
-(`--held-section=4299`). Not yet executed: workers still hold the pre-`c933889b9`
-code.
+(`--held-section=4299`). **Not yet executed.** All six worker containers have
+been up 13 hours (started 17:10 UTC on 09-17, so they carry `283a6cd90`-era
+code), and all queues are empty. They must be restarted onto `7d6bbde95` or
+later before any re-run is dispatched, or the run will repeat the same loss.
+Full suite after these changes: **8,273 tests, 90,288 assertions, no failures**;
+Pint and PHPStan clean.
 
 **Blocker (a) fixed, `283a6cd90`, 2026-09-17.** When no sermon section is usable and
 the run has a content-held sermon, the resolver's fallback plan now carries reason
