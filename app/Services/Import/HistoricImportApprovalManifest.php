@@ -134,7 +134,10 @@ final class HistoricImportApprovalManifest
             throw new RuntimeException('The production approval is not bound to the resolved operation and target.');
         }
 
-        if ($operation->state === HistoricImportOperationState::Complete) {
+        if (in_array($operation->state, [
+            HistoricImportOperationState::RoundCloseoutRequired,
+            HistoricImportOperationState::Complete,
+        ], true)) {
             throw new RuntimeException('The production approval operation is no longer in an applicable state.');
         }
 

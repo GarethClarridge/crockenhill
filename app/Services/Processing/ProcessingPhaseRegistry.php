@@ -49,6 +49,7 @@ class ProcessingPhaseRegistry
 
     public function __construct(
         private readonly ProcessingPipelineBuilder $pipelineBuilder,
+        private readonly ProcessingArtifactReuse $artifactReuse,
     ) {}
 
     /**
@@ -124,6 +125,22 @@ class ProcessingPhaseRegistry
         }
 
         $pipeline = $processingLog->processingPipelineProfile();
+
+        if ($step === 'detect_service_structure'
+            && $processingLog->serviceTranscriptPath() !== null
+            && ! $this->artifactReuse->serviceTranscriptIsUsable($processingLog)) {
+            $phase = $this->phaseForProcessingLogStep($processingLog, 'transcribe_full_service');
+
+            if ($phase !== null && $phase['job_offset'] !== null) {
+                return [
+                    'action' => $phase['retry_action'] ?? 'dispatch_chain',
+                    'pipeline' => $pipeline,
+                    'job_offset' => $phase['job_offset'],
+                    'rerun_strategy' => 'safe_to_rerun',
+                    'reset_scope' => 'invalid_service_transcript',
+                ];
+            }
+        }
 
         if ($step === 'manual_review_required'
             && ($processingLog->manualReviewMetadata()['reason_code'] ?? null) === 'llm_structure_validation_failed') {
@@ -209,7 +226,7 @@ class ProcessingPhaseRegistry
      *
      * Deliberately its own plan rather than a step assignment plus
      * {@see self::retryPlanFor()}: that path is reached only through
-     * {@see \App\Services\Processing\ProcessingRunOrchestrator::retry()},
+     * {@see ProcessingRunOrchestrator::retry()},
      * which refuses a completed run, and widening that guard would let every
      * caller re-open a terminal run.
      *

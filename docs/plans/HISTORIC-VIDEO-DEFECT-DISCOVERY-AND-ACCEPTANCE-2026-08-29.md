@@ -3018,8 +3018,64 @@ read-only; register `hintresolve-20260916-blast-radius.json`). Nothing was writt
 
 ### 4.5 Prove acceptance, then converge and release
 
-- [ ] Give runs 1004, 1143 and 1145 terminal dispositions (repair, exclude with
+- [x] Give runs 1004, 1143 and 1145 terminal dispositions (repair, exclude with
   reason, or an explicit accepted hold).
+  - **Diagnosed read-only 2026-09-19 against the live local Sail database and
+    mounted historic volume.** The exact three-key pass report is one `failed`
+    and two `manual_review`, with zero open runs and zero queued historic jobs.
+    Operation 4 remains `planned` and owns **zero** durable checkpoint rows.
+  - **1004 (`2026-04-26-evening`) requires a fresh full-source transcription,
+    not another recovery replay.** Both banked attempts were rejected by the
+    pathology detector; the recorded replay is 0 words before and after across
+    4,317 blind seconds. The current `service_transcript_path` points at the
+    resulting empty region-recovered artifact, and neither it, the prior
+    normalized artifact nor the temporary staged source now exists on the mounted
+    work volume. The archive source remains hash-bound in the manifest. A bounded
+    repair must therefore restage that exact source, transcribe it afresh with the
+    current decoding/recovery code, and only then decide repair versus an accepted
+    hold. Ordinary retry and structure redetection are correctly refused and must
+    not be used to spend again on the same empty evidence.
+    **Repair dispatched 2026-09-19.** The exact archive source is present and the
+    run's context-bound staged source was already restored. A red-first regression
+    proved that retry incorrectly resumed at structure detection when its recorded
+    transcript existed but held no cues; retry now rewinds to
+    `transcribe_full_service` in that exact case. All historic workers were
+    gracefully restarted while queues were empty, and run 1004 is now in progress
+    on `historic-whisper`. The full-manifest command independently refused a newly
+    present unmanifested `2020-04-12` file; the already operation-bound run was
+    therefore resumed through `UnifiedMediaProcessor::retry()` rather than weakening
+    the corpus guard or using `--force`.
+    **Completed 2026-09-19.** The fresh pass cleared transcription, structure,
+    extraction and the remaining pipeline; the final database-owned disposition
+    is `completed`, with zero historic jobs or open runs. The two earlier failure
+    alerts remain retained history and the pass now also records success.
+  - **1143 (`2024-08-11-morning`) is an evidence decision, not a retry.** Its
+    recovered transcript still has 5,980 words; its persisted structure contains
+    16 coherent sections and a 1,216-second sermon (§2157, 2203–3419, Luke
+    12:49–53). RMS also contains two speech blocks over 20 minutes (410–1964 and
+    2146–3656), so the baseline selector truthfully refused to choose between
+    them. The structure's sermon is held for `structure_low_confidence`; an
+    ordinary manifest retry deliberately leaves manual-review runs alone. The
+    legitimate outcomes are an operator-approved section-bound extraction, checked
+    against source audio, or an explicit accepted content hold. Selecting the
+    whole second RMS block would include material outside the detected sermon and
+    is not an evidence-backed shortcut.
+    **Accepted hold retained 2026-09-19.** Source-timed evidence fixes the proposed
+    end: prayer ends at 3419 and the final hymn follows immediately. It does not
+    fix the start: 1963.74–2203.58 is explicitly unobservable and the next roughly
+    630 seconds are pathological 30-second transcript chunks before coherent sermon
+    text resumes. The existing manual-review hold remains the honest terminal
+    disposition; no extraction or publication was approved.
+  - **1145 (`2024-08-08-morning`) fits the existing recording-level exclusion.**
+    Its 1,014-second capture contains two songs, a 706-second children's programme
+    and a closing notice, with no sermon. A dry run of
+    `historic-import:exclude-run --reason=no_sermon_in_source` changes the pass
+    disposition from `manual_review` to `excluded` and keeps service 1030; no state
+    was written. Applying it remains an operator factual ruling because the
+    exclusion is terminal.
+    **Applied 2026-09-19.** Run 1145 is now terminally excluded with
+    `no_sermon_in_source`; service 1030 was kept. The exact pass report confirms
+    the disposition is `excluded` and records the explanatory note.
 - [x] **Build and apply the occasion exclusions ruled 2026-09-14** (Saturday
   rehearsals 1043, 1089; funerals 1051, 1098). **The following is the original
   14 September diagnosis, resolved by the 15 September implementation below:**
@@ -3080,8 +3136,51 @@ read-only; register `hintresolve-20260916-blast-radius.json`). Nothing was writt
     231 still carry their review holds. Sunday sermons 976 and 1015 carry no refusal.
   - *Worker code:* the projection guard reaches the queue workers only after they restart.
     No projection is due for these runs, which are completed and terminal.
-- [ ] Design how operation 4 reaches `Complete` (§3.1 item 5) now, before
+- [x] Design how operation 4 reaches `Complete` (§3.1 item 5) now, before
   convergence work depends on it, without manufacturing checkpoint or closeout state.
+  **Designed 2026-09-19; implementation and evidence review remain open.** The
+  video command bound every dispatch to operation, manifest and plan, but never
+  called `HistoricImportCheckpointPlanner` or `HistoricImportCheckpointRuntime`.
+  Its `--only` option was a bounded manifest selector, not a durable checkpoint.
+  Retrofitting 412 post-hoc checkpoint memberships, dispatch events, source
+  snapshots and item outcomes would assert history that did not happen.
+
+  The programme authority already resolves this seam: the incremental convergence
+  plan §4 lapses checkpoint exactness and HIR4/HIR5 ceremony, and §7.3 replaces
+  exact closeout with a reviewed, hash-bound round evidence pack. Operation 4 uses
+  that contract:
+  1. finish the three dispositions above and freeze exact manifest membership;
+  2. assemble, rather than reimplement, the existing video status report, manifest
+     expectation, combined membership/census, asset audit, Scripture settlement,
+     notification/nested-job ledger and cost/duration output; hash each and add a
+     short cover binding operation id, commit, target fingerprint, manifest hash,
+     plan hash, backup receipt and every non-zero residue;
+  3. require every manifest identity to be completed, approved-excluded, or an
+     explicitly accepted hold with a non-empty reason and evidence reference;
+     refuse missing/extra membership, changed input, degraded or unexplained failed
+     work, unowned assets, external historic notifications and unsettled nested jobs;
+  4. add one narrow video-round verifier/transition, not a general audit framework.
+     It accepts operation 4's genuine `planned`/zero-checkpoint history plus the
+     reviewed §7.3 pack, persists its digest and journal event atomically, and
+     transitions through an explicit round-evidence closeout state to `Complete`.
+     The legacy checkpoint closeout remains unchanged for operations that actually
+     used it; release keeps its hard `Complete` requirement, with wording updated
+     to mean the operation's applicable verified completion contract;
+  5. prove fail-closed behaviour for every refusal above, digest/binding drift,
+     idempotence and release-before/after completion. Only after those tests and the
+     maintainer's pack review may the transition be applied.
+
+  This is design authority, not a completed operation: no checkpoint, outcome,
+  journal, operation state or release row was created or changed in this review.
+  **Verifier core implemented 2026-09-19; transition still awaits the real pack.**
+  `HistoricVideoRoundEvidence` now verifies an HMAC-signed cover against operation,
+  target, runtime, manifest and plan bindings; a fixed seven-report allowlist and
+  each report's live SHA-256; exact unique item dispositions; and explained non-zero
+  residue. `round_closeout_required` is an explicit state that can only advance to
+  completion or reconciliation, and both production approval and historic-tail
+  recovery treat it as a no-new-work barrier. Focused tests are green. No operation
+  state was changed: the report set and reviewed cover do not yet exist, and run
+  1004 is still in flight.
 - [ ] Re-run §4.1a's held-out validation on a fresh sample after repairs, as final
   acceptance evidence, across eras and apparently clean cases,
   covering split sermons, partial/composite recordings, corrupt transcripts,

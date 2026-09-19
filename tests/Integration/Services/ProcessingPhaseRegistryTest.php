@@ -31,6 +31,7 @@ use App\Models\MediaProcessingLog;
 use App\Services\Processing\ProcessingPhaseRegistry;
 use App\Services\Processing\ProcessingPipelineBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
@@ -377,6 +378,31 @@ class ProcessingPhaseRegistryTest extends TestCase
         ]);
 
         $this->assertSame(2, $registry->retryPlanFor($detectLog)['job_offset']);
+    }
+
+    #[Test]
+    public function structure_detection_retries_from_transcription_when_its_stored_transcript_has_no_cues(): void
+    {
+        $registry = app(ProcessingPhaseRegistry::class);
+        $log = MediaProcessingLog::factory()->livestream()->failed()->create([
+            'current_step' => 'detect_service_structure',
+        ]);
+        $log->putServiceTranscriptPath('service-transcripts/empty.json');
+
+        Storage::disk((string) config('media-processing.storage.transcript_disk', 'local'))
+            ->put('service-transcripts/empty.json', json_encode([
+                'cues' => [],
+                'duration' => 0.0,
+                'source' => 'local_whisper',
+            ], JSON_THROW_ON_ERROR));
+
+        $plan = $registry->retryPlanFor($log->fresh());
+        $transcribePhase = collect($registry->phasesForPipeline('livestream'))
+            ->firstWhere('step', 'transcribe_full_service');
+
+        $this->assertSame('dispatch_livestream_chain', $plan['action']);
+        $this->assertSame($transcribePhase['job_offset'], $plan['job_offset']);
+        $this->assertSame('invalid_service_transcript', $plan['reset_scope']);
     }
 
     #[Test]

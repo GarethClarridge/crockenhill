@@ -12,6 +12,7 @@ use App\Enums\ProcessingStatus;
 use App\Enums\ProcessingStep;
 use App\Jobs\AwaitHistoricSermonVideoStorage;
 use App\Jobs\CleanupTemporaryFiles;
+use App\Jobs\ExtractSermon;
 use App\Jobs\PromoteHistoricAssets;
 use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
@@ -497,7 +498,7 @@ class ProcessingRunOrchestrator
         $source = $processingLog->source_file_path;
 
         /**
-         * Resolved exactly as {@see \App\Jobs\ExtractSermon} resolves it, and
+         * Resolved exactly as {@see ExtractSermon} resolves it, and
          * only ever from inside the run's staging context: the staging guard
          * rewrites `temp_disk` to the staging disk and re-roots that at the
          * batch, so naming a disk here instead of asking the config would report
@@ -693,10 +694,13 @@ class ProcessingRunOrchestrator
             ];
         }
 
-        if ($operation->state === HistoricImportOperationState::Complete) {
+        if (in_array($operation->state, [
+            HistoricImportOperationState::RoundCloseoutRequired,
+            HistoricImportOperationState::Complete,
+        ], true)) {
             return [
                 'code' => 'HISTORIC_TAIL_OPERATION_CLOSED',
-                'message' => 'The named historic operation is already closed.',
+                'message' => 'The named historic operation is closing or already closed.',
             ];
         }
 
