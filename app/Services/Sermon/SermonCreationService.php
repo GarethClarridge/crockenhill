@@ -25,6 +25,7 @@ use App\Traits\SanitizesLogData;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 /**
  * @phpstan-type TitleGenerationContext array{
@@ -86,6 +87,8 @@ class SermonCreationService
             return $this->createFresh($processingLog, $options, $sermonDate, $service);
         }
 
+        $this->assertMediaCustodyMatches($existing);
+
         $existingLevel = $this->detectExistingRichness($existing);
         $incomingLevel = $this->detectIncomingRichness($processingLog, $options);
         $action = $this->decideUpsertAction($existingLevel, $incomingLevel);
@@ -102,6 +105,17 @@ class SermonCreationService
                 $incomingLevel,
             ),
         };
+    }
+
+    private function assertMediaCustodyMatches(Sermon $sermon): void
+    {
+        $outputDisk = (string) config('media-processing.storage.sermon_disk', 'public');
+
+        if ($sermon->asset_disk !== null && $sermon->asset_disk !== $outputDisk) {
+            throw new RuntimeException(
+                "Sermon {$sermon->id} is owned by disk {$sermon->asset_disk}; refusing media replacement from {$outputDisk}."
+            );
+        }
     }
 
     private function findByDateAndServiceAndContentType(

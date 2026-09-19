@@ -19,6 +19,7 @@ use App\Models\Sermon;
 use App\Services\Sermon\SermonCreationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\TestCase;
 
 class SermonCreationServiceTest extends TestCase
@@ -31,6 +32,36 @@ class SermonCreationServiceTest extends TestCase
     {
         parent::setUp();
         $this->service = $this->app->make(SermonCreationService::class);
+    }
+
+    #[Test]
+    public function it_refuses_to_replace_media_owned_by_another_storage_custody(): void
+    {
+        config(['media-processing.storage.sermon_disk' => 'historic_staging']);
+        $existingRun = MediaProcessingLog::factory()->livestream()->create();
+        $existing = Sermon::factory()->create([
+            'date' => '2026-06-28',
+            'service' => SermonService::Morning,
+            'content_type' => SermonContentType::Sermon,
+            'source_type' => SermonSourceType::Livestream,
+            'livestream_processing_id' => $existingRun->processing_id,
+            'audio_file_path' => 'sermons/audio/retained.mp3',
+            'video_file_path' => 'sermons/857/video.mp4',
+            'asset_disk' => 'historic_quarantine',
+        ]);
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2026-06-28',
+            'extracted_service' => SermonService::Morning,
+            'audio_file_path' => 'sermons/audio/retry.mp3',
+            'video_file_path' => 'sermons/857/video.mp4',
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('owned by disk historic_quarantine');
+
+        $this->service->createSermon($log, SermonCreationOptions::fromLivestream($log, []));
+
+        self::assertSame('sermons/audio/retained.mp3', $existing->fresh()->audio_file_path);
     }
 
     #[Test]
