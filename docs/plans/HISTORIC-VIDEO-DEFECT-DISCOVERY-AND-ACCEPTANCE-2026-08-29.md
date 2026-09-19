@@ -3179,8 +3179,33 @@ read-only; register `hintresolve-20260916-blast-radius.json`). Nothing was writt
   residue. `round_closeout_required` is an explicit state that can only advance to
   completion or reconciliation, and both production approval and historic-tail
   recovery treat it as a no-new-work barrier. Focused tests are green. No operation
-  state was changed: the report set and reviewed cover do not yet exist, and run
-  1004 is still in flight.
+  state was changed: the report set and reviewed cover do not yet exist.
+
+  **First real-pack review 2026-09-19: correctly refused; Operation 4 remains
+  `planned`.** The binding resolves to the 1 September manifest and plan
+  (`d25d2085…` / `9351fa4e…`, 464 included and 10 manifest exclusions), not the
+  older 26 August files. Against that exact membership the database-owned status
+  report is 406 `completed`, five `excluded`, one `manual_review`, 48
+  `not_dispatched` and four `retired`, with zero open runs and zero queued historic
+  jobs. The manual-review member is the explicitly accepted 2024-08-11 hold; the
+  52 not-dispatched/retired members still require the combined membership report
+  to prove their exact prior/present disposition rather than relabelling them in
+  the cover.
+
+  The retained dispatch reports also fail the existing operation-scoped asset
+  audit: Phase 8 reports 1,924 missing asset references plus two incomplete runs;
+  pass 1 reports 48 missing references; step 11 reports 18; and the WebM proof
+  reports five. The broad section audit independently reports 1,263 of 1,302
+  referenced extracted videos and 172 of 178 extracted audios missing from their
+  recorded disks. These may include references whose custody was deliberately
+  promoted after the old reports were written, but no clean current operation-wide
+  audit exists yet to prove that; a failing old-path audit cannot be signed as the
+  asset report. No cover was created, reviewed or signed, and no operation,
+  journal or artifact row was changed. Before transition work resumes, reconcile
+  the 52 combined-membership residues and produce a current asset audit that
+  follows promoted custody while still failing on genuinely unowned or missing
+  objects. Then assemble the remaining Scripture, ledger and cost/duration reports
+  and review every non-zero residue.
 - [ ] Re-run §4.1a's held-out validation on a fresh sample after repairs, as final
   acceptance evidence, across eras and apparently clean cases,
   covering split sermons, partial/composite recordings, corrupt transcripts,
