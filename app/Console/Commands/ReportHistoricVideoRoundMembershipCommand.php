@@ -12,7 +12,7 @@ use RuntimeException;
 use Throwable;
 
 /**
- * Deletion trigger: delete with the historic-video importer after Operation 4's
+ * Deletion trigger: delete alongside the historic-video importer after Operation 4's
  * reviewed round evidence has reached long-term custody and IC8 closes.
  */
 class ReportHistoricVideoRoundMembershipCommand extends Command

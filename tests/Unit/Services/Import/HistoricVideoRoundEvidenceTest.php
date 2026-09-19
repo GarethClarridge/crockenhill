@@ -6,14 +6,18 @@ namespace Tests\Unit\Services\Import;
 
 use App\Enums\HistoricImportOperationState;
 use App\Models\HistoricImportOperation;
+use App\Services\Import\HistoricVideoRoundCloseout;
 use App\Services\Import\HistoricVideoRoundEvidence;
 use App\Support\CanonicalJson;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Tests\TestCase;
 
 class HistoricVideoRoundEvidenceTest extends TestCase
 {
+    use DatabaseTransactions;
+
     /** @var list<string> */
     private array $paths = [];
 
@@ -88,6 +92,45 @@ class HistoricVideoRoundEvidenceTest extends TestCase
         app(HistoricVideoRoundEvidence::class)->verify($cover, $operation);
     }
 
+    #[Test]
+    public function it_atomically_completes_the_legacy_operation_and_is_idempotent_for_the_same_cover(): void
+    {
+        config(['media-processing.historic_import.evidence_signing_key' => 'round-key']);
+        $operation = $this->persistedOperation();
+        $cover = $this->cover($operation);
+
+        $completed = app(HistoricVideoRoundCloseout::class)->complete($operation, $cover);
+        $repeated = app(HistoricVideoRoundCloseout::class)->complete($completed, $cover);
+
+        $this->assertSame(HistoricImportOperationState::Complete, $completed->state);
+        $this->assertSame(HistoricImportOperationState::Complete, $repeated->state);
+        $this->assertDatabaseCount('historic_import_journal_entries', 2);
+        $this->assertDatabaseHas('historic_import_journal_entries', [
+            'historic_import_operation_id' => $operation->id,
+            'event' => 'video_round_closeout_complete',
+        ]);
+    }
+
+    #[Test]
+    public function it_refuses_digest_drift_after_completion(): void
+    {
+        config(['media-processing.historic_import.evidence_signing_key' => 'round-key']);
+        $operation = $this->persistedOperation();
+        $cover = $this->cover($operation);
+        app(HistoricVideoRoundCloseout::class)->complete($operation, $cover);
+        $cover['reviewed_at'] = '2026-09-19T13:00:00Z';
+        $cover['signature']['digest'] = hash_hmac(
+            'sha256',
+            CanonicalJson::encode(array_diff_key($cover, ['signature' => true])),
+            'round-key',
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('digest has drifted');
+
+        app(HistoricVideoRoundCloseout::class)->complete($operation->fresh(), $cover);
+    }
+
     private function operation(): HistoricImportOperation
     {
         return new HistoricImportOperation([
@@ -98,6 +141,25 @@ class HistoricVideoRoundEvidenceTest extends TestCase
             'plan_hash' => str_repeat('c', 64),
             'target_fingerprint' => str_repeat('d', 64),
             'runtime_fingerprint' => str_repeat('e', 64),
+        ]);
+    }
+
+    private function persistedOperation(): HistoricImportOperation
+    {
+        $operation = $this->operation();
+
+        return HistoricImportOperation::query()->create([
+            'operation_id' => $operation->operation_id,
+            'binding_hash' => $operation->binding_hash,
+            'batch_key' => $operation->batch_key,
+            'manifest_hashes' => $operation->manifest_hashes,
+            'plan_hash' => $operation->plan_hash,
+            'target_fingerprint' => $operation->target_fingerprint,
+            'runtime_fingerprint' => $operation->runtime_fingerprint,
+            'notification_mode' => 'suppress_external',
+            'max_cost_minor_units' => 100,
+            'state' => HistoricImportOperationState::Planned,
+            'accepted_deadline' => now()->addDay(),
         ]);
     }
 
@@ -118,9 +180,45 @@ class HistoricVideoRoundEvidenceTest extends TestCase
             'manifest_hash' => $operation->manifest_hashes['historic_video'],
             'plan_hash' => $operation->plan_hash,
             'items' => [['item_key' => '2024-08-11-morning']],
-            'exclusions' => [['item_key' => '2024-08-08-morning']],
+            'exclusions' => [['item_key' => '2024-08-08-morning', 'exclusion_reason' => 'no_sermon_in_source']],
         ], JSON_THROW_ON_ERROR));
         $reports['manifest_expectation']['sha256'] = hash_file('sha256', $reports['manifest_expectation']['path']);
+        $this->writeReport($reports, 'video_status', [
+            ...$this->binding($operation),
+            'open_runs' => 0,
+            'historic_queue_depth' => 0,
+        ]);
+        $this->writeReport($reports, 'membership_census', [
+            ...$this->binding($operation),
+            'counts' => ['complete' => 0, 'excluded' => 1, 'unresolved' => 1],
+            'items' => [
+                ['item_key' => '2024-08-08-morning', 'disposition' => 'excluded', 'reason' => 'no_sermon_in_source'],
+                ['item_key' => '2024-08-11-morning', 'disposition' => 'unresolved'],
+            ],
+        ]);
+        $this->writeReport($reports, 'asset_audit', ['missing_asset_references' => 0]);
+        $this->writeReport($reports, 'scripture_settlement', ['public_exposure' => 0]);
+        $this->writeReport($reports, 'operation_ledger', [
+            'live_jobs' => 0,
+            'external_notifications_sent' => 0,
+            'nested_jobs' => ['unsettled' => 0, 'failed_settled' => 0],
+            'failed_nested_jobs' => [],
+        ]);
+        $this->writeReport($reports, 'cost_duration', [
+            'all_runs' => ['runs_missing_timing_count' => 0, 'retried_run_count' => 0],
+        ]);
+
+        $holdPath = tempnam(sys_get_temp_dir(), 'historic-video-holds-');
+        self::assertIsString($holdPath);
+        file_put_contents($holdPath, json_encode([
+            ...$this->binding($operation),
+            'items' => [[
+                'item_key' => '2024-08-11-morning',
+                'disposition' => 'accepted_hold',
+                'reason' => 'source boundary remains unobservable',
+            ]],
+        ], JSON_THROW_ON_ERROR));
+        $this->paths[] = $holdPath;
 
         $cover = [
             'format' => HistoricVideoRoundEvidence::Format,
@@ -140,10 +238,20 @@ class HistoricVideoRoundEvidenceTest extends TestCase
             'reports' => $reports,
             'items' => [
                 ['item_key' => '2024-08-08-morning', 'disposition' => 'excluded', 'reason' => 'no_sermon_in_source'],
-                ['item_key' => '2024-08-11-morning', 'disposition' => 'accepted_hold', 'reason' => 'source boundary remains unobservable'],
+                [
+                    'item_key' => '2024-08-11-morning',
+                    'disposition' => 'accepted_hold',
+                    'reason' => 'source boundary remains unobservable',
+                    'evidence_reference' => ['path' => $holdPath, 'sha256' => hash_file('sha256', $holdPath)],
+                ],
             ],
             'residues' => [
-                ['name' => 'accepted_holds', 'count' => 1, 'explanation' => 'Enumerated in items.'],
+                [
+                    'name' => 'accepted_holds',
+                    'count' => 1,
+                    'source_report' => 'membership_census',
+                    'explanation' => 'Enumerated in items.',
+                ],
             ],
         ];
         $cover['signature'] = [
@@ -153,5 +261,24 @@ class HistoricVideoRoundEvidenceTest extends TestCase
         ];
 
         return $cover;
+    }
+
+    /** @param array<string, array<string, string>> $reports
+     * @param array<string, mixed> $payload
+     */
+    private function writeReport(array &$reports, string $key, array $payload): void
+    {
+        file_put_contents($reports[$key]['path'], json_encode($payload, JSON_THROW_ON_ERROR));
+        $reports[$key]['sha256'] = hash_file('sha256', $reports[$key]['path']);
+    }
+
+    /** @return array<string, string> */
+    private function binding(HistoricImportOperation $operation): array
+    {
+        return [
+            'operation_id' => $operation->operation_id,
+            'manifest_hash' => $operation->manifest_hashes['historic_video'],
+            'plan_hash' => $operation->plan_hash,
+        ];
     }
 }
