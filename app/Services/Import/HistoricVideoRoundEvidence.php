@@ -93,6 +93,42 @@ final class HistoricVideoRoundEvidence
             $itemKeys[$itemKey] = true;
         }
 
+        $manifest = json_decode(
+            (string) file_get_contents($reports['manifest_expectation']['path']),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+
+        if (! is_array($manifest)
+            || ($manifest['manifest_hash'] ?? null) !== $operation->manifest_hashes['historic_video']
+            || ($manifest['plan_hash'] ?? null) !== $operation->plan_hash) {
+            throw new RuntimeException('Historic video round manifest expectation does not match the operation binding.');
+        }
+
+        $expectedItemKeys = [];
+
+        foreach (array_merge(
+            is_array($manifest['items'] ?? null) ? $manifest['items'] : [],
+            is_array($manifest['exclusions'] ?? null) ? $manifest['exclusions'] : [],
+        ) as $item) {
+            $itemKey = is_array($item) ? ($item['item_key'] ?? null) : null;
+
+            if (! is_string($itemKey) || $itemKey === '' || isset($expectedItemKeys[$itemKey])) {
+                throw new RuntimeException('Historic video round manifest expectation membership is invalid.');
+            }
+
+            $expectedItemKeys[$itemKey] = true;
+        }
+
+        $actualKeys = array_keys($itemKeys);
+        $expectedKeys = array_keys($expectedItemKeys);
+        sort($actualKeys);
+        sort($expectedKeys);
+
+        if ($expectedItemKeys === [] || $actualKeys !== $expectedKeys) {
+            throw new RuntimeException('Historic video round evidence item membership does not exactly match the manifest expectation.');
+        }
+
         foreach (($cover['residues'] ?? null) ?? [] as $residue) {
             if (! is_array($residue) || ! is_string($residue['name'] ?? null)
                 || ! is_int($residue['count'] ?? null) || $residue['count'] < 1

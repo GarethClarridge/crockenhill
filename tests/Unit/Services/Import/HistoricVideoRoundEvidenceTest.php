@@ -69,6 +69,25 @@ class HistoricVideoRoundEvidenceTest extends TestCase
         app(HistoricVideoRoundEvidence::class)->verify($cover, $operation);
     }
 
+    #[Test]
+    public function it_refuses_cover_membership_that_does_not_exactly_match_the_manifest_expectation(): void
+    {
+        config(['media-processing.historic_import.evidence_signing_key' => 'round-key']);
+        $operation = $this->operation();
+        $cover = $this->cover($operation);
+        array_pop($cover['items']);
+        $cover['signature']['digest'] = hash_hmac(
+            'sha256',
+            CanonicalJson::encode(array_diff_key($cover, ['signature' => true])),
+            'round-key',
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('does not exactly match');
+
+        app(HistoricVideoRoundEvidence::class)->verify($cover, $operation);
+    }
+
     private function operation(): HistoricImportOperation
     {
         return new HistoricImportOperation([
@@ -94,6 +113,14 @@ class HistoricVideoRoundEvidenceTest extends TestCase
             $this->paths[] = $path;
             $reports[$key] = ['path' => $path, 'sha256' => hash_file('sha256', $path)];
         }
+
+        file_put_contents($reports['manifest_expectation']['path'], json_encode([
+            'manifest_hash' => $operation->manifest_hashes['historic_video'],
+            'plan_hash' => $operation->plan_hash,
+            'items' => [['item_key' => '2024-08-11-morning']],
+            'exclusions' => [['item_key' => '2024-08-08-morning']],
+        ], JSON_THROW_ON_ERROR));
+        $reports['manifest_expectation']['sha256'] = hash_file('sha256', $reports['manifest_expectation']['path']);
 
         $cover = [
             'format' => HistoricVideoRoundEvidence::Format,
