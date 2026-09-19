@@ -3261,6 +3261,17 @@ read-only; register `hintresolve-20260916-blast-radius.json`). Nothing was writt
   changed. Next: generate the exact 474-item cover, review every disposition and
   residue reference, sign it, run the verifier, then—and only then—apply the
   round-evidence closeout transition.
+
+  **Cover preflight 2026-09-19 stopped at two genuine external bindings.** No
+  Operation 4 backup receipt exists in the repository or retained operation
+  artifacts, and `HISTORIC_IMPORT_EVIDENCE_SIGNING_KEY` is not configured in the
+  current runtime. Neither value can be inferred or replaced with a placeholder.
+  While checking that boundary, the verifier was found to validate uniqueness but
+  not equality with the manifest. It now parses the digested manifest-expectation
+  report, verifies its manifest/plan binding, and refuses any missing, extra or
+  duplicated cover identity; focused tests (30 assertions), PHPStan and Pint are
+  clean. No cover was generated or signed. Resume only after the maintainer names
+  the real backup receipt and configures the signing key without exposing it.
 - [ ] Re-run §4.1a's held-out validation on a fresh sample after repairs, as final
   acceptance evidence, across eras and apparently clean cases,
   covering split sermons, partial/composite recordings, corrupt transcripts,
