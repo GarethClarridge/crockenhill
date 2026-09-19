@@ -3239,6 +3239,28 @@ read-only; register `hintresolve-20260916-blast-radius.json`). Nothing was writt
   and storage ownership risks replacing media references; it therefore remains
   held rather than being relabelled complete. No media, run, section, sermon or
   operation state was changed by this adjudication.
+
+  **Seven-report set assembled 2026-09-19; unsigned.** The private files under
+  `storage/scratch/operation-4-round-evidence/` now fill every fixed report slot:
+  video status `e9ec0d68…`, manifest expectation `f175ffcf…`, membership census
+  `ebd786b0…`, asset audit `39808a23…`, Scripture settlement `6f7b727c…`, operation
+  ledger `a732df07…`, and cost/duration `8ba42bcc…` (full SHA-256 values are the
+  reviewed file digests used by the future cover). The asset report records 1,997
+  verified references and zero missing; Scripture records sermons 1005 and 1305
+  as contained holds with zero public exposure. The ledger records 835 completed
+  nested jobs and three failed-but-settled publication attempts; all three owning
+  runs later completed and carry success alerts, while live jobs and external
+  notifications are zero. The performance report covers 416 operation runs and
+  explicitly records 68 runs without timing evidence and two with retries.
+
+  These are explained residues, not invented zeroes. The raw membership census
+  deliberately still calls the four manual-review identities unresolved because
+  it reports database observation; the cover's exact item dispositions must bind
+  those four to the separately hashed accepted-hold evidence rather than rewriting
+  the census after the fact. No signed cover exists yet, and no operation state
+  changed. Next: generate the exact 474-item cover, review every disposition and
+  residue reference, sign it, run the verifier, then—and only then—apply the
+  round-evidence closeout transition.
 - [ ] Re-run §4.1a's held-out validation on a fresh sample after repairs, as final
   acceptance evidence, across eras and apparently clean cases,
   covering split sermons, partial/composite recordings, corrupt transcripts,
