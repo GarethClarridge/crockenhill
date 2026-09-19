@@ -45,7 +45,7 @@ final class SermonAssetReferences
     {
         $sermonDisk = $sermon->assetDisk(self::sermonDisk());
         $transcriptDisk = $sermon->assetDisk(self::transcriptDisk());
-        $thumbnailDisk = self::thumbnailDisk();
+        $thumbnailDisk = $sermon->assetDisk(self::thumbnailDisk());
 
         $assets = [
             ['audio', $sermonDisk, $sermon->audio_file_path],

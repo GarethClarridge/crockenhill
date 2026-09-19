@@ -68,17 +68,19 @@ class AuditHistoricImportAssetsCommandTest extends TestCase
         config([
             'media-processing.storage.sermon_disk' => 'historic_staging',
             'media-processing.storage.transcript_disk' => 'historic_staging',
+            'thumbnail-generation.storage.disk' => 'historic_staging',
         ]);
         $sermon = Sermon::factory()->create([
             'asset_disk' => 'historic_quarantine',
             'audio_file_path' => 'sermons/audio/promoted.mp3',
             'video_file_path' => 'sermons/123/video.mp4',
             'transcript_file_path' => 'transcripts/sermon_123.md',
-            'thumbnail_file_path' => null,
+            'thumbnail_file_path' => 'sermons/thumbnails/promoted.webp',
         ]);
         Storage::disk('historic_quarantine')->put($sermon->audio_file_path, 'audio');
         Storage::disk('historic_quarantine')->put($sermon->video_file_path, 'video');
         Storage::disk('historic_quarantine')->put($sermon->transcript_file_path, 'transcript');
+        Storage::disk('historic_quarantine')->put($sermon->thumbnail_file_path, 'thumbnail');
         $log = MediaProcessingLog::factory()->livestream()->completed()->create([
             'sermon_id' => $sermon->id,
             'processing_metadata' => ['historic_import' => ['label' => 'archive recording']],
