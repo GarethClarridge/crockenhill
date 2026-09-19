@@ -44,8 +44,10 @@ use App\Services\HistoricMedia\HistoricTranscriptRecoveryReplay;
  * more verbatim back-to-back repeats the corpus offers no genuine example —
  * "let's stand" twenty-three times across 136 seconds is a decode looping over
  * music, not a congregation. Real repetition sits at three and four: "tell me
- * the old old story", "my comfort my comfort my comfort", the doxology. Lowering
- * the threshold to catch those would hold most of the corpus for nothing.
+ * the old old story", "my comfort my comfort my comfort", the doxology. Short
+ * one- and two-word phrases use a separate extreme-repeat floor: run 1347 loses
+ * part of Matthew 6 to "the Lord" sixteen times, while admitting ordinary short
+ * rhetoric at the general threshold would hold much of the corpus for nothing.
  */
 class ServiceTranscriptRepetitionScreen
 {
@@ -143,6 +145,9 @@ class ServiceTranscriptRepetitionScreen
         $minimumRepeats = (int) config('media-processing.service_structure.repetition_screen.min_repeats', 5);
         $minimumWords = (int) config('media-processing.service_structure.repetition_screen.min_repeated_words', 40);
         $shortestPhrase = (int) config('media-processing.service_structure.repetition_screen.min_phrase_words', 3);
+        $shortPhraseMaximum = (int) config('media-processing.service_structure.repetition_screen.short_phrase_max_words', 2);
+        $shortPhraseMinimumRepeats = (int) config('media-processing.service_structure.repetition_screen.short_phrase_min_repeats', 16);
+        $shortPhraseMinimumWords = (int) config('media-processing.service_structure.repetition_screen.short_phrase_min_repeated_words', 24);
         $longestPhrase = (int) config('media-processing.service_structure.repetition_screen.max_phrase_words', 25);
 
         $total = count($words);
@@ -152,12 +157,25 @@ class ServiceTranscriptRepetitionScreen
         while ($index < $total) {
             $run = null;
 
-            for ($length = $shortestPhrase; $length <= $longestPhrase; $length++) {
+            for ($length = 1; $length <= $longestPhrase; $length++) {
+                $requiredRepeats = $length <= $shortPhraseMaximum
+                    ? $shortPhraseMinimumRepeats
+                    : $minimumRepeats;
+                $requiredWords = $length <= $shortPhraseMaximum
+                    ? $shortPhraseMinimumWords
+                    : $minimumWords;
+
+                if ($length > $shortPhraseMaximum && $length < $shortestPhrase) {
+                    continue;
+                }
+
                 // Even a perfect run of this phrase length cannot reach the
                 // minimum repeats before the stream ends, and every longer
-                // phrase is worse, so nothing after this point can match.
-                if ($index + $length * $minimumRepeats > $total) {
-                    break;
+                // phrase under the same threshold is worse. A longer phrase can
+                // cross from the stricter short-phrase threshold to the general
+                // threshold, so only skip this length here.
+                if ($index + $length * $requiredRepeats > $total) {
+                    continue;
                 }
 
                 $repeats = 1;
@@ -168,7 +186,7 @@ class ServiceTranscriptRepetitionScreen
                     $next += $length;
                 }
 
-                if ($repeats < $minimumRepeats || $repeats * $length < $minimumWords) {
+                if ($repeats < $requiredRepeats || $repeats * $length < $requiredWords) {
                     continue;
                 }
 

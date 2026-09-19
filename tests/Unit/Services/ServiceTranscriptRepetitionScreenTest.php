@@ -91,6 +91,50 @@ class ServiceTranscriptRepetitionScreenTest extends TestCase
     }
 
     #[Test]
+    public function it_holds_an_extreme_two_word_loop_below_the_general_phrase_floor(): void
+    {
+        // Run 1347's reading loses part of Matthew 6 to "the Lord" repeated
+        // sixteen times. The general three-word phrase floor deliberately
+        // preserves ordinary rhetoric, but must not make this shorter loop
+        // invisible.
+        $transcript = $this->loopingTranscript(
+            phrase: 'The Lord.',
+            repeats: 16,
+            start: 1583.52,
+            secondsEach: 3.75,
+        );
+
+        $blocks = app(ServiceTranscriptRepetitionScreen::class)->screen($transcript);
+
+        $this->assertCount(1, $blocks);
+        $this->assertSame(SuspectTranscriptBlock::REASON_REPEATED_PHRASE, $blocks[0]->reason);
+        $this->assertSame('the lord', $blocks[0]->phrase);
+        $this->assertSame(16, $blocks[0]->repeats);
+        $this->assertSame(32, $blocks[0]->words);
+    }
+
+    #[Test]
+    public function it_holds_an_extreme_one_word_loop_that_is_physically_impossible_speech(): void
+    {
+        // Run 1151 emits "Amen" thirty-two times in 1.8 seconds. The ordinary
+        // density backstop requires a thirty-second window, so the short-phrase
+        // branch must retain this independently impossible block.
+        $transcript = $this->loopingTranscript(
+            phrase: 'Amen.',
+            repeats: 32,
+            start: 1904.82,
+            secondsEach: 0.05625,
+        );
+
+        $blocks = app(ServiceTranscriptRepetitionScreen::class)->screen($transcript);
+
+        $this->assertCount(1, $blocks);
+        $this->assertSame('amen', $blocks[0]->phrase);
+        $this->assertSame(32, $blocks[0]->repeats);
+        $this->assertEqualsWithDelta(1066.7, $blocks[0]->wordsPerMinute ?? 0.0, 0.1);
+    }
+
+    #[Test]
     public function it_preserves_a_genuine_sung_refrain(): void
     {
         // Real repetition in this corpus sits at three and four repeats and at a
