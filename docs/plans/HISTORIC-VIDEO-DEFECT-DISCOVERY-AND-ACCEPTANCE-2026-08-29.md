@@ -3192,20 +3192,35 @@ read-only; register `hintresolve-20260916-blast-radius.json`). Nothing was writt
   to prove their exact prior/present disposition rather than relabelling them in
   the cover.
 
-  The retained dispatch reports also fail the existing operation-scoped asset
-  audit: Phase 8 reports 1,924 missing asset references plus two incomplete runs;
-  pass 1 reports 48 missing references; step 11 reports 18; and the WebM proof
-  reports five. The broad section audit independently reports 1,263 of 1,302
-  referenced extracted videos and 172 of 178 extracted audios missing from their
-  recorded disks. These may include references whose custody was deliberately
-  promoted after the old reports were written, but no clean current operation-wide
-  audit exists yet to prove that; a failing old-path audit cannot be signed as the
-  asset report. No cover was created, reviewed or signed, and no operation,
-  journal or artifact row was changed. Before transition work resumes, reconcile
-  the 52 combined-membership residues and produce a current asset audit that
-  follows promoted custody while still failing on genuinely unowned or missing
-  objects. Then assemble the remaining Scripture, ledger and cost/duration reports
-  and review every non-zero residue.
+  **Membership and retained-asset follow-up 2026-09-19.** The exact combined
+  membership report now resolves 455 identities as complete and 15 as excluded,
+  leaving four explicit unresolved identities: 2023-02-26 morning, 2024-05-05
+  morning, the already accepted 2024-08-11 morning hold, and 2024-11-03 morning.
+  In particular, 45 apparent `not_dispatched` identities are completed by their
+  pre-existing live runs, while the four operation runs superseded during service
+  reconciliation still prove their own source consumption; neither class is
+  relabelled as an operation completion.
+
+  The old asset failures were then reproduced and separated from real custody
+  loss. `audit:historic-import-assets` had forgotten each run's recorded batch
+  root and resolved promoted sermon and thumbnail paths through current global
+  disks. Regression-tested corrections now re-enter the run context and resolve
+  every sermon asset through `asset_disk`. Pass 1 now verifies 48/48 assets, step
+  11 verifies 18/18, the WebM proof verifies 5/5, and Phase 8 verifies all 1,926
+  auditable assets. The two Phase 8 incomplete runs are the 2023-02-26 and
+  2024-05-05 manual-review identities. One genuine stale reference remained:
+  retrying the older 2026-06-28 run on 10 September had overwritten quarantined
+  sermon 857's audio pointer with a path on another custody disk. The retained
+  replacement MP3 was already present and independently probed; a guarded one-row
+  repair restored that reference, and `SermonCreationService` now refuses future
+  cross-custody media replacement (47 service tests green, PHPStan clean).
+
+  No cover was created, reviewed or signed, and Operation 4 remains `planned`.
+  The asset evidence is clean for every completed dispatch, but the pack cannot
+  claim exact closure until the three unaccepted manual-review identities receive
+  dispositions and the accepted 2024-08-11 hold is represented explicitly. Then
+  produce the consolidated operation-wide asset report, assemble the Scripture,
+  ledger and cost/duration reports, and review every non-zero residue.
 - [ ] Re-run §4.1a's held-out validation on a fresh sample after repairs, as final
   acceptance evidence, across eras and apparently clean cases,
   covering split sermons, partial/composite recordings, corrupt transcripts,
