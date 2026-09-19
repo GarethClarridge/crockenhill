@@ -26,6 +26,10 @@ final class HistoricVideoRoundEvidence
         'cost_duration',
     ];
 
+    public function __construct(
+        private readonly HistoricVideoRoundFailedJobs $failedJobs,
+    ) {}
+
     /** @param array<string, mixed> $cover
      * @return array<string, mixed>
      */
@@ -125,7 +129,7 @@ final class HistoricVideoRoundEvidence
             throw new RuntimeException('Historic video round evidence item membership does not exactly match the manifest expectation.');
         }
 
-        $this->assertSemanticEvidence($cover, $reports, $manifest);
+        $this->assertSemanticEvidence($cover, $reports, $manifest, $operation);
 
         $signature = $cover['signature'] ?? null;
         $signingKey = (string) config('media-processing.historic_import.evidence_signing_key');
@@ -151,7 +155,12 @@ final class HistoricVideoRoundEvidence
      * @param  array<string, mixed>  $reports
      * @param  array<string, mixed>  $manifest
      */
-    private function assertSemanticEvidence(array $cover, array $reports, array $manifest): void
+    private function assertSemanticEvidence(
+        array $cover,
+        array $reports,
+        array $manifest,
+        HistoricImportOperation $operation,
+    ): void
     {
         $membership = $this->readReport($reports, 'membership_census');
         $assets = $this->readReport($reports, 'asset_audit');
@@ -241,7 +250,8 @@ final class HistoricVideoRoundEvidence
         }
 
         $failedJobs = $ledger['failed_nested_jobs'] ?? null;
-        if (! is_array($failedJobs) || count($failedJobs) !== data_get($ledger, 'nested_jobs.failed_settled')) {
+        if (! is_array($failedJobs) || ! array_is_list($failedJobs)
+            || count($failedJobs) !== data_get($ledger, 'nested_jobs.failed_settled')) {
             throw new RuntimeException('Historic video round failed nested-job residue is incomplete.');
         }
 
@@ -250,6 +260,8 @@ final class HistoricVideoRoundEvidence
                 throw new RuntimeException('Historic video round failed nested job is unexplained.');
             }
         }
+
+        $this->failedJobs->assertSuperseded($operation, $failedJobs);
 
         $expectedResidues = array_filter([
             'accepted_holds' => ['count' => $counts['accepted_hold'], 'source_report' => 'membership_census'],

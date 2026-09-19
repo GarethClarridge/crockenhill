@@ -5,11 +5,18 @@ declare(strict_types=1);
 namespace Tests\Unit\Services\Import;
 
 use App\Enums\HistoricImportOperationState;
+use App\Enums\MediaType;
+use App\Enums\ProcessingStatus;
+use App\Enums\ServiceSectionPublicationStatus;
+use App\Models\HistoricImportNestedJob;
 use App\Models\HistoricImportOperation;
+use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
 use App\Services\Import\HistoricVideoRoundCloseout;
 use App\Services\Import\HistoricVideoRoundEvidence;
 use App\Support\CanonicalJson;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Tests\TestCase;
@@ -129,6 +136,48 @@ class HistoricVideoRoundEvidenceTest extends TestCase
         $this->expectExceptionMessage('digest has drifted');
 
         app(HistoricVideoRoundCloseout::class)->complete($operation->fresh(), $cover);
+    }
+
+    #[Test]
+    public function it_refuses_a_settled_nested_failure_without_durable_containment(): void
+    {
+        config(['media-processing.historic_import.evidence_signing_key' => 'round-key']);
+        $operation = $this->persistedOperation();
+        $cover = $this->coverWithSettledNestedFailure($operation);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('neither superseded nor durably contained');
+
+        app(HistoricVideoRoundEvidence::class)->verify($cover, $operation);
+    }
+
+    #[Test]
+    public function it_accepts_a_settled_nested_failure_that_is_explicitly_retained_as_a_contained_residue(): void
+    {
+        config(['media-processing.historic_import.evidence_signing_key' => 'round-key']);
+        $operation = $this->persistedOperation();
+        $cover = $this->coverWithSettledNestedFailure($operation);
+        $run = MediaProcessingLog::query()->where('processing_id', 'failed-then-completed')->sole();
+        Storage::fake('historic_quarantine');
+        Storage::disk('historic_quarantine')->put('section-publications/1/video.mp4', 'video');
+        ServiceSection::factory()->create([
+            'id' => 1,
+            'media_processing_log_id' => $run->id,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval,
+            'asset_disk' => 'historic_quarantine',
+            'extracted_video_path' => 'section-publications/1/video.mp4',
+        ]);
+        $nestedJob = HistoricImportNestedJob::query()->where('job_key', 'auto-publish-section-1')->sole();
+
+        $this->assertSame($run->id, $nestedJob->processingLog?->id);
+        $this->assertSame(ProcessingStatus::Completed, $run->status);
+        $this->assertTrue($run->completed_at?->gte($nestedJob->settled_at) ?? false);
+
+        $verified = app(HistoricVideoRoundEvidence::class)->verify($cover, $operation);
+
+        $this->assertSame('failed-then-completed', data_get($verified, 'reports.operation_ledger.path') !== null
+            ? $run->processing_id
+            : null);
     }
 
     private function operation(): HistoricImportOperation
@@ -259,6 +308,56 @@ class HistoricVideoRoundEvidenceTest extends TestCase
             'key_id' => 'test-key',
             'digest' => hash_hmac('sha256', CanonicalJson::encode($cover), 'round-key'),
         ];
+
+        return $cover;
+    }
+
+    /** @return array<string, mixed> */
+    private function coverWithSettledNestedFailure(HistoricImportOperation $operation): array
+    {
+        $run = MediaProcessingLog::factory()->create([
+            'historic_import_operation_id' => $operation->id,
+            'processing_id' => 'failed-then-completed',
+            'processing_type' => MediaType::Livestream,
+            'status' => ProcessingStatus::Completed,
+            'completed_at' => '2026-09-19 12:01:00',
+        ]);
+        HistoricImportNestedJob::query()->create([
+            'historic_import_operation_id' => $operation->id,
+            'media_processing_log_id' => $run->id,
+            'job_key' => 'auto-publish-section-1',
+            'job_type' => 'test-job',
+            'state' => 'failed',
+            'attempts' => 3,
+            'error_fingerprint' => str_repeat('a', 64),
+            'dispatched_at' => '2026-09-19 11:59:00',
+            'settled_at' => '2026-09-19 12:00:00',
+        ]);
+        $cover = $this->cover($operation);
+        $this->writeReport($cover['reports'], 'operation_ledger', [
+            'live_jobs' => 0,
+            'external_notifications_sent' => 0,
+            'nested_jobs' => ['unsettled' => 0, 'failed_settled' => 1],
+            'failed_nested_jobs' => [[
+                'processing_id' => $run->processing_id,
+                'job_key' => 'auto-publish-section-1',
+                'attempts' => 3,
+                'settled_at' => '2026-09-19T12:00:00+00:00',
+                'resolution' => 'contained_not_superseded',
+                'explanation' => 'The failed publication is retained as a contained residue.',
+            ]],
+        ]);
+        $cover['residues'][] = [
+            'name' => 'failed_nested_jobs',
+            'count' => 1,
+            'source_report' => 'operation_ledger',
+            'explanation' => 'The failed job is settled and explained.',
+        ];
+        $cover['signature']['digest'] = hash_hmac(
+            'sha256',
+            CanonicalJson::encode(array_diff_key($cover, ['signature' => true])),
+            'round-key',
+        );
 
         return $cover;
     }

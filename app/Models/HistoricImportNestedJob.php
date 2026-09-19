@@ -37,7 +37,7 @@ class HistoricImportNestedJob extends Model
     /** @return BelongsTo<MediaProcessingLog, $this> */
     public function processingLog(): BelongsTo
     {
-        return $this->belongsTo(MediaProcessingLog::class);
+        return $this->belongsTo(MediaProcessingLog::class, 'media_processing_log_id');
     }
 
     /** @return array<string, string> */

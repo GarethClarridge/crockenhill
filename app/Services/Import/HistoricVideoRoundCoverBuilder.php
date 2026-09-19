@@ -11,6 +11,10 @@ use RuntimeException;
 
 final class HistoricVideoRoundCoverBuilder
 {
+    public function __construct(
+        private readonly HistoricVideoRoundFailedJobs $failedJobs,
+    ) {}
+
     /**
      * @param  array<string, string>  $reportPaths
      * @param  list<string>  $acceptedHoldsPaths
@@ -45,6 +49,14 @@ final class HistoricVideoRoundCoverBuilder
         $ledger = $this->read($reportPaths['operation_ledger'], 'operation ledger');
         $performance = $this->read($reportPaths['cost_duration'], 'cost/duration');
         $holdItems = [];
+        $failedJobs = $ledger['failed_nested_jobs'] ?? null;
+
+        if (! is_array($failedJobs) || ! array_is_list($failedJobs)) {
+            throw new RuntimeException('Historic video round operation ledger has no failed nested-job list.');
+        }
+
+        $this->failedJobs->assertSuperseded($operation, $failedJobs);
+
         foreach ($acceptedHoldsPaths as $acceptedHoldsPath) {
             $holds = $this->read($acceptedHoldsPath, 'accepted holds');
             foreach (($holds['items'] ?? null) ?? [] as $hold) {
