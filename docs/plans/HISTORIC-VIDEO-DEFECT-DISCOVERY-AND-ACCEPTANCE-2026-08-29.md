@@ -3221,6 +3221,24 @@ read-only; register `hintresolve-20260916-blast-radius.json`). Nothing was writt
   dispositions and the accepted 2024-08-11 hold is represented explicitly. Then
   produce the consolidated operation-wide asset report, assemble the Scripture,
   ledger and cost/duration reports, and review every non-zero residue.
+
+  **The three manual-review identities were adjudicated on 2026-09-19 and all
+  three are accepted holds, not exclusions.** The operation-bound review artifact
+  is `storage/scratch/operation-4-round-evidence/manual-review-dispositions.json`
+  (SHA-256 `1f3b8eb44e2620f1069f347728436db5d9a7f551fbe013a949a9907592923822`).
+  For 2023-02-26, the retained proposal has an evident decimal-place timestamp
+  defect (`41410s` against a `4407.681451s` source) plus a 4.9-second overlap, but
+  identifies a plausible sermon and the source survives. For 2024-05-05, the
+  proposal identifies a plausible 1,642.81-second sermon but incorrectly binds an
+  explicitly unplanned Psalm reading into the OoS order; its source also survives.
+  Neither produced projected sections or a sermon, so both remain recoverable
+  structure/extraction holds. For 2024-11-03, sermon 865 and ten projected
+  sections survive, including a high-confidence 1,548.98-second sermon, but a
+  later proposal duplicated OoS item 4079 and left the run failed. The existing
+  reconciler would resume it, but doing that before settling the duplicate claim
+  and storage ownership risks replacing media references; it therefore remains
+  held rather than being relabelled complete. No media, run, section, sermon or
+  operation state was changed by this adjudication.
 - [ ] Re-run §4.1a's held-out validation on a fresh sample after repairs, as final
   acceptance evidence, across eras and apparently clean cases,
   covering split sermons, partial/composite recordings, corrupt transcripts,
