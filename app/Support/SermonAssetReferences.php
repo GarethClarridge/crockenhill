@@ -43,8 +43,8 @@ final class SermonAssetReferences
      */
     public static function for(Sermon $sermon): array
     {
-        $sermonDisk = self::sermonDisk();
-        $transcriptDisk = self::transcriptDisk();
+        $sermonDisk = $sermon->assetDisk(self::sermonDisk());
+        $transcriptDisk = $sermon->assetDisk(self::transcriptDisk());
         $thumbnailDisk = self::thumbnailDisk();
 
         $assets = [
@@ -118,6 +118,7 @@ final class SermonAssetReferences
     public static function selectColumns(): array
     {
         return [
+            'asset_disk',
             'audio_file_path',
             'video_file_path',
             'transcript_file_path',

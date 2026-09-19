@@ -58,6 +58,35 @@ class AuditHistoricImportAssetsCommandTest extends TestCase
     }
 
     #[Test]
+    public function it_audits_promoted_sermon_assets_on_the_sermons_recorded_disk(): void
+    {
+        Storage::fake('historic_staging');
+        Storage::fake('historic_quarantine');
+        config([
+            'media-processing.storage.sermon_disk' => 'historic_staging',
+            'media-processing.storage.transcript_disk' => 'historic_staging',
+        ]);
+        $sermon = Sermon::factory()->create([
+            'asset_disk' => 'historic_quarantine',
+            'audio_file_path' => 'sermons/audio/promoted.mp3',
+            'video_file_path' => 'sermons/123/video.mp4',
+            'transcript_file_path' => 'transcripts/sermon_123.md',
+            'thumbnail_file_path' => null,
+        ]);
+        Storage::disk('historic_quarantine')->put($sermon->audio_file_path, 'audio');
+        Storage::disk('historic_quarantine')->put($sermon->video_file_path, 'video');
+        Storage::disk('historic_quarantine')->put($sermon->transcript_file_path, 'transcript');
+        $log = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'sermon_id' => $sermon->id,
+            'processing_metadata' => ['historic_import' => ['label' => 'archive recording']],
+        ]);
+
+        $this->artisan('audit:historic-import-assets', ['report' => $this->writeReport([$log->processing_id])])
+            ->assertSuccessful()
+            ->expectsOutputToContain('fully retained');
+    }
+
+    #[Test]
     public function it_fails_when_the_report_names_an_unknown_processing_run(): void
     {
         $report = $this->writeReport(['not-a-real-processing-id']);
