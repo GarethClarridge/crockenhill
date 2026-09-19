@@ -2358,7 +2358,19 @@ evaluation membership separate.
 - [ ] Detect sparse 30-second-cadence loss (§4.1a): consecutive short cues exactly
   30 s apart inside dense speech. Regression cases §3739 (1112) and §3490 (1278);
   negative cases are "Amen"/"Thank you" cadences over music and 1089's silent source.
-- [ ] Add 1347's reading loop ("the Lord" ×16, 32 words) to the short-loop candidates.
+- [x] Add 1347's reading loop ("the Lord" ×16, 32 words) to the short-loop candidates.
+  **Implemented and applied 2026-09-19 (`4e42e05e7`).** The general three-word,
+  five-repeat floor is unchanged: the five four-repeat candidates already
+  redecoded against audio are ordinary speech, so lowering it would manufacture
+  holds. A separate one/two-word branch requires at least 16 repeats and 24
+  repeated words. Its regression cases are 1347's 60-second reading loss and
+  1151's physically impossible “Amen” ×32 in 1.8 seconds. A read-only comparison
+  over all 416 readable Operation 4 transcripts found 151 runs/412 blocks versus
+  the unchanged rule's 140/397, but only those two additional runs overlap a
+  delivered sermon span. Applying the screen to exactly 1151 and 1347 recorded
+  both blocks and raised two holds, withdrawing none; both sermon sections are
+  `not_applicable`, so no published section required demotion. The other new
+  short-phrase blocks remain candidates rather than adjudicated defects.
 - [x] Feed recorded repetition blocks into song publication review. Implemented
   and banked through v5 on 2026-09-16 (§4.3a); looped gaps no longer invent
   boundary evidence. This is a publication risk, not independent identity proof.
