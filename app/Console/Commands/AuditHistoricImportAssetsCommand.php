@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Support\SermonAssetReferences;
 use Illuminate\Console\Command;
@@ -28,7 +29,7 @@ class AuditHistoricImportAssetsCommand extends Command
 
     protected $description = 'Fail when a historic import batch is missing an artifact it was supposed to retain';
 
-    public function handle(): int
+    public function handle(HistoricStagingContextRegistry $stagingContexts): int
     {
         $path = (string) $this->argument('report');
         $payload = is_file($path) ? json_decode((string) file_get_contents($path), true) : null;
@@ -70,7 +71,18 @@ class AuditHistoricImportAssetsCommand extends Command
                 continue;
             }
 
-            foreach ($this->expectedAssets($log) as $asset) {
+            $serviceArtifacts = ServiceArtifactStorage::recordedFor($log);
+            $checked += count($serviceArtifacts);
+            $checkServiceArtifacts = fn (): array => $this->missingAssets($processingId, $serviceArtifacts);
+            $stagingContext = $log->historicStagingContext();
+            $missing = array_merge(
+                $missing,
+                $stagingContext === null
+                    ? $checkServiceArtifacts()
+                    : $stagingContexts->within($stagingContext, $checkServiceArtifacts),
+            );
+
+            foreach ($this->sermonAssets($log) as $asset) {
                 $checked++;
 
                 if (! Storage::disk($asset['disk'])->exists($asset['path'])) {
@@ -128,13 +140,11 @@ class AuditHistoricImportAssetsCommand extends Command
     }
 
     /**
-     * The durable service artifacts plus every asset the derived sermon references.
-     *
      * @return list<array{kind: string, disk: string, path: string}>
      */
-    private function expectedAssets(MediaProcessingLog $log): array
+    private function sermonAssets(MediaProcessingLog $log): array
     {
-        $assets = ServiceArtifactStorage::recordedFor($log);
+        $assets = [];
 
         if ($log->sermon !== null) {
             foreach (SermonAssetReferences::for($log->sermon) as $reference) {
@@ -147,5 +157,22 @@ class AuditHistoricImportAssetsCommand extends Command
         }
 
         return $assets;
+    }
+
+    /**
+     * @param  list<array{kind: string, disk: string, path: string}>  $assets
+     * @return list<string>
+     */
+    private function missingAssets(string $processingId, array $assets): array
+    {
+        $missing = [];
+
+        foreach ($assets as $asset) {
+            if (! Storage::disk($asset['disk'])->exists($asset['path'])) {
+                $missing[] = "{$processingId} {$asset['kind']} → {$asset['disk']}:{$asset['path']}";
+            }
+        }
+
+        return $missing;
     }
 }

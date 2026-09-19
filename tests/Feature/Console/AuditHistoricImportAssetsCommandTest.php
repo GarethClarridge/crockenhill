@@ -6,8 +6,11 @@ namespace Tests\Feature\Console;
 
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
+use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -84,6 +87,58 @@ class AuditHistoricImportAssetsCommandTest extends TestCase
         $this->artisan('audit:historic-import-assets', ['report' => $this->writeReport([$log->processing_id])])
             ->assertSuccessful()
             ->expectsOutputToContain('fully retained');
+    }
+
+    #[Test]
+    public function it_audits_recorded_service_artifacts_inside_the_runs_batch_root(): void
+    {
+        $directory = sys_get_temp_dir().'/historic-asset-audit-'.uniqid();
+        $disk = 'historic_asset_audit_'.uniqid();
+        File::ensureDirectoryExists($directory);
+
+        try {
+            config([
+                "filesystems.disks.{$disk}" => [
+                    'driver' => 'local',
+                    'root' => $directory,
+                    'visibility' => 'private',
+                    'throw' => true,
+                ],
+                'media-processing.storage.historic_staging_disk' => $disk,
+                'media-processing.storage.sermon_disk' => $disk,
+                'media-processing.storage.transcript_disk' => $disk,
+                'media-processing.storage.temp_disk' => $disk,
+            ]);
+
+            $context = app(HistoricStagingGuard::class)->contextForApprovedPlan(
+                str_repeat('a', 64),
+                str_repeat('b', 64),
+            );
+            $log = MediaProcessingLog::factory()->livestream()->completed()->create([
+                'processing_metadata' => [
+                    'historic_import' => [
+                        'label' => 'archive recording',
+                        'staging_context' => $context->toArray(),
+                    ],
+                ],
+            ]);
+
+            app(HistoricStagingContextRegistry::class)->within(
+                $context,
+                fn (): string => app(ServiceArtifactStorage::class)->putJson(
+                    $log->processing_id,
+                    'normalized',
+                    ['cues' => []],
+                ),
+            );
+
+            $this->artisan('audit:historic-import-assets', ['report' => $this->writeReport([$log->processing_id])])
+                ->assertSuccessful()
+                ->expectsOutputToContain('fully retained');
+        } finally {
+            Storage::forgetDisk($disk);
+            File::deleteDirectory($directory);
+        }
     }
 
     #[Test]
