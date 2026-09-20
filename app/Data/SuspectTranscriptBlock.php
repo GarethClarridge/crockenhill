@@ -15,8 +15,9 @@ use App\Services\Media\Audio\ServiceTranscriptRepetitionScreen;
  * *looked at and yielded nothing*, and is produced by
  * {@see ServiceTranscriptPathologyDetector} driving re-transcription. A block
  * records that the transcript *claims* text which the text itself contradicts —
- * a phrase repeated verbatim past the point speech could have produced it, or
- * words arriving faster than a person can say them. The audio behind a block has
+ * a phrase repeated verbatim past the point speech could have produced it,
+ * words arriving faster than a person can say them, or one short cue emitted on
+ * each 30-second decoder boundary between ordinary speech. The audio behind a block has
  * not been looked at, so a block is a reason to hold, never a verdict that the
  * material is lost.
  *
@@ -37,6 +38,9 @@ final readonly class SuspectTranscriptBlock
 
     /** Sustained words-per-minute beyond what a speaker can produce. */
     public const REASON_IMPLAUSIBLE_DENSITY = 'implausible_word_density';
+
+    /** Short cues on consecutive decoder boundaries inside otherwise dense speech. */
+    public const REASON_SPARSE_CADENCE = 'sparse_thirty_second_cadence';
 
     public function __construct(
         public float $start,

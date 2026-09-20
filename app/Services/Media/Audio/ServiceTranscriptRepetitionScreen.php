@@ -21,8 +21,7 @@ use App\Services\HistoricMedia\HistoricTranscriptRecoveryReplay;
  * person said?" — and answers it without deleting a cue or decoding a second of
  * audio.
  *
- * Two measured facts set the rules, both against the 446-run historic corpus
- * exported on 2026-09-09:
+ * Three measured facts set the rules against the historic corpus:
  *
  * 1. **Loops are short.** The 2026-09-09 correctness review screened 125 saved
  *    sermon transcripts holding 222 repetition blocks. Locating every one of
@@ -39,6 +38,11 @@ use App\Services\HistoricMedia\HistoricTranscriptRecoveryReplay;
  *    see, not as a second rule of its own. Relaxing it towards ordinary speech
  *    is what breaks it: at 250 words per minute it starts returning genuine
  *    preaching.
+ *
+ * 3. **Sparse decoder cadence needs speech context.** The raw 30-second cadence
+ *    appears in 178 spans across 139 runs, almost all short acknowledgements over
+ *    music. The two source-confirmed sermon losses sit between dense speech, while
+ *    the source-silent control does not meet that shape.
  *
  * The repeat threshold follows the source-audited short-loop register. Its 32
  * delivered sermons contain 29 corrupt stored loops and three genuine rhetorical
@@ -66,6 +70,7 @@ class ServiceTranscriptRepetitionScreen
         $words = $this->wordStream($transcript);
 
         $blocks = $this->repeatedPhraseBlocks($transcript, $words);
+        $blocks = [...$blocks, ...$this->sparseCadenceBlocks($transcript, $blocks)];
         $blocks = [...$blocks, ...$this->implausibleDensityBlocks($transcript, $words, $blocks)];
 
         usort($blocks, static fn (SuspectTranscriptBlock $left, SuspectTranscriptBlock $right): int => $left->start <=> $right->start);
@@ -244,6 +249,155 @@ class ServiceTranscriptRepetitionScreen
         }
 
         return preg_match('/^\d+$/', $left) === 1 && preg_match('/^\d+$/', $right) === 1;
+    }
+
+    /**
+     * Find decoder-chunk cadence inside ordinary speech.
+     *
+     * The raw cadence is common over songs and quiet: 178 spans across 139
+     * historic runs, almost all short acknowledgements over music. Runs 1112
+     * and 1278 expose the discriminating shape: at least four short cues begin
+     * on consecutive 30-second boundaries, with normal speech density immediately
+     * before and after. This remains a review block rather than source truth;
+     * only listening or an independent source decode can prove what was lost.
+     *
+     * @param  list<SuspectTranscriptBlock>  $existing
+     * @return list<SuspectTranscriptBlock>
+     */
+    private function sparseCadenceBlocks(ChurchServiceTranscript $transcript, array $existing): array
+    {
+        $maximumWords = (int) config('media-processing.service_structure.repetition_screen.cadence_max_cue_words', 10);
+        $minimumCues = (int) config('media-processing.service_structure.repetition_screen.cadence_min_cues', 4);
+        $interval = (float) config('media-processing.service_structure.repetition_screen.cadence_interval_seconds', 30);
+        $tolerance = (float) config('media-processing.service_structure.repetition_screen.cadence_tolerance_seconds', 0.6);
+        $flankSeconds = (float) config('media-processing.service_structure.repetition_screen.cadence_flank_seconds', 30);
+        $minimumFlankWordsPerMinute = (float) config('media-processing.service_structure.repetition_screen.cadence_min_flank_wpm', 60);
+
+        $blocks = [];
+        $start = null;
+
+        foreach ($transcript->cues as $index => $cue) {
+            $wordCount = count($this->normalisedWords($cue['text']));
+            $previous = $index > 0 ? $transcript->cues[$index - 1] : null;
+            $continues = $start !== null
+                && $previous !== null
+                && $wordCount <= $maximumWords
+                && abs(($cue['start'] - $previous['start']) - $interval) <= $tolerance;
+
+            if ($continues) {
+                continue;
+            }
+
+            if ($start !== null) {
+                $this->appendSparseCadenceBlock(
+                    $blocks,
+                    $transcript,
+                    $start,
+                    $index - 1,
+                    $minimumCues,
+                    $interval,
+                    $flankSeconds,
+                    $minimumFlankWordsPerMinute,
+                    $existing,
+                );
+            }
+
+            $start = $wordCount <= $maximumWords ? $index : null;
+        }
+
+        if ($start !== null) {
+            $this->appendSparseCadenceBlock(
+                $blocks,
+                $transcript,
+                $start,
+                count($transcript->cues) - 1,
+                $minimumCues,
+                $interval,
+                $flankSeconds,
+                $minimumFlankWordsPerMinute,
+                $existing,
+            );
+        }
+
+        return $blocks;
+    }
+
+    /**
+     * @param  list<SuspectTranscriptBlock>  $blocks
+     * @param  list<SuspectTranscriptBlock>  $existing
+     */
+    private function appendSparseCadenceBlock(
+        array &$blocks,
+        ChurchServiceTranscript $transcript,
+        int $from,
+        int $to,
+        int $minimumCues,
+        float $interval,
+        float $flankSeconds,
+        float $minimumFlankWordsPerMinute,
+        array $existing,
+    ): void {
+        $cueCount = $to - $from + 1;
+
+        if ($cueCount < $minimumCues) {
+            return;
+        }
+
+        $start = $transcript->cues[$from]['start'];
+        $end = min($transcript->duration, $transcript->cues[$to]['start'] + $interval);
+
+        if ($this->wordsPerMinute($transcript, $start - $flankSeconds, $start) < $minimumFlankWordsPerMinute) {
+            return;
+        }
+
+        if ($this->wordsPerMinute($transcript, $end, $end + $flankSeconds) < $minimumFlankWordsPerMinute) {
+            return;
+        }
+
+        foreach ($existing as $block) {
+            if ($block->overlaps($start, $end)) {
+                return;
+            }
+        }
+
+        $words = 0;
+
+        for ($index = $from; $index <= $to; $index++) {
+            $words += count($this->normalisedWords($transcript->cues[$index]['text']));
+        }
+
+        $seconds = $end - $start;
+        $blocks[] = new SuspectTranscriptBlock(
+            start: $start,
+            end: $end,
+            reason: SuspectTranscriptBlock::REASON_SPARSE_CADENCE,
+            words: $words,
+            wordsPerMinute: $seconds > 0.0 ? $words / $seconds * 60 : null,
+            repeats: $cueCount,
+        );
+    }
+
+    private function wordsPerMinute(ChurchServiceTranscript $transcript, float $start, float $end): float
+    {
+        $boundedStart = max(0.0, $start);
+        $boundedEnd = min($transcript->duration, $end);
+        $seconds = $boundedEnd - $boundedStart;
+
+        if ($seconds <= 0.0) {
+            return 0.0;
+        }
+
+        $words = 0;
+
+        foreach ($transcript->cues as $cue) {
+            if ($cue['end'] <= $boundedStart || $cue['start'] >= $boundedEnd) {
+                continue;
+            }
+
+            $words += count($this->normalisedWords($cue['text']));
+        }
+
+        return $words / $seconds * 60;
     }
 
     /**

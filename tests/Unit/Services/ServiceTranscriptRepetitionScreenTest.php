@@ -265,6 +265,52 @@ class ServiceTranscriptRepetitionScreenTest extends TestCase
     }
 
     #[Test]
+    public function it_holds_sparse_thirty_second_cadence_between_dense_speech(): void
+    {
+        // Runs 1112 and 1278 lose continuing sermon speech to one short cue per
+        // Whisper chunk. The words themselves need not repeat, so neither the
+        // phrase nor density screens can see the missing material.
+        $denseBefore = implode(' ', array_map(static fn (int $index): string => "before{$index}", range(1, 70)));
+        $denseAfter = implode(' ', array_map(static fn (int $index): string => "after{$index}", range(1, 80)));
+
+        $cues = [
+            ['start' => 0.0, 'end' => 30.0, 'text' => $denseBefore],
+            ['start' => 30.0, 'end' => 31.0, 'text' => 'Another one I remember from Jesus.'],
+            ['start' => 60.0, 'end' => 61.0, 'text' => 'The Lord and we heard his voice.'],
+            ['start' => 90.0, 'end' => 91.0, 'text' => 'And both of those.'],
+            ['start' => 120.0, 'end' => 121.0, 'text' => 'He says this.'],
+            ['start' => 150.0, 'end' => 180.0, 'text' => $denseAfter],
+        ];
+
+        $blocks = app(ServiceTranscriptRepetitionScreen::class)->screen(
+            ChurchServiceTranscript::fromCues($cues, 180.0, ChurchServiceTranscript::SOURCE_LOCAL_WHISPER),
+        );
+
+        $this->assertCount(1, $blocks);
+        $this->assertSame(SuspectTranscriptBlock::REASON_SPARSE_CADENCE, $blocks[0]->reason);
+        $this->assertSame(30.0, $blocks[0]->start);
+        $this->assertSame(150.0, $blocks[0]->end);
+        $this->assertSame(4, $blocks[0]->repeats);
+    }
+
+    #[Test]
+    public function it_preserves_short_cadence_over_music_without_dense_speech_on_both_sides(): void
+    {
+        // "Amen" and "Thank you" on a 30-second grid account for almost all
+        // 178 raw corpus candidates. Cadence alone is therefore not a hold.
+        $cues = [
+            ['start' => 30.0, 'end' => 31.0, 'text' => 'Amen.'],
+            ['start' => 60.0, 'end' => 61.0, 'text' => 'Thank you.'],
+            ['start' => 90.0, 'end' => 91.0, 'text' => 'Amen.'],
+            ['start' => 120.0, 'end' => 121.0, 'text' => 'Thank you.'],
+        ];
+
+        $this->assertSame([], app(ServiceTranscriptRepetitionScreen::class)->screen(
+            ChurchServiceTranscript::fromCues($cues, 180.0, ChurchServiceTranscript::SOURCE_LOCAL_WHISPER),
+        ));
+    }
+
+    #[Test]
     public function it_reports_one_block_per_loop_rather_than_one_per_phrase_length(): void
     {
         // An eight-word phrase repeated twelve times is also a sixteen-word

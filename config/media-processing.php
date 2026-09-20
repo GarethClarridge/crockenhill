@@ -401,6 +401,12 @@ return [
             'max_phrase_words' => (int) env('SERVICE_TRANSCRIPT_REPETITION_MAX_PHRASE_WORDS', 25),
             'max_words_per_minute' => (float) env('SERVICE_TRANSCRIPT_REPETITION_MAX_WPM', 400),
             'density_window_seconds' => (float) env('SERVICE_TRANSCRIPT_REPETITION_DENSITY_WINDOW_SECONDS', 30),
+            'cadence_max_cue_words' => (int) env('SERVICE_TRANSCRIPT_CADENCE_MAX_CUE_WORDS', 10),
+            'cadence_min_cues' => (int) env('SERVICE_TRANSCRIPT_CADENCE_MIN_CUES', 4),
+            'cadence_interval_seconds' => (float) env('SERVICE_TRANSCRIPT_CADENCE_INTERVAL_SECONDS', 30),
+            'cadence_tolerance_seconds' => (float) env('SERVICE_TRANSCRIPT_CADENCE_TOLERANCE_SECONDS', 0.6),
+            'cadence_flank_seconds' => (float) env('SERVICE_TRANSCRIPT_CADENCE_FLANK_SECONDS', 30),
+            'cadence_min_flank_wpm' => (float) env('SERVICE_TRANSCRIPT_CADENCE_MIN_FLANK_WPM', 60),
             // Context either side of a block when re-decoding it. A decoder
             // handed 24 seconds with no lead-in has nothing to work from and
             // invents confidently, which is the failure being repaired. Only the
