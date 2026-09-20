@@ -31,10 +31,12 @@
 > successfully through their verified held sermon sections; all three holds remain.
 > The bounded dispatch set is complete. Broader independent source/content validation
 > remains open and these repairs do not clear acceptance.
-> A read-only Operation 4 fragmentation census now sizes the wider candidate pool:
+> A read-only Operation 4 fragmentation census sized the wider candidate pool:
 > 37/416 readable transcripts have at least 50% one-word cues and another 116 sit
-> between 15% and 50%. That signal is reporting only, not a hold or rerun rule;
-> fresh reserved comparisons remain required before broadening recovery.
+> between 15% and 50%. Its frozen eight-run source comparison found saved-sermon
+> defects in 2/4 severe runs and 1/4 ordinary controls; all three are now held.
+> Fragmentation is therefore reporting only, not a hold or rerun rule, and no
+> broader recovery membership is authorised by it.
 > macOS Safari playback across a transport-stream join passed; iOS is an accepted
 > untested limitation. Actual-server range, repaired-output, song-clip and cache
 > checks remain release evidence, not queued-repair prerequisites. A read-only
@@ -2408,7 +2410,7 @@ evaluation membership separate.
   released. The three-run dispatch set is complete; whole-output/source validation
   and the broader corpus checks below remain open, so this checkbox is not yet an
   acceptance claim.
-- [ ] Size wider recovery from raw service-transcript one-word-segment and loop-word
+- [x] Size wider recovery from raw service-transcript one-word-segment and loop-word
   rates, including partial drift in 1221/1336. Do not infer that all old fingerprints
   require a rerun, or that a normal section-text ratio proves clean transcription.
   Compare fresh reserved healthy and defective cases before broadening the batch.
@@ -2462,6 +2464,37 @@ evaluation membership separate.
   the corrected local Whisper options, and only then open the overlapping banked
   cues and saved sermon text. A fresh decode is comparison evidence, not ground
   truth; unclear or proper-name cases require listening rather than forced pass/fail.
+
+  **Completed 2026-09-20.** All eight manifest-recorded archive sources existed
+  at their approved byte sizes. The sixteen independently extracted WAVs were
+  exactly 60.000 seconds with distinct per-window SHA-256 hashes, then decoded
+  locally using `large-v3-turbo`, `max_context=0` and
+  `carry_initial_prompt=true`. The first attempted multi-output extraction was
+  rejected before decode because FFmpeg default-mapped the first input twice;
+  independent invocations replaced it, and the distinct-hash precondition caught
+  and proves the correction. Evidence and hashes are in
+  `storage/scratch/fragmentation-reserved-20260920/review.json`.
+
+  Result: **three saved-sermon defects in sixteen windows across eight runs**.
+  Severe 1032 loses the complete phrase “interesting place in which to find
+  oneself” from §1435. Severe 1330 loses substantial clauses in both windows from
+  §4188, including how Jesus saves through dying and rising and what following him
+  requires. Ordinary control 1064 replaces continuing source speech with “lust”
+  repeated sixteen times in sermon 996/§1681. The saved summaries and points remain
+  broadly supported, but their transcripts are not acceptable as stored. A dry run
+  followed by `service:hold-section-content --execute` placed all three sections on
+  `reserved_fragmentation_source_mismatch`; each now has `content_defect_hold`, is
+  `not_applicable`, and refuses its sermon at release.
+
+  Severe 1163's repeated sentence is also repeated in the fresh source decode;
+  severe 1272 and ordinary 1354, 1040 and 1262 preserve meaning in both windows.
+  Edge-word and proper-name differences were not promoted to defects. This bounded
+  comparison therefore finds **2/4 severe and 1/4 ordinary** runs defective. It
+  shows fragmentation enriches for risk but neither identifies every defect nor
+  defines a clean negative set. Do not retranscribe all 37 severe rows or clear the
+  263 ordinary rows from this signal. Repair the three named runs only through the
+  standard pipeline after their independent source/output checks are accepted; the
+  holds remain until repaired artifacts pass review.
 - [ ] Validate the remaining short-loop candidates against their audio; distinguish
   genuine rhetoric or singing from corrupt transcription.
 - [ ] Add regression coverage for four repetitions, fewer than 40 repeated words,
