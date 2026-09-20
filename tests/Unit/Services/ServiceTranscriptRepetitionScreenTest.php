@@ -135,6 +135,69 @@ class ServiceTranscriptRepetitionScreenTest extends TestCase
     }
 
     #[Test]
+    public function it_holds_a_four_repeat_loop_confirmed_absent_from_the_source(): void
+    {
+        // Run 1230's saved sermon repeats this three-word fragment four times,
+        // while the source says it once and continues into the resurrection.
+        $transcript = $this->loopingTranscript(
+            phrase: 'And his death.',
+            repeats: 4,
+            start: 1188.52,
+            secondsEach: 0.225,
+        );
+
+        $blocks = app(ServiceTranscriptRepetitionScreen::class)->screen($transcript);
+
+        $this->assertCount(1, $blocks);
+        $this->assertSame('and his death', $blocks[0]->phrase);
+        $this->assertSame(4, $blocks[0]->repeats);
+        $this->assertSame(12, $blocks[0]->words);
+    }
+
+    #[Test]
+    public function it_holds_a_loop_with_fewer_than_forty_repeated_words(): void
+    {
+        // Run 969 loses continuing source speech to fifteen repeated words.
+        $transcript = $this->loopingTranscript(
+            phrase: 'Into the kingdom.',
+            repeats: 5,
+            start: 3180.64,
+            secondsEach: 0.348,
+        );
+
+        $blocks = app(ServiceTranscriptRepetitionScreen::class)->screen($transcript);
+
+        $this->assertCount(1, $blocks);
+        $this->assertSame('into the kingdom', $blocks[0]->phrase);
+        $this->assertSame(15, $blocks[0]->words);
+    }
+
+    #[Test]
+    public function it_holds_a_loop_whose_numbers_change_between_repetitions(): void
+    {
+        // Run 1187 invents successive numbered Peter references. Treating each
+        // digit as literal lets the same surrounding decode loop evade the
+        // verbatim screen.
+        $cues = [];
+
+        foreach ([6, 7, 8, 10] as $index => $number) {
+            $cues[] = [
+                'start' => 1350.0 + $index * 2.0,
+                'end' => 1352.0 + $index * 2.0,
+                'text' => "{$number} Peter 5 13 16.",
+            ];
+        }
+
+        $blocks = app(ServiceTranscriptRepetitionScreen::class)->screen(
+            ChurchServiceTranscript::fromCues($cues, 1800.0, ChurchServiceTranscript::SOURCE_LOCAL_WHISPER),
+        );
+
+        $this->assertCount(1, $blocks);
+        $this->assertSame(4, $blocks[0]->repeats);
+        $this->assertSame(20, $blocks[0]->words);
+    }
+
+    #[Test]
     public function it_preserves_a_genuine_sung_refrain(): void
     {
         // Real repetition in this corpus sits at three and four repeats and at a

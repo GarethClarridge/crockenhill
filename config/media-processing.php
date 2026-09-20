@@ -384,15 +384,16 @@ return [
         ],
         // A looping decode holds the transcript for review even when the
         // recovery detector above never fires. Measured against the 446-run
-        // historic corpus on 2026-09-09: five verbatim back-to-back repeats is
-        // the boundary above which the corpus offers no genuine example, while
-        // real hymn and liturgical repetition sits at three and four. The
-        // words-per-minute ceiling is a backstop for near-repeats the verbatim
-        // rule cannot see; relaxing it towards 250 starts returning ordinary
-        // preaching. See ServiceTranscriptRepetitionScreen.
+        // historic corpus, then source-audited against the 32-run short-loop
+        // register on 2026-09-20: 29 are corrupt stored text and three are
+        // genuine rhetoric. Four repeats and twelve repeated words are the
+        // conservative review boundary; source re-decode settles the genuine
+        // cases. The words-per-minute ceiling is a backstop for near-repeats the
+        // verbatim rule cannot see; relaxing it towards 250 starts returning
+        // ordinary preaching. See ServiceTranscriptRepetitionScreen.
         'repetition_screen' => [
-            'min_repeats' => (int) env('SERVICE_TRANSCRIPT_REPETITION_MIN_REPEATS', 5),
-            'min_repeated_words' => (int) env('SERVICE_TRANSCRIPT_REPETITION_MIN_WORDS', 40),
+            'min_repeats' => (int) env('SERVICE_TRANSCRIPT_REPETITION_MIN_REPEATS', 4),
+            'min_repeated_words' => (int) env('SERVICE_TRANSCRIPT_REPETITION_MIN_WORDS', 12),
             'min_phrase_words' => (int) env('SERVICE_TRANSCRIPT_REPETITION_MIN_PHRASE_WORDS', 3),
             'short_phrase_max_words' => (int) env('SERVICE_TRANSCRIPT_REPETITION_SHORT_PHRASE_MAX_WORDS', 2),
             'short_phrase_min_repeats' => (int) env('SERVICE_TRANSCRIPT_REPETITION_SHORT_PHRASE_MIN_REPEATS', 16),

@@ -40,14 +40,15 @@ use App\Services\HistoricMedia\HistoricTranscriptRecoveryReplay;
  *    is what breaks it: at 250 words per minute it starts returning genuine
  *    preaching.
  *
- * The repeat threshold is where legitimate repetition is preserved. At five or
- * more verbatim back-to-back repeats the corpus offers no genuine example —
- * "let's stand" twenty-three times across 136 seconds is a decode looping over
- * music, not a congregation. Real repetition sits at three and four: "tell me
- * the old old story", "my comfort my comfort my comfort", the doxology. Short
- * one- and two-word phrases use a separate extreme-repeat floor: run 1347 loses
- * part of Matthew 6 to "the Lord" sixteen times, while admitting ordinary short
- * rhetoric at the general threshold would hold much of the corpus for nothing.
+ * The repeat threshold follows the source-audited short-loop register. Its 32
+ * delivered sermons contain 29 corrupt stored loops and three genuine rhetorical
+ * passages. Four repeats and twelve repeated words are therefore the review
+ * boundary, not an automatic truth verdict: the recovery path re-decodes the
+ * source underneath a block, while an unavailable retry keeps the conservative
+ * hold for review. Short one- and two-word phrases retain a separate extreme-
+ * repeat floor: run 1347 loses part of Matthew 6 to "the Lord" sixteen times,
+ * while admitting ordinary short rhetoric at the general threshold would hold
+ * much of the corpus for nothing.
  */
 class ServiceTranscriptRepetitionScreen
 {
@@ -222,12 +223,27 @@ class ServiceTranscriptRepetitionScreen
     private function phrasesMatch(array $words, int $left, int $right, int $length): bool
     {
         for ($offset = 0; $offset < $length; $offset++) {
-            if ($words[$left + $offset]['word'] !== $words[$right + $offset]['word']) {
+            if (! $this->wordsMatch($words[$left + $offset]['word'], $words[$right + $offset]['word'])) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    /**
+     * Numeric substitutions do not make a repeated decode independent speech.
+     * Run 1187 advances through impossible Peter references while retaining the
+     * same surrounding phrase, so digits compare as one token for matching but
+     * the first observed phrase remains in the reported evidence.
+     */
+    private function wordsMatch(string $left, string $right): bool
+    {
+        if ($left === $right) {
+            return true;
+        }
+
+        return preg_match('/^\d+$/', $left) === 1 && preg_match('/^\d+$/', $right) === 1;
     }
 
     /**

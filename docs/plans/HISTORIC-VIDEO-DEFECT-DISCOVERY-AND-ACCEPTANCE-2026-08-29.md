@@ -2537,8 +2537,25 @@ evaluation membership separate.
   boundary; the fallback source decode instead hears the continuing sung line.
   Evidence, exact membership, verdicts and SHA-256 hashes are in
   `storage/scratch/short-loop-review-20260920/review.json`.
-- [ ] Add regression coverage for four repetitions, fewer than 40 repeated words,
-  and number-varying loops.
+- [x] Add regression coverage for four repetitions, fewer than 40 repeated words,
+  and number-varying loops. **Implemented 2026-09-20.** The screen's general
+  boundary is now four repeats and twelve repeated words; one/two-word phrases
+  retain their independently measured extreme threshold. Numeric tokens compare
+  as substitutions while matching, so changing an invented chapter or book
+  number no longer resets an otherwise identical loop; the reported evidence
+  still preserves the first observed phrase. Regression fixtures are the
+  source-confirmed run 1230 four-repeat fragment, run 969's fifteen-word loop and
+  run 1187's changing Peter references; all failed before the change and pass
+  after it. The recovery path re-decodes a detected block from source before
+  replacing it, so the 3/32 genuine rhetorical cases found above define review
+  false positives rather than permission to trust the other 29 defects.
+
+  A read-only whole-corpus differential over 465 readable transcripts (897 old
+  staging artifacts are unavailable) moves 180 → 278 runs with any block, 484 →
+  892 blocks and 15 → 63 runs with a block inside the delivered sermon span.
+  This was **not applied** corpus-wide: the additional 48 delivered-sermon runs
+  are recovery/review candidates, not 48 inferred defects. Existing source-
+  confirmed rows remain contained by the explicit holds above.
 - [ ] Verify recovered full-service evidence and saved sermon text independently.
   Agreement between two copies of the same corrupt text is not proof.
 - [ ] Apply §4.1b's blind interior-window review to fluent transcription errors and
