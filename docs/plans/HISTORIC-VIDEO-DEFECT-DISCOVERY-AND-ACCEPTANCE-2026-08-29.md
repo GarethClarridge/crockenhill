@@ -2623,9 +2623,9 @@ evaluation membership separate.
 
 ### 4.3 Refresh song policy for existing outputs
 
-- [ ] Reassess all already-generated songs within each owning run's recorded
+- [x] Reassess all already-generated songs within each owning run's recorded
   staging context and bind the verdict to current inputs and policy.
-  **Readable corpus banked 2026-09-21; five runs remain fail-closed.** The
+  **Completed 2026-09-21; the five-run residue is not generated output.** The
   backfill report was first corrected test-first so `would newly hold` means a
   transition from `needs_manual_review = false`, rather than every assessment
   that names a reason; already-held rows are now reported separately as
@@ -2635,8 +2635,17 @@ evaluation membership separate.
   unavailable. All 509 readable assessments were banked under their owning
   runs' recorded staging contexts; the execute-time totals matched the dry run.
   A post-write full-scope pass selects only the 19 unavailable sections, all in
-  runs **884, 888, 890, 893 and 914**. Those rows were not written and this item
-  stays open until their source is restaged and the same pass banks them.
+  runs **884, 888, 890, 893 and 914**. A row-level follow-up established that all
+  19 are `not_applicable`, none records an extracted video or audio path, and
+  none has a `SongVideo`; 18 are unheld and section 398 retains an existing hold.
+  They are service-structure rows, not already-generated songs, so they are
+  outside this item's promised population. They correctly remain unwritten:
+  these five pre-historic-import runs have no recorded staging context, their
+  full-service transcript/RMS inputs are absent, and source restoration alone
+  would not recreate that evidence. The ordinary published/pending pass remains
+  empty, proving every generated song in scope holds current banked evidence.
+  Do not convert the 19 unavailable assessments into clean evidence or require
+  unsafe source substitution merely to make the diagnostic all-status pass empty.
 - [ ] Reconcile the 27 boundary-policy candidates in addition to confirmed mixed
   section 3869.
 - [ ] Add a boundary check for continuous spoken material that does not depend
