@@ -2625,6 +2625,18 @@ evaluation membership separate.
 
 - [ ] Reassess all already-generated songs within each owning run's recorded
   staging context and bind the verdict to current inputs and policy.
+  **Readable corpus banked 2026-09-21; five runs remain fail-closed.** The
+  backfill report was first corrected test-first so `would newly hold` means a
+  transition from `needs_manual_review = false`, rather than every assessment
+  that names a reason; already-held rows are now reported separately as
+  `would retain hold`. The default published/pending scope selected nothing.
+  The explicit all-status pass selected 528 current or stale sections: 509 were
+  readable, 119 would newly hold, 224 would retain a hold, and 19 were
+  unavailable. All 509 readable assessments were banked under their owning
+  runs' recorded staging contexts; the execute-time totals matched the dry run.
+  A post-write full-scope pass selects only the 19 unavailable sections, all in
+  runs **884, 888, 890, 893 and 914**. Those rows were not written and this item
+  stays open until their source is restaged and the same pass banks them.
 - [ ] Reconcile the 27 boundary-policy candidates in addition to confirmed mixed
   section 3869.
 - [ ] Add a boundary check for continuous spoken material that does not depend

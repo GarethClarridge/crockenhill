@@ -105,7 +105,7 @@ class BackfillSongBoundaryEvidenceCommand extends Command
             if ($backfill->apply($section)) {
                 $banked++;
 
-                if ($entry['holds']) {
+                if ($entry['newly_holds']) {
                     $held++;
                 }
             }
@@ -121,7 +121,7 @@ class BackfillSongBoundaryEvidenceCommand extends Command
     }
 
     /**
-     * @param  list<array{section:int, run:int|null, disposition:string, reactivated:bool, decision:string|null, risks:list<string>, reasons:list<string>, holds:bool, detail:string|null}>  $entries
+     * @param  list<array{section:int, run:int|null, disposition:string, reactivated:bool, decision:string|null, risks:list<string>, reasons:list<string>, holds:bool, newly_holds:bool, detail:string|null}>  $entries
      */
     private function report(array $entries): void
     {
@@ -151,14 +151,24 @@ class BackfillSongBoundaryEvidenceCommand extends Command
          * published clip, which `service:demote-held-publications` then takes
          * out of view. An operator has to see that count before deciding.
          */
-        $holds = count(array_filter(
+        $newHolds = count(array_filter(
+            $entries,
+            static fn (array $entry): bool => $entry['newly_holds']
+                && $entry['disposition'] === SongBoundaryEvidenceBackfill::DispositionAssessed,
+        ));
+        $retainedHolds = count(array_filter(
             $entries,
             static fn (array $entry): bool => $entry['holds']
+                && ! $entry['newly_holds']
                 && $entry['disposition'] === SongBoundaryEvidenceBackfill::DispositionAssessed,
         ));
 
-        if ($holds > 0) {
-            $this->line(sprintf('  %-22s %d', 'would newly hold', $holds));
+        if ($newHolds > 0) {
+            $this->line(sprintf('  %-22s %d', 'would newly hold', $newHolds));
+        }
+
+        if ($retainedHolds > 0) {
+            $this->line(sprintf('  %-22s %d', 'would retain hold', $retainedHolds));
         }
 
         if ($byReason !== []) {

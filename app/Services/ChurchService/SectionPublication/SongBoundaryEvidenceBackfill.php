@@ -108,6 +108,7 @@ class SongBoundaryEvidenceBackfill
      *     risks:list<string>,
      *     reasons:list<string>,
      *     holds:bool,
+     *     newly_holds:bool,
      *     detail:string|null
      * }>
      */
@@ -165,6 +166,7 @@ class SongBoundaryEvidenceBackfill
      *     risks:list<string>,
      *     reasons:list<string>,
      *     holds:bool,
+     *     newly_holds:bool,
      *     detail:string|null
      * }
      */
@@ -185,6 +187,7 @@ class SongBoundaryEvidenceBackfill
                 'risks' => [],
                 'reasons' => [],
                 'holds' => false,
+                'newly_holds' => false,
                 'detail' => $e->getMessage(),
             ];
         }
@@ -207,6 +210,7 @@ class SongBoundaryEvidenceBackfill
             'risks' => $risks,
             'reasons' => $reasons,
             'holds' => $reasons !== [],
+            'newly_holds' => $reasons !== [] && ! $section->needs_manual_review,
             'detail' => null,
         ];
     }

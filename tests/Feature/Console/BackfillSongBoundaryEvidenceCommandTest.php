@@ -211,6 +211,26 @@ class BackfillSongBoundaryEvidenceCommandTest extends TestCase
         self::assertNotNull($this->bankedEvidence($fresh));
     }
 
+    #[Test]
+    public function it_does_not_report_an_existing_review_hold_as_new(): void
+    {
+        $this->songSection(
+            withArtifacts: true,
+            alreadyHeld: true,
+            start: 10.0,
+            end: 12.0,
+        );
+
+        $this->artisan('service:backfill-song-boundary-evidence')
+            ->expectsOutputToContain('would retain hold')
+            ->doesntExpectOutputToContain('would newly hold')
+            ->assertSuccessful();
+
+        $this->artisan('service:backfill-song-boundary-evidence', ['--execute' => true])
+            ->expectsOutputToContain('0 newly hold for review')
+            ->assertSuccessful();
+    }
+
     /**
      * P8-Q17 clamped eighteen section bounds, which left their banked candidates
      * describing clips that no longer exist. Evidence that disagrees with its own
@@ -329,6 +349,7 @@ class BackfillSongBoundaryEvidenceCommandTest extends TestCase
         bool $banked = false,
         ?HistoricStagingContext $stagingContext = null,
         ServiceSectionPublicationStatus $status = ServiceSectionPublicationStatus::Published,
+        bool $alreadyHeld = false,
         float $start = 10.0,
         float $end = 250.0,
     ): ServiceSection {
@@ -388,7 +409,7 @@ class BackfillSongBoundaryEvidenceCommandTest extends TestCase
             'end_time' => $end,
             'duration' => $end - $start,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable,
-            'needs_manual_review' => false,
+            'needs_manual_review' => $alreadyHeld,
             'metadata' => $metadata,
         ]);
 
