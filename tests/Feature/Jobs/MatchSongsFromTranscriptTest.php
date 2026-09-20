@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Jobs;
 
+use App\Data\SuspectTranscriptBlock;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
@@ -119,11 +120,24 @@ class MatchSongsFromTranscriptTest extends TestCase
         ]);
 
         $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $log->putServiceTranscriptPath('service-transcripts/looped.normalized.json', [], [
+            (new SuspectTranscriptBlock(
+                start: 400.0,
+                end: 520.0,
+                reason: SuspectTranscriptBlock::REASON_REPEATED_PHRASE,
+                words: 96,
+                wordsPerMinute: 48.0,
+                phrase: 'words from another section',
+                repeats: 24,
+            ))->toArray(),
+        ]);
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
             'section_type' => ServiceSectionType::Song->value,
             'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
+            'start_time' => 100.0,
+            'end_time' => 300.0,
             'needs_manual_review' => true,
             'metadata' => [
                 'classification_mode' => 'audio_only',
@@ -151,6 +165,56 @@ class MatchSongsFromTranscriptTest extends TestCase
         $this->assertSame('Be Thou My Vision', $match['title']);
         $this->assertSame(1.0, (float) $match['confidence']);
         $this->assertSame('title_hint_canonical', $match['match_source']);
+    }
+
+    #[Test]
+    public function it_does_not_confirm_a_title_hint_from_a_suspect_transcript_block(): void
+    {
+        Song::factory()->create([
+            'title' => 'Be Thou My Vision',
+            'canonical_key' => 'be thou my vision',
+            'lyrics_plain' => 'Be thou my vision O Lord of my heart',
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $log->putServiceTranscriptPath('service-transcripts/looped.normalized.json', [], [
+            (new SuspectTranscriptBlock(
+                start: 100.0,
+                end: 220.0,
+                reason: SuspectTranscriptBlock::REASON_REPEATED_PHRASE,
+                words: 96,
+                wordsPerMinute: 48.0,
+                phrase: 'be thou my vision',
+                repeats: 24,
+            ))->toArray(),
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
+            'start_time' => 100.0,
+            'end_time' => 300.0,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'song_title_hint' => 'Be Thou My Vision',
+                'review_flags' => ['unmatched_song_section'],
+            ],
+        ]);
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(StorageAdapterHelper::class),
+            app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
+        );
+
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
+        $this->assertTrue($section->needs_manual_review);
+        $this->assertContains('song_identity_unverified_from_suspect_transcript', $section->metadata['review_flags'] ?? []);
     }
 
     #[Test]
@@ -792,6 +856,17 @@ class MatchSongsFromTranscriptTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->pending()->create([
             'source_file_path' => $sourceFile,
         ]);
+        $log->putServiceTranscriptPath('service-transcripts/looped.normalized.json', [], [
+            (new SuspectTranscriptBlock(
+                start: 200.0,
+                end: 320.0,
+                reason: SuspectTranscriptBlock::REASON_REPEATED_PHRASE,
+                words: 120,
+                wordsPerMinute: 60.0,
+                phrase: 'unrelated looping words',
+                repeats: 20,
+            ))->toArray(),
+        ]);
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
@@ -830,6 +905,7 @@ class MatchSongsFromTranscriptTest extends TestCase
         $this->assertIsArray($match);
         $this->assertSame($song->id, $match['song_id']);
         $this->assertSame('ocr', $match['match_source']);
+        $this->assertNotContains('song_identity_unverified_from_suspect_transcript', $section->metadata['review_flags'] ?? []);
     }
 
     #[Test]

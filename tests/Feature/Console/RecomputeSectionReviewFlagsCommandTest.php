@@ -10,6 +10,7 @@ use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Support\SongCatalogueTitlePolicy;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -111,6 +112,29 @@ class RecomputeSectionReviewFlagsCommandTest extends TestCase
             ->assertSuccessful();
 
         $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->fresh()->song_match_type);
+    }
+
+    #[Test]
+    public function it_leaves_a_suspect_transcript_song_match_inferred_until_independently_confirmed(): void
+    {
+        $service = ChurchService::factory()->create(['needs_review' => false]);
+        $run = $this->livestreamRun($service);
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Song,
+            'song_match_type' => ServiceSectionSongMatchType::Inferred,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'review_flags' => [SongCatalogueTitlePolicy::FLAG_IDENTITY_UNVERIFIED_FROM_SUSPECT_TRANSCRIPT],
+                'transcript_song_match' => ['confidence' => 1.0],
+            ],
+        ]);
+
+        $this->artisan('services:recompute-section-review-flags', ['--execute' => true])
+            ->assertSuccessful();
+
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->fresh()->song_match_type);
+        $this->assertTrue($section->fresh()->needs_manual_review);
     }
 
     #[Test]

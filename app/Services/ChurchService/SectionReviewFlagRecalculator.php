@@ -41,6 +41,7 @@ class SectionReviewFlagRecalculator
         'song_alignment_inferred',
         'song_name_reference_only',
         'song_title_marker_mismatch',
+        SongCatalogueTitlePolicy::FLAG_IDENTITY_UNVERIFIED_FROM_SUSPECT_TRANSCRIPT,
     ];
 
     /**

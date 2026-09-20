@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Data\ServiceSectionMetadata;
+use App\Data\SuspectTranscriptBlock;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStep;
@@ -392,21 +393,32 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
                 'match_source' => $matchSource,
             ];
 
+            $reviewFlags = array_values(array_filter(
+                $metadataArray['review_flags'] ?? [],
+                static fn (mixed $flag): bool => is_string($flag)
+                    && $flag !== 'unmatched_song_section'
+                    && $flag !== SongCatalogueTitlePolicy::FLAG_IDENTITY_UNVERIFIED_FROM_SUSPECT_TRANSCRIPT,
+            ));
+
+            if ($matchSource !== 'ocr' && $this->overlapsSuspectTranscriptBlock($section)) {
+                $reviewFlags[] = SongCatalogueTitlePolicy::FLAG_IDENTITY_UNVERIFIED_FROM_SUSPECT_TRANSCRIPT;
+            }
+
             // A confident match displays the catalogued title rather than the
             // heard text ("What love could remember" → "His Mercy Is More").
             // song_title_hint keeps the heard text as evidence; a shaky fuzzy
             // match must not present a confidently wrong title. The threshold
-            // and the marker-mismatch veto both live in the shared policy so the
+            // and the evidence vetoes both live in the shared policy so the
             // re-derivation path cannot answer this differently.
             $markerMismatch = in_array(
                 ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH,
-                $metadataArray['review_flags'] ?? [],
+                $reviewFlags,
                 true,
             );
 
             $writeCatalogueTitle = SongCatalogueTitlePolicy::writesCatalogueTitle(
                 $confidence,
-                $metadataArray['review_flags'] ?? [],
+                $reviewFlags,
             );
 
             if ($writeCatalogueTitle) {
@@ -414,12 +426,6 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
                 $metadataArray['song_title'] = $displayTitle;
                 $section->title = $displayTitle;
             }
-
-            // Clear the unmatched review flag now that we have a match.
-            $reviewFlags = array_values(array_filter(
-                $metadataArray['review_flags'] ?? [],
-                static fn (mixed $flag): bool => is_string($flag) && $flag !== 'unmatched_song_section'
-            ));
 
             // Keep the mismatch flag: a match does not settle which naming was right.
             if ($markerMismatch && ! in_array(ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH, $reviewFlags, true)) {
@@ -455,6 +461,20 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
                 }
             }
         });
+    }
+
+    private function overlapsSuspectTranscriptBlock(ServiceSection $section): bool
+    {
+        foreach ($section->processingLog->recordedTranscriptSuspectBlocks() ?? [] as $recorded) {
+            if (SuspectTranscriptBlock::fromArray($recorded)->overlaps(
+                (float) $section->start_time,
+                (float) $section->end_time,
+            )) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

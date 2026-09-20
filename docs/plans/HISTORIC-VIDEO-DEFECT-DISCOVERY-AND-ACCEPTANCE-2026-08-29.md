@@ -40,6 +40,9 @@
 > The sparse 30-second-cadence screen is now implemented and detects the two
 > source-confirmed sermon cases (1112/1278) while leaving source-silent 1089
 > clear; the confirming pass was read-only and did not widen corpus holds.
+> Song matching now also refuses to call a transcript-derived title `confirmed`
+> when a suspect block overlaps that song; OCR or audited manual review can still
+> supply independent identity evidence. Existing rows have not been rewritten.
 > macOS Safari playback across a transport-stream join passed; iOS is an accepted
 > untested limitation. Actual-server range, repaired-output, song-clip and cache
 > checks remain release evidence, not queued-repair prerequisites. A read-only
@@ -2604,6 +2607,19 @@ evaluation membership separate.
   confirmation. Add independent performance evidence or demote the match; evaluate
   both repeated catalogue phrases and non-matching phrases against audio, under
   §4.3a's evidence correction.
+  **Prevention implemented 2026-09-20; corpus evaluation remains open.**
+  `MatchSongsFromTranscript` now marks a title-hint match overlapping any recorded
+  suspect transcript block as `song_identity_unverified_from_suspect_transcript`.
+  That flag vetoes catalogue-title writeback and keeps the match `inferred` and
+  review-held even at confidence 1.0; `SectionReviewFlagRecalculator` honours the
+  same veto, so a later recompute cannot silently reconfirm it. OCR remains eligible
+  to confirm because it reads projected frames rather than the suspect transcript,
+  and the existing audited operator-confirmation path can settle an inferred match.
+  Focused coverage proves the transcript-derived demotion, the OCR control and the
+  re-derivation guard. No existing section was changed: re-detect/re-resolve the
+  affected historic rows through the pipeline, then complete the reserved audio
+  comparison of catalogue-phrase and non-matching-phrase cases before checking this
+  item off.
 
 ### 4.3 Refresh song policy for existing outputs
 

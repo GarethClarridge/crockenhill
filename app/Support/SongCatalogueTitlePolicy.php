@@ -14,12 +14,11 @@ use App\Services\ChurchService\Structure\ServiceStructureValidator;
  * present the catalogued title, and therefore whether the section's match is
  * Confirmed or merely Inferred.
  *
- * Two independent conditions must both hold. Confidence must clear the
- * write-back threshold, and the detector must not already have contradicted
- * itself about the naming: where the validator flagged the section's songTitle
- * as disagreeing with its own chapter marker, confidence cannot arbitrate the
- * dispute. Observed mismatches scored 0.98 and 1.000, so a confidence-only test
- * waves through exactly the rows the flag exists to hold back.
+ * Confidence must clear the write-back threshold, and the evidence must not
+ * already contradict itself. A chapter-marker mismatch scored 0.98–1.000 in
+ * measured cases, while a title inferred from text inside a suspect transcript
+ * block merely lets the damaged evidence corroborate itself. Confidence cannot
+ * arbitrate either dispute; OCR or audited review provides independent evidence.
  *
  * Shared by the matching path ({@see MatchSongsFromTranscript}) and
  * the re-derivation path
@@ -31,6 +30,8 @@ use App\Services\ChurchService\Structure\ServiceStructureValidator;
  */
 class SongCatalogueTitlePolicy
 {
+    public const FLAG_IDENTITY_UNVERIFIED_FROM_SUSPECT_TRANSCRIPT = 'song_identity_unverified_from_suspect_transcript';
+
     /**
      * Whether the catalogued title may replace the heard text, which is also
      * what separates a Confirmed match from an Inferred one.
@@ -44,6 +45,10 @@ class SongCatalogueTitlePolicy
         }
 
         if (in_array(ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH, $reviewFlags, true)) {
+            return false;
+        }
+
+        if (in_array(self::FLAG_IDENTITY_UNVERIFIED_FROM_SUSPECT_TRANSCRIPT, $reviewFlags, true)) {
             return false;
         }
 
