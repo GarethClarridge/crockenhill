@@ -17,8 +17,8 @@ use Illuminate\Database\Eloquent\Builder;
 use RuntimeException;
 
 /**
- * Screen banked full-service transcripts for looping text, and optionally hold
- * the sermons whose delivered span contains it (P8-Q14).
+ * Screen banked full-service transcripts for looping text and one-word
+ * fragmentation, and optionally hold sermons containing repetition (P8-Q14).
  *
  * The pipeline screens every transcript it writes, but the 2026-09-09
  * correctness review's 125 looping sermons were all decoded before the screen
@@ -71,6 +71,11 @@ class ScreenTranscriptRepetitionCommand extends Command
             'blocks' => 0,
             'seconds' => 0.0,
             'sermon_span_held' => 0,
+            'fragmentation' => [
+                'severe_runs' => 0,
+                'elevated_runs' => 0,
+                'ordinary_runs' => 0,
+            ],
             'holds_raised' => 0,
             'holds_withdrawn' => 0,
             'runs' => [],
@@ -93,6 +98,16 @@ class ScreenTranscriptRepetitionCommand extends Command
             }
 
             $report['screened']++;
+            $fragmentation = $this->fragmentation($transcript);
+
+            if ($fragmentation['one_word_cue_share'] >= 0.5) {
+                $report['fragmentation']['severe_runs']++;
+            } elseif ($fragmentation['one_word_cue_share'] >= 0.15) {
+                $report['fragmentation']['elevated_runs']++;
+            } else {
+                $report['fragmentation']['ordinary_runs']++;
+            }
+
             $blocks = $screen->screen($transcript);
             $spans = $this->sermonSpans($run);
             $withinSermon = $spans === [] ? [] : $screen->within($blocks, $spans);
@@ -117,14 +132,15 @@ class ScreenTranscriptRepetitionCommand extends Command
                 );
             }
 
-            if ((bool) $this->option('details') && $blocks !== []) {
+            if ((bool) $this->option('details') && ($blocks !== [] || $fragmentation['one_word_cue_share'] >= 0.15)) {
                 $report['runs'][] = [
                     'run' => $run->id,
                     'sermon' => $run->sermon_id,
                     'blocks' => count($blocks),
                     'sermon_span_blocks' => count($withinSermon),
                     'seconds' => round(SuspectTranscriptBlock::coveredSeconds($blocks), 1),
-                    'worst' => $this->worst($blocks),
+                    'fragmentation' => $fragmentation,
+                    'worst' => $blocks === [] ? null : $this->worst($blocks),
                 ];
             }
         }
@@ -273,6 +289,32 @@ class ScreenTranscriptRepetitionCommand extends Command
         return $worst->toArray();
     }
 
+    /** @return array{cue_count: int, word_count: int, one_word_cues: int, one_word_cue_share: float} */
+    private function fragmentation(ChurchServiceTranscript $transcript): array
+    {
+        $wordCount = 0;
+        $oneWordCues = 0;
+
+        foreach ($transcript->cues as $cue) {
+            $cueWords = preg_match_all('/[\p{L}\p{N}]+/u', $cue['text']);
+            $cueWords = $cueWords === false ? 0 : $cueWords;
+            $wordCount += $cueWords;
+
+            if ($cueWords === 1) {
+                $oneWordCues++;
+            }
+        }
+
+        $cueCount = count($transcript->cues);
+
+        return [
+            'cue_count' => $cueCount,
+            'word_count' => $wordCount,
+            'one_word_cues' => $oneWordCues,
+            'one_word_cue_share' => $cueCount === 0 ? 0.0 : round($oneWordCues / $cueCount, 4),
+        ];
+    }
+
     /** @param  array<string, mixed>  $report */
     private function render(array $report): void
     {
@@ -281,6 +323,9 @@ class ScreenTranscriptRepetitionCommand extends Command
             ['Transcript unreadable', $report['unreadable']],
             ['Holding suspect blocks', $report['with_blocks']],
             ['Suspect inside the sermon span', $report['sermon_span_held']],
+            ['Severe one-word fragmentation (>=50%)', $report['fragmentation']['severe_runs']],
+            ['Elevated one-word fragmentation (15-50%)', $report['fragmentation']['elevated_runs']],
+            ['Ordinary one-word fragmentation (<15%)', $report['fragmentation']['ordinary_runs']],
         ]);
 
         $this->line(sprintf(
@@ -307,8 +352,16 @@ class ScreenTranscriptRepetitionCommand extends Command
                 $row['blocks'],
                 $row['sermon_span_blocks'],
                 $row['seconds'],
-                $row['worst']['phrase'] ?? $row['worst']['reason'],
+                $row['worst']['phrase'] ?? $row['worst']['reason'] ?? 'no repetition block',
                 $row['worst']['repeats'] ?? '—',
+            ));
+
+            $this->line(sprintf(
+                '    fragmentation: %d/%d one-word cues (%.1f%%), %d words',
+                $row['fragmentation']['one_word_cues'],
+                $row['fragmentation']['cue_count'],
+                $row['fragmentation']['one_word_cue_share'] * 100,
+                $row['fragmentation']['word_count'],
             ));
         }
     }

@@ -124,6 +124,23 @@ class ScreenTranscriptRepetitionCommandTest extends TestCase
         $this->assertSame(0, $report['screened']);
     }
 
+    #[Test]
+    public function it_reports_one_word_fragmentation_without_treating_it_as_a_hold_rule(): void
+    {
+        [$log, $section] = $this->fragmentedRun();
+
+        $report = $this->report(['--run' => [$log->id], '--details' => true, '--apply' => true]);
+
+        $this->assertSame([
+            'severe_runs' => 1,
+            'elevated_runs' => 0,
+            'ordinary_runs' => 0,
+        ], $report['fragmentation']);
+        $this->assertSame(0.75, $report['runs'][0]['fragmentation']['one_word_cue_share']);
+        $this->assertSame(0, $report['holds_raised']);
+        $this->assertFalse($section->refresh()->needs_manual_review);
+    }
+
     /**
      * The command's JSON report.
      *
@@ -175,6 +192,37 @@ class ScreenTranscriptRepetitionCommandTest extends TestCase
             'section_type' => ServiceSectionType::Sermon,
             'start_time' => 0.0,
             'end_time' => 1000.0,
+            'needs_manual_review' => false,
+            'metadata' => ['review_flags' => []],
+        ]);
+
+        return [$log->refresh(), $section];
+    }
+
+    /** @return array{0: MediaProcessingLog, 1: ServiceSection} */
+    private function fragmentedRun(): array
+    {
+        $log = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'sermon_start_time' => 0.0,
+            'sermon_end_time' => 1000.0,
+        ]);
+        $path = 'temp/service_transcript_'.$log->processing_id.'.json';
+        Storage::disk('local')->put($path, json_encode(
+            ChurchServiceTranscript::fromCues([
+                ['start' => 0.0, 'end' => 1.0, 'text' => 'One.'],
+                ['start' => 1.0, 'end' => 2.0, 'text' => 'word.'],
+                ['start' => 2.0, 'end' => 3.0, 'text' => 'at.'],
+                ['start' => 3.0, 'end' => 8.0, 'text' => 'The final cue has ordinary speech.'],
+            ], 8.0, ChurchServiceTranscript::SOURCE_LOCAL_WHISPER)->toArray(),
+            JSON_THROW_ON_ERROR,
+        ));
+        $log->putServiceTranscriptPath($path);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon,
+            'start_time' => 0.0,
+            'end_time' => 8.0,
             'needs_manual_review' => false,
             'metadata' => ['review_flags' => []],
         ]);
