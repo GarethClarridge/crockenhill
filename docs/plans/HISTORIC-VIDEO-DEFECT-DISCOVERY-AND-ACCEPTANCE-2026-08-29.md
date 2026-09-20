@@ -27,9 +27,9 @@
 > The disposable, dry-run-first retranscription command for exact runs
 > 1343/1258/980 landed as `a75bfc9d0`; all three real dry runs passed staging-context,
 > operation-ownership, source-existence and streamed SHA-256 verification on
-> 20 September. Run 1343 was then retranscribed and re-extracted successfully
-> through its verified held sermon section; its hold remains. Runs 1258 and 980
-> are still undispatched. A fresh worker-code/queue preflight is required
+> 20 September. Runs 1343 and 1258 were then retranscribed and re-extracted
+> successfully through their verified held sermon sections; both holds remain.
+> Run 980 is still undispatched. A fresh worker-code/queue preflight is required
 > immediately before each remaining `--execute` invocation.
 > macOS Safari playback across a transport-stream join passed; iOS is an accepted
 > untested limitation. Actual-server range, repaired-output, song-clip and cache
@@ -172,7 +172,7 @@ repaired corpus, and a correct hold is not a confirmed defect.
 | Song boundary/loop evidence | Version 5, input fingerprints, lyric-edge and loop risks | Successive backfills and demotions recorded in §4.3a | Current-policy scope/limitations; independent audio evaluation; identity confirmation |
 | Smart cut, MP3, source audio format | Yes, including `fda414eb2` source-frame correction | Tests, source-content canary and limited real-source measurements; no completed corpus repair pass recorded | Affected media reruns; actual-server delivery checks at release |
 | Structure and song identity | Prompt seconds, closing prayer/reading retention, sustained singing, mistyped sung-item risk, catalogue-title priority and 17 September speech-edge trim | Retrospective measurements and tests; trim replay is not a corpus write | Per-run re-detection/re-resolution, then extraction and derived-item repair; speech-edge exceptions |
-| Local Whisper decoding | Context carry disabled; initial prompt retained on both request paths; options fingerprinted | Seven-run experiment, MP3-form check, 1314/1340/1343 repairs and four-run recovery reconciliation; request/fingerprint tests | Pipeline retranscription of 1258/980; wider raw-transcript census; dependent structure/analysis and independent audio checks |
+| Local Whisper decoding | Context carry disabled; initial prompt retained on both request paths; options fingerprinted | Seven-run experiment, MP3-form check, 1314/1340/1343/1258 repairs and four-run recovery reconciliation; request/fingerprint tests | Pipeline retranscription of 980; wider raw-transcript census; dependent structure/analysis and independent audio checks |
 | Video-quality detector | Dead-picture coverage and owning-run evidence | 48 prior rejections reassessed (28 approve/19 reject/1 review); seven prior approvals moved to review | 862 where its output lives; 897/1005 unassessed; source-versus-cut black-picture causes; independent negatives |
 | Acceptance and release | Existing signed release machinery | Nine-service source inventories compared; acceptance incomplete; no new release authorised | Interior semantic review, fresh reserved evaluation, canary, bounded repairs, operation closeout, exact-membership QA and delivery |
 
@@ -2374,7 +2374,22 @@ evaluation membership separate.
   adjacent Matthew 2 reading plus sermon at 1783.53–3746.99. The completed MP3 and
   video are 1963.494 s / 1963.467 s, the saved transcript includes the reading,
   sermon and prayer, and §4334 retains `content_defect_hold`. The run and its assets
-  remain quarantined; nothing was released. Runs 1258 and 980 remain undispatched.
+  remain quarantined; nothing was released.
+
+  **1258 repaired 2026-09-20.** A fresh empty-queue/worker/mount preflight and
+  streamed source verification preceded dispatch. Fresh transcription produced
+  970 cues / 7,365 words, no suspect blocks and no unobservable windows; the sermon
+  period-per-word ratio is 0.068. Independent source decodes agreed with the
+  reading-to-sermon handoff and the sermon ending. Structure placed the sermon at
+  2202.03–3897.99 and correctly parked because §3225 is content-held. The verified
+  extraction plan included the Philippians 3 reading and unsectioned tail to the
+  next song, 2041–3925. The saved transcript retains the sermon's final sentence
+  (“The best friend that you can have is Jesus”) and then part of the next hymn's
+  announcement; its final announcement phrase falls after the cut, consistent with
+  the 14 September ruling that this material is not required sermon content. The
+  completed MP3 and video are 1884.029 s / 1884.000 s, §3225 retains
+  `content_defect_hold`, and all assets remain quarantined. Run 980 remains
+  undispatched.
 - [ ] Size wider recovery from raw service-transcript one-word-segment and loop-word
   rates, including partial drift in 1221/1336. Do not infer that all old fingerprints
   require a rerun, or that a normal section-text ratio proves clean transcription.
