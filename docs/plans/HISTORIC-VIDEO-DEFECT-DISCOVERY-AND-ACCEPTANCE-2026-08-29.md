@@ -2495,7 +2495,7 @@ evaluation membership separate.
   263 ordinary rows from this signal. Repair the three named runs only through the
   standard pipeline after their independent source/output checks are accepted; the
   holds remain until repaired artifacts pass review.
-- [ ] Validate the remaining short-loop candidates against their audio; distinguish
+- [x] Validate the remaining short-loop candidates against their audio; distinguish
   genuine rhetoric or singing from corrupt transcription.
   **Review scope frozen 2026-09-20 before source decoding.** The 32-run register is
   `storage/scratch/correctness-20260910-unheld-short-loops.json`. Runs 929, 1008,
@@ -2512,30 +2512,31 @@ evaluation membership separate.
   a source time. Hash every extracted window before decoding. Fresh ASR can prove
   that stored text disagrees with an independent pass, but rhetoric/singing and
   uncertain words remain for listening rather than forced classification.
-  **Review progress 2026-09-20: 30/32 runs adjudicated; containment applied.**
+  **Completed 2026-09-20: 32/32 runs adjudicated; containment applied.**
   The fixed extraction produced 31 distinct, hashed source windows. Together with
   the five earlier re-decodes, source comparison confirms saved-text defects in
-  **27 runs**: the earlier 929, 1008, 1068, 1187 and 1317, plus 946, 954, 969,
+  **29 runs**: the earlier 929, 1008, 1068, 1187 and 1317, plus 946, 954, 969,
   971, 1003, 1039, 1043, 1059, 1064, 1069, 1084, 1095, 1121, 1176, 1215,
-  1230, 1248, 1320, 1350, 1359, 1364 and 1373. In each, ordinary continuing
-  source speech or prayer replaces the stored loop. Runs **1051, 1078 and 1079
+  1230, 1248, 1320, 1350, 1359, 1364 and 1373, plus the final 1107 and 1309.
+  In each, ordinary continuing source speech, scripture, prayer or singing
+  replaces the stored loop. Runs **1051, 1078 and 1079
   are genuine rhetoric**, respectively anaphora about “The Lord”, emphasis on
   “in all things”, and a quoted “Look unto me” exhortation; they remain unheld.
 
   A dry run followed by `service:hold-section-content --execute` recorded
-  `short_transcript_loop_source_mismatch` on the 22 newly reviewed defective
-  sections. Eighteen became newly refused at release and four already-held
+  `short_transcript_loop_source_mismatch` on the 24 newly reviewed defective
+  sections. Twenty became newly refused at release and four already-held
   sections gained the independent reason. The earlier five retain their existing
   audio-confirmed P8-Q14 holds. Run 1069's first block independently proves its
   run-level defect; the second discussion window is low-intelligibility but does
-  not weaken that containment. Two verdicts remain: **1107** is not intelligible
-  enough in the extracted window, and **1309** was resolved from the stale
-  normalised register phrase to the current cue “God bless you” ×4 at
-  1824.44–1837.00, straddling the 1834.99 sermon boundary, but its retained source
-  window still needs listening or a usable independent decode. Evidence, exact
-  membership, verdicts and SHA-256 hashes are in
-  `storage/scratch/short-loop-review-20260920/review.json`. Do not tick this item
-  until those two rows are settled.
+  not weaken that containment. The primary decode of **1107** was low-quality;
+  a second local CPU decode disagrees on the scripture wording but independently
+  excludes the registered fourfold phrase, so the repetition itself is disproved.
+  **1309** was resolved from the stale normalised register phrase to the current
+  cue “God bless you” ×4 at 1824.44–1837.00, straddling the 1834.99 sermon
+  boundary; the fallback source decode instead hears the continuing sung line.
+  Evidence, exact membership, verdicts and SHA-256 hashes are in
+  `storage/scratch/short-loop-review-20260920/review.json`.
 - [ ] Add regression coverage for four repetitions, fewer than 40 repeated words,
   and number-varying loops.
 - [ ] Verify recovered full-service evidence and saved sermon text independently.
