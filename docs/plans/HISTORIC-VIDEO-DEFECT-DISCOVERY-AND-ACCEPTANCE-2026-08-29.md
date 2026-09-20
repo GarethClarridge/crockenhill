@@ -31,6 +31,10 @@
 > successfully through their verified held sermon sections; all three holds remain.
 > The bounded dispatch set is complete. Broader independent source/content validation
 > remains open and these repairs do not clear acceptance.
+> A read-only Operation 4 fragmentation census now sizes the wider candidate pool:
+> 37/416 readable transcripts have at least 50% one-word cues and another 116 sit
+> between 15% and 50%. That signal is reporting only, not a hold or rerun rule;
+> fresh reserved comparisons remain required before broadening recovery.
 > macOS Safari playback across a transport-stream join passed; iOS is an accepted
 > untested limitation. Actual-server range, repaired-output, song-clip and cache
 > checks remain release evidence, not queued-repair prerequisites. A read-only
@@ -2408,6 +2412,22 @@ evaluation membership separate.
   rates, including partial drift in 1221/1336. Do not infer that all old fingerprints
   require a rerun, or that a normal section-text ratio proves clean transcription.
   Compare fresh reserved healthy and defective cases before broadening the batch.
+  **Initial corpus sizing complete 2026-09-20 (`5f21a2393`), selection remains
+  open.** `service:screen-transcript-repetition --operation=4 --details` now reports
+  one-word cue counts without changing the repetition hold path. Its read-only pass
+  found 37/416 readable transcripts in the severe band (at least 50% one-word cues),
+  116 elevated (15% to under 50%), and 263 ordinary (under 15%); all 416 were
+  readable. The same pass found 149 runs with repetition blocks but only seven with
+  a block intersecting delivered sermon spans. The repaired runs 1258 and 980 are
+  now ordinary at 5.1% and 7.0%; 1336 remains elevated at 22.0%. These results rule
+  out using either fragmentation or repetition alone as broad dispatch membership:
+  historic decoding style and sung/non-speech content produce large candidate sets,
+  and 37 is not a confirmed-defect count. The command deliberately records no hold
+  from fragmentation, including under `--apply`, which its regression test pins.
+  Freeze fresh, previously unreviewed severe and ordinary comparison cases next,
+  inspect where fragmentation overlaps their sermon spans, and compare both against
+  source audio before naming a bounded recovery set. Existing 1221/1336 and the four
+  repaired failures remain development evidence, not that reserved comparison.
 - [ ] Validate the remaining short-loop candidates against their audio; distinguish
   genuine rhetoric or singing from corrupt transcription.
 - [ ] Add regression coverage for four repetitions, fewer than 40 repeated words,
