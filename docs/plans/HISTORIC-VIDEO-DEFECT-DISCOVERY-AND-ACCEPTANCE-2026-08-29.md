@@ -2428,6 +2428,40 @@ evaluation membership separate.
   inspect where fragmentation overlaps their sermon spans, and compare both against
   source audio before naming a bounded recovery set. Existing 1221/1336 and the four
   repaired failures remain development evidence, not that reserved comparison.
+
+  **Reserved comparison frozen before content review, 2026-09-20.** Seed
+  `historic-fragmentation-reserved-2026-09-20` ranked each band by
+  `sha256(seed:band:run)`. The candidate pool excluded the nine discovery runs,
+  the 15-run held sample, the repaired/retranscribed runs and every other run
+  already named as development evidence in this plan or its prior-exposure
+  register. The first four remaining severe runs are **1032, 1163, 1272 and
+  1330**; the first four ordinary controls are **1354, 1040, 1064 and 1262**.
+  Every selected run has a completed sermon and no recorded repetition block
+  intersecting its delivered sermon spans, so this compares fragmentation rather
+  than selecting an already-known sermon loop. All eight share manifest
+  `d25d2085…` and plan `9351fa4e…` in the same recorded historic staging context.
+
+  Two 60-second source windows per run were then positioned deterministically
+  inside the sermon-only span, at least 120 seconds from its start and 120 seconds
+  from its end. The span interior was divided in half and each half received one
+  `sha256(seed:window:run:index)` offset. These sixteen windows are frozen before
+  any source audio, stored cue or sermon text is opened:
+
+  | Band | Run | Window 1 | Window 2 |
+  |---|---:|---:|---:|
+  | severe | 1032 | 2616.38–2676.38 | 3519.43–3579.43 |
+  | severe | 1163 | 2532.88–2592.88 | 3845.66–3905.66 |
+  | severe | 1272 | 2741.84–2801.84 | 3580.13–3640.13 |
+  | severe | 1330 | 2442.31–2502.31 | 2722.45–2782.45 |
+  | ordinary | 1354 | 2318.67–2378.67 | 2693.44–2753.44 |
+  | ordinary | 1040 | 2404.51–2464.51 | 2477.66–2537.66 |
+  | ordinary | 1064 | 2986.11–3046.11 | 3646.47–3706.47 |
+  | ordinary | 1262 | 2261.01–2321.01 | 2797.38–2857.38 |
+
+  Next extract these exact source-timeline windows, hash them, decode them with
+  the corrected local Whisper options, and only then open the overlapping banked
+  cues and saved sermon text. A fresh decode is comparison evidence, not ground
+  truth; unclear or proper-name cases require listening rather than forced pass/fail.
 - [ ] Validate the remaining short-loop candidates against their audio; distinguish
   genuine rhetoric or singing from corrupt transcription.
 - [ ] Add regression coverage for four repetitions, fewer than 40 repeated words,
