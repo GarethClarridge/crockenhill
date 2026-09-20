@@ -27,8 +27,10 @@
 > The disposable, dry-run-first retranscription command for exact runs
 > 1343/1258/980 landed as `a75bfc9d0`; all three real dry runs passed staging-context,
 > operation-ownership, source-existence and streamed SHA-256 verification on
-> 20 September. Nothing was dispatched. A fresh worker-code/queue preflight is
-> still required immediately before each `--execute` invocation.
+> 20 September. Run 1343 was then retranscribed and re-extracted successfully
+> through its verified held sermon section; its hold remains. Runs 1258 and 980
+> are still undispatched. A fresh worker-code/queue preflight is required
+> immediately before each remaining `--execute` invocation.
 > macOS Safari playback across a transport-stream join passed; iOS is an accepted
 > untested limitation. Actual-server range, repaired-output, song-clip and cache
 > checks remain release evidence, not queued-repair prerequisites. A read-only
@@ -170,7 +172,7 @@ repaired corpus, and a correct hold is not a confirmed defect.
 | Song boundary/loop evidence | Version 5, input fingerprints, lyric-edge and loop risks | Successive backfills and demotions recorded in §4.3a | Current-policy scope/limitations; independent audio evaluation; identity confirmation |
 | Smart cut, MP3, source audio format | Yes, including `fda414eb2` source-frame correction | Tests, source-content canary and limited real-source measurements; no completed corpus repair pass recorded | Affected media reruns; actual-server delivery checks at release |
 | Structure and song identity | Prompt seconds, closing prayer/reading retention, sustained singing, mistyped sung-item risk, catalogue-title priority and 17 September speech-edge trim | Retrospective measurements and tests; trim replay is not a corpus write | Per-run re-detection/re-resolution, then extraction and derived-item repair; speech-edge exceptions |
-| Local Whisper decoding | Context carry disabled; initial prompt retained on both request paths; options fingerprinted | Seven-run experiment, MP3-form check, 1314/1340 repairs and four-run recovery reconciliation; request/fingerprint tests | Pipeline retranscription of 1343/1258/980; wider raw-transcript census; dependent structure/analysis and independent audio checks |
+| Local Whisper decoding | Context carry disabled; initial prompt retained on both request paths; options fingerprinted | Seven-run experiment, MP3-form check, 1314/1340/1343 repairs and four-run recovery reconciliation; request/fingerprint tests | Pipeline retranscription of 1258/980; wider raw-transcript census; dependent structure/analysis and independent audio checks |
 | Video-quality detector | Dead-picture coverage and owning-run evidence | 48 prior rejections reassessed (28 approve/19 reject/1 review); seven prior approvals moved to review | 862 where its output lives; 897/1005 unassessed; source-versus-cut black-picture causes; independent negatives |
 | Acceptance and release | Existing signed release machinery | Nine-service source inventories compared; acceptance incomplete; no new release authorised | Interior semantic review, fresh reserved evaluation, canary, bounded repairs, operation closeout, exact-membership QA and delivery |
 
@@ -2357,9 +2359,22 @@ evaluation membership separate.
   transcript cannot be adopted as a resumed run. Ten focused tests (50 assertions),
   PHPStan and Pint pass; the full suite is 8,306 tests / 90,467 assertions with 158
   existing notices. Real dry runs of all three IDs returned `ready` after verifying
-  their mounted staged bytes. No run was reopened or dispatched. Invoke one at a time,
+  their mounted staged bytes. Invoke one at a time,
   with an immediate worker-code/queue preflight before each `--execute`, then complete
   the source-speech and dependent-output checks above before starting the next run.
+
+  **1343 repaired 2026-09-20.** All ten relevant queues were empty, and the six
+  workers had the project, historic staging and service-video mounts before dispatch.
+  Fresh transcription produced 957 cues / 7,234 words, no suspect blocks and no
+  unobservable windows; the sermon period-per-word ratio fell from 0.85–0.89 to
+  0.063. Independent bounded source decodes agreed with the new sermon opening and
+  its complete closing prayer through “Amen”. Structure placed the sermon at
+  2035.01–3746.01 and correctly parked before extraction because §4334 is content-held.
+  After that span was checked, `sermons:re-extract --held-section=4334` cut the
+  adjacent Matthew 2 reading plus sermon at 1783.53–3746.99. The completed MP3 and
+  video are 1963.494 s / 1963.467 s, the saved transcript includes the reading,
+  sermon and prayer, and §4334 retains `content_defect_hold`. The run and its assets
+  remain quarantined; nothing was released. Runs 1258 and 980 remain undispatched.
 - [ ] Size wider recovery from raw service-transcript one-word-segment and loop-word
   rates, including partial drift in 1221/1336. Do not infer that all old fingerprints
   require a rerun, or that a normal section-text ratio proves clean transcription.
