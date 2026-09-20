@@ -4,7 +4,7 @@
 > once bulk processing was complete and the remaining work became discovering,
 > containing and detecting defects, then proving acceptance.
 
-> **Status — 2026-09-19: bulk processing is drained; containment, content
+> **Status — 2026-09-20: bulk processing is drained; containment, content
 > acceptance and public release remain NO-GO.** Prevention and containment have
 > advanced substantially, but most media repairs await pipeline reprocessing.
 > The dated local census in §3 supersedes earlier counts. The six disputed
@@ -24,6 +24,11 @@
 > merge-case hold persistence is verified (`8d98e45b8`). Workers were restarted
 > onto `1c65dd104` before 1340's successful repair on 18 September; re-verify their
 > code, queues and mounts before the next batch rather than citing that snapshot.
+> The disposable, dry-run-first retranscription command for exact runs
+> 1343/1258/980 landed as `a75bfc9d0`; all three real dry runs passed staging-context,
+> operation-ownership, source-existence and streamed SHA-256 verification on
+> 20 September. Nothing was dispatched. A fresh worker-code/queue preflight is
+> still required immediately before each `--execute` invocation.
 > macOS Safari playback across a transport-stream join passed; iOS is an accepted
 > untested limitation. Actual-server range, repaired-output, song-clip and cache
 > checks remain release evidence, not queued-repair prerequisites. A read-only
@@ -44,12 +49,12 @@
 
 **Original date:** 2026-08-29
 **Last condensed:** 2026-09-12
-**Last reviewed:** 2026-09-18 — execution state, current worker snapshot and the
-four-run transcript-recovery comparison reconciled with the execution tasks. The
-database census remains dated 16 September; this review does not refresh it.
-Prioritise independent verification and bounded transcription/boundary repair before
-dependency-grouped reruns. Earlier measurements and operator rulings remain evidence,
-not current status where superseded.
+**Last reviewed:** 2026-09-20 — execution state, the extreme-short-loop containment,
+and the bounded retranscription command/preflight are reconciled with the execution
+tasks. The database census remains dated 16 September; this review does not refresh
+it. Prioritise independent verification and bounded transcription/boundary repair
+before dependency-grouped reruns. Earlier measurements and operator rulings remain
+evidence, not current status where superseded.
 
 ## 1. Outcome and boundaries
 
@@ -2341,6 +2346,20 @@ evaluation membership separate.
   its structure and media re-cut from the repaired transcript. Check full-service and saved sermon
   text against source speech, including missing/changed words, not punctuation alone.
   Re-run dependent structure, song resolution and analysis before extraction.
+  **Launcher/preflight complete 2026-09-20 (`a75bfc9d0`), execution still open.**
+  `historic-import:retranscribe-video-run {run}` is a disposable one-run command
+  allowlisted to exactly 980/1258/1343 and dry-runs unless `--execute` is supplied.
+  It fails closed on operation identity, completed/livestream state, historic staging
+  context, stale recovery provenance, another active run, staged-source existence and
+  the recorded SHA-256; hashing streams the multi-gigabyte source rather than loading
+  it into memory. Execution marks re-extraction, reopens at
+  `transcribe_full_service`, and calls `start(..., false)` so the defective banked
+  transcript cannot be adopted as a resumed run. Ten focused tests (50 assertions),
+  PHPStan and Pint pass; the full suite is 8,306 tests / 90,467 assertions with 158
+  existing notices. Real dry runs of all three IDs returned `ready` after verifying
+  their mounted staged bytes. No run was reopened or dispatched. Invoke one at a time,
+  with an immediate worker-code/queue preflight before each `--execute`, then complete
+  the source-speech and dependent-output checks above before starting the next run.
 - [ ] Size wider recovery from raw service-transcript one-word-segment and loop-word
   rates, including partial drift in 1221/1336. Do not infer that all old fingerprints
   require a rerun, or that a normal section-text ratio proves clean transcription.
