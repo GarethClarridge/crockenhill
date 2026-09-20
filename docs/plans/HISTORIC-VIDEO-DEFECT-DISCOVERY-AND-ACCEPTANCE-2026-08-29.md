@@ -2497,6 +2497,21 @@ evaluation membership separate.
   holds remain until repaired artifacts pass review.
 - [ ] Validate the remaining short-loop candidates against their audio; distinguish
   genuine rhetoric or singing from corrupt transcription.
+  **Review scope frozen 2026-09-20 before source decoding.** The 32-run register is
+  `storage/scratch/correctness-20260910-unheld-short-loops.json`. Runs 929, 1008,
+  1068, 1187 and 1317 already have source re-decodes in the paired results file;
+  the remaining review membership is **946, 954, 969, 971, 1003, 1039, 1043,
+  1051, 1059, 1064, 1069, 1078, 1079, 1084, 1095, 1107, 1121, 1176, 1215,
+  1230, 1248, 1309, 1320, 1350, 1359, 1364 and 1373**. For each located block,
+  extract one source window beginning 15 seconds before its first timed cue and
+  ending at least 15 seconds after its last cue, with a 40-second minimum. Runs
+  with multiple blocks keep separate windows unless they overlap. All 26 currently
+  located runs record single-file archive sources, so their service times are direct
+  source times. Run 1309's registered phrase no longer matches its current banked
+  word stream; resolve that stale-register discrepancy separately and do not guess
+  a source time. Hash every extracted window before decoding. Fresh ASR can prove
+  that stored text disagrees with an independent pass, but rhetoric/singing and
+  uncertain words remain for listening rather than forced classification.
 - [ ] Add regression coverage for four repetitions, fewer than 40 repeated words,
   and number-varying loops.
 - [ ] Verify recovered full-service evidence and saved sermon text independently.
