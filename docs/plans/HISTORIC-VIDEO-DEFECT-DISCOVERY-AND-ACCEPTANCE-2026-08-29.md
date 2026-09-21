@@ -71,8 +71,9 @@
 > fix exposed a larger problem: **the recorded screen state is two detector
 > generations stale**, with today's code finding blocks in 150 of the 286
 > "screened clear" runs. H10a's coverage result stands but does not bound the
-> current screen's miss rate, and re-applying the screen corpus-wide is a
-> separate decision whose hold count must be measured under `--apply` first.
+> current screen's miss rate. **The screen was then re-applied corpus-wide the
+> same day** (465 runs): 71 sections newly held, 5 holds withdrawn, published
+> exposure unchanged at zero. The recorded state was stale in both directions.
 >
 > Phases 0–8, their implementation diary, pass measurements and earlier reviews
 > have moved unchanged to the
@@ -3722,11 +3723,45 @@ historical screen's negatives. The coverage result itself stands — 27 gaps, on
 overlapping a sermon — but it does not bound the current screen's miss rate,
 because the current screen has never been applied to that population.
 
-**Re-applying the screen corpus-wide is a separate decision with its own
-measurement.** Up to 150 runs would gain recorded blocks, and a dry run cannot
-say how many sermons that holds: `holds_raised` is only computed under `--apply`.
-That number must be measured before the write, not after. Do not treat the fix
-above as authorising it.
+**Applied corpus-wide 2026-09-21** (`service:screen-transcript-repetition --all
+--apply`, 465 runs). Evidence:
+`storage/scratch/cadence-boundary-screen-applied-20260921.json`.
+
+| Measure | Value |
+|---|---|
+| Runs screened | 465 |
+| Runs with blocks | 295 |
+| Blocks / seconds | 997 / 56,441.8 |
+| Runs held on the sermon span | 76 |
+| **Sections newly held** | **71** |
+| **Holds withdrawn** | **5** |
+
+Sections now carrying `transcript_repetition_suspect`: 65 historic sermons, 10
+historic children's talks, 5 weekly sermons (runs 909, 910, 912, 917, 918).
+**Published exposure is unchanged at zero** — every held section is
+`not_applicable` or `pending_approval`, and all five weekly sections have
+`published_sermon_id = null`.
+
+The predicted 71 was forecast as 37, wrong for three compounding reasons worth
+recording because they will recur:
+
+1. **Holds are counted per section, not per run.** `FlagSuspectTranscriptRepetition`
+   increments `raised` inside its loop over sections, so one run holding both a
+   sermon and a children's talk contributes two.
+2. **Children's talks were invisible to the forecast.** `HELD_TYPES` covers
+   `Sermon` *and* `ChildrensTalk`, but the screen report's per-run
+   `sermon_span_blocks` field is sermon-only. Ten children's-talk holds could not
+   appear in a count derived from it.
+3. **The forecast population was narrower than the write.** It counted only
+   within the 286 recorded-clear historic runs; `--all` covered 465, including
+   the already-flagged historic runs and the weekly path. The five weekly sermons
+   lay entirely outside the set forecast from.
+
+**`holds_withdrawn: 5` is the more interesting half.** Five sections were held on
+blocks today's code no longer finds, so the recorded state was stale in *both*
+directions — under-detecting on 150 runs and over-holding on 5. Those five were
+asking an operator to review text current detectors consider sound. A forecast
+built only from what a screen would newly find cannot see that direction at all.
 
 ##### H10b. Re-decode comparison — not yet run
 
