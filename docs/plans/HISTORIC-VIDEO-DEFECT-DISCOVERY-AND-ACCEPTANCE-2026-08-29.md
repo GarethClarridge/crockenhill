@@ -50,9 +50,9 @@
 > genuine sung evidence outside its sermon, but that song remains held and replaying
 > the older whole transcript would restore substantial loop artefacts. No production
 > state was inspected in this review.
-> The §4.3a detector evaluation harness is **specified but unbuilt** (drafted
-> 2026-09-21): catalogue, emission adapters, frozen case book, predeclared
-> severity thresholds, breakdown dimensions and three commands. The thresholds
+> The §4.3a detector evaluation harness is **specified, with its catalogue and
+> two of four emission adapters built** (2026-09-21); the frozen case book,
+> predeclared thresholds file and three commands remain unbuilt. The thresholds
 > are committed before any scoring code deliberately, so they cannot be chosen
 > after seeing a candidate's results. **H9 is ruled (2026-09-21):** no eligible
 > run is untouched — all 438 appear individually in this plan, the archived log
@@ -3427,9 +3427,31 @@ read-only by design: reconciliation names discrepancies, it does not write holds
 ##### H8. What this discharges, and what it leaves open
 
 Drafting this section discharges only the predeclaration half of the fourth
-checkbox. The catalogue, adapters, case book, thresholds file and three commands
-are all unbuilt. The regression-fixture checkbox stays open until the plan's
-cases are actually written under `tests/Fixtures/StructureEval` or beside it.
+checkbox. The regression-fixture checkbox stays open until the plan's cases are
+actually written under `tests/Fixtures/StructureEval` or beside it.
+
+**Built 2026-09-21.** H1's catalogue and two of H2's four adapters:
+`DetectorCatalogue` with 21 promoted detectors, `DetectorEntry`/`DetectorSignal`,
+the `DetectorStatus`/`DetectorSeverity`/`DetectorSurface` enums, and
+`SectionReviewFlagSignals` + `SuspectTranscriptBlockSignals`. Signal names come
+from the emitting classes' own constants wherever those exist, and paired tests
+walk `ServiceStructureValidator`'s `FLAG_*` and `SuspectTranscriptBlock`'s
+`REASON_*` constants — plus `SongPublicationReviewPolicy`'s inline kinds, read
+back out of its source — so a detector cannot ship without a catalogue entry.
+Uncatalogued stored flags are carried through with a null detector id rather than
+dropped; retired flags are skipped. 22 tests, PHPStan clean, full suite green
+(8337 tests) on `master`.
+
+**Still unbuilt:** the video-quality and song-publication adapters, the case
+book, the thresholds file and all three commands. The song adapter needs a
+decision first — `SongPublicationReviewPolicy` computes its objections from
+inputs rather than storing them, so that adapter must either read banked boundary
+evidence or re-run the policy, and re-running would forfeit the read-only
+property the other adapters rely on to stay in step with production.
+
+The catalogue currently lists promoted detectors only, so it answers "what can be
+evaluated", not "what classes exist". The unbuilt and decided-not-to-detect rows
+join when the class table above gains its `detector_id` column.
 
 ##### H9. Ruling: no reserved set; historic evidence is retrospective
 
@@ -3474,6 +3496,17 @@ bound needs a fresh draw. Budget for at least one re-draw.
 
 **Sizing, worked for the transcript-loop screen.** 152 of the 438 eligible runs
 carry suspect transcript blocks, leaving **U = 286** detector-negative runs.
+
+Those 286 are detector-negative in the strong sense, which had to be checked
+rather than assumed. A run's recorded blocks are `null` when it was never
+screened and `[]` when it was screened and found clear, and those are different
+claims: runs completing before the screen existed carry no stamp at all, and the
+2026-09-09 correctness review found looping sermons among exactly that group.
+Counting unscreened runs as cleared would fill the denominator with the services
+most likely to be defective and inflate recall accordingly. Measured 2026-09-21:
+**286 screened clear, 0 unscreened**, so the table below stands as written.
+`SuspectTranscriptBlockSignals` keeps the three states apart regardless, because
+that count is a fact about today's corpus rather than a property of the model.
 Sampling is without replacement from a small population, so the bound is
 hypergeometric rather than the rule of three, which is materially kinder here.
 With `n` runs reviewed and **no** defect found, the one-sided 95% bound on missed
