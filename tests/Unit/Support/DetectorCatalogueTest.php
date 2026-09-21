@@ -212,6 +212,69 @@ class DetectorCatalogueTest extends TestCase
     }
 
     /**
+     * The same guard again, for the holds that do not come from the validator.
+     *
+     * `test_every_structure_validator_flag_is_catalogued` walks one class's
+     * constants, and on 2026-09-21 that turned out to be the whole weakness: the
+     * `Flag*` actions write to the same `review_flags` array on the same
+     * section, but they declare their flag on themselves, so five promoted
+     * detectors held sections in production while the catalogue had never heard
+     * of them. A guard aimed at one emitter only guards one emitter.
+     *
+     * This walks the directory instead of a hand-kept list, so a sixth action
+     * cannot ship uncatalogued by being left off a list nobody remembers to
+     * update.
+     */
+    public function test_every_flag_action_writes_a_catalogued_review_flag(): void
+    {
+        $catalogued = DetectorCatalogue::signalsFor(DetectorSurface::SectionReviewFlag);
+        $checked = 0;
+
+        // Resolved from this file rather than through `app_path()`: this is a
+        // plain PHPUnit test with no container booted.
+        $actions = dirname(__DIR__, 3).'/app/Actions/Flag*.php';
+
+        foreach (glob($actions) ?: [] as $path) {
+            $class = 'App\\Actions\\'.basename($path, '.php');
+
+            if (! class_exists($class) || ! defined($class.'::FLAG')) {
+                continue;
+            }
+
+            /** @var string $flag */
+            $flag = constant($class.'::FLAG');
+            $checked++;
+
+            if (in_array($flag, self::CONSEQUENCE_FLAGS, true)) {
+                continue;
+            }
+
+            $this->assertContains(
+                $flag,
+                $catalogued,
+                "{$class}::FLAG ({$flag}) holds sections in production but no detector entry claims it. "
+                .'Add it to DetectorCatalogue, or record it as a consequence flag with the reason.'
+            );
+        }
+
+        $this->assertGreaterThan(1, $checked, 'Expected to find several Flag* actions to check.');
+    }
+
+    /**
+     * A flag that restates another detector's finding rather than making one.
+     *
+     * `transcript_repetition_suspect` is raised by
+     * {@see \App\Actions\FlagSuspectTranscriptRepetition} from the suspect
+     * blocks the transcript screens already emitted, so it carries no claim of
+     * its own. Cataloguing it as a detector would score the transcript screens
+     * twice — once on their blocks and once on the hold those blocks produce —
+     * and inflate their apparent coverage.
+     *
+     * @var list<string>
+     */
+    private const CONSEQUENCE_FLAGS = ['transcript_repetition_suspect'];
+
+    /**
      * @return array<string, string>
      */
     private function constantsWithPrefix(string $class, string $prefix): array

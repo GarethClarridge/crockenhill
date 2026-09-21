@@ -19,18 +19,24 @@ use InvalidArgumentException;
  *
  * - A **promoted** detector with no owning class cannot be re-run over the
  *   corpus, so the catalogue would claim coverage the harness cannot deliver.
- * - A **decided-not-to-detect** entry with no decision text is indistinguishable
- *   from an unbuilt one, which is precisely the distinction
- *   {@see DetectorStatus} exists to keep.
- * - An entry with no signals can never match anything an adapter reads, so it
- *   would sit in the catalogue looking covered while silently matching nothing.
+ * - A **decided-not-to-detect** or **fixed-at-source** entry with no recorded
+ *   grounds is indistinguishable from an unbuilt one, which is precisely the
+ *   distinction {@see DetectorStatus} exists to keep.
+ * - An **emitting** entry with no signals or no surface can never match anything
+ *   an adapter reads, so it would sit in the catalogue looking covered while
+ *   silently matching nothing.
+ * - A **non-emitting** entry that declares signals or a surface claims a
+ *   detector where the plan records a fix, a ruling or an open question. That
+ *   direction matters as much as the other: since 2026-09-21 the catalogue holds
+ *   one entry per class-table row, so most entries are not detectors at all, and
+ *   nothing but this guard stops one drifting into looking like one.
  *
  * Each is raised at construction rather than discovered when a report comes back
  * mysteriously empty.
  *
  * @phpstan-type DetectorEntryShape array{
  *     id: string,
- *     surface: string,
+ *     surface: string|null,
  *     signals: list<string>,
  *     status: string,
  *     severity: string,
@@ -49,7 +55,7 @@ final readonly class DetectorEntry
      */
     public function __construct(
         public string $id,
-        public DetectorSurface $surface,
+        public ?DetectorSurface $surface,
         public array $signals,
         public DetectorStatus $status,
         public DetectorSeverity $severity,
@@ -63,10 +69,31 @@ final readonly class DetectorEntry
             throw new InvalidArgumentException('A detector entry needs an id.');
         }
 
-        if ($this->signals === []) {
-            throw new InvalidArgumentException(
-                "Detector [{$this->id}] declares no signals, so no adapter could ever match it."
-            );
+        if ($this->status->emitsSignals()) {
+            if ($this->signals === []) {
+                throw new InvalidArgumentException(
+                    "Detector [{$this->id}] declares no signals, so no adapter could ever match it."
+                );
+            }
+
+            if ($this->surface === null) {
+                throw new InvalidArgumentException(
+                    "Detector [{$this->id}] emits signals but names no surface to emit them on."
+                );
+            }
+        } else {
+            if ($this->signals !== []) {
+                throw new InvalidArgumentException(
+                    "Entry [{$this->id}] is {$this->status->value} but declares signals. "
+                    .'A class with no detector emits nothing; its evidence is a regression test.'
+                );
+            }
+
+            if ($this->surface !== null) {
+                throw new InvalidArgumentException(
+                    "Entry [{$this->id}] is {$this->status->value} but names a surface it never emits on."
+                );
+            }
         }
 
         if ($this->status->requiresOwningClass() && $this->owningClass === null) {
@@ -75,9 +102,9 @@ final readonly class DetectorEntry
             );
         }
 
-        if ($this->status === DetectorStatus::DecidedNotToDetect && $this->decision === null) {
+        if ($this->status->requiresDecision() && $this->decision === null) {
             throw new InvalidArgumentException(
-                "Detector [{$this->id}] is decided-not-to-detect but records no decision."
+                "Entry [{$this->id}] is {$this->status->value} but records no grounds for having no detector."
             );
         }
     }
@@ -106,7 +133,7 @@ final readonly class DetectorEntry
     {
         return [
             'id' => $this->id,
-            'surface' => $this->surface->value,
+            'surface' => $this->surface?->value,
             'signals' => $this->signals,
             'status' => $this->status->value,
             'severity' => $this->severity->value,

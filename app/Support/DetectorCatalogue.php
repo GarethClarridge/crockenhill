@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Actions\FlagIncompleteSermonEvidence;
+use App\Actions\FlagSectionTruncatedBySource;
+use App\Actions\FlagSermonAudioLengthMismatch;
+use App\Actions\FlagSermonPartsNotExtracted;
+use App\Actions\FlagSermonTextPredatesEvidence;
 use App\Data\DetectorEntry;
 use App\Data\SuspectTranscriptBlock;
 use App\Enums\DetectorSeverity;
@@ -133,17 +138,23 @@ class DetectorCatalogue
                 throw new RuntimeException("Duplicate detector id [{$entry->id}] in the catalogue.");
             }
 
-            foreach ($entry->signals as $signal) {
-                $key = $entry->surface->value.'::'.$signal;
+            // Only emitting entries can collide: a fixed, ruled-on or unbuilt
+            // class names no surface and no signals, so it claims nothing.
+            $surface = $entry->surface;
 
-                if (isset($claimed[$key])) {
-                    throw new RuntimeException(
-                        "Signal [{$signal}] on surface [{$entry->surface->value}] is claimed by both "
-                        ."[{$claimed[$key]}] and [{$entry->id}]."
-                    );
+            if ($surface !== null) {
+                foreach ($entry->signals as $signal) {
+                    $key = $surface->value.'::'.$signal;
+
+                    if (isset($claimed[$key])) {
+                        throw new RuntimeException(
+                            "Signal [{$signal}] on surface [{$surface->value}] is claimed by both "
+                            ."[{$claimed[$key]}] and [{$entry->id}]."
+                        );
+                    }
+
+                    $claimed[$key] = $entry->id;
                 }
-
-                $claimed[$key] = $entry->id;
             }
 
             $entries[$entry->id] = $entry;
@@ -160,6 +171,7 @@ class DetectorCatalogue
         return [
             ...self::transcriptEntries(),
             ...self::structureEntries(),
+            ...self::mediaEvidenceEntries(),
             ...self::songEntries(),
             ...self::videoEntries(),
         ];
@@ -361,6 +373,84 @@ class DetectorCatalogue
                 unit: DetectorUnit::Section,
                 summary: 'The detected section count or ordering does not match the order of service.',
                 owningClass: ServiceStructureValidator::class,
+            ),
+        ];
+    }
+
+    /**
+     * Holds raised by the `Flag*` actions rather than by the structure detector.
+     *
+     * These share {@see DetectorSurface::SectionReviewFlag} with the validator's
+     * flags — they are written to the same `review_flags` array on the same
+     * section — but they are a different kind of claim, and
+     * {@see FlagIncompleteSermonEvidence}'s docblock says why: a validator flag
+     * describes the detector's confidence in a boundary and is re-derived from
+     * the banked structure, while these describe the *recording behind* the
+     * boundary and must survive a recompute.
+     *
+     * They went uncatalogued until 2026-09-21 because the guard test walked
+     * {@see ServiceStructureValidator}'s constants alone, and these live on
+     * their own action classes. Five promoted detectors were therefore holding
+     * sections in production while the harness reported full coverage of a set
+     * that excluded them — the exact failure that test exists to prevent,
+     * reached through a door it was not watching.
+     *
+     * @return list<DetectorEntry>
+     */
+    private static function mediaEvidenceEntries(): array
+    {
+        return [
+            new DetectorEntry(
+                id: 'sermon-evidence-incomplete',
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: [FlagIncompleteSermonEvidence::FLAG],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Sermon,
+                summary: "Too much of the sermon's delivered span is blind for the saved text to be taken as an account of what was preached.",
+                owningClass: FlagIncompleteSermonEvidence::class,
+            ),
+            new DetectorEntry(
+                id: 'section-truncated-by-source',
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: [FlagSectionTruncatedBySource::FLAG],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Section,
+                summary: 'The recording stopped before the section did, so what survives inside the clamped bound may not be publishable.',
+                owningClass: FlagSectionTruncatedBySource::class,
+                regressionCases: ['§3704'],
+            ),
+            new DetectorEntry(
+                id: 'sermon-audio-length-mismatch',
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: [FlagSermonAudioLengthMismatch::FLAG],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Sermon,
+                summary: "The sermon MP3 is not the whole audio track of its video, the shape behind twelve MP3s that lost their closing words.",
+                owningClass: FlagSermonAudioLengthMismatch::class,
+            ),
+            new DetectorEntry(
+                id: 'sermon-parts-not-extracted',
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: [FlagSermonPartsNotExtracted::FLAG],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Sermon,
+                summary: 'Stored media covers fewer parts than the extraction plan now names, so a marked continuation was never cut in.',
+                owningClass: FlagSermonPartsNotExtracted::class,
+            ),
+            new DetectorEntry(
+                id: 'sermon-text-predates-evidence',
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: [FlagSermonTextPredatesEvidence::FLAG],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::PublishedWrongContent,
+                unit: DetectorUnit::Sermon,
+                summary: 'The saved text was sliced from a transcript the run no longer holds, so a reader still sees loops recovery has already removed.',
+                owningClass: FlagSermonTextPredatesEvidence::class,
+                regressionCases: ['P8-Q1'],
             ),
         ];
     }
