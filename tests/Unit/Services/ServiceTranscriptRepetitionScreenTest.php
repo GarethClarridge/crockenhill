@@ -311,6 +311,77 @@ class ServiceTranscriptRepetitionScreenTest extends TestCase
     }
 
     #[Test]
+    public function it_holds_a_cadence_run_that_opens_the_recording(): void
+    {
+        // Run 1014: the recording begins with four "Thank you." cues exactly one
+        // decoder window apart, and its sermon section starts at 0, so the
+        // fabricated text sits inside published preaching. The leading flank
+        // cannot be measured — there are no earlier cues — and requiring it made
+        // the screen structurally blind at every recording's start.
+        $denseAfter = implode(' ', array_map(static fn (int $index): string => "after{$index}", range(1, 80)));
+
+        $cues = [
+            ['start' => 0.0, 'end' => 30.0, 'text' => 'Thank you.'],
+            ['start' => 30.0, 'end' => 60.0, 'text' => 'Thank you.'],
+            ['start' => 60.0, 'end' => 90.0, 'text' => 'Thank you.'],
+            ['start' => 90.0, 'end' => 120.0, 'text' => 'Thank you.'],
+            ['start' => 120.0, 'end' => 150.0, 'text' => $denseAfter],
+        ];
+
+        $blocks = app(ServiceTranscriptRepetitionScreen::class)->screen(
+            ChurchServiceTranscript::fromCues($cues, 150.0, ChurchServiceTranscript::SOURCE_LOCAL_WHISPER),
+        );
+
+        $this->assertCount(1, $blocks);
+        $this->assertSame(SuspectTranscriptBlock::REASON_SPARSE_CADENCE, $blocks[0]->reason);
+        $this->assertSame(0.0, $blocks[0]->start);
+        $this->assertSame(4, $blocks[0]->repeats);
+    }
+
+    #[Test]
+    public function it_holds_a_cadence_run_that_closes_the_recording(): void
+    {
+        // The same blindness at the other edge: no later cues, so the trailing
+        // flank cannot be measured either.
+        $denseBefore = implode(' ', array_map(static fn (int $index): string => "before{$index}", range(1, 70)));
+
+        $cues = [
+            ['start' => 0.0, 'end' => 30.0, 'text' => $denseBefore],
+            ['start' => 30.0, 'end' => 60.0, 'text' => 'Thank you.'],
+            ['start' => 60.0, 'end' => 90.0, 'text' => 'Thank you.'],
+            ['start' => 90.0, 'end' => 120.0, 'text' => 'Thank you.'],
+            ['start' => 120.0, 'end' => 150.0, 'text' => 'Thank you.'],
+        ];
+
+        $blocks = app(ServiceTranscriptRepetitionScreen::class)->screen(
+            ChurchServiceTranscript::fromCues($cues, 150.0, ChurchServiceTranscript::SOURCE_LOCAL_WHISPER),
+        );
+
+        $this->assertCount(1, $blocks);
+        $this->assertSame(SuspectTranscriptBlock::REASON_SPARSE_CADENCE, $blocks[0]->reason);
+        $this->assertSame(30.0, $blocks[0]->start);
+    }
+
+    #[Test]
+    public function it_still_requires_a_measurable_flank_to_be_dense(): void
+    {
+        // An absent flank is excused, never passed. A cadence run that opens the
+        // recording and is followed by more sparse speech has one measurable
+        // flank and it is not dense, so the run stays unheld.
+        $cues = [
+            ['start' => 0.0, 'end' => 30.0, 'text' => 'Thank you.'],
+            ['start' => 30.0, 'end' => 60.0, 'text' => 'Thank you.'],
+            ['start' => 60.0, 'end' => 90.0, 'text' => 'Thank you.'],
+            ['start' => 90.0, 'end' => 120.0, 'text' => 'Thank you.'],
+            ['start' => 121.0, 'end' => 150.0, 'text' => 'Quiet words only.'],
+        ];
+
+        $this->assertSame([], app(ServiceTranscriptRepetitionScreen::class)->screen(
+            ChurchServiceTranscript::fromCues($cues, 150.0, ChurchServiceTranscript::SOURCE_LOCAL_WHISPER),
+        ));
+    }
+
+    #[Test]
     public function it_reports_one_block_per_loop_rather_than_one_per_phrase_length(): void
     {
         // An eight-word phrase repeated twelve times is also a sixteen-word

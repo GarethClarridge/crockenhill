@@ -66,10 +66,13 @@
 > listening. That one gap proved to be a **detector blind spot**: the cadence
 > screen's both-flanks rule cannot fire at a recording's start, and a census
 > found 13 such runs, 2 of them (1014, 980) putting fabricated `Thank you.` text
-> inside published sermon content. The fix is **not** applied — relaxing the rule
-> would newly fire on the 11 preamble cases, so it needs an operator ruling.
-> H10a bounds under-transcription only; dense loops and fluent substitutions
-> await H10b's re-decode comparison, which the corpus is already owed.
+> inside published sermon content. **Fixed the same day** — an absent flank is
+> now excused rather than failed, with 0 change to sermon holds. Measuring that
+> fix exposed a larger problem: **the recorded screen state is two detector
+> generations stale**, with today's code finding blocks in 150 of the 286
+> "screened clear" runs. H10a's coverage result stands but does not bound the
+> current screen's miss rate, and re-applying the screen corpus-wide is a
+> separate decision whose hold count must be measured under `--apply` first.
 >
 > Phases 0–8, their implementation diary, pass measurements and earlier reviews
 > have moved unchanged to the
@@ -3684,11 +3687,46 @@ from `confirmed`**, against ~104 minutes of fabricated `Thank you.` text
 currently recorded as evidence-clean, including inside runs 1014 and 980's
 published sermons. The review-burden objection does not survive measurement.
 
-**Still not applied.** The change alters the weekly pipeline's behaviour as well
-as historic, and §4.3a requires a promoted detector to ship with its regression
-fixtures and a recorded before/after over the eligible membership. The ruling
-this needs is now narrow: accept two song demotions to stop the screen being
-structurally blind at both edges of every recording.
+**Fixed 2026-09-21.** `appendSparseCadenceBlock()` now excuses a flank that does
+not exist rather than failing it, while still requiring at least one measurable
+flank to be dense — which is what keeps `Amen`/`Thank you` cadences over music
+unheld, since a transcript that is nothing but cadence has no dense speech
+anywhere. Regression fixtures: a cadence run opening the recording, one closing
+it, and a negative where the one measurable flank is sparse.
+
+Recorded before/after, dry run over all 465 runs holding a banked transcript:
+
+| Measure | Before | After | Delta |
+|---|---|---|---|
+| Runs with blocks | 291 | 295 | +4 |
+| Blocks | 962 | 997 | +35 |
+| Seconds covered | 50,747 | 56,442 | +5,695 |
+| **Runs held on the sermon span** | **76** | **76** | **0** |
+
+Only runs **999** and **1200** are newly flagged that were not already flagged by
+some other block. Run 1014 was already caught by a `let there be` ×4 phrase loop,
+which is why the sermon-hold count does not move; the fix adds its 150-second
+cadence block on top.
+
+###### The recorded screen state is two detector generations stale
+
+Measuring the before/after exposed something larger than the fix. Of the **286
+runs recorded as screened-clear**, today's code finds suspect blocks in **150**.
+Their recorded state predates the extreme-loop (09-19), short-loop (09-20) and
+cadence (09-20) detectors, so "screened clear" means clear *under the code of the
+day*, not under current code.
+
+**This invalidates H10a's framing.** That pass treated the 286 as the current
+screen's negatives and concluded its miss rate looked low; they are the
+historical screen's negatives. The coverage result itself stands — 27 gaps, one
+overlapping a sermon — but it does not bound the current screen's miss rate,
+because the current screen has never been applied to that population.
+
+**Re-applying the screen corpus-wide is a separate decision with its own
+measurement.** Up to 150 runs would gain recorded blocks, and a dry run cannot
+say how many sermons that holds: `holds_raised` is only computed under `--apply`.
+That number must be measured before the write, not after. Do not treat the fix
+above as authorising it.
 
 ##### H10b. Re-decode comparison — not yet run
 

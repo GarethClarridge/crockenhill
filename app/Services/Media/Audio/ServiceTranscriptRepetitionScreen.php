@@ -346,11 +346,37 @@ class ServiceTranscriptRepetitionScreen
         $start = $transcript->cues[$from]['start'];
         $end = min($transcript->duration, $transcript->cues[$to]['start'] + $interval);
 
-        if ($this->wordsPerMinute($transcript, $start - $flankSeconds, $start) < $minimumFlankWordsPerMinute) {
+        /*
+         * A flank that does not exist is excused, never failed.
+         *
+         * Requiring dense speech on both sides made the screen structurally
+         * blind at every recording's edge: a cadence run beginning at cue 0 has
+         * no earlier cues, so its leading flank always measured 0 wpm and the
+         * block was always discarded. Run 1014 opens with four "Thank you."
+         * cues one decoder window apart and its sermon section starts at 0, so
+         * the fabricated text sat inside published preaching and no screen could
+         * see it. The 2026-09-21 census found 40 such runs across both
+         * populations, 29 at a start and 11 at an end.
+         *
+         * At least one flank must still be measurable and dense. That is what
+         * keeps the "Amen"/"Thank you" cadences over music unheld: a transcript
+         * that is nothing but cadence has no dense speech anywhere to say the
+         * decoder was dropping real words, and cadence alone is not a hold.
+         */
+        $leadingMeasurable = $from > 0;
+        $trailingMeasurable = $to < count($transcript->cues) - 1;
+
+        if (! $leadingMeasurable && ! $trailingMeasurable) {
             return;
         }
 
-        if ($this->wordsPerMinute($transcript, $end, $end + $flankSeconds) < $minimumFlankWordsPerMinute) {
+        if ($leadingMeasurable
+            && $this->wordsPerMinute($transcript, $start - $flankSeconds, $start) < $minimumFlankWordsPerMinute) {
+            return;
+        }
+
+        if ($trailingMeasurable
+            && $this->wordsPerMinute($transcript, $end, $end + $flankSeconds) < $minimumFlankWordsPerMinute) {
             return;
         }
 
