@@ -3237,9 +3237,12 @@ read-only; register `hintresolve-20260916-blast-radius.json`). Nothing was writt
   this rather than quoting it) and reconcile its output with existing holds;
   report weekly outputs separately. **First replay done 2026-09-21 (H7a):**
   2,714 signals, 2,308 held, and **8 of 37 promoted detectors silent across the
-  whole corpus**. The reconciliation half is therefore not yet dischargeable —
-  a detector that has never run cannot be reconciled with anything, and whether
-  those eight were ever applied is the open question. Preserve older 442-run
+  whole corpus**. **Diagnosed the same day (H7b): five of the eight were never
+  applied** — they postdate the detection and extraction passes that would have
+  written them, and 436 of the 443 runs have not been re-detected since. The
+  reconciliation half is therefore not dischargeable yet: a detector that has
+  never run cannot be reconciled with anything. Closing it needs a re-detection
+  pass over the eligible corpus, which is a write and an operator decision. Preserve older 442-run
   results as dated baselines, not current denominators. Every still-present confirmed defect must be detected or have
   a recorded containment/decision; repaired positive cases remain regression
   fixtures and should not keep firing merely to reproduce a historical hold list.
@@ -3623,6 +3626,60 @@ does not fire on 944, so the binding recorded there rests on the detector's
 intent rather than on its output. Both candidate detectors for that row are
 silent, so the row cannot be resolved by measurement until the re-application
 question above is answered.
+
+###### H7b. Why the eight are silent — diagnosed 2026-09-21, read-only
+
+The question the replay left open is answerable without running anything, by one
+test applied to each detector: **did it exist when its owning pass last ran for
+that run?** A detector added after the corpus was processed has not been
+measured and found clean; it has never been asked. Evidence:
+`storage/scratch/silent-detector-diagnosis-20260921.json`.
+
+The corpus measurement that decides it: of 443 eligible runs, **436 had their
+sections last created before 2026-09-15**. Only seven have been re-detected
+since — 980, 1004, 1009, 1060, 1274, 1340 and 1343, which is the repair and
+retranscription set. Extraction is the same story: 45 of 1,246 extracted
+sections were cut on or after 15 September.
+
+**Five were never applied. Three are genuine negatives.**
+
+| Detector | Added | Owning pass | Opportunity since | Verdict |
+|---|---|---|---|---|
+| `structure-unidentified-singing` | 09-15 | full structure detection | 7 of 443 runs | **never applied** |
+| `structure-song-widened-to-sustained-sound` | 09-15 | full structure detection | 7 of 443 runs | **never applied** |
+| `structure-section-reads-as-sung` | 09-16 | full structure detection | 7 of 443 runs | **never applied** |
+| `sermon-audio-length-mismatch` | 09-15 | sermon extraction | 45 of 1,246 sections | **never applied** |
+| `song-identity-from-suspect-transcript` | 09-20 | song matching | ≤ 7 runs | **never applied** |
+| `transcript-implausible-density` | 09-09 | transcript screen, applied corpus-wide 09-21 | 465 of 465 runs | genuine negative |
+| `structure-oos-structure-mismatch` | 2026-07-22 | OoS alignment | existed throughout the import | genuine negative |
+| `song-boundary-evidence-unavailable` | 09-01 | boundary evidence | 1,174 of 1,180 sections at v5 (09-16) | genuine negative |
+
+The three validator flags that were never applied are precisely the three not in
+`REANNOTATED_FLAGS`: every re-derived flag — low confidence, micro, macro,
+benediction, title-marker mismatch — fired, because a later recompute produces
+them from banked structure. These three are written only by a full detection
+pass, and no historic run has had one since they were added.
+
+**The sharpest fact, and the one that governs acceptance: not one of the named
+regression cases has been re-detected since its detector was added.** 965 and
+1109 (sustained-sound widening), 1014 §1301 (sung typing) and 944 (unmatched OoS
+song) are all absent from the seven. So the plan's record that these detectors
+answer those classes is a statement about the code, never confirmed against the
+corpus — the cases cited as evidence are the cases that were never re-run.
+
+**Consequence.** Those five cannot be cited as containing their classes, and any
+§4.5 acceptance resting on them is unsupported. This is a *known* gap now rather
+than an unknown one, which is the difference between a measurement and a
+guess — but closing it needs a re-detection pass over the eligible corpus, which
+is a write and an operator decision, not a read.
+
+**The three genuine negatives are a different question and should not be
+rolled up with the others.** Each has had full opportunity and fired nowhere,
+which is either a class that does not occur in this corpus or a threshold
+nothing can reach. `transcript-implausible-density` is the one worth checking
+first: it ran over all 465 runs eleven days after it was written and found
+nothing at all, on a corpus where the sibling repetition detectors found 817
+blocks.
 
 ##### H8. What this discharges, and what it leaves open
 
