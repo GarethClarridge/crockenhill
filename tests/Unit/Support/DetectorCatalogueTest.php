@@ -270,14 +270,16 @@ class DetectorCatalogueTest extends TestCase
      *
      * `test_every_structure_validator_flag_is_catalogued` walks one class's
      * constants, and on 2026-09-21 that turned out to be the whole weakness: the
-     * `Flag*` actions write to the same `review_flags` array on the same
+     * flag-raising actions write to the same `review_flags` array on the same
      * section, but they declare their flag on themselves, so five promoted
      * detectors held sections in production while the catalogue had never heard
      * of them. A guard aimed at one emitter only guards one emitter.
      *
-     * This walks the directory instead of a hand-kept list, so a sixth action
-     * cannot ship uncatalogued by being left off a list nobody remembers to
-     * update.
+     * **This globbed `Flag*.php` at first, and `detectors:replay` found what
+     * that missed within a day: `HoldSectionForContentReview` declares
+     * `content_defect_hold` and is not named `Flag`.** Selecting by filename is
+     * a hand-kept list wearing a glob's clothes. The property that matters is
+     * declaring a `FLAG` constant, so that is what this now selects on.
      */
     public function test_every_flag_action_writes_a_catalogued_review_flag(): void
     {
@@ -286,7 +288,7 @@ class DetectorCatalogueTest extends TestCase
 
         // Resolved from this file rather than through `app_path()`: this is a
         // plain PHPUnit test with no container booted.
-        $actions = dirname(__DIR__, 3).'/app/Actions/Flag*.php';
+        $actions = dirname(__DIR__, 3).'/app/Actions/*.php';
 
         foreach (glob($actions) ?: [] as $path) {
             $class = 'App\\Actions\\'.basename($path, '.php');
@@ -299,7 +301,7 @@ class DetectorCatalogueTest extends TestCase
             $flag = constant($class.'::FLAG');
             $checked++;
 
-            if (in_array($flag, self::CONSEQUENCE_FLAGS, true)) {
+            if (DetectorCatalogue::isNonDetectorFlag($flag)) {
                 continue;
             }
 
@@ -399,18 +401,33 @@ class DetectorCatalogueTest extends TestCase
     }
 
     /**
-     * A flag that restates another detector's finding rather than making one.
+     * The non-detector flags are real and must stay reachable.
      *
-     * `transcript_repetition_suspect` is raised by
-     * {@see \App\Actions\FlagSuspectTranscriptRepetition} from the suspect
-     * blocks the transcript screens already emitted, so it carries no claim of
-     * its own. Cataloguing it as a detector would score the transcript screens
-     * twice — once on their blocks and once on the hold those blocks produce —
-     * and inflate their apparent coverage.
-     *
-     * @var list<string>
+     * An allowlist is the obvious place for a mistake to hide: adding a flag
+     * silences the guard for it forever. So each entry has to correspond to a
+     * class that actually declares it, which stops the list outliving what it
+     * excuses.
      */
-    private const CONSEQUENCE_FLAGS = ['transcript_repetition_suspect'];
+    public function test_every_non_detector_flag_is_still_raised_somewhere(): void
+    {
+        $declared = [];
+
+        foreach (glob(dirname(__DIR__, 3).'/app/Actions/*.php') ?: [] as $path) {
+            $class = 'App\\Actions\\'.basename($path, '.php');
+
+            if (class_exists($class) && defined($class.'::FLAG')) {
+                $declared[] = constant($class.'::FLAG');
+            }
+        }
+
+        foreach (DetectorCatalogue::NonDetectorFlags as $flag) {
+            $this->assertContains(
+                $flag,
+                $declared,
+                "[{$flag}] is excused from the catalogue but no action raises it, so the allowlist has outlived its reason."
+            );
+        }
+    }
 
     /**
      * @return array<string, string>

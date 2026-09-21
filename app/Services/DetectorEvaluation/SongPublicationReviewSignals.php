@@ -9,6 +9,7 @@ use App\Enums\DetectorSurface;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\SectionPublication\SongPublicationBoundaryEvidenceService;
+use App\Support\DetectorCatalogue;
 
 /**
  * Reads the objections the song publication policy recorded against a section.
@@ -89,6 +90,22 @@ class SongPublicationReviewSignals
 
         foreach ($reasons as $reason) {
             if (! is_array($reason) || ! is_string($reason['kind'] ?? null)) {
+                continue;
+            }
+
+            // The policy folds every boundary risk into its own reasons
+            // (`assess()` appends `boundary_evidence['risks']` wholesale), so
+            // each one is stored twice: here and under the boundary key. Both
+            // are the same finding from the same pass, and reporting both would
+            // double every boundary detector's signal count and corrupt its
+            // precision. The boundary adapter owns them; this one reports the
+            // policy's own six kinds.
+            //
+            // Resolved against the catalogue rather than against a hardcoded
+            // list, and only for the boundary surface, so a genuinely
+            // uncatalogued review kind still comes through with a null detector
+            // id and reads as the gap it is.
+            if (DetectorCatalogue::forSignal(DetectorSurface::SongBoundaryEvidence, $reason['kind']) !== null) {
                 continue;
             }
 

@@ -3233,8 +3233,13 @@ read-only; register `hintresolve-20260916-blast-radius.json`). Nothing was writt
   fixtures (positive and negative), under `tests/Fixtures/StructureEval` or
   beside it, following the existing fixture conventions.
 - [ ] Re-run every promoted detector over the current eligible historic membership
-  (**437 completed non-excluded runs at this review**) and reconcile its output
-  with existing holds; report weekly outputs separately. Preserve older 442-run
+  (**443 completed non-excluded runs measured 2026-09-21**; the command computes
+  this rather than quoting it) and reconcile its output with existing holds;
+  report weekly outputs separately. **First replay done 2026-09-21 (H7a):**
+  2,714 signals, 2,308 held, and **8 of 37 promoted detectors silent across the
+  whole corpus**. The reconciliation half is therefore not yet dischargeable —
+  a detector that has never run cannot be reconciled with anything, and whether
+  those eight were ever applied is the open question. Preserve older 442-run
   results as dated baselines, not current denominators. Every still-present confirmed defect must be detected or have
   a recorded containment/decision; repaired positive cases remain regression
   fixtures and should not keep firing merely to reproduce a historical hold list.
@@ -3545,6 +3550,79 @@ affected metrics stale rather than silently carrying them forward.
 
 `detectors:replay` is the one that discharges the third checkbox above. It is
 read-only by design: reconciliation names discrepancies, it does not write holds.
+
+###### H7a. First replay — 2026-09-21
+
+`detectors:replay --all` over **443 eligible completed historic runs** (the
+denominator is computed, not quoted: the plan's own 437 and 442 are dated
+baselines). 3.2 seconds, no media touched. Evidence:
+`storage/scratch/detector-replay-20260921.json`.
+
+| Measure | Value |
+|---|---|
+| Signals recorded | 2,714 |
+| Held / unheld | 2,308 / 379 |
+| **Promoted detectors silent across the corpus** | **8 of 37** |
+| Transcript screened / never | 443 / 0 |
+| Video assessed / never | 437 / 6 |
+| Uncatalogued signal kinds | 0 (was 3) |
+| Non-detector flags | 241 |
+
+**Three uncatalogued flags, found on the first run, from a third kind of
+emitter.** `unmatched_song_section` (16, `UnmatchedSongReviewApplicator`) and
+`childrens_talk_speaker_review` (11, `ChildrensTalkSpeakerService`) write inline
+literals from a service and a job, so no constant-walking guard could reach
+them; both are now catalogued. `song_identity_contradicted_by_transcript` (3
+sections: 335, 1121, 1254, all held) has **no raise site in the code at all** —
+it was applied by hand during the 2026-09-10/11 correctness review. It is not
+retired: §4.1b still reasons from it, and `RetiredSectionReviewFlags` causes the
+adapter to *skip*, which would hide three live holds. It is recorded as
+hand-applied instead.
+
+`content_defect_hold` was also uncaught, by a guard globbing `Flag*.php` —
+`HoldSectionForContentReview` is not named `Flag`. **Selecting by filename is a
+hand-kept list wearing a glob's clothes**; the guard now selects on declaring a
+`FLAG` constant. That is the same failure shape for the third time in two days,
+and the lesson each time was that the guard enumerated by a convention rather
+than by the property that matters.
+
+**Boundary risks were being counted twice.** `SongPublicationReviewPolicy::assess()`
+appends every `boundary_evidence['risks']` entry to its own reasons, so each is
+stored on both surfaces. The review adapter now skips kinds the catalogue claims
+for the boundary surface — resolved against the catalogue, and only for that
+surface, so a genuinely uncatalogued review kind still reads as the gap it is.
+Left alone this would have doubled every boundary detector's signal count and
+corrupted its precision.
+
+**The eight silent detectors are the result that needs an operator.**
+`transcript-implausible-density`, `structure-unidentified-singing`,
+`structure-song-widened-to-sustained-sound`, `structure-section-reads-as-sung`,
+`structure-oos-structure-mismatch`, `sermon-audio-length-mismatch`,
+`song-identity-from-suspect-transcript` and `song-boundary-evidence-unavailable`
+produce **nothing anywhere in the corpus**. Several of them have named
+regression cases in this plan that are supposed to be live: 965 and 1109 for the
+sustained-sound widening, 1014 §1301 for the sung-section typing, 944 for the
+unmatched OoS song, and twelve MP3s for the audio length mismatch. All four runs
+are eligible, in the population, and carry other flags — so the sections exist
+and were read; these detectors simply did not write to them.
+
+The likeliest cause is the one already established for the transcript screen on
+this corpus: **they were built after the corpus was processed and have never
+been applied.** That is exactly the staleness H10a found, and exactly what this
+checkbox exists to surface. It is not yet proven, and the report deliberately
+does not guess — silence is either a class that does not occur or a detector
+that has stopped working, and nothing in the output distinguishes those.
+
+**Until that is settled, `structure-section-reads-as-sung`,
+`structure-song-widened-to-sustained-sound` and `sermon-audio-length-mismatch`
+cannot be cited as containing their classes**, because there is no evidence they
+have ever run on it. Any acceptance claim resting on them is unsupported.
+
+This also settles the class table's row 23 empirically: `structure-unidentified-singing`
+does not fire on 944, so the binding recorded there rests on the detector's
+intent rather than on its output. Both candidate detectors for that row are
+silent, so the row cannot be resolved by measurement until the re-application
+question above is answered.
 
 ##### H8. What this discharges, and what it leaves open
 

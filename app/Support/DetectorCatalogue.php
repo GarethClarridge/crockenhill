@@ -20,6 +20,8 @@ use App\Services\ChurchService\SectionPublication\SongLyricsOutsideSection;
 use App\Services\ChurchService\SectionPublication\SongPublicationBoundaryEvidenceService;
 use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
 use App\Services\DetectorEvaluation\SongBoundaryEvidenceSignals;
+use App\Services\Preacher\ChildrensTalkSpeakerService;
+use App\Services\Song\UnmatchedSongReviewApplicator;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\Media\Audio\ServiceTranscriptRepetitionScreen;
 use App\Services\Media\Video\SermonVideoQualityAssessmentService;
@@ -61,6 +63,68 @@ use RuntimeException;
 class DetectorCatalogue
 {
     public const Version = 1;
+
+    /**
+     * Flags written to a detector surface that are not detector findings.
+     *
+     * Both are real signals on `review_flags`, so they cannot simply be ignored;
+     * but neither is a claim a detector made, so cataloguing either would credit
+     * the harness with coverage it does not have. They are listed here, with
+     * reasons, rather than left to read as uncatalogued gaps.
+     *
+     * - `transcript_repetition_suspect` is raised by
+     *   {@see \App\Actions\FlagSuspectTranscriptRepetition} from blocks the
+     *   transcript screens already emitted, so it restates another detector's
+     *   finding. Cataloguing it would score those screens twice, once on their
+     *   blocks and once on the hold the blocks produce.
+     * - `content_defect_hold` is raised by
+     *   {@see \App\Actions\HoldSectionForContentReview} where an operator has
+     *   proven a defect **no automatic screen can see**. It is the exact inverse
+     *   of a detector finding — the containment used where detectors are blind —
+     *   so counting it as detector coverage would credit the machinery for the
+     *   cases that defeated it.
+     *
+     * @var list<string>
+     */
+    public const NonDetectorFlags = [
+        'transcript_repetition_suspect',
+        'content_defect_hold',
+    ];
+
+    /**
+     * Flags an operator applied by hand, with no raise site in the code at all.
+     *
+     * Distinct from {@see NonDetectorFlags}, which name a class that raises
+     * them. These were written during a recorded review and nothing can produce
+     * another, so a guard that looks for their emitter will never find one.
+     *
+     * - `song_identity_contradicted_by_transcript` was applied during the
+     *   2026-09-10/11 correctness review to song sections whose own transcript
+     *   announces a different hymn from the one bound. Three sections carry it
+     *   (335, 1121, 1254), all held, and §4.1b still reasons from it, so it is
+     *   emphatically **not** retired: {@see \App\Support\RetiredSectionReviewFlags}
+     *   is for questions whose raise site was removed on purpose, and its flags
+     *   are *skipped* by the adapter. Skipping these would hide three live holds
+     *   from the harness.
+     *
+     * @var list<string>
+     */
+    public const HandAppliedFlags = [
+        'song_identity_contradicted_by_transcript',
+    ];
+
+    /**
+     * Whether this signal is something other than a detector's finding.
+     *
+     * Either way it is real and stored; what it is not is evidence about how
+     * well the automatic machinery works, which is the only thing the harness
+     * measures.
+     */
+    public static function isNonDetectorFlag(string $signal): bool
+    {
+        return in_array($signal, self::NonDetectorFlags, true)
+            || in_array($signal, self::HandAppliedFlags, true);
+    }
 
     /** @var array<string, DetectorEntry>|null */
     private static ?array $entries = null;
@@ -185,6 +249,7 @@ class DetectorCatalogue
             ...self::structureEntries(),
             ...self::mediaEvidenceEntries(),
             ...self::songEntries(),
+            ...self::songMatchEntries(),
             ...self::songBoundaryEntries(),
             ...self::videoEntries(),
             // Classes from §4.3a's table that emit nothing: fixed at source,
@@ -476,6 +541,42 @@ class DetectorCatalogue
                 summary: 'The saved text was sliced from a transcript the run no longer holds, so a reader still sees loops recovery has already removed.',
                 owningClass: FlagSermonTextPredatesEvidence::class,
                 regressionCases: ['P8-Q1'],
+            ),
+        ];
+    }
+
+    /**
+     * Review flags raised outside the validator and the `Flag*` actions.
+     *
+     * Found by `detectors:replay` on 2026-09-21, which is the point of the
+     * command: both write inline string literals from a service and a job, so no
+     * constant-walking guard could have reached them. Between them they account
+     * for 27 stored signals the catalogue had never claimed.
+     *
+     * @return list<DetectorEntry>
+     */
+    private static function songMatchEntries(): array
+    {
+        return [
+            new DetectorEntry(
+                id: 'song-unmatched-section',
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: ['unmatched_song_section'],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::WrongMetadata,
+                unit: DetectorUnit::Section,
+                summary: 'A song section matched no catalogue song, so the clip is published with nothing naming what was sung.',
+                owningClass: UnmatchedSongReviewApplicator::class,
+            ),
+            new DetectorEntry(
+                id: 'childrens-talk-speaker-review',
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: ['childrens_talk_speaker_review'],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::WrongMetadata,
+                unit: DetectorUnit::Section,
+                summary: "The children's talk speaker could not be identified with enough confidence to attribute the talk.",
+                owningClass: ChildrensTalkSpeakerService::class,
             ),
         ];
     }
