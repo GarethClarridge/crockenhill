@@ -8,6 +8,7 @@ use App\Data\DetectorEntry;
 use App\Data\SuspectTranscriptBlock;
 use App\Enums\DetectorStatus;
 use App\Enums\DetectorSurface;
+use App\Enums\DetectorUnit;
 use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Support\DetectorCatalogue;
@@ -153,6 +154,61 @@ class DetectorCatalogueTest extends TestCase
             array_values($statuses),
             'Unbuilt and decided-not-to-detect rows join when the plan table gains its detector_id column.'
         );
+    }
+
+    /**
+     * A bundled entry is scored as one, so a weak member passes on the strength
+     * of its siblings and its own recall is never visible. Bundling therefore
+     * has to be a deliberate act rather than a default, and this allowlist is
+     * where that deliberation is recorded.
+     *
+     * `video-dead-picture` is the one legitimate case: its four reasons are
+     * outcome bands of a single coverage measurement — how much of the recording
+     * is frozen or black — not four independent checks, so splitting them would
+     * invent detectors that do not exist. Everything else is one signal per
+     * entry, including the four OoS anchoring flags and the two adjacent-song
+     * checks, which were split precisely because they are separate questions.
+     */
+    public function test_only_allowlisted_entries_bundle_several_signals(): void
+    {
+        $mayBundle = ['video-dead-picture'];
+
+        foreach (DetectorCatalogue::all() as $entry) {
+            if (in_array($entry->id, $mayBundle, true)) {
+                continue;
+            }
+
+            $this->assertCount(
+                1,
+                $entry->signals,
+                "Detector [{$entry->id}] bundles ".count($entry->signals).' signals. A bundle hides a weak '
+                .'member behind its strong ones; split it, or add it to this allowlist with the reason.'
+            );
+        }
+    }
+
+    public function test_transcript_detectors_are_counted_in_minutes(): void
+    {
+        foreach (DetectorCatalogue::all() as $entry) {
+            if ($entry->surface !== DetectorSurface::SuspectTranscriptBlock) {
+                continue;
+            }
+
+            $this->assertSame(
+                DetectorUnit::Minute,
+                $entry->unit,
+                "Detector [{$entry->id}] reports spans, and H10's window sampling bounds defective minutes "
+                .'rather than defective runs, so counting it per run claims a precision the sampling cannot support.'
+            );
+        }
+    }
+
+    public function test_the_video_detector_is_counted_in_sermons(): void
+    {
+        $entry = DetectorCatalogue::find('video-dead-picture');
+
+        $this->assertNotNull($entry);
+        $this->assertSame(DetectorUnit::Sermon, $entry->unit);
     }
 
     /**

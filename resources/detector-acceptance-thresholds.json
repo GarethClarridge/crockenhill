@@ -1,0 +1,47 @@
+{
+    "format": "crockenhill-detector-acceptance-thresholds",
+    "version": 1,
+    "catalogue_version": 1,
+    "declared_at": "2026-09-21",
+    "declared_before_any_scoring": true,
+    "regression_defects_must_all_pass": true,
+    "severities": {
+        "s1": {
+            "scored": true,
+            "recall_floor": 0.95,
+            "false_positive_ceiling": 0.02,
+            "non_inferiority_margin": 0.02
+        },
+        "s2": {
+            "scored": true,
+            "recall_floor": 0.9,
+            "false_positive_ceiling": 0.05,
+            "non_inferiority_margin": 0.03
+        },
+        "s3": {
+            "scored": true,
+            "recall_floor": 0.8,
+            "false_positive_ceiling": 0.1,
+            "non_inferiority_margin": 0.05
+        },
+        "s4": {
+            "scored": false,
+            "recall_floor": null,
+            "false_positive_ceiling": null,
+            "non_inferiority_margin": null
+        }
+    },
+    "recall": {
+        "bound": "one_sided_95_lower",
+        "clustering": "service_group",
+        "unlabelled_allocation": "against_the_conclusion",
+        "aggregation_across_units": false
+    },
+    "review_burden": {
+        "basis": "non_inferiority_vs_incumbent",
+        "max_relative_increase_in_flags_per_service": 0.1,
+        "absolute_ceilings": null,
+        "note": "No absolute ceiling is declared because no measured baseline of operator minutes exists. Inventing one would either pass vacuously or fail on day one: 832 of 1174 historic song sections and 120 of 435 sermon sections are currently flagged. A candidate is therefore judged against the incumbent on the same detector-negative sample, and an absolute ceiling is added once operator minutes have been measured rather than guessed."
+    },
+    "hash": "e7fcb6d9b95623aaef5a5bc98f69c246afe8505d037634389986039f756353b3"
+}

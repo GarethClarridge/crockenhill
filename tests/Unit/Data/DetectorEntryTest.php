@@ -8,6 +8,7 @@ use App\Data\DetectorEntry;
 use App\Enums\DetectorSeverity;
 use App\Enums\DetectorStatus;
 use App\Enums\DetectorSurface;
+use App\Enums\DetectorUnit;
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 
@@ -24,6 +25,7 @@ class DetectorEntryTest extends TestCase
             signals: [],
             status: DetectorStatus::Unbuilt,
             severity: DetectorSeverity::WrongMetadata,
+            unit: DetectorUnit::Section,
             summary: 'Nothing could ever match this.',
         );
     }
@@ -39,6 +41,7 @@ class DetectorEntryTest extends TestCase
             signals: ['something'],
             status: DetectorStatus::Promoted,
             severity: DetectorSeverity::ContentLost,
+            unit: DetectorUnit::Section,
             summary: 'Promoted but unrunnable.',
         );
     }
@@ -54,6 +57,7 @@ class DetectorEntryTest extends TestCase
             signals: ['something'],
             status: DetectorStatus::DecidedNotToDetect,
             severity: DetectorSeverity::WrongMetadata,
+            unit: DetectorUnit::Section,
             summary: 'Indistinguishable from unbuilt without its decision.',
         );
     }
@@ -66,6 +70,7 @@ class DetectorEntryTest extends TestCase
             signals: ['something'],
             status: DetectorStatus::Unbuilt,
             severity: DetectorSeverity::ContentLost,
+            unit: DetectorUnit::Section,
             summary: 'A known class with no response yet.',
         );
 
@@ -100,6 +105,7 @@ class DetectorEntryTest extends TestCase
             signals: ['a_signal'],
             status: $status,
             severity: $severity,
+            unit: DetectorUnit::Section,
             summary: 'An example entry.',
             owningClass: self::class,
         );

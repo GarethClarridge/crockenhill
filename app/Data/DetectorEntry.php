@@ -7,6 +7,7 @@ namespace App\Data;
 use App\Enums\DetectorSeverity;
 use App\Enums\DetectorStatus;
 use App\Enums\DetectorSurface;
+use App\Enums\DetectorUnit;
 use App\Support\DetectorCatalogue;
 use InvalidArgumentException;
 
@@ -33,6 +34,7 @@ use InvalidArgumentException;
  *     signals: list<string>,
  *     status: string,
  *     severity: string,
+ *     unit: string,
  *     summary: string,
  *     owning_class: string|null,
  *     regression_cases: list<string>,
@@ -51,6 +53,7 @@ final readonly class DetectorEntry
         public array $signals,
         public DetectorStatus $status,
         public DetectorSeverity $severity,
+        public DetectorUnit $unit,
         public string $summary,
         public ?string $owningClass = null,
         public array $regressionCases = [],
@@ -107,6 +110,7 @@ final readonly class DetectorEntry
             'signals' => $this->signals,
             'status' => $this->status->value,
             'severity' => $this->severity->value,
+            'unit' => $this->unit->value,
             'summary' => $this->summary,
             'owning_class' => $this->owningClass,
             'regression_cases' => $this->regressionCases,

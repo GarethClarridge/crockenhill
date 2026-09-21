@@ -50,9 +50,9 @@
 > genuine sung evidence outside its sermon, but that song remains held and replaying
 > the older whole transcript would restore substantial loop artefacts. No production
 > state was inspected in this review.
-> The §4.3a detector evaluation harness is **specified, with its catalogue and
-> two of four emission adapters built** (2026-09-21); the frozen case book,
-> predeclared thresholds file and three commands remain unbuilt. The thresholds
+> The §4.3a detector evaluation harness is **specified, with its catalogue, all
+> four emission adapters and its predeclared thresholds contract built**
+> (2026-09-21); the frozen case book and three commands remain unbuilt. The thresholds
 > are committed before any scoring code deliberately, so they cannot be chosen
 > after seeing a candidate's results. **H9 is ruled (2026-09-21):** no eligible
 > run is untouched — all 438 appear individually in this plan, the archived log
@@ -3361,6 +3361,30 @@ subsystem produced it:
 Thresholds live in a checked-in, hash-bound `detector-acceptance-thresholds.json`
 — **not** in `config/` behind `env()`. An env-tunable threshold is not a
 predeclared one, and the whole point is that changing it is a reviewable commit.
+**Written 2026-09-21** at `resources/detector-acceptance-thresholds.json`, read
+through `DetectorAcceptanceThresholds`, which fails closed on an unverified hash
+and on a catalogue-version mismatch — a hash alone cannot catch thresholds
+declared over a different detector set, because the file is untouched and still
+stale.
+
+Two decisions taken while writing it. **Recall is counted in a unit declared per
+detector** (`DetectorUnit`: run, section, sermon, transcript minute), because a
+transcript loop is a stretch of time, a mistyped section is a section and a dead
+picture is a whole recording — "recall ≥ 0.95" means something different in each,
+and defective minutes and defective sermons are not addable. The contract
+therefore sets `aggregation_across_units: false`. **Thresholds are set per
+severity but measured per detector**, and bundled entries are allowlisted rather
+than allowed by default: a bundle is scored as one, so a weak member passes on
+its siblings' strength and its own recall never surfaces. The four OoS anchoring
+flags and the two adjacent-song checks were split for that reason; only
+`video-dead-picture` still bundles, because its four reasons are outcome bands of
+a single coverage measurement rather than four independent checks.
+
+Review burden declares **no absolute ceiling**. None is measured: 832 of 1174
+historic song sections and 120 of 435 sermon sections are currently flagged, so
+an invented ceiling would either pass vacuously or fail on day one. A candidate
+is judged against the incumbent on the same sample, and an absolute ceiling is
+added once operator minutes are measured rather than guessed.
 
 | Tier | Regression defects | Recall (lower 95% bound, group-clustered) | False positives on verified-correct cases | Non-inferiority margin δ |
 |---|---|---|---|---|
@@ -3430,24 +3454,48 @@ Drafting this section discharges only the predeclaration half of the fourth
 checkbox. The regression-fixture checkbox stays open until the plan's cases are
 actually written under `tests/Fixtures/StructureEval` or beside it.
 
-**Built 2026-09-21.** H1's catalogue and two of H2's four adapters:
-`DetectorCatalogue` with 21 promoted detectors, `DetectorEntry`/`DetectorSignal`,
-the `DetectorStatus`/`DetectorSeverity`/`DetectorSurface` enums, and
-`SectionReviewFlagSignals` + `SuspectTranscriptBlockSignals`. Signal names come
+**Built 2026-09-21.** H1's catalogue, **all four** of H2's adapters and H4's
+thresholds contract: `DetectorCatalogue` with 25 promoted detectors,
+`DetectorEntry`/`DetectorSignal`, the
+`DetectorStatus`/`DetectorSeverity`/`DetectorSurface`/`DetectorUnit` enums,
+`SectionReviewFlagSignals`, `SuspectTranscriptBlockSignals`,
+`VideoQualityVerdictSignals`, `SongPublicationReviewSignals` and
+`DetectorAcceptanceThresholds`. Signal names come
 from the emitting classes' own constants wherever those exist, and paired tests
 walk `ServiceStructureValidator`'s `FLAG_*` and `SuspectTranscriptBlock`'s
 `REASON_*` constants — plus `SongPublicationReviewPolicy`'s inline kinds, read
 back out of its source — so a detector cannot ship without a catalogue entry.
 Uncatalogued stored flags are carried through with a null detector id rather than
-dropped; retired flags are skipped. 22 tests, PHPStan clean, full suite green
-(8337 tests) on `master`.
+dropped; retired flags are skipped. 39 tests, PHPStan clean, full suite green
+(8354 tests) on `master`.
 
-**Still unbuilt:** the video-quality and song-publication adapters, the case
-book, the thresholds file and all three commands. The song adapter needs a
-decision first — `SongPublicationReviewPolicy` computes its objections from
-inputs rather than storing them, so that adapter must either read banked boundary
-evidence or re-run the policy, and re-running would forfeit the read-only
-property the other adapters rely on to stay in step with production.
+Every adapter is a pure read, including the song one: the policy's verdict is
+already persisted to `metadata.song_publication_review.reasons` by
+`SongPublicationHandler::requiresApproval()`, so no adapter re-runs a detector
+and none needs a run's staging context. Two facts that fell out of building them
+and are load-bearing for H10:
+
+- **The video surface is the only one with an explicit negative.** `approved` is
+  a positive record that the detector looked and found the picture sound, where
+  the other surfaces infer "not flagged" from absence. Its verdicts also carry
+  human corrections and a separate `video_visibility_override`, so the adapter
+  reports the detector's verdict and carries the override in `context`. Scoring
+  the effective outcome would credit the detector for an operator's repair: a
+  wrongly rejected video that someone force-shows reads as a good outcome, so the
+  metric would look healthiest exactly where a person is compensating.
+- **Absence is ambiguous on the song surface too**, as it was for transcripts.
+  The review key is unset when nothing was raised, so the banked boundary
+  evidence key — written on the same pass whatever the outcome — is the
+  discriminator between "assessed and clear" and "never assessed". The 19
+  unavailable sections in runs 884/888/890/893/914 correctly read as never
+  assessed.
+
+Stored song verdicts are a snapshot from the handler's last run, and §4.3a was
+burned by banked verdicts concealing policy drift before, so the adapter surfaces
+`decided_at` in context. Detecting drift itself belongs to the report's evidence
+version binding, not the adapter.
+
+**Still unbuilt:** the case book and all three commands.
 
 The catalogue currently lists promoted detectors only, so it answers "what can be
 evaluated", not "what classes exist". The unbuilt and decided-not-to-detect rows

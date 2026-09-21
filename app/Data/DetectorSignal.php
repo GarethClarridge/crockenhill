@@ -28,35 +28,50 @@ use App\Support\DetectorCatalogue;
  *     signal: string,
  *     run_id: int,
  *     section_id: int|null,
+ *     sermon_id: int|null,
  *     start: float|null,
  *     end: float|null,
  *     held: bool,
+ *     context: array<string, mixed>,
  * }
  */
 final readonly class DetectorSignal
 {
+    /**
+     * @param  array<string, mixed>  $context  Facts belonging to one surface only.
+     */
     public function __construct(
         public ?string $detectorId,
         public DetectorSurface $surface,
         public string $signal,
         public int $runId,
         public ?int $sectionId = null,
+        public ?int $sermonId = null,
         public ?float $start = null,
         public ?float $end = null,
         public bool $held = false,
+        public array $context = [],
     ) {}
 
     /**
      * Build a signal, resolving its detector from the catalogue.
+     *
+     * `$context` carries facts that belong to one surface only — a video
+     * verdict's visibility override, say — so the shared shape stays the same
+     * for every adapter.
+     *
+     * @param  array<string, mixed>  $context
      */
     public static function forStoredSignal(
         DetectorSurface $surface,
         string $signal,
         int $runId,
         ?int $sectionId = null,
+        ?int $sermonId = null,
         ?float $start = null,
         ?float $end = null,
         bool $held = false,
+        array $context = [],
     ): self {
         return new self(
             detectorId: DetectorCatalogue::forSignal($surface, $signal)?->id,
@@ -64,9 +79,11 @@ final readonly class DetectorSignal
             signal: $signal,
             runId: $runId,
             sectionId: $sectionId,
+            sermonId: $sermonId,
             start: $start,
             end: $end,
             held: $held,
+            context: $context,
         );
     }
 
@@ -91,9 +108,11 @@ final readonly class DetectorSignal
             'signal' => $this->signal,
             'run_id' => $this->runId,
             'section_id' => $this->sectionId,
+            'sermon_id' => $this->sermonId,
             'start' => $this->start,
             'end' => $this->end,
             'held' => $this->held,
+            'context' => $this->context,
         ];
     }
 }
