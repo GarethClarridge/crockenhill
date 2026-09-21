@@ -3673,6 +3673,61 @@ than an unknown one, which is the difference between a measurement and a
 guess — but closing it needs a re-detection pass over the eligible corpus, which
 is a write and an operator decision, not a read.
 
+###### H7c. Sound-stage flags re-derived and applied — 2026-09-21
+
+Three of the five never-applied detectors were closed the same day, without
+re-detecting anything. `structure_song_widened_to_sustained_sound`,
+`structure_unidentified_singing` and `structure_section_reads_as_sung` are not
+the LLM detector's flags: they come from `SustainedSoundSongSections` and
+`MistypedSungSections`, which run *after* detection over the structure it
+produced plus the RMS log and the transcript, and are pure functions of those
+inputs. All 443 eligible runs have all three banked.
+
+`structure:recompute-sound-stage` re-derives them, dry run by default. Over the
+corpus: **443 assessed, 0 unassessable**, no provider calls, no section
+replaced.
+
+| Finding | Count |
+|---|---|
+| `structure_section_reads_as_sung` | 12 sections, 11 runs |
+| `structure_song_widened_to_sustained_sound` | 8 sections, 8 runs |
+| `structure_unidentified_singing` | 17 — **all proposed sections**, deferred |
+
+**Applied 2026-09-21: 20 sections written, 12 newly held, 0 published.** All 20
+are `not_applicable` (16) or `pending_approval` (4), so published exposure is
+unchanged. Re-running afterwards writes 0 and reports all 20 already correct, so
+the pass is idempotent. `detectors:replay` now records 2,734 signals and **6
+silent detectors rather than 8**. Evidence:
+`storage/scratch/sound-stage-dryrun-20260921.json`,
+`sound-stage-applied-20260921.json`.
+
+**The 17 `unidentified_singing` findings are not flags and were not written.**
+That flag is raised only on a section `SustainedSoundSongSections` *proposes* — a
+song over sustained sound no section held — so applying it means inserting
+sections into 14 services, not annotating them. That is refused here for a
+measured reason: `ServiceSectionSyncService` matches incoming sections to stored
+ones **by `section_order`**, while the change signature that decides asset
+cleanup ignores order. An insert shifts every later section into a different
+comparison, mismatches its signature, and **deletes its extracted video and
+audio**. On the five runs first measured that was 15 sections carrying media.
+The inserts stay open as their own decision.
+
+**A dry run caught a bug in the recompute before anything was written.** The
+first corpus pass reported 31 flags and 6 inserts, and its bounds guard refused
+19 of the 31. The guard was right: the recompute was matching recomputed
+sections to originals *by position*, while the sound stage inserts sections and
+shifts every later index, so each finding after an insertion point was compared
+against the wrong original. Matching by temporal overlap instead gives the
+self-consistent split above — 12 + 8 = 20 annotations, and all 17
+`unidentified_singing` findings proposals, which is what that flag's single
+raise site says it must be. Position is not identity, and a guard that assumed
+it was would have written 19 flags onto the wrong sections.
+
+**Still silent: 6.** `structure_unidentified_singing` remains so because its
+findings are all deferred inserts; `sermon-audio-length-mismatch` and
+`song-identity-from-suspect-transcript` remain never-applied and need their own
+owning passes; and three were genuine negatives all along.
+
 **The three genuine negatives are a different question and should not be
 rolled up with the others.** Each has had full opportunity and fired nowhere,
 which is either a class that does not occur in this corpus or a threshold

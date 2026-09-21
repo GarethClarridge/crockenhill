@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Models\MediaProcessingLog;
 use App\Services\DetectorEvaluation\DetectorReplay;
+use App\Services\DetectorEvaluation\SoundStageFlagRecompute;
 use App\Support\CanonicalJson;
 use App\Support\DetectorCatalogue;
 use Illuminate\Console\Command;
@@ -39,11 +40,12 @@ class ReplayDetectorsCommand extends Command
         {--weekly : Replay the weekly population instead of the historic one}
         {--all : Every eligible completed historic run (the default population)}
         {--details : List each detector with its held/unheld split}
+        {--recompute : Also re-derive the sound-stage flags from banked structure (reads each run\'s staging context)}
         {--json : Emit the whole report as JSON}';
 
     protected $description = 'Reconcile every promoted detector\'s recorded output against its holds (read-only)';
 
-    public function handle(DetectorReplay $replay): int
+    public function handle(DetectorReplay $replay, SoundStageFlagRecompute $recompute): int
     {
         $runs = $this->population();
 
@@ -58,6 +60,10 @@ class ReplayDetectorsCommand extends Command
             'population' => $this->option('weekly') ? 'weekly' : 'historic_eligible',
             ...$replay->over($runs),
         ];
+
+        if ($this->option('recompute')) {
+            $report['recomputed_sound_stage'] = $recompute->over($runs);
+        }
 
         if ($this->option('json')) {
             $this->line(CanonicalJson::encode($report));
@@ -124,6 +130,10 @@ class ReplayDetectorsCommand extends Command
         // Silence only means something over a whole population. On a named
         // subset a detector is silent because the runs were not chosen for it,
         // which says nothing about the detector.
+        if (isset($report['recomputed_sound_stage'])) {
+            $this->renderRecompute($report['recomputed_sound_stage']);
+        }
+
         if ($silent !== [] && (array) $this->option('run') === []) {
             $this->components->warn(
                 'Silent detectors (no signal anywhere in this population; either the class does not occur '
@@ -138,6 +148,46 @@ class ReplayDetectorsCommand extends Command
             foreach ($uncatalogued as $key => $count) {
                 $this->line(sprintf('  %6d  %s', $count, $key));
             }
+        }
+    }
+
+    /**
+     * What the two deterministic sound-stage passes would flag if re-derived
+     * from banked structure.
+     *
+     * Reported apart from the stored columns above and never merged into them:
+     * one describes what production decided, the other what today's code would
+     * decide, and averaging the two would describe neither.
+     *
+     * @param  array<string, mixed>  $recomputed
+     */
+    private function renderRecompute(array $recomputed): void
+    {
+        $this->components->info(sprintf(
+            'Sound-stage recompute: %d runs assessed, %d unassessable',
+            $recomputed['runs_assessed'],
+            $recomputed['runs_unassessable'],
+        ));
+
+        /** @var array<string, int> $sections */
+        $sections = $recomputed['sections_gaining_flag'];
+        /** @var array<string, int> $runs */
+        $runs = $recomputed['runs_gaining_flag'];
+
+        arsort($sections);
+        $rows = [];
+
+        foreach ($sections as $flag => $count) {
+            $rows[] = [$flag, (string) $count, (string) ($runs[$flag] ?? 0)];
+        }
+
+        $this->table(['Flag', 'Sections gaining it', 'Runs'], $rows);
+
+        if ($recomputed['runs_unassessable'] > 0) {
+            $this->components->warn(
+                'Unassessable runs could not have their banked structure, RMS log or transcript read, '
+                .'and are reported as unknown rather than clean.'
+            );
         }
     }
 
