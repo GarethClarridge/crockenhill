@@ -63,9 +63,13 @@
 > (2026-09-21):** a read-only RMS-versus-transcript coverage screen over all 286
 > detector-negative runs found 27 gaps, of which exactly **one** overlaps a
 > sermon (run 1014, first 120 s). It cost 57 seconds of compute and no
-> listening. It bounds under-transcription only; dense loops and fluent
-> substitutions await H10b's re-decode comparison, which the corpus is already
-> owed.
+> listening. That one gap proved to be a **detector blind spot**: the cadence
+> screen's both-flanks rule cannot fire at a recording's start, and a census
+> found 13 such runs, 2 of them (1014, 980) putting fabricated `Thank you.` text
+> inside published sermon content. The fix is **not** applied — relaxing the rule
+> would newly fire on the 11 preamble cases, so it needs an operator ruling.
+> H10a bounds under-transcription only; dense loops and fluent substitutions
+> await H10b's re-decode comparison, which the corpus is already owed.
 >
 > Phases 0–8, their implementation diary, pass measurements and earlier reviews
 > have moved unchanged to the
@@ -3619,6 +3623,44 @@ are complements, not a check on each other.
 Reading required each run's own staging context; reading from the ambient disk
 reports every run unavailable, which looks exactly like a corpus with no gaps.
 The command reports that as unassessable rather than clean.
+
+###### H10a finding: the cadence screen cannot fire at a recording's start
+
+The single sermon-overlapping gap (run 1014) turned out to be the detector's own
+blind spot rather than lost audio, and it is diagnosable without listening.
+1014's transcript opens with four cues — `Thank you.` at 0, 30, 60 and 90
+seconds, each exactly one decoder window apart — before real speech resumes at
+120 s with a welcome. That is the sparse-cadence pathology
+`transcript-sparse-cadence` exists to catch, on a run the screen cleared.
+
+**Cause, in code.** `appendSparseCadenceBlock()` requires dense speech on both
+flanks, and computes the leading one as
+`wordsPerMinute($start - $flankSeconds, $start)`. For a cadence run beginning at
+cue 0 that span contains no cues at all, so it scores 0 wpm and the block is
+discarded. A cadence run abutting the start of a recording can therefore never
+be detected, and the same holds at the end for the trailing flank.
+
+**Measured, not inferred.** A read-only probe over all 286 detector-negative
+runs found **13** opening with a stub-cadence run of four or more cues at exactly
+30-second spacing, totalling 2,310 seconds; eleven of them say `Thank you.`
+Severity splits sharply on whether a section covers that stretch:
+
+- **Inside published sermon content: 2.** Run **1014** (sermon 0–1157, the whole
+  120 s inside it) and run **980** (`other` 0–89, sermon 90–1237, so roughly 30 s
+  inside it). Note 980 is one of the three runs re-transcribed on 20 September
+  and its holds remain.
+- **Recording preamble: 11.** Their first section begins at 90–150 s, after the
+  stub run. The fabricated text is real but sits outside anything published.
+
+**Not fixed, deliberately — this needs a ruling.** The both-flanks rule is what
+stops the screen firing on legitimate `Amen`/`Thank you` cadences over music, and
+at a recording's edge there is no leading flank to test. Relaxing the rule at the
+boundary would newly fire on all 13, of which 11 are preamble over music or
+silence — and §4.3a is explicit that increasing holds is not this phase's success
+measure. Neither RMS nor the transcript distinguishes speech from music, so the
+honest discriminators are section coverage (available only after structure
+detection) or accepting the 11. Put to the operator with this evidence rather
+than chosen here.
 
 ##### H10b. Re-decode comparison — not yet run
 
