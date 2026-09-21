@@ -51,8 +51,14 @@
 > the older whole transcript would restore substantial loop artefacts. No production
 > state was inspected in this review.
 > The §4.3a detector evaluation harness is **specified, with its catalogue, all
-> four emission adapters and its predeclared thresholds contract built**
-> (2026-09-21); the frozen case book and three commands remain unbuilt. The thresholds
+> five emission adapters and its predeclared thresholds contract built**
+> (2026-09-21); the frozen case book and three commands remain unbuilt. The class
+> table now carries a `detector_id` on all 54 rows, bound to the catalogue's 73
+> entries by a parity test; building it exposed five uncatalogued `Flag*`
+> detectors and an entire unbuilt fifth surface (song boundary evidence, 920
+> stored risks). **H10b is specified but not run**: its discovery statistic is
+> deliberately detector-independent, because diffing the blocks each decode
+> produces would measure the screen against itself. The thresholds
 > are committed before any scoring code deliberately, so they cannot be chosen
 > after seeing a candidate's results. **H9 is ruled (2026-09-21):** no eligible
 > run is untouched — all 438 appear individually in this plan, the archived log
@@ -3546,16 +3552,19 @@ Drafting this section discharges only the predeclaration half of the fourth
 checkbox. The regression-fixture checkbox stays open until the plan's cases are
 actually written under `tests/Fixtures/StructureEval` or beside it.
 
-**Built 2026-09-21.** H1's catalogue, **all four** of H2's adapters and H4's
-thresholds contract: `DetectorCatalogue` with 25 promoted detectors,
+**Built 2026-09-21.** H1's catalogue, **all five** of H2's adapters and H4's
+thresholds contract: `DetectorCatalogue` with 73 entries — 37 promoted, 16 fixed
+at source, 17 unbuilt, 2 ruled out, 1 prototype —
 `DetectorEntry`/`DetectorSignal`, the
 `DetectorStatus`/`DetectorSeverity`/`DetectorSurface`/`DetectorUnit` enums,
 `SectionReviewFlagSignals`, `SuspectTranscriptBlockSignals`,
-`VideoQualityVerdictSignals`, `SongPublicationReviewSignals` and
+`VideoQualityVerdictSignals`, `SongPublicationReviewSignals`,
+`SongBoundaryEvidenceSignals` and
 `DetectorAcceptanceThresholds`. Signal names come
 from the emitting classes' own constants wherever those exist, and paired tests
 walk `ServiceStructureValidator`'s `FLAG_*` and `SuspectTranscriptBlock`'s
-`REASON_*` constants — plus `SongPublicationReviewPolicy`'s inline kinds, read
+`REASON_*` constants, glob the `Flag*` actions, and pin the video and song
+boundary vocabularies — plus `SongPublicationReviewPolicy`'s inline kinds, read
 back out of its source — so a detector cannot ship without a catalogue entry.
 Uncatalogued stored flags are carried through with a null detector id rather than
 dropped; retired flags are skipped. 39 tests, PHPStan clean, full suite green
@@ -3587,11 +3596,29 @@ burned by banked verdicts concealing policy drift before, so the adapter surface
 `decided_at` in context. Detecting drift itself belongs to the report's evidence
 version binding, not the adapter.
 
-**Still unbuilt:** the case book and all three commands.
+**Still unbuilt:** the case book and all three commands. That is now the whole
+remainder of the harness — the catalogue, every adapter and the thresholds
+contract are done, and nothing can be *scored* until `detectors:evaluate` and its
+case book exist. `detectors:replay` needs neither, and is the next step: it reads
+the catalogue and the five adapters, which already exist, and produces the
+reconciliation the case book would then be adjudicated from.
 
-The catalogue currently lists promoted detectors only, so it answers "what can be
-evaluated", not "what classes exist". The unbuilt and decided-not-to-detect rows
-join when the class table above gains its `detector_id` column.
+The catalogue answers both "what can be evaluated" and "what classes exist" as of
+2026-09-21, when the class table gained its `detector_id` column and the
+non-emitting rows joined. See H1's amendments for the three things that changed
+in the doing: the fifth status, the one-directional parity test, and the
+inverted signal invariant.
+
+**Two coverage holes were found while binding the column, and both were the same
+shape.** Five `Flag*` actions held sections in production uncatalogued, because
+the guard walked one class's constants while they declare `FLAG` on themselves;
+and the song boundary evidence surface had no case and no adapter, so nine risk
+kinds — `song_looped_transcript` among them, this plan's own song-loop class over
+226 sections — were written by production and read by nobody. In each case the
+harness reported **full coverage of a set that silently excluded the thing**,
+which is worse than no guard at all, because a passing check reads as evidence.
+The guards now enumerate rather than list, and a test asserts every surface has
+an adapter.
 
 ##### H9. Ruling: no reserved set; historic evidence is retrospective
 
