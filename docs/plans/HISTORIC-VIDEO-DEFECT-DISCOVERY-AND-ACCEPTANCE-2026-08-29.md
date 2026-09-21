@@ -3763,7 +3763,7 @@ directions — under-detecting on 150 runs and over-holding on 5. Those five wer
 asking an operator to review text current detectors consider sound. A forecast
 built only from what a screen would newly find cannot see that direction at all.
 
-##### H10b. Re-decode comparison — not yet run
+##### H10b. Re-decode comparison — specified 2026-09-21, not yet run
 
 The stored corpus was decoded with whisper-server carrying earlier text forward
 as context. `LocalWhisperDecoding` has sent `max_context=0` since 2026-09-17
@@ -3780,6 +3780,165 @@ side effect of measuring.
 
 Sampling is not needed for either screen. Both run over the whole population for
 compute alone, so recall becomes a count rather than a bound.
+
+Everything from here to the end of H10b is specification written before the
+re-decode is run, for the same reason the harness specification was: a decision
+rule chosen after seeing the disagreements is not a decision rule.
+
+###### Why a second decode is evidence and not merely a second opinion
+
+Two decodes of the same audio disagreeing tells us nothing on its own; neither
+is ground truth, and a corpus-wide diff of two Whisper runs would produce
+thousands of differences of no significance. What makes this comparison
+evidential is that the two runs are **asymmetric in one named variable**. Same
+model, same audio, same calling code; the single difference is the decoder
+setting whose mechanism is documented in `LocalWhisperDecoding`'s docblock and
+whose effect was measured on seven services in BC-08.
+
+That asymmetry licenses a falsifiable prediction, recorded here before the run:
+
+- A dense loop in the stored text that is a **context-carry artifact** will be
+  absent from the new decode, because the mechanism that produced it is switched
+  off.
+- A dense loop that is **real repeated speech** — a refrain, a rhetorical
+  triple, a liturgical response — will survive in both.
+- A loop present in **both** decodes is therefore either real speech or a
+  model-level failure this comparison cannot see. That residue is the honest
+  limit of the method and is reported as an unbounded remainder, not quietly
+  scored as a true negative.
+
+###### The comparison must not be built from the screen's own verdicts
+
+This is where H10a's framing went wrong, and the same trap is open here. Diffing
+the *blocks* the screen finds in each decode is easy, reuses the pipeline class,
+and is worthless as a recall measurement: blocks are what the screen can already
+see, and a miss is by definition a defect it cannot. A block-set diff can only
+ever measure the screen against itself.
+
+The primary statistic must therefore be **detector-independent**: a direct text
+comparison of the two decodes, aligned on time rather than on word order, with
+no threshold of the screen's involved in deciding what counts as a disagreement.
+The screen enters only afterwards, as an overlay that sorts already-discovered
+disagreements into "the screen covers this" and "the screen does not".
+
+Concretely, per run and per fixed window (30 s, the decoder's own boundary, so a
+window never straddles two decoder contexts):
+
+1. **Disagreement** between stored and new text in that window, by a normalised
+   token distance. Detector-independent. This is what finds candidates.
+2. **Self-repetition score** computed *independently on each side*, by the same
+   function applied twice. A score, never a flag — thresholds must not gate
+   discovery.
+3. **Screen coverage**: whether any recorded `SuspectTranscriptBlock` on the
+   stored transcript overlaps the window.
+
+A disagreeing window then classifies by where the repetition sits, and the four
+cases are different defects rather than degrees of one:
+
+| Stored side | New side | Reading |
+|---|---|---|
+| Repetitive | Clean | Context-carry loop in the stored text — the class this is built for |
+| Clean | Repetitive | The new decode is worse here; the setting change is not free |
+| Repetitive | Repetitive | Real repeated speech, or a failure below both decodes |
+| Clean | Clean | Substitution or fluent invention — the 946 §787 / 1030 §1418 class, which no repetition screen can reach |
+
+The fourth row matters: it is the only mechanised view this plan has of the
+meaning-changing substitution class, which is currently contained by hand and
+has no detector at all.
+
+###### Controls, predeclared
+
+The comparison is abandoned rather than reinterpreted if these do not come out
+as stated.
+
+- **C1, the noise floor.** Decode one run twice with identical options and
+  measure disagreement. Whisper's greedy path should be near-deterministic, but
+  "should be" is not a measurement, and every disagreement below this floor is
+  noise rather than evidence. Run C1 first; it costs two decodes.
+- **C2, the negative control.** Runs 980, 1258 and 1343 were re-transcribed on
+  20 September and their stored transcripts are *already* `max_context=0`. Their
+  disagreement must sit at the C1 floor. If it does not, the comparison is
+  measuring decode variance rather than the setting, and C1 was wrong.
+- **C3, the positive control.** The BC-08 runs — 1314's one-word drift, 1358's
+  repeated lines — must show large, stored-repetitive disagreement. If the known
+  positives do not reproduce, the pipeline feeding the comparison is not reading
+  what it thinks it is reading.
+
+###### Two commands: expensive decode, cheap scoring
+
+Split along the harness's own seam, so that re-scoring never re-decodes.
+
+- `service:redecode-transcripts` — the only part that touches media. Reads **the
+  same banked full-service audio the original decode read**, not a fresh
+  extraction: re-extracting would change two variables at once and the
+  comparison would no longer be about the decoder setting. Writes one artifact
+  per run and is resumable per run.
+- `service:compare-transcript-redecode` — read-only over those artifacts and the
+  banked transcripts. No ffmpeg, no Whisper, no queue. It may call
+  `ServiceTranscriptRepetitionScreen::screen()` on the new transcript, which is a
+  pure function of a `ChurchServiceTranscript`, and that is the only pipeline
+  class it needs.
+
+###### The artifact
+
+Canonical JSON, `0600`, refusing to overwrite an existing file, exactly as
+`detectors:freeze-case-book` and the OoS freezer do. Per run it records the run
+id, the **source audio fingerprint** and the stored transcript's fingerprint, so
+a comparison is bound to the two things it actually read; the decode options and
+model identification (H6's version binding applies unchanged); the new cues; and
+the wall-clock the decode took.
+
+Fingerprinting the source is not ceremony. The staging volume is single-copy and
+its USB link is faulty; a re-decode that silently read a different or truncated
+file would produce exactly the disagreement pattern the method is looking for.
+
+###### Operational constraints
+
+- **An unreachable source is unassessable, never clean.** H10a's lesson, and it
+  cost a pass to learn: reading from the ambient disk reported every run
+  unavailable, which looks identical to a corpus with no gaps. Each run must be
+  read inside its own staging context, and a run whose audio is gone is counted
+  in its own column.
+- **The drive detaches.** Per-run artifact writes and resumability are not
+  polish; a bulk decode across this corpus will be interrupted.
+- **Local Whisper is the host's whisper.cpp**, not a container service.
+- **Cost is derivable, not guessable.** The original runs recorded how long their
+  own transcription phase took. Size the job from those durations before
+  committing to it, and confirm on the C1/C2/C3 pilot, which is five or six
+  decodes.
+
+###### What is counted, and what running over everything costs
+
+Recall for the dense-loop class is a count, not a bound: every run is compared,
+so there is no sampling uncertainty to carry. Candidate misses are the
+disagreeing windows the screen does not cover; each is adjudicated **against
+audio**, because the new decode is not ground truth and a disagreement only ever
+nominates a window for a human minute. Precision needs its own adjudicated
+sample of covered windows. Report the denominators separately for the four
+classes above.
+
+The saving over H10's 90-run sample is the point: listening is spent on
+nominated windows rather than on sampled ones, so the same 15 hours buys
+adjudication of the actual candidates.
+
+**The cost of running over the whole population must be stated rather than
+enjoyed.** H10's spent-sample rule says a sample that prompts a threshold change
+becomes development evidence and the next bound needs a fresh draw. There is no
+fresh draw after a corpus-wide comparison — the population is spent in one go.
+So if this comparison prompts a change to the repetition screen's thresholds,
+this plan has no unspent population left to re-measure the changed screen on, and
+the next bound could only come from weekly services recorded after the change.
+That reopens precisely the weekly reservation H9 rejected. Predeclaring the
+decision rule, above, is what keeps that from happening by accident; if it
+happens anyway, it is recorded as a known gap and not papered over.
+
+###### Adoption is a separate decision
+
+The artifact is measurement evidence. A run whose new decode is plainly better
+is not thereby adopted: adoption goes through the tested re-transcription path,
+per run, as its own act with its own authority — and must not be conditioned on
+this comparison's scoring, which would spend the measurement to make the
+decision it was meant to inform.
 
 One draw serves several detectors. A run drawn from the transcript-negative set
 also carries songs, a sermon, readings and possibly a children's talk, each of
