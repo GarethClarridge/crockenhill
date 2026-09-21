@@ -3652,15 +3652,43 @@ Severity splits sharply on whether a section covers that stretch:
 - **Recording preamble: 11.** Their first section begins at 90–150 s, after the
   stub run. The fabricated text is real but sits outside anything published.
 
-**Not fixed, deliberately — this needs a ruling.** The both-flanks rule is what
-stops the screen firing on legitimate `Amen`/`Thank you` cadences over music, and
-at a recording's edge there is no leading flank to test. Relaxing the rule at the
-boundary would newly fire on all 13, of which 11 are preamble over music or
-silence — and §4.3a is explicit that increasing holds is not this phase's success
-measure. Neither RMS nor the transcript distinguishes speech from music, so the
-honest discriminators are section coverage (available only after structure
-detection) or accepting the 11. Put to the operator with this evidence rather
-than chosen here.
+**Full census, both edges, both populations — 2026-09-21.** The first reading of
+this, that a fix would raise eleven unwanted holds, was wrong: it counted
+detections rather than their consequences.
+{@see \App\Actions\FlagSuspectTranscriptRepetition} holds only `sermon` and
+`childrens_talk` sections and only where a block overlaps that section's span, so
+a block in a recording's preamble raises nothing at all.
+
+A read-only probe over **every run holding a banked transcript (448 scanned)**
+found **40** boundary cadence runs the screen cannot detect — 29 at a recording's
+start, 11 at its end, 6,262 seconds in total, 39 historic and 1 weekly (run 910,
+inert). Blocks already detected by the current screen are excluded, so these are
+net new. Their consequences if the rule were relaxed:
+
+| Consequence | Count |
+|---|---|
+| Findings with no consequence at all | **31** |
+| **Sermons / children's talks newly held** | **0** |
+| Overlapping an already-held sermon or talk | 1 |
+| **Confirmed songs newly demoted** | **2** — run 1180 §2381 (121 s), run 1331 §4204 (62 s) |
+| Confirmed songs demoted on already-held sections | 6 |
+
+Evidence: `storage/scratch/boundary-cadence-census-20260921.json`.
+
+All 11 trailing-edge runs fall entirely outside sermon and children's-talk spans:
+a cadence run at the end of a recording is the post-service tail, not lost
+preaching.
+
+So the measured cost of closing this blind spot is **two song identities dropping
+from `confirmed`**, against ~104 minutes of fabricated `Thank you.` text
+currently recorded as evidence-clean, including inside runs 1014 and 980's
+published sermons. The review-burden objection does not survive measurement.
+
+**Still not applied.** The change alters the weekly pipeline's behaviour as well
+as historic, and §4.3a requires a promoted detector to ship with its regression
+fixtures and a recorded before/after over the eligible membership. The ruling
+this needs is now narrow: accept two song demotions to stop the screen being
+structurally blind at both edges of every recording.
 
 ##### H10b. Re-decode comparison — not yet run
 
