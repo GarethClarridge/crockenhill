@@ -147,18 +147,61 @@ class DetectorCatalogueTest extends TestCase
         }
     }
 
-    public function test_the_catalogue_currently_lists_only_promoted_detectors(): void
+    /**
+     * Only a promoted entry may claim a surface, and every promoted one must.
+     *
+     * This replaces the placeholder that asserted the catalogue held promoted
+     * detectors *only*, which was true while the plan table had no detector_id
+     * column and stopped being true when it gained one on 2026-09-21. The
+     * catalogue now carries every class the plan found, most of which emit
+     * nothing; what still has to hold is that the two kinds never blur, because
+     * every adapter keys off the surface.
+     */
+    public function test_a_surface_is_claimed_by_promoted_entries_alone(): void
     {
-        $statuses = array_unique(array_map(
+        $promoted = 0;
+
+        foreach (DetectorCatalogue::all() as $entry) {
+            if ($entry->status === DetectorStatus::Promoted) {
+                $promoted++;
+                $this->assertNotNull($entry->surface, "Promoted detector [{$entry->id}] names no surface.");
+                $this->assertNotEmpty($entry->signals, "Promoted detector [{$entry->id}] emits nothing.");
+
+                continue;
+            }
+
+            $this->assertNull(
+                $entry->surface,
+                "[{$entry->id}] is {$entry->status->value} but claims a surface, so adapters would read it as a live detector."
+            );
+            $this->assertSame([], $entry->signals, "[{$entry->id}] is {$entry->status->value} but declares signals.");
+        }
+
+        $this->assertGreaterThan(20, $promoted, 'Expected the catalogue to carry the promoted detectors too.');
+    }
+
+    /**
+     * Every status in the enum is actually used by the catalogue.
+     *
+     * A status nobody reaches is a distinction the code claims to make and does
+     * not, and `FixedAtSource` was added precisely because folding it into
+     * `DecidedNotToDetect` would have hidden unguarded classes among fixed ones.
+     * If that separation ever stops earning its keep, this is where it shows.
+     */
+    public function test_every_status_is_represented(): void
+    {
+        $used = array_unique(array_map(
             static fn (DetectorEntry $entry): string => $entry->status->value,
             array_values(DetectorCatalogue::all()),
         ));
 
-        $this->assertSame(
-            [DetectorStatus::Promoted->value],
-            array_values($statuses),
-            'Unbuilt and decided-not-to-detect rows join when the plan table gains its detector_id column.'
-        );
+        foreach (DetectorStatus::cases() as $status) {
+            $this->assertContains(
+                $status->value,
+                $used,
+                "No catalogue entry is {$status->value}, so the status draws a distinction nothing uses."
+            );
+        }
     }
 
     /**

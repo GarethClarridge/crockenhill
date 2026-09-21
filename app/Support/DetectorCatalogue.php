@@ -43,12 +43,20 @@ use RuntimeException;
  * Two vocabularies are still string literals because their emitting code has no
  * constants to borrow: {@see SermonVideoQualityAssessmentService}'s reasons and
  * {@see SongPublicationReviewPolicy}'s objection kinds. Those are pinned by the
- * paired test instead.
+ * paired test instead, as is the song boundary vocabulary — which cannot be
+ * derived from its source at all, because the service builds a reason for every
+ * observation and only those carrying `risk => true` are ever emitted.
  *
- * **Scope today.** Only promoted detectors are listed. The unbuilt and
- * decided-not-to-detect rows join when the plan's table gains its `detector_id`
- * column; until then this catalogue answers "what can be evaluated", not "what
- * classes exist".
+ * **Scope since 2026-09-21.** Every row of the plan's class table is here, not
+ * only the promoted detectors, because the table gained its `detector_id`
+ * column and the two are bound by a test. Most entries therefore emit nothing:
+ * they are classes fixed at source, ruled on, prototyped or still open. They
+ * carry no surface and no signals, and {@see DetectorEntry} refuses one that
+ * does, because every adapter keys off the surface and an entry that kept one
+ * would be read as a live detector.
+ *
+ * So this catalogue now answers both "what can be evaluated" — {@see evaluable()}
+ * — and "what classes exist", which are deliberately different questions.
  */
 class DetectorCatalogue
 {
@@ -179,6 +187,18 @@ class DetectorCatalogue
             ...self::songEntries(),
             ...self::songBoundaryEntries(),
             ...self::videoEntries(),
+            // Classes from §4.3a's table that emit nothing: fixed at source,
+            // ruled on, prototyped or still open. They carry no surface and no
+            // signals, and exist so that a class with no detector is
+            // distinguishable from one nobody has looked at.
+            ...self::extractionClassEntries(),
+            ...self::transcriptClassEntries(),
+            ...self::structureClassEntries(),
+            ...self::songClassEntries(),
+            ...self::scriptureClassEntries(),
+            ...self::mediaQualityClassEntries(),
+            ...self::membershipClassEntries(),
+            ...self::releaseClassEntries(),
         ];
     }
 
@@ -642,6 +662,476 @@ class DetectorCatalogue
                 unit: DetectorUnit::Section,
                 summary: 'The transcript or RMS input the boundary pass needed was missing or unreadable, so this section was never assessed.',
                 owningClass: SongPublicationBoundaryEvidenceService::class,
+            ),
+        ];
+    }
+
+    /**
+     * Classes found in the extraction and repair path.
+     *
+     * All but one are fixes: the pipeline was made to refuse, park or report
+     * rather than taught to notice afterwards, which is the right answer when
+     * the defect is the pipeline's own behaviour rather than a property of a
+     * recording.
+         *
+     * @return list<DetectorEntry>
+     */
+    private static function extractionClassEntries(): array
+    {
+        return [
+            new DetectorEntry(
+                id: 'extraction-recut-of-held-sermon',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::FixedAtSource,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Sermon,
+                summary: 'A full re-run re-cut a sermon whose section was content-held, discarding the repair the hold was protecting, and reported success.',
+                regressionCases: ['run 1314 §3992'],
+                decision: 'Fixed at source 2026-09-17 (`283a6cd90`): extraction parks a run whose sermon section is held and no authority names it, so the re-cut cannot happen silently. 1314 was then repaired through `--held-section`.',
+            ),
+            new DetectorEntry(
+                id: 'extraction-held-section-repair-unreachable',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::FixedAtSource,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Sermon,
+                summary: 'A content-held sermon could not reach its own bounded repair, and the dry run concealed the refusal by reporting a fallback plan instead.',
+                regressionCases: ['run 1209 §2572'],
+                decision: 'Fixed at source 2026-09-17 (`6c7d33539`): `--held-section` separates bounded repair authority from release acceptance, and the dry run validates the plan that would actually execute. Content holds are not globally exempted from boundary checks.',
+            ),
+            new DetectorEntry(
+                id: 'extraction-rms-fallback-with-disqualified-section',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::DecidedNotToDetect,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Sermon,
+                summary: 'The sermon was cut from a dominant RMS block while a disqualified, unheld sermon section existed, so the cut and the section disagree.',
+                regressionCases: ['run 1007', 'run 1041', 'run 1217'],
+                decision: 'Ruled 2026-09-17: all three cuts are right and the sections are wrong, so there is no defect here to detect. Parking stays scoped to content holds; widening it to disqualified sections would park correct extractions.',
+            ),
+            new DetectorEntry(
+                id: 'detection-unplaced-hold-refusal-discarded',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::Unbuilt,
+                severity: DetectorSeverity::WrongMetadata,
+                unit: DetectorUnit::Run,
+                summary: 'The detection job retried a refusal it should not have retried, and the refused section list was not kept, so nobody can see what it declined to place.',
+                regressionCases: ['run 1314 §3994'],
+            ),
+            new DetectorEntry(
+                id: 'staging-held-candidates-not-promoted',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::Unbuilt,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Section,
+                summary: 'Held section candidates exist only on the staging volume, so retiring staging would destroy the evidence a held section is waiting on.',
+                regressionCases: ['run 1221 §2718', 'run 1221 §2719', 'run 1221 §2721'],
+            ),
+        ];
+    }
+
+    /**
+     * Transcript classes with no detector of their own.
+     *
+     * Both are about text that reads as fluent speech, which is exactly what the
+     * repetition screens cannot see. §4.3a's H10b comparison is the only
+     * mechanised view either of them has.
+         *
+     * @return list<DetectorEntry>
+     */
+    private static function transcriptClassEntries(): array
+    {
+        return [
+            new DetectorEntry(
+                id: 'transcript-context-carried-drift',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::FixedAtSource,
+                severity: DetectorSeverity::PublishedWrongContent,
+                unit: DetectorUnit::Minute,
+                summary: 'The decoder carried its own earlier output forward as context and locked into it, returning whole sermons as one-word segments or as repeated lines replacing real speech.',
+                regressionCases: ['run 1314', 'run 1343', 'run 1258', 'run 980'],
+                decision: 'Fixed at source 2026-09-17: `LocalWhisperDecoding` sends `max_context=0` with the initial prompt re-sent per window, and seven services lost both faults with timings unchanged. The fix prevents recurrence but repairs nothing already decoded; the historic residue is measured by H10b, not by this entry.',
+            ),
+            new DetectorEntry(
+                id: 'transcript-meaning-changing-substitution',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::Unbuilt,
+                severity: DetectorSeverity::PublishedWrongContent,
+                unit: DetectorUnit::Minute,
+                summary: 'A single word is replaced by another in otherwise fluent saved sermon text, changing the meaning while leaving nothing statistically odd to find.',
+                regressionCases: ['run 946 §787', 'run 1030 §1418'],
+            ),
+        ];
+    }
+
+    /**
+     * Structure classes with no detector of their own.
+     *
+     * @return list<DetectorEntry>
+     */
+    private static function structureClassEntries(): array
+    {
+        return [
+            new DetectorEntry(
+                id: 'structure-spoken-quotation-typed-as-song',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::Unbuilt,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Section,
+                summary: 'A hymn quoted aloud inside the sermon was typed as singing, which cut the sermon off at the quotation.',
+                regressionCases: ['run 1314 §3994', 'run 1314 §3992'],
+            ),
+            new DetectorEntry(
+                id: 'talk-typed-other',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::Unbuilt,
+                severity: DetectorSeverity::WrongMetadata,
+                unit: DetectorUnit::Section,
+                summary: "A children's talk was typed `other`, so it is invisible to every surface that looks for talks. Owned by the talks plan (PR5) and re-detected there, never retyped by hand.",
+                regressionCases: ['run 1221 §2721', 'run 1358 §4684'],
+            ),
+            new DetectorEntry(
+                id: 'sermon-ending-absorbed-by-song',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::DecidedNotToDetect,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Section,
+                summary: "The song section following a sermon was suspected of having absorbed the sermon's closing words.",
+                regressionCases: ['run 1336 §4263', 'run 1336 §4264'],
+                decision: 'Ruled 2026-09-18 after source review: no preaching enters the song. What is truncated is the closing Amen, which is contained by the hold already on §4263 and does not need a detector of its own.',
+            ),
+            new DetectorEntry(
+                id: 'structure-prompt-time-misconverted',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::FixedAtSource,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Section,
+                summary: 'Boundary times written as `m:ss` in the prompt were read as seconds, placing a boundary one minute late.',
+                regressionCases: ['run 1203 §2535', 'run 1183 §2391', 'run 1305 §3894'],
+                decision: 'Fixed at source 2026-09-15: prompt times are emitted in seconds, so the conversion cannot happen. The wider class of semantic boundary offsets is a different question and is not closed by this.',
+            ),
+            new DetectorEntry(
+                id: 'structure-hymn-inside-sermon-section',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::Unbuilt,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Section,
+                summary: 'A hymn sits wholly inside the sermon section, which is a different shape from a non-sermon section absorbing one and is not caught by the macro-section rule.',
+                regressionCases: ['#885'],
+            ),
+            new DetectorEntry(
+                id: 'sermon-closing-prayer-dropped',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::FixedAtSource,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Sermon,
+                summary: 'The closing prayer was left out of the sermon whenever it had no section of its own, so seven sermons end before the service does.',
+                regressionCases: ['run 1027', 'run 981', 'run 1193', 'run 1299', 'run 1172', 'run 986', 'run 990'],
+                decision: 'Fixed at source: the sermon span now extends to the next song when no section follows it. The seven recorded sermons await settled boundaries before their repairs run.',
+            ),
+        ];
+    }
+
+    /**
+     * Song classes with no detector of their own.
+     *
+     * @return list<DetectorEntry>
+     */
+    private static function songClassEntries(): array
+    {
+        return [
+            new DetectorEntry(
+                id: 'song-performed-song-unlinked',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::FixedAtSource,
+                severity: DetectorSeverity::WrongMetadata,
+                unit: DetectorUnit::Section,
+                summary: 'A performed song carried no linked song identity, so the clip was published with nothing naming what was sung.',
+                regressionCases: ['run 1221 §2722'],
+                decision: 'Fixed at source 2026-09-18 (`ecfa94d31`) for the deterministic class: identity flows through the order-of-service item and 55 of 66 bound automatically. The 11 that remain are adjudications of ambiguous bindings, not recurrences of this defect.',
+            ),
+            new DetectorEntry(
+                id: 'song-title-hint-fuzzy-misbinding',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::FixedAtSource,
+                severity: DetectorSeverity::PublishedWrongContent,
+                unit: DetectorUnit::Section,
+                summary: 'A fuzzy title hint bound a clip to the wrong catalogue song, so 25 clips were published as songs that were not sung.',
+                regressionCases: ['§4156', '§2304', '§2718', '§2683'],
+                decision: 'Fixed at source 2026-09-16: the hint resolves against the catalogue first and only falls back to lyrics when containment leaves no single answer. The three fallback rows are deliberately left for individual adjudication, because the resolver refusing to choose is the correct behaviour there.',
+            ),
+            new DetectorEntry(
+                id: 'oos-item-written-from-wrong-song',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::Unbuilt,
+                severity: DetectorSeverity::WrongMetadata,
+                unit: DetectorUnit::Section,
+                summary: 'Livestream-sourced order-of-service items were written from a song binding that has since been corrected, so the item and the section now disagree.',
+            ),
+            new DetectorEntry(
+                id: 'song-clip-audio-upsampled',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::FixedAtSource,
+                severity: DetectorSeverity::TechnicalQuality,
+                unit: DetectorUnit::Section,
+                summary: 'Song clip audio was upsampled to 96 kHz and re-encoded at 128 kbps, degrading 245 clips for no gain.',
+                regressionCases: ['245 of 464 clips'],
+                decision: 'Fixed at source: the source sample rate and bitrate are preserved through `enhanceVideo`. The stored clips are not repaired by the fix, and their post-publication comparison and regeneration remain owed.',
+            ),
+            new DetectorEntry(
+                id: 'song-section-without-a-song',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::Unbuilt,
+                severity: DetectorSeverity::WrongMetadata,
+                unit: DetectorUnit::Section,
+                summary: 'A song section above the 15-second micro floor contains no song at all, so the micro-section rule cannot reach it.',
+                regressionCases: ['§622', '§678'],
+            ),
+        ];
+    }
+
+    /**
+     * Scripture reference classes.
+     *
+     * @return list<DetectorEntry>
+     */
+    private static function scriptureClassEntries(): array
+    {
+        return [
+            new DetectorEntry(
+                id: 'published-title-contradicts-content',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::Unbuilt,
+                severity: DetectorSeverity::PublishedWrongContent,
+                unit: DetectorUnit::Sermon,
+                summary: "The published title or reference contradicts the sermon's own summary or transcript, so the page describes a sermon other than the one it carries.",
+                regressionCases: ['run 881', 'run 954', 'run 844', 'run 845', 'run 850', 'run 899'],
+            ),
+            new DetectorEntry(
+                id: 'scripture-multi-passage-truncated',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::Unbuilt,
+                severity: DetectorSeverity::WrongMetadata,
+                unit: DetectorUnit::Sermon,
+                summary: 'A multi-passage reference is cut to its first passage when linked, so the page offers a narrower reading than the sermon preached.',
+                regressionCases: ['run 1031', 'run 1159', 'run 1188', 'run 1233'],
+            ),
+            new DetectorEntry(
+                id: 'scripture-whole-book-reference-rejected',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::FixedAtSource,
+                severity: DetectorSeverity::WrongMetadata,
+                unit: DetectorUnit::Sermon,
+                summary: 'A whole single-chapter letter named without a chapter was rejected as a reference, so the sermon showed no passage at all.',
+                regressionCases: ['run 957', 'run 1090'],
+                decision: 'Fixed at source: whole-book validation accepts a single-chapter letter named without a chapter. 957 and 1090 still await reanalysis through the pipeline.',
+            ),
+            new DetectorEntry(
+                id: 'scripture-reference-never-linked',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::Unbuilt,
+                severity: DetectorSeverity::WrongMetadata,
+                unit: DetectorUnit::Sermon,
+                summary: 'A sermon names a passage that was never linked to a reference, so seven sermons carry a reading the site cannot resolve.',
+                regressionCases: ['run 908', 'run 909', 'run 910', 'run 912', 'run 913', 'run 914', 'run 915'],
+            ),
+            new DetectorEntry(
+                id: 'scripture-preached-reading-dropped-by-order-flag',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::FixedAtSource,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Sermon,
+                summary: 'An order-only flag dropped the preached reading from the sermon media, so the reading the sermon expounds is missing from what a listener hears.',
+                regressionCases: ['run 1075', 'run 1254', 'run 1286', 'run 1299'],
+                decision: 'Fixed at source: a reading that matches the sermon is retained despite an order-only flag. Four replans remain owed on the recorded runs.',
+            ),
+            new DetectorEntry(
+                id: 'scripture-verse-in-prayer-typed-as-reading',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::Unbuilt,
+                severity: DetectorSeverity::WrongMetadata,
+                unit: DetectorUnit::Section,
+                summary: 'A verse quoted inside a prayer was typed as a Bible reading, so a prayer is published as Scripture.',
+                regressionCases: ['run 1043 §1528'],
+            ),
+            new DetectorEntry(
+                id: 'sermon-page-names-wrong-reading',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::FixedAtSource,
+                severity: DetectorSeverity::WrongMetadata,
+                unit: DetectorUnit::Sermon,
+                summary: "The sermon page named the service's first reading rather than the sermon's own, on 157 of 438 sermons.",
+                regressionCases: ['157 of 438 sermons'],
+                decision: 'Fixed at source: reading selection follows the extraction span and the matching reading rather than service order. No media re-run is needed, because only the page selection was wrong.',
+            ),
+        ];
+    }
+
+    /**
+     * Media and recording quality classes with no detector of their own.
+     *
+     * @return list<DetectorEntry>
+     */
+    private static function mediaQualityClassEntries(): array
+    {
+        return [
+            new DetectorEntry(
+                id: 'audio-dropout-inside-talk',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::Prototype,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Section,
+                summary: 'A stretch of at least 15 seconds at or below -80 dB inside a talk, where the source itself carried no audio. Contained rather than reconstructed.',
+            ),
+            new DetectorEntry(
+                id: 'video-stream-copy-keyframe-lead-in',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::FixedAtSource,
+                severity: DetectorSeverity::TechnicalQuality,
+                unit: DetectorUnit::Section,
+                summary: 'A stream copy began at the previous keyframe, so the picture starts after its audio or the audio carries the end of the preceding item.',
+                regressionCases: ['12 sermons over 3 s', '89 frozen song openings', '23 song clips with lead-in audio'],
+                decision: 'Fixed at source 2026-09-15: the smart cut seeks on input rather than output and counts frames, and `fda414eb2` corrects the source frame. Canary and corpus re-runs remain owed.',
+            ),
+            new DetectorEntry(
+                id: 'video-discredited-verdict-unreassessable',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::Unbuilt,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Sermon,
+                summary: 'A video quality verdict that source review has discredited survives because the evidence it rested on can no longer be read where the output lives.',
+                regressionCases: ['run 862'],
+            ),
+            new DetectorEntry(
+                id: 'video-verdict-without-run-evidence',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::FixedAtSource,
+                severity: DetectorSeverity::WrongMetadata,
+                unit: DetectorUnit::Sermon,
+                summary: 'Thirteen quality verdicts were written with no evidence from the run they judged, so the verdict could not be checked against anything.',
+                regressionCases: ['13 verdicts'],
+                decision: "Fixed at source and verified: verdicts carry their owning run's evidence, and the thirteen were reconciled. Closed.",
+            ),
+        ];
+    }
+
+    /**
+     * Membership classes: which recordings are services at all.
+     *
+     * @return list<DetectorEntry>
+     */
+    private static function membershipClassEntries(): array
+    {
+        return [
+            new DetectorEntry(
+                id: 'identity-duplicate-date-pair',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::Unbuilt,
+                severity: DetectorSeverity::PublishedWrongContent,
+                unit: DetectorUnit::Run,
+                summary: 'Two runs claim the same occasion and neither has been ruled the master, so five sermons pass the release gate while their identity is still disputed. Contained by §4.4, not by a detector.',
+            ),
+            new DetectorEntry(
+                id: 'membership-rehearsal-imported-as-service',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::Unbuilt,
+                severity: DetectorSeverity::PublishedWrongContent,
+                unit: DetectorUnit::Run,
+                summary: "A Saturday rehearsal take of Sunday's sermon was imported as a service of its own, duplicating the sermon under the wrong date.",
+                regressionCases: ['run 1043', 'run 1089'],
+            ),
+            new DetectorEntry(
+                id: 'membership-missing-occasion',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::Unbuilt,
+                severity: DetectorSeverity::WrongMetadata,
+                unit: DetectorUnit::Run,
+                summary: 'A non-Sunday occasion carries no `occasion`, so a funeral or holiday club is indistinguishable from a Sunday service.',
+                regressionCases: ['run 1051', 'run 1098', 'run 1144'],
+            ),
+            new DetectorEntry(
+                id: 'membership-silent-source',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::FixedAtSource,
+                severity: DetectorSeverity::TechnicalQuality,
+                unit: DetectorUnit::Run,
+                summary: 'A source with no audio at all produced a run that could never yield anything.',
+                regressionCases: ['run 955'],
+                decision: 'Fixed at source and applied: silent sources are excluded from historic membership, so the run is not attempted rather than failing late.',
+            ),
+        ];
+    }
+
+    /**
+     * Release and consumer-surface classes.
+     *
+     * @return list<DetectorEntry>
+     */
+    private static function releaseClassEntries(): array
+    {
+        return [
+            new DetectorEntry(
+                id: 'release-sermon-query-ignores-asset-disk',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::FixedAtSource,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Sermon,
+                summary: "The public sermon query resolved media through config rather than the row's own `asset_disk`, so listings, browse, service lists and the podcast feed could point at a disk the file is not on.",
+                decision: 'Fixed at source: the query selects `asset_disk` and refuses when the column is missing, so a row that omits it fails loudly instead of resolving to the wrong disk. No media re-run is needed.',
+            ),
+            new DetectorEntry(
+                id: 'release-media-file-missing',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::Unbuilt,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Sermon,
+                summary: 'A quarantined sermon records a media file that does not exist, so the release gate is reasoning about bytes that are gone.',
+                regressionCases: ['sermon 857'],
+            ),
+            new DetectorEntry(
+                id: 'release-url-while-archive-disabled',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::FixedAtSource,
+                severity: DetectorSeverity::WrongMetadata,
+                unit: DetectorUnit::Run,
+                summary: 'A service URL was offered while the service archive was disabled, so a link existed to a page that should not have been reachable.',
+                decision: 'Fixed at source: no URL is offered while `public_from` is null. No media re-run is needed.',
             ),
         ];
     }
