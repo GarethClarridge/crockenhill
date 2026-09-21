@@ -17,7 +17,7 @@
 > is now content-held. The frozen 15-run held sample's source/transcript and asset
 > pass found four further saved-sermon defects, all now content-held; its remaining
 > human-only matrix rows are still open. Independent song-audio listening and
-> reserved acceptance also remain open. Whisper
+> H10 detector-negative acceptance sampling also remain open. Whisper
 > context and song-edge fixes are implemented and now applied to nine runs
 > (canary 1221/1209/1314; macro-song re-runs 1060/1009/948/1274/1303/1340), not
 > to the corpus. Both canary blockers are fixed (`283a6cd90`, `690ae1d5d`), and
@@ -50,6 +50,17 @@
 > genuine sung evidence outside its sermon, but that song remains held and replaying
 > the older whole transcript would restore substantial loop artefacts. No production
 > state was inspected in this review.
+> The §4.3a detector evaluation harness is **specified but unbuilt** (drafted
+> 2026-09-21): catalogue, emission adapters, frozen case book, predeclared
+> severity thresholds, breakdown dimensions and three commands. The thresholds
+> are committed before any scoring code deliberately, so they cannot be chosen
+> after seeing a candidate's results. **H9 is ruled (2026-09-21):** no eligible
+> run is untouched — all 438 appear individually in this plan, the archived log
+> or a scratch census — so there is no reserved set, every run is used for
+> development, historic results are stated as retrospective validation, and
+> prospective weekly reservation is rejected rather than deferred. Miss rate is
+> established instead by H10's detector-negative sample: 90 transcript-negative
+> runs for the S1 recall target, reviewed by sampled interior windows.
 >
 > Phases 0–8, their implementation diary, pass measurements and earlier reviews
 > have moved unchanged to the
@@ -186,7 +197,7 @@ repaired corpus, and a correct hold is not a confirmed defect.
 | Structure and song identity | Prompt seconds, closing prayer/reading retention, sustained singing, mistyped sung-item risk, catalogue-title priority and 17 September speech-edge trim | Retrospective measurements and tests; trim replay is not a corpus write | Per-run re-detection/re-resolution, then extraction and derived-item repair; speech-edge exceptions |
 | Local Whisper decoding | Context carry disabled; initial prompt retained on both request paths; options fingerprinted | Seven-run experiment, MP3-form check, 1314/1340/1343/1258/980 repairs and four-run recovery reconciliation; request/fingerprint tests | Wider raw-transcript census; full independent source/content and dependent-analysis checks |
 | Video-quality detector | Dead-picture coverage and owning-run evidence | 48 prior rejections reassessed (28 approve/19 reject/1 review); seven prior approvals moved to review | 862 where its output lives; 897/1005 unassessed; source-versus-cut black-picture causes; independent negatives |
-| Acceptance and release | Existing signed release machinery | Nine-service source inventories compared; acceptance incomplete; no new release authorised | Interior semantic review, fresh reserved evaluation, canary, bounded repairs, operation closeout, exact-membership QA and delivery |
+| Acceptance and release | Existing signed release machinery | Nine-service source inventories compared; acceptance incomplete; no new release authorised | Interior semantic review, H10 detector-negative sampling (no reserved set — H9), canary, bounded repairs, operation closeout, exact-membership QA and delivery |
 
 The 10–11 September transcript/media-readability census and its missing-hold list
 remain in the preserved follow-up review at the end of this document. They are not
@@ -312,7 +323,9 @@ before exercising a repaired run. Work in this order:
    these cases now inform
    tuning and are regression evidence, not untouched evaluation. Add bounded positive and detector-negative
    audio checks for song loops and lyric edges; lyric agreement alone is not audio
-   adjudication. Preserve the reserved evaluation set separately. This is discovery
+   adjudication. **There is no separate reserved evaluation set** — §4.3a's H9
+   rules that none survives; miss rate comes from H10's detector-negative sample.
+   This is discovery
    and validation, not a nine-service claim of corpus accuracy.
 3. **Prove one bounded repair canary (§4.0a).** **Done 2026-09-17 for source-content
    alignment and hold persistence.** macOS Safari playback across the shared join
@@ -2794,7 +2807,7 @@ immediately below the table governs their interpretation.
 | Video picture starts after its audio, or audio carries the preceding item (stream-copy keyframe lead-in): sermons 12 over 3 s; song clips 89 frozen openings and 23 with lead-in audio over 1 s | §4.1b duration censuses | Implemented: smart cut plus fda414eb2 source-frame correction; canary and corpus reruns pending | `duration-20260914-census.json`, `songdur-20260914-census.json` | **Specification** (ruling 3a: smart cut): in the shared `VideoExtractionService`, which cuts both sermon pieces and song clips, re-encode only from each cut point to the next keyframe and stream-copy the rest, so every piece starts exactly on its planned time with picture and sound together; check picture delay and length after every extraction (0 within one frame; length equals the span); make the re-encode path meet the same check (its clips still lag 0.2–1.0 s); write `SongVideo.duration` from the probed file, not the section; re-run affected sermons and song clips through the pipeline |
 | Hymn inside the sermon section (#885) | 09-10 review | Unbuilt: wholly inside sermon differs from absorbed non-sermon section | `sungpass-20260916-measure.php` | **Measured 2026-09-16 over all 437 runs** (`sungpass-20260916-measure.json`). #885's hymn is located: sermon 885 belongs to **run 949**, and its closing hymn sits at **4635–4795 s** inside sermon §723 (2744–4827) — wholly within the unobservable window 4615.16–4797.16 (`retranscription_failed`), so the transcript holds **no** lyrics for it and a lyric scorer sees nothing. The sound instrument finds it exactly: 1.000 active, 0.0 pauses/min, against 0.952/3.4 for the same run's song §718 and 0.683/17.9 for its own sermon body. **Sustained sound alone is not the detector**: sustained spans of 30 s or more inside a sermon and held by no song section number **272 across 150 runs**, nearly all ordinary preaching at 104–181 wpm. Adding word rate collapses it to **2 spans**, and the collapse is stable from <20 to <60 wpm rather than balanced on a tuned edge. The two survivors are run 949's hymn (0 cues, 100% unobservable, at the sermon's end) and run 1014 §1300's "Thank you ×4" ASR artefact, **already held**. **new**: flag a sustained-sound span of 30 s or more inside a sermon section, held by no song section, whose word rate is under 40 wpm; two candidates per 437 runs is the whole review burden. Regression cases: run 949 §723 (positive), run 1014 §1300 (positive, ASR artefact), and any preaching span at 104–181 wpm as negatives |
 | Duplicate/date pair identity | P8-Q7 | Uncontained identity dispute: five sermons gate-clear; explicit holds/adoption pending | — | §4.4 |
-| Automatic video-quality rejection hides a good video (27 of 47: static camera, dim lighting) | §4.1b matrix | Implemented/applied: rebuilt dead-picture detector; 48 prior rejections reconciled; independent negatives pending | `vq-20260914-register.json`; ffmpeg `freezedetect` over 4 min separated all 47 | **Built 2026-09-16.** `VideoDeadPictureProbe` measures freeze and black time with ffmpeg's own detectors over 6 windows of 30 s spread from the recording's first second to its last; `SermonVideoQualityAssessmentService` reads the *coverage* of that dead time and nothing else — the 16×16 fingerprint burst, the brightness floor and the GD frame scoring are deleted. **Coverage decides how far a verdict may go:** dead in three quarters of the windows or more rejects (and hides); any lesser dead time is `partially_frozen`/`partially_black` for review, because a recording that carries real preaching for part of its length is not the detector's to withhold. Calibration over all 48 rejections, running the application service (`vq-20260916-detector-check.json`, `vq-20260916-windows.json`): **48 of 48 agree with the 2026-09-14 adjudication** — the 19 correct rejections stay rejected at 6/6 dead windows, the 28 wrong ones approve at 0/6, and 1225 reads 2/6 → needs review (operator: SHOW it). **Re-assessed through the pipeline 2026-09-16** (operator approval), by `sermons:assess-video-quality --all --reason=frozen_frames` then `--reason=mostly_black`, sequential and in-process — never `--queue`, whose workers hold stale code — and never by hand. All 48 stored verdicts now agree with the adjudication (`vq-20260916-reassessment.json`): 28 approved, 19 rejected, 1225 to review; no sermon outside the register was touched and all 48 remain quarantined, so nothing changed in public exposure. The 19 rejections also split 12 `mostly_black` / 7 `frozen_frames`, matching the 09-14 count of 12 black recordings and 7 holding cards that the old detector labelled `mostly_black` alike. **Approvals censused 2026-09-16** (`vq-20260916-approvals-census.json`, read-only): 432 approved videos, 429 measured — the 3 unmeasurable are published rows whose local clips do not exist, their sources intact on `/mnt/cbc-services`. 421 agree; **8 flagged for review, 0 newly rejected** (1.86% review burden). Adjudicated against contact sheets, black extents and audio levels (`vq-20260916-approvals-adjudication.json`): **7 are real defects the old detector missed** — four black openings of 52–177 s (926, 930, 941, 975), a 106 s loss of picture mid-sermon under continuing speech (1276), and the camera-fault card in 1189 and 1230 — and **one is a false positive** (867, a projected Philippians 2 slide held 21 s; the only flag on a published row), a rate of 1 in 429. The seven remain stored as `approved` until re-assessed through the pipeline. Thresholds must not be tuned against this set. Note the census cannot see a video both detectors approve wrongly; that stays with §4.5's reserved human sample. **The seven defects were re-assessed through the pipeline 2026-09-16** and now read `needs_review` — `partially_black` for 926, 930, 975 and 1276, `partially_frozen` for 941, 1189 and 1230. 867 was deliberately left `approved`: a held slide is not a broken recording, and flipping it by hand would bury the one measured false positive. Two rows with video (897, 1005) have never been assessed at all and sit outside this census, which covered approvals only |
+| Automatic video-quality rejection hides a good video (27 of 47: static camera, dim lighting) | §4.1b matrix | Implemented/applied: rebuilt dead-picture detector; 48 prior rejections reconciled; independent negatives pending | `vq-20260914-register.json`; ffmpeg `freezedetect` over 4 min separated all 47 | **Built 2026-09-16.** `VideoDeadPictureProbe` measures freeze and black time with ffmpeg's own detectors over 6 windows of 30 s spread from the recording's first second to its last; `SermonVideoQualityAssessmentService` reads the *coverage* of that dead time and nothing else — the 16×16 fingerprint burst, the brightness floor and the GD frame scoring are deleted. **Coverage decides how far a verdict may go:** dead in three quarters of the windows or more rejects (and hides); any lesser dead time is `partially_frozen`/`partially_black` for review, because a recording that carries real preaching for part of its length is not the detector's to withhold. Calibration over all 48 rejections, running the application service (`vq-20260916-detector-check.json`, `vq-20260916-windows.json`): **48 of 48 agree with the 2026-09-14 adjudication** — the 19 correct rejections stay rejected at 6/6 dead windows, the 28 wrong ones approve at 0/6, and 1225 reads 2/6 → needs review (operator: SHOW it). **Re-assessed through the pipeline 2026-09-16** (operator approval), by `sermons:assess-video-quality --all --reason=frozen_frames` then `--reason=mostly_black`, sequential and in-process — never `--queue`, whose workers hold stale code — and never by hand. All 48 stored verdicts now agree with the adjudication (`vq-20260916-reassessment.json`): 28 approved, 19 rejected, 1225 to review; no sermon outside the register was touched and all 48 remain quarantined, so nothing changed in public exposure. The 19 rejections also split 12 `mostly_black` / 7 `frozen_frames`, matching the 09-14 count of 12 black recordings and 7 holding cards that the old detector labelled `mostly_black` alike. **Approvals censused 2026-09-16** (`vq-20260916-approvals-census.json`, read-only): 432 approved videos, 429 measured — the 3 unmeasurable are published rows whose local clips do not exist, their sources intact on `/mnt/cbc-services`. 421 agree; **8 flagged for review, 0 newly rejected** (1.86% review burden). Adjudicated against contact sheets, black extents and audio levels (`vq-20260916-approvals-adjudication.json`): **7 are real defects the old detector missed** — four black openings of 52–177 s (926, 930, 941, 975), a 106 s loss of picture mid-sermon under continuing speech (1276), and the camera-fault card in 1189 and 1230 — and **one is a false positive** (867, a projected Philippians 2 slide held 21 s; the only flag on a published row), a rate of 1 in 429. The seven remain stored as `approved` until re-assessed through the pipeline. Thresholds must not be tuned against this set. Note the census cannot see a video both detectors approve wrongly; that is exactly what H10's detector-negative sample is for (there is no reserved human sample — H9). **The seven defects were re-assessed through the pipeline 2026-09-16** and now read `needs_review` — `partially_black` for 926, 930, 975 and 1276, `partially_frozen` for 941, 1189 and 1230. 867 was deliberately left `approved`: a held slide is not a broken recording, and flipping it by hand would bury the one measured false positive. Two rows with video (897, 1005) have never been assessed at all and sit outside this census, which covered approvals only |
 | A discredited verdict survives where the evidence cannot be re-read (862, **published**) | §4.3a approvals census 2026-09-16 | Source evidence established; reassessment where output lives pending | `laravel.log` 2026-09-16 07:40:57 | **Specification**: sermon 862 (published, 2023-09-03) is hidden from its public page by the old detector's `frozen_frames` verdict of 2026-07-09 — the class that proved 25 of 27 wrong. It was matched by the re-assessment pass, but this machine holds no clip for it, so `AssessSermonVideoQuality`'s settled-verdict guard held rather than overwrite a verdict with `missing_video_file`, and the row kept the discredited answer. The guard is right in itself; the gap is that nothing distinguishes a verdict worth keeping from one whose detector has since been replaced. Re-assess 862 where its bytes live (production), or re-derive the clip from the surviving source (`/mnt/cbc-services/2023-09-03/Morning/Sunday 3rd September 2023 [YouTube backup].mp4`, 2.96 GB, 4356 s). **Measured 2026-09-16: the rejection is demonstrably false.** The sermon's span in that source (2066–4107 s) shows no freeze and no black in any of 6 windows of 30 s, and frames at 2100, 3000 and 4000 s show the preacher at the lectern in three different postures — the static-camera class the old detector misread 25 times in 27 (`vq-20260916-candidates/862-source.jpg`). What is missing is not evidence but a machine that can write the corrected verdict where the bytes live. Consider recording the detector's identity alongside a verdict, so a superseded verdict can be found rather than inferred |
 | Sermon video opens with no picture (926: 85 s, 930: 85 s, 975: 52 s, 941: 177 s), or loses it mid-sermon (1276: 106 s of black from 1682 s while speech continues at −2.6 dB) | §4.3a approvals census 2026-09-16 | Partial: review detection applied; source-versus-extraction diagnosis pending | `vq-20260916-approvals-adjudication.json`, contact sheets in `vq-20260916-candidates/` | **Specification**: the clip begins before there is any picture, so the cause sits upstream of the detector and is not yet established — determine for each whether the black is in the source or introduced by the planned span, by comparing the section's start against the source's first picture. If the span is at fault, check picture start against audio start at extraction (the measurement ruling 3a's smart cut already added) and re-plan or refuse a sermon whose opening carries no picture; if the source is black, it is a recording dropout like the RMS dropout class and the flag is the outcome. 1276's loss is mid-recording, so it is a dropout regardless of the cut. Re-extract or re-plan the five through the pipeline once the cause is known; the camera-fault cards in the same census (1189, 1230) need no new response, being the partial form of the whole-recording cards the detector already rejects |
 | Quality verdict written without run evidence (13, `sermons:assess-video-quality`) | §4.1b matrix | Implemented/applied/verified: owning-run evidence; closed | — | **Closed 2026-09-16.** The job already resolves the run that published the sermon when it is dispatched with a sermon id alone, and writes the verdict there. Verified on live data rather than from the test: each of the seven command-path assessments run on 2026-09-16 wrote status, reason and window counts to its owning run, and all 13 verdicts that originally left evidence only in `laravel.log` (runs 1044–1113) now carry current evidence on the run. No assessed row is left without it |
@@ -3212,14 +3225,18 @@ read-only; register `hintresolve-20260916-blast-radius.json`). Nothing was writt
   rejected black/card recordings, valid static-camera footage, legitimate repeated
   lyrics and short talks. A census of flags alone cannot measure missed defects or
   justify treating all non-flags as correct.
-- [ ] Separate known-defect regression fixtures, development data used to choose
-  thresholds/prompts, and a reserved evaluation set frozen before tuning. Keep the
+- [ ] Separate known-defect regression fixtures from the development data used to
+  choose thresholds/prompts. Keep the
   same service, alternate encodes, duplicate/rehearsal recordings and their derived
   clips in the same group. Record prior inspection and calibration use; a newly
   sampled old run is not untouched if its answers already influenced development.
-  If no suitable untouched historic set remains, use prospectively reserved weekly
-  services and describe historic results as retrospective validation. Once a test
+  Once a test
   case informs a fix it becomes regression/development evidence for that fix.
+  **Amended 2026-09-21 by H9's ruling:** there is no third, reserved tier, and
+  prospectively reserved weekly services are rejected outright rather than held
+  as a fallback. No eligible historic run is untouched, all of them are used for
+  development, historic results are reported as retrospective validation, and
+  generalisation is measured by H10's detector-negative sample.
 - [ ] Before evaluating a candidate, record acceptance thresholds by defect
   severity, tolerances and allowed review burden. Require all applicable confirmed
   regression defects to be prevented or contained, then compare candidate versus
@@ -3235,6 +3252,261 @@ read-only; register `hintresolve-20260916-blast-radius.json`). Nothing was writt
   affected metrics when these change, and retain periodic source-reviewed weekly
   spot checks for new recording conditions and new classes. Extend the existing
   evaluator and pipeline tests; do not turn this into a second processing system.
+- [ ] Derive the era boundaries the breakdown needs from observed source
+  codec/container/channel transitions in the corpus. Do not invent calendar-year
+  bands: an era is a recording-condition change, and the whole purpose of the
+  breakdown is to show whether a detector's quality tracks those conditions.
+- [x] Settle how miss rate will be established. **Ruled 2026-09-21 (H9):** no
+  reserved set — none survives, every run is used for development, historic
+  results are retrospective validation, and prospective weekly reservation is
+  rejected outright rather than deferred.
+- [ ] Draw and review the H10 detector-negative sample: 90 transcript-negative
+  runs for the S1 target, by sampled interior windows rather than whole-service
+  listening, reporting the quantity actually bounded. Measure flag precision on
+  a separate random sample of flags instead of assuming it. Re-draw if what the
+  sample shows changes a threshold.
+
+#### Detector evaluation harness — specification drafted 2026-09-21
+
+Nothing below has been implemented. This is the predeclaration the item above
+requires ("before evaluating a candidate, record acceptance thresholds"), so it
+is written first and deliberately committed before any scoring code exists. A
+threshold chosen after seeing a candidate's results is not a threshold.
+
+**What the harness is not.** It does not process media. It scores *recorded
+detector output* against adjudicated truth, and re-runs detector classes only
+over frozen inputs (transcript JSON, RMS series, probe metadata) that are cheap
+and deterministic. No ffmpeg, no Whisper, no queue. This is what keeps the last
+item's "do not turn this into a second processing system" honest: the harness
+can never disagree with the pipeline about what a detector does, because it
+calls the same class the pipeline calls.
+
+**Reuse, not invention.** Three surfaces already in this codebase do most of the
+work and their conventions are adopted wholesale rather than re-derived:
+
+- `FreezeOosSemanticEvaluationCorpus` / `OosSemanticEvaluationCorpusGate` — the
+  frozen, hash-bound, fail-closed evaluation corpus with an explicit
+  `adjudication_state`, a private `0600` artifact and a refusal to overwrite.
+- `NewcombePairedDifference` — paired candidate-versus-incumbent non-inferiority
+  on the same cases, with the unlabelled allocated against the conclusion.
+- `StructureEvaluateCommand` — the manifest-versus-stored-run split, the
+  aggregate report shape, and the `--report=` JSON artifact.
+
+##### H1. The catalogue is the table
+
+`App\Support\DetectorCatalogue` carries one entry per row of the class table
+above: a stable `detector_id`, the owning class, the signals it emits, a
+`DetectorStatus` (`Promoted`, `Prototype`, `DecidedNotToDetect`, `Unbuilt`), a
+severity tier (H4), and the plan case identifiers that are its regression
+fixtures. The class table gains a `detector_id` column, and a unit test asserts
+the set of ids in the plan file and the set in the catalogue are identical. That
+test is what actually discharges "fill the pipeline item column": the column
+stops being prose that can drift from the code.
+
+`DecidedNotToDetect` is a first-class status, not an absence. It carries the
+recorded decision text and the operator date, so a class with no detector is
+distinguishable from a class nobody has ruled on.
+
+##### H2. Four emission surfaces, one signal record
+
+Promoted detectors do not emit through one channel today, and unifying them in
+the pipeline would be a rewrite. Instead four read-only adapters normalise to a
+single `DetectorSignal` (detector id, run, optional section, span, reason,
+severity, whether it held):
+
+| Surface | Today's carrier | Example |
+|---|---|---|
+| Section review flags | `review_flags` + `SectionReviewFlagPolicy` | `structure_macro_section` |
+| Suspect transcript blocks | `SuspectTranscriptBlock` reasons | `repeated_phrase_loop`, sparse cadence |
+| Video quality verdicts | `sermons:assess-video-quality` evidence | dead-picture rejection |
+| Song boundary evidence | banked evidence reasons | `unresolved_multiple_songs` |
+
+An adapter is the only new code per detector, and it is read-only by
+construction — it reads what the pipeline already wrote.
+
+##### H3. Case book, split by service group
+
+`detectors:freeze-case-book` writes a canonical-JSON, hash-bound, `0600`
+artifact refusing to overwrite an existing one, exactly as the OoS freezer does.
+Each case records: `case_id`, `service_group_key`, run id, the four breakdown
+dimensions (H5), the adjudicated truth, an **exposure record**, and a split.
+
+Splits are assigned at `service_group_key` level, never at case level, so a
+service's sermon, its songs and its derived clips cannot land on opposite sides
+of a boundary. Two disjoint groups:
+
+- **regression** — cases that informed a fix. Every numbered case in this plan.
+- **development** — used to choose thresholds and prompts.
+
+There is no reserved tier. H9 rules that none survives and that miss rate is
+established by the detector-negative sample in H10 instead, which is drawn fresh
+at measurement time rather than held back in advance.
+
+The exposure record still earns its place, but its job is narrower: it records
+what informed which fix, so a regression case is never quietly cited as
+independent evidence that the fix works. It is provenance, not a gate.
+
+##### H4. Severity tiers and predeclared thresholds
+
+Four tiers, derived from what the defect does to a reader rather than from which
+subsystem produced it:
+
+| Tier | Meaning | Representative classes from the table |
+|---|---|---|
+| **S1** | Wrong content published as fact | transcript loops in saved sermon text; wrong song identity `confirmed`; mixed-song clip §3869; rehearsal imported as its own service |
+| **S2** | Real content lost from the output | macro song section swallowing a sermon opening; MP3 closing words; dropped closing prayer; song clip losing its verses |
+| **S3** | Wrong metadata or presentation | sermon page naming the wrong reading; multi-passage truncation; title contradicting the transcript |
+| **S4** | Technical quality only | 96 kHz upsample; keyframe-late picture start |
+
+Thresholds live in a checked-in, hash-bound `detector-acceptance-thresholds.json`
+— **not** in `config/` behind `env()`. An env-tunable threshold is not a
+predeclared one, and the whole point is that changing it is a reviewable commit.
+
+| Tier | Regression defects | Recall (lower 95% bound, group-clustered) | False positives on verified-correct cases | Non-inferiority margin δ |
+|---|---|---|---|---|
+| S1 | 100% prevented or contained | ≥ 0.95 | ≤ 0.02 | 0.02 |
+| S2 | 100% prevented or contained | ≥ 0.90 | ≤ 0.05 | 0.03 |
+| S3 | 100% prevented or contained | ≥ 0.80 | ≤ 0.10 | 0.05 |
+| S4 | reporting only | — | — | — |
+
+The regression column is fail-closed and non-negotiable at every tier: a
+candidate that reintroduces a confirmed defect fails regardless of its rates.
+Recall is over the *adjudicated* defect set and is reported as recall over known
+classes only — never described as recall over unknown ones.
+
+Review burden is scored alongside, and a candidate that improves recall by
+burying the operator fails: flags per service, operator review minutes per 100
+services, and percentage of services safely processed without intervention, each
+compared against the incumbent on the same detector-negative sample. Increasing
+holds is not an improvement.
+
+Candidate-versus-incumbent uses `NewcombePairedDifference` on that same sample,
+one-sided 95% lower bound ≥ −δ. Unassessable cases are allocated against the
+conclusion, as the OoS comparison already does.
+
+Recall is not measured on the regression cases. It is measured by H10.
+
+##### H5. Breakdown dimensions
+
+Every rate is reported overall and broken down by four dimensions, with
+group-clustered uncertainty:
+
+1. **Era** — recording-condition bands. **These boundaries are not yet
+   measured.** They must be derived from observed source codec/container/channel
+   transitions in the corpus, not invented as round calendar years; that
+   derivation is an open task below.
+2. **Codec and channel setup** — source video codec, audio codec, sample rate and
+   channel layout from the stored probe metadata.
+3. **Service kind** — `ServiceOccasion`, plus children's talk and `short_talk`.
+4. **Independent evidence availability** — `HistoricVideoCorroborationGrade`
+   (full / short partial / fragmented / unknown) crossed with has-OoS versus the
+   152 no-OoS runs, which are reported as their own named group.
+
+Targeted challenge and repair samples carry sampling weight zero in prevalence
+estimates and are reported in a separate table. Correlated clips from one service
+are one trial, not many.
+
+##### H6. Version binding
+
+Every report binds the git commit, the catalogue version, the thresholds file
+hash, the review-flag policy version, the song evidence version and — for the
+LLM detector — model and prompt identifiers. A change to any of them marks the
+affected metrics stale rather than silently carrying them forward.
+
+##### H7. Commands
+
+| Command | Purpose |
+|---|---|
+| `detectors:freeze-case-book` | Freeze and hash-bind the case book; refuses to overwrite |
+| `detectors:evaluate` | Score a split against thresholds; fail-closed; `--report=` JSON |
+| `detectors:replay` | Re-run promoted detectors over the 437 eligible runs and reconcile against existing holds; read-only; weekly reported separately |
+
+`detectors:replay` is the one that discharges the third checkbox above. It is
+read-only by design: reconciliation names discrepancies, it does not write holds.
+
+##### H8. What this discharges, and what it leaves open
+
+Drafting this section discharges only the predeclaration half of the fourth
+checkbox. The catalogue, adapters, case book, thresholds file and three commands
+are all unbuilt. The regression-fixture checkbox stays open until the plan's
+cases are actually written under `tests/Fixtures/StructureEval` or beside it.
+
+##### H9. Ruling: no reserved set; historic evidence is retrospective
+
+**Ruled by the operator 2026-09-21. This is settled, not deferred.**
+
+Measured the same day: of the **438** eligible runs (ids 928–1382; reconcile the
+plan's earlier 437 separately), **342** are named individually in this plan or
+the archived execution log, and the remaining **96** each appear as an individual
+row in a `storage/scratch/` census artifact — run 952 and run 1370 in
+`songloop-20260914-census.json`, run 1313 in
+`correctness-20260910-song-policy.json`. **No eligible run is untouched.**
+§4.1a and §4.1b were coverage exercises, not samples, and that was the right call
+for finding defects; it simply means no historic run can be presented as
+independent evaluation data.
+
+Two consequences, both deliberate:
+
+1. **Every run is used for development.** Nothing is withheld from tuning. These
+   detectors are hand-chosen thresholds, not trained models, so holding data back
+   would buy nothing and cost discovery. Reserving was only ever about which
+   cases may be *cited as proof*, never about what the detector may learn from.
+2. **Historic results are retrospective validation, and the release record says
+   so in those words.** Recall is established by H10's detector-negative sample,
+   not by the cases the thresholds were fitted to.
+
+Prospective weekly reservation is **not** adopted, now or later, and is not
+retained as an option. It would reopen the weekly pause, and H10 answers the same
+question without it. If a future programme wants a forward-looking evaluation it
+can decide that on its own evidence rather than inheriting a dormant hook here.
+
+##### H10. Detector-negative sampling — how miss rate is actually measured
+
+Precision is measurable from the flags themselves. Recall is not, because the
+thresholds were fitted to the known defects: a detector scored on its own tuning
+set reports what it was adjusted to report. The only way to learn the miss rate
+is to look at what the detector **did not** flag.
+
+This works on exposed data. Exposure contaminates *tuning*, not *measurement*.
+The single rule is that a drawn sample is spent once it is read: if what it shows
+prompts a threshold change, that sample becomes development evidence and the next
+bound needs a fresh draw. Budget for at least one re-draw.
+
+**Sizing, worked for the transcript-loop screen.** 152 of the 438 eligible runs
+carry suspect transcript blocks, leaving **U = 286** detector-negative runs.
+Sampling is without replacement from a small population, so the bound is
+hypergeometric rather than the rule of three, which is materially kinder here.
+With `n` runs reviewed and **no** defect found, the one-sided 95% bound on missed
+defects `M` is the largest integer satisfying `((U−n)/U)^M ≥ 0.05`:
+
+| Runs reviewed (0 defects found) | Missed defects ≤ | Recall ≥ |
+|---|---|---|
+| 30 | 27 | 0.84 |
+| 60 | 12 | 0.92 |
+| **90** | **7** | **0.95** |
+| 120 | 5 | 0.96 |
+
+**90 runs is the S1 target.** Recall is computed against true positives among the
+152 flags, taken here as ~137 at 90% precision; measure that precision on a
+random sample of flags rather than assuming it, because a lower precision raises
+the required `n`. If any defect is found the bound loosens and the sample must
+grow — this table is the zero-defect best case, not a plan.
+
+**Effort, stated honestly.** Ninety whole services listened to end to end is
+roughly 135 hours and is not going to happen. Reviewing sampled interior windows
+per run, as §4.1b's blind method already does, is nearer 10 minutes a run — about
+**15 hours**. The tradeoff is real and must be recorded rather than glossed: a
+window sample bounds defective *minutes*, not defective *runs*, so a run it
+passes is not thereby certified clean. Choose the window unit and report the
+quantity actually measured.
+
+One draw serves several detectors. A run drawn from the transcript-negative set
+also carries songs, a sermon, readings and possibly a children's talk, each of
+which is usable as detector-negative evidence for its own detector wherever that
+detector did not flag it. Report the achieved `n` per detector rather than
+promising one number in advance; the song and children's-talk detectors will
+reach their own targets at different rates (342 of 1174 song sections and 137 of
+180 children's talks are currently unflagged).
 
 ### 4.4 Bind deferred identity disputes
 
@@ -3558,7 +3830,8 @@ read-only; register `hintresolve-20260916-blast-radius.json`). Nothing was writt
   acceptance limits before inspection. Include source-first review and randomly
   selected interior passages. Report repaired/targeted challenge cases separately
   from population-rate estimates. This release-membership audit includes familiar
-  cases and does not replace §4.3a's reserved evaluation of generalisation; report
+  cases and does not replace §4.3a's H10 detector-negative measurement of
+  generalisation; report
   both results without calling previously used tuning cases untouched.
 - [ ] Build a pipeline regression set from operator-reviewed weekly services
   (recent weeks with email, OpenLP and a completed review). Re-run the weekly path
@@ -3573,8 +3846,9 @@ read-only; register `hintresolve-20260916-blast-radius.json`). Nothing was writt
   repairs and bind acceptance to current artifacts and policy. Confirm the
   controlled-variation and interruption tests pass, including equal-duration
   re-cuts, replacement failures and held-then-reprocessed runs.
-- [ ] Meet §4.3a's predeclared detector and automation criteria on the reserved
-  evaluation set, with subgroup results, unassessable counts and review burden
+- [ ] Meet §4.3a's predeclared detector and automation criteria on H10's
+  detector-negative sample, with subgroup results, unassessable counts and review
+  burden
   reported. Preserve failures as findings; do not move thresholds after seeing
   the evaluation answers and continue calling the same set held out.
 - [ ] Confirm every implemented §4.3a response is running on the weekly path,
