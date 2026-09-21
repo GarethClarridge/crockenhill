@@ -3320,10 +3320,10 @@ stops being prose that can drift from the code.
 recorded decision text and the operator date, so a class with no detector is
 distinguishable from a class nobody has ruled on.
 
-##### H2. Four emission surfaces, one signal record
+##### H2. Five emission surfaces, one signal record
 
 Promoted detectors do not emit through one channel today, and unifying them in
-the pipeline would be a rewrite. Instead four read-only adapters normalise to a
+the pipeline would be a rewrite. Instead five read-only adapters normalise to a
 single `DetectorSignal` (detector id, run, optional section, span, reason,
 severity, whether it held):
 
@@ -3332,10 +3332,48 @@ severity, whether it held):
 | Section review flags | `review_flags` + `SectionReviewFlagPolicy` | `structure_macro_section` |
 | Suspect transcript blocks | `SuspectTranscriptBlock` reasons | `repeated_phrase_loop`, sparse cadence |
 | Video quality verdicts | `sermons:assess-video-quality` evidence | dead-picture rejection |
-| Song boundary evidence | banked evidence reasons | `unresolved_multiple_songs` |
+| Song publication review | `SongPublicationReviewPolicy` objection kinds | `unresolved_multiple_songs` |
+| Song boundary evidence | `song_publication_boundary.risks` | `song_looped_transcript` |
 
 An adapter is the only new code per detector, and it is read-only by
 construction — it reads what the pipeline already wrote.
+
+**Corrected 2026-09-21.** This table said four surfaces, and its fourth row
+named song boundary evidence while illustrating it with
+`unresolved_multiple_songs` — a `SongPublicationReviewPolicy` kind, which
+belongs to a different surface. Those are two carriers, written on different
+passes and answering different questions: the review policy objects to
+publishing a clip as a song, while boundary evidence records what the cut can be
+shown to contain. Only the review one was ever built. `DetectorSurface` had four
+cases and four adapters, and `SongPublicationReviewSignals` touched the boundary
+key solely to ask whether it existed, never reading its `risks`.
+
+So seven risk kinds were written by production and read by nobody in the
+harness, `song_looped_transcript` among them — which is this table's own
+song-loop class over 226 sections. The surface, its adapter
+(`SongBoundaryEvidenceSignals`) and its entries landed on 2026-09-21; 920 stored
+risks across the corpus now resolve to a catalogue entry, with none unclaimed.
+
+**Two lessons worth keeping, because both will recur.**
+
+First, *a surface with no adapter is indistinguishable from a clean corpus*. The
+catalogue could have carried correct entries for this surface for months and
+still reported nothing, because no code turned them into signals. A test now
+asserts every `DetectorSurface` case has an adapter.
+
+Second, *what a detector emits has to be measured, not read off the source*.
+`SongPublicationBoundaryEvidenceService` builds a `reason` for every boundary
+observation, but the caller promotes one to `risks` only when that observation
+carries `risk => true`. Four grep-visible kinds —
+`song_boundary_unobservable_gap`, `song_boundary_looped_gap`,
+`song_boundary_without_rms_corroboration` and
+`song_boundary_spoken_framing_below_floor` — sit on `risk => false` paths and are
+evidence for *keeping* a clip, never findings. A first pass catalogued all four,
+which would have invented four detectors that cannot fire and had the harness
+report perfect recall for each forever. A census of the stored corpus caught it:
+it returned five kinds, two of which (`song_boundary_spoken_framing` and
+`song_boundary_spoken_framing_exceeds_limit`) no source search had found, and
+none of the four. A test now pins both lists, the emitted and the excluded.
 
 ##### H3. Case book, split by service group
 

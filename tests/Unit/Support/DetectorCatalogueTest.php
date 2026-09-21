@@ -11,6 +11,11 @@ use App\Enums\DetectorSurface;
 use App\Enums\DetectorUnit;
 use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\DetectorEvaluation\SectionReviewFlagSignals;
+use App\Services\DetectorEvaluation\SongBoundaryEvidenceSignals;
+use App\Services\DetectorEvaluation\SongPublicationReviewSignals;
+use App\Services\DetectorEvaluation\SuspectTranscriptBlockSignals;
+use App\Services\DetectorEvaluation\VideoQualityVerdictSignals;
 use App\Support\DetectorCatalogue;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
@@ -168,13 +173,19 @@ class DetectorCatalogueTest extends TestCase
      * invent detectors that do not exist. Everything else is one signal per
      * entry, including the four OoS anchoring flags and the two adjacent-song
      * checks, which were split precisely because they are separate questions.
+     *
+     * `song-boundary-evidence-unavailable` is the second: its two kinds differ
+     * only in *why* the pass could not look — a missing input or an unreadable
+     * one — and both mean the same thing to the harness, which is that this
+     * section was never assessed. Scoring them apart would imply the difference
+     * changes what the evidence is worth.
      */
     public function test_only_allowlisted_entries_bundle_several_signals(): void
     {
-        $mayBundle = ['video-dead-picture'];
+        $mayBundle = ['video-dead-picture', 'song-boundary-evidence-unavailable'];
 
         foreach (DetectorCatalogue::all() as $entry) {
-            if (in_array($entry->id, $mayBundle, true)) {
+            if (in_array($entry->id, $mayBundle, true) || ! $entry->status->emitsSignals()) {
                 continue;
             }
 
@@ -258,6 +269,90 @@ class DetectorCatalogueTest extends TestCase
         }
 
         $this->assertGreaterThan(1, $checked, 'Expected to find several Flag* actions to check.');
+    }
+
+    /**
+     * The boundary evidence vocabulary, pinned the way the video reasons are.
+     *
+     * Two things make this list worth pinning rather than deriving. The service
+     * builds most kinds as inline literals, so there are no constants to walk;
+     * and a source search over-reports badly, because the service returns a
+     * `reason` for every boundary observation while the caller promotes one to
+     * `risks` only when the observation carries `risk => true`. Four
+     * grep-visible kinds never emit at all. The list below is what a census of
+     * the stored corpus actually found, plus the two unassessable kinds that are
+     * appended as literals on the no-inputs path.
+     */
+    public function test_the_song_boundary_evidence_vocabulary_is_pinned(): void
+    {
+        $this->assertSame(
+            [
+                'song_boundary_evidence_unavailable',
+                'song_boundary_evidence_unreadable',
+                'song_boundary_spoken_framing',
+                'song_boundary_spoken_framing_exceeds_limit',
+                'song_boundary_trailing_content',
+                'song_looped_transcript',
+                'song_lyrics_outside_section',
+            ],
+            DetectorCatalogue::signalsFor(DetectorSurface::SongBoundaryEvidence),
+        );
+    }
+
+    /**
+     * The kinds a source search finds that the surface never actually emits.
+     *
+     * Cataloguing one would invent a detector that cannot fire, and the harness
+     * would then report perfect recall for it forever — a worse outcome than
+     * leaving it out, because it looks like coverage. If one of these is ever
+     * promoted to a real risk, this test fails and the catalogue gains an entry
+     * deliberately.
+     */
+    public function test_non_emitting_boundary_reasons_are_not_catalogued(): void
+    {
+        $catalogued = DetectorCatalogue::signalsFor(DetectorSurface::SongBoundaryEvidence);
+
+        foreach ([
+            'song_boundary_unobservable_gap',
+            'song_boundary_looped_gap',
+            'song_boundary_without_rms_corroboration',
+            'song_boundary_spoken_framing_below_floor',
+        ] as $reason) {
+            $this->assertNotContains(
+                $reason,
+                $catalogued,
+                "[{$reason}] is returned on a risk => false path, so it is evidence for keeping a clip, not a finding."
+            );
+        }
+    }
+
+    /**
+     * Every surface the harness models must have an adapter that reads it.
+     *
+     * The gap this closes was not a missing entry but a missing *reader*: the
+     * plan listed song boundary evidence as a surface from the start, and the
+     * catalogue could have carried entries for it for months while no adapter
+     * ever turned them into signals. A surface with no adapter reports zero
+     * findings, which is indistinguishable from a clean corpus.
+     */
+    public function test_every_surface_has_an_adapter(): void
+    {
+        $adapters = [
+            DetectorSurface::SectionReviewFlag->value => SectionReviewFlagSignals::class,
+            DetectorSurface::SuspectTranscriptBlock->value => SuspectTranscriptBlockSignals::class,
+            DetectorSurface::VideoQualityVerdict->value => VideoQualityVerdictSignals::class,
+            DetectorSurface::SongPublicationReview->value => SongPublicationReviewSignals::class,
+            DetectorSurface::SongBoundaryEvidence->value => SongBoundaryEvidenceSignals::class,
+        ];
+
+        foreach (DetectorSurface::cases() as $surface) {
+            $this->assertArrayHasKey(
+                $surface->value,
+                $adapters,
+                "DetectorSurface::{$surface->name} has no adapter, so everything catalogued on it reads as no findings."
+            );
+            $this->assertTrue(class_exists($adapters[$surface->value]));
+        }
     }
 
     /**

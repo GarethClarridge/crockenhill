@@ -15,7 +15,11 @@ use App\Enums\DetectorSeverity;
 use App\Enums\DetectorStatus;
 use App\Enums\DetectorSurface;
 use App\Enums\DetectorUnit;
+use App\Services\ChurchService\SectionPublication\SongLoopedTranscript;
+use App\Services\ChurchService\SectionPublication\SongLyricsOutsideSection;
+use App\Services\ChurchService\SectionPublication\SongPublicationBoundaryEvidenceService;
 use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
+use App\Services\DetectorEvaluation\SongBoundaryEvidenceSignals;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\Media\Audio\ServiceTranscriptRepetitionScreen;
 use App\Services\Media\Video\SermonVideoQualityAssessmentService;
@@ -173,6 +177,7 @@ class DetectorCatalogue
             ...self::structureEntries(),
             ...self::mediaEvidenceEntries(),
             ...self::songEntries(),
+            ...self::songBoundaryEntries(),
             ...self::videoEntries(),
         ];
     }
@@ -542,6 +547,101 @@ class DetectorCatalogue
                 unit: DetectorUnit::Section,
                 summary: 'A partial recording cannot corroborate song membership, so its songs carry no independent evidence.',
                 owningClass: SongPublicationReviewPolicy::class,
+            ),
+        ];
+    }
+
+    /**
+     * The risks the boundary evidence pass records about a song cut.
+     *
+     * Catalogued 2026-09-21, having been written by production and read by no
+     * adapter since the surface was built. `song_looped_transcript` is §4.3a's
+     * song-loop class over 226 sections, so the omission was not a corner.
+     *
+     * **Only kinds that actually reach `risks` are here, and that had to be
+     * measured rather than grepped.** `SongPublicationBoundaryEvidenceService`
+     * builds a `reason` for every boundary observation it makes, but the caller
+     * appends one to `risks` only when that observation carries
+     * `'risk' => true`. Four kinds a source search finds —
+     * `song_boundary_unobservable_gap`, `song_boundary_looped_gap`,
+     * `song_boundary_without_rms_corroboration` and
+     * `song_boundary_spoken_framing_below_floor` — are returned on
+     * `'risk' => false` paths, so they are recorded as *evidence* for a decision
+     * to keep the clip and never emitted as findings. Cataloguing them would
+     * have invented four detectors that cannot fire, and the harness would have
+     * reported perfect recall for each. A census of the stored corpus is what
+     * exposed this: it returned five kinds, two of which no source grep had
+     * found, and none of the four.
+     *
+     * The two `song_boundary_evidence_*` kinds are one entry at S4: they record
+     * the pass being unable to look, which belongs in the unassessable column
+     * rather than in a recall denominator. Neither has fired on this corpus.
+     *
+     * @return list<DetectorEntry>
+     */
+    private static function songBoundaryEntries(): array
+    {
+        return [
+            new DetectorEntry(
+                id: 'song-looped-transcript',
+                surface: DetectorSurface::SongBoundaryEvidence,
+                signals: [SongLoopedTranscript::RISK_KIND],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::PublishedWrongContent,
+                unit: DetectorUnit::Section,
+                summary: "The clip's transcript repeats phrases its bound song does not contain, so the text describes a performance that did not happen.",
+                owningClass: SongLoopedTranscript::class,
+                regressionCases: ['§1216', '§1862', '§3750'],
+            ),
+            new DetectorEntry(
+                id: 'song-lyrics-outside-section',
+                surface: DetectorSurface::SongBoundaryEvidence,
+                signals: [SongLyricsOutsideSection::RISK_KIND],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Section,
+                summary: "Lyrics of this song are sung outside the section's bounds, so the cut lost part of the performance it claims.",
+                owningClass: SongLyricsOutsideSection::class,
+            ),
+            new DetectorEntry(
+                id: 'song-boundary-spoken-framing',
+                surface: DetectorSurface::SongBoundaryEvidence,
+                signals: ['song_boundary_spoken_framing'],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Section,
+                summary: 'Speech precedes the singing inside the clip, so the cut opens on the item before the song rather than on the song.',
+                owningClass: SongPublicationBoundaryEvidenceService::class,
+            ),
+            new DetectorEntry(
+                id: 'song-boundary-spoken-framing-exceeds-limit',
+                surface: DetectorSurface::SongBoundaryEvidence,
+                signals: ['song_boundary_spoken_framing_exceeds_limit'],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::PublishedWrongContent,
+                unit: DetectorUnit::Section,
+                summary: 'So much speech precedes the singing that the clip is more of the preceding item than of the song it is published as.',
+                owningClass: SongPublicationBoundaryEvidenceService::class,
+            ),
+            new DetectorEntry(
+                id: 'song-boundary-trailing-content',
+                surface: DetectorSurface::SongBoundaryEvidence,
+                signals: ['song_boundary_trailing_content'],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::PublishedWrongContent,
+                unit: DetectorUnit::Section,
+                summary: 'Material continues past the end of the song, so the clip may carry the next item as part of this one.',
+                owningClass: SongPublicationBoundaryEvidenceService::class,
+            ),
+            new DetectorEntry(
+                id: 'song-boundary-evidence-unavailable',
+                surface: DetectorSurface::SongBoundaryEvidence,
+                signals: SongBoundaryEvidenceSignals::UNASSESSABLE_KINDS,
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::TechnicalQuality,
+                unit: DetectorUnit::Section,
+                summary: 'The transcript or RMS input the boundary pass needed was missing or unreadable, so this section was never assessed.',
+                owningClass: SongPublicationBoundaryEvidenceService::class,
             ),
         ];
     }
