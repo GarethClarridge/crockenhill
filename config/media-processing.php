@@ -391,6 +391,30 @@ return [
         // cases. The words-per-minute ceiling is a backstop for near-repeats the
         // verbatim rule cannot see; relaxing it towards 250 starts returning
         // ordinary preaching. See ServiceTranscriptRepetitionScreen.
+        /*
+         * The coverage screen measures the opposite of the repetition screen:
+         * not text the audio cannot explain, but audio the text does not
+         * account for. It reads the RMS log rather than the transcript's own
+         * shape, so it stays sensitive where two decoders would fail together —
+         * a loop both of them produce is invisible to their disagreement but
+         * still leaves speech energy with no words against it.
+         *
+         * Read-only: this screen raises no hold. It exists to count what the
+         * repetition screen missed (§4.3a H10), not to contain anything.
+         */
+        'coverage_screen' => [
+            'window_seconds' => (float) env('SERVICE_TRANSCRIPT_COVERAGE_WINDOW_SECONDS', 60),
+            // A window must be mostly sound before its silence is worth
+            // explaining; a pause between items is not a defect.
+            'min_sounded_share' => (float) env('SERVICE_TRANSCRIPT_COVERAGE_MIN_SOUNDED_SHARE', 0.75),
+            // Half the rate the cadence screen already treats as dense speech,
+            // so a window has to be markedly under-transcribed to qualify.
+            'max_words_per_minute' => (float) env('SERVICE_TRANSCRIPT_COVERAGE_MAX_WPM', 30),
+            // Shorter runs of quiet are ordinary: a held pause, a long prayer
+            // gap, a reader finding their place.
+            'min_gap_seconds' => (float) env('SERVICE_TRANSCRIPT_COVERAGE_MIN_GAP_SECONDS', 90),
+        ],
+
         'repetition_screen' => [
             'min_repeats' => (int) env('SERVICE_TRANSCRIPT_REPETITION_MIN_REPEATS', 4),
             'min_repeated_words' => (int) env('SERVICE_TRANSCRIPT_REPETITION_MIN_WORDS', 12),

@@ -59,8 +59,13 @@
 > or a scratch census — so there is no reserved set, every run is used for
 > development, historic results are stated as retrospective validation, and
 > prospective weekly reservation is rejected rather than deferred. Miss rate is
-> established instead by H10's detector-negative sample: 90 transcript-negative
-> runs for the S1 recall target, reviewed by sampled interior windows.
+> established instead by detector-negative measurement. **H10a is done
+> (2026-09-21):** a read-only RMS-versus-transcript coverage screen over all 286
+> detector-negative runs found 27 gaps, of which exactly **one** overlaps a
+> sermon (run 1014, first 120 s). It cost 57 seconds of compute and no
+> listening. It bounds under-transcription only; dense loops and fluent
+> substitutions await H10b's re-decode comparison, which the corpus is already
+> owed.
 >
 > Phases 0–8, their implementation diary, pass measurements and earlier reviews
 > have moved unchanged to the
@@ -3580,6 +3585,58 @@ per run, as §4.1b's blind method already does, is nearer 10 minutes a run — a
 window sample bounds defective *minutes*, not defective *runs*, so a run it
 passes is not thereby certified clean. Choose the window unit and report the
 quantity actually measured.
+
+##### H10a. The coverage screen — measured 2026-09-21, no listening required
+
+The sampling above assumes human review is the only way to see a miss. For one
+failure mode it is not. `ServiceTranscriptCoverageScreen` reads the **RMS log** —
+a measurement no language model touched — and asks how much the transcript has
+to say about the seconds where the recording carried sound. It needs no second
+decode, no audio, and no operator.
+
+Run read-only over all 286 detector-negative runs (`service:screen-transcript-coverage
+--detector-negative`), **57 seconds, 0 unassessable**:
+
+| | |
+|---|---|
+| Runs with unaccounted-for sound | 25 of 286 |
+| Gaps | 27, totalling 86.1 minutes |
+| **Gaps overlapping a sermon** | **1** — run 1014, first 120 s, 8 words |
+| Gaps outside any sermon | 26 (84.1 min), concentrated at recording starts and ends |
+
+Fourteen gaps begin within a minute of the recording's start and six sit in its
+final fifth: pre-service and closing music, not defects. What remains inside
+published sermon content is a single two-minute stretch.
+
+**What this does and does not bound.** It bounds **under-transcription** —
+dropouts, stub loops, silence filled with nothing — because those leave speech
+energy with no words against it. It does **not** bound dense pathologies: a
+paragraph looped at ordinary speaking rate, or a fluent hallucination replacing
+real speech, both produce normal word density and are invisible here. Those
+remain for the H10b re-decode comparison. The repetition screen and this screen
+are complements, not a check on each other.
+
+Reading required each run's own staging context; reading from the ambient disk
+reports every run unavailable, which looks exactly like a corpus with no gaps.
+The command reports that as unassessable rather than clean.
+
+##### H10b. Re-decode comparison — not yet run
+
+The stored corpus was decoded with whisper-server carrying earlier text forward
+as context. `LocalWhisperDecoding` has sent `max_context=0` since 2026-09-17
+(`283a6cd90` era), and the plan already owes the corpus that re-decode. A re-run
+is therefore **not a repeated run**: it is the same model with the decoder
+setting most implicated in this defect class changed, and the evidence in that
+class's docblock is that seven services lost both faults when it was disabled.
+
+So the miss measurement for dense loops falls out of work already owed. Two
+constraints: write the new decode to a side artifact rather than overwriting
+stored transcripts — re-transcription has already discarded prior recovery on
+this corpus — and decide adoption per run through the tested path, never as a
+side effect of measuring.
+
+Sampling is not needed for either screen. Both run over the whole population for
+compute alone, so recall becomes a count rather than a bound.
 
 One draw serves several detectors. A run drawn from the transcript-negative set
 also carries songs, a sermon, readings and possibly a children's talk, each of
