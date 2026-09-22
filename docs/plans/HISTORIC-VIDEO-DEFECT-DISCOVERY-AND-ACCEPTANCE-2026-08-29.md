@@ -4217,6 +4217,47 @@ an adapter.
     disagreement at that size in singing or mumbled speech is not by itself evidence
     of a decoder-setting effect. Evidence: `h10b-c2-diagnose-20260922.php`,
     `c1-1343-*.json`.
+- **H10b corpus preparation, 2026-09-22.**
+  - **Membership census** (read-only, `h10b-membership-20260922.{php,json}`): of 455
+    historic runs, **338 are decodable** (321.5 hours of audio). 117 are unassessable
+    before decoding: 113 have lost their staged source (the pipeline's own
+    `livestream/temp/…mkv` copy was cleaned after completion; 101 single-source, 12
+    lossless concatenations, including 1003 and 1084), 7 are not completed, 3 have
+    no recorded hash and 1 has no stored transcript. Restoring the 113 is a separate
+    byte-identical restage decision and is not assumed here. Every decodable run has
+    recorded screen blocks (none null).
+  - **Strata**, recorded on every artifact and counted in the report: `original` 97,
+    `recovered` 229 (stored text includes recovery or replay windows) and
+    `already_redecoded` 12 (banked audio, decoded at `max_context=0`).
+  - **Window labels** added test-first: each window carries the type of the section
+    overlapping most of it, and its sustained-sound share from the run's RMS log
+    (null when unreadable, never 0).
+  - **Decision rule, committed before any corpus decode.** It is not revised after
+    seeing results. Any change is a new, dated rule, and the earlier results stay
+    reported under this one.
+    1. *Floor.* A window **differs** when `token_distance` > 0.45, above C2's
+       largest cross-process difference (0.44).
+    2. *Abandon.* If more than 3% of `already_redecoded` windows differ, the floor is
+       wrong. Stop and report; do not reinterpret.
+    3. *Side labels.* A side is **repetitive** when its bigram redundancy is ≥ 0.20,
+       otherwise **clean**. C3's screened windows ran 0.18–0.96 stored and ≤ 0.19 new.
+    4. *Classes.* Each differing window takes one of the four classes in the H10b
+       table from its two side labels. It is counted by stratum, never pooled across
+       strata.
+    5. *Speech only for listening.* Only windows whose section type is not `song`
+       and whose sustained share is < 0.5 enter the listening queue. The rest are
+       counted and not adjudicated: that is where the cross-process residue lives.
+    6. *Listening queue* (the operator's ears; the order below is the priority):
+       (a) every **uncovered repetitive/clean** window (stored screen overlap false):
+       each is a candidate screen miss; (b) up to 30 **clean/clean** windows, random
+       with a recorded seed: the substitution class with no detector; (c) up to 10
+       **clean/repetitive**: candidate regressions in the new decode; (d) 20 random
+       **covered repetitive/clean** windows for precision. `recovered`-stratum
+       windows are listed separately from `original`.
+    7. *Reporting.* Report counts per class and stratum with denominators, the
+       number of listened minutes, and the unassessable 117. No recall figure is
+       stated from counts alone. Adoption of any new decode stays per run, through
+       the tested path.
 
 ##### H9. Ruling: no reserved set; historic evidence is retrospective
 

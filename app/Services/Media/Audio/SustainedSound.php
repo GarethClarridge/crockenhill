@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Media\Audio;
 
+use App\Exceptions\SegmentationException;
+
 /**
  * Where a recording holds sustained sound: loud, and without the pauses speech has.
  *
@@ -102,6 +104,26 @@ final readonly class SustainedSound
         }
 
         return new self($bins, $audioEnd);
+    }
+
+    /**
+     * Sustained sound from a raw RMS log, at the run's own adaptive threshold.
+     */
+    public static function fromRmsLog(string $rmsLogContent, RmsAnalysisService $rmsAnalysisService): ?self
+    {
+        $samples = $rmsAnalysisService->extractRmsData($rmsLogContent);
+
+        if ($samples === []) {
+            return null;
+        }
+
+        try {
+            $threshold = (float) $rmsAnalysisService->determineThreshold($rmsLogContent)['threshold'];
+        } catch (SegmentationException) {
+            $threshold = $rmsAnalysisService->getRmsThreshold();
+        }
+
+        return self::fromSamples($samples, $threshold);
     }
 
     public function binCount(): int

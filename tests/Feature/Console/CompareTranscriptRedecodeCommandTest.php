@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature\Console;
 
 use App\Data\ChurchServiceTranscript;
+use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
 use App\Services\Media\Audio\ServiceTranscriptRedecoder;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
@@ -158,6 +160,58 @@ class CompareTranscriptRedecodeCommandTest extends TestCase
         self::assertSame('the two decodes sent different options', $this->report()['unassessable'][0]['reason']);
     }
 
+    /**
+     * The C2 residue sits in singing and mumbled speech, so the listening rule has to
+     * know what each window holds without anyone sorting windows by hand.
+     */
+    #[Test]
+    public function it_labels_each_window_with_the_section_it_falls_in_and_its_sustained_sound(): void
+    {
+        Config::set('media-processing.segmentation.adaptive_thresholds.enabled', false);
+        Config::set('media-processing.segmentation.rms_threshold', -45.0);
+
+        $stored = $this->transcript(['Good morning.', 'Amen.', 'Hallelujah.'], duration: 90.0);
+        $run = $this->runWithStoredTranscript($stored, ['rms_log_path' => 'service-transcripts/2020-01-05/run.rms.json']);
+        Storage::disk('local')->put('service-transcripts/2020-01-05/run.rms.json', $this->rmsLog(90, singingFrom: 30));
+        ServiceSection::factory()->create(['media_processing_log_id' => $run->id, 'section_type' => ServiceSectionType::Prayer, 'start_time' => 0.0, 'end_time' => 28.0]);
+        ServiceSection::factory()->create(['media_processing_log_id' => $run->id, 'section_type' => ServiceSectionType::Song, 'start_time' => 28.0, 'end_time' => 60.0]);
+        $this->writeArtifact($this->inputDir, $run, $stored, $stored, []);
+
+        $this->compare()->assertSuccessful();
+
+        $windows = $this->report()['runs'][0]['windows'];
+        self::assertSame(['prayer', 'song', null], array_column($windows, 'section_type'));
+        self::assertLessThan(0.5, $windows[0]['sustained_share']);
+        self::assertGreaterThan(0.5, $windows[2]['sustained_share']);
+    }
+
+    #[Test]
+    public function it_leaves_sustained_sound_unknown_when_the_run_has_no_rms_log(): void
+    {
+        $stored = $this->transcript(['Good morning.', 'Amen.']);
+        $run = $this->runWithStoredTranscript($stored);
+        $this->writeArtifact($this->inputDir, $run, $stored, $stored, []);
+
+        $this->compare()->assertSuccessful();
+
+        $window = $this->report()['runs'][0]['windows'][0];
+        self::assertNull($window['sustained_share']);
+        self::assertNull($window['section_type']);
+    }
+
+    #[Test]
+    public function it_carries_each_runs_stratum_and_counts_them(): void
+    {
+        $stored = $this->transcript(['Good morning.', 'Amen.']);
+        $run = $this->runWithStoredTranscript($stored);
+        $this->writeArtifact($this->inputDir, $run, $stored, $stored, [], stratum: 'recovered');
+
+        $this->compare()->assertSuccessful();
+
+        self::assertSame('recovered', $this->report()['runs'][0]['stratum']);
+        self::assertSame(['recovered' => 1], $this->report()['strata']);
+    }
+
     #[Test]
     public function it_refuses_to_overwrite_an_existing_report(): void
     {
@@ -202,13 +256,31 @@ class CompareTranscriptRedecodeCommandTest extends TestCase
         return ChurchServiceTranscript::fromCues($cues, $duration, ChurchServiceTranscript::SOURCE_LOCAL_WHISPER);
     }
 
-    private function runWithStoredTranscript(ChurchServiceTranscript $stored): MediaProcessingLog
+    /** @param array<string, mixed> $attributes */
+    private function runWithStoredTranscript(ChurchServiceTranscript $stored, array $attributes = []): MediaProcessingLog
     {
         Storage::disk('local')->put(self::StoredTranscript, json_encode($stored->toArray(), JSON_THROW_ON_ERROR));
 
         return MediaProcessingLog::factory()->livestream()->create([
             'processing_metadata' => ['service_transcript_path' => self::StoredTranscript],
+            'rms_log_path' => null,
+            ...$attributes,
         ]);
+    }
+
+    /** An astats log sampled every 0.1 s: paused speech, then unbroken singing. */
+    private function rmsLog(int $seconds, int $singingFrom): string
+    {
+        $lines = [];
+
+        for ($tenth = 0; $tenth < $seconds * 10; $tenth++) {
+            $time = $tenth / 10;
+            $level = $time >= $singingFrom ? -18.0 : (fmod($time, 3.0) < 2.5 ? -25.0 : -60.0);
+            $lines[] = sprintf('frame:%d pts:%d pts_time:%.1f', $tenth, $tenth * 800, $time);
+            $lines[] = sprintf('lavfi.astats.Overall.RMS_level=%.1f', $level);
+        }
+
+        return implode("\n", $lines)."\n";
     }
 
     /**
@@ -222,6 +294,7 @@ class CompareTranscriptRedecodeCommandTest extends TestCase
         ChurchServiceTranscript $storedAtDecode,
         ?array $storedBlocks,
         array $requestOverrides = [],
+        string $stratum = 'original',
     ): void {
         file_put_contents("{$dir}/run-{$run->id}.json", json_encode([
             'schema' => ServiceTranscriptRedecoder::SCHEMA,
@@ -232,6 +305,7 @@ class CompareTranscriptRedecodeCommandTest extends TestCase
                 'sha256' => ServiceTranscriptRedecoder::transcriptHash($storedAtDecode),
                 'duration' => $storedAtDecode->duration,
                 'suspect_blocks' => $storedBlocks,
+                'stratum' => $stratum,
             ],
             'compressed_audio' => ['sha256' => str_repeat('b', 64), 'bytes' => 16],
             'decode' => ['request' => ['max_context' => '0', ...$requestOverrides]],

@@ -135,6 +135,7 @@ final class ServiceTranscriptRedecoder
                     'sha256' => self::transcriptHash($stored),
                     'duration' => $stored->duration,
                     'suspect_blocks' => $run->recordedTranscriptSuspectBlocks(),
+                    'stratum' => self::stratum($run),
                 ],
                 'compressed_audio' => ['sha256' => $compressedHash, 'bytes' => $compressedBytes],
                 'decode' => [
@@ -155,6 +156,28 @@ final class ServiceTranscriptRedecoder
     public static function transcriptHash(ChurchServiceTranscript $transcript): string
     {
         return CanonicalJson::hash($transcript->toArray());
+    }
+
+    /**
+     * What the stored side already is, so its disagreements are read in their own group:
+     * `already_redecoded` was decoded at `max_context=0` after audio banking began, so it
+     * measures noise only; `recovered` carries windows re-decoded separately by transcript
+     * recovery, which look like decoder differences and are not (1358); `original` is the
+     * bulk decode the comparison is about.
+     *
+     * @return 'already_redecoded'|'recovered'|'original'
+     */
+    public static function stratum(MediaProcessingLog $run): string
+    {
+        if (collect(ServiceArtifactStorage::recordedFor($run))->contains('kind', 'audio')) {
+            return 'already_redecoded';
+        }
+
+        if (str_contains((string) $run->serviceTranscriptPath(), 'recovered') || $run->transcriptRecoveryReplay() !== null) {
+            return 'recovered';
+        }
+
+        return 'original';
     }
 
     /** @return array<string, string> */

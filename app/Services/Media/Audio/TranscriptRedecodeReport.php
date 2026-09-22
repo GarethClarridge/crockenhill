@@ -7,8 +7,11 @@ namespace App\Services\Media\Audio;
 use App\Data\ChurchServiceTranscript;
 use App\Data\SuspectTranscriptBlock;
 use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
+use App\Support\ServiceArtifactDisk;
 use App\Support\TranscriptPromptEchoDetector;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 /**
@@ -39,6 +42,7 @@ final class TranscriptRedecodeReport
         private readonly TranscriptPromptEchoDetector $promptEchoDetector,
         private readonly ServiceTranscriptReader $transcriptReader,
         private readonly HistoricStagingContextRegistry $stagingContexts,
+        private readonly RmsAnalysisService $rmsAnalysisService,
     ) {}
 
     /**
@@ -84,7 +88,10 @@ final class TranscriptRedecodeReport
                 continue;
             }
 
-            $runs[] = $this->score($runId, ...$result);
+            $runs[] = [
+                ...$this->score($runId, ...$result),
+                'stratum' => $artifact['stored_transcript']['stratum'] ?? null,
+            ];
         }
 
         return [
@@ -93,6 +100,7 @@ final class TranscriptRedecodeReport
             'inputs' => $inputs,
             'code' => $this->codeHashes(),
             'runs' => $runs,
+            'strata' => array_count_values(array_map(static fn (array $run): string => (string) $run['stratum'], $runs)),
             'unassessable' => $unassessable,
         ];
     }
@@ -168,9 +176,16 @@ final class TranscriptRedecodeReport
     private function score(int $runId, ChurchServiceTranscript $left, ChurchServiceTranscript $new, ?array $leftBlocks, array $binding): array
     {
         $newBlocks = $this->repetitionScreen->screen($new);
+        $run = MediaProcessingLog::find($runId);
+        $sections = $run instanceof MediaProcessingLog
+            ? ServiceSection::query()->where('media_processing_log_id', $runId)->get(['section_type', 'start_time', 'end_time'])->values()->all()
+            : [];
+        $sound = $run instanceof MediaProcessingLog ? $this->sustainedSound($run) : null;
         $windows = array_map(
-            static fn (array $window): array => $window + [
+            fn (array $window): array => $window + [
                 'new_screen_overlap' => array_any($newBlocks, static fn (SuspectTranscriptBlock $block): bool => $block->overlaps($window['start'], $window['end'])),
+                'section_type' => $this->sectionTypeFor($sections, $window['start'], $window['end']),
+                'sustained_share' => $sound?->share($window['start'], $window['end']),
             ],
             $this->comparison->compare($left, $new, $leftBlocks),
         );
@@ -189,6 +204,50 @@ final class TranscriptRedecodeReport
                 'new_blocks' => count($newBlocks),
             ],
         ];
+    }
+
+    /**
+     * The type of the section overlapping most of the window, or null where none does.
+     *
+     * @param  array<int, ServiceSection>  $sections
+     */
+    private function sectionTypeFor(array $sections, float $start, float $end): ?string
+    {
+        $best = null;
+        $bestOverlap = 0.0;
+
+        foreach ($sections as $section) {
+            $overlap = min($end, $section->end_time) - max($start, $section->start_time);
+
+            if ($overlap > $bestOverlap) {
+                $best = $section->section_type->value;
+                $bestOverlap = $overlap;
+            }
+        }
+
+        return $best;
+    }
+
+    /**
+     * Null when the run has no readable RMS log: unknown, not silent.
+     */
+    private function sustainedSound(MediaProcessingLog $run): ?SustainedSound
+    {
+        $path = $run->rms_log_path;
+
+        if (! is_string($path) || $path === '') {
+            return null;
+        }
+
+        $read = static function () use ($path): ?string {
+            $disk = Storage::disk(ServiceArtifactDisk::for($path));
+
+            return $disk->exists($path) ? (string) $disk->get($path) : null;
+        };
+        $context = $run->historicStagingContext();
+        $content = $context === null ? $read() : $this->stagingContexts->within($context, $read);
+
+        return is_string($content) ? SustainedSound::fromRmsLog($content, $this->rmsAnalysisService) : null;
     }
 
     /**

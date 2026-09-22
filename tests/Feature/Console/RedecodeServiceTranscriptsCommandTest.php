@@ -102,9 +102,25 @@ class RedecodeServiceTranscriptsCommandTest extends TestCase
             $artifact['stored_transcript']['sha256'],
         );
         self::assertSame([], $artifact['stored_transcript']['suspect_blocks']);
+        self::assertSame('original', $artifact['stored_transcript']['stratum']);
         self::assertSame('0', $artifact['decode']['request']['max_context']);
         self::assertArrayHasKey('app/Services/Media/Audio/LocalWhisperDecoding.php', $artifact['decode']['code']);
         self::assertSame('Good morning.', $artifact['new_transcript']['cues'][0]['text']);
+    }
+
+    #[Test]
+    public function it_records_a_recovered_stored_transcript_as_its_own_stratum(): void
+    {
+        $run = $this->completedRun();
+        $metadata = $run->processing_metadata?->toArray() ?? [];
+        $metadata['service_transcript_path'] = 'service-transcripts/2020-01-05/morning-stored.normalized-repetition-recovered.json';
+        $run->update(['processing_metadata' => $metadata]);
+        Storage::disk('local')->put($metadata['service_transcript_path'], (string) Storage::disk('local')->get(self::StoredTranscript));
+
+        $this->redecode([$run->id])->assertSuccessful();
+
+        $artifact = json_decode((string) file_get_contents($this->artifactPath($run)), true);
+        self::assertSame('recovered', $artifact['stored_transcript']['stratum']);
     }
 
     #[Test]

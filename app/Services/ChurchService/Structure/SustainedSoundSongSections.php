@@ -7,7 +7,6 @@ namespace App\Services\ChurchService\Structure;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
-use App\Exceptions\SegmentationException;
 use App\Services\Media\Audio\RmsAnalysisService;
 use App\Services\Media\Audio\SustainedSound;
 
@@ -381,18 +380,6 @@ class SustainedSoundSongSections
 
     private function sustainedSound(string $rmsLogContent): ?SustainedSound
     {
-        $samples = $this->rmsAnalysisService->extractRmsData($rmsLogContent);
-
-        if ($samples === []) {
-            return null;
-        }
-
-        try {
-            $threshold = (float) $this->rmsAnalysisService->determineThreshold($rmsLogContent)['threshold'];
-        } catch (SegmentationException) {
-            $threshold = $this->rmsAnalysisService->getRmsThreshold();
-        }
-
-        return SustainedSound::fromSamples($samples, $threshold);
+        return SustainedSound::fromRmsLog($rmsLogContent, $this->rmsAnalysisService);
     }
 }
