@@ -25,7 +25,7 @@ class AssessSermonVideoQuality extends ProcessingJob implements ShouldBeUnique, 
 
     public int $tries = 1;
 
-    public int $timeout = 300;
+    public int $timeout = 1200;
 
     /**
      * The number of seconds the unique lock should be maintained.
@@ -35,7 +35,10 @@ class AssessSermonVideoQuality extends ProcessingJob implements ShouldBeUnique, 
     public function __construct(
         private ?MediaProcessingLog $processingLog = null,
         private ?int $sermonId = null,
-    ) {}
+    ) {
+        $this->timeout = max(1, (int) config('media-processing.video_quality.probe.timeout_seconds', 900)) + 300;
+        $this->uniqueFor = max($this->uniqueFor, $this->timeout + 120);
+    }
 
     public function handle(
         SermonVideoQualityAssessmentService $assessmentService,

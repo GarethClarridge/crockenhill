@@ -134,7 +134,7 @@ class FreezeDetectorCaseBook
             'case_id' => $case->caseId,
             'detector_id' => $case->detectorId,
             'reference' => $case->reference,
-            'subject' => ['run' => $case->run, 'section' => $case->section, 'sermon' => $case->sermon],
+            'subject' => ['run' => $case->run, 'section' => $case->section, 'sermon' => $case->sermon, 'span' => $case->span],
             'service_group_key' => $run->church_service_id !== null
                 ? "church_service:{$run->church_service_id}"
                 : "run:{$run->id}",

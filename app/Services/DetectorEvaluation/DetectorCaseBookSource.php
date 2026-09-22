@@ -7,6 +7,7 @@ namespace App\Services\DetectorEvaluation;
 use App\Data\DetectorCase;
 use App\Enums\DetectorCaseBasis;
 use App\Enums\DetectorCaseTruth;
+use App\Enums\DetectorSurface;
 use App\Support\CanonicalJson;
 use App\Support\DetectorCatalogue;
 use InvalidArgumentException;
@@ -169,7 +170,29 @@ class DetectorCaseBookSource
             evidence: self::requiredString($row, 'evidence', "Case [{$caseId}]"),
             informedFix: ($row['informed_fix'] ?? null) === true,
             note: is_string($row['note'] ?? null) ? $row['note'] : null,
+            span: self::span($subject['span'] ?? null, $detectorId, $caseId),
         );
+    }
+
+    /** @return array{start: float, end: float}|null */
+    private static function span(mixed $span, string $detectorId, string $caseId): ?array
+    {
+        if ($span === null) {
+            return null;
+        }
+
+        if (! is_array($span)
+            || ! is_numeric($span['start'] ?? null)
+            || ! is_numeric($span['end'] ?? null)
+            || ! is_finite((float) $span['start'])
+            || ! is_finite((float) $span['end'])
+            || (float) $span['start'] < 0
+            || (float) $span['end'] <= (float) $span['start']
+            || DetectorCatalogue::find($detectorId)?->surface !== DetectorSurface::SuspectTranscriptBlock) {
+            throw new InvalidArgumentException("Case [{$caseId}] has an invalid source-timeline span or a surface without timed signals.");
+        }
+
+        return ['start' => (float) $span['start'], 'end' => (float) $span['end']];
     }
 
     /**

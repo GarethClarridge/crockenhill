@@ -712,9 +712,10 @@
                 "section": 3750,
                 "sermon": null
             },
-            "truth": "defective",
+            "truth": "clean",
             "basis": "derived_comparison",
-            "evidence": "storage/scratch/songloop-20260914-census.php (catalogue-lyrics comparison, not independent listening)",
+            "evidence": "storage/scratch/songloop-20260916-adjudication.json (section 3750: legitimate_repetition; every repeated phrase occurs in the bound song's lyrics; not independent listening)",
+            "note": "Held by operator ruling despite the legitimate-repetition comparison; the hold is not evidence of a detected loop defect. This derived clean label is not source-adjudicated truth.",
             "informed_fix": true
         },
         {

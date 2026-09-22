@@ -1,0 +1,71 @@
+{
+    "run": 1078,
+    "truth": "clean",
+    "basis": "source_redecode",
+    "adjudicated": false,
+    "note": "Provisional rhetoric control from an independent ASR decode, not human listening or adjudicated ground truth.",
+    "source": "storage/scratch/short-loop-review-20260920/run-1078-w1.json",
+    "source_sha256": "3a9fc7cecef8b5212cfa9d3d853183d8d2442473d96c08fb60ba19b8550eec19",
+    "audio_sha256": "37824a3740507ca50df49854a1bd83cad509fa9e3e36f4b64a17417d2c27de2f",
+    "source_timeline_offset": null,
+    "timing_basis": "Seconds relative to the extracted audio window; source-timeline offset not recorded in this decoder artifact.",
+    "decoder": "local large-v3-turbo, max_context=0, carry_initial_prompt=true; local CPU Whisper small fallback for runs 1107 and 1309",
+    "duration": 40.0,
+    "cues": [
+        {
+            "start": 0.0,
+            "end": 5.84,
+            "text": " this verse as well as I do. Romans 8 verse 28, in all"
+        },
+        {
+            "start": 5.84,
+            "end": 10.72,
+            "text": " things, in all things, not just"
+        },
+        {
+            "start": 10.72,
+            "end": 17.38,
+            "text": " in some things, not just in good things, but in all things,"
+        },
+        {
+            "start": 17.38,
+            "end": 19.740000000000002,
+            "text": " in the good and in the bad,"
+        },
+        {
+            "start": 19.740000000000002,
+            "end": 24.92,
+            "text": " in all things God works for the good of those who love him"
+        },
+        {
+            "start": 24.92,
+            "end": 28.2,
+            "text": " and have been called according"
+        },
+        {
+            "start": 28.2,
+            "end": 29.44,
+            "text": " to his"
+        },
+        {
+            "start": 29.44,
+            "end": 31.080000000000002,
+            "text": " purpose."
+        },
+        {
+            "start": 33.6,
+            "end": 36.42,
+            "text": " I was surprised by some of the things I read in this book"
+        },
+        {
+            "start": 36.42,
+            "end": 38.44,
+            "text": " but challenged and helped"
+        },
+        {
+            "start": 38.44,
+            "end": 40.0,
+            "text": " and"
+        }
+    ]
+}

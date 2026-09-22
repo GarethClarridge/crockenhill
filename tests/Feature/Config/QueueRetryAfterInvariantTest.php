@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Config;
 
+use App\Jobs\AssessSermonVideoQuality;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -18,6 +19,23 @@ use Tests\TestCase;
  */
 class QueueRetryAfterInvariantTest extends TestCase
 {
+    #[Test]
+    public function video_quality_job_allows_the_whole_file_probe_to_finish_before_its_queue_deadline(): void
+    {
+        foreach ([900, 1800] as $probeTimeout) {
+            config(['media-processing.video_quality.probe.timeout_seconds' => $probeTimeout]);
+
+            $job = new AssessSermonVideoQuality(sermonId: 1);
+
+            $this->assertGreaterThanOrEqual($probeTimeout + 300, $job->timeout);
+            $this->assertGreaterThan($job->timeout, $job->uniqueFor);
+
+            foreach (['redis', 'database', 'beanstalkd'] as $connection) {
+                $this->assertGreaterThan($job->timeout, (int) config("queue.connections.{$connection}.retry_after"));
+            }
+        }
+    }
+
     #[Test]
     public function redis_retry_after_exceeds_every_production_horizon_supervisor_timeout(): void
     {

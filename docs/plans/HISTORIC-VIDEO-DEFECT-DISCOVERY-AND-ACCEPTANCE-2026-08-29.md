@@ -3939,7 +3939,7 @@ With no false positive it needs 52 adjudicated clean groups to pass.
 | `structure-macro-section` | 1340 | run-level | The 19 s opening loss was found by the canary, not the flag. Repaired 09-18 by re-extraction; the detector itself never fired. |
 | `structure-unidentified-singing` | 944 | run-level | Concatenated recording; §666 was heard sung. Consistent with H7b: the detector was never applied to 944. |
 | `structure-song-widened-to-sustained-sound` | 1109 §1909, 1287 §3597, 1341 §4310 | Yes | Held by other flags or operator holds. None was among the 20 sections the 09-21 recompute flagged — **a current-code miss worth diagnosing**, since the recompute ran current code over these runs. |
-| `song-looped-transcript` | 1154 §3750 | Yes (operator) | No `song_looped_transcript` risk is stored now, although the census named the section; the loop-gap discount may have removed it. |
+| `song-looped-transcript` | 1154 §3750 | Yes (operator) | **Case-book label corrected 2026-09-22.** The 09-16 comparison explicitly records `legitimate_repetition`: every repeated phrase occurs in the bound song's lyrics. Version 5 deliberately clears this case; the loop-gap discount did not remove a defect risk. The operator held it despite that result. The case is now `clean` with `derived_comparison` basis, still **not source-adjudicated truth** and not admissible as an adjudicated false-positive control. The original evaluation above remains the historical result of the incorrectly labelled book; regenerate the frozen book and evaluate it to score the correction. No hold is released. |
 | `song-adjacent-same-song` | 1337 §4275 | Yes (operator) | The adjacent flag does not fire. The plan already lists the hint/binding contradiction rule as unbuilt. |
 
 **Operator ruling 2026-09-22 — dead picture is decided automatically, whole
@@ -4046,10 +4046,11 @@ full programme; this is an ordering choice, not a reduced harness specification.
   windows so S1 has adjudicated truth, and promote other provisional cases the
   same way.
 - [x] `detectors:evaluate` (2026-09-22), using H4's thresholds, H6 version
-  bindings and explicit unassessable reporting; first result in H7d. Still open
-  inside it: H5 breakdown tables (the dimensions are frozen per case but not yet
-  tabulated), span-level matching for transcript-minute detectors, and recall and
-  review burden, which wait for H10's sample.
+  bindings and explicit unassessable reporting; first result in H7d. Source-window
+  matching and breakdowns of the stored H5 dimensions were added on 2026-09-22
+  (follow-up below). Still open: measured era/channel dimensions, service-content
+  strata beyond occasion, locating authored source windows, and recall and review
+  burden, which wait for H10's sample.
 - [ ] Write the source-confirmed regression cases into the existing fixtures;
   distinguish test doubles from evaluations of real model outputs.
 - [ ] Complete each remaining detector class's tested response or explicit
@@ -4083,6 +4084,50 @@ harness reported **full coverage of a set that silently excluded the thing**,
 which is worse than no guard at all, because a passing check reads as evidence.
 The guards now enumerate rather than list, and a test asserts every surface has
 an adapter.
+
+##### H8 follow-up — unattended evaluation work, 2026-09-22
+
+- The authored case book now accepts an optional `subject.span` in source-timeline
+  seconds for transcript screens. The freezer hash-binds it; evaluation matches
+  only overlapping signals, with touching endpoints excluded. Invalid spans and
+  untimed surfaces are refused. Existing cases without source offsets retain their
+  explicitly reported broader scope; no offsets or source adjudications were invented.
+- Evaluation now tabulates regression and service-group-clustered false positives
+  by stored era, codec/channel, service occasion and corroboration crossed with
+  independent OoS. Unknown dimensions remain visible. These targeted case-book
+  results are not prevalence estimates. The report binds the evaluator file hash
+  as well as the existing evidence versions.
+- Three checked-in real-decoder rhetoric windows (1051/1078/1079) preserve exact
+  cue text/timings and JSON/audio hashes. The repetition screen leaves them clear.
+  They remain provisional `source_redecode` evidence, not human-adjudicated truth;
+  original source-timeline offsets were not available in the inspected artifacts.
+- The §3750 song-loop case was incorrectly labelled defective despite the
+  16 September lyric comparison recording legitimate repetition. Corrected to
+  provisional clean; its operator hold is unchanged. A fresh freeze/evaluation
+  (`storage/scratch/detector-{case-book,evaluation}-20260922-followup.json`)
+  reports **38 detectors, 5 fail, 33 not established, 0 accepted**. Six regression
+  columns pass; recall remains unmeasured. The earlier video ruling accounts for
+  the other failure removed since H7d's first report.
+- Failure diagnosis does not justify changing thresholds to force a pass:
+  1109's 63-second widening is below the intentional >90-second review threshold;
+  1287's original register corrects the issue to song identity displacement;
+  1341 starts with a spoken introduction before the singing and needs a bounded
+  speech-to-song transition treatment. 1337's duplicated OoS identity is not
+  equivalent to temporally adjacent sections. These remain open response/evidence
+  tasks; no source repair or hold removal was performed.
+- Refreshed H10a read-only coverage after the corpus screen refresh:
+  **168 detector-negative runs, 0 unassessable, 5 gaps / 15.0 minutes**
+  (`storage/scratch/detector-negative-coverage-20260922-followup.json`). Gaps are
+  965:420–540, 1004:60–360, 1241:4320–4440, 1316:2460–2640.96 and
+  1382:0–180 seconds. Read-only checks of the recorded extraction plans show
+  none overlaps a delivered sermon span. This does not establish semantic
+  correctness or complete recall; the non-sermon gaps remain unadjudicated.
+- H10b's pure `TranscriptRedecodeComparison` scoring service is built and tested:
+  fixed 30-second windows, normalised token distance, independent per-side bigram
+  redundancy and a separate stored-screen overlap. It makes no defect/recall claim.
+  Whole cues crossing a window boundary can introduce alignment noise. Artifact
+  binding, operational commands, same-options controls and the expensive re-decode
+  remain open; no new corpus decoding was dispatched by this work.
 
 ##### H9. Ruling: no reserved set; historic evidence is retrospective
 

@@ -196,6 +196,10 @@ class ServiceTranscriptRepetitionScreen
                     continue;
                 }
 
+                if ($this->hasShorterPeriod($words, $index, $length)) {
+                    continue;
+                }
+
                 if ($run === null || $next > $run['end']) {
                     $run = ['end' => $next, 'length' => $length, 'repeats' => $repeats];
                 }
@@ -234,6 +238,27 @@ class ServiceTranscriptRepetitionScreen
         }
 
         return true;
+    }
+
+    /**
+     * Composite phrases must use the thresholds of their smallest repeating
+     * unit: "the lord the lord" cannot bypass the two-word repeat floor.
+     *
+     * @param  list<array{word: string, start: float, end: float}>  $words
+     */
+    private function hasShorterPeriod(array $words, int $start, int $length): bool
+    {
+        for ($period = 1; $period <= intdiv($length, 2); $period++) {
+            if ($length % $period !== 0) {
+                continue;
+            }
+
+            if ($this->phrasesMatch($words, $start, $start + $period, $length - $period)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

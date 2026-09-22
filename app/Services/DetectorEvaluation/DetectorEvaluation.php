@@ -120,6 +120,8 @@ class DetectorEvaluation
             'service_group_key' => $case['service_group_key'],
             'truth' => $case['truth']['value'],
             'adjudicated' => $case['truth']['adjudicated'],
+            'subject' => $case['subject'],
+            'dimensions' => $case['dimensions'],
             'subject_held' => $this->subjectHeld($case['subject'], $run),
         ];
 
@@ -195,7 +197,11 @@ class DetectorEvaluation
             DetectorSurface::SectionReviewFlag => $section !== null
                 ? $this->sectionFlags->forSection($run, $section)
                 : $this->sectionFlags->for($run),
-            DetectorSurface::SuspectTranscriptBlock => $this->transcriptBlocks->for($run),
+            DetectorSurface::SuspectTranscriptBlock => match (true) {
+                $subject['section'] !== null => $section !== null ? $this->transcriptBlocks->forSection($run, $section) : null,
+                $subject['sermon'] !== null => $this->transcriptBlocks->forSermon($run, $subject['sermon']),
+                default => $this->transcriptBlocks->for($run),
+            },
             DetectorSurface::VideoQualityVerdict => $this->videoVerdicts->for($run),
             DetectorSurface::SongPublicationReview => $section !== null
                 ? $this->songReview->forSection($run, $section)
@@ -208,14 +214,20 @@ class DetectorEvaluation
     }
 
     /**
-     * A signal scoped to a section or sermon must name the case's own; a
-     * run-level signal (a transcript block) matches any subject on its run,
-     * and the match level says so.
+     * Match source-timeline windows before subject identity. Legacy cases
+     * without a window retain their explicitly reported section/run scope.
      *
-     * @param  array{run: int, section: int|null, sermon: int|null}  $subject
+     * @param  array{run: int, section: int|null, sermon: int|null, span?: array{start: float, end: float}|null}  $subject
      */
     private function matchesSubject(DetectorSignal $signal, array $subject): bool
     {
+        $span = $subject['span'] ?? null;
+
+        if ($span !== null && ($signal->start === null || $signal->end === null
+            || $signal->start >= $span['end'] || $signal->end <= $span['start'])) {
+            return false;
+        }
+
         if ($subject['section'] !== null && $signal->sectionId !== null) {
             return $signal->sectionId === $subject['section'];
         }
@@ -229,7 +241,7 @@ class DetectorEvaluation
 
     /**
      * @param  list<DetectorSignal>  $matching
-     * @param  array{run: int, section: int|null, sermon: int|null}  $subject
+     * @param  array{run: int, section: int|null, sermon: int|null, span?: array{start: float, end: float}|null}  $subject
      */
     private function matchLevel(array $matching, array $subject): ?string
     {
@@ -238,6 +250,7 @@ class DetectorEvaluation
         }
 
         return match (true) {
+            ($subject['span'] ?? null) !== null => 'span',
             $subject['section'] !== null && $matching[0]->sectionId !== null => 'section',
             $subject['sermon'] !== null && $matching[0]->sermonId !== null => 'sermon',
             default => 'run',
@@ -261,6 +274,7 @@ class DetectorEvaluation
             'unit' => $entry?->unit->value,
             'regression' => $regression,
             'false_positive' => $falsePositive,
+            'breakdowns' => $this->breakdowns($cases, $ceiling, $thresholds->falsePositiveBoundZ()),
             'recall' => ['verdict' => 'not_measured', 'reason' => 'H10 detector-negative sample not drawn'],
             'review_burden' => ['verdict' => 'not_measured', 'reason' => 'needs an incumbent comparison on the H10 sample'],
             'acceptance' => match (true) {
@@ -289,6 +303,49 @@ class DetectorEvaluation
                 default => 'pass',
             },
         ];
+    }
+
+    /**
+     * H5: retain unknown dimensions and the same service-group denominator in
+     * each stratum. These are case-book results, not corpus prevalence estimates.
+     *
+     * @param list<array<string, mixed>> $cases
+     * @return array<string, array<string, array<string, mixed>>>
+     */
+    private function breakdowns(array $cases, ?float $ceiling, float $z): array
+    {
+        $groups = [];
+
+        foreach ($cases as $case) {
+            $dimensions = $case['dimensions'];
+            $keys = [
+                'era' => $dimensions['era'] ?? 'unknown',
+                'codec_and_channel' => ($dimensions['codec_fingerprint'] ?? 'unknown').'/'.($dimensions['channel_layout'] ?? 'unknown'),
+                'service_occasion' => $dimensions['service_occasion'] ?? 'unknown',
+                'independent_evidence' => ($dimensions['corroboration_grade'] ?? 'unknown').'/'.(($dimensions['independent_order_of_service'] ?? false) ? 'has_oos' : 'no_oos'),
+            ];
+
+            foreach ($keys as $dimension => $key) {
+                $groups[$dimension][$key][] = $case;
+            }
+        }
+
+        $breakdowns = [];
+
+        foreach ($groups as $dimension => $strata) {
+            ksort($strata);
+
+            foreach ($strata as $key => $members) {
+                $breakdowns[$dimension][$key] = [
+                    'cases' => count($members),
+                    'service_groups' => count(array_unique(array_column($members, 'service_group_key'))),
+                    'regression' => $this->regression($members),
+                    'false_positive' => $this->falsePositive($members, $ceiling, $z),
+                ];
+            }
+        }
+
+        return $breakdowns;
     }
 
     /**
@@ -372,6 +429,7 @@ class DetectorEvaluation
 
         return [
             'evidence' => 'recorded_output',
+            'evaluator_sha256' => hash_file('sha256', __FILE__),
             'evidence_caveat' => 'Stored decisions read through the adapters; they need not reflect current code.',
             'git_commit' => $this->gitCommit(),
             'catalogue_version' => DetectorCatalogue::Version,

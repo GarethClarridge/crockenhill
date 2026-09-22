@@ -7,7 +7,9 @@ namespace App\Services\DetectorEvaluation;
 use App\Data\DetectorSignal;
 use App\Data\SuspectTranscriptBlock;
 use App\Enums\DetectorSurface;
+use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
 
 /**
  * Reads what the transcript screens recorded on a run.
@@ -43,6 +45,37 @@ class SuspectTranscriptBlockSignals
      */
     public function for(MediaProcessingLog $run): ?array
     {
+        return $this->signals($run, array_values($run->serviceSections()
+            ->whereIn('section_type', [ServiceSectionType::Sermon, ServiceSectionType::ChildrensTalk])
+            ->get()->all()));
+    }
+
+    /** @return list<DetectorSignal>|null */
+    public function forSection(MediaProcessingLog $run, ServiceSection $section): ?array
+    {
+        return $this->signals($run, [$section], scoped: true);
+    }
+
+    /** @return list<DetectorSignal>|null */
+    public function forSermon(MediaProcessingLog $run, int $sermonId): ?array
+    {
+        $sections = $run->serviceSections()->get()->filter(
+            static fn (ServiceSection $section): bool => $section->published_sermon_id === $sermonId
+                || ($run->sermon_id === $sermonId && $section->section_type === ServiceSectionType::Sermon),
+        )->all();
+
+        return $sections === [] ? null : $this->signals($run, array_values($sections), scoped: true);
+    }
+
+    /**
+     * A run-level block is held only when every affected spoken section is
+     * held. Scoped cases use only their own delivered spans and hold state.
+     *
+     * @param  list<ServiceSection>  $sections
+     * @return list<DetectorSignal>|null
+     */
+    private function signals(MediaProcessingLog $run, array $sections, bool $scoped = false): ?array
+    {
         $blocks = $run->recordedTranscriptSuspectBlocks();
 
         if ($blocks === null) {
@@ -53,18 +86,39 @@ class SuspectTranscriptBlockSignals
 
         foreach ($blocks as $block) {
             $suspect = SuspectTranscriptBlock::fromArray($block);
+            $affected = array_values(array_filter($sections, fn (ServiceSection $section): bool => $this->overlaps($run, $section, $suspect)));
+
+            if ($scoped && $affected === []) {
+                continue;
+            }
 
             $signals[] = DetectorSignal::forStoredSignal(
                 surface: DetectorSurface::SuspectTranscriptBlock,
                 signal: $suspect->reason,
                 runId: (int) $run->id,
+                sectionId: $scoped && count($affected) === 1 ? (int) $affected[0]->id : null,
+                sermonId: $scoped && count($affected) === 1 ? $affected[0]->published_sermon_id : null,
                 start: $suspect->start,
                 end: $suspect->end,
-                held: true,
+                held: $affected !== [] && array_filter($affected, static fn (ServiceSection $section): bool => ! $section->needs_manual_review) === [],
             );
         }
 
         return $signals;
+    }
+
+    private function overlaps(MediaProcessingLog $run, ServiceSection $section, SuspectTranscriptBlock $block): bool
+    {
+        $spans = $section->section_type === ServiceSectionType::Sermon ? $run->recordedSermonExtractionSpans() : null;
+        $spans ??= [['start' => (float) $section->start_time, 'end' => (float) $section->end_time]];
+
+        foreach ($spans as $span) {
+            if ($block->overlaps($span['start'], $span['end'])) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

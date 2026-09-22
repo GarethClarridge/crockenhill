@@ -194,7 +194,8 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
     /**
      * A section needs song matching when it has no match at all, or when OoS alignment
      * could only infer a positional label and the unmatched review flag is still present
-     * (i.e. there is no catalog-backed evidence for the song yet).
+     * (i.e. there is no catalog-backed evidence for the song yet). A title inferred
+     * from suspect transcript text also remains eligible for independent OCR.
      */
     private function needsSongMatching(ServiceSection $section): bool
     {
@@ -208,12 +209,15 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
 
         $reviewFlags = $section->metadata['review_flags'] ?? [];
 
-        return is_array($reviewFlags) && in_array('unmatched_song_section', $reviewFlags, true);
+        return is_array($reviewFlags) && (
+            in_array('unmatched_song_section', $reviewFlags, true)
+            || in_array(SongCatalogueTitlePolicy::FLAG_IDENTITY_UNVERIFIED_FROM_SUSPECT_TRANSCRIPT, $reviewFlags, true)
+        );
     }
 
     /**
      * Try to match a section using the song title detected from the full-service transcript.
-     * Returns true if a match was found and persisted.
+     * Returns true if the persisted match needs no further corroboration.
      */
     private function matchSectionFromTitleHint(
         ServiceSection $section,
@@ -228,7 +232,7 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
         if ($result['song_id'] !== null) {
             $this->applyMatch($section, $result['song_id'], (string) $result['matched_title'], $result['confidence'], (string) $result['match_source']);
 
-            return true;
+            return ! $this->needsSongMatching($section);
         }
 
         return false;

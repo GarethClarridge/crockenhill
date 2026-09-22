@@ -1,0 +1,76 @@
+{
+    "run": 1051,
+    "truth": "clean",
+    "basis": "source_redecode",
+    "adjudicated": false,
+    "note": "Provisional rhetoric control from an independent ASR decode, not human listening or adjudicated ground truth.",
+    "source": "storage/scratch/short-loop-review-20260920/run-1051-w1.json",
+    "source_sha256": "4eba7bb7403a4960d24e876b4d54672d8904ed79c548820d7c10ca260ab6e767",
+    "audio_sha256": "3769d68f399f26dad30c3cd2ec6787ef0d30c244d69b0007f32cb704d54d5e5a",
+    "source_timeline_offset": null,
+    "timing_basis": "Seconds relative to the extracted audio window; source-timeline offset not recorded in this decoder artifact.",
+    "decoder": "local large-v3-turbo, max_context=0, carry_initial_prompt=true; local CPU Whisper small fallback for runs 1107 and 1309",
+    "duration": 43.36000061035156,
+    "cues": [
+        {
+            "start": 0.0,
+            "end": 4.44,
+            "text": " But it also became the testimony of David's greater son,"
+        },
+        {
+            "start": 4.44,
+            "end": 6.68,
+            "text": " namely Jesus Christ."
+        },
+        {
+            "start": 7.5600000000000005,
+            "end": 11.700000000000001,
+            "text": " But I think it would be fair to say that it also became"
+        },
+        {
+            "start": 11.700000000000001,
+            "end": 13.9,
+            "text": " Phil's testimony."
+        },
+        {
+            "start": 15.4,
+            "end": 17.12,
+            "text": " The Lord was his shepherd."
+        },
+        {
+            "start": 18.240000000000002,
+            "end": 21.580000000000002,
+            "text": " The Lord was one who refreshed his soul."
+        },
+        {
+            "start": 22.5,
+            "end": 27.16,
+            "text": " The Lord was one who directed him along his pathway in life"
+        },
+        {
+            "start": 27.16,
+            "end": 27.560000000000002,
+            "text": "."
+        },
+        {
+            "start": 27.560000000000002,
+            "end": 31.68,
+            "text": " The Lord was one who he believed was always with him to"
+        },
+        {
+            "start": 31.68,
+            "end": 35.480000000000004,
+            "text": " keep and protect him during times of difficulty and danger."
+        },
+        {
+            "start": 36.660000000000004,
+            "end": 40.32,
+            "text": " The Lord was one who satisfied him with good things and"
+        },
+        {
+            "start": 40.32,
+            "end": 42.480000000000004,
+            "text": " filled him with joy."
+        }
+    ]
+}

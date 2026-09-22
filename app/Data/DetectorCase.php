@@ -18,6 +18,7 @@ use App\Enums\DetectorCaseTruth;
  */
 final readonly class DetectorCase
 {
+    /** @param array{start: float, end: float}|null $span Source-timeline seconds. */
     public function __construct(
         public string $caseId,
         public string $detectorId,
@@ -30,5 +31,6 @@ final readonly class DetectorCase
         public string $evidence,
         public bool $informedFix,
         public ?string $note = null,
+        public ?array $span = null,
     ) {}
 }

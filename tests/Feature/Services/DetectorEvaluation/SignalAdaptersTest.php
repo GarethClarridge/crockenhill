@@ -120,7 +120,7 @@ class SignalAdaptersTest extends TestCase
         $this->assertSame('transcript-sparse-cadence', $signals[0]->detectorId);
         $this->assertSame(120.0, $signals[0]->start);
         $this->assertSame(180.0, $signals[0]->end);
-        $this->assertTrue($signals[0]->held);
+        $this->assertFalse($signals[0]->held, 'Recording a block does not create a section hold.');
         $this->assertFalse(app(SuspectTranscriptBlockSignals::class)->isDetectorNegative($run));
     }
 
