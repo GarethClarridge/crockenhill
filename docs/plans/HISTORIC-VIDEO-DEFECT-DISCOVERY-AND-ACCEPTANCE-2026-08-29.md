@@ -402,6 +402,18 @@ treat historic acceptance as proof for all three modes.
   repeated-phrase check on the stored transcript (proportionate), or timed output
   on the direct path (complete, but it changes a format `ProcessTranscriptWithAI`
   and the sermon page consume).
+  **Reproduction attempted 2026-09-22 — not reproduced on the local backend.**
+  The operator confirmed the direct path runs local Whisper. Five sermons with
+  source-confirmed stored loops (runs 1003, 1039, 1064, 1084, 1176) were
+  re-decoded whole through `LocalWhisperTranscriptionService`, the direct-upload
+  client (`max_context=0`, with chunking as real uploads get). Each stored loop
+  phrase fell from 3–6 occurrences to 0–1. A scan of all five fresh transcripts
+  for *any* consecutively repeated phrase found nothing longer than two
+  repetitions, all natural speech ("crucify him, crucify him"). Evidence:
+  `storage/scratch/direct-repro-20260922/`. Reading: on the configured backend
+  the context fix prevents the class on direct uploads, so no new safeguard is
+  added for a failure that does not reproduce. The limit is five sermons, not
+  a rate. An OpenAI-backed direct path would need its own check before use.
 - [ ] Record which upload modes each shared fix protects and verify relevant
   source content, stored artifacts and review outcomes. Keep historic-only
   custody/dispatch machinery bounded; no general reprocessing platform is required.
