@@ -4258,6 +4258,29 @@ an adapter.
        number of listened minutes, and the unassessable 117. No recall figure is
        stated from counts alone. Adoption of any new decode stays per run, through
        the tested path.
+  - **Corpus decode started 2026-09-22** over the frozen 338
+    (`storage/scratch/h10b-corpus-20260922/membership.txt`). It runs at about
+    4 min/run because each source is hashed and compressed over the staging link, so
+    roughly 20 h unattended.
+  - **Restage census for the 113 missing sources** (read-only,
+    `h10b-restage-census-20260922.json`, `h10b-restage-hashes-20260922.json`). Most
+    recorded source paths are relative to the Sonnics services root, a separate drive
+    from Staging, so the originals could be hashed during the decode without
+    contention. Results:
+    - **86 byte-identical on Sonnics** (91 files, 50.4 GB, every SHA-256 equal to the
+      recorded one): 78 original and 7 recovered are clear to restage. 959's original
+      had moved to the drive root, with the same size and mtime, and hashes equal.
+    - 2 are otherwise blocked (one has no recorded hash, one is not completed).
+    - **25 originals are on the Staging drive**, with size and mtime matching; they are
+      hashed only after the decode, to keep the faulty link to one reader. 21 are
+      clear and 4 are blocked (not completed). 10 of the 25 are lossless
+      concatenations, whose recorded run hash is of the assembled file, so a restage
+      must reproduce the assembly byte for byte or stay unassessable.
+    - **943 is lost:** its five segment files were replaced on 09-01 by a single,
+      different `Sunday 28th July 2024.mp4`. Adopting that file is the existing
+      source-adoption question, not a restage.
+    - Net: up to **106** more decodable runs (about 91 original), which nearly doubles
+      the `original` stratum. The restage itself waits until the decode finishes.
 
 ##### H9. Ruling: no reserved set; historic evidence is retrospective
 
