@@ -4186,6 +4186,18 @@ an adapter.
     source-confirmed loop and was neither re-run nor recovered, for example the five
     direct-repro runs (1003, 1039, 1064, 1084, 1176). Choosing replacements is an
     operator decision.
+  - **C3 re-run on the direct-repro runs (operator, 2026-09-22): passes in shape.**
+    Only 1003 and 1084 have plain, unrecovered stored transcripts, and both are
+    unassessable because their staged sources are missing. So the pass rests on 1039,
+    1064 and 1176, whose stored transcripts are recovered (1064 also replayed) but still
+    carry recorded loop blocks (1, 5 and 1). In **all 13** windows those blocks overlap,
+    the stored text is repetitive and the new decode is not. Mean bigram redundancy is
+    0.216 against 0.035 (1039), 0.578 against 0.057 (1064) and 0.279 against 0.0 (1176),
+    and token distance there (0.25/0.71/0.31) exceeds the runs' other windows
+    (0.09/0.24/0.09). Caveat: those other windows still differ far more than C2's
+    floor (37–113 differing windows per run). That is background context-drift
+    disagreement on old decodes, not noise, and it is the population the corpus
+    comparison must adjudicate against audio. Report: `c3-report.json`.
 
 ##### H9. Ruling: no reserved set; historic evidence is retrospective
 
