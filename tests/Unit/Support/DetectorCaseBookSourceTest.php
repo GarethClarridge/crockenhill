@@ -5,14 +5,30 @@ declare(strict_types=1);
 namespace Tests\Unit\Support;
 
 use App\Enums\DetectorCaseBasis;
+use App\Enums\DetectorCaseTruth;
 use App\Services\DetectorEvaluation\DetectorCaseBookSource;
 use App\Support\DetectorCatalogue;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class DetectorCaseBookSourceTest extends TestCase
 {
+    #[Test]
+    public function a_held_genuine_chorus_is_not_labelled_as_a_detected_loop_defect(): void
+    {
+        $case = collect(DetectorCaseBookSource::load()->cases())
+            ->firstWhere('caseId', 'song-looped-transcript/run-1154-s3750');
+
+        $this->assertNotNull($case);
+        $this->assertSame(DetectorCaseTruth::Clean, $case->truth);
+        $this->assertSame(DetectorCaseBasis::DerivedComparison, $case->basis);
+        $this->assertFalse($case->basis->isAdjudicated());
+        $this->assertStringContainsString('songloop-20260916-adjudication.json', $case->evidence);
+        $this->assertStringContainsString('operator', $case->note ?? '');
+    }
+
     /**
      * The binding that makes the case book complete for regression.
      *
