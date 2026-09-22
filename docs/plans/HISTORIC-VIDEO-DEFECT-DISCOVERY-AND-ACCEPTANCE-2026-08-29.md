@@ -3857,6 +3857,61 @@ first: it ran over all 465 runs eleven days after it was written and found
 nothing at all, on a corpus where the sibling repetition detectors found 817
 blocks.
 
+###### H7d. First evaluation — 2026-09-22, recorded output only
+
+**Declared first (`6b384e6f9`).** The thresholds contract fixed each
+false-positive ceiling but not the statistic judged against it. Before any
+scoring code existed, it was declared as the Wilson one-sided 95% upper bound over
+adjudicated clean cases, one trial per service group, with unheld signals
+counted. The contract also records that recorded output cannot show a fix at
+source prevents its class, so such a class is `unassessable`, never a pass.
+
+**Built.** `DetectorEvaluation` behind `detectors:evaluate --case-book=
+--report=`. It is read-only and calls the same five adapters as replay. It exits
+non-zero when any detector fails. Report:
+`storage/scratch/detector-evaluation-20260922.json`, bound to `6b384e6f9`, the
+thresholds hash, the case book hash and the review-flag policy source hash (the
+policy has no declared version). The structure model is bound as *current*
+config (`gpt-5.6-luna`); the model behind each run's recorded structure is in
+that run's `processing_fingerprint`.
+
+The rules the tests pin:
+
+- Contained means a matching signal that held. A signal that fired without
+  holding contained nothing.
+- A surface never assessed on the subject is `unassessable`, not missed and not
+  clean.
+- Every case reports `subject_held`: whether anything, including an operator
+  hold, withholds the subject. A detector miss and an uncontained defect are
+  different findings.
+
+**Result: 38 detectors scored, 0 accepted, 7 fail, 31 not established.** Recall
+is `not_measured` for every detector until H10's sample is drawn, so nothing can
+be accepted. Regression outcomes: 4 pass (repeated-phrase loop, sparse cadence,
+sung typing, truncated by source), 7 fail, 26 unassessable (mostly classes with no
+emitting detector), 1 with no defective case. False positives: only
+`video-dead-picture` has adjudicated clean cases. It has 0 false positives in 27
+groups, but a 9.1% upper bound against its 5% ceiling, so `insufficient_evidence`.
+With no false positive it needs 52 adjudicated clean groups to pass.
+
+**The seven failures, checked against stored state:**
+
+| Detector | Case(s) | Held by anything? | Reading |
+|---|---|---|---|
+| `video-dead-picture` | sermons 926, 930, 941, 975, 1189, 1230, 1276 | **No** | Source-confirmed black, frozen or camera-fault pictures sit at `needs_review`. `hide_needs_review` is off, so `SermonExposurePolicy` shows them. Only historic quarantine keeps them off the site. **Release blocker: operator decision** — reject, override, or turn on `hide_needs_review`. |
+| `song-unresolved-multiple-songs` | 1009 §1276 | **No** | Run 1009 was re-detected 09-17; the section is now unflagged, and the clip (video 172) is gone. Possibly repaired. Needs a listen to the current clip before it can be called either way. |
+| `structure-macro-section` | 1340 | run-level | The 19 s opening loss was found by the canary, not the flag. Repaired 09-18 by re-extraction; the detector itself never fired. |
+| `structure-unidentified-singing` | 944 | run-level | Concatenated recording; §666 was heard sung. Consistent with H7b: the detector was never applied to 944. |
+| `structure-song-widened-to-sustained-sound` | 1109 §1909, 1287 §3597, 1341 §4310 | Yes | Held by other flags or operator holds. None was among the 20 sections the 09-21 recompute flagged — **a current-code miss worth diagnosing**, since the recompute ran current code over these runs. |
+| `song-looped-transcript` | 1154 §3750 | Yes (operator) | No `song_looped_transcript` risk is stored now, although the census named the section; the loop-gap discount may have removed it. |
+| `song-adjacent-same-song` | 1337 §4275 | Yes (operator) | The adjacent flag does not fire. The plan already lists the hint/binding contradiction rule as unbuilt. |
+
+**Limits.** Transcript-minute detectors match at run level, because the case
+book has no time spans. The three rhetoric controls (1051, 1078, 1079) therefore
+"fire" on unrelated blocks in their runs. They are provisional, so they stay out
+of the rate, but span matching is needed before loop false positives mean
+anything. H5 dimensions are frozen per case but not yet tabulated.
+
 ##### H8. What this discharges, and what it leaves open
 
 Drafting this section discharges only the predeclaration half of the fourth
@@ -3917,8 +3972,11 @@ full programme; this is an ordering choice, not a reduced harness specification.
   179 cases, 98 adjudicated). Open inside it: listen to the 33 transcript-loop
   windows so S1 has adjudicated truth, and promote other provisional cases the
   same way.
-- [ ] `detectors:evaluate`, using H4's declared units/thresholds, H5 breakdowns,
-  H6 version bindings and explicit unassessable/review-burden reporting.
+- [x] `detectors:evaluate` (2026-09-22), using H4's thresholds, H6 version
+  bindings and explicit unassessable reporting; first result in H7d. Still open
+  inside it: H5 breakdown tables (the dimensions are frozen per case but not yet
+  tabulated), span-level matching for transcript-minute detectors, and recall and
+  review burden, which wait for H10's sample.
 - [ ] Write the source-confirmed regression cases into the existing fixtures;
   distinguish test doubles from evaluations of real model outputs.
 - [ ] Complete each remaining detector class's tested response or explicit
