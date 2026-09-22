@@ -17,6 +17,7 @@ use App\Services\DetectorEvaluation\FreezeDetectorCaseBook;
 use App\Support\DetectorAcceptanceThresholds;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use RuntimeException;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
 
@@ -24,6 +25,22 @@ class DetectorEvaluationTest extends TestCase
 {
     use CreatesHistoricImportOperations;
     use RefreshDatabase;
+
+    #[Test]
+    public function breakdowns_keep_unknown_dimensions_and_cluster_cases_by_service(): void
+    {
+        [$run, $section] = $this->flaggedSection(held: false);
+        $report = $this->evaluate([
+            $this->case($run, $section, truth: 'clean', caseId: 'a'),
+            $this->case($run, $section, truth: 'clean', caseId: 'b'),
+        ]);
+
+        $groups = $report['detectors']['structure-macro-section']['breakdowns'];
+        $this->assertSame(2, $groups['era']['unknown']['cases']);
+        $this->assertSame(1, $groups['era']['unknown']['false_positive']['clean_groups']);
+        $this->assertSame(1, $groups['era']['unknown']['false_positive']['false_positive_groups']);
+        $this->assertSame(2, $groups['independent_evidence']['unknown/no_oos']['cases']);
+    }
 
     public function test_a_held_signal_on_the_case_section_contains_the_defect(): void
     {

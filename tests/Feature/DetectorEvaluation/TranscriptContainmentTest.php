@@ -15,11 +15,66 @@ use App\Services\DetectorEvaluation\SuspectTranscriptBlockSignals;
 use App\Support\DetectorAcceptanceThresholds;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\DataProvider;
+use InvalidArgumentException;
 use Tests\TestCase;
 
 class TranscriptContainmentTest extends TestCase
 {
     use DatabaseTransactions;
+
+    /** @param array<string, mixed> $span */
+    #[Test]
+    #[DataProvider('invalidSpans')]
+    public function invalid_windows_are_refused(array $span): void
+    {
+        [$run, $section] = $this->fixture(true);
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('span');
+
+        $this->evaluate($run, $section, $span);
+    }
+
+    /** @return array<string, array{array<string, mixed>}> */
+    public static function invalidSpans(): array
+    {
+        return [
+            'negative' => [['start' => -1.0, 'end' => 20.0]],
+            'empty' => [['start' => 20.0, 'end' => 20.0]],
+            'reversed' => [['start' => 21.0, 'end' => 20.0]],
+            'missing end' => [['start' => 0.0]],
+            'infinite' => [['start' => 0.0, 'end' => INF]],
+        ];
+    }
+
+    #[Test]
+    public function an_unrelated_block_does_not_make_a_clean_window_a_false_positive(): void
+    {
+        [$run, $section] = $this->fixture(true);
+
+        $case = $this->evaluate($run, $section, ['start' => 10.0, 'end' => 60.0], 'clean');
+
+        $this->assertSame('correctly_silent', $case['outcome']);
+    }
+
+    #[Test]
+    public function an_overlapping_block_matches_the_reviewed_window(): void
+    {
+        [$run, $section] = $this->fixture(true);
+
+        $case = $this->evaluate($run, $section, ['start' => 150.0, 'end' => 200.0]);
+
+        $this->assertSame('contained', $case['outcome']);
+        $this->assertSame('span', $case['match_level']);
+    }
+
+    #[Test]
+    public function touching_window_edges_do_not_count_as_overlap(): void
+    {
+        [$run, $section] = $this->fixture(true);
+
+        $this->assertSame('missed', $this->evaluate($run, $section, ['start' => 180.0, 'end' => 200.0])['outcome']);
+    }
 
     #[Test]
     public function a_recorded_block_does_not_contain_an_unheld_section(): void
@@ -111,8 +166,11 @@ class TranscriptContainmentTest extends TestCase
         return [$run, $section];
     }
 
-    /** @return array<string, mixed> */
-    private function evaluate(MediaProcessingLog $run, ServiceSection $section): array
+    /**
+     * @param array{start: float, end: float}|null $span
+     * @return array<string, mixed>
+     */
+    private function evaluate(MediaProcessingLog $run, ServiceSection $section, ?array $span = null, string $truth = 'defective'): array
     {
         $source = DetectorCaseBookSource::fromArray([
             'format' => DetectorCaseBookSource::Format,
@@ -120,8 +178,8 @@ class TranscriptContainmentTest extends TestCase
             'cases' => [[
                 'case_id' => 'transcript-containment',
                 'detector_id' => 'transcript-repeated-phrase-loop',
-                'subject' => ['run' => $run->id, 'section' => $section->id, 'sermon' => null],
-                'truth' => 'defective',
+                'subject' => ['run' => $run->id, 'section' => $section->id, 'sermon' => null, 'span' => $span],
+                'truth' => $truth,
                 'basis' => 'source_reviewed',
                 'evidence' => 'regression fixture',
                 'informed_fix' => true,
@@ -129,6 +187,8 @@ class TranscriptContainmentTest extends TestCase
             'aggregates' => [],
         ]);
         $book = app(FreezeDetectorCaseBook::class)->build($source);
+
+        $this->assertSame($span, $book['cases'][0]['subject']['span']);
 
         return app(DetectorEvaluation::class)->evaluate($book, DetectorAcceptanceThresholds::load())['cases'][0];
     }
