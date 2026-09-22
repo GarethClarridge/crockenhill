@@ -195,7 +195,11 @@ class DetectorEvaluation
             DetectorSurface::SectionReviewFlag => $section !== null
                 ? $this->sectionFlags->forSection($run, $section)
                 : $this->sectionFlags->for($run),
-            DetectorSurface::SuspectTranscriptBlock => $this->transcriptBlocks->for($run),
+            DetectorSurface::SuspectTranscriptBlock => match (true) {
+                $subject['section'] !== null => $section !== null ? $this->transcriptBlocks->forSection($run, $section) : null,
+                $subject['sermon'] !== null => $this->transcriptBlocks->forSermon($run, $subject['sermon']),
+                default => $this->transcriptBlocks->for($run),
+            },
             DetectorSurface::VideoQualityVerdict => $this->videoVerdicts->for($run),
             DetectorSurface::SongPublicationReview => $section !== null
                 ? $this->songReview->forSection($run, $section)
