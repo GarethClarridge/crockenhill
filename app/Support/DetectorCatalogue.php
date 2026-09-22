@@ -9,6 +9,8 @@ use App\Actions\FlagSectionTruncatedBySource;
 use App\Actions\FlagSermonAudioLengthMismatch;
 use App\Actions\FlagSermonPartsNotExtracted;
 use App\Actions\FlagSermonTextPredatesEvidence;
+use App\Actions\FlagSuspectTranscriptRepetition;
+use App\Actions\HoldSectionForContentReview;
 use App\Data\DetectorEntry;
 use App\Data\SuspectTranscriptBlock;
 use App\Enums\DetectorSeverity;
@@ -19,12 +21,12 @@ use App\Services\ChurchService\SectionPublication\SongLoopedTranscript;
 use App\Services\ChurchService\SectionPublication\SongLyricsOutsideSection;
 use App\Services\ChurchService\SectionPublication\SongPublicationBoundaryEvidenceService;
 use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
-use App\Services\DetectorEvaluation\SongBoundaryEvidenceSignals;
-use App\Services\Preacher\ChildrensTalkSpeakerService;
-use App\Services\Song\UnmatchedSongReviewApplicator;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\DetectorEvaluation\SongBoundaryEvidenceSignals;
 use App\Services\Media\Audio\ServiceTranscriptRepetitionScreen;
 use App\Services\Media\Video\SermonVideoQualityAssessmentService;
+use App\Services\Preacher\ChildrensTalkSpeakerService;
+use App\Services\Song\UnmatchedSongReviewApplicator;
 use RuntimeException;
 
 /**
@@ -73,12 +75,12 @@ class DetectorCatalogue
      * reasons, rather than left to read as uncatalogued gaps.
      *
      * - `transcript_repetition_suspect` is raised by
-     *   {@see \App\Actions\FlagSuspectTranscriptRepetition} from blocks the
+     *   {@see FlagSuspectTranscriptRepetition} from blocks the
      *   transcript screens already emitted, so it restates another detector's
      *   finding. Cataloguing it would score those screens twice, once on their
      *   blocks and once on the hold the blocks produce.
      * - `content_defect_hold` is raised by
-     *   {@see \App\Actions\HoldSectionForContentReview} where an operator has
+     *   {@see HoldSectionForContentReview} where an operator has
      *   proven a defect **no automatic screen can see**. It is the exact inverse
      *   of a detector finding — the containment used where detectors are blind —
      *   so counting it as detector coverage would credit the machinery for the
@@ -102,7 +104,7 @@ class DetectorCatalogue
      *   2026-09-10/11 correctness review to song sections whose own transcript
      *   announces a different hymn from the one bound. Three sections carry it
      *   (335, 1121, 1254), all held, and §4.1b still reasons from it, so it is
-     *   emphatically **not** retired: {@see \App\Support\RetiredSectionReviewFlags}
+     *   emphatically **not** retired: {@see RetiredSectionReviewFlags}
      *   is for questions whose raise site was removed on purpose, and its flags
      *   are *skipped* by the adapter. Skipping these would hide three live holds
      *   from the harness.
@@ -518,7 +520,7 @@ class DetectorCatalogue
                 status: DetectorStatus::Promoted,
                 severity: DetectorSeverity::ContentLost,
                 unit: DetectorUnit::Sermon,
-                summary: "The sermon MP3 is not the whole audio track of its video, the shape behind twelve MP3s that lost their closing words.",
+                summary: 'The sermon MP3 is not the whole audio track of its video, the shape behind twelve MP3s that lost their closing words.',
                 owningClass: FlagSermonAudioLengthMismatch::class,
             ),
             new DetectorEntry(
@@ -774,7 +776,7 @@ class DetectorCatalogue
      * rather than taught to notice afterwards, which is the right answer when
      * the defect is the pipeline's own behaviour rather than a property of a
      * recording.
-         *
+     *
      * @return list<DetectorEntry>
      */
     private static function extractionClassEntries(): array
@@ -842,7 +844,7 @@ class DetectorCatalogue
      * Both are about text that reads as fluent speech, which is exactly what the
      * repetition screens cannot see. §4.3a's H10b comparison is the only
      * mechanised view either of them has.
-         *
+     *
      * @return list<DetectorEntry>
      */
     private static function transcriptClassEntries(): array
@@ -1250,9 +1252,10 @@ class DetectorCatalogue
                 status: DetectorStatus::Promoted,
                 severity: DetectorSeverity::ContentLost,
                 unit: DetectorUnit::Sermon,
-                summary: 'Frozen or black picture measured over six windows; coverage decides whether the recording is rejected or held for review.',
+                summary: 'Frozen or black picture measured over the whole recording: under 75% usable picture hides the video, anything less than perfect is released whole with a video-issues flag.',
                 owningClass: SermonVideoQualityAssessmentService::class,
                 regressionCases: ['sermon 926', 'sermon 930', 'sermon 941', 'sermon 975', 'sermon 1276', 'sermon 1189', 'sermon 1230'],
+                containedByFlag: true,
             ),
         ];
     }

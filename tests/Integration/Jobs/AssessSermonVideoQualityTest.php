@@ -44,12 +44,11 @@ class AssessSermonVideoQualityTest extends TestCase
             'result' => new SermonVideoQualityAssessmentResult(
                 status: SermonVideoQualityStatus::Rejected,
                 reason: 'frozen_frames',
-                windowCount: 6,
-                deadWindowCount: 6,
-                deadWindowRatio: 1.0,
+                durationSeconds: 1800.0,
+                deadSeconds: 1800.0,
+                usableShare: 0.0,
                 freezeSeconds: 180.0,
                 blackSeconds: 0.0,
-                measuredSeconds: 180.0,
             ),
             'localVideoPath' => '/tmp/assess-owning-run.mp4',
         ]);
@@ -109,12 +108,11 @@ class AssessSermonVideoQualityTest extends TestCase
         $assessmentResult = new SermonVideoQualityAssessmentResult(
             status: SermonVideoQualityStatus::Rejected,
             reason: 'mostly_black',
-            windowCount: 6,
-            deadWindowCount: 6,
-            deadWindowRatio: 1.0,
+            durationSeconds: 1800.0,
+            deadSeconds: 1800.0,
+            usableShare: 0.0,
             freezeSeconds: 180.0,
             blackSeconds: 174.0,
-            measuredSeconds: 180.0,
         );
 
         $service = $this->createMock(SermonVideoQualityAssessmentService::class);
@@ -342,12 +340,11 @@ class AssessSermonVideoQualityTest extends TestCase
         return new SermonVideoQualityAssessmentResult(
             status: SermonVideoQualityStatus::Approved,
             reason: null,
-            windowCount: 6,
-            deadWindowCount: 0,
-            deadWindowRatio: 0.0,
+            durationSeconds: 1800.0,
+            deadSeconds: 0.0,
+            usableShare: 1.0,
             freezeSeconds: 0.0,
             blackSeconds: 0.0,
-            measuredSeconds: 180.0,
         );
     }
 }

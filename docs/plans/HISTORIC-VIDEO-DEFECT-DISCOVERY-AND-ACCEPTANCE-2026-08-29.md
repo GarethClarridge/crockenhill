@@ -3914,13 +3914,28 @@ With no false positive it needs 52 adjudicated clean groups to pass.
 
 | Detector | Case(s) | Held by anything? | Reading |
 |---|---|---|---|
-| `video-dead-picture` | sermons 926, 930, 941, 975, 1189, 1230, 1276 | **No** | Source-confirmed black, frozen or camera-fault pictures sit at `needs_review`. `hide_needs_review` is off, so `SermonExposurePolicy` shows them. Only historic quarantine keeps them off the site. **Release blocker: operator decision** — reject, override, or turn on `hide_needs_review`. |
+| `video-dead-picture` | sermons 926, 930, 941, 975, 1189, 1230, 1276 | **No** | Source-confirmed black, frozen or camera-fault pictures sat at `needs_review`, shown because `hide_needs_review` is off. **Superseded by the operator ruling below**: these are partly dead videos (1.4–18.6% dead), which the ruling releases whole with a video-issues flag. That outcome now counts as containment (`containedByFlag`). |
 | `song-unresolved-multiple-songs` | 1009 §1276 | **No** | Run 1009 was re-detected 09-17; the section is now unflagged, and the clip (video 172) is gone. Possibly repaired. Needs a listen to the current clip before it can be called either way. |
 | `structure-macro-section` | 1340 | run-level | The 19 s opening loss was found by the canary, not the flag. Repaired 09-18 by re-extraction; the detector itself never fired. |
 | `structure-unidentified-singing` | 944 | run-level | Concatenated recording; §666 was heard sung. Consistent with H7b: the detector was never applied to 944. |
 | `structure-song-widened-to-sustained-sound` | 1109 §1909, 1287 §3597, 1341 §4310 | Yes | Held by other flags or operator holds. None was among the 20 sections the 09-21 recompute flagged — **a current-code miss worth diagnosing**, since the recompute ran current code over these runs. |
 | `song-looped-transcript` | 1154 §3750 | Yes (operator) | No `song_looped_transcript` risk is stored now, although the census named the section; the loop-gap discount may have removed it. |
 | `song-adjacent-same-song` | 1337 §4275 | Yes (operator) | The adjacent flag does not fire. The plan already lists the hint/binding contradiction rule as unbuilt. |
+
+**Operator ruling 2026-09-22 — dead picture is decided automatically, whole
+video or none.** A video is never trimmed. It is released whole when at least
+75% of it has usable picture, and hidden (the sermon released audio-only)
+below that. A released video with any dead picture carries a `partially_black`
+or `partially_frozen` reason as its "has video issues" flag. No verdict waits
+for review. The six-window sample could not measure a share of the whole
+recording: a 52 s black opening killed one window and read as 17% dead when it
+was 3.7%. So the probe now makes one whole-file pass (about 24 s for a
+22-minute 1080p video), and dead time is the **union** of black and freeze
+intervals. A black picture is also frozen; the old `max(freeze, black)` would
+have scored 941 as 177 s dead instead of 244 s. `release_usable_share` = 0.75
+replaces the window thresholds. `needs_review` is no longer produced
+automatically. The catalogue entry is `containedByFlag`, so the evaluator scores
+a flagged, released video as handled.
 
 **Limits.** Transcript-minute detectors match at run level, because the case
 book has no time spans. The three rhetoric controls (1051, 1078, 1079) therefore

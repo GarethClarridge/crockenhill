@@ -14,12 +14,11 @@ final readonly class SermonVideoQualityAssessmentResult
     public function __construct(
         public SermonVideoQualityStatus $status,
         public ?string $reason,
-        public int $windowCount,
-        public int $deadWindowCount,
-        public float $deadWindowRatio,
+        public float $durationSeconds,
+        public float $deadSeconds,
+        public float $usableShare,
         public float $freezeSeconds,
         public float $blackSeconds,
-        public float $measuredSeconds,
         public array $metrics = [],
     ) {}
 
@@ -28,12 +27,11 @@ final readonly class SermonVideoQualityAssessmentResult
         return new self(
             status: SermonVideoQualityStatus::Unassessed,
             reason: $reason,
-            windowCount: 0,
-            deadWindowCount: 0,
-            deadWindowRatio: 0.0,
+            durationSeconds: 0.0,
+            deadSeconds: 0.0,
+            usableShare: 0.0,
             freezeSeconds: 0.0,
             blackSeconds: 0.0,
-            measuredSeconds: 0.0,
         );
     }
 
@@ -45,12 +43,11 @@ final readonly class SermonVideoQualityAssessmentResult
         return [
             'status' => $this->status->value,
             'reason' => $this->reason,
-            'window_count' => $this->windowCount,
-            'dead_window_count' => $this->deadWindowCount,
-            'dead_window_ratio' => $this->deadWindowRatio,
+            'duration_seconds' => $this->durationSeconds,
+            'dead_seconds' => $this->deadSeconds,
+            'usable_share' => $this->usableShare,
             'freeze_seconds' => $this->freezeSeconds,
             'black_seconds' => $this->blackSeconds,
-            'measured_seconds' => $this->measuredSeconds,
             'metrics' => $this->metrics,
         ];
     }

@@ -58,7 +58,10 @@ class VideoQualityVerdictSignals
 
         $reason = $sermon->video_quality_reason;
 
-        if ($status === SermonVideoQualityStatus::Approved || $reason === null || $reason === '') {
+        // An approved video with a reason was released whole with dead
+        // picture in it, and the reason is its "has video issues" flag: a
+        // finding, not a clean verdict (ruling 2026-09-22).
+        if ($reason === null || $reason === '') {
             return [];
         }
 
@@ -84,7 +87,10 @@ class VideoQualityVerdictSignals
      */
     public function isDetectorNegative(MediaProcessingLog $run): bool
     {
-        return $run->sermon?->video_quality_status === SermonVideoQualityStatus::Approved;
+        $sermon = $run->sermon;
+
+        return $sermon?->video_quality_status === SermonVideoQualityStatus::Approved
+            && ($sermon->video_quality_reason === null || $sermon->video_quality_reason === '');
     }
 
     public function wasAssessed(MediaProcessingLog $run): bool

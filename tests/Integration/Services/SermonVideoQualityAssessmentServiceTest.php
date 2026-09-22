@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Services;
 
 use App\Data\SermonVideoQualityAssessmentResult;
-use App\Data\VideoDeadPictureWindow;
+use App\Data\VideoDeadPictureCoverage;
 use App\Enums\SermonVideoQualityStatus;
 use App\Models\Sermon;
 use App\Services\Media\Video\FrameExtractionService;
@@ -18,13 +18,11 @@ use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
- * The verdict rules, over the window measurements the probe produces.
- *
- * The window shapes here are the calibrated classes from the 48 historic
- * rejections (plan §4.1b/§4.3a, `storage/scratch/vq-20260916-windows.json`):
- * whole-recording black screens and holding cards read dead in 6 of 6 windows,
- * static-camera and dim-light preaching in 0 of 6, and the one recording that
- * fails part way through (sermon 1225) in 2 of 6.
+ * The verdict rule over whole-recording measurements (operator ruling
+ * 2026-09-22): a video is released whole or not at all. Under 75% usable
+ * picture it is hidden and the sermon goes out audio-only; otherwise it is
+ * released whole, flagged when any of it is dead. The cases are the
+ * source-reviewed historic sermons from `vq-20260916-approvals-adjudication.json`.
  */
 class SermonVideoQualityAssessmentServiceTest extends TestCase
 {
@@ -35,121 +33,114 @@ class SermonVideoQualityAssessmentServiceTest extends TestCase
         parent::setUp();
 
         Storage::fake('public');
+        config(['media-processing.video_quality.thresholds.release_usable_share' => 0.75]);
     }
 
     /**
-     * The 12 black recordings and 7 holding cards: dead from the first window
-     * to the last, so hiding them is safe.
+     * The whole-recording black screens: nothing to watch, so the video is
+     * hidden and the sermon is released audio-only.
      */
     #[Test]
     public function a_recording_black_from_start_to_finish_is_rejected(): void
     {
-        $result = $this->assessWithWindows($this->deadWindows(6, black: true));
+        $result = $this->assessWith($this->coverage(1800.0, black: [[0.0, 1800.0]]));
 
         $this->assertSame(SermonVideoQualityStatus::Rejected, $result->status);
         $this->assertSame('mostly_black', $result->reason);
-        $this->assertSame(1.0, $result->deadWindowRatio);
+        $this->assertSame(0.0, $result->usableShare);
     }
 
     /**
-     * An OBS "service starting soon" or camera-fault card: never black, but the
-     * picture never changes either.
+     * An OBS "starting soon" or camera-fault card for the whole service: never
+     * black, but the picture never changes either.
      */
     #[Test]
     public function a_holding_card_for_the_whole_recording_is_rejected_as_frozen(): void
     {
-        $result = $this->assessWithWindows($this->deadWindows(6, black: false));
+        $result = $this->assessWith($this->coverage(1800.0, freeze: [[0.0, 1800.0]]));
 
         $this->assertSame(SermonVideoQualityStatus::Rejected, $result->status);
         $this->assertSame('frozen_frames', $result->reason);
-        $this->assertSame(6, $result->deadWindowCount);
     }
 
     /**
-     * Sermon 1225: about eight minutes of preaching, then a camera-fault card.
-     * A rejection would hide preaching that people can watch, so a partly dead
-     * recording goes to a person instead of being withheld automatically.
+     * Sermon 930: an 85 s black opening in a 33-minute recording. Released
+     * whole, with the video-issues flag, and nothing waiting for a person.
      */
     #[Test]
-    public function a_recording_that_fails_part_way_through_is_flagged_for_review_not_hidden(): void
+    public function a_black_opening_is_released_whole_and_flagged(): void
     {
-        $windows = [
-            $this->liveWindow(0.0),
-            $this->liveWindow(386.0),
-            $this->liveWindow(772.0),
-            $this->liveWindow(1158.0),
-            new VideoDeadPictureWindow(start: 1544.0, length: 30.0, freezeSeconds: 30.0, blackSeconds: 0.0),
-            new VideoDeadPictureWindow(start: 1930.0, length: 30.0, freezeSeconds: 30.0, blackSeconds: 0.0),
-        ];
+        $result = $this->assessWith($this->coverage(1962.0, black: [[2.0, 87.2]], freeze: [[2.0, 87.2]]));
 
-        $result = $this->assessWithWindows($windows);
+        $this->assertSame(SermonVideoQualityStatus::Approved, $result->status);
+        $this->assertSame('partially_black', $result->reason);
+        $this->assertEqualsWithDelta(0.9566, $result->usableShare, 0.0001);
+    }
 
-        $this->assertSame(SermonVideoQualityStatus::NeedsReview, $result->status);
+    /**
+     * Sermon 1230: a camera-fault card twice, 30 s each. Frozen, not black.
+     */
+    #[Test]
+    public function a_camera_fault_card_mid_sermon_is_released_whole_and_flagged(): void
+    {
+        $result = $this->assessWith($this->coverage(1940.0, freeze: [[993.0, 1023.0], [1324.0, 1354.0]]));
+
+        $this->assertSame(SermonVideoQualityStatus::Approved, $result->status);
         $this->assertSame('partially_frozen', $result->reason);
-        $this->assertEqualsWithDelta(0.333, $result->deadWindowRatio, 0.001);
     }
 
     /**
-     * The 25 static-camera recordings the old detector hid: a preacher who
-     * fills a small part of the frame changes almost nothing between frames,
-     * but the picture never holds still for 20 s.
+     * The ruling's boundary: exactly 75% usable is released, just under it is
+     * hidden. Neither is trimmed.
      */
     #[Test]
-    public function normal_preaching_under_a_static_camera_is_approved(): void
+    public function exactly_the_release_share_is_released(): void
     {
-        $result = $this->assessWithWindows($this->liveWindows(6));
+        $atShare = $this->assessWith($this->coverage(1000.0, black: [[0.0, 250.0]]));
+        $underShare = $this->assessWith($this->coverage(1000.0, black: [[0.0, 251.0]]));
+
+        $this->assertSame(SermonVideoQualityStatus::Approved, $atShare->status);
+        $this->assertSame('partially_black', $atShare->reason);
+        $this->assertSame(SermonVideoQualityStatus::Rejected, $underShare->status);
+        $this->assertSame('mostly_black', $underShare->reason);
+    }
+
+    /**
+     * No automatic verdict waits for review any more: the flag records the
+     * imperfection instead of asking for a decision.
+     */
+    #[Test]
+    public function no_verdict_is_left_for_review(): void
+    {
+        foreach ([0.0, 100.0, 400.0, 900.0, 1800.0] as $deadSeconds) {
+            $result = $this->assessWith($this->coverage(1800.0, black: $deadSeconds > 0 ? [[0.0, $deadSeconds]] : []));
+
+            $this->assertNotSame(SermonVideoQualityStatus::NeedsReview, $result->status);
+        }
+    }
+
+    /**
+     * Static-camera and dimly lit preaching: neither detector fires, so the
+     * video is approved with no flag.
+     */
+    #[Test]
+    public function preaching_with_no_dead_picture_is_approved_clean(): void
+    {
+        $result = $this->assessWith($this->coverage(1800.0));
 
         $this->assertSame(SermonVideoQualityStatus::Approved, $result->status);
         $this->assertNull($result->reason);
-        $this->assertSame(0.0, $result->deadWindowRatio);
-        $this->assertSame(0, $result->deadWindowCount);
+        $this->assertSame(1.0, $result->usableShare);
     }
 
-    /**
-     * Sermons 903, 969 and 1307: dimly lit preaching that sat under the old
-     * absolute brightness floor. The black detector does not fire on it, and
-     * brightness is no longer consulted at all.
-     */
     #[Test]
-    public function dimly_lit_preaching_is_approved_because_no_black_time_is_measured(): void
+    public function the_dead_intervals_are_recorded_as_evidence(): void
     {
-        $result = $this->assessWithWindows($this->liveWindows(6));
+        $result = $this->assessWith($this->coverage(1314.0, black: [[2.0, 179.0]], freeze: [[2.0, 179.0], [222.0, 289.0]]));
 
-        $this->assertSame(SermonVideoQualityStatus::Approved, $result->status);
-        $this->assertSame(0.0, $result->blackSeconds);
-    }
-
-    /**
-     * A single dead window is a real finding — an outage, a card mid-service —
-     * but far too little to hide a recording over.
-     */
-    #[Test]
-    public function one_dead_window_among_many_is_reviewed_rather_than_rejected(): void
-    {
-        $windows = [
-            ...$this->liveWindows(5),
-            new VideoDeadPictureWindow(start: 1500.0, length: 30.0, freezeSeconds: 28.0, blackSeconds: 28.0),
-        ];
-
-        $result = $this->assessWithWindows($windows);
-
-        $this->assertSame(SermonVideoQualityStatus::NeedsReview, $result->status);
-        $this->assertSame('partially_black', $result->reason);
-    }
-
-    /**
-     * Freeze and black overlap on a black picture, so the recording's dead time
-     * is the longer measure, not the sum.
-     */
-    #[Test]
-    public function the_measurement_of_every_window_is_recorded_as_evidence(): void
-    {
-        $result = $this->assessWithWindows($this->deadWindows(2, black: true));
-
-        $this->assertCount(2, $result->metrics['windows']);
-        $this->assertSame(30.0, $result->metrics['windows'][0]['freeze_seconds']);
-        $this->assertSame(29.0, $result->metrics['windows'][0]['black_seconds']);
-        $this->assertSame(60.0, $result->measuredSeconds);
+        $this->assertSame([[2.0, 179.0], [222.0, 289.0]], $result->metrics['dead_intervals']);
+        $this->assertSame(244.0, $result->deadSeconds);
+        $this->assertSame(1314.0, $result->durationSeconds);
     }
 
     /**
@@ -158,7 +149,7 @@ class SermonVideoQualityAssessmentServiceTest extends TestCase
     #[Test]
     public function a_recording_whose_picture_cannot_be_measured_is_left_unassessed(): void
     {
-        $result = $this->assessWithWindows([]);
+        $result = $this->assessWith(null);
 
         $this->assertSame(SermonVideoQualityStatus::Unassessed, $result->status);
         $this->assertSame('analysis_failed', $result->reason);
@@ -175,7 +166,7 @@ class SermonVideoQualityAssessmentServiceTest extends TestCase
         $probe->expects($this->once())
             ->method('probe')
             ->with('local-video.mp4', 1905.25)
-            ->willReturn($this->liveWindows(6));
+            ->willReturn($this->coverage(1905.25));
 
         $service = new SermonVideoQualityAssessmentService(
             $this->frameExtractionStub(1905.25),
@@ -214,7 +205,7 @@ class SermonVideoQualityAssessmentServiceTest extends TestCase
         $service = new SermonVideoQualityAssessmentService(
             $this->frameExtractionStub(videoPath: 'temp/downloaded.mp4'),
             $this->storageHelperStub(isS3: true),
-            $this->probeStub($this->liveWindows(6)),
+            $this->probeStub($this->coverage(1800.0)),
         );
 
         $outcome = $service->assessAndRetainLocalPath($sermon, 'sermons/video.mp4', 'do_spaces');
@@ -231,7 +222,7 @@ class SermonVideoQualityAssessmentServiceTest extends TestCase
         $service = new SermonVideoQualityAssessmentService(
             $this->frameExtractionStub(),
             $this->storageHelperStub(),
-            $this->probeStub($this->liveWindows(6)),
+            $this->probeStub($this->coverage(1800.0)),
         );
 
         $outcome = $service->assessAndRetainLocalPath($sermon, 'sermons/video.mp4', 'public');
@@ -281,69 +272,47 @@ class SermonVideoQualityAssessmentServiceTest extends TestCase
         $this->assertNull($outcome['localVideoPath']);
     }
 
-    /**
-     * @param  list<VideoDeadPictureWindow>  $windows
-     */
-    private function assessWithWindows(array $windows): SermonVideoQualityAssessmentResult
+    private function assessWith(?VideoDeadPictureCoverage $coverage): SermonVideoQualityAssessmentResult
     {
         Storage::disk('public')->put('sermons/video.mp4', 'video');
 
         $sermon = Sermon::factory()->create(['video_file_path' => 'sermons/video.mp4']);
 
         $service = new SermonVideoQualityAssessmentService(
-            $this->frameExtractionStub(),
+            $this->frameExtractionStub($coverage->durationSeconds ?? 1800.0),
             $this->storageHelperStub(),
-            $this->probeStub($windows),
+            $this->probeStub($coverage),
         );
 
         return $service->assess($sermon, 'sermons/video.mp4', 'public');
     }
 
     /**
-     * @return list<VideoDeadPictureWindow>
+     * Build a coverage through the probe's own parser, so the union of black and
+     * freeze intervals is the real one.
+     *
+     * @param  list<array{float, float}>  $black
+     * @param  list<array{float, float}>  $freeze
      */
-    private function deadWindows(int $count, bool $black): array
+    private function coverage(float $duration, array $black = [], array $freeze = []): VideoDeadPictureCoverage
     {
-        $windows = [];
+        $log = '';
 
-        for ($index = 0; $index < $count; $index++) {
-            $windows[] = new VideoDeadPictureWindow(
-                start: $index * 300.0,
-                length: 30.0,
-                freezeSeconds: 30.0,
-                blackSeconds: $black ? 29.0 : 0.0,
-            );
+        foreach ($freeze as [$start, $end]) {
+            $log .= "lavfi.freezedetect.freeze_start: {$start}\nlavfi.freezedetect.freeze_end: {$end}\n";
         }
 
-        return $windows;
-    }
-
-    /**
-     * @return list<VideoDeadPictureWindow>
-     */
-    private function liveWindows(int $count): array
-    {
-        $windows = [];
-
-        for ($index = 0; $index < $count; $index++) {
-            $windows[] = $this->liveWindow($index * 300.0);
+        foreach ($black as [$start, $end]) {
+            $log .= "black_start:{$start} black_end:{$end}\n";
         }
 
-        return $windows;
+        return (new VideoDeadPictureProbe)->measure($log, $duration);
     }
 
-    private function liveWindow(float $start): VideoDeadPictureWindow
-    {
-        return new VideoDeadPictureWindow(start: $start, length: 30.0, freezeSeconds: 0.0, blackSeconds: 0.0);
-    }
-
-    /**
-     * @param  list<VideoDeadPictureWindow>  $windows
-     */
-    private function probeStub(array $windows): VideoDeadPictureProbe
+    private function probeStub(?VideoDeadPictureCoverage $coverage): VideoDeadPictureProbe
     {
         $probe = $this->createStub(VideoDeadPictureProbe::class);
-        $probe->method('probe')->willReturn($windows);
+        $probe->method('probe')->willReturn($coverage);
 
         return $probe;
     }

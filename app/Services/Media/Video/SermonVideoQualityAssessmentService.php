@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Media\Video;
 
 use App\Data\SermonVideoQualityAssessmentResult;
-use App\Data\VideoDeadPictureWindow;
+use App\Data\VideoDeadPictureCoverage;
 use App\Enums\SermonVideoQualityStatus;
 use App\Models\Sermon;
 use App\Services\Processing\StorageAdapterHelper;
@@ -17,10 +17,11 @@ use Illuminate\Support\Facades\Storage;
  * Small, explainable video-quality gate for obvious sermon video failures.
  *
  * The gate asks one question: how much of this recording has no usable picture?
- * It measures freeze and black time with ffmpeg's own detectors over windows
- * spread across the whole file, and lets the *coverage* of that dead time decide
- * how far the verdict may go — a recording dead throughout is rejected and
- * hidden, one dead in part goes to review, and everything else is approved.
+ * It measures freeze and black time with ffmpeg's own detectors over the whole
+ * file. Under the operator's release share of usable picture the video is
+ * hidden and the sermon goes out audio-only; otherwise it is released whole,
+ * flagged when any of it is dead. Nothing is trimmed and nothing waits for a
+ * person (ruling 2026-09-22).
  *
  * The detector this replaced judged appearance instead of duration: frames
  * 1.5 s apart that looked alike, or an absolute brightness floor. Both misread
@@ -134,87 +135,64 @@ class SermonVideoQualityAssessmentService
         $metadata = $this->frameExtractionService->getVideoMetadata($localVideoPath);
         $duration = max(0.0, (float) ($metadata['duration'] ?? 0.0));
 
-        $windows = $this->deadPictureProbe->probe($localVideoPath, $duration);
+        $coverage = $this->deadPictureProbe->probe($localVideoPath, $duration);
 
         /*
-         * No window measured is no evidence. A recording whose picture cannot be
+         * Nothing measured is no evidence. A recording whose picture cannot be
          * read at all must not pass as a healthy one, so it records the failure
          * and stays eligible for reassessment.
          */
-        if ($windows === []) {
+        if ($coverage === null) {
             return SermonVideoQualityAssessmentResult::failed();
         }
 
-        return $this->buildResult($windows);
-    }
-
-    /**
-     * @param  list<VideoDeadPictureWindow>  $windows
-     */
-    private function buildResult(array $windows): SermonVideoQualityAssessmentResult
-    {
-        $minimumDeadRatio = (float) config('media-processing.video_quality.thresholds.dead_window_seconds_ratio', 0.5);
-
-        $deadWindows = array_values(array_filter(
-            $windows,
-            static fn (VideoDeadPictureWindow $window): bool => $window->isDead($minimumDeadRatio),
-        ));
-
-        $deadWindowRatio = count($deadWindows) / count($windows);
-        $freezeSeconds = array_sum(array_map(static fn (VideoDeadPictureWindow $window): float => $window->freezeSeconds, $windows));
-        $blackSeconds = array_sum(array_map(static fn (VideoDeadPictureWindow $window): float => $window->blackSeconds, $windows));
-        $measuredSeconds = array_sum(array_map(static fn (VideoDeadPictureWindow $window): float => $window->length, $windows));
-        $deadSeconds = array_sum(array_map(static fn (VideoDeadPictureWindow $window): float => $window->deadSeconds(), $deadWindows));
-
-        [$status, $reason] = $this->verdict($deadWindowRatio, $deadSeconds, $blackSeconds);
+        [$status, $reason] = $this->verdict($coverage);
 
         return new SermonVideoQualityAssessmentResult(
             status: $status,
             reason: $reason,
-            windowCount: count($windows),
-            deadWindowCount: count($deadWindows),
-            deadWindowRatio: round($deadWindowRatio, 6),
-            freezeSeconds: round($freezeSeconds, 3),
-            blackSeconds: round($blackSeconds, 3),
-            measuredSeconds: round($measuredSeconds, 3),
-            metrics: [
-                'windows' => array_map(
-                    static fn (VideoDeadPictureWindow $window): array => $window->toArray(),
-                    $windows,
-                ),
-            ],
+            durationSeconds: round($coverage->durationSeconds, 3),
+            deadSeconds: $coverage->deadSeconds,
+            usableShare: round($coverage->usableShare(), 6),
+            freezeSeconds: $coverage->freezeSeconds,
+            blackSeconds: $coverage->blackSeconds,
+            metrics: ['dead_intervals' => $coverage->deadIntervals],
         );
     }
 
     /**
-     * Coverage decides how far the verdict may go.
+     * Operator ruling 2026-09-22: a video is released whole or not at all.
      *
-     * Rejection hides the video from the public page, so it is reserved for a
-     * recording whose picture is dead throughout — the whole-recording black
-     * screens and holding cards. A recording that is dead only in part carries
-     * preaching someone can watch, so it is flagged for a person to judge
-     * rather than withheld automatically (plan §4.3a).
+     * - Under the release share of usable picture, it is rejected: the video is
+     *   hidden and the sermon is released audio-only.
+     * - At or over it, with any dead picture, it is approved and released whole,
+     *   carrying a `partially_*` reason as its "has video issues" flag.
+     * - With no dead picture, it is approved clean.
+     *
+     * Nothing waits for a person: the verdict is final either way, and the flag
+     * records the imperfection rather than asking for a decision.
      *
      * @return array{SermonVideoQualityStatus, string|null}
      */
-    private function verdict(float $deadWindowRatio, float $deadSeconds, float $blackSeconds): array
+    private function verdict(VideoDeadPictureCoverage $coverage): array
     {
-        $blackDominates = $deadSeconds > 0.0 && $blackSeconds >= $deadSeconds * 0.5;
+        if ($coverage->deadSeconds <= 0.0) {
+            return [SermonVideoQualityStatus::Approved, null];
+        }
 
-        if ($deadWindowRatio >= (float) config('media-processing.video_quality.thresholds.dead_window_ratio_reject', 0.75)) {
+        $blackDominates = $coverage->blackSeconds >= $coverage->deadSeconds * 0.5;
+        $releaseShare = (float) config('media-processing.video_quality.thresholds.release_usable_share', 0.75);
+
+        if ($coverage->usableShare() < $releaseShare) {
             return [
                 SermonVideoQualityStatus::Rejected,
                 $blackDominates ? 'mostly_black' : 'frozen_frames',
             ];
         }
 
-        if ($deadWindowRatio >= (float) config('media-processing.video_quality.thresholds.dead_window_ratio_review', 0.01)) {
-            return [
-                SermonVideoQualityStatus::NeedsReview,
-                $blackDominates ? 'partially_black' : 'partially_frozen',
-            ];
-        }
-
-        return [SermonVideoQualityStatus::Approved, null];
+        return [
+            SermonVideoQualityStatus::Approved,
+            $blackDominates ? 'partially_black' : 'partially_frozen',
+        ];
     }
 }

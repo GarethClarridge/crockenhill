@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Tests\Feature\DetectorEvaluation;
 
 use App\Enums\ProcessingStatus;
+use App\Enums\SermonVideoQualityStatus;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\DetectorEvaluation\DetectorCaseBookSource;
@@ -71,6 +73,29 @@ class DetectorEvaluationTest extends TestCase
 
         $this->assertSame('missed', $report['cases'][0]['outcome']);
         $this->assertTrue($report['cases'][0]['subject_held']);
+    }
+
+    /**
+     * Where the operator ruled that a flag is the correct outcome — a partly
+     * dead video released whole with a video-issues flag — an unheld signal
+     * contains the defect.
+     */
+    public function test_a_flag_contains_a_class_whose_ruled_outcome_is_a_flag(): void
+    {
+        $run = $this->historicRun();
+        $sermon = Sermon::factory()->create([
+            'video_quality_status' => SermonVideoQualityStatus::Approved,
+            'video_quality_reason' => 'partially_black',
+        ]);
+        $run->update(['sermon_id' => $sermon->id]);
+
+        $report = $this->evaluate([[
+            ...$this->case($run, null, detector: 'video-dead-picture'),
+            'subject' => ['run' => $run->id, 'section' => null, 'sermon' => $sermon->id],
+        ]]);
+
+        $this->assertSame('contained', $report['cases'][0]['outcome']);
+        $this->assertSame('pass', $report['detectors']['video-dead-picture']['regression']['verdict']);
     }
 
     /**

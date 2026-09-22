@@ -34,8 +34,9 @@ use RuntimeException;
  *
  * - *Regression* is fail-closed over every defective case, provisional or not:
  *   a fixture a candidate reintroduces fails regardless of how it was found.
- *   Contained means a matching signal that held. A fired-but-unheld signal
- *   contained nothing.
+ *   Contained means a matching signal that held, or any matching signal for a
+ *   class whose ruled outcome is a flag ({@see DetectorEntry::$containedByFlag}).
+ *   Otherwise a fired-but-unheld signal contained nothing.
  * - *False positives* use adjudicated clean cases only, one trial per service
  *   group, judged on the declared Wilson one-sided upper bound. Too few clean
  *   groups is `insufficient_evidence`, never a pass.
@@ -145,6 +146,7 @@ class DetectorEvaluation
         $outcome = match (true) {
             $matching === [] => 'missed',
             array_filter($matching, static fn (DetectorSignal $signal): bool => $signal->held) !== [] => 'contained',
+            $entry->containedByFlag => 'contained',
             default => 'flagged_unheld',
         };
 

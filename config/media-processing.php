@@ -546,35 +546,26 @@ return [
         'hide_needs_review' => env('SERMON_VIDEO_QUALITY_HIDE_NEEDS_REVIEW', false),
 
         /*
-         * The detector measures how long the picture is dead, over windows
-         * spread across the whole recording. Calibrated 2026-09-16 on the 48
-         * historic rejections (`storage/scratch/vq-20260916-windows.json`): the
-         * 19 unusable recordings read dead in 6 of 6 windows, the 28 wrongly
-         * rejected static-camera and dim-light recordings in 0 of 6, and 1225 —
-         * eight minutes of preaching, then a camera-fault card — in 2 of 6.
+         * The detector measures how much of the whole recording has dead
+         * picture (frozen or black), in one pass at one frame a second.
          */
         'probe' => [
-            'window_count' => (int) env('SERMON_VIDEO_QUALITY_WINDOW_COUNT', 6),
-            'window_seconds' => (float) env('SERMON_VIDEO_QUALITY_WINDOW_SECONDS', 30.0),
             'frames_per_second' => (float) env('SERMON_VIDEO_QUALITY_PROBE_FPS', 1.0),
             'freeze_noise_db' => (float) env('SERMON_VIDEO_QUALITY_FREEZE_NOISE_DB', -60.0),
             'freeze_min_seconds' => (float) env('SERMON_VIDEO_QUALITY_FREEZE_MIN_SECONDS', 20.0),
             'black_min_seconds' => (float) env('SERMON_VIDEO_QUALITY_BLACK_MIN_SECONDS', 5.0),
             'black_pixel_threshold' => (float) env('SERMON_VIDEO_QUALITY_BLACK_PIXEL_THRESHOLD', 0.10),
-            'timeout_seconds' => (int) env('SERMON_VIDEO_QUALITY_PROBE_TIMEOUT', 120),
+            'timeout_seconds' => (int) env('SERMON_VIDEO_QUALITY_PROBE_TIMEOUT', 900),
         ],
         'thresholds' => [
-            // Share of a window's own length that must be dead for it to count.
-            'dead_window_seconds_ratio' => (float) env('SERMON_VIDEO_QUALITY_DEAD_WINDOW_SECONDS_RATIO', 0.5),
-
             /*
-             * Only a recording that is dead throughout is hidden automatically.
-             * Anything less goes to review, because a rejection hides the video
-             * from the public page and a recording that carries real preaching
-             * for part of its length is not the detector's to withhold.
+             * Operator ruling 2026-09-22: a video is released whole or not at
+             * all, never trimmed. It is released when at least this share of it
+             * has usable picture, and flagged as having video issues when any of
+             * it is dead; below this share it is hidden and the sermon is
+             * released audio-only.
              */
-            'dead_window_ratio_reject' => (float) env('SERMON_VIDEO_QUALITY_DEAD_WINDOW_RATIO_REJECT', 0.75),
-            'dead_window_ratio_review' => (float) env('SERMON_VIDEO_QUALITY_DEAD_WINDOW_RATIO_REVIEW', 0.01),
+            'release_usable_share' => (float) env('SERMON_VIDEO_QUALITY_RELEASE_USABLE_SHARE', 0.75),
         ],
     ],
 

@@ -45,6 +45,7 @@ use InvalidArgumentException;
  *     owning_class: string|null,
  *     regression_cases: list<string>,
  *     decision: string|null,
+ *     contained_by_flag: bool,
  * }
  */
 final readonly class DetectorEntry
@@ -52,6 +53,9 @@ final readonly class DetectorEntry
     /**
      * @param  list<string>  $signals  Reasons this detector emits on its surface.
      * @param  list<string>  $regressionCases  Plan case references, e.g. `run 1340`, `§3992`.
+     * @param  bool  $containedByFlag  Whether a recorded flag, not a hold, is this class's correct
+     *                                 outcome — an operator ruling, such as releasing a partly dead
+     *                                 video whole with a "has video issues" flag.
      */
     public function __construct(
         public string $id,
@@ -64,6 +68,7 @@ final readonly class DetectorEntry
         public ?string $owningClass = null,
         public array $regressionCases = [],
         public ?string $decision = null,
+        public bool $containedByFlag = false,
     ) {
         if (trim($this->id) === '') {
             throw new InvalidArgumentException('A detector entry needs an id.');
@@ -142,6 +147,7 @@ final readonly class DetectorEntry
             'owning_class' => $this->owningClass,
             'regression_cases' => $this->regressionCases,
             'decision' => $this->decision,
+            'contained_by_flag' => $this->containedByFlag,
         ];
     }
 }

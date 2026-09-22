@@ -4,127 +4,169 @@ declare(strict_types=1);
 
 namespace App\Services\Media\Video;
 
-use App\Data\VideoDeadPictureWindow;
+use App\Data\VideoDeadPictureCoverage;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\Process\Process;
 
 /**
- * Measures how long a recording's picture is dead — frozen or black — using
- * ffmpeg's own `freezedetect` and `blackdetect` over windows spread across the
- * whole file.
+ * Measures how much of a recording's picture is dead — frozen or black — using
+ * ffmpeg's own `freezedetect` and `blackdetect` over the whole file.
  *
  * Sampling a handful of frames and comparing them cannot tell a broken
  * recording from a static camera: a preacher who fills a small part of the
- * frame changes almost nothing between two frames 1.5 s apart, while a dead
- * picture and a live one both look plausible in isolation. Duration separates
- * them completely — a real freeze runs for minutes, a live camera never holds
- * still for 20 s — and windows across the whole recording distinguish a file
- * that is dead throughout from one that dies part way in.
+ * frame changes almost nothing between two frames 1.5 s apart. Duration
+ * separates them completely — a real freeze runs for minutes, a live camera
+ * never holds still for 20 s.
+ *
+ * **Whole file, not windows (operator ruling 2026-09-22).** A video is released
+ * whole only when at least 75% of it has usable picture, which is a share of
+ * the whole recording. Six 30 s windows could only estimate that: a 52 s black
+ * opening killed one window and read as 17% dead when it was 3.7%. One pass at
+ * one frame a second, scaled down, costs about 24 s for a 22-minute 1080p
+ * recording.
  */
 class VideoDeadPictureProbe
 {
     use SanitizesLogData;
 
     /**
-     * Measure every window of the recording.
-     *
-     * @return list<VideoDeadPictureWindow> Empty when nothing could be measured,
-     *                                      which the caller must treat as no evidence rather than a clean picture.
+     * Measure the whole recording, or null when ffmpeg could not read it — which
+     * the caller must treat as no evidence rather than a clean picture.
      */
-    public function probe(string $localVideoPath, float $duration): array
-    {
-        $windows = [];
-
-        foreach ($this->windowPlan($duration) as [$start, $length]) {
-            $log = $this->runDetectors($localVideoPath, $start, $length);
-
-            if ($log === null) {
-                continue;
-            }
-
-            $windows[] = $this->measureWindow($log, $start, $length);
-        }
-
-        return $windows;
-    }
-
-    /**
-     * Window starts and lengths, evenly spaced from the first second of the
-     * recording to its last.
-     *
-     * Covering both ends is the point: the recordings that are genuinely
-     * unusable are dead from start to finish, and the one that dies part way in
-     * must show live windows before the dead ones, or it cannot be told apart.
-     *
-     * @return list<array{float, float}>
-     */
-    public function windowPlan(float $duration): array
+    public function probe(string $localVideoPath, float $duration): ?VideoDeadPictureCoverage
     {
         if ($duration <= 0.0) {
-            return [];
+            return null;
         }
 
-        $count = max(1, (int) config('media-processing.video_quality.probe.window_count', 6));
-        $windowSeconds = max(1.0, (float) config('media-processing.video_quality.probe.window_seconds', 30.0));
-        $latestStart = max(0.0, $duration - $windowSeconds);
+        $log = $this->runDetectors($localVideoPath);
 
-        if ($count === 1 || $latestStart <= 0.0) {
-            return [[0.0, min($windowSeconds, $duration)]];
-        }
-
-        $plan = [];
-
-        for ($index = 0; $index < $count; $index++) {
-            $start = round($latestStart * $index / ($count - 1), 3);
-            $plan[] = [$start, round(min($windowSeconds, $duration - $start), 3)];
-        }
-
-        return $plan;
+        return $log === null ? null : $this->measure($log, $duration);
     }
 
     /**
-     * Read one window's ffmpeg log into a measurement.
+     * Read the detectors' log into dead intervals and merge them.
      *
-     * `freezedetect` reports a duration only when the freeze *ends*, so a
-     * recording that is frozen to the end of the window prints a start and
-     * nothing else. Counting that open freeze to the window end is what makes
-     * the whole-recording failures measurable at all — reading durations alone
-     * scores them zero, exactly like a healthy video.
+     * `freezedetect` reports an end only when the freeze *ends*, so a recording
+     * frozen to its end prints a start and nothing else. That open freeze counts
+     * to the end of the recording; reading durations alone would score a
+     * whole-service holding card as a healthy video.
      */
-    public function measureWindow(string $log, float $start, float $length): VideoDeadPictureWindow
+    public function measure(string $log, float $duration): VideoDeadPictureCoverage
     {
-        preg_match_all('/freeze_start:\s*([\d.]+)/', $log, $freezeStarts);
-        preg_match_all('/freeze_duration:\s*([\d.]+)/', $log, $freezeDurations);
-        preg_match_all('/black_duration:\s*([\d.]+)/', $log, $blackDurations);
+        $freezes = $this->freezeIntervals($log, $duration);
+        $blacks = $this->blackIntervals($log, $duration);
+        $dead = $this->union([...$freezes, ...$blacks]);
 
-        $freezeSeconds = array_sum(array_map('floatval', $freezeDurations[1]));
-
-        if (count($freezeStarts[1]) > count($freezeDurations[1])) {
-            $openFreezeStart = (float) end($freezeStarts[1]);
-            $freezeSeconds += max(0.0, $length - $openFreezeStart);
-        }
-
-        return new VideoDeadPictureWindow(
-            start: $start,
-            length: $length,
-            freezeSeconds: min($length, $freezeSeconds),
-            blackSeconds: min($length, array_sum(array_map('floatval', $blackDurations[1]))),
+        return new VideoDeadPictureCoverage(
+            durationSeconds: $duration,
+            deadSeconds: $this->length($dead),
+            freezeSeconds: $this->length($this->union($freezes)),
+            blackSeconds: $this->length($this->union($blacks)),
+            deadIntervals: $dead,
         );
     }
 
     /**
-     * @return string|null The detector log, or null when ffmpeg could not read the window
+     * @return list<array{float, float}>
      */
-    private function runDetectors(string $localVideoPath, float $start, float $length): ?string
+    private function freezeIntervals(string $log, float $duration): array
+    {
+        preg_match_all('/freeze_(start|end):\s*([\d.]+)/', $log, $matches, PREG_SET_ORDER);
+
+        $intervals = [];
+        $openStart = null;
+
+        foreach ($matches as [, $kind, $seconds]) {
+            if ($kind === 'start') {
+                $openStart = (float) $seconds;
+
+                continue;
+            }
+
+            if ($openStart !== null) {
+                $intervals[] = $this->clamp($openStart, (float) $seconds, $duration);
+                $openStart = null;
+            }
+        }
+
+        if ($openStart !== null) {
+            $intervals[] = $this->clamp($openStart, $duration, $duration);
+        }
+
+        return $intervals;
+    }
+
+    /**
+     * @return list<array{float, float}>
+     */
+    private function blackIntervals(string $log, float $duration): array
+    {
+        preg_match_all('/black_start:\s*([\d.]+)\s+black_end:\s*([\d.]+)/', $log, $matches, PREG_SET_ORDER);
+
+        return array_map(
+            fn (array $match): array => $this->clamp((float) $match[1], (float) $match[2], $duration),
+            $matches,
+        );
+    }
+
+    /**
+     * @return array{float, float}
+     */
+    private function clamp(float $start, float $end, float $duration): array
+    {
+        $start = min(max(0.0, $start), $duration);
+
+        return [$start, min(max($start, $end), $duration)];
+    }
+
+    /**
+     * @param  list<array{float, float}>  $intervals
+     * @return list<array{float, float}>
+     */
+    private function union(array $intervals): array
+    {
+        usort($intervals, static fn (array $a, array $b): int => $a[0] <=> $b[0]);
+
+        $merged = [];
+
+        foreach ($intervals as [$start, $end]) {
+            if ($end <= $start) {
+                continue;
+            }
+
+            $last = array_key_last($merged);
+
+            if ($last !== null && $start <= $merged[$last][1]) {
+                $merged[$last][1] = max($merged[$last][1], $end);
+
+                continue;
+            }
+
+            $merged[] = [$start, $end];
+        }
+
+        return $merged;
+    }
+
+    /**
+     * @param  list<array{float, float}>  $intervals
+     */
+    private function length(array $intervals): float
+    {
+        return round(array_sum(array_map(static fn (array $interval): float => $interval[1] - $interval[0], $intervals)), 3);
+    }
+
+    /**
+     * @return string|null The detector log, or null when ffmpeg could not read the file
+     */
+    private function runDetectors(string $localVideoPath): ?string
     {
         $command = [
             (string) config('media-processing.ffmpeg.ffmpeg_path', '/usr/bin/ffmpeg'),
             '-hide_banner',
             '-nostats',
-            // Input seek: ffmpeg jumps to the window instead of decoding up to it.
-            '-ss', (string) round($start, 3),
-            '-t', (string) round($length, 3),
             '-i', $localVideoPath,
             '-an',
             '-vf', $this->filterChain(),
@@ -133,14 +175,13 @@ class VideoDeadPictureProbe
         ];
 
         $process = new Process($command);
-        $process->setTimeout((float) config('media-processing.video_quality.probe.timeout_seconds', 120));
+        $process->setTimeout((float) config('media-processing.video_quality.probe.timeout_seconds', 900));
 
         try {
             $process->run();
         } catch (\Throwable $e) {
             Log::warning('Video dead-picture probe failed to run', $this->sanitizeArrayForLog([
                 'video_path' => $localVideoPath,
-                'window_start' => $start,
                 'error' => $e->getMessage(),
             ]));
 
@@ -150,7 +191,6 @@ class VideoDeadPictureProbe
         if (! $process->isSuccessful()) {
             Log::warning('Video dead-picture probe returned a failure', $this->sanitizeArrayForLog([
                 'video_path' => $localVideoPath,
-                'window_start' => $start,
                 'exit_code' => $process->getExitCode(),
                 'error' => $process->getErrorOutput(),
             ]));
@@ -164,9 +204,9 @@ class VideoDeadPictureProbe
 
     /**
      * Sampling at one frame a second is enough to see a picture that does not
-     * move, and keeps a window's cost to a second or two of decoding; scaling
-     * down first removes most of that cost again without changing the verdict,
-     * because both detectors work on whole-frame statistics.
+     * move; scaling down first removes most of the decoding cost without
+     * changing the verdict, because both detectors work on whole-frame
+     * statistics.
      */
     private function filterChain(): string
     {

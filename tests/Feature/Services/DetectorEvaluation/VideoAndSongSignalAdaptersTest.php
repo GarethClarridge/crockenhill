@@ -47,6 +47,25 @@ class VideoAndSongSignalAdaptersTest extends TestCase
     }
 
     /**
+     * A partly dead video released whole carries its reason as a "has video
+     * issues" flag (ruling 2026-09-22). That is a finding, and the video is not
+     * clean negative evidence for H10.
+     */
+    public function test_an_approved_video_with_a_reason_is_a_flagged_finding(): void
+    {
+        $run = $this->runWithSermon(SermonVideoQualityStatus::Approved, 'partially_black');
+        $adapter = app(VideoQualityVerdictSignals::class);
+
+        $signals = $adapter->for($run);
+
+        $this->assertIsArray($signals);
+        $this->assertCount(1, $signals);
+        $this->assertSame('partially_black', $signals[0]->signal);
+        $this->assertFalse($signals[0]->held);
+        $this->assertFalse($adapter->isDetectorNegative($run));
+    }
+
+    /**
      * The whole reason this surface is worth having: `approved` is a positive
      * record that the detector looked, not an inference from absence.
      */
