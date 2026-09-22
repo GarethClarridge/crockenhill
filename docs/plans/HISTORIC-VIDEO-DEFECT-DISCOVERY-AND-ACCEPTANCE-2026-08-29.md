@@ -4165,6 +4165,27 @@ an adapter.
   (`song-section-without-a-song`), so it gains a held widening too. The census used
   stored, already-widened sections, not fresh detections. Nothing re-detected:
   1341 and 1231 need re-detection through the pipeline before the flag exists on them.
+  **Applied the same day** through `structure:recompute-sound-stage` (dry run
+  first, forecast matched): §4310 and §2851 now carry the flag, 0 newly held (both
+  already held), 0 deferred, 0 refused. Bounds are unchanged until re-extraction.
+- **H10b pilot run 2026-09-22** (`storage/scratch/h10b-pilot-20260922/`; six decodes,
+  38–106 s each, 0 unassessable).
+  - **C1 passes:** two decodes of 1314 give 0/125 differing windows, and their
+    compressed audio is byte-identical, so ffmpeg is deterministic and the floor is 0.
+  - **C2 is near but not at the floor:** 980 gives 0/47, 1258 gives 1/138 (1050 s,
+    distance 0.44) and 1343 gives 2/137 (3960–4020 s, 0.11 and 0.33). Unexplained. A
+    likely cause is recovery-replaced windows on the stored side; check that before
+    choosing a threshold.
+  - **C3 fails as specified, because the control choice was wrong, not the method.**
+    1314's stored transcript was already rewritten by the 09-17 canary at
+    `max_context=0`, so it equals the new decode (0/125). 1358's stored transcript is
+    `normalized-repetition-recovered`: 95/112 windows differ, but stored repetition is
+    *lower* than new (mean 0.044 against 0.054), so the difference is recovery against
+    raw, not a loop. Under this section's rule the comparison is not interpreted
+    further. A positive control needs a stored transcript that still carries a
+    source-confirmed loop and was neither re-run nor recovered, for example the five
+    direct-repro runs (1003, 1039, 1064, 1084, 1176). Choosing replacements is an
+    operator decision.
 
 ##### H9. Ruling: no reserved set; historic evidence is retrospective
 
