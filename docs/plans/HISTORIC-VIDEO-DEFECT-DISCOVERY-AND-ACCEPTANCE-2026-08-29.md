@@ -4198,6 +4198,25 @@ an adapter.
     floor (37–113 differing windows per run). That is background context-drift
     disagreement on old decodes, not noise, and it is the population the corpus
     comparison must adjudicate against audio. Report: `c3-report.json`.
+  - **C2 residue explained, 2026-09-22: cross-process decoder variation, not recovery.**
+    The stored 1258/1343 transcripts are plain `normalized` files with no unobservable
+    windows. Their banked compressed audio is byte-identical to the pilot's (as is
+    980's), and the request options are unchanged. Three further decodes of 1343 in
+    today's server process agree with each other and with the pilot, window for
+    window, so the decoder is deterministic *within* a process. The stored decodes
+    ran at 09:41 and 10:03 BST on 09-20, before the host `whisper-server` restarted
+    at 14:52. The binary (whisper-cpp 1.9.2, installed 08-28) and the model file
+    (07-06) are unchanged. So the residue is variation between server process
+    instances, confined to low-confidence audio: one mumbled phrase in 1258 (1050 s)
+    and a sung verse in 1343 (3990 s, "fear and fear and voice will sing"). The
+    mechanism is unproven (Metal/GPU numeric state is the likely candidate), and
+    proving it would need controlled server restarts on the host.
+    **Consequence for the corpus comparison:** every stored transcript came from an
+    earlier process, so the noise floor that applies is **C2's, not C1's**: about
+    1% of windows (3/322), distance ≤ 0.44, in low-confidence speech or singing. A
+    disagreement at that size in singing or mumbled speech is not by itself evidence
+    of a decoder-setting effect. Evidence: `h10b-c2-diagnose-20260922.php`,
+    `c1-1343-*.json`.
 
 ##### H9. Ruling: no reserved set; historic evidence is retrospective
 
