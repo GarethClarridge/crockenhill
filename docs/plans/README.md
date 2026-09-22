@@ -40,6 +40,7 @@ touched `.env` or production data. It is a running list, not a complete audit.
 | July deferred workflow decisions and duplicate-suite cleanup | Simplification closeout plan | No historic one-shot or bulk-backfill work remains in that plan |
 | Public metadata keyword search and `/search` | `SITE-SEARCH` | Semantic sermon search later swaps only the sermon-archive ranking branch; site-wide search remains deterministic metadata search |
 | Shared `EmbeddingServiceInterface`, `VectorMath`, embedding config and `themes` table | `SONG-SCRIPTURE-AND-THEME-SEARCH` | Semantic sermon search consumes these contracts and adds only sermon chunks/pivots |
+| Song title cleanup, genuine alternative titles and naming ownership across OpenLP sync | [Song title curation](SONG-TITLE-CURATION-AND-OPENLP-SYNC-2026-09-22.md) | Search and historic matching consume effective names; historic relinking/publication remain with the historic plans |
 | Timestamped sermon indexing and semantic sermon ranking | `SEMANTIC-SERMON-SEARCH` | It consumes durable current/historic artifacts but does not alter acquisition or promotion |
 | Future live OBS sidecars | `LIVESTREAM-TRANSCRIPT-REUSE` | Never a historic-import shortcut; invalid/missing sidecars fall back to the normal full-service transcriber |
 | Brand tokens, shared component variants and broad visual baselines | `DESIGN-SYSTEM-REFRESH` | Feature plans own their information architecture, copy and behaviour; rebase onto final tokens |
@@ -110,6 +111,7 @@ None of these lanes blocks the public product sequence except where a plan expli
 | P4 | [Newcomer UX](NEWCOMER-UX-BACKLOG-2026-07-11.md) | Not started; O19 gate cleared | O16/O20/O21 operator fixes, then O17; none waits for the newcomer page |
 | P5 | [Site search](SITE-SEARCH-2026-07-20.md) | Not started | Sermon metadata keyword search (Delivery 1), then a complete linked `/search` release |
 | P6 | [Song familiarity](SONG-FAMILIARITY-RATING-2026-07-20.md) | Not started; non-blocking default is Occasional | Implement list/detail as one usable release; picker badge can follow independently |
+| P6a | [Song title curation and OpenLP sync](SONG-TITLE-CURATION-AND-OPENLP-SYNC-2026-09-22.md) | Planned 2026-09-22; direction revised to one-off local correction and manual SQLite export back to authoritative OpenLP; no data changed | ST1 inventory, ST2 number/identity protection, local cleanup/research, then ST5 verified export and round trip |
 | P7 | [Song scripture/theme/semantic search](SONG-SCRIPTURE-AND-THEME-SEARCH-2026-07-20.md) | Not started | Exact tagged scripture search first, then themes; embeddings are a later shared foundation |
 | P8 | [Semantic sermon search](SEMANTIC-SERMON-SEARCH-AND-QA-2026-06-18.md) | Not started; old backlog gates cleared | Define/index the already-durable timestamped eligible corpus; do not wait for full archive re-transcription |
 | P9 | [OBS transcript reuse](LIVESTREAM-TRANSCRIPT-REUSE-FROM-OBS-2026-06-20.md) | Deferred pending real sidecar evidence | Operational live-caption trial + Phase 0 comparison; app plumbing only after go/no-go |
@@ -125,6 +127,7 @@ None of these lanes blocks the public product sequence except where a plan expli
 | Architecture D4 live Shadow-mode value | Architecture AM10 only |
 | Code quality Q3 (`podcast.enabled`) and Q4 (level-9 config flip); approve removal of `spatie/laravel-data` | Respective code-quality slices only |
 | Provide/approve song scripture import columns, theme vocabulary and calibration reports | Corresponding song data/flag flips |
+| Fresh operational OpenLP database and manual installation of the verified corrected SQLite copy | Song title ST5 handoff; inventory and local rehearsal can proceed |
 | Newcomer photographs/consent, weekly editor, Christianity Explored decision | N3/N4/O18 only |
 | GA4 console access and key-event choice | GA6 |
 | Real OBS recordings + LocalVocal sidecars and preferred format | OBS Phase 0/1 |
