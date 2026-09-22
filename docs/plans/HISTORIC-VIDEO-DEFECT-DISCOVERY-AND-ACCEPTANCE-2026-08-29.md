@@ -4128,6 +4128,43 @@ an adapter.
   Whole cues crossing a window boundary can introduce alignment noise. Artifact
   binding, operational commands, same-options controls and the expensive re-decode
   remain open; no new corpus decoding was dispatched by this work.
+- **H10b commands built test-first, 2026-09-22; nothing decoded yet.** Checking
+  the spec against the database overturned one premise: **there is no banked
+  full-service audio to re-read.** Of 455 historic runs, 443 record no `audio`
+  artifact (archiving postdates their decode) and the 12 that do (the 09-17+
+  re-runs) sit on `historic_staging`. So `service:redecode-transcripts` reads the
+  staged source, refuses it unless its SHA-256 equals the recorded hash, compresses
+  it through the pipeline's own `compressAudioForTranscription()`, fingerprints the
+  compressed audio, and decodes it through `decodeCompressedAudio()`: the same
+  request as the pipeline, with nothing banked. The live `transcribeService()` could
+  not be reused because it overwrites the run's archived audio and raw response.
+  The remaining second variable is ffmpeg's determinism. C1 exposes it, since
+  `compressed_audio_match` is reported, and the 12 banked files can be checked the
+  same way. Membership is explicit (no "all"), artifacts are create-once `0600`,
+  runs resume per run, and unassessable is its own outcome.
+  `service:compare-transcript-redecode` is read-only. It refuses a stored transcript
+  that changed after the decode or has a different source duration, removes prompt
+  echoes from the new side as the pipeline does, and overlays the recorded stored
+  blocks (null stays unknown) and the new decode's screen. It reports windows
+  unclassified until C1 sets the floor. `--against-dir` compares two decodes (C1).
+  The stored side also carries `ServiceTranscriptRecovery`'s re-decoded windows,
+  which the new side does not; read disagreement in an unobservable/recovered
+  window with that in mind. **Next: the C1/C2/C3 pilot** (1314 twice; 980/1258/1343;
+  1314/1358). This is about six host-Whisper decodes and is an operator dispatch.
+- **1341 introduction bridge built test-first, 2026-09-22.** §4310 (3715–3731 s)
+  holds only the spoken announcement. Sustained sound starts two 5 s bins after it
+  (3740 s), and `widenedEnd()` stopped at the first unsustained bin, so it never
+  widened. A read-only census of all 448 completed historic runs (0 unassessable,
+  `storage/scratch/songgap-20260922-census.{php,json}`) found only three song edges
+  separated from ≥30 s of unheld sustained sound by a short gap: 1341 §4310 and
+  1231 §2851 (10 s each), and 1287 §3597 (20 s). A widening may now cross at most
+  two unheld, unsustained bins at a song's edge. The 30 s floor is measured from where
+  the sound becomes sustained, and **every bridged widening is flagged for review**
+  whatever its length. 1287 is deliberately left out: its register reads it as
+  displaced song identity. 1231 §2851 is one of the three unheld short song sections
+  (`song-section-without-a-song`), so it gains a held widening too. The census used
+  stored, already-widened sections, not fresh detections. Nothing re-detected:
+  1341 and 1231 need re-detection through the pipeline before the flag exists on them.
 
 ##### H9. Ruling: no reserved set; historic evidence is retrospective
 

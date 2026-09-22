@@ -46,6 +46,15 @@ class SustainedSoundSongSections
      */
     private const REVIEWED_WIDENING_SECONDS = 90.0;
 
+    /**
+     * An announced song's section can hold only the announcement, with a few seconds of
+     * introduction before the singing is sustained (1341 §4310, 1231 §2851: 10 s each). The
+     * corpus census of 448 runs found no other edge within 20 s of sustained sound, and the one
+     * at 20 s (1287 §3597) is a displaced song identity, not an introduction. A bridged widening
+     * is always held: it is an inference about the gap, not only about the sound.
+     */
+    private const INTRODUCTION_BINS = 2;
+
     private const MINIMUM_PROPOSAL_SECONDS = 45.0;
 
     private const PROPOSAL_CONFIDENCE = 0.5;
@@ -102,8 +111,8 @@ class SustainedSoundSongSections
                 continue;
             }
 
-            $start = $this->widenedStart($sections, $index, $sound) ?? $section->startTime;
-            $end = $this->widenedEnd($sections, $index, $sound) ?? $section->endTime;
+            [$start, $bridgedStart] = $this->widenedStart($sections, $index, $sound) ?? [$section->startTime, false];
+            [$end, $bridgedEnd] = $this->widenedEnd($sections, $index, $sound) ?? [$section->endTime, false];
             $growth = ($section->startTime - $start) + ($end - $section->endTime);
 
             if ($growth <= 0.0) {
@@ -120,9 +129,13 @@ class SustainedSoundSongSections
                 $notes[] = sprintf('End widened %+.1fs across sustained sound to %.1fs; the transcript shows no singing there.', $end - $section->endTime, $end);
             }
 
+            if ($bridgedStart || $bridgedEnd) {
+                $notes[] = 'The widening crossed a short introduction between the announcement and the singing.';
+            }
+
             $widened[$index] = $section->withTimes($start, $end, $notes);
 
-            if (max($section->startTime - $start, $end - $section->endTime) > self::REVIEWED_WIDENING_SECONDS) {
+            if ($bridgedStart || $bridgedEnd || max($section->startTime - $start, $end - $section->endTime) > self::REVIEWED_WIDENING_SECONDS) {
                 $widened[$index] = $widened[$index]->withReviewFlags([ServiceStructureValidator::FLAG_SONG_WIDENED_TO_SUSTAINED_SOUND]);
             }
         }
@@ -132,13 +145,20 @@ class SustainedSoundSongSections
 
     /**
      * @param  list<ServiceStructureSection>  $sections
+     * @return array{0: float, 1: bool}|null The new end, and whether it crossed an introduction
      */
-    private function widenedEnd(array $sections, int $index, SustainedSound $sound): ?float
+    private function widenedEnd(array $sections, int $index, SustainedSound $sound): ?array
     {
         $section = $sections[$index];
+        $firstBin = $this->firstSustainedBin($sections, $index, $sound, (int) floor($section->endTime / SustainedSound::BIN_SECONDS), 1);
+
+        if ($firstBin === null) {
+            return null;
+        }
+
         $lastBin = null;
 
-        for ($bin = (int) floor($section->endTime / SustainedSound::BIN_SECONDS); $bin < $sound->binCount() && $sound->isSustainedBin($bin); $bin++) {
+        for ($bin = $firstBin; $bin < $sound->binCount() && $sound->isSustainedBin($bin); $bin++) {
             $holder = $this->holderAt($sections, ($bin + 0.5) * SustainedSound::BIN_SECONDS, $index);
 
             if ($holder instanceof ServiceStructureSection) {
@@ -165,19 +185,29 @@ class SustainedSoundSongSections
         }
 
         $end = min(($lastBin + 1) * SustainedSound::BIN_SECONDS, $nextStart);
+        $sustainedFrom = max($section->endTime, $firstBin * SustainedSound::BIN_SECONDS);
 
-        return $end - $section->endTime >= self::MINIMUM_WIDENING_SECONDS ? $end : null;
+        return $end - $sustainedFrom >= self::MINIMUM_WIDENING_SECONDS
+            ? [$end, $sustainedFrom > $section->endTime]
+            : null;
     }
 
     /**
      * @param  list<ServiceStructureSection>  $sections
+     * @return array{0: float, 1: bool}|null The new start, and whether it crossed an introduction
      */
-    private function widenedStart(array $sections, int $index, SustainedSound $sound): ?float
+    private function widenedStart(array $sections, int $index, SustainedSound $sound): ?array
     {
         $section = $sections[$index];
+        $lastBin = $this->firstSustainedBin($sections, $index, $sound, (int) ceil($section->startTime / SustainedSound::BIN_SECONDS) - 1, -1);
+
+        if ($lastBin === null) {
+            return null;
+        }
+
         $firstBin = null;
 
-        for ($bin = (int) ceil($section->startTime / SustainedSound::BIN_SECONDS) - 1; $bin >= 0 && $bin < $sound->binCount() && $sound->isSustainedBin($bin); $bin--) {
+        for ($bin = $lastBin; $bin >= 0 && $bin < $sound->binCount() && $sound->isSustainedBin($bin); $bin--) {
             $holder = $this->holderAt($sections, ($bin + 0.5) * SustainedSound::BIN_SECONDS, $index);
 
             if ($holder instanceof ServiceStructureSection) {
@@ -204,8 +234,39 @@ class SustainedSoundSongSections
         }
 
         $start = max($firstBin * SustainedSound::BIN_SECONDS, $previousEnd);
+        $sustainedTo = min($section->startTime, ($lastBin + 1) * SustainedSound::BIN_SECONDS);
 
-        return $section->startTime - $start >= self::MINIMUM_WIDENING_SECONDS ? $start : null;
+        return $sustainedTo - $start >= self::MINIMUM_WIDENING_SECONDS
+            ? [$start, $sustainedTo < $section->startTime]
+            : null;
+    }
+
+    /**
+     * The first sustained bin met walking away from a song's edge, across at most an
+     * introduction's worth of unheld, unsustained bins.
+     *
+     * @param  list<ServiceStructureSection>  $sections
+     * @param  1|-1  $direction
+     */
+    private function firstSustainedBin(array $sections, int $index, SustainedSound $sound, int $edgeBin, int $direction): ?int
+    {
+        for ($step = 0; $step <= self::INTRODUCTION_BINS; $step++) {
+            $bin = $edgeBin + $step * $direction;
+
+            if ($bin < 0 || $bin >= $sound->binCount()) {
+                return null;
+            }
+
+            if ($sound->isSustainedBin($bin)) {
+                return $bin;
+            }
+
+            if ($this->holderAt($sections, ($bin + 0.5) * SustainedSound::BIN_SECONDS, $index) instanceof ServiceStructureSection) {
+                return null;
+            }
+        }
+
+        return null;
     }
 
     /**

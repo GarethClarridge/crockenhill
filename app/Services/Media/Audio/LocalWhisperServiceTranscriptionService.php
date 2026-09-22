@@ -65,6 +65,35 @@ class LocalWhisperServiceTranscriptionService implements ServiceTranscriptionInt
         }
     }
 
+    /**
+     * Decode already-compressed audio with the pipeline's request, banking nothing.
+     *
+     * H10b's re-decode measures the decoder, not a run: {@see transcribeService()}
+     * would overwrite the run's archived audio and raw response, and record both
+     * on its row. Compression is the caller's, so it can fingerprint the audio.
+     */
+    public function decodeCompressedAudio(string $compressedAudioPath, string $processingId, ?string $prompt = null): ChurchServiceTranscript
+    {
+        return $this->requestVerboseTranscription($compressedAudioPath, $processingId, $prompt, bankRawResponse: false);
+    }
+
+    /**
+     * The form fields every service transcription request sends, less the file.
+     *
+     * @return array<string, string>
+     */
+    public function requestOptions(?string $prompt = null): array
+    {
+        return [
+            'model' => (string) config('media-processing.transcription.local_whisper_model', 'small'),
+            'language' => 'en',
+            'response_format' => 'verbose_json',
+            'timestamp_granularities[]' => 'word',
+            'prompt' => $prompt ?? (string) config('media-processing.transcription.prompts.full_service'),
+            ...LocalWhisperDecoding::OPTIONS,
+        ];
+    }
+
     private function artifacts(): ServiceArtifactStorage
     {
         return $this->artifactStorage ?? app(ServiceArtifactStorage::class);
@@ -93,8 +122,12 @@ class LocalWhisperServiceTranscriptionService implements ServiceTranscriptionInt
         return false;
     }
 
-    private function requestVerboseTranscription(string $audioPath, string $processingId, ?string $prompt = null): ChurchServiceTranscript
-    {
+    private function requestVerboseTranscription(
+        string $audioPath,
+        string $processingId,
+        ?string $prompt = null,
+        bool $bankRawResponse = true,
+    ): ChurchServiceTranscript {
         $baseUrl = (string) config('media-processing.transcription.local_whisper_url');
         $transcriptionPath = (string) config('media-processing.transcription.local_whisper_transcription_path', '/v1/audio/transcriptions');
         $endpoint = rtrim($baseUrl, '/').'/'.ltrim($transcriptionPath, '/');
@@ -109,14 +142,7 @@ class LocalWhisperServiceTranscriptionService implements ServiceTranscriptionInt
         try {
             $response = Http::timeout((int) config('media-processing.transcription.local_whisper_timeout', 1800))
                 ->attach('file', $fileHandle, basename($audioPath))
-                ->post($endpoint, [
-                    'model' => (string) config('media-processing.transcription.local_whisper_model', 'small'),
-                    'language' => 'en',
-                    'response_format' => 'verbose_json',
-                    'timestamp_granularities[]' => 'word',
-                    'prompt' => $prompt ?? (string) config('media-processing.transcription.prompts.full_service'),
-                    ...LocalWhisperDecoding::OPTIONS,
-                ]);
+                ->post($endpoint, $this->requestOptions($prompt));
         } catch (Exception $e) {
             $this->logger->logApiCall(
                 $processingId,
@@ -167,14 +193,16 @@ class LocalWhisperServiceTranscriptionService implements ServiceTranscriptionInt
             throw new TranscriptionException('Local Whisper verbose_json response contained no timestamped segments');
         }
 
-        $this->artifacts()->putJson($processingId, 'raw', $payload, [
-            'transcription_service' => 'local_whisper',
-            'model' => (string) config('media-processing.transcription.local_whisper_model', 'small'),
-            'endpoint' => $endpoint,
-            'response_format' => 'verbose_json',
-            'word_timestamps_requested' => true,
-            'word_timestamps_present' => $this->payloadCarriesWordTimestamps($payload),
-        ]);
+        if ($bankRawResponse) {
+            $this->artifacts()->putJson($processingId, 'raw', $payload, [
+                'transcription_service' => 'local_whisper',
+                'model' => (string) config('media-processing.transcription.local_whisper_model', 'small'),
+                'endpoint' => $endpoint,
+                'response_format' => 'verbose_json',
+                'word_timestamps_requested' => true,
+                'word_timestamps_present' => $this->payloadCarriesWordTimestamps($payload),
+            ]);
+        }
 
         $cues = [];
 

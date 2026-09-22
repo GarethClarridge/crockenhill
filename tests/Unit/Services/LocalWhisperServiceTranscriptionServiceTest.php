@@ -279,6 +279,43 @@ class LocalWhisperServiceTranscriptionServiceTest extends TestCase
         $this->assertFalse($recorded['word_timestamps_present']);
     }
 
+    /**
+     * H10b re-decodes a completed run to measure the decoder. Banking would
+     * overwrite that run's archived audio and raw response with the new decode.
+     */
+    #[Test]
+    public function it_decodes_compressed_audio_without_banking_anything_against_the_run(): void
+    {
+        Storage::fake('public');
+        Config::set('media-processing.storage.transcript_disk', 'public');
+        Config::set('media-processing.storage.sermon_disk', 'public');
+
+        $log = MediaProcessingLog::factory()->livestream()->create();
+        $compressedPath = $this->makeTempFile('compressed audio');
+
+        $this->chunkingService->shouldNotReceive('compressAudioForTranscription');
+
+        Http::fake([
+            'whisper:8000/v1/audio/transcriptions' => Http::response([
+                'duration' => 30.0,
+                'segments' => [['id' => 0, 'start' => 0.0, 'end' => 30.0, 'text' => ' Good morning. ']],
+            ]),
+        ]);
+
+        $transcript = $this->service->decodeCompressedAudio($compressedPath, $log->processing_id);
+
+        $this->assertSame([['start' => 0.0, 'end' => 30.0, 'text' => 'Good morning.']], $transcript->cues);
+        $this->assertSame([], ServiceArtifactStorage::recordedFor($log->refresh()));
+        $this->assertSame([], Storage::disk('public')->allFiles());
+        $this->assertFileExists($compressedPath, 'The caller owns the compressed audio.');
+
+        Http::assertSent(function ($request): bool {
+            $fields = collect($request->data())->pluck('contents', 'name');
+
+            return $fields['max_context'] === '0' && $fields['response_format'] === 'verbose_json';
+        });
+    }
+
     private function makeTempFile(string $contents): string
     {
         $path = tempnam(sys_get_temp_dir(), 'local-whisper-service-test-');

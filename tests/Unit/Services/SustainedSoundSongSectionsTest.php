@@ -110,6 +110,95 @@ class SustainedSoundSongSectionsTest extends TestCase
     }
 
     /**
+     * 1341 §4310 and 1231 §2851 hold only the spoken announcement ("Let's sing … Amazing
+     * Grace"); sustained sound starts two bins (10 s) past the section, after an introduction
+     * that is neither speech nor song. The corpus census found these two and one more at 20 s
+     * (1287, a displaced song identity, not an introduction).
+     */
+    #[Test]
+    public function it_widens_an_announced_song_across_a_short_introduction_and_holds_it_for_review(): void
+    {
+        $rmsLog = $this->rmsLog([[0, 316, 'speech'], [324, 600, 'sung'], [610, 900, 'speech']]);
+        $structure = ServiceStructure::fromSections([
+            $this->section('sermon', 0.0, 298.0),
+            $this->section('song', 300.0, 326.0),
+            $this->section('prayer', 610.0, 900.0),
+        ]);
+
+        $song = $this->service->apply($structure, $rmsLog, recordingOmitsSongs: false)->sections[1];
+
+        $this->assertSame(300.0, $song->startTime);
+        $this->assertEqualsWithDelta(600.0, $song->endTime, 10.0);
+        $this->assertStringContainsString('introduction', implode(' ', $song->notes));
+        $this->assertContains(ServiceStructureValidator::FLAG_SONG_WIDENED_TO_SUSTAINED_SOUND, $song->reviewFlags);
+    }
+
+    #[Test]
+    public function it_holds_even_a_short_widening_that_crossed_an_introduction(): void
+    {
+        $rmsLog = $this->rmsLog([[0, 316, 'speech'], [324, 380, 'sung'], [390, 900, 'speech']]);
+        $structure = ServiceStructure::fromSections([
+            $this->section('sermon', 0.0, 298.0),
+            $this->section('song', 300.0, 326.0),
+            $this->section('prayer', 390.0, 900.0),
+        ]);
+
+        $song = $this->service->apply($structure, $rmsLog, recordingOmitsSongs: false)->sections[1];
+
+        $this->assertGreaterThan(326.0, $song->endTime);
+        $this->assertContains(ServiceStructureValidator::FLAG_SONG_WIDENED_TO_SUSTAINED_SOUND, $song->reviewFlags);
+    }
+
+    #[Test]
+    public function it_widens_a_song_start_back_across_an_introduction(): void
+    {
+        $rmsLog = $this->rmsLog([[0, 290, 'speech'], [300, 576, 'sung'], [584, 900, 'speech']]);
+        $structure = ServiceStructure::fromSections([
+            $this->section('prayer', 0.0, 290.0),
+            $this->section('song', 574.0, 600.0),
+            $this->section('sermon', 602.0, 900.0),
+        ]);
+
+        $song = $this->service->apply($structure, $rmsLog, recordingOmitsSongs: false)->sections[1];
+
+        $this->assertEqualsWithDelta(300.0, $song->startTime, 10.0);
+        $this->assertGreaterThanOrEqual(290.0, $song->startTime);
+        $this->assertSame(600.0, $song->endTime);
+        $this->assertContains(ServiceStructureValidator::FLAG_SONG_WIDENED_TO_SUSTAINED_SOUND, $song->reviewFlags);
+    }
+
+    #[Test]
+    public function it_does_not_bridge_a_gap_longer_than_an_introduction(): void
+    {
+        $rmsLog = $this->rmsLog([[0, 316, 'speech'], [345, 600, 'sung'], [610, 900, 'speech']]);
+        $structure = ServiceStructure::fromSections([
+            $this->section('sermon', 0.0, 298.0),
+            $this->section('song', 300.0, 326.0),
+            $this->section('prayer', 610.0, 900.0),
+        ]);
+
+        $sections = $this->service->apply($structure, $rmsLog, recordingOmitsSongs: false)->sections;
+
+        $this->assertSame(326.0, $sections[1]->endTime);
+    }
+
+    #[Test]
+    public function it_does_not_bridge_an_introduction_that_another_section_holds(): void
+    {
+        $rmsLog = $this->rmsLog([[0, 316, 'speech'], [324, 600, 'sung'], [610, 900, 'speech']]);
+        $structure = ServiceStructure::fromSections([
+            $this->section('sermon', 0.0, 298.0),
+            $this->section('song', 300.0, 326.0),
+            $this->section('notices', 326.0, 332.0),
+            $this->section('prayer', 610.0, 900.0),
+        ]);
+
+        $sections = $this->service->apply($structure, $rmsLog, recordingOmitsSongs: false)->sections;
+
+        $this->assertSame(326.0, $sections[1]->endTime);
+    }
+
+    /**
      * 1215 §2638/§2639 and 1337 §4274/§4275: the sound between two songs belongs to one of
      * them, and the level cannot say which.
      */
