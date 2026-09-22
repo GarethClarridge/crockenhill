@@ -198,6 +198,16 @@ class ServiceTranscriptRepetitionScreenTest extends TestCase
     }
 
     #[Test]
+    public function it_does_not_treat_composite_short_phrases_as_longer_phrases(): void
+    {
+        foreach ([['Amen', 12], ['Amen', 23], ['The Lord', 8], ['The Lord', 15]] as [$phrase, $repeats]) {
+            $transcript = $this->loopingTranscript($phrase, $repeats, 0.0, 4.0);
+
+            $this->assertSame([], app(ServiceTranscriptRepetitionScreen::class)->screen($transcript), "{$phrase} repeated {$repeats} times");
+        }
+    }
+
+    #[Test]
     public function it_preserves_a_genuine_sung_refrain(): void
     {
         // Real repetition in this corpus sits at three and four repeats and at a
