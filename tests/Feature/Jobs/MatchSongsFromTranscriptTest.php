@@ -218,6 +218,78 @@ class MatchSongsFromTranscriptTest extends TestCase
     }
 
     #[Test]
+    public function it_corroborates_a_suspect_title_with_ocr_in_the_same_pass(): void
+    {
+        $this->assertSuspectTitleCanBeCorroborated(ServiceSectionSongMatchType::Unmatched);
+    }
+
+    #[Test]
+    public function it_retries_ocr_for_a_previously_demoted_suspect_title(): void
+    {
+        $this->assertSuspectTitleCanBeCorroborated(ServiceSectionSongMatchType::Inferred);
+    }
+
+    #[Test]
+    public function it_keeps_a_suspect_title_held_when_ocr_is_unavailable(): void
+    {
+        $this->assertSuspectTitleCanBeCorroborated(ServiceSectionSongMatchType::Inferred, hasOcrEvidence: false);
+    }
+
+    private function assertSuspectTitleCanBeCorroborated(ServiceSectionSongMatchType $matchType, bool $hasOcrEvidence = true): void
+    {
+        Config::set('media-processing.song_matching.ocr_enabled', true);
+        $lyrics = 'Come people of the risen King who delight in songs of praising';
+        $song = Song::factory()->create([
+            'title' => 'Come People of the Risen King',
+            'canonical_key' => 'come people of the risen king',
+            'lyrics_plain' => $lyrics,
+        ]);
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $log->putServiceTranscriptPath('service-transcripts/looped.normalized.json', [], [
+            (new SuspectTranscriptBlock(100.0, 220.0, SuspectTranscriptBlock::REASON_REPEATED_PHRASE, 96, 48.0))->toArray(),
+        ]);
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song,
+            'song_match_type' => $matchType,
+            'start_time' => 100.0,
+            'end_time' => 300.0,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'song_title_hint' => $song->title,
+                'song_ocr_text' => $hasOcrEvidence ? $lyrics : null,
+                'review_flags' => $matchType === ServiceSectionSongMatchType::Unmatched
+                    ? ['unmatched_song_section']
+                    : ['song_identity_unverified_from_suspect_transcript'],
+            ],
+        ]);
+
+        (new MatchSongsFromTranscript($log))->handle(
+            app(SongLyricsMatchingService::class),
+            app(StorageAdapterHelper::class),
+            app(SongLyricOcrService::class),
+            app(UnmatchedSongReviewApplicator::class),
+        );
+
+        $section->refresh();
+
+        if (! $hasOcrEvidence) {
+            $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
+            $this->assertTrue($section->needs_manual_review);
+            $this->assertContains('song_identity_unverified_from_suspect_transcript', $section->metadata['review_flags']);
+
+            return;
+        }
+
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
+        $this->assertFalse($section->needs_manual_review);
+        $this->assertSame('ocr', $section->metadata['transcript_song_match']['match_source']);
+        $this->assertSame($song->id, $section->metadata['transcript_song_match']['song_id']);
+        $this->assertNotContains('song_identity_unverified_from_suspect_transcript', $section->metadata['review_flags']);
+    }
+
+    #[Test]
     public function a_confirmed_match_does_not_restore_review_for_a_demoted_structure_flag(): void
     {
         Song::factory()->create([
