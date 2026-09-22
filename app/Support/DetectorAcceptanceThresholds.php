@@ -123,6 +123,29 @@ class DetectorAcceptanceThresholds
     }
 
     /**
+     * The one-sided confidence z for the declared false-positive bound.
+     *
+     * Declared 2026-09-22, before any scoring: the contract had fixed each
+     * ceiling but not how a rate is judged against it. Only the Wilson
+     * one-sided 95% upper bound over adjudicated clean cases is accepted; any
+     * other declaration stops the evaluation rather than scoring against a
+     * statistic nobody chose.
+     */
+    public function falsePositiveBoundZ(): float
+    {
+        $declared = $this->contract['false_positive'] ?? null;
+
+        if (! is_array($declared)
+            || ($declared['bound'] ?? null) !== 'one_sided_95_upper'
+            || ($declared['interval'] ?? null) !== 'wilson'
+            || ($declared['denominator'] ?? null) !== 'adjudicated_clean_cases') {
+            throw new RuntimeException('Detector acceptance thresholds declare no supported false-positive bound.');
+        }
+
+        return 1.6448536269514722;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function reviewBurden(): array

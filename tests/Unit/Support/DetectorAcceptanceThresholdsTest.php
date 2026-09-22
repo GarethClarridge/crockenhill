@@ -42,6 +42,29 @@ class DetectorAcceptanceThresholdsTest extends TestCase
         );
     }
 
+    /**
+     * The ceilings were declared on 09-21 without saying how a rate is judged
+     * against them; that was declared on 09-22, before any scoring existed.
+     */
+    public function test_it_declares_the_false_positive_bound(): void
+    {
+        $this->assertEqualsWithDelta(1.6449, DetectorAcceptanceThresholds::load()->falsePositiveBoundZ(), 0.0001);
+    }
+
+    public function test_it_refuses_an_undeclared_false_positive_bound(): void
+    {
+        $path = $this->writeContract(function (array $contract): array {
+            unset($contract['false_positive']);
+
+            return $contract;
+        }, rehash: true);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('false-positive bound');
+
+        DetectorAcceptanceThresholds::load($path)->falsePositiveBoundZ();
+    }
+
     public function test_a_reporting_only_severity_has_nothing_to_meet(): void
     {
         $this->assertNull(

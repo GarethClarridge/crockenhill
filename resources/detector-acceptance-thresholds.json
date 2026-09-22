@@ -43,5 +43,20 @@
         "absolute_ceilings": null,
         "note": "No absolute ceiling is declared because no measured baseline of operator minutes exists. Inventing one would either pass vacuously or fail on day one: 832 of 1174 historic song sections and 120 of 435 sermon sections are currently flagged. A candidate is therefore judged against the incumbent on the same detector-negative sample, and an absolute ceiling is added once operator minutes have been measured rather than guessed."
     },
-    "hash": "e7fcb6d9b95623aaef5a5bc98f69c246afe8505d037634389986039f756353b3"
+    "false_positive": {
+        "bound": "one_sided_95_upper",
+        "interval": "wilson",
+        "denominator": "adjudicated_clean_cases",
+        "clustering": "service_group",
+        "counts_unheld_signals": true,
+        "insufficient_evidence_is_not_a_pass": true,
+        "declared_at": "2026-09-22",
+        "note": "Declared before detectors:evaluate existed and before any candidate was scored. Mirrors the recall declaration: a detector passes only when the upper bound of its false-positive rate over adjudicated clean cases is at or below its severity's ceiling. A signal that fired without holding still counts, because it still costs review. Provisional clean cases (re-decode, transcript reading, derived comparison) are reported but never enter the rate."
+    },
+    "regression": {
+        "contained_means": "a matching signal that held",
+        "prevented_requires": "re-processing evidence; recorded output alone cannot show prevention, so a fixed-at-source class is unassessable here, never a pass",
+        "declared_at": "2026-09-22"
+    },
+    "hash": "569930293ffba0978f21235fb3c94f292213c7df3f8d93e0a2d93e5ce4ea8482"
 }
