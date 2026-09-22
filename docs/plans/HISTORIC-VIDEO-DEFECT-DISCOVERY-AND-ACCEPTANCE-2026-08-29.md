@@ -2262,6 +2262,14 @@ data is wrong.
 | Not found in the catalogue at all | 7 items, 6 distinct titles | "My God How Wonderful Thou Art" (×2), "Welcome Home", "Great Providence of Heaven", "Praise the Word from everlasting", "God's Love to Be with You", "Psalm 11 hymn" — **these** are the genuine catalogue question |
 
 **The correction belongs in OpenLP, not here — ruled 2026-09-18.**
+
+**Follow-up ownership, 2026-09-22:** catalogue-wide cleanup, researched alternative
+titles and durable sync behaviour now belong to the
+[song title curation plan](SONG-TITLE-CURATION-AND-OPENLP-SYNC-2026-09-22.md).
+Its D1 retains OpenLP authority: prepare corrections here and manually export a
+verified SQLite copy back to OpenLP. The six candidates below feed that plan;
+historic binding and publication remain owned here.
+
 `SongCatalogSyncService` writes `alternate_title` straight from the OpenLP row on
 every `service-tracking:sync-songs`, and **all 1,160 live songs are sync-managed**
 (every one carries `import_metadata.source_representative_song_id`). A local
@@ -3948,6 +3956,28 @@ have scored 941 as 177 s dead instead of 244 s. `release_usable_share` = 0.75
 replaces the window thresholds. `needs_review` is no longer produced
 automatically. The catalogue entry is `containedByFlag`, so the evaluator scores
 a flagged, released video as handled.
+
+**Ruling applied to the corpus, 2026-09-22.** Workers were restarted onto
+`84f064a06` (queues empty, nothing in flight). All 441 assessed historic sermons
+were re-assessed through `sermons:assess-video-quality`: first the 28 previously
+hidden or `needs_review` (after a read-only preview,
+`storage/scratch/vq-20260922-measure.json`), then the 414 approved, one sermon
+at a time. Every row now carries a 09-22 verdict. Result: 408 approved clean,
+**12 approved and flagged**, 21 hidden. Among the flagged, 926, 930, 941, 975
+and 1276 were known; 1148, 1184, 1196, 1247, 1248 and 1256 are new, at
+89.8–99.6% usable, and 1189 moved from review. **Newly hidden: 1225 and
+1230** (62% and 69% usable), both 10–12 minute camera-fault cards, confirmed from
+frames (`storage/scratch/vq-20260922-frames/sheet.jpg`). **No hidden video
+returned.** The sampled detector understated partial damage: 1230 was 606 s dead,
+not the 60 s its windows saw.
+
+The six newly found cases are all mid-sermon or early freezes, plus one 7 s black
+blip, so black openings remain the four known sermons (926, 930, 941, 975). That
+is too few to justify a span fix in the reprocessing batch; the flag is the
+outcome. Not covered: 862 (no local file; its settled verdict held) and 12
+published pre-historic sermons whose files live only in production. Those are
+re-assessed there once this code is deployed. Any sermon re-extracted later is
+re-assessed automatically by the pipeline's `AssessSermonVideoQuality` step.
 
 **Limits.** Transcript-minute detectors match at run level, because the case
 book has no time spans. The three rhetoric controls (1051, 1078, 1079) therefore
