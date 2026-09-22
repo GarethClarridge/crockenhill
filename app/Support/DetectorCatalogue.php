@@ -930,7 +930,7 @@ class DetectorCatalogue
                 severity: DetectorSeverity::ContentLost,
                 unit: DetectorUnit::Section,
                 summary: 'A hymn sits wholly inside the sermon section, which is a different shape from a non-sermon section absorbing one and is not caught by the macro-section rule.',
-                regressionCases: ['#885'],
+                regressionCases: ['sermon 885'],
             ),
             new DetectorEntry(
                 id: 'sermon-closing-prayer-dropped',
@@ -940,7 +940,7 @@ class DetectorCatalogue
                 severity: DetectorSeverity::ContentLost,
                 unit: DetectorUnit::Sermon,
                 summary: 'The closing prayer was left out of the sermon whenever it had no section of its own, so seven sermons end before the service does.',
-                regressionCases: ['run 1027', 'run 981', 'run 1193', 'run 1299', 'run 1172', 'run 986', 'run 990'],
+                regressionCases: ['sermon 1027', 'sermon 981', 'sermon 1193', 'sermon 1299', 'sermon 1172', 'sermon 986', 'sermon 990'],
                 decision: 'Fixed at source: the sermon span now extends to the next song when no section follows it. The seven recorded sermons await settled boundaries before their repairs run.',
             ),
         ];
@@ -1025,7 +1025,7 @@ class DetectorCatalogue
                 severity: DetectorSeverity::PublishedWrongContent,
                 unit: DetectorUnit::Sermon,
                 summary: "The published title or reference contradicts the sermon's own summary or transcript, so the page describes a sermon other than the one it carries.",
-                regressionCases: ['run 881', 'run 954', 'run 844', 'run 845', 'run 850', 'run 899'],
+                regressionCases: ['sermon 881', 'sermon 954', 'sermon 844', 'sermon 845', 'sermon 850', 'sermon 899'],
             ),
             new DetectorEntry(
                 id: 'scripture-multi-passage-truncated',
@@ -1035,7 +1035,7 @@ class DetectorCatalogue
                 severity: DetectorSeverity::WrongMetadata,
                 unit: DetectorUnit::Sermon,
                 summary: 'A multi-passage reference is cut to its first passage when linked, so the page offers a narrower reading than the sermon preached.',
-                regressionCases: ['run 1031', 'run 1159', 'run 1188', 'run 1233'],
+                regressionCases: ['sermon 1031', 'sermon 1159', 'sermon 1188', 'sermon 1233'],
             ),
             new DetectorEntry(
                 id: 'scripture-whole-book-reference-rejected',
@@ -1045,7 +1045,7 @@ class DetectorCatalogue
                 severity: DetectorSeverity::WrongMetadata,
                 unit: DetectorUnit::Sermon,
                 summary: 'A whole single-chapter letter named without a chapter was rejected as a reference, so the sermon showed no passage at all.',
-                regressionCases: ['run 957', 'run 1090'],
+                regressionCases: ['sermon 957', 'sermon 1090'],
                 decision: 'Fixed at source: whole-book validation accepts a single-chapter letter named without a chapter. 957 and 1090 still await reanalysis through the pipeline.',
             ),
             new DetectorEntry(
@@ -1056,7 +1056,7 @@ class DetectorCatalogue
                 severity: DetectorSeverity::WrongMetadata,
                 unit: DetectorUnit::Sermon,
                 summary: 'A sermon names a passage that was never linked to a reference, so seven sermons carry a reading the site cannot resolve.',
-                regressionCases: ['run 908', 'run 909', 'run 910', 'run 912', 'run 913', 'run 914', 'run 915'],
+                regressionCases: ['sermon 908', 'sermon 909', 'sermon 910', 'sermon 912', 'sermon 913', 'sermon 914', 'sermon 915'],
             ),
             new DetectorEntry(
                 id: 'scripture-preached-reading-dropped-by-order-flag',
@@ -1129,7 +1129,7 @@ class DetectorCatalogue
                 severity: DetectorSeverity::ContentLost,
                 unit: DetectorUnit::Sermon,
                 summary: 'A video quality verdict that source review has discredited survives because the evidence it rested on can no longer be read where the output lives.',
-                regressionCases: ['run 862'],
+                regressionCases: ['sermon 862'],
             ),
             new DetectorEntry(
                 id: 'video-verdict-without-run-evidence',
@@ -1252,7 +1252,7 @@ class DetectorCatalogue
                 unit: DetectorUnit::Sermon,
                 summary: 'Frozen or black picture measured over six windows; coverage decides whether the recording is rejected or held for review.',
                 owningClass: SermonVideoQualityAssessmentService::class,
-                regressionCases: ['run 926', 'run 930', 'run 941', 'run 975', 'run 1276', 'run 1189', 'run 1230'],
+                regressionCases: ['sermon 926', 'sermon 930', 'sermon 941', 'sermon 975', 'sermon 1276', 'sermon 1189', 'sermon 1230'],
             ),
         ];
     }

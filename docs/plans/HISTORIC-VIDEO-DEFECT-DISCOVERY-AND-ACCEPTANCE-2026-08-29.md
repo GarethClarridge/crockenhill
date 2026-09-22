@@ -3519,6 +3519,60 @@ The exposure record still earns its place, but its job is narrower: it records
 what informed which fix, so a regression case is never quietly cited as
 independent evidence that the fix works. It is provenance, not a gate.
 
+**Built 2026-09-22.** The authored book is `resources/detector-case-book.json`,
+read through `DetectorCaseBookSource`. It is a checked-in file for the same
+reason as the thresholds: a label changed after seeing a candidate's results is
+not a label. `detectors:freeze-case-book --output=<absolute>` binds it to the
+database through `FreezeDetectorCaseBook` and writes a canonical, hash-bound
+`0600` artifact. It refuses to overwrite. Frozen:
+`storage/scratch/detector-case-book-20260922.json` (hash `278c868f…`). It holds
+179 cases over 151 service groups, 168 in the eligible population, plus 7
+aggregates. Every case names the register or plan row it came from. A test binds
+the book to the catalogue in both directions: every catalogue regression
+reference is discharged by a case or aggregate, and every case reference exists
+in the catalogue.
+
+Building it forced four amendments.
+
+1. **The catalogue named sermons as runs — corrected.** Sermon and run ids share
+   one numeric range. 34 regression references in seven entries said `run N`
+   where the class table and its register say sermon N: dead picture, closing
+   prayer, title contradiction, the three Scripture link classes and 862. Each
+   pointed at a real but unrelated run. All seven closing-prayer fixtures
+   (`run 1027`…) named the wrong services; the true runs are 1100, 1047, 1276,
+   1300, 1254, 1052 and 1057. Preached-reading 1075/1254/1286/1299 genuinely are
+   runs. The freezer now fails closed on any sermon the run did not publish, or
+   any section on another run. The subject is always a run, the one id every
+   surface shares.
+2. **Truth carries its basis (`DetectorCaseBasis`).** Only `source_reviewed`,
+   `stored_record` and `operator_ruling` count as adjudicated for H4's rates.
+   `source_redecode`, `transcript_reading` and `derived_comparison` are
+   provisional: they stay regression fixtures, which fail a candidate that
+   reintroduces them, but are never scored as source-correct labels. Where the
+   record does not say how a case was checked, the weaker basis is recorded.
+   Result: 98 adjudicated, 81 provisional.
+3. **Aggregates are not cases.** "245 of 464 clips", "157 of 438 sermons",
+   P8-Q1, the three lead-in counts and "13 verdicts" discharge their references
+   as counts with a register pointer. They contribute to no rate, and no per-item
+   truth is invented for them.
+4. **H5 is recorded as stored.** `era` is null until the boundaries are derived.
+   The codec comes from `historic_import.codec_fingerprint`, which does not hold
+   channel layout, so that dimension is marked `not_stored`. The independent-OoS
+   group is services with an email, OpenLP or manual item. That gives 155
+   completed historic runs; the plan's 152 is over the eligible 438.
+
+**What the book can support today.** All 179 cases are `regression`: under H9
+every named case informed a fix, so `development` fills only from H10's sample.
+Only `video-dead-picture` has adjudicated truth on both sides (26 defective, 27
+clean, the clean ones being old-detector rejections that review found fine). It
+is the one detector with a false-positive denominator. **The S1 transcript-loop
+detector has no adjudicated positive.** Its 30 defective and 3 clean cases rest on
+the 09-20 fresh-decode review, which H10b says is not ground truth. Listening to
+those 33 already-located windows (about 40 s each) would promote them. Until
+then, H4's S1 floor has no source-correct label for the plan's most important
+class. Macro-section, sustained-sound widening, closing prayer, sparse cadence,
+song loops and title-hint misbinding are likewise provisional only.
+
 ##### H4. Severity tiers and predeclared thresholds
 
 Four tiers, derived from what the defect does to a reader rather than from which
@@ -3859,7 +3913,10 @@ full programme; this is an ordering choice, not a reduced harness specification.
 - [x] H1 catalogue, H2's five adapters and H4 thresholds contract.
 - [x] `detectors:replay` exists, with historic/weekly populations reported
   separately and optional `--recompute` for sound-stage flags.
-- [ ] H3 adjudicated case book and `detectors:freeze-case-book`.
+- [x] H3 adjudicated case book and `detectors:freeze-case-book` (2026-09-22;
+  179 cases, 98 adjudicated). Open inside it: listen to the 33 transcript-loop
+  windows so S1 has adjudicated truth, and promote other provisional cases the
+  same way.
 - [ ] `detectors:evaluate`, using H4's declared units/thresholds, H5 breakdowns,
   H6 version bindings and explicit unassessable/review-burden reporting.
 - [ ] Write the source-confirmed regression cases into the existing fixtures;

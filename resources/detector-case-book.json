@@ -1,0 +1,2562 @@
+{
+    "format": "crockenhill-detector-case-book-source",
+    "version": 1,
+    "cases": [
+        {
+            "case_id": "detection-unplaced-hold-refusal-discarded/run-1314-s3994",
+            "detector_id": "detection-unplaced-hold-refusal-discarded",
+            "reference": "run 1314 §3994",
+            "subject": {
+                "run": 1314,
+                "section": 3994,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "storage/logs/laravel.log 2026-09-17 16:45-16:54 UTC",
+            "informed_fix": true
+        },
+        {
+            "case_id": "extraction-held-section-repair-unreachable/run-1209-s2572",
+            "detector_id": "extraction-held-section-repair-unreachable",
+            "reference": "run 1209 §2572",
+            "subject": {
+                "run": 1209,
+                "section": 2572,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "storage/scratch/canary-20260917-failure-1209-plan.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "extraction-recut-of-held-sermon/run-1314-s3992",
+            "detector_id": "extraction-recut-of-held-sermon",
+            "reference": "run 1314 §3992",
+            "subject": {
+                "run": 1314,
+                "section": 3992,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "storage/scratch/canary-20260917-dispatch-1314-recut.txt",
+            "informed_fix": true
+        },
+        {
+            "case_id": "extraction-rms-fallback-with-disqualified-section/run-1007",
+            "detector_id": "extraction-rms-fallback-with-disqualified-section",
+            "reference": "run 1007",
+            "subject": {
+                "run": 1007,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "clean",
+            "basis": "source_redecode",
+            "evidence": "plan §4.3a class table: all three cuts are right; Whisper on the three MP3s",
+            "informed_fix": true
+        },
+        {
+            "case_id": "extraction-rms-fallback-with-disqualified-section/run-1041",
+            "detector_id": "extraction-rms-fallback-with-disqualified-section",
+            "reference": "run 1041",
+            "subject": {
+                "run": 1041,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "clean",
+            "basis": "source_redecode",
+            "evidence": "plan §4.3a class table: all three cuts are right; Whisper on the three MP3s",
+            "informed_fix": true
+        },
+        {
+            "case_id": "extraction-rms-fallback-with-disqualified-section/run-1217",
+            "detector_id": "extraction-rms-fallback-with-disqualified-section",
+            "reference": "run 1217",
+            "subject": {
+                "run": 1217,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "clean",
+            "basis": "source_redecode",
+            "evidence": "plan §4.3a class table: all three cuts are right; Whisper on the three MP3s",
+            "informed_fix": true
+        },
+        {
+            "case_id": "membership-missing-occasion/run-1051",
+            "detector_id": "membership-missing-occasion",
+            "reference": "run 1051",
+            "subject": {
+                "run": 1051,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "operator_ruling",
+            "evidence": "storage/scratch/date-20260914-register.json non_sunday_services (ruling 2026-09-14)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "membership-missing-occasion/run-1098",
+            "detector_id": "membership-missing-occasion",
+            "reference": "run 1098",
+            "subject": {
+                "run": 1098,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "operator_ruling",
+            "evidence": "storage/scratch/date-20260914-register.json non_sunday_services (ruling 2026-09-14)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "membership-missing-occasion/run-1144",
+            "detector_id": "membership-missing-occasion",
+            "reference": "run 1144",
+            "subject": {
+                "run": 1144,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "operator_ruling",
+            "evidence": "storage/scratch/date-20260914-register.json non_sunday_services (ruling 2026-09-14)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "membership-rehearsal-imported-as-service/run-1043",
+            "detector_id": "membership-rehearsal-imported-as-service",
+            "reference": "run 1043",
+            "subject": {
+                "run": 1043,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "operator_ruling",
+            "evidence": "storage/scratch/date-20260914-register.json saturday_rehearsal_of_sunday_sermon (ruling 2026-09-14)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "membership-rehearsal-imported-as-service/run-1089",
+            "detector_id": "membership-rehearsal-imported-as-service",
+            "reference": "run 1089",
+            "subject": {
+                "run": 1089,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "operator_ruling",
+            "evidence": "storage/scratch/date-20260914-register.json saturday_rehearsal_of_sunday_sermon (ruling 2026-09-14)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "membership-silent-source/run-955",
+            "detector_id": "membership-silent-source",
+            "reference": "run 955",
+            "subject": {
+                "run": 955,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "storage/scratch/sections-20260914-register.json coverage.runs_without_sections",
+            "informed_fix": true
+        },
+        {
+            "case_id": "published-title-contradicts-content/run-1019-sermon-954",
+            "detector_id": "published-title-contradicts-content",
+            "reference": "sermon 954",
+            "subject": {
+                "run": 1019,
+                "section": null,
+                "sermon": 954
+            },
+            "truth": "defective",
+            "basis": "transcript_reading",
+            "evidence": "storage/scratch/scripture-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "published-title-contradicts-content/run-1380-sermon-844",
+            "detector_id": "published-title-contradicts-content",
+            "reference": "sermon 844",
+            "subject": {
+                "run": 1380,
+                "section": null,
+                "sermon": 844
+            },
+            "truth": "defective",
+            "basis": "transcript_reading",
+            "evidence": "storage/scratch/scripture-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "published-title-contradicts-content/run-1381-sermon-845",
+            "detector_id": "published-title-contradicts-content",
+            "reference": "sermon 845",
+            "subject": {
+                "run": 1381,
+                "section": null,
+                "sermon": 845
+            },
+            "truth": "defective",
+            "basis": "transcript_reading",
+            "evidence": "storage/scratch/scripture-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "published-title-contradicts-content/run-1382-sermon-850",
+            "detector_id": "published-title-contradicts-content",
+            "reference": "sermon 850",
+            "subject": {
+                "run": 1382,
+                "section": null,
+                "sermon": 850
+            },
+            "truth": "defective",
+            "basis": "transcript_reading",
+            "evidence": "storage/scratch/scripture-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "published-title-contradicts-content/run-944-sermon-881",
+            "detector_id": "published-title-contradicts-content",
+            "reference": "sermon 881",
+            "subject": {
+                "run": 944,
+                "section": null,
+                "sermon": 881
+            },
+            "truth": "defective",
+            "basis": "transcript_reading",
+            "evidence": "storage/scratch/scripture-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "published-title-contradicts-content/run-963-sermon-899",
+            "detector_id": "published-title-contradicts-content",
+            "reference": "sermon 899",
+            "subject": {
+                "run": 963,
+                "section": null,
+                "sermon": 899
+            },
+            "truth": "defective",
+            "basis": "transcript_reading",
+            "evidence": "storage/scratch/scripture-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "release-media-file-missing/run-1377-sermon-857",
+            "detector_id": "release-media-file-missing",
+            "reference": "sermon 857",
+            "subject": {
+                "run": 1377,
+                "section": null,
+                "sermon": 857
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "storage/scratch/render-20260914-register.json",
+            "informed_fix": true,
+            "note": "sermon 857 is also recorded on pre-historic run 909; 1377 is the historic run"
+        },
+        {
+            "case_id": "scripture-multi-passage-truncated/run-1105-sermon-1031",
+            "detector_id": "scripture-multi-passage-truncated",
+            "reference": "sermon 1031",
+            "subject": {
+                "run": 1105,
+                "section": null,
+                "sermon": 1031
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "storage/scratch/scripture-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "scripture-multi-passage-truncated/run-1240-sermon-1159",
+            "detector_id": "scripture-multi-passage-truncated",
+            "reference": "sermon 1159",
+            "subject": {
+                "run": 1240,
+                "section": null,
+                "sermon": 1159
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "storage/scratch/scripture-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "scripture-multi-passage-truncated/run-1271-sermon-1188",
+            "detector_id": "scripture-multi-passage-truncated",
+            "reference": "sermon 1188",
+            "subject": {
+                "run": 1271,
+                "section": null,
+                "sermon": 1188
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "storage/scratch/scripture-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "scripture-multi-passage-truncated/run-1306-sermon-1233",
+            "detector_id": "scripture-multi-passage-truncated",
+            "reference": "sermon 1233",
+            "subject": {
+                "run": 1306,
+                "section": null,
+                "sermon": 1233
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "storage/scratch/scripture-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "scripture-preached-reading-dropped-by-order-flag/run-1075-s1730",
+            "detector_id": "scripture-preached-reading-dropped-by-order-flag",
+            "reference": "run 1075",
+            "subject": {
+                "run": 1075,
+                "section": 1730,
+                "sermon": 1005
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "storage/scratch/scripture-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "scripture-preached-reading-dropped-by-order-flag/run-1254-s3171",
+            "detector_id": "scripture-preached-reading-dropped-by-order-flag",
+            "reference": "run 1254",
+            "subject": {
+                "run": 1254,
+                "section": 3171,
+                "sermon": 1172
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "storage/scratch/scripture-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "scripture-preached-reading-dropped-by-order-flag/run-1286-s3585",
+            "detector_id": "scripture-preached-reading-dropped-by-order-flag",
+            "reference": "run 1286",
+            "subject": {
+                "run": 1286,
+                "section": 3585,
+                "sermon": 1203
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "storage/scratch/scripture-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "scripture-preached-reading-dropped-by-order-flag/run-1299-s4752",
+            "detector_id": "scripture-preached-reading-dropped-by-order-flag",
+            "reference": "run 1299",
+            "subject": {
+                "run": 1299,
+                "section": 4752,
+                "sermon": 1305
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "storage/scratch/scripture-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "scripture-reference-never-linked/run-972-sermon-908",
+            "detector_id": "scripture-reference-never-linked",
+            "reference": "sermon 908",
+            "subject": {
+                "run": 972,
+                "section": null,
+                "sermon": 908
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "storage/scratch/scripture-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "scripture-reference-never-linked/run-973-sermon-909",
+            "detector_id": "scripture-reference-never-linked",
+            "reference": "sermon 909",
+            "subject": {
+                "run": 973,
+                "section": null,
+                "sermon": 909
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "storage/scratch/scripture-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "scripture-reference-never-linked/run-974-sermon-910",
+            "detector_id": "scripture-reference-never-linked",
+            "reference": "sermon 910",
+            "subject": {
+                "run": 974,
+                "section": null,
+                "sermon": 910
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "storage/scratch/scripture-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "scripture-reference-never-linked/run-975-sermon-914",
+            "detector_id": "scripture-reference-never-linked",
+            "reference": "sermon 914",
+            "subject": {
+                "run": 975,
+                "section": null,
+                "sermon": 914
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "storage/scratch/scripture-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "scripture-reference-never-linked/run-979-sermon-915",
+            "detector_id": "scripture-reference-never-linked",
+            "reference": "sermon 915",
+            "subject": {
+                "run": 979,
+                "section": null,
+                "sermon": 915
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "storage/scratch/scripture-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "scripture-reference-never-linked/run-980-sermon-912",
+            "detector_id": "scripture-reference-never-linked",
+            "reference": "sermon 912",
+            "subject": {
+                "run": 980,
+                "section": null,
+                "sermon": 912
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "storage/scratch/scripture-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "scripture-reference-never-linked/run-982-sermon-913",
+            "detector_id": "scripture-reference-never-linked",
+            "reference": "sermon 913",
+            "subject": {
+                "run": 982,
+                "section": null,
+                "sermon": 913
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "storage/scratch/scripture-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "scripture-verse-in-prayer-typed-as-reading/run-1043-s1528",
+            "detector_id": "scripture-verse-in-prayer-typed-as-reading",
+            "reference": "run 1043 §1528",
+            "subject": {
+                "run": 1043,
+                "section": 1528,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "operator_ruling",
+            "evidence": "storage/scratch/scripture-20260914-register.json rulings (operator 2026-09-14)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "scripture-whole-book-reference-rejected/run-1022-sermon-957",
+            "detector_id": "scripture-whole-book-reference-rejected",
+            "reference": "sermon 957",
+            "subject": {
+                "run": 1022,
+                "section": null,
+                "sermon": 957
+            },
+            "truth": "defective",
+            "basis": "transcript_reading",
+            "evidence": "storage/scratch/scripture-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "scripture-whole-book-reference-rejected/run-1171-sermon-1090",
+            "detector_id": "scripture-whole-book-reference-rejected",
+            "reference": "sermon 1090",
+            "subject": {
+                "run": 1171,
+                "section": null,
+                "sermon": 1090
+            },
+            "truth": "defective",
+            "basis": "transcript_reading",
+            "evidence": "storage/scratch/scripture-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "section-truncated-by-source/run-1068-s3704",
+            "detector_id": "section-truncated-by-source",
+            "reference": "§3704",
+            "subject": {
+                "run": 1068,
+                "section": 3704,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "storage/scratch/residue-20260913-text-signals.json (section at source end)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "sermon-closing-prayer-dropped/run-1047-s1562",
+            "detector_id": "sermon-closing-prayer-dropped",
+            "reference": "sermon 981",
+            "subject": {
+                "run": 1047,
+                "section": 1562,
+                "sermon": 981
+            },
+            "truth": "defective",
+            "basis": "transcript_reading",
+            "evidence": "storage/scratch/sections-20260914-register.json closing_prayer_dropped_from_sermon.confirmed",
+            "informed_fix": true
+        },
+        {
+            "case_id": "sermon-closing-prayer-dropped/run-1052-s1606",
+            "detector_id": "sermon-closing-prayer-dropped",
+            "reference": "sermon 986",
+            "subject": {
+                "run": 1052,
+                "section": 1606,
+                "sermon": 986
+            },
+            "truth": "defective",
+            "basis": "transcript_reading",
+            "evidence": "storage/scratch/sections-20260914-register.json closing_prayer_dropped_from_sermon.confirmed",
+            "informed_fix": true
+        },
+        {
+            "case_id": "sermon-closing-prayer-dropped/run-1057-s1634",
+            "detector_id": "sermon-closing-prayer-dropped",
+            "reference": "sermon 990",
+            "subject": {
+                "run": 1057,
+                "section": 1634,
+                "sermon": 990
+            },
+            "truth": "defective",
+            "basis": "transcript_reading",
+            "evidence": "storage/scratch/sections-20260914-register.json closing_prayer_dropped_from_sermon.confirmed",
+            "informed_fix": true
+        },
+        {
+            "case_id": "sermon-closing-prayer-dropped/run-1100-s1849",
+            "detector_id": "sermon-closing-prayer-dropped",
+            "reference": "sermon 1027",
+            "subject": {
+                "run": 1100,
+                "section": 1849,
+                "sermon": 1027
+            },
+            "truth": "defective",
+            "basis": "transcript_reading",
+            "evidence": "storage/scratch/sections-20260914-register.json closing_prayer_dropped_from_sermon.confirmed",
+            "informed_fix": true
+        },
+        {
+            "case_id": "sermon-closing-prayer-dropped/run-1254-s3173",
+            "detector_id": "sermon-closing-prayer-dropped",
+            "reference": "sermon 1172",
+            "subject": {
+                "run": 1254,
+                "section": 3173,
+                "sermon": 1172
+            },
+            "truth": "defective",
+            "basis": "transcript_reading",
+            "evidence": "storage/scratch/sections-20260914-register.json closing_prayer_dropped_from_sermon.confirmed",
+            "informed_fix": true
+        },
+        {
+            "case_id": "sermon-closing-prayer-dropped/run-1276-s3463",
+            "detector_id": "sermon-closing-prayer-dropped",
+            "reference": "sermon 1193",
+            "subject": {
+                "run": 1276,
+                "section": 3463,
+                "sermon": 1193
+            },
+            "truth": "defective",
+            "basis": "transcript_reading",
+            "evidence": "storage/scratch/sections-20260914-register.json closing_prayer_dropped_from_sermon.confirmed",
+            "informed_fix": true
+        },
+        {
+            "case_id": "sermon-closing-prayer-dropped/run-1300-s4648",
+            "detector_id": "sermon-closing-prayer-dropped",
+            "reference": "sermon 1299",
+            "subject": {
+                "run": 1300,
+                "section": 4648,
+                "sermon": 1299
+            },
+            "truth": "defective",
+            "basis": "transcript_reading",
+            "evidence": "storage/scratch/sections-20260914-register.json closing_prayer_dropped_from_sermon.confirmed",
+            "informed_fix": true
+        },
+        {
+            "case_id": "sermon-ending-absorbed-by-song/run-1336-s4263",
+            "detector_id": "sermon-ending-absorbed-by-song",
+            "reference": "run 1336 §4263",
+            "subject": {
+                "run": 1336,
+                "section": 4263,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/bc05-1336-20260918.json: final \"Amen\" truncated",
+            "informed_fix": true
+        },
+        {
+            "case_id": "sermon-ending-absorbed-by-song/run-1336-s4264",
+            "detector_id": "sermon-ending-absorbed-by-song",
+            "reference": "run 1336 §4264",
+            "subject": {
+                "run": 1336,
+                "section": 4264,
+                "sermon": null
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/bc05-1336-20260918.json: no preaching enters the song",
+            "informed_fix": true
+        },
+        {
+            "case_id": "song-adjacent-same-song/run-1337-s4275",
+            "detector_id": "song-adjacent-same-song",
+            "reference": "run 1337 §4275 video 410",
+            "subject": {
+                "run": 1337,
+                "section": 4275,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/tails-20260914-register.json (video 410)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "song-looped-transcript/run-1001-s1216",
+            "detector_id": "song-looped-transcript",
+            "reference": "§1216",
+            "subject": {
+                "run": 1001,
+                "section": 1216,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "derived_comparison",
+            "evidence": "storage/scratch/songloop-20260914-census.php (catalogue-lyrics comparison, not independent listening)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "song-looped-transcript/run-1102-s1862",
+            "detector_id": "song-looped-transcript",
+            "reference": "§1862",
+            "subject": {
+                "run": 1102,
+                "section": 1862,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "derived_comparison",
+            "evidence": "storage/scratch/songloop-20260914-census.php (catalogue-lyrics comparison, not independent listening)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "song-looped-transcript/run-1154-s3750",
+            "detector_id": "song-looped-transcript",
+            "reference": "§3750",
+            "subject": {
+                "run": 1154,
+                "section": 3750,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "derived_comparison",
+            "evidence": "storage/scratch/songloop-20260914-census.php (catalogue-lyrics comparison, not independent listening)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "song-performed-song-unlinked/run-1221-s2722",
+            "detector_id": "song-performed-song-unlinked",
+            "reference": "run 1221 §2722",
+            "subject": {
+                "run": 1221,
+                "section": 2722,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "blind comparison register (BC-06)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "song-section-without-a-song/run-938-s622",
+            "detector_id": "song-section-without-a-song",
+            "reference": "§622",
+            "subject": {
+                "run": 938,
+                "section": 622,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/tails-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "song-section-without-a-song/run-945-s678",
+            "detector_id": "song-section-without-a-song",
+            "reference": "§678",
+            "subject": {
+                "run": 945,
+                "section": 678,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/tails-20260914-register.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "song-title-hint-fuzzy-misbinding/run-1168-s2304",
+            "detector_id": "song-title-hint-fuzzy-misbinding",
+            "reference": "§2304",
+            "subject": {
+                "run": 1168,
+                "section": 2304,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "derived_comparison",
+            "evidence": "storage/scratch/residue-20260914-lyric-identity.py",
+            "informed_fix": true
+        },
+        {
+            "case_id": "song-title-hint-fuzzy-misbinding/run-1218-s2683",
+            "detector_id": "song-title-hint-fuzzy-misbinding",
+            "reference": "§2683",
+            "subject": {
+                "run": 1218,
+                "section": 2683,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "derived_comparison",
+            "evidence": "storage/scratch/residue-20260914-lyric-identity.py",
+            "informed_fix": true
+        },
+        {
+            "case_id": "song-title-hint-fuzzy-misbinding/run-1221-s2718",
+            "detector_id": "song-title-hint-fuzzy-misbinding",
+            "reference": "§2718",
+            "subject": {
+                "run": 1221,
+                "section": 2718,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "derived_comparison",
+            "evidence": "storage/scratch/residue-20260914-lyric-identity.py",
+            "informed_fix": true
+        },
+        {
+            "case_id": "song-title-hint-fuzzy-misbinding/run-1328-s4156",
+            "detector_id": "song-title-hint-fuzzy-misbinding",
+            "reference": "§4156",
+            "subject": {
+                "run": 1328,
+                "section": 4156,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "derived_comparison",
+            "evidence": "storage/scratch/residue-20260914-lyric-identity.py",
+            "informed_fix": true
+        },
+        {
+            "case_id": "song-unresolved-multiple-songs/run-1009-s1276",
+            "detector_id": "song-unresolved-multiple-songs",
+            "reference": "§1276 video 172",
+            "subject": {
+                "run": 1009,
+                "section": 1276,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "transcript_reading",
+            "evidence": "plan P8-Q10/16: mixed-song clip, video 172 (since removed)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "song-unresolved-multiple-songs/run-1304-s3869",
+            "detector_id": "song-unresolved-multiple-songs",
+            "reference": "§3869 run 1304 SongVideo 371",
+            "subject": {
+                "run": 1304,
+                "section": 3869,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "transcript_reading",
+            "evidence": "plan P8-Q10/16: mixed-song clip, SongVideo 371",
+            "informed_fix": true
+        },
+        {
+            "case_id": "staging-held-candidates-not-promoted/run-1221-s2718",
+            "detector_id": "staging-held-candidates-not-promoted",
+            "reference": "run 1221 §2718",
+            "subject": {
+                "run": 1221,
+                "section": 2718,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "section-publications/2718-* on the staging volume",
+            "informed_fix": true
+        },
+        {
+            "case_id": "staging-held-candidates-not-promoted/run-1221-s2719",
+            "detector_id": "staging-held-candidates-not-promoted",
+            "reference": "run 1221 §2719",
+            "subject": {
+                "run": 1221,
+                "section": 2719,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "section-publications/2719-* on the staging volume",
+            "informed_fix": true
+        },
+        {
+            "case_id": "staging-held-candidates-not-promoted/run-1221-s2721",
+            "detector_id": "staging-held-candidates-not-promoted",
+            "reference": "run 1221 §2721",
+            "subject": {
+                "run": 1221,
+                "section": 2721,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "section-publications/2721-* on the staging volume",
+            "informed_fix": true
+        },
+        {
+            "case_id": "structure-hymn-inside-sermon-section/run-949-sermon-885",
+            "detector_id": "structure-hymn-inside-sermon-section",
+            "reference": "sermon 885",
+            "subject": {
+                "run": 949,
+                "section": null,
+                "sermon": 885
+            },
+            "truth": "defective",
+            "basis": "derived_comparison",
+            "evidence": "storage/scratch/sungpass-20260916-measure.json: closing hymn 4635-4795 s inside sermon §723 (sound instrument)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "structure-macro-section/run-1007",
+            "detector_id": "structure-macro-section",
+            "reference": "run 1007",
+            "subject": {
+                "run": 1007,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "plan §4.3a class table: macro song section swallows sermon opening; Whisper on the stored MP3s",
+            "informed_fix": true
+        },
+        {
+            "case_id": "structure-macro-section/run-1217",
+            "detector_id": "structure-macro-section",
+            "reference": "run 1217",
+            "subject": {
+                "run": 1217,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "plan §4.3a class table: macro song section swallows sermon opening; Whisper on the stored MP3s",
+            "informed_fix": true
+        },
+        {
+            "case_id": "structure-macro-section/run-1340",
+            "detector_id": "structure-macro-section",
+            "reference": "run 1340",
+            "subject": {
+                "run": 1340,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "plan §4.3a class table: macro song section swallows sermon opening; Whisper on the stored MP3s",
+            "informed_fix": true
+        },
+        {
+            "case_id": "structure-prompt-time-misconverted/run-1183-s2391",
+            "detector_id": "structure-prompt-time-misconverted",
+            "reference": "run 1183 §2391",
+            "subject": {
+                "run": 1183,
+                "section": 2391,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "transcript_reading",
+            "evidence": "storage/scratch/scripture-20260914-register.json (boundary cue 60 s early)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "structure-prompt-time-misconverted/run-1203-s2535",
+            "detector_id": "structure-prompt-time-misconverted",
+            "reference": "run 1203 §2535",
+            "subject": {
+                "run": 1203,
+                "section": 2535,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "transcript_reading",
+            "evidence": "storage/scratch/scripture-20260914-register.json (boundary cue 60 s early)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "structure-prompt-time-misconverted/run-1305-s3894",
+            "detector_id": "structure-prompt-time-misconverted",
+            "reference": "run 1305 §3894",
+            "subject": {
+                "run": 1305,
+                "section": 3894,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "transcript_reading",
+            "evidence": "storage/scratch/scripture-20260914-register.json (boundary cue 60 s early)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "structure-section-reads-as-sung/run-1014-s1301",
+            "detector_id": "structure-section-reads-as-sung",
+            "reference": "run 1014 §1301",
+            "subject": {
+                "run": 1014,
+                "section": 1301,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "derived_comparison",
+            "evidence": "storage/scratch/sungpass-20260916-measure.json (lyrics, sustained sound and word rate)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "structure-song-widened-to-sustained-sound/run-1109-s1909",
+            "detector_id": "structure-song-widened-to-sustained-sound",
+            "reference": "run 1109",
+            "subject": {
+                "run": 1109,
+                "section": 1909,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "derived_comparison",
+            "evidence": "storage/scratch/sections-20260914-register.json sung_items_invisible_to_transcript.song_section_truncated (RMS active ratio)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "structure-song-widened-to-sustained-sound/run-1196-s2456",
+            "detector_id": "structure-song-widened-to-sustained-sound",
+            "reference": null,
+            "subject": {
+                "run": 1196,
+                "section": 2456,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "derived_comparison",
+            "evidence": "storage/scratch/sections-20260914-register.json sung_items_invisible_to_transcript.song_section_truncated (RMS active ratio)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "structure-song-widened-to-sustained-sound/run-1241-s3003",
+            "detector_id": "structure-song-widened-to-sustained-sound",
+            "reference": null,
+            "subject": {
+                "run": 1241,
+                "section": 3003,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "derived_comparison",
+            "evidence": "storage/scratch/sections-20260914-register.json sung_items_invisible_to_transcript.song_section_truncated (RMS active ratio)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "structure-song-widened-to-sustained-sound/run-1269-s3368",
+            "detector_id": "structure-song-widened-to-sustained-sound",
+            "reference": null,
+            "subject": {
+                "run": 1269,
+                "section": 3368,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "derived_comparison",
+            "evidence": "storage/scratch/sections-20260914-register.json sung_items_invisible_to_transcript.song_section_truncated (RMS active ratio)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "structure-song-widened-to-sustained-sound/run-1287-s3597",
+            "detector_id": "structure-song-widened-to-sustained-sound",
+            "reference": null,
+            "subject": {
+                "run": 1287,
+                "section": 3597,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "derived_comparison",
+            "evidence": "storage/scratch/sections-20260914-register.json sung_items_invisible_to_transcript.song_section_truncated (RMS active ratio)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "structure-song-widened-to-sustained-sound/run-1341-s4310",
+            "detector_id": "structure-song-widened-to-sustained-sound",
+            "reference": null,
+            "subject": {
+                "run": 1341,
+                "section": 4310,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "derived_comparison",
+            "evidence": "storage/scratch/sections-20260914-register.json sung_items_invisible_to_transcript.song_section_truncated (RMS active ratio)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "structure-song-widened-to-sustained-sound/run-1379-s4629",
+            "detector_id": "structure-song-widened-to-sustained-sound",
+            "reference": null,
+            "subject": {
+                "run": 1379,
+                "section": 4629,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "derived_comparison",
+            "evidence": "storage/scratch/sections-20260914-register.json sung_items_invisible_to_transcript.song_section_truncated (RMS active ratio)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "structure-song-widened-to-sustained-sound/run-965-s889",
+            "detector_id": "structure-song-widened-to-sustained-sound",
+            "reference": "run 965",
+            "subject": {
+                "run": 965,
+                "section": 889,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "derived_comparison",
+            "evidence": "storage/scratch/sections-20260914-register.json sung_items_invisible_to_transcript.song_section_truncated (RMS active ratio)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "structure-spoken-quotation-typed-as-song/run-1314-s3992",
+            "detector_id": "structure-spoken-quotation-typed-as-song",
+            "reference": "run 1314 §3992",
+            "subject": {
+                "run": 1314,
+                "section": 3992,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/blind-20260916-comparison/blind-20260916-comparison-register.json (BC-01)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "structure-spoken-quotation-typed-as-song/run-1314-s3994",
+            "detector_id": "structure-spoken-quotation-typed-as-song",
+            "reference": "run 1314 §3994",
+            "subject": {
+                "run": 1314,
+                "section": 3994,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/blind-20260916-comparison/blind-20260916-comparison-register.json (BC-01)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "structure-unidentified-singing/run-944",
+            "detector_id": "structure-unidentified-singing",
+            "reference": "run 944",
+            "subject": {
+                "run": 944,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "derived_comparison",
+            "evidence": "plan §4.3a class table: OoS song with no detected section; oosorder-20260914 census",
+            "informed_fix": true,
+            "note": "944 §666 (134 s) was heard sung in §4.1a, but the case is the run-level OoS mismatch"
+        },
+        {
+            "case_id": "talk-typed-other/run-1221-s2721",
+            "detector_id": "talk-typed-other",
+            "reference": "run 1221 §2721",
+            "subject": {
+                "run": 1221,
+                "section": 2721,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "blind comparison register (BC-07)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "talk-typed-other/run-1358-s4684",
+            "detector_id": "talk-typed-other",
+            "reference": "run 1358 §4684",
+            "subject": {
+                "run": 1358,
+                "section": 4684,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "blind comparison register (BC-07)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-context-carried-drift/run-1258",
+            "detector_id": "transcript-context-carried-drift",
+            "reference": "run 1258",
+            "subject": {
+                "run": 1258,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/blind-20260916-comparison/bc08-20260917/ (blind BC-08)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-context-carried-drift/run-1314",
+            "detector_id": "transcript-context-carried-drift",
+            "reference": "run 1314",
+            "subject": {
+                "run": 1314,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/blind-20260916-comparison/bc08-20260917/ (blind BC-08)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-context-carried-drift/run-1343",
+            "detector_id": "transcript-context-carried-drift",
+            "reference": "run 1343",
+            "subject": {
+                "run": 1343,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/blind-20260916-comparison/bc08-20260917/ (blind BC-08)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-context-carried-drift/run-980",
+            "detector_id": "transcript-context-carried-drift",
+            "reference": "run 980",
+            "subject": {
+                "run": 980,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/blind-20260916-comparison/bc08-20260917/ (blind BC-08)",
+            "informed_fix": true,
+            "note": "partial on 980"
+        },
+        {
+            "case_id": "transcript-meaning-changing-substitution/run-1030-s1418",
+            "detector_id": "transcript-meaning-changing-substitution",
+            "reference": "run 1030 §1418",
+            "subject": {
+                "run": 1030,
+                "section": 1418,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/held-other-dimensions-20260919-review.json (\"straining\" -> \"draining. draining.\")",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-meaning-changing-substitution/run-946-s787",
+            "detector_id": "transcript-meaning-changing-substitution",
+            "reference": "run 946 §787",
+            "subject": {
+                "run": 946,
+                "section": 787,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/held-other-dimensions-20260919-review.json (\"meets\" -> \"is\")",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1003",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 1003,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1008",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": "run 1008",
+            "subject": {
+                "run": 1008,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1039",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 1039,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1043",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 1043,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1051",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 1051,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "clean",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json genuine_source_repetition",
+            "informed_fix": true,
+            "note": "Rhetorical anaphora: repeated clauses beginning 'The Lord was one who'."
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1059",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 1059,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1064",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 1064,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1068",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": "run 1068",
+            "subject": {
+                "run": 1068,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1069",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 1069,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1078",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 1078,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "clean",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json genuine_source_repetition",
+            "informed_fix": true,
+            "note": "Rhetorical emphasis while quoting and applying Romans 8:28: 'in all things'."
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1079",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 1079,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "clean",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json genuine_source_repetition",
+            "informed_fix": true,
+            "note": "A quoted evangelistic exhortation deliberately repeats 'Look unto me'."
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1084",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 1084,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1095",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 1095,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1107",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 1107,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1121",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 1121,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1176",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 1176,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1187",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": "run 1187",
+            "subject": {
+                "run": 1187,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1215",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 1215,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1230",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 1230,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1248",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 1248,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1309",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 1309,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1317",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": "run 1317",
+            "subject": {
+                "run": 1317,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1320",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 1320,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1347",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": "run 1347",
+            "subject": {
+                "run": 1347,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "transcript_reading",
+            "evidence": "plan §4.3a class table: reading loop inside sermon text (1347), extreme one/two-word branch",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1350",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 1350,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1359",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 1359,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1364",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 1364,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-1373",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 1373,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-929",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": "run 929",
+            "subject": {
+                "run": 929,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-946",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 946,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-954",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 954,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-969",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 969,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-repeated-phrase-loop/run-971",
+            "detector_id": "transcript-repeated-phrase-loop",
+            "reference": null,
+            "subject": {
+                "run": 971,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/short-loop-review-20260920/review.json confirmed_stored_text_defects",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-sparse-cadence/run-1112-s3739",
+            "detector_id": "transcript-sparse-cadence",
+            "reference": "run 1112 §3739",
+            "subject": {
+                "run": 1112,
+                "section": 3739,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "transcript_reading",
+            "evidence": "plan §4.3a class table: sparse 30 s-cadence transcript loss; residue-20260913-cadence.py",
+            "informed_fix": true
+        },
+        {
+            "case_id": "transcript-sparse-cadence/run-1278-s3490",
+            "detector_id": "transcript-sparse-cadence",
+            "reference": "run 1278 §3490",
+            "subject": {
+                "run": 1278,
+                "section": 3490,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "transcript_reading",
+            "evidence": "plan §4.3a class table: sparse 30 s-cadence transcript loss; residue-20260913-cadence.py",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1-sermon-850",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1,
+                "section": null,
+                "sermon": 850
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1005-sermon-940",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1005,
+                "section": null,
+                "sermon": 940
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1006-sermon-941",
+            "detector_id": "video-dead-picture",
+            "reference": "sermon 941",
+            "subject": {
+                "run": 1006,
+                "section": null,
+                "sermon": 941
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260916-approvals-adjudication.json (black opening plus a frozen picture)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1026-sermon-961",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1026,
+                "section": null,
+                "sermon": 961
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector mostly_black was correct)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1034-sermon-969",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1034,
+                "section": null,
+                "sermon": 969
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector mostly_black was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1035-sermon-1307",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1035,
+                "section": null,
+                "sermon": 1307
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector mostly_black was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1041-sermon-975",
+            "detector_id": "video-dead-picture",
+            "reference": "sermon 975",
+            "subject": {
+                "run": 1041,
+                "section": null,
+                "sermon": 975
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260916-approvals-adjudication.json (black opening)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1044-sermon-978",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1044,
+                "section": null,
+                "sermon": 978
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1050-sermon-984",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1050,
+                "section": null,
+                "sermon": 984
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector mostly_black was correct)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1051-sermon-985",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1051,
+                "section": null,
+                "sermon": 985
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1053-sermon-987",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1053,
+                "section": null,
+                "sermon": 987
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector mostly_black was correct)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1056-sermon-989",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1056,
+                "section": null,
+                "sermon": 989
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector mostly_black was correct)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1069-sermon-1000",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1069,
+                "section": null,
+                "sermon": 1000
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector mostly_black was correct)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1071-sermon-1001",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1071,
+                "section": null,
+                "sermon": 1001
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector mostly_black was correct)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1074-sermon-1004",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1074,
+                "section": null,
+                "sermon": 1004
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector mostly_black was correct)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1092-sermon-1019",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1092,
+                "section": null,
+                "sermon": 1019
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector mostly_black was correct)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1097-sermon-1024",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1097,
+                "section": null,
+                "sermon": 1024
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector mostly_black was correct)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1099-sermon-1026",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1099,
+                "section": null,
+                "sermon": 1026
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector mostly_black was correct)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1107-sermon-1033",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1107,
+                "section": null,
+                "sermon": 1033
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector mostly_black was correct)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1113-sermon-1038",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1113,
+                "section": null,
+                "sermon": 1038
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector mostly_black was correct)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1148-sermon-1070",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1148,
+                "section": null,
+                "sermon": 1070
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1150-sermon-1072",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1150,
+                "section": null,
+                "sermon": 1072
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1157-sermon-1076",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1157,
+                "section": null,
+                "sermon": 1076
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector mostly_black was correct)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1171-sermon-1090",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1171,
+                "section": null,
+                "sermon": 1090
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector mostly_black was correct)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1173-sermon-1092",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1173,
+                "section": null,
+                "sermon": 1092
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector mostly_black was correct)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1174-sermon-1093",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1174,
+                "section": null,
+                "sermon": 1093
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1175-sermon-1094",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1175,
+                "section": null,
+                "sermon": 1094
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector mostly_black was correct)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1180-sermon-1099",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1180,
+                "section": null,
+                "sermon": 1099
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1191-sermon-1110",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1191,
+                "section": null,
+                "sermon": 1110
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1196-sermon-1115",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1196,
+                "section": null,
+                "sermon": 1115
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1198-sermon-1117",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1198,
+                "section": null,
+                "sermon": 1117
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1227-sermon-1146",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1227,
+                "section": null,
+                "sermon": 1146
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1233-sermon-1152",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1233,
+                "section": null,
+                "sermon": 1152
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1235-sermon-1154",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1235,
+                "section": null,
+                "sermon": 1154
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1242-sermon-1161",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1242,
+                "section": null,
+                "sermon": 1161
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1243-sermon-1162",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1243,
+                "section": null,
+                "sermon": 1162
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1244-sermon-1163",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1244,
+                "section": null,
+                "sermon": 1163
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1245-sermon-1164",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1245,
+                "section": null,
+                "sermon": 1164
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1246-sermon-1165",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1246,
+                "section": null,
+                "sermon": 1165
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1247-sermon-1166",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1247,
+                "section": null,
+                "sermon": 1166
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1248-sermon-1167",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1248,
+                "section": null,
+                "sermon": 1167
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1264-sermon-1182",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1264,
+                "section": null,
+                "sermon": 1182
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1272-sermon-1189",
+            "detector_id": "video-dead-picture",
+            "reference": "sermon 1189",
+            "subject": {
+                "run": 1272,
+                "section": null,
+                "sermon": 1189
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260916-approvals-adjudication.json (camera-fault card)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1289-sermon-1206",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1289,
+                "section": null,
+                "sermon": 1206
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector mostly_black was correct)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1303-sermon-1230",
+            "detector_id": "video-dead-picture",
+            "reference": "sermon 1230",
+            "subject": {
+                "run": 1303,
+                "section": null,
+                "sermon": 1230
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260916-approvals-adjudication.json (camera-fault card)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1306-sermon-1233",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1306,
+                "section": null,
+                "sermon": 1233
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was correct)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1316-sermon-1241",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 1316,
+                "section": null,
+                "sermon": 1241
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-1353-sermon-1276",
+            "detector_id": "video-dead-picture",
+            "reference": "sermon 1276",
+            "subject": {
+                "run": 1353,
+                "section": null,
+                "sermon": 1276
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260916-approvals-adjudication.json (picture lost mid-sermon)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-960-sermon-903",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 960,
+                "section": null,
+                "sermon": 903
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector mostly_black was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-988-sermon-924",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 988,
+                "section": null,
+                "sermon": 924
+            },
+            "truth": "clean",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector frozen_frames was wrong)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-990-sermon-926",
+            "detector_id": "video-dead-picture",
+            "reference": "sermon 926",
+            "subject": {
+                "run": 990,
+                "section": null,
+                "sermon": 926
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260916-approvals-adjudication.json (black opening)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-994-sermon-930",
+            "detector_id": "video-dead-picture",
+            "reference": "sermon 930",
+            "subject": {
+                "run": 994,
+                "section": null,
+                "sermon": 930
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260916-approvals-adjudication.json (black opening)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-dead-picture/run-995-sermon-931",
+            "detector_id": "video-dead-picture",
+            "reference": null,
+            "subject": {
+                "run": 995,
+                "section": null,
+                "sermon": 931
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/vq-20260914-register.json (old detector mostly_black was correct)",
+            "informed_fix": true
+        },
+        {
+            "case_id": "video-discredited-verdict-unreassessable/run-914-sermon-862",
+            "detector_id": "video-discredited-verdict-unreassessable",
+            "reference": "sermon 862",
+            "subject": {
+                "run": 914,
+                "section": null,
+                "sermon": 862
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "laravel.log 2026-09-16 07:40:57",
+            "informed_fix": true
+        }
+    ],
+    "aggregates": [
+        {
+            "detector_id": "sermon-text-predates-evidence",
+            "reference": "P8-Q1",
+            "register": "plan P8-Q1",
+            "reason": "Repair census over 159 repaired and 16 repairable sermons; per-sermon membership is in the P8-Q1 execution record."
+        },
+        {
+            "detector_id": "song-clip-audio-upsampled",
+            "reference": "245 of 464 clips",
+            "register": "storage/scratch/tails-20260914-fingerprint.php",
+            "reason": "Format census of every clip; a technical-quality (S4) count with no per-clip adjudication."
+        },
+        {
+            "detector_id": "sermon-page-names-wrong-reading",
+            "reference": "157 of 438 sermons",
+            "register": "storage/scratch/scripture-20260914-page-reading.txt",
+            "reason": "Consumer-rendering census; fixed at source without a media rerun."
+        },
+        {
+            "detector_id": "video-stream-copy-keyframe-lead-in",
+            "reference": "12 sermons over 3 s",
+            "register": "storage/scratch/duration-20260914-census.json; songdur-20260914-census.json",
+            "reason": "ffprobe duration census; per-item membership lives in the census files."
+        },
+        {
+            "detector_id": "video-stream-copy-keyframe-lead-in",
+            "reference": "89 frozen song openings",
+            "register": "storage/scratch/duration-20260914-census.json; songdur-20260914-census.json",
+            "reason": "ffprobe duration census; per-item membership lives in the census files."
+        },
+        {
+            "detector_id": "video-stream-copy-keyframe-lead-in",
+            "reference": "23 song clips with lead-in audio",
+            "register": "storage/scratch/duration-20260914-census.json; songdur-20260914-census.json",
+            "reason": "ffprobe duration census; per-item membership lives in the census files."
+        },
+        {
+            "detector_id": "video-verdict-without-run-evidence",
+            "reference": "13 verdicts",
+            "register": "plan §4.3a class table",
+            "reason": "Closed 2026-09-16: all 13 verdicts now carry evidence on their run."
+        }
+    ]
+}
