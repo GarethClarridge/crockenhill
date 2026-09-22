@@ -1,0 +1,86 @@
+{
+    "run": 1079,
+    "truth": "clean",
+    "basis": "source_redecode",
+    "adjudicated": false,
+    "note": "Provisional rhetoric control from an independent ASR decode, not human listening or adjudicated ground truth.",
+    "source": "storage/scratch/short-loop-review-20260920/run-1079-w1.json",
+    "source_sha256": "f34fec35531fa70f75fac8de07c0b9305b26320ba9ed89e9a2f42fdc1251eea3",
+    "audio_sha256": "3008ccb5bb2fb60202e5b94417a3400af5d4e521661446bed254b3f9ef6f4729",
+    "source_timeline_offset": null,
+    "timing_basis": "Seconds relative to the extracted audio window; source-timeline offset not recorded in this decoder artifact.",
+    "decoder": "local large-v3-turbo, max_context=0, carry_initial_prompt=true; local CPU Whisper small fallback for runs 1107 and 1309",
+    "duration": 41.0,
+    "cues": [
+        {
+            "start": 0.0,
+            "end": 4.4,
+            "text": " Then the good man followed up his text in this way,"
+        },
+        {
+            "start": 4.4,
+            "end": 7.32,
+            "text": " Look unto me, I am sweating drops of blood."
+        },
+        {
+            "start": 8.2,
+            "end": 10.5,
+            "text": " Look unto me, I am hanging on the cross."
+        },
+        {
+            "start": 11.540000000000001,
+            "end": 13.42,
+            "text": " Look unto me, I am dead and buried."
+        },
+        {
+            "start": 14.44,
+            "end": 16.34,
+            "text": " Look unto me, I rise again."
+        },
+        {
+            "start": 16.54,
+            "end": 18.6,
+            "text": " Look unto me, I ascend to heaven."
+        },
+        {
+            "start": 18.78,
+            "end": 21.740000000000002,
+            "text": " Look unto me, I am sitting at the Father's right hand."
+        },
+        {
+            "start": 21.84,
+            "end": 26.18,
+            "text": " O poor sinner, look unto me, look unto me."
+        },
+        {
+            "start": 28.04,
+            "end": 31.6,
+            "text": " When he had gone to about that length and managed to spin"
+        },
+        {
+            "start": 31.6,
+            "end": 32.84,
+            "text": " out 10 minutes or so,"
+        },
+        {
+            "start": 33.480000000000004,
+            "end": 35.18,
+            "text": " he was at the end of his tether."
+        },
+        {
+            "start": 36.06,
+            "end": 38.87,
+            "text": " Then he looked at me under the gallery, and I dare say,"
+        },
+        {
+            "start": 38.87,
+            "end": 39.86,
+            "text": " with so food present,"
+        },
+        {
+            "start": 39.94,
+            "end": 41.0,
+            "text": " he knew me to be a stranger."
+        }
+    ]
+}
