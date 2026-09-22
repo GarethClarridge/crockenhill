@@ -386,6 +386,22 @@ treat historic acceptance as proof for all three modes.
   the applicable configured transcription backend; local decoder settings alone
   do not prove equivalent behaviour for another provider. This closes ordinary
   upload coverage and need not block unrelated historic livestream repairs.
+  **Verified against code 2026-09-22.** `TranscribeAudio` serves two modes:
+  audio uploads (`buildAudioPipeline`) and direct video uploads
+  (`buildDirectVideoPipeline`). Both backends request `response_format: text`,
+  so these transcripts are **untimed prose**. The full-service screen is
+  cue-based, and cannot run on them as-is. Sparse cadence needs 30 s cue
+  boundaries, and density needs seconds. Only the repeated-phrase reason is
+  meaningful on text alone. The local direct client shares `LocalWhisperDecoding`
+  (`max_context=0`), so prevention reaches it; the OpenAI `whisper-1` client
+  (`AudioTranscriptionService`) has no such control. No detection runs on
+  either. This machine uses `local`; the production backend was not checked.
+  Reproduction needs whole-sermon decodes, because context-carry loops form over
+  long context and the 09-20 review's ~40 s windows cannot show them. On the
+  OpenAI backend that is a paid call. Two safeguard shapes: a text-only
+  repeated-phrase check on the stored transcript (proportionate), or timed output
+  on the direct path (complete, but it changes a format `ProcessTranscriptWithAI`
+  and the sermon page consume).
 - [ ] Record which upload modes each shared fix protects and verify relevant
   source content, stored artifacts and review outcomes. Keep historic-only
   custody/dispatch machinery bounded; no general reprocessing platform is required.
