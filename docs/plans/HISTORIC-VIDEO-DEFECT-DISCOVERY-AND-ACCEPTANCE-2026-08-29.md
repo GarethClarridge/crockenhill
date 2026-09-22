@@ -52,7 +52,8 @@
 > state was inspected in this review.
 > The §4.3a detector evaluation harness is **specified, with its catalogue, all
 > five emission adapters and its predeclared thresholds contract built**
-> (2026-09-21); the frozen case book and three commands remain unbuilt. The class
+> (2026-09-21). Code review on 22 September confirms `detectors:replay` is also
+> built; the frozen case book and evaluation command remain unbuilt (H8). The class
 > table now carries a `detector_id` on all 54 rows, bound to the catalogue's 73
 > entries by a parity test; building it exposed five uncatalogued `Flag*`
 > detectors and an entire unbuilt fifth surface (song boundary evidence, 920
@@ -93,7 +94,15 @@
 
 **Original date:** 2026-08-29
 **Last condensed:** 2026-09-12
-**Last reviewed:** 2026-09-20 — execution state, the extreme-short-loop containment,
+**Last reviewed:** 2026-09-22 — sequencing and regular-upload coverage reviewed
+against current code. The full harness and detector programme remains active;
+the operator may complete it before rerunning or choose a bounded background
+repair batch first, depending on available project time (§4). Sail is running:
+`vendor/bin/sail ps` succeeded outside the sandbox and listed all six workers up.
+The earlier sandbox failure was not evidence of a stopped stack. This check did
+not refresh database counts or verify loaded worker code, queues or mounts.
+
+**Previous review:** 2026-09-20 — execution state, the extreme-short-loop containment,
 and the bounded retranscription command/preflight are reconciled with the execution
 tasks. The database census remains dated 16 September; this review does not refresh
 it. Prioritise independent verification and bounded transcription/boundary repair
@@ -326,9 +335,64 @@ Read-only measurements taken to size §4. Nothing was written, held or moved.
 
 ## 4. Remaining work in execution order
 
-**Execution order revised 2026-09-17.** The detailed sections retain their stable
-numbers and evidence anchors; they are not a requirement to finish every detector
-before exercising a repaired run. Work in this order:
+**Execution choices revised 2026-09-22 (operator instruction).** Keep the full
+harness and detector work visible and active. Whether it precedes the next rerun
+depends on the operator's available time, not an assumed decision to defer it.
+The detailed sections retain their stable numbers and evidence anchors.
+
+| Available time / intent | Next work | Completion boundary |
+|---|---|---|
+| Time to work actively on the project | Continue the full §4.3a harness and detector programme, the independent source reviews and the regular-upload regression work below. The operator may choose to finish this before another rerun. | Complete the named implementation/evaluation tasks and record remaining uncertainty; building a harness alone does not validate the outputs. |
+| Busy; wants useful processing in the background | Prepare and dispatch an explicitly selected, bounded repair batch using fixes already implemented, after the three prerequisites below. | Runs finish into quarantine with holds preserved; source/content review can wait for the operator's return. Job completion does not accept or release them. |
+
+Neither choice drops work from the other. Full harness completion is not a
+technical prerequisite for every bounded repair, but it remains a legitimate
+operator preference before rerunning. Do not automatically dispatch a batch
+merely because it is technically ready. This plan revision authorises no new
+processing membership or release.
+
+**Three prerequisites for the next bounded batch:**
+
+1. Freeze exact run membership, required stages, source identity, prior artifacts,
+   expected opening/ending and repair outcome. Deduplicate by run; settle upstream
+   transcript/structure dependencies before spending on final extraction. Explicitly
+   retain or exclude unresolved cases rather than letting them widen the batch.
+2. Verify the supported dispatch route and immediate queue, worker-code, mount and
+   disk readiness. The current `historic-import:retranscribe-video-run` action is
+   restricted to 980/1258/1343, whose bounded dispatch is complete; wider use needs
+   a tested, explicitly bounded extension or another verified existing route.
+   A fresh `sail ps` result alone is not this preflight.
+3. Reuse the completed canary evidence and check representative first repaired
+   outputs before expanding to a larger batch. Cover any materially different
+   path with source opening/ending, relevant interiors/joins, media/text agreement,
+   replacement coherence and hold persistence. A frozen batch may then finish
+   unattended; keep its outputs quarantined pending independent review. Stop
+   expansion on a new regression or unassessable result.
+
+**Regular uploads are the lasting outcome.** Historic imports use the livestream
+path. Current auto-trim already shares full-service transcription, structure
+detection, extraction and sermon-transcript creation. Direct uploads instead use
+`TranscribeAudio`; both local clients share the decoding-options fix, but direct
+transcription does not run the full-service repetition screening/recovery. Do not
+treat historic acceptance as proof for all three modes.
+
+- [ ] Add a small, source-reviewed regression set covering livestream, auto-trim
+  and direct uploads, including ordinary clean examples as well as confirmed
+  defects. Extend existing fixtures and tests. The current `StructureEval`
+  manifest uses one transcript with correct and deliberately wrong expectations;
+  it verifies evaluator behaviour, not broad real-service accuracy.
+- [ ] Reproduce fluent transcript repetition through the direct-upload path and
+  add a proportionate shared safeguard, preserving legitimate repetition. Verify
+  the applicable configured transcription backend; local decoder settings alone
+  do not prove equivalent behaviour for another provider. This closes ordinary
+  upload coverage and need not block unrelated historic livestream repairs.
+- [ ] Record which upload modes each shared fix protects and verify relevant
+  source content, stored artifacts and review outcomes. Keep historic-only
+  custody/dispatch machinery bounded; no general reprocessing platform is required.
+
+The workstreams below retain their internal dependencies. Their numbering does
+not require completion of all independent review or detector work before a
+bounded background repair; the three batch prerequisites above govern dispatch.
 
 1. **Reconcile and contain.** The read-only status/exposure reconciliation is done
    in §3, including subsequent identity containment (§4.4). Reconcile the blind-review
@@ -362,12 +426,14 @@ before exercising a repaired run. Work in this order:
    derived items and final evidence banking. An unaffected run need not wait for
    an unrelated detector. Do not repeatedly encode a run whose boundaries are
    still under repair. Preserve holds until its independent acceptance passes.
-5. **Close substantive gaps and operation state alongside the repairs.** Prioritise
+5. **Close substantive gaps and operation state before or alongside the repairs.** Prioritise
    §4.2's context-drift recovery, short/varying loops and sparse loss; §4.3's
    performed-song confirmation and unresolved speech-edge cases; quoted hymns
    mistaken for singing and hymns wholly inside sermons; Scripture linking and
    missing assets. Source dropouts/truncation can end in a reasoned hold or accepted
-   limitation rather than attempted reconstruction. Resolve the three failed runs,
+   limitation rather than attempted reconstruction. The three failed runs have
+   recorded terminal dispositions in §4.5 (19 September); verify those when
+   refreshing state rather than reopening their old checklist. Resolve the
    deferred source-adoption pairs and operation 4's legitimate completion route
    before final convergence; do not fabricate checkpoints.
 6. **Accept and release only exact membership (§4.5).** Independent repaired-output
@@ -3302,10 +3368,11 @@ read-only; register `hintresolve-20260916-blast-radius.json`). Nothing was writt
 
 #### Detector evaluation harness — specification drafted 2026-09-21
 
-Nothing below has been implemented. This is the predeclaration the item above
-requires ("before evaluating a candidate, record acceptance thresholds"), so it
-is written first and deliberately committed before any scoring code exists. A
-threshold chosen after seeing a candidate's results is not a threshold.
+This specification was declared before scoring implementation ("before
+evaluating a candidate, record acceptance thresholds"). Parts are now built;
+H8 is the implementation checklist, reconciled against code on 22 September.
+The full remaining harness stays in scope whichever §4 execution choice is
+taken. A threshold chosen after seeing a candidate's results is not a threshold.
 
 **What the harness is not.** It does not process media. It scores *recorded
 detector output* against adjudicated truth, and re-runs detector classes only
@@ -3786,12 +3853,31 @@ burned by banked verdicts concealing policy drift before, so the adapter surface
 `decided_at` in context. Detecting drift itself belongs to the report's evidence
 version binding, not the adapter.
 
-**Still unbuilt:** the case book and all three commands. That is now the whole
-remainder of the harness — the catalogue, every adapter and the thresholds
-contract are done, and nothing can be *scored* until `detectors:evaluate` and its
-case book exist. `detectors:replay` needs neither, and is the next step: it reads
-the catalogue and the five adapters, which already exist, and produces the
-reconciliation the case book would then be adjudicated from.
+**Implementation checklist — reconciled against code 2026-09-22.** Preserve the
+full programme; this is an ordering choice, not a reduced harness specification.
+
+- [x] H1 catalogue, H2's five adapters and H4 thresholds contract.
+- [x] `detectors:replay` exists, with historic/weekly populations reported
+  separately and optional `--recompute` for sound-stage flags.
+- [ ] H3 adjudicated case book and `detectors:freeze-case-book`.
+- [ ] `detectors:evaluate`, using H4's declared units/thresholds, H5 breakdowns,
+  H6 version bindings and explicit unassessable/review-burden reporting.
+- [ ] Write the source-confirmed regression cases into the existing fixtures;
+  distinguish test doubles from evaluations of real model outputs.
+- [ ] Complete each remaining detector class's tested response or explicit
+  recorded decision not to automate it; retain the class table as the work list.
+- [ ] Complete independent positive/negative source adjudication and H10/H10b's
+  scoped measurements, then report results and limitations against the declared
+  criteria. Missing labels or insufficient evidence remain unassessable, not a pass.
+
+**Replay is not blanket re-evaluation.** Its default report reads stored
+decisions through the five adapters. `--recompute` additionally re-derives the
+sound-stage flags, not every detector. Neither mode proves that all stored
+evidence reflects current code. Before citing current-policy coverage, run the
+applicable detector through its supported path and bind the measurement to those
+inputs and versions. Nothing can be scored by `detectors:evaluate` until that
+command and its adjudicated case book exist. This reconciliation is a code
+inspection, not a new corpus replay or a fresh test result.
 
 The catalogue answers both "what can be evaluated" and "what classes exist" as of
 2026-09-21, when the class table gained its `detector_id` column and the
@@ -4074,8 +4160,10 @@ stored transcripts — re-transcription has already discarded prior recovery on
 this corpus — and decide adoption per run through the tested path, never as a
 side effect of measuring.
 
-Sampling is not needed for either screen. Both run over the whole population for
-compute alone, so recall becomes a count rather than a bound.
+Both screens can inspect the whole population computationally, but that removes
+sampling uncertainty only from their own candidate counts. It does not establish
+complete defect recall: omissions or errors shared by both decodes remain
+invisible, and coverage signals cannot establish semantic correctness.
 
 Everything from here to the end of H10b is specification written before the
 re-decode is run, for the same reason the harness specification was: a decision
@@ -4133,8 +4221,8 @@ cases are different defects rather than degrees of one:
 
 | Stored side | New side | Reading |
 |---|---|---|
-| Repetitive | Clean | Context-carry loop in the stored text — the class this is built for |
-| Clean | Repetitive | The new decode is worse here; the setting change is not free |
+| Repetitive | Clean | Candidate context-carry loop in the stored text; audio must confirm which wording is correct |
+| Clean | Repetitive | Candidate regression in the new decode; audio must distinguish real repetition from an artefact |
 | Repetitive | Repetitive | Real repeated speech, or a failure below both decodes |
 | Clean | Clean | Substitution or fluent invention — the 946 §787 / 1030 §1418 class, which no repetition screen can reach |
 
@@ -4205,17 +4293,22 @@ file would produce exactly the disagreement pattern the method is looking for.
 
 ###### What is counted, and what running over everything costs
 
-Recall for the dense-loop class is a count, not a bound: every run is compared,
-so there is no sampling uncertainty to carry. Candidate misses are the
-disagreeing windows the screen does not cover; each is adjudicated **against
-audio**, because the new decode is not ground truth and a disagreement only ever
-nominates a window for a human minute. Precision needs its own adjudicated
-sample of covered windows. Report the denominators separately for the four
-classes above.
+Report **source-confirmed defects discovered through decode disagreement** and
+the existing screen's coverage of those defects. Every run may be compared, but
+this is not complete recall for dense loops or semantic defects: the comparison
+can miss faults present in both decodes. Candidate misses are the disagreeing
+windows the screen does not cover; each is adjudicated **against audio**, because
+the new decode is not ground truth. Precision needs its own adjudicated sample
+of covered windows. Retain independent source checks of agreement/negative
+windows to investigate the blind spot, and report the quantity actually sampled:
+reviewed minutes cannot certify whole runs. Report denominators separately for
+the four classes above; do not substitute agreement for a source-correct label
+when evaluating H4's thresholds.
 
-The saving over H10's 90-run sample is the point: listening is spent on
-nominated windows rather than on sampled ones, so the same 15 hours buys
-adjudication of the actual candidates.
+The intended saving over H10's 90-run sample is more focused listening: much of
+the listening budget goes to nominated windows, with a bounded independent
+agreement/negative sample retained. Measure the actual review time and scope;
+do not assume the same 15 hours certifies the corpus.
 
 **The cost of running over the whole population must be stated rather than
 enjoyed.** H10's spent-sample rule says a sample that prompts a threshold change
@@ -4633,10 +4726,10 @@ reach their own targets at different rates (342 of 1174 song sections and 137 of
 
 | Gate | State | Required evidence to turn green |
 |---|---|---|
-| Processing | GO | Definitive passes drained; three failures remain explicit rather than hidden. |
+| Processing | GO | Definitive passes drained; the three former failures have recorded terminal dispositions in §4.5 (19 September). This is dated execution evidence, not a new live census. |
 | Queued repair readiness | **CONDITIONAL GO** | Both canary blockers are closed (`283a6cd90`, `690ae1d5d`), merge-case hold persistence is verified (`8d98e45b8`), and 1340's transcript regression is repaired (`c933889b9`, `7d6bbde95`). Workers were restarted onto `1c65dd104` before that repair, and macOS Safari join playback passed; iOS is an accepted limitation. Every new bounded batch must still pass an immediate queue/mount/worker-code preflight and verify each sermon opening against source speech. Actual-server range, repaired-output, song-clip and cache checks remain release evidence. |
 | Containment | **NO-GO** | The six disputed sermons and their seven song videos were held on 2026-09-16 and the sections those holds left published were demoted the same hour (§4.4), so the identity gate-clear gap is closed and published-while-held is zero again. Remaining: the current-policy and unassessable residue. Containment is not adoption — the three pairs are still undecided, and the holds are what make deferring them safe. |
-| Content acceptance | **NO-GO** | §4.1b's strengthened stopping rule passes: scoped coverage and limitations, omission reconciliation, independent source evidence, content handoffs, controlled variations/interruption tests, tail and whole-output reviews. Every §4.3a class has a tested response or recorded decision; detector errors and review burden meet predeclared criteria on reserved data. The fresh release-membership sample includes repaired/held runs, reports uncertainty and unassessable cases, and meets its separate predeclared limits. Evidence is bound to current artifacts; operator rulings are recorded. |
+| Content acceptance | **NO-GO** | §4.1b's strengthened stopping rule passes: scoped coverage and limitations, omission reconciliation, independent source evidence, content handoffs, controlled variations/interruption tests, tail and whole-output reviews. Every §4.3a class has a tested response or recorded decision; detector errors and review burden are evaluated against predeclared criteria using H9/H10's retrospective, source-adjudicated evidence, with measured units and limitations explicit. There is no reserved historic set; insufficient evidence is not a pass, and H10b disagreement counts are not complete recall. The fresh release-membership sample includes repaired/held runs and meets its separate predeclared limits. Evidence is bound to current artifacts; operator rulings are recorded. |
 | Public release | **NO-GO** | Phase 9 convergence, QA and actual-server browser checks pass, then the operator signs an exact era-sized batch. Actual-destination delivery checks are scheduled within the authorised release's rollback window and must pass to close observation. |
 
 <a id="correctness-review-2026-09-10-followup"></a>
