@@ -414,9 +414,38 @@ treat historic acceptance as proof for all three modes.
   the context fix prevents the class on direct uploads, so no new safeguard is
   added for a failure that does not reproduce. The limit is five sermons, not
   a rate. An OpenAI-backed direct path would need its own check before use.
-- [ ] Record which upload modes each shared fix protects and verify relevant
+- [x] Record which upload modes each shared fix protects and verify relevant
   source content, stored artifacts and review outcomes. Keep historic-only
   custody/dispatch machinery bounded; no general reprocessing platform is required.
+  **Recorded 2026-09-23 from the code**: phases per route come from
+  `ProcessingPhaseRegistry`, and fix locations from each class's callers and the fix
+  commits. Livestream covers historic and weekly livestream runs. Auto-trim is a
+  video upload with trimming. Direct means video or audio uploads without trimming.
+
+  | Fix (where it lives) | Livestream | Auto-trim | Direct video | Direct audio |
+  |---|---|---|---|---|
+  | Whisper context drift, `max_context=0` (`LocalWhisperDecoding`; both local clients) | yes | yes | yes, local backend only | yes, local backend only |
+  | Repetition screen, sparse cadence, recovery, prompt-echo filter (`TranscribeFullService`) | yes | yes | **no**: untimed text; not reproduced on local (5/5) | **no**: same |
+  | Sermon transcript hold from screen blocks (`CreateSermonTranscriptFromService`) | yes | yes | no | no |
+  | Structure prompt in whole seconds (1493), sustained-sound widening and introduction bridge, speech-edge trim, mistyped-sung flag (`DetectServiceStructure`) | yes | yes | n/a: no structure | n/a |
+  | Sermon span to next song, closing prayer, absorbed sung item, held preached reading (`SermonExtractionPlanResolver`) | yes | yes | n/a: whole upload | n/a |
+  | Held sermon parks at extraction (283a6cd90); sermon MP3 from final video track (1496) (`ExtractSermon`) | yes | yes | n/a | n/a |
+  | Smart cut and keyframe correction (`VideoExtractionService::extractSegment*`) | yes (sermons and song clips) | yes (sermons) | n/a: `extractOptimizedAudio` does not cut | n/a |
+  | Song identity refusal over suspect blocks (`MatchSongsFromTranscript`) | yes | **no**: no song matching | n/a | n/a |
+  | Song publication review: lyric edges, loops, neighbour same-song (`SongPublicationReviewPolicy`) | yes | **no**: no song clips | n/a | n/a |
+  | Enhanced audio keeps the source sample rate (`AudioEnhancementService`) | yes (song clips) | via `enhance_audio` | no | no |
+  | Video quality verdict on the owning run (`AssessSermonVideoQuality`) | yes | yes | yes | n/a: no video |
+  | Temp-file cleanup pause (`CleanupTemporaryFiles`, sweep) | yes | yes | yes | yes |
+
+  **Gaps that remain, by design or open:**
+  - Direct uploads have no transcript loop detection. The loop class did not reproduce on
+    the local backend (five sermons, 09-22), so no safeguard is added. **The OpenAI
+    `whisper-1` client has neither the context fix nor detection**: switching the direct
+    backend to OpenAI needs its own check first.
+  - Auto-trim runs no song matching or clip publication, so song-identity and song-clip
+    fixes do not apply to it. That is not a gap unless auto-trim starts publishing songs.
+  - Historic acceptance is not evidence for the direct routes. It shares only the context
+    fix and the video quality check with them.
 
 The workstreams below retain their internal dependencies. Their numbering does
 not require completion of all independent review or detector work before a
