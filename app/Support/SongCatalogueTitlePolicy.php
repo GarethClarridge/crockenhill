@@ -8,6 +8,7 @@ use App\Enums\ServiceSectionSongMatchType;
 use App\Jobs\MatchSongsFromTranscript;
 use App\Services\ChurchService\SectionReviewFlagRecalculator;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\Song\SongLyricIdentityCheck;
 
 /**
  * Canonical rule for whether a transcript song match is confident enough to
@@ -17,8 +18,10 @@ use App\Services\ChurchService\Structure\ServiceStructureValidator;
  * Confidence must clear the write-back threshold, and the evidence must not
  * already contradict itself. A chapter-marker mismatch scored 0.98–1.000 in
  * measured cases, while a title inferred from text inside a suspect transcript
- * block merely lets the damaged evidence corroborate itself. Confidence cannot
- * arbitrate either dispute; OCR or audited review provides independent evidence.
+ * block merely lets the damaged evidence corroborate itself. A title whose
+ * section's own sung words clearly belong to another song is the §4.1a
+ * mis-binding ({@see SongLyricIdentityCheck}). Confidence cannot arbitrate any
+ * of these disputes; OCR or audited review provides independent evidence.
  *
  * Shared by the matching path ({@see MatchSongsFromTranscript}) and
  * the re-derivation path
@@ -31,6 +34,8 @@ use App\Services\ChurchService\Structure\ServiceStructureValidator;
 class SongCatalogueTitlePolicy
 {
     public const FLAG_IDENTITY_UNVERIFIED_FROM_SUSPECT_TRANSCRIPT = 'song_identity_unverified_from_suspect_transcript';
+
+    public const FLAG_IDENTITY_CONTRADICTED_BY_LYRICS = 'song_identity_contradicted_by_lyrics';
 
     /**
      * Whether the catalogued title may replace the heard text, which is also
@@ -49,6 +54,10 @@ class SongCatalogueTitlePolicy
         }
 
         if (in_array(self::FLAG_IDENTITY_UNVERIFIED_FROM_SUSPECT_TRANSCRIPT, $reviewFlags, true)) {
+            return false;
+        }
+
+        if (in_array(self::FLAG_IDENTITY_CONTRADICTED_BY_LYRICS, $reviewFlags, true)) {
             return false;
         }
 

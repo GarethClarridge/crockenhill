@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Jobs;
 
+use App\Data\ChurchServiceTranscript;
 use App\Data\SuspectTranscriptBlock;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\ServiceSectionSongMatchType;
@@ -20,6 +21,7 @@ use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Song\SongLyricOcrService;
 use App\Services\Song\SongLyricsMatchingService;
 use App\Services\Song\UnmatchedSongReviewApplicator;
+use App\Support\SongCatalogueTitlePolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
@@ -215,6 +217,154 @@ class MatchSongsFromTranscriptTest extends TestCase
         $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
         $this->assertTrue($section->needs_manual_review);
         $this->assertContains('song_identity_unverified_from_suspect_transcript', $section->metadata['review_flags'] ?? []);
+    }
+
+    // ---- Lyric identity check ----
+
+    #[Test]
+    public function it_does_not_confirm_a_title_hint_whose_sung_lyrics_are_another_song(): void
+    {
+        // The §4.1a mechanism: the leader names the song, the hint resolves to
+        // a song sharing its title words, and what was sung is something else.
+        Song::factory()->create(['title' => 'Be Thou My Vision', 'canonical_key' => 'be thou my vision', 'lyrics_plain' => self::BE_THOU_MY_VISION]);
+        $sung = Song::factory()->create(['title' => 'Amazing Grace', 'canonical_key' => 'amazing grace', 'lyrics_plain' => self::AMAZING_GRACE]);
+
+        $log = $this->runWithSungTranscript(self::AMAZING_GRACE);
+        $section = $this->hintedSongSection($log, 'Be Thou My Vision');
+
+        $this->runSongMatching($log);
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
+        $this->assertTrue($section->needs_manual_review);
+        $this->assertContains(SongCatalogueTitlePolicy::FLAG_IDENTITY_CONTRADICTED_BY_LYRICS, $section->metadata['review_flags']);
+        $this->assertSame('Be Thou My Vision', $section->title, 'A contradicted match must not display the catalogue title.');
+
+        $check = $section->metadata['lyric_identity_check'];
+        $this->assertSame('contradicted', $check['verdict']);
+        $this->assertSame($sung->id, $check['rival_song_id']);
+    }
+
+    #[Test]
+    public function it_confirms_a_title_hint_whose_sung_lyrics_agree(): void
+    {
+        $bound = Song::factory()->create(['title' => 'Be Thou My Vision', 'canonical_key' => 'be thou my vision', 'lyrics_plain' => self::BE_THOU_MY_VISION]);
+        Song::factory()->create(['title' => 'Amazing Grace', 'canonical_key' => 'amazing grace', 'lyrics_plain' => self::AMAZING_GRACE]);
+
+        $log = $this->runWithSungTranscript(self::BE_THOU_MY_VISION);
+        $section = $this->hintedSongSection($log, 'Be Thou My Vision');
+
+        $this->runSongMatching($log);
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
+        $this->assertFalse($section->needs_manual_review);
+        $this->assertNotContains(SongCatalogueTitlePolicy::FLAG_IDENTITY_CONTRADICTED_BY_LYRICS, $section->metadata['review_flags']);
+        $this->assertSame('consistent', $section->metadata['lyric_identity_check']['verdict']);
+        $this->assertSame($bound->id, $section->metadata['lyric_identity_check']['bound_song_id']);
+    }
+
+    #[Test]
+    public function it_records_the_check_as_unavailable_when_the_run_has_no_readable_transcript(): void
+    {
+        // Undecided is not doubted: the check only ever vetoes on evidence.
+        Song::factory()->create(['title' => 'Be Thou My Vision', 'canonical_key' => 'be thou my vision', 'lyrics_plain' => self::BE_THOU_MY_VISION]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $log->putServiceTranscriptPath('service-transcripts/missing.json');
+        $section = $this->hintedSongSection($log, 'Be Thou My Vision');
+
+        $this->runSongMatching($log);
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
+        $this->assertSame('unavailable', $section->metadata['lyric_identity_check']['verdict']);
+    }
+
+    #[Test]
+    public function a_contradicted_section_is_retried_and_ocr_of_the_projected_slides_settles_it(): void
+    {
+        Config::set('media-processing.song_matching.ocr_enabled', true);
+        $bound = Song::factory()->create(['title' => 'Be Thou My Vision', 'canonical_key' => 'be thou my vision', 'lyrics_plain' => self::BE_THOU_MY_VISION]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Inferred->value,
+            'start_time' => 100.0,
+            'end_time' => 300.0,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'review_flags' => [SongCatalogueTitlePolicy::FLAG_IDENTITY_CONTRADICTED_BY_LYRICS],
+                'song_ocr_text' => self::BE_THOU_MY_VISION,
+            ],
+        ]);
+
+        $this->runSongMatching($log);
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
+        $this->assertSame($bound->id, $section->metadata['transcript_song_match']['song_id']);
+        $this->assertNotContains(SongCatalogueTitlePolicy::FLAG_IDENTITY_CONTRADICTED_BY_LYRICS, $section->metadata['review_flags']);
+    }
+
+    #[Test]
+    public function it_leaves_the_hand_applied_transcript_contradiction_in_place(): void
+    {
+        // §335/§1121/§1254 were held by a person in the 09-10/11 review; a
+        // re-run agreeing with itself is not a re-decision of that ruling.
+        Song::factory()->create(['title' => 'Be Thou My Vision', 'canonical_key' => 'be thou my vision', 'lyrics_plain' => self::BE_THOU_MY_VISION]);
+
+        $log = $this->runWithSungTranscript(self::BE_THOU_MY_VISION);
+        $section = $this->hintedSongSection($log, 'Be Thou My Vision', ['unmatched_song_section', 'song_identity_contradicted_by_transcript']);
+
+        $this->runSongMatching($log);
+        $section->refresh();
+
+        $this->assertContains('song_identity_contradicted_by_transcript', $section->metadata['review_flags']);
+        $this->assertTrue($section->needs_manual_review);
+    }
+
+    private const AMAZING_GRACE = 'Amazing grace how sweet the sound that saved a wretch like me. I once was lost but now am found, was blind but now I see. Twas grace that taught my heart to fear and grace my fears relieved. How precious did that grace appear the hour I first believed.';
+
+    private const BE_THOU_MY_VISION = 'Be thou my vision O Lord of my heart, naught be all else to me save that thou art. Thou my best thought by day or by night, waking or sleeping thy presence my light. Be thou my wisdom and thou my true word, I ever with thee and thou with me Lord.';
+
+    private function runWithSungTranscript(string $sung): MediaProcessingLog
+    {
+        Config::set('media-processing.storage.transcript_disk', 'local');
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $path = 'service-transcripts/'.$log->processing_id.'.json';
+        Storage::disk('local')->put($path, json_encode(ChurchServiceTranscript::fromCues([
+            ['start' => 60.0, 'end' => 90.0, 'text' => 'Let us stand and sing Be Thou My Vision.'],
+            ['start' => 120.0, 'end' => 280.0, 'text' => $sung],
+        ], 600.0, ChurchServiceTranscript::SOURCE_LOCAL_WHISPER)->toArray(), JSON_THROW_ON_ERROR));
+        $log->putServiceTranscriptPath($path);
+
+        return $log;
+    }
+
+    /**
+     * @param  list<string>  $reviewFlags
+     */
+    private function hintedSongSection(MediaProcessingLog $log, string $titleHint, array $reviewFlags = ['unmatched_song_section']): ServiceSection
+    {
+        return ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Unmatched->value,
+            'title' => $titleHint,
+            'start_time' => 100.0,
+            'end_time' => 300.0,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'classification_mode' => 'audio_only',
+                'song_title_hint' => $titleHint,
+                'song_title' => $titleHint,
+                'review_flags' => $reviewFlags,
+            ],
+        ]);
     }
 
     #[Test]

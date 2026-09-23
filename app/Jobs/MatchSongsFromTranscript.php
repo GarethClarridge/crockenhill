@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceSectionMetadata;
 use App\Data\SuspectTranscriptBlock;
 use App\Enums\ChurchServiceItemSource;
@@ -15,7 +16,9 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\Media\Audio\ServiceTranscriptReader;
 use App\Services\Processing\StorageAdapterHelper;
+use App\Services\Song\SongLyricIdentityCheck;
 use App\Services\Song\SongLyricOcrService;
 use App\Services\Song\SongLyricsMatchingService;
 use App\Services\Song\UnmatchedSongReviewApplicator;
@@ -43,6 +46,11 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
     public int $tries = 3;
 
     public int $timeout = 1200;
+
+    private ?SongLyricIdentityCheck $lyricIdentityCheck = null;
+
+    /** @var array{0: ChurchServiceTranscript|null}|null Read once per run, and only if a match needs it. */
+    private ?array $serviceTranscript = null;
 
     public function __construct(
         private MediaProcessingLog $processingLog
@@ -83,7 +91,11 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
         StorageAdapterHelper $storageHelper,
         SongLyricOcrService $ocrService,
         UnmatchedSongReviewApplicator $unmatchedSongReviewApplicator,
+        ?SongLyricIdentityCheck $lyricIdentityCheck = null,
     ): void {
+        $this->lyricIdentityCheck = $lyricIdentityCheck ?? app(SongLyricIdentityCheck::class);
+        $this->serviceTranscript = null;
+
         if (! (bool) config('media-processing.song_matching.enabled', true)) {
             $this->initializeStepLogging($this->processingLog->processing_id);
             $this->logStepSkipped(ChurchServiceProcessingTimeline::MATCH_SONGS_FROM_TRANSCRIPT, 'Song matching from transcript disabled');
@@ -195,7 +207,8 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
      * A section needs song matching when it has no match at all, or when OoS alignment
      * could only infer a positional label and the unmatched review flag is still present
      * (i.e. there is no catalog-backed evidence for the song yet). A title inferred
-     * from suspect transcript text also remains eligible for independent OCR.
+     * from suspect transcript text, or contradicted by the section's sung lyrics,
+     * also remains eligible for independent OCR.
      */
     private function needsSongMatching(ServiceSection $section): bool
     {
@@ -212,6 +225,7 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
         return is_array($reviewFlags) && (
             in_array('unmatched_song_section', $reviewFlags, true)
             || in_array(SongCatalogueTitlePolicy::FLAG_IDENTITY_UNVERIFIED_FROM_SUSPECT_TRANSCRIPT, $reviewFlags, true)
+            || in_array(SongCatalogueTitlePolicy::FLAG_IDENTITY_CONTRADICTED_BY_LYRICS, $reviewFlags, true)
         );
     }
 
@@ -401,11 +415,24 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
                 $metadataArray['review_flags'] ?? [],
                 static fn (mixed $flag): bool => is_string($flag)
                     && $flag !== 'unmatched_song_section'
-                    && $flag !== SongCatalogueTitlePolicy::FLAG_IDENTITY_UNVERIFIED_FROM_SUSPECT_TRANSCRIPT,
+                    && $flag !== SongCatalogueTitlePolicy::FLAG_IDENTITY_UNVERIFIED_FROM_SUSPECT_TRANSCRIPT
+                    && $flag !== SongCatalogueTitlePolicy::FLAG_IDENTITY_CONTRADICTED_BY_LYRICS,
             ));
 
             if ($matchSource !== 'ocr' && $this->overlapsSuspectTranscriptBlock($section)) {
                 $reviewFlags[] = SongCatalogueTitlePolicy::FLAG_IDENTITY_UNVERIFIED_FROM_SUSPECT_TRANSCRIPT;
+            }
+
+            // OCR reads the projected slides, which is the independent evidence
+            // this check defers to, so only a match taken from what was heard is
+            // put against what was sung.
+            if ($matchSource !== 'ocr') {
+                $check = $this->lyricIdentityCheck($section, $songId);
+                $metadataArray['lyric_identity_check'] = $check;
+
+                if ($check['verdict'] === SongLyricIdentityCheck::CONTRADICTED) {
+                    $reviewFlags[] = SongCatalogueTitlePolicy::FLAG_IDENTITY_CONTRADICTED_BY_LYRICS;
+                }
             }
 
             // A confident match displays the catalogued title rather than the
@@ -465,6 +492,28 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
                 }
             }
         });
+    }
+
+    /**
+     * The section's sung words put against the song it is about to be bound to.
+     *
+     * A run whose transcript cannot be read is recorded as `unavailable` and
+     * left to the other gates: the check vetoes on evidence, never on its absence.
+     *
+     * @return array<string, mixed>
+     */
+    private function lyricIdentityCheck(ServiceSection $section, int $songId): array
+    {
+        $this->serviceTranscript ??= [app(ServiceTranscriptReader::class)->tryRead($this->processingLog)];
+        $transcript = $this->serviceTranscript[0];
+
+        if ($transcript === null) {
+            return ['verdict' => 'unavailable', 'bound_song_id' => $songId];
+        }
+
+        $check = $this->lyricIdentityCheck ?? app(SongLyricIdentityCheck::class);
+
+        return $check->assess($transcript, (float) $section->start_time, (float) $section->end_time, $songId);
     }
 
     private function overlapsSuspectTranscriptBlock(ServiceSection $section): bool

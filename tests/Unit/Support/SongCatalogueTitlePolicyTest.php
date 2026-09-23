@@ -68,6 +68,20 @@ class SongCatalogueTitlePolicyTest extends TestCase
         }
     }
 
+    /**
+     * A title-hint match scores 1.0 by construction, so the lyric
+     * contradiction has to veto at full confidence or it vetoes nothing — and
+     * the re-derivation path would promote the row straight back.
+     */
+    #[Test]
+    public function a_lyric_contradiction_vetoes_the_catalogue_title_at_full_confidence(): void
+    {
+        $flags = [SongCatalogueTitlePolicy::FLAG_IDENTITY_CONTRADICTED_BY_LYRICS];
+
+        $this->assertFalse(SongCatalogueTitlePolicy::writesCatalogueTitle(1.0, $flags));
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, SongCatalogueTitlePolicy::matchTypeFor(1.0, $flags));
+    }
+
     #[Test]
     public function unrelated_flags_do_not_veto_the_catalogue_title(): void
     {

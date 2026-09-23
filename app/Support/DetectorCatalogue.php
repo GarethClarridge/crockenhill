@@ -26,6 +26,7 @@ use App\Services\DetectorEvaluation\SongBoundaryEvidenceSignals;
 use App\Services\Media\Audio\ServiceTranscriptRepetitionScreen;
 use App\Services\Media\Video\SermonVideoQualityAssessmentService;
 use App\Services\Preacher\ChildrensTalkSpeakerService;
+use App\Services\Song\SongLyricIdentityCheck;
 use App\Services\Song\UnmatchedSongReviewApplicator;
 use RuntimeException;
 
@@ -598,6 +599,16 @@ class DetectorCatalogue
                 unit: DetectorUnit::Section,
                 summary: 'A song title taken from transcript text that a suspect block overlaps, so the lyrics that named it may never have been sung.',
                 owningClass: SongCatalogueTitlePolicy::class,
+            ),
+            new DetectorEntry(
+                id: 'song-identity-contradicted-by-lyrics',
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: [SongCatalogueTitlePolicy::FLAG_IDENTITY_CONTRADICTED_BY_LYRICS],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::PublishedWrongContent,
+                unit: DetectorUnit::Section,
+                summary: "A song match taken from what was heard, whose section's sung words clearly belong to another catalogue song.",
+                owningClass: SongLyricIdentityCheck::class,
             ),
             new DetectorEntry(
                 id: 'song-title-marker-mismatch',
