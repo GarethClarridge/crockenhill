@@ -190,6 +190,57 @@ operator preference before rerunning. Do not automatically dispatch a batch
 merely because it is technically ready. This plan revision authorises no new
 processing membership or release.
 
+### 4.0 Corpus re-run — operator decisions 2026-09-23
+
+Most fixes since 09-15 act at structure detection or song matching (1493 prompt seconds,
+sustained-sound widening and bridge, speech-edge trim, neighbour same-song rule, catalogue
+title resolution, mistyped-sung flag, lyric identity check). They reach a run only when it
+is re-detected, so nearly every run with a song section is affected, and selecting runs
+costs more than re-running them. **Operator decisions:**
+
+1. **Freeze detection code only after every open detector item is closed.** Each item is
+   either built and tested, or recorded as a decision not to detect. The pass then runs
+   against one commit, and its evidence binds that commit. The gate (catalogue state
+   2026-09-23: 40 promoted, 16 fixed at source, 2 decided not to detect, **17 unbuilt, 1
+   prototype**):
+   - Structure/typing: `structure-hymn-inside-sermon-section`,
+     `structure-spoken-quotation-typed-as-song`, `talk-typed-other`,
+     `song-section-without-a-song`, `detection-unplaced-hold-refusal-discarded`
+   - Transcript/audio: `transcript-meaning-changing-substitution`,
+     `audio-dropout-inside-talk` (prototype)
+   - Scripture: `scripture-reference-never-linked`, `scripture-multi-passage-truncated`,
+     `scripture-verse-in-prayer-typed-as-reading`
+   - Identity/metadata: `oos-item-written-from-wrong-song`,
+     `published-title-contradicts-content`, `identity-duplicate-date-pair`
+   - Membership/staging/release: `membership-missing-occasion`,
+     `membership-rehearsal-imported-as-service`, `staging-held-candidates-not-promoted`,
+     `release-media-file-missing`, `video-discredited-verdict-unreassessable`
+   - Carried §4.3 items outside the catalogue: the continuous-speech boundary check (§988),
+     `confirmed` redefined as two independent sources, speech under looped sung text
+     (967 §1082, 1268 §4731, 1348 §4390), and song edge into an adjoining section.
+2. **Tier A (re-transcription) waits for the operator's H10b listening queue.** Runs are
+   chosen from the listening results, not from the tripwire alone.
+3. **All eligible historic runs are re-run**, not only those predicted to change. The
+   censuses keep finding classes nobody predicted, and the diff report surfaces them.
+
+**Shape.** Tier A re-transcribes (H10b-selected runs plus the contained transcript-loss
+cases). Tier B re-detects every other eligible run from structure detection. Tier C,
+re-extraction, follows only where a span or binding moved. Everything lands in quarantine;
+release stays with §4.5.
+
+**To build before the pass:**
+- [ ] A per-run **before/after diff report**: sections, types, spans, bindings, holds (with
+  `found_by`), review flags and extraction plans. It is snapshotted before dispatch and
+  compared after, so review reads "what changed and why" instead of re-examining every run.
+- [ ] A bounded **re-detect dispatch route**, tested. `historic-import:retranscribe-video-run`
+  is restricted to four runs.
+- [ ] **Canary: runs 964 (§872) and 1250 (§3128)**, the first use of the diff report. Current
+  code resolves both hints correctly (#304, #408). The canary checks that re-detection
+  rebinds them, that sync overwrites the stale livestream items 6901/9371 rather than
+  anchoring on them, and that `lyric_identity_check` reads `consistent`. They are not rebound
+  through the review queue in the meantime (no clip, not exposed).
+- [ ] Batches by era, each checked against its diff before the next. Stop on any new regression.
+
 **Three prerequisites for the next bounded batch:**
 
 1. Freeze exact run membership, required stages, source identity, prior artifacts,
