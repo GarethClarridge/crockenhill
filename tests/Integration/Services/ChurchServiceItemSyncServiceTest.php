@@ -729,7 +729,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'custom',
-            'section_type' => ServiceSectionType::ChildrensTalk,
+            'section_type' => ServiceSectionType::ShortTalk,
             'source' => ChurchServiceItemSource::Email,
             'title' => 'Family Talk - "Joel"',
             'source_title' => 'Family Talk - "Joel" (see PP)',
@@ -743,7 +743,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
 
         $this->assertDatabaseCount('church_service_items', 1);
         $this->assertSame('Family Talk - "Joel"', $emailTalk->title);
-        $this->assertSame(ServiceSectionType::ChildrensTalk, $emailTalk->section_type);
+        $this->assertSame(ServiceSectionType::ShortTalk, $emailTalk->section_type);
         $this->assertSame(
             [ChurchServiceItemSource::Email, ChurchServiceItemSource::OpenLp],
             $emailTalk->provenanceSources(),
@@ -759,7 +759,7 @@ class ChurchServiceItemSyncServiceTest extends TestCase
             'church_service_id' => $churchService->id,
             'position' => 1,
             'type' => 'custom',
-            'section_type' => ServiceSectionType::ChildrensTalk,
+            'section_type' => ServiceSectionType::ShortTalk,
             'source' => ChurchServiceItemSource::Email,
             'title' => 'Family Talk - "Joel"',
         ]);

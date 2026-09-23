@@ -73,7 +73,7 @@ class HoldSectionForContentReviewTest extends TestCase
     #[Test]
     public function it_holds_songs_and_childrens_talks_too(): void
     {
-        foreach ([ServiceSectionType::Song, ServiceSectionType::ChildrensTalk] as $type) {
+        foreach ([ServiceSectionType::Song, ServiceSectionType::ShortTalk] as $type) {
             $section = $this->section($type);
 
             app(HoldSectionForContentReview::class)($section, self::REASON, self::EVIDENCE, ContentHoldCheck::Judgement);

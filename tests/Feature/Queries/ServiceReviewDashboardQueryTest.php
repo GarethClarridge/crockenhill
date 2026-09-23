@@ -494,12 +494,12 @@ class ServiceReviewDashboardQueryTest extends TestCase
         ]);
 
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::ChildrensTalk,
+            'section_type' => ServiceSectionType::ShortTalk,
             'needs_manual_review' => false,
             'confidence' => 0.99,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable,
             'metadata' => [
-                'childrens_talk_speaker' => [
+                'talk_speaker' => [
                     'predicted' => ['outcome' => 'no_profiles'],
                 ],
             ],
@@ -522,12 +522,12 @@ class ServiceReviewDashboardQueryTest extends TestCase
         ]);
 
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::ChildrensTalk,
+            'section_type' => ServiceSectionType::ShortTalk,
             'needs_manual_review' => false,
             'confidence' => 0.99,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable,
             'metadata' => [
-                'childrens_talk_speaker' => [
+                'talk_speaker' => [
                     'predicted' => ['outcome' => 'no_match'],
                 ],
             ],
@@ -790,7 +790,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'title' => 'Demoted Talk',
             'needs_manual_review' => false,
             'confidence' => 0.99,

@@ -22,7 +22,8 @@ final readonly class ServiceSectionMetadata extends JsonData
         public ?int $songId = null,
         public ?string $readingReference = null,
         public ?SectionOosAlignment $oosAlignment = null,
-        public ?ChildrensTalkSpeakerMetadata $childrensTalkSpeaker = null,
+        public ?TalkSpeakerMetadata $talkSpeaker = null,
+        public ?TalkTypeMetadata $talkType = null,
         public ?SectionPublicationMetadata $publication = null,
         public ?SermonContinuationMetadata $sermonContinuation = null,
         public array $raw = [],
@@ -44,7 +45,8 @@ final readonly class ServiceSectionMetadata extends JsonData
             songId: self::intOrNull($payload['song_id'] ?? null),
             readingReference: self::stringOrNull($payload['reading_reference'] ?? null),
             oosAlignment: SectionOosAlignment::fromArray($payload['oos_alignment'] ?? null),
-            childrensTalkSpeaker: ChildrensTalkSpeakerMetadata::fromArray($payload['childrens_talk_speaker'] ?? null),
+            talkSpeaker: TalkSpeakerMetadata::fromArray($payload['talk_speaker'] ?? null),
+            talkType: TalkTypeMetadata::fromArray($payload['talk_type'] ?? null),
             publication: SectionPublicationMetadata::fromArray($payload['publication'] ?? null),
             sermonContinuation: SermonContinuationMetadata::fromArray($payload['sermon_continuation'] ?? null),
             raw: $payload,
@@ -102,8 +104,12 @@ final readonly class ServiceSectionMetadata extends JsonData
             $data['oos_alignment'] = $this->oosAlignment->toArray();
         }
 
-        if ($this->childrensTalkSpeaker instanceof ChildrensTalkSpeakerMetadata) {
-            $data['childrens_talk_speaker'] = $this->childrensTalkSpeaker->toArray();
+        if ($this->talkSpeaker instanceof TalkSpeakerMetadata) {
+            $data['talk_speaker'] = $this->talkSpeaker->toArray();
+        }
+
+        if ($this->talkType instanceof TalkTypeMetadata) {
+            $data['talk_type'] = $this->talkType->toArray();
         }
 
         if ($this->publication instanceof SectionPublicationMetadata) {

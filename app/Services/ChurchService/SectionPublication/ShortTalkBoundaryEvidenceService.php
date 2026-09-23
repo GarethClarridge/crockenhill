@@ -18,9 +18,9 @@ use Illuminate\Support\Facades\Storage;
  * reviewer can decide whether a prayer or song introduction is editorially
  * integral. It never changes the candidate interval or publishes media.
  */
-class ChildrensTalkBoundaryEvidenceService
+class ShortTalkBoundaryEvidenceService
 {
-    public const METADATA_KEY = 'childrens_talk_boundary';
+    public const METADATA_KEY = 'short_talk_boundary';
 
     private const VERSION = 1;
 

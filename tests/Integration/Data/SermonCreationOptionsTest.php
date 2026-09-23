@@ -32,7 +32,7 @@ class SermonCreationOptionsTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::ChildrensTalk,
+            'section_type' => ServiceSectionType::ShortTalk,
             'title' => "Children's Talk",
             'extracted_video_path' => 'sermons/sections/55/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-55.mp3',
@@ -40,7 +40,7 @@ class SermonCreationOptionsTest extends TestCase
             'end_time' => 480.0,
             'duration' => 360.0,
             'metadata' => [
-                'childrens_talk_speaker' => [
+                'talk_speaker' => [
                     'reviewed' => [
                         'preacher_id' => $preacher->id,
                         'preacher_name' => $preacher->name,
@@ -83,7 +83,7 @@ class SermonCreationOptionsTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::ChildrensTalk,
+            'section_type' => ServiceSectionType::ShortTalk,
             'title' => "Children's Talk",
             'extracted_audio_path' => 'sermons/audio/section-70.mp3',
         ]);

@@ -50,7 +50,7 @@ class HistoricProcessingResultInventoryTest extends TestCase
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => null,
             'section_order' => 2,
-            'section_type' => ServiceSectionType::ChildrensTalk,
+            'section_type' => ServiceSectionType::ShortTalk,
             'source_segment_ids' => [$segment->id],
             'published_sermon_id' => $childrensTalk->id,
         ]);
@@ -213,7 +213,7 @@ class HistoricProcessingResultInventoryTest extends TestCase
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => null,
             'section_order' => 1,
-            'section_type' => ServiceSectionType::ChildrensTalk,
+            'section_type' => ServiceSectionType::ShortTalk,
             'title' => 'Childrens talk',
             'start_time' => 10.0,
             'end_time' => 60.0,
@@ -255,14 +255,14 @@ class HistoricProcessingResultInventoryTest extends TestCase
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => null,
             'section_order' => 1,
-            'section_type' => ServiceSectionType::ChildrensTalk,
+            'section_type' => ServiceSectionType::ShortTalk,
             'source_segment_ids' => [],
             'metadata' => [
                 'publication_candidate_extraction' => [
                     'processing_id' => 'pilot-metadata-shapes',
                     'extracted_at' => '2026-08-29T08:51:59+00:00',
                 ],
-                'childrens_talk_speaker' => [
+                'talk_speaker' => [
                     'predicted' => [
                         'outcome' => 'matched',
                         'confidence' => 0.975,
@@ -282,9 +282,9 @@ class HistoricProcessingResultInventoryTest extends TestCase
         );
         $this->assertArrayNotHasKey(
             'matched_profile_id',
-            $metadata['childrens_talk_speaker']['predicted'],
+            $metadata['talk_speaker']['predicted'],
         );
-        $this->assertSame(0.975, $metadata['childrens_talk_speaker']['predicted']['confidence']);
+        $this->assertSame(0.975, $metadata['talk_speaker']['predicted']['confidence']);
     }
 
     #[Test]

@@ -287,7 +287,7 @@ class PublicChurchServiceArchiveService
     private function sermonEntry(Sermon $sermon, Collection $sections): array
     {
         $isTalk = ! $sermon->content_type->isSermon();
-        $sectionType = $isTalk ? ServiceSectionType::ChildrensTalk : ServiceSectionType::Sermon;
+        $sectionType = $isTalk ? ServiceSectionType::ShortTalk : ServiceSectionType::Sermon;
 
         $section = $sections->first(
             fn (ServiceSection $candidate): bool => $candidate->section_type === $sectionType

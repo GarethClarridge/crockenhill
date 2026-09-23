@@ -32,7 +32,7 @@ class ServiceItemTitleCleanerTest extends TestCase
     {
         return [
             'trailing see-above' => ['Notices (see above)', ServiceSectionType::Notices, 'Notices'],
-            'presentation pointer' => ['Family Talk – “Joel” (see PP)', ServiceSectionType::ChildrensTalk, 'Family Talk – “Joel”'],
+            'presentation pointer' => ['Family Talk – “Joel” (see PP)', ServiceSectionType::ShortTalk, 'Family Talk – “Joel”'],
             'square brackets' => ['Sermon [see overleaf]', ServiceSectionType::Sermon, 'Sermon'],
             'as-above form' => ['Communion (as above)', ServiceSectionType::Other, 'Communion'],
             'attached with trailing words' => ['Song (see attached sheet)', ServiceSectionType::Song, 'Song'],

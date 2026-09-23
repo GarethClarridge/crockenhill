@@ -77,7 +77,7 @@ CREATE TABLE `church_service_items` (
   `church_service_id` bigint unsigned NOT NULL,
   `position` int unsigned NOT NULL,
   `type` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `section_type` enum('welcome','prayer','notices','song','childrens_talk','bible_reading','sermon','other') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `section_type` enum('welcome','prayer','notices','song','short_talk','bible_reading','sermon','other') COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `source` enum('email','openlp','manual','livestream') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `title` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `source_title` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -1307,7 +1307,7 @@ CREATE TABLE `service_sections` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `media_processing_log_id` bigint unsigned NOT NULL,
   `church_service_item_id` bigint unsigned DEFAULT NULL,
-  `section_type` enum('welcome','prayer','notices','song','childrens_talk','bible_reading','sermon','other') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `section_type` enum('welcome','prayer','notices','song','short_talk','bible_reading','sermon','other') COLLATE utf8mb4_unicode_ci NOT NULL,
   `section_order` int unsigned NOT NULL,
   `title` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `summary` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
@@ -1849,3 +1849,5 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_03_104053_add_o
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_18_111240_drop_alternative_title_from_songs_table',100);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_23_205555_widen_sermons_content_type_to_talk_types',100);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_23_212016_rename_sermons_nav_page_to_talks',101);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_23_215702_rename_childrens_talk_section_type_to_short_talk',102);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_23_215704_move_short_talk_section_metadata_keys',102);

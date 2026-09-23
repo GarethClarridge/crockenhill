@@ -65,7 +65,7 @@ class HistoricReleaseReviewHolds
      */
     private const SpokenContentTypes = [
         ServiceSectionType::Sermon,
-        ServiceSectionType::ChildrensTalk,
+        ServiceSectionType::ShortTalk,
     ];
 
     /**

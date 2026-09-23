@@ -152,7 +152,7 @@ class PrefillChurchServiceFromInboundEmailTest extends TestCase
 
         $result = $this->action->execute($inboundEmail->id);
 
-        $this->assertSame(ServiceSectionType::ChildrensTalk->value, $result['items'][0]['section_type']);
+        $this->assertSame(ServiceSectionType::ShortTalk->value, $result['items'][0]['section_type']);
         $this->assertSame(ServiceSectionType::Prayer->value, $result['items'][1]['section_type']);
         $this->assertSame(ServiceSectionType::Notices->value, $result['items'][2]['section_type']);
         $this->assertSame(ServiceSectionType::Welcome->value, $result['items'][3]['section_type']);

@@ -143,7 +143,7 @@ class ServiceStructureValidator
      * absorbed into does not exist yet when structure is detected.
      *
      * Never raised on a sermon, song or children's talk. A sermon section carrying an
-     * unregistered flag would fail {@see \App\Support\SermonAutoExtractionPolicy}'s final test
+     * unregistered flag would fail {@see SermonAutoExtractionPolicy}'s final test
      * and quietly stop the sermon extracting automatically.
      */
     public const FLAG_SECTION_READS_AS_SUNG = 'structure_section_reads_as_sung';
@@ -224,8 +224,8 @@ class ServiceStructureValidator
         'unmatched_song_section',
         'song_alignment_inferred',
         'song_name_reference_only',
-        'ambiguous_childrens_talk',
-        'inferred_childrens_talk',
+        'ambiguous_short_talk',
+        'inferred_short_talk',
         'presentation_positional_fallback',
         self::FLAG_LOW_CONFIDENCE,
         self::FLAG_MICRO_SECTION,
@@ -273,8 +273,8 @@ class ServiceStructureValidator
         'unmatched_song_section',
         'song_alignment_inferred',
         'song_name_reference_only',
-        'ambiguous_childrens_talk',
-        'inferred_childrens_talk',
+        'ambiguous_short_talk',
+        'inferred_short_talk',
         'presentation_positional_fallback',
         self::FLAG_LOW_CONFIDENCE,
         self::FLAG_MICRO_SECTION,

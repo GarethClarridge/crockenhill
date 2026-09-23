@@ -395,7 +395,10 @@ class CompileOosSemanticAnnotations
             OosSemanticItemKind::Prayer => 'prayer',
             OosSemanticItemKind::Notices => 'notices',
             OosSemanticItemKind::Song => 'song',
-            OosSemanticItemKind::ChildrensTalk => 'childrens_talk',
+            // The OoS names the audience or format; detection only needs to know a
+            // spoken item other than the sermon is due. The kind rides along as
+            // `semantic_kind` for the workbench to show beside the detector's proposal.
+            OosSemanticItemKind::ChildrensTalk, OosSemanticItemKind::MissionaryFocus, OosSemanticItemKind::Interview => 'short_talk',
             OosSemanticItemKind::BibleReading => 'bible_reading',
             OosSemanticItemKind::Sermon => 'sermon',
             default => 'other',

@@ -30,7 +30,7 @@ class ServiceFlowBuilderTest extends TestCase
         $rows = [
             $this->makeRow(['section_type' => ServiceSectionType::Song]),
             $this->makeRow(['section_type' => ServiceSectionType::Sermon]),
-            $this->makeRow(['section_type' => ServiceSectionType::ChildrensTalk]),
+            $this->makeRow(['section_type' => ServiceSectionType::ShortTalk]),
             $this->makeRow(['section_type' => ServiceSectionType::BibleReading]),
             $this->makeRow(['section_type' => ServiceSectionType::Prayer]),
             $this->makeRow(['section_type' => ServiceSectionType::Welcome]),

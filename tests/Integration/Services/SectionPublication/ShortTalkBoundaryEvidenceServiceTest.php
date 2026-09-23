@@ -7,13 +7,13 @@ namespace Tests\Integration\Services\SectionPublication;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
-use App\Services\ChurchService\SectionPublication\ChildrensTalkBoundaryEvidenceService;
+use App\Services\ChurchService\SectionPublication\ShortTalkBoundaryEvidenceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
-class ChildrensTalkBoundaryEvidenceServiceTest extends TestCase
+class ShortTalkBoundaryEvidenceServiceTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -34,7 +34,7 @@ class ChildrensTalkBoundaryEvidenceServiceTest extends TestCase
         $processingLog = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'section_order' => 1,
             'start_time' => 600.0,
             'end_time' => 900.0,
@@ -60,7 +60,7 @@ class ChildrensTalkBoundaryEvidenceServiceTest extends TestCase
         ], JSON_THROW_ON_ERROR));
         $processingLog->putServiceTranscriptPath($transcriptPath);
 
-        $evidence = app(ChildrensTalkBoundaryEvidenceService::class)->assess($section);
+        $evidence = app(ShortTalkBoundaryEvidenceService::class)->assess($section);
 
         $this->assertSame('inclusive', $evidence['candidate']['kind']);
         $this->assertSame(600.0, $evidence['candidate']['start_time']);
@@ -81,12 +81,12 @@ class ChildrensTalkBoundaryEvidenceServiceTest extends TestCase
     public function it_records_missing_transcript_evidence_without_inventing_a_boundary(): void
     {
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'start_time' => 100.0,
             'end_time' => 240.0,
         ]);
 
-        $evidence = app(ChildrensTalkBoundaryEvidenceService::class)->assess($section);
+        $evidence = app(ShortTalkBoundaryEvidenceService::class)->assess($section);
 
         $this->assertSame('not_recorded', $evidence['inputs']['service_transcript']['status']);
         $this->assertSame('unavailable', $evidence['tail']['status']);

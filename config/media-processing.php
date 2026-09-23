@@ -1,7 +1,7 @@
 <?php
 
-use App\Services\ChurchService\SectionPublication\SermonPublicationHandler;
 use App\Services\ChurchService\SectionPublication\SongPublicationHandler;
+use App\Services\ChurchService\SectionPublication\TalkPublicationHandler;
 
 $defaultQueue = env('MEDIA_PROCESSING_QUEUE_DEFAULT', 'default');
 $audioQueue = env('MEDIA_PROCESSING_QUEUE_AUDIO', 'audio-processing');
@@ -581,9 +581,9 @@ return [
     'section_publishing' => [
         'enabled' => env('SERVICE_SECTION_PUBLISHING_ENABLED', true),
         'handlers' => [
-            'childrens_talk' => SermonPublicationHandler::class,
+            'short_talk' => TalkPublicationHandler::class,
             'song' => SongPublicationHandler::class,
-            // 'sermon' => \App\Services\ChurchService\SectionPublication\SermonPublicationHandler::class, // future
+            // 'sermon' => \App\Services\ChurchService\SectionPublication\TalkPublicationHandler::class, // future
         ],
         'require_high_confidence' => env('SERVICE_SECTION_PUBLISH_REQUIRE_HIGH_CONFIDENCE', true),
         'retain_unpublished_hours' => (int) env('SERVICE_SECTION_RETAIN_UNPUBLISHED_HOURS', 48),

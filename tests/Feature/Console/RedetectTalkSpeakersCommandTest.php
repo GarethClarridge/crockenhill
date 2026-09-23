@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
-class RedetectChildrensTalkSpeakersCommandTest extends TestCase
+class RedetectTalkSpeakersCommandTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -30,19 +30,19 @@ class RedetectChildrensTalkSpeakersCommandTest extends TestCase
         Storage::fake(MediaAssetPath::disk());
 
         $section = $this->childrensTalk([
-            'review_flags' => ['childrens_talk_speaker_review'],
-            'review_reason' => 'childrens_talk_speaker_unconfigured',
-            'childrens_talk_speaker' => ['predicted' => ['outcome' => 'no_profiles']],
+            'review_flags' => ['talk_speaker_review'],
+            'review_reason' => 'talk_speaker_unconfigured',
+            'talk_speaker' => ['predicted' => ['outcome' => 'no_profiles']],
         ]);
 
-        $this->artisan('services:redetect-childrens-talk-speakers', ['--execute' => true])
+        $this->artisan('services:redetect-talk-speakers', ['--execute' => true])
             ->assertSuccessful();
 
         $section->refresh();
 
         // Audio is gone, so the honest answer is a fact about the input, not a question.
-        $this->assertSame('missing_audio', $section->metadata?->toArray()['childrens_talk_speaker']['predicted']['outcome'] ?? null);
-        $this->assertNotContains('childrens_talk_speaker_review', $section->metadata?->toArray()['review_flags'] ?? []);
+        $this->assertSame('missing_audio', $section->metadata?->toArray()['talk_speaker']['predicted']['outcome'] ?? null);
+        $this->assertNotContains('talk_speaker_review', $section->metadata?->toArray()['review_flags'] ?? []);
         $this->assertFalse($section->needs_manual_review);
     }
 
@@ -61,22 +61,22 @@ class RedetectChildrensTalkSpeakersCommandTest extends TestCase
         Storage::fake(MediaAssetPath::disk());
 
         $section = $this->childrensTalk([
-            'review_flags' => ['childrens_talk_speaker_review'],
-            'review_reason' => 'childrens_talk_speaker_ambiguous',
-            'childrens_talk_speaker' => ['predicted' => [
+            'review_flags' => ['talk_speaker_review'],
+            'review_reason' => 'talk_speaker_ambiguous',
+            'talk_speaker' => ['predicted' => [
                 'outcome' => 'ambiguous',
                 'confidence' => 0.838,
                 'margin' => 0.087,
             ]],
         ]);
 
-        $this->artisan('services:redetect-childrens-talk-speakers', ['--execute' => true])
+        $this->artisan('services:redetect-talk-speakers', ['--execute' => true])
             ->assertSuccessful();
 
         $section->refresh();
 
-        $this->assertSame('ambiguous', $section->metadata?->toArray()['childrens_talk_speaker']['predicted']['outcome'] ?? null);
-        $this->assertContains('childrens_talk_speaker_review', $section->metadata?->toArray()['review_flags'] ?? []);
+        $this->assertSame('ambiguous', $section->metadata?->toArray()['talk_speaker']['predicted']['outcome'] ?? null);
+        $this->assertContains('talk_speaker_review', $section->metadata?->toArray()['review_flags'] ?? []);
         $this->assertTrue($section->needs_manual_review);
     }
 
@@ -87,16 +87,16 @@ class RedetectChildrensTalkSpeakersCommandTest extends TestCase
         Storage::fake(MediaAssetPath::disk());
 
         $section = $this->childrensTalk([
-            'review_flags' => ['childrens_talk_speaker_review'],
-            'review_reason' => 'childrens_talk_speaker_unconfigured',
-            'childrens_talk_speaker' => ['predicted' => ['outcome' => 'no_profiles']],
+            'review_flags' => ['talk_speaker_review'],
+            'review_reason' => 'talk_speaker_unconfigured',
+            'talk_speaker' => ['predicted' => ['outcome' => 'no_profiles']],
         ]);
 
-        $this->artisan('services:redetect-childrens-talk-speakers')->assertSuccessful();
+        $this->artisan('services:redetect-talk-speakers')->assertSuccessful();
 
         $section->refresh();
 
-        $this->assertContains('childrens_talk_speaker_review', $section->metadata?->toArray()['review_flags'] ?? []);
+        $this->assertContains('talk_speaker_review', $section->metadata?->toArray()['review_flags'] ?? []);
         $this->assertTrue($section->needs_manual_review);
     }
 
@@ -107,16 +107,16 @@ class RedetectChildrensTalkSpeakersCommandTest extends TestCase
         Storage::fake(MediaAssetPath::disk());
 
         $section = $this->childrensTalk([
-            'review_flags' => ['childrens_talk_speaker_review'],
-            'childrens_talk_speaker' => ['predicted' => ['outcome' => 'no_profiles']],
+            'review_flags' => ['talk_speaker_review'],
+            'talk_speaker' => ['predicted' => ['outcome' => 'no_profiles']],
         ], supersededRun: true);
 
-        $this->artisan('services:redetect-childrens-talk-speakers', ['--execute' => true])
+        $this->artisan('services:redetect-talk-speakers', ['--execute' => true])
             ->assertSuccessful();
 
         $section->refresh();
 
-        $this->assertContains('childrens_talk_speaker_review', $section->metadata?->toArray()['review_flags'] ?? []);
+        $this->assertContains('talk_speaker_review', $section->metadata?->toArray()['review_flags'] ?? []);
     }
 
     /**
@@ -138,7 +138,7 @@ class RedetectChildrensTalkSpeakersCommandTest extends TestCase
 
         return ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'extracted_audio_path' => 'section-publications/reaped.mp3',
             'start_time' => 0,
             'end_time' => 300,

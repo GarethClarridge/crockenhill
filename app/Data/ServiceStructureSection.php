@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Data;
 
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 
 /**
  * One typed section of a detected service structure: an LLM boundary proposal
@@ -20,6 +21,7 @@ final readonly class ServiceStructureSection extends JsonData
      * @param  list<string>  $reviewFlags
      * @param  array{start: float, end: float}|null  $snapDeltas  Seconds each boundary moved during silence-snapping
      * @param  string|null  $summary  One-sentence summary of the section content
+     * @param  TalkType|null  $talkType  For a short talk, the detector's proposed talk type; a proposal only
      */
     public function __construct(
         public ServiceSectionType $type,
@@ -35,6 +37,7 @@ final readonly class ServiceStructureSection extends JsonData
         public array $reviewFlags = [],
         public ?array $snapDeltas = null,
         public ?string $summary = null,
+        public ?TalkType $talkType = null,
     ) {}
 
     /**
@@ -56,7 +59,7 @@ final readonly class ServiceStructureSection extends JsonData
         }
 
         $requestedType = self::stringOrNull($payload['type'] ?? null);
-        $type = $requestedType === null ? null : ServiceSectionType::tryFrom($requestedType);
+        $type = $requestedType === null ? null : ServiceSectionType::tryFromStored($requestedType);
 
         $notes = self::stringList($payload['notes'] ?? []);
         $reviewFlags = self::stringList($payload['review_flags'] ?? []);
@@ -94,6 +97,9 @@ final readonly class ServiceStructureSection extends JsonData
                 ? null
                 : ['start' => $snapStartDelta, 'end' => $snapEndDelta],
             summary: self::stringOrNull($payload['summary'] ?? null),
+            talkType: $type === ServiceSectionType::ShortTalk
+                ? self::proposedTalkType(self::stringOrNull($payload['talk_type'] ?? null))
+                : null,
         );
     }
 
@@ -116,7 +122,18 @@ final readonly class ServiceStructureSection extends JsonData
             'review_flags' => $this->reviewFlags,
             'snap_deltas' => $this->snapDeltas,
             'summary' => $this->summary,
+            'talk_type' => $this->talkType?->value,
         ];
+    }
+
+    /**
+     * The sermon is never a proposal: it is published by its own path.
+     */
+    private static function proposedTalkType(?string $value): ?TalkType
+    {
+        $type = $value === null ? null : TalkType::tryFrom($value);
+
+        return $type?->isSermon() ? null : $type;
     }
 
     public function duration(): float
@@ -146,6 +163,7 @@ final readonly class ServiceStructureSection extends JsonData
             reviewFlags: $this->reviewFlags,
             snapDeltas: $this->snapDeltas,
             summary: $this->summary,
+            talkType: $this->talkType,
         );
     }
 
@@ -203,6 +221,7 @@ final readonly class ServiceStructureSection extends JsonData
             reviewFlags: [],
             snapDeltas: $this->snapDeltas,
             summary: $this->summary,
+            talkType: $this->talkType,
         );
     }
 
@@ -228,6 +247,7 @@ final readonly class ServiceStructureSection extends JsonData
             reviewFlags: array_values(array_unique([...$this->reviewFlags, ...$flags])),
             snapDeltas: $this->snapDeltas,
             summary: $this->summary,
+            talkType: $this->talkType,
         );
     }
 
@@ -250,6 +270,7 @@ final readonly class ServiceStructureSection extends JsonData
             reviewFlags: $this->reviewFlags,
             snapDeltas: ['start' => $startDelta, 'end' => $endDelta],
             summary: $this->summary,
+            talkType: $this->talkType,
         );
     }
 }

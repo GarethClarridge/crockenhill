@@ -11,11 +11,11 @@ use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
+use App\Services\ChurchService\Structure\MistypedSungSections;
 use App\Services\ChurchService\Structure\ServiceStructureEvaluationTelemetry;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
 use App\Services\ChurchService\Structure\SongSpeechEdges;
-use App\Services\ChurchService\Structure\MistypedSungSections;
 use App\Services\ChurchService\Structure\SungSpanInsideSermon;
 use App\Services\ChurchService\Structure\SustainedSoundSongSections;
 use App\Services\ChurchService\Structure\ValidationContext;
@@ -369,7 +369,7 @@ class StructureEvaluateCommand extends Command
                     'title' => is_string($item['title'] ?? null) ? $item['title'] : null,
                     'song_id' => is_numeric($item['song_id'] ?? null) ? (int) $item['song_id'] : null,
                 ];
-                $types[(int) $item['id']] = ServiceSectionType::tryFrom((string) ($item['type'] ?? 'other')) ?? ServiceSectionType::Other;
+                $types[(int) $item['id']] = ServiceSectionType::tryFromStored((string) ($item['type'] ?? 'other')) ?? ServiceSectionType::Other;
                 $positions[(int) $item['id']] = (int) ($item['position'] ?? 0);
             }
 

@@ -25,8 +25,8 @@ use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SpeakerProfile;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
-use App\Services\ChurchService\SectionPublication\SermonPublicationHandler;
 use App\Services\ChurchService\SectionPublication\SongPublicationHandler;
+use App\Services\ChurchService\SectionPublication\TalkPublicationHandler;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\HistoricMedia\HistoricStagingGuard;
@@ -59,7 +59,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'media-processing.storage.temp_disk' => 'local',
             'media-processing.storage.sermon_disk' => 'public',
             'media-processing.section_publishing.enabled' => true,
-            'media-processing.section_publishing.handlers' => ['childrens_talk' => SermonPublicationHandler::class],
+            'media-processing.section_publishing.handlers' => ['short_talk' => TalkPublicationHandler::class],
             'media-processing.section_publishing.retain_unpublished_hours' => 48,
             'media-processing.speaker_identification.enabled' => true,
         ]);
@@ -88,7 +88,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
@@ -134,8 +134,8 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $videoPath = $this->assertCandidateVideoPath($section);
         $this->assertNotNull($section->extracted_at);
         $this->assertNotNull($section->unpublished_expires_at);
-        $this->assertSame('matched', $section->metadata['childrens_talk_speaker']['predicted']['outcome'] ?? null);
-        $this->assertSame('Alice Speaker', $section->metadata['childrens_talk_speaker']['reviewed']['preacher_name'] ?? null);
+        $this->assertSame('matched', $section->metadata['talk_speaker']['predicted']['outcome'] ?? null);
+        $this->assertSame('Alice Speaker', $section->metadata['talk_speaker']['reviewed']['preacher_name'] ?? null);
         $this->assertDatabaseHas('sermon_processing_steps', [
             'processing_id' => $processingLog->processing_id,
             'step' => ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES,
@@ -152,7 +152,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
     {
         config([
             'media-processing.section_publishing.enabled' => true,
-            'media-processing.section_publishing.handlers' => ['childrens_talk' => SermonPublicationHandler::class],
+            'media-processing.section_publishing.handlers' => ['short_talk' => TalkPublicationHandler::class],
         ]);
 
         $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create();
@@ -184,7 +184,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
     {
         config([
             'media-processing.section_publishing.enabled' => true,
-            'media-processing.section_publishing.handlers' => ['childrens_talk' => SermonPublicationHandler::class],
+            'media-processing.section_publishing.handlers' => ['short_talk' => TalkPublicationHandler::class],
             'media-processing.section_publishing.require_high_confidence' => true,
         ]);
 
@@ -192,7 +192,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
             'publication_status' => ServiceSectionPublicationStatus::Approved->value,
@@ -216,7 +216,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
     }
 
     #[Test]
-    public function it_flags_ambiguous_childrens_talk_speaker_matches_for_review(): void
+    public function it_flags_ambiguous_talk_speaker_matches_for_review(): void
     {
         Storage::fake('local');
         Storage::fake('public');
@@ -225,7 +225,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'media-processing.storage.temp_disk' => 'local',
             'media-processing.storage.sermon_disk' => 'public',
             'media-processing.section_publishing.enabled' => true,
-            'media-processing.section_publishing.handlers' => ['childrens_talk' => SermonPublicationHandler::class],
+            'media-processing.section_publishing.handlers' => ['short_talk' => TalkPublicationHandler::class],
             'media-processing.speaker_identification.enabled' => true,
         ]);
 
@@ -253,7 +253,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
@@ -295,8 +295,8 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $this->assertSame(ServiceSectionPublicationStatus::NotApplicable, $section->publication_status);
         $this->assertTrue($section->needs_manual_review);
-        $this->assertSame('ambiguous', $section->metadata['childrens_talk_speaker']['predicted']['outcome'] ?? null);
-        $this->assertArrayNotHasKey('reviewed', $section->metadata['childrens_talk_speaker'] ?? []);
+        $this->assertSame('ambiguous', $section->metadata['talk_speaker']['predicted']['outcome'] ?? null);
+        $this->assertArrayNotHasKey('reviewed', $section->metadata['talk_speaker'] ?? []);
     }
 
     #[Test]
@@ -309,7 +309,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'media-processing.storage.temp_disk' => 'local',
             'media-processing.storage.sermon_disk' => 'public',
             'media-processing.section_publishing.enabled' => true,
-            'media-processing.section_publishing.handlers' => ['childrens_talk' => SermonPublicationHandler::class],
+            'media-processing.section_publishing.handlers' => ['short_talk' => TalkPublicationHandler::class],
             'media-processing.section_publishing.retain_unpublished_hours' => 48,
             'media-processing.speaker_identification.enabled' => true,
         ]);
@@ -338,7 +338,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
@@ -388,8 +388,8 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $this->assertSame($expectedAudioPath, $section->extracted_audio_path);
         $this->assertNotNull($section->extracted_video_path);
         $this->assertNotNull($section->extracted_at);
-        $this->assertSame('matched', $section->metadata['childrens_talk_speaker']['predicted']['outcome'] ?? null);
-        $this->assertSame('Bob Preacher', $section->metadata['childrens_talk_speaker']['reviewed']['preacher_name'] ?? null);
+        $this->assertSame('matched', $section->metadata['talk_speaker']['predicted']['outcome'] ?? null);
+        $this->assertSame('Bob Preacher', $section->metadata['talk_speaker']['reviewed']['preacher_name'] ?? null);
     }
 
     #[Test]
@@ -477,7 +477,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'media-processing.storage.temp_disk' => 'local',
             'media-processing.storage.sermon_disk' => 'public',
             'media-processing.section_publishing.enabled' => true,
-            'media-processing.section_publishing.handlers' => ['childrens_talk' => SermonPublicationHandler::class],
+            'media-processing.section_publishing.handlers' => ['short_talk' => TalkPublicationHandler::class],
             'media-processing.section_publishing.retain_unpublished_hours' => 48,
             'media-processing.speaker_identification.enabled' => false,
         ]);
@@ -493,7 +493,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
@@ -571,7 +571,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'media-processing.storage.temp_disk' => 'local',
             'media-processing.storage.sermon_disk' => 'public',
             'media-processing.section_publishing.enabled' => true,
-            'media-processing.section_publishing.handlers' => ['childrens_talk' => SermonPublicationHandler::class],
+            'media-processing.section_publishing.handlers' => ['short_talk' => TalkPublicationHandler::class],
             'media-processing.section_publishing.retain_unpublished_hours' => 48,
             'media-processing.speaker_identification.enabled' => false,
         ]);
@@ -587,7 +587,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         // `elsewhere` holds the recorded path any more.
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
@@ -715,7 +715,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'media-processing.storage.temp_disk' => 'local',
             'media-processing.storage.sermon_disk' => 'public',
             'media-processing.section_publishing.enabled' => true,
-            'media-processing.section_publishing.handlers' => ['childrens_talk' => SermonPublicationHandler::class],
+            'media-processing.section_publishing.handlers' => ['short_talk' => TalkPublicationHandler::class],
             'media-processing.speaker_identification.enabled' => false,
         ]);
 
@@ -726,7 +726,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
@@ -734,7 +734,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'end_time' => 760.5,
             'metadata' => [
                 'confidence_level' => 'high',
-                'childrens_talk_speaker' => [
+                'talk_speaker' => [
                     'reviewed' => [
                         'preacher_id' => null,
                         'preacher_name' => 'Mary Helper',
@@ -798,8 +798,8 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'end_time' => 760.5,
         ], $capturedSegment);
         $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->publication_status);
-        $this->assertTrue($section->hasResolvedChildrensTalkSpeaker());
-        $this->assertSame(760.5, $section->metadata['childrens_talk_boundary']['candidate']['end_time'] ?? null);
+        $this->assertTrue($section->hasResolvedTalkSpeaker());
+        $this->assertSame(760.5, $section->metadata['short_talk_boundary']['candidate']['end_time'] ?? null);
         $this->assertSame($firstMetadata, $section->metadata?->toArray());
         $this->assertSame($firstUpdatedAt, $section->updated_at?->toISOString());
     }
@@ -816,7 +816,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'media-processing.storage.sermon_disk' => 'public',
             'media-processing.section_publishing.enabled' => true,
             'media-processing.section_publishing.handlers' => [
-                'childrens_talk' => SermonPublicationHandler::class,
+                'short_talk' => TalkPublicationHandler::class,
                 'song' => SongPublicationHandler::class,
             ],
         ]);
@@ -1253,7 +1253,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'media-processing.storage.temp_disk' => 'local',
             'media-processing.storage.sermon_disk' => 'public',
             'media-processing.section_publishing.enabled' => true,
-            'media-processing.section_publishing.handlers' => ['childrens_talk' => SermonPublicationHandler::class],
+            'media-processing.section_publishing.handlers' => ['short_talk' => TalkPublicationHandler::class],
             'media-processing.speaker_identification.enabled' => false,
         ]);
 
@@ -1266,7 +1266,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,

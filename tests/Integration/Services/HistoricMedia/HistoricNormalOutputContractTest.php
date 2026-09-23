@@ -115,7 +115,7 @@ class HistoricNormalOutputContractTest extends TestCase
         );
         $this->assertSame(
             'Canary Children Speaker',
-            $canary['manifest']['media_graph']['sections'][1]['metadata']['childrens_talk_speaker']['reviewed']['preacher_name'],
+            $canary['manifest']['media_graph']['sections'][1]['metadata']['talk_speaker']['reviewed']['preacher_name'],
         );
         $this->assertSame(
             4,
@@ -341,7 +341,7 @@ class HistoricNormalOutputContractTest extends TestCase
     }
 
     #[Test]
-    public function section_keys_distinguish_resolved_childrens_talk_speakers_without_using_local_ids(): void
+    public function section_keys_distinguish_resolved_talk_speakers_without_using_local_ids(): void
     {
         $canary = $this->createCanary();
         $section = ServiceSection::query()
@@ -350,7 +350,7 @@ class HistoricNormalOutputContractTest extends TestCase
             ->sole();
         $originalKey = $canary['manifest']['media_graph']['sections'][1]['section_key'];
         $metadata = $section->metadata?->toArray() ?? [];
-        $metadata['childrens_talk_speaker']['reviewed']['preacher_name'] = 'Different Canary Speaker';
+        $metadata['talk_speaker']['reviewed']['preacher_name'] = 'Different Canary Speaker';
         $section->metadata = ServiceSectionMetadata::fromArray($metadata);
         $section->save();
 

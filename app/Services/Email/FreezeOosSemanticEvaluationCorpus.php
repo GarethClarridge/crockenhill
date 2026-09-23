@@ -372,6 +372,8 @@ class FreezeOosSemanticEvaluationCorpus
 
         return match ($sectionType) {
             'welcome', 'prayer', 'notices', 'song', 'childrens_talk', 'bible_reading', 'sermon' => $sectionType,
+            // Every short talk frozen before 2026-09-23 was a children's talk.
+            'short_talk' => 'childrens_talk',
             default => 'other',
         };
     }

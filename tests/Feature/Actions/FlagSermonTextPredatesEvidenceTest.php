@@ -66,7 +66,7 @@ class FlagSermonTextPredatesEvidenceTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->completed()->create();
         $talk = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::ChildrensTalk,
+            'section_type' => ServiceSectionType::ShortTalk,
             'start_time' => 367.0,
             'end_time' => 762.99,
             'needs_manual_review' => false,

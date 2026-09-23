@@ -113,7 +113,7 @@ class ReExtractSermonCommandTest extends TestCase
         $log = $this->completedRunWithTrailingPrayer();
         ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::ChildrensTalk,
+            'section_type' => ServiceSectionType::ShortTalk,
             'section_order' => 1,
             'start_time' => 100.0,
             'end_time' => 140.0,

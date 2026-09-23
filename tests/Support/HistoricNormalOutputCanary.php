@@ -118,7 +118,7 @@ class HistoricNormalOutputCanary
             'slug' => 'canary-preacher',
         ]);
         $preacher->aliases()->create(['alias' => 'canary speaker']);
-        $childrensTalkSpeaker = Preacher::factory()->create([
+        $talkSpeaker = Preacher::factory()->create([
             'name' => 'Canary Children Speaker',
             'slug' => 'canary-children-speaker',
         ]);
@@ -166,8 +166,8 @@ class HistoricNormalOutputCanary
             'content_type' => TalkType::ChildrensTalk,
             'title' => "Canary children's talk",
             'slug' => 'canary-childrens-talk',
-            'preacher' => $childrensTalkSpeaker->name,
-            'preacher_id' => $childrensTalkSpeaker->id,
+            'preacher' => $talkSpeaker->name,
+            'preacher_id' => $talkSpeaker->id,
             'preacher_source' => PreacherSource::Manual,
             'needs_preacher_review' => false,
             'source_type' => SermonSourceType::Livestream,
@@ -271,7 +271,7 @@ class HistoricNormalOutputCanary
         $sectionTwo = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::ChildrensTalk,
+            'section_type' => ServiceSectionType::ShortTalk,
             'section_order' => 2,
             'title' => "Canary children's talk",
             'start_time' => 120.0,
@@ -280,10 +280,10 @@ class HistoricNormalOutputCanary
             'status' => ServiceSectionStatus::Identified,
             'source_segment_ids' => [$segmentsByIndex[1]->id],
             'metadata' => [
-                'childrens_talk_speaker' => [
+                'talk_speaker' => [
                     'reviewed' => [
-                        'preacher_id' => $childrensTalkSpeaker->id,
-                        'preacher_name' => $childrensTalkSpeaker->name,
+                        'preacher_id' => $talkSpeaker->id,
+                        'preacher_name' => $talkSpeaker->name,
                         'source' => 'manual',
                         'confidence' => 1.0,
                     ],

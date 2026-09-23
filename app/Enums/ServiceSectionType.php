@@ -15,7 +15,7 @@ enum ServiceSectionType: string
     case Prayer = 'prayer';
     case Notices = 'notices';
     case Song = 'song';
-    case ChildrensTalk = 'childrens_talk';
+    case ShortTalk = 'short_talk';
     case BibleReading = 'bible_reading';
     case Sermon = 'sermon';
     case Other = 'other';
@@ -27,7 +27,7 @@ enum ServiceSectionType: string
             self::Prayer => 'Prayer',
             self::Notices => 'Notices',
             self::Song => 'Song',
-            self::ChildrensTalk => "Children's Talk",
+            self::ShortTalk => 'Short talk',
             self::BibleReading => 'Bible Reading',
             self::Sermon => 'Sermon',
             self::Other => 'Other',
@@ -37,11 +37,23 @@ enum ServiceSectionType: string
     public function requiresStructuralUncertaintyReview(): bool
     {
         return in_array($this, [
-            self::ChildrensTalk,
+            self::ShortTalk,
             self::Song,
             self::Sermon,
             self::BibleReading,
         ], true);
+    }
+
+    /**
+     * Parse a section type read back from stored JSON rather than a column.
+     *
+     * Detector output banked in processing metadata and cached OoS parses written
+     * before 2026-09-23 name the short talk `childrens_talk`. Those records are
+     * evidence and are not rewritten, so the old value is read as `short_talk`.
+     */
+    public static function tryFromStored(?string $value): ?self
+    {
+        return $value === 'childrens_talk' ? self::ShortTalk : self::tryFrom((string) $value);
     }
 
     /**
@@ -54,7 +66,7 @@ enum ServiceSectionType: string
         $lower = Str::lower($title);
 
         return match (true) {
-            str_contains($lower, 'children'), str_contains($lower, 'family talk') => self::ChildrensTalk,
+            str_contains($lower, 'children'), str_contains($lower, 'family talk') => self::ShortTalk,
             str_contains($lower, 'bible reading'), str_contains($lower, 'scripture reading') => self::BibleReading,
             str_contains($lower, 'prayer') => self::Prayer,
             str_contains($lower, 'notice'), str_contains($lower, 'announcement') => self::Notices,

@@ -8,7 +8,7 @@ use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ChurchServiceReviewSynchronizer;
-use App\Services\Preacher\ChildrensTalkSpeakerService;
+use App\Services\Preacher\TalkSpeakerService;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
@@ -16,10 +16,10 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
  * Re-ask the children's-talk speaker question where the stored answer was never an answer.
  *
  * `services:rederive-structure-review-flags` cannot reach this: it re-derives structure
- * flags from banked structure, and `childrens_talk_speaker_review` is raised by a voice
+ * flags from banked structure, and `talk_speaker_review` is raised by a voice
  * model reading audio, not by the validator. So a section keeps whichever speaker verdict
  * its run happened to reach — including two rows that have carried
- * `childrens_talk_speaker_unconfigured` since July 2026, for a condition (no active
+ * `talk_speaker_unconfigured` since July 2026, for a condition (no active
  * profiles) that stopped being true the same month.
  *
  * **Scope is deliberately narrow, and the narrowness is the point.** Only sections whose
@@ -31,7 +31,7 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
  * recompute of 2026-09-03 — a command that looks safe because every individual write is
  * defensible.
  */
-class RedetectChildrensTalkSpeakersCommand extends Command
+class RedetectTalkSpeakersCommand extends Command
 {
     /**
      * Outcomes whose answer can still change for the better.
@@ -44,7 +44,7 @@ class RedetectChildrensTalkSpeakersCommand extends Command
      */
     private const RE_ASKABLE_OUTCOMES = ['no_profiles', 'skipped', 'short_audio', 'missing_audio'];
 
-    protected $signature = 'services:redetect-childrens-talk-speakers
+    protected $signature = 'services:redetect-talk-speakers
         {--execute : Persist the reported changes; without this option the command is a dry run}
         {--chunk=50 : Number of sections to inspect per chunk}
         {--section=* : Restrict to these service section IDs, bypassing the outcome scope}';
@@ -52,7 +52,7 @@ class RedetectChildrensTalkSpeakersCommand extends Command
     protected $description = "Re-ask the children's-talk speaker question for sections whose stored outcome was an input fact";
 
     public function handle(
-        ChildrensTalkSpeakerService $speakerService,
+        TalkSpeakerService $speakerService,
         ChurchServiceReviewSynchronizer $reviewSynchronizer,
     ): int {
         $execute = (bool) $this->option('execute');
@@ -79,7 +79,7 @@ class RedetectChildrensTalkSpeakersCommand extends Command
         $touchedServiceIds = [];
 
         ServiceSection::query()
-            ->where('section_type', ServiceSectionType::ChildrensTalk->value)
+            ->where('section_type', ServiceSectionType::ShortTalk->value)
             ->when($sectionIds !== [], fn ($query) => $query->whereKey($sectionIds))
             ->whereHas('processingLog', fn ($query) => $query->whereNull('superseded_at'))
             ->with('processingLog')
@@ -182,12 +182,12 @@ class RedetectChildrensTalkSpeakersCommand extends Command
     private function snapshot(ServiceSection $section): array
     {
         $metadata = $section->metadata?->toArray() ?? [];
-        $outcome = $metadata['childrens_talk_speaker']['predicted']['outcome'] ?? null;
+        $outcome = $metadata['talk_speaker']['predicted']['outcome'] ?? null;
         $reason = $metadata['review_reason'] ?? null;
 
         return [
             'outcome' => is_string($outcome) ? $outcome : null,
-            'flagged' => in_array('childrens_talk_speaker_review', (array) ($metadata['review_flags'] ?? []), true),
+            'flagged' => in_array('talk_speaker_review', (array) ($metadata['review_flags'] ?? []), true),
             'reason' => is_string($reason) ? $reason : null,
         ];
     }

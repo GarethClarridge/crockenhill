@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Data;
 
-use App\Data\ChildrensTalkSpeakerMetadata;
 use App\Data\SectionOosAlignment;
 use App\Data\SectionPublicationMetadata;
 use App\Data\ServiceSectionMetadata;
 use App\Data\ServiceSectionMetadataCast;
+use App\Data\TalkSpeakerMetadata;
 use Illuminate\Database\Eloquent\Model;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -54,7 +54,7 @@ class ServiceSectionMetadataDataTest extends TestCase
         $this->assertNull($metadata->songId);
         $this->assertSame([], $metadata->reviewFlags);
         $this->assertNull($metadata->oosAlignment);
-        $this->assertNull($metadata->childrensTalkSpeaker);
+        $this->assertNull($metadata->talkSpeaker);
         $this->assertNull($metadata->publication);
     }
 
@@ -81,15 +81,15 @@ class ServiceSectionMetadataDataTest extends TestCase
     }
 
     #[Test]
-    public function it_deserialises_nested_childrens_talk_speaker(): void
+    public function it_deserialises_nested_talk_speaker(): void
     {
         $metadata = ServiceSectionMetadata::fromArray([
-            'childrens_talk_speaker' => [
+            'talk_speaker' => [
                 'reviewed' => ['preacher_id' => 5, 'preacher_name' => 'Jane', 'source' => 'manual', 'confidence' => null],
             ],
         ]);
 
-        $this->assertInstanceOf(ChildrensTalkSpeakerMetadata::class, $metadata->childrensTalkSpeaker);
+        $this->assertInstanceOf(TalkSpeakerMetadata::class, $metadata->talkSpeaker);
     }
 
     #[Test]
@@ -189,12 +189,12 @@ class ServiceSectionMetadataDataTest extends TestCase
         $this->assertSame(['double_check'], $restored->reviewFlags);
     }
 
-    // ── ChildrensTalkSpeakerMetadata ──────────────────────────────────────────
+    // ── TalkSpeakerMetadata ──────────────────────────────────────────
 
     #[Test]
-    public function childrens_talk_speaker_creates_from_array(): void
+    public function talk_speaker_creates_from_array(): void
     {
-        $metadata = ChildrensTalkSpeakerMetadata::fromArray([
+        $metadata = TalkSpeakerMetadata::fromArray([
             'predicted' => ['preacher_id' => 1, 'preacher_name' => 'Bob', 'confidence' => 0.8],
             'reviewed' => ['preacher_id' => 2, 'preacher_name' => 'Alice', 'source' => 'manual', 'confidence' => null],
         ]);
@@ -204,15 +204,15 @@ class ServiceSectionMetadataDataTest extends TestCase
     }
 
     #[Test]
-    public function childrens_talk_speaker_returns_null_for_non_array(): void
+    public function talk_speaker_returns_null_for_non_array(): void
     {
-        $this->assertNull(ChildrensTalkSpeakerMetadata::fromArray(null));
+        $this->assertNull(TalkSpeakerMetadata::fromArray(null));
     }
 
     #[Test]
-    public function childrens_talk_speaker_publication_speaker_returns_reviewed_data(): void
+    public function talk_speaker_publication_speaker_returns_reviewed_data(): void
     {
-        $metadata = ChildrensTalkSpeakerMetadata::fromArray([
+        $metadata = TalkSpeakerMetadata::fromArray([
             'reviewed' => ['preacher_id' => 5, 'preacher_name' => 'Jane Doe', 'source' => 'manual', 'confidence' => 0.9],
         ]);
 
@@ -226,9 +226,9 @@ class ServiceSectionMetadataDataTest extends TestCase
     }
 
     #[Test]
-    public function childrens_talk_speaker_publication_speaker_returns_null_without_reviewed(): void
+    public function talk_speaker_publication_speaker_returns_null_without_reviewed(): void
     {
-        $metadata = ChildrensTalkSpeakerMetadata::fromArray([
+        $metadata = TalkSpeakerMetadata::fromArray([
             'predicted' => ['preacher_name' => 'Someone'],
         ]);
 
@@ -236,9 +236,9 @@ class ServiceSectionMetadataDataTest extends TestCase
     }
 
     #[Test]
-    public function childrens_talk_speaker_publication_speaker_returns_null_without_name(): void
+    public function talk_speaker_publication_speaker_returns_null_without_name(): void
     {
-        $metadata = ChildrensTalkSpeakerMetadata::fromArray([
+        $metadata = TalkSpeakerMetadata::fromArray([
             'reviewed' => ['preacher_id' => 1],
         ]);
 

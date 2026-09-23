@@ -144,15 +144,15 @@ class SaveServiceSectionTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'title' => "Children's Talk",
             'needs_manual_review' => true,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'extracted_video_path' => 'sections/video.mp4',
             'extracted_audio_path' => 'sections/audio.mp3',
             'metadata' => [
-                'review_reason' => 'childrens_talk_speaker_ambiguous',
-                'childrens_talk_speaker' => [
+                'review_reason' => 'talk_speaker_ambiguous',
+                'talk_speaker' => [
                     'predicted' => ['outcome' => 'ambiguous', 'preacher_name' => 'Someone'],
                 ],
             ],
@@ -165,7 +165,7 @@ class SaveServiceSectionTest extends TestCase
 
         $this->action->execute(
             section: $section,
-            sectionEdits: [$section->id => ['section_type' => ServiceSectionType::ChildrensTalk->value, 'title' => "Children's Talk"]],
+            sectionEdits: [$section->id => ['section_type' => ServiceSectionType::ShortTalk->value, 'title' => "Children's Talk"]],
             speakerEdits: [$section->id => ['preacher_id' => (string) $preacher->id, 'speaker_name' => '']],
             userId: $this->admin->id,
         );
@@ -186,7 +186,7 @@ class SaveServiceSectionTest extends TestCase
         $run = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'title' => "Children's Talk",
             'start_time' => 600.0,
             'end_time' => 900.0,
@@ -198,14 +198,14 @@ class SaveServiceSectionTest extends TestCase
             'extracted_at' => now()->subMinute(),
             'unpublished_expires_at' => now()->addHours(48),
             'metadata' => [
-                'childrens_talk_speaker' => [
+                'talk_speaker' => [
                     'reviewed' => [
                         'preacher_id' => null,
                         'preacher_name' => 'Mary Helper',
                         'source' => 'manual',
                     ],
                 ],
-                'childrens_talk_boundary' => [
+                'short_talk_boundary' => [
                     'candidate' => [
                         'kind' => 'inclusive',
                         'start_time' => 600.0,
@@ -222,7 +222,7 @@ class SaveServiceSectionTest extends TestCase
         $this->action->execute(
             section: $section,
             sectionEdits: [$section->id => [
-                'section_type' => ServiceSectionType::ChildrensTalk->value,
+                'section_type' => ServiceSectionType::ShortTalk->value,
                 'title' => "Children's Talk",
                 'end_time' => '760.500',
             ]],
@@ -242,7 +242,7 @@ class SaveServiceSectionTest extends TestCase
         $this->assertNull($section->extracted_at);
         $this->assertNull($section->unpublished_expires_at);
         $this->assertArrayNotHasKey('approved_signature', $metadata['publication'] ?? []);
-        $this->assertSame(760.5, $metadata['childrens_talk_boundary']['reviewed_recuts'][0]['to']['end_time']);
+        $this->assertSame(760.5, $metadata['short_talk_boundary']['reviewed_recuts'][0]['to']['end_time']);
         Bus::assertDispatched(PrepareSectionPublicationCandidates::class);
     }
 
@@ -252,13 +252,13 @@ class SaveServiceSectionTest extends TestCase
         $run = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'start_time' => 600.0,
             'end_time' => 900.0,
             'needs_manual_review' => false,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'metadata' => [
-                'childrens_talk_speaker' => [
+                'talk_speaker' => [
                     'reviewed' => [
                         'preacher_id' => null,
                         'preacher_name' => 'Mary Helper',
@@ -273,7 +273,7 @@ class SaveServiceSectionTest extends TestCase
         $this->action->execute(
             section: $section,
             sectionEdits: [$section->id => [
-                'section_type' => ServiceSectionType::ChildrensTalk->value,
+                'section_type' => ServiceSectionType::ShortTalk->value,
                 'title' => "Children's Talk",
                 'end_time' => '901',
             ]],
@@ -293,7 +293,7 @@ class SaveServiceSectionTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'title' => "Children's Talk",
             'needs_manual_review' => true,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
@@ -308,7 +308,7 @@ class SaveServiceSectionTest extends TestCase
 
         $this->action->execute(
             section: $section,
-            sectionEdits: [$section->id => ['section_type' => ServiceSectionType::ChildrensTalk->value, 'title' => "Children's Talk"]],
+            sectionEdits: [$section->id => ['section_type' => ServiceSectionType::ShortTalk->value, 'title' => "Children's Talk"]],
             speakerEdits: [$section->id => ['preacher_id' => (string) $preacher->id, 'speaker_name' => '']],
             userId: $this->admin->id,
         );
@@ -327,7 +327,7 @@ class SaveServiceSectionTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'needs_manual_review' => true,
         ]);
 
@@ -335,7 +335,7 @@ class SaveServiceSectionTest extends TestCase
 
         $this->action->execute(
             section: $section,
-            sectionEdits: [$section->id => ['section_type' => ServiceSectionType::ChildrensTalk->value, 'title' => "Children's Talk"]],
+            sectionEdits: [$section->id => ['section_type' => ServiceSectionType::ShortTalk->value, 'title' => "Children's Talk"]],
             speakerEdits: [$section->id => ['preacher_id' => '', 'speaker_name' => '']],
             userId: $this->admin->id,
         );

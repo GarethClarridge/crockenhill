@@ -644,25 +644,25 @@ class ShowChurchServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_surfaces_childrens_talk_boundary_evidence_and_a_bounded_end_control(): void
+    public function it_surfaces_short_talk_boundary_evidence_and_a_bounded_end_control(): void
     {
         [$service, $run] = $this->workbenchServiceWithRun();
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'title' => "Children's Talk",
             'needs_manual_review' => false,
             'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
             'metadata' => [
-                'childrens_talk_speaker' => [
+                'talk_speaker' => [
                     'reviewed' => [
                         'preacher_id' => null,
                         'preacher_name' => 'Mary Helper',
                         'source' => 'manual',
                     ],
                 ],
-                'childrens_talk_boundary' => [
+                'short_talk_boundary' => [
                     'candidate' => [
                         'kind' => 'inclusive',
                         'start_time' => 600.0,
@@ -1466,15 +1466,15 @@ class ShowChurchServiceTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'title' => "Children's Talk",
             'needs_manual_review' => true,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'extracted_video_path' => 'sermons/sections/speaker-test/video.mp4',
             'extracted_audio_path' => 'sermons/audio/speaker-test.mp3',
             'metadata' => [
-                'review_reason' => 'childrens_talk_speaker_ambiguous',
-                'childrens_talk_speaker' => [
+                'review_reason' => 'talk_speaker_ambiguous',
+                'talk_speaker' => [
                     'predicted' => ['outcome' => 'ambiguous', 'preacher_name' => 'Unknown', 'confidence' => 0.5, 'reason' => 'Too close to call.'],
                 ],
             ],
@@ -1494,11 +1494,11 @@ class ShowChurchServiceTest extends TestCase
 
         $this->assertFalse($section->needs_manual_review);
         $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->publication_status);
-        $this->assertSame('Rev Override', $section->metadata['childrens_talk_speaker']['reviewed']['preacher_name'] ?? null);
+        $this->assertSame('Rev Override', $section->metadata['talk_speaker']['reviewed']['preacher_name'] ?? null);
     }
 
     #[Test]
-    public function the_childrens_talk_speaker_picker_only_lists_plausible_active_speakers(): void
+    public function the_talk_speaker_picker_only_lists_plausible_active_speakers(): void
     {
         [$service, $run] = $this->workbenchServiceWithRun();
 
@@ -1511,7 +1511,7 @@ class ShowChurchServiceTest extends TestCase
 
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'title' => "Children's Talk",
             'needs_manual_review' => true,
         ]);

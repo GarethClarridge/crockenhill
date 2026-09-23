@@ -531,7 +531,7 @@ class OosEmailParserService
                 continue;
             }
 
-            $sectionType = ServiceSectionType::tryFrom($semanticType) ?? ServiceSectionType::Other;
+            $sectionType = ServiceSectionType::tryFromStored($semanticType) ?? ServiceSectionType::Other;
             $title = $this->titleCleaner->displayTitle($rawTitle, $sectionType);
 
             $storageType = match ($semanticType) {
@@ -880,7 +880,7 @@ class OosEmailParserService
             'welcome' => 'welcome',
             'prayer', 'prayers' => 'prayer',
             'notice', 'notices', 'announcement', 'announcements' => 'notices',
-            'children', 'childrens_talk', 'children_talk', 'children\'s talk' => 'childrens_talk',
+            'short_talk', 'children', 'childrens_talk', 'children_talk', 'children\'s talk' => 'short_talk',
             'sermon', 'message' => 'sermon',
             default => 'other',
         };

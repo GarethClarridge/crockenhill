@@ -19,14 +19,14 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Service for automating speaker identification for Children's Talk service sections.
+ * Service for automating speaker identification for short-talk service sections.
  *
  * This service leverages voice fingerprinting (via SpeakerIdentificationInterface)
- * to predict the speaker of a children's talk. It handles automatic acceptance
+ * to predict the speaker of a short talk. It handles automatic acceptance
  * of high-confidence matches and manages the lifecycle of manual review flags
  * when identification is ambiguous or fails.
  */
-class ChildrensTalkSpeakerService
+class TalkSpeakerService
 {
     /**
      * The prediction outcomes that leave a question open for a person.
@@ -52,27 +52,27 @@ class ChildrensTalkSpeakerService
     ) {}
 
     /**
-     * Predict the speaker for a children's talk section and store results in metadata.
+     * Predict the speaker for a short-talk section and store results in metadata.
      *
      * Performs speaker identification on the section's extracted audio. If a high-confidence
      * match is found, it is automatically accepted and the section is marked as resolved.
      * Otherwise, the section is flagged for manual administrative review with a
      * descriptive reason (e.g., ambiguous, no match, or short audio).
      *
-     * @param  ServiceSection  $section  The children's talk section to analyze
+     * @param  ServiceSection  $section  The short-talk section to analyze
      */
     public function detectAndStore(ServiceSection $section): void
     {
-        if ($section->section_type !== ServiceSectionType::ChildrensTalk) {
+        if ($section->section_type !== ServiceSectionType::ShortTalk) {
             return;
         }
 
-        if ($section->reviewedChildrensTalkSpeaker() !== null) {
+        if ($section->reviewedTalkSpeaker() !== null) {
             return;
         }
 
         $metadata = $section->metadata?->toArray() ?? [];
-        $speakerMetadata = $section->metadata?->childrensTalkSpeaker?->toArray() ?? [];
+        $speakerMetadata = $section->metadata?->talkSpeaker?->toArray() ?? [];
         $profiles = $this->eligibleProfiles();
         $prediction = $this->predictionPayload($section, $profiles);
 
@@ -90,13 +90,13 @@ class ChildrensTalkSpeakerService
             ];
 
             unset($metadata['review_reason']);
-            $metadata['review_flags'] = $this->removeReviewFlag($metadata['review_flags'] ?? [], 'childrens_talk_speaker_review');
+            $metadata['review_flags'] = $this->removeReviewFlag($metadata['review_flags'] ?? [], 'talk_speaker_review');
             $section->needs_manual_review = HoldSectionForContentReview::isHeld($metadata['review_flags']);
         } elseif (! in_array((string) $prediction['outcome'], self::REVIEW_OPENING_OUTCOMES, true)) {
             unset($speakerMetadata['reviewed']);
-            $metadata['review_flags'] = $this->removeReviewFlag($metadata['review_flags'] ?? [], 'childrens_talk_speaker_review');
+            $metadata['review_flags'] = $this->removeReviewFlag($metadata['review_flags'] ?? [], 'talk_speaker_review');
 
-            if (str_starts_with((string) ($metadata['review_reason'] ?? ''), 'childrens_talk_speaker_')) {
+            if (str_starts_with((string) ($metadata['review_reason'] ?? ''), 'talk_speaker_')) {
                 unset($metadata['review_reason']);
             }
 
@@ -104,11 +104,11 @@ class ChildrensTalkSpeakerService
         } else {
             unset($speakerMetadata['reviewed']);
             $metadata['review_reason'] = $this->reviewReasonForOutcome((string) $prediction['outcome']);
-            $metadata['review_flags'] = $this->appendReviewFlag($metadata['review_flags'] ?? [], 'childrens_talk_speaker_review');
+            $metadata['review_flags'] = $this->appendReviewFlag($metadata['review_flags'] ?? [], 'talk_speaker_review');
             $section->needs_manual_review = true;
         }
 
-        $metadata['childrens_talk_speaker'] = $speakerMetadata;
+        $metadata['talk_speaker'] = $speakerMetadata;
         $section->metadata = ServiceSectionMetadata::fromArray($metadata);
 
         Log::info('Children\'s talk speaker identification completed', [
@@ -122,7 +122,7 @@ class ChildrensTalkSpeakerService
     }
 
     /**
-     * Record a manual speaker identification for a children's talk section.
+     * Record a manual speaker identification for a short-talk section.
      *
      * Updates the section metadata with the confirmed speaker (either a canonical
      * Preacher ID or a free-text name) and clears any pending manual review flags.
@@ -138,12 +138,12 @@ class ChildrensTalkSpeakerService
         ?string $speakerName,
         ?int $reviewedByUserId
     ): void {
-        if ($section->section_type !== ServiceSectionType::ChildrensTalk) {
+        if ($section->section_type !== ServiceSectionType::ShortTalk) {
             return;
         }
 
         $metadata = $section->metadata?->toArray() ?? [];
-        $speakerMetadata = $section->metadata?->childrensTalkSpeaker?->toArray() ?? [];
+        $speakerMetadata = $section->metadata?->talkSpeaker?->toArray() ?? [];
         $normalizedName = is_string($speakerName) ? trim($speakerName) : '';
 
         $reviewed = null;
@@ -182,9 +182,9 @@ class ChildrensTalkSpeakerService
         }
 
         $speakerMetadata['reviewed'] = $reviewed;
-        $metadata['childrens_talk_speaker'] = $speakerMetadata;
+        $metadata['talk_speaker'] = $speakerMetadata;
         unset($metadata['review_reason']);
-        $metadata['review_flags'] = $this->removeReviewFlag($metadata['review_flags'] ?? [], 'childrens_talk_speaker_review');
+        $metadata['review_flags'] = $this->removeReviewFlag($metadata['review_flags'] ?? [], 'talk_speaker_review');
 
         // Naming the speaker answers the speaker question only; an operator's
         // content hold on the talk itself stays until the talk is confirmed.
@@ -203,7 +203,7 @@ class ChildrensTalkSpeakerService
      */
     public function hasResolvedSpeaker(ServiceSection $section): bool
     {
-        return $section->hasResolvedChildrensTalkSpeaker();
+        return $section->hasResolvedTalkSpeaker();
     }
 
     /**
@@ -459,12 +459,12 @@ class ChildrensTalkSpeakerService
     private function reviewReasonForOutcome(string $outcome): string
     {
         return match ($outcome) {
-            'ambiguous' => 'childrens_talk_speaker_ambiguous',
-            'no_match' => 'childrens_talk_speaker_no_match',
-            'no_profiles' => 'childrens_talk_speaker_unconfigured',
-            'short_audio' => 'childrens_talk_speaker_short_audio',
-            'missing_audio' => 'childrens_talk_speaker_missing_audio',
-            default => 'childrens_talk_speaker_review_required',
+            'ambiguous' => 'talk_speaker_ambiguous',
+            'no_match' => 'talk_speaker_no_match',
+            'no_profiles' => 'talk_speaker_unconfigured',
+            'short_audio' => 'talk_speaker_short_audio',
+            'missing_audio' => 'talk_speaker_missing_audio',
+            default => 'talk_speaker_review_required',
         };
     }
 }

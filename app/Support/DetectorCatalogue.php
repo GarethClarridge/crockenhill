@@ -30,7 +30,7 @@ use App\Services\ChurchService\Structure\SungSpanInsideSermon;
 use App\Services\DetectorEvaluation\SongBoundaryEvidenceSignals;
 use App\Services\Media\Audio\ServiceTranscriptRepetitionScreen;
 use App\Services\Media\Video\SermonVideoQualityAssessmentService;
-use App\Services\Preacher\ChildrensTalkSpeakerService;
+use App\Services\Preacher\TalkSpeakerService;
 use App\Services\Song\SongLyricIdentityCheck;
 use App\Services\Song\UnmatchedSongReviewApplicator;
 use RuntimeException;
@@ -590,12 +590,12 @@ class DetectorCatalogue
             new DetectorEntry(
                 id: 'childrens-talk-speaker-review',
                 surface: DetectorSurface::SectionReviewFlag,
-                signals: ['childrens_talk_speaker_review'],
+                signals: ['talk_speaker_review'],
                 status: DetectorStatus::Promoted,
                 severity: DetectorSeverity::WrongMetadata,
                 unit: DetectorUnit::Section,
-                summary: "The children's talk speaker could not be identified with enough confidence to attribute the talk.",
-                owningClass: ChildrensTalkSpeakerService::class,
+                summary: 'The short talk speaker could not be identified with enough confidence to attribute the talk.',
+                owningClass: TalkSpeakerService::class,
             ),
         ];
     }

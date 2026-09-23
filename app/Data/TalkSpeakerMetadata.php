@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Data;
 
-final readonly class ChildrensTalkSpeakerMetadata extends JsonData
+final readonly class TalkSpeakerMetadata extends JsonData
 {
     /**
      * @param  array<string, mixed>|null  $predicted

@@ -12,7 +12,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\ServiceSection;
 use App\Models\SpeakerProfile;
-use App\Services\Preacher\ChildrensTalkSpeakerService;
+use App\Services\Preacher\TalkSpeakerService;
 use App\Support\MediaAssetPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
-class ChildrensTalkSpeakerServiceTest extends TestCase
+class TalkSpeakerServiceTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -47,7 +47,7 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $speaker = $this->mock(SpeakerIdentificationInterface::class);
         $speaker->shouldNotReceive('identify');
 
-        $this->app->forgetInstance(ChildrensTalkSpeakerService::class);
+        $this->app->forgetInstance(TalkSpeakerService::class);
 
         $log = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
@@ -55,7 +55,7 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
             'section_type' => ServiceSectionType::Sermon->value,
         ]);
 
-        app(ChildrensTalkSpeakerService::class)->detectAndStore($section);
+        app(TalkSpeakerService::class)->detectAndStore($section);
         $section->save();
 
         $this->assertFalse($section->fresh()->needs_manual_review);
@@ -73,23 +73,23 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $speaker = $this->mock(SpeakerIdentificationInterface::class);
         $speaker->shouldNotReceive('identify');
 
-        $this->app->forgetInstance(ChildrensTalkSpeakerService::class);
+        $this->app->forgetInstance(TalkSpeakerService::class);
 
         $log = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'extracted_audio_path' => 'sections/talk.mp3',
             'duration' => 120,
             'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'audio_only'],
         ]);
 
-        app(ChildrensTalkSpeakerService::class)->detectAndStore($section);
+        app(TalkSpeakerService::class)->detectAndStore($section);
         $section->save();
 
         $fresh = $section->fresh();
         $this->assertFalse($fresh->needs_manual_review);
-        $this->assertSame('skipped', $fresh->metadata?->toArray()['childrens_talk_speaker']['predicted']['outcome'] ?? null);
+        $this->assertSame('skipped', $fresh->metadata?->toArray()['talk_speaker']['predicted']['outcome'] ?? null);
         Log::shouldHaveReceived('info')->with(
             'Children\'s talk speaker identification completed',
             \Mockery::on(fn (array $context): bool => $context['outcome'] === 'skipped'
@@ -104,22 +104,22 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $speaker = $this->mock(SpeakerIdentificationInterface::class);
         $speaker->shouldNotReceive('identify');
 
-        $this->app->forgetInstance(ChildrensTalkSpeakerService::class);
+        $this->app->forgetInstance(TalkSpeakerService::class);
 
         $log = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'extracted_audio_path' => null,
             'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'audio_only'],
         ]);
 
-        app(ChildrensTalkSpeakerService::class)->detectAndStore($section);
+        app(TalkSpeakerService::class)->detectAndStore($section);
         $section->save();
 
         $fresh = $section->fresh();
         $this->assertFalse($fresh->needs_manual_review);
-        $this->assertSame('missing_audio', $fresh->metadata?->toArray()['childrens_talk_speaker']['predicted']['outcome'] ?? null);
+        $this->assertSame('missing_audio', $fresh->metadata?->toArray()['talk_speaker']['predicted']['outcome'] ?? null);
     }
 
     #[Test]
@@ -149,25 +149,25 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $speaker->shouldReceive('identify')->once()->andReturn($matchResult);
 
         $this->stageSectionAudio();
-        $this->app->forgetInstance(ChildrensTalkSpeakerService::class);
+        $this->app->forgetInstance(TalkSpeakerService::class);
 
         $log = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'extracted_audio_path' => 'sections/talk.mp3',
             'duration' => 120,
             'needs_manual_review' => false,
             'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'audio_only'],
         ]);
 
-        app(ChildrensTalkSpeakerService::class)->detectAndStore($section);
+        app(TalkSpeakerService::class)->detectAndStore($section);
         $section->save();
 
         $fresh = $section->fresh();
         $this->assertFalse($fresh->needs_manual_review);
 
-        $speakerData = $fresh->metadata?->toArray()['childrens_talk_speaker'] ?? [];
+        $speakerData = $fresh->metadata?->toArray()['talk_speaker'] ?? [];
         $this->assertSame('matched', $speakerData['predicted']['outcome'] ?? null);
         $this->assertSame('auto_accepted', $speakerData['reviewed']['review_mode'] ?? null);
         $this->assertSame($preacher->id, $speakerData['reviewed']['preacher_id'] ?? null);
@@ -200,31 +200,31 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         ));
 
         $this->stageSectionAudio();
-        $this->app->forgetInstance(ChildrensTalkSpeakerService::class);
+        $this->app->forgetInstance(TalkSpeakerService::class);
 
         $log = MediaProcessingLog::factory()->livestream()->create();
         $autoAccepted = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'extracted_audio_path' => 'sections/talk.mp3',
             'duration' => 120,
             'needs_manual_review' => true,
             'metadata' => ['review_flags' => [HoldSectionForContentReview::FLAG]],
         ]);
 
-        app(ChildrensTalkSpeakerService::class)->detectAndStore($autoAccepted);
+        app(TalkSpeakerService::class)->detectAndStore($autoAccepted);
         $autoAccepted->save();
 
         $this->assertTrue($autoAccepted->fresh()->needs_manual_review);
 
         $named = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'needs_manual_review' => true,
-            'metadata' => ['review_flags' => [HoldSectionForContentReview::FLAG, 'childrens_talk_speaker_review']],
+            'metadata' => ['review_flags' => [HoldSectionForContentReview::FLAG, 'talk_speaker_review']],
         ]);
 
-        app(ChildrensTalkSpeakerService::class)->storeManualReview($named, $preacher->id, null, null);
+        app(TalkSpeakerService::class)->storeManualReview($named, $preacher->id, null, null);
         $named->save();
 
         $this->assertTrue($named->fresh()->needs_manual_review);
@@ -247,23 +247,23 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $speaker->shouldReceive('identify')->once()->andReturn(SpeakerMatchResult::noMatch(topScore: 0.4));
 
         $this->stageSectionAudio();
-        $this->app->forgetInstance(ChildrensTalkSpeakerService::class);
+        $this->app->forgetInstance(TalkSpeakerService::class);
 
         $log = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'extracted_audio_path' => 'sections/talk.mp3',
             'duration' => 120,
             'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'audio_only'],
         ]);
 
-        app(ChildrensTalkSpeakerService::class)->detectAndStore($section);
+        app(TalkSpeakerService::class)->detectAndStore($section);
         $section->save();
 
         $fresh = $section->fresh();
         $this->assertTrue($fresh->needs_manual_review);
-        $this->assertContains('childrens_talk_speaker_review', $fresh->metadata?->toArray()['review_flags'] ?? []);
+        $this->assertContains('talk_speaker_review', $fresh->metadata?->toArray()['review_flags'] ?? []);
     }
 
     #[Test]
@@ -279,23 +279,23 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $speaker->shouldNotReceive('identify');
 
         $this->stageSectionAudio();
-        $this->app->forgetInstance(ChildrensTalkSpeakerService::class);
+        $this->app->forgetInstance(TalkSpeakerService::class);
 
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::ChildrensTalk,
+            'section_type' => ServiceSectionType::ShortTalk,
             'extracted_audio_path' => 'sections/talk.mp3',
             'duration' => 120,
             'needs_manual_review' => false,
             'metadata' => ['classification_mode' => 'llm_structure'],
         ]);
 
-        app(ChildrensTalkSpeakerService::class)->detectAndStore($section);
+        app(TalkSpeakerService::class)->detectAndStore($section);
         $section->save();
 
         $fresh = $section->fresh();
         $this->assertFalse($fresh->needs_manual_review);
-        $this->assertSame('no_profiles', $fresh->metadata['childrens_talk_speaker']['predicted']['outcome'] ?? null);
-        $this->assertNotContains('childrens_talk_speaker_review', $fresh->metadata['review_flags'] ?? []);
+        $this->assertSame('no_profiles', $fresh->metadata['talk_speaker']['predicted']['outcome'] ?? null);
+        $this->assertNotContains('talk_speaker_review', $fresh->metadata['review_flags'] ?? []);
     }
 
     #[Test]
@@ -316,12 +316,12 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $speaker->shouldNotReceive('identify');
 
         $this->stageSectionAudio();
-        $this->app->forgetInstance(ChildrensTalkSpeakerService::class);
+        $this->app->forgetInstance(TalkSpeakerService::class);
 
         $log = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'extracted_audio_path' => 'sections/talk.mp3',
             // ServiceSectionFactory recomputes `duration` from the timestamps, so setting
             // `duration` alone is silently discarded.
@@ -330,13 +330,13 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
             'metadata' => ['classification_mode' => 'llm_structure'],
         ]);
 
-        app(ChildrensTalkSpeakerService::class)->detectAndStore($section);
+        app(TalkSpeakerService::class)->detectAndStore($section);
         $section->save();
 
         $fresh = $section->fresh();
         $this->assertFalse($fresh->needs_manual_review);
-        $this->assertSame('short_audio', $fresh->metadata?->toArray()['childrens_talk_speaker']['predicted']['outcome'] ?? null);
-        $this->assertNotContains('childrens_talk_speaker_review', $fresh->metadata?->toArray()['review_flags'] ?? []);
+        $this->assertSame('short_audio', $fresh->metadata?->toArray()['talk_speaker']['predicted']['outcome'] ?? null);
+        $this->assertNotContains('talk_speaker_review', $fresh->metadata?->toArray()['review_flags'] ?? []);
     }
 
     #[Test]
@@ -357,23 +357,23 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         // has been cleaned up while the run's full audio is retained.
         Storage::fake(MediaAssetPath::disk());
 
-        $this->app->forgetInstance(ChildrensTalkSpeakerService::class);
+        $this->app->forgetInstance(TalkSpeakerService::class);
 
         $log = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'extracted_audio_path' => 'section-publications/671/reaped.mp3',
             'duration' => 300,
             'metadata' => ['classification_mode' => 'llm_structure'],
         ]);
 
-        app(ChildrensTalkSpeakerService::class)->detectAndStore($section);
+        app(TalkSpeakerService::class)->detectAndStore($section);
         $section->save();
 
         $fresh = $section->fresh();
         $this->assertFalse($fresh->needs_manual_review);
-        $this->assertSame('missing_audio', $fresh->metadata?->toArray()['childrens_talk_speaker']['predicted']['outcome'] ?? null);
+        $this->assertSame('missing_audio', $fresh->metadata?->toArray()['talk_speaker']['predicted']['outcome'] ?? null);
     }
 
     #[Test]
@@ -403,18 +403,18 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         ));
 
         $this->stageSectionAudio();
-        $this->app->forgetInstance(ChildrensTalkSpeakerService::class);
+        $this->app->forgetInstance(TalkSpeakerService::class);
 
         $log = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'extracted_audio_path' => 'sections/talk.mp3',
             'duration' => 300,
             'metadata' => ['classification_mode' => 'llm_structure'],
         ]);
 
-        app(ChildrensTalkSpeakerService::class)->detectAndStore($section);
+        app(TalkSpeakerService::class)->detectAndStore($section);
         $section->save();
 
         $fresh = $section->fresh();
@@ -422,7 +422,7 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         // The question stays open — but it is now a shortlist rather than a blank.
         $this->assertTrue($fresh->needs_manual_review);
         // assertEquals, not assertSame: the metadata wrapper canonicalises JSON key order.
-        $this->assertEquals($candidates, $fresh->metadata?->toArray()['childrens_talk_speaker']['predicted']['candidates'] ?? null);
+        $this->assertEquals($candidates, $fresh->metadata?->toArray()['talk_speaker']['predicted']['candidates'] ?? null);
     }
 
     /**
@@ -451,26 +451,26 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $speaker = $this->mock(SpeakerIdentificationInterface::class);
         $speaker->shouldNotReceive('identify');
 
-        $this->app->forgetInstance(ChildrensTalkSpeakerService::class);
+        $this->app->forgetInstance(TalkSpeakerService::class);
 
         $log = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'extracted_audio_path' => 'section-publications/talk.mp3',
             'start_time' => 0,
             'end_time' => 300,
-            'metadata' => ['review_flags' => ['childrens_talk_speaker_review']],
+            'metadata' => ['review_flags' => ['talk_speaker_review']],
         ]);
 
-        app(ChildrensTalkSpeakerService::class)->detectAndStore($section);
+        app(TalkSpeakerService::class)->detectAndStore($section);
         $section->save();
 
         $fresh = $section->fresh();
 
         // `error` is a review-opening outcome, so the question survives the outage.
-        $this->assertSame('error', $fresh->metadata?->toArray()['childrens_talk_speaker']['predicted']['outcome'] ?? null);
-        $this->assertContains('childrens_talk_speaker_review', $fresh->metadata?->toArray()['review_flags'] ?? []);
+        $this->assertSame('error', $fresh->metadata?->toArray()['talk_speaker']['predicted']['outcome'] ?? null);
+        $this->assertContains('talk_speaker_review', $fresh->metadata?->toArray()['review_flags'] ?? []);
         $this->assertTrue($fresh->needs_manual_review);
     }
 
@@ -484,23 +484,23 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'needs_manual_review' => true,
             'metadata' => [
                 'confidence_level' => 'low',
                 'classification_mode' => 'audio_only',
-                'review_flags' => ['childrens_talk_speaker_review'],
+                'review_flags' => ['talk_speaker_review'],
             ],
         ]);
 
-        $service = app(ChildrensTalkSpeakerService::class);
+        $service = app(TalkSpeakerService::class);
         $service->storeManualReview($section, $preacher->id, null, 1);
         $section->save();
 
         $fresh = $section->fresh();
         $this->assertFalse($fresh->needs_manual_review);
 
-        $reviewed = $fresh->metadata?->toArray()['childrens_talk_speaker']['reviewed'] ?? [];
+        $reviewed = $fresh->metadata?->toArray()['talk_speaker']['reviewed'] ?? [];
         $this->assertSame($preacher->id, $reviewed['preacher_id']);
         $this->assertSame('manual_override', $reviewed['review_mode']);
     }
@@ -511,19 +511,19 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'needs_manual_review' => true,
             'metadata' => ['confidence_level' => 'low', 'classification_mode' => 'audio_only'],
         ]);
 
-        $service = app(ChildrensTalkSpeakerService::class);
+        $service = app(TalkSpeakerService::class);
         $service->storeManualReview($section, null, 'Guest Speaker', 2);
         $section->save();
 
         $fresh = $section->fresh();
         $this->assertFalse($fresh->needs_manual_review);
 
-        $reviewed = $fresh->metadata?->toArray()['childrens_talk_speaker']['reviewed'] ?? [];
+        $reviewed = $fresh->metadata?->toArray()['talk_speaker']['reviewed'] ?? [];
         $this->assertSame('Guest Speaker', $reviewed['preacher_name']);
         $this->assertNull($reviewed['preacher_id']);
         $this->assertSame('manual_free_text', $reviewed['review_mode']);
@@ -535,12 +535,12 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'needs_manual_review' => true,
             'metadata' => ['confidence_level' => 'low', 'classification_mode' => 'audio_only'],
         ]);
 
-        $service = app(ChildrensTalkSpeakerService::class);
+        $service = app(TalkSpeakerService::class);
         $service->storeManualReview($section, null, null, 1);
         $section->save();
 
@@ -560,7 +560,7 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
             'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'audio_only'],
         ]);
 
-        $service = app(ChildrensTalkSpeakerService::class);
+        $service = app(TalkSpeakerService::class);
         $service->storeManualReview($section, $preacher->id, null, 1);
         $section->save();
 
@@ -574,12 +574,12 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $second = Preacher::factory()->create(['name' => 'Laurie Everest']);
 
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'needs_manual_review' => true,
             'metadata' => [
-                'review_flags' => ['childrens_talk_speaker_review'],
-                'review_reason' => 'childrens_talk_speaker_ambiguous',
-                'childrens_talk_speaker' => [
+                'review_flags' => ['talk_speaker_review'],
+                'review_reason' => 'talk_speaker_ambiguous',
+                'talk_speaker' => [
                     'predicted' => [
                         'outcome' => 'ambiguous',
                         'confidence' => 0.838,
@@ -592,10 +592,10 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
             ],
         ]);
 
-        app(ChildrensTalkSpeakerService::class)->storeManualReview($section, $second->id, null, 7);
+        app(TalkSpeakerService::class)->storeManualReview($section, $second->id, null, 7);
         $section->save();
 
-        $reviewed = $section->fresh()->metadata?->toArray()['childrens_talk_speaker']['reviewed'] ?? [];
+        $reviewed = $section->fresh()->metadata?->toArray()['talk_speaker']['reviewed'] ?? [];
 
         // Rank rather than a boolean: "how often was our top candidate right?" has to be
         // answerable from stored reviews before the sub-0.10 margin band could ever be
@@ -613,11 +613,11 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
         $actual = Preacher::factory()->create(['name' => 'Someone Else']);
 
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'needs_manual_review' => true,
             'metadata' => [
-                'review_flags' => ['childrens_talk_speaker_review'],
-                'childrens_talk_speaker' => [
+                'review_flags' => ['talk_speaker_review'],
+                'talk_speaker' => [
                     'predicted' => [
                         'outcome' => 'ambiguous',
                         'candidates' => [
@@ -628,10 +628,10 @@ class ChildrensTalkSpeakerServiceTest extends TestCase
             ],
         ]);
 
-        app(ChildrensTalkSpeakerService::class)->storeManualReview($section, $actual->id, null, 7);
+        app(TalkSpeakerService::class)->storeManualReview($section, $actual->id, null, 7);
         $section->save();
 
-        $reviewed = $section->fresh()->metadata?->toArray()['childrens_talk_speaker']['reviewed'] ?? [];
+        $reviewed = $section->fresh()->metadata?->toArray()['talk_speaker']['reviewed'] ?? [];
 
         $this->assertSame('manual_override', $reviewed['review_mode'] ?? null);
         $this->assertArrayHasKey('proposal_rank', $reviewed);

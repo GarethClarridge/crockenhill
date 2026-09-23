@@ -367,6 +367,21 @@ class ServiceStructureClassifiedSectionsTest extends TestCase
         ];
     }
 
+    #[Test]
+    public function a_short_talk_records_its_proposal_and_every_other_section_clears_it(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $talk = ServiceStructureSection::fromArray([
+            'type' => 'short_talk', 'start_time' => 130.0, 'end_time' => 400.0, 'confidence' => 0.9, 'talk_type' => 'testimony',
+        ]);
+        $structure = ServiceStructure::fromSections([$this->section('welcome', 0.0, 120.0), $talk], [], 'gpt-5');
+
+        $classified = $structure->toClassifiedSections($log);
+
+        $this->assertNull($classified[0]['metadata']['talk_type']);
+        $this->assertSame(['proposed' => 'testimony'], $classified[1]['metadata']['talk_type']);
+    }
+
     private function structure(
         ?int $sermonItemId = null,
         ?int $readingItemId = null,

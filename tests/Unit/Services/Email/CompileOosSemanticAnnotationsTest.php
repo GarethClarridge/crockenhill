@@ -16,6 +16,7 @@ use App\Services\Email\CompileOosSemanticAnnotations;
 use App\Services\Email\OosEmailExtractionValidator;
 use App\Services\Email\OosSemanticAnnotationValidator;
 use App\Services\Email\OosServiceDateResolver;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -69,6 +70,44 @@ class CompileOosSemanticAnnotationsTest extends TestCase
 
         $this->assertSame('other', $item['type']);
         $this->assertSame('communion', $item['semantic_kind']);
+    }
+
+    /**
+     * Detection needs to know a spoken item other than the sermon is due, not who it
+     * is for; the audience or format rides along as the kind.
+     *
+     * @return array<string, array{OosSemanticItemKind, string}>
+     */
+    public static function shortTalkKinds(): array
+    {
+        return [
+            "children's talk" => [OosSemanticItemKind::ChildrensTalk, 'childrens_talk'],
+            'missionary focus' => [OosSemanticItemKind::MissionaryFocus, 'missionary_focus'],
+            'interview' => [OosSemanticItemKind::Interview, 'interview'],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('shortTalkKinds')]
+    public function a_talk_other_than_the_sermon_compiles_as_a_short_talk_keeping_its_kind(OosSemanticItemKind $kind, string $value): void
+    {
+        $source = OosEmailSourceDocument::fromContext(
+            'Sunday 23 August 2026',
+            "Morning Service\nA talk",
+            '2026-08-19',
+        );
+        $annotations = new OosSemanticAnnotationResult(
+            [new OosCandidateService('morning', 'morning', [1])],
+            [
+                1 => $this->annotation(1, OosSemanticRole::ServiceBoundary, 'morning'),
+                2 => $this->annotation(2, OosSemanticRole::Item, 'morning', $kind),
+            ],
+        );
+
+        $item = $this->compiler()->compile($source, $annotations)->extraction->services[0]['items'][0];
+
+        $this->assertSame('short_talk', $item['type']);
+        $this->assertSame($value, $item['semantic_kind']);
     }
 
     #[Test]

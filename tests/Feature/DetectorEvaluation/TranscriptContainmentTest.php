@@ -14,9 +14,9 @@ use App\Services\DetectorEvaluation\FreezeDetectorCaseBook;
 use App\Services\DetectorEvaluation\SuspectTranscriptBlockSignals;
 use App\Support\DetectorAcceptanceThresholds;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use PHPUnit\Framework\Attributes\Test;
-use PHPUnit\Framework\Attributes\DataProvider;
 use InvalidArgumentException;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class TranscriptContainmentTest extends TestCase
@@ -134,7 +134,7 @@ class TranscriptContainmentTest extends TestCase
         [$run] = $this->fixture(true);
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
-            'section_type' => ServiceSectionType::ChildrensTalk,
+            'section_type' => ServiceSectionType::ShortTalk,
             'start_time' => 150.0,
             'end_time' => 200.0,
             'needs_manual_review' => false,
@@ -167,7 +167,7 @@ class TranscriptContainmentTest extends TestCase
     }
 
     /**
-     * @param array{start: float, end: float}|null $span
+     * @param  array{start: float, end: float}|null  $span
      * @return array<string, mixed>
      */
     private function evaluate(MediaProcessingLog $run, ServiceSection $section, ?array $span = null, string $truth = 'defective'): array

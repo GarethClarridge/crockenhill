@@ -52,7 +52,7 @@ class FlagSuspectTranscriptRepetition
      *
      * @var list<ServiceSectionType>
      */
-    private const HELD_TYPES = [ServiceSectionType::Sermon, ServiceSectionType::ChildrensTalk];
+    private const HELD_TYPES = [ServiceSectionType::Sermon, ServiceSectionType::ShortTalk];
 
     /**
      * Raise or clear the hold across the run's spoken-content sections.

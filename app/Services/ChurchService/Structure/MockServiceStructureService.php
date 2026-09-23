@@ -9,6 +9,7 @@ use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 
 /**
  * Deterministic structure detection for tests and CI: either a fixture set by
@@ -28,7 +29,7 @@ class MockServiceStructureService implements ServiceStructureInterface
      * @var array<string, list<string>>
      */
     private const CUE_MARKERS = [
-        'childrens_talk' => ['boys and girls', 'children', 'off you go to your groups'],
+        'short_talk' => ['boys and girls', 'children', 'off you go to your groups'],
         'welcome' => ['welcome'],
         'notices' => ['notices', 'announcements'],
         'bible_reading' => ['our reading', 'reading this morning', 'reading from', 'the lord said'],
@@ -162,6 +163,8 @@ class MockServiceStructureService implements ServiceStructureInterface
                             : null,
                         readingReference: null,
                         notes: ['Mock structure derived from transcript markers.'],
+                        // Every mock short-talk cue addresses the children.
+                        talkType: $type === ServiceSectionType::ShortTalk ? TalkType::ChildrensTalk : null,
                     );
                 },
                 $sections

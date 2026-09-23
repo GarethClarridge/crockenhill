@@ -10,12 +10,12 @@ use App\Jobs\PublishApprovedServiceSection;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ExtractedSectionMediaChecker;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
-use App\Services\Preacher\ChildrensTalkSpeakerService;
+use App\Services\Preacher\TalkSpeakerService;
 
 class ApproveSectionForPublication
 {
     public function __construct(
-        private readonly ChildrensTalkSpeakerService $speakerService,
+        private readonly TalkSpeakerService $speakerService,
         private readonly ServiceSectionPublicationTransitionService $publicationTransitions,
         private readonly ExtractedSectionMediaChecker $mediaChecker,
     ) {}
@@ -74,7 +74,7 @@ class ApproveSectionForPublication
         }
 
         if (! $this->speakerService->hasResolvedSpeaker($section)) {
-            return "Choose a speaker for this children's talk before approving publication.";
+            return 'Choose a speaker for this short talk before approving publication.';
         }
 
         return null;

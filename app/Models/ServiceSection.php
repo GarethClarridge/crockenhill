@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Data\ChildrensTalkSpeakerMetadata;
 use App\Data\ServiceSectionMetadata;
 use App\Data\ServiceSectionMetadataCast;
+use App\Data\TalkSpeakerMetadata;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionStatus;
@@ -215,7 +215,7 @@ class ServiceSection extends Model
             'end_time' => (float) $this->end_time,
         ];
 
-        if ($this->section_type === ServiceSectionType::ChildrensTalk) {
+        if ($this->section_type === ServiceSectionType::ShortTalk) {
             $payload['publication_speaker'] = $this->publicationSpeakerSignaturePayload();
         }
 
@@ -276,41 +276,41 @@ class ServiceSection extends Model
     /**
      * @return array<string, mixed>
      */
-    public function childrensTalkSpeakerMetadata(): array
+    public function talkSpeakerMetadata(): array
     {
-        $speaker = $this->metadata?->childrensTalkSpeaker;
+        $speaker = $this->metadata?->talkSpeaker;
 
-        return $speaker instanceof ChildrensTalkSpeakerMetadata ? $speaker->toArray() : [];
+        return $speaker instanceof TalkSpeakerMetadata ? $speaker->toArray() : [];
     }
 
     /**
      * @return array<string, mixed>|null
      */
-    public function predictedChildrensTalkSpeaker(): ?array
+    public function predictedTalkSpeaker(): ?array
     {
-        return $this->metadata?->childrensTalkSpeaker?->predicted;
+        return $this->metadata?->talkSpeaker?->predicted;
     }
 
     /**
      * @return array<string, mixed>|null
      */
-    public function reviewedChildrensTalkSpeaker(): ?array
+    public function reviewedTalkSpeaker(): ?array
     {
-        return $this->metadata?->childrensTalkSpeaker?->reviewed;
+        return $this->metadata?->talkSpeaker?->reviewed;
     }
 
     /**
      * @return array{preacher_id:int|null,preacher_name:string,source:string,confidence:float|null}|null
      */
-    public function publicationChildrensTalkSpeaker(): ?array
+    public function publicationTalkSpeaker(): ?array
     {
-        return $this->metadata?->childrensTalkSpeaker?->publicationSpeaker();
+        return $this->metadata?->talkSpeaker?->publicationSpeaker();
     }
 
-    public function hasResolvedChildrensTalkSpeaker(): bool
+    public function hasResolvedTalkSpeaker(): bool
     {
-        return $this->section_type !== ServiceSectionType::ChildrensTalk
-            || $this->publicationChildrensTalkSpeaker() !== null;
+        return $this->section_type !== ServiceSectionType::ShortTalk
+            || $this->publicationTalkSpeaker() !== null;
     }
 
     /**
@@ -348,7 +348,7 @@ class ServiceSection extends Model
      */
     private function publicationSpeakerSignaturePayload(): ?array
     {
-        $speaker = $this->publicationChildrensTalkSpeaker();
+        $speaker = $this->publicationTalkSpeaker();
         if ($speaker === null) {
             return null;
         }

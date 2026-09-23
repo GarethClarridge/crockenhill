@@ -266,6 +266,12 @@ final readonly class ServiceStructure extends JsonData
             $metadata['sermon_reference_source'] = 'llm_structure';
         }
 
+        // Always present so a re-run that retypes the section away from a short
+        // talk clears the proposal; the sync merge keeps an operator's reviewed type.
+        $metadata['talk_type'] = $section->type === ServiceSectionType::ShortTalk
+            ? ['proposed' => $section->talkType?->value]
+            : null;
+
         if ($section->songTitle !== null) {
             $metadata['song_title'] = $section->songTitle;
             // MatchSongsFromTranscript's first-choice input: its title-hint

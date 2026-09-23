@@ -75,7 +75,7 @@ class ChurchServiceItemSemanticTypeTest extends TestCase
             'title' => 'Children\'s Address',
         ]);
 
-        $this->assertSame(ServiceSectionType::ChildrensTalk, $item->semanticSectionType());
+        $this->assertSame(ServiceSectionType::ShortTalk, $item->semanticSectionType());
     }
 
     #[Test]

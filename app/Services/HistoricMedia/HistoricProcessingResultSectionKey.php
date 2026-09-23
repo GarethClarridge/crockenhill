@@ -19,8 +19,8 @@ class HistoricProcessingResultSectionKey
             'end_time' => (float) $section->end_time,
         ];
 
-        if ($section->section_type === ServiceSectionType::ChildrensTalk) {
-            $speaker = $section->publicationChildrensTalkSpeaker();
+        if ($section->section_type === ServiceSectionType::ShortTalk) {
+            $speaker = $section->publicationTalkSpeaker();
             $signaturePayload['publication_speaker'] = $speaker === null ? null : [
                 'preacher_name' => $speaker['preacher_name'],
                 'preacher_slug' => str($speaker['preacher_name'])->slug()->toString(),

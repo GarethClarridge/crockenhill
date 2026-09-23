@@ -360,7 +360,7 @@ class AuditSermonAssetsCommand extends Command
             $rows,
         );
 
-        $this->renderChildrensTalkSummary();
+        $this->renderShortTalkSummary();
     }
 
     /**
@@ -386,7 +386,7 @@ class AuditSermonAssetsCommand extends Command
      * at a time: a talk missing only its thumbnail is a different problem from a
      * talk missing its audio.
      */
-    private function renderChildrensTalkSummary(): void
+    private function renderShortTalkSummary(): void
     {
         $this->table(
             ["Children's talks", 'Count'],

@@ -521,7 +521,7 @@ final class ServiceRecordTimeline
     {
         $value = $oosAlignment['expected_section_type'] ?? null;
 
-        return is_string($value) ? ServiceSectionType::tryFrom($value) : null;
+        return is_string($value) ? ServiceSectionType::tryFromStored($value) : null;
     }
 
     /**

@@ -12,10 +12,10 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ExtractedSectionMediaChecker;
-use App\Services\ChurchService\SectionPublication\ChildrensTalkBoundaryEvidenceService;
-use App\Services\ChurchService\SectionPublication\SermonPublicationHandler;
+use App\Services\ChurchService\SectionPublication\ShortTalkBoundaryEvidenceService;
+use App\Services\ChurchService\SectionPublication\TalkPublicationHandler;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
-use App\Services\Preacher\ChildrensTalkSpeakerService;
+use App\Services\Preacher\TalkSpeakerService;
 use App\Services\Processing\MediaProcessingIdentityResolver;
 use App\Services\Sermon\SermonCreationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -26,13 +26,13 @@ use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
-class SermonPublicationHandlerTest extends TestCase
+class TalkPublicationHandlerTest extends TestCase
 {
     use RefreshDatabase;
 
-    private SermonPublicationHandler $handler;
+    private TalkPublicationHandler $handler;
 
-    private MockInterface $childrensTalkSpeakerService;
+    private MockInterface $talkSpeakerService;
 
     private MockInterface $sermonCreationService;
 
@@ -40,25 +40,25 @@ class SermonPublicationHandlerTest extends TestCase
 
     private MockInterface $publicationTransitions;
 
-    private MockInterface $childrensTalkBoundaryEvidence;
+    private MockInterface $shortTalkBoundaryEvidence;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->childrensTalkSpeakerService = Mockery::mock(ChildrensTalkSpeakerService::class);
+        $this->talkSpeakerService = Mockery::mock(TalkSpeakerService::class);
         $this->sermonCreationService = Mockery::mock(SermonCreationService::class);
         $this->identityResolver = Mockery::mock(MediaProcessingIdentityResolver::class);
         $this->publicationTransitions = Mockery::mock(ServiceSectionPublicationTransitionService::class);
-        $this->childrensTalkBoundaryEvidence = Mockery::mock(ChildrensTalkBoundaryEvidenceService::class);
+        $this->shortTalkBoundaryEvidence = Mockery::mock(ShortTalkBoundaryEvidenceService::class);
 
-        $this->handler = new SermonPublicationHandler(
-            $this->childrensTalkSpeakerService,
+        $this->handler = new TalkPublicationHandler(
+            $this->talkSpeakerService,
             $this->sermonCreationService,
             $this->identityResolver,
             $this->publicationTransitions,
             app(ExtractedSectionMediaChecker::class),
-            $this->childrensTalkBoundaryEvidence,
+            $this->shortTalkBoundaryEvidence,
         );
     }
 
@@ -145,15 +145,15 @@ class SermonPublicationHandlerTest extends TestCase
     public function after_extraction_runs_speaker_detection_for_childrens_talks(): void
     {
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
-        $this->childrensTalkSpeakerService
+        $this->talkSpeakerService
             ->shouldReceive('detectAndStore')
             ->once()
             ->with($section);
-        $this->childrensTalkBoundaryEvidence
+        $this->shortTalkBoundaryEvidence
             ->shouldReceive('assess')
             ->once()
             ->with($section)
@@ -169,7 +169,7 @@ class SermonPublicationHandlerTest extends TestCase
 
         $this->assertSame(
             'inclusive',
-            $section->metadata?->toArray()['childrens_talk_boundary']['candidate']['kind'] ?? null,
+            $section->metadata?->toArray()['short_talk_boundary']['candidate']['kind'] ?? null,
         );
     }
 
@@ -181,9 +181,9 @@ class SermonPublicationHandlerTest extends TestCase
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
         ]);
 
-        $this->childrensTalkSpeakerService
+        $this->talkSpeakerService
             ->shouldNotReceive('detectAndStore');
-        $this->childrensTalkBoundaryEvidence
+        $this->shortTalkBoundaryEvidence
             ->shouldNotReceive('assess');
 
         $this->handler->afterExtraction($section);
@@ -195,7 +195,7 @@ class SermonPublicationHandlerTest extends TestCase
         Log::spy();
 
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'publication_status' => ServiceSectionPublicationStatus::Published->value,
         ]);
 
@@ -445,14 +445,14 @@ class SermonPublicationHandlerTest extends TestCase
         $processingLog = MediaProcessingLog::factory()->audio()->create();
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'extracted_video_path' => 'section-publications/1-abcdef0123456789/video.mp4',
             'extracted_audio_path' => 'section-publications/1-abcdef0123456789/audio.mp3',
         ]);
 
         $section->metadata = ServiceSectionMetadata::fromArray([
             'publication' => ['approved_signature' => $section->classificationSignature()],
-            'childrens_talk_speaker' => null, // Unresolved
+            'talk_speaker' => null, // Unresolved
         ]);
         $section->save();
 
@@ -462,7 +462,7 @@ class SermonPublicationHandlerTest extends TestCase
             ->andReturn(['date' => now()->toDateString(), 'service' => SermonService::Morning]);
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage("Children's talk speaker must be reviewed");
+        $this->expectExceptionMessage("Short talk speaker must be reviewed");
 
         $this->handler->publish($section);
     }

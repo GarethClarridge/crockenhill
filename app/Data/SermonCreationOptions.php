@@ -222,8 +222,8 @@ final readonly class SermonCreationOptions
         string $date,
         SermonService $service
     ): self {
-        $speaker = $section->publicationChildrensTalkSpeaker();
-        $contentType = $section->section_type === ServiceSectionType::ChildrensTalk
+        $speaker = $section->publicationTalkSpeaker();
+        $contentType = $section->section_type === ServiceSectionType::ShortTalk
             ? TalkType::ChildrensTalk
             : TalkType::Sermon;
 

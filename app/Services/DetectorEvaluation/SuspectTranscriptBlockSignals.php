@@ -46,7 +46,7 @@ class SuspectTranscriptBlockSignals
     public function for(MediaProcessingLog $run): ?array
     {
         return $this->signals($run, array_values($run->serviceSections()
-            ->whereIn('section_type', [ServiceSectionType::Sermon, ServiceSectionType::ChildrensTalk])
+            ->whereIn('section_type', [ServiceSectionType::Sermon, ServiceSectionType::ShortTalk])
             ->get()->all()));
     }
 

@@ -17,7 +17,7 @@ class ServiceSectionTypeTest extends TestCase
         $this->assertSame('Prayer', ServiceSectionType::Prayer->label());
         $this->assertSame('Notices', ServiceSectionType::Notices->label());
         $this->assertSame('Song', ServiceSectionType::Song->label());
-        $this->assertSame("Children's Talk", ServiceSectionType::ChildrensTalk->label());
+        $this->assertSame('Short talk', ServiceSectionType::ShortTalk->label());
         $this->assertSame('Bible Reading', ServiceSectionType::BibleReading->label());
         $this->assertSame('Sermon', ServiceSectionType::Sermon->label());
         $this->assertSame('Other', ServiceSectionType::Other->label());
@@ -30,8 +30,8 @@ class ServiceSectionTypeTest extends TestCase
         $this->assertSame(ServiceSectionType::Prayer, ServiceSectionType::inferFromTitle('Opening Prayer'));
         $this->assertSame(ServiceSectionType::Notices, ServiceSectionType::inferFromTitle('Weekly Notices'));
         $this->assertSame(ServiceSectionType::Notices, ServiceSectionType::inferFromTitle('Announcements'));
-        $this->assertSame(ServiceSectionType::ChildrensTalk, ServiceSectionType::inferFromTitle("Children's Corner"));
-        $this->assertSame(ServiceSectionType::ChildrensTalk, ServiceSectionType::inferFromTitle('Family Talk - "Joel"'));
+        $this->assertSame(ServiceSectionType::ShortTalk, ServiceSectionType::inferFromTitle("Children's Corner"));
+        $this->assertSame(ServiceSectionType::ShortTalk, ServiceSectionType::inferFromTitle('Family Talk - "Joel"'));
         $this->assertSame(ServiceSectionType::BibleReading, ServiceSectionType::inferFromTitle('Bible Reading'));
         $this->assertSame(ServiceSectionType::Sermon, ServiceSectionType::inferFromTitle('Morning Sermon'));
         $this->assertSame(ServiceSectionType::Sermon, ServiceSectionType::inferFromTitle('Today\'s Message'));

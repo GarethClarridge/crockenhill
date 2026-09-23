@@ -116,7 +116,7 @@ trait ReviewsServiceSections
             'title' => (string) ($section->title ?? ''),
             'end_time' => (string) $section->end_time,
         ];
-        $publicationSpeaker = $section->publicationChildrensTalkSpeaker();
+        $publicationSpeaker = $section->publicationTalkSpeaker();
         $this->speakerEdits[$section->id] = [
             'preacher_id' => is_array($publicationSpeaker) && is_numeric($publicationSpeaker['preacher_id'] ?? null)
                 ? (string) $publicationSpeaker['preacher_id']
@@ -364,7 +364,7 @@ trait ReviewsServiceSections
             }
 
             if (! array_key_exists($section->id, $this->speakerEdits)) {
-                $speaker = $section->publicationChildrensTalkSpeaker();
+                $speaker = $section->publicationTalkSpeaker();
                 $this->speakerEdits[$section->id] = [
                     'preacher_id' => is_array($speaker) && is_numeric($speaker['preacher_id'] ?? null)
                         ? (string) $speaker['preacher_id']

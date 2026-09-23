@@ -7,7 +7,7 @@ namespace Tests\Integration\Services;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
-use App\Services\ChurchService\SectionPublication\SermonPublicationHandler;
+use App\Services\ChurchService\SectionPublication\TalkPublicationHandler;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
@@ -31,11 +31,11 @@ class ServiceSectionPublicationTransitionServiceTest extends TestCase
     public function it_identifies_publishable_section_types_from_handler_registry(): void
     {
         config(['media-processing.section_publishing.handlers' => [
-            'childrens_talk' => SermonPublicationHandler::class,
+            'short_talk' => TalkPublicationHandler::class,
         ]]);
 
         $publishable = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
         ]);
         $nonPublishable = ServiceSection::factory()->create([
             'section_type' => ServiceSectionType::Welcome->value,

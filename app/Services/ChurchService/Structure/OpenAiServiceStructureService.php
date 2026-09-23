@@ -9,6 +9,8 @@ use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Enums\ServiceOccasion;
+use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 use App\Support\OpenAiChatPayload;
 use App\Support\OpenAiFlexFallback;
 use App\Support\OpenAiUsageLogger;
@@ -23,7 +25,7 @@ use TypeError;
  * anchoring, reading references and sung-song titles come out.
  *
  * This owns the understanding-what-was-said judgement (including
- * sermon-vs-children's-talk); time, media and safety stay deterministic in the
+ * sermon-vs-short-talk, and a proposed talk type for each short talk); time, media and safety stay deterministic in the
  * Phase 3 gate, which every returned structure must pass before persistence.
  */
 class OpenAiServiceStructureService implements ServiceStructureInterface
@@ -38,13 +40,18 @@ Rules:
 - A whole Bible reading is ONE section and a whole song is ONE section, even when pauses, verse
   breaks or spoken interjections occur inside them.
 - Do not create sections shorter than 15 seconds unless the order of service demands a discrete item.
-- Label a section childrens_talk ONLY with structural cues that it is genuinely aimed at children:
-  the children are addressed or called forward, are dismissed to their groups afterwards, or the
-  speaker addresses parents about the children. Interactive question-and-answer alone is not enough.
-  When those cues ARE present — an object lesson, a catechism question taught simply, everyday
-  illustrations pitched at children, or an order-of-service presentation whose title suggests a
-  children's slot — do NOT label it prayer or other merely because the speaker also prays or the
-  talk is informal; the whole talk is ONE childrens_talk section.
+- Label a section short_talk when it is a substantial spoken item that is not the sermon —
+  typically with a projected item behind it: teaching for children, a catechism question, a
+  hero-of-faith or Bible-character presentation, a mission or partner presentation, a testimony
+  or interview. A whole talk is ONE short_talk section even when the speaker prays or asks
+  questions inside it. Do not use it for an ordinance (baptism, communion), a tribute, notices,
+  or pre-service audio.
+- talk_type: only for type=short_talk — your proposal of what kind of talk it is; null otherwise.
+  Propose childrens_talk ONLY with structural cues that it is aimed at children: the children are
+  addressed or called forward, are dismissed to their groups afterwards, or the speaker addresses
+  parents about the children (interactive question-and-answer alone is not enough). Propose
+  partner_update when a named mission, society or partner presents its work; testimony when a
+  person recounts their own story or is interviewed. Use null when none of these is clear.
 - A service has exactly ONE primary sermon unless one is genuinely absent. When you cannot tell
   which block is the sermon, choose the best candidate and report LOW confidence rather than guess
   a second sermon into existence.
@@ -276,21 +283,20 @@ TEXT;
                                     'song_title',
                                     'reading_reference',
                                     'sermon_reference',
+                                    'talk_type',
                                     'notes',
                                     'summary',
                                 ],
                                 'properties' => [
                                     'type' => [
                                         'type' => 'string',
+                                        'enum' => ServiceSectionType::values(),
+                                    ],
+                                    'talk_type' => [
+                                        'type' => ['string', 'null'],
                                         'enum' => [
-                                            'welcome',
-                                            'prayer',
-                                            'notices',
-                                            'song',
-                                            'childrens_talk',
-                                            'bible_reading',
-                                            'sermon',
-                                            'other',
+                                            ...array_map(static fn (TalkType $type): string => $type->value, TalkType::nonSermon()),
+                                            null,
                                         ],
                                     ],
                                     'title' => ['type' => ['string', 'null']],

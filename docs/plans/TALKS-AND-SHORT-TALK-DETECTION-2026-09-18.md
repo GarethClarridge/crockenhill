@@ -330,6 +330,18 @@ is sermon preachers only; the breadcrumb reads "Talks"; `/christ/childrens-corne
 for a sermon slug, as it did. `PROD-ACTIONS-PENDING` §6 (podcast directories) and §7 (nav
 heading image check).
 
+**PR3 code landed 2026-09-23; its measurement has not been run.** Local data after the
+migrations: 202 sections and 300 items `short_talk`, 202 `childrens_talk` proposals, 187
+`talk_speaker` keys moved, 445 item assertions retyped. Decisions made in the code: banked
+detector output and cached OoS parses are evidence and are not rewritten, so
+`ServiceSectionType::tryFromStored()` reads a stored `childrens_talk` as `short_talk` (the one
+read alias; section metadata keys were migrated with no dual-read, as planned); snapshots of
+earlier rows (`previous_section`, `derived_from_section_type`) keep the old value; the
+`TalkPublicationHandler` rename and the `short_talk` handler key moved here from PR4, because
+publication breaks the moment the section type changes; `church_service_item_assertions`
+(varchar) was retyped with the columns. The measurement is blocked on one question: this plan
+never says which runs "the nine blind runs" are.
+
 PR2 and PR3 are independent of each other and can proceed in parallel after PR1. Nothing here
 is a calendar gate (`feedback_no_calendar_time_gates`).
 

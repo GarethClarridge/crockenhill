@@ -66,7 +66,7 @@ class HoldSectionForContentReview
      */
     public const HOLDABLE_TYPES = [
         ServiceSectionType::Sermon,
-        ServiceSectionType::ChildrensTalk,
+        ServiceSectionType::ShortTalk,
         ServiceSectionType::Song,
     ];
 
@@ -165,7 +165,6 @@ class HoldSectionForContentReview
             'is_string',
         ));
     }
-
 
     /**
      * Raise the hold, returning whether the section changed.

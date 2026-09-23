@@ -72,8 +72,8 @@ class StableJsonMetadataWrappersTest extends TestCase
             'classification_mode' => 'openlp_aligned',
             'confidence_source' => 'ai_transcript',
             'confidence_score' => 0.72,
-            'review_reason' => 'childrens_talk_speaker_ambiguous',
-            'review_flags' => ['childrens_talk_speaker_review'],
+            'review_reason' => 'talk_speaker_ambiguous',
+            'review_flags' => ['talk_speaker_review'],
             'transcript' => 'Segment transcript',
             'song_id' => 12,
             'reading_reference' => 'Psalm 23',
@@ -85,7 +85,7 @@ class StableJsonMetadataWrappersTest extends TestCase
                     'resolved_type' => 'presentation',
                 ],
             ],
-            'childrens_talk_speaker' => [
+            'talk_speaker' => [
                 'predicted' => [
                     'outcome' => 'ambiguous',
                 ],
@@ -109,7 +109,7 @@ class StableJsonMetadataWrappersTest extends TestCase
         ];
 
         $section = ServiceSection::factory()->create([
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'metadata' => $payload,
         ]);
 
@@ -119,8 +119,8 @@ class StableJsonMetadataWrappersTest extends TestCase
 
         $this->assertSame('medium', $metadata?->confidenceLevel);
         $this->assertSame('inferred', $metadata->oosAlignment?->raw['song_match_type'] ?? null);
-        $this->assertSame('Mary Helper', $metadata->childrensTalkSpeaker?->reviewed['preacher_name'] ?? null);
-        $this->assertSame('Mary Helper', $section->publicationChildrensTalkSpeaker()['preacher_name'] ?? null);
+        $this->assertSame('Mary Helper', $metadata->talkSpeaker?->reviewed['preacher_name'] ?? null);
+        $this->assertSame('Mary Helper', $section->publicationTalkSpeaker()['preacher_name'] ?? null);
         $serialized = $metadata?->toArray();
 
         $this->assertArrayNotHasKey('song_match_type', $serialized['oos_alignment'] ?? []);

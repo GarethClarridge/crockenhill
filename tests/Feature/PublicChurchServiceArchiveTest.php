@@ -94,7 +94,7 @@ class PublicChurchServiceArchiveTest extends TestCase
         $this->assertSame(
             0,
             ServiceSection::query()
-                ->whereIn('section_type', [ServiceSectionType::Sermon, ServiceSectionType::ChildrensTalk])
+                ->whereIn('section_type', [ServiceSectionType::Sermon, ServiceSectionType::ShortTalk])
                 ->where(fn ($query) => $query
                     ->whereNotNull('published_sermon_id')
                     ->orWhere('publication_status', ServiceSectionPublicationStatus::Published))
@@ -533,7 +533,7 @@ class PublicChurchServiceArchiveTest extends TestCase
         ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::ChildrensTalk,
+            'section_type' => ServiceSectionType::ShortTalk,
             'section_order' => 2,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable,
             'published_sermon_id' => null,

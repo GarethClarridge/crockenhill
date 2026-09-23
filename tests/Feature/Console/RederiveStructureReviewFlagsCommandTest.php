@@ -88,7 +88,7 @@ class RederiveStructureReviewFlagsCommandTest extends TestCase
         [, $section] = $this->runWithMarkerMismatch(
             'Only A Holy God',
             'Opening worship',
-            extraFlags: ['childrens_talk_speaker_review'],
+            extraFlags: ['talk_speaker_review'],
         );
 
         $this->artisan('services:rederive-structure-review-flags', ['--execute' => true])
@@ -96,7 +96,7 @@ class RederiveStructureReviewFlagsCommandTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(['childrens_talk_speaker_review'], $section->metadata?->reviewFlags);
+        $this->assertSame(['talk_speaker_review'], $section->metadata?->reviewFlags);
         $this->assertTrue($section->needs_manual_review);
     }
 
@@ -209,7 +209,7 @@ class RederiveStructureReviewFlagsCommandTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
             'church_service_item_id' => null,
-            'section_type' => ServiceSectionType::ChildrensTalk,
+            'section_type' => ServiceSectionType::ShortTalk,
             'section_order' => 1,
             'needs_manual_review' => true,
             'metadata' => ['review_flags' => ['heuristic_demotion', 'oos_structure_mismatch']],

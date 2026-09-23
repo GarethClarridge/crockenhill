@@ -582,7 +582,7 @@ class ChurchServiceItemSyncService
         $existingSectionType = $existingItem->semanticSectionType();
         $incomingSectionType = ServiceSectionType::from($incomingItem['section_type']);
 
-        if (! in_array(ServiceSectionType::ChildrensTalk, [$existingSectionType, $incomingSectionType], true)) {
+        if (! in_array(ServiceSectionType::ShortTalk, [$existingSectionType, $incomingSectionType], true)) {
             return false;
         }
 
@@ -1116,7 +1116,7 @@ class ChurchServiceItemSyncService
         $incomingSectionType = $item['section_type'] ?? null;
 
         if (is_string($incomingSectionType)) {
-            $resolved = ServiceSectionType::tryFrom($incomingSectionType);
+            $resolved = ServiceSectionType::tryFromStored($incomingSectionType);
 
             if ($resolved instanceof ServiceSectionType) {
                 return $resolved;
@@ -1126,7 +1126,7 @@ class ChurchServiceItemSyncService
         $metadataType = $metadata['section_type'] ?? $metadata['email_type'] ?? null;
 
         if (is_string($metadataType)) {
-            $resolved = ServiceSectionType::tryFrom($metadataType);
+            $resolved = ServiceSectionType::tryFromStored($metadataType);
 
             if ($resolved instanceof ServiceSectionType) {
                 return $resolved;

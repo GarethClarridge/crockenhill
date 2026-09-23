@@ -15,7 +15,7 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
-use App\Services\ChurchService\SectionPublication\SermonPublicationHandler;
+use App\Services\ChurchService\SectionPublication\TalkPublicationHandler;
 use App\Services\Sermon\SermonCreationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -36,7 +36,7 @@ class PublishApprovedServiceSectionTest extends TestCase
             'media-processing.storage.sermon_disk' => 'public',
             'media-processing.section_publishing.enabled' => true,
             'media-processing.section_publishing.handlers' => [
-                'welcome' => SermonPublicationHandler::class,
+                'welcome' => TalkPublicationHandler::class,
             ],
         ]);
 
@@ -103,7 +103,7 @@ class PublishApprovedServiceSectionTest extends TestCase
             'media-processing.storage.sermon_disk' => 'public',
             'media-processing.section_publishing.enabled' => true,
             'media-processing.section_publishing.handlers' => [
-                'welcome' => SermonPublicationHandler::class,
+                'welcome' => TalkPublicationHandler::class,
             ],
         ]);
 
@@ -146,7 +146,7 @@ class PublishApprovedServiceSectionTest extends TestCase
             'media-processing.storage.sermon_disk' => 'public',
             'media-processing.section_publishing.enabled' => true,
             'media-processing.section_publishing.handlers' => [
-                'welcome' => SermonPublicationHandler::class,
+                'welcome' => TalkPublicationHandler::class,
             ],
         ]);
 
@@ -194,7 +194,7 @@ class PublishApprovedServiceSectionTest extends TestCase
         config([
             'media-processing.section_publishing.enabled' => true,
             'media-processing.section_publishing.handlers' => [
-                'childrens_talk' => SermonPublicationHandler::class,
+                'short_talk' => TalkPublicationHandler::class,
             ],
         ]);
 
@@ -230,7 +230,7 @@ class PublishApprovedServiceSectionTest extends TestCase
             'media-processing.storage.sermon_disk' => 'public',
             'media-processing.section_publishing.enabled' => true,
             'media-processing.section_publishing.handlers' => [
-                'childrens_talk' => SermonPublicationHandler::class,
+                'short_talk' => TalkPublicationHandler::class,
             ],
         ]);
 
@@ -243,7 +243,7 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::ChildrensTalk,
+            'section_type' => ServiceSectionType::ShortTalk,
             'publication_status' => ServiceSectionPublicationStatus::Approved->value,
             'extracted_video_path' => 'sermons/sections/13/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-13.mp3',
@@ -252,7 +252,7 @@ class PublishApprovedServiceSectionTest extends TestCase
             'duration' => 480.0,
             'title' => "Children's Talk",
             'metadata' => [
-                'childrens_talk_speaker' => [
+                'talk_speaker' => [
                     'reviewed' => [
                         'preacher_id' => $preacher->id,
                         'preacher_name' => $preacher->name,
@@ -288,7 +288,7 @@ class PublishApprovedServiceSectionTest extends TestCase
     }
 
     #[Test]
-    public function it_requires_a_confirmed_childrens_talk_speaker_before_publishing(): void
+    public function it_requires_a_confirmed_talk_speaker_before_publishing(): void
     {
         Storage::fake('public');
 
@@ -296,7 +296,7 @@ class PublishApprovedServiceSectionTest extends TestCase
             'media-processing.storage.sermon_disk' => 'public',
             'media-processing.section_publishing.enabled' => true,
             'media-processing.section_publishing.handlers' => [
-                'childrens_talk' => SermonPublicationHandler::class,
+                'short_talk' => TalkPublicationHandler::class,
             ],
         ]);
 
@@ -308,12 +308,12 @@ class PublishApprovedServiceSectionTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::ChildrensTalk,
+            'section_type' => ServiceSectionType::ShortTalk,
             'publication_status' => ServiceSectionPublicationStatus::Approved->value,
             'extracted_video_path' => 'sermons/sections/14/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-14.mp3',
             'metadata' => [
-                'childrens_talk_speaker' => [
+                'talk_speaker' => [
                     'predicted' => [
                         'outcome' => 'ambiguous',
                         'preacher_name' => 'Detected Speaker',
@@ -336,7 +336,7 @@ class PublishApprovedServiceSectionTest extends TestCase
         $job = new PublishApprovedServiceSection($section->id);
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage("Children's talk speaker must be reviewed before publication");
+        $this->expectExceptionMessage('Short talk speaker must be reviewed before publication');
 
         $job->handle(
             app(SectionPublicationHandlerFactory::class),

@@ -44,7 +44,7 @@ class FlagSermonTextPredatesEvidence
     /**
      * @var list<ServiceSectionType>
      */
-    private const HELD_TYPES = [ServiceSectionType::Sermon, ServiceSectionType::ChildrensTalk];
+    private const HELD_TYPES = [ServiceSectionType::Sermon, ServiceSectionType::ShortTalk];
 
     /**
      * @return array{raised: int, withdrawn: int}

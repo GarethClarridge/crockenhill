@@ -178,7 +178,7 @@ class HistoricProcessingResultReadinessService
         }
 
         if (
-            in_array($section->section_type, [ServiceSectionType::Sermon, ServiceSectionType::ChildrensTalk], true)
+            in_array($section->section_type, [ServiceSectionType::Sermon, ServiceSectionType::ShortTalk], true)
             && $section->publication_status === ServiceSectionPublicationStatus::Published
             && $section->published_sermon_id === null
         ) {

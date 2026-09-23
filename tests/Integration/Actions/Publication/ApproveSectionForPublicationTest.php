@@ -96,11 +96,11 @@ class ApproveSectionForPublicationTest extends TestCase
     public function it_returns_error_when_childrens_talk_has_no_resolved_speaker(): void
     {
         $section = $this->makePendingSection([
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'extracted_video_path' => 'sermons/sections/3/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-3.mp3',
             'metadata' => [
-                'childrens_talk_speaker' => [
+                'talk_speaker' => [
                     'predicted' => ['outcome' => 'ambiguous', 'preacher_name' => 'Someone', 'confidence' => 0.5],
                 ],
             ],
@@ -111,7 +111,7 @@ class ApproveSectionForPublicationTest extends TestCase
 
         $result = $this->action->execute($section);
 
-        $this->assertSame("Choose a speaker for this children's talk before approving publication.", $result);
+        $this->assertSame('Choose a speaker for this short talk before approving publication.', $result);
     }
 
     // -------------------------------------------------------------------------

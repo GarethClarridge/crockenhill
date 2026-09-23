@@ -346,9 +346,9 @@ class ServiceReviewDashboardQuery
         }
 
         if (
-            $section->section_type === ServiceSectionType::ChildrensTalk
-            && $section->publicationChildrensTalkSpeaker() === null
-            && $section->predictedChildrensTalkSpeaker() !== null
+            $section->section_type === ServiceSectionType::ShortTalk
+            && $section->publicationTalkSpeaker() === null
+            && $section->predictedTalkSpeaker() !== null
             && $this->hasActiveSpeakerProfiles()
         ) {
             $reasons[] = [
@@ -665,9 +665,9 @@ class ServiceReviewDashboardQuery
                     })
                     ->when($this->hasActiveSpeakerProfiles(), function (Builder $query): void {
                         $query->orWhere(function (Builder $query): void {
-                            $query->where('section_type', ServiceSectionType::ChildrensTalk->value)
-                                ->whereNotNull('metadata->childrens_talk_speaker->predicted')
-                                ->whereNull('metadata->childrens_talk_speaker->reviewed');
+                            $query->where('section_type', ServiceSectionType::ShortTalk->value)
+                                ->whereNotNull('metadata->talk_speaker->predicted')
+                                ->whereNull('metadata->talk_speaker->reviewed');
                         });
                     })
                     ->orWhere(function (Builder $query): void {

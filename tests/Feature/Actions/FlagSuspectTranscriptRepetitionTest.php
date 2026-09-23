@@ -113,7 +113,7 @@ class FlagSuspectTranscriptRepetitionTest extends TestCase
 
         $talk = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::ChildrensTalk,
+            'section_type' => ServiceSectionType::ShortTalk,
             'start_time' => 367.0,
             'end_time' => 762.99,
             'needs_manual_review' => false,
@@ -138,7 +138,7 @@ class FlagSuspectTranscriptRepetitionTest extends TestCase
 
         $talk = ServiceSection::factory()->create([
             'media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::ChildrensTalk,
+            'section_type' => ServiceSectionType::ShortTalk,
             'start_time' => 2000.0,
             'end_time' => 2400.0,
             'needs_manual_review' => true,

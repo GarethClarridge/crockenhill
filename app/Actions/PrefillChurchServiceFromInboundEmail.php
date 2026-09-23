@@ -269,7 +269,7 @@ class PrefillChurchServiceFromInboundEmail
         $sectionType = $item['section_type'] ?? null;
 
         if (is_string($sectionType)) {
-            $resolved = ServiceSectionType::tryFrom($sectionType);
+            $resolved = ServiceSectionType::tryFromStored($sectionType);
 
             if ($resolved instanceof ServiceSectionType) {
                 return $resolved;
@@ -280,7 +280,7 @@ class PrefillChurchServiceFromInboundEmail
         $metadataType = $metadata['section_type'] ?? $metadata['email_type'] ?? null;
 
         if (is_string($metadataType)) {
-            $resolved = ServiceSectionType::tryFrom($metadataType);
+            $resolved = ServiceSectionType::tryFromStored($metadataType);
 
             if ($resolved instanceof ServiceSectionType) {
                 return $resolved;

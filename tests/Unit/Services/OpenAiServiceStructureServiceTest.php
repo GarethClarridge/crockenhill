@@ -8,6 +8,7 @@ use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructureSection;
 use App\Enums\ServiceOccasion;
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 use App\Services\ChurchService\Structure\OpenAiServiceStructureService;
 use App\Services\ChurchService\Structure\ServiceStructureEvaluationTelemetry;
 use Illuminate\Support\Facades\Config;
@@ -318,9 +319,11 @@ class OpenAiServiceStructureServiceTest extends TestCase
         $this->assertStringContainsString('shorter than 15 seconds', $prompt['system']);
         $this->assertStringContainsString('exactly ONE primary sermon', $prompt['system']);
         $this->assertStringContainsString('ONE section', $prompt['system']);
-        $this->assertStringContainsString('childrens_talk ONLY with structural cues', $prompt['system']);
-        $this->assertStringContainsString('object lesson, a catechism question', $prompt['system']);
-        $this->assertStringContainsString('do NOT label it prayer or other merely because', $prompt['system']);
+        $this->assertStringContainsString('Label a section short_talk when it is a substantial spoken item that is not the sermon', $prompt['system']);
+        $this->assertStringContainsString('ONE short_talk section even when the speaker prays', $prompt['system']);
+        $this->assertStringContainsString('Do not use it for an ordinance', $prompt['system']);
+        $this->assertStringContainsString('Propose childrens_talk ONLY with structural cues', $prompt['system']);
+        $this->assertStringContainsString('partner_update when a named mission, society or partner presents its work', $prompt['system']);
         $this->assertStringContainsString('that prayer belongs INSIDE the sermon section', $prompt['system']);
         $this->assertStringContainsString('sermon_reference', $prompt['system']);
         $this->assertStringContainsString('summary: a faithful one-sentence summary', $prompt['system']);
@@ -393,6 +396,53 @@ class OpenAiServiceStructureServiceTest extends TestCase
                 && $schema['properties']['sermon_absence']['required'] === ['occasion', 'explanation']
                 && in_array(null, $schema['properties']['sermon_absence']['properties']['occasion']['enum'], true)
                 && in_array('carol_service', $schema['properties']['sermon_absence']['properties']['occasion']['enum'], true);
+        });
+    }
+
+    #[Test]
+    public function the_schema_asks_for_a_nullable_non_sermon_talk_type_on_every_section(): void
+    {
+        OpenAI::fake([
+            CreateResponse::fake([
+                'choices' => [[
+                    'message' => [
+                        'content' => json_encode([
+                            'sections' => [[
+                                'type' => 'short_talk',
+                                'title' => 'Mission update',
+                                'start_time' => 474.0,
+                                'end_time' => 900.0,
+                                'confidence' => 0.9,
+                                'oos_item_id' => null,
+                                'song_title' => null,
+                                'reading_reference' => null,
+                                'sermon_reference' => null,
+                                'talk_type' => 'partner_update',
+                                'summary' => null,
+                                'notes' => [],
+                            ]],
+                            'summary' => null,
+                            'notices' => [],
+                            'chapter_markers' => [],
+                            'notes' => [],
+                            'sermon_absence' => null,
+                        ]),
+                    ],
+                ]],
+            ]),
+        ]);
+
+        $structure = $this->service->detect($this->transcript(), $this->oosItems(), 'proc-talk-type');
+
+        $this->assertSame(TalkType::PartnerUpdate, $structure->sections[0]->talkType);
+
+        OpenAI::assertSent(Chat::class, function (string $method, array $parameters): bool {
+            $section = $parameters['response_format']['json_schema']['schema']['properties']['sections']['items'];
+
+            return in_array('talk_type', $section['required'], true)
+                && $section['properties']['talk_type']['enum'] === ['childrens_talk', 'partner_update', 'testimony', null]
+                && in_array('short_talk', $section['properties']['type']['enum'], true)
+                && ! in_array('childrens_talk', $section['properties']['type']['enum'], true);
         });
     }
 

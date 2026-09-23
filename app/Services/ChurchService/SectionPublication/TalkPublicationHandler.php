@@ -12,7 +12,7 @@ use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ExtractedSectionMediaChecker;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
-use App\Services\Preacher\ChildrensTalkSpeakerService;
+use App\Services\Preacher\TalkSpeakerService;
 use App\Services\Processing\MediaProcessingIdentityResolver;
 use App\Services\Sermon\SermonCreationService;
 use App\Support\ServiceSectionConfidence;
@@ -28,25 +28,25 @@ use Illuminate\Support\Facades\Storage;
  * is resolved from the processing identity, and a canonical Sermon record is
  * created or enriched via the SermonCreationService.
  */
-class SermonPublicationHandler implements SectionPublicationHandler
+class TalkPublicationHandler implements SectionPublicationHandler
 {
     use SanitizesLogData;
 
     /**
-     * @param  ChildrensTalkSpeakerService  $childrensTalkSpeakerService  Service for detecting speakers in children's talks
+     * @param  TalkSpeakerService  $talkSpeakerService  Service for detecting speakers in short talks
      * @param  SermonCreationService  $sermonCreationService  Service for richness-aware sermon upserts
      * @param  MediaProcessingIdentityResolver  $identityResolver  Service for resolving date/service from processing logs
      * @param  ServiceSectionPublicationTransitionService  $publicationTransitions  Service for managing section state transitions
      * @param  ExtractedSectionMediaChecker  $mediaChecker  Service for verifying existence of extracted assets
-     * @param  ChildrensTalkBoundaryEvidenceService  $childrensTalkBoundaryEvidence  Service for recording inclusive candidate tail evidence
+     * @param  ShortTalkBoundaryEvidenceService  $shortTalkBoundaryEvidence  Service for recording inclusive candidate tail evidence
      */
     public function __construct(
-        private readonly ChildrensTalkSpeakerService $childrensTalkSpeakerService,
+        private readonly TalkSpeakerService $talkSpeakerService,
         private readonly SermonCreationService $sermonCreationService,
         private readonly MediaProcessingIdentityResolver $identityResolver,
         private readonly ServiceSectionPublicationTransitionService $publicationTransitions,
         private readonly ExtractedSectionMediaChecker $mediaChecker,
-        private readonly ChildrensTalkBoundaryEvidenceService $childrensTalkBoundaryEvidence,
+        private readonly ShortTalkBoundaryEvidenceService $shortTalkBoundaryEvidence,
     ) {}
 
     /**
@@ -87,14 +87,14 @@ class SermonPublicationHandler implements SectionPublicationHandler
      */
     public function afterExtraction(ServiceSection $section): void
     {
-        if ($section->section_type !== ServiceSectionType::ChildrensTalk) {
+        if ($section->section_type !== ServiceSectionType::ShortTalk) {
             return;
         }
 
-        $this->childrensTalkSpeakerService->detectAndStore($section);
+        $this->talkSpeakerService->detectAndStore($section);
 
         $metadata = $section->metadata?->toArray() ?? [];
-        $metadata[ChildrensTalkBoundaryEvidenceService::METADATA_KEY] = $this->childrensTalkBoundaryEvidence->assess($section);
+        $metadata[ShortTalkBoundaryEvidenceService::METADATA_KEY] = $this->shortTalkBoundaryEvidence->assess($section);
         $section->metadata = ServiceSectionMetadata::fromArray($metadata);
     }
 
@@ -158,8 +158,8 @@ class SermonPublicationHandler implements SectionPublicationHandler
             throw new \RuntimeException('Section classification changed since approval; re-approve before publishing');
         }
 
-        if (! $section->hasResolvedChildrensTalkSpeaker()) {
-            throw new \RuntimeException("Children's talk speaker must be reviewed before publication");
+        if (! $section->hasResolvedTalkSpeaker()) {
+            throw new \RuntimeException("Short talk speaker must be reviewed before publication");
         }
 
         $section->extracted_video_path = $this->promoteExtractedAsset(

@@ -20,7 +20,7 @@ use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Models\SpeakerProfile;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
-use App\Services\ChurchService\SectionPublication\SermonPublicationHandler;
+use App\Services\ChurchService\SectionPublication\TalkPublicationHandler;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
@@ -54,7 +54,7 @@ class ChildrensTalkPublicationWorkflowTest extends TestCase
             'media-processing.storage.temp_disk' => 'local',
             'media-processing.storage.sermon_disk' => 'public',
             'media-processing.section_publishing.enabled' => true,
-            'media-processing.section_publishing.handlers' => ['childrens_talk' => SermonPublicationHandler::class],
+            'media-processing.section_publishing.handlers' => ['short_talk' => TalkPublicationHandler::class],
             'media-processing.section_publishing.retain_unpublished_hours' => 48,
             'media-processing.speaker_identification.enabled' => true,
         ]);
@@ -87,7 +87,7 @@ class ChildrensTalkPublicationWorkflowTest extends TestCase
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
             'confidence' => 0.92,
@@ -110,7 +110,7 @@ class ChildrensTalkPublicationWorkflowTest extends TestCase
         $section->refresh();
         $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->publication_status);
         $this->assertFalse($section->needs_manual_review, 'A matched speaker should clear manual review.');
-        $this->assertTrue($section->hasResolvedChildrensTalkSpeaker());
+        $this->assertTrue($section->hasResolvedTalkSpeaker());
 
         // ── Step 2: approve for publication ──────────────────────────────────────────────
         $approvalError = app(ApproveSectionForPublication::class)->execute($section);

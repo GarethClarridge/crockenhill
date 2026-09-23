@@ -10,6 +10,7 @@ use App\Enums\ContentHoldCheck;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 use App\Exceptions\UnplacedContentHoldException;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
@@ -167,7 +168,7 @@ class ServiceSectionSyncServiceTest extends TestCase
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => $churchServiceItem->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'section_order' => 1,
             'title' => 'Children Talk',
             'start_time' => 120.0,
@@ -187,7 +188,7 @@ class ServiceSectionSyncServiceTest extends TestCase
             $this->sectionData(
                 churchServiceItemId: $churchServiceItem->id,
                 sectionOrder: 1,
-                sectionType: ServiceSectionType::ChildrensTalk->value,
+                sectionType: ServiceSectionType::ShortTalk->value,
                 title: 'Children Talk Updated',
                 startTime: 130.0,
                 endTime: 390.0,
@@ -238,7 +239,7 @@ class ServiceSectionSyncServiceTest extends TestCase
         $stalePublished = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
             'church_service_item_id' => $itemTwo->id,
-            'section_type' => ServiceSectionType::ChildrensTalk->value,
+            'section_type' => ServiceSectionType::ShortTalk->value,
             'section_order' => 2,
             'publication_status' => ServiceSectionPublicationStatus::Published->value,
             'published_sermon_id' => $publishedSermon->id,
@@ -325,6 +326,34 @@ class ServiceSectionSyncServiceTest extends TestCase
 
         $this->assertSame('Existing section transcript', $section->metadata['transcript'] ?? null);
         $this->assertSame('openlp_aligned', $section->metadata['classification_mode'] ?? null);
+    }
+
+    #[Test]
+    public function a_re_detection_refreshes_the_talk_type_proposal_but_keeps_the_reviewed_type(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $reviewed = ['value' => 'testimony', 'user_id' => 1, 'at' => '2026-09-23T20:00:00+00:00'];
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::ShortTalk->value,
+            'section_order' => 1,
+            'title' => 'Mission update',
+            'church_service_item_id' => null,
+            'start_time' => 60.0,
+            'end_time' => 180.0,
+            'duration' => 120.0,
+            'metadata' => ['talk_type' => ['proposed' => 'childrens_talk', 'reviewed' => $reviewed]],
+        ]);
+
+        $incoming = $this->sectionData(null, 1, ServiceSectionType::ShortTalk->value, 'Mission update');
+        $incoming['metadata']['talk_type'] = ['proposed' => 'partner_update'];
+        $this->service->sync($processingLog, [$incoming]);
+
+        $talkType = $section->refresh()->metadata?->talkType;
+
+        $this->assertSame(TalkType::PartnerUpdate, $talkType?->proposed);
+        $this->assertSame(TalkType::Testimony, $talkType?->publicationTalkType());
     }
 
     #[Test]

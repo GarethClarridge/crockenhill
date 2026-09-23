@@ -2,11 +2,11 @@
      video_url), $sectionTypeOptions, $preacherOptions, and $sectionPublishingEnabled. --}}
 @php
     $section = $panel['section'];
-    $publicationSpeaker = $section->publicationChildrensTalkSpeaker();
-    $predictedSpeaker = $section->predictedChildrensTalkSpeaker();
+    $publicationSpeaker = $section->publicationTalkSpeaker();
+    $predictedSpeaker = $section->predictedTalkSpeaker();
     $speakerOutcome = is_array($predictedSpeaker) ? ($predictedSpeaker['outcome'] ?? null) : null;
     $reviewReasons = is_array($panel['reasons'] ?? null) ? $panel['reasons'] : [];
-    $boundaryEvidence = $section->metadata?->toArray()['childrens_talk_boundary'] ?? null;
+    $boundaryEvidence = $section->metadata?->toArray()['short_talk_boundary'] ?? null;
     $boundaryTail = is_array($boundaryEvidence['tail'] ?? null) ? $boundaryEvidence['tail'] : [];
     $followingSections = is_array($boundaryEvidence['following_sections'] ?? null)
         ? $boundaryEvidence['following_sections']
@@ -106,7 +106,7 @@
         </div>
     </div>
 
-    @if($section->section_type === \App\Enums\ServiceSectionType::ChildrensTalk)
+    @if($section->section_type === \App\Enums\ServiceSectionType::ShortTalk)
         @if(is_array($boundaryEvidence))
             <div class="space-y-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-3 text-sm text-amber-900">
                 <div class="flex flex-wrap items-center justify-between gap-2">
@@ -187,6 +187,18 @@
                 </p>
             @endif
 
+            @php
+                $proposedTalkType = $section->metadata?->talkType?->proposed;
+                $oosKind = $section->churchServiceItem?->metadata['semantic_kind'] ?? null;
+            @endphp
+            <p class="mb-1" data-talk-type-proposal>
+                Detector proposed:
+                <span class="font-semibold text-gray-900">{{ $proposedTalkType?->label() ?? 'No talk type' }}</span>
+                @if(is_string($oosKind) && $oosKind !== '')
+                    <span class="text-gray-500">· OoS item: {{ \Illuminate\Support\Str::lower(\Illuminate\Support\Str::headline($oosKind)) }}</span>
+                @endif
+            </p>
+
             @if($predictedSpeaker)
                 <p @class(['mt-1' => $publicationSpeaker])>
                     Detected speaker:
@@ -204,7 +216,7 @@
                     <p class="mt-1 text-gray-500">{{ $predictedSpeaker['reason'] }}</p>
                 @endif
             @elseif(!$publicationSpeaker)
-                <p>No speaker has been confirmed for this children's talk yet.</p>
+                <p>No speaker has been confirmed for this talk yet.</p>
             @endif
         </div>
     @endif

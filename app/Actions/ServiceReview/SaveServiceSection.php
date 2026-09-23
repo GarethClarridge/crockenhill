@@ -11,7 +11,7 @@ use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ExtractedSectionMediaChecker;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
-use App\Services\Preacher\ChildrensTalkSpeakerService;
+use App\Services\Preacher\TalkSpeakerService;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -19,7 +19,7 @@ use Illuminate\Validation\ValidationException;
 class SaveServiceSection
 {
     public function __construct(
-        private readonly ChildrensTalkSpeakerService $speakerService,
+        private readonly TalkSpeakerService $speakerService,
         private readonly ConfirmServiceSection $confirmSection,
         private readonly ServiceSectionPublicationTransitionService $publicationTransitions,
         private readonly ExtractedSectionMediaChecker $mediaChecker,
@@ -85,14 +85,14 @@ class SaveServiceSection
         ): void {
             $targetType = ServiceSectionType::tryFrom($payload['section_type']);
 
-            if ($targetType === ServiceSectionType::ChildrensTalk) {
-                $existingSpeaker = $section->publicationChildrensTalkSpeaker();
+            if ($targetType === ServiceSectionType::ShortTalk) {
+                $existingSpeaker = $section->publicationTalkSpeaker();
                 $speakerName = trim($payload['speaker_name']);
                 $preacherId = $payload['preacher_id'];
                 $hasSpeakerInput = (is_numeric($preacherId) && (int) $preacherId > 0) || $speakerName !== '';
 
                 if ($existingSpeaker === null && ! $hasSpeakerInput) {
-                    $validator->errors()->add('speaker_name', "Choose a preacher or enter a fallback speaker name for this children's talk.");
+                    $validator->errors()->add('speaker_name', 'Choose a preacher or enter a fallback speaker name for this short talk.');
                 }
             }
 
@@ -113,13 +113,13 @@ class SaveServiceSection
                 return;
             }
 
-            if ($targetType !== ServiceSectionType::ChildrensTalk) {
+            if ($targetType !== ServiceSectionType::ShortTalk) {
                 $validator->errors()->add('end_time', "Only children's-talk candidates can be recut from this review panel.");
 
                 return;
             }
 
-            if ($originalSectionType !== ServiceSectionType::ChildrensTalk) {
+            if ($originalSectionType !== ServiceSectionType::ShortTalk) {
                 $validator->errors()->add('end_time', "The inclusive children's-talk candidate must be prepared before it can be recut.");
 
                 return;
@@ -137,8 +137,8 @@ class SaveServiceSection
         $validated = $validator->validate();
 
         $targetEndTime = (float) $validated['end_time'];
-        $boundaryChanged = $originalSectionType === ServiceSectionType::ChildrensTalk
-            && ServiceSectionType::from($validated['section_type']) === ServiceSectionType::ChildrensTalk
+        $boundaryChanged = $originalSectionType === ServiceSectionType::ShortTalk
+            && ServiceSectionType::from($validated['section_type']) === ServiceSectionType::ShortTalk
             && abs($targetEndTime - $originalEndTime) > 0.0005;
 
         $section->section_type = ServiceSectionType::from($validated['section_type']);
@@ -159,7 +159,7 @@ class SaveServiceSection
             $section->metadata = ServiceSectionMetadata::fromArray($metadata);
         }
 
-        if ($section->section_type === ServiceSectionType::ChildrensTalk) {
+        if ($section->section_type === ServiceSectionType::ShortTalk) {
             $this->speakerService->storeManualReview(
                 $section,
                 $this->normalizeSpeakerPreacherId($validated['preacher_id']),
@@ -167,7 +167,7 @@ class SaveServiceSection
                 $userId
             );
         } else {
-            unset($metadata['childrens_talk_speaker']);
+            unset($metadata['talk_speaker']);
             $section->metadata = ServiceSectionMetadata::fromArray($metadata);
         }
 
@@ -240,8 +240,8 @@ class SaveServiceSection
         float $newEndTime,
         int $userId,
     ): array {
-        $boundary = is_array($metadata['childrens_talk_boundary'] ?? null)
-            ? $metadata['childrens_talk_boundary']
+        $boundary = is_array($metadata['short_talk_boundary'] ?? null)
+            ? $metadata['short_talk_boundary']
             : [];
         $reviewedRecuts = is_array($boundary['reviewed_recuts'] ?? null)
             ? $boundary['reviewed_recuts']
@@ -260,7 +260,7 @@ class SaveServiceSection
             'decided_by_user_id' => $userId,
         ];
         $boundary['reviewed_recuts'] = array_values($reviewedRecuts);
-        $metadata['childrens_talk_boundary'] = $boundary;
+        $metadata['short_talk_boundary'] = $boundary;
 
         return $metadata;
     }

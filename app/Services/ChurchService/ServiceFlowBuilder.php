@@ -175,7 +175,7 @@ final class ServiceFlowBuilder
         return match ($type) {
             ServiceSectionType::Song => '♫',
             ServiceSectionType::Sermon => '🎤',
-            ServiceSectionType::ChildrensTalk => '📖',
+            ServiceSectionType::ShortTalk => '📖',
             ServiceSectionType::BibleReading => '📕',
             default => '',
         };

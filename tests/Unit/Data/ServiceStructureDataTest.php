@@ -8,6 +8,7 @@ use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Enums\ServiceOccasion;
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -286,5 +287,46 @@ class ServiceStructureDataTest extends TestCase
             'summary' => null,
             'notes' => [],
         ];
+    }
+
+    #[Test]
+    public function a_short_talk_carries_its_proposed_talk_type(): void
+    {
+        $section = ServiceStructureSection::fromArray([
+            'type' => 'short_talk', 'start_time' => 10, 'end_time' => 200, 'talk_type' => 'testimony',
+        ]);
+
+        $this->assertSame(ServiceSectionType::ShortTalk, $section?->type);
+        $this->assertSame(TalkType::Testimony, $section?->talkType);
+        $this->assertSame('testimony', $section?->toArray()['talk_type']);
+        $this->assertSame(TalkType::Testimony, $section?->withTimes(12, 198)->talkType);
+    }
+
+    #[Test]
+    public function a_talk_type_is_ignored_off_a_short_talk_and_never_proposes_a_sermon(): void
+    {
+        $prayer = ServiceStructureSection::fromArray([
+            'type' => 'prayer', 'start_time' => 10, 'end_time' => 200, 'talk_type' => 'testimony',
+        ]);
+        $sermonProposal = ServiceStructureSection::fromArray([
+            'type' => 'short_talk', 'start_time' => 10, 'end_time' => 200, 'talk_type' => 'sermon',
+        ]);
+
+        $this->assertNull($prayer?->talkType);
+        $this->assertNull($sermonProposal?->talkType);
+    }
+
+    /**
+     * Detector output banked before 2026-09-23 names the short talk `childrens_talk`.
+     */
+    #[Test]
+    public function a_banked_childrens_talk_section_reads_as_a_short_talk(): void
+    {
+        $section = ServiceStructureSection::fromArray([
+            'type' => 'childrens_talk', 'start_time' => 10, 'end_time' => 200,
+        ]);
+
+        $this->assertSame(ServiceSectionType::ShortTalk, $section?->type);
+        $this->assertSame([], $section?->reviewFlags);
     }
 }

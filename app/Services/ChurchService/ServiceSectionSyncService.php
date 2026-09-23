@@ -366,8 +366,17 @@ class ServiceSectionSyncService
     private function mergeExistingMetadata(ServiceSection $existing, array $incomingMetadata): array
     {
         $existingMetadata = $existing->metadata?->toArray() ?? [];
+        $merged = array_merge($existingMetadata, $incomingMetadata);
 
-        return array_merge($existingMetadata, $incomingMetadata);
+        // A re-detection refreshes the proposal but must not discard the type an
+        // operator confirmed while the section is still a short talk.
+        $reviewedType = $existingMetadata['talk_type']['reviewed'] ?? null;
+
+        if (is_array($merged['talk_type'] ?? null) && is_array($reviewedType)) {
+            $merged['talk_type']['reviewed'] = $reviewedType;
+        }
+
+        return $merged;
     }
 
     /**
