@@ -4281,6 +4281,28 @@ an adapter.
       source-adoption question, not a restage.
     - Net: up to **106** more decodable runs (about 91 original), which nearly doubles
       the `original` stratum. The restage itself waits until the decode finishes.
+  - **Corpus decode complete 2026-09-23: 338/338 decoded, 0 unassessable.** The first
+    comparison refused 69 runs whose durations differed. 30 were under 0.5 s (float and
+    rounding), and 39 ran 0.5–29.8 s, **every one with the stored side longer**, because
+    the stored decode stamped its last cue out to the padded final 30 s window (1007:
+    last cue 4811.98 s against 4785.73 s of audio). That is an assessability rule, not
+    the decision rule, and it was fixed test-first: the pair is compared over the shared
+    span using the transcript's own final-window clipping, the overrun is recorded, and
+    pairs 30 s or more apart stay unassessable. Re-compared: **338/338 assessable, 64
+    overruns recorded** (`comparison-v2.json`).
+  - **Decision rule applied unchanged** (`h10b-apply-rule-20260923.py`, seed 20260923):
+    - Tripwire: 34/1,548 `already_redecoded` windows differ = **2.20%**, under the 3%
+      abandon line. The floor holds, though it sits above the pilot's ~1%.
+    - Differing windows by class (stored/new), `original` (11,124 windows):
+      clean/clean 596, repetitive/clean 618, repetitive/repetitive 119,
+      clean/repetitive 53. `recovered` (26,063): 2,413 / 1,086 / 217 / 324.
+    - Speech-only (not a song section, sustained share < 0.5; no window had an unknown
+      share), repetitive/clean: `original` 62 covered by the stored screen, **19 not**;
+      `recovered` 103 covered, **69 not**. These are candidates, not adjudicated misses,
+      and no recall is stated from them.
+    - Listening queue (`listening-queue.json`): `original` 19 + 30 + 10 + 20 = 79
+      windows, `recovered` 69 + 30 + 10 + 20 = 129, about 104 minutes of audio.
+      Listening is the operator's.
 
 ##### H9. Ruling: no reserved set; historic evidence is retrospective
 
