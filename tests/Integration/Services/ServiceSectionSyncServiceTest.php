@@ -6,6 +6,7 @@ namespace Tests\Integration\Services;
 
 use App\Actions\HoldSectionForContentReview;
 use App\Actions\ServiceReview\ConfirmServiceSection;
+use App\Enums\ContentHoldCheck;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
@@ -448,7 +449,7 @@ class ServiceSectionSyncServiceTest extends TestCase
         $processingLog = MediaProcessingLog::factory()->livestream()->create();
         $first = $this->heldSection($processingLog, ServiceSectionType::Song, sectionOrder: 1, startTime: 300.0, endTime: 420.0);
         $second = $this->heldSection($processingLog, ServiceSectionType::Song, sectionOrder: 2, startTime: 430.0, endTime: 560.0);
-        app(HoldSectionForContentReview::class)($second, 'Second song is misidentified', 'canary-20260917-merge');
+        app(HoldSectionForContentReview::class)($second, 'Second song is misidentified', 'canary-20260917-merge', ContentHoldCheck::Judgement);
 
         // One song now covers the span both held sections occupied.
         $this->service->sync($processingLog, [
@@ -493,6 +494,53 @@ class ServiceSectionSyncServiceTest extends TestCase
         $this->assertHeld($this->sectionAt($processingLog, 2));
     }
 
+    /**
+     * Run 1287, 2026-09-23: re-detection trimmed the held song and inserted a
+     * reading after it, and the hold's record stayed on the row at the old order —
+     * the reading — describing a defect the reading never had.
+     */
+    #[Test]
+    public function hold_records_follow_their_content_not_the_row_they_were_on(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $this->heldSection($processingLog, ServiceSectionType::Song, sectionOrder: 1, startTime: 190.0, endTime: 297.0);
+
+        $this->service->sync($processingLog, [
+            $this->sectionData(null, 1, ServiceSectionType::Song->value, startTime: 189.6, endTime: 277.0, duration: 87.4),
+            $this->sectionData(null, 2, ServiceSectionType::BibleReading->value, startTime: 277.0, endTime: 298.0, duration: 21.0),
+        ]);
+
+        $this->assertHeld($this->sectionAt($processingLog, 1));
+
+        $reading = $this->sectionAt($processingLog, 2);
+        $this->assertNotHeld($reading);
+        $this->assertArrayNotHasKey(
+            HoldSectionForContentReview::METADATA_KEY,
+            $reading->metadata?->toArray() ?? [],
+            'The reading never carried this content; its record must not stay behind on the row.',
+        );
+    }
+
+    #[Test]
+    public function a_released_hold_record_moves_with_its_content_and_stays_released(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $sermon = $this->heldSection($processingLog, ServiceSectionType::Sermon, sectionOrder: 1, startTime: 600.0, endTime: 1800.0);
+        app(ConfirmServiceSection::class)->execute($sermon->refresh(), User::factory()->create()->id);
+
+        // A prayer is inserted before the sermon, so the sermon moves to order 2.
+        $this->service->sync($processingLog, [
+            $this->sectionData(null, 1, ServiceSectionType::Prayer->value, startTime: 500.0, endTime: 590.0, duration: 90.0),
+            $this->sectionData(null, 2, ServiceSectionType::Sermon->value, startTime: 600.0, endTime: 1800.0, duration: 1200.0),
+        ]);
+
+        $this->assertArrayNotHasKey(HoldSectionForContentReview::METADATA_KEY, $this->sectionAt($processingLog, 1)->metadata?->toArray() ?? []);
+
+        $moved = $this->sectionAt($processingLog, 2);
+        $this->assertNotHeld($moved);
+        $this->assertCount(1, $moved->metadata?->toArray()[HoldSectionForContentReview::METADATA_KEY] ?? []);
+    }
+
     private function heldSection(
         MediaProcessingLog $processingLog,
         ServiceSectionType $type,
@@ -513,7 +561,7 @@ class ServiceSectionSyncServiceTest extends TestCase
             'metadata' => ['review_flags' => []],
         ]);
 
-        app(HoldSectionForContentReview::class)($section, self::HOLD_REASON, self::HOLD_EVIDENCE);
+        app(HoldSectionForContentReview::class)($section, self::HOLD_REASON, self::HOLD_EVIDENCE, ContentHoldCheck::Judgement);
 
         return $section->refresh();
     }

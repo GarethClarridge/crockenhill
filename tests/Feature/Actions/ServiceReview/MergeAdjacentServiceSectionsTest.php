@@ -7,6 +7,7 @@ namespace Tests\Feature\Actions\ServiceReview;
 use App\Actions\HoldSectionForContentReview;
 use App\Actions\ServiceReview\ConfirmServiceSection;
 use App\Actions\ServiceReview\MergeAdjacentServiceSections;
+use App\Enums\ContentHoldCheck;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Jobs\PrepareSectionPublicationCandidates;
@@ -85,7 +86,7 @@ class MergeAdjacentServiceSectionsTest extends TestCase
         $primary = $this->songSection($log, 1, 100.0, 200.0);
         $secondary = $this->songSection($log, 2, 201.0, 260.0);
 
-        app(HoldSectionForContentReview::class)($secondary, 'Clip opens on a prayer', 'plan §3.2');
+        app(HoldSectionForContentReview::class)($secondary, 'Clip opens on a prayer', 'plan §3.2', ContentHoldCheck::Judgement);
 
         $this->assertNull($this->action->execute($primary, $secondary->refresh(), $this->admin->id));
 
@@ -110,8 +111,8 @@ class MergeAdjacentServiceSectionsTest extends TestCase
         $primary = $this->songSection($log, 1, 100.0, 200.0);
         $secondary = $this->songSection($log, 2, 201.0, 260.0);
 
-        app(HoldSectionForContentReview::class)($primary, 'Clip starts mid-verse', 'plan §4.1b');
-        app(HoldSectionForContentReview::class)($secondary, 'Clip opens on a prayer', 'plan §3.2');
+        app(HoldSectionForContentReview::class)($primary, 'Clip starts mid-verse', 'plan §4.1b', ContentHoldCheck::Judgement);
+        app(HoldSectionForContentReview::class)($secondary, 'Clip opens on a prayer', 'plan §3.2', ContentHoldCheck::Judgement);
 
         $this->assertNull($this->action->execute($primary->refresh(), $secondary->refresh(), $this->admin->id));
 
@@ -137,7 +138,7 @@ class MergeAdjacentServiceSectionsTest extends TestCase
         $short = $this->songSection($log, 1, 100.0, 140.0);
         $long = $this->songSection($log, 2, 141.0, 320.0);
 
-        app(HoldSectionForContentReview::class)($short, 'Clip starts mid-verse', 'plan §4.1b');
+        app(HoldSectionForContentReview::class)($short, 'Clip starts mid-verse', 'plan §4.1b', ContentHoldCheck::Judgement);
 
         // Passed short-first; the action swaps, so the held row is the one removed.
         $this->assertNull($this->action->execute($short->refresh(), $long->refresh(), $this->admin->id));
@@ -158,7 +159,7 @@ class MergeAdjacentServiceSectionsTest extends TestCase
         $primary = $this->songSection($log, 1, 100.0, 200.0);
         $secondary = $this->songSection($log, 2, 201.0, 260.0);
 
-        app(HoldSectionForContentReview::class)($secondary, 'Clip opens on a prayer', 'plan §3.2');
+        app(HoldSectionForContentReview::class)($secondary, 'Clip opens on a prayer', 'plan §3.2', ContentHoldCheck::Judgement);
         app(ConfirmServiceSection::class)->execute($secondary->refresh(), $this->admin->id);
 
         $this->action->execute($primary, $secondary->refresh(), $this->admin->id);

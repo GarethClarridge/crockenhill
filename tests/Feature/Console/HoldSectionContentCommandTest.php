@@ -20,6 +20,7 @@ class HoldSectionContentCommandTest extends TestCase
     private const OPTIONS = [
         '--reason' => 'Saved text repeats a sentence the audio does not',
         '--evidence' => 'plan §4.1',
+        '--found-by' => 'loop_screen',
     ];
 
     #[Test]
@@ -104,9 +105,41 @@ class HoldSectionContentCommandTest extends TestCase
         $this->artisan('service:hold-section-content', [
             '--section' => [$sermon->id],
             '--reason' => 'Looping text',
+            '--found-by' => 'loop_screen',
             '--execute' => true,
         ])
             ->expectsOutputToContain('Both --reason and --evidence are required')
+            ->assertFailed();
+
+        self::assertFalse($sermon->fresh()->needs_manual_review);
+    }
+
+    #[Test]
+    public function it_records_which_check_found_the_hold(): void
+    {
+        [, $sermon] = $this->sectionOnService(ServiceSectionType::Sermon);
+
+        $this->artisan('service:hold-section-content', [...self::OPTIONS, '--section' => [$sermon->id], '--execute' => true])
+            ->assertSuccessful();
+
+        self::assertSame(
+            'loop_screen',
+            $sermon->fresh()->metadata?->toArray()[HoldSectionForContentReview::METADATA_KEY][0]['found_by'] ?? null,
+        );
+    }
+
+    #[Test]
+    public function it_refuses_a_hold_without_a_known_check(): void
+    {
+        [, $sermon] = $this->sectionOnService(ServiceSectionType::Sermon);
+
+        $this->artisan('service:hold-section-content', [
+            ...self::OPTIONS,
+            '--found-by' => 'a hunch',
+            '--section' => [$sermon->id],
+            '--execute' => true,
+        ])
+            ->expectsOutputToContain('--found-by must be one of')
             ->assertFailed();
 
         self::assertFalse($sermon->fresh()->needs_manual_review);

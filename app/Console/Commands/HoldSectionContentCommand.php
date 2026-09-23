@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Actions\HoldSectionForContentReview;
+use App\Enums\ContentHoldCheck;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ServiceSection;
@@ -28,6 +29,7 @@ class HoldSectionContentCommand extends Command
         {--section=* : Service section IDs to hold}
         {--reason= : Why the content cannot be accepted as it stands}
         {--evidence= : Where the proof is recorded, such as a register, file or plan section}
+        {--found-by= : The check that found the defect: loop_screen, lyric_comparison, source_audio, media_measurement, boundary, judgement or decision}
         {--execute : Record the holds; without this option the command is a dry run}';
 
     protected $description = 'Hold named sermon, children\'s talk or song sections whose content is proven wrong';
@@ -51,6 +53,14 @@ class HoldSectionContentCommand extends Command
 
         if ($reason === '' || $evidence === '') {
             $this->error('Both --reason and --evidence are required; a hold nobody can explain cannot be resolved.');
+
+            return self::FAILURE;
+        }
+
+        $foundBy = ContentHoldCheck::tryFrom(trim((string) $this->option('found-by')));
+
+        if ($foundBy === null) {
+            $this->error('--found-by must be one of: '.implode(', ', array_column(ContentHoldCheck::cases(), 'value')).'. The check that found a hold is what can re-test it after a repair.');
 
             return self::FAILURE;
         }
@@ -100,9 +110,9 @@ class HoldSectionContentCommand extends Command
 
         $changed = 0;
 
-        DB::transaction(function () use ($sections, $hold, $reason, $evidence, &$changed): void {
+        DB::transaction(function () use ($sections, $hold, $reason, $evidence, $foundBy, &$changed): void {
             foreach ($sections as $section) {
-                if ($hold($section, $reason, $evidence)) {
+                if ($hold($section, $reason, $evidence, $foundBy)) {
                     $changed++;
                 }
             }

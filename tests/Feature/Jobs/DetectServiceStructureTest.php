@@ -24,6 +24,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\Structure\MockServiceStructureService;
+use App\Enums\ContentHoldCheck;
 use App\Enums\ServiceSectionType;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
@@ -1228,6 +1229,57 @@ class DetectServiceStructureTest extends TestCase
         Mail::assertNothingQueued();
     }
 
+    /**
+     * Operator ruling 2026-09-23: after a repair, the check that found a hold is
+     * re-run over the repaired transcript and the hold clears if it now passes.
+     */
+    #[Test]
+    public function detection_over_a_repaired_transcript_rechecks_the_holds_its_checks_can_retest(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        Mail::fake();
+
+        $log = MediaProcessingLog::factory()->livestream()->completed()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+
+        $sermon = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'section_order' => 3,
+            'title' => null,
+            'start_time' => 600.0,
+            'end_time' => 2400.0,
+            'duration' => 1800.0,
+            'needs_manual_review' => false,
+            'metadata' => ['review_flags' => []],
+        ]);
+        app(HoldSectionForContentReview::class)($sermon, 'Saved sermon text repeats a loop', 'residue register', ContentHoldCheck::LoopScreen);
+
+        // The hold was found on the transcript as it stood before retranscription.
+        $metadata = $sermon->refresh()->metadata?->toArray() ?? [];
+        $metadata[HoldSectionForContentReview::METADATA_KEY][0]['transcript_sha256'] = 'before-repair';
+        $sermon->forceFill(['metadata' => $metadata])->save();
+
+        MockServiceStructureService::useStructure(ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('bible_reading', 420.0, 590.0),
+            $this->section('sermon', 600.0, 2400.0),
+        ], ['Fixture structure.'], 'mock'));
+
+        $this->runJob($log, reconcile: true);
+
+        $repaired = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->where('section_type', ServiceSectionType::Sermon->value)
+            ->firstOrFail();
+        $record = $repaired->metadata?->toArray()[HoldSectionForContentReview::METADATA_KEY][0] ?? [];
+
+        $this->assertNotContains(HoldSectionForContentReview::FLAG, $repaired->metadata?->toArray()['review_flags'] ?? []);
+        $this->assertSame('loop_screen', $record['cleared_by'] ?? null);
+    }
+
     private function heldSection(
         MediaProcessingLog $log,
         ServiceSectionType $type,
@@ -1252,6 +1304,7 @@ class DetectServiceStructureTest extends TestCase
             $section,
             'Song bounds contradicted by the transcript.',
             'canary-20260917-detection-retry',
+            ContentHoldCheck::Boundary,
         );
 
         return $section->refresh();

@@ -525,6 +525,22 @@ Build it test-first before the next bounded batch larger than one run. For 1287 
 stale holds are lyric-comparison holds, so they would clear on re-check; they are left in
 place, not lifted by hand.
 
+**Built 2026-09-23.** Every hold record carries `found_by` (`ContentHoldCheck`: loop screen,
+lyric comparison, source audio, media measurement, boundary, judgement, decision), the span
+and item it was found on, and the fingerprint of the transcript its check read. Section sync
+carries records, live or released, by type and span overlap, so a row keeps nothing for
+content it no longer covers. `ContentHoldRechecker` runs after every structure-detection sync
+(and via `service:recheck-content-holds`). It re-runs loop-screen and lyric-comparison holds
+only when the transcript has been rewritten since the hold, and records why each record
+cleared or stayed. `service:backfill-content-hold-checks` classified the existing 181 by
+reason: loop 73, lyric 29, source audio 22, boundary 22, decision 14, media 11, judgement 7.
+It dropped three records left behind on rows that never carried them (§1016 run 980, §3227
+run 1258, §3597 run 1287), and marked 12 holds raised before a later re-decode as superseded.
+**Local re-check result:** loop holds on §3858 (1303) and §3985 (1314) cleared, because the
+screen finds no loop in the re-decoded transcript. 1287's lyric hold on §3596 **stays**: the
+sung words now match #797, the song the hold said was really sung, but item 11981 binds no
+song, so identity is still unestablished. That needs a binding decision, not a hold lift.
+
 #### Carried open items
 
 Every box still unticked in the moved sections, grouped by the section it came from. **Triaged

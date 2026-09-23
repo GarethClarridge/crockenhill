@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Services\ChurchService;
 
 use App\Actions\HoldSectionForContentReview;
+use App\Enums\ContentHoldCheck;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
@@ -132,7 +133,7 @@ class SongContinuationMergerTest extends TestCase
             'needs_manual_review' => false,
         ]);
 
-        app(HoldSectionForContentReview::class)($absorbed, 'Two songs in one clip', 'plan §4.1b');
+        app(HoldSectionForContentReview::class)($absorbed, 'Two songs in one clip', 'plan §4.1b', ContentHoldCheck::Judgement);
 
         app(SongContinuationMerger::class)->merge($run, conservative: false);
 

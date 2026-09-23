@@ -6,6 +6,7 @@ namespace Tests\Feature\Actions;
 
 use App\Actions\HoldSectionForContentReview;
 use App\Actions\ServiceReview\ConfirmServiceSection;
+use App\Enums\ContentHoldCheck;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
@@ -17,6 +18,7 @@ use App\Services\ChurchService\SectionReviewFlagRecalculator;
 use App\Services\Import\HistoricReleaseReviewHolds;
 use App\Services\Song\UnmatchedSongReviewApplicator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -34,7 +36,7 @@ class HoldSectionForContentReviewTest extends TestCase
     {
         $section = $this->section(ServiceSectionType::Sermon);
 
-        self::assertTrue(app(HoldSectionForContentReview::class)($section, self::REASON, self::EVIDENCE));
+        self::assertTrue(app(HoldSectionForContentReview::class)($section, self::REASON, self::EVIDENCE, ContentHoldCheck::Judgement));
 
         $section->refresh();
         $metadata = $section->metadata?->toArray() ?? [];
@@ -46,12 +48,35 @@ class HoldSectionForContentReviewTest extends TestCase
     }
 
     #[Test]
+    public function it_records_the_check_that_found_the_hold_and_the_content_it_was_found_on(): void
+    {
+        Storage::fake('local');
+        config()->set('media-processing.storage.transcript_disk', 'local');
+        Storage::disk('local')->put('service-transcripts/run.json', '{"cues":[]}');
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'processing_metadata' => ['service_transcript_path' => 'service-transcripts/run.json'],
+        ]);
+        $section = $this->section(ServiceSectionType::Sermon, run: $run);
+        $section->forceFill(['start_time' => 600.0, 'end_time' => 1800.0, 'duration' => 1200.0])->save();
+
+        app(HoldSectionForContentReview::class)($section, self::REASON, self::EVIDENCE, ContentHoldCheck::LoopScreen);
+
+        $record = $section->refresh()->metadata?->toArray()[HoldSectionForContentReview::METADATA_KEY][0] ?? [];
+
+        self::assertSame('loop_screen', $record['found_by'] ?? null);
+        self::assertEquals(600.0, $record['start_time'] ?? null);
+        self::assertEquals(1800.0, $record['end_time'] ?? null);
+        self::assertArrayHasKey('church_service_item_id', $record);
+        self::assertSame(hash('sha256', '{"cues":[]}'), $record['transcript_sha256'] ?? null);
+    }
+
+    #[Test]
     public function it_holds_songs_and_childrens_talks_too(): void
     {
         foreach ([ServiceSectionType::Song, ServiceSectionType::ChildrensTalk] as $type) {
             $section = $this->section($type);
 
-            app(HoldSectionForContentReview::class)($section, self::REASON, self::EVIDENCE);
+            app(HoldSectionForContentReview::class)($section, self::REASON, self::EVIDENCE, ContentHoldCheck::Judgement);
 
             self::assertTrue($section->refresh()->needs_manual_review, "A {$type->value} is held.");
         }
@@ -63,9 +88,9 @@ class HoldSectionForContentReviewTest extends TestCase
         $section = $this->section(ServiceSectionType::Sermon, ['structure_missing_preached_reading']);
         $hold = app(HoldSectionForContentReview::class);
 
-        $hold($section, self::REASON, self::EVIDENCE);
+        $hold($section, self::REASON, self::EVIDENCE, ContentHoldCheck::Judgement);
 
-        self::assertFalse($hold($section->refresh(), self::REASON, self::EVIDENCE));
+        self::assertFalse($hold($section->refresh(), self::REASON, self::EVIDENCE, ContentHoldCheck::Judgement));
 
         $metadata = $section->refresh()->metadata?->toArray() ?? [];
 
@@ -79,9 +104,9 @@ class HoldSectionForContentReviewTest extends TestCase
         $section = $this->section(ServiceSectionType::Song);
         $hold = app(HoldSectionForContentReview::class);
 
-        $hold($section, self::REASON, self::EVIDENCE);
+        $hold($section, self::REASON, self::EVIDENCE, ContentHoldCheck::Judgement);
 
-        self::assertTrue($hold($section->refresh(), 'Clip opens on a prayer', 'plan §3.2'));
+        self::assertTrue($hold($section->refresh(), 'Clip opens on a prayer', 'plan §3.2', ContentHoldCheck::Judgement));
         self::assertCount(2, $section->refresh()->metadata?->toArray()[HoldSectionForContentReview::METADATA_KEY] ?? []);
     }
 
@@ -95,7 +120,7 @@ class HoldSectionForContentReviewTest extends TestCase
         $section = $this->section(ServiceSectionType::BibleReading);
 
         try {
-            app(HoldSectionForContentReview::class)($section, self::REASON, self::EVIDENCE);
+            app(HoldSectionForContentReview::class)($section, self::REASON, self::EVIDENCE, ContentHoldCheck::Judgement);
             self::fail('A bible reading was held.');
         } catch (InvalidArgumentException) {
             self::assertFalse($section->refresh()->needs_manual_review);
@@ -107,14 +132,14 @@ class HoldSectionForContentReviewTest extends TestCase
     {
         $this->expectException(InvalidArgumentException::class);
 
-        app(HoldSectionForContentReview::class)($this->section(ServiceSectionType::Sermon), self::REASON, '  ');
+        app(HoldSectionForContentReview::class)($this->section(ServiceSectionType::Sermon), self::REASON, '  ', ContentHoldCheck::Judgement);
     }
 
     #[Test]
     public function the_flag_recompute_keeps_the_hold(): void
     {
         $section = $this->section(ServiceSectionType::Song);
-        app(HoldSectionForContentReview::class)($section, self::REASON, self::EVIDENCE);
+        app(HoldSectionForContentReview::class)($section, self::REASON, self::EVIDENCE, ContentHoldCheck::Judgement);
 
         self::assertSame([], app(SectionReviewFlagRecalculator::class)->updatesFor($section->refresh()));
     }
@@ -127,7 +152,7 @@ class HoldSectionForContentReviewTest extends TestCase
     public function the_spoken_announcement_retypes_keep_the_hold(): void
     {
         $recomputed = $this->spokenUnmatchedSong();
-        app(HoldSectionForContentReview::class)($recomputed, self::REASON, self::EVIDENCE);
+        app(HoldSectionForContentReview::class)($recomputed, self::REASON, self::EVIDENCE, ContentHoldCheck::Judgement);
 
         $updates = app(SectionReviewFlagRecalculator::class)->updatesFor($recomputed->refresh());
 
@@ -135,7 +160,7 @@ class HoldSectionForContentReviewTest extends TestCase
         self::assertTrue($updates['needs_manual_review']);
 
         $matched = $this->spokenUnmatchedSong();
-        app(HoldSectionForContentReview::class)($matched, self::REASON, self::EVIDENCE);
+        app(HoldSectionForContentReview::class)($matched, self::REASON, self::EVIDENCE, ContentHoldCheck::Judgement);
 
         $sections = ServiceSection::query()->whereKey($matched->id)->get();
         app(UnmatchedSongReviewApplicator::class)->apply($sections, []);
@@ -148,7 +173,7 @@ class HoldSectionForContentReviewTest extends TestCase
     public function operator_confirmation_releases_the_hold_and_keeps_its_history(): void
     {
         $section = $this->section(ServiceSectionType::Sermon);
-        app(HoldSectionForContentReview::class)($section, self::REASON, self::EVIDENCE);
+        app(HoldSectionForContentReview::class)($section, self::REASON, self::EVIDENCE, ContentHoldCheck::Judgement);
 
         app(ConfirmServiceSection::class)->execute($section->refresh(), User::factory()->create()->id);
 
@@ -174,8 +199,8 @@ class HoldSectionForContentReviewTest extends TestCase
 
         self::assertSame([], $gate->assess([$sermon], [$songVideo]));
 
-        app(HoldSectionForContentReview::class)($sermonSection, self::REASON, self::EVIDENCE);
-        app(HoldSectionForContentReview::class)($songSection, self::REASON, self::EVIDENCE);
+        app(HoldSectionForContentReview::class)($sermonSection, self::REASON, self::EVIDENCE, ContentHoldCheck::Judgement);
+        app(HoldSectionForContentReview::class)($songSection, self::REASON, self::EVIDENCE, ContentHoldCheck::Judgement);
 
         $refusals = implode("\n", $gate->assess([$sermon], [$songVideo]));
 

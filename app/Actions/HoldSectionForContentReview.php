@@ -6,8 +6,10 @@ namespace App\Actions;
 
 use App\Actions\ServiceReview\ConfirmServiceSection;
 use App\Data\ServiceSectionMetadata;
+use App\Enums\ContentHoldCheck;
 use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\ContentHoldRechecker;
 use App\Services\ChurchService\SectionReviewFlagRecalculator;
 use App\Services\ChurchService\SectionStructureFlagRederiver;
 use App\Services\Import\HistoricReleaseReviewHolds;
@@ -40,8 +42,16 @@ use InvalidArgumentException;
  * named) ask {@see self::isHeld()} rather than forcing the column false.
  * {@see SectionReviewFlagRecalculator} is the regression case for the first.
  *
- * Released only by an operator: {@see ConfirmServiceSection} strips every review
- * flag. The recorded reasons stay under {@see self::METADATA_KEY} as history.
+ * **What each hold records.** Its reason and evidence, the check that found it
+ * ({@see ContentHoldCheck}), and the content it was found on: the span, the bound
+ * item and a fingerprint of the transcript the check read. A re-detection carries
+ * the record to whichever section now holds that content, and after a repair
+ * {@see ContentHoldRechecker} re-runs a check that exists in code and clears the
+ * record, saying why, when it passes. Decisions and judgements stay live.
+ *
+ * Released by an operator through {@see ConfirmServiceSection}, which strips every
+ * review flag, or when every live record has been cleared by its check. The
+ * records stay under {@see self::METADATA_KEY} as history.
  */
 class HoldSectionForContentReview
 {
@@ -82,8 +92,9 @@ class HoldSectionForContentReview
      * left on the row being deleted, so a later confirmation would have released
      * content nobody settled.
      *
-     * Released holds stay released — their reasons are history on the row that is
-     * going away, and re-raising them here would undo an operator's decision.
+     * Records are copied whole, so what found each one travels with it. Cleared
+     * and released records stay that way: re-raising them would undo a check's or
+     * an operator's decision.
      */
     public function carry(ServiceSection $from, ServiceSection $to): void
     {
@@ -93,14 +104,54 @@ class HoldSectionForContentReview
             return;
         }
 
-        foreach (self::holdsIn($metadata) as $hold) {
-            $reason = $hold['reason'] ?? null;
-            $evidence = $hold['evidence'] ?? null;
+        $target = $to->metadata?->toArray() ?? [];
+        $targetFlags = self::reviewFlagsIn($target);
 
-            if (is_string($reason) && is_string($evidence)) {
-                $this($to, $reason, $evidence);
-            }
+        $target[self::METADATA_KEY] = self::mergeRecords(self::holdsIn($target), self::holdsIn($metadata));
+        $target['review_flags'] = self::isHeld($targetFlags) ? $targetFlags : [...$targetFlags, self::FLAG];
+
+        $this->persist($to, $target);
+    }
+
+    /**
+     * Whether a record still holds its content: neither cleared by its check nor
+     * released with its section by an operator.
+     *
+     * @param  array<string, mixed>  $record
+     */
+    public static function isLive(array $record): bool
+    {
+        return ! isset($record['cleared_at']) && ! isset($record['released_at']);
+    }
+
+    /**
+     * Records keyed by what they claim, the first copy kept.
+     *
+     * @param  list<array<string, mixed>>  $records
+     * @param  list<array<string, mixed>>  $incoming
+     * @return list<array<string, mixed>>
+     */
+    public static function mergeRecords(array $records, array $incoming): array
+    {
+        $merged = [];
+
+        foreach ([...$records, ...$incoming] as $record) {
+            $merged[json_encode([$record['reason'] ?? null, $record['evidence'] ?? null], JSON_THROW_ON_ERROR)] ??= $record;
         }
+
+        return array_values($merged);
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     * @return list<array<string, mixed>>
+     */
+    public static function holdsIn(array $metadata): array
+    {
+        return array_values(array_filter(
+            is_array($metadata[self::METADATA_KEY] ?? null) ? $metadata[self::METADATA_KEY] : [],
+            'is_array',
+        ));
     }
 
     /**
@@ -115,17 +166,6 @@ class HoldSectionForContentReview
         ));
     }
 
-    /**
-     * @param  array<string, mixed>  $metadata
-     * @return list<array<string, mixed>>
-     */
-    private static function holdsIn(array $metadata): array
-    {
-        return array_values(array_filter(
-            is_array($metadata[self::METADATA_KEY] ?? null) ? $metadata[self::METADATA_KEY] : [],
-            'is_array',
-        ));
-    }
 
     /**
      * Raise the hold, returning whether the section changed.
@@ -133,7 +173,7 @@ class HoldSectionForContentReview
      * @throws InvalidArgumentException when the section's type cannot be refused at
      *                                  release, or the hold cannot be explained
      */
-    public function __invoke(ServiceSection $section, string $reason, string $evidence): bool
+    public function __invoke(ServiceSection $section, string $reason, string $evidence, ContentHoldCheck $foundBy): bool
     {
         if (! self::canHold($section)) {
             throw new InvalidArgumentException(
@@ -162,17 +202,39 @@ class HoldSectionForContentReview
             return false;
         }
 
-        if (! $alreadyRecorded) {
+        if ($alreadyRecorded) {
+            $holds = array_map(
+                static fn (array $hold): array => ($hold['reason'] ?? null) === $reason && ($hold['evidence'] ?? null) === $evidence
+                    ? array_diff_key($hold, array_flip(['cleared_at', 'cleared_by', 'cleared_reason', 'released_at']))
+                    : $hold,
+                $holds,
+            );
+        } else {
             $holds[] = [
                 'reason' => $reason,
                 'evidence' => $evidence,
                 'held_at' => now()->toIso8601String(),
+                'found_by' => $foundBy->value,
+                'start_time' => (float) $section->start_time,
+                'end_time' => (float) $section->end_time,
+                'church_service_item_id' => $section->church_service_item_id,
+                'transcript_sha256' => $section->processingLog->serviceTranscriptSha256(),
             ];
         }
 
         $metadata['review_flags'] = self::isHeld($flags) ? $flags : [...$flags, self::FLAG];
         $metadata[self::METADATA_KEY] = $holds;
 
+        $this->persist($section, $metadata);
+
+        return true;
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
+    private function persist(ServiceSection $section, array $metadata): void
+    {
         $section->metadata = ServiceSectionMetadata::fromArray($metadata);
         $section->needs_manual_review = SectionReviewFlagPolicy::requiresManualReview(
             $section->section_type,
@@ -180,7 +242,5 @@ class HoldSectionForContentReview
             is_string($metadata['sermon_reference'] ?? null) ? $metadata['sermon_reference'] : null,
         );
         $section->save();
-
-        return true;
     }
 }

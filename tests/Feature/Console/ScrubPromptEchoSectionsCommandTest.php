@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Console;
 
 use App\Actions\HoldSectionForContentReview;
+use App\Enums\ContentHoldCheck;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
@@ -61,7 +62,7 @@ class ScrubPromptEchoSectionsCommandTest extends TestCase
     public function a_held_section_is_kept_and_named(): void
     {
         $section = $this->echoSection(sectionType: ServiceSectionType::Sermon);
-        app(HoldSectionForContentReview::class)($section, 'Saved text repeats a sentence the audio does not', 'plan §4.1a');
+        app(HoldSectionForContentReview::class)($section, 'Saved text repeats a sentence the audio does not', 'plan §4.1a', ContentHoldCheck::Judgement);
 
         $this->artisan('service:scrub-prompt-echo-sections --apply')
             ->expectsOutputToContain('Kept 1 held section(s)')

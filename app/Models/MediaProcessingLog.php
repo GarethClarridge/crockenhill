@@ -22,6 +22,7 @@ use App\Enums\ServiceSectionPublicationStatus;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\StoreSermonVideo;
 use App\Services\HistoricMedia\HistoricReviewSourceReclaimer;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\Media\Audio\ServiceTranscriptRepetitionScreen;
 use App\Services\Processing\ProcessingRunOrchestrator;
@@ -1346,6 +1347,47 @@ class MediaProcessingLog extends Model
         $artifactDisk = ServiceArtifactDisk::for($transcriptPath);
 
         return Storage::disk($artifactDisk)->exists($transcriptPath);
+    }
+
+    /**
+     * The stored full-service transcript's raw text, or null when it cannot be read.
+     *
+     * A historic run's key resolves only under its batch root, so its staging
+     * context is opened for the read; the registry nests, so a job already inside
+     * the context keeps it.
+     */
+    public function storedServiceTranscriptContents(): ?string
+    {
+        $transcriptPath = $this->serviceTranscriptPath();
+
+        if ($transcriptPath === null) {
+            return null;
+        }
+
+        $read = static function () use ($transcriptPath): ?string {
+            try {
+                $contents = Storage::disk(ServiceArtifactDisk::for($transcriptPath))->get($transcriptPath);
+            } catch (\Throwable) {
+                return null;
+            }
+
+            return is_string($contents) ? $contents : null;
+        };
+
+        $context = $this->historicStagingContext();
+
+        return $context === null ? $read() : app(HistoricStagingContextRegistry::class)->within($context, $read);
+    }
+
+    /**
+     * A fingerprint of the stored transcript, so a content hold can tell whether a
+     * repair has rewritten the evidence its check read.
+     */
+    public function serviceTranscriptSha256(): ?string
+    {
+        $contents = $this->storedServiceTranscriptContents();
+
+        return $contents === null ? null : hash('sha256', $contents);
     }
 
     /**

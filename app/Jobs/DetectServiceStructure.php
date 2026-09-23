@@ -17,6 +17,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ChurchServiceReviewSynchronizer;
+use App\Services\ChurchService\ContentHoldRechecker;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
@@ -283,6 +284,10 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         }
 
         $this->putStructureMetadata('service_structure', $result->structure->toArray());
+
+        // Holds have just followed their content; a check that exists in code now
+        // re-tests the content against the transcript this detection read.
+        app(ContentHoldRechecker::class)->recheck($this->processingLog);
 
         if ($this->reconcile) {
             $this->openServiceReviewFromSyncedSections();

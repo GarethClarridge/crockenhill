@@ -49,6 +49,7 @@ use Illuminate\Support\Facades\Validator;
  *     section_type: string,
  *     start_time: float,
  *     end_time: float,
+ *     held: bool,
  *     holds: list<array<string, mixed>>
  * }
  */
@@ -90,19 +91,24 @@ class ServiceSectionSyncService
             /*
              * Read before any row is rewritten: a held row can be refilled with other
              * content earlier in this loop than the section its hold belongs on.
+             * Released records are read too, so their history moves with the content.
              */
             $heldContent = array_values($existingByOrder
-                ->filter(fn (ServiceSection $section): bool => HoldSectionForContentReview::isHeld($this->reviewFlagsOf($section->metadata?->toArray() ?? [])))
+                ->filter(fn (ServiceSection $section): bool => $this->contentHoldsOf($section) !== [])
                 ->map(fn (ServiceSection $section): array => [
                     'id' => $section->id,
                     'section_type' => $section->section_type->value,
                     'start_time' => (float) $section->start_time,
                     'end_time' => (float) $section->end_time,
+                    'held' => HoldSectionForContentReview::isHeld($this->reviewFlagsOf($section->metadata?->toArray() ?? [])),
                     'holds' => $this->contentHoldsOf($section),
                 ])
                 ->all());
 
-            $this->refuseUnplacedContentHolds($heldContent, $classifiedSections);
+            $this->refuseUnplacedContentHolds(
+                array_values(array_filter($heldContent, static fn (array $held): bool => $held['held'])),
+                $classifiedSections,
+            );
 
             $incomingOrders = [];
 
@@ -151,14 +157,14 @@ class ServiceSectionSyncService
                         $payload['metadata'] = $this->mergeExistingMetadata($existing, $payload['metadata']);
                     }
 
-                    $existing->fill($this->withContentHolds($payload, $existing, $heldContent));
+                    $existing->fill($this->withContentHolds($payload, $heldContent));
                     $existing->save();
 
                     continue;
                 }
 
                 ServiceSection::query()->create(array_merge(
-                    $this->withContentHolds($payload, null, $heldContent),
+                    $this->withContentHolds($payload, $heldContent),
                     [
                         'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
                         'song_match_type' => null,
@@ -391,34 +397,37 @@ class ServiceSectionSyncService
     }
 
     /**
-     * Carry each content hold to the incoming sections of its type that overlap the
-     * held span, and keep a row's own hold history whether or not it is still held.
+     * Carry each content hold record — live or released — to the incoming sections
+     * of its type that overlap the span it was on.
      *
      * A hold follows its content, not its row: after a re-detection shifts the
      * orders, the held row can hold different content and the held content can
-     * arrive at another order. Released holds stay released; their reasons are kept.
+     * arrive at another order. So a row keeps no record for content it no longer
+     * covers (run 1287's reading kept the song's "wrong song" record on 2026-09-23).
+     * Records from a row an operator had released are stamped released, so they
+     * cannot come back live beside a hold that is.
      *
      * @param  array<string, mixed>  $payload
      * @param  list<HeldContent>  $heldContent
      * @return array<string, mixed>
      */
-    private function withContentHolds(array $payload, ?ServiceSection $existing, array $heldContent): array
+    private function withContentHolds(array $payload, array $heldContent): array
     {
         $covering = collect($heldContent)->filter(fn (array $held): bool => $this->coversHeldContent($held, $payload));
 
         /** @var array<string, mixed> $metadata */
         $metadata = $payload['metadata'];
-        $holds = collect($existing instanceof ServiceSection ? $this->contentHoldsOf($existing) : [])
-            ->merge($covering->flatMap(fn (array $held): array => $held['holds']))
-            ->unique(fn (array $hold): string => json_encode([$hold['reason'] ?? null, $hold['evidence'] ?? null], JSON_THROW_ON_ERROR))
-            ->values()
-            ->all();
+        unset($metadata[HoldSectionForContentReview::METADATA_KEY]);
+
+        $holds = HoldSectionForContentReview::mergeRecords([], array_values($covering
+            ->flatMap(fn (array $held): array => $held['held'] ? $held['holds'] : array_map($this->asReleased(...), $held['holds']))
+            ->all()));
 
         if ($holds !== []) {
             $metadata[HoldSectionForContentReview::METADATA_KEY] = $holds;
         }
 
-        if ($covering->isNotEmpty()) {
+        if ($covering->contains(static fn (array $held): bool => $held['held'])) {
             $flags = $this->reviewFlagsOf($metadata);
             $metadata['review_flags'] = HoldSectionForContentReview::isHeld($flags)
                 ? $flags
@@ -429,6 +438,17 @@ class ServiceSectionSyncService
         $payload['metadata'] = $metadata;
 
         return $payload;
+    }
+
+    /**
+     * @param  array<string, mixed>  $record
+     * @return array<string, mixed>
+     */
+    private function asReleased(array $record): array
+    {
+        return HoldSectionForContentReview::isLive($record)
+            ? [...$record, 'released_at' => CarbonImmutable::now()->toIso8601String()]
+            : $record;
     }
 
     /**
