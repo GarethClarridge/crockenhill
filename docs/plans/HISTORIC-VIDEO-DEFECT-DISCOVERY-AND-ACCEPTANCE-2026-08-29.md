@@ -4303,6 +4303,23 @@ an adapter.
     - Listening queue (`listening-queue.json`): `original` 19 + 30 + 10 + 20 = 79
       windows, `recovered` 69 + 30 + 10 + 20 = 129, about 104 minutes of audio.
       Listening is the operator's.
+- **1337 follow-up, 2026-09-23.**
+  - **Neighbour rule built test-first** (`2185ab734`). `adjacent_same_song` now also
+    holds a song whose previous or next section is the same song with nothing between,
+    whatever the gap. A reprise after another section is still released. A corpus
+    census found this adds exactly one pair, 1337 §4274→§4275 (12 s apart); the 2 s
+    rule already caught the other 4.
+  - **Hint/binding contradiction rule measured, not built.** §4275 was confirmed by
+    **OCR** (confidence 1), not by the transcript, and its transcript also carries a
+    refrain of the bound #699, so a flat rule would overrule independent evidence. A
+    census over 1,191 confirmed song sections with a hint
+    (`storage/scratch/hint-binding-census-20260923.json`) found 39 whose hint matches
+    neither the bound song's titles nor its lyrics. Most are modernised wording
+    (Thou/You, Ye/You, 'Tis/Yes) or junk hints ("Let", "again", "number 426"). The
+    genuine contradictions (1337 §4275, 1144 §2163, 1215 §2638/§2639/§2641, 1223 §2747,
+    1174 §2331, 1297 §3802, 1120 §1998) are **all already held**. The rule would add no
+    new hold and would hold correct bindings over wording, so it is not built.
+    Revisit only if a genuine contradiction turns up unheld.
 
 ##### H9. Ruling: no reserved set; historic evidence is retrospective
 
