@@ -481,18 +481,20 @@ data, in `resources/detector-classes.json`.
 
 #### Carried open items
 
-Every box still unticked in the moved sections, grouped by the section it came from. Several may
-already be satisfied by later work: **verify against the log and the current state before acting**,
-and tick or remove them here as they close.
+Every box still unticked in the moved sections, grouped by the section it came from. **Triaged
+2026-09-23** against the log, the code and the database: ticked items name their evidence,
+superseded ones say why, and partial ones say what remains. For unannotated items no
+evidence of completion was found, so they stay open; some (for example the §988 boundary
+check against the 09-17 speech-edge trim) deserve a closer look before being built.
 
 **1340's regression is a transcript regression — measured 2026-09-17/18**
 
-- [ ] Exercise the supported pipeline re-extraction/replacement path, including an equal-duration recut and a held-then-reprocessed run.
+- [x] Exercise the supported pipeline re-extraction/replacement path, including an equal-duration recut and a held-then-reprocessed run. *Triage 09-23: done. Canary 09-17 recut three held sermons (3/3); held runs 980/1258/1343 were re-transcribed and re-extracted 09-20 with holds persisting; 1340 repaired 09-18.*
 - [ ] Compare source content with the actual stored video/MP3 at starts, ends, randomly selected interiors and every join.
 
 **4.1 Contain confirmed missing holds first**
 
-- [ ] Keep the assets quarantined while their text or cuts are recovered.
+- *Standing rule, not a task (triage 09-23):* keep the assets quarantined while their text or cuts are recovered.
 
 **Field coverage matrix (drafted 2026-09-14 from the schema; keep current)**
 
@@ -518,7 +520,7 @@ and tick or remove them here as they close.
 
 - [ ] Implement and evaluate the following relations on the affected pipeline stages, then exercise representative cases through the weekly path.
 - [ ] Exercise failure around old-file removal and replacement upload in `SermonMetadataIntegrationService::organizeVideoFile`, plus downstream row linking and review recomputation.
-- [ ] Include a held-then-reprocessed run.
+- [x] Include a held-then-reprocessed run. *Triage 09-23: done by 980/1258/1343 (09-20, holds persisted).*
 - [ ] Confirm each new regression fixture fails for its intended reason before fixing a reported bug, then passes through the standard pipeline.
 
 **Disagreement censuses to run (all 442 active runs unless stated)**
@@ -541,10 +543,10 @@ and tick or remove them here as they close.
 
 **4.2 Close the transcript-loop blind spot**
 
-- [ ] After readiness verification, and **on workers running `7d6bbde95` or later**, re-transcribe 1343, 1258 and 980 through the pipeline in the canary/bounded batches.
+- [x] After readiness verification, and **on workers running `7d6bbde95` or later**, re-transcribe 1343, 1258 and 980 through the pipeline in the canary/bounded batches. *Triage 09-23: done 09-20.*
 - [ ] Verify recovered full-service evidence and saved sermon text independently.
 - [ ] Apply §4.1b's blind interior-window review to fluent transcription errors and omitted or meaning-changing speech, as well as loops.
-- [ ] Complete the identity consequence: unusable looped text cannot provide lyric confirmation.
+- [x] Complete the identity consequence: unusable looped text cannot provide lyric confirmation. *Triage 09-23: done; song matching refuses a transcript-derived `confirmed` where a suspect block overlaps (OCR or audited review may still confirm).*
 
 **4.3 Refresh song policy for existing outputs**
 
@@ -552,7 +554,7 @@ and tick or remove them here as they close.
 - [ ] Add a boundary check for continuous spoken material that does not depend solely on finding a wordless gap, using section 988 as the regression case.
 - [ ] Independently verify repaired starts and tails, including clean negatives, no lost singing, and the adjoining sermon ending (135 replay trims follow sermons).
 - [ ] Keep §988/§1475 (below the half-sustained floor), §2897 (speech over organ; proposed start trim unverified), and §1457's actual repaired output as explicit real-source checks.
-- [ ] Preserve the rejected broad unsung-song rule as a measured decision: 14 of 21 candidates were sung.
+- [x] Preserve the rejected broad unsung-song rule as a measured decision: 14 of 21 candidates were sung. *Triage 09-23: recorded in the log (§4.3, 09-17 speech-edge trim).*
 - [ ] Re-resolve the 72 deterministic cases through the pipeline, adjudicate the three unchanged-fallback suggestions separately, and correct livestream-sourced order-of-service items after identity settles.
 - [ ] Settle the 31 pending-approval sections with the same hint disagreement before anyone approves them.
 - [ ] Add a lyric-coverage check (calibrated in §4.1a) before a song match is recorded as `confirmed`.
@@ -561,18 +563,18 @@ and tick or remove them here as they close.
 **4.3a Put a detector in the pipeline for every class found**
 
 - [ ] Each promoted detector ships with the corpus cases in this plan as regression fixtures (positive and negative), under `tests/Fixtures/StructureEval` or beside it, following the existing fixture conventions.
-- [ ] Re-run every promoted detector over the current eligible historic membership (**443 completed non-excluded runs measured 2026-09-21**; the command computes this rather than quoting it) and reconcile its output with ex….
+- [x] Re-run every promoted detector over the current eligible historic membership and reconcile its output. *Triage 09-23: done by `detectors:replay` (H7a, 09-21) and the sound-stage re-derivation (H7c, applied 09-21).*
 
 **Detector quality and automation benefit**
 
 - [ ] For each detector, record a source-adjudicated evaluation of true and false positives, false negatives and unassessable cases, with exact denominators and uncertainty.
 - [ ] Draw detector-negative and approved examples independently of its alerts and review them against source evidence.
-- [ ] Separate known-defect regression fixtures from the development data used to choose thresholds/prompts.
-- [ ] Before evaluating a candidate, record acceptance thresholds by defect severity, tolerances and allowed review burden.
-- [ ] Break results down by era, codec/channel setup, service kind and availability of independent evidence, explicitly including the no-OoS group.
-- [ ] Bind results to code, model/prompt, policy and evidence versions.
+- [x] ~~Separate known-defect regression fixtures from the development data used to choose thresholds/prompts.~~ *Triage 09-23: superseded by the H9 ruling (no reserved set; historic results are retrospective validation).*
+- [x] Before evaluating a candidate, record acceptance thresholds by defect severity, tolerances and allowed review burden. *Triage 09-23: done; H4 predeclared thresholds contract (09-21).*
+- [x] Break results down by era, codec/channel setup, service kind and availability of independent evidence, explicitly including the no-OoS group. *Triage 09-23: done; the evaluation tabulates stored era, codec/channel, occasion and corroboration × independent OoS (H8 follow-up, 09-22).*
+- [x] Bind results to code, model/prompt, policy and evidence versions. *Triage 09-23: done; H6 version binding, and the report binds the evaluator file hash.*
 - [ ] Derive the era boundaries the breakdown needs from observed source codec/container/channel transitions in the corpus.
-- [ ] Draw and review the H10 detector-negative sample: 90 transcript-negative runs for the S1 target, by sampled interior windows rather than whole-service listening, reporting the quantity actually bounded.
+- [ ] Draw and review the H10 detector-negative sample: 90 transcript-negative runs for the S1 target, by sampled interior windows rather than whole-service listening, reporting the quantity actually bounded. *Triage 09-23: partly served; H10a coverage done, and the H10b listening queue (208 windows) is the transcript half. Still needs the operator's listening.*
 
 **H8. What this discharges, and what it leaves open**
 
@@ -582,10 +584,11 @@ and tick or remove them here as they close.
 
 **Final verification, interpretation and next actions**
 
-- [ ] **Contain the five audio-proven corrupt transcripts and §3869/§988.** Record effective holds through the tested application path, then recover the text or correct the cuts.
-- [ ] **Close the short-loop blind spot contextually.** Validate the remaining candidates against their audio, distinguish genuine repetition, and add regression coverage for four repetitions, fewer than 40 repeated words a….
+- [x] **Contain the five audio-proven corrupt transcripts and §3869/§988.** *Triage 09-23: containment verified; runs 929/1008/1068/1187/1317 sermons and §3869/§988 all carry `content_defect_hold`.*
+- [ ] Recover the text or correct the cuts for those seven (through the pipeline).
+- [ ] **Close the short-loop blind spot contextually.** *Triage 09-23: detection and regression coverage built (`4e42e05e7`, `e6b9326fc`, 09-19/20). Validating the remaining candidates against their audio is still open.*
 - [ ] **Make policy refresh reach already-generated songs.** Reassess within each owning staging context and bind the result to current inputs.
-- [ ] **Bind the three deferred duplicate pairs into Phase 9's membership.** Preserve the better masters and the agreed identity decisions; prevent release of unsettled rows by an explicit hold or exclusion rather than a pr….
+- [ ] **Bind the three deferred duplicate pairs into Phase 9's membership.** *Triage 09-23: tracked in §4.4; kept here only as a pointer.*
 
 ### 4.4 Bind deferred identity disputes
 
