@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Repositories;
 
-use App\Enums\SermonContentType;
 use App\Enums\SermonService;
+use App\Enums\TalkType;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\SermonScriptureFilter;
@@ -38,8 +38,8 @@ class SermonRepositoryTest extends TestCase
     #[Test]
     public function it_returns_sermons_for_a_specific_series(): void
     {
-        Sermon::factory()->create(['series' => 'Study in Romans', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
-        Sermon::factory()->create(['series' => 'Study in John', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        Sermon::factory()->create(['series' => 'Study in Romans', 'content_type' => TalkType::Sermon, 'reference' => null]);
+        Sermon::factory()->create(['series' => 'Study in John', 'content_type' => TalkType::Sermon, 'reference' => null]);
 
         $result = $this->repository->getSermonsBySeries('Study in Romans');
 
@@ -53,13 +53,13 @@ class SermonRepositoryTest extends TestCase
         Sermon::factory()->create([
             'series' => 'Study in Romans',
             'date' => '2024-01-01',
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
             'reference' => null,
         ]);
         Sermon::factory()->create([
             'series' => 'Study in Romans',
             'date' => '2024-01-15',
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
             'reference' => null,
         ]);
 
@@ -73,10 +73,10 @@ class SermonRepositoryTest extends TestCase
     #[Test]
     public function it_returns_unique_series_names_sorted_alphabetically(): void
     {
-        Sermon::factory()->create(['series' => 'Romans Study', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
-        Sermon::factory()->create(['series' => 'John Study', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
-        Sermon::factory()->create(['series' => 'John Study', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
-        Sermon::factory()->create(['series' => 'Acts Study', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        Sermon::factory()->create(['series' => 'Romans Study', 'content_type' => TalkType::Sermon, 'reference' => null]);
+        Sermon::factory()->create(['series' => 'John Study', 'content_type' => TalkType::Sermon, 'reference' => null]);
+        Sermon::factory()->create(['series' => 'John Study', 'content_type' => TalkType::Sermon, 'reference' => null]);
+        Sermon::factory()->create(['series' => 'Acts Study', 'content_type' => TalkType::Sermon, 'reference' => null]);
 
         $result = $this->repository->getExistingSeries();
 
@@ -87,7 +87,7 @@ class SermonRepositoryTest extends TestCase
     #[Test]
     public function it_filters_out_null_and_empty_series_names(): void
     {
-        Sermon::factory()->create(['series' => 'Valid Series', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        Sermon::factory()->create(['series' => 'Valid Series', 'content_type' => TalkType::Sermon, 'reference' => null]);
         Sermon::factory()->create(['series' => null]);
         Sermon::factory()->create(['series' => '']);
 
@@ -100,8 +100,8 @@ class SermonRepositoryTest extends TestCase
     #[Test]
     public function it_excludes_childrens_talks_from_series_retrieval(): void
     {
-        Sermon::factory()->create(['series' => 'Sermon Series', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
-        Sermon::factory()->create(['series' => 'Children Series', 'content_type' => SermonContentType::ChildrensTalk, 'reference' => null]);
+        Sermon::factory()->create(['series' => 'Sermon Series', 'content_type' => TalkType::Sermon, 'reference' => null]);
+        Sermon::factory()->create(['series' => 'Children Series', 'content_type' => TalkType::ChildrensTalk, 'reference' => null]);
 
         $result = $this->repository->getExistingSeries();
 
@@ -119,12 +119,12 @@ class SermonRepositoryTest extends TestCase
 
         $preacherSermon = Sermon::factory()->create([
             'preacher_id' => $preacher->id,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
             'reference' => null,
         ]);
         Sermon::factory()->create([
             'preacher_id' => $otherPreacher->id,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
             'reference' => null,
         ]);
 
@@ -137,8 +137,8 @@ class SermonRepositoryTest extends TestCase
     #[Test]
     public function it_returns_sermons_by_service(): void
     {
-        Sermon::factory()->create(['service' => SermonService::Morning, 'content_type' => SermonContentType::Sermon, 'reference' => null]);
-        Sermon::factory()->create(['service' => SermonService::Evening, 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        Sermon::factory()->create(['service' => SermonService::Morning, 'content_type' => TalkType::Sermon, 'reference' => null]);
+        Sermon::factory()->create(['service' => SermonService::Evening, 'content_type' => TalkType::Sermon, 'reference' => null]);
 
         $result = $this->repository->getSermonsByService(SermonService::Morning);
 
@@ -166,10 +166,10 @@ class SermonRepositoryTest extends TestCase
     public function it_retrieves_scripture_books_with_preacher_filter(): void
     {
         $preacher = Preacher::factory()->create();
-        $sermon = Sermon::factory()->create(['preacher_id' => $preacher->id, 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        $sermon = Sermon::factory()->create(['preacher_id' => $preacher->id, 'content_type' => TalkType::Sermon, 'reference' => null]);
         SermonScriptureFilter::factory()->create(['sermon_id' => $sermon->id, 'bible_book' => 'John']);
 
-        $otherSermon = Sermon::factory()->create(['preacher_id' => null, 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        $otherSermon = Sermon::factory()->create(['preacher_id' => null, 'content_type' => TalkType::Sermon, 'reference' => null]);
         SermonScriptureFilter::factory()->create(['sermon_id' => $otherSermon->id, 'bible_book' => 'Mark']);
 
         $books = $this->repository->getScriptureBooks($preacher->id);
@@ -182,10 +182,10 @@ class SermonRepositoryTest extends TestCase
     #[Test]
     public function it_retrieves_scripture_books_with_series_filter(): void
     {
-        $sermon = Sermon::factory()->create(['series' => 'Gospel', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        $sermon = Sermon::factory()->create(['series' => 'Gospel', 'content_type' => TalkType::Sermon, 'reference' => null]);
         SermonScriptureFilter::factory()->create(['sermon_id' => $sermon->id, 'bible_book' => 'John']);
 
-        $otherSermon = Sermon::factory()->create(['series' => 'Epistles', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        $otherSermon = Sermon::factory()->create(['series' => 'Epistles', 'content_type' => TalkType::Sermon, 'reference' => null]);
         SermonScriptureFilter::factory()->create(['sermon_id' => $otherSermon->id, 'bible_book' => 'Romans']);
 
         $books = $this->repository->getScriptureBooks(null, 'Gospel');
@@ -198,11 +198,11 @@ class SermonRepositoryTest extends TestCase
     #[Test]
     public function it_retrieves_scripture_chapters_with_filters(): void
     {
-        $sermon = Sermon::factory()->create(['series' => 'Gospel', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        $sermon = Sermon::factory()->create(['series' => 'Gospel', 'content_type' => TalkType::Sermon, 'reference' => null]);
         SermonScriptureFilter::factory()->create(['sermon_id' => $sermon->id, 'bible_book' => 'John', 'bible_chapter' => 1]);
         SermonScriptureFilter::factory()->create(['sermon_id' => $sermon->id, 'bible_book' => 'John', 'bible_chapter' => 3]);
 
-        $otherSermon = Sermon::factory()->create(['series' => 'Epistles', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        $otherSermon = Sermon::factory()->create(['series' => 'Epistles', 'content_type' => TalkType::Sermon, 'reference' => null]);
         SermonScriptureFilter::factory()->create(['sermon_id' => $otherSermon->id, 'bible_book' => 'John', 'bible_chapter' => 5]);
 
         $chapters = $this->repository->getScriptureChapters('John', null, 'Gospel');
@@ -234,8 +234,8 @@ class SermonRepositoryTest extends TestCase
     #[Test]
     public function it_caches_series_for_display_sorted_alphabetically(): void
     {
-        Sermon::factory()->create(['series' => 'Z Series', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
-        Sermon::factory()->create(['series' => 'A Series', 'content_type' => SermonContentType::Sermon, 'reference' => null]);
+        Sermon::factory()->create(['series' => 'Z Series', 'content_type' => TalkType::Sermon, 'reference' => null]);
+        Sermon::factory()->create(['series' => 'A Series', 'content_type' => TalkType::Sermon, 'reference' => null]);
 
         $result = $this->repository->getSeriesForDisplay();
 

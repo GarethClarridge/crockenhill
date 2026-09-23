@@ -6,10 +6,10 @@ namespace App\Services\Public;
 
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
-use App\Enums\SermonContentType;
 use App\Enums\SermonPublicationState;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 use App\Models\ChurchService;
 use App\Services\Sermon\SermonExposurePolicy;
 use Illuminate\Database\Eloquent\Builder;
@@ -142,7 +142,7 @@ class PublicServiceContentEligibility
     /**
      * Whether a sermon or children's talk may be surfaced on a public service page.
      */
-    public function allowsSermonContentType(SermonContentType $contentType): bool
+    public function allowsTalkType(TalkType $contentType): bool
     {
         return $this->exposurePolicy->exposesContentTypeOnChurchService($contentType);
     }
@@ -150,13 +150,13 @@ class PublicServiceContentEligibility
     /**
      * The sermon content types a public service page may link to.
      *
-     * @return list<SermonContentType>
+     * @return list<TalkType>
      */
-    public function exposableSermonContentTypes(): array
+    public function exposableTalkTypes(): array
     {
         return array_values(array_filter(
-            SermonContentType::cases(),
-            fn (SermonContentType $contentType): bool => $this->allowsSermonContentType($contentType),
+            TalkType::cases(),
+            fn (TalkType $contentType): bool => $this->allowsTalkType($contentType),
         ));
     }
 
@@ -190,8 +190,8 @@ class PublicServiceContentEligibility
             ->whereColumn('sermons.service', 'church_services.service')
             ->where('sermons.publication_state', SermonPublicationState::Published->value)
             ->whereIn('sermons.content_type', array_map(
-                fn (SermonContentType $contentType): string => $contentType->value,
-                $this->exposableSermonContentTypes(),
+                fn (TalkType $contentType): string => $contentType->value,
+                $this->exposableTalkTypes(),
             ));
     }
 

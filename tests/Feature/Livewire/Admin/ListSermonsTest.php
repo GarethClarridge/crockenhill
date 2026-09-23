@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Livewire\Admin;
 
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Livewire\Admin\Sermons\ListSermons;
 use App\Models\Sermon;
 use App\Models\User;
@@ -106,11 +106,11 @@ class ListSermonsTest extends TestCase
 
         $sermon = Sermon::factory()->create([
             'title' => 'Admin Sermon',
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
         $childrensTalk = Sermon::factory()->create([
             'title' => "Admin Children's Talk",
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
 
         Livewire::test(ListSermons::class)

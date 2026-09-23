@@ -97,6 +97,35 @@ listing.
 
 ---
 
+## 5. Rename the children's-talk exposure variable (talks plan PR1)
+
+**Status:** not yet applied · **Urgency:** with the deploy that ships `TalkType`
+
+`CHILDRENS_TALKS_PUBLIC` is gone; per-type exposure is now one list. Sermons are always public
+whatever the list says. In `/srv/crockenhill/.env.production`, remove `CHILDRENS_TALKS_PUBLIC`
+if present and set the equivalent:
+
+```
+# was CHILDRENS_TALKS_PUBLIC=false (or unset)
+PUBLIC_TALK_TYPES=sermon
+# was CHILDRENS_TALKS_PUBLIC=true
+PUBLIC_TALK_TYPES=sermon,childrens_talk
+```
+
+Then restart the app container so the config cache picks it up.
+
+**Verify:**
+
+```bash
+cd /srv/crockenhill && docker compose -f docker-compose.prod.yml --env-file .env.production \
+  exec -T app php artisan config:show church.talks.public_types
+```
+
+Leaving the old variable in place does nothing; forgetting the new one leaves children's talks
+members-only, which is the safe default.
+
+---
+
 ## Not on this list
 
 Re-enabling speaker identification is **not** a pending action — it is a decision that

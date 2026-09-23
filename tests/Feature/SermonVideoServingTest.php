@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Services\Sermon\SermonStorageService;
@@ -106,11 +106,11 @@ class SermonVideoServingTest extends TestCase
     #[Test]
     public function guest_cannot_access_childrens_talk_video_when_not_public(): void
     {
-        Config::set('church.sermons.childrens_talks.public', false);
+        Config::set('church.talks.public_types', ['sermon']);
 
         $sermon = Sermon::factory()->create([
             'slug' => 'childrens-talk',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'video_file_path' => 'sermons/kids.mp4',
         ]);
 
@@ -124,12 +124,12 @@ class SermonVideoServingTest extends TestCase
     #[Test]
     public function verified_user_can_access_childrens_talk_video_when_not_public(): void
     {
-        Config::set('church.sermons.childrens_talks.public', false);
+        Config::set('church.talks.public_types', ['sermon']);
         $user = User::factory()->create(['email_verified_at' => now()]);
 
         $sermon = Sermon::factory()->create([
             'slug' => 'childrens-talk',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'video_file_path' => 'sermons/kids.mp4',
         ]);
 
@@ -144,12 +144,12 @@ class SermonVideoServingTest extends TestCase
     #[Test]
     public function unverified_user_cannot_access_childrens_talk_video_when_not_public(): void
     {
-        Config::set('church.sermons.childrens_talks.public', false);
+        Config::set('church.talks.public_types', ['sermon']);
         $user = User::factory()->create(['email_verified_at' => null]);
 
         $sermon = Sermon::factory()->create([
             'slug' => 'childrens-talk',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'video_file_path' => 'sermons/kids.mp4',
         ]);
 
@@ -163,11 +163,11 @@ class SermonVideoServingTest extends TestCase
     #[Test]
     public function guest_can_access_childrens_talk_video_when_public(): void
     {
-        Config::set('church.sermons.childrens_talks.public', true);
+        Config::set('church.talks.public_types', ['sermon', 'childrens_talk']);
 
         $sermon = Sermon::factory()->create([
             'slug' => 'childrens-talk',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'video_file_path' => 'sermons/kids.mp4',
         ]);
 

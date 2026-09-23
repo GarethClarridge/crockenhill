@@ -10,7 +10,6 @@ use App\Enums\ChurchServiceOccurrenceState;
 use App\Enums\MediaType;
 use App\Enums\PreacherSource;
 use App\Enums\ProcessingStatus;
-use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Enums\SermonVideoQualityStatus;
@@ -19,6 +18,7 @@ use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\LivestreamSegment;
@@ -130,7 +130,7 @@ class HistoricNormalOutputCanary
         $mainSermon = Sermon::factory()->create([
             'date' => $date->toDateString(),
             'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
             'title' => 'Canary sermon',
             'slug' => 'canary-sermon',
             'reference' => 'John 3; Romans 8',
@@ -163,7 +163,7 @@ class HistoricNormalOutputCanary
         $childrensTalk = Sermon::factory()->create([
             'date' => $date->toDateString(),
             'service' => SermonService::Morning,
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'title' => "Canary children's talk",
             'slug' => 'canary-childrens-talk',
             'preacher' => $childrensTalkSpeaker->name,

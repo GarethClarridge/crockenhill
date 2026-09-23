@@ -6,10 +6,10 @@ namespace Tests\Integration\Data;
 
 use App\Data\SermonCreationOptions;
 use App\Enums\PreacherSource;
-use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\ServiceSection;
@@ -64,7 +64,7 @@ class SermonCreationOptionsTest extends TestCase
         $this->assertSame('2026-05-10', $options->date);
         $this->assertSame(SermonService::Morning, $options->service);
         $this->assertSame("Children's Talk", $options->customTitle);
-        $this->assertSame(SermonContentType::ChildrensTalk, $options->contentType);
+        $this->assertSame(TalkType::ChildrensTalk, $options->contentType);
         $this->assertSame($preacher->id, $options->preacherId);
         $this->assertSame($preacher->name, $options->preacher);
         $this->assertSame(PreacherSource::Manual, $options->preacherSource);

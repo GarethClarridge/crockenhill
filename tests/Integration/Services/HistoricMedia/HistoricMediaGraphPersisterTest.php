@@ -7,7 +7,6 @@ namespace Tests\Integration\Services\HistoricMedia;
 use App\Data\HistoricProcessingResultImportPlan;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
-use App\Enums\SermonContentType;
 use App\Enums\SermonPublicationState;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
@@ -16,6 +15,7 @@ use App\Enums\SermonVideoVisibilityOverride;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
@@ -73,7 +73,7 @@ class HistoricMediaGraphPersisterTest extends TestCase
         $existing = Sermon::factory()->create([
             'date' => '2026-08-02',
             'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
             'slug' => 'persister-test-sermon',
             'title' => 'Persister test sermon',
             'reference' => null,
@@ -682,7 +682,7 @@ class HistoricMediaGraphPersisterTest extends TestCase
     ): array {
         return [
             'section_key' => $sectionKey,
-            'content_type' => SermonContentType::Sermon->value,
+            'content_type' => TalkType::Sermon->value,
             'date' => '2026-08-02',
             'service' => SermonService::Morning->value,
             'slug' => $sectionKey === null ? 'persister-test-sermon' : 'persister-test-section-sermon',

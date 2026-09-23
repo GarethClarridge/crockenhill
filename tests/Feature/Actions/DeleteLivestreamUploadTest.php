@@ -8,8 +8,8 @@ use App\Actions\DeleteLivestreamUpload;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
-use App\Enums\SermonContentType;
 use App\Enums\SermonService;
+use App\Enums\TalkType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
@@ -68,7 +68,7 @@ class DeleteLivestreamUploadTest extends TestCase
             'livestream_processing_id' => $processingId,
             'date' => '2026-04-06',
             'service' => SermonService::Morning->value,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
             'audio_file_path' => 'sermons/audio/'.$processingId.'_sermon.mp3',
             'video_file_path' => 'sermons/771/video.mp4',
             'transcript_file_path' => 'transcripts/sermon_771.md',

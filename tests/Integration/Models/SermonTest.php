@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Models;
 
-use App\Enums\SermonContentType;
 use App\Enums\SermonService;
+use App\Enums\TalkType;
 use App\Models\Builders\SermonBuilder;
 use App\Models\Preacher;
 use App\Models\Sermon;
@@ -168,18 +168,18 @@ class SermonTest extends TestCase
 
         $sermon = Sermon::query()->create($attributes);
 
-        $this->assertSame(SermonContentType::Sermon, $sermon->refresh()->content_type);
+        $this->assertSame(TalkType::Sermon, $sermon->refresh()->content_type);
     }
 
     #[Test]
     public function sermon_content_type_scopes_filter_correctly(): void
     {
         $sermon = Sermon::factory()->create([
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         $childrensTalk = Sermon::factory()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
 
         $this->assertTrue(Sermon::query()->whereSermon()->get()->contains($sermon));
@@ -194,13 +194,13 @@ class SermonTest extends TestCase
         $sermon = Sermon::factory()->create([
             'slug' => 'date-based-sermon',
             'date' => '2026-02-15',
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         $childrensTalk = Sermon::factory()->create([
             'slug' => 'childrens-corner-talk',
             'date' => '2026-02-15',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
 
         $policy = app(SermonExposurePolicy::class);
@@ -214,25 +214,25 @@ class SermonTest extends TestCase
     #[Test]
     public function scope_where_visible_in_sitemap_excludes_childrens_talks_when_not_public(): void
     {
-        Config::set('church.sermons.childrens_talks.public', false);
+        Config::set('church.talks.public_types', ['sermon']);
 
-        $sermon = Sermon::factory()->create(['content_type' => SermonContentType::Sermon]);
-        $childrensTalk = Sermon::factory()->create(['content_type' => SermonContentType::ChildrensTalk]);
+        $sermon = Sermon::factory()->create(['content_type' => TalkType::Sermon]);
+        $childrensTalk = Sermon::factory()->create(['content_type' => TalkType::ChildrensTalk]);
 
         $ids = [$sermon->id, $childrensTalk->id];
         $results = Sermon::whereVisibleInSitemap()->whereIn('id', $ids)->get();
 
-        $this->assertTrue($results->every(fn (Sermon $s) => $s->content_type === SermonContentType::Sermon));
+        $this->assertTrue($results->every(fn (Sermon $s) => $s->content_type === TalkType::Sermon));
         $this->assertCount(1, $results);
     }
 
     #[Test]
     public function scope_where_visible_in_sitemap_includes_all_content_when_childrens_talks_are_public(): void
     {
-        Config::set('church.sermons.childrens_talks.public', true);
+        Config::set('church.talks.public_types', ['sermon', 'childrens_talk']);
 
-        $sermon = Sermon::factory()->create(['content_type' => SermonContentType::Sermon]);
-        $childrensTalk = Sermon::factory()->create(['content_type' => SermonContentType::ChildrensTalk]);
+        $sermon = Sermon::factory()->create(['content_type' => TalkType::Sermon]);
+        $childrensTalk = Sermon::factory()->create(['content_type' => TalkType::ChildrensTalk]);
 
         $ids = [$sermon->id, $childrensTalk->id];
         $this->assertCount(2, Sermon::whereVisibleInSitemap()->whereIn('id', $ids)->get());

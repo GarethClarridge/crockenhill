@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\PageArea;
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Preacher;
@@ -131,7 +131,7 @@ class SitemapTest extends TestCase
         Sermon::factory()->create([
             'slug' => 'hidden-childrens-talk',
             'date' => '2026-02-15',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
 
         $response = $this->get('/sitemap.xml');
@@ -144,12 +144,12 @@ class SitemapTest extends TestCase
     #[Test]
     public function sitemap_uses_childrens_corner_urls_when_public_release_is_enabled(): void
     {
-        config(['church.sermons.childrens_talks.public' => true]);
+        config(['church.talks.public_types' => ['sermon', 'childrens_talk']]);
 
         Sermon::factory()->create([
             'slug' => 'public-childrens-talk',
             'date' => '2026-02-15',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
 
         $response = $this->get('/sitemap.xml');
@@ -388,10 +388,10 @@ class SitemapTest extends TestCase
         // has no canonical dated URL; before the fix it reached the
         // visible-in-sitemap scope and threw UrlGenerationException, failing the
         // deploy's `sitemap:generate` step. It must now be skipped.
-        $this->createSermonWithBlankSlug(['content_type' => SermonContentType::Sermon]);
+        $this->createSermonWithBlankSlug(['content_type' => TalkType::Sermon]);
         Sermon::factory()->create([
             'slug' => 'has-a-slug',
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
             'date' => '2025-05-20',
         ]);
 

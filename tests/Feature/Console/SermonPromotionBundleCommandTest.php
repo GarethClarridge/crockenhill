@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature\Console;
 
 use App\Enums\ProcessingStatus;
-use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
+use App\Enums\TalkType;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\PreacherAlias;
@@ -192,7 +192,7 @@ class SermonPromotionBundleCommandTest extends TestCase
         Sermon::factory()->withPreacher($existingPreacher)->create([
             'date' => '2024-01-07',
             'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
             'slug' => 'different-sermon-on-the-same-date',
             'audio_file_path' => 'sermons/audio/different.mp3',
         ]);
@@ -368,7 +368,7 @@ class SermonPromotionBundleCommandTest extends TestCase
         $sermon = Sermon::factory()->withPreacher($preacher)->create([
             'date' => '2024-01-07',
             'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
             'source_type' => SermonSourceType::AudioUpload,
             'audio_file_path' => $audioPath,
             'transcript_file_path' => $transcriptPath,

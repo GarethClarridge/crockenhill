@@ -6,8 +6,8 @@ namespace App\Services\Sermon;
 
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
-use App\Enums\SermonContentType;
 use App\Enums\SermonSourceType;
+use App\Enums\TalkType;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
@@ -84,7 +84,7 @@ class SermonPromotionBundleExporter
      */
     private function entryForSermon(Sermon $sermon): array
     {
-        if ($sermon->content_type !== SermonContentType::Sermon) {
+        if ($sermon->content_type !== TalkType::Sermon) {
             throw new RuntimeException("Sermon {$sermon->id} is not eligible: children's talks use the supported admin flow.");
         }
 

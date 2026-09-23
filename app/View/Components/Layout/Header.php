@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\View\Components\Layout;
 
+use App\Enums\TalkType;
 use App\Models\Page;
 use App\Models\User;
 use App\Services\Sermon\SermonExposurePolicy;
@@ -42,7 +43,7 @@ class Header extends Component
                 ->select(['id', 'slug', 'heading', 'area'])
                 ->get(),
         );
-        $this->canAccessChildrensCorner = $exposurePolicy->canAccessChildrensCorner($user);
+        $this->canAccessChildrensCorner = $exposurePolicy->canAccessType(TalkType::ChildrensTalk, $user);
     }
 
     public function render(): View|Closure|string

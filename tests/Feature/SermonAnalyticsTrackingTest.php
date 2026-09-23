@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Models\Sermon;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -39,7 +39,7 @@ class SermonAnalyticsTrackingTest extends TestCase
     {
         $sermon = Sermon::factory()->byPreacher('Mark Evans')->create([
             'series' => 'Letters to Rome',
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         $response = $this->followingRedirects()->get(route('sermons.show', $sermon->slug));
@@ -72,7 +72,7 @@ class SermonAnalyticsTrackingTest extends TestCase
         $this->actingAs(User::factory()->create());
 
         $talk = Sermon::factory()->withAudio()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
 
         $response = $this->get(route('childrens-corner.show', $talk->slug));

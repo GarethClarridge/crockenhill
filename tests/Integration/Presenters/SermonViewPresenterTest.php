@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Presenters;
 
-use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\SermonVideoQualityStatus;
 use App\Enums\SermonVideoVisibilityOverride;
+use App\Enums\TalkType;
 use App\Models\Preacher;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
@@ -392,7 +392,7 @@ class SermonViewPresenterTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'slug' => 'a-childrens-talk',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'audio_file_path' => 'sermons/audio/a-childrens-talk.mp3',
             'video_file_path' => 'sermons/video/a-childrens-talk.mp4',
             'thumbnail_file_path' => 'thumbnails/a-childrens-talk.jpg',

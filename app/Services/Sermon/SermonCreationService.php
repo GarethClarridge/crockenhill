@@ -7,7 +7,6 @@ namespace App\Services\Sermon;
 use App\Data\SermonCreationOptions;
 use App\Enums\MediaType;
 use App\Enums\PreacherSource;
-use App\Enums\SermonContentType;
 use App\Enums\SermonPublicationState;
 use App\Enums\SermonRichnessLevel;
 use App\Enums\SermonService;
@@ -19,9 +18,11 @@ use App\Exceptions\SermonRichnessDowngradeException;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Models\ServiceSection;
 use App\Services\Preacher\PreacherResolutionService;
 use App\Support\PlaceholderSermonTitle;
 use App\Traits\SanitizesLogData;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -61,7 +62,9 @@ class SermonCreationService
      * - **Reject**: Refuse to downgrade (e.g., uploading audio for a sermon that
      *   already has video).
      *
-     * Match criteria for existing records: (date, service, content_type).
+     * Match criteria for existing records: a section-published talk is its
+     * section's `published_sermon_id`; otherwise (date, service, content_type),
+     * never claiming a talk another section already published.
      *
      * @param  MediaProcessingLog  $processingLog  The log of the current processing run
      * @param  SermonCreationOptions  $options  Consolidated options and metadata for creation
@@ -77,11 +80,7 @@ class SermonCreationService
         $sermonDate = $options->date ?? $this->extractDate($processingLog, $options->originalFilename);
         $service = $options->service ?? $this->extractServiceType($processingLog, $options->originalFilename);
 
-        $existing = $this->findByDateAndServiceAndContentType(
-            $sermonDate,
-            $service,
-            $options->contentType,
-        );
+        $existing = $this->findExisting($sermonDate, $service, $options);
 
         if (blank($existing)) {
             return $this->createFresh($processingLog, $options, $sermonDate, $service);
@@ -118,18 +117,40 @@ class SermonCreationService
         }
     }
 
-    private function findByDateAndServiceAndContentType(
+    /**
+     * Two talks of one type can share a service (two testimonies), so the
+     * date/service/type key alone would let the second overwrite the first.
+     */
+    private function findExisting(
         Carbon|string $date,
         SermonService $service,
-        SermonContentType $contentType,
+        SermonCreationOptions $options,
     ): ?Sermon {
+        $section = $options->publishingSection;
+
+        if ($section?->published_sermon_id !== null) {
+            $published = Sermon::query()->find($section->published_sermon_id);
+
+            if ($published !== null) {
+                return $published;
+            }
+        }
+
         $dateString = $date instanceof Carbon ? $date->toDateString() : $date;
 
-        return Sermon::query()
+        $query = Sermon::query()
             ->where('date', $dateString)
             ->where('service', $service)
-            ->where('content_type', $contentType)
-            ->first();
+            ->where('content_type', $options->contentType);
+
+        if ($section instanceof ServiceSection) {
+            $query->whereDoesntHave(
+                'publishedServiceSection',
+                fn (Builder $sections): Builder => $sections->whereKeyNot($section->getKey()),
+            );
+        }
+
+        return $query->first();
     }
 
     private function generateUniqueSlug(string $title, ?int $excludeSermonId = null): string

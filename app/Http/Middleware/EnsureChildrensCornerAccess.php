@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Enums\TalkType;
 use App\Services\Sermon\SermonExposurePolicy;
 use Closure;
 use Illuminate\Http\Request;
@@ -20,7 +21,7 @@ class EnsureChildrensCornerAccess
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if ($this->exposurePolicy->canAccessChildrensCorner($request->user())) {
+        if ($this->exposurePolicy->canAccessType(TalkType::ChildrensTalk, $request->user())) {
             return $next($request);
         }
 

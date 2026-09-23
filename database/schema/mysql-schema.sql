@@ -283,7 +283,7 @@ CREATE TABLE `church_services` (
   `needs_review` tinyint(1) NOT NULL DEFAULT '0',
   `review_reason` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `summary` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `occasion` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `occasion` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `occasion_confirmed_at` timestamp NULL DEFAULT NULL,
   `notices` json DEFAULT NULL,
   `chapter_markers` json DEFAULT NULL,
@@ -1165,7 +1165,7 @@ CREATE TABLE `sermons` (
   `livestream_processing_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `date` date NOT NULL,
   `service` enum('morning','evening','other') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `content_type` enum('sermon','childrens_talk') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'sermon',
+  `content_type` enum('sermon','childrens_talk','partner_update','testimony') COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'sermon',
   `publication_state` varchar(24) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'published',
   `asset_disk` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `historic_import_operation_id` bigint unsigned DEFAULT NULL,
@@ -1507,7 +1507,6 @@ CREATE TABLE `songs` (
   `copyright` text CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `alternative_title` varchar(100) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `current` tinyint(1) NOT NULL DEFAULT '1',
   `notes` text CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci,
   `major_category` enum('Psalms','Approaching God','Children’s','Christ’s Lordship over all of life','The Bible','The Christian life','The church','The Father','The future','The gospel','The Holy Spirit','The Son') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
@@ -1847,3 +1846,5 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_31_140000_add_a
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_31_211617_add_asset_disk_to_service_sections_table',97);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_02_184415_drop_historic_import_usage_entries_table',98);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_03_104053_add_occasion_to_church_services_table',99);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_18_111240_drop_alternative_title_from_songs_table',100);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_23_205555_widen_sermons_content_type_to_talk_types',100);

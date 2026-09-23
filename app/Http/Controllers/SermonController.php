@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Enums\SermonContentType;
 use App\Enums\SermonService;
+use App\Enums\TalkType;
 use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
@@ -104,7 +104,7 @@ class SermonController extends Controller
      */
     private function renderSermon(Sermon $sermon, SermonPageContextService $pageContextService): View
     {
-        abort_unless($sermon->content_type === SermonContentType::Sermon, 404);
+        abort_unless($sermon->content_type === TalkType::Sermon, 404);
 
         /**
          * Performance Optimization: Limits retrieved columns for related models to

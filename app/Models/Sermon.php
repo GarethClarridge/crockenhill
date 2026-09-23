@@ -8,13 +8,13 @@ use App\Data\ThumbnailMetadata;
 use App\Data\ThumbnailMetadataCast;
 use App\Enums\MediaType;
 use App\Enums\PreacherSource;
-use App\Enums\SermonContentType;
 use App\Enums\SermonPublicationState;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Enums\SermonTitleProvenance;
 use App\Enums\SermonVideoQualityStatus;
 use App\Enums\SermonVideoVisibilityOverride;
+use App\Enums\TalkType;
 use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Models\Builders\SermonBuilder;
@@ -60,7 +60,7 @@ use Spatie\Sitemap\Tags\Url;
  * @property int $id
  * @property Carbon $date
  * @property ?SermonService $service
- * @property SermonContentType $content_type
+ * @property TalkType $content_type
  * @property SermonPublicationState $publication_state
  * @property ?string $asset_disk
  * @property ?int $historic_import_operation_id
@@ -193,7 +193,7 @@ class Sermon extends Model implements Sitemapable
             'date' => 'date',
             'points' => 'array',
             'service' => SermonService::class,
-            'content_type' => SermonContentType::class,
+            'content_type' => TalkType::class,
             'publication_state' => SermonPublicationState::class,
             'title_provenance' => SermonTitleProvenance::class,
             'segment_start_time' => 'float',
@@ -279,7 +279,7 @@ class Sermon extends Model implements Sitemapable
             'date' => ['required', 'date_format:Y-m-d'],
             'audio_file_path' => ['nullable', 'string', 'max:255'],
             'video_file_path' => ['nullable', 'string', 'max:500'],
-            'content_type' => ['required', Rule::enum(SermonContentType::class)],
+            'content_type' => ['required', Rule::enum(TalkType::class)],
             'source_type' => ['nullable', Rule::enum(SermonSourceType::class)],
             'service' => ['nullable', Rule::enum(SermonService::class)],
             'series' => ['nullable', 'string', 'max:255'],

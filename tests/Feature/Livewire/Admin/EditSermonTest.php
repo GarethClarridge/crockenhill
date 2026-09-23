@@ -6,10 +6,10 @@ namespace Tests\Feature\Livewire\Admin;
 
 use App\Data\ThumbnailResult;
 use App\Enums\PreacherSource;
-use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\SermonVideoQualityStatus;
 use App\Enums\SermonVideoVisibilityOverride;
+use App\Enums\TalkType;
 use App\Jobs\AssessSermonVideoQuality;
 use App\Livewire\Admin\Sermons\EditSermon;
 use App\Livewire\Admin\Sermons\EditSermonThumbnails;
@@ -517,7 +517,7 @@ class EditSermonTest extends TestCase
 
         $talk = Sermon::factory()->create([
             'title' => 'Talk To Edit',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'reference' => 'John 3:16',
             'show_summary' => true,
             'show_points' => true,

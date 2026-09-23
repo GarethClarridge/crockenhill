@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Services\Public\PreacherListCache;
@@ -67,16 +67,16 @@ class PreacherListCacheTest extends TestCase
 
         Sermon::factory()->count(2)->create([
             'preacher_id' => $preacherA->id,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
         Sermon::factory()->create([
             'preacher_id' => $preacherB->id,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
         // Children's talks should not count towards the sermon count.
         Sermon::factory()->create([
             'preacher_id' => $preacherB->id,
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
 
         DB::enableQueryLog();

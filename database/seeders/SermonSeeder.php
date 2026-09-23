@@ -4,9 +4,9 @@ namespace Database\Seeders;
 
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
-use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
@@ -99,7 +99,7 @@ class SermonSeeder extends Seeder
                 'preacher_id' => $preacher?->id,
                 'preacher_source' => 'manual',
                 'audio_file_path' => null,
-                'content_type' => SermonContentType::ChildrensTalk->value,
+                'content_type' => TalkType::ChildrensTalk->value,
             ],
             [
                 'date' => '2024-12-08',
@@ -111,7 +111,7 @@ class SermonSeeder extends Seeder
                 'preacher_id' => $preacher?->id,
                 'preacher_source' => 'manual',
                 'audio_file_path' => null,
-                'content_type' => SermonContentType::ChildrensTalk->value,
+                'content_type' => TalkType::ChildrensTalk->value,
             ],
             [
                 'date' => '2024-12-01',
@@ -123,7 +123,7 @@ class SermonSeeder extends Seeder
                 'preacher_id' => $preacher?->id,
                 'preacher_source' => 'manual',
                 'audio_file_path' => null,
-                'content_type' => SermonContentType::ChildrensTalk->value,
+                'content_type' => TalkType::ChildrensTalk->value,
             ],
         ];
 

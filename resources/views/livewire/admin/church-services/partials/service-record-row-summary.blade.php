@@ -1,6 +1,6 @@
 @php
     use App\Enums\ServiceSectionPublicationStatus;
-    use App\Enums\SermonContentType;
+    use App\Enums\TalkType;
     use App\Services\ChurchService\ServiceRecordTimeline;
 @endphp
 
@@ -69,7 +69,7 @@
 
         @if($item['publication_status'] === ServiceSectionPublicationStatus::Published && $item['published_sermon'])
             @php
-                $publishedSermonUrl = $item['published_sermon']->content_type === SermonContentType::ChildrensTalk
+                $publishedSermonUrl = $item['published_sermon']->content_type === TalkType::ChildrensTalk
                     ? route('childrens-corner.show', ['sermon' => $item['published_sermon']->slug])
                     : route('sermons.show', ['sermon' => $item['published_sermon']->slug]);
             @endphp

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Database;
 
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Models\ChurchServiceItem;
 use App\Models\Preacher;
 use App\Models\ScripturePassage;
@@ -30,7 +30,7 @@ class BackfillAuditTest extends TestCase
         // The SermonObserver indexes scripture filters on save, so this sermon
         // arrives with its derived filter rows already in place.
         Sermon::factory()->create([
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
             'reference' => 'John 3:16',
             'preacher_id' => $preacher->id,
             'scripture_passage_id' => $passage->id,
@@ -67,13 +67,13 @@ class BackfillAuditTest extends TestCase
     public function it_detects_missed_scripture_filter_and_praise_number_backfills(): void
     {
         Sermon::factory()->create([
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
             'reference' => 'John 3:16',
             'preacher_id' => null,
             'scripture_passage_id' => null,
         ]);
         Sermon::factory()->create([
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
             'reference' => 'Church anniversary address',
             'preacher_id' => null,
             'scripture_passage_id' => null,

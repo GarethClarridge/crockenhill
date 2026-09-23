@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -43,11 +43,11 @@ class SermonSeriesListingTest extends TestCase
 
         Sermon::factory()->create([
             'series' => 'Sermon Series',
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
         Sermon::factory()->create([
             'series' => 'Children Series',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
 
         $response = $this->get('/christ/sermons/series');
@@ -76,11 +76,11 @@ class SermonSeriesListingTest extends TestCase
 
         Sermon::factory()->create([
             'series' => 'Gospel of Mark',
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
         Sermon::factory()->create([
             'series' => 'Advent 2024',
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         $response = $this->get('/christ/sermons/series');

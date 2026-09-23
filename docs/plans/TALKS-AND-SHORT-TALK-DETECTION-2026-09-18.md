@@ -315,6 +315,14 @@ suite and Dusk — **never while a data pass is running** (`dusk_repoints_db_dur
 | **PR4 — Approval and publication** | Talk-type select and blocker in the panel; signature includes the reviewed type; `TalkPublicationHandler` under the `short_talk` key; `SermonCreationOptions::fromServiceSection()` maps the reviewed type. End-to-end test (the existing `ChildrensTalkPublicationWorkflowTest`, generalised) drives a `testimony` from prepare → approve → publish and asserts it renders at `/christ/testimonies/{slug}` for a verified member and 404s for a guest. | PR1, PR3 | Section publication path (already the children's-talk path); workbench panel |
 | **PR5 — Re-detection pass** | Gate: PR3's measurement shows the new prompt finds ≥ the talks the truth table names in the 61 with no false `short_talk` on the "not talks" rows; anything short of that is a prompt fix first (`feedback_measure_before_generalizing_a_fix`). Then the 142 runs with a long `other` and no short talk are re-detected **through the pipeline** (detection phase only, transcript reused; workers restarted first — `queue_workers_run_stale_code_after_commit`), operator-dispatched, respecting the historic lane's staging and dispatch rules. Outcome: short-talk candidates in the workbench for the operator to type, speaker and approve. | PR4 | Data only; no code |
 
+**PR1 landed 2026-09-23.** Labels keep the existing Title Case (`Children's Talk`, `Partner
+Update`) so no rendered copy changed; the sentence-case question is PR2's, with the page copy.
+The section-published upsert keys on `published_sermon_id`, then falls back to
+(date, service, type) only for a talk no other section has published — a re-synced section
+(whose `published_sermon_id` sync nulls) still adopts its old talk. `Header`,
+`EnsureChildrensCornerAccess` and the Children's Corner route branching survive until PR2,
+calling `canAccessType(TalkType::ChildrensTalk, …)`.
+
 PR2 and PR3 are independent of each other and can proceed in parallel after PR1. Nothing here
 is a calendar gate (`feedback_no_calendar_time_gates`).
 

@@ -55,7 +55,7 @@
         <tbody class="bg-white divide-y divide-gray-200">
             @forelse($sermons as $sermon)
                 @php
-                    $publicUrl = $sermon->content_type === \App\Enums\SermonContentType::ChildrensTalk
+                    $publicUrl = $sermon->content_type === \App\Enums\TalkType::ChildrensTalk
                         ? route('childrens-corner.show', ['sermon' => $sermon->slug])
                         : route('sermons.show', ['sermon' => $sermon->slug]);
                 @endphp
@@ -64,7 +64,7 @@
                     <td class="px-4 py-3">
                         <p class="font-medium">{{ Str::limit($sermon->title, 50) }}</p>
                         <p class="mt-2">
-                            <x-badge :variant="$sermon->content_type === \App\Enums\SermonContentType::ChildrensTalk ? 'sky' : 'default'" size="xs">
+                            <x-badge :variant="$sermon->content_type === \App\Enums\TalkType::ChildrensTalk ? 'sky' : 'default'" size="xs">
                                 {{ $sermon->content_type->label() }}
                             </x-badge>
                         </p>

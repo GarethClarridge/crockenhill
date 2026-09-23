@@ -111,7 +111,7 @@ class SitemapServiceTest extends TestCase
         $filePath = tempnam(sys_get_temp_dir(), 'sitemap').'.xml';
 
         $exposurePolicy = $this->createStub(SermonExposurePolicy::class);
-        $exposurePolicy->method('childrensTalksArePublic')->willReturn(false);
+        $exposurePolicy->method('isTypePublic')->willReturn(false);
 
         $sermonRepository = $this->createStub(SermonRepository::class);
         $sermonRepository->method('getSermonsByService')->willReturn(collect());

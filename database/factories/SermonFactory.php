@@ -2,10 +2,10 @@
 
 namespace Database\Factories;
 
-use App\Enums\SermonContentType;
 use App\Enums\SermonPublicationState;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
+use App\Enums\TalkType;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use Carbon\Carbon;
@@ -22,7 +22,7 @@ class SermonFactory extends Factory
         return [
             'date' => $this->faker->date(),
             'service' => $this->faker->randomElement([SermonService::Morning->value, SermonService::Evening->value, SermonService::Other->value]),
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
             'publication_state' => SermonPublicationState::Published,
             'audio_file_path' => null,
             'filetype' => 'mp3',

@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Tests\Integration\Jobs;
 
 use App\Enums\PreacherSource;
-use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 use App\Jobs\PublishApprovedServiceSection;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
@@ -282,7 +282,7 @@ class PublishApprovedServiceSectionTest extends TestCase
         $sermon = Sermon::query()->findOrFail($section->published_sermon_id);
 
         $this->assertSame(ServiceSectionPublicationStatus::Published, $section->publication_status);
-        $this->assertSame(SermonContentType::ChildrensTalk, $sermon->content_type);
+        $this->assertSame(TalkType::ChildrensTalk, $sermon->content_type);
         $this->assertSame($preacher->id, $sermon->preacher_id);
         $this->assertSame($preacher->name, $sermon->preacher);
     }

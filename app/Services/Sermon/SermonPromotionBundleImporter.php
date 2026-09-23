@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Sermon;
 
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\PreacherAlias;
@@ -194,7 +194,7 @@ class SermonPromotionBundleImporter
         $existingSermonId = $anchorIds[0];
         $existingSermon = Sermon::query()->find($existingSermonId, ['id', 'content_type']);
 
-        if (! $existingSermon instanceof Sermon || $existingSermon->content_type !== SermonContentType::Sermon) {
+        if (! $existingSermon instanceof Sermon || $existingSermon->content_type !== TalkType::Sermon) {
             return $this->classificationConflict('Strong identity points to a non-sermon production record.');
         }
 

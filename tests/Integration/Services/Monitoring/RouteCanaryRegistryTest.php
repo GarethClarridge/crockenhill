@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Services\Monitoring;
 
 use App\Enums\PageArea;
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Preacher;
@@ -113,14 +113,14 @@ class RouteCanaryRegistryTest extends TestCase
             ->create([
                 'slug' => 'the-glory-of-christ',
                 'date' => '2024-05-19',
-                'content_type' => SermonContentType::Sermon,
+                'content_type' => TalkType::Sermon,
             ]);
 
         // Ineligible sermon: children's talk (depending on config, usually hidden from sitemap)
-        config(['church.sermons.childrens_talks.public' => false]);
+        config(['church.talks.public_types' => ['sermon']]);
         Sermon::factory()->create([
             'slug' => 'kids-talk',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
 
         $canaries = $this->registry->all();
@@ -156,7 +156,7 @@ class RouteCanaryRegistryTest extends TestCase
         Sermon::factory()->create([
             'slug' => 'no-profile-sermon',
             'preacher_id' => null,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         $canaries = $this->registry->all();

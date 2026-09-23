@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Enums\SermonContentType;
 use App\Enums\SermonPublicationState;
+use App\Enums\TalkType;
 use App\Models\Sermon;
 use App\Presenters\RelatedPagePresenter;
 use App\Presenters\SermonViewPresenter;
@@ -25,7 +25,7 @@ class ChildrensCornerController extends Controller
     public function index(): View
     {
         $talks = $this->sermonRepository
-            ->basePublicSermonQuery(SermonContentType::ChildrensTalk)
+            ->basePublicSermonQuery(TalkType::ChildrensTalk)
             ->orderBy('date', 'desc')
             ->paginate(12);
 
@@ -53,7 +53,7 @@ class ChildrensCornerController extends Controller
     public function show(Sermon $sermon): View
     {
         abort_unless(
-            $sermon->content_type === SermonContentType::ChildrensTalk
+            $sermon->content_type === TalkType::ChildrensTalk
                 && $sermon->publication_state === SermonPublicationState::Published,
             404,
         );

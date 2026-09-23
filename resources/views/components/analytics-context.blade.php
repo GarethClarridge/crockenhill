@@ -17,7 +17,7 @@
 ])
 
 @php
-    $isChildrensTalk = $sermon->content_type === \App\Enums\SermonContentType::ChildrensTalk;
+    $isChildrensTalk = $sermon->content_type === \App\Enums\TalkType::ChildrensTalk;
 
     $preacher = filled($preacherName) ? $preacherName : $sermon->preacher;
 

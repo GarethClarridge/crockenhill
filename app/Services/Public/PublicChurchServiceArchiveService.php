@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\Public;
 
-use App\Enums\SermonContentType;
 use App\Enums\SermonPublicationState;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\Sermon;
@@ -287,7 +287,7 @@ class PublicChurchServiceArchiveService
      */
     private function sermonEntry(Sermon $sermon, Collection $sections): array
     {
-        $isTalk = $sermon->content_type === SermonContentType::ChildrensTalk;
+        $isTalk = $sermon->content_type === TalkType::ChildrensTalk;
         $sectionType = $isTalk ? ServiceSectionType::ChildrensTalk : ServiceSectionType::Sermon;
 
         $section = $sections->first(
@@ -409,7 +409,7 @@ class PublicChurchServiceArchiveService
      */
     private function exposableSermons(ChurchService $churchService): Collection
     {
-        $contentTypes = $this->eligibility->exposableSermonContentTypes();
+        $contentTypes = $this->eligibility->exposableTalkTypes();
 
         if ($contentTypes === []) {
             return collect();

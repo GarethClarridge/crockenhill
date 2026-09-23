@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Integration\Services;
 
 use App\Data\PodcastFeedItemReadModel;
-use App\Enums\SermonContentType;
 use App\Enums\SermonService;
+use App\Enums\TalkType;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
 use App\Services\Media\Audio\SermonTranscriptReader;
@@ -97,13 +97,13 @@ class PodcastFeedServiceTest extends TestCase
             'service' => 'morning',
             'title' => 'Main Sermon',
             'audio_file_path' => 'sermons/sermon.mp3',
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
         Sermon::withoutEvents(fn (): Sermon => Sermon::factory()->create([
             'service' => 'morning',
             'title' => "Children's Talk",
             'audio_file_path' => 'sermons/childrens-talk.mp3',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]));
 
         $this->storageService->method('getAudioDeliveryUrl')->willReturn('https://example.com/sermon.mp3');

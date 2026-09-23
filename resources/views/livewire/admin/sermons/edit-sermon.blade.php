@@ -7,7 +7,7 @@
 >
     <x-slot:actions>
         @php
-            $publicUrl = $sermon->content_type === \App\Enums\SermonContentType::ChildrensTalk
+            $publicUrl = $sermon->content_type === \App\Enums\TalkType::ChildrensTalk
                 ? route('childrens-corner.show', ['sermon' => $sermon->slug])
                 : route('sermons.show', ['sermon' => $sermon->slug]);
         @endphp

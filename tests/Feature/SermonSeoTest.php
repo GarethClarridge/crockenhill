@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -45,7 +45,7 @@ class SermonSeoTest extends TestCase
         Sermon::factory()->count(3)->create([
             'preacher' => 'John Doe',
             'preacher_id' => $preacher->id,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         $response = $this->get(route('sermons.index'));
@@ -73,7 +73,7 @@ class SermonSeoTest extends TestCase
         Sermon::factory()->count(2)->create([
             'preacher' => 'Preacher Name',
             'preacher_id' => $preacher->id,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         $response = $this->get("/christ/sermons/preachers/{$preacher->slug}");

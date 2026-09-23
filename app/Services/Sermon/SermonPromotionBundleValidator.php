@@ -7,11 +7,11 @@ namespace App\Services\Sermon;
 use App\Enums\MediaType;
 use App\Enums\PreacherSource;
 use App\Enums\ProcessingStatus;
-use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Enums\SermonVideoQualityStatus;
 use App\Enums\SermonVideoVisibilityOverride;
+use App\Enums\TalkType;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -81,7 +81,7 @@ class SermonPromotionBundleValidator
             'sermons.*.sermon' => ['required', "array:{$sermonKeys}"],
             'sermons.*.sermon.date' => ['required', 'date_format:Y-m-d'],
             'sermons.*.sermon.service' => ['nullable', Rule::enum(SermonService::class)],
-            'sermons.*.sermon.content_type' => ['required', Rule::in([SermonContentType::Sermon->value])],
+            'sermons.*.sermon.content_type' => ['required', Rule::in([TalkType::Sermon->value])],
             'sermons.*.sermon.audio_file_path' => ['required', 'string', 'max:255'],
             'sermons.*.sermon.video_file_path' => ['nullable', 'string', 'max:500'],
             'sermons.*.sermon.video_quality_status' => ['nullable', Rule::enum(SermonVideoQualityStatus::class)],

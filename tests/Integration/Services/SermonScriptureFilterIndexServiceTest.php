@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Models\Sermon;
 use App\Models\SermonScriptureFilter;
 use App\Services\Scripture\SermonScriptureFilterIndexService;
@@ -91,7 +91,7 @@ class SermonScriptureFilterIndexServiceTest extends TestCase
     public function childrens_talks_do_not_keep_browse_rows(): void
     {
         $sermon = Sermon::factory()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'reference' => 'John 3:16',
         ]);
 
@@ -106,7 +106,7 @@ class SermonScriptureFilterIndexServiceTest extends TestCase
     public function precomputed_entries_do_not_bypass_the_content_type_guard(): void
     {
         $sermon = Sermon::factory()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'reference' => 'John 3:16',
         ]);
 

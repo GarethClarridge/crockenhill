@@ -6,16 +6,18 @@ namespace Tests\Integration\Services;
 
 use App\Data\SermonCreationOptions;
 use App\Enums\PreacherSource;
-use App\Enums\SermonContentType;
 use App\Enums\SermonPublicationState;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Enums\SermonTitleProvenance;
+use App\Enums\ServiceSectionPublicationStatus;
+use App\Enums\TalkType;
 use App\Enums\TitleGenerationStrategy;
 use App\Exceptions\SermonRichnessDowngradeException;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Models\ServiceSection;
 use App\Services\Sermon\SermonCreationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -42,7 +44,7 @@ class SermonCreationServiceTest extends TestCase
         $existing = Sermon::factory()->create([
             'date' => '2026-06-28',
             'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
             'source_type' => SermonSourceType::Livestream,
             'livestream_processing_id' => $existingRun->processing_id,
             'audio_file_path' => 'sermons/audio/retained.mp3',
@@ -784,7 +786,7 @@ class SermonCreationServiceTest extends TestCase
         $existing = Sermon::factory()->create([
             'date' => '2023-05-21',
             'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
             'audio_file_path' => 'audio/legacy.mp3',
             'video_file_path' => null,
             'livestream_processing_id' => null,
@@ -833,7 +835,7 @@ class SermonCreationServiceTest extends TestCase
         $this->assertSame(SermonSourceType::Livestream, $sermon->source_type);
         $this->assertSame('Pastor Verified', $sermon->preacher);
         $this->assertSame(PreacherSource::Id3, $sermon->preacher_source);
-        $this->assertSame(1, Sermon::query()->where('date', '2023-05-21')->where('service', SermonService::Morning->value)->where('content_type', SermonContentType::Sermon->value)->count());
+        $this->assertSame(1, Sermon::query()->where('date', '2023-05-21')->where('service', SermonService::Morning->value)->where('content_type', TalkType::Sermon->value)->count());
     }
 
     #[Test]
@@ -842,7 +844,7 @@ class SermonCreationServiceTest extends TestCase
         Sermon::factory()->create([
             'date' => '2023-05-21',
             'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
             'audio_file_path' => 'audio/legacy.mp3',
             'video_file_path' => null,
             'livestream_processing_id' => null,
@@ -886,7 +888,7 @@ class SermonCreationServiceTest extends TestCase
         $existing = Sermon::factory()->create([
             'date' => '2024-01-01',
             'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
             'audio_file_path' => 'audio/old.mp3',
             'video_file_path' => null,
             'livestream_processing_id' => null,
@@ -911,7 +913,7 @@ class SermonCreationServiceTest extends TestCase
 
         $this->assertSame($existing->id, $sermon->id);
         $this->assertSame('audio/new.mp3', $sermon->audio_file_path);
-        $this->assertSame(1, Sermon::query()->where('date', '2024-01-01')->where('service', SermonService::Morning->value)->where('content_type', SermonContentType::Sermon->value)->count());
+        $this->assertSame(1, Sermon::query()->where('date', '2024-01-01')->where('service', SermonService::Morning->value)->where('content_type', TalkType::Sermon->value)->count());
     }
 
     #[Test]
@@ -925,7 +927,7 @@ class SermonCreationServiceTest extends TestCase
         Sermon::factory()->create([
             'date' => '2024-05-12',
             'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
             'audio_file_path' => 'audio/from-livestream.mp3',
             'video_file_path' => 'video/from-livestream.mp4',
             'livestream_processing_id' => $existingLog->processing_id,
@@ -960,7 +962,7 @@ class SermonCreationServiceTest extends TestCase
         Sermon::factory()->create([
             'date' => '2024-05-12',
             'service' => SermonService::Evening,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
             'video_file_path' => 'video/from-livestream.mp4',
             'livestream_processing_id' => $existingLog->processing_id,
             'source_type' => SermonSourceType::Livestream,
@@ -995,7 +997,7 @@ class SermonCreationServiceTest extends TestCase
         $existing = Sermon::factory()->create([
             'date' => '2024-05-12',
             'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
             'audio_file_path' => 'audio/old.mp3',
             'video_file_path' => 'video/from-livestream.mp4',
             'livestream_processing_id' => $existingLog->processing_id,
@@ -1028,7 +1030,7 @@ class SermonCreationServiceTest extends TestCase
         Sermon::factory()->create([
             'date' => '2024-06-02',
             'service' => SermonService::Morning,
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'audio_file_path' => 'audio/childrens-talk.mp3',
             'source_type' => SermonSourceType::Livestream,
         ]);
@@ -1050,15 +1052,105 @@ class SermonCreationServiceTest extends TestCase
 
         $sermon = $this->service->createSermon($log, $options);
 
-        $this->assertSame(SermonContentType::Sermon, $sermon->content_type);
+        $this->assertSame(TalkType::Sermon, $sermon->content_type);
         $this->assertSame(2, Sermon::query()->where('date', '2024-06-02')->where('service', SermonService::Morning->value)->count());
         $this->assertSame(
             1,
             Sermon::query()
                 ->where('date', '2024-06-02')
                 ->where('service', SermonService::Morning->value)
-                ->where('content_type', SermonContentType::ChildrensTalk->value)
+                ->where('content_type', TalkType::ChildrensTalk->value)
                 ->count()
+        );
+    }
+
+    #[Test]
+    public function two_testimonies_published_from_one_service_are_two_talks(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2024-06-02',
+            'extracted_service' => SermonService::Morning,
+        ]);
+        $firstSection = ServiceSection::factory()->create();
+        $secondSection = ServiceSection::factory()->create();
+
+        $first = $this->service->createSermon($log, $this->optionsForTestimony($log, $firstSection, 'audio/first.mp3'));
+        $this->markPublished($firstSection, $first);
+
+        $second = $this->service->createSermon($log, $this->optionsForTestimony($log, $secondSection, 'audio/second.mp3'));
+
+        $this->assertNotSame($first->id, $second->id);
+        $this->assertSame('audio/first.mp3', $first->fresh()->audio_file_path);
+        $this->assertSame('audio/second.mp3', $second->audio_file_path);
+        $this->assertSame(2, Sermon::query()->where('content_type', TalkType::Testimony->value)->count());
+    }
+
+    #[Test]
+    public function republishing_a_section_updates_the_talk_it_published(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2024-06-02',
+            'extracted_service' => SermonService::Morning,
+        ]);
+        $otherSection = ServiceSection::factory()->create();
+        $section = ServiceSection::factory()->create();
+
+        $other = $this->service->createSermon($log, $this->optionsForTestimony($log, $otherSection, 'audio/other.mp3'));
+        $this->markPublished($otherSection, $other);
+        $published = $this->service->createSermon($log, $this->optionsForTestimony($log, $section, 'audio/first.mp3'));
+        $this->markPublished($section, $published);
+
+        $republished = $this->service->createSermon($log, $this->optionsForTestimony($log, $section->fresh(), 'audio/second.mp3'));
+
+        $this->assertSame($published->id, $republished->id);
+        $this->assertSame('audio/other.mp3', $other->fresh()->audio_file_path);
+        $this->assertSame(2, Sermon::query()->where('content_type', TalkType::Testimony->value)->count());
+    }
+
+    #[Test]
+    public function a_section_adopts_an_unclaimed_talk_at_the_same_date_service_and_type(): void
+    {
+        $existing = Sermon::factory()->create([
+            'date' => '2024-06-02',
+            'service' => SermonService::Morning,
+            'content_type' => TalkType::Testimony,
+            'source_type' => SermonSourceType::Livestream,
+        ]);
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2024-06-02',
+            'extracted_service' => SermonService::Morning,
+        ]);
+
+        $sermon = $this->service->createSermon($log, $this->optionsForTestimony($log, ServiceSection::factory()->create(), 'audio/resynced.mp3'));
+
+        $this->assertSame($existing->id, $sermon->id);
+    }
+
+    private function markPublished(ServiceSection $section, Sermon $sermon): void
+    {
+        $section->update([
+            'publication_status' => ServiceSectionPublicationStatus::Published,
+            'published_sermon_id' => $sermon->id,
+            'published_at' => now(),
+            'extracted_video_path' => 'sermons/sections/'.$section->id.'/video.mp4',
+            'extracted_audio_path' => $sermon->audio_file_path,
+            'extracted_at' => now(),
+        ]);
+    }
+
+    private function optionsForTestimony(MediaProcessingLog $log, ServiceSection $section, string $audioPath): SermonCreationOptions
+    {
+        return new SermonCreationOptions(
+            audioFilePath: $audioPath,
+            originalFilename: 'testimony.mkv',
+            sourceType: SermonSourceType::Livestream,
+            livestreamProcessingId: $log->processing_id,
+            contentType: TalkType::Testimony,
+            titleStrategy: TitleGenerationStrategy::FilenameOnly,
+            service: SermonService::Morning,
+            date: '2024-06-02',
+            customTitle: 'Testimony',
+            publishingSection: $section,
         );
     }
 

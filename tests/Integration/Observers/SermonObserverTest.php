@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Observers;
 
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Models\Sermon;
 use App\Observers\SermonObserver;
 use App\Services\Public\PodcastFeedService;
@@ -72,7 +72,7 @@ class SermonObserverTest extends TestCase
     {
         Queue::fake();
         $sermon = Sermon::withoutEvents(fn (): Sermon => Sermon::factory()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]));
 
         Sermon::withoutEvents(fn () => $sermon->update([$field => $path]));
@@ -89,7 +89,7 @@ class SermonObserverTest extends TestCase
     {
         Queue::fake();
         $sermon = Sermon::withoutEvents(fn (): Sermon => Sermon::factory()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]));
 
         Sermon::withoutEvents(fn () => $sermon->update([

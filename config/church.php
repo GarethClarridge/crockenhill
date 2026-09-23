@@ -37,10 +37,10 @@ return [
             ],
         ],
     ],
-    'sermons' => [
-        'childrens_talks' => [
-            'public' => env('CHILDRENS_TALKS_PUBLIC', false),
-        ],
+    'talks' => [
+        // Sermons are always public; list further talk types (e.g. childrens_talk) to
+        // release them beyond verified members.
+        'public_types' => explode(',', (string) env('PUBLIC_TALK_TYPES', 'sermon')),
     ],
 
     /*

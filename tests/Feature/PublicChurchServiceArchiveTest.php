@@ -6,11 +6,11 @@ namespace Tests\Feature;
 
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
-use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
@@ -37,7 +37,7 @@ class PublicChurchServiceArchiveTest extends TestCase
 
         config([
             'service-tracking.enabled' => true,
-            'church.sermons.childrens_talks.public' => true,
+            'church.talks.public_types' => ['sermon', 'childrens_talk'],
             'church.services.public_from' => '2000-01-01',
             'media-processing.storage.sermon_disk' => 'public',
         ]);
@@ -289,7 +289,7 @@ class PublicChurchServiceArchiveTest extends TestCase
     #[Test]
     public function private_childrens_talks_are_omitted_from_public_service_history(): void
     {
-        config(['church.sermons.childrens_talks.public' => false]);
+        config(['church.talks.public_types' => ['sermon']]);
 
         [$service, , $childrensTalk] = $this->processedService();
 
@@ -457,14 +457,14 @@ class PublicChurchServiceArchiveTest extends TestCase
             'slug' => 'the-hope-of-the-gospel',
             'date' => $service->date,
             'service' => $service->service,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
         $childrensTalk = Sermon::factory()->create([
             'title' => 'God Is With Us',
             'slug' => 'god-is-with-us',
             'date' => $service->date,
             'service' => $service->service,
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
 
         $songItem = ChurchServiceItem::factory()->song()->create([

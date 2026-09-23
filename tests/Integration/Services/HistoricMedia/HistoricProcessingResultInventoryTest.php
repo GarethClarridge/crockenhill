@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Integration\Services\HistoricMedia;
 
 use App\Enums\ProcessingStatus;
-use App\Enums\SermonContentType;
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -44,7 +44,7 @@ class HistoricProcessingResultInventoryTest extends TestCase
         ]);
         $segment = LivestreamSegment::factory()->forProcessingLog($run->id)->withIndex(7)->create();
         $childrensTalk = Sermon::factory()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $run->id,
@@ -198,7 +198,7 @@ class HistoricProcessingResultInventoryTest extends TestCase
             'segment_order' => 1,
         ]);
         $sermon = Sermon::factory()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'date' => '2026-08-02',
             'service' => 'morning',
             'slug' => 'a-portable-talk',

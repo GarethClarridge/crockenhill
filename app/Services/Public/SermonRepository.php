@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Public;
 
-use App\Enums\SermonContentType;
 use App\Enums\SermonPublicationState;
 use App\Enums\SermonService;
+use App\Enums\TalkType;
 use App\Models\Builders\SermonBuilder;
 use App\Models\Preacher;
 use App\Models\Sermon;
@@ -26,7 +26,7 @@ class SermonRepository
      * SermonViewPresenter and SermonExposurePolicy to minimize memory usage and
      * prevent N+1 lazy-loading of media metadata or related profile images.
      */
-    public function basePublicSermonQuery(?SermonContentType $contentType = null): SermonBuilder
+    public function basePublicSermonQuery(?TalkType $contentType = null): SermonBuilder
     {
         return Sermon::query()
             ->publiclyReleased()
@@ -94,7 +94,7 @@ class SermonRepository
      */
     public function publicSermonQuery(): SermonBuilder
     {
-        return $this->basePublicSermonQuery(SermonContentType::Sermon);
+        return $this->basePublicSermonQuery(TalkType::Sermon);
     }
 
     /**
@@ -317,7 +317,7 @@ class SermonRepository
             }
 
             return $this->releasedScriptureFilterQuery()
-                ->where('sermons.content_type', SermonContentType::Sermon)
+                ->where('sermons.content_type', TalkType::Sermon)
                 ->when($preacherId, fn (Builder $q) => $q->where('sermons.preacher_id', $preacherId))
                 ->when($series, fn (Builder $q) => $q->where('sermons.series', $series))
                 ->select('bible_book')
@@ -350,7 +350,7 @@ class SermonRepository
                     ->pluck('bible_chapter');
             }
 
-            return $query->where('sermons.content_type', SermonContentType::Sermon)
+            return $query->where('sermons.content_type', TalkType::Sermon)
                 ->when($preacherId, fn (Builder $q) => $q->where('sermons.preacher_id', $preacherId))
                 ->when($series, fn (Builder $q) => $q->where('sermons.series', $series))
                 ->select('bible_chapter')

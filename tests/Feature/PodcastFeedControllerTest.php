@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Enums\SermonContentType;
 use App\Enums\SermonService;
+use App\Enums\TalkType;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -41,7 +41,7 @@ class PodcastFeedControllerTest extends TestCase
         $sermon = Sermon::factory()->withAudio()->create([
             'title' => 'Morning Message',
             'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         $response = $this->get('/christ/sermons/morning/feed');

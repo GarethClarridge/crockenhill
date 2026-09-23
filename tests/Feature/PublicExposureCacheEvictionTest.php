@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Enums\PageArea;
-use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\SermonVideoVisibilityOverride;
+use App\Enums\TalkType;
 use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Sermon;
@@ -96,7 +96,7 @@ class PublicExposureCacheEvictionTest extends TestCase
             ->assertOk()
             ->assertSee("sermon-{$sermon->id}");
 
-        $sermon->update(['content_type' => SermonContentType::ChildrensTalk]);
+        $sermon->update(['content_type' => TalkType::ChildrensTalk]);
 
         $this->assertStringNotContainsString(
             "sermon-{$sermon->id}",

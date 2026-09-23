@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Models\Sermon;
 use App\Services\Scripture\SermonScriptureFilterIndexService;
 use Illuminate\Console\Command;
@@ -73,7 +73,7 @@ class SyncSermonScriptureFilters extends Command
         $query->lazyById(200)->each(function (Sermon $sermon) use ($indexService, $dryRun, &$counts): void {
             $reference = is_string($sermon->reference) ? trim($sermon->reference) : '';
 
-            if ($sermon->content_type !== SermonContentType::Sermon || $reference === '') {
+            if ($sermon->content_type !== TalkType::Sermon || $reference === '') {
                 if (! $dryRun) {
                     $indexService->syncForSermon($sermon, []);
                 }

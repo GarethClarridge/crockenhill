@@ -1,6 +1,6 @@
 @php
     use App\Enums\ServiceSectionPublicationStatus;
-    use App\Enums\SermonContentType;
+    use App\Enums\TalkType;
 
     $reviewPanel = ($item['section_id'] ?? null) !== null
         ? (($sectionReviewPanels ?? [])[$item['section_id']] ?? null)

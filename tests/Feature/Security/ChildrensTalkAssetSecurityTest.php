@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Security;
 
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Services\Sermon\SermonStorageService;
@@ -23,7 +23,7 @@ class ChildrensTalkAssetSecurityTest extends TestCase
         Storage::fake('public');
 
         $sermon = Sermon::factory()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'audio_file_path' => 'sermons/childrens-talk.mp3',
         ]);
 
@@ -40,7 +40,7 @@ class ChildrensTalkAssetSecurityTest extends TestCase
         Storage::fake('public');
 
         $sermon = Sermon::factory()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'thumbnail_file_path' => 'thumbnails/childrens-talk.webp',
         ]);
 
@@ -57,7 +57,7 @@ class ChildrensTalkAssetSecurityTest extends TestCase
         Storage::fake('public');
 
         $sermon = Sermon::factory()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'audio_file_path' => 'sermons/childrens-talk.mp3',
         ]);
 
@@ -74,7 +74,7 @@ class ChildrensTalkAssetSecurityTest extends TestCase
     public function it_is_not_accessible_via_raw_storage_path(): void
     {
         Sermon::factory()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'audio_file_path' => 'private/sermons/audio/test-childrens-talk.mp3',
         ]);
 

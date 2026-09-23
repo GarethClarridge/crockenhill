@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use App\Services\Public\SermonRepository;
@@ -22,7 +22,7 @@ class SermonEagerLoadingTest extends TestCase
         $passage = ScripturePassage::factory()->create();
         Sermon::factory()->create([
             'scripture_passage_id' => $passage->id,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         $repository = app(SermonRepository::class);

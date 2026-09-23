@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Scripture;
 
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Models\Sermon;
 use App\Support\BibleCanon;
 use InvalidArgumentException;
@@ -57,7 +57,7 @@ class SermonScriptureFilterIndexService
      */
     public function syncForSermon(Sermon $sermon, ?array $entries = null): void
     {
-        if ($sermon->content_type !== SermonContentType::Sermon) {
+        if ($sermon->content_type !== TalkType::Sermon) {
             $this->replaceEntriesForSermon($sermon, []);
 
             return;

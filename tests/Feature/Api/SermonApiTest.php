@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Api;
 
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -170,12 +170,12 @@ class SermonApiTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'title' => 'API Sermon',
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         Sermon::factory()->create([
             'title' => 'API Childrens Talk',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
 
         $response = $this->getJson('/api/sermons');
@@ -191,7 +191,7 @@ class SermonApiTest extends TestCase
     public function test_api_show_returns_not_found_for_childrens_talks(): void
     {
         $talk = Sermon::factory()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
 
         $this->getJson("/api/sermons/{$talk->id}")

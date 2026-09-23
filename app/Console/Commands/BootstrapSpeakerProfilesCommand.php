@@ -6,7 +6,7 @@ namespace App\Console\Commands;
 
 use App\Contracts\SpeakerIdentificationInterface;
 use App\Enums\SampleSource;
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\SpeakerProfile;
@@ -257,7 +257,7 @@ class BootstrapSpeakerProfilesCommand extends Command
             // records, and newly published children's talks are the newest, so this would
             // have started silently degrading every profile the moment Phase 8 published one
             // with audio — across ~33% of 414 identities.
-            ->where('content_type', SermonContentType::Sermon)
+            ->where('content_type', TalkType::Sermon)
             ->whereNotNull('audio_file_path')
             ->where('audio_file_path', '!=', '')
             ->orderByDesc('date')

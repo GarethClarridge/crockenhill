@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Enums\SermonContentType;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Services\Media\Audio\SermonTranscriptReader;
@@ -246,12 +245,10 @@ class SermonAssetController extends Controller
             abort(404, 'Asset not available.');
         }
 
-        // Security: Children's Corner access is gated by verified email (when not public).
+        // Security: members-only talk types are gated by verified email.
         // This check takes precedence over other restrictions to ensure proper login redirection.
-        if ($sermon->content_type === SermonContentType::ChildrensTalk) {
-            if (! $this->exposurePolicy->canAccessChildrensCorner($user)) {
-                return redirect()->guest(route('login'));
-            }
+        if (! $this->exposurePolicy->canAccessType($sermon->content_type, $user)) {
+            return redirect()->guest(route('login'));
         }
 
         // Visibility checks based on quality assessment and manual overrides.

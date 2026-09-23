@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Models\Sermon;
 use App\Models\SermonScriptureFilter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -106,7 +106,7 @@ class SyncSermonScriptureFiltersCommandTest extends TestCase
     public function non_public_sermons_are_cleared(): void
     {
         $sermon = $this->createUnindexedSermon([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'reference' => 'John 3:16',
         ]);
         SermonScriptureFilter::factory()->for($sermon)->forPassage('John', 3)->create();

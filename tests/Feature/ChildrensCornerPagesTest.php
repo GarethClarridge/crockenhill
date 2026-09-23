@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Enums\SermonContentType;
 use App\Enums\SermonVideoQualityStatus;
+use App\Enums\TalkType;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Presenters\SermonViewPresenter;
@@ -32,7 +32,7 @@ class ChildrensCornerPagesTest extends TestCase
 
         $talk = Sermon::factory()->create([
             'slug' => 'guest-talk',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
 
         $this->get("/christ/childrens-corner/{$talk->slug}")->assertRedirect('/login');
@@ -45,11 +45,11 @@ class ChildrensCornerPagesTest extends TestCase
 
         Sermon::factory()->create([
             'title' => "Children's Talk One",
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
         Sermon::factory()->create([
             'title' => 'Sunday Sermon',
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         $response = $this->get('/christ/childrens-corner');
@@ -76,7 +76,7 @@ class ChildrensCornerPagesTest extends TestCase
         $talk = Sermon::factory()->create([
             'title' => 'Little Listeners',
             'slug' => 'little-listeners',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'audio_file_path' => 'sermons/audio/little-listeners.mp3',
             'video_file_path' => 'sermons/video/little-listeners.mp4',
             'show_summary' => true,
@@ -110,7 +110,7 @@ class ChildrensCornerPagesTest extends TestCase
         $talk = Sermon::factory()->create([
             'title' => 'Audio Only Little Listeners',
             'slug' => 'audio-only-little-listeners',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'audio_file_path' => 'sermons/audio/little-listeners.mp3',
             'video_file_path' => 'sermons/video/little-listeners.mp4',
             'video_quality_status' => SermonVideoQualityStatus::Rejected,
@@ -137,7 +137,7 @@ class ChildrensCornerPagesTest extends TestCase
         $talk = Sermon::factory()->create([
             'title' => 'Private Media Little Listeners',
             'slug' => 'private-media-little-listeners',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'audio_file_path' => $audioPath,
             'video_file_path' => $videoPath,
             'thumbnail_file_path' => $thumbnailPath,
@@ -164,7 +164,7 @@ class ChildrensCornerPagesTest extends TestCase
         $talk = Sermon::factory()->create([
             'title' => 'Public Media Little Listeners',
             'slug' => 'public-media-little-listeners',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'audio_file_path' => 'sermons/audio/public-media-little-listeners.mp3',
             'video_file_path' => 'sermons/video/public-media-little-listeners.mp4',
             'thumbnail_file_path' => 'thumbnails/public-media-little-listeners.jpg',
@@ -190,7 +190,7 @@ class ChildrensCornerPagesTest extends TestCase
         $talk = Sermon::factory()->create([
             'title' => 'Private Card Little Listeners',
             'slug' => 'private-card-little-listeners',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'thumbnail_metadata' => [
                 'plain_thumbnail_path' => 'thumbnails/card-little-listeners-plain.jpg',
                 'card_thumbnail_path' => 'thumbnails/card-little-listeners.jpg',
@@ -212,7 +212,7 @@ class ChildrensCornerPagesTest extends TestCase
         $talk = Sermon::factory()->create([
             'title' => 'Private Plain Little Listeners',
             'slug' => 'private-plain-little-listeners',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'thumbnail_metadata' => [
                 'plain_thumbnail_path' => 'thumbnails/plain-little-listeners.jpg',
             ],
@@ -228,12 +228,12 @@ class ChildrensCornerPagesTest extends TestCase
     #[Test]
     public function guests_can_access_childrens_corner_when_public_release_is_enabled(): void
     {
-        config(['church.sermons.childrens_talks.public' => true]);
+        config(['church.talks.public_types' => ['sermon', 'childrens_talk']]);
 
         $talk = Sermon::factory()->create([
             'title' => 'Public Little Listeners',
             'slug' => 'public-little-listeners',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
 
         $this->get('/christ/childrens-corner')
@@ -252,7 +252,7 @@ class ChildrensCornerPagesTest extends TestCase
 
         $sermon = Sermon::factory()->create([
             'slug' => 'main-sermon',
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         $this->get("/christ/childrens-corner/{$sermon->slug}")
@@ -265,10 +265,10 @@ class ChildrensCornerPagesTest extends TestCase
         $this->actingAs(User::factory()->create());
 
         // Ensure we start with a clean slate for pagination counts
-        Sermon::query()->where('content_type', SermonContentType::ChildrensTalk)->delete();
+        Sermon::query()->where('content_type', TalkType::ChildrensTalk)->delete();
 
         Sermon::factory()->count(13)->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
 
         $page1 = $this->get('/christ/childrens-corner');
@@ -286,7 +286,7 @@ class ChildrensCornerPagesTest extends TestCase
         $talk = Sermon::factory()->create([
             'slug' => 'private-childrens-talk',
             'date' => '2026-02-01',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
 
         $this->get(route('sermons.show', $talk))
@@ -302,12 +302,12 @@ class ChildrensCornerPagesTest extends TestCase
     #[Test]
     public function public_childrens_talks_redirect_from_sermon_routes_to_childrens_corner(): void
     {
-        config(['church.sermons.childrens_talks.public' => true]);
+        config(['church.talks.public_types' => ['sermon', 'childrens_talk']]);
 
         $talk = Sermon::factory()->create([
             'slug' => 'redirect-childrens-talk',
             'date' => '2026-02-01',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
 
         $this->get(route('sermons.show', $talk))
@@ -341,7 +341,7 @@ class ChildrensCornerPagesTest extends TestCase
     #[Test]
     public function header_navigation_shows_childrens_corner_link_to_guests_when_public_release_is_enabled(): void
     {
-        config(['church.sermons.childrens_talks.public' => true]);
+        config(['church.talks.public_types' => ['sermon', 'childrens_talk']]);
 
         $this->get('/christ')
             ->assertStatus(200)

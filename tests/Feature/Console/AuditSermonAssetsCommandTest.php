@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
@@ -129,7 +129,7 @@ class AuditSermonAssetsCommandTest extends TestCase
     public function it_passes_for_a_childrens_talk_asset_on_the_ordinary_sermon_disk(): void
     {
         Sermon::factory()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'audio_file_path' => 'sermons/talk.mp3',
         ]);
 
@@ -152,7 +152,7 @@ class AuditSermonAssetsCommandTest extends TestCase
     public function it_still_audits_a_legacy_private_path_against_the_local_disk(): void
     {
         Sermon::factory()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'audio_file_path' => 'private/sermons/talk.mp3',
             'transcript_file_path' => 'private/transcripts/talk.txt',
         ]);
@@ -201,7 +201,7 @@ class AuditSermonAssetsCommandTest extends TestCase
     public function it_separates_private_asset_counts_from_public_ones(): void
     {
         Sermon::factory()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'audio_file_path' => 'private/sermons/lost-talk.mp3',
         ]);
 
@@ -222,13 +222,13 @@ class AuditSermonAssetsCommandTest extends TestCase
     public function it_counts_childrens_talks_per_talk_rather_than_per_asset(): void
     {
         Sermon::factory()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'audio_file_path' => 'private/sermons/intact.mp3',
             'transcript_file_path' => 'private/transcripts/intact.txt',
         ]);
 
         Sermon::factory()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'audio_file_path' => 'private/sermons/half-lost.mp3',
             'transcript_file_path' => 'private/transcripts/half-lost.txt',
         ]);
@@ -236,7 +236,7 @@ class AuditSermonAssetsCommandTest extends TestCase
         // A talk that never made it into private storage still counts towards
         // the total, but has nothing for the migration to move.
         Sermon::factory()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'audio_file_path' => 'sermons/never-privatised.mp3',
         ]);
 
@@ -258,7 +258,7 @@ class AuditSermonAssetsCommandTest extends TestCase
     public function it_partitions_talks_with_missing_assets_by_whether_the_source_recording_survives(): void
     {
         $recoverable = Sermon::factory()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'audio_file_path' => 'private/sermons/recoverable.mp3',
         ]);
         MediaProcessingLog::factory()->livestream()->create([
@@ -267,7 +267,7 @@ class AuditSermonAssetsCommandTest extends TestCase
         ]);
 
         $lost = Sermon::factory()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'audio_file_path' => 'private/sermons/lost.mp3',
         ]);
         MediaProcessingLog::factory()->livestream()->create([
@@ -277,7 +277,7 @@ class AuditSermonAssetsCommandTest extends TestCase
 
         // No processing run at all — a historic or manually created talk.
         Sermon::factory()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'audio_file_path' => 'private/sermons/orphan.mp3',
         ]);
 
@@ -297,7 +297,7 @@ class AuditSermonAssetsCommandTest extends TestCase
     public function it_reaches_the_source_recording_through_the_publishing_service_section(): void
     {
         $sermon = Sermon::factory()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'audio_file_path' => 'private/sermons/via-section.mp3',
         ]);
 

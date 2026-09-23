@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Data;
 
 use App\Enums\PreacherSource;
-use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 use App\Enums\TitleGenerationStrategy;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
@@ -38,7 +38,7 @@ final readonly class SermonCreationOptions
         public ?string $livestreamProcessingId = null,
         public ?float $segmentStartTime = null,
         public ?float $segmentEndTime = null,
-        public SermonContentType $contentType = SermonContentType::Sermon,
+        public TalkType $contentType = TalkType::Sermon,
 
         // Title generation strategy
         public TitleGenerationStrategy $titleStrategy = TitleGenerationStrategy::AiWithFallback,
@@ -65,6 +65,9 @@ final readonly class SermonCreationOptions
 
         // Curated historic manifest facts; outrank ID3 and AI where present (F44)
         public ?HistoricEditorialFacts $editorialFacts = null,
+
+        // The service section publishing this talk; its identity outranks the date/service/type key
+        public ?ServiceSection $publishingSection = null,
     ) {}
 
     /**
@@ -73,7 +76,7 @@ final readonly class SermonCreationOptions
      */
     public function curatedFacts(): ?HistoricEditorialFacts
     {
-        if ($this->contentType !== SermonContentType::Sermon) {
+        if ($this->contentType !== TalkType::Sermon) {
             return null;
         }
 
@@ -221,10 +224,10 @@ final readonly class SermonCreationOptions
     ): self {
         $speaker = $section->publicationChildrensTalkSpeaker();
         $contentType = $section->section_type === ServiceSectionType::ChildrensTalk
-            ? SermonContentType::ChildrensTalk
-            : SermonContentType::Sermon;
+            ? TalkType::ChildrensTalk
+            : TalkType::Sermon;
 
-        $facts = $contentType === SermonContentType::Sermon
+        $facts = $contentType === TalkType::Sermon
             ? $log->processing_metadata?->editorialFacts
             : null;
 
@@ -252,6 +255,7 @@ final readonly class SermonCreationOptions
             customTitle: $section->title,
             duration: (float) $section->duration,
             editorialFacts: $facts,
+            publishingSection: $section,
         );
     }
 

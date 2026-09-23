@@ -7,7 +7,7 @@ namespace Tests\Feature;
 use App\Contracts\SpeakerIdentificationInterface;
 use App\Data\SpeakerEmbeddingResult;
 use App\Enums\SampleSource;
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\SpeakerProfile;
@@ -314,7 +314,7 @@ class SpeakerProfilesBootstrapCommandTest extends TestCase
         // Dated latest, so orderByDesc('date') reaches it first, and --max-sermons=3 leaves
         // room for all three: only the content_type filter keeps it out.
         $childrensTalk = Sermon::factory()->withPreacher($preacher)->withAudio()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
             'date' => '2026-08-09',
         ]);
 

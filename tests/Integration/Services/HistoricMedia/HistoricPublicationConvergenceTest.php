@@ -7,11 +7,11 @@ namespace Tests\Integration\Services\HistoricMedia;
 use App\Data\HistoricProcessingResultImportPlan;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
-use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Enums\SermonVideoQualityStatus;
 use App\Enums\SermonVideoVisibilityOverride;
+use App\Enums\TalkType;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
@@ -240,7 +240,7 @@ class HistoricPublicationConvergenceTest extends TestCase
             'preacher_id' => $preacher->id,
             'date' => '2026-08-02',
             'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
             'slug' => 'convergence-main-sermon',
             'title' => 'Main sermon',
             'filetype' => 'mp3',
@@ -332,7 +332,7 @@ class HistoricPublicationConvergenceTest extends TestCase
     {
         return [
             'section_key' => null,
-            'content_type' => SermonContentType::Sermon->value,
+            'content_type' => TalkType::Sermon->value,
             'date' => '2026-08-02',
             'service' => SermonService::Morning->value,
             'slug' => 'convergence-main-sermon',

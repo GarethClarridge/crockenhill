@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 use App\Models\ChurchServiceItem;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
@@ -358,7 +358,7 @@ class SermonPagesTest extends TestCase
             'service' => SermonService::Morning->value,
             'preacher' => $preacher->name,
             'preacher_id' => $preacher->id,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         Sermon::factory()->create([
@@ -367,7 +367,7 @@ class SermonPagesTest extends TestCase
             'service' => SermonService::Morning->value,
             'preacher' => $preacher->name,
             'preacher_id' => $preacher->id,
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
 
         $this->get('/christ/sermons')

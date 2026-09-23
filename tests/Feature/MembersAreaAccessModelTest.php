@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Livewire\Auth\Register as RegisterComponent;
 use App\Models\Sermon;
 use App\Models\Song;
@@ -24,7 +24,7 @@ class MembersAreaAccessModelTest extends TestCase
     public function self_registered_unverified_user_cannot_access_members_or_songs_routes(): void
     {
         Notification::fake();
-        config()->set('church.sermons.childrens_talks.public', false);
+        config()->set('church.talks.public_types', ['sermon']);
 
         $song = Song::factory()->create([
             'title' => 'Members Song',
@@ -34,7 +34,7 @@ class MembersAreaAccessModelTest extends TestCase
         $talk = Sermon::factory()->create([
             'title' => 'Members Talk',
             'slug' => 'members-talk',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
 
         Livewire::test(RegisterComponent::class)
@@ -110,7 +110,7 @@ class MembersAreaAccessModelTest extends TestCase
     #[Test]
     public function guests_cannot_access_account_only_surfaces_when_childrens_corner_is_private(): void
     {
-        config()->set('church.sermons.childrens_talks.public', false);
+        config()->set('church.talks.public_types', ['sermon']);
 
         $song = Song::factory()->create([
             'title' => 'Guest Blocked Song',
@@ -120,7 +120,7 @@ class MembersAreaAccessModelTest extends TestCase
         $talk = Sermon::factory()->create([
             'title' => 'Guest Blocked Talk',
             'slug' => 'guest-blocked-talk',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
 
         $this->get(route('members.home'))->assertRedirect('/login');

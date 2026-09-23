@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Browser;
 
-use App\Enums\SermonContentType;
 use App\Enums\SermonService;
+use App\Enums\TalkType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\Sermon;
@@ -27,7 +27,7 @@ class PublicChurchServiceArchiveTest extends DuskTestCase
             'slug' => 'a-dusk-service-sermon',
             'date' => $service->date,
             'service' => $service->service,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         $this->browse(function (Browser $browser) use ($sermon): void {

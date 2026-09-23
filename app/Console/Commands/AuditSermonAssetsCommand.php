@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Models\Sermon;
 use App\Support\MediaAssetPath;
 use App\Support\SermonAssetReferences;
@@ -101,7 +101,7 @@ class AuditSermonAssetsCommand extends Command
             ->cursor();
 
         foreach ($sermons as $sermon) {
-            $isChildrensTalk = $sermon->content_type === SermonContentType::ChildrensTalk;
+            $isChildrensTalk = $sermon->content_type === TalkType::ChildrensTalk;
 
             if ($isChildrensTalk) {
                 $this->childrensTalkCounts['total']++;

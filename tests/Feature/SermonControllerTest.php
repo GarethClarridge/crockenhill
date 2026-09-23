@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use Carbon\Carbon;
@@ -48,7 +48,7 @@ class SermonControllerTest extends TestCase
         Sermon::factory()->create([
             'title' => 'Grace Alone',
             'date' => now(),
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         $response = $this->get('/christ/sermons');
@@ -82,7 +82,7 @@ class SermonControllerTest extends TestCase
         $sermon = Sermon::factory()->create([
             'slug' => 'faith-in-action',
             'date' => Carbon::parse('2024-03-10'),
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         $response = $this->get('/christ/sermons/2024/03/faith-in-action');
@@ -96,7 +96,7 @@ class SermonControllerTest extends TestCase
         Sermon::factory()->create([
             'slug' => 'wrong-year-sermon',
             'date' => Carbon::parse('2024-03-10'),
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         $response = $this->get('/christ/sermons/2023/03/wrong-year-sermon');
@@ -109,7 +109,7 @@ class SermonControllerTest extends TestCase
         Sermon::factory()->create([
             'slug' => 'wrong-month-sermon',
             'date' => Carbon::parse('2024-03-10'),
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         $response = $this->get('/christ/sermons/2024/05/wrong-month-sermon');
@@ -131,7 +131,7 @@ class SermonControllerTest extends TestCase
         Sermon::factory()->create([
             'slug' => 'redirect-me',
             'date' => Carbon::parse('2024-06-01'),
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         $response = $this->get('/christ/sermons/redirect-me');
@@ -141,11 +141,11 @@ class SermonControllerTest extends TestCase
     #[Test]
     public function slug_only_route_returns_404_for_non_public_childrens_talk(): void
     {
-        config(['church.sermons.childrens_talks.public' => false]);
+        config(['church.talks.public_types' => ['sermon']]);
 
         Sermon::factory()->create([
             'slug' => 'hidden-childrens-talk',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
 
         $response = $this->get('/christ/sermons/hidden-childrens-talk');
@@ -172,7 +172,7 @@ class SermonControllerTest extends TestCase
             'title' => 'Sermon By John',
             'preacher_id' => $preacher->id,
             'preacher' => $preacher->name,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         $response = $this->get('/christ/sermons/preachers/john-smith-feature-test');
@@ -201,7 +201,7 @@ class SermonControllerTest extends TestCase
     {
         Sermon::factory()->create([
             'series' => 'Life Of David',
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         $response = $this->get('/christ/sermons/series/life-of-david');

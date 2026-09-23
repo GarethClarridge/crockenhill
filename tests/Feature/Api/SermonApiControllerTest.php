@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Api;
 
-use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\SermonVideoQualityStatus;
+use App\Enums\TalkType;
 use App\Models\Preacher;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
@@ -41,12 +41,12 @@ class SermonApiControllerTest extends TestCase
     {
         Sermon::factory()->create([
             'title' => 'Regular Sermon',
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         Sermon::factory()->create([
             'title' => 'Childrens Talk',
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
 
         $response = $this->getJson('/api/sermons');
@@ -72,7 +72,7 @@ class SermonApiControllerTest extends TestCase
         ]);
 
         Sermon::factory()->create([
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
             'asset_disk' => 'release_test',
             'thumbnail_file_path' => 'thumbnails/api.jpg',
             'thumbnail_generated_at' => now(),
@@ -90,12 +90,12 @@ class SermonApiControllerTest extends TestCase
         Sermon::factory()->create([
             'title' => 'Morning Sermon',
             'service' => SermonService::Morning,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
         Sermon::factory()->create([
             'title' => 'Evening Sermon',
             'service' => SermonService::Evening,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         $response = $this->getJson('/api/sermons?service=morning');
@@ -114,12 +114,12 @@ class SermonApiControllerTest extends TestCase
         Sermon::factory()->create([
             'title' => 'In Series',
             'series' => 'Faith',
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
         Sermon::factory()->create([
             'title' => 'Not In Series',
             'series' => null,
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         $response = $this->getJson('/api/sermons?series=Faith');
@@ -135,7 +135,7 @@ class SermonApiControllerTest extends TestCase
     #[Test]
     public function api_index_respects_per_page_parameter(): void
     {
-        Sermon::factory()->count(5)->create(['content_type' => SermonContentType::Sermon]);
+        Sermon::factory()->count(5)->create(['content_type' => TalkType::Sermon]);
 
         $response = $this->getJson('/api/sermons?per_page=2');
 
@@ -146,7 +146,7 @@ class SermonApiControllerTest extends TestCase
     #[Test]
     public function api_index_per_page_is_capped_at_100(): void
     {
-        Sermon::factory()->count(5)->create(['content_type' => SermonContentType::Sermon]);
+        Sermon::factory()->count(5)->create(['content_type' => TalkType::Sermon]);
 
         $response = $this->getJson('/api/sermons?per_page=999');
 
@@ -161,7 +161,7 @@ class SermonApiControllerTest extends TestCase
     {
         $sermon = Sermon::factory()->create([
             'title' => 'Specific Sermon',
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
         ]);
 
         $response = $this->getJson("/api/sermons/{$sermon->id}");
@@ -182,7 +182,7 @@ class SermonApiControllerTest extends TestCase
     public function api_show_returns_404_for_childrens_talk(): void
     {
         $talk = Sermon::factory()->create([
-            'content_type' => SermonContentType::ChildrensTalk,
+            'content_type' => TalkType::ChildrensTalk,
         ]);
 
         $response = $this->getJson("/api/sermons/{$talk->id}");
@@ -199,7 +199,7 @@ class SermonApiControllerTest extends TestCase
         Storage::disk('public')->put('sermons/video.mp4', 'video');
 
         $sermon = Sermon::factory()->create([
-            'content_type' => SermonContentType::Sermon,
+            'content_type' => TalkType::Sermon,
             'video_file_path' => 'sermons/video.mp4',
             'video_quality_status' => SermonVideoQualityStatus::Rejected,
         ]);

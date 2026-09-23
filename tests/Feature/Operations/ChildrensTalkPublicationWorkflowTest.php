@@ -7,11 +7,11 @@ namespace Tests\Feature\Operations;
 use App\Actions\Publication\ApproveSectionForPublication;
 use App\Contracts\SpeakerIdentificationInterface;
 use App\Data\SpeakerMatchResult;
-use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\PublishApprovedServiceSection;
 use App\Models\MediaProcessingLog;
@@ -131,7 +131,7 @@ class ChildrensTalkPublicationWorkflowTest extends TestCase
         $this->assertSame(ServiceSectionPublicationStatus::Published, $section->publication_status);
         $this->assertNotNull($section->published_at);
         $this->assertNull($section->unpublished_expires_at);
-        $this->assertSame(SermonContentType::ChildrensTalk, $sermon->content_type);
+        $this->assertSame(TalkType::ChildrensTalk, $sermon->content_type);
         $this->assertSame($preacher->id, $sermon->preacher_id);
         // Media stays on the ordinary sermon disk under an ordinary sermon key.
         // It used to be relocated to the local `private/` disk, which production
@@ -143,7 +143,7 @@ class ChildrensTalkPublicationWorkflowTest extends TestCase
         // Storage moved; the gate did not. Discovery and guest access are still
         // closed, driven by `CHILDRENS_TALKS_PUBLIC` rather than by any file path.
         $exposurePolicy = app(SermonExposurePolicy::class);
-        $this->assertFalse($exposurePolicy->canAccessChildrensCorner(null));
+        $this->assertFalse($exposurePolicy->canAccessType(TalkType::ChildrensTalk, null));
         $this->assertFalse($exposurePolicy->shouldExposeOnSermonApi($sermon));
         $this->assertFalse($exposurePolicy->shouldIncludeInSitemap($sermon));
     }

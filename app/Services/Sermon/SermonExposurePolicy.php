@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Sermon;
 
-use App\Enums\SermonContentType;
 use App\Enums\SermonPublicationState;
 use App\Enums\SermonVideoQualityStatus;
 use App\Enums\SermonVideoVisibilityOverride;
+use App\Enums\TalkType;
 use App\Exceptions\MissingExposureAttribute;
 use App\Models\Sermon;
 use App\Models\User;
@@ -39,29 +39,27 @@ class SermonExposurePolicy
     ];
 
     /**
-     * Determine if Children's Talks should be visible to the general public.
+     * Determine if talks of a given type are visible to the general public.
      *
-     * When false (default), these talks are restricted to authenticated members
-     * with verified emails, protecting content intended for the church family.
+     * Sermons are always public; every other type is members-only unless it is
+     * listed in `church.talks.public_types`, protecting content intended for the
+     * church family.
      */
-    public function childrensTalksArePublic(): bool
+    public function isTypePublic(TalkType $type): bool
     {
-        return (bool) config('church.sermons.childrens_talks.public', false);
+        return $type->isSermon()
+            || in_array($type->value, (array) config('church.talks.public_types', []), true);
     }
 
     /**
-     * Check if a user is permitted to access the Children's Corner area.
+     * Check if a user is permitted to see talks of a given type.
      *
-     * Non-public content is guarded by the same verified-email requirement
-     * that defines the site's members-area boundary.
-     *
-     * @param  Authenticatable|null  $user  The user to verify
+     * Non-public types are guarded by the same verified-email requirement that
+     * defines the site's members-area boundary.
      */
-    public function canAccessChildrensCorner(?Authenticatable $user): bool
+    public function canAccessType(TalkType $type, ?Authenticatable $user): bool
     {
-        // Non-public Children's Corner content requires authenticated + verified email,
-        // consistent with the members-area boundary.
-        return $this->childrensTalksArePublic() || ($user instanceof User && $user->hasVerifiedEmail());
+        return $this->isTypePublic($type) || ($user instanceof User && $user->hasVerifiedEmail());
     }
 
     /**
@@ -69,7 +67,7 @@ class SermonExposurePolicy
      */
     public function isChildrensTalk(Sermon $sermon): bool
     {
-        return $sermon->content_type === SermonContentType::ChildrensTalk;
+        return $sermon->content_type === TalkType::ChildrensTalk;
     }
 
     /**
@@ -102,8 +100,8 @@ class SermonExposurePolicy
     public function shouldRedirectGenericSermonRoute(Sermon $sermon): bool
     {
         return $this->isWholeContentPublic($sermon)
-            && $sermon->content_type === SermonContentType::ChildrensTalk
-            && $this->childrensTalksArePublic();
+            && $sermon->content_type === TalkType::ChildrensTalk
+            && $this->isTypePublic(TalkType::ChildrensTalk);
     }
 
     /**
@@ -115,7 +113,7 @@ class SermonExposurePolicy
     public function shouldExposeOnSermonApi(Sermon $sermon): bool
     {
         return $this->isWholeContentPublic($sermon)
-            && $sermon->content_type === SermonContentType::Sermon;
+            && $sermon->content_type === TalkType::Sermon;
     }
 
     /**
@@ -131,12 +129,9 @@ class SermonExposurePolicy
      * The content-type half of {@see shouldExposeOnChurchService()}, so the public
      * service archive can push the same rule into SQL without loading sermons.
      */
-    public function exposesContentTypeOnChurchService(SermonContentType $contentType): bool
+    public function exposesContentTypeOnChurchService(TalkType $contentType): bool
     {
-        return match ($contentType) {
-            SermonContentType::Sermon => true,
-            SermonContentType::ChildrensTalk => $this->childrensTalksArePublic(),
-        };
+        return $this->isTypePublic($contentType);
     }
 
     /**
@@ -210,11 +205,7 @@ class SermonExposurePolicy
             return false;
         }
 
-        if ($sermon->content_type === SermonContentType::Sermon) {
-            return true;
-        }
-
-        return $this->childrensTalksArePublic();
+        return $this->isTypePublic($sermon->content_type);
     }
 
     /**
@@ -222,7 +213,7 @@ class SermonExposurePolicy
      */
     public function publicRouteName(Sermon $sermon): string
     {
-        return $sermon->content_type === SermonContentType::ChildrensTalk
+        return $sermon->content_type === TalkType::ChildrensTalk
             ? 'childrens-corner.show'
             : 'sermons.show';
     }
@@ -263,7 +254,7 @@ class SermonExposurePolicy
             return '';
         }
 
-        if ($sermon->content_type === SermonContentType::ChildrensTalk) {
+        if ($sermon->content_type === TalkType::ChildrensTalk) {
             return $this->publicUrl($sermon);
         }
 

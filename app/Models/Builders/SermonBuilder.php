@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace App\Models\Builders;
 
 use App\Enums\ProcessingStatus;
-use App\Enums\SermonContentType;
 use App\Enums\SermonPublicationState;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
+use App\Enums\TalkType;
 use App\Models\Preacher;
 use App\Models\Sermon;
+use App\Services\Sermon\SermonExposurePolicy;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -63,12 +64,12 @@ class SermonBuilder extends Builder
 
     public function whereSermon(): self
     {
-        return $this->where($this->qualifyColumn('content_type'), SermonContentType::Sermon);
+        return $this->where($this->qualifyColumn('content_type'), TalkType::Sermon);
     }
 
     public function whereChildrensTalk(): self
     {
-        return $this->where($this->qualifyColumn('content_type'), SermonContentType::ChildrensTalk);
+        return $this->where($this->qualifyColumn('content_type'), TalkType::ChildrensTalk);
     }
 
     /**
@@ -82,11 +83,12 @@ class SermonBuilder extends Builder
             ->whereNotNull($this->qualifyColumn('slug'))
             ->where($this->qualifyColumn('slug'), '!=', '');
 
-        if ((bool) config('church.sermons.childrens_talks.public', false)) {
-            return $this;
-        }
+        $publicTypes = array_filter(
+            TalkType::cases(),
+            fn (TalkType $type): bool => app(SermonExposurePolicy::class)->isTypePublic($type),
+        );
 
-        return $this->whereSermon();
+        return $this->whereIn($this->qualifyColumn('content_type'), array_map(fn (TalkType $type): string => $type->value, $publicTypes));
     }
 
     /**

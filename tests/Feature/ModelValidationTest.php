@@ -8,7 +8,7 @@ use App\Enums\MediaType;
 use App\Enums\MeetingType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SampleSource;
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Models\InboundEmail;
 use App\Models\MediaProcessingLog;
 use App\Models\Meeting;
@@ -48,7 +48,7 @@ class ModelValidationTest extends TestCase
 
         $this->assertArrayHasKey('content_type', $rules);
         $this->assertContains('required', $rules['content_type']);
-        $this->assertTrue($this->hasEnumRule($rules['content_type'], SermonContentType::class));
+        $this->assertTrue($this->hasEnumRule($rules['content_type'], TalkType::class));
 
         $this->assertArrayHasKey('preacher_confidence', $rules);
         $this->assertContains('nullable', $rules['preacher_confidence']);

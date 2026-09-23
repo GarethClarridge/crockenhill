@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
-use App\Enums\SermonContentType;
+use App\Enums\TalkType;
 use App\Models\ChurchServiceItem;
 use App\Models\Preacher;
 use App\Models\Sermon;
@@ -82,7 +82,7 @@ class BackfillAudit
     {
         return Sermon::query()
             ->select(['id', 'reference', 'content_type'])
-            ->where('content_type', SermonContentType::Sermon)
+            ->where('content_type', TalkType::Sermon)
             ->whereNotNull('reference')
             ->where('reference', '!=', '')
             ->doesntHave('scriptureFilters')

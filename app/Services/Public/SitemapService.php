@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Public;
 
 use App\Enums\PageArea;
+use App\Enums\TalkType;
 use App\Models\ChurchService;
 use App\Models\Meeting;
 use App\Models\Page;
@@ -110,7 +111,7 @@ class SitemapService
             route('sermons.service', 'evening'),
         ];
 
-        if ($this->exposurePolicy->childrensTalksArePublic()) {
+        if ($this->exposurePolicy->isTypePublic(TalkType::ChildrensTalk)) {
             $urls[] = route('childrens-corner.index');
         }
 

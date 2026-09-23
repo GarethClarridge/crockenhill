@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
-use App\Enums\SermonContentType;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
+use App\Enums\TalkType;
 use App\Models\Sermon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
@@ -132,7 +132,7 @@ class GenerateProdSermonPatchCommandTest extends TestCase
             'livestream_processing_id' => null,
             'date' => '2024-01-01',
             'service' => 'morning',
-            'content_type' => SermonContentType::Sermon->value,
+            'content_type' => TalkType::Sermon->value,
             'audio_file_path' => 'sermons/audio/existing.mp3',
             'video_file_path' => null,
             'video_quality_status' => null,
