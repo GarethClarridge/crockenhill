@@ -58,7 +58,7 @@ class SongSpeechEdges
 
     /**
      * A section mostly of speech is a different problem — a song swallowing a talk or prayer —
-     * that trimming one end would not fix.
+     * that trimming one end would not fix, so it is held instead ({@see self::heldIfSpokenAtAnEdge()}).
      */
     private const MINIMUM_SECTION_SHARE = 0.5;
 
@@ -93,11 +93,13 @@ class SongSpeechEdges
         $sections = $structure->sections;
 
         foreach ($structure->sections as $index => $section) {
-            if ($section->type !== ServiceSectionType::Song || ! $this->measureWorks($structure->sections, $index, $song)) {
+            if ($section->type !== ServiceSectionType::Song || ! $this->otherSongsReadAsSung($structure->sections, $index, $song)) {
                 continue;
             }
 
-            $sections[$index] = $this->trimmed($section, $edge);
+            $sections[$index] = $song->share($section->startTime, $section->endTime) >= self::MINIMUM_SECTION_SHARE
+                ? $this->trimmed($section, $edge)
+                : $this->heldIfSpokenAtAnEdge($section, $edge);
         }
 
         if ($sections === $structure->sections) {
@@ -118,14 +120,8 @@ class SongSpeechEdges
     /**
      * @param  list<ServiceStructureSection>  $sections
      */
-    private function measureWorks(array $sections, int $index, SustainedSound $song): bool
+    private function otherSongsReadAsSung(array $sections, int $index, SustainedSound $song): bool
     {
-        $section = $sections[$index];
-
-        if ($song->share($section->startTime, $section->endTime) < self::MINIMUM_SECTION_SHARE) {
-            return false;
-        }
-
         $others = [];
 
         foreach ($sections as $otherIndex => $other) {
@@ -137,7 +133,42 @@ class SongSpeechEdges
         return $others !== [] && $this->median($others) >= self::MINIMUM_OTHER_SONGS_SHARE;
     }
 
-    private function trimmed(ServiceStructureSection $section, SustainedSound $edge): ServiceStructureSection
+    /**
+     * A mostly spoken song section with a long spoken edge: held, never trimmed.
+     *
+     * 974 §988 swallowed a prayer — 93 s of speech before the singing, 0.48 sustained — and 1475
+     * a 104 s lead-in and a 41 s tail at 0.42. Below half sustained the section is a song that
+     * absorbed a separate item, and cutting one end would guess where that item stops. The same
+     * lead and tail floors as the trim say which edge is spoken.
+     */
+    private function heldIfSpokenAtAnEdge(ServiceStructureSection $section, SustainedSound $edge): ServiceStructureSection
+    {
+        [$onset, $offset] = $this->sungExtent($section, $edge);
+
+        if ($onset === null || $offset === null) {
+            return $section;
+        }
+
+        $lead = $onset - $section->startTime;
+        $tail = $section->endTime - $offset;
+
+        if ($lead < self::MINIMUM_LEAD_SECONDS && $tail < self::MINIMUM_TAIL_SECONDS) {
+            return $section;
+        }
+
+        return $section->withReviewFlags([ServiceStructureValidator::FLAG_SONG_SWALLOWS_SPEECH], [sprintf(
+            'Held, not trimmed: under half the section is sung, with %.0fs spoken before the singing and %.0fs after.',
+            $lead,
+            $tail,
+        )]);
+    }
+
+    /**
+     * Where singing first and last reads as sustained on the edge window, or nulls when it never does.
+     *
+     * @return array{0: float|null, 1: float|null}
+     */
+    private function sungExtent(ServiceStructureSection $section, SustainedSound $edge): array
     {
         $firstBin = (int) floor($section->startTime / SustainedSound::BIN_SECONDS);
         $lastBin = min($edge->binCount() - 1, (int) floor(($section->endTime - 0.001) / SustainedSound::BIN_SECONDS));
@@ -150,6 +181,13 @@ class SongSpeechEdges
                 $offset = min(($bin + 1) * SustainedSound::BIN_SECONDS, $section->endTime);
             }
         }
+
+        return [$onset, $offset];
+    }
+
+    private function trimmed(ServiceStructureSection $section, SustainedSound $edge): ServiceStructureSection
+    {
+        [$onset, $offset] = $this->sungExtent($section, $edge);
 
         if ($onset === null || $offset === null) {
             return $section;

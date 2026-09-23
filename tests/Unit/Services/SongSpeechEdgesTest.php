@@ -6,6 +6,7 @@ namespace Tests\Unit\Services;
 
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SongSpeechEdges;
 use App\Services\Media\Audio\RmsAnalysisService;
 use Illuminate\Support\Facades\Config;
@@ -106,8 +107,13 @@ class SongSpeechEdgesTest extends TestCase
         $this->assertSame($structure->toArray(), $applied->toArray());
     }
 
+    /**
+     * 974 §988's shape: the song section swallowed a prayer, 93 s of speech before the singing,
+     * and is under half sustained. Trimming one end would guess where a separate item starts, so
+     * it is held for review with the span left as detected.
+     */
     #[Test]
-    public function it_leaves_a_song_alone_when_it_is_mostly_speech(): void
+    public function it_holds_a_mostly_spoken_song_with_a_long_spoken_lead_in_instead_of_trimming_it(): void
     {
         $rmsLog = $this->rmsLog([[0, 480, 'speech'], [480, 600, 'sung'], [600, 700, 'speech'], [700, 900, 'sung']]);
         $structure = ServiceStructure::fromSections([
@@ -119,6 +125,41 @@ class SongSpeechEdgesTest extends TestCase
         $song = $this->service->apply($structure, $rmsLog, recordingOmitsSongs: false)->sections[1];
 
         $this->assertSame(300.0, $song->startTime);
+        $this->assertSame(600.0, $song->endTime);
+        $this->assertSame([ServiceStructureValidator::FLAG_SONG_SWALLOWS_SPEECH], $song->reviewFlags);
+        $this->assertStringContainsString('spoken', implode(' ', $song->notes));
+    }
+
+    /** 1475's other half: a 41 s spoken tail on a mostly spoken song. */
+    #[Test]
+    public function it_holds_a_mostly_spoken_song_with_a_long_spoken_tail(): void
+    {
+        $rmsLog = $this->rmsLog([[0, 300, 'speech'], [300, 420, 'sung'], [420, 700, 'speech'], [700, 900, 'sung']]);
+        $structure = ServiceStructure::fromSections([
+            $this->section('prayer', 0.0, 300.0),
+            $this->section('song', 300.0, 600.0),
+            $this->section('song', 700.0, 900.0),
+        ]);
+
+        $song = $this->service->apply($structure, $rmsLog, recordingOmitsSongs: false)->sections[1];
+
+        $this->assertSame([ServiceStructureValidator::FLAG_SONG_SWALLOWS_SPEECH], $song->reviewFlags);
+    }
+
+    /** The run's measure must work: where no song reads as sung, a spoken-sounding song is not evidence. */
+    #[Test]
+    public function it_does_not_hold_a_mostly_spoken_song_on_a_run_whose_songs_do_not_read_as_sung(): void
+    {
+        $rmsLog = $this->rmsLog([[0, 480, 'speech'], [480, 600, 'sung'], [600, 900, 'speech']]);
+        $structure = ServiceStructure::fromSections([
+            $this->section('prayer', 0.0, 300.0),
+            $this->section('song', 300.0, 600.0),
+            $this->section('song', 700.0, 900.0),
+        ]);
+
+        $applied = $this->service->apply($structure, $rmsLog, recordingOmitsSongs: false);
+
+        $this->assertSame($structure->toArray(), $applied->toArray());
     }
 
     #[Test]

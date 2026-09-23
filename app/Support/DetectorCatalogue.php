@@ -23,6 +23,7 @@ use App\Services\ChurchService\SectionPublication\SongPublicationBoundaryEvidenc
 use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
 use App\Services\ChurchService\SectionPublication\SongSectionWithoutSong;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\ChurchService\Structure\SongSpeechEdges;
 use App\Services\ChurchService\Structure\SungSpanInsideSermon;
 use App\Services\DetectorEvaluation\SongBoundaryEvidenceSignals;
 use App\Services\Media\Audio\ServiceTranscriptRepetitionScreen;
@@ -402,6 +403,17 @@ class DetectorCatalogue
                 summary: 'A section typed reading, prayer or other reads as sung text, so a song may be published as something else.',
                 owningClass: ServiceStructureValidator::class,
                 regressionCases: ['run 1014 §1301'],
+            ),
+            new DetectorEntry(
+                id: 'structure-song-swallows-speech',
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: [ServiceStructureValidator::FLAG_SONG_SWALLOWS_SPEECH],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::PublishedWrongContent,
+                unit: DetectorUnit::Section,
+                summary: 'A song section under half sung, with a long spoken lead-in or tail, has swallowed a prayer or talk; held rather than trimmed because the separate item\'s boundary is unknown.',
+                owningClass: SongSpeechEdges::class,
+                regressionCases: ['run 974 §988', 'run 1036 §1475'],
             ),
             new DetectorEntry(
                 id: 'structure-missing-preached-reading',

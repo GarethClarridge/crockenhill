@@ -157,6 +157,14 @@ class ServiceStructureValidator
     public const FLAG_SERMON_CONTAINS_SUNG_SPAN = 'structure_sermon_contains_sung_span';
 
     /**
+     * Applied by {@see SongSpeechEdges} to a song section under half sustained, on a run whose
+     * other songs read as sung, with a spoken lead-in of 25 s or a spoken tail of 20 s: a song
+     * that swallowed a prayer or talk (974 §988, 1475). Held rather than trimmed, because the
+     * separate item's own boundary is not known.
+     */
+    public const FLAG_SONG_SWALLOWS_SPEECH = 'structure_song_swallows_speech';
+
+    /**
      * Applied by DetectServiceStructure when a validated structure has a
      * sermon but no bible_reading section near it, and a feedback-guided
      * retry could not recover one — the reading is likely embedded in
