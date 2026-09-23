@@ -1,0 +1,272 @@
+[
+    {
+        "class": "Full pipeline re-run cuts a content-held sermon from the RMS baseline without error (1314 §3992, 17:04)",
+        "detector_id": "extraction-recut-of-held-sermon",
+        "found_by": "17 September canary"
+    },
+    {
+        "class": "Content-held sermon cannot reach its intended repair; re-extraction dry run conceals fallback refusal (1209 §2572)",
+        "detector_id": "extraction-held-section-repair-unreachable",
+        "found_by": "17 September canary"
+    },
+    {
+        "class": "Overlong song section swallows the sermon's opening; sermon text and (where cut from sections) media start late — 8 runs, verified on 1007, 1217, 1060",
+        "detector_id": "structure-macro-section",
+        "found_by": "17 September blocker sizing"
+    },
+    {
+        "class": "Sermon cut from a dominant RMS block while a disqualified (not held) sermon section exists (1007, 1041, 1217)",
+        "detector_id": "extraction-rms-fallback-with-disqualified-section",
+        "found_by": "17 September blocker sizing"
+    },
+    {
+        "class": "Unplaced-hold refusal is retried by the detection job and the refused detection is not kept (1314 §3994)",
+        "detector_id": "detection-unplaced-hold-refusal-discarded",
+        "found_by": "17 September canary"
+    },
+    {
+        "class": "Held section candidates remain on the staging volume only (1221 §2718/§2719/§2721)",
+        "detector_id": "staging-held-candidates-not-promoted",
+        "found_by": "17 September canary"
+    },
+    {
+        "class": "One-word sentence drift and context-carried loops (1314, 1343, 1258; partial 980)",
+        "detector_id": "transcript-context-carried-drift",
+        "found_by": "Blind BC-08"
+    },
+    {
+        "class": "Meaning-changing local substitutions in otherwise fluent saved sermon text (946 §787; 1030 §1418)",
+        "detector_id": "transcript-meaning-changing-substitution",
+        "found_by": "Held-population sample 2026-09-19"
+    },
+    {
+        "class": "Spoken hymn quotation typed as singing, cutting off sermon ending (1314 §3994/§3992)",
+        "detector_id": "structure-spoken-quotation-typed-as-song",
+        "found_by": "Blind BC-01"
+    },
+    {
+        "class": "Performed song lacks linked song identity (1221 §2722)",
+        "detector_id": "song-performed-song-unlinked",
+        "found_by": "Blind BC-06"
+    },
+    {
+        "class": "Children's talk typed `other` (1221 §2721, 1358 §4684)",
+        "detector_id": "talk-typed-other",
+        "found_by": "Blind BC-07"
+    },
+    {
+        "class": "Sermon ending possibly absorbed by song (1336 §4263/§4264)",
+        "detector_id": "sermon-ending-absorbed-by-song",
+        "found_by": "Blind BC-05"
+    },
+    {
+        "class": "Sermon transcript loops (≥5 repeats, ≥40 words)",
+        "detector_id": "transcript-repeated-phrase-loop",
+        "found_by": "P8-Q14"
+    },
+    {
+        "class": "Short, few-word and number-varying loops",
+        "detector_id": "transcript-repeated-phrase-loop",
+        "found_by": "09-10 review; held-population sample 2026-09-19"
+    },
+    {
+        "class": "Sparse 30 s-cadence transcript loss",
+        "detector_id": "transcript-sparse-cadence",
+        "found_by": "§4.1a r1"
+    },
+    {
+        "class": "Reading loop inside sermon text (1347)",
+        "detector_id": "transcript-repeated-phrase-loop",
+        "found_by": "§4.1a r1"
+    },
+    {
+        "class": "Looping song transcript (§1216; 226 song sections, 63 half loop on current membership)",
+        "detector_id": "song-looped-transcript",
+        "found_by": "§4.1b song-loop census; **re-anchored and contained 2026-09-16**"
+    },
+    {
+        "class": "Mixed-song clip (§3869)",
+        "detector_id": "song-unresolved-multiple-songs",
+        "found_by": "P8-Q10/16"
+    },
+    {
+        "class": "Song clip with continuous spoken lead-in or tail (§988, §1457, §2897, §1475; blind set BC-03: 1336 §4264, 1221 §2718/§2719/§2722, 1066 §1686/§1688, 1358 §4682)",
+        "detector_id": "song-boundary-spoken-framing",
+        "found_by": "09-10 review; §4.1a; §4.1b blind comparison"
+    },
+    {
+        "class": "Wrong song from `title_hint_fuzzy` (25 clips)",
+        "detector_id": "song-title-hint-fuzzy-misbinding",
+        "found_by": "§4.1a r2"
+    },
+    {
+        "class": "OoS items written from the wrong song",
+        "detector_id": "oos-item-written-from-wrong-song",
+        "found_by": "§4.1a r2"
+    },
+    {
+        "class": "Sung item typed reading/prayer/other (~~1253, 1349, 944 §666~~; **1014 §1301 only**)",
+        "detector_id": "structure-section-reads-as-sung",
+        "found_by": "§4.1a r2, **corrected 2026-09-16**"
+    },
+    {
+        "class": "OoS song with no detected section (944)",
+        "detector_id": "structure-oos-structure-mismatch",
+        "found_by": "§4.1a r1"
+    },
+    {
+        "class": "Talk cut by end of its only source (§1684, §1793, §3943) or starting mid-thought (§1421, 980)",
+        "detector_id": "section-truncated-by-source",
+        "found_by": "§4.1a r2"
+    },
+    {
+        "class": "Source audio dropout inside a talk (≥15 s at ≤ −80 dB)",
+        "detector_id": "audio-dropout-inside-talk",
+        "found_by": "§4.1a r1"
+    },
+    {
+        "class": "Published title/reference contradicts summary or transcript (881, 954, 844/845/850, 899)",
+        "detector_id": "published-title-contradicts-content",
+        "found_by": "§4.1a r1; §4.1b Scripture census"
+    },
+    {
+        "class": "Multi-passage reference cut to its first passage on link (1031, 1159, 1188, 1233)",
+        "detector_id": "scripture-multi-passage-truncated",
+        "found_by": "§4.1b Scripture census"
+    },
+    {
+        "class": "Whole single-chapter letter rejected as a reference (957, 1090)",
+        "detector_id": "scripture-whole-book-reference-rejected",
+        "found_by": "§4.1b Scripture census"
+    },
+    {
+        "class": "Sermon reference never linked to a passage (908–910, 912–915)",
+        "detector_id": "scripture-reference-never-linked",
+        "found_by": "§4.1b Scripture census"
+    },
+    {
+        "class": "Preached reading dropped from sermon media by an order flag (1075, 1254, 1286, 1299)",
+        "detector_id": "scripture-preached-reading-dropped-by-order-flag",
+        "found_by": "§4.1b Scripture census"
+    },
+    {
+        "class": "Verse quoted inside a prayer typed as a Bible reading (1043 §1528)",
+        "detector_id": "scripture-verse-in-prayer-typed-as-reading",
+        "found_by": "§4.1b Scripture census; operator 2026-09-14"
+    },
+    {
+        "class": "Structure boundary written one minute late: `m:ss` prompt times converted to seconds (confirmed 1203 §2535, 1183 §2391, 1305 §3894; probable 962 §924, 1141 §2137)",
+        "detector_id": "structure-prompt-time-misconverted",
+        "found_by": "§4.1b Scripture census"
+    },
+    {
+        "class": "Sermon page names the service's first reading, not the sermon's (157 of 438)",
+        "detector_id": "sermon-page-names-wrong-reading",
+        "found_by": "§4.1b Scripture census"
+    },
+    {
+        "class": "Saved sermon text predates evidence (P8-Q1)",
+        "detector_id": "sermon-text-predates-evidence",
+        "found_by": "P8-Q1"
+    },
+    {
+        "class": "Sermon MP3 loses closing words (12; stream-copied video vs plan-cut audio)",
+        "detector_id": "sermon-audio-length-mismatch",
+        "found_by": "§4.1b duration census"
+    },
+    {
+        "class": "Video picture starts after its audio, or audio carries the preceding item (stream-copy keyframe lead-in): sermons 12 over 3 s; song clips 89 frozen openings and 23 with lead-in audio over 1 s",
+        "detector_id": "video-stream-copy-keyframe-lead-in",
+        "found_by": "§4.1b duration censuses"
+    },
+    {
+        "class": "Hymn inside the sermon section (#885)",
+        "detector_id": "structure-hymn-inside-sermon-section",
+        "found_by": "09-10 review"
+    },
+    {
+        "class": "Duplicate/date pair identity",
+        "detector_id": "identity-duplicate-date-pair",
+        "found_by": "P8-Q7"
+    },
+    {
+        "class": "Automatic video-quality rejection hides a good video (27 of 47: static camera, dim lighting)",
+        "detector_id": "video-dead-picture",
+        "found_by": "§4.1b matrix"
+    },
+    {
+        "class": "A discredited verdict survives where the evidence cannot be re-read (862, **published**)",
+        "detector_id": "video-discredited-verdict-unreassessable",
+        "found_by": "§4.3a approvals census 2026-09-16"
+    },
+    {
+        "class": "Sermon video opens with no picture (926: 85 s, 930: 85 s, 975: 52 s, 941: 177 s), or loses it mid-sermon (1276: 106 s of black from 1682 s while speech continues at −2.6 dB)",
+        "detector_id": "video-dead-picture",
+        "found_by": "§4.3a approvals census 2026-09-16"
+    },
+    {
+        "class": "Quality verdict written without run evidence (13, `sermons:assess-video-quality`)",
+        "detector_id": "video-verdict-without-run-evidence",
+        "found_by": "§4.1b matrix"
+    },
+    {
+        "class": "Rehearsal recording imported as its own service (1043, 1089: Saturday sermon-only takes of Sunday's sermon)",
+        "detector_id": "membership-rehearsal-imported-as-service",
+        "found_by": "§4.1b date census"
+    },
+    {
+        "class": "Non-Sunday occasion with no `occasion` (funerals 1051, 1098; holiday club 1144)",
+        "detector_id": "membership-missing-occasion",
+        "found_by": "§4.1b date census"
+    },
+    {
+        "class": "Closing prayer left out of the sermon when it has no section (7: sermons 1027, 981, 1193, 1299, 1172, 986, 990)",
+        "detector_id": "sermon-closing-prayer-dropped",
+        "found_by": "§4.1b section coverage census"
+    },
+    {
+        "class": "Singing invisible to the transcript: song section cut to its transcribed lines (7: 965, 1109, 1196, 1241, 1269, 1341, 1379), songs shifted one slot (1287) or no section at all (10: 963 ×3, 1001, 1034, 1135, 1195, 1231, 1244, 1311)",
+        "detector_id": "structure-song-widened-to-sustained-sound",
+        "found_by": "§4.1b section coverage census"
+    },
+    {
+        "class": "Song clip loses its own verses to a neighbouring section (114, 192, 543 unsectioned; 240 prayer; 539 reading; 360, 207 preceding song, so 206 carries the next song)",
+        "detector_id": "song-lyrics-outside-section",
+        "found_by": "§4.1b tail inspections (song-edge census)"
+    },
+    {
+        "class": "Duplicate OoS item binds a clip to the previous song (1337 §4275, video 410: #699 listed twice, hint \"Shine Your Light\" matched `confirmed`)",
+        "detector_id": "song-adjacent-same-song",
+        "found_by": "§4.1b tail inspections"
+    },
+    {
+        "class": "Song clip audio upsampled to 96 kHz and re-encoded at 128 kbps (245 of 464)",
+        "detector_id": "song-clip-audio-upsampled",
+        "found_by": "§4.1b tail inspections (format census)"
+    },
+    {
+        "class": "Song section with no song in it, above the 15 s micro floor (song videos 74 → §622, announcement only; 83 → §678, doxology as a second copy of the hymn)",
+        "detector_id": "song-section-without-a-song",
+        "found_by": "§4.1b tail inspections"
+    },
+    {
+        "class": "Public sermon query resolves media through config, not the row's `asset_disk` (listings, browse, service lists, podcast feed)",
+        "detector_id": "release-sermon-query-ignores-asset-disk",
+        "found_by": "§4.1b consumer-side rendering"
+    },
+    {
+        "class": "Quarantined sermon records a media file that does not exist (857 MP3)",
+        "detector_id": "release-media-file-missing",
+        "found_by": "§4.1b consumer-side rendering"
+    },
+    {
+        "class": "Service URL offered while the service archive is disabled (null `public_from`)",
+        "detector_id": "release-url-while-archive-disabled",
+        "found_by": "§4.1b consumer-side rendering"
+    },
+    {
+        "class": "Silent source producing nothing (955)",
+        "detector_id": "membership-silent-source",
+        "found_by": "§4.1a r2"
+    }
+]

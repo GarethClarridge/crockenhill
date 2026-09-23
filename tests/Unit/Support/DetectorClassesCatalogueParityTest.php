@@ -9,12 +9,13 @@ use App\Support\DetectorCatalogue;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Binds §4.3a's class table to {@see DetectorCatalogue}.
+ * Binds the discovered defect classes to {@see DetectorCatalogue}.
  *
- * H1 asks for a test that stops the plan's `detector_id` column being prose
- * that drifts from the code. This is it: the column is parsed out of the plan
- * file itself, so a row naming an id nobody implemented fails here rather than
- * being discovered when a report comes back with a gap in it.
+ * H1 asks that a defect class's `detector_id` cannot drift from the code. The
+ * classes live in `resources/detector-classes.json`, a data file, so a class
+ * naming an id nobody implemented fails here. They were parsed out of the
+ * historic plan's §4.3a table until 2026-09-23; a test reading a plan tied the
+ * build to prose that is meant to be condensed and archived.
  *
  * **One-directional, and deliberately so.** H1 originally specified set
  * equality. Measured on 2026-09-21 that turned out to be the wrong contract,
@@ -32,19 +33,19 @@ use PHPUnit\Framework\TestCase;
  * globs the `Flag*` actions, so a detector cannot ship uncatalogued. What that
  * cannot check, and this can, is the plan naming something that does not exist.
  */
-class DetectorCataloguePlanParityTest extends TestCase
+class DetectorClassesCatalogueParityTest extends TestCase
 {
-    private const PLAN = 'docs/plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md';
+    private const CLASSES = 'resources/detector-classes.json';
 
     public function test_every_detector_id_in_the_plan_exists_in_the_catalogue(): void
     {
         $catalogued = array_keys(DetectorCatalogue::all());
 
-        foreach ($this->planIds() as $row => $id) {
+        foreach ($this->classIds() as $row => $id) {
             $this->assertContains(
                 $id,
                 $catalogued,
-                "§4.3a class table row {$row} names detector_id [{$id}], which the catalogue does not carry."
+                "Defect class {$row} names detector_id [{$id}], which the catalogue does not carry."
             );
         }
     }
@@ -56,18 +57,14 @@ class DetectorCataloguePlanParityTest extends TestCase
      * detector indistinguishable from one nobody has ruled on, which is exactly
      * what {@see DetectorStatus} was made an enum to prevent.
      */
-    public function test_the_class_table_is_fully_populated(): void
+    public function test_every_class_carries_a_detector_id(): void
     {
-        $ids = $this->planIds();
+        $ids = $this->classIds();
 
-        $this->assertCount(
-            54,
-            $ids,
-            'Every row of §4.3a\'s class table needs a detector_id. A new row must bring one.'
-        );
+        $this->assertNotSame([], $ids, 'The defect class file is empty.');
 
         foreach ($ids as $row => $id) {
-            $this->assertNotSame('', trim($id), "Row {$row} has an empty detector_id cell.");
+            $this->assertNotSame('', trim($id), "Class {$row} has an empty detector_id.");
         }
     }
 
@@ -82,7 +79,7 @@ class DetectorCataloguePlanParityTest extends TestCase
      */
     public function test_every_named_class_resolves_to_a_status(): void
     {
-        foreach (array_unique($this->planIds()) as $id) {
+        foreach (array_unique($this->classIds()) as $id) {
             $entry = DetectorCatalogue::find($id);
 
             $this->assertNotNull($entry, "[{$id}] is named by the plan but absent from the catalogue.");
@@ -99,7 +96,7 @@ class DetectorCataloguePlanParityTest extends TestCase
      */
     public function test_classes_without_detectors_record_their_grounds(): void
     {
-        foreach (array_unique($this->planIds()) as $id) {
+        foreach (array_unique($this->classIds()) as $id) {
             $entry = DetectorCatalogue::find($id);
             $this->assertNotNull($entry);
 
@@ -113,47 +110,21 @@ class DetectorCataloguePlanParityTest extends TestCase
     }
 
     /**
-     * The class table's ids, keyed by their 1-indexed row number.
+     * The defect classes' ids, keyed by their 1-indexed position in the file.
      *
      * @return array<int, string>
      */
-    private function planIds(): array
+    private function classIds(): array
     {
-        $path = dirname(__DIR__, 3).'/'.self::PLAN;
-        $this->assertFileExists($path, 'The plan this test binds to has moved or been renamed.');
+        $path = dirname(__DIR__, 3).'/'.self::CLASSES;
+        $this->assertFileExists($path, 'The defect class file has moved or been renamed.');
 
-        $lines = explode("\n", (string) file_get_contents($path));
+        $classes = json_decode((string) file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
         $ids = [];
-        $inTable = false;
-        $row = 0;
 
-        foreach ($lines as $line) {
-            if (str_starts_with($line, '| Class | `detector_id` |')) {
-                $inTable = true;
-
-                continue;
-            }
-
-            if (! $inTable) {
-                continue;
-            }
-
-            if (str_starts_with($line, '|---')) {
-                continue;
-            }
-
-            if (! str_starts_with($line, '|')) {
-                break;
-            }
-
-            $cells = array_map(trim(...), explode('|', $line));
-
-            // [0] is the empty string before the leading pipe, [1] the class,
-            // [2] the id.
-            $ids[++$row] = trim($cells[2] ?? '', '` ');
+        foreach ($classes as $index => $class) {
+            $ids[$index + 1] = (string) ($class['detector_id'] ?? '');
         }
-
-        $this->assertTrue($inTable, 'Could not find §4.3a\'s class table header in the plan.');
 
         return $ids;
     }

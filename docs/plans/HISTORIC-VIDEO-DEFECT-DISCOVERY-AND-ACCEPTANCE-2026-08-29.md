@@ -2917,6 +2917,11 @@ intermediate results. In particular, its song-loop “defect” labels describe 
 catalogue-lyrics comparison, not independent listening; the evidence correction
 immediately below the table governs their interpretation.
 
+> **Source of truth moved 2026-09-23.** Each class's `detector_id` now lives in
+> `resources/detector-classes.json`, checked against `DetectorCatalogue` by
+> `DetectorClassesCatalogueParityTest`. The test no longer parses this plan, so this
+> table is a record and can be condensed. Add a new class to the data file.
+
 | Class | `detector_id` | Found by | Current response — reviewed 2026-09-17 | Prototype | Specification and dated execution evidence |
 |---|---|---|---|---|---|
 | Full pipeline re-run cuts a content-held sermon from the RMS baseline without error (1314 §3992, 17:04) | `extraction-recut-of-held-sermon` | 17 September canary | Fixed `283a6cd90`: extraction parks held sermons; 1314 repaired with `--held-section` | `canary-20260917-dispatch-1314-recut.txt` | Refuse or park extraction when a sermon section exists but is held and no authority names it; failing test first |
