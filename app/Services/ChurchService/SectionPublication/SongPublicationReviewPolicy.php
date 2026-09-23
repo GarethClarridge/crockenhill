@@ -8,6 +8,7 @@ use App\Enums\HistoricVideoCorroborationGrade;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -44,7 +45,7 @@ class SongPublicationReviewPolicy
      * The shortest clip that could plausibly have absorbed a whole further song.
      *
      * The same six-minute ceiling a sung item is held to elsewhere
-     * {@see \App\Services\ChurchService\Structure\ServiceStructureValidator::FLAG_MACRO_SECTION};
+     * {@see ServiceStructureValidator::FLAG_MACRO_SECTION};
      * 1,049 of the corpus's 1,078 song sections sit inside it.
      */
     private const SWALLOWING_MINIMUM_SECONDS = 360.0;
@@ -330,18 +331,25 @@ class SongPublicationReviewPolicy
             2,
         );
 
-        return $section->processingLog->serviceSections()
+        $others = $section->processingLog->serviceSections()
             ->where('id', '!=', $section->id)
-            ->where('section_type', ServiceSectionType::Song)
-            ->get()
-            ->first(function (ServiceSection $other) use ($section, $songId, $gap): bool {
-                if ($this->songId($other) !== $songId) {
-                    return false;
-                }
+            ->orderBy('start_time')
+            ->get();
+        $previous = $others->last(static fn (ServiceSection $other): bool => (float) $other->start_time < (float) $section->start_time);
+        $next = $others->first(static fn (ServiceSection $other): bool => (float) $other->start_time >= (float) $section->start_time);
 
-                return abs((float) $other->start_time - (float) $section->end_time) <= $gap
-                    || abs((float) $section->start_time - (float) $other->end_time) <= $gap;
-            });
+        return $others->first(function (ServiceSection $other) use ($section, $songId, $gap, $previous, $next): bool {
+            if ($other->section_type !== ServiceSectionType::Song || $this->songId($other) !== $songId) {
+                return false;
+            }
+
+            // 1337 §4274/§4275: a duplicated order-of-service item bound the next
+            // song section to the same hymn 12 s later. Nothing between them makes
+            // them neighbours whatever the gap; a reprise has a section between.
+            return $other->is($previous) || $other->is($next)
+                || abs((float) $other->start_time - (float) $section->end_time) <= $gap
+                || abs((float) $section->start_time - (float) $other->end_time) <= $gap;
+        });
     }
 
     private function songId(ServiceSection $section): ?int

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Services\SectionPublication;
 
 use App\Data\ServiceSectionMetadata;
+use App\Data\SuspectTranscriptBlock;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
@@ -13,8 +14,10 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
+use App\Services\ChurchService\SectionPublication\SongLoopedTranscript;
 use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use Database\Factories\SongFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -595,6 +598,33 @@ class SongPublicationReviewPolicyTest extends TestCase
     }
 
     /**
+     * 1337 §4274/§4275: the order of service printed #699 twice, so the next song
+     * section was bound to the same hymn 12 s after the first ended. Nothing lies
+     * between them, so they are neighbours in the service whatever the gap.
+     */
+    #[Test]
+    public function it_holds_a_song_whose_next_section_is_the_same_song_across_a_gap(): void
+    {
+        $section = $this->section('full', ['livestream'], start: 1478.0, end: 1647.0);
+        $this->addNeighbour($section, ServiceSectionType::Song, 1659.0, 1767.0, sameSong: true);
+
+        $this->assertContains('adjacent_same_song', array_column($this->policy->reviewReasons($section->fresh()), 'kind'));
+    }
+
+    /**
+     * A hymn sung again after a prayer is a reprise, not a duplicate binding.
+     */
+    #[Test]
+    public function it_releases_the_same_song_sung_again_after_another_section(): void
+    {
+        $section = $this->section('full', ['livestream'], start: 1478.0, end: 1647.0);
+        $this->addNeighbour($section, ServiceSectionType::Prayer, 1650.0, 1655.0, sameSong: false);
+        $this->addNeighbour($section, ServiceSectionType::Song, 1659.0, 1767.0, sameSong: true);
+
+        $this->assertNotContains('adjacent_same_song', array_column($this->policy->reviewReasons($section->fresh()), 'kind'));
+    }
+
+    /**
      * Section 306 (2026-07-05): a publicly released 510-second clip issued for
      * "All creatures of our God and King". Its `additional_song_matches` is
      * empty, so the OCR route cannot see it — but the printed order's next song,
@@ -690,7 +720,7 @@ class SongPublicationReviewPolicyTest extends TestCase
         $this->recordLoopBlocks($section, 600.0, 760.0);
 
         $this->assertContains(
-            \App\Services\ChurchService\SectionPublication\SongLoopedTranscript::RISK_KIND,
+            SongLoopedTranscript::RISK_KIND,
             array_column($this->policy->reviewReasons($section->fresh()), 'kind'),
         );
     }
@@ -711,7 +741,7 @@ class SongPublicationReviewPolicyTest extends TestCase
         $this->recordLoopBlocks($section, 600.0, 760.0, phrase: self::SONGS_OWN_PHRASE);
 
         $this->assertNotContains(
-            \App\Services\ChurchService\SectionPublication\SongLoopedTranscript::RISK_KIND,
+            SongLoopedTranscript::RISK_KIND,
             array_column($this->policy->reviewReasons($section->fresh()), 'kind'),
         );
     }
@@ -728,7 +758,7 @@ class SongPublicationReviewPolicyTest extends TestCase
         $this->recordLoopBlocks($section, 600.0, 620.0);
 
         $this->assertContains(
-            \App\Services\ChurchService\SectionPublication\SongLoopedTranscript::RISK_KIND,
+            SongLoopedTranscript::RISK_KIND,
             array_column($this->policy->reviewReasons($section->fresh()), 'kind'),
         );
     }
@@ -789,7 +819,7 @@ class SongPublicationReviewPolicyTest extends TestCase
         $this->recordLoopBlocks($section, 602.0, 650.0, phrase: self::SONGS_OWN_PHRASE);
 
         $this->assertNotContains(
-            \App\Services\ChurchService\SectionPublication\SongLoopedTranscript::RISK_KIND,
+            SongLoopedTranscript::RISK_KIND,
             array_column($this->policy->reviewReasons($section->fresh()), 'kind'),
         );
     }
@@ -895,10 +925,10 @@ class SongPublicationReviewPolicyTest extends TestCase
         $log->putServiceTranscriptPath(
             'service-transcripts/test-'.$log->processing_id.'.normalized.json',
             [],
-            [new \App\Data\SuspectTranscriptBlock(
+            [new SuspectTranscriptBlock(
                 start: $start,
                 end: $end,
-                reason: \App\Data\SuspectTranscriptBlock::REASON_REPEATED_PHRASE,
+                reason: SuspectTranscriptBlock::REASON_REPEATED_PHRASE,
                 words: 160,
                 wordsPerMinute: 120.0,
                 phrase: $phrase,
@@ -910,10 +940,31 @@ class SongPublicationReviewPolicyTest extends TestCase
     /**
      * The phrase the section's bound song actually contains.
      *
-     * {@see \Database\Factories\SongFactory} writes `Verse line one` as the catalogue lyrics, so
+     * {@see SongFactory} writes `Verse line one` as the catalogue lyrics, so
      * a loop repeating that is the congregation singing rather than the decode looping.
      */
     private const SONGS_OWN_PHRASE = 'Verse line one';
+
+    private function addNeighbour(ServiceSection $section, ServiceSectionType $type, float $start, float $end, bool $sameSong): ServiceSection
+    {
+        $item = $sameSong
+            ? ChurchServiceItem::factory()->create([
+                'church_service_id' => $section->churchServiceItem->church_service_id,
+                'song_id' => $section->churchServiceItem->song_id,
+                'source' => ChurchServiceItemSource::Livestream,
+            ])
+            : null;
+
+        return ServiceSection::factory()->create([
+            'media_processing_log_id' => $section->media_processing_log_id,
+            'church_service_item_id' => $item?->id,
+            'section_type' => $type->value,
+            'song_match_type' => $sameSong ? ServiceSectionSongMatchType::Confirmed->value : null,
+            'start_time' => $start,
+            'end_time' => $end,
+            'duration' => $end - $start,
+        ]);
+    }
 
     private function section(
         string $grade,
