@@ -13,7 +13,7 @@
 >   "Workstream status").
 > - **Miss rate:** H10b re-decoded and compared all 338 decodable runs under a rule
 >   fixed before decoding (tripwire 2.20%, under 3%). A 208-window listening queue
->   awaits the operator. 99 restaged runs are decoding as batch 2.
+>   awaits the operator (306 windows including batch 2, the 99 restaged runs).
 > - **Repairs ready:** 1287's retranscription is dry-run ready.
 > - **Operational:** temp-file cleanup is paused locally so restaged sources survive.
 > - **Regular uploads:** the per-route fix audit is recorded in §4.
@@ -445,6 +445,15 @@ data, in `resources/detector-classes.json`.
     - Listening queue (`listening-queue.json`): `original` 19 + 30 + 10 + 20 = 79
       windows, `recovered` 69 + 30 + 10 + 20 = 129, about 104 minutes of audio.
       Listening is the operator's.
+  - **Batch 2 (restaged runs), 2026-09-23: 99/99 decoded and compared, 0 unassessable.**
+    Same rule, same seed (`listening-queue-batch2.json`). It has no `already_redecoded`
+    runs, so the batch-1 tripwire stands. These are the runs with no review obligation
+    when they completed, and they differ far less: `original` 132/4,765 windows differ
+    (about 3%, against about 12% in batch 1); `recovered` 265/1,472. Speech
+    repetitive/clean windows the screen did **not** flag: 10 `original` and 2
+    `recovered`, which are candidate misses on never-held runs. The queue adds 98
+    windows; the listening page now holds **306** (`listening/index.html`, batch
+    shown). `score-verdicts.py` reports by batch.
 - **1337 follow-up, 2026-09-23.**
   - **Neighbour rule built test-first** (`2185ab734`). `adjacent_same_song` now also
     holds a song whose previous or next section is the same song with nothing between,
