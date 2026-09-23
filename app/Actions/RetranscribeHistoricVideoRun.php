@@ -57,7 +57,11 @@ final class RetranscribeHistoricVideoRun
             }
 
             if (! $execute) {
-                return ['outcome' => 'ready', 'reason' => 'ready for full-service retranscription'];
+                $replay = $freshRun->transcriptRecoveryReplay();
+
+                return ['outcome' => 'ready', 'reason' => $replay === null
+                    ? 'ready for full-service retranscription'
+                    : sprintf('ready for full-service retranscription; will supersede the recovery replay stamp of %s', (string) ($replay['replayed_at'] ?? 'unknown date'))];
             }
 
             DB::transaction(function () use ($freshRun): void {
@@ -68,6 +72,8 @@ final class RetranscribeHistoricVideoRun
                     throw new RuntimeException($reason);
                 }
 
+                $lockedRun->supersedeTranscriptRecoveryReplay('historic_retranscription');
+                $lockedRun->refresh();
                 $lockedRun->markAsReExtraction();
 
                 if (! $this->transitions->markAsReopened($lockedRun, 'transcribe_full_service')) {
@@ -103,10 +109,6 @@ final class RetranscribeHistoricVideoRun
 
         if (! is_string($recordedOperationId) || $operation === null || $recordedOperationId !== $operation->operation_id) {
             return 'run does not have matching historic operation ownership';
-        }
-
-        if ($run->transcriptRecoveryReplay() !== null) {
-            return 'run has stale transcript recovery replay provenance';
         }
 
         $anotherRunIsActive = MediaProcessingLog::query()

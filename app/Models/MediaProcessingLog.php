@@ -1487,6 +1487,33 @@ class MediaProcessingLog extends Model
         });
     }
 
+    /**
+     * Retire the recovery replay stamp to history once its transcript is being replaced.
+     *
+     * Plan §4.2 (2026-09-18): a re-transcription must supersede the stale stamp
+     * explicitly, or it would still read as the provenance of a transcript that no
+     * longer exists. Both generations are kept, so the history names what it replaced.
+     */
+    public function supersedeTranscriptRecoveryReplay(string $reason): void
+    {
+        $this->writeProcessingMetadata(static function (array $metadata) use ($reason): array {
+            $stamp = $metadata['transcript_recovery_replay'] ?? null;
+
+            if (! is_array($stamp)) {
+                return $metadata;
+            }
+
+            $history = is_array($metadata['superseded_transcript_recovery_replays'] ?? null)
+                ? $metadata['superseded_transcript_recovery_replays']
+                : [];
+            $history[] = ['stamp' => $stamp, 'reason' => $reason, 'superseded_at' => now()->toIso8601String()];
+            $metadata['superseded_transcript_recovery_replays'] = $history;
+            unset($metadata['transcript_recovery_replay']);
+
+            return $metadata;
+        });
+    }
+
     /** @return array<string, mixed>|null */
     public function transcriptRecoveryReplay(): ?array
     {

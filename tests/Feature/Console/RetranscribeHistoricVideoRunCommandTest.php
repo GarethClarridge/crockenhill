@@ -159,16 +159,22 @@ class RetranscribeHistoricVideoRunCommandTest extends TestCase
         $this->assertRefused($run, 'hash does not match');
     }
 
+    /**
+     * Plan §4.2 (2026-09-18): a re-transcription must supersede the stale replay stamp
+     * explicitly. It moves to history, both generations are kept, and the live stamp
+     * no longer claims to describe the current transcript.
+     */
     #[Test]
-    public function it_refuses_stale_recovery_replay_provenance(): void
+    public function it_supersedes_stale_recovery_replay_provenance_when_it_dispatches(): void
     {
+        $stamp = ['replayed_at' => '2026-09-08T09:30:41+00:00', 'words_before' => 7628, 'words_after' => 7648];
         $run = $this->completedRun(attributes: [
             'processing_metadata' => [
                 'historic_import' => [
                     'operation_id' => 'replaced below',
                     'staging_context' => $this->stagingContext()->toArray(),
                 ],
-                'transcript_recovery_replay' => ['replayed_at' => now()->toIso8601String()],
+                'transcript_recovery_replay' => $stamp,
             ],
         ]);
         $metadata = $run->processing_metadata?->toArray() ?? [];
@@ -176,7 +182,41 @@ class RetranscribeHistoricVideoRunCommandTest extends TestCase
         $run->update(['processing_metadata' => $metadata]);
         $this->fakeStagingContext();
 
-        $this->assertRefused($run, 'stale transcript recovery replay');
+        $orchestrator = Mockery::mock(ProcessingRunOrchestrator::class);
+        $orchestrator->shouldReceive('start')->once();
+        $this->app->instance(ProcessingRunOrchestrator::class, $orchestrator);
+
+        $this->artisan('historic-import:retranscribe-video-run', ['run' => $run->id, '--execute' => true])
+            ->expectsOutputToContain('dispatched')
+            ->assertSuccessful();
+
+        $fresh = $run->fresh();
+        self::assertNull($fresh?->transcriptRecoveryReplay());
+        $history = $fresh?->processing_metadata?->toArray()['superseded_transcript_recovery_replays'] ?? [];
+        self::assertCount(1, $history);
+        self::assertSame($stamp['replayed_at'], $history[0]['stamp']['replayed_at']);
+        self::assertSame('historic_retranscription', $history[0]['reason']);
+    }
+
+    #[Test]
+    public function it_names_the_replay_stamp_it_would_supersede_in_a_dry_run(): void
+    {
+        $run = $this->completedRun(attributes: [
+            'processing_metadata' => [
+                'historic_import' => ['operation_id' => 'replaced below', 'staging_context' => $this->stagingContext()->toArray()],
+                'transcript_recovery_replay' => ['replayed_at' => '2026-09-08T09:30:41+00:00'],
+            ],
+        ]);
+        $metadata = $run->processing_metadata?->toArray() ?? [];
+        data_set($metadata, 'historic_import.operation_id', $run->historicImportOperation?->operation_id);
+        $run->update(['processing_metadata' => $metadata]);
+        $this->fakeStagingContext();
+
+        $this->artisan('historic-import:retranscribe-video-run', ['run' => $run->id])
+            ->expectsOutputToContain('supersede the recovery replay stamp of 2026-09-08T09:30:41+00:00')
+            ->assertSuccessful();
+
+        self::assertNotNull($run->fresh()?->transcriptRecoveryReplay());
     }
 
     #[Test]
