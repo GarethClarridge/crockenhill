@@ -35,6 +35,12 @@ class CleanupOrphanedTempFiles extends Command
      */
     public function handle(HistoricReviewSourceReclaimer $historicReviewSourceReclaimer): int
     {
+        if (config('media-processing.processing.pause_temporary_file_cleanup')) {
+            $this->warn('Temporary file cleanup is paused (MEDIA_PAUSE_TEMP_FILE_CLEANUP); nothing was deleted.');
+
+            return self::SUCCESS;
+        }
+
         $hours = (int) $this->option('hours');
         $dryRun = $this->option('dry-run');
         $cutoffTime = now()->subHours($hours);

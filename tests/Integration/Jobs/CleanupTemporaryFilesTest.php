@@ -125,6 +125,28 @@ class CleanupTemporaryFilesTest extends TestCase
         ];
     }
 
+    /**
+     * Operator pause (2026-09-23): restaged historic sources must survive the next
+     * pipeline pass over their runs, so cleanup deletes nothing while paused but the
+     * run still completes.
+     */
+    #[Test]
+    public function it_deletes_nothing_while_cleanup_is_paused_but_still_completes_the_run(): void
+    {
+        config(['media-processing.processing.pause_temporary_file_cleanup' => true]);
+
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'source_file_path' => 'temp/source-audio.mp3',
+        ]);
+
+        $mockStorage = $this->createMock(VideoStorageService::class);
+        $mockStorage->expects($this->never())->method('cleanupTemporaryFiles');
+
+        (new CleanupTemporaryFiles($log))->handle($mockStorage);
+
+        $this->assertSame(ProcessingStatus::Completed, $log->refresh()->status);
+    }
+
     #[Test]
     public function it_collects_metadata_temp_paths_for_cleanup(): void
     {

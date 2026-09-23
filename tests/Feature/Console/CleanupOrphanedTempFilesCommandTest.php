@@ -36,6 +36,23 @@ class CleanupOrphanedTempFilesCommandTest extends TestCase
         Storage::disk('local')->assertExists($filePath);
     }
 
+    #[Test]
+    public function it_deletes_nothing_while_cleanup_is_paused(): void
+    {
+        Storage::fake('local');
+        config(['media-processing.processing.pause_temporary_file_cleanup' => true]);
+
+        $filePath = 'livestream/temp/orphan.mp4';
+        Storage::disk('local')->put($filePath, 'video content');
+        touch(Storage::disk('local')->path($filePath), now()->subHours(48)->timestamp);
+
+        $this->artisan('media:cleanup-temp-files', ['--hours' => 1])
+            ->expectsOutputToContain('paused')
+            ->assertSuccessful();
+
+        Storage::disk('local')->assertExists($filePath);
+    }
+
     /**
      * WP-A1's acceptance test. The full-service transcript used to live on the
      * temp disk under `temp/service_transcript_*.json`, which this sweep deletes

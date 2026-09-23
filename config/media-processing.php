@@ -99,6 +99,10 @@ return [
     'processing' => [
         'retry_attempts' => 3,
         'retry_delay' => 60,
+        // Operator pause (2026-09-23): keep every run's temporary files, including
+        // its source working copy, so restaged historic sources survive the repair
+        // passes. Remove this switch once those passes are done.
+        'pause_temporary_file_cleanup' => (bool) env('MEDIA_PAUSE_TEMP_FILE_CLEANUP', false),
     ],
 
     /*

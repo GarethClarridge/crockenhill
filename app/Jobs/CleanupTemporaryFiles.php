@@ -100,7 +100,14 @@ class CleanupTemporaryFiles implements ShouldQueue
                 'files' => $tempFiles,
             ]);
 
-            $storageService->cleanupTemporaryFiles($tempFiles);
+            if (config('media-processing.processing.pause_temporary_file_cleanup')) {
+                Log::info('Temporary file cleanup is paused; keeping every file', [
+                    'processing_id' => $this->processingLog->processing_id,
+                    'files' => $tempFiles,
+                ]);
+            } else {
+                $storageService->cleanupTemporaryFiles($tempFiles);
+            }
 
             Log::info('Temporary file cleanup completed', [
                 'processing_id' => $this->processingLog->processing_id,
