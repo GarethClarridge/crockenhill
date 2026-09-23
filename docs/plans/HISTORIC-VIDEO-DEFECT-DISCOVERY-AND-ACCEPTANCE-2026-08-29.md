@@ -203,9 +203,14 @@ costs more than re-running them. **Operator decisions:**
    against one commit, and its evidence binds that commit. The gate (catalogue state
    2026-09-23: 40 promoted, 16 fixed at source, 2 decided not to detect, **17 unbuilt, 1
    prototype**):
-   - Structure/typing: `structure-hymn-inside-sermon-section`,
-     `structure-spoken-quotation-typed-as-song`, `talk-typed-other`,
-     `song-section-without-a-song`, `detection-unplaced-hold-refusal-discarded`
+   - Structure/typing: ~~`structure-hymn-inside-sermon-section`~~ (built `994446a12`),
+     ~~`structure-spoken-quotation-typed-as-song`~~ and
+     ~~`detection-unplaced-hold-refusal-discarded`~~ (both already fixed; recorded `5a071a4af`),
+     ~~`song-section-without-a-song`~~ (built `c70ad59cf`; the doxology after Old Hundredth,
+     §678/§3284, stays a **named limitation** by operator ruling 2026-09-23),
+     `talk-typed-other` — **gates the freeze** (operator ruling 2026-09-23): talks plan PR1
+     and PR3 (`short_talk` detection) land before the freeze, so the corpus re-run detects
+     short talks in the same pass
    - Transcript/audio: `transcript-meaning-changing-substitution`,
      `audio-dropout-inside-talk` (prototype)
    - Scripture: `scripture-reference-never-linked`, `scripture-multi-passage-truncated`,
@@ -215,9 +220,15 @@ costs more than re-running them. **Operator decisions:**
    - Membership/staging/release: `membership-missing-occasion`,
      `membership-rehearsal-imported-as-service`, `staging-held-candidates-not-promoted`,
      `release-media-file-missing`, `video-discredited-verdict-unreassessable`
-   - Carried §4.3 items outside the catalogue: the continuous-speech boundary check (§988),
-     `confirmed` redefined as two independent sources, speech under looped sung text
-     (967 §1082, 1268 §4731, 1348 §4390), and song edge into an adjoining section.
+   - Carried §4.3 items outside the catalogue: ~~the continuous-speech boundary check (§988)~~
+     (built `4abce5f0c`), ~~`confirmed` redefined as two independent sources~~ (built
+     `8ae957628`; operator ruling: **any two** of heard, sung, projected, planned — 126 of 1,185
+     current bindings would become inferred, against 231 under the stricter plan wording),
+     ~~speech under looped sung text~~ (built `cb024a9a6`), and song edge into an adjoining
+     section.
+   - Each built rule was measured read-only over the corpus before commit; none was applied to
+     existing rows, which change only when the re-run re-detects them. Evidence:
+     `storage/scratch/{sungspan,songwithout,swallow,speechloop,confirmed}-20260923-*.json`.
 2. **Tier A (re-transcription) waits for the operator's H10b listening queue.** Runs are
    chosen from the listening results, not from the tripwire alone.
 3. **All eligible historic runs are re-run**, not only those predicted to change. The
@@ -664,14 +675,14 @@ check against the 09-17 speech-edge trim) deserve a closer look before being bui
 **4.3 Refresh song policy for existing outputs**
 
 - [ ] Reconcile the 27 boundary-policy candidates in addition to confirmed mixed section 3869.
-- [ ] Add a boundary check for continuous spoken material that does not depend solely on finding a wordless gap, using section 988 as the regression case.
+- [x] Add a boundary check for continuous spoken material that does not depend solely on finding a wordless gap, using section 988 as the regression case. *Built 2026-09-23 (`4abce5f0c`): a song under half sustained with a 25 s spoken lead-in or 20 s tail is held, not trimmed; 34 flagged over 463 runs, 23 already held, §988 and §1475 included.*
 - [ ] Independently verify repaired starts and tails, including clean negatives, no lost singing, and the adjoining sermon ending (135 replay trims follow sermons).
 - [ ] Keep §988/§1475 (below the half-sustained floor), §2897 (speech over organ; proposed start trim unverified), and §1457's actual repaired output as explicit real-source checks.
 - [x] Preserve the rejected broad unsung-song rule as a measured decision: 14 of 21 candidates were sung. *Triage 09-23: recorded in the log (§4.3, 09-17 speech-edge trim).*
 - [ ] Re-resolve the 72 deterministic cases through the pipeline, adjudicate the three unchanged-fallback suggestions separately, and correct livestream-sourced order-of-service items after identity settles.
 - [ ] Settle the 31 pending-approval sections with the same hint disagreement before anyone approves them.
 - [x] Add a lyric-coverage check (calibrated in §4.1a) before a song match is recorded as `confirmed`. *Built test-first 2026-09-23.* `SongLyricIdentityCheck` ports the 09-14 lyric scorer's rule unchanged (≥15 distinct content words; a rival song with ≥4 word pairs, twice the bound song's, and +0.1 IDF coverage). `MatchSongsFromTranscript` runs it on every match not taken from OCR and records `lyric_identity_check`. A contradiction raises `song_identity_contradicted_by_lyrics`, which `SongCatalogueTitlePolicy` vetoes at any confidence (so it stays `inferred` and goes to review, and the recalculator cannot promote it). The section also stays eligible for OCR, which can settle it. It is a contradiction test, not a confirmation: an unreadable transcript (`unavailable`) or too few heard words (`insufficient_words`) does not block, because Whisper drops singing. The hand-applied `…_by_transcript` flag is a separate string and is never touched. Registered as the promoted detector `song-identity-contradicted-by-lyrics`. **Corpus measurement** (read-only, inside staging contexts; `storage/scratch/lyricid-20260923-measure.{php,json}`), 1,218 bound song sections: 954 consistent, 190 insufficient words, 15 unavailable, **58 contradicted, 56 already held**. Calibration reproduces: 0 of 42 frame-verified correct sections flagged; of the 8 known-wrong, 4 are contradicted, 2 score consistent (§519, §3218), and 2 have too few words (§508, §631). **Two new unheld candidates**: §872 (run 964; bound #275, sung words match "God We Praise You #177" at 45 pairs to 3) and §3128 (run 1250, `title_hint_fuzzy`; bound #19, sung words match "I Do Not Know What Lies Ahead #871" at 18 to 3, the title its own hint names). Both are historic, at `identified`, with no clip, so nothing is exposed. The check reaches existing rows only when matching re-runs through the pipeline. Those two need a binding decision, not a hand edit.
-- [ ] Redefine `confirmed` as two agreeing evidence sources whose lineage is demonstrably independent, with at least one supporting the actual performed song.
+- [x] Redefine `confirmed` as two agreeing evidence sources whose lineage is demonstrably independent, with at least one supporting the actual performed song. *Built 2026-09-23 (`8ae957628`) as **any two** independent sources, by operator ruling; the performed-song requirement was dropped after measurement (it would demote 105 planned-and-announced bindings where Whisper missed the singing).*
 
 **4.3a Put a detector in the pipeline for every class found**
 
