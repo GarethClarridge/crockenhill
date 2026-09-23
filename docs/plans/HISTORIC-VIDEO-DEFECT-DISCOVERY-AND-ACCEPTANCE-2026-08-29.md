@@ -4362,8 +4362,8 @@ an adapter.
   `structure-song-widened-to-sustained-sound` is mis-filed. Its widening failure is a
   consequence (20 s unsustained, the reading, before song 2), and no widening rule should
   be bent to reach it. **Repair:** re-transcribe, then re-detect, through the pipeline in
-  the next bounded batch. The now-restaged source makes that possible, but the
-  retranscription command is still restricted to 980/1258/1343.
+  the next bounded batch. Its staged source is present (it was in the first decode batch),
+  but the retranscription command is still restricted to 980/1258/1343.
 
 ##### H9. Ruling: no reserved set; historic evidence is retrospective
 
