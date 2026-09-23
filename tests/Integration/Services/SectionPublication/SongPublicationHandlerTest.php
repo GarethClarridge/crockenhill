@@ -166,8 +166,9 @@ class SongPublicationHandlerTest extends TestCase
         $section = $section->fresh();
 
         $this->assertTrue($this->handler->requiresApproval($section));
+        // The duration gate holds it; the content rule says why, since its words are not the song.
         $this->assertSame(
-            ['short_song_clip'],
+            ['short_song_clip', 'song_section_without_song'],
             array_column($section->metadata->toArray()['song_publication_review']['reasons'], 'kind'),
         );
     }

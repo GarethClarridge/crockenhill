@@ -1143,6 +1143,49 @@ class SongPublicationReviewPolicyTest extends TestCase
     }
 
     /**
+     * 938 §622 (clip 74): the leader announces the song and the section ends before anyone sings.
+     */
+    #[Test]
+    public function it_holds_a_short_clip_that_only_announces_its_song(): void
+    {
+        $section = $this->shortLyricSection('Lord I lift your name on high Lord I love to sing your praises I\'m so glad you\'re in my life');
+        $this->storeLyricArtifacts($section, [
+            ['start' => 602.0, 'end' => 618.0, 'text' => 'Well, let\'s stand, shall we, and sing. It\'s number 314.'],
+        ], [[580, 700, 'speech']]);
+
+        $this->assertContains(
+            'song_section_without_song',
+            array_column($this->policy->reviewReasons($section->fresh()), 'kind'),
+        );
+    }
+
+    /** 1341 §4310: short, and the bound song's own lines are sung. */
+    #[Test]
+    public function it_releases_a_short_clip_that_sings_its_song(): void
+    {
+        $section = $this->shortLyricSection('Lord I lift your name on high Lord I love to sing your praises I\'m so glad you\'re in my life');
+        $this->storeLyricArtifacts($section, [
+            ['start' => 602.0, 'end' => 618.0, 'text' => 'Lord, I love to sing your praises, I\'m so glad you\'re in my life.'],
+        ], [[580, 700, 'sung']]);
+
+        $this->assertNotContains(
+            'song_section_without_song',
+            array_column($this->policy->reviewReasons($section->fresh()), 'kind'),
+        );
+    }
+
+    /**
+     * A 20 s confirmed song section from 600 s whose catalogue song carries these lyrics.
+     */
+    private function shortLyricSection(string $lyrics): ServiceSection
+    {
+        $section = $this->lyricSection($lyrics);
+        $section->forceFill(['end_time' => 620.0, 'duration' => 20.0])->save();
+
+        return $section->fresh();
+    }
+
+    /**
      * A confirmed song section from 600 s to 840 s whose catalogue song carries these lyrics.
      */
     private function lyricSection(string $lyrics): ServiceSection

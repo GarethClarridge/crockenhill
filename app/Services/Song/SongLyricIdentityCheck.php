@@ -66,9 +66,9 @@ final class SongLyricIdentityCheck
      */
     public function assess(ChurchServiceTranscript $transcript, float $start, float $end, int $boundSongId): array
     {
-        $words = $this->contentWords($this->sungText($transcript, $start, $end));
+        $words = self::contentWords($this->sungText($transcript, $start, $end));
         $distinct = array_fill_keys($words, true);
-        $pairs = $this->wordPairs($words);
+        $pairs = self::wordPairs($words);
         $catalogue = $this->catalogue();
 
         $total = 0.0;
@@ -162,9 +162,9 @@ final class SongLyricIdentityCheck
         $documentFrequency = [];
 
         foreach (Song::query()->select(['id', 'title', 'lyrics_plain'])->orderBy('id')->cursor() as $song) {
-            $words = $this->contentWords($song->lyrics_plain.' '.$song->title);
+            $words = self::contentWords($song->lyrics_plain.' '.$song->title);
             $vocabulary[$song->id] = array_fill_keys($words, true);
-            $pairs[$song->id] = $this->wordPairs($words);
+            $pairs[$song->id] = self::wordPairs($words);
             $titles[$song->id] = (string) $song->title;
 
             foreach ($vocabulary[$song->id] as $word => $_) {
@@ -188,9 +188,11 @@ final class SongLyricIdentityCheck
     }
 
     /**
+     * Lower-cased words of three letters or more, stop words removed: the census's tokeniser.
+     *
      * @return list<string>
      */
-    private function contentWords(string $text): array
+    public static function contentWords(string $text): array
     {
         preg_match_all("/[a-z']+/", str_replace('’', "'", mb_strtolower($text)), $matches);
 
@@ -201,10 +203,12 @@ final class SongLyricIdentityCheck
     }
 
     /**
+     * Adjacent content-word pairs, keyed for set intersection.
+     *
      * @param  list<string>  $words
      * @return array<string, true>
      */
-    private function wordPairs(array $words): array
+    public static function wordPairs(array $words): array
     {
         $pairs = [];
 

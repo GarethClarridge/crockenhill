@@ -36,6 +36,7 @@ use Illuminate\Support\Facades\Storage;
  *     end_evidence: array<string, mixed>,
  *     lyric_edges: list<array<string, mixed>>,
  *     looped_transcript: list<array<string, mixed>>,
+ *     song_content: array<string, mixed>|null,
  *     inputs_fingerprint: string,
  *     risks: list<array{kind: string, detail: string}>,
  *     decision: 'release_eligible'|'review'
@@ -52,6 +53,7 @@ use Illuminate\Support\Facades\Storage;
  *     end_evidence: array<string, mixed>,
  *     lyric_edges: list<array<string, mixed>>,
  *     looped_transcript: list<array<string, mixed>>,
+ *     song_content: array<string, mixed>|null,
  *     inputs_fingerprint: string,
  *     risks: list<array{kind: string, detail: string}>,
  *     decision: 'release_eligible'|'review',
@@ -82,9 +84,11 @@ final class SongPublicationBoundaryEvidenceService
      * bound song's own lyrics rather than by how much of the section it covers. The fingerprint
      * catches sections with a bound song, whose lyrics it now hashes, but a section with none
      * keeps both its fingerprint and its evidence, so only the version reaches those.
+     * 6 (2026-09-23): records {@see SongSectionWithoutSong} under `song_content`, so a short
+     * section that only announces its song, or sings something else, reaches a reviewer.
      * Evidence banked under an earlier version is stale, and the backfill re-assesses it.
      */
-    public const VERSION = 5;
+    public const VERSION = 6;
 
     private const LEADING_CUE_WINDOW_SECONDS = 5.0;
 
@@ -103,6 +107,7 @@ final class SongPublicationBoundaryEvidenceService
         private readonly RmsAnalysisService $rmsAnalysisService,
         private readonly SongLyricsOutsideSection $lyricsOutsideSection,
         private readonly SongLoopedTranscript $loopedTranscript,
+        private readonly SongSectionWithoutSong $sectionWithoutSong,
     ) {}
 
     /**
@@ -147,6 +152,7 @@ final class SongPublicationBoundaryEvidenceService
                 'end_evidence' => $this->unavailableBoundaryEvidence('end', $section, $inputs),
                 'lyric_edges' => [],
                 'looped_transcript' => $looped,
+                'song_content' => null,
                 'inputs_fingerprint' => $this->fingerprintOf($section, $inputs),
                 'risks' => [
                     [
@@ -218,6 +224,14 @@ final class SongPublicationBoundaryEvidenceService
 
         $risks = [...$risks, ...$this->loopedRisks($looped)];
 
+        $songContent = $inputs['transcript'] instanceof ChurchServiceTranscript
+            ? $this->sectionWithoutSong->observe($section, $inputs['transcript'])
+            : null;
+
+        if (($songContent['risk'] ?? false) === true) {
+            $risks[] = ['kind' => SongSectionWithoutSong::RISK_KIND, 'detail' => $songContent['detail']];
+        }
+
         return $this->withRecordedAt($section, [
             'version' => self::VERSION,
             'candidate' => [
@@ -234,6 +248,7 @@ final class SongPublicationBoundaryEvidenceService
             'end_evidence' => $endEvidence,
             'lyric_edges' => $lyricEdges,
             'looped_transcript' => $looped,
+            'song_content' => $songContent,
             'inputs_fingerprint' => $this->fingerprintOf($section, $inputs),
             'risks' => $risks,
             'decision' => $risks === [] ? 'release_eligible' : 'review',
