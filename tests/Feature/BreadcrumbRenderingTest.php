@@ -47,28 +47,28 @@ class BreadcrumbRenderingTest extends TestCase
     #[Test]
     public function presenter_builds_sermons_trail_for_sermon_show_page(): void
     {
-        $this->get('/christ/sermons/2024/01/test-sermon');
+        $this->get('/christ/talks/2024/01/test-sermon');
 
         $presenter = app(BreadcrumbPresenter::class);
         $items = $presenter->items('christ', 'Test Sermon');
 
         $names = array_column($items, 'name');
         $this->assertContains('Christ', $names);
-        $this->assertContains('Sermons', $names);
+        $this->assertContains('Talks', $names);
         $this->assertContains('Test Sermon', $names);
     }
 
     #[Test]
     public function presenter_builds_sermons_trail_for_preacher_page(): void
     {
-        $this->get('/christ/sermons/preachers/john-smith');
+        $this->get('/christ/talks/preachers/john-smith');
 
         $presenter = app(BreadcrumbPresenter::class);
         $items = $presenter->items('christ', 'John Smith');
 
         $names = array_column($items, 'name');
         $this->assertContains('Christ', $names);
-        $this->assertContains('Sermons', $names);
+        $this->assertContains('Talks', $names);
         $this->assertContains('Preachers', $names);
         $this->assertContains('John Smith', $names);
     }
@@ -76,14 +76,14 @@ class BreadcrumbRenderingTest extends TestCase
     #[Test]
     public function presenter_builds_sermons_trail_for_series_page(): void
     {
-        $this->get('/christ/sermons/series/the-gospel-of-mark');
+        $this->get('/christ/talks/series/the-gospel-of-mark');
 
         $presenter = app(BreadcrumbPresenter::class);
         $items = $presenter->items('christ', 'The Gospel of Mark');
 
         $names = array_column($items, 'name');
         $this->assertContains('Christ', $names);
-        $this->assertContains('Sermons', $names);
+        $this->assertContains('Talks', $names);
         $this->assertContains('Series', $names);
         $this->assertContains('The Gospel of Mark', $names);
     }
@@ -91,14 +91,14 @@ class BreadcrumbRenderingTest extends TestCase
     #[Test]
     public function presenter_builds_sermons_trail_for_service_page(): void
     {
-        $this->get('/christ/sermons/morning');
+        $this->get('/christ/talks/morning');
 
         $presenter = app(BreadcrumbPresenter::class);
         $items = $presenter->items('christ', 'Morning Services');
 
         $names = array_column($items, 'name');
         $this->assertContains('Christ', $names);
-        $this->assertContains('Sermons', $names);
+        $this->assertContains('Talks', $names);
         $this->assertContains('Morning Services', $names);
     }
 
@@ -226,7 +226,7 @@ class BreadcrumbRenderingTest extends TestCase
     #[Test]
     public function sermon_index_page_serves_breadcrumb_json_ld(): void
     {
-        $response = $this->get('/christ/sermons');
+        $response = $this->get('/christ/talks');
 
         $response->assertStatus(200);
         $response->assertSee('BreadcrumbList', false);
@@ -244,7 +244,7 @@ class BreadcrumbRenderingTest extends TestCase
     #[Test]
     public function presenter_builds_deep_hierarchy_for_book_filtered_archive(): void
     {
-        $this->get('/christ/sermons?book=Genesis');
+        $this->get('/christ/talks?book=Genesis');
 
         $presenter = app(BreadcrumbPresenter::class);
         $items = $presenter->items('christ', 'Genesis | Sermons');
@@ -252,7 +252,7 @@ class BreadcrumbRenderingTest extends TestCase
         $names = array_column($items, 'name');
         $this->assertContains('Home', $names);
         $this->assertContains('Christ', $names);
-        $this->assertContains('Sermons', $names);
+        $this->assertContains('Talks', $names);
         $this->assertContains('Genesis', $names);
 
         $genesisItem = collect($items)->firstWhere('name', 'Genesis');
@@ -262,13 +262,13 @@ class BreadcrumbRenderingTest extends TestCase
     #[Test]
     public function presenter_builds_deeper_hierarchy_for_book_and_chapter_filtered_archive(): void
     {
-        $this->get('/christ/sermons?book=Genesis&chapter=1');
+        $this->get('/christ/talks?book=Genesis&chapter=1');
 
         $presenter = app(BreadcrumbPresenter::class);
         $items = $presenter->items('christ', 'Genesis 1 | Sermons');
 
         $names = array_column($items, 'name');
-        $this->assertContains('Sermons', $names);
+        $this->assertContains('Talks', $names);
         $this->assertContains('Genesis', $names);
         $this->assertContains('Chapter 1', $names);
 
@@ -286,13 +286,13 @@ class BreadcrumbRenderingTest extends TestCase
     {
         $preacher = Preacher::factory()->create(['name' => 'Mark Davies', 'slug' => 'mark-davies']);
 
-        $this->get('/christ/sermons?preacher='.$preacher->id);
+        $this->get('/christ/talks?preacher='.$preacher->id);
 
         $presenter = app(BreadcrumbPresenter::class);
         $items = $presenter->items('christ', 'Mark Davies | Sermons');
 
         $names = array_column($items, 'name');
-        $this->assertContains('Sermons', $names);
+        $this->assertContains('Talks', $names);
         $this->assertContains('Mark Davies', $names);
 
         $preacherItem = collect($items)->firstWhere('name', 'Mark Davies');
@@ -302,13 +302,13 @@ class BreadcrumbRenderingTest extends TestCase
     #[Test]
     public function presenter_builds_hierarchy_for_series_filtered_archive(): void
     {
-        $this->get('/christ/sermons?series=The+Gospel+of+Mark');
+        $this->get('/christ/talks?series=The+Gospel+of+Mark');
 
         $presenter = app(BreadcrumbPresenter::class);
         $items = $presenter->items('christ', 'The Gospel of Mark | Sermons');
 
         $names = array_column($items, 'name');
-        $this->assertContains('Sermons', $names);
+        $this->assertContains('Talks', $names);
         $this->assertContains('The Gospel of Mark', $names);
 
         $seriesItem = collect($items)->firstWhere('name', 'The Gospel of Mark');
@@ -320,13 +320,13 @@ class BreadcrumbRenderingTest extends TestCase
     {
         // A book outside the Bible canon and an unknown preacher are rejected by
         // the archive controller; the breadcrumb must not assert them either.
-        $this->get('/christ/sermons?book=Narnia&chapter=99&preacher=999999');
+        $this->get('/christ/talks?book=Narnia&chapter=99&preacher=999999');
 
         $presenter = app(BreadcrumbPresenter::class);
         $items = $presenter->items('christ', 'Sermons');
 
         $names = array_column($items, 'name');
-        $this->assertContains('Sermons', $names);
+        $this->assertContains('Talks', $names);
         $this->assertNotContains('Narnia', $names);
         $this->assertNotContains('Chapter 99', $names);
     }

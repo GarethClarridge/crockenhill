@@ -32,7 +32,7 @@ class SermonAssetControllerTest extends TestCase
         // Create the fake audio file
         Storage::disk('public')->put('sermons/test-audio.mp3', 'fake audio content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
+        $response = $this->get("/christ/talks/{$sermon->slug}/audio");
 
         $response->assertRedirect(app(SermonStorageService::class)->getPublicUrl($sermon));
     }
@@ -51,7 +51,7 @@ class SermonAssetControllerTest extends TestCase
 
         Storage::disk('public')->put('thumbnails/childrens-talk.webp', 'fake thumb');
 
-        $response = $this->actingAs($user)->get("/christ/sermons/{$sermon->slug}/thumbnail");
+        $response = $this->actingAs($user)->get("/christ/talks/{$sermon->slug}/thumbnail");
 
         $response->assertRedirect();
         $this->assertStringContainsString('childrens-talk.webp', $response->headers->get('Location'));
@@ -67,7 +67,7 @@ class SermonAssetControllerTest extends TestCase
             'audio_file_path' => 'sermons/missing.mp3',
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
+        $response = $this->get("/christ/talks/{$sermon->slug}/audio");
 
         $response->assertStatus(404);
     }
@@ -85,7 +85,7 @@ class SermonAssetControllerTest extends TestCase
         // Create the fake thumbnail file
         Storage::disk('public')->put('thumbnails/test-thumb.webp', 'fake webp content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
+        $response = $this->get("/christ/talks/{$sermon->slug}/thumbnail");
 
         $response->assertRedirect(app(SermonStorageService::class)->getThumbnailUrl($sermon));
     }
@@ -102,7 +102,7 @@ class SermonAssetControllerTest extends TestCase
 
         Storage::disk('public')->put('sermons/test-video.mp4', 'fake video content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/video");
+        $response = $this->get("/christ/talks/{$sermon->slug}/video");
 
         $response->assertRedirect(app(SermonStorageService::class)->getVideoUrl($sermon));
     }
@@ -117,7 +117,7 @@ class SermonAssetControllerTest extends TestCase
             'thumbnail_file_path' => 'thumbnails/missing.webp',
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
+        $response = $this->get("/christ/talks/{$sermon->slug}/thumbnail");
 
         $response->assertStatus(404);
     }
@@ -134,7 +134,7 @@ class SermonAssetControllerTest extends TestCase
 
         Storage::disk('public')->put('thumbnails/cached.jpg', 'fake jpg content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
+        $response = $this->get("/christ/talks/{$sermon->slug}/thumbnail");
 
         $response->assertRedirect(app(SermonStorageService::class)->getThumbnailUrl($sermon));
     }
@@ -151,7 +151,7 @@ class SermonAssetControllerTest extends TestCase
 
         Storage::disk('public')->put('thumbnails/image.jpg', 'fake jpg');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
+        $response = $this->get("/christ/talks/{$sermon->slug}/thumbnail");
 
         $response->assertRedirect(app(SermonStorageService::class)->getThumbnailUrl($sermon));
     }
@@ -168,7 +168,7 @@ class SermonAssetControllerTest extends TestCase
 
         Storage::disk('public')->put('thumbnails/image.png', 'fake png');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
+        $response = $this->get("/christ/talks/{$sermon->slug}/thumbnail");
 
         $response->assertRedirect(app(SermonStorageService::class)->getThumbnailUrl($sermon));
     }
@@ -188,7 +188,7 @@ class SermonAssetControllerTest extends TestCase
 
         Storage::disk('public')->put('thumbnails/card.webp', 'fake webp content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
+        $response = $this->get("/christ/talks/{$sermon->slug}/thumbnail/card");
 
         $response->assertRedirect(app(SermonStorageService::class)->getCardThumbnailUrl($sermon));
     }
@@ -201,7 +201,7 @@ class SermonAssetControllerTest extends TestCase
             'thumbnail_metadata' => null,
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
+        $response = $this->get("/christ/talks/{$sermon->slug}/thumbnail/card");
 
         $response->assertStatus(404);
     }
@@ -221,7 +221,7 @@ class SermonAssetControllerTest extends TestCase
 
         // We DO NOT put the file on the fake disk
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
+        $response = $this->get("/christ/talks/{$sermon->slug}/thumbnail/card");
 
         $response->assertStatus(404);
     }
@@ -243,11 +243,11 @@ class SermonAssetControllerTest extends TestCase
 
         // Limit is 10 per minute for audio
         for ($i = 0; $i < 10; $i++) {
-            $this->get("/christ/sermons/{$sermon->slug}/audio")
+            $this->get("/christ/talks/{$sermon->slug}/audio")
                 ->assertStatus(302);
         }
 
-        $this->get("/christ/sermons/{$sermon->slug}/audio")
+        $this->get("/christ/talks/{$sermon->slug}/audio")
             ->assertStatus(429);
     }
 
@@ -267,11 +267,11 @@ class SermonAssetControllerTest extends TestCase
 
         // Limit is 120 per minute for thumbnails
         for ($i = 0; $i < 120; $i++) {
-            $this->get("/christ/sermons/{$sermon->slug}/thumbnail")
+            $this->get("/christ/talks/{$sermon->slug}/thumbnail")
                 ->assertStatus(302);
         }
 
-        $this->get("/christ/sermons/{$sermon->slug}/thumbnail")
+        $this->get("/christ/talks/{$sermon->slug}/thumbnail")
             ->assertStatus(429);
     }
 
@@ -285,7 +285,7 @@ class SermonAssetControllerTest extends TestCase
             'audio_file_path' => 'sermons/childrens-talk.mp3',
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
+        $response = $this->get("/christ/talks/{$sermon->slug}/audio");
 
         $response->assertRedirect(route('login'));
     }
@@ -300,7 +300,7 @@ class SermonAssetControllerTest extends TestCase
             'thumbnail_file_path' => 'thumbnails/childrens-talk.webp',
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
+        $response = $this->get("/christ/talks/{$sermon->slug}/thumbnail");
 
         $response->assertRedirect(route('login'));
     }
@@ -315,7 +315,7 @@ class SermonAssetControllerTest extends TestCase
             'video_file_path' => 'sermons/childrens-talk.mp4',
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/video");
+        $response = $this->get("/christ/talks/{$sermon->slug}/video");
 
         $response->assertRedirect(route('login'));
     }
@@ -332,7 +332,7 @@ class SermonAssetControllerTest extends TestCase
             ],
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
+        $response = $this->get("/christ/talks/{$sermon->slug}/thumbnail/card");
 
         $response->assertRedirect(route('login'));
     }
@@ -351,7 +351,7 @@ class SermonAssetControllerTest extends TestCase
 
         Storage::disk('public')->put('sermons/childrens-talk.mp3', 'fake audio');
 
-        $response = $this->actingAs($user)->get("/christ/sermons/{$sermon->slug}/audio");
+        $response = $this->actingAs($user)->get("/christ/talks/{$sermon->slug}/audio");
 
         $response->assertRedirect();
         $this->assertStringContainsString('childrens-talk.mp3', $response->headers->get('Location'));
@@ -370,7 +370,7 @@ class SermonAssetControllerTest extends TestCase
 
         Storage::disk('public')->put('sermons/childrens-talk.mp3', 'fake audio');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
+        $response = $this->get("/christ/talks/{$sermon->slug}/audio");
 
         $response->assertRedirect();
         $this->assertStringContainsString('childrens-talk.mp3', $response->headers->get('Location'));
@@ -389,7 +389,7 @@ class SermonAssetControllerTest extends TestCase
 
         Storage::disk('public')->put('sermons/childrens-talk.mp4', 'fake video');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/video");
+        $response = $this->get("/christ/talks/{$sermon->slug}/video");
 
         $response->assertRedirect();
         $this->assertStringContainsString('childrens-talk.mp4', $response->headers->get('Location'));
@@ -406,7 +406,7 @@ class SermonAssetControllerTest extends TestCase
         $reader->method('read')->willReturn("Hello **world**.\n\nSecond paragraph.");
         $this->app->instance(SermonTranscriptReader::class, $reader);
 
-        $response = $this->get('/christ/sermons/transcript-sermon/transcript');
+        $response = $this->get('/christ/talks/transcript-sermon/transcript');
 
         $response->assertOk();
         $response->assertHeader('Content-Type', 'text/html; charset=UTF-8');
@@ -418,7 +418,7 @@ class SermonAssetControllerTest extends TestCase
     {
         $sermon = Sermon::factory()->create(['slug' => 'no-transcript-sermon', 'transcript_file_path' => null]);
 
-        $response = $this->get('/christ/sermons/no-transcript-sermon/transcript');
+        $response = $this->get('/christ/talks/no-transcript-sermon/transcript');
 
         $response->assertNotFound();
     }
@@ -434,7 +434,7 @@ class SermonAssetControllerTest extends TestCase
             'transcript_file_path' => 'transcripts/ct.txt',
         ]);
 
-        $response = $this->get('/christ/sermons/private-ct-transcript/transcript');
+        $response = $this->get('/christ/talks/private-ct-transcript/transcript');
 
         $response->assertRedirect(route('login'));
     }

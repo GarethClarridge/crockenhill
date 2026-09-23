@@ -23,7 +23,7 @@ class SermonSeriesArchiveTest extends TestCase
         ]);
 
         // The slug should be 'childrens-talks'
-        $response = $this->get('/christ/sermons/series/childrens-talks');
+        $response = $this->get('/christ/talks/series/childrens-talks');
 
         $response->assertStatus(200);
         $response->assertSee($seriesName);
@@ -40,7 +40,7 @@ class SermonSeriesArchiveTest extends TestCase
         ]);
 
         // The slug should be 'gospel-of-john'
-        $response = $this->get('/christ/sermons/series/gospel-of-john');
+        $response = $this->get('/christ/talks/series/gospel-of-john');
 
         $response->assertStatus(200);
         $response->assertSee($seriesName);
@@ -50,7 +50,7 @@ class SermonSeriesArchiveTest extends TestCase
     #[Test]
     public function it_returns_404_for_non_existent_series(): void
     {
-        $response = $this->get('/christ/sermons/series/non-existent-series');
+        $response = $this->get('/christ/talks/series/non-existent-series');
 
         $response->assertStatus(404);
     }

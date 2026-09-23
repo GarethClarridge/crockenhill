@@ -26,7 +26,7 @@ class PodcastFeedTranscriptLinkTest extends TestCase
         ]);
 
         // 2. Fetch the morning podcast feed
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
         $response->assertStatus(200);
 
         $xml = $response->getContent();

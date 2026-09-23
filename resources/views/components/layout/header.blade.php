@@ -120,7 +120,7 @@
       <ul class="mt-5 space-y-4">
         @foreach ($pages as $page)
         @if ($page->area->value == 'christ')
-        @php $isActive = request()->is('christ/'.$page->slug); @endphp
+        @php $isActive = request()->is('christ/'.$page->slug, 'christ/'.$page->slug.'/*'); @endphp
         <li class="leading-none">
           <a class="inline-flex rounded-md px-3 py-1.5 text-base no-underline transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark {{ $isActive ? 'bg-white/20 text-white font-bold shadow-sm' : 'text-white/85 font-medium hover:text-white hover:bg-white/5' }}"
              href="/christ/{{$page->slug}}" wire:navigate @if($isActive) aria-current="page" @endif>
@@ -129,15 +129,6 @@
         </li>
         @endif
         @endforeach
-        @php $isActive = request()->is('christ/childrens-corner*'); @endphp
-        @if($canAccessChildrensCorner)
-        <li class="leading-none">
-          <a class="inline-flex rounded-md px-3 py-1.5 text-base no-underline transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark {{ $isActive ? 'bg-white/20 text-white font-bold shadow-sm' : 'text-white/85 font-medium hover:text-white hover:bg-white/5' }}"
-             href="{{ route('childrens-corner.index') }}" wire:navigate @if($isActive) aria-current="page" @endif>
-            Children's Corner
-          </a>
-        </li>
-        @endif
       </ul>
     </li>
 

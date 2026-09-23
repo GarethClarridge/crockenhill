@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Sermons;
 
+use App\Enums\TalkType;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
@@ -11,6 +12,7 @@ use App\Seo\SermonArchiveSeoPresenter;
 use App\Seo\SermonItemListPresenter;
 use App\Services\Public\PreacherListCache;
 use App\Services\Public\SermonRepository;
+use App\Services\Sermon\SermonExposurePolicy;
 use App\Support\BibleCanon;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -35,6 +37,9 @@ class BrowseSermons extends Component
 {
     use WithPagination;
 
+    #[Url(as: 'type', except: 'sermon')]
+    public string $typeFilter = 'sermon';
+
     #[Url(as: 'book', except: null)]
     public ?string $bookFilter = null;
 
@@ -49,6 +54,8 @@ class BrowseSermons extends Component
 
     public function mount(BibleCanon $bibleCanon): void
     {
+        $this->typeFilter = $this->accessibleType($this->typeFilter)->value;
+
         $normalized = $bibleCanon->normalizeArchiveFilters(
             $this->bookFilter,
             $this->chapterFilter,
@@ -60,6 +67,51 @@ class BrowseSermons extends Component
         $this->chapterFilter = $normalized['chapter'];
         $this->preacherFilter = $normalized['preacherId'];
         $this->seriesFilter = $normalized['series'];
+    }
+
+    public function updatedTypeFilter(): void
+    {
+        $this->typeFilter = $this->accessibleType($this->typeFilter)->value;
+        $this->reset(['bookFilter', 'chapterFilter', 'preacherFilter', 'seriesFilter']);
+        $this->resetPage();
+        $this->dispatchMetadataUpdate();
+    }
+
+    public function selectType(string $type): void
+    {
+        $this->typeFilter = $type;
+        $this->updatedTypeFilter();
+    }
+
+    public function talkType(): TalkType
+    {
+        return TalkType::from($this->typeFilter);
+    }
+
+    /**
+     * The types this viewer may browse, sermons first.
+     *
+     * @return list<TalkType>
+     */
+    public function accessibleTypes(): array
+    {
+        $exposurePolicy = app(SermonExposurePolicy::class);
+
+        return array_values(array_filter(
+            TalkType::cases(),
+            fn (TalkType $type): bool => $exposurePolicy->canAccessType($type, auth()->user()),
+        ));
+    }
+
+    /**
+     * An unknown or members-only type falls back to sermons rather than erroring:
+     * the controller has already sent a guest opening a members-only URL to login.
+     */
+    private function accessibleType(string $value): TalkType
+    {
+        $type = TalkType::tryFrom($value);
+
+        return $type !== null && in_array($type, $this->accessibleTypes(), true) ? $type : TalkType::Sermon;
     }
 
     public function updatedBookFilter(): void
@@ -152,6 +204,8 @@ class BrowseSermons extends Component
             'activeFilterLabels' => $this->activeFilterLabels($preacherOptions, $seriesOptions),
             'sermons' => $this->sermons,
             'hasActiveFilters' => $this->hasActiveFilters(),
+            'talkType' => $this->talkType(),
+            'typeOptions' => $this->accessibleTypes(),
         ]);
     }
 
@@ -254,25 +308,26 @@ class BrowseSermons extends Component
             chapter: $this->chapterFilter,
             preacherId: $this->preacherFilter,
             series: $this->seriesFilter,
+            type: $this->talkType(),
         )->paginate(24);
     }
 
     #[Computed]
     public function seoTitle(): string
     {
-        return app(SermonArchiveSeoPresenter::class)->title($this->activeFilters(), $this->getPage());
+        return app(SermonArchiveSeoPresenter::class)->title($this->activeFilters(), $this->getPage(), $this->talkType());
     }
 
     #[Computed]
     public function seoDescription(): string
     {
-        return app(SermonArchiveSeoPresenter::class)->description($this->activeFilters(), $this->getPage());
+        return app(SermonArchiveSeoPresenter::class)->description($this->activeFilters(), $this->getPage(), $this->talkType());
     }
 
     #[Computed]
     public function seoCanonical(): string
     {
-        return app(SermonArchiveSeoPresenter::class)->canonical($this->activeFilters(), $this->getPage());
+        return app(SermonArchiveSeoPresenter::class)->canonical($this->activeFilters(), $this->getPage(), $this->talkType());
     }
 
     /**

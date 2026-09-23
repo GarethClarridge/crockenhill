@@ -28,6 +28,27 @@
         Skip to results
     </a>
 
+    @if (count($typeOptions) > 1)
+        <nav class="mb-6 px-6" aria-label="Talk type">
+            <div class="mx-auto flex max-w-2xl flex-wrap justify-center gap-2 lg:max-w-5xl xl:max-w-7xl">
+                @foreach ($typeOptions as $typeOption)
+                    <x-form-button
+                        type="button"
+                        size="sm"
+                        :variant="$typeOption === $talkType ? 'primary' : 'outline'"
+                        class="min-h-11"
+                        wire:click="selectType('{{ $typeOption->value }}')"
+                        aria-pressed="{{ $typeOption === $talkType ? 'true' : 'false' }}"
+                        dusk="talk-type-{{ $typeOption->value }}"
+                    >
+                        {{ $typeOption->pluralLabel() }}
+                    </x-form-button>
+                @endforeach
+            </div>
+        </nav>
+    @endif
+
+    @if ($talkType->isSermon())
     <section
         class="px-6"
         x-data="{ expanded: @js($hasActiveFilters) }"
@@ -126,16 +147,17 @@
             </div>
         </div>
     </section>
+    @endif
 
-    <div wire:loading.flex.delay.500ms wire:target="bookFilter, chapterFilter, preacherFilter, seriesFilter, removeFilter, clearFilters" class="mx-auto mt-4 max-w-7xl items-center gap-2 px-6 text-sm text-gray-500" role="status">
+    <div wire:loading.flex.delay.500ms wire:target="selectType, bookFilter, chapterFilter, preacherFilter, seriesFilter, removeFilter, clearFilters" class="mx-auto mt-4 max-w-7xl items-center gap-2 px-6 text-sm text-gray-500" role="status">
         <svg class="h-4 w-4 animate-spin text-cbc-teal" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
-        Updating sermon results…
+        Updating {{ Str::lower($talkType->pluralLabel()) }}…
     </div>
 
-    <div id="sermon-results" tabindex="-1" wire:loading.class="pointer-events-none opacity-60" wire:target="bookFilter, chapterFilter, preacherFilter, seriesFilter, removeFilter, clearFilters" aria-busy="false" wire:loading.attr="aria-busy">
+    <div id="sermon-results" tabindex="-1" wire:loading.class="pointer-events-none opacity-60" wire:target="selectType, bookFilter, chapterFilter, preacherFilter, seriesFilter, removeFilter, clearFilters" aria-busy="false" wire:loading.attr="aria-busy">
         @php
             /** @var \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, \App\Models\Sermon> $sermons */
         @endphp
@@ -143,9 +165,9 @@
         @if ($sermons->total() > 0)
             <div class="mx-auto mt-4 max-w-7xl px-6 text-sm text-gray-500" aria-live="polite">
                 @if ($sermons->hasPages())
-                    Showing <span class="font-medium text-gray-700">{{ $sermons->firstItem() }}</span> to <span class="font-medium text-gray-700">{{ $sermons->lastItem() }}</span> of <span class="font-medium text-gray-700">{{ $sermons->total() }}</span> sermons
+                    Showing <span class="font-medium text-gray-700">{{ $sermons->firstItem() }}</span> to <span class="font-medium text-gray-700">{{ $sermons->lastItem() }}</span> of <span class="font-medium text-gray-700">{{ $sermons->total() }}</span> {{ Str::lower($talkType->pluralLabel()) }}
                 @else
-                    Showing <span class="font-medium text-gray-700">{{ $sermons->total() }}</span> {{ Str::plural('sermon', $sermons->total()) }}
+                    Showing <span class="font-medium text-gray-700">{{ $sermons->total() }}</span> {{ Str::lower($sermons->total() === 1 ? $talkType->label() : $talkType->pluralLabel()) }}
                 @endif
             </div>
 
@@ -185,8 +207,8 @@
                 @else
                     <x-empty-state
                         icon="inbox"
-                        title="No sermons published yet"
-                        description="Sermons will appear here once they have been added to the public archive."
+                        title="No {{ Str::lower($talkType->pluralLabel()) }} published yet"
+                        description="{{ $talkType->pluralLabel() }} will appear here once they have been added to the archive."
                     />
                 @endif
             </section>

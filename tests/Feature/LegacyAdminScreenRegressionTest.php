@@ -34,7 +34,7 @@ class LegacyAdminScreenRegressionTest extends TestCase
         $sermon = Sermon::factory()->create(['date' => '2024-03-15']);
 
         // Legacy date-based GET edit route removed — unauthenticated gets 404, not login redirect
-        $response = $this->get("/christ/sermons/2024/03/{$sermon->slug}/edit");
+        $response = $this->get("/christ/talks/2024/03/{$sermon->slug}/edit");
 
         $response->assertStatus(404);
     }

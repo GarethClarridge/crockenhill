@@ -21,7 +21,7 @@ class AbsolutePathTraversalTest extends TestCase
             'thumbnail_file_path' => '/etc/passwd',
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
+        $response = $this->get("/christ/talks/{$sermon->slug}/thumbnail");
 
         // It should return 404 because of our security check
         $response->assertStatus(404);
@@ -37,7 +37,7 @@ class AbsolutePathTraversalTest extends TestCase
             'audio_file_path' => '/etc/passwd',
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
+        $response = $this->get("/christ/talks/{$sermon->slug}/audio");
 
         // It should return 404 because of our security check
         $response->assertStatus(404);
@@ -53,7 +53,7 @@ class AbsolutePathTraversalTest extends TestCase
             'video_file_path' => '/etc/passwd',
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/video");
+        $response = $this->get("/christ/talks/{$sermon->slug}/video");
 
         // It should return 404 because of our security check
         $response->assertStatus(404);
@@ -69,7 +69,7 @@ class AbsolutePathTraversalTest extends TestCase
             'audio_file_path' => 'C:\\Windows\\win.ini',
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
+        $response = $this->get("/christ/talks/{$sermon->slug}/audio");
 
         // It should return 404 because of our security check
         $response->assertStatus(404);

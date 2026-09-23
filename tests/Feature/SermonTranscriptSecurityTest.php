@@ -53,7 +53,7 @@ class SermonTranscriptSecurityTest extends TestCase
         ]);
 
         $response = $this->get(sprintf(
-            '/christ/sermons/%s/%s/%s',
+            '/christ/talks/%s/%s/%s',
             $sermon->date->format('Y'),
             $sermon->date->format('m'),
             $sermon->slug
@@ -83,7 +83,7 @@ class SermonTranscriptSecurityTest extends TestCase
             'transcript_file_path' => 'transcripts/malicious.txt',
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/transcript");
+        $response = $this->get("/christ/talks/{$sermon->slug}/transcript");
 
         $response->assertOk();
         $response->assertDontSee('</script><script>alert("x")</script>', false);

@@ -8,7 +8,6 @@ use App\Enums\SermonPublicationState;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
-use App\Enums\TalkType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\Sermon;
@@ -287,7 +286,7 @@ class PublicChurchServiceArchiveService
      */
     private function sermonEntry(Sermon $sermon, Collection $sections): array
     {
-        $isTalk = $sermon->content_type === TalkType::ChildrensTalk;
+        $isTalk = ! $sermon->content_type->isSermon();
         $sectionType = $isTalk ? ServiceSectionType::ChildrensTalk : ServiceSectionType::Sermon;
 
         $section = $sections->first(
@@ -296,7 +295,8 @@ class PublicChurchServiceArchiveService
 
         return [
             'id' => 'sermon-'.$sermon->id,
-            'kind' => $isTalk ? 'childrens_talk' : 'sermon',
+            'kind' => $isTalk ? 'talk' : 'sermon',
+            'talk_label' => $sermon->content_type->label(),
             'title' => $sermon->title,
             'planned_only' => false,
             'song_url' => null,

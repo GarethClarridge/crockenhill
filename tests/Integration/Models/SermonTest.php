@@ -61,10 +61,10 @@ class SermonTest extends TestCase
         $this->assertNotNull($audioUrl);
         $this->assertStringContainsString($testFilename, $audioUrl);
 
-        $expectedSeriesUrl = url('/christ/sermons/series/'.Str::slug('My Sermon Series'));
+        $expectedSeriesUrl = url('/christ/talks/series/'.Str::slug('My Sermon Series'));
         $this->assertEquals($expectedSeriesUrl, $sermonViewPresenter->seriesUrl($sermon));
 
-        $expectedPreacherUrl = url('/christ/sermons/preachers/'.Str::slug('John Doe'));
+        $expectedPreacherUrl = url('/christ/talks/preachers/'.Str::slug('John Doe'));
         $this->assertEquals($expectedPreacherUrl, $sermonViewPresenter->preacherUrl($sermon));
     }
 
@@ -205,10 +205,10 @@ class SermonTest extends TestCase
 
         $policy = app(SermonExposurePolicy::class);
 
-        $this->assertSame(route('sermons.show', $sermon), $policy->publicUrl($sermon));
-        $this->assertSame(url('/christ/sermons/2026/02/date-based-sermon'), $policy->canonicalUrl($sermon));
-        $this->assertSame(route('childrens-corner.show', $childrensTalk), $policy->publicUrl($childrensTalk));
-        $this->assertSame(route('childrens-corner.show', $childrensTalk), $policy->canonicalUrl($childrensTalk));
+        $this->assertSame(url('/christ/talks/2026/02/date-based-sermon'), $policy->publicUrl($sermon));
+        $this->assertSame(url('/christ/talks/2026/02/date-based-sermon'), $policy->canonicalUrl($sermon));
+        $this->assertSame(url('/christ/talks/2026/02/childrens-corner-talk'), $policy->publicUrl($childrensTalk));
+        $this->assertSame(url('/christ/talks/2026/02/childrens-corner-talk'), $policy->canonicalUrl($childrensTalk));
     }
 
     #[Test]

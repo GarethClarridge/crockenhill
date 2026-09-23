@@ -1,15 +1,13 @@
 <x-admin.form-shell
     :title="'Edit ' . $contentTypeLabel"
-    :description="$isChildrensTalk
+    :description="$isTalk
         ? 'Update the published children\'s talk details. Sermon-only fields stay hidden on this form.'
         : 'Update sermon details, metadata, and any AI-assisted content shown publicly.'"
     save-action="save"
 >
     <x-slot:actions>
         @php
-            $publicUrl = $sermon->content_type === \App\Enums\TalkType::ChildrensTalk
-                ? route('childrens-corner.show', ['sermon' => $sermon->slug])
-                : route('sermons.show', ['sermon' => $sermon->slug]);
+            $publicUrl = route('sermons.show', ['sermon' => $sermon->slug]);
         @endphp
         <x-button :link="$publicUrl" variant="ghost" icon="eye" inline>
             View {{ strtolower($contentTypeLabel) }}
@@ -49,29 +47,29 @@
             </div>
 
             @if($sermon->needs_preacher_review)
-                <x-alert type="warning" :title="$isChildrensTalk ? 'Speaker review required' : 'Preacher review required'">
+                <x-alert type="warning" :title="$isTalk ? 'Speaker review required' : 'Preacher review required'">
                     @if($sermon->preacher_source === \App\Enums\PreacherSource::SpeakerModel && $sermon->preacher_confidence !== null)
-                        <p>The AI identified a {{ $isChildrensTalk ? 'speaker' : 'preacher' }} with {{ round($sermon->preacher_confidence * 100) }}% confidence. Please verify and confirm or correct the assignment below.</p>
+                        <p>The AI identified a {{ $isTalk ? 'speaker' : 'preacher' }} with {{ round($sermon->preacher_confidence * 100) }}% confidence. Please verify and confirm or correct the assignment below.</p>
                     @else
-                        <p>No {{ $isChildrensTalk ? 'speaker' : 'preacher' }} could be automatically identified. Please assign the correct {{ $isChildrensTalk ? 'speaker' : 'preacher' }} below.</p>
+                        <p>No {{ $isTalk ? 'speaker' : 'preacher' }} could be automatically identified. Please assign the correct {{ $isTalk ? 'speaker' : 'preacher' }} below.</p>
                     @endif
                     <div class="mt-4 flex flex-wrap items-center gap-3">
                         <x-form-button type="button" variant="secondary" size="sm" icon="user-plus" @click="document.getElementById('form-preacherId').focus()">
-                            Assign {{ $isChildrensTalk ? 'speaker' : 'preacher' }}
+                            Assign {{ $isTalk ? 'speaker' : 'preacher' }}
                         </x-form-button>
                         <p class="text-xs text-amber-700">Saving this form will clear the review flag.</p>
                     </div>
                 </x-alert>
             @endif
 
-            <x-select label="{{ $isChildrensTalk ? 'Speaker' : 'Preacher' }}" wire:model.live="form.preacherId"
+            <x-select label="{{ $isTalk ? 'Speaker' : 'Preacher' }}" wire:model.live="form.preacherId"
                 :options="$preachers->map(fn($name, $id) => ['id' => $id, 'name' => $name])->values()->toArray()"
-                placeholder="Select a {{ $isChildrensTalk ? 'speaker' : 'preacher' }}..." />
+                placeholder="Select a {{ $isTalk ? 'speaker' : 'preacher' }}..." />
 
-            <x-input label="Or enter {{ $isChildrensTalk ? 'speaker' : 'preacher' }} name" wire:model="form.preacher" maxlength="255"
-                hint="Used when the {{ $isChildrensTalk ? 'speaker' : 'preacher' }} is not in the list above" />
+            <x-input label="Or enter {{ $isTalk ? 'speaker' : 'preacher' }} name" wire:model="form.preacher" maxlength="255"
+                hint="Used when the {{ $isTalk ? 'speaker' : 'preacher' }} is not in the list above" />
 
-            @unless($isChildrensTalk)
+            @unless($isTalk)
                 <x-input label="Bible reference" wire:model="form.reference" maxlength="255"
                     placeholder="e.g., John 3:16-21" />
             @endunless
@@ -89,7 +87,7 @@
         </x-slot:footer>
     </x-card>
 
-    @if($isChildrensTalk)
+    @if($isTalk)
         <x-card heading="Children's talk notes">
             <p class="text-sm text-gray-600">
                 Passage references, AI summaries, and sermon outline points are hidden here because Children's Corner uses a simplified public presentation.
@@ -145,7 +143,7 @@
     <x-slot:sidebar>
         <livewire:admin.sermons.edit-sermon-thumbnails :sermon="$sermon" defer />
 
-        @unless($isChildrensTalk)
+        @unless($isTalk)
             <x-card heading="Display options">
                 <div class="space-y-4">
                     <x-toggle label="Show summary" wire:model="form.showSummary"
@@ -212,7 +210,7 @@
             @endif
         @endisland
 
-        <x-card heading="{{ $isChildrensTalk ? 'Published media' : 'Media files' }}">
+        <x-card heading="{{ $isTalk ? 'Published media' : 'Media files' }}">
             <div class="space-y-3">
                 @if($sermon->audio_file_path)
                     <div class="flex items-center gap-2">

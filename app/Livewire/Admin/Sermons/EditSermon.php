@@ -7,7 +7,6 @@ namespace App\Livewire\Admin\Sermons;
 use App\Actions\SaveSermonDetails;
 use App\Enums\SermonService;
 use App\Enums\SermonVideoVisibilityOverride;
-use App\Enums\TalkType;
 use App\Jobs\AssessSermonVideoQuality;
 use App\Livewire\Forms\SermonFormData;
 use App\Livewire\Traits\WithAdminAuthorization;
@@ -27,7 +26,7 @@ class EditSermon extends Component
 
     public Sermon $sermon;
 
-    public bool $isChildrensTalk = false;
+    public bool $isTalk = false;
 
     public string $contentTypeLabel = 'Sermon';
 
@@ -39,7 +38,7 @@ class EditSermon extends Component
         $this->sermon = $sermon;
         $this->form->setSermon($sermon, $sermonViewPresenter);
 
-        $this->isChildrensTalk = $sermon->content_type === TalkType::ChildrensTalk;
+        $this->isTalk = ! $sermon->content_type->isSermon();
         $this->contentTypeLabel = $sermon->content_type->label();
         $this->preacherOptions = Preacher::query()->active()->orderBy('name')->pluck('name', 'id');
     }

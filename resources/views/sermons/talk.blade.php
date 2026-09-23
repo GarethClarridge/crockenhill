@@ -24,11 +24,11 @@
             :image="$sermonView['thumbnail_url']"
             :image-width="$sermonView['thumbnail_url'] ? 1280 : 800"
             :image-height="$sermonView['thumbnail_url'] ? 720 : 600"
-            :image-alt="app(\App\Presenters\SermonViewPresenter::class)->childrensTalkImageAlt($sermon)"
+            :image-alt="app(\App\Presenters\SermonViewPresenter::class)->talkImageAlt($sermon)"
             :audio="$sermonView['audio_url']"
             :video="$sermonView['video_url']"
             :canonical="$sermonView['public_url']"
-            section="Children's Corner"
+            :section="$sermon->content_type->pluralLabel()"
         />
 
         <x-schema.sermon :$sermon :$sermonView :$metaDescription />
@@ -53,9 +53,9 @@
             <div class="flex flex-wrap items-start justify-between gap-6">
                 <div class="space-y-5">
                     <div class="space-y-2">
-                        <p class="text-sm font-semibold uppercase tracking-[0.3em] text-cbc-teal-dark/75">Children's Corner</p>
+                        <p class="text-sm font-semibold uppercase tracking-[0.3em] text-cbc-teal-dark/75">{{ $sermon->content_type->label() }}</p>
                         <p class="max-w-2xl text-lg text-gray-700">
-                            A shorter talk for children from the church family, kept simple and easy to play back.
+                            A shorter talk from one of our Sunday services, kept simple and easy to play back.
                         </p>
                     </div>
 
@@ -97,8 +97,8 @@
 
                 <div class="w-full max-w-sm">
                     <div class="w-full rounded-xl bg-gradient-teal p-[1.5px]">
-                        <x-button link="{{ route('childrens-corner.index') }}" variant="secondary" size="lg" class="w-full rounded-[11px]">
-                            Back to Children's Corner
+                        <x-button link="{{ route('sermons.index', ['type' => $sermon->content_type->value]) }}" variant="secondary" size="lg" class="w-full rounded-[11px]">
+                            Back to {{ $sermon->content_type->pluralLabel() }}
                         </x-button>
                     </div>
                 </div>

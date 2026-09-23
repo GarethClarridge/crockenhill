@@ -7,6 +7,7 @@
   <channel>
     <title>{{ $metadata['title'] }}</title>
     <atom:link href="{{ $metadata['feed_url'] }}" rel="self" type="application/rss+xml" />
+    <itunes:new-feed-url>{{ $metadata['feed_url'] }}</itunes:new-feed-url>
     <itunes:owner>
       <itunes:name>{{ $metadata['owner_name'] }}</itunes:name>
       <itunes:email>{{ $metadata['owner_email'] }}</itunes:email>

@@ -29,7 +29,7 @@ class ChildrensTalkAssetSecurityTest extends TestCase
 
         Storage::disk('public')->put('sermons/childrens-talk.mp3', 'fake audio content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
+        $response = $this->get("/christ/talks/{$sermon->slug}/audio");
 
         $response->assertRedirect(route('login'));
     }
@@ -46,7 +46,7 @@ class ChildrensTalkAssetSecurityTest extends TestCase
 
         Storage::disk('public')->put('thumbnails/childrens-talk.webp', 'fake webp content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
+        $response = $this->get("/christ/talks/{$sermon->slug}/thumbnail");
 
         $response->assertRedirect(route('login'));
     }
@@ -65,7 +65,7 @@ class ChildrensTalkAssetSecurityTest extends TestCase
 
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->get("/christ/sermons/{$sermon->slug}/audio");
+        $response = $this->actingAs($user)->get("/christ/talks/{$sermon->slug}/audio");
 
         $response->assertRedirect(app(SermonStorageService::class)->getPublicUrl($sermon));
     }

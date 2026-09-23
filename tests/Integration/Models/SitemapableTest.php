@@ -32,7 +32,7 @@ class SitemapableTest extends TestCase
         $tag = $sermon->toSitemapTag();
 
         $this->assertInstanceOf(Url::class, $tag);
-        $this->assertStringContainsString('/christ/sermons/2024/03/test-sermon', $tag->url);
+        $this->assertStringContainsString('/christ/talks/2024/03/test-sermon', $tag->url);
     }
 
     #[Test]

@@ -2,7 +2,6 @@
 
 use App\Contracts\ProvidesSafeMessage;
 use App\Exceptions\HistoricImportFrozen;
-use App\Http\Middleware\EnsureChildrensCornerAccess;
 use App\Http\Middleware\EnsureMediaProcessingAccess;
 use App\Http\Middleware\EnsureServiceTrackingAccess;
 use App\Http\Middleware\EnsureServiceTrackingEnabled;
@@ -151,7 +150,6 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => EnsureUserIsAdmin::class,
             'abilities' => CheckAbilities::class,
             'ability' => CheckForAnyAbility::class,
-            'childrens-corner.access' => EnsureChildrensCornerAccess::class,
             'import-ingress' => RefuseBlockedImportIngress::class,
             'mailgun.signature' => EnsureValidMailgunWebhookSignature::class,
             'media.process' => EnsureMediaProcessingAccess::class,

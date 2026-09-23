@@ -86,21 +86,6 @@ class SermonExposurePolicyTest extends TestCase
     }
 
     #[Test]
-    public function should_redirect_generic_sermon_route_logic(): void
-    {
-        $sermon = Sermon::factory()->create(['content_type' => TalkType::Sermon]);
-        $childrensTalk = Sermon::factory()->create(['content_type' => TalkType::ChildrensTalk]);
-
-        Config::set('church.talks.public_types', ['sermon', 'childrens_talk']);
-        $this->assertFalse($this->policy->shouldRedirectGenericSermonRoute($sermon));
-        $this->assertTrue($this->policy->shouldRedirectGenericSermonRoute($childrensTalk));
-
-        Config::set('church.talks.public_types', ['sermon']);
-        $this->assertFalse($this->policy->shouldRedirectGenericSermonRoute($sermon));
-        $this->assertFalse($this->policy->shouldRedirectGenericSermonRoute($childrensTalk));
-    }
-
-    #[Test]
     public function should_expose_on_sermon_api_only_for_sermons(): void
     {
         $sermon = Sermon::factory()->create(['content_type' => TalkType::Sermon]);
@@ -127,30 +112,20 @@ class SermonExposurePolicyTest extends TestCase
     }
 
     #[Test]
-    public function public_route_name_returns_correct_name(): void
+    public function public_url_is_the_dated_url_for_every_type(): void
     {
-        $sermon = Sermon::factory()->create(['content_type' => TalkType::Sermon]);
-        $childrensTalk = Sermon::factory()->create(['content_type' => TalkType::ChildrensTalk]);
+        $date = Carbon::create(2025, 5, 20);
+        $sermon = Sermon::factory()->create(['slug' => 'sermon-slug', 'date' => $date, 'content_type' => TalkType::Sermon]);
+        $childrensTalk = Sermon::factory()->create(['slug' => 'talk-slug', 'date' => $date, 'content_type' => TalkType::ChildrensTalk]);
 
-        $this->assertSame('sermons.show', $this->policy->publicRouteName($sermon));
-        $this->assertSame('childrens-corner.show', $this->policy->publicRouteName($childrensTalk));
-    }
-
-    #[Test]
-    public function public_route_parameters_returns_slug(): void
-    {
-        $sermon = Sermon::factory()->create(['slug' => 'test-slug']);
-        $this->assertSame(['sermon' => 'test-slug'], $this->policy->publicRouteParameters($sermon));
-    }
-
-    #[Test]
-    public function public_url_returns_correct_route(): void
-    {
-        $sermon = Sermon::factory()->create(['slug' => 'sermon-slug', 'content_type' => TalkType::Sermon]);
-        $childrensTalk = Sermon::factory()->create(['slug' => 'talk-slug', 'content_type' => TalkType::ChildrensTalk]);
-
-        $this->assertSame(route('sermons.show', ['sermon' => 'sermon-slug']), $this->policy->publicUrl($sermon));
-        $this->assertSame(route('childrens-corner.show', ['sermon' => 'talk-slug']), $this->policy->publicUrl($childrensTalk));
+        $this->assertSame(
+            route('sermons.show.dated', ['year' => '2025', 'month' => '05', 'sermon' => 'sermon-slug']),
+            $this->policy->publicUrl($sermon),
+        );
+        $this->assertSame(
+            route('sermons.show.dated', ['year' => '2025', 'month' => '05', 'sermon' => 'talk-slug']),
+            $this->policy->publicUrl($childrensTalk),
+        );
     }
 
     #[Test]
@@ -172,7 +147,7 @@ class SermonExposurePolicyTest extends TestCase
         $this->assertSame($this->policy->publicUrl($childrensTalk), $this->policy->canonicalUrl($childrensTalk));
 
         // Sermon canonical follows specific year/month/slug format
-        $expectedSermonCanonical = url('/christ/sermons/2025/05/sermon-slug');
+        $expectedSermonCanonical = url('/christ/talks/2025/05/sermon-slug');
         $this->assertSame($expectedSermonCanonical, $this->policy->canonicalUrl($sermon));
     }
 

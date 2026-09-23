@@ -20,6 +20,7 @@ use App\Models\Song;
 use App\Models\SongVideo;
 use App\Services\Public\PublicChurchServiceArchiveService;
 use App\Services\Public\PublicSongUsageService;
+use App\Services\Sermon\SermonExposurePolicy;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -68,7 +69,7 @@ class PublicChurchServiceArchiveTest extends TestCase
                 'sermon' => $sermon->slug,
             ]), false)
             ->assertSee($childrensTalk->title)
-            ->assertSee(route('childrens-corner.show', $childrensTalk->slug), false)
+            ->assertSee(app(SermonExposurePolicy::class)->canonicalUrl($childrensTalk), false)
             ->assertSee($song->title)
             ->assertSee(route('church.songs.show', $song->slug), false)
             ->assertSee('Isaiah 53:1-6')
@@ -232,7 +233,7 @@ class PublicChurchServiceArchiveTest extends TestCase
         // Detected section order is song(1), childrens_talk(2), scripture(3),
         // sermon(4), song(5) — not the item positions, which interleave differently.
         $this->assertSame(
-            ['song', 'childrens_talk', 'scripture', 'sermon', 'song'],
+            ['song', 'talk', 'scripture', 'sermon', 'song'],
             $kinds,
         );
     }
@@ -296,7 +297,7 @@ class PublicChurchServiceArchiveTest extends TestCase
         $this->get($this->showUrl($service))
             ->assertOk()
             ->assertDontSee($childrensTalk->title)
-            ->assertDontSee(route('childrens-corner.show', $childrensTalk->slug), false);
+            ->assertDontSee(app(SermonExposurePolicy::class)->canonicalUrl($childrensTalk), false);
     }
 
     #[Test]

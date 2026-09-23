@@ -67,7 +67,7 @@ class ViewComposerTest extends TestCase
         ]);
 
         // segment 1: christ, segment 2: sermons, segment 3: year, segment 4: month, segment 5: slug
-        $url = sprintf('/christ/sermons/%s/%s/test-sermon', $date->year, $date->format('m'));
+        $url = sprintf('/christ/talks/%s/%s/test-sermon', $date->year, $date->format('m'));
         $response = $this->get($url);
 
         // If it's 404, it might be due to route pattern. Let's assert OK if we find the right URL
@@ -296,7 +296,7 @@ class ViewComposerTest extends TestCase
     public function it_renders_public_cta_with_gradient_border_and_centered_button(): void
     {
         $view = View::make('components.public-cta', [
-            'link' => '/christ/sermons',
+            'link' => '/christ/talks',
             'label' => 'Browse sermons',
         ])->render();
 

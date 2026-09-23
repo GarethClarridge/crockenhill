@@ -126,6 +126,34 @@ members-only, which is the safe default.
 
 ---
 
+## 6. Move the podcast feeds in the directories (talks plan PR2)
+
+**Status:** not yet applied · **Urgency:** soon after the deploy that moves `/christ/sermons` to `/christ/talks`
+
+The feeds moved from `/christ/sermons/{morning,evening}/feed` to `/christ/talks/{morning,evening}/feed`.
+The old URLs 301 and both feeds now carry `<itunes:new-feed-url>`, so subscribers' apps follow on
+their own — but the directory listings are the one step that cannot be automated:
+
+- **Apple Podcasts Connect:** for each show, confirm the feed URL has updated to the
+  `/christ/talks/…/feed` address (Apple normally picks up `new-feed-url` itself; update by hand if not).
+- **Spotify for Podcasters:** Settings → RSS feed → change each feed URL to the new address.
+
+Keep `<itunes:new-feed-url>` in the feeds until both directories show the new URL, and keep
+the 301s indefinitely.
+
+## 7. Check the Talks nav page's heading image (talks plan PR2)
+
+**Status:** not yet applied · **Urgency:** after the deploy
+
+The migration `rename_sermons_nav_page_to_talks` renames nav page 58 from `sermons` / "Sermons"
+to `talks` / "Talks" — no hand step. One thing to look at: if that page's heading image is
+served from the storage fallback (`pages/headings/{size}/sermons.webp`) rather than a media-library
+upload, it will stop showing, because the fallback path is built from the slug. Open
+`/christ/talks` and the page card that links to it; if the image is missing, upload it on the
+page in admin (or copy the files to `…/talks.webp`).
+
+---
+
 ## Not on this list
 
 Re-enabling speaker identification is **not** a pending action — it is a decision that

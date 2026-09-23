@@ -16,7 +16,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
 /**
  * Centralised authority for sermon visibility, routing, and exposure rules.
  *
- * This policy governs how different content types (Sermons vs Children's Talks)
+ * This policy governs how each talk type (sermons, children's talks, testimonies…)
  * are exposed to the public API, sitemaps, and search engines. It also enforces
  * video quality standards and handles members-only content boundaries.
  */
@@ -63,14 +63,6 @@ class SermonExposurePolicy
     }
 
     /**
-     * Determine if a given sermon is classified as a Children's Talk.
-     */
-    public function isChildrensTalk(Sermon $sermon): bool
-    {
-        return $sermon->content_type === TalkType::ChildrensTalk;
-    }
-
-    /**
      * The whole-content publication decision, consulted by every read surface.
      *
      * A column-restricted `select()` that omits `publication_state` leaves the
@@ -88,20 +80,6 @@ class SermonExposurePolicy
         }
 
         return $sermon->publication_state === SermonPublicationState::Published;
-    }
-
-    /**
-     * Determine if a request for a generic sermon route should be redirected.
-     *
-     * When Children's Talks are public, they have their own dedicated routing
-     * (e.g., childrens-corner.show) and should not be accessed via the standard
-     * sermon archive routes to maintain clear content separation.
-     */
-    public function shouldRedirectGenericSermonRoute(Sermon $sermon): bool
-    {
-        return $this->isWholeContentPublic($sermon)
-            && $sermon->content_type === TalkType::ChildrensTalk
-            && $this->isTypePublic(TalkType::ChildrensTalk);
     }
 
     /**
@@ -209,59 +187,22 @@ class SermonExposurePolicy
     }
 
     /**
-     * Resolve the canonical public route name for a sermon.
-     */
-    public function publicRouteName(Sermon $sermon): string
-    {
-        return $sermon->content_type === TalkType::ChildrensTalk
-            ? 'childrens-corner.show'
-            : 'sermons.show';
-    }
-
-    /**
-     * Generate the parameters required for the sermon's public route.
-     *
-     * @return array{sermon: string}
-     */
-    public function publicRouteParameters(Sermon $sermon): array
-    {
-        return ['sermon' => $sermon->slug];
-    }
-
-    /**
-     * Generate the absolute public URL for a sermon.
-     *
-     * Returns an empty string if the sermon lacks a slug, preventing
-     * RouteGenerationExceptions on incomplete records.
+     * Generate the absolute public URL for a talk: its dated page, whatever its type.
      */
     public function publicUrl(Sermon $sermon): string
     {
-        if (! $this->isWholeContentPublic($sermon) || ! filled($sermon->slug)) {
-            return '';
-        }
-
-        return route($this->publicRouteName($sermon), $this->publicRouteParameters($sermon));
+        return $this->canonicalUrl($sermon);
     }
 
     /**
-     * Generate the canonical, date-prefixed URL for a sermon.
+     * Generate the canonical, date-prefixed URL for a talk.
      *
-     * Favors the SEO-friendly YYYY/MM/slug format for primary sermons.
+     * Returns an empty string for unpublished talks and for records without a
+     * slug, preventing RouteGenerationExceptions on incomplete records.
      */
     public function canonicalUrl(Sermon $sermon): string
     {
-        if (! $this->isWholeContentPublic($sermon)) {
-            return '';
-        }
-
-        if ($sermon->content_type === TalkType::ChildrensTalk) {
-            return $this->publicUrl($sermon);
-        }
-
-        // The dated route is keyed on the slug; without one there is no canonical
-        // page, so return empty rather than throwing UrlGenerationException — the
-        // same contract publicUrl() already honours.
-        if (! filled($sermon->slug)) {
+        if (! $this->isWholeContentPublic($sermon) || ! filled($sermon->slug)) {
             return '';
         }
 

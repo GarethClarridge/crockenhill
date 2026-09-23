@@ -34,7 +34,7 @@ class SermonThumbnailServingTest extends TestCase
         // Create a fake thumbnail file
         Storage::disk('public')->put('sermons/thumbnails/test-thumbnail.jpg', 'fake image content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
+        $response = $this->get("/christ/talks/{$sermon->slug}/thumbnail");
 
         $response->assertRedirect(app(SermonStorageService::class)->getThumbnailUrl($sermon));
     }
@@ -46,7 +46,7 @@ class SermonThumbnailServingTest extends TestCase
             'thumbnail_file_path' => null,
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
+        $response = $this->get("/christ/talks/{$sermon->slug}/thumbnail");
 
         $response->assertStatus(404);
     }
@@ -58,7 +58,7 @@ class SermonThumbnailServingTest extends TestCase
             'thumbnail_file_path' => 'sermons/thumbnails/nonexistent.jpg',
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
+        $response = $this->get("/christ/talks/{$sermon->slug}/thumbnail");
 
         $response->assertStatus(404);
     }
@@ -73,7 +73,7 @@ class SermonThumbnailServingTest extends TestCase
         // Create a fake PNG thumbnail file
         Storage::disk('public')->put('sermons/thumbnails/test-thumbnail.png', 'fake png content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
+        $response = $this->get("/christ/talks/{$sermon->slug}/thumbnail");
 
         $response->assertRedirect(app(SermonStorageService::class)->getThumbnailUrl($sermon));
     }
@@ -88,7 +88,7 @@ class SermonThumbnailServingTest extends TestCase
         // Create a fake WebP thumbnail file
         Storage::disk('public')->put('sermons/thumbnails/test-thumbnail.webp', 'fake webp content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
+        $response = $this->get("/christ/talks/{$sermon->slug}/thumbnail");
 
         $response->assertRedirect(app(SermonStorageService::class)->getThumbnailUrl($sermon));
     }
@@ -104,7 +104,7 @@ class SermonThumbnailServingTest extends TestCase
         Storage::disk('local')->put('private/sermons/thumbnails/test-thumbnail.jpg', 'fake image content');
 
         $admin = User::factory()->crockenhillAdmin()->create();
-        $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/thumbnail");
+        $response = $this->actingAs($admin)->get("/christ/talks/{$sermon->slug}/thumbnail");
 
         // No no-store streaming branch remains; the route only resolves against
         // the configured thumbnail disk.
@@ -126,7 +126,7 @@ class SermonThumbnailServingTest extends TestCase
         Storage::disk('public')->put('sermons/thumbnails/test-card.webp', 'card image content');
         Storage::disk('public')->put('sermons/thumbnails/test-plain.webp', 'plain image content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
+        $response = $this->get("/christ/talks/{$sermon->slug}/thumbnail/card");
 
         $response->assertRedirect(app(SermonStorageService::class)->getCardThumbnailUrl($sermon));
     }
@@ -181,7 +181,7 @@ class SermonThumbnailServingTest extends TestCase
         Storage::disk('public')->put('sermons/thumbnails/test-overlay.webp', 'overlay image content');
         Storage::disk('public')->put('sermons/thumbnails/test-plain.webp', 'plain image content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
+        $response = $this->get("/christ/talks/{$sermon->slug}/thumbnail/card");
 
         $response->assertRedirect(app(SermonStorageService::class)->getCardThumbnailUrl($sermon));
     }
@@ -198,7 +198,7 @@ class SermonThumbnailServingTest extends TestCase
 
         Storage::disk('public')->put('sermons/thumbnails/test-overlay.webp', 'overlay image content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
+        $response = $this->get("/christ/talks/{$sermon->slug}/thumbnail/card");
 
         $response->assertStatus(404);
     }
@@ -213,7 +213,7 @@ class SermonThumbnailServingTest extends TestCase
 
         Storage::disk('public')->put('sermons/thumbnails/test-overlay.webp', 'overlay image content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail/card");
+        $response = $this->get("/christ/talks/{$sermon->slug}/thumbnail/card");
 
         $response->assertStatus(404);
     }

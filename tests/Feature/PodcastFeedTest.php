@@ -83,7 +83,7 @@ class PodcastFeedTest extends TestCase
             'duration' => 2700, // 45 minutes
         ]);
 
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
 
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'application/rss+xml; charset=UTF-8');
@@ -101,7 +101,7 @@ class PodcastFeedTest extends TestCase
             'audio_file_path' => 'test.mp3',
         ]);
 
-        $response = $this->get('/christ/sermons/evening/feed');
+        $response = $this->get('/christ/talks/evening/feed');
 
         $response->assertStatus(200);
 
@@ -110,16 +110,27 @@ class PodcastFeedTest extends TestCase
     }
 
     #[Test]
+    public function feeds_announce_their_new_url_to_podcast_directories(): void
+    {
+        $content = $this->get('/christ/talks/morning/feed')->assertOk()->getContent();
+
+        $this->assertStringContainsString(
+            '<itunes:new-feed-url>'.url('/christ/talks/morning/feed').'</itunes:new-feed-url>',
+            $content,
+        );
+    }
+
+    #[Test]
     public function other_service_feed_returns_404(): void
     {
-        $response = $this->get('/christ/sermons/other/feed');
+        $response = $this->get('/christ/talks/other/feed');
         $response->assertStatus(404);
     }
 
     #[Test]
     public function invalid_service_feed_returns_404(): void
     {
-        $response = $this->get('/christ/sermons/invalid/feed');
+        $response = $this->get('/christ/talks/invalid/feed');
         $response->assertStatus(404);
     }
 
@@ -139,7 +150,7 @@ class PodcastFeedTest extends TestCase
             'title' => 'Has Audio Sermon',
         ]);
 
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
         $content = $response->getContent();
 
         $this->assertStringNotContainsString('No Audio Sermon', $content);
@@ -155,7 +166,7 @@ class PodcastFeedTest extends TestCase
             'title' => 'Empty Audio Path Sermon',
         ]);
 
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
         $content = $response->getContent();
 
         $this->assertStringNotContainsString('Empty Audio Path Sermon', $content);
@@ -176,7 +187,7 @@ class PodcastFeedTest extends TestCase
             'title' => 'Evening Service Sermon',
         ]);
 
-        $morningResponse = $this->get('/christ/sermons/morning/feed');
+        $morningResponse = $this->get('/christ/talks/morning/feed');
         $morningContent = $morningResponse->getContent();
 
         $this->assertStringContainsString('Morning Service Sermon', $morningContent);
@@ -185,7 +196,7 @@ class PodcastFeedTest extends TestCase
         // Clear cache for the next request
         Cache::forget(PodcastFeedService::cacheKey(SermonService::Evening));
 
-        $eveningResponse = $this->get('/christ/sermons/evening/feed');
+        $eveningResponse = $this->get('/christ/talks/evening/feed');
         $eveningContent = $eveningResponse->getContent();
 
         $this->assertStringContainsString('Evening Service Sermon', $eveningContent);
@@ -201,7 +212,7 @@ class PodcastFeedTest extends TestCase
             'duration' => 2700, // 45 minutes = 00:45:00
         ]);
 
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
         $content = $response->getContent();
 
         $this->assertStringContainsString('<itunes:duration>00:45:00</itunes:duration>', $content);
@@ -216,7 +227,7 @@ class PodcastFeedTest extends TestCase
             'duration' => 5432, // 1:30:32
         ]);
 
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
         $content = $response->getContent();
 
         $this->assertStringContainsString('<itunes:duration>01:30:32</itunes:duration>', $content);
@@ -231,7 +242,7 @@ class PodcastFeedTest extends TestCase
             'duration' => null,
         ]);
 
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
         $content = $response->getContent();
 
         $this->assertStringContainsString('<itunes:duration>00:00:00</itunes:duration>', $content);
@@ -247,10 +258,10 @@ class PodcastFeedTest extends TestCase
             'date' => '2024-06-15',
         ]);
 
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
         $content = $response->getContent();
 
-        $this->assertStringContainsString('<link>http://localhost/christ/sermons/2024/06/test-sermon</link>', $content);
+        $this->assertStringContainsString('<link>http://localhost/christ/talks/2024/06/test-sermon</link>', $content);
     }
 
     #[Test]
@@ -264,7 +275,7 @@ class PodcastFeedTest extends TestCase
             'series' => 'Gospel of John',
         ]);
 
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
         $content = $response->getContent();
 
         $this->assertStringContainsString('A sermon on John 3:16 from Mark Drury as part of our Gospel of John series.', $content);
@@ -279,7 +290,7 @@ class PodcastFeedTest extends TestCase
             'preacher' => 'Mark Drury',
         ]);
 
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
 
         $response->assertOk();
         $this->assertStringContainsString('<podcast:person role="speaker">Mark Drury</podcast:person>', (string) $response->getContent());
@@ -294,7 +305,7 @@ class PodcastFeedTest extends TestCase
             'date' => '2024-06-15',
         ]);
 
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
         $content = $response->getContent();
 
         // RFC 2822 format: Sat, 15 Jun 2024 00:00:00 +0000
@@ -309,7 +320,7 @@ class PodcastFeedTest extends TestCase
             'audio_file_path' => 'test.mp3',
         ]);
 
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
         $content = $response->getContent();
 
         $this->assertStringContainsString("<guid isPermaLink=\"false\">sermon-{$sermon->id}</guid>", $content);
@@ -323,7 +334,7 @@ class PodcastFeedTest extends TestCase
             'audio_file_path' => 'test.mp3',
         ]);
 
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
         $content = $response->getContent();
 
         $this->assertStringContainsString('<itunes:author>Crockenhill Baptist Church</itunes:author>', $content);
@@ -344,11 +355,11 @@ class PodcastFeedTest extends TestCase
             'audio_file_path' => 'test.mp3',
         ]);
 
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
         $content = $response->getContent();
 
         $this->assertStringContainsString('xmlns:atom="http://www.w3.org/2005/Atom"', $content);
-        $this->assertStringContainsString('<atom:link href="http://localhost/christ/sermons/morning/feed" rel="self" type="application/rss+xml" />', $content);
+        $this->assertStringContainsString('<atom:link href="http://localhost/christ/talks/morning/feed" rel="self" type="application/rss+xml" />', $content);
     }
 
     #[Test]
@@ -368,7 +379,7 @@ class PodcastFeedTest extends TestCase
             'date' => '2024-06-01',
         ]);
 
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
         $content = $response->getContent();
 
         // New sermon should appear before old sermon
@@ -396,7 +407,7 @@ class PodcastFeedTest extends TestCase
         // Clear cache since we changed config
         Cache::forget(PodcastFeedService::cacheKey(SermonService::Morning));
 
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
         $content = $response->getContent();
 
         // Count the number of <item> tags
@@ -412,7 +423,7 @@ class PodcastFeedTest extends TestCase
             'audio_file_path' => 'test.mp3',
         ]);
 
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
         $content = $response->getContent();
 
         // Check XML structure
@@ -432,7 +443,7 @@ class PodcastFeedTest extends TestCase
         Sermon::query()->delete();
         Cache::forget(PodcastFeedService::cacheKey(SermonService::Morning));
 
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
 
         $response->assertStatus(200);
 
@@ -457,10 +468,10 @@ class PodcastFeedTest extends TestCase
             'title' => 'Cached Sermon',
         ]);
 
-        $this->get('/christ/sermons/morning/feed')
+        $this->get('/christ/talks/morning/feed')
             ->assertSee('Cached Sermon');
 
-        $this->get('/christ/sermons/morning/feed')
+        $this->get('/christ/talks/morning/feed')
             ->assertSee('Cached Sermon');
     }
 
@@ -486,7 +497,7 @@ class PodcastFeedTest extends TestCase
             'audio_file_path' => 'test.mp3',
         ]);
 
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
 
         // Check both directives are present (order may vary)
         $cacheControl = $response->headers->get('Cache-Control');
@@ -497,7 +508,7 @@ class PodcastFeedTest extends TestCase
     #[Test]
     public function morning_feed_has_correct_title(): void
     {
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
         $content = $response->getContent();
 
         $this->assertStringContainsString('<title>Sunday mornings at Crockenhill Baptist Church</title>', $content);
@@ -506,7 +517,7 @@ class PodcastFeedTest extends TestCase
     #[Test]
     public function evening_feed_has_correct_title(): void
     {
-        $response = $this->get('/christ/sermons/evening/feed');
+        $response = $this->get('/christ/talks/evening/feed');
         $content = $response->getContent();
 
         $this->assertStringContainsString('<title>Sunday evenings at Crockenhill Baptist Church</title>', $content);
@@ -520,7 +531,7 @@ class PodcastFeedTest extends TestCase
             'audio_file_path' => 'test.mp3',
         ]);
 
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
         $content = $response->getContent();
 
         // Check enclosure has correct attributes
@@ -537,7 +548,7 @@ class PodcastFeedTest extends TestCase
             'audio_file_path' => 'test.mp3',
         ]);
 
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
         $content = $response->getContent();
 
         // Episode should have itunes:image (falls back to podcast artwork if no thumbnail)
@@ -559,7 +570,7 @@ class PodcastFeedTest extends TestCase
             'audio_file_path' => 'test.mp3',
         ]);
 
-        $this->get('/christ/sermons/morning/feed')->assertOk();
+        $this->get('/christ/talks/morning/feed')->assertOk();
 
         $this->assertTrue(Cache::has(PodcastFeedService::cacheKey(SermonService::Morning)));
     }
@@ -575,7 +586,7 @@ class PodcastFeedTest extends TestCase
             'audio_file_path' => 'test.mp3',
         ]);
 
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
 
         $this->assertStringContainsString(
             'max-age=120',

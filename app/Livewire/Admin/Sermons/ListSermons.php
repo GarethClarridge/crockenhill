@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Admin\Sermons;
 
 use App\Enums\SermonService;
+use App\Enums\TalkType;
 use App\Livewire\Traits\WithAdminAuthorization;
 use App\Livewire\Traits\WithAdminDelete;
 use App\Livewire\Traits\WithFilterableListing;
@@ -50,6 +51,9 @@ class ListSermons extends Component
     public string $search = '';
 
     #[Url(except: null)]
+    public ?string $typeFilter = null;
+
+    #[Url(except: null)]
     public ?string $serviceFilter = null;
 
     #[Url(except: null)]
@@ -78,6 +82,7 @@ class ListSermons extends Component
     {
         return [
             'search' => '',
+            'typeFilter' => null,
             'serviceFilter' => null,
             'preacherFilter' => null,
             'seriesFilter' => null,
@@ -148,6 +153,7 @@ class ListSermons extends Component
                             ->orWhere('normalized_reference', 'like', $searchPattern));
                 });
             })
+            ->when($this->typeFilter, fn ($q) => $q->where('content_type', $this->typeFilter))
             ->when($this->serviceFilter, fn ($q) => $q->where('service', $this->serviceFilter))
             ->when($this->preacherFilter, fn ($q) => $q->where('preacher_id', $this->preacherFilter))
             ->when($this->seriesFilter, fn ($q) => $q->where('series', $this->seriesFilter))
@@ -177,6 +183,7 @@ class ListSermons extends Component
         return view('livewire.admin.sermons.list-sermons', [
             'sermons' => $sermons,
             'services' => SermonService::cases(),
+            'talkTypes' => TalkType::cases(),
             'preachers' => $this->getPreachers(),
             'seriesList' => $this->getSeries(),
             'headers' => $headers,

@@ -24,7 +24,7 @@ class SermonSeriesListingTest extends TestCase
         Sermon::factory()->create(['series' => 'A Series']); // Duplicate
         Sermon::factory()->create(['series' => null]); // Null series
 
-        $response = $this->get('/christ/sermons/series');
+        $response = $this->get('/christ/talks/series');
 
         $response->assertStatus(200);
 
@@ -50,7 +50,7 @@ class SermonSeriesListingTest extends TestCase
             'content_type' => TalkType::ChildrensTalk,
         ]);
 
-        $response = $this->get('/christ/sermons/series');
+        $response = $this->get('/christ/talks/series');
 
         $response->assertStatus(200);
         $response->assertSee('Sermon Series');
@@ -61,11 +61,11 @@ class SermonSeriesListingTest extends TestCase
     {
         Sermon::factory()->inSeries('Existing Series')->create();
 
-        $this->get('/christ/sermons/series')->assertOk();
+        $this->get('/christ/talks/series')->assertOk();
 
         Sermon::factory()->inSeries('New Series')->create();
 
-        $this->get('/christ/sermons/series/new-series')
+        $this->get('/christ/talks/series/new-series')
             ->assertOk()
             ->assertSee('New Series');
     }
@@ -83,7 +83,7 @@ class SermonSeriesListingTest extends TestCase
             'content_type' => TalkType::Sermon,
         ]);
 
-        $response = $this->get('/christ/sermons/series');
+        $response = $this->get('/christ/talks/series');
 
         $response->assertStatus(200);
         $response->assertSee('application/ld+json', false);
@@ -91,7 +91,7 @@ class SermonSeriesListingTest extends TestCase
         $response->assertSee('CreativeWorkSeries', false);
         $response->assertSee('Advent 2024', false);
         $response->assertSee('Gospel of Mark', false);
-        $response->assertSee('/christ/sermons/series/advent-2024', false);
-        $response->assertSee('/christ/sermons/series/gospel-of-mark', false);
+        $response->assertSee('/christ/talks/series/advent-2024', false);
+        $response->assertSee('/christ/talks/series/gospel-of-mark', false);
     }
 }

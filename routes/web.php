@@ -5,8 +5,8 @@ use App\Http\Controllers\Admin\SermonThumbnailCandidateController;
 use App\Http\Controllers\Admin\ServiceSectionCandidateMediaController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\CalendarController;
-use App\Http\Controllers\ChildrensCornerController;
 use App\Http\Controllers\LandingPageController;
+use App\Http\Controllers\LegacyTalkRedirectController;
 use App\Http\Controllers\MeetingController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\PageController;
@@ -63,8 +63,10 @@ Route::view('/christmas', 'full-width-pages.christmas')->name('pages.christmas')
 
 // Full width pages
 Route::view('/christ', 'full-width-pages.christ')->name('pages.christ');
-Route::get('/christ/childrens-corner', [ChildrensCornerController::class, 'index'])->middleware('childrens-corner.access')->name('childrens-corner.index');
-Route::get('/christ/childrens-corner/{sermon:slug}', [ChildrensCornerController::class, 'show'])->middleware('childrens-corner.access')->name('childrens-corner.show');
+Route::get('/christ/childrens-corner', [LegacyTalkRedirectController::class, 'childrensCorner']);
+Route::get('/christ/childrens-corner/{slug}', [LegacyTalkRedirectController::class, 'childrensTalk'])
+    ->middleware('throttle:public-not-found');
+Route::get('/christ/sermons/{path?}', [LegacyTalkRedirectController::class, 'sermons'])->where('path', '.*');
 Route::get('/church', [LandingPageController::class, 'church'])->name('pages.church');
 Route::get('/community', [LandingPageController::class, 'community'])->name('pages.community');
 
@@ -88,8 +90,8 @@ Route::get('/meetings/{meeting}/events', [CalendarController::class, 'eventsForM
 // Community meetings - always loads a Meeting (which gets content from its related Page)
 Route::get('/community/{meeting:slug}', [MeetingController::class, 'show'])->name('meetings.show');
 
-// Sermon routes
-Route::group(['prefix' => 'christ/sermons'], function () {
+// Talk routes: every talk type, sermons first. Route names keep the `sermons.` prefix.
+Route::group(['prefix' => 'christ/talks'], function () {
     Route::get('/', [SermonController::class, 'index'])->name('sermons.index');
     Route::get('all', [SermonController::class, 'all'])->name('sermons.all');
     Route::get('preachers', [SermonController::class, 'preachers'])->name('sermons.preachers');

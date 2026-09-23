@@ -25,7 +25,7 @@ class SeoMetadataTest extends TestCase
         Preacher::factory()->create(['name' => 'Preacher One', 'slug' => 'preacher-one', 'is_active' => true]);
         Preacher::factory()->create(['name' => 'Preacher Two', 'slug' => 'preacher-two', 'is_active' => true]);
 
-        $response = $this->get('/christ/sermons/preachers');
+        $response = $this->get('/christ/talks/preachers');
 
         $response->assertStatus(200);
         $response->assertSee('Preachers | Crockenhill Baptist Church', false);
@@ -58,7 +58,7 @@ class SeoMetadataTest extends TestCase
         $response->assertSee('"@type": "WebPage"', false);
         $response->assertSee('"name": "Christ"', false);
 
-        $response = $this->get('/christ/sermons');
+        $response = $this->get('/christ/talks');
         $response->assertStatus(200);
         $response->assertSee('"@type": "WebPage"', false);
         $response->assertSee('"name": "Sermons"', false);

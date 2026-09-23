@@ -30,7 +30,7 @@ class SermonThumbnailPathTraversalTest extends TestCase
             'thumbnail_file_path' => '../secrets.txt',
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
+        $response = $this->get("/christ/talks/{$sermon->slug}/thumbnail");
 
         // It should now return 404 because of our security check
         $response->assertStatus(404);
@@ -49,7 +49,7 @@ class SermonThumbnailPathTraversalTest extends TestCase
             'audio_file_path' => '../secrets.txt',
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
+        $response = $this->get("/christ/talks/{$sermon->slug}/audio");
 
         // It should return 404 because of our security check
         $response->assertStatus(404);

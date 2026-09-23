@@ -34,12 +34,12 @@ class PreacherPublicCacheTest extends TestCase
 
         // 1. Initial hit - should trigger queries
         DB::flushQueryLog();
-        $this->get('/christ/sermons/preachers')->assertOk();
+        $this->get('/christ/talks/preachers')->assertOk();
         $this->assertNotEmpty(DB::getQueryLog(), 'Expected the first request to trigger database queries.');
 
         // 2. Second hit - should NOT trigger preacher queries
         DB::flushQueryLog();
-        $this->get('/christ/sermons/preachers')->assertOk();
+        $this->get('/christ/talks/preachers')->assertOk();
 
         $queries = collect(DB::getQueryLog());
         $preacherQueries = $queries->filter(fn ($q) => str_contains($q['query'], 'preachers'));

@@ -26,7 +26,7 @@ class LinkedDataTest extends TestCase
 
         $year = $sermon->date->format('Y');
         $month = $sermon->date->format('m');
-        $url = "/christ/sermons/{$year}/{$month}/{$sermon->slug}";
+        $url = "/christ/talks/{$year}/{$month}/{$sermon->slug}";
 
         $response = $this->get($url);
 
@@ -53,7 +53,7 @@ class LinkedDataTest extends TestCase
             'slug' => 'john-doe',
         ]);
 
-        $url = "/christ/sermons/preachers/{$preacher->slug}";
+        $url = "/christ/talks/preachers/{$preacher->slug}";
 
         $response = $this->get($url);
 

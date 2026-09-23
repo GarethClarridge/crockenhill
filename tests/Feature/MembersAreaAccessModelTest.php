@@ -9,6 +9,7 @@ use App\Livewire\Auth\Register as RegisterComponent;
 use App\Models\Sermon;
 use App\Models\Song;
 use App\Models\User;
+use App\Services\Sermon\SermonExposurePolicy;
 use Illuminate\Auth\Notifications\VerifyEmail as VerifyEmailNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
@@ -63,8 +64,8 @@ class MembersAreaAccessModelTest extends TestCase
         $this->get(route('members.home'))->assertRedirect(route('verification.notice'));
         $this->get(route('church.songs.index'))->assertRedirect(route('verification.notice'));
         $this->get(route('church.songs.show', $song))->assertRedirect(route('verification.notice'));
-        $this->get(route('childrens-corner.index'))->assertRedirect(route('login'));
-        $this->get(route('childrens-corner.show', $talk))->assertRedirect(route('login'));
+        $this->get(route('sermons.index', ['type' => 'childrens_talk']))->assertRedirect(route('login'));
+        $this->get(app(SermonExposurePolicy::class)->canonicalUrl($talk))->assertRedirect(route('login'));
     }
 
     #[Test]
@@ -126,7 +127,7 @@ class MembersAreaAccessModelTest extends TestCase
         $this->get(route('members.home'))->assertRedirect('/login');
         $this->get(route('church.songs.index'))->assertRedirect('/login');
         $this->get(route('church.songs.show', $song))->assertRedirect('/login');
-        $this->get(route('childrens-corner.index'))->assertRedirect('/login');
-        $this->get(route('childrens-corner.show', $talk))->assertRedirect('/login');
+        $this->get(route('sermons.index', ['type' => 'childrens_talk']))->assertRedirect('/login');
+        $this->get(app(SermonExposurePolicy::class)->canonicalUrl($talk))->assertRedirect('/login');
     }
 }

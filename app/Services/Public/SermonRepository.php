@@ -105,8 +105,9 @@ class SermonRepository
         ?int $chapter = null,
         ?int $preacherId = null,
         ?string $series = null,
+        TalkType $type = TalkType::Sermon,
     ): SermonBuilder {
-        $query = $this->publicSermonQuery()
+        $query = $this->basePublicSermonQuery($type)
             ->when($preacherId, fn (Builder $builder): Builder => $builder->where('preacher_id', $preacherId))
             ->when($series, fn (Builder $builder): Builder => $builder->where('series', $series));
 

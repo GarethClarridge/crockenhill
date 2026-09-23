@@ -36,7 +36,7 @@ class SermonSocialMetadataTest extends TestCase
             'date' => '2024-03-15',
         ]);
 
-        $response = $this->followingRedirects()->get("/christ/sermons/2024/03/{$sermon->slug}");
+        $response = $this->followingRedirects()->get("/christ/talks/2024/03/{$sermon->slug}");
 
         $response->assertStatus(200);
         $response->assertSee('twitter:label1', false);
@@ -62,7 +62,7 @@ class SermonSocialMetadataTest extends TestCase
             'date' => '2024-03-15',
         ]);
 
-        $response = $this->followingRedirects()->get("/christ/sermons/2024/03/{$sermon->slug}");
+        $response = $this->followingRedirects()->get("/christ/talks/2024/03/{$sermon->slug}");
 
         $response->assertStatus(200);
         $response->assertSee('twitter:label1', false);
@@ -79,7 +79,7 @@ class SermonSocialMetadataTest extends TestCase
             'preacher' => $preacher->name,
         ]);
 
-        $response = $this->get("/christ/sermons/preachers/{$preacher->slug}");
+        $response = $this->get("/christ/talks/preachers/{$preacher->slug}");
 
         $response->assertStatus(200);
         $response->assertSee('twitter:label1', false);

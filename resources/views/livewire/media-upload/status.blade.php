@@ -116,7 +116,7 @@
                             Open service
                         </x-button>
                     @endif
-                    <x-button link="/christ/sermons" variant="success" icon="magnifying-glass">
+                    <x-button link="{{ route('sermons.index') }}" variant="success" icon="magnifying-glass">
                         Browse Sermons
                     </x-button>
                 </div>

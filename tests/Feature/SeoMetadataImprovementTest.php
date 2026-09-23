@@ -28,7 +28,7 @@ class SeoMetadataImprovementTest extends TestCase
     {
         $preacher = Preacher::factory()->create(['name' => 'John Owen', 'slug' => 'john-owen']);
 
-        $response = $this->get("/christ/sermons/preachers/{$preacher->slug}");
+        $response = $this->get("/christ/talks/preachers/{$preacher->slug}");
 
         $response->assertStatus(200);
         $response->assertSee('<meta property="og:type" content="profile">', false);

@@ -29,7 +29,7 @@ class CanonicalUrlTest extends TestCase
             'date' => '2024-01-15',
         ]);
 
-        $canonicalUrl = url('/christ/sermons/2024/01/test-sermon');
+        $canonicalUrl = url('/christ/talks/2024/01/test-sermon');
 
         $dateRoute = route('sermons.show.dated', [
             'year' => '2024',

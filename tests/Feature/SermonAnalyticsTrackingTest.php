@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Enums\TalkType;
 use App\Models\Sermon;
 use App\Models\User;
+use App\Services\Sermon\SermonExposurePolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -67,7 +68,7 @@ class SermonAnalyticsTrackingTest extends TestCase
     }
 
     #[Test]
-    public function childrens_corner_page_emits_childrens_content_group(): void
+    public function childrens_talk_page_emits_childrens_content_group(): void
     {
         $this->actingAs(User::factory()->create());
 
@@ -75,10 +76,10 @@ class SermonAnalyticsTrackingTest extends TestCase
             'content_type' => TalkType::ChildrensTalk,
         ]);
 
-        $response = $this->get(route('childrens-corner.show', $talk->slug));
+        $response = $this->get(app(SermonExposurePolicy::class)->canonicalUrl($talk));
 
         $response->assertStatus(200);
         $response->assertSee('data-ga-content-type="childrens_talk"', false);
-        $response->assertSee('data-ga-content-group="Children&#039;s Corner"', false);
+        $response->assertSee('data-ga-content-group="Children&#039;s Talks"', false);
     }
 }

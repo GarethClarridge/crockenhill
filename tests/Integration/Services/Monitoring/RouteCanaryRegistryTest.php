@@ -35,7 +35,7 @@ class RouteCanaryRegistryTest extends TestCase
         $urls = array_column($canaries, 'url');
 
         $this->assertContains('/', $urls);
-        $this->assertContains('/christ/sermons', $urls);
+        $this->assertContains('/christ/talks', $urls);
         $this->assertContains('/sitemap.xml', $urls);
         $this->assertContains('/church/members', $urls);
 
@@ -127,24 +127,24 @@ class RouteCanaryRegistryTest extends TestCase
         $urls = array_column($canaries, 'url');
 
         // Dated canonical route
-        $this->assertContains('/christ/sermons/2024/05/the-glory-of-christ', $urls);
+        $this->assertContains('/christ/talks/2024/05/the-glory-of-christ', $urls);
         // Legacy slug-only redirect
-        $this->assertContains('/christ/sermons/the-glory-of-christ', $urls);
+        $this->assertContains('/christ/talks/the-glory-of-christ', $urls);
         // Preacher route
-        $this->assertContains('/christ/sermons/preachers/john-owen', $urls);
+        $this->assertContains('/christ/talks/preachers/john-owen', $urls);
 
-        $this->assertNotContains('/christ/sermons/kids-talk', $urls);
+        $this->assertNotContains('/christ/talks/kids-talk', $urls);
 
-        $datedCanary = collect($canaries)->firstWhere('url', '/christ/sermons/2024/05/the-glory-of-christ');
+        $datedCanary = collect($canaries)->firstWhere('url', '/christ/talks/2024/05/the-glory-of-christ');
         $this->assertSame(200, $datedCanary->expectedStatus);
         $this->assertSame(2, $datedCanary->hits);
 
-        $legacyCanary = collect($canaries)->firstWhere('url', '/christ/sermons/the-glory-of-christ');
+        $legacyCanary = collect($canaries)->firstWhere('url', '/christ/talks/the-glory-of-christ');
         $this->assertSame(301, $legacyCanary->expectedStatus);
         $this->assertSame(1, $legacyCanary->hits);
         $this->assertSame('', $legacyCanary->marker);
 
-        $preacherCanary = collect($canaries)->firstWhere('url', '/christ/sermons/preachers/john-owen');
+        $preacherCanary = collect($canaries)->firstWhere('url', '/christ/talks/preachers/john-owen');
         $this->assertSame(200, $preacherCanary->expectedStatus);
         $this->assertSame(1, $preacherCanary->hits);
     }
@@ -163,8 +163,8 @@ class RouteCanaryRegistryTest extends TestCase
         $urls = array_column($canaries, 'url');
 
         // Note: representativeSermon() picks latest by date.
-        $this->assertContains('/christ/sermons/no-profile-sermon', $urls);
-        $this->assertStringNotContainsString('/christ/sermons/preachers/', implode(' ', $urls));
+        $this->assertContains('/christ/talks/no-profile-sermon', $urls);
+        $this->assertStringNotContainsString('/christ/talks/preachers/', implode(' ', $urls));
     }
 
     #[Test]
@@ -177,8 +177,8 @@ class RouteCanaryRegistryTest extends TestCase
 
         $canaries = $this->registry->all();
 
-        $this->assertCount(4, $canaries);
+        $this->assertCount(5, $canaries);
         $urls = array_column($canaries, 'url');
-        $this->assertSame(['/', '/christ/sermons', '/sitemap.xml', '/church/members'], $urls);
+        $this->assertSame(['/', '/christ/talks', '/christ/sermons', '/sitemap.xml', '/church/members'], $urls);
     }
 }

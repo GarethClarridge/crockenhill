@@ -152,10 +152,10 @@ class SermonViewPresenterTest extends TestCase
 
         $this->assertStringContainsString('/storage/sermons/test.mp3', $presented['audio_url'] ?? '');
         $this->assertStringContainsString('?v=', $presented['audio_url'] ?? '');
-        $this->assertSame('http://localhost/christ/sermons/2026/02/presented-sermon', $presented['canonical_url']);
+        $this->assertSame('http://localhost/christ/talks/2026/02/presented-sermon', $presented['canonical_url']);
         $this->assertStringContainsString('/storage/thumbnails/test.jpg', $presented['card_thumbnail_url'] ?? '');
-        $this->assertSame('http://localhost/christ/sermons/preachers/test-preacher', $presented['preacher_url']);
-        $this->assertSame('http://localhost/christ/sermons/presented-sermon', $presented['public_url']);
+        $this->assertSame('http://localhost/christ/talks/preachers/test-preacher', $presented['preacher_url']);
+        $this->assertSame('http://localhost/christ/talks/2026/02/presented-sermon', $presented['public_url']);
         $this->assertStringContainsString('/storage/thumbnails/test.jpg', $presented['thumbnail_url'] ?? '');
         $this->assertStringContainsString('?v=', $presented['thumbnail_url'] ?? '');
         $this->assertSame('Transcript body', $presented['transcript']);
@@ -308,7 +308,7 @@ class SermonViewPresenterTest extends TestCase
 
         $this->assertNull($presented['audio_url']);
         $this->assertNull($presented['card_thumbnail_url']);
-        $this->assertSame('http://localhost/christ/sermons/preachers/john-doe', $presented['preacher_url']);
+        $this->assertSame('http://localhost/christ/talks/preachers/john-doe', $presented['preacher_url']);
         $this->assertNull($presented['thumbnail_url']);
         $this->assertNull($presented['transcript']);
         $this->assertNull($presented['video_url']);
@@ -410,7 +410,7 @@ class SermonViewPresenterTest extends TestCase
         $this->assertStringContainsString('thumbnails/a-childrens-talk-card.jpg', (string) $presented['card_thumbnail_url']);
         $this->assertStringContainsString('thumbnails/a-childrens-talk-plain.jpg', (string) $this->presenter->plainThumbnailUrl($sermon));
 
-        $this->assertStringNotContainsString('/christ/sermons/', (string) $presented['audio_url']);
+        $this->assertStringNotContainsString('/christ/talks/', (string) $presented['audio_url']);
     }
 
     #[Test]
@@ -497,17 +497,18 @@ class SermonViewPresenterTest extends TestCase
     }
 
     #[Test]
-    public function childrens_talk_image_alt_uses_childrens_corner_prefix(): void
+    public function talk_image_alt_uses_the_talk_type_prefix(): void
     {
         $sermon = Sermon::factory()->make([
+            'content_type' => TalkType::ChildrensTalk,
             'title' => 'The Lost Sheep',
             'preacher' => 'Jane Doe',
             'preacher_id' => null,
         ]);
 
         $this->assertSame(
-            "Children's Corner: The Lost Sheep by Jane Doe",
-            $this->presenter->childrensTalkImageAlt($sermon),
+            "Children's Talk: The Lost Sheep by Jane Doe",
+            $this->presenter->talkImageAlt($sermon),
         );
     }
 

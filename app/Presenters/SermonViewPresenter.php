@@ -296,11 +296,11 @@ class SermonViewPresenter
         return 'Sermon: '.$sermon->title.($preacherName ? ' by '.$preacherName : '');
     }
 
-    public function childrensTalkImageAlt(Sermon $sermon): string
+    public function talkImageAlt(Sermon $sermon): string
     {
         $preacherName = $this->displayPreacherName($sermon);
 
-        return "Children's Corner: ".$sermon->title.($preacherName ? ' by '.$preacherName : '');
+        return $sermon->content_type->label().': '.$sermon->title.($preacherName ? ' by '.$preacherName : '');
     }
 
     public function metaDescription(Sermon $sermon): string

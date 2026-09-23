@@ -20,7 +20,7 @@ class PodcastFeedControllerTest extends TestCase
     #[Test]
     public function morning_feed_returns_rss_xml(): void
     {
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
 
         $response->assertStatus(200);
         $this->assertStringContainsString('rss', strtolower((string) $response->headers->get('Content-Type')));
@@ -29,7 +29,7 @@ class PodcastFeedControllerTest extends TestCase
     #[Test]
     public function evening_feed_returns_rss_xml(): void
     {
-        $response = $this->get('/christ/sermons/evening/feed');
+        $response = $this->get('/christ/talks/evening/feed');
 
         $response->assertStatus(200);
         $this->assertStringContainsString('rss', strtolower((string) $response->headers->get('Content-Type')));
@@ -44,7 +44,7 @@ class PodcastFeedControllerTest extends TestCase
             'content_type' => TalkType::Sermon,
         ]);
 
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
 
         $response->assertStatus(200);
         $this->assertStringContainsString('Morning Message', (string) $response->getContent());
@@ -55,7 +55,7 @@ class PodcastFeedControllerTest extends TestCase
     #[Test]
     public function feed_returns_404_for_invalid_service(): void
     {
-        $response = $this->get('/christ/sermons/other/feed');
+        $response = $this->get('/christ/talks/other/feed');
 
         $response->assertStatus(404);
     }
@@ -63,7 +63,7 @@ class PodcastFeedControllerTest extends TestCase
     #[Test]
     public function feed_returns_404_for_unknown_service_name(): void
     {
-        $response = $this->get('/christ/sermons/unknown/feed');
+        $response = $this->get('/christ/talks/unknown/feed');
 
         $response->assertStatus(404);
     }
@@ -73,7 +73,7 @@ class PodcastFeedControllerTest extends TestCase
     #[Test]
     public function feed_is_valid_xml(): void
     {
-        $response = $this->get('/christ/sermons/morning/feed');
+        $response = $this->get('/christ/talks/morning/feed');
 
         $response->assertStatus(200);
 

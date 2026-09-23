@@ -104,14 +104,14 @@ class BreadcrumbPresenter
             return $items;
         }
 
-        if ($segment2 === 'sermons') {
-            $items[] = ['name' => 'Sermons', 'item' => url('christ/sermons')];
+        if ($segment2 === 'talks') {
+            $items[] = ['name' => 'Talks', 'item' => route('sermons.index')];
 
             $segment3 = (string) $this->request->segment(3);
             if ($segment3 === 'preachers' && $this->request->segment(4) !== null) {
-                $items[] = ['name' => 'Preachers', 'item' => url('christ/sermons/preachers')];
+                $items[] = ['name' => 'Preachers', 'item' => route('sermons.preachers')];
             } elseif ($segment3 === 'series' && $this->request->segment(4) !== null) {
-                $items[] = ['name' => 'Series', 'item' => url('christ/sermons/series')];
+                $items[] = ['name' => 'Series', 'item' => route('sermons.series')];
             }
 
             if ($this->request->routeIs('sermons.index')) {
@@ -127,8 +127,6 @@ class BreadcrumbPresenter
             }
         } elseif ($segment2 === 'members') {
             $items[] = ['name' => 'Members', 'item' => url('church/members')];
-        } elseif ($segment2 === 'childrens-corner') {
-            $items[] = ['name' => "Children's Corner", 'item' => url('christ/childrens-corner')];
         } elseif ($segment2 === 'songs' && $this->request->segment(3) !== null) {
             $items[] = ['name' => 'Songs', 'item' => url('church/songs')];
         } elseif ($segment2 === 'services') {

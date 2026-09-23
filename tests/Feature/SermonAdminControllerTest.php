@@ -49,7 +49,7 @@ class SermonAdminControllerTest extends TestCase
         $sermon = Sermon::factory()->create();
 
         // Legacy GET edit route removed — no handler, no redirect
-        $response = $this->actingAs($this->admin)->get("/christ/sermons/{$sermon->slug}/edit");
+        $response = $this->actingAs($this->admin)->get("/christ/talks/{$sermon->slug}/edit");
 
         $response->assertStatus(404);
     }
@@ -59,7 +59,7 @@ class SermonAdminControllerTest extends TestCase
     {
         $sermon = Sermon::factory()->create();
 
-        $response = $this->actingAs($this->admin)->post("/christ/sermons/{$sermon->slug}/delete");
+        $response = $this->actingAs($this->admin)->post("/christ/talks/{$sermon->slug}/delete");
 
         $response->assertRedirect(route('admin.sermons.index'));
         $this->assertDatabaseHas('sermons', ['id' => $sermon->id]);
@@ -70,7 +70,7 @@ class SermonAdminControllerTest extends TestCase
     {
         $sermon = Sermon::factory()->create();
 
-        $response = $this->actingAs($this->user)->post("/christ/sermons/{$sermon->slug}/delete");
+        $response = $this->actingAs($this->user)->post("/christ/talks/{$sermon->slug}/delete");
 
         $response->assertStatus(403);
         $this->assertDatabaseHas('sermons', ['id' => $sermon->id]);
@@ -82,7 +82,7 @@ class SermonAdminControllerTest extends TestCase
         $sermon = Sermon::factory()->create();
 
         $response = $this->actingAs($this->unverifiedAdmin)
-            ->post("/christ/sermons/{$sermon->slug}/delete");
+            ->post("/christ/talks/{$sermon->slug}/delete");
 
         $response->assertRedirect(route('verification.notice'));
         $this->assertDatabaseHas('sermons', ['id' => $sermon->id]);
@@ -122,7 +122,7 @@ class SermonAdminControllerTest extends TestCase
         $sermon = Sermon::factory()->create(['date' => '2024-03-15']);
 
         // Legacy date-based GET edit route removed — no handler, no redirect
-        $response = $this->actingAs($this->admin)->get("/christ/sermons/2024/03/{$sermon->slug}/edit");
+        $response = $this->actingAs($this->admin)->get("/christ/talks/2024/03/{$sermon->slug}/edit");
 
         $response->assertStatus(404);
     }
@@ -132,7 +132,7 @@ class SermonAdminControllerTest extends TestCase
     {
         $sermon = Sermon::factory()->create(['date' => '2024-03-15']);
 
-        $response = $this->actingAs($this->admin)->post("/christ/sermons/{$sermon->slug}/delete");
+        $response = $this->actingAs($this->admin)->post("/christ/talks/{$sermon->slug}/delete");
 
         $response->assertRedirect(route('admin.sermons.index'));
         $this->assertDatabaseHas('sermons', ['id' => $sermon->id]);
@@ -143,7 +143,7 @@ class SermonAdminControllerTest extends TestCase
     {
         $sermon = Sermon::factory()->create(['date' => '2024-03-15']);
 
-        $response = $this->actingAs($this->admin)->post("/christ/sermons/2024/03/{$sermon->slug}/delete");
+        $response = $this->actingAs($this->admin)->post("/christ/talks/2024/03/{$sermon->slug}/delete");
 
         $response->assertStatus(404);
         $this->assertDatabaseHas('sermons', ['id' => $sermon->id]);
@@ -155,7 +155,7 @@ class SermonAdminControllerTest extends TestCase
         $sermon = Sermon::factory()->create();
 
         // The legacy edit route is fully removed — no route exists for this URL at all
-        $response = $this->actingAs($this->admin)->post("/christ/sermons/{$sermon->slug}/edit", [
+        $response = $this->actingAs($this->admin)->post("/christ/talks/{$sermon->slug}/edit", [
             'title' => 'New Title',
             'date' => '2024-03-15',
             'service' => 'morning',

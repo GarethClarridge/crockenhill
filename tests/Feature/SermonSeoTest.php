@@ -76,13 +76,13 @@ class SermonSeoTest extends TestCase
             'content_type' => TalkType::Sermon,
         ]);
 
-        $response = $this->get("/christ/sermons/preachers/{$preacher->slug}");
+        $response = $this->get("/christ/talks/preachers/{$preacher->slug}");
 
         $response->assertStatus(200);
         $response->assertSee('"@type": "ItemList"', false);
         $response->assertSee('"numberOfItems": 2', false);
         $response->assertSee('"@type": "BreadcrumbList"', false);
-        $response->assertSee('"name": "Sermons"', false);
+        $response->assertSee('"name": "Talks"', false);
     }
 
     #[Test]
@@ -94,7 +94,7 @@ class SermonSeoTest extends TestCase
             'image_path' => 'preachers/mlj.jpg',
         ]);
 
-        $response = $this->get("/christ/sermons/preachers/{$preacher->slug}");
+        $response = $this->get("/christ/talks/preachers/{$preacher->slug}");
 
         $response->assertStatus(200);
         $response->assertSee('"@type": "Person"', false);

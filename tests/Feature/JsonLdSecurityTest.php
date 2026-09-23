@@ -26,7 +26,7 @@ class JsonLdSecurityTest extends TestCase
 
         $year = $sermon->date->format('Y');
         $month = $sermon->date->format('m');
-        $url = "/christ/sermons/{$year}/{$month}/{$sermon->slug}";
+        $url = "/christ/talks/{$year}/{$month}/{$sermon->slug}";
 
         $response = $this->get($url);
 
@@ -54,7 +54,7 @@ class JsonLdSecurityTest extends TestCase
 
         $year = $sermon->date->format('Y');
         $month = $sermon->date->format('m');
-        $url = "/christ/sermons/{$year}/{$month}/{$sermon->slug}";
+        $url = "/christ/talks/{$year}/{$month}/{$sermon->slug}";
 
         $response = $this->get($url);
 

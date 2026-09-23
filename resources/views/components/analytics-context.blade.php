@@ -17,8 +17,6 @@
 ])
 
 @php
-    $isChildrensTalk = $sermon->content_type === \App\Enums\TalkType::ChildrensTalk;
-
     $preacher = filled($preacherName) ? $preacherName : $sermon->preacher;
 
     $service = $serviceLabel;
@@ -28,7 +26,7 @@
             : \Illuminate\Support\Str::title((string) $sermon->service);
     }
 
-    $contentGroup = $isChildrensTalk ? "Children's Corner" : 'Sermons';
+    $contentGroup = $sermon->content_type?->pluralLabel() ?? 'Sermons';
 @endphp
 
 <div

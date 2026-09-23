@@ -30,13 +30,13 @@ class RichArticleMetadataTest extends TestCase
             'series' => 'Test Series',
         ]);
 
-        $response = $this->get('/christ/sermons/2025/03/test-sermon');
+        $response = $this->get('/christ/talks/2025/03/test-sermon');
 
         $response->assertStatus(200);
 
         // Check Open Graph Article Metadata
         $response->assertSee('<meta property="og:type" content="article">', false);
-        $response->assertSee('<meta property="article:author" content="http://localhost/christ/sermons/preachers/john-doe">', false);
+        $response->assertSee('<meta property="article:author" content="http://localhost/christ/talks/preachers/john-doe">', false);
         $response->assertSee('<meta property="article:published_time" content="2025-03-15T00:00:00+00:00">', false);
         $response->assertSee('<meta property="article:section" content="Sermons">', false);
         $response->assertSee('<meta property="article:tag" content="Test Series">', false);

@@ -20,7 +20,7 @@ class PublicPagesTest extends DuskTestCase
         $sermon = Sermon::factory()->create(['title' => 'A Dusk Test Sermon']);
 
         $this->browse(function (Browser $browser) use ($sermon) {
-            $browser->visit('/christ/sermons')
+            $browser->visit('/christ/talks')
                 ->assertSee($sermon->title);
         });
     }
@@ -34,7 +34,7 @@ class PublicPagesTest extends DuskTestCase
         ]);
 
         $this->browse(function (Browser $browser) use ($sermon) {
-            $browser->visit('/christ/sermons/'.$sermon->slug)
+            $browser->visit('/christ/talks/'.$sermon->slug)
                 ->assertSee($sermon->title)
                 ->assertSee($sermon->reference);
         });
@@ -65,9 +65,9 @@ class PublicPagesTest extends DuskTestCase
 
         $this->browse(function (Browser $browser) {
             $browser->visit('/')
-                ->tap(fn ($b) => $b->script("document.querySelector('a[href=\"/christ/sermons/evening\"]').click()"))
-                ->waitForLocation('/christ/sermons/evening')
-                ->assertPathIs('/christ/sermons/evening');
+                ->tap(fn ($b) => $b->script("document.querySelector('a[href$=\"/christ/talks/evening\"]').click()"))
+                ->waitForLocation('/christ/talks/evening')
+                ->assertPathIs('/christ/talks/evening');
         });
     }
 

@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace App\View\Components\Layout;
 
-use App\Enums\TalkType;
 use App\Models\Page;
 use App\Models\User;
-use App\Services\Sermon\SermonExposurePolicy;
 use Closure;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
@@ -24,12 +22,10 @@ class Header extends Component
     /** @var Collection<int, Page> */
     public Collection $pages;
 
-    public bool $canAccessChildrensCorner;
-
     /**
      * The nav_pages fetch is the one sanctioned shell-component exception to the props convention.
      */
-    public function __construct(SermonExposurePolicy $exposurePolicy)
+    public function __construct()
     {
         /** @var ?User $user */
         $user = Auth::user();
@@ -43,7 +39,6 @@ class Header extends Component
                 ->select(['id', 'slug', 'heading', 'area'])
                 ->get(),
         );
-        $this->canAccessChildrensCorner = $exposurePolicy->canAccessType(TalkType::ChildrensTalk, $user);
     }
 
     public function render(): View|Closure|string

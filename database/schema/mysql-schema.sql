@@ -1165,7 +1165,7 @@ CREATE TABLE `sermons` (
   `livestream_processing_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `date` date NOT NULL,
   `service` enum('morning','evening','other') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `content_type` enum('sermon','childrens_talk','partner_update','testimony') COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'sermon',
+  `content_type` enum('sermon','childrens_talk','partner_update','testimony') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'sermon',
   `publication_state` varchar(24) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'published',
   `asset_disk` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `historic_import_operation_id` bigint unsigned DEFAULT NULL,
@@ -1848,3 +1848,4 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_02_184415_drop_
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_03_104053_add_occasion_to_church_services_table',99);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_18_111240_drop_alternative_title_from_songs_table',100);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_23_205555_widen_sermons_content_type_to_talk_types',100);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_23_212016_rename_sermons_nav_page_to_talks',101);

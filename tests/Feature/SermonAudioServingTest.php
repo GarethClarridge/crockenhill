@@ -40,7 +40,7 @@ class SermonAudioServingTest extends TestCase
         // Create a fake audio file
         Storage::disk('public')->put('sermons/test.mp3', 'fake audio content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
+        $response = $this->get("/christ/talks/{$sermon->slug}/audio");
 
         $response->assertRedirect(app(SermonStorageService::class)->getPublicUrl($sermon));
     }
@@ -54,7 +54,7 @@ class SermonAudioServingTest extends TestCase
             'audio_file_path' => null,
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
+        $response = $this->get("/christ/talks/{$sermon->slug}/audio");
 
         $response->assertStatus(404);
     }
@@ -68,7 +68,7 @@ class SermonAudioServingTest extends TestCase
             'audio_file_path' => 'sermons/nonexistent.mp3',
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
+        $response = $this->get("/christ/talks/{$sermon->slug}/audio");
 
         $response->assertStatus(404);
     }
@@ -88,7 +88,7 @@ class SermonAudioServingTest extends TestCase
         // Create a fake audio file on do_spaces
         Storage::disk('do_spaces')->put('sermons/cdn-test.mp3', 'fake audio content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
+        $response = $this->get("/christ/talks/{$sermon->slug}/audio");
 
         $response->assertRedirect(app(SermonStorageService::class)->getPublicUrl($sermon));
     }
@@ -108,7 +108,7 @@ class SermonAudioServingTest extends TestCase
         // Create a fake audio file on do_spaces
         Storage::disk('do_spaces')->put('sermons/direct-test.mp3', 'fake audio content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/audio");
+        $response = $this->get("/christ/talks/{$sermon->slug}/audio");
 
         $response->assertRedirect(app(SermonStorageService::class)->getPublicUrl($sermon));
     }

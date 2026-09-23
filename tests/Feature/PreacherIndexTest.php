@@ -21,7 +21,7 @@ class PreacherIndexTest extends TestCase
         Preacher::factory()->create(['name' => 'Active Preacher', 'is_active' => true]);
         Preacher::factory()->create(['name' => 'Inactive Preacher', 'is_active' => false]);
 
-        $response = $this->get('/christ/sermons/preachers');
+        $response = $this->get('/christ/talks/preachers');
 
         $response->assertOk();
         $response->assertSee('Active Preacher');
@@ -42,7 +42,7 @@ class PreacherIndexTest extends TestCase
         Sermon::factory()->create(['preacher_id' => $preacherA->id]);
         Sermon::factory()->create(['preacher_id' => $preacherC->id]);
 
-        $response = $this->get('/christ/sermons/preachers');
+        $response = $this->get('/christ/talks/preachers');
 
         $response->assertOk();
         $response->assertSeeInOrder([
@@ -63,7 +63,7 @@ class PreacherIndexTest extends TestCase
             'body' => 'This is the special preachers intro content.',
         ]);
 
-        $response = $this->get('/christ/sermons/preachers');
+        $response = $this->get('/christ/talks/preachers');
 
         $response->assertOk();
         $response->assertSee('This is the special preachers intro content.');
@@ -75,7 +75,7 @@ class PreacherIndexTest extends TestCase
         $preacher = Preacher::factory()->create(['name' => 'Counting Preacher', 'is_active' => true]);
         Sermon::factory()->count(13)->create(['preacher_id' => $preacher->id]);
 
-        $response = $this->get('/christ/sermons/preachers');
+        $response = $this->get('/christ/talks/preachers');
 
         $response->assertOk();
         $response->assertSeeInOrder([

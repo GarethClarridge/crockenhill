@@ -66,12 +66,12 @@ class SitemapTest extends TestCase
         $this->assertStringContainsString('<loc>http://localhost/church</loc>', $content);
         $this->assertStringContainsString('<loc>http://localhost/community</loc>', $content);
         $this->assertStringContainsString('<loc>http://localhost/calendar</loc>', $content);
-        $this->assertStringContainsString('<loc>http://localhost/christ/sermons</loc>', $content);
-        $this->assertStringNotContainsString('<loc>http://localhost/christ/sermons/all</loc>', $content);
-        $this->assertStringContainsString('<loc>http://localhost/christ/sermons/preachers</loc>', $content);
-        $this->assertStringContainsString('<loc>http://localhost/christ/sermons/series</loc>', $content);
-        $this->assertStringContainsString('<loc>http://localhost/christ/sermons/morning</loc>', $content);
-        $this->assertStringContainsString('<loc>http://localhost/christ/sermons/evening</loc>', $content);
+        $this->assertStringContainsString('<loc>http://localhost/christ/talks</loc>', $content);
+        $this->assertStringNotContainsString('<loc>http://localhost/christ/talks/all</loc>', $content);
+        $this->assertStringContainsString('<loc>http://localhost/christ/talks/preachers</loc>', $content);
+        $this->assertStringContainsString('<loc>http://localhost/christ/talks/series</loc>', $content);
+        $this->assertStringContainsString('<loc>http://localhost/christ/talks/morning</loc>', $content);
+        $this->assertStringContainsString('<loc>http://localhost/christ/talks/evening</loc>', $content);
     }
 
     #[Test]
@@ -87,7 +87,7 @@ class SitemapTest extends TestCase
 
         // Check for date-based URL format
         $this->assertStringContainsString(
-            '<loc>http://localhost/christ/sermons/2024/01/test-sermon</loc>',
+            '<loc>http://localhost/christ/talks/2024/01/test-sermon</loc>',
             $content
         );
     }
@@ -104,7 +104,7 @@ class SitemapTest extends TestCase
         $content = $response->getContent();
 
         $this->assertStringContainsString(
-            '<loc>http://localhost/christ/sermons/preachers/test-preacher</loc>',
+            '<loc>http://localhost/christ/talks/preachers/test-preacher</loc>',
             $content
         );
     }
@@ -120,7 +120,7 @@ class SitemapTest extends TestCase
         $content = $response->getContent();
 
         $this->assertStringContainsString(
-            '<loc>http://localhost/christ/sermons/series/test-series</loc>',
+            '<loc>http://localhost/christ/talks/series/test-series</loc>',
             $content
         );
     }
@@ -137,12 +137,12 @@ class SitemapTest extends TestCase
         $response = $this->get('/sitemap.xml');
         $content = $response->getContent();
 
-        $this->assertStringNotContainsString('/christ/childrens-corner', $content);
+        $this->assertStringNotContainsString('type=childrens_talk', $content);
         $this->assertStringNotContainsString('hidden-childrens-talk', $content);
     }
 
     #[Test]
-    public function sitemap_uses_childrens_corner_urls_when_public_release_is_enabled(): void
+    public function sitemap_lists_childrens_talks_on_the_talks_page_when_public_release_is_enabled(): void
     {
         config(['church.talks.public_types' => ['sermon', 'childrens_talk']]);
 
@@ -155,9 +155,9 @@ class SitemapTest extends TestCase
         $response = $this->get('/sitemap.xml');
         $content = $response->getContent();
 
-        $this->assertStringContainsString('<loc>http://localhost/christ/childrens-corner</loc>', $content);
-        $this->assertStringContainsString('<loc>http://localhost/christ/childrens-corner/public-childrens-talk</loc>', $content);
-        $this->assertStringNotContainsString('/christ/sermons/2026/02/public-childrens-talk', $content);
+        $this->assertStringContainsString('<loc>http://localhost/christ/talks?type=childrens_talk</loc>', $content);
+        $this->assertStringContainsString('<loc>http://localhost/christ/talks/2026/02/public-childrens-talk</loc>', $content);
+        $this->assertStringNotContainsString('/christ/childrens-corner', $content);
     }
 
     #[Test]
@@ -233,7 +233,7 @@ class SitemapTest extends TestCase
     #[Test]
     public function sitemap_does_not_duplicate_the_christ_sermons_index_page(): void
     {
-        // /christ/sermons is the canonical sermons index, emitted by addStaticUrls()
+        // /christ/talks is the canonical sermons index, emitted by addStaticUrls()
         // via route('sermons.index'). It also exists as a public Page (area christ,
         // slug sermons), so addPages() must suppress it to avoid a duplicate <loc>.
         // Guarantee the precondition explicitly rather than relying on $seed, which is
@@ -251,8 +251,8 @@ class SitemapTest extends TestCase
 
         $this->assertSame(
             1,
-            substr_count($content, '<loc>http://localhost/christ/sermons</loc>'),
-            'The canonical /christ/sermons index URL should appear exactly once in the sitemap.'
+            substr_count($content, '<loc>http://localhost/christ/talks</loc>'),
+            'The canonical /christ/talks index URL should appear exactly once in the sitemap.'
         );
     }
 

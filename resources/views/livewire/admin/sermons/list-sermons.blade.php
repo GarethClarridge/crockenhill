@@ -11,9 +11,13 @@
     </x-slot:actions>
 
     <x-slot:filters>
-        <x-admin.filter-bar loading-target="search, serviceFilter, preacherFilter, seriesFilter, hasVideoFilter, needsReviewFilter, last12Months, resetFilters">
+        <x-admin.filter-bar loading-target="search, typeFilter, serviceFilter, preacherFilter, seriesFilter, hasVideoFilter, needsReviewFilter, last12Months, resetFilters">
             <x-input placeholder="Search..." wire:model.live.debounce="search"
                 icon="magnifying-glass" clearable class="w-64" shortcut="slash" />
+
+            <x-select placeholder="Type" wire:model.live="typeFilter"
+                :options="collect($talkTypes)->map(fn($type) => ['id' => $type->value, 'name' => $type->label()])->toArray()"
+                class="w-40" />
 
             <x-select placeholder="Service" wire:model.live="serviceFilter"
                 :options="collect($services)->map(fn($s) => ['id' => $s->value, 'name' => $s->label()])->toArray()"
@@ -55,9 +59,7 @@
         <tbody class="bg-white divide-y divide-gray-200">
             @forelse($sermons as $sermon)
                 @php
-                    $publicUrl = $sermon->content_type === \App\Enums\TalkType::ChildrensTalk
-                        ? route('childrens-corner.show', ['sermon' => $sermon->slug])
-                        : route('sermons.show', ['sermon' => $sermon->slug]);
+                    $publicUrl = route('sermons.show', ['sermon' => $sermon->slug]);
                 @endphp
                 <tr wire:loading.class="opacity-50 pointer-events-none" wire:target="delete({{ $sermon->id }})" class="hover:bg-gray-50 {{ $sermon->needs_preacher_review ? 'border-l-4 border-amber-400 bg-amber-50/30' : '' }}">
                     {{-- Title --}}

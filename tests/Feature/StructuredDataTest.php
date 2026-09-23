@@ -36,13 +36,13 @@ class StructuredDataTest extends TestCase
         $year = $sermon->date->format('Y');
         $month = $sermon->date->format('m');
 
-        $response = $this->get("/christ/sermons/{$year}/{$month}/{$sermon->slug}");
+        $response = $this->get("/christ/talks/{$year}/{$month}/{$sermon->slug}");
 
         $response->assertStatus(200);
         $response->assertSee('"@type": "BreadcrumbList"', false);
         $response->assertSee('"name": "Home"', false);
         $response->assertSee('"name": "Christ"', false);
-        $response->assertSee('"name": "Sermons"', false);
+        $response->assertSee('"name": "Talks"', false);
         $response->assertSee('"name": "Breadcrumb Test Sermon"', false);
     }
 

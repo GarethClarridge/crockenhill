@@ -69,9 +69,7 @@
 
         @if($item['publication_status'] === ServiceSectionPublicationStatus::Published && $item['published_sermon'])
             @php
-                $publishedSermonUrl = $item['published_sermon']->content_type === TalkType::ChildrensTalk
-                    ? route('childrens-corner.show', ['sermon' => $item['published_sermon']->slug])
-                    : route('sermons.show', ['sermon' => $item['published_sermon']->slug]);
+                $publishedSermonUrl = route('sermons.show', ['sermon' => $item['published_sermon']->slug]);
             @endphp
             <a href="{{ $publishedSermonUrl }}" class="mt-1 inline-block text-xs text-cbc-teal no-underline hover:text-cbc-teal-dark" target="_blank">
                 View {{ strtolower($item['published_sermon']->content_type->label()) }} →

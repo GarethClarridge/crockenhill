@@ -137,6 +137,6 @@ class SermonSitemapPresenterTest extends TestCase
 
         $tag = $this->presenter->toSitemapTag($sermon);
 
-        $this->assertStringContainsString('/christ/sermons/2025/06/test-sermon', $tag->url);
+        $this->assertStringContainsString('/christ/talks/2025/06/test-sermon', $tag->url);
     }
 }

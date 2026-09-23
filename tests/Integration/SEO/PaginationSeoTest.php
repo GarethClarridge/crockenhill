@@ -19,7 +19,7 @@ class PaginationSeoTest extends TestCase
     {
         Sermon::factory()->count(30)->create();
 
-        $response = $this->get('/christ/sermons?page=2');
+        $response = $this->get('/christ/talks?page=2');
 
         $response->assertStatus(200);
         $response->assertSee('<title>Sermons (Page 2) | Crockenhill Baptist Church</title>', false);

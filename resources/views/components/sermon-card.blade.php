@@ -74,7 +74,7 @@
           {{ $serviceLabel }}
         </span>
         @if ($formattedDuration)
-          <span class="flex items-center text-xs font-medium text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100 ml-2" title="Sermon duration">
+          <span class="flex items-center text-xs font-medium text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100 ml-2" title="Duration">
             <x-heroicon-o-play-circle class="h-3.5 w-3.5 mr-1" aria-hidden="true" />
             <span class="sr-only">Duration: </span>
             {{ $formattedDuration }}
@@ -119,7 +119,7 @@
       tabindex="-1"
       aria-hidden="true"
   >
-      View Sermon
+      View {{ $sermon->content_type?->label() ?? 'Sermon' }}
   </x-button>
 
   <div class="relative z-20">

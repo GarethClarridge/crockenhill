@@ -37,7 +37,9 @@ class RouteCanaryRegistry
         $canaries = [
             // Static + listing pages: assert the shared layout actually rendered.
             new RouteCanary('/', 200, 1, self::HTML_MARKER),
-            new RouteCanary('/christ/sermons', 200, 1, self::HTML_MARKER),
+            new RouteCanary('/christ/talks', 200, 1, self::HTML_MARKER),
+            // The archive moved from /christ/sermons; the old path must keep redirecting.
+            new RouteCanary('/christ/sermons', 301, 1, ''),
             // XML sitemap exercises the complete public exposure query path.
             new RouteCanary('/sitemap.xml', 200, 1, '<urlset'),
             // The auth guard must redirect guests to login, not render or 500.
@@ -56,13 +58,13 @@ class RouteCanaryRegistry
             // The slug-only route is a legacy URL that 301-redirects to the
             // canonical date-based URL, so the render check targets the dated URL
             // and a separate canary guards that the redirect itself still works.
-            $canaries[] = new RouteCanary("/christ/sermons/{$sermon->date->format('Y/m')}/{$sermon->slug}", 200, 2, self::HTML_MARKER);
-            $canaries[] = new RouteCanary("/christ/sermons/{$sermon->slug}", 301, 1, '');
+            $canaries[] = new RouteCanary("/christ/talks/{$sermon->date->format('Y/m')}/{$sermon->slug}", 200, 2, self::HTML_MARKER);
+            $canaries[] = new RouteCanary("/christ/talks/{$sermon->slug}", 301, 1, '');
 
             $preacherSlug = $sermon->preacherProfile?->slug;
 
             if ($preacherSlug !== null && $preacherSlug !== '') {
-                $canaries[] = new RouteCanary("/christ/sermons/preachers/{$preacherSlug}", 200, 1, self::HTML_MARKER);
+                $canaries[] = new RouteCanary("/christ/talks/preachers/{$preacherSlug}", 200, 1, self::HTML_MARKER);
             }
         }
 

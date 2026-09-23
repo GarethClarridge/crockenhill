@@ -38,7 +38,7 @@ class StandardProcessingResponseTest extends TestCase
             progressPercentage: 70,
             errorMessage: null,
             sermonId: 42,
-            sermonUrl: '/christ/sermons/test-sermon',
+            sermonUrl: '/christ/talks/test-sermon',
             startedAt: $startedAt,
             updatedAt: $updatedAt,
             estimatedCompletion: '2026-01-15T10:10:00Z',
@@ -52,7 +52,7 @@ class StandardProcessingResponseTest extends TestCase
         $this->assertEquals(70, $response->progressPercentage);
         $this->assertNull($response->errorMessage);
         $this->assertEquals(42, $response->sermonId);
-        $this->assertEquals('/christ/sermons/test-sermon', $response->sermonUrl);
+        $this->assertEquals('/christ/talks/test-sermon', $response->sermonUrl);
         $this->assertEquals($startedAt, $response->startedAt);
         $this->assertEquals($updatedAt, $response->updatedAt);
         $this->assertEquals('2026-01-15T10:10:00Z', $response->estimatedCompletion);
@@ -260,14 +260,14 @@ class StandardProcessingResponseTest extends TestCase
             status: 'failed',
             errorMessage: 'Transcription timed out',
             sermonId: 7,
-            sermonUrl: '/christ/sermons/sunday',
+            sermonUrl: '/christ/talks/sunday',
             estimatedCompletion: '2026-01-15T10:10:00Z',
             additionalData: ['segments_count' => 3],
         )->toArray();
 
         $this->assertEquals('Transcription timed out', $array['error_message']);
         $this->assertEquals(7, $array['sermon_id']);
-        $this->assertEquals('/christ/sermons/sunday', $array['sermon_url']);
+        $this->assertEquals('/christ/talks/sunday', $array['sermon_url']);
         $this->assertEquals('2026-01-15T10:10:00Z', $array['estimated_completion']);
         $this->assertEquals(3, $array['segments_count']); // merged from additionalData
     }

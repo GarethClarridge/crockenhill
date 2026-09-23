@@ -34,7 +34,7 @@ class SermonListingCacheTest extends TestCase
     public function series_page_caches_sermons(): void
     {
         Sermon::factory()->create(['series' => 'Genesis']);
-        $url = '/christ/sermons/series/genesis';
+        $url = '/christ/talks/series/genesis';
 
         $this->get($url)->assertOk();
 
@@ -52,7 +52,7 @@ class SermonListingCacheTest extends TestCase
     public function service_page_caches_sermons(): void
     {
         Sermon::factory()->create(['service' => 'morning']);
-        $url = '/christ/sermons/morning';
+        $url = '/christ/talks/morning';
 
         $this->get($url)->assertOk();
 

@@ -44,10 +44,10 @@ class SentinelSecurityTest extends TestCase
         $sermon = Sermon::factory()->create(['date' => now()]);
 
         // Legacy /edit route is fully removed — no route matches, returns 404
-        $response = $this->actingAs($user)->get("/christ/sermons/{$sermon->slug}/edit");
+        $response = $this->actingAs($user)->get("/christ/talks/{$sermon->slug}/edit");
         $response->assertStatus(404);
 
-        $response = $this->actingAs($user)->post("/christ/sermons/{$sermon->slug}/edit", []);
+        $response = $this->actingAs($user)->post("/christ/talks/{$sermon->slug}/edit", []);
         $response->assertStatus(404);
 
         // The canonical admin edit route still enforces admin access

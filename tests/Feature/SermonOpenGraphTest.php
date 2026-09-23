@@ -37,7 +37,7 @@ class SermonOpenGraphTest extends TestCase
             'thumbnail_generated_at' => now(),
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->date->year}/{$sermon->date->format('m')}/{$sermon->slug}");
+        $response = $this->get("/christ/talks/{$sermon->date->year}/{$sermon->date->format('m')}/{$sermon->slug}");
 
         $response->assertStatus(200);
         $response->assertSee('<meta property="og:title" content="Test Sermon Title | John Smith | Crockenhill Baptist Church">', false);
@@ -60,7 +60,7 @@ class SermonOpenGraphTest extends TestCase
             'thumbnail_file_path' => null,
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->date->year}/{$sermon->date->format('m')}/{$sermon->slug}");
+        $response = $this->get("/christ/talks/{$sermon->date->year}/{$sermon->date->format('m')}/{$sermon->slug}");
 
         $response->assertStatus(200);
         $response->assertSee('<meta property="og:image"', false);

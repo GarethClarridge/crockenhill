@@ -323,6 +323,13 @@ The section-published upsert keys on `published_sermon_id`, then falls back to
 `EnsureChildrensCornerAccess` and the Children's Corner route branching survive until PR2,
 calling `canAccessType(TalkType::ChildrensTalk, …)`.
 
+**PR2 landed 2026-09-23.** Departures from §4.4, each deliberate: the nav page rename is a
+data migration (`rename_sermons_nav_page_to_talks`), not a hand step; for a non-sermon type the
+whole filter drawer hides rather than relabelling Preacher → Speaker, because the preacher list
+is sermon preachers only; the breadcrumb reads "Talks"; `/christ/childrens-corner/{slug}` 404s
+for a sermon slug, as it did. `PROD-ACTIONS-PENDING` §6 (podcast directories) and §7 (nav
+heading image check).
+
 PR2 and PR3 are independent of each other and can proceed in parallel after PR1. Nothing here
 is a calendar gate (`feedback_no_calendar_time_gates`).
 

@@ -87,7 +87,7 @@
                                 </span>
                                 <div class="min-w-0 flex-1 space-y-3">
                                     <div class="flex flex-wrap items-center gap-2">
-                                        @if ($item['kind'] === 'sermon' || $item['kind'] === 'childrens_talk')
+                                        @if (in_array($item['kind'], ['sermon', 'talk'], true))
                                             @php($sermonView = $item['sermon_view'])
                                             <a
                                                 href="{{ $sermonView['canonical_url'] }}"
@@ -113,13 +113,9 @@
                                         @endif
                                     </div>
 
-                                    @if ($item['kind'] === 'sermon' || $item['kind'] === 'childrens_talk')
+                                    @if (in_array($item['kind'], ['sermon', 'talk'], true))
                                         <div class="flex flex-wrap gap-2 text-sm text-gray-600">
-                                            @if ($item['kind'] === 'childrens_talk')
-                                                <span>Children's talk</span>
-                                            @else
-                                                <span>Sermon</span>
-                                            @endif
+                                            <span>{{ $item['talk_label'] }}</span>
                                             @if (filled($sermonView['display_reference']))
                                                 <span aria-hidden="true">·</span>
                                                 <span>{{ $sermonView['display_reference'] }}</span>

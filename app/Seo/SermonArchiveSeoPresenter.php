@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Seo;
 
 use App\Enums\SermonService;
+use App\Enums\TalkType;
 use App\Models\Preacher;
 use App\Services\Public\PreacherListCache;
 use Illuminate\Support\Str;
@@ -25,11 +26,11 @@ class SermonArchiveSeoPresenter
      *
      * @param  array{book: string|null, chapter: int|null, preacherId: int|null, series: string|null}  $filters
      */
-    public function title(array $filters, int $page = 1): string
+    public function title(array $filters, int $page = 1, TalkType $type = TalkType::Sermon): string
     {
-        $base = 'Sermons';
+        $base = $type->pluralLabel();
 
-        if (array_filter($filters)) {
+        if ($type->isSermon() && array_filter($filters)) {
             $parts = [];
 
             if ($filters['book']) {
@@ -62,9 +63,11 @@ class SermonArchiveSeoPresenter
      *
      * @param  array{book: string|null, chapter: int|null, preacherId: int|null, series: string|null}  $filters
      */
-    public function description(array $filters, int $page = 1): string
+    public function description(array $filters, int $page = 1, TalkType $type = TalkType::Sermon): string
     {
-        if (! array_filter($filters)) {
+        if (! $type->isSermon()) {
+            $desc = 'Watch or listen to '.Str::lower($type->pluralLabel()).' from Sunday services at Crockenhill Baptist Church.';
+        } elseif (! array_filter($filters)) {
             $desc = 'Explore the sermon archive at Crockenhill Baptist Church. Watch or listen to Bible teaching from our Sunday services, filtered by scripture, preacher, or series.';
         } else {
             $parts = [];
@@ -100,9 +103,14 @@ class SermonArchiveSeoPresenter
      *
      * @param  array{book: string|null, chapter: int|null, preacherId: int|null, series: string|null}  $filters
      */
-    public function canonical(array $filters, int $page = 1): string
+    public function canonical(array $filters, int $page = 1, TalkType $type = TalkType::Sermon): string
     {
+        if (! $type->isSermon()) {
+            $filters = ['book' => null, 'chapter' => null, 'preacherId' => null, 'series' => null];
+        }
+
         $params = array_filter([
+            'type' => $type->isSermon() ? null : $type->value,
             'book' => $filters['book'],
             'chapter' => $filters['chapter'],
             'preacher' => $filters['preacherId'],

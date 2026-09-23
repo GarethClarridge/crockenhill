@@ -18,7 +18,7 @@
     if (! is_string($pageUrl) || $pageUrl === '') {
         $pageUrl = match (true) {
             $pageArea === 'sermons' && $pageSlug === 'all' => route('sermons.index'),
-            $pageArea === 'sermons' => '/christ/sermons/'.$pageSlug,
+            $pageArea === 'sermons' => url('christ/talks/'.$pageSlug),
             default => '/'.$pageArea.'/'.$pageSlug,
         };
     }

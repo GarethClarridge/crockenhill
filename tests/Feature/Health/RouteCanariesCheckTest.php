@@ -45,6 +45,7 @@ class RouteCanariesCheckTest extends TestCase
         // catch-all must stay last because Http::fake uses the first match.
         $stubs = array_merge([
             '*/sitemap.xml' => Http::response('<urlset></urlset>', 200),
+            '*/christ/sermons' => Http::response('', 301),
             '*/church/members' => Http::response('', 302),
         ], $overrides);
 

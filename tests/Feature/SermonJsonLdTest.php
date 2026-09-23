@@ -42,7 +42,7 @@ class SermonJsonLdTest extends TestCase
             'video_file_path' => 'video/test.mp4',
         ]);
 
-        $response = $this->get("/christ/sermons/2024/03/{$sermon->slug}");
+        $response = $this->get("/christ/talks/2024/03/{$sermon->slug}");
 
         $response->assertStatus(200);
         $response->assertSee('<script type="application/ld+json">', false);
@@ -94,7 +94,7 @@ class SermonJsonLdTest extends TestCase
             'video_file_path' => null,
         ]);
 
-        $response = $this->get("/christ/sermons/2024/03/{$sermon->slug}");
+        $response = $this->get("/christ/talks/2024/03/{$sermon->slug}");
 
         $response->assertStatus(200);
 
@@ -118,7 +118,7 @@ class SermonJsonLdTest extends TestCase
             'show_summary' => false,
         ]);
 
-        $response = $this->get("/christ/sermons/2024/03/{$sermon->slug}");
+        $response = $this->get("/christ/talks/2024/03/{$sermon->slug}");
 
         $response->assertStatus(200);
         $response->assertSee('<meta name="description"', false);

@@ -24,22 +24,22 @@ class SermonBrowseSeoTest extends TestCase
 
     public function test_unfiltered_archive_renders_presenter_seo_in_the_head(): void
     {
-        $response = $this->get('/christ/sermons');
+        $response = $this->get('/christ/talks');
 
         $response->assertStatus(200);
         $response->assertSee('<title>Sermons | Crockenhill Baptist Church</title>', false);
         $response->assertSee('<meta name="description" content="Explore the sermon archive at Crockenhill Baptist Church. Watch or listen to Bible teaching from our Sunday services, filtered by scripture, preacher, or series.">', false);
-        $response->assertSee('<link rel="canonical" href="http://localhost/christ/sermons">', false);
+        $response->assertSee('<link rel="canonical" href="http://localhost/christ/talks">', false);
     }
 
     public function test_filtered_archive_renders_dynamic_presenter_seo_in_the_head(): void
     {
-        $response = $this->get('/christ/sermons?book=John&chapter=3');
+        $response = $this->get('/christ/talks?book=John&chapter=3');
 
         $response->assertStatus(200);
         $response->assertSee('<title>John 3 | Sermons | Crockenhill Baptist Church</title>', false);
         $response->assertSee('<meta name="description" content="Watch or listen to Bible-based sermons on John 3 from Crockenhill Baptist Church. Explore recent teaching from our morning and evening services.">', false);
-        $response->assertSee('<link rel="canonical" href="http://localhost/christ/sermons?book=John&amp;chapter=3">', false);
+        $response->assertSee('<link rel="canonical" href="http://localhost/christ/talks?book=John&amp;chapter=3">', false);
     }
 
     public function test_individual_sermon_page_renders_canonical_and_title_in_the_head(): void
@@ -51,7 +51,7 @@ class SermonBrowseSeoTest extends TestCase
             'date' => '2024-03-20',
         ]);
 
-        $canonicalUrl = url('/christ/sermons/2024/03/the-glory-of-christ');
+        $canonicalUrl = url('/christ/talks/2024/03/the-glory-of-christ');
         $response = $this->get($canonicalUrl);
 
         $response->assertStatus(200);

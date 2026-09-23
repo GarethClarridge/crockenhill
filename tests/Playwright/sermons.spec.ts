@@ -1,17 +1,17 @@
 import { test, expect } from './fixtures/visual';
 
 test('sermons index', async ({ stablePage }) => {
-  await stablePage.goto('/christ/sermons');
+  await stablePage.goto('/christ/talks');
   await expect(stablePage).toHaveScreenshot('sermons-index.png', {
     fullPage: true,
   });
 });
 
 test('sermon detail', async ({ stablePage }) => {
-  await stablePage.goto('/christ/sermons');
+  await stablePage.goto('/christ/talks');
 
   const firstSermonLink = stablePage
-    .locator('a[href*="/christ/sermons/"][href*="/20"]')
+    .locator('a[href*="/christ/talks/"][href*="/20"]')
     .first();
 
   const href = await firstSermonLink.getAttribute('href');

@@ -38,7 +38,7 @@ class SermonControllerTest extends TestCase
     #[Test]
     public function sermon_index_returns_200(): void
     {
-        $response = $this->get('/christ/sermons');
+        $response = $this->get('/christ/talks');
         $response->assertStatus(200);
     }
 
@@ -51,7 +51,7 @@ class SermonControllerTest extends TestCase
             'content_type' => TalkType::Sermon,
         ]);
 
-        $response = $this->get('/christ/sermons');
+        $response = $this->get('/christ/talks');
         $response->assertStatus(200);
         $response->assertSee('Grace Alone');
     }
@@ -61,16 +61,16 @@ class SermonControllerTest extends TestCase
     #[Test]
     public function sermon_all_redirects_to_the_canonical_archive(): void
     {
-        $response = $this->get('/christ/sermons/all');
-        $response->assertRedirect('/christ/sermons');
+        $response = $this->get('/christ/talks/all');
+        $response->assertRedirect('/christ/talks');
         $response->assertStatus(301);
     }
 
     #[Test]
     public function sermon_all_redirect_preserves_the_query_string(): void
     {
-        $response = $this->get('/christ/sermons/all?book=John&chapter=3&page=2');
-        $response->assertRedirect('/christ/sermons?book=John&chapter=3&page=2');
+        $response = $this->get('/christ/talks/all?book=John&chapter=3&page=2');
+        $response->assertRedirect('/christ/talks?book=John&chapter=3&page=2');
         $response->assertStatus(301);
     }
 
@@ -85,7 +85,7 @@ class SermonControllerTest extends TestCase
             'content_type' => TalkType::Sermon,
         ]);
 
-        $response = $this->get('/christ/sermons/2024/03/faith-in-action');
+        $response = $this->get('/christ/talks/2024/03/faith-in-action');
         $response->assertStatus(200);
         $response->assertSee($sermon->title);
     }
@@ -99,7 +99,7 @@ class SermonControllerTest extends TestCase
             'content_type' => TalkType::Sermon,
         ]);
 
-        $response = $this->get('/christ/sermons/2023/03/wrong-year-sermon');
+        $response = $this->get('/christ/talks/2023/03/wrong-year-sermon');
         $response->assertStatus(404);
     }
 
@@ -112,14 +112,14 @@ class SermonControllerTest extends TestCase
             'content_type' => TalkType::Sermon,
         ]);
 
-        $response = $this->get('/christ/sermons/2024/05/wrong-month-sermon');
+        $response = $this->get('/christ/talks/2024/05/wrong-month-sermon');
         $response->assertStatus(404);
     }
 
     #[Test]
     public function dated_route_returns_404_for_nonexistent_slug(): void
     {
-        $response = $this->get('/christ/sermons/2024/03/no-such-sermon');
+        $response = $this->get('/christ/talks/2024/03/no-such-sermon');
         $response->assertStatus(404);
     }
 
@@ -134,22 +134,25 @@ class SermonControllerTest extends TestCase
             'content_type' => TalkType::Sermon,
         ]);
 
-        $response = $this->get('/christ/sermons/redirect-me');
-        $response->assertRedirect('/christ/sermons/2024/06/redirect-me');
+        $response = $this->get('/christ/talks/redirect-me');
+        $response->assertRedirect('/christ/talks/2024/06/redirect-me');
     }
 
     #[Test]
-    public function slug_only_route_returns_404_for_non_public_childrens_talk(): void
+    public function slug_only_route_sends_a_members_only_talk_to_its_gated_dated_url(): void
     {
         config(['church.talks.public_types' => ['sermon']]);
 
         Sermon::factory()->create([
             'slug' => 'hidden-childrens-talk',
+            'date' => '2026-02-15',
             'content_type' => TalkType::ChildrensTalk,
         ]);
 
-        $response = $this->get('/christ/sermons/hidden-childrens-talk');
-        $response->assertStatus(404);
+        $this->get('/christ/talks/hidden-childrens-talk')
+            ->assertRedirect('/christ/talks/2026/02/hidden-childrens-talk');
+        $this->get('/christ/talks/2026/02/hidden-childrens-talk')
+            ->assertRedirect(route('login'));
     }
 
     // ── preachers ──────────────────────────────────────────────────────────
@@ -157,7 +160,7 @@ class SermonControllerTest extends TestCase
     #[Test]
     public function preachers_index_returns_200(): void
     {
-        $response = $this->get('/christ/sermons/preachers');
+        $response = $this->get('/christ/talks/preachers');
         $response->assertStatus(200);
     }
 
@@ -175,7 +178,7 @@ class SermonControllerTest extends TestCase
             'content_type' => TalkType::Sermon,
         ]);
 
-        $response = $this->get('/christ/sermons/preachers/john-smith-feature-test');
+        $response = $this->get('/christ/talks/preachers/john-smith-feature-test');
         $response->assertStatus(200);
         $response->assertSee('John Smith Feature Test');
     }
@@ -183,7 +186,7 @@ class SermonControllerTest extends TestCase
     #[Test]
     public function preacher_page_returns_404_for_unknown_slug(): void
     {
-        $response = $this->get('/christ/sermons/preachers/nobody-here');
+        $response = $this->get('/christ/talks/preachers/nobody-here');
         $response->assertStatus(404);
     }
 
@@ -192,7 +195,7 @@ class SermonControllerTest extends TestCase
     #[Test]
     public function series_index_returns_200(): void
     {
-        $response = $this->get('/christ/sermons/series');
+        $response = $this->get('/christ/talks/series');
         $response->assertStatus(200);
     }
 
@@ -204,7 +207,7 @@ class SermonControllerTest extends TestCase
             'content_type' => TalkType::Sermon,
         ]);
 
-        $response = $this->get('/christ/sermons/series/life-of-david');
+        $response = $this->get('/christ/talks/series/life-of-david');
         $response->assertStatus(200);
         $response->assertSee('Life Of David');
     }
@@ -214,7 +217,7 @@ class SermonControllerTest extends TestCase
     #[Test]
     public function service_morning_returns_200(): void
     {
-        $response = $this->get('/christ/sermons/morning');
+        $response = $this->get('/christ/talks/morning');
         $response->assertStatus(200);
         $response->assertSee('Sunday Morning');
     }
@@ -222,7 +225,7 @@ class SermonControllerTest extends TestCase
     #[Test]
     public function service_evening_returns_200(): void
     {
-        $response = $this->get('/christ/sermons/evening');
+        $response = $this->get('/christ/talks/evening');
         $response->assertStatus(200);
         $response->assertSee('Sunday Evening');
     }

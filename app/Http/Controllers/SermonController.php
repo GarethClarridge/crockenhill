@@ -44,8 +44,15 @@ class SermonController extends Controller
      * The BrowseSermons Livewire component owns the paginated sermon query and filter
      * normalization. The controller renders the page shell and handles SEO metadata.
      */
-    public function index(Request $request, BibleCanon $bibleCanon): View
+    public function index(Request $request, BibleCanon $bibleCanon, SermonExposurePolicy $exposurePolicy): View|RedirectResponse
     {
+        $type = TalkType::tryFrom((string) $request->query('type', TalkType::Sermon->value));
+        abort_if($type === null, 404);
+
+        if (! $exposurePolicy->canAccessType($type, $request->user())) {
+            return redirect()->guest(route('login'));
+        }
+
         $filters = $bibleCanon->normalizeArchiveFilters(
             $request->query('book'),
             $request->query('chapter'),
@@ -56,12 +63,13 @@ class SermonController extends Controller
         $page = $request->integer('page', 1);
 
         return view('sermons.index', [
-            'heading' => $this->seoPresenter->title($filters, $page),
-            'description' => $this->seoPresenter->description($filters, $page),
-            'canonical_url' => $this->seoPresenter->canonical($filters, $page),
+            'heading' => $this->seoPresenter->title($filters, $page, $type),
+            'description' => $this->seoPresenter->description($filters, $page, $type),
+            'canonical_url' => $this->seoPresenter->canonical($filters, $page, $type),
+            'robots' => $exposurePolicy->isTypePublic($type) ? null : 'noindex',
             'area' => 'christ',
-            'links' => $this->sermonLinks('sermons'),
-            'slug' => 'sermons',
+            'links' => $this->sermonLinks('talks'),
+            'slug' => 'talks',
         ]);
     }
 
@@ -71,32 +79,14 @@ class SermonController extends Controller
     }
 
     /**
-     * Display the specified resource.
-     *
-     * The slug-only route is a legacy convenience URL. Regular sermons redirect
-     * 301 to the canonical date-based URL so all inbound links, HTML canonical
-     * tags, sitemap entries, and feed enclosures agree on one URL shape.
-     * Children's talks redirect to their dedicated URL only when public.
+     * The slug-only route is a legacy convenience URL: every talk redirects 301
+     * to its canonical date-based URL, which is where access is decided.
      */
-    public function show(
-        Sermon $sermon,
-        SermonPageContextService $pageContextService,
-        SermonExposurePolicy $exposurePolicy
-    ): View|RedirectResponse {
+    public function show(Sermon $sermon, SermonExposurePolicy $exposurePolicy): RedirectResponse
+    {
         abort_unless($exposurePolicy->isWholeContentPublic($sermon), 404);
 
-        // Children's talks: redirect to childrens-corner when public.
-        if ($exposurePolicy->shouldRedirectGenericSermonRoute($sermon)) {
-            return redirect()->to($exposurePolicy->canonicalUrl($sermon), 301);
-        }
-
-        // Regular sermons: always redirect slug-only route to canonical date-based URL.
-        if (! $exposurePolicy->isChildrensTalk($sermon)) {
-            return redirect()->to($exposurePolicy->canonicalUrl($sermon), 301);
-        }
-
-        // Non-public children's talks are not accessible via the public sermon route.
-        abort(404);
+        return redirect()->to($exposurePolicy->canonicalUrl($sermon), 301);
     }
 
     /**
@@ -104,8 +94,6 @@ class SermonController extends Controller
      */
     private function renderSermon(Sermon $sermon, SermonPageContextService $pageContextService): View
     {
-        abort_unless($sermon->content_type === TalkType::Sermon, 404);
-
         /**
          * Performance Optimization: Limits retrieved columns for related models to
          * required fields to reduce memory usage and DB I/O on the single sermon view.
@@ -288,16 +276,50 @@ class SermonController extends Controller
     ): View|RedirectResponse {
         abort_unless($exposurePolicy->isWholeContentPublic($sermon), 404);
 
-        // Children's talks have a dedicated URL shape — redirect when they are public.
-        if ($exposurePolicy->shouldRedirectGenericSermonRoute($sermon)) {
-            return redirect()->to($exposurePolicy->canonicalUrl($sermon), 301);
-        }
-
         if ($sermon->date->year !== $year || $sermon->date->month !== $month) {
             abort(404, 'Sermon not found for the specified date.');
         }
 
-        return $this->renderSermon($sermon, $pageContextService);
+        if (! $exposurePolicy->canAccessType($sermon->content_type, request()->user())) {
+            return redirect()->guest(route('login'));
+        }
+
+        if ($sermon->content_type->isSermon()) {
+            return $this->renderSermon($sermon, $pageContextService);
+        }
+
+        return $this->renderTalk($sermon, $exposurePolicy);
+    }
+
+    /**
+     * Render a non-sermon talk: the simple template with date, speaker and media.
+     */
+    private function renderTalk(Sermon $sermon, SermonExposurePolicy $exposurePolicy): View
+    {
+        /**
+         * Performance Optimization: Limits retrieved columns for related models to
+         * required fields to reduce memory usage and DB I/O on the single talk view.
+         */
+        $sermon->loadMissing([
+            'preacherProfile:id,name,slug,image_path',
+            'scripturePassage:id,display_reference,normalized_reference',
+        ]);
+
+        $sermonView = $this->sermonViewPresenter->present($sermon);
+        $speakerName = $sermonView['preacher_name'];
+
+        return view('sermons.talk', [
+            'heading' => $sermon->title,
+            'area' => 'christ',
+            'slug' => 'talks',
+            'links' => $this->sermonLinks($sermon->slug, ['homepage']),
+            'sermon' => $sermon,
+            'sermonView' => $sermonView,
+            'speakerName' => $speakerName,
+            'fullTitle' => $sermon->title.($speakerName ? ' | '.$speakerName : ''),
+            'metaDescription' => $this->sermonViewPresenter->metaDescription($sermon),
+            'robots' => $exposurePolicy->isTypePublic($sermon->content_type) ? null : 'noindex',
+        ]);
     }
 
     /**

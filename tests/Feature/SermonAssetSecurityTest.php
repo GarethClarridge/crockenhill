@@ -29,7 +29,7 @@ class SermonAssetSecurityTest extends TestCase
         ]);
         Storage::disk('public')->put('sermons/video.mp4', 'fake video');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/video");
+        $response = $this->get("/christ/talks/{$sermon->slug}/video");
 
         // Currently it might redirect (302) or return 200/302 depending on the bug.
         // It should probably return 404 or 403 if restricted.
@@ -49,7 +49,7 @@ class SermonAssetSecurityTest extends TestCase
         ]);
         Storage::disk('public')->put('sermons/video.mp4', 'fake video');
 
-        $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/video");
+        $response = $this->actingAs($admin)->get("/christ/talks/{$sermon->slug}/video");
 
         // Admins are allowed, so they should be redirected to the public URL for public assets
         $response->assertRedirect();
@@ -66,7 +66,7 @@ class SermonAssetSecurityTest extends TestCase
         ]);
         Storage::disk('public')->put('sermons/video.mp4', 'fake video');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/video");
+        $response = $this->get("/christ/talks/{$sermon->slug}/video");
 
         $response->assertStatus(404);
     }
@@ -87,7 +87,7 @@ class SermonAssetSecurityTest extends TestCase
         ]);
         Storage::disk('public')->put('thumbnails/thumb.webp', 'fake thumb');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/thumbnail");
+        $response = $this->get("/christ/talks/{$sermon->slug}/thumbnail");
 
         $response->assertStatus(404);
     }
@@ -108,7 +108,7 @@ class SermonAssetSecurityTest extends TestCase
         ]);
         Storage::disk('public')->put('thumbnails/thumb.webp', 'fake thumb');
 
-        $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/thumbnail");
+        $response = $this->actingAs($admin)->get("/christ/talks/{$sermon->slug}/thumbnail");
 
         $response->assertRedirect();
         $this->assertStringContainsString('thumbnails/thumb.webp', $response->headers->get('Location'));
@@ -134,10 +134,10 @@ class SermonAssetSecurityTest extends TestCase
         Storage::disk('local')->put('private/sermons/audio.mp3', 'fake audio');
         Storage::disk('local')->put('private/sermons/video.mp4', 'fake video');
 
-        $this->get("/christ/sermons/{$sermon->slug}/audio")->assertStatus(404);
-        $this->get("/christ/sermons/{$sermon->slug}/video")->assertStatus(404);
-        $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/audio")->assertStatus(404);
-        $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/video")->assertStatus(404);
+        $this->get("/christ/talks/{$sermon->slug}/audio")->assertStatus(404);
+        $this->get("/christ/talks/{$sermon->slug}/video")->assertStatus(404);
+        $this->actingAs($admin)->get("/christ/talks/{$sermon->slug}/audio")->assertStatus(404);
+        $this->actingAs($admin)->get("/christ/talks/{$sermon->slug}/video")->assertStatus(404);
     }
 
     #[Test]
@@ -153,7 +153,7 @@ class SermonAssetSecurityTest extends TestCase
         Storage::disk('public')->put('sermons/audio.mp3', 'fake audio');
         Storage::disk('public')->put('sermons/video.mp4', 'fake video');
 
-        $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/audio")->assertRedirect();
-        $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/video")->assertRedirect();
+        $this->actingAs($admin)->get("/christ/talks/{$sermon->slug}/audio")->assertRedirect();
+        $this->actingAs($admin)->get("/christ/talks/{$sermon->slug}/video")->assertRedirect();
     }
 }

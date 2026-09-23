@@ -120,7 +120,22 @@ class ListSermonsTest extends TestCase
             ->assertSee('Sermon')
             ->assertSee("Children's Talk")
             ->assertSee(route('sermons.show', ['sermon' => $sermon->slug]))
-            ->assertSee(route('childrens-corner.show', ['sermon' => $childrensTalk->slug]));
+            ->assertSee(route('sermons.show', ['sermon' => $childrensTalk->slug]));
+    }
+
+    #[Test]
+    public function it_filters_the_admin_listing_by_talk_type(): void
+    {
+        $this->actingAs($this->admin);
+
+        Sermon::factory()->create(['title' => 'Admin Sermon', 'content_type' => TalkType::Sermon]);
+        Sermon::factory()->create(['title' => 'Admin Testimony', 'content_type' => TalkType::Testimony]);
+
+        Livewire::test(ListSermons::class)
+            ->set('last12Months', false)
+            ->set('typeFilter', TalkType::Testimony->value)
+            ->assertSee('Admin Testimony')
+            ->assertDontSee('Admin Sermon');
     }
 
     // -------------------------------------------------------------------------

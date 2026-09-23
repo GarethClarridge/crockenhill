@@ -27,7 +27,7 @@ class SeriesItemListPresenterTest extends TestCase
 
         $item = $result['itemListElement'][0]['item'];
         $this->assertEquals('CreativeWorkSeries', $item['@type']);
-        $this->assertStringEndsWith('/christ/sermons/series/test-series#series', $item['@id']);
+        $this->assertStringEndsWith('/christ/talks/series/test-series#series', $item['@id']);
         $this->assertEquals('Test Series', $item['name']);
 
         $logoSize = getimagesize(public_path('images/Primary.png'));

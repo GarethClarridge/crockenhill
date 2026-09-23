@@ -25,8 +25,8 @@ class PageSeeder extends Seeder
             ],
             [
                 'id' => 58,
-                'slug' => 'sermons',
-                'heading' => 'Sermons',
+                'slug' => 'talks',
+                'heading' => 'Talks',
                 'description' => 'Recent sermons, mostly part of series working through books of the Bible .',
                 'area' => 'christ',
                 'body' => 'lorem ipsum',

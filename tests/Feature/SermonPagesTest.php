@@ -65,7 +65,7 @@ class SermonPagesTest extends TestCase
     #[Test]
     public function sermon_index_page_renders(): void
     {
-        $response = $this->get('/christ/sermons');
+        $response = $this->get('/christ/talks');
         $response->assertStatus(200);
         $response->assertSee('Morning Test Sermon');
         $response->assertSee('Evening Test Sermon');
@@ -79,7 +79,7 @@ class SermonPagesTest extends TestCase
     public function sermon_show_page_renders(): void
     {
         $sermon = Sermon::first();
-        $url = "/christ/sermons/{$sermon->slug}";
+        $url = "/christ/talks/{$sermon->slug}";
         $response = $this->followingRedirects()->get($url);
         $response->assertStatus(200);
         $response->assertSee($sermon->title);
@@ -101,7 +101,7 @@ class SermonPagesTest extends TestCase
 
         // The transcript is rendered (and sanitised) by the lazy-loaded transcript
         // endpoint, not inlined into the sermon page, so assert against that route.
-        $response = $this->get("/christ/sermons/{$sermon->slug}/transcript");
+        $response = $this->get("/christ/talks/{$sermon->slug}/transcript");
 
         $response->assertStatus(200);
         $response->assertSee('Safe transcript content.');
@@ -123,7 +123,7 @@ class SermonPagesTest extends TestCase
 
         // The transcript is rendered (and sanitised) by the lazy-loaded transcript
         // endpoint, not inlined into the sermon page, so assert against that route.
-        $response = $this->get("/christ/sermons/{$sermon->slug}/transcript");
+        $response = $this->get("/christ/talks/{$sermon->slug}/transcript");
 
         $response->assertStatus(200);
         $response->assertSee('Click me');
@@ -144,7 +144,7 @@ class SermonPagesTest extends TestCase
             'transcript_file_path' => 'transcripts/missing-transcript.md',
         ]);
 
-        $response = $this->followingRedirects()->get("/christ/sermons/{$sermon->slug}");
+        $response = $this->followingRedirects()->get("/christ/talks/{$sermon->slug}");
 
         $response->assertStatus(200);
         $response->assertDontSee('Automated transcript (may contain errors)');
@@ -153,15 +153,15 @@ class SermonPagesTest extends TestCase
     #[Test]
     public function sermon_all_page_redirects_to_the_canonical_archive(): void
     {
-        $response = $this->get('/christ/sermons/all');
-        $response->assertRedirect('/christ/sermons');
+        $response = $this->get('/christ/talks/all');
+        $response->assertRedirect('/christ/talks');
         $response->assertStatus(301);
     }
 
     #[Test]
     public function canonical_archive_renders_a_flat_sermon_cards_grid(): void
     {
-        $response = $this->get('/christ/sermons');
+        $response = $this->get('/christ/talks');
 
         $response->assertStatus(200);
         $response->assertSee('[grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),19rem))]');
@@ -178,7 +178,7 @@ class SermonPagesTest extends TestCase
             'preacher_id' => $preacher->id,
         ]);
 
-        $response = $this->get('/christ/sermons?preacher='.$preacher->id);
+        $response = $this->get('/christ/talks?preacher='.$preacher->id);
 
         $response->assertStatus(200);
         $response->assertSee('[grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),19rem))]');
@@ -189,7 +189,7 @@ class SermonPagesTest extends TestCase
     public function sermon_service_page_renders(): void
     {
         foreach (SermonService::cases() as $service) {
-            $response = $this->get("/christ/sermons/{$service->value}");
+            $response = $this->get("/christ/talks/{$service->value}");
             $response->assertStatus(200);
             $response->assertSee($service->label());
         }
@@ -201,7 +201,7 @@ class SermonPagesTest extends TestCase
         $preacher = Preacher::factory()->create(['name' => 'Test Preacher', 'slug' => 'test-preacher']);
         Sermon::factory()->create(['preacher' => 'Test Preacher', 'preacher_id' => $preacher->id]);
 
-        $response = $this->get('/christ/sermons/preachers/test-preacher');
+        $response = $this->get('/christ/talks/preachers/test-preacher');
         $response->assertStatus(200);
         $response->assertSee('Test Preacher');
     }
@@ -215,18 +215,18 @@ class SermonPagesTest extends TestCase
             'preacher_id' => $preacher->id,
         ]);
 
-        $response = $this->followingRedirects()->get("/christ/sermons/{$sermon->slug}");
+        $response = $this->followingRedirects()->get("/christ/talks/{$sermon->slug}");
 
         $response->assertStatus(200);
-        $response->assertSee('href="http://localhost/christ/sermons/preachers/test-preacher"', false);
-        $response->assertDontSee('/christ/sermons//christ/sermons/preachers/', false);
+        $response->assertSee('href="http://localhost/christ/talks/preachers/test-preacher"', false);
+        $response->assertDontSee('/christ/talks//christ/talks/preachers/', false);
     }
 
     #[Test]
     public function sermon_series_page_renders(): void
     {
         $sermon = Sermon::factory()->inSeries('Test Series')->create();
-        $response = $this->get('/christ/sermons/series/test-series');
+        $response = $this->get('/christ/talks/series/test-series');
         $response->assertStatus(200);
         $response->assertSee('Test Series');
     }
@@ -240,7 +240,7 @@ class SermonPagesTest extends TestCase
             'date' => '2024-03-15',
         ]);
 
-        $response = $this->get('/christ/sermons/2024/03/date-based-sermon');
+        $response = $this->get('/christ/talks/2024/03/date-based-sermon');
 
         $response->assertStatus(200);
         $response->assertSee('Date Based Sermon');
@@ -254,7 +254,7 @@ class SermonPagesTest extends TestCase
             'date' => '2024-03-15',
         ]);
 
-        $response = $this->get('/christ/sermons/2023/03/year-mismatch-sermon');
+        $response = $this->get('/christ/talks/2023/03/year-mismatch-sermon');
 
         $response->assertStatus(404);
     }
@@ -262,7 +262,7 @@ class SermonPagesTest extends TestCase
     #[Test]
     public function sermon_show_with_date_route_returns_404_when_sermon_is_missing(): void
     {
-        $response = $this->get('/christ/sermons/2024/03/non-existent-sermon');
+        $response = $this->get('/christ/talks/2024/03/non-existent-sermon');
 
         $response->assertStatus(404);
     }
@@ -275,7 +275,7 @@ class SermonPagesTest extends TestCase
             'date' => '2024-03-15',
         ]);
 
-        $response = $this->get('/christ/sermons/2024/04/month-mismatch-sermon');
+        $response = $this->get('/christ/talks/2024/04/month-mismatch-sermon');
 
         $response->assertStatus(404);
     }
@@ -286,7 +286,7 @@ class SermonPagesTest extends TestCase
         Preacher::factory()->create(['name' => 'John Owen', 'slug' => 'john-owen', 'is_active' => true]);
         Preacher::factory()->create(['name' => 'Charles Spurgeon', 'slug' => 'charles-spurgeon', 'is_active' => true]);
 
-        $response = $this->get('/christ/sermons/preachers');
+        $response = $this->get('/christ/talks/preachers');
 
         $response->assertStatus(200);
         $response->assertSee('Preachers');
@@ -323,7 +323,7 @@ class SermonPagesTest extends TestCase
             ],
         ]);
 
-        $response = $this->followingRedirects()->get("/christ/sermons/{$sermon->slug}");
+        $response = $this->followingRedirects()->get("/christ/talks/{$sermon->slug}");
 
         $response->assertStatus(200);
         $response->assertSee('Passage');
@@ -340,7 +340,7 @@ class SermonPagesTest extends TestCase
             'slug' => 'sermon-without-reading',
         ]);
 
-        $response = $this->followingRedirects()->get("/christ/sermons/{$sermon->slug}");
+        $response = $this->followingRedirects()->get("/christ/talks/{$sermon->slug}");
 
         $response->assertStatus(200);
         $response->assertDontSee('>Reading<', false);
@@ -370,26 +370,26 @@ class SermonPagesTest extends TestCase
             'content_type' => TalkType::ChildrensTalk,
         ]);
 
-        $this->get('/christ/sermons')
+        $this->get('/christ/talks')
             ->assertStatus(200)
             ->assertSee('Public Browse Sermon')
             ->assertDontSee("Hidden Children's Talk");
 
-        $this->get('/christ/sermons/all')
-            ->assertRedirect('/christ/sermons')
+        $this->get('/christ/talks/all')
+            ->assertRedirect('/christ/talks')
             ->assertStatus(301);
 
-        $this->get('/christ/sermons/morning')
+        $this->get('/christ/talks/morning')
             ->assertStatus(200)
             ->assertSee('Public Browse Sermon')
             ->assertDontSee("Hidden Children's Talk");
 
-        $this->get('/christ/sermons/preachers/browse-preacher')
+        $this->get('/christ/talks/preachers/browse-preacher')
             ->assertStatus(200)
             ->assertSee('Public Browse Sermon')
             ->assertDontSee("Hidden Children's Talk");
 
-        $this->get('/christ/sermons/series/browse-series')
+        $this->get('/christ/talks/series/browse-series')
             ->assertStatus(200)
             ->assertSee('Public Browse Sermon')
             ->assertDontSee("Hidden Children's Talk");
@@ -404,7 +404,7 @@ class SermonPagesTest extends TestCase
         // Warm the cache so the HTTP request exercises deserialization, not the DB path.
         app(PreacherListCache::class)->forPublicList();
 
-        $this->get('/christ/sermons')->assertStatus(200);
+        $this->get('/christ/talks')->assertStatus(200);
     }
 
     #[Test]
@@ -428,7 +428,7 @@ class SermonPagesTest extends TestCase
 
         $response = $this->actingAs($admin)
             ->followingRedirects()
-            ->get("/christ/sermons/{$sermon->slug}");
+            ->get("/christ/talks/{$sermon->slug}");
 
         $response->assertStatus(200);
         $response->assertSee('Livestream processing');
@@ -452,7 +452,7 @@ class SermonPagesTest extends TestCase
             'livestream_processing_id' => $processingLog->processing_id,
         ]);
 
-        $response = $this->followingRedirects()->get("/christ/sermons/{$sermon->slug}");
+        $response = $this->followingRedirects()->get("/christ/talks/{$sermon->slug}");
 
         $response->assertStatus(200);
         $response->assertDontSee('Livestream processing');

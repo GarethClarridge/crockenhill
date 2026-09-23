@@ -22,7 +22,7 @@ class PageCardPresenter
 
         $url = match (true) {
             $area === 'sermons' && $page->slug === 'all' => route('sermons.index'),
-            $area === 'sermons' => "/christ/sermons/{$page->slug}",
+            $area === 'sermons' => url('christ/talks/'.$page->slug),
             default => '/'.$area.'/'.$page->slug,
         };
 

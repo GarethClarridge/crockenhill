@@ -6,9 +6,9 @@
     $schema = [
         '@' . 'context' => 'https://schema.org',
         '@type' => 'Person',
-        '@id' => url("/christ/sermons/preachers/{$preacher->slug}").'#person',
+        '@id' => route('sermons.preacher', $preacher).'#person',
         'name' => $preacher->name,
-        'url' => url("/christ/sermons/preachers/{$preacher->slug}"),
+        'url' => route('sermons.preacher', $preacher),
         'inLanguage' => 'en-GB',
         'worksFor' => [
             '@type' => 'Organization',

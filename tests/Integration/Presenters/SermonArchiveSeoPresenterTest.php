@@ -190,7 +190,7 @@ class SermonArchiveSeoPresenterTest extends TestCase
             'series' => null,
         ];
 
-        $this->assertSame('http://localhost/christ/sermons', $this->presenter->canonical($filters));
+        $this->assertSame('http://localhost/christ/talks', $this->presenter->canonical($filters));
     }
 
     #[Test]
@@ -215,7 +215,7 @@ class SermonArchiveSeoPresenterTest extends TestCase
     {
         $filters = ['book' => null, 'chapter' => null, 'preacherId' => null, 'series' => null];
 
-        $this->assertSame('http://localhost/christ/sermons', $this->presenter->canonical($filters, 1));
+        $this->assertSame('http://localhost/christ/talks', $this->presenter->canonical($filters, 1));
         $this->assertStringContainsString('page=2', $this->presenter->canonical($filters, 2));
     }
 

@@ -38,7 +38,7 @@ class SermonVideoServingTest extends TestCase
 
         Storage::disk('public')->put('sermons/test.mp4', 'fake video content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/video");
+        $response = $this->get("/christ/talks/{$sermon->slug}/video");
 
         $expectedUrl = app(SermonStorageService::class)->getVideoDeliveryUrl($sermon);
         $response->assertRedirect($expectedUrl);
@@ -55,7 +55,7 @@ class SermonVideoServingTest extends TestCase
         Storage::disk('local')->put('private/sermons/test.mp4', 'fake private video content');
 
         $admin = User::factory()->crockenhillAdmin()->create();
-        $response = $this->actingAs($admin)->get("/christ/sermons/{$sermon->slug}/video");
+        $response = $this->actingAs($admin)->get("/christ/talks/{$sermon->slug}/video");
 
         // The route resolves against the sermon disk only; nothing streams from
         // the local disk any more, so a legacy path is unreachable even for admins.
@@ -70,7 +70,7 @@ class SermonVideoServingTest extends TestCase
             'video_file_path' => null,
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/video");
+        $response = $this->get("/christ/talks/{$sermon->slug}/video");
 
         $response->assertStatus(404);
     }
@@ -85,7 +85,7 @@ class SermonVideoServingTest extends TestCase
 
         // We don't put the file on disk
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/video");
+        $response = $this->get("/christ/talks/{$sermon->slug}/video");
 
         $response->assertStatus(404);
     }
@@ -98,7 +98,7 @@ class SermonVideoServingTest extends TestCase
             'video_file_path' => '../secret.mp4',
         ]);
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/video");
+        $response = $this->get("/christ/talks/{$sermon->slug}/video");
 
         $response->assertStatus(404);
     }
@@ -116,7 +116,7 @@ class SermonVideoServingTest extends TestCase
 
         Storage::disk('public')->put('sermons/kids.mp4', 'fake content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/video");
+        $response = $this->get("/christ/talks/{$sermon->slug}/video");
 
         $response->assertRedirect(route('login'));
     }
@@ -135,7 +135,7 @@ class SermonVideoServingTest extends TestCase
 
         Storage::disk('public')->put('sermons/kids.mp4', 'fake content');
 
-        $response = $this->actingAs($user)->get("/christ/sermons/{$sermon->slug}/video");
+        $response = $this->actingAs($user)->get("/christ/talks/{$sermon->slug}/video");
 
         $expectedUrl = app(SermonStorageService::class)->getVideoDeliveryUrl($sermon);
         $response->assertRedirect($expectedUrl);
@@ -155,7 +155,7 @@ class SermonVideoServingTest extends TestCase
 
         Storage::disk('public')->put('sermons/kids.mp4', 'fake content');
 
-        $response = $this->actingAs($user)->get("/christ/sermons/{$sermon->slug}/video");
+        $response = $this->actingAs($user)->get("/christ/talks/{$sermon->slug}/video");
 
         $response->assertRedirect(route('login'));
     }
@@ -173,7 +173,7 @@ class SermonVideoServingTest extends TestCase
 
         Storage::disk('public')->put('sermons/kids.mp4', 'fake content');
 
-        $response = $this->get("/christ/sermons/{$sermon->slug}/video");
+        $response = $this->get("/christ/talks/{$sermon->slug}/video");
 
         $expectedUrl = app(SermonStorageService::class)->getVideoDeliveryUrl($sermon);
         $response->assertRedirect($expectedUrl);

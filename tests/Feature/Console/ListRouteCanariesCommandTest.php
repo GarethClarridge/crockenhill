@@ -26,7 +26,7 @@ class ListRouteCanariesCommandTest extends TestCase
 
         // url <TAB> expected status <TAB> hits <TAB> body marker
         $this->assertStringContainsString("/\t200\t1\tCrockenhill", $output);
-        $this->assertStringContainsString("/christ/sermons\t200\t1\tCrockenhill", $output);
+        $this->assertStringContainsString("/christ/talks\t200\t1\tCrockenhill", $output);
         $this->assertStringContainsString("/sitemap.xml\t200\t1\t<urlset", $output);
         // The auth guard must redirect guests: status only, no body marker.
         $this->assertStringContainsString("/church/members\t302\t1\t", $output);
@@ -61,10 +61,10 @@ class ListRouteCanariesCommandTest extends TestCase
         // The slug-only sermon route 301-redirects to the canonical dated URL, so the
         // render check targets the dated URL and a separate canary guards the redirect.
         $datedPath = $sermon->date->format('Y/m')."/{$sermon->slug}";
-        $this->assertStringContainsString("/christ/sermons/{$datedPath}\t200\t2\tCrockenhill", $output);
-        $this->assertStringContainsString("/christ/sermons/{$sermon->slug}\t301\t1\t", $output);
+        $this->assertStringContainsString("/christ/talks/{$datedPath}\t200\t2\tCrockenhill", $output);
+        $this->assertStringContainsString("/christ/talks/{$sermon->slug}\t301\t1\t", $output);
         // The preacher is taken from the chosen sermon, guaranteeing a visible page.
-        $this->assertStringContainsString("/christ/sermons/preachers/{$preacher->slug}\t200\t1\tCrockenhill", $output);
+        $this->assertStringContainsString("/christ/talks/preachers/{$preacher->slug}\t200\t1\tCrockenhill", $output);
     }
 
     #[Test]
@@ -76,7 +76,7 @@ class ListRouteCanariesCommandTest extends TestCase
         // Static canaries still emit, but nothing depends on absent data.
         $this->assertStringContainsString("/\t200\t1\tCrockenhill", $output);
         $this->assertStringNotContainsString('/community/', $output);
-        $this->assertStringNotContainsString('/christ/sermons/preachers/', $output);
+        $this->assertStringNotContainsString('/christ/talks/preachers/', $output);
     }
 
     #[Test]

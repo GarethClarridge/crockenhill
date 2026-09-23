@@ -37,7 +37,7 @@ class SermonSchemaTest extends TestCase
             'preacher' => 'David Johnson',
         ]);
 
-        $response = $this->get("/christ/sermons/2024/05/{$sermon->slug}");
+        $response = $this->get("/christ/talks/2024/05/{$sermon->slug}");
 
         $response->assertStatus(200);
         $content = $response->getContent();
@@ -49,7 +49,7 @@ class SermonSchemaTest extends TestCase
         $this->assertStringContainsString('"isPartOf": {', $content);
         $this->assertStringContainsString('"@type": "CreativeWorkSeries"', $content);
         $this->assertStringContainsString('"name": "Test Series"', $content);
-        $this->assertStringContainsString('/christ/sermons/series/test-series', $content);
+        $this->assertStringContainsString('/christ/talks/series/test-series', $content);
 
         // Verify about (Scripture)
         $this->assertStringContainsString('"about": {', $content);
@@ -78,7 +78,7 @@ class SermonSchemaTest extends TestCase
         $this->assertArrayHasKey('isPartOf', $item);
         $this->assertEquals('CreativeWorkSeries', $item['isPartOf']['@type']);
         $this->assertEquals('List Series', $item['isPartOf']['name']);
-        $this->assertStringContainsString('/christ/sermons/series/list-series', $item['isPartOf']['url']);
+        $this->assertStringContainsString('/christ/talks/series/list-series', $item['isPartOf']['url']);
 
         $this->assertArrayHasKey('about', $item);
         $this->assertEquals('Thing', $item['about']['@type']);

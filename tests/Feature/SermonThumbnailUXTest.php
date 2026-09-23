@@ -37,7 +37,7 @@ class SermonThumbnailUXTest extends TestCase
         Storage::disk('public')->put('thumbnails/test-plain.jpg', 'fake content');
         Storage::disk('public')->put('thumbnails/test-card.jpg', 'fake content');
 
-        $response = $this->get('/christ/sermons');
+        $response = $this->get('/christ/talks');
         $response->assertStatus(200);
         $response->assertSee(app(SermonViewPresenter::class)->plainThumbnailUrl($sermon), false);
         $response->assertDontSee(app(SermonViewPresenter::class)->cardThumbnailUrl($sermon), false);
@@ -59,7 +59,7 @@ class SermonThumbnailUXTest extends TestCase
 
         Storage::disk('public')->put('thumbnails/overlay-only.jpg', 'fake content');
 
-        $response = $this->get('/christ/sermons');
+        $response = $this->get('/christ/talks');
         $response->assertStatus(200);
         $response->assertDontSee('/thumbnail/card', false);
     }
@@ -76,7 +76,7 @@ class SermonThumbnailUXTest extends TestCase
             'date' => '2026-02-19',
         ]);
 
-        $response = $this->get('/christ/sermons');
+        $response = $this->get('/christ/talks');
 
         $response->assertStatus(200);
         $response->assertSee(app(SermonViewPresenter::class)->plainThumbnailUrl($sermon), false);
@@ -93,7 +93,7 @@ class SermonThumbnailUXTest extends TestCase
             'date' => '2026-02-19',
         ]);
 
-        $response = $this->get('/christ/sermons');
+        $response = $this->get('/christ/talks');
         $response->assertStatus(200);
         $response->assertDontSee('animate-pulse');
     }
@@ -111,7 +111,7 @@ class SermonThumbnailUXTest extends TestCase
         // Mock the file existence
         Storage::disk('public')->put('thumbnails/page.jpg', 'fake content');
 
-        $response = $this->followingRedirects()->get("/christ/sermons/{$sermon->slug}");
+        $response = $this->followingRedirects()->get("/christ/talks/{$sermon->slug}");
         $response->assertStatus(200);
         $response->assertSee(app(SermonViewPresenter::class)->thumbnailUrl($sermon), false);
     }

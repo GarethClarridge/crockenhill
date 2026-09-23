@@ -71,7 +71,7 @@ The `playwright` job in `.github/workflows/deploy.yml`:
 | --- | --- |
 | `homepage.spec.ts` | `/` (full page + header-only crop) |
 | `section-landings.spec.ts` | `/christ`, `/church`, `/community`, `/calendar` |
-| `sermons.spec.ts` | `/christ/sermons` index + first seeded sermon detail |
+| `sermons.spec.ts` | `/christ/talks` index + first seeded sermon detail |
 | `meeting-detail.spec.ts` | First meeting linked from `/community` |
 | `church-services.spec.ts` | `/church/services` archive + first seeded service detail |
 | `mobile-nav.spec.ts` | Homepage with mobile menu opened (mobile project only) |

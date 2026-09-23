@@ -111,8 +111,10 @@ class SitemapService
             route('sermons.service', 'evening'),
         ];
 
-        if ($this->exposurePolicy->isTypePublic(TalkType::ChildrensTalk)) {
-            $urls[] = route('childrens-corner.index');
+        foreach (TalkType::nonSermon() as $type) {
+            if ($this->exposurePolicy->isTypePublic($type)) {
+                $urls[] = route('sermons.index', ['type' => $type->value]);
+            }
         }
 
         foreach ($urls as $url) {
@@ -165,7 +167,7 @@ class SitemapService
                 ->orWhereNotIn('slug', ['preachers', 'series', 'all']))
             ->where(fn ($query) => $query
                 ->where('area', '!=', PageArea::Christ->value)
-                ->orWhere('slug', '!=', 'sermons'))
+                ->orWhere('slug', '!=', 'talks'))
             ->where(fn ($query) => $query
                 ->where('area', '!=', PageArea::Community->value)
                 ->orWhereNotExists(fn ($meetingQuery) => $meetingQuery
