@@ -103,12 +103,37 @@ class CompareTranscriptRedecodeCommandTest extends TestCase
         self::assertSame([], $this->report()['runs']);
     }
 
+    /**
+     * 1007 and 38 others: the stored decode's last cue is stamped out to the end of its
+     * padded 30 s window, and the stored duration follows it. The source hash already
+     * proves the audio is the same, so the pair is compared over the shared span.
+     */
     #[Test]
-    public function it_counts_differing_source_durations_as_unassessable(): void
+    public function it_compares_over_the_shared_span_when_a_final_cue_overran_the_audio(): void
+    {
+        $stored = ChurchServiceTranscript::fromCues(
+            [['start' => 1.0, 'end' => 29.0, 'text' => 'Good morning.'], ['start' => 31.0, 'end' => 84.0, 'text' => 'Amen.']],
+            84.0,
+            ChurchServiceTranscript::SOURCE_LOCAL_WHISPER,
+        );
+        $run = $this->runWithStoredTranscript($stored);
+        $this->writeArtifact($this->inputDir, $run, $this->transcript(['Good morning.', 'Amen.'], duration: 60.0), $stored, []);
+
+        $this->compare()->assertSuccessful();
+
+        $report = $this->report();
+        self::assertSame([], $report['unassessable']);
+        self::assertCount(2, $report['runs'][0]['windows']);
+        self::assertSame(24.0, $report['runs'][0]['duration_overrun']);
+        self::assertSame(0, $report['runs'][0]['summary']['differing_windows']);
+    }
+
+    #[Test]
+    public function it_counts_durations_a_whole_window_apart_as_unassessable(): void
     {
         $stored = $this->transcript(['Good morning.', 'Amen.']);
         $run = $this->runWithStoredTranscript($stored);
-        $this->writeArtifact($this->inputDir, $run, $this->transcript(['Good morning.', 'Amen.'], duration: 61.0), $stored, []);
+        $this->writeArtifact($this->inputDir, $run, $this->transcript(['Good morning.'], duration: 30.0), $stored, []);
 
         $this->compare()->assertSuccessful();
 

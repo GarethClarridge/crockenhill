@@ -29,6 +29,8 @@ final class TranscriptRedecodeReport
 {
     public const SCHEMA = 'h10b-comparison-v1';
 
+    private const WINDOW_SECONDS = 30.0;
+
     private const SCORING_CODE = [
         'app/Services/Media/Audio/TranscriptRedecodeReport.php',
         'app/Services/Media/Audio/TranscriptRedecodeComparison.php',
@@ -78,8 +80,8 @@ final class TranscriptRedecodeReport
                 ? $this->againstStored($artifact)
                 : $this->againstRedecode($artifact, $againstPath);
 
-            if (is_array($result) && $result[0]->duration !== $result[1]->duration) {
-                $result = sprintf('source durations differ (%.3f s against %.3f s)', $result[0]->duration, $result[1]->duration);
+            if (is_array($result)) {
+                $result = $this->onSharedSpan(...$result);
             }
 
             if (is_string($result)) {
@@ -166,6 +168,38 @@ final class TranscriptRedecodeReport
             null,
             ['compressed_audio_match' => $against['compressed_audio']['sha256'] === $artifact['compressed_audio']['sha256']],
         ];
+    }
+
+    /**
+     * Both sides clipped to the shorter duration, when they differ by less than a window.
+     *
+     * A decode can stamp its last cue out to the end of the padded final 30 s window,
+     * and the stored duration then follows that cue (1007 overran by 26 s; 39 of 69
+     * mismatches in the corpus pass ran 0.5-29.8 s, all on the stored side). The
+     * source hash already binds the audio, so the shared span is compared and the
+     * overrun recorded. A whole window or more apart is not this and stays unassessable.
+     *
+     * @param  list<SuspectTranscriptBlock>|null  $leftBlocks
+     * @param  array<string, mixed>  $binding
+     * @return array{0: ChurchServiceTranscript, 1: ChurchServiceTranscript, 2: list<SuspectTranscriptBlock>|null, 3: array<string, mixed>}|string
+     */
+    private function onSharedSpan(ChurchServiceTranscript $left, ChurchServiceTranscript $new, ?array $leftBlocks, array $binding): array|string
+    {
+        $overrun = round($left->duration - $new->duration, 3);
+
+        if (abs($overrun) >= self::WINDOW_SECONDS) {
+            return sprintf('source durations differ (%.3f s against %.3f s)', $left->duration, $new->duration);
+        }
+
+        $shared = min($left->duration, $new->duration);
+        $clip = static fn (ChurchServiceTranscript $transcript): ChurchServiceTranscript => ChurchServiceTranscript::fromCues(
+            $transcript->cues,
+            $shared,
+            $transcript->source,
+            $transcript->unobservableWindows,
+        );
+
+        return [$clip($left), $clip($new), $leftBlocks, $binding + ['duration_overrun' => $overrun]];
     }
 
     /**
