@@ -12,8 +12,8 @@ use Throwable;
 /**
  * One-shot operator instrument for the approved context-drift retranscriptions.
  *
- * Delete after runs 980, 1258 and 1343 have been retranscribed, their results
- * have been verified, and the historic import Phase 8/IC8 evidence is retained.
+ * Delete after every run in RetranscribeHistoricVideoRun::ALLOWED_RUN_IDS has been
+ * retranscribed, its results verified, and the historic import evidence is retained.
  */
 final class RetranscribeHistoricVideoRunCommand extends Command
 {

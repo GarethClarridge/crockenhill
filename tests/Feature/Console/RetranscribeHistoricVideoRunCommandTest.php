@@ -127,6 +127,21 @@ class RetranscribeHistoricVideoRunCommandTest extends TestCase
         $this->assertRefused($run, 'another run is active');
     }
 
+    /**
+     * 1287 (2026-09-23): the stored transcript lost song 2 to context drift, so the
+     * detector split song 1 across two sections. The re-decode hears both songs.
+     */
+    #[Test]
+    public function it_accepts_run_1287(): void
+    {
+        $run = $this->completedRun(id: 1287);
+        $this->fakeStagingContext();
+
+        $this->artisan('historic-import:retranscribe-video-run', ['run' => $run->id])
+            ->expectsOutputToContain('ready')
+            ->assertSuccessful();
+    }
+
     #[Test]
     public function it_refuses_a_run_outside_the_approved_set(): void
     {

@@ -16,8 +16,13 @@ use RuntimeException;
 
 final class RetranscribeHistoricVideoRun
 {
-    /** @var list<int> */
-    public const ALLOWED_RUN_IDS = [980, 1258, 1343];
+    /**
+     * Each run is added by its own reviewed commit. 1287 (2026-09-23): context drift lost
+     * its second song, so the detector split the first across two sections.
+     *
+     * @var list<int>
+     */
+    public const ALLOWED_RUN_IDS = [980, 1258, 1343, 1287];
 
     public function __construct(
         private readonly HistoricStagingContextRegistry $stagingContexts,
@@ -29,7 +34,7 @@ final class RetranscribeHistoricVideoRun
     public function execute(MediaProcessingLog $run, bool $execute): array
     {
         if (! in_array($run->id, self::ALLOWED_RUN_IDS, true)) {
-            return $this->refused('run is outside the approved 980/1258/1343 retranscription set');
+            return $this->refused('run is outside the approved retranscription set ('.implode('/', self::ALLOWED_RUN_IDS).')');
         }
 
         $context = $run->historicStagingContext();
