@@ -433,7 +433,7 @@ treat historic acceptance as proof for all three modes.
   | Smart cut and keyframe correction (`VideoExtractionService::extractSegment*`) | yes (sermons and song clips) | yes (sermons) | n/a: `extractOptimizedAudio` does not cut | n/a |
   | Song identity refusal over suspect blocks (`MatchSongsFromTranscript`) | yes | **no**: no song matching | n/a | n/a |
   | Song publication review: lyric edges, loops, neighbour same-song (`SongPublicationReviewPolicy`) | yes | **no**: no song clips | n/a | n/a |
-  | Enhanced audio keeps the source sample rate (`AudioEnhancementService`) | yes (song clips) | via `enhance_audio` | no | no |
+  | Enhanced audio keeps the source sample rate (`AudioEnhancementService::enhanceVideo`) | yes (song clips) | **no**: `EnhanceAudio` calls audio-only `enhance()`, which the fix did not touch | no | no |
   | Video quality verdict on the owning run (`AssessSermonVideoQuality`) | yes | yes | yes | n/a: no video |
   | Temp-file cleanup pause (`CleanupTemporaryFiles`, sweep) | yes | yes | yes | yes |
 
