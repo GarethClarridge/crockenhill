@@ -340,6 +340,7 @@ class DetectorCatalogueTest extends TestCase
                 'song_looped_transcript',
                 'song_lyrics_outside_section',
                 'song_section_without_song',
+                'song_speech_under_loop',
             ],
             DetectorCatalogue::signalsFor(DetectorSurface::SongBoundaryEvidence),
         );

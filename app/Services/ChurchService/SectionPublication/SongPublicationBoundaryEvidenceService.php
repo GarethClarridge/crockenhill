@@ -37,6 +37,7 @@ use Illuminate\Support\Facades\Storage;
  *     lyric_edges: list<array<string, mixed>>,
  *     looped_transcript: list<array<string, mixed>>,
  *     song_content: array<string, mixed>|null,
+ *     speech_under_loop: array<string, mixed>|null,
  *     inputs_fingerprint: string,
  *     risks: list<array{kind: string, detail: string}>,
  *     decision: 'release_eligible'|'review'
@@ -54,6 +55,7 @@ use Illuminate\Support\Facades\Storage;
  *     lyric_edges: list<array<string, mixed>>,
  *     looped_transcript: list<array<string, mixed>>,
  *     song_content: array<string, mixed>|null,
+ *     speech_under_loop: array<string, mixed>|null,
  *     inputs_fingerprint: string,
  *     risks: list<array{kind: string, detail: string}>,
  *     decision: 'release_eligible'|'review',
@@ -86,9 +88,11 @@ final class SongPublicationBoundaryEvidenceService
      * keeps both its fingerprint and its evidence, so only the version reaches those.
      * 6 (2026-09-23): records {@see SongSectionWithoutSong} under `song_content`, so a short
      * section that only announces its song, or sings something else, reaches a reviewer.
+     * 7 (2026-09-23): records {@see SongSpeechUnderLoop} under `speech_under_loop`, so a loop
+     * that manufactured sung text over a prayer or talk reaches a reviewer.
      * Evidence banked under an earlier version is stale, and the backfill re-assesses it.
      */
-    public const VERSION = 6;
+    public const VERSION = 7;
 
     private const LEADING_CUE_WINDOW_SECONDS = 5.0;
 
@@ -108,6 +112,7 @@ final class SongPublicationBoundaryEvidenceService
         private readonly SongLyricsOutsideSection $lyricsOutsideSection,
         private readonly SongLoopedTranscript $loopedTranscript,
         private readonly SongSectionWithoutSong $sectionWithoutSong,
+        private readonly SongSpeechUnderLoop $speechUnderLoop,
     ) {}
 
     /**
@@ -153,6 +158,7 @@ final class SongPublicationBoundaryEvidenceService
                 'lyric_edges' => [],
                 'looped_transcript' => $looped,
                 'song_content' => null,
+                'speech_under_loop' => null,
                 'inputs_fingerprint' => $this->fingerprintOf($section, $inputs),
                 'risks' => [
                     [
@@ -208,12 +214,9 @@ final class SongPublicationBoundaryEvidenceService
             }
         }
 
+        $sound = $inputs['rms_threshold'] === null ? null : SustainedSound::fromSamples($inputs['rms_data'], $inputs['rms_threshold']);
         $lyricEdges = $inputs['transcript'] instanceof ChurchServiceTranscript
-            ? $this->lyricsOutsideSection->observe(
-                $section,
-                $inputs['transcript'],
-                $inputs['rms_threshold'] === null ? null : SustainedSound::fromSamples($inputs['rms_data'], $inputs['rms_threshold']),
-            )
+            ? $this->lyricsOutsideSection->observe($section, $inputs['transcript'], $sound)
             : [];
 
         foreach ($lyricEdges as $lyricEdge) {
@@ -230,6 +233,12 @@ final class SongPublicationBoundaryEvidenceService
 
         if (($songContent['risk'] ?? false) === true) {
             $risks[] = ['kind' => SongSectionWithoutSong::RISK_KIND, 'detail' => $songContent['detail']];
+        }
+
+        $speechUnderLoop = $this->speechUnderLoop->observe($section, $inputs['loop_blocks'], $sound);
+
+        if (($speechUnderLoop['risk'] ?? false) === true) {
+            $risks[] = ['kind' => SongSpeechUnderLoop::RISK_KIND, 'detail' => $speechUnderLoop['detail']];
         }
 
         return $this->withRecordedAt($section, [
@@ -249,6 +258,7 @@ final class SongPublicationBoundaryEvidenceService
             'lyric_edges' => $lyricEdges,
             'looped_transcript' => $looped,
             'song_content' => $songContent,
+            'speech_under_loop' => $speechUnderLoop,
             'inputs_fingerprint' => $this->fingerprintOf($section, $inputs),
             'risks' => $risks,
             'decision' => $risks === [] ? 'release_eligible' : 'review',

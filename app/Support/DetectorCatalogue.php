@@ -22,6 +22,7 @@ use App\Services\ChurchService\SectionPublication\SongLyricsOutsideSection;
 use App\Services\ChurchService\SectionPublication\SongPublicationBoundaryEvidenceService;
 use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
 use App\Services\ChurchService\SectionPublication\SongSectionWithoutSong;
+use App\Services\ChurchService\SectionPublication\SongSpeechUnderLoop;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SongSpeechEdges;
 use App\Services\ChurchService\Structure\SungSpanInsideSermon;
@@ -730,6 +731,17 @@ class DetectorCatalogue
     private static function songBoundaryEntries(): array
     {
         return [
+            new DetectorEntry(
+                id: 'song-speech-under-loop',
+                surface: DetectorSurface::SongBoundaryEvidence,
+                signals: [SongSpeechUnderLoop::RISK_KIND],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::PublishedWrongContent,
+                unit: DetectorUnit::Section,
+                summary: 'A repeated sung line in the transcript sits over sound with the pauses of speech, so the loop manufactured singing over a prayer or talk the song section swallowed.',
+                owningClass: SongSpeechUnderLoop::class,
+                regressionCases: ['run 1268 §4731', 'run 967 §1082', 'run 1348 §4390'],
+            ),
             new DetectorEntry(
                 id: 'song-looped-transcript',
                 surface: DetectorSurface::SongBoundaryEvidence,

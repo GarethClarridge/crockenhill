@@ -1175,6 +1175,26 @@ class SongPublicationReviewPolicyTest extends TestCase
     }
 
     /**
+     * 1268 §4731: the song's own line looped over the prayer the section swallowed. The phrase is
+     * in the lyrics, so the text rule passes it; the sound under the loop is speech.
+     */
+    #[Test]
+    public function it_holds_a_clip_whose_loop_sits_over_speech(): void
+    {
+        $section = $this->lyricSection('We honour and adore you Lord, we lift our hearts to you');
+        $this->neighbour($section, 'song', 880.0, 990.0, 'Crown him with many crowns the Lamb upon his throne');
+        $this->storeLyricArtifacts($section, [
+            ['start' => 620.0, 'end' => 830.0, 'text' => 'We honour and adore you.'],
+        ], [[580, 700, 'sung'], [700, 840, 'speech'], [880, 990, 'sung']]);
+        $this->recordLoopBlocks($section, 700.0, 830.0, 'we honour and adore you');
+
+        $this->assertContains(
+            'song_speech_under_loop',
+            array_column($this->policy->reviewReasons($section->fresh()), 'kind'),
+        );
+    }
+
+    /**
      * A 20 s confirmed song section from 600 s whose catalogue song carries these lyrics.
      */
     private function shortLyricSection(string $lyrics): ServiceSection
