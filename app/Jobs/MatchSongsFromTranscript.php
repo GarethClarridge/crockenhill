@@ -226,6 +226,7 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             in_array('unmatched_song_section', $reviewFlags, true)
             || in_array(SongCatalogueTitlePolicy::FLAG_IDENTITY_UNVERIFIED_FROM_SUSPECT_TRANSCRIPT, $reviewFlags, true)
             || in_array(SongCatalogueTitlePolicy::FLAG_IDENTITY_CONTRADICTED_BY_LYRICS, $reviewFlags, true)
+            || in_array(SongCatalogueTitlePolicy::FLAG_IDENTITY_SINGLE_SOURCE, $reviewFlags, true)
         );
     }
 
@@ -416,7 +417,8 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
                 static fn (mixed $flag): bool => is_string($flag)
                     && $flag !== 'unmatched_song_section'
                     && $flag !== SongCatalogueTitlePolicy::FLAG_IDENTITY_UNVERIFIED_FROM_SUSPECT_TRANSCRIPT
-                    && $flag !== SongCatalogueTitlePolicy::FLAG_IDENTITY_CONTRADICTED_BY_LYRICS,
+                    && $flag !== SongCatalogueTitlePolicy::FLAG_IDENTITY_CONTRADICTED_BY_LYRICS
+                    && $flag !== SongCatalogueTitlePolicy::FLAG_IDENTITY_SINGLE_SOURCE,
             ));
 
             if ($matchSource !== 'ocr' && $this->overlapsSuspectTranscriptBlock($section)) {
@@ -426,6 +428,8 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             // OCR reads the projected slides, which is the independent evidence
             // this check defers to, so only a match taken from what was heard is
             // put against what was sung.
+            $check = null;
+
             if ($matchSource !== 'ocr') {
                 $check = $this->lyricIdentityCheck($section, $songId);
                 $metadataArray['lyric_identity_check'] = $check;
@@ -433,6 +437,13 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
                 if ($check['verdict'] === SongLyricIdentityCheck::CONTRADICTED) {
                     $reviewFlags[] = SongCatalogueTitlePolicy::FLAG_IDENTITY_CONTRADICTED_BY_LYRICS;
                 }
+            }
+
+            $sources = $this->independentSources($section, $songId, $matchSource, $check);
+            $metadataArray['identity_sources'] = $sources;
+
+            if (count($sources) < 2) {
+                $reviewFlags[] = SongCatalogueTitlePolicy::FLAG_IDENTITY_SINGLE_SOURCE;
             }
 
             // A confident match displays the catalogued title rather than the
@@ -492,6 +503,51 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
                 }
             }
         });
+    }
+
+    /**
+     * The independent sources that agree on this song, by lineage.
+     *
+     * `heard` is the leader's announcement (a title-hint match, or a hint that resolves to the
+     * same song), `sung` the section's own words sharing two or more lyric pairs without a
+     * contradiction, `projected` the slides read by OCR, and `planned` an order-of-service item
+     * the run did not author. A livestream item is written from this very match, so it never
+     * counts: it would let the match vouch for itself.
+     *
+     * @param  array<string, mixed>|null  $lyricCheck
+     * @return list<'heard'|'sung'|'projected'|'planned'>
+     */
+    private function independentSources(ServiceSection $section, int $songId, string $matchSource, ?array $lyricCheck): array
+    {
+        $sources = [];
+        $hint = $section->metadata['song_title_hint'] ?? null;
+
+        if (str_starts_with($matchSource, 'title_hint')
+            || (is_string($hint) && trim($hint) !== '' && app(SongLyricsMatchingService::class)->matchTitleHint($hint)['song_id'] === $songId)) {
+            $sources[] = 'heard';
+        }
+
+        $lyricCheck ??= $this->lyricIdentityCheck($section, $songId);
+
+        if (($lyricCheck['bound_score']['word_pairs'] ?? 0) >= 2 && $lyricCheck['verdict'] !== SongLyricIdentityCheck::CONTRADICTED) {
+            $sources[] = 'sung';
+        }
+
+        if ($matchSource === 'ocr') {
+            $sources[] = 'projected';
+        }
+
+        $serviceId = $this->processingLog->church_service_id;
+
+        if ($serviceId !== null && ChurchServiceItem::query()
+            ->where('church_service_id', $serviceId)
+            ->where('source', '!=', ChurchServiceItemSource::Livestream->value)
+            ->where('song_id', $songId)
+            ->exists()) {
+            $sources[] = 'planned';
+        }
+
+        return $sources;
     }
 
     /**

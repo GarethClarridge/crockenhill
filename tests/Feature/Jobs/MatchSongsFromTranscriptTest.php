@@ -149,6 +149,8 @@ class MatchSongsFromTranscriptTest extends TestCase
             ],
         ]);
 
+        $this->planSong($log, $song->id);
+
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
             app(StorageAdapterHelper::class),
@@ -274,6 +276,8 @@ class MatchSongsFromTranscriptTest extends TestCase
         $log->putServiceTranscriptPath('service-transcripts/missing.json');
         $section = $this->hintedSongSection($log, 'Be Thou My Vision');
 
+        $this->planSong($log, (int) Song::query()->latest('id')->value('id'));
+
         $this->runSongMatching($log);
         $section->refresh();
 
@@ -302,6 +306,8 @@ class MatchSongsFromTranscriptTest extends TestCase
             ],
         ]);
 
+        $this->planSong($log, $bound->id);
+
         $this->runSongMatching($log);
         $section->refresh();
 
@@ -327,7 +333,66 @@ class MatchSongsFromTranscriptTest extends TestCase
         $this->assertTrue($section->needs_manual_review);
     }
 
-    private const AMAZING_GRACE = 'Amazing grace how sweet the sound that saved a wretch like me. I once was lost but now am found, was blind but now I see. Twas grace that taught my heart to fear and grace my fears relieved. How precious did that grace appear the hour I first believed.';
+    // ---- Two independent sources ----
+
+    #[Test]
+    public function a_heard_title_alone_is_not_confirmed(): void
+    {
+        // The §4.1a mis-bindings each rested on the announcement alone: one
+        // source, however confident, is not two.
+        Song::factory()->create(['title' => 'Be Thou My Vision', 'canonical_key' => 'be thou my vision', 'lyrics_plain' => self::BE_THOU_MY_VISION]);
+
+        $log = $this->runWithSungTranscript('Thank you. Thank you.');
+        $section = $this->hintedSongSection($log, 'Be Thou My Vision');
+
+        $this->runSongMatching($log);
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
+        $this->assertContains(SongCatalogueTitlePolicy::FLAG_IDENTITY_SINGLE_SOURCE, $section->metadata['review_flags']);
+        $this->assertSame(['heard'], $section->metadata['identity_sources']);
+    }
+
+    #[Test]
+    public function a_heard_title_the_order_of_service_plans_is_confirmed(): void
+    {
+        // Planned and announced are different lineages, so they corroborate
+        // each other even where the transcript caught none of the singing.
+        $song = Song::factory()->create(['title' => 'Be Thou My Vision', 'canonical_key' => 'be thou my vision', 'lyrics_plain' => self::BE_THOU_MY_VISION]);
+
+        $log = $this->runWithSungTranscript('Thank you. Thank you.');
+        $service = ChurchService::factory()->create();
+        $log->forceFill(['church_service_id' => $service->id])->save();
+        ChurchServiceItem::factory()->create(['church_service_id' => $service->id, 'source' => ChurchServiceItemSource::OpenLp->value, 'song_id' => $song->id]);
+        $section = $this->hintedSongSection($log, 'Be Thou My Vision');
+
+        $this->runSongMatching($log);
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
+        $this->assertSame(['heard', 'planned'], $section->metadata['identity_sources']);
+    }
+
+    #[Test]
+    public function an_order_of_service_item_written_from_the_match_does_not_count(): void
+    {
+        // A livestream item is authored from this very match; counting it
+        // would let the match vouch for itself.
+        $song = Song::factory()->create(['title' => 'Be Thou My Vision', 'canonical_key' => 'be thou my vision', 'lyrics_plain' => self::BE_THOU_MY_VISION]);
+
+        $log = $this->runWithSungTranscript('Thank you. Thank you.');
+        $service = ChurchService::factory()->create();
+        $log->forceFill(['church_service_id' => $service->id])->save();
+        ChurchServiceItem::factory()->create(['church_service_id' => $service->id, 'source' => ChurchServiceItemSource::Livestream->value, 'song_id' => $song->id]);
+        $section = $this->hintedSongSection($log, 'Be Thou My Vision');
+
+        $this->runSongMatching($log);
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
+    }
+
+    private const AMAZING_GRACE ='Amazing grace how sweet the sound that saved a wretch like me. I once was lost but now am found, was blind but now I see. Twas grace that taught my heart to fear and grace my fears relieved. How precious did that grace appear the hour I first believed.';
 
     private const BE_THOU_MY_VISION = 'Be thou my vision O Lord of my heart, naught be all else to me save that thou art. Thou my best thought by day or by night, waking or sleeping thy presence my light. Be thou my wisdom and thou my true word, I ever with thee and thou with me Lord.';
 
@@ -466,6 +531,8 @@ class MatchSongsFromTranscriptTest extends TestCase
             ],
         ]);
 
+        $this->planSong($log, (int) Song::query()->latest('id')->value('id'));
+
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
             app(StorageAdapterHelper::class),
@@ -508,6 +575,8 @@ class MatchSongsFromTranscriptTest extends TestCase
                 'review_flags' => ['unmatched_song_section'],
             ],
         ]);
+
+        $this->planSong($log, $song->id);
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
@@ -556,6 +625,8 @@ class MatchSongsFromTranscriptTest extends TestCase
                 'review_flags' => ['unmatched_song_section'],
             ],
         ]);
+
+        $this->planSong($log, $song->id);
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
@@ -802,6 +873,8 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $section = $this->unmatchedSongSectionFor($log, $item, 'In Christ Alone');
 
+        $this->planSong($log, $song->id);
+
         $this->runSongMatching($log);
 
         $section->refresh();
@@ -830,6 +903,8 @@ class MatchSongsFromTranscriptTest extends TestCase
         ]);
 
         $section = $this->unmatchedSongSectionFor($log, $item, 'In Christ Alone');
+
+        $this->planSong($log, (int) Song::query()->latest('id')->value('id'));
 
         $this->runSongMatching($log);
 
@@ -871,6 +946,23 @@ class MatchSongsFromTranscriptTest extends TestCase
         ]);
     }
 
+    /**
+     * Put the song in the run's order of service as a planned (OpenLP) item: the second
+     * independent source a test needs when its subject is not identity corroboration itself.
+     */
+    private function planSong(MediaProcessingLog $log, int $songId): void
+    {
+        if ($log->church_service_id === null) {
+            $log->forceFill(['church_service_id' => ChurchService::factory()->create()->id])->save();
+        }
+
+        ChurchServiceItem::factory()->create([
+            'church_service_id' => $log->church_service_id,
+            'source' => ChurchServiceItemSource::OpenLp->value,
+            'song_id' => $songId,
+        ]);
+    }
+
     private function runSongMatching(MediaProcessingLog $log): void
     {
         (new MatchSongsFromTranscript($log))->handle(
@@ -906,6 +998,8 @@ class MatchSongsFromTranscriptTest extends TestCase
                 'review_flags' => ['unmatched_song_section'],
             ],
         ]);
+
+        $this->planSong($log, $song->id);
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
@@ -1001,6 +1095,8 @@ class MatchSongsFromTranscriptTest extends TestCase
                 'review_flags' => ['unmatched_song_section'],
             ],
         ]);
+
+        $this->planSong($log, $song->id);
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
@@ -1111,6 +1207,8 @@ class MatchSongsFromTranscriptTest extends TestCase
                 ->andReturn([$ocrText]);
         });
 
+        $this->planSong($log, $song->id);
+
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
             app(StorageAdapterHelper::class),
@@ -1210,6 +1308,8 @@ class MatchSongsFromTranscriptTest extends TestCase
         $this->mock(SongLyricOcrService::class, function (MockInterface $mock) use ($ocrText): void {
             $mock->shouldReceive('extractLyricsSamples')->once()->andReturn([$ocrText]);
         });
+
+        $this->planSong($log, $song->id);
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),
@@ -1352,6 +1452,8 @@ class MatchSongsFromTranscriptTest extends TestCase
                 'review_flags' => [],
             ],
         ]);
+
+        $this->planSong($log, $song->id);
 
         (new MatchSongsFromTranscript($log))->handle(
             app(SongLyricsMatchingService::class),

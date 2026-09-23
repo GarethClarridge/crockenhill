@@ -43,6 +43,7 @@ class SectionReviewFlagRecalculator
         'song_title_marker_mismatch',
         SongCatalogueTitlePolicy::FLAG_IDENTITY_UNVERIFIED_FROM_SUSPECT_TRANSCRIPT,
         SongCatalogueTitlePolicy::FLAG_IDENTITY_CONTRADICTED_BY_LYRICS,
+        SongCatalogueTitlePolicy::FLAG_IDENTITY_SINGLE_SOURCE,
     ];
 
     /**

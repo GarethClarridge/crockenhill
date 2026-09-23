@@ -17,6 +17,7 @@ use App\Enums\DetectorSeverity;
 use App\Enums\DetectorStatus;
 use App\Enums\DetectorSurface;
 use App\Enums\DetectorUnit;
+use App\Jobs\MatchSongsFromTranscript;
 use App\Services\ChurchService\SectionPublication\SongLoopedTranscript;
 use App\Services\ChurchService\SectionPublication\SongLyricsOutsideSection;
 use App\Services\ChurchService\SectionPublication\SongPublicationBoundaryEvidenceService;
@@ -626,6 +627,17 @@ class DetectorCatalogue
                 owningClass: SongLyricIdentityCheck::class,
             ),
             new DetectorEntry(
+                id: 'song-identity-single-source',
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: [SongCatalogueTitlePolicy::FLAG_IDENTITY_SINGLE_SOURCE],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::PublishedWrongContent,
+                unit: DetectorUnit::Section,
+                summary: 'Fewer than two independent sources (heard announcement, sung words, projected slides, planned order of service) agree on the song, so the match is inferred, not confirmed.',
+                owningClass: MatchSongsFromTranscript::class,
+                decision: 'Operator ruling 2026-09-23: any two independent sources. Measured over 1,185 confirmed bindings: 1,059 hold two or more; 126 would be inferred. The stricter plan wording (one source must be the performance) would have demoted 231, including 105 planned-and-announced bindings where the transcript caught little singing.',
+            ),
+            new DetectorEntry(
                 id: 'song-title-marker-mismatch',
                 surface: DetectorSurface::SectionReviewFlag,
                 signals: [ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH],
@@ -972,7 +984,7 @@ class DetectorCatalogue
                 unit: DetectorUnit::Section,
                 summary: 'A hymn sits wholly inside the sermon section, which is a different shape from a non-sermon section absorbing one and is not caught by the macro-section rule.',
                 owningClass: SungSpanInsideSermon::class,
-                regressionCases: ['sermon 885', 'run 949 §723', 'run 1014 §1300'],
+                regressionCases: ['sermon 885', 'run 1014 §1300'],
             ),
             new DetectorEntry(
                 id: 'sermon-closing-prayer-dropped',
@@ -1047,8 +1059,8 @@ class DetectorCatalogue
                 unit: DetectorUnit::Section,
                 summary: 'A song section above the 15-second micro floor contains no song at all, so the micro-section rule cannot reach it.',
                 owningClass: SongSectionWithoutSong::class,
-                regressionCases: ['§622', '§2851', '§3368'],
-                decision: 'Built 2026-09-23 for announcements and fragments: under 60 s, fewer than 2 word pairs shared with the bound song beyond its title. Containment already existed: short_song_clip requires approval below 90 s, so this rule adds the diagnosis a reviewer needs (announcement or fragment), not a hold. Measured 2026-09-23: 14 of 34 judgeable short sections flagged, all already held. The doxology (§678, §3284) is not caught: its closing line is the last verse of its bound Old Hundredth, and whether the doxology is a catalogue item of its own is an operator decision.',
+                regressionCases: ['§622', '§678'],
+                decision: 'Built 2026-09-23 for announcements and fragments: under 60 s, fewer than 2 word pairs shared with the bound song beyond its title. Containment already existed: short_song_clip requires approval below 90 s, so this rule adds the diagnosis a reviewer needs (announcement or fragment), not a hold. Measured 2026-09-23: 14 of 34 judgeable short sections flagged, all already held. The doxology (§678, §3284) is a named case the rule does not catch: its closing line is the last verse of its bound Old Hundredth, and whether the doxology is a catalogue item of its own is an operator decision.',
             ),
         ];
     }

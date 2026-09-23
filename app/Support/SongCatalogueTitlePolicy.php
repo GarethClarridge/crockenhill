@@ -38,6 +38,13 @@ class SongCatalogueTitlePolicy
     public const FLAG_IDENTITY_CONTRADICTED_BY_LYRICS = 'song_identity_contradicted_by_lyrics';
 
     /**
+     * Fewer than two independent sources agree on the match (operator ruling 2026-09-23: any two
+     * of heard announcement, sung words, projected slides and planned order of service). Each
+     * §4.1a mis-binding rested on the announcement alone.
+     */
+    public const FLAG_IDENTITY_SINGLE_SOURCE = 'song_identity_single_source';
+
+    /**
      * Whether the catalogued title may replace the heard text, which is also
      * what separates a Confirmed match from an Inferred one.
      *
@@ -58,6 +65,10 @@ class SongCatalogueTitlePolicy
         }
 
         if (in_array(self::FLAG_IDENTITY_CONTRADICTED_BY_LYRICS, $reviewFlags, true)) {
+            return false;
+        }
+
+        if (in_array(self::FLAG_IDENTITY_SINGLE_SOURCE, $reviewFlags, true)) {
             return false;
         }
 

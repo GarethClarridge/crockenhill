@@ -2514,6 +2514,94 @@
             "basis": "stored_record",
             "evidence": "laravel.log 2026-09-16 07:40:57",
             "informed_fix": true
+        },
+        {
+            "case_id": "structure-song-swallows-speech/run-974-s988",
+            "detector_id": "structure-song-swallows-speech",
+            "reference": "run 974 §988",
+            "subject": {
+                "run": 974,
+                "section": 988,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/correctness-20260910-song-policy.json",
+            "informed_fix": true,
+            "note": "Frames at clip 15 s and 50 s show the speaker; a fresh 45 s transcription of the clip confirms 58 s of prayer before the introduction."
+        },
+        {
+            "case_id": "structure-song-swallows-speech/run-1036-s1475",
+            "detector_id": "structure-song-swallows-speech",
+            "reference": "run 1036 §1475",
+            "subject": {
+                "run": 1036,
+                "section": 1475,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "derived_comparison",
+            "evidence": "storage/scratch/swallow-20260923-measure.json",
+            "informed_fix": true,
+            "note": "RMS only: 104 s spoken lead-in and 41 s tail at 0.42 sustained. Not source-adjudicated."
+        },
+        {
+            "case_id": "song-speech-under-loop/run-1268-s4731",
+            "detector_id": "song-speech-under-loop",
+            "reference": "run 1268 §4731",
+            "subject": {
+                "run": 1268,
+                "section": 4731,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/speechloop-20260923-measure.json",
+            "informed_fix": true,
+            "note": "\"we honour and adore you\" x63 over the prayer §4732 continues (§4.1b song-loop census, fresh 30 s decode inside the loop)."
+        },
+        {
+            "case_id": "song-speech-under-loop/run-967-s1082",
+            "detector_id": "song-speech-under-loop",
+            "reference": "run 967 §1082",
+            "subject": {
+                "run": 967,
+                "section": 1082,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/speechloop-20260923-measure.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "song-speech-under-loop/run-1348-s4390",
+            "detector_id": "song-speech-under-loop",
+            "reference": "run 1348 §4390",
+            "subject": {
+                "run": 1348,
+                "section": 4390,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_redecode",
+            "evidence": "storage/scratch/speechloop-20260923-measure.json",
+            "informed_fix": true
+        },
+        {
+            "case_id": "structure-hymn-inside-sermon-section/run-1014-s1300",
+            "detector_id": "structure-hymn-inside-sermon-section",
+            "reference": "run 1014 §1300",
+            "subject": {
+                "run": 1014,
+                "section": 1300,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "derived_comparison",
+            "evidence": "storage/scratch/sungpass-20260916-measure.json",
+            "informed_fix": true,
+            "note": "\"Thank you\" x4 ASR artefact over sustained sound inside the sermon; already held."
         }
     ],
     "aggregates": [
