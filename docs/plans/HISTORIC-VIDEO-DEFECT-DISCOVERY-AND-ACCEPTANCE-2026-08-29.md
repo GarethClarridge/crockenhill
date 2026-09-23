@@ -488,6 +488,43 @@ data, in `resources/detector-classes.json`.
   but the retranscription command is still restricted to 980/1258/1343.
 
 
+#### 1287 repair result and the hold carry-through ruling — 2026-09-23
+
+**1287 retranscribed and re-detected** (operator dispatch, completed 18:11). The transcript
+is whole (no unobservable windows, no suspect blocks). Song 1 (190–277 s) and song 2
+(304–458 s) are separate sections, the Revelation 4 passage is a `bible_reading`, and the
+replay stamp moved to history. Clips 581–583 are `quarantined` on `historic_quarantine`,
+so nothing is exposed.
+
+**Two defects found by the post-run check:**
+1. **Content holds follow `section_order`, not content.** Re-detection inserted two sections,
+   so the 09-14 "wrong song" hold now sits on §3597 (the reading) as well as §3596, and
+   both describe the defect the repair fixed.
+2. **Derived review flags were re-derived and cleared.** "The Lord's My Shepherd", "Your
+   Word" and "Who Can Cheer" went to `published` section state. That is correct for
+   derived flags: they are policy output, and re-deriving is their purpose.
+
+**How the 181 content holds were made** (census 2026-09-23): none records a person
+listening. They came from mechanical checks run outside the pipeline, mostly in agent
+census sessions with operator approval: loop/repetition screens 75, lyric comparisons 68,
+fresh Whisper source decodes 12, frames or duration 4. 65 name no method; they are
+decisions (duplicate-performance identity) or judgements (wrong title or passage,
+semantic substitution). A hold records only `reason`, `held_at` and `evidence`.
+
+**Operator ruling, 2026-09-23: holds follow content and are re-checked by the check that made them.**
+1. A content hold follows its content (time span and bound item) through a re-run, never
+   the section's position.
+2. Each hold records **which check found it**.
+3. After a repair, a hold whose check exists in code is re-run automatically. It clears if
+   the check passes, and the record says why.
+4. Decision and judgement holds stay until someone re-decides them.
+5. Derived review flags keep re-deriving freely.
+
+Until this is built, a batch that inserts or removes sections **misplaces content holds**.
+Build it test-first before the next bounded batch larger than one run. For 1287 the two
+stale holds are lyric-comparison holds, so they would clear on re-check; they are left in
+place, not lifted by hand.
+
 #### Carried open items
 
 Every box still unticked in the moved sections, grouped by the section it came from. **Triaged
