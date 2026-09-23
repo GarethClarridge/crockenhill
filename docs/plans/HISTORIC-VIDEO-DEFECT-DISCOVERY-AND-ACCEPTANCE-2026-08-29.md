@@ -4349,6 +4349,21 @@ an adapter.
     1174 §2331, 1297 §3802, 1120 §1998) are **all already held**. The rule would add no
     new hold and would hold correct bindings over wording, so it is not built.
     Revisit only if a genuine contradiction turns up unheld.
+- **1287 diagnosed 2026-09-23 (read-only; `storage/scratch/run-1287-probe-20260923.php`).**
+  The H10b re-decode (`max_context=0`) hears what the stored transcript did not. Song 1,
+  #797 "Praise the Lord you heavens", runs 189–268 s. A **spoken reading** (Revelation
+  4:9–11) runs 268–299 s. **Song 2**, #934 "There is a higher throne", runs **304–452 s**,
+  where the stored transcript has an unobservable window at 299–437 s
+  (`retranscription_failed`). The detector was told of two songs but could see only one,
+  so it split song 1 across §3596 (180–232) and §3597 (232–299). §3597 took song 2's
+  binding and absorbed the reading, and song 2 got no section. **Cause: context-drift
+  transcript loss, which `max_context=0` already fixes. Not a detector gap.** The lyric
+  check already caught it (§3597 held since 09-14), and the case-book entry under
+  `structure-song-widened-to-sustained-sound` is mis-filed. Its widening failure is a
+  consequence (20 s unsustained, the reading, before song 2), and no widening rule should
+  be bent to reach it. **Repair:** re-transcribe, then re-detect, through the pipeline in
+  the next bounded batch. The now-restaged source makes that possible, but the
+  retranscription command is still restricted to 980/1258/1343.
 
 ##### H9. Ruling: no reserved set; historic evidence is retrospective
 
