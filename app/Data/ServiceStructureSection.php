@@ -207,11 +207,12 @@ final readonly class ServiceStructureSection extends JsonData
     }
 
     /**
-     * A copy carrying additional review flags (deduplicated).
+     * A copy carrying additional review flags (deduplicated), and any notes recording why.
      *
      * @param  list<string>  $flags
+     * @param  list<string>  $additionalNotes
      */
-    public function withReviewFlags(array $flags): self
+    public function withReviewFlags(array $flags, array $additionalNotes = []): self
     {
         return new self(
             type: $this->type,
@@ -223,7 +224,7 @@ final readonly class ServiceStructureSection extends JsonData
             songTitle: $this->songTitle,
             readingReference: $this->readingReference,
             sermonReference: $this->sermonReference,
-            notes: $this->notes,
+            notes: [...$this->notes, ...$additionalNotes],
             reviewFlags: array_values(array_unique([...$this->reviewFlags, ...$flags])),
             snapDeltas: $this->snapDeltas,
             summary: $this->summary,

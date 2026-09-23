@@ -625,6 +625,18 @@ class SermonExtractionPlanResolver
             ];
         }
 
+        /**
+         * A hymn wholly inside the sermon section itself (sermon 885), which no absorbed
+         * section can stand for because the singing is not a section at all. The structure
+         * stage found it from sound and word rate; its note names the span.
+         */
+        if (in_array(ServiceStructureValidator::FLAG_SERMON_CONTAINS_SUNG_SPAN, $this->reviewFlags($sermonSection), true)) {
+            $risks[] = [
+                'kind' => 'sermon_contains_sung_span',
+                'detail' => 'The sermon section holds sustained singing that no song section claims, so the published sermon media would contain it.',
+            ];
+        }
+
         $ceilingApplied = false;
 
         if ($cursor > $sermonEnd

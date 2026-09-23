@@ -22,6 +22,7 @@ use App\Services\ChurchService\SectionPublication\SongLyricsOutsideSection;
 use App\Services\ChurchService\SectionPublication\SongPublicationBoundaryEvidenceService;
 use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\ChurchService\Structure\SungSpanInsideSermon;
 use App\Services\DetectorEvaluation\SongBoundaryEvidenceSignals;
 use App\Services\Media\Audio\ServiceTranscriptRepetitionScreen;
 use App\Services\Media\Video\SermonVideoQualityAssessmentService;
@@ -937,13 +938,14 @@ class DetectorCatalogue
             ),
             new DetectorEntry(
                 id: 'structure-hymn-inside-sermon-section',
-                surface: null,
-                signals: [],
-                status: DetectorStatus::Unbuilt,
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: [ServiceStructureValidator::FLAG_SERMON_CONTAINS_SUNG_SPAN],
+                status: DetectorStatus::Promoted,
                 severity: DetectorSeverity::ContentLost,
                 unit: DetectorUnit::Section,
                 summary: 'A hymn sits wholly inside the sermon section, which is a different shape from a non-sermon section absorbing one and is not caught by the macro-section rule.',
-                regressionCases: ['sermon 885'],
+                owningClass: SungSpanInsideSermon::class,
+                regressionCases: ['sermon 885', 'run 949 §723', 'run 1014 §1300'],
             ),
             new DetectorEntry(
                 id: 'sermon-closing-prayer-dropped',

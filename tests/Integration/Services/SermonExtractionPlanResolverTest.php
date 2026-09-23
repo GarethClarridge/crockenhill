@@ -70,6 +70,39 @@ class SermonExtractionPlanResolverTest extends TestCase
     }
 
     /**
+     * Sermon 885: run 949's closing hymn sits inside sermon §723 itself. The flag holds the
+     * sermon for review, so it must be registered as non-disqualifying or the held sermon drops
+     * to the coarse baseline cut, which contains the hymn just the same and says nothing.
+     */
+    #[Test]
+    public function a_sermon_holding_a_sung_span_still_plans_its_span_and_raises_a_risk(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 200.0,
+        ]);
+
+        $sermon = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'start_time' => 2744.0,
+            'end_time' => 4827.0,
+            'needs_manual_review' => true,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'review_flags' => [ServiceStructureValidator::FLAG_SERMON_CONTAINS_SUNG_SPAN],
+            ],
+        ]);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame('service_sections', $plan['source']);
+        $this->assertSame($sermon->id, $plan['metadata']['sermon_section_id']);
+        $this->assertContains('sermon_contains_sung_span', array_column($plan['metadata']['sermon_boundary']['risks'], 'kind'));
+        $this->assertTrue($plan['metadata']['sermon_boundary']['requires_review']);
+    }
+
+    /**
      * A sermon followed by one trailing `other` section carrying the given review flags.
      *
      * Deliberately a single absorbed section with no order-of-service item behind it, so neither

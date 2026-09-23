@@ -7,6 +7,7 @@ namespace App\Services\DetectorEvaluation;
 use App\Data\ServiceStructure;
 use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\Structure\MistypedSungSections;
+use App\Services\ChurchService\Structure\SungSpanInsideSermon;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SustainedSoundSongSections;
 use App\Services\ChurchService\Structure\ValidationContext;
@@ -65,6 +66,7 @@ class SoundStageFlagRecompute
         ServiceStructureValidator::FLAG_SONG_WIDENED_TO_SUSTAINED_SOUND,
         ServiceStructureValidator::FLAG_UNIDENTIFIED_SINGING,
         ServiceStructureValidator::FLAG_SECTION_READS_AS_SUNG,
+        ServiceStructureValidator::FLAG_SERMON_CONTAINS_SUNG_SPAN,
     ];
 
     public function __construct(
@@ -72,6 +74,7 @@ class SoundStageFlagRecompute
         private readonly ServiceTranscriptReader $transcripts,
         private readonly SustainedSoundSongSections $sustainedSound,
         private readonly MistypedSungSections $mistypedSung,
+        private readonly SungSpanInsideSermon $sungSpanInsideSermon,
     ) {}
 
     /**
@@ -163,6 +166,7 @@ class SoundStageFlagRecompute
             // something else is one no song claimed.
             $recomputed = $this->sustainedSound->apply($structure, $rms, $omitsSongs);
             $recomputed = $this->mistypedSung->apply($recomputed, $rms, $transcript);
+            $recomputed = $this->sungSpanInsideSermon->apply($recomputed, $rms, $transcript);
 
             $claimed = [];
 

@@ -16,6 +16,7 @@ use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
 use App\Services\ChurchService\Structure\SongSpeechEdges;
 use App\Services\ChurchService\Structure\MistypedSungSections;
+use App\Services\ChurchService\Structure\SungSpanInsideSermon;
 use App\Services\ChurchService\Structure\SustainedSoundSongSections;
 use App\Services\ChurchService\Structure\ValidationContext;
 use App\Support\ServiceArtifactDisk;
@@ -433,8 +434,10 @@ class StructureEvaluateCommand extends Command
         $structure = app(SongSpeechEdges::class)->apply($structure, $rmsLogContent, $recordingOmitsSongs);
 
         // Runs after the sound stage has settled the song sections, so a section still typed as
-        // something else is one no song claimed.
-        return app(MistypedSungSections::class)->apply($structure, $rmsLogContent, $transcript);
+        // something else is one no song claimed, and singing inside a sermon is singing no song holds.
+        $structure = app(MistypedSungSections::class)->apply($structure, $rmsLogContent, $transcript);
+
+        return app(SungSpanInsideSermon::class)->apply($structure, $rmsLogContent, $transcript);
     }
 
     /**

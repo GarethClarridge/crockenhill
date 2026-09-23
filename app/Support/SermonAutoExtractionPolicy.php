@@ -77,6 +77,7 @@ class SermonAutoExtractionPolicy
         ServiceStructureValidator::FLAG_OOS_SAME_TYPE_INVERSION,
         ServiceStructureValidator::FLAG_MISSING_PREACHED_READING,
         ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK,
+        ServiceStructureValidator::FLAG_SERMON_CONTAINS_SUNG_SPAN,
         FlagSermonTextPredatesEvidence::FLAG,
         FlagSermonPartsNotExtracted::FLAG,
         FlagSermonAudioLengthMismatch::FLAG,

@@ -149,6 +149,14 @@ class ServiceStructureValidator
     public const FLAG_SECTION_READS_AS_SUNG = 'structure_section_reads_as_sung';
 
     /**
+     * Applied by {@see SungSpanInsideSermon} to a sermon section holding 30 s or more of
+     * sustained sound, at under 40 words a minute, that no song section holds: a hymn inside
+     * the sermon (sermon 885). Non-disqualifying, like a material boundary risk: the extraction
+     * planner turns it into a boundary risk that holds the sermon for review.
+     */
+    public const FLAG_SERMON_CONTAINS_SUNG_SPAN = 'structure_sermon_contains_sung_span';
+
+    /**
      * Applied by DetectServiceStructure when a validated structure has a
      * sermon but no bible_reading section near it, and a feedback-guided
      * retry could not recover one — the reading is likely embedded in
