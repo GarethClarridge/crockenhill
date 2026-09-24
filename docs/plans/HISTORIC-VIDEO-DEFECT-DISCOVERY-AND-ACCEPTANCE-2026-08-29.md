@@ -8,7 +8,8 @@
 > acceptance and public release remain NO-GO.** Repairs now run through §4.0's corpus
 > re-run: every eligible run re-detected against one frozen commit. Where the work stands:
 >
-> - **Freeze gate (§4.0):** the song-edge check. Six release-side items gate acceptance
+> - **Freeze gate (§4.0): clear** (2026-09-24). Next is the candidate freeze commit and the
+>   canary on it. Six release-side items gate acceptance
 >   (§4.5) instead (operator, 2026-09-24).
 > - **Detection:** the catalogue holds 79 classes: 47 promoted, 22 fixed at source, 4
 >   decided not to detect, 6 unbuilt. The last full evaluation (38 detectors:
@@ -192,7 +193,7 @@ costs more than re-running them. **Operator decisions:**
    closed.** Each item is either built and tested, or recorded as a decision not to detect.
    The pass then runs against one commit, and its evidence binds that commit. The gate
    (catalogue state 2026-09-24: 47 promoted, 22 fixed at source, 4 decided not to detect,
-   6 unbuilt; **only the song-edge check gates the freeze**):
+   6 unbuilt; **every item that gates the freeze is closed**):
    - Structure/typing: ~~`structure-hymn-inside-sermon-section`~~ (built `994446a12`),
      ~~`structure-spoken-quotation-typed-as-song`~~ and
      ~~`detection-unplaced-hold-refusal-discarded`~~ (both already fixed; recorded `5a071a4af`),
@@ -250,8 +251,15 @@ costs more than re-running them. **Operator decisions:**
      (built `4abce5f0c`), ~~`confirmed` redefined as two independent sources~~ (built
      `8ae957628`; operator ruling: **any two** of heard, sung, projected, planned — 126 of 1,185
      current bindings would become inferred, against 231 under the stricter plan wording),
-     ~~speech under looped sung text~~ (built `cb024a9a6`), and song edge into an adjoining
-     section.
+     ~~speech under looped sung text~~ (built `cb024a9a6`), and ~~song edge into an adjoining
+     section~~ (**the hold is the outcome**, operator ruling 2026-09-24). `song-lyrics-outside-section`
+     already detects a song's own lines sung in the neighbouring section and holds the clip.
+     No boundary correction will be built: the stage would have to follow song matching, and
+     its evidence was right 12 of 16 times into another song, 6 of 7 into unsectioned time and
+     5 of 14 into a prayer or reading (09-15 adjudication). **Named limitation:** a held clip
+     misses those lines until an operator adjudicates it. Holds today: 42 (18 into a song,
+     9 unsectioned, 15 into other sections; `storage/scratch/oositem-20260924/lyric-edges.json`).
+     The re-run re-raises them, and widening absorbs most of the unsectioned ones.
    - **Gate acceptance, not the freeze (operator, 2026-09-24):** `identity-duplicate-date-pair`,
      `membership-missing-occasion`, `membership-rehearsal-imported-as-service`,
      `staging-held-candidates-not-promoted`, `release-media-file-missing` and
