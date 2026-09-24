@@ -572,11 +572,17 @@ freeze, and the diff report binds that hash.
   but the clip would carry the baptisms. Fix in the structure prompt beside the ordinance
   exclusion, test first; the next canary checks that 1311's baptisms leave the song and 1304
   §3871 ("Baptism of Roy") stays non-talk.
-- [ ] **Re-cut 1112's held sermon** (operator). §4862 carries the operator-written 09-13
+- [x] **Re-cut 1112's held sermon** (operator). §4862 carries the operator-written 09-13
   sparse-cadence hold, pinned to the transcript Tier A replaced on 2026-09-24; listening rates
   1112 "new better". Check the passage in the new transcript, clear the hold if it is back,
   then `sermons:re-extract ae1716aa-861c-461e-8f16-96913018388e --held-section=4862`. Until
   then 1112 is `failed` and every re-run command refuses it.
+  *Done 2026-09-24.* The new transcript restores the passage: 400 cues and 2,950 words
+  (about 126 a minute) across 2081–3490 s, no gap over 8 s, no repeated cue. Re-cut with
+  `--held-section=4862` (reading 1754–1849 s plus sermon 2051–3755 s); the run is `completed`.
+  The operator then released the hold (`released_by: operator`, the evidence as its reason),
+  mirroring `ContentHoldRechecker`: the flag dropped and §4862 left review
+  (`storage/scratch/release-1112-hold-20260924.php`). 1112 can rejoin the next canary.
 - [ ] **Teach `rerun-diff` two custody facts before the Tier C diff** (proposed 2026-09-24, not
   ruled). (1) Song review is a publication state (`pending_approval` with
   `song_publication_review` reasons), not `needs_manual_review`, which only the boundary-evidence
