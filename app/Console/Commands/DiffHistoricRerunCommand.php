@@ -20,7 +20,9 @@ use RuntimeException;
  * Read-only. Re-captures exactly the snapshot's runs, so review reads what changed and
  * why rather than re-examining every run. Changes that can silently lose containment or
  * custody (a live hold gone, a section leaving review or becoming published, extracted
- * media lost, a run left unfinished) are listed separately and make the command fail.
+ * media lost, a run left unfinished) are listed separately and make the command fail. After a
+ * detection round that deferred its media, the media and review ones are listed as pending
+ * extraction instead; the diff after `historic-import:rerun-extract` checks them.
  *
  * Delete once the corpus re-run's batches are accepted, alongside its other instruments.
  */
@@ -48,6 +50,7 @@ class DiffHistoricRerunCommand extends Command
         $runs = [];
         $kinds = [];
         $needingAttention = 0;
+        $pendingExtraction = 0;
         $changed = 0;
 
         foreach ($snapshot->membership as $runId) {
@@ -61,6 +64,10 @@ class DiffHistoricRerunCommand extends Command
 
             if ($result['attention'] !== []) {
                 $needingAttention++;
+            }
+
+            if ($result['pending'] !== []) {
+                $pendingExtraction++;
             }
 
             foreach ($result['changes'] as $change) {
@@ -87,17 +94,24 @@ class DiffHistoricRerunCommand extends Command
                 'runs' => count($snapshot->membership),
                 'runs_changed' => $changed,
                 'runs_needing_attention' => $needingAttention,
+                'runs_pending_extraction' => $pendingExtraction,
                 'changes_by_kind' => $kinds,
             ],
             'runs' => $runs,
         ];
 
         $this->table(['Change', 'Count'], array_map(static fn (string $kind, int $count): array => [$kind, $count], array_keys($kinds), array_values($kinds)));
-        $this->line(sprintf('%d of %d run(s) changed; %d need attention.', $changed, count($snapshot->membership), $needingAttention));
+        $this->line(sprintf('%d of %d run(s) changed; %d need attention; %d have media custody pending extraction.', $changed, count($snapshot->membership), $needingAttention, $pendingExtraction));
 
         foreach ($runs as $runId => $result) {
             foreach ($result['attention'] as $item) {
                 $this->warn(sprintf('  run #%s: %s', $runId, $item));
+            }
+        }
+
+        foreach ($runs as $runId => $result) {
+            foreach ($result['pending'] as $item) {
+                $this->line(sprintf('  run #%s (pending extraction): %s', $runId, $item));
             }
         }
 

@@ -24,6 +24,7 @@ use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
 use App\Jobs\PromoteHistoricAssets;
+use App\Jobs\RecordDeferredCorpusRerunMedia;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
@@ -158,6 +159,37 @@ class ProcessingPipelineBuilder
             new SendCompletionNotification($log),
             new PromoteHistoricAssets($log),
             new CleanupTemporaryFiles($log),
+        ];
+    }
+
+    /**
+     * The corpus re-run's detection round (plan §4.0): the livestream chain up to the refining
+     * projection, with no media cut.
+     *
+     * A detection round is re-run after every detector fix, and nothing it judges needs media,
+     * so cutting clips each round would only produce work the next round throws away.
+     * {@see RecordDeferredCorpusRerunMedia} records what would be cut instead, and the
+     * sermonless tail completes the run. The media is cut once, on the frozen commit, by
+     * re-extraction ({@see ProcessingRunOrchestrator::reExtract()}).
+     *
+     * Sliced from the full chain rather than listed, so the two can never disagree on the jobs
+     * a re-detection's offset counts over.
+     *
+     * @return non-empty-list<object>
+     */
+    public function buildLivestreamDetectionOnlyChainJobs(MediaProcessingLog $log, bool $resuming = false): array
+    {
+        $jobs = $this->buildLivestreamChainJobs($log, $resuming);
+        $firstMediaJob = array_search(ExtractSermon::class, array_map(static fn (object $job): string => $job::class, $jobs), true);
+
+        if (! is_int($firstMediaJob)) {
+            throw new \LogicException('The livestream chain has no extraction step to stop before.');
+        }
+
+        return [
+            ...array_slice($jobs, 0, $firstMediaJob),
+            new RecordDeferredCorpusRerunMedia($log),
+            ...$this->buildSermonlessServiceChainJobs($log),
         ];
     }
 

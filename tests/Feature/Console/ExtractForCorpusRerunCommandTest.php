@@ -1,0 +1,320 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature\Console;
+
+use App\Data\HistoricStagingContext;
+use App\Jobs\AssessSermonVideoQuality;
+use App\Jobs\AwaitHistoricSermonVideoStorage;
+use App\Jobs\CleanupTemporaryFiles;
+use App\Jobs\CreateSermonTranscriptFromService;
+use App\Jobs\EnhanceAudio;
+use App\Jobs\ExtractSermon;
+use App\Jobs\GenerateThumbnail;
+use App\Jobs\IdentifySpeaker;
+use App\Jobs\PrepareSectionPublicationCandidates;
+use App\Jobs\ProcessTranscriptWithAI;
+use App\Jobs\PromoteHistoricAssets;
+use App\Jobs\SendCompletionNotification;
+use App\Jobs\SubmitToProcessing;
+use App\Models\MediaProcessingLog;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
+use Closure;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
+use Mockery;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\CreatesHistoricImportOperations;
+use Tests\TestCase;
+
+class ExtractForCorpusRerunCommandTest extends TestCase
+{
+    use CreatesHistoricImportOperations;
+    use RefreshDatabase;
+
+    private const SOURCE = 'livestream/temp/source.mp4';
+
+    private string $directory;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Storage::fake('local');
+        Config::set('media-processing.storage.temp_disk', 'local');
+        Config::set('media-processing.storage.transcript_disk', 'local');
+        Config::set('media-processing.storage.sermon_disk', 'local');
+
+        $registry = Mockery::mock(HistoricStagingContextRegistry::class);
+        $registry->shouldReceive('within')
+            ->andReturnUsing(static fn (HistoricStagingContext $context, Closure $callback): mixed => $callback());
+        $this->app->instance(HistoricStagingContextRegistry::class, $registry);
+
+        $this->directory = 'rerun-extract-test-'.bin2hex(random_bytes(6));
+        File::ensureDirectoryExists(storage_path('app/private/'.$this->directory));
+    }
+
+    protected function tearDown(): void
+    {
+        File::deleteDirectory(storage_path('app/private/'.$this->directory));
+
+        parent::tearDown();
+    }
+
+    #[Test]
+    public function it_is_a_dry_run_by_default(): void
+    {
+        Bus::fake();
+        $run = $this->roundedRun();
+
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath()])
+            ->expectsOutputToContain('DRY RUN')
+            ->expectsOutputToContain('ready for extraction')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+        self::assertTrue($run->fresh()?->hasDeferredCorpusRerunMedia());
+    }
+
+    #[Test]
+    public function it_cuts_a_finished_rounds_media_from_extraction(): void
+    {
+        Bus::fake();
+        $run = $this->roundedRun();
+
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('dispatched from extraction')
+            ->assertSuccessful();
+
+        Bus::assertChained([
+            ExtractSermon::class,
+            SubmitToProcessing::class,
+            EnhanceAudio::class,
+            IdentifySpeaker::class,
+            CreateSermonTranscriptFromService::class,
+            ProcessTranscriptWithAI::class,
+            AwaitHistoricSermonVideoStorage::class,
+            AssessSermonVideoQuality::class,
+            GenerateThumbnail::class,
+            PrepareSectionPublicationCandidates::class,
+            SendCompletionNotification::class,
+            PromoteHistoricAssets::class,
+            CleanupTemporaryFiles::class,
+        ]);
+
+        $run = $run->fresh();
+        $stamps = $run?->corpusRerunStamps() ?? [];
+
+        self::assertSame('extracted', $stamps[0]['media']);
+        self::assertFalse($run?->hasDeferredCorpusRerunMedia());
+        self::assertTrue($run?->isReExtraction());
+    }
+
+    #[Test]
+    public function it_refuses_a_run_already_extracted_on_this_commit(): void
+    {
+        Bus::fake();
+        $run = $this->roundedRun();
+        $run->amendLatestCorpusRerunStamp(['media' => 'extracted', 'extraction_dispatched_at' => '2026-09-24T20:00:00+00:00']);
+
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('media already extracted on this commit')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+    }
+
+    /**
+     * Media is only ever cut from a structure the running commit detected.
+     */
+    #[Test]
+    public function it_refuses_a_run_whose_round_ran_on_another_commit(): void
+    {
+        Bus::fake();
+        $run = $this->completedRun();
+        $this->snapshot([$run->id]);
+        $run->putCorpusRerunStamp(['git_commit' => str_repeat('0', 40), 'media' => 'deferred', 'media_recorded_at' => '2026-09-24T20:00:00+00:00']);
+
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('no detection round on this commit')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+    }
+
+    #[Test]
+    public function it_refuses_a_round_that_has_not_finished(): void
+    {
+        Bus::fake();
+        $run = $this->roundedRun(recorded: false);
+
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('detection round has not finished')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+        self::assertTrue($run->fresh()?->hasDeferredCorpusRerunMedia());
+    }
+
+    #[Test]
+    public function it_refuses_when_the_staged_source_hash_does_not_match(): void
+    {
+        Bus::fake();
+        $run = $this->roundedRun();
+        Storage::disk('local')->put((string) $run->source_file_path, 'a different encode');
+
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('staged source hash does not match')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+        self::assertTrue($run->fresh()?->hasDeferredCorpusRerunMedia());
+    }
+
+    #[Test]
+    public function it_refuses_a_concatenated_run_until_the_concatenation_gate_rebuilds_it(): void
+    {
+        // Runs 973 and 1014: the original join is still staged, but nothing recorded its hash.
+        Bus::fake();
+        $run = $this->concatenatedRun();
+        $run->forceFill(['file_hash' => null])->save();
+        $this->roundedStamp($run);
+
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('concatenated source has not been rebuilt')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+    }
+
+    #[Test]
+    public function it_dispatches_a_concatenated_run_whose_rebuild_matches_the_gate_stamp(): void
+    {
+        // The rebuild's container bytes differ from the original join's `file_hash` (run 950);
+        // the gate's stamp is what the staged file must hash to.
+        Bus::fake();
+        $rebuilt = 'the same packets in another container';
+        $run = $this->concatenatedRun();
+        Storage::disk('local')->put((string) $run->source_file_path, $rebuilt);
+        $run->writeProcessingMetadata(static fn (array $metadata): array => [
+            ...$metadata,
+            'concatenated_source_restage' => ['sha256' => hash('sha256', $rebuilt), 'duration' => 3001.531, 'parts' => 7],
+        ]);
+        $this->roundedStamp($run);
+
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('dispatched from extraction')
+            ->assertSuccessful();
+    }
+
+    /**
+     * A member whose detection round on the running commit has finished and deferred its media.
+     */
+    private function roundedRun(bool $recorded = true): MediaProcessingLog
+    {
+        $run = $this->completedRun();
+        $this->roundedStamp($run, $recorded);
+
+        return $run->refresh();
+    }
+
+    private function roundedStamp(MediaProcessingLog $run, bool $recorded = true): void
+    {
+        $this->snapshot([$run->id]);
+        $commit = json_decode((string) file_get_contents(storage_path('app/private/'.$this->snapshotPath())), true)['git_commit'];
+
+        $run->putCorpusRerunStamp([
+            'grounds' => 'corpus_rerun',
+            'git_commit' => $commit,
+            'media' => 'deferred',
+            'dispatched_at' => '2026-09-24T19:00:00+00:00',
+            ...($recorded ? ['media_recorded_at' => '2026-09-24T19:30:00+00:00'] : []),
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @param  array<string, mixed>  $metadata
+     */
+    private function completedRun(array $attributes = [], array $metadata = []): MediaProcessingLog
+    {
+        $operation = $this->createHistoricImportOperation();
+
+        // Each run its own recording: runs sharing a hash would share a dedup key on reopening.
+        $bytes = 'source bytes '.$operation->operation_id;
+        Storage::disk('local')->put(self::SOURCE.'.'.$operation->id, $bytes);
+
+        return MediaProcessingLog::factory()->livestream()->completed()->create([
+            'historic_import_operation_id' => $operation->id,
+            'source_file_path' => self::SOURCE.'.'.$operation->id,
+            'file_hash' => hash('sha256', $bytes),
+            'sermon_start_time' => 600.0,
+            'sermon_end_time' => 2400.0,
+            'processing_metadata' => [
+                'historic_import' => [
+                    'operation_id' => $operation->operation_id,
+                    'staging_context' => $this->stagingContext()->toArray(),
+                ],
+                'sermon_extraction_plan' => ['segments' => [['start_time' => 600.0, 'end_time' => 2400.0]]],
+                'service_structure' => ['sections' => []],
+                ...$metadata,
+            ],
+            ...$attributes,
+        ]);
+    }
+
+    private function concatenatedRun(): MediaProcessingLog
+    {
+        $run = $this->completedRun();
+        $run->writeProcessingMetadata(static function (array $metadata): array {
+            $metadata['historic_import']['concatenation'] = 'lossless';
+
+            return $metadata;
+        });
+
+        return $run->refresh();
+    }
+
+    private function stagingContext(): HistoricStagingContext
+    {
+        return new HistoricStagingContext(
+            manifestHash: str_repeat('a', 64),
+            planHash: str_repeat('b', 64),
+            stagingDisk: 'historic_staging',
+            batchRoot: 'historic-batches/corpus-rerun',
+            storageIdentity: [
+                'driver' => 'local',
+                'bucket' => null,
+                'root_fingerprint' => str_repeat('c', 64),
+                'prefix_fingerprint' => str_repeat('d', 64),
+            ],
+        );
+    }
+
+    /**
+     * @param  list<int>  $runIds
+     */
+    private function snapshot(array $runIds): void
+    {
+        $this->artisan('historic-import:rerun-snapshot', ['runs' => $runIds, '--output' => $this->snapshotPath()])
+            ->assertSuccessful();
+    }
+
+    /**
+     * @param  Closure(array<string, mixed>): array<string, mixed>  $change
+     */
+    private function rewriteSnapshot(Closure $change): void
+    {
+        $path = storage_path('app/private/'.$this->snapshotPath());
+        file_put_contents($path, json_encode($change(json_decode((string) file_get_contents($path), true))));
+    }
+
+    private function snapshotPath(): string
+    {
+        return $this->directory.'/before.json';
+    }
+}

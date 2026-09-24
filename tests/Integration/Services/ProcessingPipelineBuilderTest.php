@@ -24,6 +24,7 @@ use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
 use App\Jobs\PromoteHistoricAssets;
+use App\Jobs\RecordDeferredCorpusRerunMedia;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
@@ -302,6 +303,49 @@ class ProcessingPipelineBuilderTest extends TestCase
         $this->assertInstanceOf(SendCompletionNotification::class, $jobs[9]);
         $this->assertInstanceOf(PromoteHistoricAssets::class, $jobs[10]);
         $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[11]);
+    }
+
+    /**
+     * The corpus re-run's detection rounds (plan §4.0): the livestream chain up to the refining
+     * projection, then a step that records what media would be cut, then the sermonless tail.
+     */
+    #[Test]
+    public function it_builds_a_detection_only_chain_that_stops_before_any_media_is_cut(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $jobs = $this->builder->buildLivestreamDetectionOnlyChainJobs($log);
+        $classes = array_map(static fn (object $job): string => $job::class, $jobs);
+
+        $this->assertSame([
+            AnalyzeSegments::class,
+            TranscribeFullService::class,
+            DetectServiceStructure::class,
+            ProjectLivestreamServiceStructure::class,
+            MatchSongsFromTranscript::class,
+            MergeSongContinuations::class,
+            ExtendSongsOverOwnLyrics::class,
+            ProjectLivestreamServiceStructure::class,
+            RecordDeferredCorpusRerunMedia::class,
+            PromoteHistoricAssets::class,
+            CleanupTemporaryFiles::class,
+        ], $classes);
+    }
+
+    /**
+     * Re-detection resumes at an offset into the full chain, so the two chains must agree on
+     * every job before the first media step or the offset would land on the wrong job.
+     */
+    #[Test]
+    public function the_detection_only_chain_shares_the_full_chains_prefix(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $full = array_map(static fn (object $job): string => $job::class, $this->builder->buildLivestreamChainJobs($log));
+        $detectionOnly = array_map(static fn (object $job): string => $job::class, $this->builder->buildLivestreamDetectionOnlyChainJobs($log));
+        $prefix = array_slice($full, 0, (int) array_search(ExtractSermon::class, $full, true));
+
+        $this->assertSame($prefix, array_slice($detectionOnly, 0, count($prefix)));
     }
 
     #[Test]

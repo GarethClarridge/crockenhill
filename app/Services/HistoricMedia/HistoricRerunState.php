@@ -53,10 +53,40 @@ final class HistoricRerunState
             'superseded' => $run->superseded_at !== null,
             'transcript_sha256' => $this->transcriptSha256($run),
             'sermon_absence' => $run->assertedSermonAbsence() !== null,
-            'sermon_span' => $this->span($run->sermon_start_time, $run->sermon_end_time),
-            'extraction_plan' => $this->extractionPlan($metadata['sermon_extraction_plan'] ?? null),
+            ...$this->sermonPlan($run, $metadata),
             'sermon' => $this->sermon($run->sermon),
             'sections' => $sections->map(fn (ServiceSection $section): array => $this->section($section))->values()->all(),
+        ];
+    }
+
+    /**
+     * The sermon span and the plan it was cut on, or, after a detection round that deferred its
+     * media (plan §4.0), the plan the round recorded for extraction to cut: the run's own fields
+     * still describe the media that exists, which the round did not replace.
+     *
+     * @param  array<string, mixed>  $metadata
+     * @return array{media_deferred: bool, sermon_span: array{start: float, end: float}|null, extraction_plan: array<string, mixed>|null}
+     */
+    private function sermonPlan(MediaProcessingLog $run, array $metadata): array
+    {
+        if (! $run->hasDeferredCorpusRerunMedia()) {
+            return [
+                'media_deferred' => false,
+                'sermon_span' => $this->span($run->sermon_start_time, $run->sermon_end_time),
+                'extraction_plan' => $this->extractionPlan($metadata['sermon_extraction_plan'] ?? null),
+            ];
+        }
+
+        $stamps = $run->corpusRerunStamps();
+        $plan = $stamps[count($stamps) - 1]['deferred_extraction_plan'] ?? null;
+        $segments = array_values(array_filter(is_array($plan) ? (array) ($plan['segments'] ?? []) : [], 'is_array'));
+
+        return [
+            'media_deferred' => true,
+            'sermon_span' => $segments === []
+                ? null
+                : $this->span($segments[0]['start_time'] ?? null, $segments[count($segments) - 1]['end_time'] ?? null),
+            'extraction_plan' => $this->extractionPlan($plan),
         ];
     }
 
@@ -166,6 +196,7 @@ final class HistoricRerunState
             'needs_manual_review' => $section->needs_manual_review,
             'publication_status' => $section->publication_status->value,
             'review_flags' => $reviewFlags,
+            'song_review' => $this->songReview($metadata),
             'holds' => $this->holds($metadata),
             'media' => [
                 'signature' => $section->extracted_video_path === null && $section->extracted_audio_path === null
@@ -183,6 +214,21 @@ final class HistoricRerunState
                 ->values()
                 ->all(),
         ];
+    }
+
+    /**
+     * The doubts a song's publication review names, by kind. A detection round decides them
+     * without a clip ({@see \App\Jobs\RecordDeferredCorpusRerunMedia}).
+     *
+     * @param  array<string, mixed>  $metadata
+     * @return list<string>
+     */
+    private function songReview(array $metadata): array
+    {
+        $kinds = array_values(array_filter(array_column((array) data_get($metadata, 'song_publication_review.reasons', []), 'kind'), 'is_string'));
+        sort($kinds);
+
+        return $kinds;
     }
 
     /**

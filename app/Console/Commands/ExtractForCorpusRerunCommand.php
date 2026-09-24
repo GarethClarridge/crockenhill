@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Actions\RedetectForCorpusRerun;
+use App\Actions\ExtractForCorpusRerun;
 use App\Models\MediaProcessingLog;
 use App\Services\HistoricMedia\HistoricRerunSnapshot;
 use App\Support\PrivateEvidenceFile;
@@ -12,33 +12,31 @@ use Illuminate\Console\Command;
 use RuntimeException;
 
 /**
- * Re-detect the members of a snapshotted corpus re-run batch (plan §4.0, Tier B).
+ * Cut the media a corpus re-run's detection rounds deferred, on the frozen commit (plan §4.0,
+ * Tier C).
  *
- * The snapshot written by `historic-import:rerun-snapshot` is the batch: only its runs can be
- * dispatched, and only on the commit it was taken on. Dry-run by default, and each invocation
- * dispatches at most `--max` runs; runs already re-run on this commit are refused, so the
- * command is re-run to continue a batch. Afterwards, `historic-import:rerun-diff` on the same
- * snapshot reports what changed.
- *
- * Each dispatch is a detection round: no media is cut. `historic-import:rerun-extract` cuts it
- * once the round's commit is frozen.
+ * Takes the same snapshot as the round it follows: only runs whose latest round ran on this
+ * commit and deferred its media can be dispatched. Dry-run by default, at most `--max` runs an
+ * invocation; runs already extracted are refused, so the command is re-run to continue.
+ * Afterwards, `historic-import:rerun-diff` on the same snapshot applies the full custody
+ * checks, which a detection round leaves pending.
  *
  * Complete the plan's dispatch preflight (queues, worker code, mounts, disk) first; this
  * command checks each run, not the workers that will process it.
  *
  * Delete once the corpus re-run's batches are accepted, alongside its other instruments.
  */
-class RedetectForCorpusRerunCommand extends Command
+class ExtractForCorpusRerunCommand extends Command
 {
-    protected $signature = 'historic-import:rerun-redetect
-        {snapshot : The batch snapshot written by historic-import:rerun-snapshot}
+    protected $signature = 'historic-import:rerun-extract
+        {snapshot : The batch snapshot the detection round was dispatched from}
         {runs?* : A subset of the snapshot\'s runs; all of them when omitted}
         {--max=10 : The most runs one invocation will dispatch}
         {--execute : Dispatch; without this option the command is a dry run}';
 
-    protected $description = 'Re-detect the members of a corpus re-run batch from structure detection, deferring media';
+    protected $description = 'Cut the media a corpus re-run detection round deferred';
 
-    public function handle(RedetectForCorpusRerun $redetector): int
+    public function handle(ExtractForCorpusRerun $extractor): int
     {
         $execute = (bool) $this->option('execute');
         $max = (int) $this->option('max');
@@ -59,9 +57,9 @@ class RedetectForCorpusRerunCommand extends Command
         }
 
         if (! $execute) {
-            $this->warn('DRY RUN: nothing will be written or dispatched.');
+            $this->warn('DRY RUN: nothing will be written or dispatched. Each run\'s source is hashed, which reads the whole recording.');
         } else {
-            $this->warn('This re-opens completed runs: each leaves `completed` while it is re-detected. No media is cut.');
+            $this->warn('This re-opens completed runs: each leaves `completed` while its media is cut.');
         }
 
         $rows = [];
@@ -76,7 +74,7 @@ class RedetectForCorpusRerunCommand extends Command
 
             $run = MediaProcessingLog::find($runId);
             $result = $run instanceof MediaProcessingLog
-                ? $redetector->execute($run, $snapshot, $execute)
+                ? $extractor->execute($run, $snapshot, $execute)
                 : ['outcome' => 'refused', 'reason' => 'run not found'];
 
             $counts[$result['outcome']]++;

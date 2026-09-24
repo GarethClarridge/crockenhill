@@ -377,17 +377,25 @@ class ProcessingRunOrchestrator
                     );
                 }
 
-                // Extraction follows detection and will re-cut media this run has
-                // already published; without this the store step refuses.
-                $processingLog->markAsReExtraction();
+                // A corpus re-run round stops before extraction (plan §4.0): it is repeated
+                // after every detector fix, and the frozen commit's re-extraction cuts the
+                // media once.
+                $detectionOnly = $grounds === StructureRedetectionGrounds::CorpusRerun;
+
+                if (! $detectionOnly) {
+                    // Extraction follows detection and will re-cut media this run has
+                    // already published; without this the store step refuses.
+                    $processingLog->markAsReExtraction();
+                }
 
                 Log::info('Re-deriving service structure', [
                     'processing_id' => $processingLog->processing_id,
                     'historic_import_operation_id' => $processingLog->historic_import_operation_id,
                     'grounds' => $grounds->value,
+                    'detection_only' => $detectionOnly,
                 ]);
 
-                return $this->retryWithChainFromPlan($processingLog->fresh() ?? $processingLog, $plan);
+                return $this->retryWithChainFromPlan($processingLog->fresh() ?? $processingLog, $plan, $detectionOnly);
             });
         } catch (\Throwable $exception) {
             Log::error('Failed to re-derive service structure', [
@@ -940,7 +948,12 @@ class ProcessingRunOrchestrator
         }
     }
 
-    private function retryWithChain(MediaProcessingLog $processingLog, string $pipeline, int $jobOffset): ProcessingResult
+    /**
+     * @param  bool  $detectionOnly  end a livestream chain before extraction; the offset counts
+     *                               over the same jobs, because the detection-only chain shares
+     *                               the full chain's prefix
+     */
+    private function retryWithChain(MediaProcessingLog $processingLog, string $pipeline, int $jobOffset, bool $detectionOnly = false): ProcessingResult
     {
         $this->processingRunTransitions->resetForRetry($processingLog);
 
@@ -950,7 +963,9 @@ class ProcessingRunOrchestrator
             'audio' => array_slice($this->pipelineBuilder->buildAudioPipeline($freshLog), $jobOffset),
             'video' => array_slice($this->pipelineBuilder->buildDirectVideoPipeline($freshLog), $jobOffset),
             'video_auto_trim' => array_slice($this->pipelineBuilder->buildAutoTrimVideoPipeline($freshLog), $jobOffset),
-            'livestream' => array_slice($this->pipelineBuilder->buildLivestreamChainJobs($freshLog, resuming: true), $jobOffset),
+            'livestream' => array_slice($detectionOnly
+                ? $this->pipelineBuilder->buildLivestreamDetectionOnlyChainJobs($freshLog, resuming: true)
+                : $this->pipelineBuilder->buildLivestreamChainJobs($freshLog, resuming: true), $jobOffset),
             default => [],
         };
 
@@ -994,7 +1009,7 @@ class ProcessingRunOrchestrator
     /**
      * @param  RetryPlan  $retryPlan
      */
-    private function retryWithChainFromPlan(MediaProcessingLog $processingLog, array $retryPlan): ProcessingResult
+    private function retryWithChainFromPlan(MediaProcessingLog $processingLog, array $retryPlan, bool $detectionOnly = false): ProcessingResult
     {
         $pipeline = $retryPlan['pipeline'] ?? null;
         $jobOffset = $retryPlan['job_offset'] ?? null;
@@ -1009,7 +1024,7 @@ class ProcessingRunOrchestrator
 
         $this->phaseResetService->resetForRetry($processingLog, $retryPlan);
 
-        return $this->retryWithChain($processingLog, $pipeline, $jobOffset);
+        return $this->retryWithChain($processingLog, $pipeline, $jobOffset, $detectionOnly);
     }
 
     private function restartLivestream(MediaProcessingLog $processingLog): ProcessingResult

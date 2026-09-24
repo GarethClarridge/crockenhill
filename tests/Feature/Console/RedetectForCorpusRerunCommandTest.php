@@ -7,6 +7,14 @@ namespace Tests\Feature\Console;
 use App\Data\HistoricStagingContext;
 use App\Enums\ProcessingStatus;
 use App\Enums\ServiceSectionType;
+use App\Jobs\CleanupTemporaryFiles;
+use App\Jobs\DetectServiceStructure;
+use App\Jobs\ExtendSongsOverOwnLyrics;
+use App\Jobs\MatchSongsFromTranscript;
+use App\Jobs\MergeSongContinuations;
+use App\Jobs\ProjectLivestreamServiceStructure;
+use App\Jobs\PromoteHistoricAssets;
+use App\Jobs\RecordDeferredCorpusRerunMedia;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
@@ -87,8 +95,39 @@ class RedetectForCorpusRerunCommandTest extends TestCase
 
         self::assertCount(1, $stamps);
         self::assertSame('corpus_rerun', $stamps[0]['grounds']);
+        self::assertSame('deferred', $stamps[0]['media']);
         self::assertMatchesRegularExpression('/\A[0-9a-f]{40}\z/', $stamps[0]['git_commit']);
-        self::assertTrue($run->fresh()?->isReExtraction());
+        self::assertTrue($run->fresh()?->hasDeferredCorpusRerunMedia());
+    }
+
+    /**
+     * A detection round is repeated after every detector fix, so it cuts nothing: the chain
+     * stops before extraction, records what would be cut, and completes the run (plan §4.0).
+     */
+    #[Test]
+    public function it_dispatches_a_detection_round_that_cuts_no_media(): void
+    {
+        Bus::fake();
+        $run = $this->completedRun();
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->assertSuccessful();
+
+        Bus::assertChained([
+            DetectServiceStructure::class,
+            ProjectLivestreamServiceStructure::class,
+            MatchSongsFromTranscript::class,
+            MergeSongContinuations::class,
+            ExtendSongsOverOwnLyrics::class,
+            ProjectLivestreamServiceStructure::class,
+            RecordDeferredCorpusRerunMedia::class,
+            PromoteHistoricAssets::class,
+            CleanupTemporaryFiles::class,
+        ]);
+
+        // Nothing is re-cut, so the run is not marked as re-cutting published media.
+        self::assertFalse($run->fresh()?->isReExtraction());
     }
 
     /**
@@ -162,52 +201,17 @@ class RedetectForCorpusRerunCommandTest extends TestCase
             ->assertFailed();
     }
 
+    /**
+     * A round reads banked evidence, never the recording, so it does not hash it; the cut
+     * checks the source (historic-import:rerun-extract).
+     */
     #[Test]
-    public function it_refuses_when_the_staged_source_hash_does_not_match(): void
+    public function a_detection_round_does_not_read_the_staged_source(): void
     {
         Bus::fake();
         $run = $this->completedRun();
         $this->snapshot([$run->id]);
         Storage::disk('local')->put((string) $run->source_file_path, 'a different encode');
-
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
-            ->expectsOutputToContain('staged source hash does not match')
-            ->assertSuccessful();
-
-        Bus::assertNothingDispatched();
-        self::assertSame([], $run->fresh()?->corpusRerunStamps());
-    }
-
-    #[Test]
-    public function it_refuses_a_concatenated_run_until_the_concatenation_gate_rebuilds_it(): void
-    {
-        // Runs 973 and 1014: the original join is still staged, but nothing recorded its hash.
-        Bus::fake();
-        $run = $this->concatenatedRun();
-        $run->forceFill(['file_hash' => null])->save();
-        $this->snapshot([$run->id]);
-
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
-            ->expectsOutputToContain('concatenated source has not been rebuilt')
-            ->assertSuccessful();
-
-        Bus::assertNothingDispatched();
-    }
-
-    #[Test]
-    public function it_dispatches_a_concatenated_run_whose_rebuild_matches_the_gate_stamp(): void
-    {
-        // The rebuild's container bytes differ from the original join's `file_hash` (run 950);
-        // the gate's stamp is what the staged file must hash to.
-        Bus::fake();
-        $run = $this->concatenatedRun();
-        $rebuilt = 'the same packets in another container';
-        Storage::disk('local')->put((string) $run->source_file_path, $rebuilt);
-        $run->writeProcessingMetadata(static fn (array $metadata): array => [
-            ...$metadata,
-            'concatenated_source_restage' => ['sha256' => hash('sha256', $rebuilt), 'duration' => 3001.531, 'parts' => 7],
-        ]);
-        $this->snapshot([$run->id]);
 
         $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
             ->expectsOutputToContain('dispatched from structure detection')
@@ -305,18 +309,6 @@ class RedetectForCorpusRerunCommandTest extends TestCase
             ],
             ...$attributes,
         ]);
-    }
-
-    private function concatenatedRun(): MediaProcessingLog
-    {
-        $run = $this->completedRun();
-        $run->writeProcessingMetadata(static function (array $metadata): array {
-            $metadata['historic_import']['concatenation'] = 'lossless';
-
-            return $metadata;
-        });
-
-        return $run->refresh();
     }
 
     private function stagingContext(): HistoricStagingContext

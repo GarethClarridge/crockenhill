@@ -343,7 +343,7 @@ already re-transcribed at `max_context=0` goes to Tier B. **Measured read-only 2
 So **202 runs wait** for listening, and Tier B can start on the rest (about 235 of 437).
 **Batch 3 (2026-09-24)** adds the nine concatenated runs to the queue and none to the 64, so
 **211 wait** and about 226 start;
-recount both at the freeze. Tier C, re-extraction, follows only where a span or binding moved. Everything lands
+recount both at the freeze. Tier B rounds cut no media (detection rounds, below); Tier C cuts it once, on the frozen commit, for every run whose round deferred it. Everything lands
 in quarantine; release stays with §4.5.
 
 **Membership.** Eligible means historic, completed, not superseded and not excluded (437 at
@@ -418,7 +418,9 @@ freeze, and the diff report binds that hash.
   prompt; the whole canary re-runs on the new commit. Watch 936 §608 (a reading applied to
   persecuted Christians, into prayer), which should follow 949, and 1025 and 936 §606, which
   must stay talks. 1112 parked at extraction as designed (its 09-13 operator-written
-  sparse-cadence hold carried to the re-detected sermon §4862).
+  sparse-cadence hold carried to the re-detected sermon §4862). The re-run is a detection round
+  (below): its pass is judged on the diff with media custody pending, and the first run's
+  full-media diff is the evidence for the media path until Tier C.
   **Runs 964 (§872) and 1250 (§3128)**, the first use of the diff report. Current
   code resolves both hints correctly (#304, #408). The canary checks that re-detection
   rebinds them, that sync overwrites the stale livestream items 6901/9371 rather than
@@ -476,6 +478,27 @@ freeze, and the diff report binds that hash.
   So the reachable canary is **964, 1108, 1025, 1358, 1221, 1311** plus whichever queued
   runs the operator accepts processing twice. Without them it keeps one identity case (964)
   and loses every "must stay non-talk" case.
+- [x] **Detection rounds: re-detect without cutting media** (operator, 2026-09-24). Several
+  rounds of detect, fix and re-detect are expected before the freeze, and nothing a round judges
+  needs media: the first canary spent about 20 minutes per run on detection and then about two
+  hours queued behind one ffmpeg worker, re-cutting clips the next round would discard.
+  *Built 2026-09-24:* `rerun-redetect` now dispatches a detection round: the livestream chain up
+  to the refining projection, then `RecordDeferredCorpusRerunMedia`, then the sermonless tail
+  (promotion, cleanup) that completes the run. The round records, without cutting, the two
+  verdicts that do not need media: the sermon plan extraction would cut (on the stamp, as
+  `deferred_extraction_plan`; `sermon_extraction_plan` still describes the media that exists),
+  and each song's publication review (`song_publication_review`, from span, link and banked
+  boundary evidence). The stamp says `media: deferred`. A round no longer hashes the staged
+  source (about 47 s a run); the cut reads the recording, so the hash moved with it.
+  **Tier C:** `historic-import:rerun-extract {snapshot} [runs] [--max=10] [--execute]` cuts a
+  finished round's media through the orchestrator's `reExtract()` (sermon, analysis, video
+  quality, section candidates and their review, promotion, cleanup), only for a round on the
+  running commit, once, with the source hash checked. **Diff:** after a round, lost clips,
+  removed sections that had media and sections leaving review are listed as *pending
+  extraction* and do not fail; a lost live hold or a publication still does. The diff after
+  Tier C, on the same snapshot, applies every check. Talk speaker review, sermon text and audio
+  checks and video quality are decided only by Tier C. Tier A (`rerun-retranscribe`) still runs
+  the whole pipeline.
 - [ ] Batches by era, each checked against its diff before the next. Stop on any new regression.
 
 **Preflight for every dispatch** (the canary, each batch, and any named pre-freeze exception):

@@ -1602,6 +1602,38 @@ class MediaProcessingLog extends Model
     }
 
     /**
+     * Add fields to the latest corpus re-run stamp, written by a step of the chain it dispatched.
+     *
+     * @param  array<string, mixed>  $fields
+     */
+    public function amendLatestCorpusRerunStamp(array $fields): void
+    {
+        $this->writeProcessingMetadata(static function (array $metadata) use ($fields): array {
+            $stamps = is_array($metadata[RedetectForCorpusRerun::STAMP_KEY] ?? null) ? array_values($metadata[RedetectForCorpusRerun::STAMP_KEY]) : [];
+
+            if ($stamps === []) {
+                throw new \LogicException('This run carries no corpus re-run stamp to amend.');
+            }
+
+            $stamps[count($stamps) - 1] = [...$stamps[count($stamps) - 1], ...$fields];
+            $metadata[RedetectForCorpusRerun::STAMP_KEY] = $stamps;
+
+            return $metadata;
+        });
+    }
+
+    /**
+     * Whether this run's latest corpus re-run left its media to be cut later (plan §4.0).
+     */
+    public function hasDeferredCorpusRerunMedia(): bool
+    {
+        $stamps = $this->corpusRerunStamps();
+        $latest = $stamps === [] ? null : $stamps[count($stamps) - 1];
+
+        return ($latest['media'] ?? null) === RedetectForCorpusRerun::MEDIA_DEFERRED;
+    }
+
+    /**
      * Retire the recovery replay stamp to history once its transcript is being replaced.
      *
      * Plan §4.2 (2026-09-18): a re-transcription must supersede the stale stamp

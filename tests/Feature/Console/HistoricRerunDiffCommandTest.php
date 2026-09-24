@@ -220,6 +220,120 @@ class HistoricRerunDiffCommandTest extends TestCase
             ->assertFailed();
     }
 
+    /**
+     * A detection round cuts nothing (plan §4.0), so its sections lose their old clips and the
+     * review a clip decides has not been made yet. Those are pending until the frozen commit's
+     * extraction, whose diff applies the full checks; they do not fail a round.
+     */
+    #[Test]
+    public function a_detection_round_leaves_media_custody_pending_rather_than_failing(): void
+    {
+        $run = $this->processingRun();
+        $section = $this->section($run, ServiceSectionType::Song, 100, 300);
+        $section->update(['needs_manual_review' => true, 'extracted_video_path' => 'sections/1.mp4', 'extracted_at' => now()]);
+        $this->snapshot([$run->id]);
+
+        $section->update(['needs_manual_review' => false, 'extracted_video_path' => null, 'extracted_at' => null]);
+        $this->deferMedia($run);
+
+        $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json'), '--output' => $this->path('diff.json')])
+            ->expectsOutputToContain('pending extraction')
+            ->assertSuccessful();
+
+        $result = $this->report()['runs'][(string) $run->id];
+
+        self::assertSame([], $result['attention']);
+        self::assertContains('Song 100.0–300.0 → Song 100.0–300.0 lost its extracted media', array_map(static fn (string $item): string => str_replace('§'.$section->id.' song', 'Song', $item), $result['pending']));
+    }
+
+    /**
+     * Deferring media defers only what media decides. A hold is content, and losing one fails a
+     * round as it fails any re-run.
+     */
+    #[Test]
+    public function a_detection_round_still_needs_attention_when_a_live_hold_is_gone(): void
+    {
+        $run = $this->processingRun();
+        $section = $this->section($run, ServiceSectionType::Sermon, 600, 2400, holds: [$this->hold('Saved sermon text repeats a loop')]);
+        $this->snapshot([$run->id]);
+
+        $section->update(['metadata' => []]);
+        $this->deferMedia($run);
+
+        $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json')])
+            ->expectsOutputToContain('hold on')
+            ->assertFailed();
+    }
+
+    /**
+     * The round records the plan extraction would cut on its stamp; `sermon_extraction_plan`
+     * still describes the media that exists, so the round's plan is what the diff compares.
+     */
+    #[Test]
+    public function a_detection_round_is_compared_on_the_plan_it_would_cut(): void
+    {
+        $run = $this->processingRun();
+        $run->update(['processing_metadata' => ['sermon_extraction_plan' => ['mode' => 'single_span', 'segments' => [['start_time' => 600.0, 'end_time' => 2400.0]]]]]);
+        $this->snapshot([$run->id]);
+
+        $this->deferMedia($run, ['mode' => 'single_span', 'segments' => [['start_time' => 640.0, 'end_time' => 2400.0]]]);
+
+        $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json'), '--output' => $this->path('diff.json')])
+            ->assertSuccessful();
+
+        $kinds = array_column($this->report()['runs'][(string) $run->id]['changes'], 'kind');
+
+        self::assertContains('run_extraction_plan_changed', $kinds);
+        self::assertContains('sermon_span_moved', $kinds);
+    }
+
+    /**
+     * A round never runs publication, so a section that became published during one is not
+     * pending anything: it is a real change of custody.
+     */
+    #[Test]
+    public function a_detection_round_still_needs_attention_when_a_section_becomes_published(): void
+    {
+        $run = $this->processingRun();
+        $section = $this->section($run, ServiceSectionType::ShortTalk, 100, 300);
+        $this->snapshot([$run->id]);
+
+        $section->forceFill([
+            'publication_status' => 'published',
+            'published_sermon_id' => Sermon::factory()->create()->id,
+            'published_at' => now(),
+            'extracted_video_path' => 'sections/1.mp4',
+            'extracted_audio_path' => 'sections/1.mp3',
+            'extracted_at' => now(),
+        ])->save();
+        $this->deferMedia($run);
+
+        $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json')])
+            ->expectsOutputToContain('became published')
+            ->assertFailed();
+    }
+
+    #[Test]
+    public function it_reports_a_song_review_verdict_that_changed(): void
+    {
+        $run = $this->processingRun();
+        $section = $this->section($run, ServiceSectionType::Song, 100, 300);
+        $section->update(['metadata' => ['song_publication_review' => ['reasons' => [['kind' => 'short_song_clip']]]]]);
+        $this->snapshot([$run->id]);
+
+        $section->update(['metadata' => ['song_publication_review' => ['reasons' => [['kind' => 'song_identity_unverified']]]]]);
+
+        $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json'), '--output' => $this->path('diff.json')])
+            ->assertSuccessful();
+
+        $changes = array_values(array_filter(
+            $this->report()['runs'][(string) $run->id]['changes'],
+            static fn (array $change): bool => $change['kind'] === 'section_song_review_changed',
+        ));
+
+        self::assertSame([['short_song_clip'], ['song_identity_unverified']], [$changes[0]['before'], $changes[0]['after']]);
+    }
+
     #[Test]
     public function it_needs_attention_when_a_run_is_left_unfinished(): void
     {
@@ -300,6 +414,23 @@ class HistoricRerunDiffCommandTest extends TestCase
             'sermon_id' => Sermon::factory()->create(['reference' => 'John 3:16', 'scripture_passage_id' => ScripturePassage::factory()])->id,
             'sermon_start_time' => 600.0,
             'sermon_end_time' => 2400.0,
+        ]);
+    }
+
+    /**
+     * Stamp the run as a finished detection round that deferred its media.
+     *
+     * @param  array<string, mixed>|null  $plan
+     */
+    private function deferMedia(MediaProcessingLog $run, ?array $plan = null): void
+    {
+        $run->putCorpusRerunStamp([
+            'grounds' => 'corpus_rerun',
+            'git_commit' => str_repeat('a', 40),
+            'media' => 'deferred',
+            'dispatched_at' => '2026-09-24T19:00:00+00:00',
+            'media_recorded_at' => '2026-09-24T19:30:00+00:00',
+            'deferred_extraction_plan' => $plan ?? $run->fresh()?->processing_metadata?->toArray()['sermon_extraction_plan'] ?? null,
         ]);
     }
 

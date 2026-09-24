@@ -17,6 +17,11 @@ namespace App\Services\HistoricMedia;
  * content through a re-run and may land on a different section than the one it started on. A
  * live hold that is absent afterwards, or a section that leaves review or loses its media, is
  * listed under `attention`: those are the changes that silently lose containment or custody.
+ *
+ * After a detection round that deferred its media (plan §4.0), a lost clip or review is what the
+ * round is expected to leave: no clip is cut and the review a clip decides is not yet made. Those
+ * are listed under `pending` instead, and the frozen commit's extraction, diffed against the same
+ * snapshot, applies the full checks. Holds are content, not media, and are never deferred.
  */
 final class HistoricRerunDiff
 {
@@ -26,7 +31,7 @@ final class HistoricRerunDiff
     /**
      * @param  array<string, mixed>  $before
      * @param  array<string, mixed>|null  $after  null when the run could not be captured afterwards
-     * @return array{changes: list<array<string, mixed>>, attention: list<string>}
+     * @return array{changes: list<array<string, mixed>>, attention: list<string>, pending: list<string>}
      */
     public function compare(array $before, ?array $after): array
     {
@@ -34,6 +39,7 @@ final class HistoricRerunDiff
             return [
                 'changes' => [['kind' => 'run_missing']],
                 'attention' => ['run could not be captured after the re-run'],
+                'pending' => [],
             ];
         }
 
@@ -66,15 +72,17 @@ final class HistoricRerunDiff
             $attention[] = sprintf('sermon %d names %s but no passage is linked', $sermon['id'], $sermon['reference']);
         }
 
-        [$sectionChanges, $sectionAttention] = $this->sectionChanges(
+        [$sectionChanges, $sectionAttention, $mediaCustody] = $this->sectionChanges(
             $this->sections($before),
             $this->sections($after),
         );
         [$holdChanges, $holdAttention] = $this->holdChanges($this->sections($before), $this->sections($after));
+        $mediaDeferred = ($after['media_deferred'] ?? false) === true;
 
         return [
             'changes' => [...$changes, ...$sectionChanges, ...$holdChanges],
-            'attention' => [...$attention, ...$sectionAttention, ...$holdAttention],
+            'attention' => [...$attention, ...$sectionAttention, ...($mediaDeferred ? [] : $mediaCustody), ...$holdAttention],
+            'pending' => $mediaDeferred ? $mediaCustody : [],
         ];
     }
 
@@ -107,19 +115,21 @@ final class HistoricRerunDiff
     /**
      * @param  list<array<string, mixed>>  $before
      * @param  list<array<string, mixed>>  $after
-     * @return array{0: list<array<string, mixed>>, 1: list<string>}
+     * @return array{0: list<array<string, mixed>>, 1: list<string>, 2: list<string>} changes,
+     *                                                                                  attention, and the media custody a detection round defers
      */
     private function sectionChanges(array $before, array $after): array
     {
         $changes = [];
         $attention = [];
+        $mediaCustody = [];
         [$pairs, $removed, $added] = $this->pair($before, $after);
 
         foreach ($removed as $section) {
             $changes[] = ['kind' => 'section_removed', 'section' => $this->label($section)];
 
             if (($section['media']['signature'] ?? null) !== null) {
-                $attention[] = sprintf('%s had extracted media and is gone', $this->label($section));
+                $mediaCustody[] = sprintf('%s had extracted media and is gone', $this->label($section));
             }
         }
 
@@ -134,6 +144,12 @@ final class HistoricRerunDiff
                 if (($old[$field] ?? null) !== ($new[$field] ?? null)) {
                     $changes[] = ['kind' => $kind, 'section' => $label, 'before' => $old[$field] ?? null, 'after' => $new[$field] ?? null];
                 }
+            }
+
+            // Only between captures that both record it: a snapshot taken before the verdict was
+            // captured would otherwise report every song as changed.
+            if (array_key_exists('song_review', $old) && array_key_exists('song_review', $new) && $old['song_review'] !== $new['song_review']) {
+                $changes[] = ['kind' => 'section_song_review_changed', 'section' => $label, 'before' => $old['song_review'], 'after' => $new['song_review']];
             }
 
             if (! $this->spansEqual(['start' => $old['start'], 'end' => $old['end']], ['start' => $new['start'], 'end' => $new['end']])) {
@@ -153,7 +169,7 @@ final class HistoricRerunDiff
 
             if ($oldMedia !== null && $newMedia === null) {
                 $changes[] = ['kind' => 'section_media_lost', 'section' => $label];
-                $attention[] = sprintf('%s lost its extracted media', $label);
+                $mediaCustody[] = sprintf('%s lost its extracted media', $label);
             } elseif ($oldMedia !== $newMedia || ($old['media']['extracted_at'] ?? null) !== ($new['media']['extracted_at'] ?? null)) {
                 $changes[] = ['kind' => 'section_media_recut', 'section' => $label];
             }
@@ -163,7 +179,7 @@ final class HistoricRerunDiff
             }
 
             if ($old['needs_manual_review'] === true && $new['needs_manual_review'] === false) {
-                $attention[] = sprintf('%s left manual review', $label);
+                $mediaCustody[] = sprintf('%s left manual review', $label);
             }
 
             if ($old['publication_status'] !== 'published' && $new['publication_status'] === 'published') {
@@ -171,7 +187,7 @@ final class HistoricRerunDiff
             }
         }
 
-        return [$changes, $attention];
+        return [$changes, $attention, $mediaCustody];
     }
 
     /**

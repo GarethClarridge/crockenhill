@@ -8,12 +8,9 @@ use App\Enums\StructureRedetectionGrounds;
 use App\Models\MediaProcessingLog;
 use App\Services\HistoricMedia\CorpusRerunGuard;
 use App\Services\HistoricMedia\HistoricRerunSnapshot;
-use App\Services\HistoricMedia\HistoricStagingContextRegistry;
-use App\Services\HistoricMedia\StagedSourceVerification;
 use App\Services\HistoricMedia\TranscriptLossHolds;
 use App\Services\Processing\ProcessingRunOrchestrator;
 use Illuminate\Support\Facades\Log;
-use Throwable;
 
 /**
  * Re-detect one member of a snapshotted corpus re-run batch (plan §4.0, Tier B).
@@ -22,10 +19,13 @@ use Throwable;
  * fixes acting at structure detection and song matching reach existing runs through the
  * pipeline rather than by hand. This action adds the batch's guards ({@see CorpusRerunGuard})
  * to the ones every re-detection shares
- * ({@see ProcessingRunOrchestrator::structureRedetectionRefusal()}), refuses a run held for
- * transcript loss, which is Tier A's ({@see TranscriptLossHolds}), and checks that the staged
- * source hashes to the recorded source, because extraction re-cuts media from it against
- * timings that describe the original.
+ * ({@see ProcessingRunOrchestrator::structureRedetectionRefusal()}), and refuses a run held for
+ * transcript loss, which is Tier A's ({@see TranscriptLossHolds}).
+ *
+ * Each dispatch is a detection round: the chain stops before extraction, because rounds are
+ * repeated after every detector fix and nothing they judge needs media. The stamp records the
+ * media as deferred; {@see ExtractForCorpusRerun} cuts it once, on the frozen commit, and is
+ * where the staged source's hash is checked, because the cut is what reads the recording.
  *
  * The dispatch is stamped on the run before it is sent and the stamp withdrawn if the
  * orchestrator refuses. Transcription is not repeated: Tier A's re-transcription is
@@ -37,10 +37,11 @@ final class RedetectForCorpusRerun
 {
     public const STAMP_KEY = 'corpus_rerun';
 
+    /** A detection round's stamp: media is cut once, later, by re-extraction on the frozen commit. */
+    public const MEDIA_DEFERRED = 'deferred';
+
     public function __construct(
         private readonly ProcessingRunOrchestrator $orchestrator,
-        private readonly HistoricStagingContextRegistry $stagingContexts,
-        private readonly StagedSourceVerification $stagedSource,
         private readonly CorpusRerunGuard $guard,
         private readonly TranscriptLossHolds $transcriptLoss,
     ) {}
@@ -65,6 +66,7 @@ final class RedetectForCorpusRerun
             'git_commit' => $snapshot->gitCommit,
             'snapshot_file_sha256' => $snapshot->fileSha256,
             'membership_sha256' => $snapshot->membershipSha256,
+            'media' => self::MEDIA_DEFERRED,
             'dispatched_at' => now()->toIso8601String(),
         ]);
 
@@ -82,12 +84,9 @@ final class RedetectForCorpusRerun
             'membership_sha256' => $snapshot->membershipSha256,
         ]);
 
-        return ['outcome' => 'dispatched', 'reason' => 'dispatched from structure detection'];
+        return ['outcome' => 'dispatched', 'reason' => 'dispatched from structure detection; media deferred'];
     }
 
-    /**
-     * Cheap checks first; the source hash reads the whole recording, so it runs last.
-     */
     private function refusal(MediaProcessingLog $run, HistoricRerunSnapshot $snapshot): ?string
     {
         $batchRefusal = $this->guard->refusal($run, $snapshot);
@@ -102,22 +101,6 @@ final class RedetectForCorpusRerun
             return 'run is held for transcript loss; it belongs to Tier A (historic-import:rerun-retranscribe)';
         }
 
-        $orchestratorRefusal = $this->orchestrator->structureRedetectionRefusal($run, StructureRedetectionGrounds::CorpusRerun);
-
-        if ($orchestratorRefusal !== null) {
-            return $orchestratorRefusal['message'];
-        }
-
-        $context = $run->historicStagingContext();
-
-        if ($context === null) {
-            return 'run has no historic staging context';
-        }
-
-        try {
-            return $this->stagingContexts->within($context, fn (): ?string => $this->stagedSource->refusal($run));
-        } catch (Throwable $exception) {
-            return 'staging context unavailable: '.$exception->getMessage();
-        }
+        return $this->orchestrator->structureRedetectionRefusal($run, StructureRedetectionGrounds::CorpusRerun)['message'] ?? null;
     }
 }

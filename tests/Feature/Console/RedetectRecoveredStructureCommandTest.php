@@ -7,6 +7,24 @@ namespace Tests\Feature\Console;
 use App\Actions\RedetectStructureOnRecoveredEvidence;
 use App\Enums\ProcessingStatus;
 use App\Enums\ServiceSectionType;
+use App\Jobs\AssessSermonVideoQuality;
+use App\Jobs\AwaitHistoricSermonVideoStorage;
+use App\Jobs\CleanupTemporaryFiles;
+use App\Jobs\CreateSermonTranscriptFromService;
+use App\Jobs\DetectServiceStructure;
+use App\Jobs\EnhanceAudio;
+use App\Jobs\ExtendSongsOverOwnLyrics;
+use App\Jobs\ExtractSermon;
+use App\Jobs\GenerateThumbnail;
+use App\Jobs\IdentifySpeaker;
+use App\Jobs\MatchSongsFromTranscript;
+use App\Jobs\MergeSongContinuations;
+use App\Jobs\PrepareSectionPublicationCandidates;
+use App\Jobs\ProcessTranscriptWithAI;
+use App\Jobs\ProjectLivestreamServiceStructure;
+use App\Jobs\PromoteHistoricAssets;
+use App\Jobs\SendCompletionNotification;
+use App\Jobs\SubmitToProcessing;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -97,6 +115,43 @@ class RedetectRecoveredStructureCommandTest extends TestCase
         self::assertSame('other', $snapshot['sections'][0]['section_type']);
         self::assertEqualsWithDelta(120.0, $snapshot['sermon_start_time'], 0.001);
         self::assertNotNull($snapshot['taken_at']);
+    }
+
+    /**
+     * Only the corpus re-run defers its media (plan §4.0). A corrected transcript is a repair,
+     * so its re-detection re-cuts the media it moved.
+     */
+    #[Test]
+    public function it_re_cuts_the_media_after_re_detecting(): void
+    {
+        Bus::fake();
+        $log = $this->replayedRun();
+
+        $this->artisan('historic-import:redetect-recovered-structure', ['run' => [$log->id], '--execute' => true])
+            ->assertSuccessful();
+
+        self::assertTrue($log->fresh()?->isReExtraction());
+        Bus::assertChained([
+            DetectServiceStructure::class,
+            ProjectLivestreamServiceStructure::class,
+            MatchSongsFromTranscript::class,
+            MergeSongContinuations::class,
+            ExtendSongsOverOwnLyrics::class,
+            ProjectLivestreamServiceStructure::class,
+            ExtractSermon::class,
+            SubmitToProcessing::class,
+            EnhanceAudio::class,
+            IdentifySpeaker::class,
+            CreateSermonTranscriptFromService::class,
+            ProcessTranscriptWithAI::class,
+            AwaitHistoricSermonVideoStorage::class,
+            AssessSermonVideoQuality::class,
+            GenerateThumbnail::class,
+            PrepareSectionPublicationCandidates::class,
+            SendCompletionNotification::class,
+            PromoteHistoricAssets::class,
+            CleanupTemporaryFiles::class,
+        ]);
     }
 
     /**
