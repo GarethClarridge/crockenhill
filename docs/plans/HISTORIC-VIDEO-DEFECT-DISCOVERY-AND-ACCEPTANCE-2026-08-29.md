@@ -257,9 +257,18 @@ the 09-16 census; H10b's 455 includes excluded runs). It is recounted and hashed
 freeze, and the diff report binds that hash.
 
 **To build before the pass:**
-- [ ] A per-run **before/after diff report**: sections, types, spans, bindings, holds (with
+- [x] A per-run **before/after diff report**: sections, types, spans, bindings, holds (with
   `found_by`), review flags and extraction plans. It is snapshotted before dispatch and
   compared after, so review reads "what changed and why" instead of re-examining every run.
+  *Built 2026-09-24:* `historic-import:rerun-snapshot` writes a create-once private file
+  holding the exact membership, its hash, the commit and each run's state, and
+  `historic-import:rerun-diff` re-captures those runs and reports each change by kind.
+  Sections pair by span overlap, never by order (an insert renumbers every later section).
+  Holds are keyed by what they claim across the whole run, so a carried hold reads as
+  carried. **Attention** (and a failing exit) is a live hold gone, a section leaving review,
+  becoming published or losing its media, or a run the re-run leaves unfinished. A read-only
+  probe over the 13 canary runs captured every transcript inside its staging context and
+  diffed clean.
 - [ ] A bounded **re-detect dispatch route**, tested. `historic-import:retranscribe-video-run`
   is restricted to four runs.
 - [ ] **Canary, run on the candidate freeze commit.** If it passes, that commit is frozen. A
@@ -284,9 +293,9 @@ freeze, and the diff report binds that hash.
   regression case; already `short_talk` since 09-21).
   *Mixed:* **1311** — §3949 "Baptismal testimonies" becomes `short_talk` (`testimony`) while
   §3951 "Baptisms" stays non-talk.
-  *Must stay non-talk:* **1304** (§3871, "Baptism of Roy" — an ordinance), **935** (§599,
-  "Unidentifiable service audio", 61 min; replaces 1051's eulogy, whose run is excluded
-  and cannot be re-detected), **1262** (§3279, "Reflection and prayer for Queen Elizabeth
+  *Must stay non-talk:* **1304** (§3871, "Baptism of Roy" — an ordinance), **930** (§534,
+  "Unclear opening portion", 20 min; replaces 1051's eulogy, whose run is excluded and
+  cannot be re-detected), **1262** (§3279, "Reflection and prayer for Queen Elizabeth
   II"), **949** (§719, "Church sharing and prayer"), **936** (§600, "Pre-service
   preparation").
   Three of the five positives carry their answer in the title, so this checks the rule's
@@ -295,6 +304,11 @@ freeze, and the diff report binds that hash.
   A miss is a prompt fix before the batches (`feedback_measure_before_generalizing_a_fix`); a
   missed *proposed type* alone does not block, because the operator confirms every type at
   approval.
+  *Corrected 2026-09-24:* the review's first replacement, 935 §599, is no more re-detectable
+  than 1051. Run 935 is failed at manual review and was **superseded by 936 on 08-27** (it is
+  the "misread a whole service" case), and re-detection refuses superseded runs. The diff
+  probe found it. 930 §534 is the eligible run whose long `other` section is the nearest
+  match: unidentified audio that must not become a talk.
 - [ ] Batches by era, each checked against its diff before the next. Stop on any new regression.
 
 **Preflight for every dispatch** (the canary, each batch, and any named pre-freeze exception):

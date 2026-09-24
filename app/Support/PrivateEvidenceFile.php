@@ -52,7 +52,7 @@ final class PrivateEvidenceFile
      */
     public static function writeOnce(string $path, string $contents, string $requirement): void
     {
-        $handle = fopen($path, 'x+b');
+        $handle = @fopen($path, 'x+b');
 
         if ($handle === false) {
             throw new RuntimeException("{$requirement} must be created once at a new private path.");
