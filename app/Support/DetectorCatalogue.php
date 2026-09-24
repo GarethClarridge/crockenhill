@@ -915,11 +915,12 @@ class DetectorCatalogue
                 id: 'transcript-meaning-changing-substitution',
                 surface: null,
                 signals: [],
-                status: DetectorStatus::Unbuilt,
+                status: DetectorStatus::DecidedNotToDetect,
                 severity: DetectorSeverity::PublishedWrongContent,
                 unit: DetectorUnit::Minute,
                 summary: 'A single word is replaced by another in otherwise fluent saved sermon text, changing the meaning while leaving nothing statistically odd to find.',
                 regressionCases: ['run 946 §787', 'run 1030 §1418'],
+                decision: 'Ruled 2026-09-24 (operator): not detected. The text carries no signal; only a second decode disagrees, and H10b\'s re-decode comparison already measures that class by sampling. A corpus-wide cross-decode would cost hours and may repeat the error; an LLM plausibility screen adds cost and an unknown false-positive rate. Both cases stay content-held. A recorded limitation of the acceptance evidence.',
             ),
         ];
     }
@@ -1132,11 +1133,12 @@ class DetectorCatalogue
                 id: 'scripture-verse-in-prayer-typed-as-reading',
                 surface: null,
                 signals: [],
-                status: DetectorStatus::Unbuilt,
+                status: DetectorStatus::DecidedNotToDetect,
                 severity: DetectorSeverity::WrongMetadata,
                 unit: DetectorUnit::Section,
                 summary: 'A verse quoted inside a prayer was typed as a Bible reading, so a prayer is published as Scripture.',
                 regressionCases: ['run 1043 §1528'],
+                decision: 'Ruled 2026-09-24 (operator): not detected. The only case is a 40 s call-to-worship verse at 0 s before the opening prayer, in run 1043, which is excluded. Its signals (short, prayer after, no announcement) match the 23 short readings the 2026-09-14 census read by hand, of which the other 22 are genuine readings, so a rule would flag about 22 real readings for no reachable case (`scripture-20260914-prayer-verse.json`).',
             ),
             new DetectorEntry(
                 id: 'sermon-page-names-wrong-reading',

@@ -8,11 +8,11 @@
 > acceptance and public release remain NO-GO.** Repairs now run through §4.0's corpus
 > re-run: every eligible run re-detected against one frozen commit. Where the work stands:
 >
-> - **Freeze gate (§4.0):** 4 unbuilt detector items and 1 prototype that change what the
+> - **Freeze gate (§4.0):** 2 unbuilt detector items and 1 prototype that change what the
 >   re-run produces, plus the song-edge check. Six release-side items gate acceptance
 >   (§4.5) instead (operator, 2026-09-24).
-> - **Detection:** the catalogue holds 79 classes: 45 promoted, 21 fixed at source, 2
->   decided not to detect, 10 unbuilt, 1 prototype. The last full evaluation (38 detectors:
+> - **Detection:** the catalogue holds 79 classes: 45 promoted, 21 fixed at source, 4
+>   decided not to detect, 8 unbuilt, 1 prototype. The last full evaluation (38 detectors:
 >   5 fail, 33 not established, 0 accepted) predates the 09-23 detectors, which score
 >   `missed` until the re-run writes their output.
 > - **Miss rate:** H10b re-decoded and compared all 338 decodable runs under a rule
@@ -190,8 +190,8 @@ costs more than re-running them. **Operator decisions:**
 1. **Freeze detection code only after every open item that changes the re-run's output is
    closed.** Each item is either built and tested, or recorded as a decision not to detect.
    The pass then runs against one commit, and its evidence binds that commit. The gate
-   (catalogue state 2026-09-24: 45 promoted, 21 fixed at source, 2 decided not to detect,
-   10 unbuilt, 1 prototype; **4 unbuilt and the prototype gate the freeze**):
+   (catalogue state 2026-09-24: 45 promoted, 21 fixed at source, 4 decided not to detect,
+   8 unbuilt, 1 prototype; **2 unbuilt and the prototype gate the freeze**):
    - Structure/typing: ~~`structure-hymn-inside-sermon-section`~~ (built `994446a12`),
      ~~`structure-spoken-quotation-typed-as-song`~~ and
      ~~`detection-unplaced-hold-refusal-discarded`~~ (both already fixed; recorded `5a071a4af`),
@@ -203,7 +203,9 @@ costs more than re-running them. **Operator decisions:**
      too. The catalogue entry is `FixedAtSource` (09-24). The talks plan's own measurement and PR5 re-detection pass moved into this re-run
      (operator, 2026-09-24): the canary below checks the prompt, and Tier B re-detects the
      191-section bucket.*
-   - Transcript/audio: `transcript-meaning-changing-substitution`,
+   - Transcript/audio: ~~`transcript-meaning-changing-substitution`~~ (**decided not to detect**,
+     operator 2026-09-24: no textual signal; H10b's re-decode sampling measures the class; both
+     cases stay held),
      `audio-dropout-inside-talk` (prototype)
    - Scripture: ~~`scripture-reference-never-linked`~~ (fixed at source 2026-09-24: the
      backfill takes the newest unlinked sermons first, and every re-run diff flags a reference
@@ -212,7 +214,9 @@ costs more than re-running them. **Operator decisions:**
      multi-passage reference whole; the four regain theirs when the re-run re-derives
      analysis. **Named limitation:** the passage text shows the first part only, because one
      stored passage carries one api.bible FUMS usage token),
-     `scripture-verse-in-prayer-typed-as-reading`
+     ~~`scripture-verse-in-prayer-typed-as-reading`~~ (**decided not to detect**, operator
+     2026-09-24: the one case is a call-to-worship verse in excluded run 1043, whose signals
+     match 22 genuine readings)
    - Identity/metadata: `oos-item-written-from-wrong-song`,
      `published-title-contradicts-content`
    - Carried §4.3 items outside the catalogue: ~~the continuous-speech boundary check (§988)~~
@@ -328,7 +332,10 @@ freeze, and the diff report binds that hash.
   missed *proposed type* alone does not block, because the operator confirms every type at
   approval.
   **Canary reachability, checked 2026-09-24 against the route's dry run and the listening
-  queue — OPEN, needs the operator:**
+  queue. Ruled the same day (operator): keep the queued runs and accept that one may be
+  re-detected twice if listening later sends it to Tier A. 1356 §4484 replaces 935 §599 as
+  the long unidentified `other`; 936 stays out until its concatenated source is restaged.
+  Canary: 964, 1250, 1108, 1025, 1112, 1358, 1221, 1311, 1304, 1356, 1262, 949.**
   - The review's replacement for 1051, 935 §599, is no more re-detectable than 1051. Run 935
     is failed and was **superseded by 936 on 08-27** (the "misread a whole service" case). The
     next-closest long unidentified `other`, 930 §534, is a concatenation with no staged
