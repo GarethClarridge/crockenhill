@@ -219,6 +219,80 @@ class SermonIdentitySyncServiceTest extends TestCase
         $this->assertSame('Romans 8:28', $sermon->reference);
     }
 
+    /**
+     * Sermon 1031 preached Hosea 5:8–6:3, given as two passages. Enrichment links the first
+     * passage only, and linking used to rewrite the reference to that passage, so the page
+     * published Hosea 5:8-15 (1031, 1159, 1188, 1233).
+     */
+    #[Test]
+    public function it_keeps_a_multi_passage_reference_whole_when_its_first_passage_is_linked(): void
+    {
+        $passage = ScripturePassage::factory()->create([
+            'normalized_reference' => 'Hosea 5:8-15',
+            'display_reference' => 'Hosea 5:8-15',
+        ]);
+
+        $sermon = Sermon::factory()->create(['scripture_passage_id' => null, 'reference' => 'Hosea 5:8-15, Hosea 6:1-3']);
+        $sermon->scripture_passage_id = $passage->id;
+
+        $this->service->syncForPersistence($sermon);
+
+        $this->assertSame('Hosea 5:8-15, Hosea 6:1-3', $sermon->reference);
+        $this->assertSame($passage->id, $sermon->scripture_passage_id);
+    }
+
+    #[Test]
+    public function it_keeps_a_multi_passage_reference_whole_when_it_is_edited_against_a_linked_first_passage(): void
+    {
+        $passage = ScripturePassage::factory()->create([
+            'normalized_reference' => 'Luke 22:31-34',
+            'display_reference' => 'Luke 22:31-34',
+        ]);
+
+        $sermon = Sermon::factory()->create(['scripture_passage_id' => $passage->id, 'reference' => 'Luke 22:31-34']);
+        $sermon->reference = 'Luke 22:31-34, Luke 22:54-62';
+
+        $this->service->syncForPersistence($sermon);
+
+        $this->assertSame('Luke 22:31-34, Luke 22:54-62', $sermon->reference);
+        $this->assertSame($passage->id, $sermon->scripture_passage_id);
+    }
+
+    #[Test]
+    public function it_keeps_a_multi_passage_reference_whole_on_an_unrelated_save(): void
+    {
+        $passage = ScripturePassage::factory()->create([
+            'normalized_reference' => 'Hosea 5:8-15',
+            'display_reference' => 'Hosea 5:8-15',
+        ]);
+
+        $sermon = Sermon::factory()->create(['scripture_passage_id' => null, 'reference' => 'Hosea 5:8-15, Hosea 6:1-3']);
+        $sermon->scripture_passage_id = $passage->id;
+        $sermon->save();
+        $sermon->refresh();
+
+        $sermon->title = 'Return to the Lord';
+        $this->service->syncForPersistence($sermon);
+
+        $this->assertSame('Hosea 5:8-15, Hosea 6:1-3', $sermon->reference);
+    }
+
+    #[Test]
+    public function it_still_canonicalises_a_single_passage_reference_to_its_linked_passage(): void
+    {
+        $passage = ScripturePassage::factory()->create([
+            'normalized_reference' => 'Job 6',
+            'display_reference' => 'Job 6:1-30',
+        ]);
+
+        $sermon = Sermon::factory()->create(['scripture_passage_id' => null, 'reference' => 'Job 6']);
+        $sermon->scripture_passage_id = $passage->id;
+
+        $this->service->syncForPersistence($sermon);
+
+        $this->assertSame('Job 6:1-30', $sermon->reference);
+    }
+
     #[Test]
     public function it_clears_scripture_passage_id_when_reference_is_blanked(): void
     {

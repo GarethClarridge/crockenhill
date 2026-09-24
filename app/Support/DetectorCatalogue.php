@@ -1088,11 +1088,12 @@ class DetectorCatalogue
                 id: 'scripture-multi-passage-truncated',
                 surface: null,
                 signals: [],
-                status: DetectorStatus::Unbuilt,
+                status: DetectorStatus::FixedAtSource,
                 severity: DetectorSeverity::WrongMetadata,
                 unit: DetectorUnit::Sermon,
                 summary: 'A multi-passage reference is cut to its first passage when linked, so the page offers a narrower reading than the sermon preached.',
                 regressionCases: ['sermon 1031', 'sermon 1159', 'sermon 1188', 'sermon 1233'],
+                decision: 'Fixed at source 2026-09-24: SermonIdentitySyncService keeps a multi-passage reference whole when its linked passage is the first part, on every branch that used to canonicalise it. The four sermons regain their full reference when the corpus re-run re-derives analysis; 909 is protected before it is linked. Named limitation: the linked passage text still shows the first part only, because one stored passage carries one api.bible FUMS token and stitching parts would under-report usage.',
             ),
             new DetectorEntry(
                 id: 'scripture-whole-book-reference-rejected',

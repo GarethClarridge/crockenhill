@@ -187,7 +187,7 @@ class SermonIdentitySyncService
             $passage = ScripturePassage::query()->find($sermon->scripture_passage_id);
 
             if ($passage instanceof ScripturePassage) {
-                $sermon->reference = $this->canonicalPassageReference($passage);
+                $sermon->reference = $this->referenceForLinkedPassage($trimmedReference, $passage);
             }
 
             return;
@@ -206,7 +206,7 @@ class SermonIdentitySyncService
 
                 if ($passage instanceof ScripturePassage) {
                     if ($this->referenceMatchesPassage($trimmedReference, $passage)) {
-                        $sermon->reference = $this->canonicalPassageReference($passage);
+                        $sermon->reference = $this->referenceForLinkedPassage($trimmedReference, $passage);
 
                         return;
                     }
@@ -224,7 +224,7 @@ class SermonIdentitySyncService
             $passage = ScripturePassage::query()->find($sermon->scripture_passage_id);
 
             if ($passage instanceof ScripturePassage) {
-                $sermon->reference = $this->canonicalPassageReference($passage);
+                $sermon->reference = $this->referenceForLinkedPassage($trimmedReference, $passage);
             }
 
             return;
@@ -264,6 +264,25 @@ class SermonIdentitySyncService
             ->first();
 
         return $alias?->preacher;
+    }
+
+    /**
+     * The reference a sermon carries once a passage is linked: the passage's canonical form,
+     * unless the sermon names several passages and the link holds only the first.
+     *
+     * Enrichment keys a passage on the first passage alone, so a multi-passage reading links
+     * to its opening part. Canonicalising to that passage published a narrower reading than
+     * was preached (1031's Hosea 5:8–6:3 became Hosea 5:8-15), so the whole reference stays.
+     */
+    private function referenceForLinkedPassage(?string $reference, ScripturePassage $passage): string
+    {
+        if ($reference !== null
+            && $this->scriptureReferenceResolver->normalizeAll($reference) !== $this->scriptureReferenceResolver->normalize($reference)
+            && $this->referenceMatchesPassage($reference, $passage)) {
+            return $reference;
+        }
+
+        return $this->canonicalPassageReference($passage);
     }
 
     private function canonicalPassageReference(ScripturePassage $passage): string
