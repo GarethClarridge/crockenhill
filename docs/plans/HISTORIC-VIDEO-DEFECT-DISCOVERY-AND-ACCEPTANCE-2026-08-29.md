@@ -447,6 +447,15 @@ freeze, and the diff report binds that hash.
   and 1112's two songs wait on its parked sermon. Two merged sections lost their old clips
   (1262 §3284, the doxology limitation; 1311 §3950 into the baptism hymn). 1112 is parked for
   its held sermon, so the second run cannot reach it until that is re-cut.
+  Also from the first run: 1304 §3869, held as "two songs joined", was split by re-detection
+  (141–263 s plus a new song 263–370 s) with its hold carried to the corrected section; the
+  short-talk truth set missed two *proposed* types (1358 §4684 proposed nothing, not
+  `childrens_talk`; 1221 §2721's `childrens_talk` proposal dropped to null), which does not
+  block; and `talk_speaker_review` was not raised on 964 §874 because speaker identification is
+  off locally (`SPEAKER_IDENTIFICATION_ENABLED=false`), so no local run, Tier C included, raises
+  it; every talk still needs approval. A diff taken while runs are still processing cannot be
+  read for custody: clips are re-cut and song review is decided only at the end of the chain
+  (the detection-round diff now lists these as pending instead).
   *Second run 2026-09-24, a detection round on `2c6147f91` (snapshot
   `canary2-20260924/before.json`; 12 runs, 1112 refused as parked): failed on 949 again.*
   Custody was clean (0 attention; media pending on all 12, as designed) and the round took
@@ -463,7 +472,9 @@ freeze, and the diff report binds that hash.
   independent evidence (email, OpenLP or manual, by `provenanceSources()`, never the `source`
   column); projection and merge are unchanged. Also to read on the next run: 1262 §3281, a
   31 s "Introduction to prison resourcing update", became a `short_talk` (`partner_update`),
-  a probable false positive; 1356's "unclear" §4483 became a 774 s song.
+  a probable false positive; 1356's "unclear" §4483 became a 774 s song. The 12 runs now read
+  `media: deferred`: clips on sections whose spans moved are gone until Tier C cuts them at the
+  freeze (quarantined and re-derivable).
   **Runs 964 (§872) and 1250 (§3128)**, the first use of the diff report. Current
   code resolves both hints correctly (#304, #408). The canary checks that re-detection
   rebinds them, that sync overwrites the stale livestream items 6901/9371 rather than
@@ -561,6 +572,22 @@ freeze, and the diff report binds that hash.
   but the clip would carry the baptisms. Fix in the structure prompt beside the ordinance
   exclusion, test first; the next canary checks that 1311's baptisms leave the song and 1304
   §3871 ("Baptism of Roy") stays non-talk.
+- [ ] **Re-cut 1112's held sermon** (operator). §4862 carries the operator-written 09-13
+  sparse-cadence hold, pinned to the transcript Tier A replaced on 2026-09-24; listening rates
+  1112 "new better". Check the passage in the new transcript, clear the hold if it is back,
+  then `sermons:re-extract ae1716aa-861c-461e-8f16-96913018388e --held-section=4862`. Until
+  then 1112 is `failed` and every re-run command refuses it.
+- [ ] **Teach `rerun-diff` two custody facts before the Tier C diff** (proposed 2026-09-24, not
+  ruled). (1) Song review is a publication state (`pending_approval` with
+  `song_publication_review` reasons), not `needs_manual_review`, which only the boundary-evidence
+  backfill ever set on a song, so after a full-media run the diff reports "left manual review"
+  for songs that are still held (15 of the first canary's 23). (2) "Became published" does not
+  distinguish a quarantined song video (the historic path's designed outcome) from a public
+  one. Until then, read those two attention kinds by hand.
+- [ ] **Tier C throughput** (noted 2026-09-24). Every media step goes through one
+  `historic-ffmpeg` worker, about 8 minutes of ffmpeg work a run, so cutting the corpus's
+  media is roughly 30 hours unattended. More ffmpeg workers would shorten it at the cost of
+  I/O on the Staging drive (the SuperSpeed link fault). Decide before the freeze.
 - [ ] **Holds for the mixed and neither runs** (ruled 2026-09-24, not built): a hold on each
   window the operator judged wrong in the stored text (mixed) or both wrong (neither).
 - [ ] Batches by era, each checked against its diff before the next. Stop on any new regression.
@@ -586,6 +613,9 @@ freeze, and the diff report binds that hash.
    runs, the same ones. Listening-selected runs need their grounds recorded before it accepts
    them. The per-commit stamp means no run is re-transcribed and re-detected on one commit.
    A fresh `sail ps` result alone is not this preflight.
+   **Commit first, then snapshot** (2026-09-24): the batch guard binds the snapshot to the exact
+   running commit, so any later commit, a plan-only one included, makes every run refuse until
+   a new snapshot is taken. A docs-only commit needs no worker restart.
 3. Reuse the completed canary evidence and check representative first repaired
    outputs before expanding to a larger batch. Cover any materially different
    path with source opening/ending, relevant interiors/joins, media/text agreement,
