@@ -18,7 +18,8 @@
 >   `missed` until the re-run writes their output.
 > - **Miss rate:** H10b re-decoded and compared all 338 decodable runs under a rule
 >   fixed before decoding (tripwire 2.20%, under 3%), plus 99 restaged runs as batch 2.
->   The listening queue, **306 windows across 164 runs**, awaits the operator.
+>   The listening queue, **353 windows across 173 runs** (batch 3, the nine concatenated runs,
+>   added 2026-09-24), awaits the operator.
 > - **Repairs since 09-20:** 1287 re-transcribed and re-detected 09-23.
 > - **Operational:** temp-file cleanup is paused locally so restaged sources survive.
 >   **All 438 eligible runs are reachable:** the 9 concatenated runs were restaged through the
@@ -323,7 +324,7 @@ costs more than re-running them. **Operator decisions:**
 
 **Shape.** Tier A re-transcribes (H10b-selected runs plus the contained transcript-loss
 cases). Tier B re-detects from structure detection. At the freeze, Tier B takes every
-eligible run that is neither in the listening queue (164 runs,
+eligible run that is neither in the listening queue (173 runs since batch 3,
 `storage/scratch/h10b-corpus-20260922/listening-queue*.json`) nor held for transcript
 loss. After listening, each queued run joins Tier A or Tier B, so no run is processed
 twice.
@@ -339,7 +340,9 @@ counts only while its hold's `transcript_sha256` matches the stored transcript, 
 already re-transcribed at `max_context=0` goes to Tier B. **Measured read-only 2026-09-24**
 (`storage/scratch/tier-b-transcript-loss-20260924.{php,json}`): 67 runs hold such a record,
 3 on text since replaced (1258, 1314, 1343), leaving **64**, of which 26 are also queued.
-So **202 runs wait** for listening, and Tier B can start on the rest (about 235 of 437);
+So **202 runs wait** for listening, and Tier B can start on the rest (about 235 of 437).
+**Batch 3 (2026-09-24)** adds the nine concatenated runs to the queue and none to the 64, so
+**211 wait** and about 226 start;
 recount both at the freeze. Tier C, re-extraction, follows only where a span or binding moved. Everything lands
 in quarantine; release stays with §4.5.
 
@@ -689,6 +692,16 @@ plan's §4.0 is the corpus re-run, not the log's.
     `recovered`, which are candidate misses on never-held runs. The queue adds 98
     windows; the listening page now holds **306** (`listening/index.html`, batch
     shown). `score-verdicts.py` reports by batch.
+  - **Batch 3 (the nine concatenated runs), 2026-09-24: 9/9 decoded and compared, 0
+    unassessable.** They could be decoded only once the concatenation gate had restaged
+    them and stamped their hash. Same rule, same seed (`listening-queue-batch3.json`,
+    `comparison-batch3.json`); no `already_redecoded` runs, so the batch-1 tripwire stands.
+    `original` 71/672 windows differ (about 11%, like batch 1 rather than batch 2) and
+    `recovered` 21/156. Speech repetitive/clean windows the screen did **not** flag: 4
+    `original`, on **942** (750 s `other`, 1470 s sermon) and **975** (150 s notices,
+    660 s reading). These are candidate misses. The queue adds 47 windows, and every run
+    gets at least one, because a small batch samples all its clean/clean candidates. The
+    listening page now holds **353**, with clips cut from the restaged sources.
 - **1337 follow-up, 2026-09-23.**
   - **Neighbour rule built test-first** (`2185ab734`). `adjacent_same_song` now also
     holds a song whose previous or next section is the same song with nothing between,
