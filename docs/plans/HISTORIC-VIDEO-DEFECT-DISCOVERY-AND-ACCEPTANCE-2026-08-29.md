@@ -553,6 +553,14 @@ freeze, and the diff report binds that hash.
   checked against the file's hash, so the 128 need no hand-written holds.
 - [ ] **Tier A as a detection round** (ruled 2026-09-24, not built). `rerun-retranscribe`
   re-transcribes, detects and stops before extraction, deferring media to Tier C like Tier B.
+- [ ] **A baptism is never inside a song section** (operator, 2026-09-24, not built). Canary 1
+  made 1311 §3950 a 518 s "I Will Sing Of The Lamb" song spanning the baptisms (1200–1718 s),
+  where the first run had a separate `other` "Baptisms" section. A baptism is its own `other`
+  section; a hymn sung before, after or between the baptisms is its own song section. It is
+  flagged today (`structure_macro_section`, `structure_song_swallows_speech`) and contained,
+  but the clip would carry the baptisms. Fix in the structure prompt beside the ordinance
+  exclusion, test first; the next canary checks that 1311's baptisms leave the song and 1304
+  §3871 ("Baptism of Roy") stays non-talk.
 - [ ] **Holds for the mixed and neither runs** (ruled 2026-09-24, not built): a hold on each
   window the operator judged wrong in the stored text (mixed) or both wrong (neither).
 - [ ] Batches by era, each checked against its diff before the next. Stop on any new regression.
