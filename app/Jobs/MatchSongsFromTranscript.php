@@ -15,6 +15,7 @@ use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\ContentHoldRechecker;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\Media\Audio\ServiceTranscriptReader;
 use App\Services\Processing\StorageAdapterHelper;
@@ -173,14 +174,20 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             }
         }
 
+        // A bound song still waiting for a second source is not unmatched: its own
+        // identity flag holds it, and the unmatched pass would flag it as matching
+        // nothing, or retype a speech-classified one away from being a song.
         $matchedSectionIds = $sections
-            ->reject(fn (ServiceSection $section): bool => $this->needsSongMatching($section))
+            ->reject(fn (ServiceSection $section): bool => $this->hasNoCatalogueMatch($section))
             ->pluck('id')
             ->all();
 
         foreach ($unmatchedSongReviewApplicator->apply($sections, $matchedSectionIds) as $section) {
             $section->save();
         }
+
+        // The run's bindings are settled now, so a lyric-comparison hold re-reads them.
+        app(ContentHoldRechecker::class)->recheck($this->processingLog);
 
         $this->logStepComplete(
             ChurchServiceProcessingTimeline::MATCH_SONGS_FROM_TRANSCRIPT,
@@ -212,7 +219,7 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
      */
     private function needsSongMatching(ServiceSection $section): bool
     {
-        if ($section->song_match_type === ServiceSectionSongMatchType::Unmatched || $section->song_match_type === null) {
+        if ($this->hasNoCatalogueMatch($section)) {
             return true;
         }
 
@@ -223,11 +230,28 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
         $reviewFlags = $section->metadata['review_flags'] ?? [];
 
         return is_array($reviewFlags) && (
-            in_array('unmatched_song_section', $reviewFlags, true)
-            || in_array(SongCatalogueTitlePolicy::FLAG_IDENTITY_UNVERIFIED_FROM_SUSPECT_TRANSCRIPT, $reviewFlags, true)
+            in_array(SongCatalogueTitlePolicy::FLAG_IDENTITY_UNVERIFIED_FROM_SUSPECT_TRANSCRIPT, $reviewFlags, true)
             || in_array(SongCatalogueTitlePolicy::FLAG_IDENTITY_CONTRADICTED_BY_LYRICS, $reviewFlags, true)
             || in_array(SongCatalogueTitlePolicy::FLAG_IDENTITY_SINGLE_SOURCE, $reviewFlags, true)
         );
+    }
+
+    /**
+     * Whether no catalogue song is bound: nothing matched, or OoS alignment could only
+     * infer a positional label and the unmatched flag still stands. A bound song that
+     * waits for corroboration is matched, and is not this.
+     */
+    private function hasNoCatalogueMatch(ServiceSection $section): bool
+    {
+        if ($section->song_match_type === ServiceSectionSongMatchType::Unmatched || $section->song_match_type === null) {
+            return true;
+        }
+
+        $reviewFlags = $section->metadata['review_flags'] ?? [];
+
+        return $section->song_match_type === ServiceSectionSongMatchType::Inferred
+            && is_array($reviewFlags)
+            && in_array('unmatched_song_section', $reviewFlags, true);
     }
 
     /**
@@ -510,9 +534,14 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
      *
      * `heard` is the leader's announcement (a title-hint match, or a hint that resolves to the
      * same song), `sung` the section's own words sharing two or more lyric pairs without a
-     * contradiction, `projected` the slides read by OCR, and `planned` an order-of-service item
-     * the run did not author. A livestream item is written from this very match, so it never
-     * counts: it would let the match vouch for itself.
+     * contradiction, `projected` the slides read by OCR, and `planned` an order-of-service
+     * item the run did not author, at this section's place in the plan: the section's own
+     * item, or one no other section of the run sits on (matching runs before the refining
+     * projection merges planned items onto the run's). A planned item another section
+     * holds is that section's song — sung later, or listed twice — and says nothing about
+     * what this one sang. Measured 2026-09-24 over 1,082 confirmed bindings: none relied on
+     * such an item. A livestream item is written from this very match, so it never counts:
+     * it would let the match vouch for itself.
      *
      * @param  array<string, mixed>|null  $lyricCheck
      * @return list<'heard'|'sung'|'projected'|'planned'>
@@ -543,6 +572,11 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             ->where('church_service_id', $serviceId)
             ->where('source', '!=', ChurchServiceItemSource::Livestream->value)
             ->where('song_id', $songId)
+            ->where(fn ($items) => $items
+                ->whereKey($section->church_service_item_id)
+                ->orWhereDoesntHave('serviceSections', fn ($sections) => $sections
+                    ->where('media_processing_log_id', $section->media_processing_log_id)
+                    ->whereKeyNot($section->id)))
             ->exists()) {
             $sources[] = 'planned';
         }

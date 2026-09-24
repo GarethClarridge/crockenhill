@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Jobs;
 
+use App\Actions\HoldSectionForContentReview;
 use App\Data\ChurchServiceTranscript;
 use App\Data\SuspectTranscriptBlock;
 use App\Enums\ChurchServiceItemSource;
+use App\Enums\ContentHoldCheck;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Jobs\MatchSongsFromTranscript;
@@ -351,6 +353,29 @@ class MatchSongsFromTranscriptTest extends TestCase
         $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
         $this->assertContains(SongCatalogueTitlePolicy::FLAG_IDENTITY_SINGLE_SOURCE, $section->metadata['review_flags']);
         $this->assertSame(['heard'], $section->metadata['identity_sources']);
+        $this->assertNotContains('unmatched_song_section', $section->metadata['review_flags'], 'A song is bound; it waits for a second source, not for a match.');
+    }
+
+    /**
+     * A bound song still waiting for corroboration is not an unmatched song, so the
+     * unmatched-song pass must neither flag it nor retype a speech-classified one away.
+     */
+    #[Test]
+    public function a_single_source_match_is_left_to_its_own_flag_by_the_unmatched_song_pass(): void
+    {
+        Song::factory()->create(['title' => 'Be Thou My Vision', 'canonical_key' => 'be thou my vision', 'lyrics_plain' => self::BE_THOU_MY_VISION]);
+
+        $log = $this->runWithSungTranscript('Thank you. Thank you.');
+        $section = $this->hintedSongSection($log, 'Be Thou My Vision');
+        $section->forceFill(['confidence' => 0.8, 'metadata' => [...$section->metadata->toArray(), 'detected_segment_class' => 'speech']])->save();
+
+        $this->runSongMatching($log);
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionType::Song, $section->section_type);
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
+        $this->assertNotContains('unmatched_song_section', $section->metadata['review_flags']);
+        $this->assertTrue($section->needs_manual_review);
     }
 
     #[Test]
@@ -371,6 +396,61 @@ class MatchSongsFromTranscriptTest extends TestCase
 
         $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
         $this->assertSame(['heard', 'planned'], $section->metadata['identity_sources']);
+    }
+
+    /**
+     * The plan corroborates the section only at the section's own place in it: a song
+     * planned elsewhere in the service (sung later, or listed twice) says nothing
+     * about what this section sang.
+     */
+    #[Test]
+    public function a_song_planned_elsewhere_in_the_service_does_not_count(): void
+    {
+        $song = Song::factory()->create(['title' => 'Be Thou My Vision', 'canonical_key' => 'be thou my vision', 'lyrics_plain' => self::BE_THOU_MY_VISION]);
+        $other = Song::factory()->create(['title' => 'Crown Him With Many Crowns', 'canonical_key' => 'crown him with many crowns']);
+
+        $log = $this->runWithSungTranscript('Thank you. Thank you.');
+        $service = ChurchService::factory()->create();
+        $log->forceFill(['church_service_id' => $service->id])->save();
+        $elsewhere = ChurchServiceItem::factory()->create(['church_service_id' => $service->id, 'source' => ChurchServiceItemSource::OpenLp->value, 'song_id' => $song->id]);
+        $ownItem = ChurchServiceItem::factory()->create(['church_service_id' => $service->id, 'source' => ChurchServiceItemSource::OpenLp->value, 'song_id' => $other->id]);
+        $section = $this->hintedSongSection($log, 'Be Thou My Vision');
+        $section->forceFill(['church_service_item_id' => $ownItem->id])->save();
+        // The song's planned place is another section's.
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'church_service_item_id' => $elsewhere->id,
+            'start_time' => 1200.0,
+            'end_time' => 1400.0,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
+        ]);
+
+        $this->runSongMatching($log);
+        $section->refresh();
+
+        $this->assertSame(['heard'], $section->metadata['identity_sources']);
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
+    }
+
+    /**
+     * Song matching settles the run's bindings, so a lyric-comparison hold is re-read
+     * against them here, not only at structure detection before any song was bound.
+     */
+    #[Test]
+    public function a_lyric_hold_is_rechecked_against_the_binding_matching_settles(): void
+    {
+        Song::factory()->create(['title' => 'Be Thou My Vision', 'canonical_key' => 'be thou my vision', 'lyrics_plain' => self::BE_THOU_MY_VISION]);
+        Song::factory()->create(['title' => 'Amazing Grace', 'canonical_key' => 'amazing grace', 'lyrics_plain' => self::AMAZING_GRACE]);
+
+        $log = $this->runWithSungTranscript(self::BE_THOU_MY_VISION);
+        $section = $this->hintedSongSection($log, 'Be Thou My Vision');
+        app(HoldSectionForContentReview::class)($section, 'Wrong song: the sung words name another song', 'census register', ContentHoldCheck::LyricComparison);
+
+        $this->runSongMatching($log);
+
+        $record = $section->refresh()->metadata->toArray()[HoldSectionForContentReview::METADATA_KEY][0];
+        $this->assertSame('lyric_comparison', $record['cleared_by'] ?? null, 'The hold was found before any song was bound; the binding matching settled now agrees with the sung words.');
     }
 
     #[Test]
