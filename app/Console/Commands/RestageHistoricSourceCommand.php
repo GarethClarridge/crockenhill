@@ -94,8 +94,9 @@ class RestageHistoricSourceCommand extends Command
             if ($expected === null) {
                 throw new RuntimeException(
                     'This run recorded no usable file hash, so a candidate cannot be proved to be the same recording. '
-                    .'A multi-part import is concatenated at staging, so no single archive file can match it. '
-                    .'Compare the candidate against the run\'s banked RMS log instead.'
+                    .'A multi-part import is concatenated at staging, so no single archive file can match it: '
+                    .'rebuild it with historic-import:restage-concatenated-source. '
+                    .'For a single recording, compare the candidate against the run\'s banked RMS log instead.'
                 );
             }
 

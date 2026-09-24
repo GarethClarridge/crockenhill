@@ -179,6 +179,44 @@ class RedetectForCorpusRerunCommandTest extends TestCase
     }
 
     #[Test]
+    public function it_refuses_a_concatenated_run_until_the_concatenation_gate_rebuilds_it(): void
+    {
+        // Runs 973 and 1014: the original join is still staged, but nothing recorded its hash.
+        Bus::fake();
+        $run = $this->concatenatedRun();
+        $run->forceFill(['file_hash' => null])->save();
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('concatenated source has not been rebuilt')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+    }
+
+    #[Test]
+    public function it_dispatches_a_concatenated_run_whose_rebuild_matches_the_gate_stamp(): void
+    {
+        // The rebuild's container bytes differ from the original join's `file_hash` (run 950);
+        // the gate's stamp is what the staged file must hash to.
+        Bus::fake();
+        $run = $this->concatenatedRun();
+        $rebuilt = 'the same packets in another container';
+        Storage::disk('local')->put((string) $run->source_file_path, $rebuilt);
+        $run->writeProcessingMetadata(static fn (array $metadata): array => [
+            ...$metadata,
+            'concatenated_source_restage' => ['sha256' => hash('sha256', $rebuilt), 'duration' => 3001.531, 'parts' => 7],
+        ]);
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('dispatched from structure detection')
+            ->assertSuccessful();
+
+        self::assertCount(1, $run->fresh()?->corpusRerunStamps() ?? []);
+    }
+
+    #[Test]
     public function it_refuses_a_failed_run(): void
     {
         $run = $this->completedRun(['status' => ProcessingStatus::Failed, 'current_step' => 'manual_review_required']);
@@ -267,6 +305,18 @@ class RedetectForCorpusRerunCommandTest extends TestCase
             ],
             ...$attributes,
         ]);
+    }
+
+    private function concatenatedRun(): MediaProcessingLog
+    {
+        $run = $this->completedRun();
+        $run->writeProcessingMetadata(static function (array $metadata): array {
+            $metadata['historic_import']['concatenation'] = 'lossless';
+
+            return $metadata;
+        });
+
+        return $run->refresh();
     }
 
     private function stagingContext(): HistoricStagingContext

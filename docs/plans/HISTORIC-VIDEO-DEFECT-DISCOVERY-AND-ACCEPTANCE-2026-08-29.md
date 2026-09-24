@@ -21,8 +21,8 @@
 >   The listening queue, **306 windows across 164 runs**, awaits the operator.
 > - **Repairs since 09-20:** 1287 re-transcribed and re-detected 09-23.
 > - **Operational:** temp-file cleanup is paused locally so restaged sources survive.
->   **All 9 concatenated runs are unreachable** by the re-run until a concatenation gate is
->   built and they are restaged (§4.0); the other 429 of 438 eligible runs are reachable.
+>   **All 438 eligible runs are reachable:** the 9 concatenated runs were restaged through the
+>   new concatenation gate on 2026-09-24 (§4.0).
 > - **Regular uploads:** the per-route fix audit is recorded in §4.
 >
 > The 2026-09-20/22 status block and the detailed §4.0–§4.3a workstreams moved
@@ -217,9 +217,10 @@ costs more than re-running them. **Operator decisions:**
      (`storage/scratch/dropout-20260924/`): it flags 10 talks, which are exactly the §4.1a
      census hits whose section is still a talk. Run 980's dropouts now fall in the `other`
      section before its sermon, and 1043 is excluded. It found nothing new. The `Prototype`
-     status had no entries left and was removed. **Harness note:** the `--all` pass listed 9,
-     leaving out 1089 §1790, which a pass over 1075–1095 and a single-run pass both flag. The
-     detector is deterministic per run, and the discrepancy belongs to the recompute harness),
+     status had no entries left and was removed. **Harness note, resolved 2026-09-24:** the `--all` pass listed 9
+     and left out 1089 §1790, which named-run passes flagged. 1089 is excluded (the 2025-05-24
+     rehearsal duplicate of 1088), and `--all` skips excluded runs while `--run=` did not. Named
+     runs now obey the same eligibility and are listed as skipped, so 9 is the right count),
    - Scripture: ~~`scripture-reference-never-linked`~~ (fixed at source 2026-09-24: the
      backfill takes the newest unlinked sermons first, and every re-run diff flags a reference
      with no passage; 908–910 and 913–915 are still unlinked and the re-run re-queues them),
@@ -380,7 +381,7 @@ freeze, and the diff report binds that hash.
   concatenation gate (each part against its recorded sha256 and the rebuilt duration against
   the run's, as the run-950 note prescribes), which is not built. Until then they stay as
   they are, quarantined.
-- [ ] **Restage the nine concatenated runs through a concatenation gate** (found 2026-09-24,
+- [x] **Restage the nine concatenated runs through a concatenation gate** (found 2026-09-24,
   census above). 930, 936, 940, 942, 944, 950 and 975 have no staged source, and two more have
   no recorded hash, so the re-detect route refuses all nine. Build the gate the run-950 note
   prescribes: each archive part against its recorded sha256 in `historic_import.sources[]`,
@@ -389,6 +390,20 @@ freeze, and the diff report binds that hash.
   bytes over the same timeline. Then restage the nine and verify them. They stay quarantined
   until this is done. It blocks the 09-14 concatenation-song ruling's re-detection of 940,
   942 and 944 (below), and 936's return to the canary.
+  *Done 2026-09-24:* `historic-import:restage-concatenated-source {run} [--execute]`
+  (`ConcatenatedSourceRestage`) checks every part's size and sha256 in manifest order, joins
+  them with the importer's recipe, and requires the join's duration within 0.01 s of the run's
+  and its codec fingerprint to match. A file already staged is kept only if it carries exactly
+  the join's packets (`streamhash`); the gate never overwrites one. The staged file's sha256 is
+  stamped under `concatenated_source_restage`, and `stagedSourceFileHash()` (the re-run route
+  and the re-decoder) checks that stamp. `file_hash` stays as the original join's
+  provenance. **Matroska never writes the same bytes twice:** it writes a random segment UID
+  and the date, so 975's verify join and its real restage hashed differently from the same
+  parts, on the same ffmpeg, in the same minute. That is why no concatenation can be restored
+  byte-identical. Result (`storage/scratch/concat-gate-20260924/`): **9/9 pass, every duration
+  exact to the microsecond.** Seven were rebuilt (930, 936, 940, 942, 944, 950, 975). For 973
+  and 1014, the original join still staged matched the rebuild's packets and was stamped as it
+  is. All nine then passed the route's `StagedSourceVerification`.
 - [ ] **Canary, run on the candidate freeze commit.** If it passes, that commit is frozen. A
   failure is fixed and the canary re-run on the new commit, so no detection change lands
   after the freeze.
@@ -425,13 +440,17 @@ freeze, and the diff report binds that hash.
   re-detected twice if listening later sends it to Tier A. 1356 §4484 replaces 935 §599 as
   the long unidentified `other`; 936 stays out until its concatenated source is restaged.
   Canary: 964, 1250, 1108, 1025, 1112, 1358, 1221, 1311, 1304, 1356, 1262, 949.**
+  **936 rejoins (2026-09-24):** its source was restaged through the concatenation gate, so the
+  canary regains the "Pre-service preparation" must-stay-non-talk case. It is also the canary's
+  one concatenated run, which covers the concatenated path the preflight asks for.
+  Canary: 964, 1250, 1108, 1025, 1112, 1358, 1221, 1311, 1304, 1356, 1262, 949, **936**.
   - The review's replacement for 1051, 935 §599, is no more re-detectable than 1051. Run 935
     is failed and was **superseded by 936 on 08-27** (the "misread a whole service" case). The
     next-closest long unidentified `other`, 930 §534, is a concatenation with no staged
     source. The only reachable section like it is **1356 §4484** ("Unclear transition",
     660 s).
   - **936** (§600) is also a concatenation with no staged source, so it cannot be re-detected
-    either.
+    either. *(Restaged 2026-09-24; it rejoins the canary above.)*
   - **Six canary runs are in the H10b listening queue:** 1250, 1112, 1304, 1262, 949 and
     1356. §4.0 says queued runs wait for listening so that no run is processed twice. A
     queued canary run that listening then sends to Tier A would be re-detected twice.
@@ -869,8 +888,8 @@ check against the 09-17 speech-edge trim) deserve a closer look before being bui
     recording, which loses a song caught between segments (944 §666). The rule must
     keep a song section the evidence supports and demote only join fragments; the
     five affected runs (940, 942, 944, 973, 1014) are then re-detected through the
-    pipeline. *(2026-09-24: 940, 942 and 944 are concatenations with no staged source; their
-    re-detection waits for the concatenation gate in §4.0.)*
+    pipeline. *(2026-09-24: 940, 942 and 944 had no staged source; the concatenation gate in §4.0
+    restaged them the same day, so all five are reachable by the re-run.)*
   - **A non-matching reading stays joined to the sermon (operator ruling
     2026-09-14).** When no reading matches the sermon's reference,
     `selectBibleReading()` joins the nearest one, across a hymn if need be, and that

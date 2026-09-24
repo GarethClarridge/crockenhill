@@ -22,6 +22,7 @@ use App\Enums\SermonVideoQualityStatus;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\StoreSermonVideo;
+use App\Services\HistoricMedia\ConcatenatedSourceRestage;
 use App\Services\HistoricMedia\HistoricReviewSourceReclaimer;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\HistoricMedia\HistoricStagingGuard;
@@ -845,6 +846,40 @@ class MediaProcessingLog extends Model
         $hash = $sources[0]['sha256'] ?? null;
 
         return is_string($hash) && $hash !== '' ? $hash : null;
+    }
+
+    /**
+     * The sha256 the staged source must hash to before anything is cut from it.
+     *
+     * For a single-part source that is the recorded hash. A concatenated source is
+     * proved once, by rebuilding it from its verified parts and checking its timeline
+     * ({@see ConcatenatedSourceRestage}), and the rebuild's own hash is stamped then:
+     * the recorded `file_hash` describes the original join's container bytes, which no
+     * later ffmpeg reproduces.
+     */
+    public function stagedSourceFileHash(): ?string
+    {
+        return $this->concatenatedSourceRestage()['sha256'] ?? $this->recordedSourceFileHash();
+    }
+
+    /**
+     * The concatenation gate's stamp, when this run's staged source was rebuilt through it.
+     *
+     * @return array{sha256: string, duration: float, parts: int}|null
+     */
+    public function concatenatedSourceRestage(): ?array
+    {
+        $stamp = ($this->processing_metadata?->toArray() ?? [])[ConcatenatedSourceRestage::STAMP_KEY] ?? null;
+
+        if (! is_array($stamp) || ! is_string($stamp['sha256'] ?? null) || $stamp['sha256'] === '') {
+            return null;
+        }
+
+        return [
+            'sha256' => $stamp['sha256'],
+            'duration' => is_numeric($stamp['duration'] ?? null) ? (float) $stamp['duration'] : 0.0,
+            'parts' => is_int($stamp['parts'] ?? null) ? $stamp['parts'] : 0,
+        ];
     }
 
     /**

@@ -81,7 +81,7 @@ final class ServiceTranscriptRedecoder
             return $this->unassessable(sprintf('stored transcript came from %s, not local whisper', $stored->source));
         }
 
-        $expectedHash = $run->recordedSourceFileHash();
+        $expectedHash = $run->stagedSourceFileHash();
 
         if ($expectedHash === null) {
             return $this->unassessable('run has no recorded source hash');
