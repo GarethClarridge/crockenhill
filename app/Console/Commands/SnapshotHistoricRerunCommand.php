@@ -18,7 +18,7 @@ use RuntimeException;
  * `historic-import:rerun-redetect` dispatches only the runs it holds. Membership is always
  * explicit; there is no "all".
  *
- * Delete with the corpus re-run's other instruments once its batches are accepted.
+ * Delete once the corpus re-run's batches are accepted, alongside its other instruments.
  */
 class SnapshotHistoricRerunCommand extends Command
 {

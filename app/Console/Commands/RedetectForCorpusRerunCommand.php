@@ -23,7 +23,7 @@ use RuntimeException;
  * Complete the plan's dispatch preflight (queues, worker code, mounts, disk) first; this
  * command checks each run, not the workers that will process it.
  *
- * Delete with the corpus re-run's other instruments once its batches are accepted.
+ * Delete once the corpus re-run's batches are accepted, alongside its other instruments.
  */
 class RedetectForCorpusRerunCommand extends Command
 {

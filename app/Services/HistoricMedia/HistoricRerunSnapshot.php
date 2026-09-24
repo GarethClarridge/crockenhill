@@ -17,7 +17,7 @@ use RuntimeException;
  * back, and the dispatch route refuses a run the snapshot does not hold, so nothing can be
  * re-run without a record of what it replaced.
  *
- * Delete with the corpus re-run's other instruments once its batches are accepted.
+ * Delete once the corpus re-run's batches are accepted, alongside its other instruments.
  */
 final readonly class HistoricRerunSnapshot
 {

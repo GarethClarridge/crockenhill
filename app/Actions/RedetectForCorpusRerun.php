@@ -38,7 +38,7 @@ use Throwable;
  * orchestrator refuses. Transcription is not repeated: Tier A's re-transcription is a separate
  * route.
  *
- * Delete with the corpus re-run's other instruments once its batches are accepted.
+ * Delete once the corpus re-run's batches are accepted, alongside its other instruments.
  */
 final class RedetectForCorpusRerun
 {

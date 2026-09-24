@@ -22,7 +22,7 @@ use RuntimeException;
  * custody (a live hold gone, a section leaving review or becoming published, extracted
  * media lost, a run left unfinished) are listed separately and make the command fail.
  *
- * Delete with the corpus re-run's other instruments once its batches are accepted.
+ * Delete once the corpus re-run's batches are accepted, alongside its other instruments.
  */
 class DiffHistoricRerunCommand extends Command
 {

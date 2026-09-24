@@ -25,7 +25,7 @@ use App\Models\SongVideo;
  * are kept for the reader but never used to pair sections, because sync recreates rows and
  * renumbers them on insert ({@see HistoricRerunDiff}).
  *
- * Delete with the corpus re-run's other instruments once its batches are accepted.
+ * Delete once the corpus re-run's batches are accepted, alongside its other instruments.
  */
 final class HistoricRerunState
 {
