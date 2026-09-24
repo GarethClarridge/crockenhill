@@ -8,11 +8,11 @@
 > acceptance and public release remain NO-GO.** Repairs now run through §4.0's corpus
 > re-run: every eligible run re-detected against one frozen commit. Where the work stands:
 >
-> - **Freeze gate (§4.0):** 2 unbuilt detector items and 1 prototype that change what the
+> - **Freeze gate (§4.0):** 1 unbuilt detector item and 1 prototype that change what the
 >   re-run produces, plus the song-edge check. Six release-side items gate acceptance
 >   (§4.5) instead (operator, 2026-09-24).
-> - **Detection:** the catalogue holds 79 classes: 45 promoted, 21 fixed at source, 4
->   decided not to detect, 8 unbuilt, 1 prototype. The last full evaluation (38 detectors:
+> - **Detection:** the catalogue holds 79 classes: 46 promoted, 21 fixed at source, 4
+>   decided not to detect, 7 unbuilt, 1 prototype. The last full evaluation (38 detectors:
 >   5 fail, 33 not established, 0 accepted) predates the 09-23 detectors, which score
 >   `missed` until the re-run writes their output.
 > - **Miss rate:** H10b re-decoded and compared all 338 decodable runs under a rule
@@ -190,8 +190,8 @@ costs more than re-running them. **Operator decisions:**
 1. **Freeze detection code only after every open item that changes the re-run's output is
    closed.** Each item is either built and tested, or recorded as a decision not to detect.
    The pass then runs against one commit, and its evidence binds that commit. The gate
-   (catalogue state 2026-09-24: 45 promoted, 21 fixed at source, 4 decided not to detect,
-   8 unbuilt, 1 prototype; **2 unbuilt and the prototype gate the freeze**):
+   (catalogue state 2026-09-24: 46 promoted, 21 fixed at source, 4 decided not to detect,
+   7 unbuilt, 1 prototype; **1 unbuilt and the prototype gate the freeze**):
    - Structure/typing: ~~`structure-hymn-inside-sermon-section`~~ (built `994446a12`),
      ~~`structure-spoken-quotation-typed-as-song`~~ and
      ~~`detection-unplaced-hold-refusal-discarded`~~ (both already fixed; recorded `5a071a4af`),
@@ -218,7 +218,13 @@ costs more than re-running them. **Operator decisions:**
      2026-09-24: the one case is a call-to-worship verse in excluded run 1043, whose signals
      match 22 genuine readings)
    - Identity/metadata: `oos-item-written-from-wrong-song`,
-     `published-title-contradicts-content`
+     ~~`published-title-contradicts-content`~~ (promoted 2026-09-24 as a reference check,
+     operator choice: `published_reference_contradicts_sermon` on the sermon section when the
+     published reference shares no verse with the heard `sermon_reference`, raised at analysis
+     and on every reference edit. Read-only measurement over 425 historic sermons with both
+     (`storage/scratch/rerun-route-20260924/published-vs-heard.json`): the 6 that disagree are
+     exactly 881, 899, 954, 844, 845 and 850. The provenance refusal was not built: it would
+     add only 868, whose reference agrees)
    - Carried §4.3 items outside the catalogue: ~~the continuous-speech boundary check (§988)~~
      (built `4abce5f0c`), ~~`confirmed` redefined as two independent sources~~ (built
      `8ae957628`; operator ruling: **any two** of heard, sung, projected, planned — 126 of 1,185

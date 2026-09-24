@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Actions\FlagPublishedReferenceContradictsSermon;
 use App\Actions\FlagSermonAudioLengthMismatch;
 use App\Actions\FlagSermonPartsNotExtracted;
 use App\Actions\FlagSermonTextPredatesEvidence;
@@ -71,6 +72,9 @@ class SermonAutoExtractionPolicy
      *
      * `sermon_audio_length_mismatch` is the same shape: only a re-extraction can
      * make the MP3 agree with its video again and withdraw it.
+     *
+     * `published_reference_contradicts_sermon` questions the sermon's metadata, not
+     * its cut, so it must never stop the media being extracted.
      */
     private const NON_DISQUALIFYING_REVIEW_FLAGS = [
         ServiceStructureValidator::FLAG_OOS_CROSS_TYPE_INVERSION,
@@ -81,6 +85,7 @@ class SermonAutoExtractionPolicy
         FlagSermonTextPredatesEvidence::FLAG,
         FlagSermonPartsNotExtracted::FLAG,
         FlagSermonAudioLengthMismatch::FLAG,
+        FlagPublishedReferenceContradictsSermon::FLAG,
     ];
 
     /**

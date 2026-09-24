@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions;
 
 use App\Enums\PreacherSource;
+use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Services\Preacher\PreacherResolutionService;
@@ -20,6 +21,7 @@ class SaveSermonDetails
         private readonly PreacherResolutionService $preacherResolutionService,
         private readonly SermonIdentitySyncService $sermonIdentitySyncService,
         private readonly QueueScriptureEnrichment $queueScriptureEnrichment,
+        private readonly FlagPublishedReferenceContradictsSermon $flagPublishedReferenceContradiction,
     ) {}
 
     /**
@@ -88,6 +90,13 @@ class SaveSermonDetails
         // Dispatch enrichment after saving if reference was set or changed
         if ($referenceChanged && ! empty($newReference)) {
             $this->queueScriptureEnrichment->dispatch($fresh instanceof Sermon ? $fresh : $sermon);
+        }
+
+        // A corrected reference withdraws the contradiction hold; a new wrong one raises it.
+        $run = $sermon->latestProcessingLog;
+
+        if ($referenceChanged && $run instanceof MediaProcessingLog) {
+            ($this->flagPublishedReferenceContradiction)($run);
         }
     }
 }

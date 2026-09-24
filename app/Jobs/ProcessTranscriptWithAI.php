@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Actions\FlagPublishedReferenceContradictsSermon;
 use App\Actions\QueueScriptureEnrichment;
 use App\Contracts\SermonAnalysisInterface;
 use App\Data\SermonAnalysis;
@@ -176,6 +177,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
 
             // Dispatch scripture enrichment asynchronously after reference is persisted
             app(QueueScriptureEnrichment::class)->dispatch($sermon->fresh() ?? $sermon);
+            app(FlagPublishedReferenceContradictsSermon::class)($this->processingLog->fresh() ?? $this->processingLog);
 
             // Update processing log and mark step as complete
             $this->updateProcessingRunStep($this->processingLog, 'ai_analysis_completed');
@@ -255,6 +257,7 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
 
                     // Dispatch scripture enrichment for the fallback reference too
                     app(QueueScriptureEnrichment::class)->dispatch($sermon->fresh() ?? $sermon);
+                    app(FlagPublishedReferenceContradictsSermon::class)($this->processingLog->fresh() ?? $this->processingLog);
                 }
 
                 $this->updateProcessingRunStep($this->processingLog, 'ai_analysis_fallback');

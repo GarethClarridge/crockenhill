@@ -20,6 +20,9 @@ use OpenAI\Exceptions\RateLimitException;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
+use App\Actions\FlagPublishedReferenceContradictsSermon;
+use App\Enums\ServiceSectionType;
+use App\Models\ServiceSection;
 
 class ProcessTranscriptWithAITest extends TestCase
 {
@@ -88,6 +91,42 @@ class ProcessTranscriptWithAITest extends TestCase
         $this->assertNotNull($log->ai_analysis);
         $this->assertFalse($log->is_degraded_completion);
         $this->assertSame(1, $log->attempt_count);
+    }
+
+    /**
+     * 899's shape: analysis took the carol reading before the sermon as its reference while
+     * the sermon itself was heard announcing another text.
+     */
+    #[Test]
+    public function it_holds_the_sermon_when_the_analysed_reference_contradicts_the_heard_one(): void
+    {
+        Storage::fake();
+        Storage::put('transcripts/1/transcript.txt', $this->sampleTranscript);
+
+        $sermon = Sermon::factory()->create(['title' => 'Untitled Sermon', 'reference' => null]);
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'sermon_id' => $sermon->id,
+            'transcript_file_path' => 'transcripts/1/transcript.txt',
+        ]);
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::Sermon,
+            'start_time' => 600,
+            'end_time' => 2400,
+            'duration' => 1800,
+            'needs_manual_review' => false,
+            'metadata' => ['sermon_reference' => 'Psalm 23', 'review_flags' => []],
+        ]);
+
+        $mockService = $this->createMock(SermonAnalysisInterface::class);
+        $mockService->method('analyzeSermon')->willReturn($this->createAnalysis());
+
+        (new ProcessTranscriptWithAI($log))->handle($mockService, $this->app->make(SermonRepository::class));
+
+        $section->refresh();
+        $this->assertContains(FlagPublishedReferenceContradictsSermon::FLAG, $section->metadata?->toArray()['review_flags'] ?? []);
+        $this->assertTrue($section->needs_manual_review);
     }
 
     /**

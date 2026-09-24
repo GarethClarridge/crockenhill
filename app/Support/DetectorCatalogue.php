@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support;
 
 use App\Actions\FlagIncompleteSermonEvidence;
+use App\Actions\FlagPublishedReferenceContradictsSermon;
 use App\Actions\FlagSectionTruncatedBySource;
 use App\Actions\FlagSermonAudioLengthMismatch;
 use App\Actions\FlagSermonPartsNotExtracted;
@@ -1077,13 +1078,15 @@ class DetectorCatalogue
         return [
             new DetectorEntry(
                 id: 'published-title-contradicts-content',
-                surface: null,
-                signals: [],
-                status: DetectorStatus::Unbuilt,
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: [FlagPublishedReferenceContradictsSermon::FLAG],
+                status: DetectorStatus::Promoted,
                 severity: DetectorSeverity::PublishedWrongContent,
                 unit: DetectorUnit::Sermon,
                 summary: "The published title or reference contradicts the sermon's own summary or transcript, so the page describes a sermon other than the one it carries.",
+                owningClass: FlagPublishedReferenceContradictsSermon::class,
                 regressionCases: ['sermon 881', 'sermon 954', 'sermon 844', 'sermon 845', 'sermon 850', 'sermon 899'],
+                decision: 'Built 2026-09-24 as a reference check (operator choice): the published reference against the sermon section\'s heard `sermon_reference`, at analysis and on every reference edit. Measured over 425 historic sermons with both, the 6 sharing no verse are exactly the 6 cases. Not built: title-to-section-title overlap (noisier, and every case is already caught by its reference), and refusing rows with no title provenance, which would add only 868, whose reference agrees.',
             ),
             new DetectorEntry(
                 id: 'scripture-multi-passage-truncated',
