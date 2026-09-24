@@ -447,6 +447,13 @@ freeze, and the diff report binds that hash.
   canary regains the "Pre-service preparation" must-stay-non-talk case. It is also the canary's
   one concatenated run, which covers the concatenated path the preflight asks for.
   Canary: 964, 1250, 1108, 1025, 1112, 1358, 1221, 1311, 1304, 1356, 1262, 949, **936**.
+  **1112 goes through Tier A (operator, 2026-09-24).** It is one of the 64 runs held for
+  transcript loss. Re-detected as Tier B, it would be stamped on the freeze commit, and Tier A
+  could never reach it on that commit. So the canary re-transcribes it
+  (`rerun-retranscribe <snapshot> 1112`) and its short-talk check reads corrected text. That
+  also exercises the Tier A route before any batch. Tier B now refuses a run held for
+  transcript loss, so `rerun-redetect` on the whole canary snapshot skips 1112 whichever
+  command runs first.
   - The review's replacement for 1051, 935 §599, is no more re-detectable than 1051. Run 935
     is failed and was **superseded by 936 on 08-27** (the "misread a whole service" case). The
     next-closest long unidentified `other`, 930 §534, is a concatenation with no staged

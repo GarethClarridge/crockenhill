@@ -157,6 +157,30 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
             ->assertSuccessful();
     }
 
+    /**
+     * 1112 is in the canary and held for transcript loss (operator, 2026-09-24): it goes through
+     * Tier A. Tier B refuses it even when run first, so the order of the two commands cannot
+     * strand it on known-wrong text.
+     */
+    #[Test]
+    public function tier_b_leaves_a_run_held_for_transcript_loss_to_tier_a(): void
+    {
+        Bus::fake();
+        $run = $this->heldRun();
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('held for transcript loss')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+        self::assertSame([], $run->fresh()?->corpusRerunStamps());
+
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('dispatched from full-service transcription')
+            ->assertSuccessful();
+    }
+
     #[Test]
     public function it_refuses_when_the_staged_source_hash_does_not_match(): void
     {

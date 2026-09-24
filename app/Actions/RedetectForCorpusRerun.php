@@ -10,6 +10,7 @@ use App\Services\HistoricMedia\CorpusRerunGuard;
 use App\Services\HistoricMedia\HistoricRerunSnapshot;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\HistoricMedia\StagedSourceVerification;
+use App\Services\HistoricMedia\TranscriptLossHolds;
 use App\Services\Processing\ProcessingRunOrchestrator;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -21,7 +22,8 @@ use Throwable;
  * fixes acting at structure detection and song matching reach existing runs through the
  * pipeline rather than by hand. This action adds the batch's guards ({@see CorpusRerunGuard})
  * to the ones every re-detection shares
- * ({@see ProcessingRunOrchestrator::structureRedetectionRefusal()}), and checks that the staged
+ * ({@see ProcessingRunOrchestrator::structureRedetectionRefusal()}), refuses a run held for
+ * transcript loss, which is Tier A's ({@see TranscriptLossHolds}), and checks that the staged
  * source hashes to the recorded source, because extraction re-cuts media from it against
  * timings that describe the original.
  *
@@ -40,6 +42,7 @@ final class RedetectForCorpusRerun
         private readonly HistoricStagingContextRegistry $stagingContexts,
         private readonly StagedSourceVerification $stagedSource,
         private readonly CorpusRerunGuard $guard,
+        private readonly TranscriptLossHolds $transcriptLoss,
     ) {}
 
     /**
@@ -91,6 +94,12 @@ final class RedetectForCorpusRerun
 
         if ($batchRefusal !== null) {
             return $batchRefusal;
+        }
+
+        // Re-detecting known-wrong text would stamp the run on this commit and leave Tier A
+        // unable to reach it (plan §4.0: Tier B leaves out runs held for transcript loss).
+        if ($this->transcriptLoss->on($run) !== []) {
+            return 'run is held for transcript loss; it belongs to Tier A (historic-import:rerun-retranscribe)';
         }
 
         $orchestratorRefusal = $this->orchestrator->structureRedetectionRefusal($run, StructureRedetectionGrounds::CorpusRerun);
