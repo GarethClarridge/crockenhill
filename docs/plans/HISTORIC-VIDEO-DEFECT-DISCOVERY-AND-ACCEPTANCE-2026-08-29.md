@@ -269,8 +269,27 @@ freeze, and the diff report binds that hash.
   becoming published or losing its media, or a run the re-run leaves unfinished. A read-only
   probe over the 13 canary runs captured every transcript inside its staging context and
   diffed clean.
-- [ ] A bounded **re-detect dispatch route**, tested. `historic-import:retranscribe-video-run`
+- [x] A bounded **re-detect dispatch route**, tested. `historic-import:retranscribe-video-run`
   is restricted to four runs.
+  *Built 2026-09-24:* `historic-import:rerun-redetect {snapshot} [runs] [--max=10] [--execute]`
+  re-detects from structure detection through the orchestrator's existing entry point, now
+  on explicit `CorpusRerun` grounds. The snapshot is the batch. A run is refused unless it is
+  a member; the snapshot was taken on the running commit; it is completed, not excluded and
+  unchanged since the snapshot; it was not already re-run on this commit (the dispatch is
+  stamped on the run under `corpus_rerun`, so a batch resumes and a canary run is not re-run
+  by its batch); it passes the shared re-detection guards (not superseded, source present);
+  and its staged source hashes to the recorded hash. A dry run hashes too, at about 47 s
+  a run (11 canary runs took 8.5 min), so a full-corpus dry run takes hours. Run it per batch.
+  The route checks runs, not workers: the preflight below still applies.
+  **Staged-source census, read-only 2026-09-24**
+  (`storage/scratch/rerun-route-20260924/staged-source-census.json`): 438 eligible runs
+  (recount at the freeze). **429 are single-part with a present, hashed source; all 9
+  concatenated runs are blocked:** 930, 936, 940, 942, 944, 950 and 975 have no staged
+  source, and the other two have no recorded hash. 940/942/944 are three of the five runs the 09-14
+  concatenation-song ruling says must be re-detected. They need restaging through a
+  concatenation gate (each part against its recorded sha256 and the rebuilt duration against
+  the run's, as the run-950 note prescribes), which is not built. Until then they stay as
+  they are, quarantined.
 - [ ] **Canary, run on the candidate freeze commit.** If it passes, that commit is frozen. A
   failure is fixed and the canary re-run on the new commit, so no detection change lands
   after the freeze.
@@ -293,9 +312,7 @@ freeze, and the diff report binds that hash.
   regression case; already `short_talk` since 09-21).
   *Mixed:* **1311** — §3949 "Baptismal testimonies" becomes `short_talk` (`testimony`) while
   §3951 "Baptisms" stays non-talk.
-  *Must stay non-talk:* **1304** (§3871, "Baptism of Roy" — an ordinance), **930** (§534,
-  "Unclear opening portion", 20 min; replaces 1051's eulogy, whose run is excluded and
-  cannot be re-detected), **1262** (§3279, "Reflection and prayer for Queen Elizabeth
+  *Must stay non-talk:* **1304** (§3871, "Baptism of Roy" — an ordinance), **1262** (§3279, "Reflection and prayer for Queen Elizabeth
   II"), **949** (§719, "Church sharing and prayer"), **936** (§600, "Pre-service
   preparation").
   Three of the five positives carry their answer in the title, so this checks the rule's
@@ -304,11 +321,21 @@ freeze, and the diff report binds that hash.
   A miss is a prompt fix before the batches (`feedback_measure_before_generalizing_a_fix`); a
   missed *proposed type* alone does not block, because the operator confirms every type at
   approval.
-  *Corrected 2026-09-24:* the review's first replacement, 935 §599, is no more re-detectable
-  than 1051. Run 935 is failed at manual review and was **superseded by 936 on 08-27** (it is
-  the "misread a whole service" case), and re-detection refuses superseded runs. The diff
-  probe found it. 930 §534 is the eligible run whose long `other` section is the nearest
-  match: unidentified audio that must not become a talk.
+  **Canary reachability, checked 2026-09-24 against the route's dry run and the listening
+  queue — OPEN, needs the operator:**
+  - The review's replacement for 1051, 935 §599, is no more re-detectable than 1051. Run 935
+    is failed and was **superseded by 936 on 08-27** (the "misread a whole service" case). The
+    next-closest long unidentified `other`, 930 §534, is a concatenation with no staged
+    source. The only reachable section like it is **1356 §4484** ("Unclear transition",
+    660 s).
+  - **936** (§600) is also a concatenation with no staged source, so it cannot be re-detected
+    either.
+  - **Six canary runs are in the H10b listening queue:** 1250, 1112, 1304, 1262, 949 and
+    1356. §4.0 says queued runs wait for listening so that no run is processed twice. A
+    queued canary run that listening then sends to Tier A would be re-detected twice.
+  So the reachable canary is **964, 1108, 1025, 1358, 1221, 1311** plus whichever queued
+  runs the operator accepts processing twice. Without them it keeps one identity case (964)
+  and loses every "must stay non-talk" case.
 - [ ] Batches by era, each checked against its diff before the next. Stop on any new regression.
 
 **Preflight for every dispatch** (the canary, each batch, and any named pre-freeze exception):

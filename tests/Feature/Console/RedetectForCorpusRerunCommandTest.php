@@ -1,0 +1,310 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature\Console;
+
+use App\Data\HistoricStagingContext;
+use App\Enums\ProcessingStatus;
+use App\Enums\ServiceSectionType;
+use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
+use Closure;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
+use Mockery;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\CreatesHistoricImportOperations;
+use Tests\TestCase;
+
+class RedetectForCorpusRerunCommandTest extends TestCase
+{
+    use CreatesHistoricImportOperations;
+    use RefreshDatabase;
+
+    private const SOURCE = 'livestream/temp/source.mp4';
+
+    private string $directory;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Storage::fake('local');
+        Config::set('media-processing.storage.temp_disk', 'local');
+        Config::set('media-processing.storage.transcript_disk', 'local');
+        Config::set('media-processing.storage.sermon_disk', 'local');
+
+        $registry = Mockery::mock(HistoricStagingContextRegistry::class);
+        $registry->shouldReceive('within')
+            ->andReturnUsing(static fn (HistoricStagingContext $context, Closure $callback): mixed => $callback());
+        $this->app->instance(HistoricStagingContextRegistry::class, $registry);
+
+        $this->directory = 'rerun-redetect-test-'.bin2hex(random_bytes(6));
+        File::ensureDirectoryExists(storage_path('app/private/'.$this->directory));
+    }
+
+    protected function tearDown(): void
+    {
+        File::deleteDirectory(storage_path('app/private/'.$this->directory));
+
+        parent::tearDown();
+    }
+
+    #[Test]
+    public function it_is_a_dry_run_by_default(): void
+    {
+        Bus::fake();
+        $run = $this->completedRun();
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+            ->expectsOutputToContain('DRY RUN')
+            ->expectsOutputToContain('ready for re-detection')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+        self::assertSame([], $run->fresh()?->corpusRerunStamps());
+        self::assertSame(ProcessingStatus::Completed, $run->fresh()?->status);
+    }
+
+    #[Test]
+    public function it_stamps_and_dispatches_a_member_from_structure_detection(): void
+    {
+        Bus::fake();
+        $run = $this->completedRun();
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('dispatched from structure detection')
+            ->assertSuccessful();
+
+        $stamps = $run->fresh()?->corpusRerunStamps() ?? [];
+
+        self::assertCount(1, $stamps);
+        self::assertSame('corpus_rerun', $stamps[0]['grounds']);
+        self::assertMatchesRegularExpression('/\A[0-9a-f]{40}\z/', $stamps[0]['git_commit']);
+        self::assertTrue($run->fresh()?->isReExtraction());
+    }
+
+    /**
+     * The stamp is what lets a batch resume after an interruption, and what keeps a canary
+     * run from being re-run by the batch that follows it on the same commit.
+     */
+    #[Test]
+    public function it_refuses_a_run_already_re_run_on_this_commit(): void
+    {
+        Bus::fake();
+        $run = $this->completedRun();
+        $this->snapshot([$run->id]);
+        $commit = json_decode((string) file_get_contents(storage_path('app/private/'.$this->snapshotPath())), true)['git_commit'];
+        $run->putCorpusRerunStamp(['git_commit' => $commit, 'dispatched_at' => '2026-09-24T12:00:00+00:00']);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('already re-run on this commit')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+    }
+
+    #[Test]
+    public function it_refuses_a_snapshot_taken_on_another_commit(): void
+    {
+        Bus::fake();
+        $run = $this->completedRun();
+        $this->snapshot([$run->id]);
+        $this->rewriteSnapshot(static fn (array $data): array => [...$data, 'git_commit' => str_repeat('0', 40)]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('take a new snapshot on the frozen commit')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+    }
+
+    #[Test]
+    public function it_refuses_a_run_that_changed_since_the_snapshot(): void
+    {
+        Bus::fake();
+        $run = $this->completedRun();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::Song,
+            'start_time' => 100,
+            'end_time' => 300,
+            'duration' => 200,
+        ]);
+        $this->snapshot([$run->id]);
+
+        $section->update(['section_type' => ServiceSectionType::Other]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('run has changed since the snapshot')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+    }
+
+    #[Test]
+    public function it_refuses_runs_outside_the_snapshot(): void
+    {
+        $run = $this->completedRun();
+        $other = $this->completedRun();
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), 'runs' => [$other->id]])
+            ->expectsOutputToContain('Not in the snapshot: '.$other->id)
+            ->assertFailed();
+    }
+
+    #[Test]
+    public function it_refuses_when_the_staged_source_hash_does_not_match(): void
+    {
+        Bus::fake();
+        $run = $this->completedRun();
+        $this->snapshot([$run->id]);
+        Storage::disk('local')->put((string) $run->source_file_path, 'a different encode');
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('staged source hash does not match')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+        self::assertSame([], $run->fresh()?->corpusRerunStamps());
+    }
+
+    #[Test]
+    public function it_refuses_a_failed_run(): void
+    {
+        $run = $this->completedRun(['status' => ProcessingStatus::Failed, 'current_step' => 'manual_review_required']);
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+            ->expectsOutputToContain('run is failed, not completed')
+            ->assertSuccessful();
+    }
+
+    #[Test]
+    public function it_refuses_an_excluded_run(): void
+    {
+        $run = $this->completedRun(metadata: ['exclusion' => ['reason' => MediaProcessingLog::EXCLUSION_REASON_PRIVATE_OCCASION]]);
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+            ->expectsOutputToContain('run is excluded')
+            ->assertSuccessful();
+    }
+
+    /**
+     * Run 935 was proposed as a canary member on 09-24 while superseded since 08-27; the
+     * orchestrator's shared guard is what refuses it.
+     */
+    #[Test]
+    public function it_refuses_a_superseded_run_through_the_shared_guard(): void
+    {
+        $run = $this->completedRun(['superseded_at' => now()]);
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+            ->expectsOutputToContain('retired or superseded')
+            ->assertSuccessful();
+    }
+
+    #[Test]
+    public function it_dispatches_no_more_than_max_runs_per_invocation(): void
+    {
+        Bus::fake();
+        $first = $this->completedRun();
+        $second = $this->completedRun();
+        $this->snapshot([$first->id, $second->id]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--max' => 1, '--execute' => true])
+            ->expectsOutputToContain('--max=1 reached')
+            ->assertSuccessful();
+
+        self::assertCount(1, $first->fresh()?->corpusRerunStamps() ?? []);
+        self::assertSame([], $second->fresh()?->corpusRerunStamps());
+
+        // Re-running the command continues the batch: the first is refused as done.
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--max' => 1, '--execute' => true])
+            ->expectsOutputToContain('already re-run on this commit')
+            ->assertSuccessful();
+
+        self::assertCount(1, $second->fresh()?->corpusRerunStamps() ?? []);
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @param  array<string, mixed>  $metadata
+     */
+    private function completedRun(array $attributes = [], array $metadata = []): MediaProcessingLog
+    {
+        $operation = $this->createHistoricImportOperation();
+
+        // Each run its own recording: runs sharing a hash would share a dedup key on reopening.
+        $bytes = 'source bytes '.$operation->operation_id;
+        Storage::disk('local')->put(self::SOURCE.'.'.$operation->id, $bytes);
+
+        return MediaProcessingLog::factory()->livestream()->completed()->create([
+            'historic_import_operation_id' => $operation->id,
+            'source_file_path' => self::SOURCE.'.'.$operation->id,
+            'file_hash' => hash('sha256', $bytes),
+            'sermon_start_time' => 600.0,
+            'sermon_end_time' => 2400.0,
+            'processing_metadata' => [
+                'historic_import' => [
+                    'operation_id' => $operation->operation_id,
+                    'staging_context' => $this->stagingContext()->toArray(),
+                ],
+                'sermon_extraction_plan' => ['segments' => [['start_time' => 600.0, 'end_time' => 2400.0]]],
+                'service_structure' => ['sections' => []],
+                ...$metadata,
+            ],
+            ...$attributes,
+        ]);
+    }
+
+    private function stagingContext(): HistoricStagingContext
+    {
+        return new HistoricStagingContext(
+            manifestHash: str_repeat('a', 64),
+            planHash: str_repeat('b', 64),
+            stagingDisk: 'historic_staging',
+            batchRoot: 'historic-batches/corpus-rerun',
+            storageIdentity: [
+                'driver' => 'local',
+                'bucket' => null,
+                'root_fingerprint' => str_repeat('c', 64),
+                'prefix_fingerprint' => str_repeat('d', 64),
+            ],
+        );
+    }
+
+    /**
+     * @param  list<int>  $runIds
+     */
+    private function snapshot(array $runIds): void
+    {
+        $this->artisan('historic-import:rerun-snapshot', ['runs' => $runIds, '--output' => $this->snapshotPath()])
+            ->assertSuccessful();
+    }
+
+    /**
+     * @param  Closure(array<string, mixed>): array<string, mixed>  $change
+     */
+    private function rewriteSnapshot(Closure $change): void
+    {
+        $path = storage_path('app/private/'.$this->snapshotPath());
+        file_put_contents($path, json_encode($change(json_decode((string) file_get_contents($path), true))));
+    }
+
+    private function snapshotPath(): string
+    {
+        return $this->directory.'/before.json';
+    }
+}

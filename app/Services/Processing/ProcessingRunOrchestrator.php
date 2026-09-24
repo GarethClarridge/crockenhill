@@ -9,6 +9,7 @@ use App\Data\HistoricStagingContext;
 use App\Data\ProcessingResult;
 use App\Enums\HistoricImportOperationState;
 use App\Enums\ProcessingStatus;
+use App\Enums\StructureRedetectionGrounds;
 use App\Enums\ProcessingStep;
 use App\Jobs\AwaitHistoricSermonVideoStorage;
 use App\Jobs\CleanupTemporaryFiles;
@@ -346,12 +347,17 @@ class ProcessingRunOrchestrator
      * Transcription is not repeated — it precedes this phase — so the corrected
      * transcript is exactly what detection reads. Everything after it is:
      * extraction re-cuts the sermon media, and analysis is re-derived.
+     *
+     * The corpus re-run (plan §4.0) uses the same entry point on different
+     * grounds: the transcript is unchanged and the detection code is not.
      */
-    public function redetectServiceStructure(MediaProcessingLog $processingLog): ProcessingResult
-    {
+    public function redetectServiceStructure(
+        MediaProcessingLog $processingLog,
+        StructureRedetectionGrounds $grounds = StructureRedetectionGrounds::RecoveredTranscript,
+    ): ProcessingResult {
         try {
-            return $this->withRecordedStagingContext($processingLog, function () use ($processingLog): ProcessingResult {
-                $error = $this->structureRedetectionValidationError($processingLog);
+            return $this->withRecordedStagingContext($processingLog, function () use ($processingLog, $grounds): ProcessingResult {
+                $error = $this->structureRedetectionValidationError($processingLog, $grounds);
 
                 if ($error !== null) {
                     return ProcessingResult::failure(
@@ -375,9 +381,10 @@ class ProcessingRunOrchestrator
                 // already published; without this the store step refuses.
                 $processingLog->markAsReExtraction();
 
-                Log::info('Re-deriving service structure from a corrected transcript', [
+                Log::info('Re-deriving service structure', [
                     'processing_id' => $processingLog->processing_id,
                     'historic_import_operation_id' => $processingLog->historic_import_operation_id,
+                    'grounds' => $grounds->value,
                 ]);
 
                 return $this->retryWithChainFromPlan($processingLog->fresh() ?? $processingLog, $plan);
@@ -404,10 +411,12 @@ class ProcessingRunOrchestrator
      *
      * @return array{code: string, message: string}|null
      */
-    public function structureRedetectionRefusal(MediaProcessingLog $processingLog): ?array
-    {
+    public function structureRedetectionRefusal(
+        MediaProcessingLog $processingLog,
+        StructureRedetectionGrounds $grounds = StructureRedetectionGrounds::RecoveredTranscript,
+    ): ?array {
         $context = $processingLog->historicStagingContext();
-        $check = fn (): ?array => $this->structureRedetectionValidationError($processingLog);
+        $check = fn (): ?array => $this->structureRedetectionValidationError($processingLog, $grounds);
 
         // Mirrors withRecordedStagingContext(): a run that records no context and
         // claims no batch resolves its keys as configured, and only a run that
@@ -433,15 +442,17 @@ class ProcessingRunOrchestrator
     /**
      * Why this run may not be re-detected, or null when it may.
      *
-     * Narrow on purpose. The transcript-replay stamp is the load-bearing check:
-     * it is the evidence that this run's transcript actually changed after its
-     * structure was projected, so the set can only ever be runs a recovery
-     * replay touched. Without it this method would be a general "re-run a
-     * completed run" facility, which is not what it is for.
+     * Narrow on purpose. On recovered-transcript grounds the transcript-replay
+     * stamp is the load-bearing check: it is the evidence that this run's
+     * transcript actually changed after its structure was projected, so the set
+     * can only ever be runs a recovery replay touched. On corpus re-run grounds
+     * the caller proves membership of a snapshotted batch
+     * ({@see \App\Actions\RedetectForCorpusRerun}). Neither is a general
+     * "re-run a completed run" facility.
      *
      * @return array{code: string, message: string}|null
      */
-    private function structureRedetectionValidationError(MediaProcessingLog $processingLog): ?array
+    private function structureRedetectionValidationError(MediaProcessingLog $processingLog, StructureRedetectionGrounds $grounds): ?array
     {
         if ($processingLog->historic_import_operation_id === null) {
             return ['code' => 'NOT_HISTORIC_RUN', 'message' => 'Structure re-detection is a historic-import operation.'];
@@ -468,6 +479,44 @@ class ProcessingRunOrchestrator
             ];
         }
 
+        // On corpus re-run grounds the transcript is meant to be unchanged: the
+        // detection code is what moved.
+        $refusal = $grounds === StructureRedetectionGrounds::RecoveredTranscript
+            ? $this->recoveredTranscriptRefusal($processingLog)
+            : null;
+
+        if ($refusal !== null) {
+            return $refusal;
+        }
+
+        $source = $processingLog->source_file_path;
+
+        /**
+         * Resolved exactly as {@see ExtractSermon} resolves it, and
+         * only ever from inside the run's staging context: the staging guard
+         * rewrites `temp_disk` to the staging disk and re-roots that at the
+         * batch, so naming a disk here instead of asking the config would report
+         * every retained source as lost.
+         */
+        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
+
+        if (! is_string($source) || $source === '' || ! Storage::disk($tempDisk)->exists($source)) {
+            return [
+                'code' => 'SOURCE_UNAVAILABLE',
+                'message' => 'The source recording is gone, so extraction would fail after detection succeeded.',
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * Why a recovery replay does not justify re-detection, or null when it does.
+     *
+     * @return array{code: string, message: string}|null
+     */
+    private function recoveredTranscriptRefusal(MediaProcessingLog $processingLog): ?array
+    {
         $replay = $processingLog->transcriptRecoveryReplay();
 
         if ($replay === null) {
@@ -492,24 +541,6 @@ class ProcessingRunOrchestrator
             return [
                 'code' => 'RECOVERY_ADDED_NOTHING',
                 'message' => 'The recovery replay shows no words recovered, so re-detection would read the same evidence.',
-            ];
-        }
-
-        $source = $processingLog->source_file_path;
-
-        /**
-         * Resolved exactly as {@see ExtractSermon} resolves it, and
-         * only ever from inside the run's staging context: the staging guard
-         * rewrites `temp_disk` to the staging disk and re-roots that at the
-         * batch, so naming a disk here instead of asking the config would report
-         * every retained source as lost.
-         */
-        $tempDisk = (string) config('media-processing.storage.temp_disk', 'local');
-
-        if (! is_string($source) || $source === '' || ! Storage::disk($tempDisk)->exists($source)) {
-            return [
-                'code' => 'SOURCE_UNAVAILABLE',
-                'message' => 'The source recording is gone, so extraction would fail after detection succeeded.',
             ];
         }
 

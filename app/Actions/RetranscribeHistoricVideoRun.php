@@ -8,10 +8,10 @@ use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
+use App\Services\HistoricMedia\StagedSourceVerification;
 use App\Services\Processing\MediaProcessingRunTransitionService;
 use App\Services\Processing\ProcessingRunOrchestrator;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 final class RetranscribeHistoricVideoRun
@@ -28,6 +28,7 @@ final class RetranscribeHistoricVideoRun
         private readonly HistoricStagingContextRegistry $stagingContexts,
         private readonly MediaProcessingRunTransitionService $transitions,
         private readonly ProcessingRunOrchestrator $orchestrator,
+        private readonly StagedSourceVerification $stagedSource,
     ) {}
 
     /** @return array{outcome: 'ready'|'dispatched'|'refused', reason: string} */
@@ -124,38 +125,7 @@ final class RetranscribeHistoricVideoRun
             return 'another run is active';
         }
 
-        $sourcePath = $run->source_file_path;
-        $disk = Storage::disk((string) config('media-processing.storage.temp_disk'));
-
-        if (! is_string($sourcePath) || $sourcePath === '' || ! $disk->exists($sourcePath)) {
-            return 'staged source is missing';
-        }
-
-        $expectedHash = $run->recordedSourceFileHash();
-
-        if ($expectedHash === null) {
-            return 'run has no recorded source hash';
-        }
-
-        $stream = $disk->readStream($sourcePath);
-
-        if ($stream === null) {
-            return 'staged source could not be read';
-        }
-
-        try {
-            $hash = hash_init('sha256');
-            hash_update_stream($hash, $stream);
-            $actualHash = hash_final($hash);
-        } finally {
-            fclose($stream);
-        }
-
-        if (! hash_equals($expectedHash, $actualHash)) {
-            return 'staged source hash does not match recorded evidence';
-        }
-
-        return null;
+        return $this->stagedSource->refusal($run);
     }
 
     /** @return array{outcome: 'refused', reason: string} */

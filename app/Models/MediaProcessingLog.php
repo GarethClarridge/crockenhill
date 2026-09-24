@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Actions\RedetectForCorpusRerun;
 use App\Actions\RedetectStructureOnRecoveredEvidence;
 use App\Data\ChurchServiceTranscript;
 use App\Data\HistoricStagingContext;
@@ -1524,6 +1525,42 @@ class MediaProcessingLog extends Model
             }
 
             $metadata[RedetectStructureOnRecoveredEvidence::SNAPSHOT_KEY] = $snapshot;
+
+            return $metadata;
+        });
+    }
+
+    /**
+     * Every corpus re-run dispatch recorded on this run, oldest first (plan §4.0).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function corpusRerunStamps(): array
+    {
+        $stamps = ($this->processing_metadata?->toArray() ?? [])[RedetectForCorpusRerun::STAMP_KEY] ?? [];
+
+        return is_array($stamps) ? array_values(array_filter($stamps, 'is_array')) : [];
+    }
+
+    /**
+     * Record a corpus re-run dispatch before it is sent, or withdraw the latest one when the
+     * dispatch was refused. Written through the safe path for the reason the structure
+     * snapshot is: the run is still completed and other writers may touch the column.
+     *
+     * @param  array<string, mixed>|null  $stamp  null withdraws the latest stamp
+     */
+    public function putCorpusRerunStamp(?array $stamp): void
+    {
+        $this->writeProcessingMetadata(static function (array $metadata) use ($stamp): array {
+            $stamps = is_array($metadata[RedetectForCorpusRerun::STAMP_KEY] ?? null) ? $metadata[RedetectForCorpusRerun::STAMP_KEY] : [];
+
+            if ($stamp === null) {
+                array_pop($stamps);
+            } else {
+                $stamps[] = $stamp;
+            }
+
+            $metadata[RedetectForCorpusRerun::STAMP_KEY] = array_values($stamps);
 
             return $metadata;
         });
