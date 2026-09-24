@@ -626,6 +626,40 @@ screen finds no loop in the re-decoded transcript. 1287's lyric hold on §3596 *
 sung words now match #797, the song the hold said was really sung, but item 11981 binds no
 song, so identity is still unestablished. That needs a binding decision, not a hold lift.
 
+**Review fixes, 2026-09-24** (`0beb1f996`…`1a5b17019`). A critical review of the 09-22/23
+commits found holds that could clear without a repair, and song-matching side effects:
+- A re-raised record now takes the current fingerprint and check; before, the next re-check
+  compared the stale one and cleared the operator's re-hold again.
+- A lyric comparison re-runs when the **binding** changes as well as the transcript, and after
+  song matching, not only after detection. So §3596 now re-checks itself once 1287's binding
+  decision is made; no by-hand lift is needed. It clears only on the census scorer's positive
+  reading (`SongLyricIdentityCheck::confirms()`: the bound song leads with ≥4 pairs).
+- **34 inferred checks corrected** by re-running `service:backfill-content-hold-checks`: 33
+  short-loop and cadence holds (below the repetition screen's floors, confirmed against the
+  source) and 1337 §4275 (its song, Shine Your Light, is not in the catalogue, so no lyric test
+  can see it; the re-check would have cleared it) are now `source_audio`. No clearance needed
+  revoking: the §3858/§3985 clears were song-loop holds the screen can re-test.
+- `service:recheck-content-holds --execute` then cleared **§519 (run 929)**: its OpenLP item now
+  binds #295, the announced song, which its sung words confirm with 26 pairs. 27 records stay.
+- Bound single-source songs are no longer flagged `unmatched_song_section` (or, if
+  speech-classified, retyped to `other`) when OCR finds nothing. `planned` counts only an item
+  at the section's own place in the plan (none of 1,082 confirmed bindings relied on another).
+- Released hold history for content a re-detection drops is kept on the run
+  (`unplaced_content_hold_records`).
+- `structure:recompute-sound-stage` now replays `SongSpeechEdges`, so it reports
+  `structure_song_swallows_speech`.
+
+**The 09-23 detectors, checked read-only on 09-24.** `detectors:evaluate` (case book frozen as
+`storage/scratch/detector-case-book-20260924.json`) scores every new detector's regression
+cases `missed`, because no stored run carries their output yet; that is expected before the
+re-run. Replayed from banked inputs instead, each fires on every regression case:
+sung-span-in-sermon 949/1014, song-swallows-speech 974/1036, speech-under-loop
+§4731/§1082/§4390, section-without-song §622/§2851/§3368 (not §678, the doxology, as ruled), and
+adjacent-same-song 1337 §4274/§4275. `song-identity-single-source` and
+`song-identity-contradicted-by-lyrics` have **no case-book entries**; they need adjudicated
+cases before they can be scored. Song boundary evidence went v5→v7 in one evening, so run the
+boundary-evidence backfill **once, at v7**.
+
 #### Carried open items
 
 Every box still unticked in the moved sections, grouped by the section it came from. **Triaged
