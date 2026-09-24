@@ -21,6 +21,7 @@ use App\Enums\DetectorUnit;
 use App\Jobs\MatchSongsFromTranscript;
 use App\Services\ChurchService\SectionPublication\SongLoopedTranscript;
 use App\Services\ChurchService\SectionPublication\SongLyricsOutsideSection;
+use App\Services\ChurchService\SectionPublication\SongOpeningAndClosing;
 use App\Services\ChurchService\SectionPublication\SongPublicationBoundaryEvidenceService;
 use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
 use App\Services\ChurchService\SectionPublication\SongSectionWithoutSong;
@@ -776,6 +777,28 @@ class DetectorCatalogue
                 unit: DetectorUnit::Section,
                 summary: "Lyrics of this song are sung outside the section's bounds, so the cut lost part of the performance it claims.",
                 owningClass: SongLyricsOutsideSection::class,
+            ),
+            new DetectorEntry(
+                id: 'song-opening-missing',
+                surface: DetectorSurface::SongBoundaryEvidence,
+                signals: [SongOpeningAndClosing::OPENING_RISK_KIND],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Section,
+                summary: "The clip's first placed line belongs to a later verse than the song's first, and the church was singing just before it, so the cut lost the opening.",
+                owningClass: SongOpeningAndClosing::class,
+                regressionCases: ['run 1035 §4813', 'run 1250 §3126', 'run 1120 §1994', 'run 982 §1062'],
+            ),
+            new DetectorEntry(
+                id: 'song-closing-missing',
+                surface: DetectorSurface::SongBoundaryEvidence,
+                signals: [SongOpeningAndClosing::CLOSING_RISK_KIND],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Section,
+                summary: "The clip's last placed line belongs to an earlier verse than the song's last, and the church was still singing just after it, so the cut lost the ending.",
+                owningClass: SongOpeningAndClosing::class,
+                regressionCases: ['run 947 §698', 'run 1108 §1896', 'run 1308 §3911', 'run 1146 §2179'],
             ),
             new DetectorEntry(
                 id: 'song-boundary-spoken-framing',

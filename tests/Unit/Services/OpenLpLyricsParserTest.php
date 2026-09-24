@@ -93,4 +93,83 @@ XML;
         $this->assertSame('Fallback body text', $result['lyrics_plain']);
         $this->assertSame(['No verse nodes found in lyrics XML; used fallback text extraction.'], $result['warnings']);
     }
+
+    /**
+     * The song-edge checks need each sung verse's key, in the order the church sings them, and
+     * whether a recorded verse order said so or the document order is a guess.
+     */
+    #[Test]
+    public function it_returns_the_sung_sequence_with_keys_under_a_verse_order(): void
+    {
+        $lyricsXml = <<<'XML'
+<song>
+  <lyrics>
+    <verse type="v" label="1">Verse one</verse>
+    <verse type="c" label="1">Chorus one</verse>
+    <verse type="v" label="2">Verse two</verse>
+  </lyrics>
+</song>
+XML;
+
+        $this->assertSame([
+            'verses' => [
+                ['key' => 'v1', 'text' => 'Verse one'],
+                ['key' => 'c1', 'text' => 'Chorus one'],
+                ['key' => 'v2', 'text' => 'Verse two'],
+                ['key' => 'c1', 'text' => 'Chorus one'],
+            ],
+            'ordered' => true,
+        ], $this->parser->sequence($lyricsXml, 'v1 c1 v2 c1'));
+    }
+
+    #[Test]
+    public function it_returns_the_document_order_when_no_verse_order_is_recorded(): void
+    {
+        $lyricsXml = <<<'XML'
+<song>
+  <lyrics>
+    <verse type="v" label="1">Verse one</verse>
+    <verse type="c" label="1">Chorus one</verse>
+  </lyrics>
+</song>
+XML;
+
+        $this->assertSame([
+            'verses' => [
+                ['key' => 'v1', 'text' => 'Verse one'],
+                ['key' => 'c1', 'text' => 'Chorus one'],
+            ],
+            'ordered' => false,
+        ], $this->parser->sequence($lyricsXml));
+    }
+
+    #[Test]
+    public function it_returns_no_sequence_for_unreadable_lyrics(): void
+    {
+        $this->assertSame(['verses' => [], 'ordered' => false], $this->parser->sequence('<song><lyrics>'));
+    }
+
+    /**
+     * 971 §1092 ("Prepare our hearts"): a bridge the recorded order never names is not sung, so
+     * it cannot be where the song ends, though the plain lyrics keep it.
+     */
+    #[Test]
+    public function it_leaves_verses_the_order_never_names_out_of_the_sung_sequence(): void
+    {
+        $lyricsXml = <<<'XML'
+<song>
+  <lyrics>
+    <verse type="v" label="1">Verse one</verse>
+    <verse type="c" label="1">Chorus one</verse>
+    <verse type="b" label="1">Bridge one</verse>
+  </lyrics>
+</song>
+XML;
+
+        $this->assertSame(
+            ['v1', 'c1', 'c1'],
+            array_column($this->parser->sequence($lyricsXml, 'v1 c1 c1')['verses'], 'key'),
+        );
+        $this->assertStringEndsWith('Bridge one', (string) $this->parser->parse($lyricsXml, 'v1 c1 c1')['lyrics_plain']);
+    }
 }

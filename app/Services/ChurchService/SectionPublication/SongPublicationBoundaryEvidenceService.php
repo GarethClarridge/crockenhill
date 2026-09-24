@@ -38,6 +38,7 @@ use Illuminate\Support\Facades\Storage;
  *     looped_transcript: list<array<string, mixed>>,
  *     song_content: array<string, mixed>|null,
  *     speech_under_loop: array<string, mixed>|null,
+ *     song_ends: list<array<string, mixed>>,
  *     inputs_fingerprint: string,
  *     risks: list<array{kind: string, detail: string}>,
  *     decision: 'release_eligible'|'review'
@@ -56,6 +57,7 @@ use Illuminate\Support\Facades\Storage;
  *     looped_transcript: list<array<string, mixed>>,
  *     song_content: array<string, mixed>|null,
  *     speech_under_loop: array<string, mixed>|null,
+ *     song_ends: list<array<string, mixed>>,
  *     inputs_fingerprint: string,
  *     risks: list<array{kind: string, detail: string}>,
  *     decision: 'release_eligible'|'review',
@@ -90,9 +92,12 @@ final class SongPublicationBoundaryEvidenceService
      * section that only announces its song, or sings something else, reaches a reviewer.
      * 7 (2026-09-23): records {@see SongSpeechUnderLoop} under `speech_under_loop`, so a loop
      * that manufactured sung text over a prayer or talk reaches a reviewer.
+     * 8 (2026-09-24): records {@see SongOpeningAndClosing} under `song_ends`, so a clip that
+     * opens after its first verse or closes before its last, with the church still singing
+     * beyond the edge, reaches a reviewer.
      * Evidence banked under an earlier version is stale, and the backfill re-assesses it.
      */
-    public const VERSION = 7;
+    public const VERSION = 8;
 
     private const LEADING_CUE_WINDOW_SECONDS = 5.0;
 
@@ -113,6 +118,7 @@ final class SongPublicationBoundaryEvidenceService
         private readonly SongLoopedTranscript $loopedTranscript,
         private readonly SongSectionWithoutSong $sectionWithoutSong,
         private readonly SongSpeechUnderLoop $speechUnderLoop,
+        private readonly SongOpeningAndClosing $openingAndClosing,
     ) {}
 
     /**
@@ -159,6 +165,7 @@ final class SongPublicationBoundaryEvidenceService
                 'looped_transcript' => $looped,
                 'song_content' => null,
                 'speech_under_loop' => null,
+                'song_ends' => [],
                 'inputs_fingerprint' => $this->fingerprintOf($section, $inputs),
                 'risks' => [
                     [
@@ -241,6 +248,22 @@ final class SongPublicationBoundaryEvidenceService
             $risks[] = ['kind' => SongSpeechUnderLoop::RISK_KIND, 'detail' => $speechUnderLoop['detail']];
         }
 
+        $edgeSound = $inputs['rms_threshold'] === null
+            ? null
+            : SustainedSound::fromSamples($inputs['rms_data'], $inputs['rms_threshold'], SustainedSound::EDGE_WINDOW_BINS);
+        $songEnds = $inputs['transcript'] instanceof ChurchServiceTranscript
+            ? $this->openingAndClosing->observe($section, $inputs['transcript'], $edgeSound)
+            : [];
+
+        foreach ($songEnds as $songEnd) {
+            if ($songEnd['risk']) {
+                $risks[] = [
+                    'kind' => $songEnd['edge'] === 'opening' ? SongOpeningAndClosing::OPENING_RISK_KIND : SongOpeningAndClosing::CLOSING_RISK_KIND,
+                    'detail' => $songEnd['detail'],
+                ];
+            }
+        }
+
         return $this->withRecordedAt($section, [
             'version' => self::VERSION,
             'candidate' => [
@@ -259,6 +282,7 @@ final class SongPublicationBoundaryEvidenceService
             'looped_transcript' => $looped,
             'song_content' => $songContent,
             'speech_under_loop' => $speechUnderLoop,
+            'song_ends' => $songEnds,
             'inputs_fingerprint' => $this->fingerprintOf($section, $inputs),
             'risks' => $risks,
             'decision' => $risks === [] ? 'release_eligible' : 'review',
@@ -288,6 +312,7 @@ final class SongPublicationBoundaryEvidenceService
             'rms_log' => [$inputs['rms_input']['status'], $inputs['rms_sha256']],
             'lyric_inputs' => $this->lyricsOutsideSection->inputs($section),
             'looped_inputs' => $this->loopedTranscript->inputs($section),
+            'verse_inputs' => $this->openingAndClosing->inputs($section),
             'policy' => config('media-processing.section_publishing.song_boundary', []),
         ], JSON_THROW_ON_ERROR));
     }

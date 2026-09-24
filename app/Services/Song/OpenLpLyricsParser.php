@@ -16,13 +16,59 @@ class OpenLpLyricsParser
     public function parse(string $lyricsXml, ?string $verseOrder = null): array
     {
         $warnings = [];
+        $read = $this->read($lyricsXml, $warnings);
+
+        if (is_string($read)) {
+            return ['lyrics_plain' => $read, 'warnings' => $warnings];
+        }
+
+        if ($read === null) {
+            return ['lyrics_plain' => null, 'warnings' => $warnings];
+        }
+
+        $sequence = $this->orderVerses($read, $verseOrder, $warnings, keepUnnamed: true);
+
+        return [
+            'lyrics_plain' => implode("\n\n", array_column($sequence['verses'], 'text')),
+            'warnings' => $warnings,
+        ];
+    }
+
+    /**
+     * The verses in the order the church sings them, repeats included, each with its key
+     * (`v1`, `c1`). `ordered` says a recorded verse order produced the sequence, which then holds
+     * only the verses it names; without one it is the document order, in which a chorus appears
+     * once however often it is sung.
+     *
+     * @return array{verses: list<array{key: string|null, text: string}>, ordered: bool}
+     */
+    public function sequence(string $lyricsXml, ?string $verseOrder = null): array
+    {
+        $warnings = [];
+        $read = $this->read($lyricsXml, $warnings);
+
+        if (! is_array($read)) {
+            return ['verses' => [], 'ordered' => false];
+        }
+
+        return $this->orderVerses($read, $verseOrder, $warnings, keepUnnamed: false);
+    }
+
+    /**
+     * The document's verses, or plain text when it has no verse nodes, or null when nothing
+     * could be read.
+     *
+     * @param  list<string>  $warnings
+     * @return non-empty-list<array{key: string|null, text: string}>|string|null
+     */
+    private function read(string $lyricsXml, array &$warnings): array|string|null
+    {
         $lyricsXml = trim($lyricsXml);
 
         if ($lyricsXml === '') {
-            return [
-                'lyrics_plain' => null,
-                'warnings' => ['Lyrics XML is empty.'],
-            ];
+            $warnings[] = 'Lyrics XML is empty.';
+
+            return null;
         }
 
         $dom = new DOMDocument('1.0', 'UTF-8');
@@ -32,10 +78,9 @@ class OpenLpLyricsParser
             $loaded = $dom->loadXML($lyricsXml, LIBXML_NONET);
 
             if ($loaded !== true) {
-                return [
-                    'lyrics_plain' => null,
-                    'warnings' => ['Lyrics XML could not be parsed.'],
-                ];
+                $warnings[] = 'Lyrics XML could not be parsed.';
+
+                return null;
             }
 
             $xpath = new DOMXPath($dom);
@@ -45,16 +90,14 @@ class OpenLpLyricsParser
                 $fallback = $this->normaliseText($dom->textContent ?? '');
 
                 if ($fallback === null) {
-                    return [
-                        'lyrics_plain' => null,
-                        'warnings' => ['No verse nodes found in lyrics XML.'],
-                    ];
+                    $warnings[] = 'No verse nodes found in lyrics XML.';
+
+                    return null;
                 }
 
-                return [
-                    'lyrics_plain' => $fallback,
-                    'warnings' => ['No verse nodes found in lyrics XML; used fallback text extraction.'],
-                ];
+                $warnings[] = 'No verse nodes found in lyrics XML; used fallback text extraction.';
+
+                return $fallback;
             }
 
             $verseRows = [];
@@ -74,18 +117,12 @@ class OpenLpLyricsParser
             }
 
             if ($verseRows === []) {
-                return [
-                    'lyrics_plain' => null,
-                    'warnings' => ['Verse nodes were present but no text could be extracted.'],
-                ];
+                $warnings[] = 'Verse nodes were present but no text could be extracted.';
+
+                return null;
             }
 
-            $verses = $this->orderVerses($verseRows, $verseOrder, $warnings);
-
-            return [
-                'lyrics_plain' => implode("\n\n", $verses),
-                'warnings' => $warnings,
-            ];
+            return $verseRows;
         } finally {
             libxml_clear_errors();
             libxml_use_internal_errors($previous);
@@ -95,18 +132,14 @@ class OpenLpLyricsParser
     /**
      * @param  list<array{key:string|null,text:string}>  $verseRows
      * @param  list<string>  $warnings
-     * @return list<string>
+     * @param  bool  $keepUnnamed  Append the verses a recorded order never names, as the plain lyrics do
+     * @return array{verses: list<array{key: string|null, text: string}>, ordered: bool}
      */
-    private function orderVerses(array $verseRows, ?string $verseOrder, array &$warnings): array
+    private function orderVerses(array $verseRows, ?string $verseOrder, array &$warnings, bool $keepUnnamed): array
     {
-        $xmlOrder = array_map(
-            static fn (array $row): string => $row['text'],
-            $verseRows
-        );
-
         $tokens = $this->parseVerseOrderTokens($verseOrder);
         if ($tokens === []) {
-            return $xmlOrder;
+            return ['verses' => $verseRows, 'ordered' => false];
         }
 
         $verseMap = [];
@@ -118,7 +151,7 @@ class OpenLpLyricsParser
                 continue;
             }
 
-            $verseMap[$key] = $row['text'];
+            $verseMap[$key] = $row;
         }
 
         $ordered = [];
@@ -141,14 +174,14 @@ class OpenLpLyricsParser
         if ($ordered === []) {
             $warnings[] = 'Verse order could not be matched to verse keys; used XML verse order.';
 
-            return $xmlOrder;
+            return ['verses' => $verseRows, 'ordered' => false];
         }
 
-        foreach ($verseRows as $row) {
+        foreach ($keepUnnamed ? $verseRows : [] as $row) {
             $key = $row['key'];
 
             if ($key === null || ! array_key_exists($key, $matchedTokens)) {
-                $ordered[] = $row['text'];
+                $ordered[] = $row;
             }
         }
 
@@ -156,7 +189,7 @@ class OpenLpLyricsParser
             $warnings[] = 'Verse order referenced missing verse keys: '.implode(', ', array_keys($missingTokens)).'.';
         }
 
-        return $ordered;
+        return ['verses' => $ordered, 'ordered' => true];
     }
 
     private function extractVerseKey(DOMElement $verseNode): ?string

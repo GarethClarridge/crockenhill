@@ -272,7 +272,9 @@ costs more than re-running them. **Operator decisions:**
          12 real edges in full and 1308 in part (still held), recovering 209 of 353 missed
          seconds with no overshoot.
        - 1250 and 1035 are beyond the transcript: whisper heard almost none of their missing
-         verses. 1035 clears on a 0.2 s nudge while missing about 30 s, the detector's own floor.
+         verses. On today's bounds 1035 clears on a 0.2 s nudge while missing its untranscribed first
+         verse; the re-run's sustained-sound widening (09-15 replay: §4813 510 s → 475 s) covers it
+         at detection, before this step runs.
        - False alarms that move: 1305 clears with 6.6 s of speech, and five nudges of up to
          2.2 s clear (981, 1145, 1180, 1224, 1233). 1262 moves 6 s into the previous song and
          stays held.
@@ -281,6 +283,28 @@ costs more than re-running them. **Operator decisions:**
      - **Named limitation (narrower):** a clip still misses lines the transcript never caught,
        lines past an announcement, and lines in a section bound to the wrong song. Those stay
        held until adjudicated.
+     - ~~Untranscribed opening or ending~~ (**built 2026-09-24**, operator: both edges; "we
+       rarely deviate from the verse order recorded in the catalogue").
+       `song-opening-missing` / `song-closing-missing` (`SongOpeningAndClosing`, boundary
+       evidence version 8, `song_ends`) holds a clip whose first placed line belongs to a later
+       verse than the sequence's first, or whose last belongs to an earlier verse than its last.
+       The placed line must be within 20 s of the edge, and the 10 s beyond the edge must be
+       mostly sustained sound.
+       - Lines are placed by content-word pairs unique to one verse. The sequence is
+         `verse_order` (named verses only), or the document order, in which case any chorus may
+         close. A first-verse reprise may also close.
+       - It holds rather than moves an edge: it knows *that* the opening is gone, not where the
+         song began.
+       - *Measured* (`storage/scratch/songentry-20260924/`): over 1,177 song sections, 53 edges
+         placed within 20 s, adjudicated by fresh audio beyond the edge. Openings: 11 of 13
+         truncations raise; the misses are 1225 (the recording starts mid-song) and one never
+         placed. 1 of 9 false alarms raises (1168 §2304). Closings: 5 of 6 truncations raise;
+         1267 is missed (quiet sound). 1 of 13 false alarms raises (1119, a reading over music).
+       - Without the sound test, 9 of 22 openings and 14 of 30 closings were false alarms:
+         skipped or untranscribed verses beside a prayer or reading.
+       - It also found a parser fault: a recorded order's unnamed verses were appended to the
+         sung sequence (971 §1092's bridge read as the song's end). `OpenLpLyricsParser::sequence()`
+         now keeps only named verses; `lyrics_plain` is unchanged.
    - **Gate acceptance, not the freeze (operator, 2026-09-24):** `identity-duplicate-date-pair`,
      `membership-missing-occasion`, `membership-rehearsal-imported-as-service`,
      `staging-held-candidates-not-promoted`, `release-media-file-missing` and

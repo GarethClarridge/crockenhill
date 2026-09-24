@@ -1143,6 +1143,33 @@ class SongPublicationReviewPolicyTest extends TestCase
     }
 
     /**
+     * 1035 §4813: the clip opens on verse 2; verse 1 was sung before it and never transcribed.
+     */
+    #[Test]
+    public function it_holds_a_clip_that_opens_after_its_first_verse_while_the_church_sings(): void
+    {
+        $section = $this->section('full', ['livestream']);
+        Song::query()->whereKey($section->churchServiceItem->song_id)->update([
+            'lyrics_xml' => '<song><lyrics>'
+                .'<verse type="v" label="1"><![CDATA[O little town of Bethlehem how still we see thee lie]]></verse>'
+                .'<verse type="v" label="2"><![CDATA[For Christ is born of Mary and gathered all above]]></verse>'
+                .'<verse type="v" label="3"><![CDATA[How silently how silently the wondrous gift is given]]></verse>'
+                .'</lyrics></song>',
+            'lyrics_plain' => "O little town of Bethlehem how still we see thee lie\n\nFor Christ is born of Mary and gathered all above\n\nHow silently how silently the wondrous gift is given",
+            'verse_order' => null,
+        ]);
+        $this->storeLyricArtifacts($section->fresh(), [
+            ['start' => 601.0, 'end' => 610.0, 'text' => 'For Christ is born of Mary, and gathered all above.'],
+            ['start' => 820.0, 'end' => 830.0, 'text' => 'How silently, how silently, the wondrous gift is given.'],
+        ], [[560, 900, 'sung']]);
+
+        $this->assertContains(
+            'song_opening_missing',
+            array_column($this->policy->reviewReasons($section->fresh()), 'kind'),
+        );
+    }
+
+    /**
      * 938 §622 (clip 74): the leader announces the song and the section ends before anyone sings.
      */
     #[Test]
