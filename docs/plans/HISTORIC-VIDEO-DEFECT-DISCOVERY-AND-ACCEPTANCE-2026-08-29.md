@@ -421,6 +421,17 @@ freeze, and the diff report binds that hash.
   sparse-cadence hold carried to the re-detected sermon §4862). The re-run is a detection round
   (below): its pass is judged on the diff with media custody pending, and the first run's
   full-media diff is the evidence for the media path until Tier C.
+  **First run's full-media diff (`canary-20260924/diff-final.json`): custody held.** Nothing
+  became public. Seven songs auto-published into **quarantine** (`publication_state:
+  quarantined`), which is the historic path's designed outcome pending §4.5; four of them had
+  been held only by the boundary-evidence backfill and now read clean on the re-run's evidence
+  (1025 §1379, 1108 §1894, 1250 §3122 rebound to #1047 with its lyric hold cleared, 1311 §3946).
+  Of the 23 sections the diff reported as leaving review, 15 are back in `pending_approval`
+  (song review is a publication state, not `needs_manual_review`, which only the backfill set),
+  those four are quarantined, two sermons cleared `sermon_text_predates_evidence` with new text,
+  and 1112's two songs wait on its parked sermon. Two merged sections lost their old clips
+  (1262 §3284, the doxology limitation; 1311 §3950 into the baptism hymn). 1112 is parked for
+  its held sermon, so the second run cannot reach it until that is re-cut.
   **Runs 964 (§872) and 1250 (§3128)**, the first use of the diff report. Current
   code resolves both hints correctly (#304, #408). The canary checks that re-detection
   rebinds them, that sync overwrites the stale livestream items 6901/9371 rather than
