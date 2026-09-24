@@ -410,6 +410,15 @@ freeze, and the diff report binds that hash.
 - [ ] **Canary, run on the candidate freeze commit.** If it passes, that commit is frozen. A
   failure is fixed and the canary re-run on the new commit, so no detection change lands
   after the freeze.
+  *First run 2026-09-24 on `3e90c62ee` (snapshot `canary-20260924/before.json`): failed on 949.*
+  964 §872 → #304 and 1250 §3128 → #408, both `consistent`; the short-talk truth set passed
+  except **949 §719**, which split into four `short_talk`s (Elmstead, Court Farm, Cold Harbour
+  and Crockenhill "share and prayer"). **Ruled (operator):** a sharing-and-prayer time is
+  `prayer`, never a talk; a partner presenting its work stays `short_talk`. Fixed in the
+  prompt; the whole canary re-runs on the new commit. Watch 936 §608 (a reading applied to
+  persecuted Christians, into prayer), which should follow 949, and 1025 and 936 §606, which
+  must stay talks. 1112 parked at extraction as designed (its 09-13 operator-written
+  sparse-cadence hold carried to the re-detected sermon §4862).
   **Runs 964 (§872) and 1250 (§3128)**, the first use of the diff report. Current
   code resolves both hints correctly (#304, #408). The canary checks that re-detection
   rebinds them, that sync overwrites the stale livestream items 6901/9371 rather than

@@ -45,7 +45,10 @@ Rules:
   hero-of-faith or Bible-character presentation, a mission or partner presentation, a testimony
   or interview. A whole talk is ONE short_talk section even when the speaker prays or asks
   questions inside it. Do not use it for an ordinance (baptism, communion), a tribute, notices,
-  or pre-service audio.
+  or pre-service audio. A time of sharing and prayer — people give news or prayer requests and
+  the church then prays over them — is prayer, not short_talk, even when each contributor speaks
+  for a church or partner; one prayer section per contributor is fine. A partner that presents
+  its work is still a short_talk even if it closes in prayer.
 - talk_type: only for type=short_talk — your proposal of what kind of talk it is; null otherwise.
   Propose childrens_talk ONLY with structural cues that it is aimed at children: the children are
   addressed or called forward, are dismissed to their groups afterwards, or the speaker addresses
