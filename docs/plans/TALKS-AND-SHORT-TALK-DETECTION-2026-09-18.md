@@ -1,9 +1,10 @@
 # Talks: one concept, typed, detected as `short_talk`
 
 **Date:** 2026-09-18
-**Status:** Planned, not started. Split out of the historic video defect plan's BC-07 ruling
-(`HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md` §4.1c), which now points here.
-Verified against code at `b6cbd9acf`.
+**Status:** PR1–PR4 landed 2026-09-23/24 (see the notes under §5 and **Remaining** at its end).
+Open: PR3's measurement (blocked on one question) and PR5 (operator-dispatched). Split out of
+the historic video plan's BC-07 ruling (`HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md`
+§4.1c), which now points here. Originally verified against code at `b6cbd9acf`.
 **Scope:** Replace the sermon-or-children's-talk split with a single *talk* concept carrying a
 type, make the detector find *short talks* structurally instead of judging audience, move the
 audience/type call to approval, and present every talk on one page, `/christ/talks`, with a
@@ -312,7 +313,7 @@ suite and Dusk — **never while a data pass is running** (`dusk_repoints_db_dur
 | **PR1 — `TalkType` and per-type exposure** | `SermonContentType` gone; `sermons.content_type` widened; `PUBLIC_TALK_TYPES=sermon,childrens_talk` behaves exactly as `CHILDRENS_TALKS_PUBLIC=true` did (existing `SermonExposurePolicyTest`, `ChildrensCornerPagesTest`, sitemap and archive tests pass unchanged in behaviour). Upsert-by-section for published talks with the two-testimonies test. `PROD-ACTIONS-PENDING` entry for the env rename. | — | Live public read path; one prod migration; one env rename |
 | **PR2 — Talks page** | The sermon archive answers at `/christ/talks` with a type switch; `/christ/sermons/*` and `/christ/childrens-corner*` 301; the default view, canonical and sitemap entry are unchanged in content; a verified member can switch to Children's talks and see the three published ones on the same page; sermon-only filters hide off-type; the dated route renders the talk template for non-sermon types; Children's Corner controller, middleware, views and card are deleted; the 17 hard-coded paths become `route()` calls; podcast feeds emit `new-feed-url`; admin list filters by type. Dusk covers the switch, the redirects and one show page per template. `PROD-ACTIONS-PENDING` gains the nav-page slug change and the podcast directory update. | PR1 | Every public sermon URL (via 301), podcast feeds, header |
 | **PR3 — `short_talk` detection** | Detector emits `short_talk` plus a `talk_type` proposal; migrations 2–3 applied; every `ChildrensTalk` consumer renamed; mock detector and structure tests updated; proposal visible in the workbench panel (read-only). Measurement artifact: the new prompt run read-only (`shadow` mode) over the nine blind runs and the 61 item-bearing long-`other` sections, scored against §3's truth table for (a) is it a short talk, (b) proposed type; recorded in `storage/scratch/` with counts in this plan's §9. | PR1 | Detector contract, three enum columns, JSON metadata of 202 rows, ~40 files |
-| **PR4 — Approval and publication** | Talk-type select and blocker in the panel; signature includes the reviewed type; `TalkPublicationHandler` under the `short_talk` key; `SermonCreationOptions::fromServiceSection()` maps the reviewed type. End-to-end test (the existing `ChildrensTalkPublicationWorkflowTest`, generalised) drives a `testimony` from prepare → approve → publish and asserts it renders at `/christ/testimonies/{slug}` for a verified member and 404s for a guest. | PR1, PR3 | Section publication path (already the children's-talk path); workbench panel |
+| **PR4 — Approval and publication** | Talk-type select and blocker in the panel; signature includes the reviewed type; ~~`TalkPublicationHandler` under the `short_talk` key~~ (done in PR3); `SermonCreationOptions::fromServiceSection()` maps the reviewed type. End-to-end test (the existing `ChildrensTalkPublicationWorkflowTest`, generalised) drives each non-sermon type from prepare → approve → publish and asserts it renders at `/christ/talks/{year}/{month}/{slug}` (D3: one dated route) for a verified member and sends a guest to login. | PR1, PR3 | Section publication path (already the children's-talk path); workbench panel |
 | **PR5 — Re-detection pass** | Gate: PR3's measurement shows the new prompt finds ≥ the talks the truth table names in the 61 with no false `short_talk` on the "not talks" rows; anything short of that is a prompt fix first (`feedback_measure_before_generalizing_a_fix`). Then the 142 runs with a long `other` and no short talk are re-detected **through the pipeline** (detection phase only, transcript reused; workers restarted first — `queue_workers_run_stale_code_after_commit`), operator-dispatched, respecting the historic lane's staging and dispatch rules. Outcome: short-talk candidates in the workbench for the operator to type, speaker and approve. | PR4 | Data only; no code |
 
 **PR1 landed 2026-09-23.** Labels keep the existing Title Case (`Children's Talk`, `Partner
@@ -342,8 +343,38 @@ publication breaks the moment the section type changes; `church_service_item_ass
 (varchar) was retyped with the columns. The measurement is blocked on one question: this plan
 never says which runs "the nine blind runs" are.
 
+**PR4 landed 2026-09-24.** The panel's talk-type select is prefilled from the confirmed type,
+else the proposal, so confirming a right proposal is one save; saving records
+`talk_type.reviewed` `{value, user_id, at}` and retyping away drops the record. Approval
+refuses without it ("Choose the talk type before approving publication."); the handler and
+`SermonCreationOptions` refuse too, so an unconfirmed talk can never publish as the proposal.
+The signature carries `talk_type` **only once confirmed** — an unconditional key would have
+re-stamped every candidate. Every unconfirmed short talk is a review candidate with reason
+`talk_type_review` (§4.5's intended queue); `ServiceSectionFactory` no longer picks
+`short_talk` at random, because that obligation made unrelated tests flaky.
+**Found and repaired in PR4, caused by PR3:** the signature hashes the section type, so the
+rename left 175 of 178 short-talk candidate stamps stale — the next candidate preparation
+would have re-cut their media, and some sources are gone. Migration
+`restamp_short_talk_classification_signatures` re-stamps only stamps that equal the old-name
+hash (3 genuinely stale ones stay stale). Tests: `TalkPublicationWorkflowTest` (all three
+types), acceptance 5 in `ApproveSectionForPublicationTest`.
+
 PR2 and PR3 are independent of each other and can proceed in parallel after PR1. Nothing here
 is a calendar gate (`feedback_no_calendar_time_gates`).
+
+### Remaining (2026-09-24)
+
+- [ ] **PR3 measurement.** Blocked on one question: this plan never says which runs are "the
+  nine blind runs". The tool is `structure:evaluate --detector=openai --processing-id=…`
+  (read-only, frontier-model spend over ~50 transcripts). Output to `storage/scratch/`, counts to §9.
+- [ ] **PR5 re-detection**, after the measurement meets its gate; operator-dispatched.
+- [ ] **Acceptance 2:** Playwright baselines not regenerated since the move (the spec already
+  points at `/christ/talks`; the nav label now reads "Talks").
+- [ ] **Production**, `PROD-ACTIONS-PENDING` §5–§7: `PUBLIC_TALK_TYPES` env rename; podcast feed URL
+  in Apple Podcasts Connect and Spotify; the Talks nav page's heading image. Deploying PR3/PR4
+  also runs four data migrations on prod's rows — restart workers after.
+- [ ] **Operator:** 151 pending short talks (local count) now each need a type confirmed
+  before approval — the review queue §4.5 intends.
 
 ## 6. Operator workflow after PR4
 
@@ -362,6 +393,10 @@ testimonies name people, and the default of members-only (D4) is what makes appr
 do first and reconsider later.
 
 ## 7. Acceptance
+
+Status 2026-09-24: 1 ✅ (only the `/christ/sermons` redirect and its canary remain) · 2 partly
+(301s asserted by canaries and tests; Playwright baselines outstanding) · 3 ✅ · 4 ✅ · 5 ✅ ·
+6 ⏳ measurement · 7 ⏳ PR5.
 
 1. `grep -rn "SermonContentType\|ChildrensTalk\b\|childrens_talk_speaker\|childrens-corner\|ChildrensCorner\|CHILDRENS_TALKS_PUBLIC\|christ/sermons" app config routes resources` returns nothing after PR4 except the redirect definitions in `routes/web.php` (the `childrens_talk` *enum value* legitimately remains).
 2. `/christ/talks` renders what `/christ/sermons` rendered, and every old sermon, preacher, series, service and feed URL 301s to its new path (route canaries assert this; Playwright baselines re-pointed, `playwright_visual_regression`).

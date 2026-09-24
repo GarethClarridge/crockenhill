@@ -40,6 +40,7 @@ class SermonCreationOptionsTest extends TestCase
             'end_time' => 480.0,
             'duration' => 360.0,
             'metadata' => [
+                'talk_type' => ['reviewed' => ['value' => 'childrens_talk']],
                 'talk_speaker' => [
                     'reviewed' => [
                         'preacher_id' => $preacher->id,
@@ -77,6 +78,38 @@ class SermonCreationOptionsTest extends TestCase
      * talk extracted from the same recording must not inherit them.
      */
     #[Test]
+    public function a_short_talk_publishes_as_its_reviewed_type_never_its_proposal(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::ShortTalk,
+            'extracted_audio_path' => 'sermons/audio/section-71.mp3',
+            'metadata' => ['talk_type' => ['proposed' => 'childrens_talk', 'reviewed' => ['value' => 'testimony']]],
+        ]);
+
+        $options = SermonCreationOptions::fromServiceSection($section, $processingLog, date: '2026-05-10', service: SermonService::Morning);
+
+        $this->assertSame(TalkType::Testimony, $options->contentType);
+    }
+
+    #[Test]
+    public function an_unreviewed_short_talk_cannot_become_publication_options(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::ShortTalk,
+            'extracted_audio_path' => 'sermons/audio/section-72.mp3',
+            'metadata' => ['talk_type' => ['proposed' => 'childrens_talk']],
+        ]);
+
+        $this->expectExceptionMessage('Short talk type must be reviewed before publication');
+
+        SermonCreationOptions::fromServiceSection($section, $processingLog, date: '2026-05-10', service: SermonService::Morning);
+    }
+
+    #[Test]
     public function curated_facts_do_not_reach_a_childrens_talk_from_the_same_recording(): void
     {
         $processingLog = $this->historicLogWithCuratedFacts();
@@ -86,6 +119,7 @@ class SermonCreationOptionsTest extends TestCase
             'section_type' => ServiceSectionType::ShortTalk,
             'title' => "Children's Talk",
             'extracted_audio_path' => 'sermons/audio/section-70.mp3',
+            'metadata' => ['talk_type' => ['reviewed' => ['value' => 'childrens_talk']]],
         ]);
 
         $options = SermonCreationOptions::fromServiceSection(

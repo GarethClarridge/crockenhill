@@ -224,7 +224,7 @@ final readonly class SermonCreationOptions
     ): self {
         $speaker = $section->publicationTalkSpeaker();
         $contentType = $section->section_type === ServiceSectionType::ShortTalk
-            ? TalkType::ChildrensTalk
+            ? ($section->publicationTalkType() ?? throw new \RuntimeException('Short talk type must be reviewed before publication'))
             : TalkType::Sermon;
 
         $facts = $contentType === TalkType::Sermon

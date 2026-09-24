@@ -92,6 +92,36 @@ class ShortTalkSectionMigrationTest extends TestCase
         $this->assertSame(['proposed' => 'testimony'], $this->rawMetadata($talk)['talk_type']);
     }
 
+    #[Test]
+    public function the_restamp_renews_only_signatures_stale_by_the_rename_alone(): void
+    {
+        $renamed = ServiceSection::factory()->create(['section_type' => ServiceSectionType::ShortTalk->value]);
+        $payload = $renamed->classificationSignaturePayload();
+        $payload['section_type'] = 'childrens_talk';
+        $oldSignature = hash('sha256', (string) json_encode($payload));
+        $this->putMetadata($renamed, [
+            'publication_candidate_extraction' => ['classification_signature' => $oldSignature],
+            'publication' => ['approved_signature' => $oldSignature],
+        ]);
+        $reallyStale = ServiceSection::factory()->create(['section_type' => ServiceSectionType::ShortTalk->value]);
+        $this->putMetadata($reallyStale, ['publication_candidate_extraction' => ['classification_signature' => 'moved-boundary']]);
+
+        (require database_path('migrations/2026_09_24_061346_restamp_short_talk_classification_signatures.php'))->up();
+
+        $renamedMetadata = $this->rawMetadata($renamed);
+        $this->assertSame($renamed->refresh()->classificationSignature(), $renamedMetadata['publication_candidate_extraction']['classification_signature']);
+        $this->assertSame($renamed->classificationSignature(), $renamedMetadata['publication']['approved_signature']);
+        $this->assertSame('moved-boundary', $this->rawMetadata($reallyStale)['publication_candidate_extraction']['classification_signature']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
+    private function putMetadata(ServiceSection $section, array $metadata): void
+    {
+        DB::table('service_sections')->where('id', $section->id)->update(['metadata' => json_encode($metadata)]);
+    }
+
     private function migration(): object
     {
         return require database_path('migrations/2026_09_23_215704_move_short_talk_section_metadata_keys.php');

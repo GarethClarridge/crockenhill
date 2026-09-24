@@ -499,6 +499,7 @@ class ServiceReviewDashboardQueryTest extends TestCase
             'confidence' => 0.99,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable,
             'metadata' => [
+                'talk_type' => ['reviewed' => ['value' => 'childrens_talk']],
                 'talk_speaker' => [
                     'predicted' => ['outcome' => 'no_profiles'],
                 ],
@@ -796,11 +797,28 @@ class ServiceReviewDashboardQueryTest extends TestCase
             'confidence' => 0.99,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
             'metadata' => [
+                'talk_type' => ['reviewed' => ['value' => 'childrens_talk']],
                 'confidence_level' => 'high',
                 'review_flags' => ['heuristic_demotion'],
             ],
         ]);
 
         $this->assertSame([], $this->query->reviewGroups());
+    }
+
+    #[Test]
+    public function an_unconfirmed_short_talk_is_in_review_for_its_talk_type(): void
+    {
+        $section = ServiceSection::factory()->create([
+            'section_type' => ServiceSectionType::ShortTalk,
+            'needs_manual_review' => false,
+            'confidence' => 0.99,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable,
+            'metadata' => ['talk_type' => ['proposed' => 'testimony']],
+        ]);
+
+        $this->assertTrue($this->query->isReviewCandidate($section));
+        $this->assertContains('talk_type_review', array_column($this->query->reviewReasons($section), 'key'));
+        $this->assertSame('talk type review required', $this->query->confirmationSkipReason($section));
     }
 }

@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Tests\Integration\Actions\Publication;
 
 use App\Actions\Publication\ApproveSectionForPublication;
+use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Jobs\PublishApprovedServiceSection;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\SectionPublication\TalkPublicationHandler;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -212,5 +214,78 @@ class ApproveSectionForPublicationTest extends TestCase
         Storage::disk('public')->put('sermons/audio/section-20.mp3', 'audio');
 
         $this->assertNull($this->action->approvalBlocker($section));
+    }
+
+    #[Test]
+    public function a_short_talk_with_a_speaker_but_no_confirmed_type_cannot_be_approved(): void
+    {
+        $section = $this->readyShortTalk(['proposed' => 'childrens_talk']);
+
+        $this->assertSame('Choose the talk type before approving publication.', $this->action->execute($section));
+    }
+
+    #[Test]
+    public function a_confirmed_type_lets_a_short_talk_through(): void
+    {
+        Queue::fake();
+        $section = $this->readyShortTalk(['proposed' => 'childrens_talk', 'reviewed' => ['value' => 'testimony']]);
+
+        $this->assertNull($this->action->execute($section));
+    }
+
+    #[Test]
+    public function the_signature_ignores_an_unconfirmed_type_and_includes_a_confirmed_one(): void
+    {
+        $section = $this->readyShortTalk(['proposed' => 'childrens_talk']);
+        $unconfirmed = $section->classificationSignaturePayload();
+
+        $section->metadata = ServiceSectionMetadata::fromArray(array_merge(
+            $section->metadata?->toArray() ?? [],
+            ['talk_type' => ['proposed' => 'childrens_talk', 'reviewed' => ['value' => 'testimony']]],
+        ));
+
+        $this->assertArrayNotHasKey('talk_type', $unconfirmed);
+        $this->assertSame('testimony', $section->classificationSignaturePayload()['talk_type']);
+    }
+
+    /**
+     * Acceptance 5: a type changed after approval refuses publication until re-approval.
+     */
+    #[Test]
+    public function changing_the_type_after_approval_refuses_publication(): void
+    {
+        Queue::fake();
+        $section = $this->readyShortTalk(['reviewed' => ['value' => 'testimony']]);
+        $this->assertNull($this->action->execute($section));
+
+        $section->refresh();
+        $section->processingLog->update(['extracted_date' => '2026-05-31', 'extracted_service' => 'morning']);
+        $metadata = $section->metadata?->toArray() ?? [];
+        $metadata['talk_type']['reviewed']['value'] = 'partner_update';
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
+        $section->save();
+
+        $this->expectExceptionMessage('Section classification changed since approval; re-approve before publishing');
+
+        app(TalkPublicationHandler::class)->publish($section->refresh());
+    }
+
+    /**
+     * @param  array<string, mixed>  $talkType
+     */
+    private function readyShortTalk(array $talkType): ServiceSection
+    {
+        Storage::disk('public')->put('sermons/sections/7/video.mp4', 'video');
+        Storage::disk('public')->put('sermons/audio/section-7.mp3', 'audio');
+
+        return $this->makePendingSection([
+            'section_type' => ServiceSectionType::ShortTalk->value,
+            'extracted_video_path' => 'sermons/sections/7/video.mp4',
+            'extracted_audio_path' => 'sermons/audio/section-7.mp3',
+            'metadata' => [
+                'talk_speaker' => ['reviewed' => ['preacher_id' => null, 'preacher_name' => 'Visiting Speaker', 'source' => 'manual', 'confidence' => null]],
+                'talk_type' => $talkType,
+            ],
+        ]);
     }
 }

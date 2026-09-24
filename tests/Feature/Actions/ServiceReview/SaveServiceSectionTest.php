@@ -8,6 +8,7 @@ use App\Actions\ServiceReview\SaveServiceSection;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
@@ -394,5 +395,85 @@ class SaveServiceSectionTest extends TestCase
 
         $this->assertSame(ServiceSectionType::Prayer, $section->section_type);
         $this->assertSame('Updated Title', $section->title);
+    }
+
+    #[Test]
+    public function it_records_the_confirmed_talk_type_with_who_and_when_beside_the_proposal(): void
+    {
+        $section = $this->shortTalk(['talk_type' => ['proposed' => 'childrens_talk']]);
+
+        $this->action->execute(
+            section: $section,
+            sectionEdits: [$section->id => ['section_type' => ServiceSectionType::ShortTalk->value, 'title' => 'Mission update', 'talk_type' => 'partner_update']],
+            speakerEdits: [$section->id => ['preacher_id' => '', 'speaker_name' => 'Visiting Speaker']],
+            userId: $this->admin->id,
+        );
+
+        $talkType = $section->refresh()->metadata?->talkType;
+
+        $this->assertSame(TalkType::ChildrensTalk, $talkType?->proposed);
+        $this->assertSame(TalkType::PartnerUpdate, $section->publicationTalkType());
+        $this->assertSame($this->admin->id, $talkType?->reviewed['user_id'] ?? null);
+        $this->assertNotEmpty($talkType?->reviewed['at'] ?? null);
+    }
+
+    #[Test]
+    public function saving_without_a_talk_type_leaves_it_unconfirmed(): void
+    {
+        $section = $this->shortTalk(['talk_type' => ['proposed' => 'testimony']]);
+
+        $this->action->execute(
+            section: $section,
+            sectionEdits: [$section->id => ['section_type' => ServiceSectionType::ShortTalk->value, 'title' => 'A talk']],
+            speakerEdits: [$section->id => ['preacher_id' => '', 'speaker_name' => 'Visiting Speaker']],
+            userId: $this->admin->id,
+        );
+
+        $this->assertNull($section->refresh()->publicationTalkType());
+    }
+
+    #[Test]
+    public function the_sermon_is_not_a_talk_type_a_short_talk_can_take(): void
+    {
+        $section = $this->shortTalk();
+
+        $this->expectException(ValidationException::class);
+
+        $this->action->execute(
+            section: $section,
+            sectionEdits: [$section->id => ['section_type' => ServiceSectionType::ShortTalk->value, 'title' => 'A talk', 'talk_type' => 'sermon']],
+            speakerEdits: [$section->id => ['preacher_id' => '', 'speaker_name' => 'Visiting Speaker']],
+            userId: $this->admin->id,
+        );
+    }
+
+    #[Test]
+    public function retyping_away_from_a_short_talk_drops_the_talk_type(): void
+    {
+        $section = $this->shortTalk(['talk_type' => ['proposed' => 'testimony', 'reviewed' => ['value' => 'testimony']]]);
+
+        $this->action->execute(
+            section: $section,
+            sectionEdits: [$section->id => ['section_type' => ServiceSectionType::Prayer->value, 'title' => 'Prayer']],
+            speakerEdits: [],
+            userId: $this->admin->id,
+        );
+
+        $this->assertArrayNotHasKey('talk_type', $section->refresh()->metadata?->toArray() ?? []);
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
+    private function shortTalk(array $metadata = []): ServiceSection
+    {
+        Bus::fake([PrepareSectionPublicationCandidates::class]);
+
+        return ServiceSection::factory()->create([
+            'media_processing_log_id' => MediaProcessingLog::factory()->livestream()->create()->id,
+            'section_type' => ServiceSectionType::ShortTalk->value,
+            'needs_manual_review' => true,
+            'metadata' => $metadata,
+        ]);
     }
 }

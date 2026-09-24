@@ -622,6 +622,28 @@ class ShowChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function a_short_talk_panel_offers_the_talk_type_prefilled_from_the_proposal(): void
+    {
+        [$service, $run] = $this->workbenchServiceWithRun();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::ShortTalk->value,
+            'title' => 'Mission update',
+            'needs_manual_review' => true,
+            'metadata' => ['talk_type' => ['proposed' => 'partner_update']],
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Talk type review')
+            ->assertSee('Detector proposed:')
+            ->assertSee('Talk type')
+            ->assertSee('Not confirmed yet; saving records the type shown.')
+            ->assertSet('sectionEdits.'.$section->id.'.talk_type', 'partner_update');
+    }
+
+    #[Test]
     public function it_renders_inline_review_panels_for_flagged_sections(): void
     {
         [$service, $run] = $this->workbenchServiceWithRun();

@@ -11,6 +11,7 @@ use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 use App\Support\MediaAssetPath;
 use Database\Factories\ServiceSectionFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -217,6 +218,12 @@ class ServiceSection extends Model
 
         if ($this->section_type === ServiceSectionType::ShortTalk) {
             $payload['publication_speaker'] = $this->publicationSpeakerSignaturePayload();
+
+            // Present only once confirmed, so an unreviewed talk's signature (and the
+            // candidate media stamped with it) is unchanged by the key's existence.
+            if ($this->publicationTalkType() instanceof TalkType) {
+                $payload['talk_type'] = $this->publicationTalkType()->value;
+            }
         }
 
         return $payload;
@@ -305,6 +312,20 @@ class ServiceSection extends Model
     public function publicationTalkSpeaker(): ?array
     {
         return $this->metadata?->talkSpeaker?->publicationSpeaker();
+    }
+
+    /**
+     * The talk type an operator confirmed; never the detector's proposal.
+     */
+    public function publicationTalkType(): ?TalkType
+    {
+        return $this->metadata?->talkType?->publicationTalkType();
+    }
+
+    public function hasResolvedTalkType(): bool
+    {
+        return $this->section_type !== ServiceSectionType::ShortTalk
+            || $this->publicationTalkType() !== null;
     }
 
     public function hasResolvedTalkSpeaker(): bool

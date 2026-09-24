@@ -252,6 +252,7 @@ class PublishApprovedServiceSectionTest extends TestCase
             'duration' => 480.0,
             'title' => "Children's Talk",
             'metadata' => [
+                'talk_type' => ['reviewed' => ['value' => 'childrens_talk']],
                 'talk_speaker' => [
                     'reviewed' => [
                         'preacher_id' => $preacher->id,
@@ -313,6 +314,7 @@ class PublishApprovedServiceSectionTest extends TestCase
             'extracted_video_path' => 'sermons/sections/14/video.mp4',
             'extracted_audio_path' => 'sermons/audio/section-14.mp3',
             'metadata' => [
+                'talk_type' => ['reviewed' => ['value' => 'childrens_talk']],
                 'talk_speaker' => [
                     'predicted' => [
                         'outcome' => 'ambiguous',

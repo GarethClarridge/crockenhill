@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Operations;
 
 use App\Actions\Publication\ApproveSectionForPublication;
+use App\Actions\ServiceReview\SaveServiceSection;
 use App\Contracts\SpeakerIdentificationInterface;
 use App\Data\SpeakerMatchResult;
 use App\Enums\SermonService;
@@ -19,6 +20,7 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Models\SpeakerProfile;
+use App\Models\User;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
 use App\Services\ChurchService\SectionPublication\TalkPublicationHandler;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
@@ -28,25 +30,41 @@ use App\Services\Sermon\SermonExposurePolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
- * F2: end-to-end children's-talk publication workflow.
+ * F2: end-to-end short-talk publication workflow, for every non-sermon talk type.
  *
  * The nine-scenario regression harness stops after ExtractSermon, so the
  * prepare -> approve -> publish chain was never exercised together. This drives all
- * three real steps against a detected children's-talk section, mocking only the
- * external/heavy pieces (ffmpeg extraction and the speaker-identification provider),
- * and asserts a published Sermon with the children's-talk content type results.
+ * three real steps against a detected short-talk section, mocking only the
+ * external/heavy pieces (ffmpeg extraction and the speaker-identification provider).
+ * Between prepare and approve the operator confirms the talk type — the one new
+ * decision — and the published talk carries that type, not the detector's proposal.
  */
-class ChildrensTalkPublicationWorkflowTest extends TestCase
+class TalkPublicationWorkflowTest extends TestCase
 {
     use RefreshDatabase;
 
-    #[Test]
-    public function it_prepares_approves_and_publishes_a_childrens_talk_section_end_to_end(): void
+    /**
+     * @return array<string, array{TalkType}>
+     */
+    public static function talkTypes(): array
     {
+        return array_combine(
+            array_map(static fn (TalkType $type): string => $type->value, TalkType::nonSermon()),
+            array_map(static fn (TalkType $type): array => [$type], TalkType::nonSermon()),
+        );
+    }
+
+    #[Test]
+    #[DataProvider('talkTypes')]
+    public function it_prepares_confirms_approves_and_publishes_a_short_talk_end_to_end(TalkType $talkType): void
+    {
+        config(['church.talks.public_types' => ['sermon']]);
+
         Storage::fake('local');
         Storage::fake('public');
 
@@ -92,8 +110,13 @@ class ChildrensTalkPublicationWorkflowTest extends TestCase
             'needs_manual_review' => false,
             'confidence' => 0.92,
             'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
-            'metadata' => ['confidence_level' => 'high', 'classification_mode' => 'ai_transcript'],
-            'title' => "Children's Talk",
+            'metadata' => [
+                'confidence_level' => 'high',
+                'classification_mode' => 'ai_transcript',
+                // The detector proposes a children's talk; the operator decides.
+                'talk_type' => ['proposed' => 'childrens_talk'],
+            ],
+            'title' => 'Short talk',
             'start_time' => 300.0,
             'end_time' => 780.0,
         ]);
@@ -112,15 +135,31 @@ class ChildrensTalkPublicationWorkflowTest extends TestCase
         $this->assertFalse($section->needs_manual_review, 'A matched speaker should clear manual review.');
         $this->assertTrue($section->hasResolvedTalkSpeaker());
 
-        // ── Step 2: approve for publication ──────────────────────────────────────────────
+        // ── Step 2: the type blocks approval until the operator confirms it ──────────────
+        $this->assertSame(
+            'Choose the talk type before approving publication.',
+            app(ApproveSectionForPublication::class)->execute($section),
+        );
+
+        $operator = User::factory()->create(['is_admin' => true]);
+        app(SaveServiceSection::class)->execute(
+            $section,
+            [$section->id => ['section_type' => ServiceSectionType::ShortTalk->value, 'title' => 'Short talk', 'talk_type' => $talkType->value]],
+            [$section->id => ['preacher_id' => (string) $preacher->id, 'speaker_name' => '']],
+            $operator->id,
+        );
+        $section->refresh();
+        $this->assertSame($talkType, $section->publicationTalkType());
+
+        // ── Step 3: approve for publication ──────────────────────────────────────────────
         $approvalError = app(ApproveSectionForPublication::class)->execute($section);
 
-        $this->assertNull($approvalError, 'Approval should succeed once media and speaker are resolved.');
+        $this->assertNull($approvalError, 'Approval should succeed once media, speaker and type are resolved.');
         $section->refresh();
         $this->assertSame(ServiceSectionPublicationStatus::Approved, $section->publication_status);
         Bus::assertDispatched(PublishApprovedServiceSection::class);
 
-        // ── Step 3: publish the approved section ─────────────────────────────────────────
+        // ── Step 4: publish the approved section ─────────────────────────────────────────
         (new PublishApprovedServiceSection($section->id))->handle(
             app(SectionPublicationHandlerFactory::class),
         );
@@ -131,7 +170,7 @@ class ChildrensTalkPublicationWorkflowTest extends TestCase
         $this->assertSame(ServiceSectionPublicationStatus::Published, $section->publication_status);
         $this->assertNotNull($section->published_at);
         $this->assertNull($section->unpublished_expires_at);
-        $this->assertSame(TalkType::ChildrensTalk, $sermon->content_type);
+        $this->assertSame($talkType, $sermon->content_type);
         $this->assertSame($preacher->id, $sermon->preacher_id);
         // Media stays on the ordinary sermon disk under an ordinary sermon key.
         // It used to be relocated to the local `private/` disk, which production
@@ -140,12 +179,23 @@ class ChildrensTalkPublicationWorkflowTest extends TestCase
         Storage::disk('public')->assertExists('sermons/sections/'.$section->id.'/video.mp4');
         Storage::disk('local')->assertMissing('private/sermons/sections/'.$section->id.'/video.mp4');
 
-        // Storage moved; the gate did not. Discovery and guest access are still
-        // closed, driven by `CHILDRENS_TALKS_PUBLIC` rather than by any file path.
+        // Members-only by default: discovery and guest access stay closed, driven by
+        // `PUBLIC_TALK_TYPES` rather than by any file path.
         $exposurePolicy = app(SermonExposurePolicy::class);
-        $this->assertFalse($exposurePolicy->canAccessType(TalkType::ChildrensTalk, null));
+        $this->assertFalse($exposurePolicy->canAccessType($talkType, null));
         $this->assertFalse($exposurePolicy->shouldExposeOnSermonApi($sermon));
         $this->assertFalse($exposurePolicy->shouldIncludeInSitemap($sermon));
+
+        // It renders on the one dated route with the talk template for a verified
+        // member, and sends a guest to login.
+        $url = $exposurePolicy->canonicalUrl($sermon);
+        $this->assertStringContainsString('/christ/talks/2026/05/', $url);
+        $this->get($url)->assertRedirect(route('login'));
+        $this->actingAs(User::factory()->create())
+            ->get($url)
+            ->assertOk()
+            ->assertViewIs('sermons.talk')
+            ->assertSee('Back to '.$talkType->pluralLabel());
     }
 
     /**

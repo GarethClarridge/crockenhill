@@ -150,6 +150,15 @@
         @endif
 
         <div class="grid gap-3 rounded-lg border border-cbc-teal/20 bg-cbc-teal-light/10 p-3 md:grid-cols-2">
+            <x-select
+                label="Talk type"
+                wire:model.blur="sectionEdits.{{ $section->id }}.talk_type"
+                :options="collect(\App\Enums\TalkType::nonSermon())->map(fn ($type) => ['id' => $type->value, 'name' => $type->label()])->all()"
+                placeholder="Choose the talk type..."
+                :hint="$section->publicationTalkType() ? 'Confirmed: '.$section->publicationTalkType()->label() : 'Not confirmed yet; saving records the type shown.'"
+                dusk="talk-type-{{ $section->id }}"
+            />
+
             <x-input
                 label="Speaker name (recommended)"
                 wire:model.blur="speakerEdits.{{ $section->id }}.speaker_name"

@@ -162,6 +162,10 @@ class TalkPublicationHandler implements SectionPublicationHandler
             throw new \RuntimeException("Short talk speaker must be reviewed before publication");
         }
 
+        if (! $section->hasResolvedTalkType()) {
+            throw new \RuntimeException('Short talk type must be reviewed before publication');
+        }
+
         $section->extracted_video_path = $this->promoteExtractedAsset(
             $section,
             $videoPath,

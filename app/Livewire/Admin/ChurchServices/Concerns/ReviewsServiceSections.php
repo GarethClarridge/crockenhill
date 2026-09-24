@@ -111,11 +111,7 @@ trait ReviewsServiceSections
             userId: $this->reviewingUserId(),
         );
 
-        $this->sectionEdits[$section->id] = [
-            'section_type' => $section->section_type->value,
-            'title' => (string) ($section->title ?? ''),
-            'end_time' => (string) $section->end_time,
-        ];
+        $this->sectionEdits[$section->id] = $this->sectionEditState($section);
         $publicationSpeaker = $section->publicationTalkSpeaker();
         $this->speakerEdits[$section->id] = [
             'preacher_id' => is_array($publicationSpeaker) && is_numeric($publicationSpeaker['preacher_id'] ?? null)
@@ -350,17 +346,31 @@ trait ReviewsServiceSections
     }
 
     /**
+     * The talk type starts at the confirmed value, else the detector's proposal, so
+     * confirming a right proposal is one save; it is recorded only when saved.
+     *
+     * @return array{section_type: string, title: string, end_time: string, talk_type: string}
+     */
+    private function sectionEditState(ServiceSection $section): array
+    {
+        return [
+            'section_type' => $section->section_type->value,
+            'title' => (string) ($section->title ?? ''),
+            'end_time' => (string) $section->end_time,
+            'talk_type' => $section->publicationTalkType()->value
+                ?? $section->metadata->talkType->proposed->value
+                ?? '',
+        ];
+    }
+
+    /**
      * @param  iterable<int, ServiceSection>  $sections
      */
     protected function seedSectionEditsForSections(iterable $sections): void
     {
         foreach ($sections as $section) {
             if (! array_key_exists($section->id, $this->sectionEdits)) {
-                $this->sectionEdits[$section->id] = [
-                    'section_type' => $section->section_type->value,
-                    'title' => (string) ($section->title ?? ''),
-                    'end_time' => (string) $section->end_time,
-                ];
+                $this->sectionEdits[$section->id] = $this->sectionEditState($section);
             }
 
             if (! array_key_exists($section->id, $this->speakerEdits)) {

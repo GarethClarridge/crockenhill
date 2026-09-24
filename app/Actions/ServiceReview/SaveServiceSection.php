@@ -7,6 +7,7 @@ namespace App\Actions\ServiceReview;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ExtractedSectionMediaChecker;
@@ -31,7 +32,7 @@ class SaveServiceSection
      * Throws ValidationException on invalid input; throws \RuntimeException if the section
      * is no longer a review candidate.
      *
-     * @param  array<int, array{section_type:string,title:string,end_time?:string|int|float|null}>  $sectionEdits
+     * @param  array<int, array{section_type:string,title:string,end_time?:string|int|float|null,talk_type?:string|null}>  $sectionEdits
      * @param  array<int, array{preacher_id:string,speaker_name:string}>  $speakerEdits
      *
      * @throws ValidationException
@@ -50,6 +51,7 @@ class SaveServiceSection
             'end_time' => (string) $section->end_time,
             'preacher_id' => '',
             'speaker_name' => '',
+            'talk_type' => $section->publicationTalkType()->value ?? '',
         ], $sectionEdits[$section->id] ?? [], $speakerEdits[$section->id] ?? []);
 
         $originalSectionType = $section->section_type;
@@ -67,12 +69,17 @@ class SaveServiceSection
                 'end_time' => ['required', 'numeric', 'min:0', 'max:9999999.999'],
                 'preacher_id' => ['nullable', 'integer', 'exists:preachers,id'],
                 'speaker_name' => ['nullable', 'string', 'max:255'],
+                'talk_type' => ['nullable', Rule::in(array_map(
+                    static fn (TalkType $type): string => $type->value,
+                    TalkType::nonSermon()
+                ))],
             ],
             [
                 'section_type.required' => 'Choose a section type.',
                 'title.required' => 'Enter a title before saving.',
                 'end_time.required' => 'Enter an end time.',
                 'end_time.numeric' => 'The end time must be a number of seconds.',
+                'talk_type.in' => 'Choose a talk type from the list.',
             ]
         );
 
@@ -114,13 +121,13 @@ class SaveServiceSection
             }
 
             if ($targetType !== ServiceSectionType::ShortTalk) {
-                $validator->errors()->add('end_time', "Only children's-talk candidates can be recut from this review panel.");
+                $validator->errors()->add('end_time', "Only short-talk candidates can be recut from this review panel.");
 
                 return;
             }
 
             if ($originalSectionType !== ServiceSectionType::ShortTalk) {
-                $validator->errors()->add('end_time', "The inclusive children's-talk candidate must be prepared before it can be recut.");
+                $validator->errors()->add('end_time', "The inclusive short-talk candidate must be prepared before it can be recut.");
 
                 return;
             }
@@ -170,6 +177,13 @@ class SaveServiceSection
             unset($metadata['talk_speaker']);
             $section->metadata = ServiceSectionMetadata::fromArray($metadata);
         }
+
+        $section->metadata = ServiceSectionMetadata::fromArray($this->withReviewedTalkType(
+            $section->metadata?->toArray() ?? [],
+            $section->section_type,
+            $validated['talk_type'] ?? null,
+            $userId,
+        ));
 
         $this->confirmSection->apply($section, $userId);
 
@@ -222,6 +236,41 @@ class SaveServiceSection
         }
 
         $section->save();
+    }
+
+    /**
+     * Record the operator's talk type for a short talk, keeping who chose it and
+     * when; a section retyped away from a short talk drops the whole record, as it
+     * drops the speaker. Saving the same type again leaves the record untouched.
+     *
+     * @param  array<string, mixed>  $metadata
+     * @return array<string, mixed>
+     */
+    private function withReviewedTalkType(array $metadata, ServiceSectionType $sectionType, ?string $talkType, int $userId): array
+    {
+        if ($sectionType !== ServiceSectionType::ShortTalk) {
+            unset($metadata['talk_type']);
+
+            return $metadata;
+        }
+
+        if ($talkType === null || $talkType === '') {
+            return $metadata;
+        }
+
+        $record = is_array($metadata['talk_type'] ?? null) ? $metadata['talk_type'] : ['proposed' => null];
+
+        if (($record['reviewed']['value'] ?? null) !== $talkType) {
+            $record['reviewed'] = [
+                'value' => $talkType,
+                'user_id' => $userId,
+                'at' => now()->toIso8601String(),
+            ];
+        }
+
+        $metadata['talk_type'] = $record;
+
+        return $metadata;
     }
 
     private function normalizeSpeakerPreacherId(mixed $value): ?int

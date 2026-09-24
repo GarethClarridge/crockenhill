@@ -77,6 +77,10 @@ class ApproveSectionForPublication
             return 'Choose a speaker for this short talk before approving publication.';
         }
 
+        if (! $section->hasResolvedTalkType()) {
+            return 'Choose the talk type before approving publication.';
+        }
+
         return null;
     }
 }

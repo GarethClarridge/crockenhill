@@ -358,6 +358,14 @@ class ServiceReviewDashboardQuery
             ];
         }
 
+        if (! $section->hasResolvedTalkType()) {
+            $reasons[] = [
+                'key' => 'talk_type_review',
+                'label' => 'Talk type review',
+                'classes' => 'bg-cbc-teal-light/15 text-cbc-teal-dark',
+            ];
+        }
+
         if ($section->publication_status === ServiceSectionPublicationStatus::PendingApproval) {
             $reasons[] = [
                 'key' => 'pending_approval',
@@ -550,6 +558,10 @@ class ServiceReviewDashboardQuery
             return 'speaker review required';
         }
 
+        if ($reviewReasons->contains('key', 'talk_type_review')) {
+            return 'talk type review required';
+        }
+
         if ($reviewReasons->contains('key', 'unmatched_song')) {
             return 'unmatched song';
         }
@@ -662,6 +674,10 @@ class ServiceReviewDashboardQuery
                             $query->whereNull('metadata->manual_review->song_match_reviewed_at')
                                 ->orWhere('metadata->manual_review->song_match_reviewed_at', '');
                         });
+                    })
+                    ->orWhere(function (Builder $query): void {
+                        $query->where('section_type', ServiceSectionType::ShortTalk->value)
+                            ->whereNull('metadata->talk_type->reviewed');
                     })
                     ->when($this->hasActiveSpeakerProfiles(), function (Builder $query): void {
                         $query->orWhere(function (Builder $query): void {

@@ -66,6 +66,7 @@ class BatchApproveServicePublications
         return match ($message) {
             'Section media is missing. Reclassify and prepare candidates again.' => 'missing extracted media',
             'Choose a speaker for this short talk before approving publication.' => 'speaker review required',
+            'Choose the talk type before approving publication.' => 'talk type review required',
             'This section cannot be approved in its current state.' => 'invalid approval state',
             default => Str::of($message)->trim()->lower()->toString(),
         };

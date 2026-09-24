@@ -105,7 +105,12 @@ class ServiceSectionFactory extends Factory
         return [
             'media_processing_log_id' => MediaProcessingLog::factory()->livestream(),
             'church_service_item_id' => ChurchServiceItem::factory(),
-            'section_type' => $this->faker->randomElement(ServiceSectionType::cases()),
+            // Never a short talk by chance: an unconfirmed short talk always awaits its
+            // talk type, so a random one would put an unrelated test's section in review.
+            'section_type' => $this->faker->randomElement(array_values(array_filter(
+                ServiceSectionType::cases(),
+                static fn (ServiceSectionType $type): bool => $type !== ServiceSectionType::ShortTalk,
+            ))),
             'section_order' => $this->faker->unique()->numberBetween(1, 100),
             'title' => $this->faker->optional()->sentence(3),
             'start_time' => $startTime,
