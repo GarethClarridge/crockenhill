@@ -2,7 +2,9 @@
 
 **Date:** 2026-09-18
 **Status:** PR1–PR4 landed 2026-09-23/24 (see the notes under §5 and **Remaining** at its end).
-Open: PR3's measurement (blocked on one question) and PR5 (operator-dispatched). Split out of
+PR3's measurement and PR5 are **retired from this plan** (operator, 2026-09-24): the historic
+video plan's corpus re-run re-detects every run with the new prompt anyway, so its canary
+carries four truth-set runs as the check and its Tier B pass does PR5's work. Split out of
 the historic video plan's BC-07 ruling (`HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md`
 §4.1c), which now points here. Originally verified against code at `b6cbd9acf`.
 **Scope:** Replace the sermon-or-children's-talk split with a single *talk* concept carrying a
@@ -314,7 +316,7 @@ suite and Dusk — **never while a data pass is running** (`dusk_repoints_db_dur
 | **PR2 — Talks page** | The sermon archive answers at `/christ/talks` with a type switch; `/christ/sermons/*` and `/christ/childrens-corner*` 301; the default view, canonical and sitemap entry are unchanged in content; a verified member can switch to Children's talks and see the three published ones on the same page; sermon-only filters hide off-type; the dated route renders the talk template for non-sermon types; Children's Corner controller, middleware, views and card are deleted; the 17 hard-coded paths become `route()` calls; podcast feeds emit `new-feed-url`; admin list filters by type. Dusk covers the switch, the redirects and one show page per template. `PROD-ACTIONS-PENDING` gains the nav-page slug change and the podcast directory update. | PR1 | Every public sermon URL (via 301), podcast feeds, header |
 | **PR3 — `short_talk` detection** | Detector emits `short_talk` plus a `talk_type` proposal; migrations 2–3 applied; every `ChildrensTalk` consumer renamed; mock detector and structure tests updated; proposal visible in the workbench panel (read-only). Measurement artifact: the new prompt run read-only (`shadow` mode) over the nine blind runs and the 61 item-bearing long-`other` sections, scored against §3's truth table for (a) is it a short talk, (b) proposed type; recorded in `storage/scratch/` with counts in this plan's §9. | PR1 | Detector contract, three enum columns, JSON metadata of 202 rows, ~40 files |
 | **PR4 — Approval and publication** | Talk-type select and blocker in the panel; signature includes the reviewed type; ~~`TalkPublicationHandler` under the `short_talk` key~~ (done in PR3); `SermonCreationOptions::fromServiceSection()` maps the reviewed type. End-to-end test (the existing `ChildrensTalkPublicationWorkflowTest`, generalised) drives each non-sermon type from prepare → approve → publish and asserts it renders at `/christ/talks/{year}/{month}/{slug}` (D3: one dated route) for a verified member and sends a guest to login. | PR1, PR3 | Section publication path (already the children's-talk path); workbench panel |
-| **PR5 — Re-detection pass** | Gate: PR3's measurement shows the new prompt finds ≥ the talks the truth table names in the 61 with no false `short_talk` on the "not talks" rows; anything short of that is a prompt fix first (`feedback_measure_before_generalizing_a_fix`). Then the 142 runs with a long `other` and no short talk are re-detected **through the pipeline** (detection phase only, transcript reused; workers restarted first — `queue_workers_run_stale_code_after_commit`), operator-dispatched, respecting the historic lane's staging and dispatch rules. Outcome: short-talk candidates in the workbench for the operator to type, speaker and approve. | PR4 | Data only; no code |
+| ~~**PR5 — Re-detection pass**~~ *Moved to the historic plan's corpus re-run, 2026-09-24.* | Gate: PR3's measurement shows the new prompt finds ≥ the talks the truth table names in the 61 with no false `short_talk` on the "not talks" rows; anything short of that is a prompt fix first (`feedback_measure_before_generalizing_a_fix`). Then the 142 runs with a long `other` and no short talk are re-detected **through the pipeline** (detection phase only, transcript reused; workers restarted first — `queue_workers_run_stale_code_after_commit`), operator-dispatched, respecting the historic lane's staging and dispatch rules. Outcome: short-talk candidates in the workbench for the operator to type, speaker and approve. | PR4 | Data only; no code |
 
 **PR1 landed 2026-09-23.** Labels keep the existing Title Case (`Children's Talk`, `Partner
 Update`) so no rendered copy changed; the sentence-case question is PR2's, with the page copy.
@@ -364,10 +366,11 @@ is a calendar gate (`feedback_no_calendar_time_gates`).
 
 ### Remaining (2026-09-24)
 
-- [ ] **PR3 measurement.** Blocked on one question: this plan never says which runs are "the
-  nine blind runs". The tool is `structure:evaluate --detector=openai --processing-id=…`
-  (read-only, frontier-model spend over ~50 transcripts). Output to `storage/scratch/`, counts to §9.
-- [ ] **PR5 re-detection**, after the measurement meets its gate; operator-dispatched.
+- [x] ~~**PR3 measurement**~~ and ~~**PR5 re-detection**~~ — moved to the historic video plan
+  (operator, 2026-09-24). Running detection here would duplicate the corpus re-run. Its
+  canary now includes runs 1108 / 1025 / 1112 / 1304 from §3 (a children's teaching talk, a
+  partner presentation, a testimony, and a baptism that must stay non-talk), and its Tier B
+  re-detects the 191-section bucket. Nothing here blocks the historic lane: it needed PR1 and PR3.
 - [ ] **Acceptance 2:** Playwright baselines not regenerated since the move (the spec already
   points at `/christ/talks`; the nav label now reads "Talks").
 - [ ] **Production**, `PROD-ACTIONS-PENDING` §5–§7: `PUBLIC_TALK_TYPES` env rename; podcast feed URL
@@ -396,7 +399,7 @@ do first and reconsider later.
 
 Status 2026-09-24: 1 ✅ (only the `/christ/sermons` redirect and its canary remain) · 2 partly
 (301s asserted by canaries and tests; Playwright baselines outstanding) · 3 ✅ · 4 ✅ · 5 ✅ ·
-6 ⏳ measurement · 7 ⏳ PR5.
+6 → the historic canary's four talk runs · 7 → checked in the historic re-run's diff report.
 
 1. `grep -rn "SermonContentType\|ChildrensTalk\b\|childrens_talk_speaker\|childrens-corner\|ChildrensCorner\|CHILDRENS_TALKS_PUBLIC\|christ/sermons" app config routes resources` returns nothing after PR4 except the redirect definitions in `routes/web.php` (the `childrens_talk` *enum value* legitimately remains).
 2. `/christ/talks` renders what `/christ/sermons` rendered, and every old sermon, preacher, series, service and feed URL 301s to its new path (route canaries assert this; Playwright baselines re-pointed, `playwright_visual_regression`).
@@ -435,4 +438,5 @@ SELECT s.title, ROUND(s.end_time - s.start_time) dur, s.media_processing_log_id
   AND (s.end_time - s.start_time) > 300 ORDER BY dur DESC;
 ```
 
-PR3's measurement and PR5's counts are appended here when they exist.
+PR3's measurement and PR5 moved to the historic video plan's corpus re-run (2026-09-24); their
+results live in its diff report, not here.

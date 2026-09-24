@@ -208,9 +208,12 @@ costs more than re-running them. **Operator decisions:**
      ~~`detection-unplaced-hold-refusal-discarded`~~ (both already fixed; recorded `5a071a4af`),
      ~~`song-section-without-a-song`~~ (built `c70ad59cf`; the doxology after Old Hundredth,
      §678/§3284, stays a **named limitation** by operator ruling 2026-09-23),
-     `talk-typed-other` — **gates the freeze** (operator ruling 2026-09-23): talks plan PR1
+     ~~`talk-typed-other`~~ — **gates the freeze** (operator ruling 2026-09-23): talks plan PR1
      and PR3 (`short_talk` detection) land before the freeze, so the corpus re-run detects
-     short talks in the same pass
+     short talks in the same pass. *Landed 2026-09-23 (`887d73373`, `7e9eb824f`); PR2 and PR4
+     too. The talks plan's own measurement and PR5 re-detection pass moved into this re-run
+     (operator, 2026-09-24): the canary below checks the prompt, and Tier B re-detects the
+     191-section bucket.*
    - Transcript/audio: `transcript-meaning-changing-substitution`,
      `audio-dropout-inside-talk` (prototype)
    - Scripture: `scripture-reference-never-linked`, `scripture-multi-passage-truncated`,
@@ -250,6 +253,14 @@ release stays with §4.5.
   rebinds them, that sync overwrites the stale livestream items 6901/9371 rather than
   anchoring on them, and that `lyric_identity_check` reads `consistent`. They are not rebound
   through the review queue in the meantime (no clip, not exposed).
+  **Plus four short-talk runs** from the talks plan's §3 truth set, which stand in for that
+  plan's retired measurement (operator, 2026-09-24): **1108** (§1895, Heidelberg Q122 —
+  expect `short_talk`, proposed `childrens_talk`), **1025** (§1374, Release International —
+  `short_talk`, `partner_update`), **1112** (§3735, Gavin Peacock — `short_talk`,
+  `testimony`), **1304** (§3871, "Baptism of Roy" — must stay non-talk: an ordinance is
+  excluded by the rule). Pass = all four as expected in the diff report. A miss is a prompt
+  fix before the batches (`feedback_measure_before_generalizing_a_fix`); a missed
+  *proposed type* alone does not block, because the operator confirms every type at approval.
 - [ ] Batches by era, each checked against its diff before the next. Stop on any new regression.
 
 **Three prerequisites for the next bounded batch:**
