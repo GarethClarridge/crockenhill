@@ -109,6 +109,23 @@ class ProcessingRunOrchestrator
     }
 
     /**
+     * Start a livestream run from the top, but stop before extraction: the corpus re-run's
+     * Tier A round (plan §4.0).
+     *
+     * Transcription runs afresh, as in {@see self::start()}, and the chain ends as a detection
+     * round's does ({@see ProcessingPipelineBuilder::buildLivestreamDetectionOnlyChainJobs()}),
+     * so the media is cut once, on the frozen commit, by {@see self::reExtract()}.
+     */
+    public function startDetectionRound(MediaProcessingLog $processingLog): void
+    {
+        if ($processingLog->processingPipelineProfile() !== 'livestream') {
+            throw new \InvalidArgumentException('Only a livestream run can start a detection round.');
+        }
+
+        $this->dispatchLivestreamStart($processingLog, detectionOnly: true);
+    }
+
+    /**
      * Resume a processing run that was paused for manual sermon segment confirmation.
      *
      * Only applicable to 'livestream' and 'video_auto_trim' profiles which
@@ -910,13 +927,15 @@ class ProcessingRunOrchestrator
         $this->recordHistoricQueueDispatch($processingId, $mainChainId, mainChainDispatched: true);
     }
 
-    private function dispatchLivestreamStart(MediaProcessingLog $processingLog, bool $resuming = false): void
+    private function dispatchLivestreamStart(MediaProcessingLog $processingLog, bool $resuming = false, bool $detectionOnly = false): void
     {
         $queueName = $this->livestreamQueue();
         $processingId = $processingLog->processing_id;
         $mainChainId = $this->historicMainChainId($processingLog);
         $parallelJobs = $this->pipelineBuilder->buildLivestreamParallelJobs($processingLog, $resuming);
-        $chainJobs = $this->pipelineBuilder->buildLivestreamChainJobs($processingLog, $resuming);
+        $chainJobs = $detectionOnly
+            ? $this->pipelineBuilder->buildLivestreamDetectionOnlyChainJobs($processingLog, $resuming)
+            : $this->pipelineBuilder->buildLivestreamChainJobs($processingLog, $resuming);
 
         $batch = Bus::batch($parallelJobs)
             ->then(function (Batch $batch) use ($chainJobs, $queueName, $processingId): void {

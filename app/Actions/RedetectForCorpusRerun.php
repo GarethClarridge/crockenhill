@@ -7,6 +7,7 @@ namespace App\Actions;
 use App\Enums\StructureRedetectionGrounds;
 use App\Models\MediaProcessingLog;
 use App\Services\HistoricMedia\CorpusRerunGuard;
+use App\Services\HistoricMedia\ListeningRouting;
 use App\Services\HistoricMedia\HistoricRerunSnapshot;
 use App\Services\HistoricMedia\TranscriptLossHolds;
 use App\Services\Processing\ProcessingRunOrchestrator;
@@ -20,7 +21,8 @@ use Illuminate\Support\Facades\Log;
  * pipeline rather than by hand. This action adds the batch's guards ({@see CorpusRerunGuard})
  * to the ones every re-detection shares
  * ({@see ProcessingRunOrchestrator::structureRedetectionRefusal()}), and refuses a run held for
- * transcript loss, which is Tier A's ({@see TranscriptLossHolds}).
+ * transcript loss or routed `new_better` by the snapshot's listening, which are Tier A's
+ * ({@see TranscriptLossHolds}, {@see ListeningRouting}).
  *
  * Each dispatch is a detection round: the chain stops before extraction, because rounds are
  * repeated after every detector fix and nothing they judge needs media. The stamp records the
@@ -99,6 +101,10 @@ final class RedetectForCorpusRerun
         // unable to reach it (plan §4.0: Tier B leaves out runs held for transcript loss).
         if ($this->transcriptLoss->on($run) !== []) {
             return 'run is held for transcript loss; it belongs to Tier A (historic-import:rerun-retranscribe)';
+        }
+
+        if ($snapshot->listeningRoutesToRetranscription($run)) {
+            return 'listening rated the new decode better; it belongs to Tier A (historic-import:rerun-retranscribe)';
         }
 
         return $this->orchestrator->structureRedetectionRefusal($run, StructureRedetectionGrounds::CorpusRerun)['message'] ?? null;

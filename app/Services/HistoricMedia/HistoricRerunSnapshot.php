@@ -34,12 +34,13 @@ final readonly class HistoricRerunSnapshot
         public string $membershipSha256,
         public array $runs,
         public ?string $fileSha256 = null,
+        public ?ListeningRouting $listening = null,
     ) {}
 
     /**
      * @param  list<int>  $runIds
      */
-    public static function take(array $runIds, HistoricRerunState $state): self
+    public static function take(array $runIds, HistoricRerunState $state, ?ListeningRouting $listening = null): self
     {
         $membership = self::membership($runIds);
         $runs = [];
@@ -60,6 +61,7 @@ final readonly class HistoricRerunSnapshot
             membership: $membership,
             membershipSha256: CanonicalJson::hash($membership),
             runs: $runs,
+            listening: $listening?->only($membership),
         );
     }
 
@@ -106,6 +108,7 @@ final readonly class HistoricRerunSnapshot
             membershipSha256: (string) $data['membership_sha256'],
             runs: $runs,
             fileSha256: hash('sha256', $contents),
+            listening: is_array($data['listening_routing'] ?? null) ? ListeningRouting::fromArray($data['listening_routing']) : null,
         );
     }
 
@@ -140,6 +143,14 @@ final readonly class HistoricRerunSnapshot
         return $requested;
     }
 
+    /**
+     * Whether the H10b listening this snapshot carries sends the run to Tier A.
+     */
+    public function listeningRoutesToRetranscription(MediaProcessingLog $run): bool
+    {
+        return $this->listening?->routesToRetranscription($run) ?? false;
+    }
+
     public function encode(): string
     {
         return CanonicalJson::encodeReadable([
@@ -150,6 +161,7 @@ final readonly class HistoricRerunSnapshot
             'membership' => $this->membership,
             'membership_sha256' => $this->membershipSha256,
             'runs' => array_combine(array_map('strval', array_keys($this->runs)), array_values($this->runs)),
+            ...($this->listening === null ? [] : ['listening_routing' => $this->listening->toArray()]),
         ]).PHP_EOL;
     }
 
