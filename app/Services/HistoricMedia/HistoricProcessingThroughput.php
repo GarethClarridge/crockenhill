@@ -11,6 +11,7 @@ use App\Jobs\CreateSermonTranscriptFromService;
 use App\Jobs\DetectServiceStructure;
 use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtractAudioFromVideo;
+use App\Jobs\ExtendSongsOverOwnLyrics;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateRmsLog;
 use App\Jobs\GenerateThumbnail;
@@ -56,6 +57,7 @@ final class HistoricProcessingThroughput
             DetectServiceStructure::class,
             MatchSongsFromTranscript::class,
             MergeSongContinuations::class,
+            ExtendSongsOverOwnLyrics::class,
             ProcessTranscriptWithAI::class,
             ProjectLivestreamServiceStructure::class,
         ],

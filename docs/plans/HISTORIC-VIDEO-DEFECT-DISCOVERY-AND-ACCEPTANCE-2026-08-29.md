@@ -8,8 +8,9 @@
 > acceptance and public release remain NO-GO.** Repairs now run through §4.0's corpus
 > re-run: every eligible run re-detected against one frozen commit. Where the work stands:
 >
-> - **Freeze gate (§4.0): clear** (2026-09-24). Next is the candidate freeze commit and the
->   canary on it. Six release-side items gate acceptance
+> - **Freeze gate (§4.0): clear** (2026-09-24, after the song-edge correction was built
+>   rather than left as a hold). Next is the candidate freeze commit and the canary on it;
+>   canary runs 1108, 1221, 1250 and 1262 carry song-edge holds. Six release-side items gate acceptance
 >   (§4.5) instead (operator, 2026-09-24).
 > - **Detection:** the catalogue holds 79 classes: 47 promoted, 22 fixed at source, 4
 >   decided not to detect, 6 unbuilt. The last full evaluation (38 detectors:
@@ -252,14 +253,34 @@ costs more than re-running them. **Operator decisions:**
      `8ae957628`; operator ruling: **any two** of heard, sung, projected, planned — 126 of 1,185
      current bindings would become inferred, against 231 under the stricter plan wording),
      ~~speech under looped sung text~~ (built `cb024a9a6`), and ~~song edge into an adjoining
-     section~~ (**the hold is the outcome**, operator ruling 2026-09-24). `song-lyrics-outside-section`
-     already detects a song's own lines sung in the neighbouring section and holds the clip.
-     No boundary correction will be built: the stage would have to follow song matching, and
-     its evidence was right 12 of 16 times into another song, 6 of 7 into unsectioned time and
-     5 of 14 into a prayer or reading (09-15 adjudication). **Named limitation:** a held clip
-     misses those lines until an operator adjudicates it. Holds today: 42 (18 into a song,
-     9 unsectioned, 15 into other sections; `storage/scratch/oositem-20260924/lyric-edges.json`).
-     The re-run re-raises them, and widening absorbs most of the unsectioned ones.
+     section~~ (**corrected at source**, operator 2026-09-24, reversing the same day's "hold is
+     the outcome"). `SongLyricEdgeExtension` runs as `ExtendSongsOverOwnLyrics`, after
+     `MergeSongContinuations` and before any clip is cut. It acts only on an edge
+     `song-lyrics-outside-section` holds, and it moves only the song's own bound: the neighbour
+     keeps its span, and candidate preparation re-cuts on the changed media signature. It never
+     touches a published, approved or rejected section. Walking outward, it extends over this
+     song's own lyric lines. It stops at an announcement, at a line the neighbouring song
+     explains as well, at more than two other lines in a row, or at a pause over 15 s. It needs
+     two lines; one line moves the edge only when it began within 3 s of it (operator: all three
+     holder groups, and the nudge). The hold stays as the fallback and re-checks the corrected
+     span.
+     - *Measured* (`storage/scratch/songedgefix-20260924/`). The 42 held edges were adjudicated
+       against timestamped whisper.cpp probes of the source audio: 12 real (5 s or more), 8 small,
+       17 wrong, 2 in sections bound to the wrong song (985, 1215), 3 unclear. The 09-15
+       per-edge verdicts were never banked.
+       - Replaying the built class (rolled back) clears 24 of the 42 holds. It corrects 9 of the
+         12 real edges in full and 1308 in part (still held), recovering 209 of 353 missed
+         seconds with no overshoot.
+       - 1250 and 1035 are beyond the transcript: whisper heard almost none of their missing
+         verses. 1035 clears on a 0.2 s nudge while missing about 30 s, the detector's own floor.
+       - False alarms that move: 1305 clears with 6.6 s of speech, and five nudges of up to
+         2.2 s clear (981, 1145, 1180, 1224, 1233). 1262 moves 6 s into the previous song and
+         stays held.
+       - Sound under the lines did not separate the cases line by line (1291's sung lines read
+         as unsustained), so it only decides which edges are held.
+     - **Named limitation (narrower):** a clip still misses lines the transcript never caught,
+       lines past an announcement, and lines in a section bound to the wrong song. Those stay
+       held until adjudicated.
    - **Gate acceptance, not the freeze (operator, 2026-09-24):** `identity-duplicate-date-pair`,
      `membership-missing-occasion`, `membership-rehearsal-imported-as-service`,
      `staging-held-candidates-not-promoted`, `release-media-file-missing` and

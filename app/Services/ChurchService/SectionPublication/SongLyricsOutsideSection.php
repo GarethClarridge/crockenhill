@@ -102,7 +102,7 @@ final class SongLyricsOutsideSection
         }
 
         $lyrics = Song::query()->whereKey(array_unique($songIds))->pluck('lyrics_plain', 'id')
-            ->map(fn (?string $text): array => $this->wordPairs($text))
+            ->map(fn (?string $text): array => self::wordPairs($text))
             ->all();
         $ownPairs = $lyrics[$songId] ?? [];
 
@@ -210,7 +210,7 @@ final class SongLyricsOutsideSection
                 continue;
             }
 
-            $linePairs = $this->wordPairs($cue['text']);
+            $linePairs = self::wordPairs($cue['text']);
             $shared = array_intersect_key($linePairs, $ownPairs);
 
             if ($shared === []) {
@@ -281,10 +281,12 @@ final class SongLyricsOutsideSection
 
     /**
      * Adjacent content-word pairs, so "praise him" matches wherever the words sit together.
+     * {@see \App\Services\ChurchService\Structure\SongLyricEdgeExtension} reads lyrics the same way,
+     * so a line that raised this hold is a line the correction can act on.
      *
      * @return array<string, true>
      */
-    private function wordPairs(?string $text): array
+    public static function wordPairs(?string $text): array
     {
         preg_match_all('/[a-z]+/', mb_strtolower((string) $text), $matches);
         $words = array_values(array_filter(

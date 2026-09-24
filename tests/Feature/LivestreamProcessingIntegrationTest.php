@@ -12,6 +12,7 @@ use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonTranscriptFromService;
 use App\Jobs\DetectServiceStructure;
 use App\Jobs\EnhanceAudio;
+use App\Jobs\ExtendSongsOverOwnLyrics;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateRmsLog;
 use App\Jobs\GenerateThumbnail;
@@ -184,6 +185,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
             ProjectLivestreamServiceStructure::class,
             MatchSongsFromTranscript::class,
             MergeSongContinuations::class,
+            ExtendSongsOverOwnLyrics::class,
             ProjectLivestreamServiceStructure::class,
             ExtractSermon::class,
             SubmitToProcessing::class,

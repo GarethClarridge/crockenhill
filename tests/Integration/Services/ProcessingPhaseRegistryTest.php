@@ -15,6 +15,7 @@ use App\Jobs\CreateSermonTranscriptFromService;
 use App\Jobs\DetectServiceStructure;
 use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtractAudioFromVideo;
+use App\Jobs\ExtendSongsOverOwnLyrics;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateThumbnail;
 use App\Jobs\MatchSongsFromTranscript;
@@ -114,7 +115,7 @@ class ProcessingPhaseRegistryTest extends TestCase
         $this->assertSame([
             'action' => 'dispatch_livestream_chain',
             'pipeline' => 'livestream',
-            'job_offset' => 11,
+            'job_offset' => 12,
             'rerun_strategy' => 'safe_to_rerun',
             'reset_scope' => 'none',
         ], $registry->retryPlanFor($processingLog));
@@ -137,7 +138,7 @@ class ProcessingPhaseRegistryTest extends TestCase
         $this->assertSame([
             'action' => 'dispatch_livestream_chain',
             'pipeline' => 'livestream',
-            'job_offset' => 15,
+            'job_offset' => 16,
             'rerun_strategy' => 'safe_to_rerun',
             'reset_scope' => 'none',
         ], $registry->retryPlanFor($processingLog));
@@ -251,17 +252,18 @@ class ProcessingPhaseRegistryTest extends TestCase
                     2 => DetectServiceStructure::class,
                     3 => ProjectLivestreamServiceStructure::class,
                     5 => MergeSongContinuations::class,
-                    6 => ProjectLivestreamServiceStructure::class,
-                    7 => ExtractSermon::class,
-                    8 => SubmitToProcessing::class,
-                    11 => CreateSermonTranscriptFromService::class,
-                    12 => ProcessTranscriptWithAI::class,
-                    13 => AssessSermonVideoQuality::class,
-                    14 => GenerateThumbnail::class,
-                    15 => PrepareSectionPublicationCandidates::class,
-                    16 => SendCompletionNotification::class,
-                    17 => PromoteHistoricAssets::class,
-                    18 => CleanupTemporaryFiles::class,
+                    6 => ExtendSongsOverOwnLyrics::class,
+                    7 => ProjectLivestreamServiceStructure::class,
+                    8 => ExtractSermon::class,
+                    9 => SubmitToProcessing::class,
+                    12 => CreateSermonTranscriptFromService::class,
+                    13 => ProcessTranscriptWithAI::class,
+                    14 => AssessSermonVideoQuality::class,
+                    15 => GenerateThumbnail::class,
+                    16 => PrepareSectionPublicationCandidates::class,
+                    17 => SendCompletionNotification::class,
+                    18 => PromoteHistoricAssets::class,
+                    19 => CleanupTemporaryFiles::class,
                 ],
             ],
         ];
@@ -291,11 +293,11 @@ class ProcessingPhaseRegistryTest extends TestCase
         $plan = app(ProcessingPhaseRegistry::class)->retryPlanFor($log);
 
         $this->assertSame('dispatch_livestream_chain', $plan['action']);
-        $this->assertSame(14, $plan['job_offset']);
+        $this->assertSame(15, $plan['job_offset']);
         $this->assertSame(
             AwaitHistoricSermonVideoStorage::class,
             app(ProcessingPipelineBuilder::class)
-                ->buildLivestreamChainJobs($log)[13]::class,
+                ->buildLivestreamChainJobs($log)[14]::class,
         );
     }
 

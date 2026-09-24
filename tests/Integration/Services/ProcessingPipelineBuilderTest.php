@@ -13,6 +13,7 @@ use App\Jobs\CreateSermonTranscriptFromService;
 use App\Jobs\DetectServiceStructure;
 use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtractAudioFromVideo;
+use App\Jobs\ExtendSongsOverOwnLyrics;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateRmsLog;
 use App\Jobs\GenerateThumbnail;
@@ -181,28 +182,29 @@ class ProcessingPipelineBuilderTest extends TestCase
 
         $jobs = $this->builder->buildLivestreamChainJobs($log);
 
-        $this->assertCount(19, $jobs);
+        $this->assertCount(20, $jobs);
         $this->assertInstanceOf(AnalyzeSegments::class, $jobs[0]);
         $this->assertInstanceOf(TranscribeFullService::class, $jobs[1]);
         $this->assertInstanceOf(DetectServiceStructure::class, $jobs[2]);
         $this->assertInstanceOf(ProjectLivestreamServiceStructure::class, $jobs[3]);
         $this->assertInstanceOf(MatchSongsFromTranscript::class, $jobs[4]);
         $this->assertInstanceOf(MergeSongContinuations::class, $jobs[5]);
+        $this->assertInstanceOf(ExtendSongsOverOwnLyrics::class, $jobs[6]);
         // Second pass: song matching has resolved catalogue songs by now, so the
         // merge can anchor on song identity instead of automated title text.
-        $this->assertInstanceOf(ProjectLivestreamServiceStructure::class, $jobs[6]);
-        $this->assertInstanceOf(ExtractSermon::class, $jobs[7]);
-        $this->assertInstanceOf(SubmitToProcessing::class, $jobs[8]);
-        $this->assertInstanceOf(EnhanceAudio::class, $jobs[9]);
-        $this->assertInstanceOf(IdentifySpeaker::class, $jobs[10]);
-        $this->assertInstanceOf(CreateSermonTranscriptFromService::class, $jobs[11]);
-        $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[12]);
-        $this->assertInstanceOf(AssessSermonVideoQuality::class, $jobs[13]);
-        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[14]);
-        $this->assertInstanceOf(PrepareSectionPublicationCandidates::class, $jobs[15]);
-        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[16]);
-        $this->assertInstanceOf(PromoteHistoricAssets::class, $jobs[17]);
-        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[18]);
+        $this->assertInstanceOf(ProjectLivestreamServiceStructure::class, $jobs[7]);
+        $this->assertInstanceOf(ExtractSermon::class, $jobs[8]);
+        $this->assertInstanceOf(SubmitToProcessing::class, $jobs[9]);
+        $this->assertInstanceOf(EnhanceAudio::class, $jobs[10]);
+        $this->assertInstanceOf(IdentifySpeaker::class, $jobs[11]);
+        $this->assertInstanceOf(CreateSermonTranscriptFromService::class, $jobs[12]);
+        $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[13]);
+        $this->assertInstanceOf(AssessSermonVideoQuality::class, $jobs[14]);
+        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[15]);
+        $this->assertInstanceOf(PrepareSectionPublicationCandidates::class, $jobs[16]);
+        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[17]);
+        $this->assertInstanceOf(PromoteHistoricAssets::class, $jobs[18]);
+        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[19]);
     }
 
     #[Test]

@@ -12,6 +12,7 @@ use App\Jobs\CreateSermonRecord;
 use App\Jobs\CreateSermonTranscriptFromService;
 use App\Jobs\DetectServiceStructure;
 use App\Jobs\EnhanceAudio;
+use App\Jobs\ExtendSongsOverOwnLyrics;
 use App\Jobs\ExtractAudioFromVideo;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateRmsLog;
@@ -138,6 +139,8 @@ class ProcessingPipelineBuilder
             new ProjectLivestreamServiceStructure($log, refining: false),
             new MatchSongsFromTranscript($log),
             new MergeSongContinuations($log),
+            // Needs both songs' identities settled, and runs before any clip is cut.
+            new ExtendSongsOverOwnLyrics($log),
             // Refining: catalogue songs are resolved and continuations have
             // settled, so this pass can anchor on song identity — and it is the
             // one that reports on the quality of the merge.
