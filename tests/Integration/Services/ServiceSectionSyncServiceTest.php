@@ -8,6 +8,7 @@ use App\Actions\HoldSectionForContentReview;
 use App\Actions\ServiceReview\ConfirmServiceSection;
 use App\Enums\ContentHoldCheck;
 use App\Enums\ServiceSectionPublicationStatus;
+use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Enums\TalkType;
@@ -354,6 +355,89 @@ class ServiceSectionSyncServiceTest extends TestCase
 
         $this->assertSame(TalkType::PartnerUpdate, $talkType?->proposed);
         $this->assertSame(TalkType::Testimony, $talkType?->publicationTalkType());
+    }
+
+    #[Test]
+    public function a_re_detection_hands_an_unchanged_song_back_to_matching(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $section = $this->boundSongSection($processingLog, 'God of Glory');
+
+        $this->service->sync($processingLog, [
+            $this->sectionData(null, 1, ServiceSectionType::Song->value, 'God of Glory'),
+        ]);
+
+        $this->assertBindingDropped($section->refresh());
+        $this->assertSame('Existing song transcript', $section->metadata['transcript'] ?? null);
+    }
+
+    #[Test]
+    public function a_re_detection_that_changes_a_song_hands_it_back_to_matching(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $section = $this->boundSongSection($processingLog, 'Almighty Lord Most High Draw Near #823');
+
+        $this->service->sync($processingLog, [
+            $this->sectionData(null, 1, ServiceSectionType::Song->value, 'God of Glory'),
+        ]);
+
+        $section->refresh();
+
+        $this->assertArrayHasKey('superseded', $section->metadata?->toArray() ?? []);
+        $this->assertBindingDropped($section);
+    }
+
+    #[Test]
+    public function a_re_detection_keeps_a_song_match_a_person_reviewed(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $section = $this->boundSongSection($processingLog, 'God of Glory', [
+            'manual_review' => ['song_match_reviewed_at' => '2026-09-20T10:00:00+00:00', 'song_match_reviewed_by_user_id' => 1],
+        ]);
+
+        $this->service->sync($processingLog, [
+            $this->sectionData(null, 1, ServiceSectionType::Song->value, 'God of Glory'),
+        ]);
+
+        $section->refresh();
+
+        $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
+        $this->assertSame(75, $section->metadata['transcript_song_match']['song_id'] ?? null);
+    }
+
+    /**
+     * @param  array<string, mixed>  $extraMetadata
+     */
+    private function boundSongSection(MediaProcessingLog $processingLog, string $title, array $extraMetadata = []): ServiceSection
+    {
+        return ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 1,
+            'title' => $title,
+            'start_time' => 60.0,
+            'end_time' => 180.0,
+            'duration' => 120.0,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
+            'metadata' => array_merge([
+                'transcript' => 'Existing song transcript',
+                'song_title_hint' => 'God of Glory',
+                'transcript_song_match' => ['song_id' => 75, 'title' => 'Almighty Lord Most High Draw Near #823', 'confidence' => 1.0, 'match_source' => 'title_hint_fuzzy'],
+                'identity_sources' => ['heard'],
+                'lyric_identity_check' => ['verdict' => 'unavailable', 'bound_song_id' => 75],
+            ], $extraMetadata),
+        ]);
+    }
+
+    private function assertBindingDropped(ServiceSection $section): void
+    {
+        $metadata = $section->metadata?->toArray() ?? [];
+
+        $this->assertNull($section->song_match_type, 'A binding made for the old detection must be re-derived by matching.');
+        $this->assertArrayNotHasKey('transcript_song_match', $metadata);
+        $this->assertArrayNotHasKey('identity_sources', $metadata);
+        $this->assertArrayNotHasKey('lyric_identity_check', $metadata);
     }
 
     #[Test]

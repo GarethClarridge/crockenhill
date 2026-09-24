@@ -158,6 +158,10 @@ class ServiceSectionSyncService
                         $payload['metadata'] = $this->mergeExistingMetadata($existing, $payload['metadata']);
                     }
 
+                    if ($signatureChanged || ! $this->songMatchWasReviewed($existing)) {
+                        $payload = $this->withoutSongBinding($payload);
+                    }
+
                     $existing->fill($this->withContentHolds($payload, $heldContent));
                     $existing->save();
 
@@ -378,6 +382,39 @@ class ServiceSectionSyncService
         }
 
         return $merged;
+    }
+
+    /**
+     * Hand a re-detected section's song back to matching.
+     *
+     * A binding is a conclusion drawn by the matching code of its day, and matching
+     * skips a section it finds confirmed. A re-detection used to keep the confirmed
+     * type while a changed section lost the match record behind it, so 136 historic
+     * songs stayed confirmed on no evidence at all, and no later identity rule (two
+     * independent sources, the lyric identity check, catalogue title resolution) could
+     * reach an unchanged one. A song whose binding a person reviewed keeps it while
+     * its content is unchanged.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function withoutSongBinding(array $payload): array
+    {
+        /** @var array<string, mixed> $metadata */
+        $metadata = $payload['metadata'];
+        unset($metadata['transcript_song_match'], $metadata['identity_sources'], $metadata['lyric_identity_check']);
+
+        $payload['metadata'] = $metadata;
+        $payload['song_match_type'] = null;
+
+        return $payload;
+    }
+
+    private function songMatchWasReviewed(ServiceSection $section): bool
+    {
+        $reviewedAt = $section->metadata?->toArray()['manual_review']['song_match_reviewed_at'] ?? null;
+
+        return is_string($reviewedAt) && $reviewedAt !== '';
     }
 
     /**

@@ -1037,10 +1037,12 @@ class DetectorCatalogue
                 id: 'oos-item-written-from-wrong-song',
                 surface: null,
                 signals: [],
-                status: DetectorStatus::Unbuilt,
+                status: DetectorStatus::FixedAtSource,
                 severity: DetectorSeverity::WrongMetadata,
                 unit: DetectorUnit::Section,
                 summary: 'Livestream-sourced order-of-service items were written from a song binding that has since been corrected, so the item and the section now disagree.',
+                regressionCases: ['run 964 §872', 'run 1328 §4156'],
+                decision: 'Fixed at source 2026-09-24. A re-detection used to keep a section confirmed while dropping the match behind it, and matching skips confirmed sections, so no corrected rule could reach these 59 items (heard title resolved deterministically against the item\'s song, `storage/scratch/oositem-20260924/item-vs-heard.json`). A re-detected song is now handed back to matching unless a person reviewed it, and an item the run wrote loses a song its section no longer confirms. The corpus re-run repairs the stored items.',
             ),
             new DetectorEntry(
                 id: 'song-clip-audio-upsampled',

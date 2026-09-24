@@ -186,6 +186,10 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             $section->save();
         }
 
+        foreach ($unmatchedSongs as $section) {
+            $this->withdrawUnconfirmedItemSong($section);
+        }
+
         // The run's bindings are settled now, so a lyric-comparison hold re-reads them.
         app(ContentHoldRechecker::class)->recheck($this->processingLog);
 
@@ -418,6 +422,44 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
         }
 
         return ['song_id' => $songId, 'title' => $matchedTitle];
+    }
+
+    /**
+     * Take a song off an item the run wrote when its section no longer confirms one.
+     *
+     * The item was written from an earlier confident match, and the section's song
+     * resolves through the item first, so a re-match that only infers, or finds
+     * nothing, would otherwise leave the earlier song standing: §4.1a found items
+     * written from fuzzy title bindings that were later corrected. A confirmed match
+     * has already written its own song, and a song a person linked stays.
+     */
+    private function withdrawUnconfirmedItemSong(ServiceSection $section): void
+    {
+        if ($section->section_type === ServiceSectionType::Song && $section->hasConfirmedSongMatch()) {
+            return;
+        }
+
+        $item = $section->church_service_item_id !== null
+            ? ChurchServiceItem::query()->find($section->church_service_item_id)
+            : null;
+
+        if (! $item instanceof ChurchServiceItem
+            || $item->source !== ChurchServiceItemSource::Livestream
+            || $item->song_id === null
+            || filled($item->metadata['linked_song_canonical_key'] ?? null)) {
+            return;
+        }
+
+        $hint = $section->metadata['song_title_hint'] ?? null;
+        $heardTitle = filled($section->title) ? (string) $section->title : (is_string($hint) ? trim($hint) : '');
+
+        $item->song_id = null;
+
+        if ($heardTitle !== '') {
+            $item->title = $heardTitle;
+        }
+
+        $item->save();
     }
 
     private function applyMatch(

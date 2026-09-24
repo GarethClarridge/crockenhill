@@ -8,11 +8,11 @@
 > acceptance and public release remain NO-GO.** Repairs now run through §4.0's corpus
 > re-run: every eligible run re-detected against one frozen commit. Where the work stands:
 >
-> - **Freeze gate (§4.0):** 1 unbuilt detector item and 1 prototype that change what the
->   re-run produces, plus the song-edge check. Six release-side items gate acceptance
+> - **Freeze gate (§4.0):** the `audio-dropout-inside-talk` prototype and the song-edge
+>   check. Six release-side items gate acceptance
 >   (§4.5) instead (operator, 2026-09-24).
-> - **Detection:** the catalogue holds 79 classes: 46 promoted, 21 fixed at source, 4
->   decided not to detect, 7 unbuilt, 1 prototype. The last full evaluation (38 detectors:
+> - **Detection:** the catalogue holds 79 classes: 46 promoted, 22 fixed at source, 4
+>   decided not to detect, 6 unbuilt, 1 prototype. The last full evaluation (38 detectors:
 >   5 fail, 33 not established, 0 accepted) predates the 09-23 detectors, which score
 >   `missed` until the re-run writes their output.
 > - **Miss rate:** H10b re-decoded and compared all 338 decodable runs under a rule
@@ -192,8 +192,8 @@ costs more than re-running them. **Operator decisions:**
 1. **Freeze detection code only after every open item that changes the re-run's output is
    closed.** Each item is either built and tested, or recorded as a decision not to detect.
    The pass then runs against one commit, and its evidence binds that commit. The gate
-   (catalogue state 2026-09-24: 46 promoted, 21 fixed at source, 4 decided not to detect,
-   7 unbuilt, 1 prototype; **1 unbuilt and the prototype gate the freeze**):
+   (catalogue state 2026-09-24: 46 promoted, 22 fixed at source, 4 decided not to detect,
+   6 unbuilt, 1 prototype; **the prototype and the song-edge check gate the freeze**):
    - Structure/typing: ~~`structure-hymn-inside-sermon-section`~~ (built `994446a12`),
      ~~`structure-spoken-quotation-typed-as-song`~~ and
      ~~`detection-unplaced-hold-refusal-discarded`~~ (both already fixed; recorded `5a071a4af`),
@@ -219,7 +219,17 @@ costs more than re-running them. **Operator decisions:**
      ~~`scripture-verse-in-prayer-typed-as-reading`~~ (**decided not to detect**, operator
      2026-09-24: the one case is a call-to-worship verse in excluded run 1043, whose signals
      match 22 genuine readings)
-   - Identity/metadata: `oos-item-written-from-wrong-song`,
+   - Identity/metadata: ~~`oos-item-written-from-wrong-song`~~ (fixed at source 2026-09-24.
+     **The re-run could not have rebound a confirmed song.** A re-detection kept a section's
+     `confirmed` type, and on a changed section dropped the match record behind it. Matching
+     skips confirmed sections, so none of the corrected identity rules (two sources, lyric
+     check, catalogue titles) reached one: all 136 historic confirmed songs with no match
+     record are re-detected rows. Now a re-detected song goes back to matching unless a person
+     reviewed its match (none has). An item the run wrote loses a song its section no longer
+     confirms, and a song a person linked stays. Read-only measurement
+     (`storage/scratch/oositem-20260924/`): **59 run-written items carry a song other than the
+     one their heard title resolves to deterministically**, among them all the §4.1a pairs and
+     published §4156. The re-run repairs them. Before this fix, all 59 would have survived it),
      ~~`published-title-contradicts-content`~~ (promoted 2026-09-24 as a reference check,
      operator choice: `published_reference_contradicts_sermon` on the sermon section when the
      published reference shares no verse with the heard `sermon_reference`, raised at analysis

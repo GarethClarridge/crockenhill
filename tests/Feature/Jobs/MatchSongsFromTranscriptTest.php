@@ -472,7 +472,7 @@ class MatchSongsFromTranscriptTest extends TestCase
         $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type);
     }
 
-    private const AMAZING_GRACE ='Amazing grace how sweet the sound that saved a wretch like me. I once was lost but now am found, was blind but now I see. Twas grace that taught my heart to fear and grace my fears relieved. How precious did that grace appear the hour I first believed.';
+    private const AMAZING_GRACE = 'Amazing grace how sweet the sound that saved a wretch like me. I once was lost but now am found, was blind but now I see. Twas grace that taught my heart to fear and grace my fears relieved. How precious did that grace appear the hour I first believed.';
 
     private const BE_THOU_MY_VISION = 'Be thou my vision O Lord of my heart, naught be all else to me save that thou art. Thou my best thought by day or by night, waking or sleeping thy presence my light. Be thou my wisdom and thou my true word, I ever with thee and thou with me Lord.';
 
@@ -963,6 +963,66 @@ class MatchSongsFromTranscriptTest extends TestCase
         $this->assertSame(ServiceSectionSongMatchType::Confirmed, $section->song_match_type);
         $this->assertSame($song->id, $item->song_id);
         $this->assertSame('In Christ Alone', $item->title, 'The run authored this item, so the match owns its title.');
+    }
+
+    #[Test]
+    public function a_run_item_drops_a_song_its_rematched_section_only_infers(): void
+    {
+        $heard = Song::factory()->create(['title' => 'Behold Our God', 'canonical_key' => 'behold our god', 'lyrics_plain' => null]);
+        $earlier = Song::factory()->create(['title' => 'All glory be to Christ', 'canonical_key' => 'all glory be to christ', 'lyrics_plain' => null]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $item = ChurchServiceItem::factory()->livestream()->create(['title' => 'All glory be to Christ', 'song_id' => $earlier->id]);
+        $section = $this->unmatchedSongSectionFor($log, $item, 'Behold Our God');
+        $section->forceFill(['title' => 'Behold Our God'])->save();
+
+        $this->runSongMatching($log);
+
+        $section->refresh();
+        $item->refresh();
+
+        $this->assertSame(ServiceSectionSongMatchType::Inferred, $section->song_match_type, 'One source alone infers.');
+        $this->assertNull($item->song_id, 'The run wrote this item from an earlier binding; an inferred match may not keep it there.');
+        $this->assertSame('Behold Our God', $item->title);
+        $this->assertSame($heard->id, $section->resolvedSongId());
+    }
+
+    #[Test]
+    public function a_run_item_drops_a_song_its_rematched_section_no_longer_matches(): void
+    {
+        $earlier = Song::factory()->create(['title' => 'Almighty Lord Most High', 'canonical_key' => 'almighty lord most high', 'lyrics_plain' => null]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $item = ChurchServiceItem::factory()->livestream()->create(['title' => 'Almighty Lord Most High', 'song_id' => $earlier->id]);
+        $section = $this->unmatchedSongSectionFor($log, $item, 'Nothing In The Catalogue');
+        $section->forceFill(['title' => 'Nothing In The Catalogue'])->save();
+
+        $this->runSongMatching($log);
+
+        $section->refresh();
+        $item->refresh();
+
+        $this->assertNull($item->song_id);
+        $this->assertSame('Nothing In The Catalogue', $item->title);
+        $this->assertNull($section->resolvedSongId());
+    }
+
+    #[Test]
+    public function a_run_item_keeps_a_song_a_person_linked(): void
+    {
+        $chosen = Song::factory()->create(['title' => 'Who has held the oceans', 'canonical_key' => 'who has held the oceans', 'lyrics_plain' => null]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $item = ChurchServiceItem::factory()->livestream()->create([
+            'title' => 'Who has held the oceans',
+            'song_id' => $chosen->id,
+            'metadata' => ['linked_song_canonical_key' => 'who has held the oceans'],
+        ]);
+        $this->unmatchedSongSectionFor($log, $item, 'Nothing In The Catalogue');
+
+        $this->runSongMatching($log);
+
+        $this->assertSame($chosen->id, $item->refresh()->song_id);
     }
 
     #[Test]

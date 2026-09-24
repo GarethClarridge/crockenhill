@@ -2602,6 +2602,36 @@
             "evidence": "storage/scratch/sungpass-20260916-measure.json",
             "informed_fix": true,
             "note": "\"Thank you\" x4 ASR artefact over sustained sound inside the sermon; already held."
+        },
+        {
+            "case_id": "oos-item-written-from-wrong-song/run-964-s872",
+            "detector_id": "oos-item-written-from-wrong-song",
+            "reference": "run 964 §872",
+            "subject": {
+                "run": 964,
+                "section": 872,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "derived_comparison",
+            "evidence": "storage/scratch/oositem-20260924/item-vs-heard.json",
+            "informed_fix": true,
+            "note": "Heard \"God, we praise you\" resolves to #304; the run's item still carries #275 Glory In The Highest. Confirmed with no match record since its 09-08 re-detection. Canary run."
+        },
+        {
+            "case_id": "oos-item-written-from-wrong-song/run-1328-s4156",
+            "detector_id": "oos-item-written-from-wrong-song",
+            "reference": "run 1328 §4156",
+            "subject": {
+                "run": 1328,
+                "section": 4156,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "derived_comparison",
+            "evidence": "storage/scratch/oositem-20260924/item-vs-heard.json",
+            "informed_fix": true,
+            "note": "Published. Heard \"O Lord My God\" resolves to #190; item and match both carry Fill All My Life #838, the title_hint_fuzzy mis-binding."
         }
     ],
     "aggregates": [
