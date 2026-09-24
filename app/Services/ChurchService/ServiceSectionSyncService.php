@@ -109,6 +109,7 @@ class ServiceSectionSyncService
                 array_values(array_filter($heldContent, static fn (array $held): bool => $held['held'])),
                 $classifiedSections,
             );
+            $this->keepUnplacedHoldHistory($processingLog, $heldContent, $classifiedSections);
 
             $incomingOrders = [];
 
@@ -403,6 +404,50 @@ class ServiceSectionSyncService
         if ($unplaced !== []) {
             throw UnplacedContentHoldException::forSections($unplaced);
         }
+    }
+
+    /**
+     * Keep, on the run, the hold history of released content no incoming section covers.
+     *
+     * A released hold refuses nothing, so the re-detection may drop its content; the
+     * record of what was found there and how it was settled is evidence all the same,
+     * and would otherwise go with the deleted row.
+     *
+     * @param  list<HeldContent>  $heldContent
+     * @param  array<int, ClassifiedSection>  $classifiedSections
+     */
+    private function keepUnplacedHoldHistory(MediaProcessingLog $processingLog, array $heldContent, array $classifiedSections): void
+    {
+        $unplaced = array_values(array_filter(
+            $heldContent,
+            fn (array $held): bool => ! $held['held'] && ! collect($classifiedSections)
+                ->contains(fn (array $sectionData): bool => $this->coversHeldContent($held, $sectionData)),
+        ));
+
+        if ($unplaced === []) {
+            return;
+        }
+
+        $recordedAt = CarbonImmutable::now()->toIso8601String();
+
+        $processingLog->writeProcessingMetadata(static function (array $metadata) use ($unplaced, $recordedAt): array {
+            $history = is_array($metadata['unplaced_content_hold_records'] ?? null) ? $metadata['unplaced_content_hold_records'] : [];
+
+            foreach ($unplaced as $held) {
+                $history[] = [
+                    'section_id' => $held['id'],
+                    'section_type' => $held['section_type'],
+                    'start_time' => $held['start_time'],
+                    'end_time' => $held['end_time'],
+                    'holds' => $held['holds'],
+                    'recorded_at' => $recordedAt,
+                ];
+            }
+
+            $metadata['unplaced_content_hold_records'] = $history;
+
+            return $metadata;
+        });
     }
 
     /**

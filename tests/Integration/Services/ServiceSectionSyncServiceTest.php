@@ -467,6 +467,31 @@ class ServiceSectionSyncServiceTest extends TestCase
     }
 
     /**
+     * A released hold refuses nothing, so a re-detection may leave its content
+     * uncovered — but the history of what was found and decided there is kept on the
+     * run rather than deleted with the row.
+     */
+    #[Test]
+    public function released_hold_history_for_content_no_section_covers_is_kept_on_the_run(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $section = $this->heldSection($processingLog, ServiceSectionType::Sermon, sectionOrder: 1, startTime: 600.0, endTime: 1800.0);
+        app(ConfirmServiceSection::class)->execute($section->refresh(), User::factory()->create()->id);
+
+        $this->service->sync($processingLog, [
+            $this->sectionData(null, 1, ServiceSectionType::Song->value, startTime: 60.0, endTime: 180.0, duration: 120.0),
+        ]);
+
+        $unplaced = $processingLog->refresh()->processing_metadata?->toArray()['unplaced_content_hold_records'] ?? [];
+
+        $this->assertCount(1, $unplaced);
+        $this->assertSame($section->id, $unplaced[0]['section_id'] ?? null);
+        $this->assertSame('sermon', $unplaced[0]['section_type'] ?? null);
+        $this->assertSame(self::HOLD_REASON, $unplaced[0]['holds'][0]['reason'] ?? null);
+        $this->assertNotEmpty($unplaced[0]['recorded_at'] ?? null);
+    }
+
+    /**
      * A re-detection can merge as well as move: the 09-17 song trim turned two
      * detected songs into one, and the canary only proved holds carry when the
      * replacement is one-for-one. Both holds must land on the surviving row —
