@@ -25,6 +25,7 @@ use App\Services\ChurchService\SectionPublication\SongPublicationBoundaryEvidenc
 use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
 use App\Services\ChurchService\SectionPublication\SongSectionWithoutSong;
 use App\Services\ChurchService\SectionPublication\SongSpeechUnderLoop;
+use App\Services\ChurchService\Structure\AudioDropoutInsideTalk;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SongSpeechEdges;
 use App\Services\ChurchService\Structure\SungSpanInsideSermon;
@@ -61,7 +62,7 @@ use RuntimeException;
  * **Scope since 2026-09-21.** Every row of the plan's class table is here, not
  * only the promoted detectors, because the table gained its `detector_id`
  * column and the two are bound by a test. Most entries therefore emit nothing:
- * they are classes fixed at source, ruled on, prototyped or still open. They
+ * they are classes fixed at source, ruled on or still open. They
  * carry no surface and no signals, and {@see DetectorEntry} refuses one that
  * does, because every adapter keys off the surface and an entry that kept one
  * would be read as a live detector.
@@ -262,7 +263,7 @@ class DetectorCatalogue
             ...self::songBoundaryEntries(),
             ...self::videoEntries(),
             // Classes from §4.3a's table that emit nothing: fixed at source,
-            // ruled on, prototyped or still open. They carry no surface and no
+            // ruled on or still open. They carry no surface and no
             // signals, and exist so that a class with no detector is
             // distinguishable from one nobody has looked at.
             ...self::extractionClassEntries(),
@@ -1169,12 +1170,14 @@ class DetectorCatalogue
         return [
             new DetectorEntry(
                 id: 'audio-dropout-inside-talk',
-                surface: null,
-                signals: [],
-                status: DetectorStatus::Prototype,
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: [ServiceStructureValidator::FLAG_TALK_AUDIO_DROPOUT],
+                status: DetectorStatus::Promoted,
                 severity: DetectorSeverity::ContentLost,
                 unit: DetectorUnit::Section,
                 summary: 'A stretch of at least 15 seconds at or below -80 dB inside a talk, where the source itself carried no audio. Contained rather than reconstructed.',
+                owningClass: AudioDropoutInsideTalk::class,
+                regressionCases: ['run 1089 §1790'],
             ),
             new DetectorEntry(
                 id: 'video-stream-copy-keyframe-lead-in',

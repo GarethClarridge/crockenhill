@@ -148,11 +148,11 @@ class DetectorEntryTest extends TestCase
     {
         $promotedS1 = $this->entry(DetectorStatus::Promoted, DetectorSeverity::PublishedWrongContent);
         $promotedS4 = $this->entry(DetectorStatus::Promoted, DetectorSeverity::TechnicalQuality);
-        $prototypeS1 = $this->nonEmittingEntry(DetectorStatus::Prototype, DetectorSeverity::PublishedWrongContent);
+        $unbuiltS1 = $this->nonEmittingEntry(DetectorStatus::Unbuilt, DetectorSeverity::PublishedWrongContent);
 
         $this->assertTrue($promotedS1->isEvaluable());
         $this->assertFalse($promotedS4->isEvaluable(), 'S4 is reporting-only, so there is no recall floor to protect.');
-        $this->assertFalse($prototypeS1->isEvaluable(), 'A prototype is not in the pipeline, so there is nothing to score.');
+        $this->assertFalse($unbuiltS1->isEvaluable(), 'An unbuilt class is not in the pipeline, so there is nothing to score.');
     }
 
     public function test_it_reports_the_signals_it_emits(): void

@@ -75,6 +75,10 @@ class SermonAutoExtractionPolicy
      *
      * `published_reference_contradicts_sermon` questions the sermon's metadata, not
      * its cut, so it must never stop the media being extracted.
+     *
+     * `structure_talk_audio_dropout` is a dead feed inside the talk. Nothing can
+     * restore it and the cut is not in question; the operator accepts or excludes
+     * the talk with its media in hand.
      */
     private const NON_DISQUALIFYING_REVIEW_FLAGS = [
         ServiceStructureValidator::FLAG_OOS_CROSS_TYPE_INVERSION,
@@ -82,6 +86,7 @@ class SermonAutoExtractionPolicy
         ServiceStructureValidator::FLAG_MISSING_PREACHED_READING,
         ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK,
         ServiceStructureValidator::FLAG_SERMON_CONTAINS_SUNG_SPAN,
+        ServiceStructureValidator::FLAG_TALK_AUDIO_DROPOUT,
         FlagSermonTextPredatesEvidence::FLAG,
         FlagSermonPartsNotExtracted::FLAG,
         FlagSermonAudioLengthMismatch::FLAG,

@@ -25,9 +25,6 @@ enum DetectorStatus: string
     /** In the pipeline, emitting its signals, and subject to H10 evaluation. */
     case Promoted = 'promoted';
 
-    /** Works as a one-off script under `storage/scratch`; not in the pipeline. */
-    case Prototype = 'prototype';
-
     /** An operator ruled that this class is not worth detecting. Carries the decision. */
     case DecidedNotToDetect = 'decided_not_to_detect';
 
@@ -53,7 +50,6 @@ enum DetectorStatus: string
     {
         return match ($this) {
             self::Promoted => 'Promoted',
-            self::Prototype => 'Prototype',
             self::DecidedNotToDetect => 'Decided not to detect',
             self::FixedAtSource => 'Fixed at source',
             self::Unbuilt => 'Unbuilt',
@@ -76,10 +72,12 @@ enum DetectorStatus: string
      * a status that does not must name neither, or the catalogue would claim a
      * detector where the plan records a fix, a ruling or an open question.
      *
-     * Only {@see Promoted} qualifies, and {@see Prototype} deliberately does
-     * not: a script under `storage/scratch` writes nothing to any of the four
-     * surfaces the harness reads, so giving it signals would put a detector in
-     * the catalogue that no adapter can ever find.
+     * Only {@see Promoted} qualifies.
+     *
+     * There was a `Prototype` status for a one-off script under `storage/scratch`.
+     * It emitted nothing, since a script writes to no surface the harness reads, and
+     * it was removed on 2026-09-24 when its last entry, `audio-dropout-inside-talk`,
+     * was promoted.
      */
     public function emitsSignals(): bool
     {

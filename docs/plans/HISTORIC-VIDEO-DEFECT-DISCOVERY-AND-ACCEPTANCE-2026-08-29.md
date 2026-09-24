@@ -8,11 +8,10 @@
 > acceptance and public release remain NO-GO.** Repairs now run through §4.0's corpus
 > re-run: every eligible run re-detected against one frozen commit. Where the work stands:
 >
-> - **Freeze gate (§4.0):** the `audio-dropout-inside-talk` prototype and the song-edge
->   check. Six release-side items gate acceptance
+> - **Freeze gate (§4.0):** the song-edge check. Six release-side items gate acceptance
 >   (§4.5) instead (operator, 2026-09-24).
-> - **Detection:** the catalogue holds 79 classes: 46 promoted, 22 fixed at source, 4
->   decided not to detect, 6 unbuilt, 1 prototype. The last full evaluation (38 detectors:
+> - **Detection:** the catalogue holds 79 classes: 47 promoted, 22 fixed at source, 4
+>   decided not to detect, 6 unbuilt. The last full evaluation (38 detectors:
 >   5 fail, 33 not established, 0 accepted) predates the 09-23 detectors, which score
 >   `missed` until the re-run writes their output.
 > - **Miss rate:** H10b re-decoded and compared all 338 decodable runs under a rule
@@ -192,8 +191,8 @@ costs more than re-running them. **Operator decisions:**
 1. **Freeze detection code only after every open item that changes the re-run's output is
    closed.** Each item is either built and tested, or recorded as a decision not to detect.
    The pass then runs against one commit, and its evidence binds that commit. The gate
-   (catalogue state 2026-09-24: 46 promoted, 22 fixed at source, 4 decided not to detect,
-   6 unbuilt, 1 prototype; **the prototype and the song-edge check gate the freeze**):
+   (catalogue state 2026-09-24: 47 promoted, 22 fixed at source, 4 decided not to detect,
+   6 unbuilt; **only the song-edge check gates the freeze**):
    - Structure/typing: ~~`structure-hymn-inside-sermon-section`~~ (built `994446a12`),
      ~~`structure-spoken-quotation-typed-as-song`~~ and
      ~~`detection-unplaced-hold-refusal-discarded`~~ (both already fixed; recorded `5a071a4af`),
@@ -208,7 +207,17 @@ costs more than re-running them. **Operator decisions:**
    - Transcript/audio: ~~`transcript-meaning-changing-substitution`~~ (**decided not to detect**,
      operator 2026-09-24: no textual signal; H10b's re-decode sampling measures the class; both
      cases stay held),
-     `audio-dropout-inside-talk` (prototype)
+     ~~`audio-dropout-inside-talk`~~ (promoted 2026-09-24: `AudioDropoutInsideTalk` runs last
+     in the sound stage and flags a sermon or short talk that overlaps 15 s or more of source
+     audio at or below −80 dB. The flag sends the talk to review, to be accepted or excluded.
+     It does not stop extraction, because the cut is not in question. Replayed read-only
+     through `structure:recompute-sound-stage` over all 443 eligible runs
+     (`storage/scratch/dropout-20260924/`): it flags 10 talks, which are exactly the §4.1a
+     census hits whose section is still a talk. Run 980's dropouts now fall in the `other`
+     section before its sermon, and 1043 is excluded. It found nothing new. The `Prototype`
+     status had no entries left and was removed. **Harness note:** the `--all` pass listed 9,
+     leaving out 1089 §1790, which a pass over 1075–1095 and a single-run pass both flag. The
+     detector is deterministic per run, and the discrepancy belongs to the recompute harness),
    - Scripture: ~~`scripture-reference-never-linked`~~ (fixed at source 2026-09-24: the
      backfill takes the newest unlinked sermons first, and every re-run diff flags a reference
      with no passage; 908–910 and 913–915 are still unlinked and the re-run re-queues them),

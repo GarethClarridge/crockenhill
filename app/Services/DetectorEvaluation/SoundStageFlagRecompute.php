@@ -6,6 +6,7 @@ namespace App\Services\DetectorEvaluation;
 
 use App\Data\ServiceStructure;
 use App\Models\MediaProcessingLog;
+use App\Services\ChurchService\Structure\AudioDropoutInsideTalk;
 use App\Services\ChurchService\Structure\MistypedSungSections;
 use App\Services\ChurchService\Structure\SongSpeechEdges;
 use App\Services\ChurchService\Structure\SungSpanInsideSermon;
@@ -70,6 +71,7 @@ class SoundStageFlagRecompute
         ServiceStructureValidator::FLAG_SECTION_READS_AS_SUNG,
         ServiceStructureValidator::FLAG_SERMON_CONTAINS_SUNG_SPAN,
         ServiceStructureValidator::FLAG_SONG_SWALLOWS_SPEECH,
+        ServiceStructureValidator::FLAG_TALK_AUDIO_DROPOUT,
     ];
 
     public function __construct(
@@ -79,6 +81,7 @@ class SoundStageFlagRecompute
         private readonly SongSpeechEdges $speechEdges,
         private readonly MistypedSungSections $mistypedSung,
         private readonly SungSpanInsideSermon $sungSpanInsideSermon,
+        private readonly AudioDropoutInsideTalk $audioDropoutInsideTalk,
     ) {}
 
     /**
@@ -173,6 +176,7 @@ class SoundStageFlagRecompute
             $recomputed = $this->speechEdges->apply($recomputed, $rms, $omitsSongs);
             $recomputed = $this->mistypedSung->apply($recomputed, $rms, $transcript);
             $recomputed = $this->sungSpanInsideSermon->apply($recomputed, $rms, $transcript);
+            $recomputed = $this->audioDropoutInsideTalk->apply($recomputed, $rms);
 
             $claimed = [];
 

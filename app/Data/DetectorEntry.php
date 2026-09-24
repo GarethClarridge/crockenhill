@@ -122,7 +122,7 @@ final readonly class DetectorEntry
     /**
      * Whether this entry is one the harness must be able to score.
      *
-     * A prototype or unbuilt class has nothing to measure yet, and an S4 class
+     * An unbuilt class has nothing to measure yet, and an S4 class
      * is reporting-only, so neither is a gap in {@see DetectorCatalogue}'s
      * evaluation coverage.
      */

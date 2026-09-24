@@ -11,6 +11,7 @@ use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
+use App\Services\ChurchService\Structure\AudioDropoutInsideTalk;
 use App\Services\ChurchService\Structure\MistypedSungSections;
 use App\Services\ChurchService\Structure\ServiceStructureEvaluationTelemetry;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
@@ -437,7 +438,9 @@ class StructureEvaluateCommand extends Command
         // something else is one no song claimed, and singing inside a sermon is singing no song holds.
         $structure = app(MistypedSungSections::class)->apply($structure, $rmsLogContent, $transcript);
 
-        return app(SungSpanInsideSermon::class)->apply($structure, $rmsLogContent, $transcript);
+        $structure = app(SungSpanInsideSermon::class)->apply($structure, $rmsLogContent, $transcript);
+
+        return app(AudioDropoutInsideTalk::class)->apply($structure, $rmsLogContent);
     }
 
     /**

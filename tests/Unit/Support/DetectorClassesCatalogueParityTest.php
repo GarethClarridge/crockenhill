@@ -72,7 +72,7 @@ class DetectorClassesCatalogueParityTest extends TestCase
      * Every class the plan found is accounted for by a status, not by silence.
      *
      * The point of §4.3a is that a class has a tested response *or* a recorded
-     * decision. An entry that is neither promoted, prototyped, fixed nor ruled
+     * decision. An entry that is neither promoted, fixed nor ruled
      * on is the open state, and that is fine — what is not fine is a class whose
      * status nobody has set at all, which this asserts cannot happen because the
      * enum has no null.

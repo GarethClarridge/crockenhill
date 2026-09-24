@@ -19,6 +19,7 @@ use App\Models\ServiceSection;
 use App\Services\ChurchService\ChurchServiceReviewSynchronizer;
 use App\Services\ChurchService\ContentHoldRechecker;
 use App\Services\ChurchService\ServiceSectionSyncService;
+use App\Services\ChurchService\Structure\AudioDropoutInsideTalk;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
 use App\Services\ChurchService\Structure\SongSpeechEdges;
@@ -801,7 +802,9 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         // something else is one no song claimed, and singing inside a sermon is singing no song holds.
         $structure = app(MistypedSungSections::class)->apply($structure, $rmsLogContent, $transcript);
 
-        return app(SungSpanInsideSermon::class)->apply($structure, $rmsLogContent, $transcript);
+        $structure = app(SungSpanInsideSermon::class)->apply($structure, $rmsLogContent, $transcript);
+
+        return app(AudioDropoutInsideTalk::class)->apply($structure, $rmsLogContent);
     }
 
     /**

@@ -157,6 +157,14 @@ class ServiceStructureValidator
     public const FLAG_SERMON_CONTAINS_SUNG_SPAN = 'structure_sermon_contains_sung_span';
 
     /**
+     * Applied by {@see AudioDropoutInsideTalk} to a sermon or short talk overlapping 15 s or
+     * more of source audio at or below -80 dB: a dead feed, not a pause. Nothing can restore
+     * the words, so the talk goes to review to be accepted or excluded. Non-disqualifying:
+     * the cut is not in question.
+     */
+    public const FLAG_TALK_AUDIO_DROPOUT = 'structure_talk_audio_dropout';
+
+    /**
      * Applied by {@see SongSpeechEdges} to a song section under half sustained, on a run whose
      * other songs read as sung, with a spoken lead-in of 25 s or a spoken tail of 20 s: a song
      * that swallowed a prayer or talk (974 §988, 1475). Held rather than trimmed, because the

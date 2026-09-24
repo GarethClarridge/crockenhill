@@ -148,6 +148,24 @@ class SectionReviewFlagPolicyTest extends TestCase
         ));
     }
 
+    /**
+     * A dead feed inside the talk cannot be restored and does not question the cut, so the
+     * talk is reviewed with its media rather than left unextracted.
+     */
+    #[Test]
+    public function a_talk_audio_dropout_forces_review_but_still_permits_auto_extraction(): void
+    {
+        $this->assertTrue(SectionReviewFlagPolicy::requiresManualReview(
+            ServiceSectionType::Sermon,
+            [ServiceStructureValidator::FLAG_TALK_AUDIO_DROPOUT],
+        ));
+
+        $this->assertTrue(SermonAutoExtractionPolicy::reviewStatePermitsAutoExtraction(
+            true,
+            [ServiceStructureValidator::FLAG_TALK_AUDIO_DROPOUT],
+        ));
+    }
+
     #[Test]
     public function a_merged_interruption_never_permits_auto_extraction(): void
     {

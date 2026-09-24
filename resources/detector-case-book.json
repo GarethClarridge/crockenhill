@@ -2632,6 +2632,21 @@
             "evidence": "storage/scratch/oositem-20260924/item-vs-heard.json",
             "informed_fix": true,
             "note": "Published. Heard \"O Lord My God\" resolves to #190; item and match both carry Fill All My Life #838, the title_hint_fuzzy mis-binding."
+        },
+        {
+            "case_id": "audio-dropout-inside-talk/run-1089-s1790",
+            "detector_id": "audio-dropout-inside-talk",
+            "reference": "run 1089 §1790",
+            "subject": {
+                "run": 1089,
+                "section": 1790,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "derived_comparison",
+            "evidence": "storage/scratch/residue-20260913-dropouts.json",
+            "informed_fix": true,
+            "note": "RMS at or below -80 dB for 15 s or more inside the sermon while the frames show the preacher mid-sentence (§4.1a r1)."
         }
     ],
     "aggregates": [
