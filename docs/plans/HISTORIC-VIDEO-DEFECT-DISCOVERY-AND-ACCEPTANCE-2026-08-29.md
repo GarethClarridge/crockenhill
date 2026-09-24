@@ -18,8 +18,12 @@
 >   `missed` until the re-run writes their output.
 > - **Miss rate:** H10b re-decoded and compared all 338 decodable runs under a rule
 >   fixed before decoding (tripwire 2.20%, under 3%), plus 99 restaged runs as batch 2.
->   The listening queue, **353 windows across 173 runs** (batch 3, the nine concatenated runs,
->   added 2026-09-24), awaits the operator.
+>   The listening queue, **353 windows across 173 runs**, was judged by the operator on
+>   2026-09-24 (352 judged, about 235 minutes): 128 runs route to Tier A, 45 to Tier B (§4.0).
+> - **Corpus re-run:** detection rounds built (`6282bbcba`); canary 2 failed on 949 through
+>   self-anchoring (detection reads the pipeline's own earlier order-of-service items). Three
+>   builds are ruled and not started: self-anchoring fix, Tier A grounds from listening, Tier A
+>   as a detection round (§4.0).
 > - **Repairs since 09-20:** 1287 re-transcribed and re-detected 09-23.
 > - **Operational:** temp-file cleanup is paused locally so restaged sources survive.
 >   **All 438 eligible runs are reachable:** the 9 concatenated runs were restaged through the
@@ -319,6 +323,17 @@ costs more than re-running them. **Operator decisions:**
 2. **Tier A (re-transcription) waits for the operator's H10b listening queue.** Runs are
    chosen from the listening results, not from the tripwire alone. Only the runs in the
    queue wait; the rest start at the freeze (operator, 2026-09-24).
+   **Listening done and routed 2026-09-24** (`storage/scratch/h10b-corpus-20260922/listening/
+   routing-20260924.json`, bound by hash to `verdicts-20260924-operator-mapping.json`): of the
+   173 queued runs, **128 "new better"** (the fresh decode right wherever it differed) go to
+   **Tier A**; **16 "stored better"** go to **Tier B**; **11 "mixed"** (930, 944, 973, 975, 978,
+   1051, 1211, 1322, 1330, 1377, 1378) keep their stored text in **Tier B**, with a hold on each
+   window where it is wrong, because re-transcribing trades one error for another; **18
+   "neither"** (only both-wrong or can't-tell windows: 936, 993, 1014, 1016, 1034, 1089, 1104,
+   1138, 1167, 1214, 1262, 1321, 1325, 1332, 1336, 1347, 1351, 1367) go to **Tier B** with a
+   hold on each both-wrong window, since neither decode fixes it and the hold keeps it out of
+   release (operator rulings, 2026-09-24). Re-transcribing every run was considered and
+   rejected: the new decode was wrong in 58 of 352 windows.
 3. **All eligible historic runs are re-run**, not only those predicted to change. The
    censuses keep finding classes nobody predicted, and the diff report surfaces them.
 
@@ -432,6 +447,23 @@ freeze, and the diff report binds that hash.
   and 1112's two songs wait on its parked sermon. Two merged sections lost their old clips
   (1262 §3284, the doxology limitation; 1311 §3950 into the baptism hymn). 1112 is parked for
   its held sermon, so the second run cannot reach it until that is re-cut.
+  *Second run 2026-09-24, a detection round on `2c6147f91` (snapshot
+  `canary2-20260924/before.json`; 12 runs, 1112 refused as parked): failed on 949 again.*
+  Custody was clean (0 attention; media pending on all 12, as designed) and the round took
+  about 15 minutes with no ffmpeg work. But 949's four church slots stayed `short_talk`, and
+  936 §609 stayed a talk, although the model was called with the new prompt. **Cause:
+  self-anchoring.** Detection passes the model every order-of-service item as the planned
+  service (`DetectServiceStructure::loadOosItems()`), including items the pipeline's own
+  projection wrote. All of 949's items are `source: livestream`, and the first canary's
+  projection wrote the four slots into them as `short_talk` items, which the second run then
+  followed. Read-only census: of 442 eligible runs, **148 have an order of service written
+  entirely by their own earlier projection and 288 partly**; one is fully independent. So
+  repeated rounds are not independent, and every run's detection partly checks itself
+  against its August output. **Ruled (operator, 2026-09-24):** detection reads only items with
+  independent evidence (email, OpenLP or manual, by `provenanceSources()`, never the `source`
+  column); projection and merge are unchanged. Also to read on the next run: 1262 §3281, a
+  31 s "Introduction to prison resourcing update", became a `short_talk` (`partner_update`),
+  a probable false positive; 1356's "unclear" §4483 became a 774 s song.
   **Runs 964 (§872) and 1250 (§3128)**, the first use of the diff report. Current
   code resolves both hints correctly (#304, #408). The canary checks that re-detection
   rebinds them, that sync overwrites the stale livestream items 6901/9371 rather than
@@ -510,6 +542,19 @@ freeze, and the diff report binds that hash.
   Tier C, on the same snapshot, applies every check. Talk speaker review, sermon text and audio
   checks and video quality are decided only by Tier C. Tier A (`rerun-retranscribe`) still runs
   the whole pipeline.
+- [ ] **Detection reads only independently sourced order-of-service items** (ruled
+  2026-09-24, not built). `DetectServiceStructure` filters items by `provenanceSources()`
+  (email, OpenLP, manual); a run whose items are all self-written is detected from its
+  transcript alone. Test first: a service whose items are all written by the run's own
+  projection reaches the prompt with no items. Changes detection output, so it lands before the
+  freeze and the next canary measures it (949 must become `prayer`).
+- [ ] **Tier A accepts listening-routed runs** (ruled 2026-09-24, not built). Besides a live
+  transcript-loss hold, `rerun-retranscribe` accepts a run the routing file names `new_better`,
+  checked against the file's hash, so the 128 need no hand-written holds.
+- [ ] **Tier A as a detection round** (ruled 2026-09-24, not built). `rerun-retranscribe`
+  re-transcribes, detects and stops before extraction, deferring media to Tier C like Tier B.
+- [ ] **Holds for the mixed and neither runs** (ruled 2026-09-24, not built): a hold on each
+  window the operator judged wrong in the stored text (mixed) or both wrong (neither).
 - [ ] Batches by era, each checked against its diff before the next. Stop on any new regression.
 
 **Preflight for every dispatch** (the canary, each batch, and any named pre-freeze exception):
@@ -643,7 +688,7 @@ plan's §4.0 is the corpus re-run, not the log's.
 | §4.2 Transcript loops | `max_context=0` fixes context drift; screen, sparse cadence (both-flank excuse) and recovery re-applied corpus-wide 09-21. Corpus re-decoding via H10b (below). Direct uploads: loops not reproduced on local Whisper. |
 | §4.3 Song policy | Speech-edge trim, sustained-sound widening, 10 s introduction bridge (09-22), lyric edges, neighbour same-song rule (09-23) built. Existing outputs need re-detection and re-extraction through the pipeline. Hint/binding contradiction rule measured and not built (all genuine cases already held). |
 | §4.3a Detector harness | Catalogue, five adapters, case book, replay and evaluation built. Last full evaluation (before the 09-23 detectors): 38 detectors, 5 fail, 33 not established, 0 accepted. 1341 fixed (bridge), 1337 fixed (neighbour rule), 1287 diagnosed as transcript loss (not a detector gap), 1109 below the intentional threshold. Recall via H10/H10b. |
-| H10b Re-decode comparison | Built, controlled (C1/C2/C3) and run over 338 runs; decision rule applied unchanged (tripwire 2.20%). 99 restaged runs decoding as batch 2. **Listening queue awaits the operator.** Details and the committed rule below. |
+| H10b Re-decode comparison | Built, controlled (C1/C2/C3) and run over 338 runs; decision rule applied unchanged (tripwire 2.20%). 99 restaged runs decoding as batch 2. **Listening done 2026-09-24** (352/353 judged); results and routing below and in §4.0. Details and the committed rule below. |
 
 #### H10b, 1337 and 1287: live notes (verbatim from the 2026-09-22/23 follow-up)
 
@@ -752,6 +797,28 @@ plan's §4.0 is the corpus re-run, not the log's.
     660 s reading). These are candidate misses. The queue adds 47 windows, and every run
     gets at least one, because a small batch samples all its clean/clean candidates. The
     listening page now holds **353**, with clips cut from the restaged sources.
+  - **Listening, 2026-09-24: 352 of 353 windows judged, about 235 minutes** (one blank).
+    **Button meanings as the operator used them** (confirmed against the page's text): button 1,
+    *"Stored text is a loop / wrong; new is right"* (`stored_loop`) = stored wrong, new right;
+    button 2, *"Stored text is right (real repetition or speech)"* (`real_speech`) = new wrong,
+    stored right; *"Both wrong"* and *"Can't tell"* as labelled; *"New decode is wrong"* was not
+    used. Scored under step 7 with `real_speech` read as `new_wrong`
+    (`listening/verdicts-20260924-operator-mapping.json`, each entry keeping `as_pressed`).
+    Counts, all strata and batches together (per-stratum counts in `verdict-score.json`):
+
+    | Group | Stored wrong, new right | New wrong, stored right | Both wrong | Can't tell |
+    |---|---|---|---|---|
+    | (a) uncovered repetitive/clean | 81 | 2 | 20 | 0 |
+    | (b) clean/clean random sample | 83 | 31 | 20 | 3 |
+    | (c) clean/repetitive | 6 | 25 | 5 | 0 |
+    | (d) covered repetitive/clean | 70 | 0 | 6 | 0 |
+
+    Read per step 7, no recall stated: candidate screen misses are mostly real (81 of 103
+    judged in (a)); the screen is precise where it flags (70 of 76 in (d)); the class no
+    detector sees is common (stored text wrong in 103 of 134 judged in (b)); and the new
+    decode does regress (30 of 36 confirmed in (c), 58 windows overall), so adoption stays
+    per run. Routing per run is in §4.0, decision 2. Future listening pages ask "which text
+    matches the audio?" rather than naming a verdict.
 - **1337 follow-up, 2026-09-23.**
   - **Neighbour rule built test-first** (`2185ab734`). `adjacent_same_song` now also
     holds a song whose previous or next section is the same song with nothing between,
