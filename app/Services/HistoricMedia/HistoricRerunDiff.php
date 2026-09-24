@@ -58,6 +58,14 @@ final class HistoricRerunDiff
 
         $changes = [...$changes, ...$this->sermonChanges($before['sermon'] ?? null, $after['sermon'] ?? null)];
 
+        // A state check, not a change check: enrichment is queued rather than awaited, so
+        // this diff is where a reference that never got its passage is noticed (908–915).
+        $sermon = $after['sermon'] ?? null;
+
+        if (is_array($sermon) && filled($sermon['reference'] ?? null) && ($sermon['scripture_passage_id'] ?? null) === null) {
+            $attention[] = sprintf('sermon %d names %s but no passage is linked', $sermon['id'], $sermon['reference']);
+        }
+
         [$sectionChanges, $sectionAttention] = $this->sectionChanges(
             $this->sections($before),
             $this->sections($after),

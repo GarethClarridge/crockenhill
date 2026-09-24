@@ -8,6 +8,8 @@ use App\Enums\ContentHoldCheck;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Models\ScripturePassage;
+use App\Models\Sermon;
 use App\Services\HistoricMedia\HistoricRerunSnapshot;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
@@ -231,6 +233,37 @@ class HistoricRerunDiffCommandTest extends TestCase
             ->assertFailed();
     }
 
+    /**
+     * Enrichment is queued, not awaited, so nothing noticed when sermons 908–915 never got
+     * their passage. Every batch's diff is the reconciliation: a reference without a passage
+     * needs attention whether or not the re-run changed it.
+     */
+    #[Test]
+    public function it_needs_attention_for_a_sermon_reference_with_no_linked_passage(): void
+    {
+        $sermon = Sermon::factory()->create(['reference' => 'Titus 3:1-8', 'scripture_passage_id' => null]);
+        $run = $this->processingRun();
+        $run->update(['sermon_id' => $sermon->id]);
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json')])
+            ->expectsOutputToContain(sprintf('sermon %d names Titus 3:1-8 but no passage is linked', $sermon->id))
+            ->assertFailed();
+    }
+
+    #[Test]
+    public function it_does_not_flag_a_sermon_with_no_reference(): void
+    {
+        $sermon = Sermon::factory()->create(['reference' => null, 'scripture_passage_id' => null]);
+        $run = $this->processingRun();
+        $run->update(['sermon_id' => $sermon->id]);
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json')])
+            ->expectsOutputToContain('0 need attention')
+            ->assertSuccessful();
+    }
+
     #[Test]
     public function it_does_not_flag_a_run_that_was_already_unfinished(): void
     {
@@ -262,7 +295,9 @@ class HistoricRerunDiffCommandTest extends TestCase
 
     private function processingRun(): MediaProcessingLog
     {
+        // A linked sermon, as every historic sermon but 908–915 is; the unlinked case has its own test.
         return MediaProcessingLog::factory()->livestream()->completed()->create([
+            'sermon_id' => Sermon::factory()->create(['reference' => 'John 3:16', 'scripture_passage_id' => ScripturePassage::factory()])->id,
             'sermon_start_time' => 600.0,
             'sermon_end_time' => 2400.0,
         ]);

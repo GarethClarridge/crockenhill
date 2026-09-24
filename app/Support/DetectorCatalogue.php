@@ -1109,11 +1109,12 @@ class DetectorCatalogue
                 id: 'scripture-reference-never-linked',
                 surface: null,
                 signals: [],
-                status: DetectorStatus::Unbuilt,
+                status: DetectorStatus::FixedAtSource,
                 severity: DetectorSeverity::WrongMetadata,
                 unit: DetectorUnit::Sermon,
                 summary: 'A sermon names a passage that was never linked to a reference, so seven sermons carry a reading the site cannot resolve.',
                 regressionCases: ['sermon 908', 'sermon 909', 'sermon 910', 'sermon 912', 'sermon 913', 'sermon 914', 'sermon 915'],
+                decision: 'Fixed at source 2026-09-24. Analysis did queue enrichment for 908 (09-02 19:14), but the job left no log line and no failed job, so the cause of the loss is not established. Two changes make it unable to stay silent: the backfill takes the newest unlinked sermons first, because 689 older unresolvable references filled every limited batch; and every corpus re-run diff flags a historic sermon whose reference has no passage. Pinned by ScriptureOperatorServiceTest and HistoricRerunDiffCommandTest.',
             ),
             new DetectorEntry(
                 id: 'scripture-preached-reading-dropped-by-order-flag',

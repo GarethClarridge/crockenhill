@@ -7,6 +7,7 @@ namespace App\Services\Scripture;
 use App\Actions\QueueScriptureEnrichment;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
@@ -43,12 +44,25 @@ class ScriptureOperatorService
 
     public function countEnrichmentCandidates(int $limit = 100): int
     {
+        return $this->enrichmentCandidates()->limit($limit)->count();
+    }
+
+    /**
+     * Sermons with a reference and no linked passage, newest first.
+     *
+     * Newest first because the candidates include hundreds of old references that never
+     * resolve, and in id order they filled every limited batch: sermons 908–915 lost their
+     * queued enrichment on 2026-09-02/03 and no backfill ever reached them.
+     *
+     * @return Builder<Sermon>
+     */
+    private function enrichmentCandidates(): Builder
+    {
         return Sermon::query()
             ->whereNotNull('reference')
             ->where('reference', '!=', '')
             ->whereNull('scripture_passage_id')
-            ->limit($limit)
-            ->count();
+            ->orderByDesc('id');
     }
 
     public function countRefreshCandidates(): int
@@ -76,12 +90,7 @@ class ScriptureOperatorService
         int $delayMs = 500,
         ?callable $progress = null,
     ): array {
-        $sermons = Sermon::query()
-            ->whereNotNull('reference')
-            ->where('reference', '!=', '')
-            ->whereNull('scripture_passage_id')
-            ->limit($limit)
-            ->get();
+        $sermons = $this->enrichmentCandidates()->limit($limit)->get();
 
         $summary = $this->emptySummary();
         $stoppedEarly = false;

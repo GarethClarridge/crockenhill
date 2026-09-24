@@ -104,6 +104,35 @@ class ScriptureOperatorServiceTest extends TestCase
         $this->assertNotNull($sermon->fresh()->scripture_passage_id);
     }
 
+    /**
+     * Sermons 908–915 (2026-09-02/03) queued enrichment that never ran, and no backfill
+     * reached them: 689 older sermons with unresolvable references filled every limited
+     * batch first, so the backfill never looked past them.
+     */
+    public function test_enrichment_reaches_the_newest_unlinked_sermons_first(): void
+    {
+        $older = Sermon::factory()->create(['reference' => 'xyzzy 99:99', 'scripture_passage_id' => null]);
+        $newest = Sermon::factory()->create(['reference' => 'John 3:16', 'scripture_passage_id' => null]);
+
+        $client = $this->mockClientWithBudget();
+        $this->mockResolver(['John 3:16' => 'John 3:16', 'xyzzy 99:99' => null]);
+        $this->mockSanitizer();
+        $client->method('searchPassage')->willReturn(new ApiBiblePassageResult(
+            passageId: 'JHN.3.16',
+            displayReference: 'John 3:16',
+            htmlContent: '<p>For God so loved the world.</p>',
+            copyright: 'NIV',
+            fumsToken: 'tok',
+        ));
+        $this->app->instance(ApiBibleClient::class, $client);
+
+        $result = app(ScriptureOperatorService::class)->runEnrichment(limit: 1, delayMs: 0);
+
+        $this->assertSame([$newest->id], $result['sermons']->pluck('id')->all());
+        $this->assertNotNull($newest->fresh()->scripture_passage_id);
+        $this->assertNull($older->fresh()->scripture_passage_id);
+    }
+
     public function test_enrichment_stores_normalized_reference_when_api_display_span_differs(): void
     {
         // Real resolver: the guard must compare verse spans, not strings.
