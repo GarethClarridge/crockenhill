@@ -20,11 +20,16 @@ use App\Services\Song\SongLyricIdentityCheck;
  * {@see self::MAXIMUM_SECONDS}, and 17 share almost nothing with their bound song's lyrics. The
  * pairs a leader's announcement shares with the song's *title* are not singing, so they are set
  * aside before counting; without that, "sing our final hymn O Church Arise" (§2851) passes as
- * the hymn. The doxology cannot be caught by lyrics at all — no catalogue song contains "creatures
- * here below" — so it is caught here by what it lacks, not by what it matches.
+ * the hymn.
  *
- * `basis` tells a reviewer which it is: an `announcement` names the bound title, a `fragment`
- * does not. Sections of a minute or more, and songs with no catalogue lyrics, are not judged.
+ * The doxology (§678, §3284) is **not** caught. Its closing line is the last verse of its bound
+ * Old Hundredth, so it shares the word pairs this rule counts; whether the doxology is a
+ * catalogue item of its own is an operator decision. It stays held by the duration gate.
+ *
+ * Each finding is a boundary-evidence risk, so it holds the clip for review on its own; below
+ * 90 s the duration gate holds it too, and this adds the diagnosis. `basis` tells a reviewer
+ * which it is: an `announcement` names the bound title, a `fragment` does not. Sections of a
+ * minute or more, and songs with no catalogue lyrics, are not judged.
  */
 final class SongSectionWithoutSong
 {

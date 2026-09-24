@@ -7,6 +7,7 @@ namespace App\Services\DetectorEvaluation;
 use App\Data\ServiceStructure;
 use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\Structure\MistypedSungSections;
+use App\Services\ChurchService\Structure\SongSpeechEdges;
 use App\Services\ChurchService\Structure\SungSpanInsideSermon;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SustainedSoundSongSections;
@@ -32,10 +33,11 @@ use Throwable;
  * adjudicated boundaries and holds and leave no baseline to tell which runs came
  * back worse.
  *
- * None of that is needed, because these three flags are not the detector's.
- * {@see SustainedSoundSongSections} and {@see MistypedSungSections} run *after*
- * detection, over the structure it produced plus the RMS log and the transcript,
- * and both are pure functions of those inputs. Every eligible run has all three
+ * None of that is needed, because these flags are not the detector's.
+ * {@see SustainedSoundSongSections}, {@see SongSpeechEdges}, {@see MistypedSungSections}
+ * and {@see SungSpanInsideSermon} run *after* detection, over the structure it
+ * produced plus the RMS log and the transcript, and all are pure functions of
+ * those inputs. Every eligible run has all three
  * banked. So the flags can be re-derived exactly, with no provider call and no
  * section replaced — which is the harness's own carve-out: re-run a detector
  * class only over frozen inputs that are cheap and deterministic.
@@ -67,12 +69,14 @@ class SoundStageFlagRecompute
         ServiceStructureValidator::FLAG_UNIDENTIFIED_SINGING,
         ServiceStructureValidator::FLAG_SECTION_READS_AS_SUNG,
         ServiceStructureValidator::FLAG_SERMON_CONTAINS_SUNG_SPAN,
+        ServiceStructureValidator::FLAG_SONG_SWALLOWS_SPEECH,
     ];
 
     public function __construct(
         private readonly HistoricStagingContextRegistry $stagingContexts,
         private readonly ServiceTranscriptReader $transcripts,
         private readonly SustainedSoundSongSections $sustainedSound,
+        private readonly SongSpeechEdges $speechEdges,
         private readonly MistypedSungSections $mistypedSung,
         private readonly SungSpanInsideSermon $sungSpanInsideSermon,
     ) {}
@@ -162,9 +166,11 @@ class SoundStageFlagRecompute
 
             // Applied in the pipeline's own order: widening first, so a song
             // that grew across unsectioned singing is judged at its new edges,
-            // and the mistyped-sung pass last, so a section still typed as
-            // something else is one no song claimed.
+            // then the spoken-edge trim (or hold), and the mistyped-sung pass
+            // after, so a section still typed as something else is one no song
+            // claimed.
             $recomputed = $this->sustainedSound->apply($structure, $rms, $omitsSongs);
+            $recomputed = $this->speechEdges->apply($recomputed, $rms, $omitsSongs);
             $recomputed = $this->mistypedSung->apply($recomputed, $rms, $transcript);
             $recomputed = $this->sungSpanInsideSermon->apply($recomputed, $rms, $transcript);
 

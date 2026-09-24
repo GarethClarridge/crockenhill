@@ -1060,7 +1060,7 @@ class DetectorCatalogue
                 summary: 'A song section above the 15-second micro floor contains no song at all, so the micro-section rule cannot reach it.',
                 owningClass: SongSectionWithoutSong::class,
                 regressionCases: ['§622', '§678'],
-                decision: 'Built 2026-09-23 for announcements and fragments: under 60 s, fewer than 2 word pairs shared with the bound song beyond its title. Containment already existed: short_song_clip requires approval below 90 s, so this rule adds the diagnosis a reviewer needs (announcement or fragment), not a hold. Measured 2026-09-23: 14 of 34 judgeable short sections flagged, all already held. The doxology (§678, §3284) is a named case the rule does not catch: its closing line is the last verse of its bound Old Hundredth, and whether the doxology is a catalogue item of its own is an operator decision.',
+                decision: 'Built 2026-09-23 for announcements and fragments: under 60 s, fewer than 2 word pairs shared with the bound song beyond its title. Each finding is a boundary-evidence risk and holds the clip; below 90 s short_song_clip already required approval, so what this rule adds there is the diagnosis a reviewer needs (announcement or fragment). Measured 2026-09-23: 14 of 34 judgeable short sections flagged, all already held. The doxology (§678, §3284) is a named case the rule does not catch: its closing line is the last verse of its bound Old Hundredth, and whether the doxology is a catalogue item of its own is an operator decision.',
             ),
         ];
     }
