@@ -89,6 +89,26 @@ class SongLyricIdentityCheckTest extends TestCase
         $this->assertSame(SongLyricIdentityCheck::CONSISTENT, $result['verdict']);
     }
 
+    #[Test]
+    public function it_confirms_a_binding_only_when_the_bound_song_leads_on_enough_sung_words(): void
+    {
+        $check = new SongLyricIdentityCheck;
+
+        $sung = $check->assess($this->sungTranscript(self::BE_THOU_MY_VISION), 100.0, 300.0, $this->boundSong->id);
+        $this->assertSame($this->boundSong->id, $sung['leading_song_id']);
+        $this->assertTrue(SongLyricIdentityCheck::confirms($sung));
+
+        // Consistent is not confirmed: a rival that edges the bound song leaves the reading undecided.
+        $edged = $check->assess($this->sungTranscript(self::BE_THOU_MY_VISION.' '.self::AMAZING_GRACE.' '.self::AMAZING_GRACE), 100.0, 300.0, $this->boundSong->id);
+        $this->assertFalse(SongLyricIdentityCheck::confirms($edged));
+
+        $contradicted = $check->assess($this->sungTranscript(self::AMAZING_GRACE), 100.0, 300.0, $this->boundSong->id);
+        $this->assertFalse(SongLyricIdentityCheck::confirms($contradicted));
+
+        $tooFew = $check->assess($this->sungTranscript('Be thou my vision O Lord of my heart'), 100.0, 300.0, $this->boundSong->id);
+        $this->assertFalse(SongLyricIdentityCheck::confirms($tooFew));
+    }
+
     private function sungTranscript(string $sung): ChurchServiceTranscript
     {
         return ChurchServiceTranscript::fromCues([

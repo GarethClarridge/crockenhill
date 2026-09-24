@@ -31,7 +31,7 @@ class ContentHoldRecheckerTest extends TestCase
 
     private const PRAISE_LYRICS = 'Praise the Lord ye heavens adore him praise him angels in the height sun and moon rejoice before him praise him all ye stars of light';
 
-    private const THRONE_LYRICS = 'There is a higher throne than all this world has known where faithful ones from every tongue will one day come before the Son';
+    private const THRONE_LYRICS = 'There is a higher throne than all this world has known where faithful ones from every tongue will one day come before the Son we will stand and He will say be free indeed come join the angels in their song';
 
     protected function setUp(): void
     {
@@ -176,6 +176,70 @@ class ContentHoldRecheckerTest extends TestCase
         self::assertTrue($song->refresh()->needs_manual_review);
     }
 
+    /**
+     * A lyric comparison reads the binding as well as the transcript, so a binding
+     * decision is a change of evidence even when no repair has touched the text
+     * (1287 §3596: the sung words name #797, but its item bound no song).
+     */
+    #[Test]
+    public function a_lyric_hold_is_rechecked_when_the_binding_changes_though_the_transcript_has_not(): void
+    {
+        $throne = $this->song('There Is A Higher Throne', self::THRONE_LYRICS);
+        $praise = $this->song('Praise The Lord Ye Heavens', self::PRAISE_LYRICS);
+
+        $run = $this->runWithTranscript([['start' => 10.0, 'end' => 60.0, 'text' => self::THRONE_LYRICS]]);
+        $song = $this->section($run, ServiceSectionType::Song, 0.0, 100.0, $praise);
+        $this->hold($song, ContentHoldCheck::LyricComparison);
+
+        self::assertSame(['cleared' => 0, 'kept' => 0], app(ContentHoldRechecker::class)->recheck($run->refresh()), 'Nothing has changed since the hold.');
+
+        $song->refresh()->churchServiceItem->forceFill(['song_id' => $throne->id])->save();
+
+        self::assertSame(['cleared' => 1, 'kept' => 0], app(ContentHoldRechecker::class)->recheck($run->refresh()));
+        self::assertFalse($song->refresh()->needs_manual_review);
+    }
+
+    #[Test]
+    public function a_failed_lyric_recheck_records_the_binding_it_read(): void
+    {
+        $throne = $this->song('There Is A Higher Throne', self::THRONE_LYRICS);
+        $this->song('Praise The Lord Ye Heavens', self::PRAISE_LYRICS);
+
+        $run = $this->runWithTranscript([['start' => 10.0, 'end' => 60.0, 'text' => self::THRONE_LYRICS]]);
+        $song = $this->section($run, ServiceSectionType::Song, 0.0, 100.0);
+        $this->hold($song, ContentHoldCheck::LyricComparison);
+        $this->forgetBinding($song);
+
+        self::assertSame(['cleared' => 0, 'kept' => 1], app(ContentHoldRechecker::class)->recheck($run->refresh()), 'A record from before bindings were recorded is checked once.');
+        self::assertArrayHasKey('song_id', $this->records($song->refresh())[0]);
+        self::assertNull($this->records($song)[0]['song_id']);
+        self::assertSame(['cleared' => 0, 'kept' => 0], app(ContentHoldRechecker::class)->recheck($run->refresh()), 'Then not again until something changes.');
+
+        $song->forceFill(['church_service_item_id' => ChurchServiceItem::factory()->create(['song_id' => $throne->id])->id])->save();
+
+        self::assertSame(['cleared' => 1, 'kept' => 0], app(ContentHoldRechecker::class)->recheck($run->refresh()));
+    }
+
+    /**
+     * The hold was raised by the census lyric scorer, so it clears only on that
+     * scorer's positive reading of the bound song — not on a reading it cannot decide.
+     */
+    #[Test]
+    public function a_lyric_hold_does_not_clear_on_an_undecided_reading(): void
+    {
+        $throne = $this->song('There Is A Higher Throne', self::THRONE_LYRICS);
+        $this->song('Praise The Lord Ye Heavens', self::PRAISE_LYRICS);
+
+        $run = $this->runWithTranscript([['start' => 10.0, 'end' => 60.0, 'text' => self::PRAISE_LYRICS]]);
+        $song = $this->section($run, ServiceSectionType::Song, 0.0, 100.0, $throne);
+        $this->hold($song, ContentHoldCheck::LyricComparison);
+
+        $this->rewriteTranscript($run, [['start' => 10.0, 'end' => 60.0, 'text' => 'There is a higher throne and we lift our hands and we give thanks this morning for the good news of the gospel']]);
+
+        self::assertSame(['cleared' => 0, 'kept' => 1], app(ContentHoldRechecker::class)->recheck($run->refresh()));
+        self::assertTrue($song->refresh()->needs_manual_review);
+    }
+
     #[Test]
     public function an_unreadable_transcript_keeps_every_hold(): void
     {
@@ -274,6 +338,16 @@ class ContentHoldRecheckerTest extends TestCase
     private function hold(ServiceSection $section, ContentHoldCheck $foundBy): void
     {
         app(HoldSectionForContentReview::class)($section->refresh(), 'Found by '.$foundBy->value, 'census register', $foundBy);
+    }
+
+    /**
+     * As a record raised before holds recorded their binding.
+     */
+    private function forgetBinding(ServiceSection $section): void
+    {
+        $metadata = $section->refresh()->metadata?->toArray() ?? [];
+        unset($metadata[HoldSectionForContentReview::METADATA_KEY][0]['song_id']);
+        $section->forceFill(['metadata' => $metadata])->save();
     }
 
     /**

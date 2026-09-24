@@ -29,7 +29,7 @@ class HoldSectionContentCommand extends Command
         {--section=* : Service section IDs to hold}
         {--reason= : Why the content cannot be accepted as it stands}
         {--evidence= : Where the proof is recorded, such as a register, file or plan section}
-        {--found-by= : The check that found the defect: loop_screen, lyric_comparison, source_audio, media_measurement, boundary, judgement or decision}
+        {--found-by= : The check that found the defect: loop_screen (only a loop the repetition screen itself flags; it re-tests and may clear it), lyric_comparison, source_audio, media_measurement, boundary, judgement or decision}
         {--execute : Record the holds; without this option the command is a dry run}';
 
     protected $description = 'Hold named sermon, children\'s talk or song sections whose content is proven wrong';

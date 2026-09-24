@@ -48,12 +48,16 @@ class BackfillContentHoldChecksCommandTest extends TestCase
     {
         $run = $this->processingRun();
         $sections = [
-            'loop_screen' => $this->heldSection($run, ['reason' => 'short_transcript_loop_source_mismatch']),
+            'loop_screen' => $this->heldSection($run, ['reason' => "Transcript is at least half repetition blocks whose looped phrases appear nowhere in the bound song's lyrics"]),
             'lyric_comparison' => $this->heldSection($run, ['reason' => 'Wrong song: fresh audio inside the section sings Praise the Lord You Heavens (#797)']),
             'decision' => $this->heldSection($run, ['reason' => 'Duplicate-performance identity unresolved: a paired run claims the same sermon']),
             'judgement' => $this->heldSection($run, ['reason' => 'held_sample_semantic_substitution_and_short_loop']),
             'media_measurement' => $this->heldSection($run, ['reason' => 'Sermon MP3 ends 3-9 s before its video and loses the closing words']),
             'source_audio' => $this->heldSection($run, ['reason' => 'reserved_fragmentation_source_mismatch']),
+            // Below the repetition screen's floors, confirmed against the source: the screen cannot re-test them.
+            'source_audio ' => $this->heldSection($run, ['reason' => 'short_transcript_loop_source_mismatch']),
+            'source_audio  ' => $this->heldSection($run, ['reason' => 'Saved sermon text repeats a loop the delivered audio does not contain (P8-Q14 short loop, audio-confirmed)']),
+            'source_audio   ' => $this->heldSection($run, ['reason' => 'Saved sermon text lost a passage to a sparse 30-second-cadence ASR hallucination the repetition and density screens cannot see']),
             'boundary' => $this->heldSection($run, ['reason' => 'Song clip leaves out verses of its own song']),
         ];
 
@@ -62,9 +66,59 @@ class BackfillContentHoldChecksCommandTest extends TestCase
         foreach ($sections as $check => $section) {
             $record = $this->records($section)[0];
 
-            self::assertSame($check, $record['found_by'] ?? null, "Section {$section->id}");
+            self::assertSame(trim($check), $record['found_by'] ?? null, "Section {$section->id}");
+            self::assertTrue($record['found_by_inferred'] ?? false, 'Read from its reason, so a later run may correct it.');
             self::assertEquals((float) $section->start_time, $record['start_time'] ?? null);
         }
+    }
+
+    /**
+     * The first backfill read short loops as loop-screen holds, which the screen then
+     * "cleared" on any rewrite though it cannot see them. Re-running corrects every
+     * record whose check was inferred, and revokes a clearance the new check could not
+     * have made.
+     */
+    #[Test]
+    public function it_corrects_an_inferred_check_and_revokes_a_clearance_it_could_not_make(): void
+    {
+        $run = $this->processingRun();
+        $inferred = ['reason' => 'short_transcript_loop_source_mismatch', 'found_by' => 'loop_screen', 'transcript_sha256' => 'x'];
+        $open = $this->heldSection($run, $inferred);
+        $cleared = $this->heldSection($run, [
+            ...$inferred,
+            'cleared_at' => '2026-09-23T18:48:53+00:00',
+            'cleared_by' => 'loop_screen',
+            'cleared_reason' => 'The repetition screen finds no loop inside the section in the rewritten transcript.',
+        ]);
+        $cleared->forceFill(['needs_manual_review' => false, 'metadata' => [...$cleared->metadata->toArray(), 'review_flags' => []]])->save();
+
+        $this->artisan('service:backfill-content-hold-checks', ['--execute' => true])
+            ->expectsOutputToContain('Corrected checks: 2 (1 clearance revoked)')
+            ->assertSuccessful();
+
+        self::assertSame('source_audio', $this->records($open)[0]['found_by'] ?? null);
+
+        $record = $this->records($cleared)[0];
+        self::assertSame('source_audio', $record['found_by'] ?? null);
+        self::assertTrue(HoldSectionForContentReview::isLive($record));
+        self::assertNotEmpty($record['clearance_revoked_at'] ?? null);
+        self::assertTrue($cleared->refresh()->needs_manual_review);
+        self::assertContains(HoldSectionForContentReview::FLAG, $cleared->metadata?->toArray()['review_flags'] ?? []);
+    }
+
+    #[Test]
+    public function a_check_named_when_the_hold_was_raised_is_never_reinferred(): void
+    {
+        $section = $this->heldSection($this->processingRun(), [
+            'reason' => 'short_transcript_loop_source_mismatch',
+            'found_by' => 'loop_screen',
+            'held_at' => '2026-09-24T10:00:00+00:00',
+            'transcript_sha256' => 'x',
+        ]);
+
+        $this->artisan('service:backfill-content-hold-checks', ['--execute' => true])->assertSuccessful();
+
+        self::assertSame('loop_screen', $this->records($section)[0]['found_by'] ?? null);
     }
 
     #[Test]

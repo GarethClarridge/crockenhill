@@ -11,7 +11,7 @@ use App\Enums\ContentHoldCheck;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\Media\Audio\ServiceTranscriptRepetitionScreen;
-use App\Services\Song\SongLyricsMatchingService;
+use App\Services\Song\SongLyricIdentityCheck;
 use App\Support\SectionReviewFlagPolicy;
 use Carbon\CarbonImmutable;
 
@@ -24,19 +24,27 @@ use Carbon\CarbonImmutable;
  * re-test it; leaving every one for a person to clear left 1287's two "wrong song"
  * holds standing on content its re-transcription had already repaired.
  *
- * **Only after a repair.** A record is re-checked only when the transcript its
- * check read has been rewritten since — its `transcript_sha256` differs from the
- * stored transcript's, or is {@see self::SUPERSEDED}. A record with no fingerprint
- * was found on a transcript nobody could read, so whether it has been repaired is
- * unknown and it is left for a person. Many holds were raised by census screens that saw more than
- * the code check does (a listened adjudication, a lower threshold), so re-running
- * the code check over the same evidence would release defects nobody repaired. A
- * failed re-check records the fingerprint it read, so it is not repeated until the
- * next repair.
+ * **Only when the evidence changes.** A record is re-checked only when the transcript
+ * its check read has been rewritten since — its `transcript_sha256` differs from the
+ * stored transcript's, or is {@see self::SUPERSEDED} — or, for a lyric comparison, when
+ * the section is now bound to a different song. A record with no fingerprint was found
+ * on a transcript nobody could read, so whether it has been repaired is unknown and it
+ * is left for a person. A failed re-check records the fingerprint and binding it read,
+ * so it is not repeated until one of them changes.
+ *
+ * **Never weaker than what raised it.** Clearing re-runs the code check, so a hold is
+ * recheckable only when that check is at least as strict as whatever found it. Short
+ * loops and cadence hallucinations sit below the repetition screen's floors and were
+ * confirmed against the source audio, so they are {@see ContentHoldCheck::SourceAudio},
+ * not {@see ContentHoldCheck::LoopScreen}. A loop hold clears only when the screen finds
+ * no block in the section at all, where the song-loop census needed half of it; a lyric
+ * hold clears only on {@see SongLyricIdentityCheck::confirms()}, the census scorer's
+ * positive reading of the bound song.
  *
  * Only {@see ContentHoldCheck::isRecheckable()} checks run. Decisions and
  * judgements stay live until someone re-decides them, and the section stays held
- * while any record does.
+ * while any record does. It runs after structure detection and again after song
+ * matching, so a lyric comparison reads the run's settled bindings.
  */
 class ContentHoldRechecker
 {
@@ -45,7 +53,7 @@ class ContentHoldRechecker
 
     public function __construct(
         private readonly ServiceTranscriptRepetitionScreen $repetitionScreen,
-        private readonly SongLyricsMatchingService $lyricsMatcher,
+        private readonly SongLyricIdentityCheck $lyricIdentity,
     ) {}
 
     /**
@@ -97,8 +105,7 @@ class ContentHoldRechecker
             if (! HoldSectionForContentReview::isLive($record)
                 || $check === null
                 || ! $check->isRecheckable()
-                || ! is_string($record['transcript_sha256'] ?? null)
-                || $record['transcript_sha256'] === $fingerprint) {
+                || ! $this->evidenceChanged($record, $check, $section, $fingerprint)) {
                 continue;
             }
 
@@ -111,7 +118,13 @@ class ContentHoldRechecker
                 continue;
             }
 
-            $records[$index] = [...$record, 'rechecked_at' => $now, 'recheck_result' => $detail, 'transcript_sha256' => $fingerprint];
+            $records[$index] = [
+                ...$record,
+                'rechecked_at' => $now,
+                'recheck_result' => $detail,
+                'transcript_sha256' => $fingerprint,
+                'song_id' => $section->resolvedSongId(),
+            ];
             $outcome['kept']++;
         }
 
@@ -136,6 +149,31 @@ class ContentHoldRechecker
         $section->save();
 
         return $outcome;
+    }
+
+    /**
+     * Whether the evidence the check reads has changed since the record last read it.
+     *
+     * A record with no fingerprint was found on a transcript nobody could read, so
+     * whether it has been repaired is unknown and it waits for a person. Otherwise the
+     * transcript being rewritten is a change. A lyric comparison also reads the song
+     * the section is bound to, so a binding decision is a change too; a record from
+     * before bindings were recorded has not read one, and is checked once.
+     *
+     * @param  array<string, mixed>  $record
+     */
+    private function evidenceChanged(array $record, ContentHoldCheck $check, ServiceSection $section, string $fingerprint): bool
+    {
+        if (! is_string($record['transcript_sha256'] ?? null)) {
+            return false;
+        }
+
+        if ($record['transcript_sha256'] !== $fingerprint) {
+            return true;
+        }
+
+        return $check === ContentHoldCheck::LyricComparison
+            && (! array_key_exists('song_id', $record) || $record['song_id'] !== $section->resolvedSongId());
     }
 
     /**
@@ -170,7 +208,12 @@ class ContentHoldRechecker
     }
 
     /**
-     * The section's sung words, matched against the catalogue, name its bound song.
+     * The section's sung words positively name its bound song, read by the scorer that
+     * raised the lyric holds ({@see SongLyricIdentityCheck}, the ported 09-14 census rule).
+     *
+     * It clears on {@see SongLyricIdentityCheck::confirms()}, never on the absence of a
+     * contradiction: Whisper drops much singing, and a reading too thin to contradict the
+     * binding is too thin to vouch for it.
      *
      * @return array{0: bool, 1: string}
      */
@@ -182,18 +225,17 @@ class ContentHoldRechecker
             return [false, 'The section is bound to no song, so its lyrics have nothing to agree with.'];
         }
 
-        $match = $this->lyricsMatcher->matchFromLyrics(
-            $transcript->sliceText((float) $section->start_time, (float) $section->end_time),
-            allowFirstLineKeyMatch: false,
-        );
+        $assessment = $this->lyricIdentity->assess($transcript, (float) $section->start_time, (float) $section->end_time, $boundSongId);
 
-        if ($match['song_id'] === $boundSongId) {
-            return [true, sprintf('The sung words now match the bound song (#%d) at %.2f.', $boundSongId, $match['confidence'])];
+        if (SongLyricIdentityCheck::confirms($assessment)) {
+            return [true, sprintf('The sung words now name the bound song (#%d) with %d shared word pairs.', $boundSongId, $assessment['bound_score']['word_pairs'])];
         }
 
-        return [false, $match['song_id'] === null
-            ? 'The sung words match no catalogue song.'
-            : sprintf('The sung words still match song #%d, not the bound #%d.', $match['song_id'], $boundSongId)];
+        return [false, match (true) {
+            $assessment['verdict'] === SongLyricIdentityCheck::CONTRADICTED => sprintf('The sung words still name song #%d, not the bound #%d.', (int) $assessment['rival_song_id'], $boundSongId),
+            $assessment['verdict'] === SongLyricIdentityCheck::INSUFFICIENT_WORDS => sprintf('The transcript heard %d distinct sung words, too few to name any song.', $assessment['words']),
+            default => sprintf('The sung words do not clearly name the bound song #%d (%d shared word pairs).', $boundSongId, $assessment['bound_score']['word_pairs']),
+        }];
     }
 
     private function decode(string $contents): ?ChurchServiceTranscript

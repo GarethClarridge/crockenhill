@@ -9,9 +9,11 @@ use App\Actions\ServiceReview\ConfirmServiceSection;
 use App\Enums\ContentHoldCheck;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
+use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
+use App\Models\Song;
 use App\Models\SongVideo;
 use App\Models\User;
 use App\Services\ChurchService\SectionReviewFlagRecalculator;
@@ -96,6 +98,77 @@ class HoldSectionForContentReviewTest extends TestCase
 
         self::assertSame(['structure_missing_preached_reading', HoldSectionForContentReview::FLAG], $metadata['review_flags']);
         self::assertCount(1, $metadata[HoldSectionForContentReview::METADATA_KEY]);
+    }
+
+    /**
+     * A re-check cleared the record; a person then found the defect still there. The
+     * revived record must carry the evidence it was re-found on, or the next re-check
+     * would compare against the stale fingerprint and clear it again.
+     */
+    #[Test]
+    public function re_raising_a_cleared_record_revives_it_on_the_current_evidence(): void
+    {
+        $run = $this->runWithTranscript('{"cues":[]}');
+        $section = $this->section(ServiceSectionType::Sermon, run: $run);
+        $hold = app(HoldSectionForContentReview::class);
+
+        $hold($section, self::REASON, self::EVIDENCE, ContentHoldCheck::LoopScreen);
+        $this->clearRecord($section, 0, transcriptSha256: 'fingerprint-of-an-older-transcript');
+
+        self::assertTrue($hold($section->refresh(), self::REASON, self::EVIDENCE, ContentHoldCheck::SourceAudio));
+
+        $section->refresh();
+        $records = $section->metadata?->toArray()[HoldSectionForContentReview::METADATA_KEY] ?? [];
+
+        self::assertCount(1, $records);
+        self::assertTrue(HoldSectionForContentReview::isLive($records[0]));
+        self::assertSame('source_audio', $records[0]['found_by'] ?? null);
+        self::assertSame(hash('sha256', '{"cues":[]}'), $records[0]['transcript_sha256'] ?? null);
+        self::assertArrayNotHasKey('rechecked_at', $records[0]);
+        self::assertNotEmpty($records[0]['reraised_at'] ?? null);
+        self::assertTrue($section->needs_manual_review);
+    }
+
+    #[Test]
+    public function re_raising_a_cleared_record_revives_it_while_another_record_keeps_the_section_held(): void
+    {
+        $section = $this->section(ServiceSectionType::Sermon);
+        $hold = app(HoldSectionForContentReview::class);
+
+        $hold($section, self::REASON, self::EVIDENCE, ContentHoldCheck::LoopScreen);
+        $hold($section->refresh(), 'Duplicate-performance identity unresolved', 'plan §4.4', ContentHoldCheck::Decision);
+        $this->clearRecord($section, 0);
+
+        self::assertTrue($hold($section->refresh(), self::REASON, self::EVIDENCE, ContentHoldCheck::LoopScreen));
+
+        $records = $section->refresh()->metadata?->toArray()[HoldSectionForContentReview::METADATA_KEY] ?? [];
+
+        self::assertTrue(HoldSectionForContentReview::isLive($records[0]), 'The re-raised record is live again.');
+        self::assertTrue(HoldSectionForContentReview::isLive($records[1]));
+    }
+
+    #[Test]
+    public function it_records_the_song_the_section_was_bound_to(): void
+    {
+        $song = Song::factory()->create();
+        $section = $this->section(ServiceSectionType::Song);
+        $section->forceFill(['church_service_item_id' => ChurchServiceItem::factory()->create(['song_id' => $song->id])->id])->save();
+
+        app(HoldSectionForContentReview::class)($section->refresh(), self::REASON, self::EVIDENCE, ContentHoldCheck::LyricComparison);
+
+        self::assertSame($song->id, $section->refresh()->metadata?->toArray()[HoldSectionForContentReview::METADATA_KEY][0]['song_id'] ?? null);
+    }
+
+    #[Test]
+    public function carrying_a_hold_onto_a_section_that_cannot_hold_is_refused(): void
+    {
+        $from = $this->section(ServiceSectionType::Sermon);
+        app(HoldSectionForContentReview::class)($from, self::REASON, self::EVIDENCE, ContentHoldCheck::Judgement);
+        $to = $this->section(ServiceSectionType::BibleReading);
+
+        $this->expectException(InvalidArgumentException::class);
+
+        app(HoldSectionForContentReview::class)->carry($from->refresh(), $to);
     }
 
     #[Test]
@@ -222,6 +295,35 @@ class HoldSectionForContentReviewTest extends TestCase
             'needs_manual_review' => false,
             'metadata' => ['review_flags' => $flags],
         ]);
+    }
+
+    private function runWithTranscript(string $contents): MediaProcessingLog
+    {
+        Storage::fake('local');
+        config()->set('media-processing.storage.transcript_disk', 'local');
+        Storage::disk('local')->put('service-transcripts/run.json', $contents);
+
+        return MediaProcessingLog::factory()->livestream()->completed()->create([
+            'processing_metadata' => ['service_transcript_path' => 'service-transcripts/run.json'],
+        ]);
+    }
+
+    /**
+     * Stamp a record as cleared by its check, as {@see \App\Services\ChurchService\ContentHoldRechecker} does.
+     */
+    private function clearRecord(ServiceSection $section, int $index, ?string $transcriptSha256 = null): void
+    {
+        $metadata = $section->refresh()->metadata?->toArray() ?? [];
+        $record = $metadata[HoldSectionForContentReview::METADATA_KEY][$index];
+        $metadata[HoldSectionForContentReview::METADATA_KEY][$index] = [
+            ...$record,
+            'cleared_at' => now()->toIso8601String(),
+            'cleared_by' => 'loop_screen',
+            'cleared_reason' => 'The repetition screen finds no loop.',
+            'rechecked_at' => now()->toIso8601String(),
+            'transcript_sha256' => $transcriptSha256 ?? ($record['transcript_sha256'] ?? null),
+        ];
+        $section->forceFill(['metadata' => $metadata])->save();
     }
 
     private function spokenUnmatchedSong(): ServiceSection

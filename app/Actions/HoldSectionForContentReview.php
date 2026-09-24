@@ -104,6 +104,12 @@ class HoldSectionForContentReview
             return;
         }
 
+        if (! self::canHold($to)) {
+            throw new InvalidArgumentException(
+                "Section {$to->id} is a {$to->section_type->value}; the release gate does not refuse on a hold there, so section {$from->id}'s hold cannot move onto it.",
+            );
+        }
+
         $target = $to->metadata?->toArray() ?? [];
         $targetFlags = self::reviewFlagsIn($target);
 
@@ -191,20 +197,28 @@ class HoldSectionForContentReview
         $flags = self::reviewFlagsIn($metadata);
         $holds = self::holdsIn($metadata);
 
-        $alreadyRecorded = array_filter(
-            $holds,
-            static fn (array $hold): bool => ($hold['reason'] ?? null) === $reason
-                && ($hold['evidence'] ?? null) === $evidence,
-        ) !== [];
+        $claims = static fn (array $hold): bool => ($hold['reason'] ?? null) === $reason
+            && ($hold['evidence'] ?? null) === $evidence;
+        $recorded = array_filter($holds, $claims);
 
-        if ($alreadyRecorded && self::isHeld($flags) && $section->needs_manual_review) {
+        if ($recorded !== [] && array_filter($recorded, self::isLive(...)) !== [] && self::isHeld($flags) && $section->needs_manual_review) {
             return false;
         }
 
-        if ($alreadyRecorded) {
+        if ($recorded !== []) {
+            /*
+             * Re-raised after a check cleared it or an operator released it: someone has
+             * found the defect again, on the content as it is now. The record takes that
+             * evidence, or the next re-check would compare the stale fingerprint, re-run
+             * over the same transcript and clear it again.
+             */
             $holds = array_map(
-                static fn (array $hold): array => ($hold['reason'] ?? null) === $reason && ($hold['evidence'] ?? null) === $evidence
-                    ? array_diff_key($hold, array_flip(['cleared_at', 'cleared_by', 'cleared_reason', 'released_at']))
+                fn (array $hold): array => $claims($hold) && ! self::isLive($hold)
+                    ? [
+                        ...array_diff_key($hold, array_flip(['cleared_at', 'cleared_by', 'cleared_reason', 'released_at', 'rechecked_at', 'recheck_result'])),
+                        ...$this->foundOn($section, $foundBy),
+                        'reraised_at' => now()->toIso8601String(),
+                    ]
                     : $hold,
                 $holds,
             );
@@ -213,11 +227,7 @@ class HoldSectionForContentReview
                 'reason' => $reason,
                 'evidence' => $evidence,
                 'held_at' => now()->toIso8601String(),
-                'found_by' => $foundBy->value,
-                'start_time' => (float) $section->start_time,
-                'end_time' => (float) $section->end_time,
-                'church_service_item_id' => $section->church_service_item_id,
-                'transcript_sha256' => $section->processingLog->serviceTranscriptSha256(),
+                ...$this->foundOn($section, $foundBy),
             ];
         }
 
@@ -227,6 +237,24 @@ class HoldSectionForContentReview
         $this->persist($section, $metadata);
 
         return true;
+    }
+
+    /**
+     * What found a hold and the content it was found on: the evidence a re-check
+     * compares against to tell whether anything has changed since.
+     *
+     * @return array{found_by: string, start_time: float, end_time: float, church_service_item_id: int|null, song_id: int|null, transcript_sha256: string|null}
+     */
+    private function foundOn(ServiceSection $section, ContentHoldCheck $foundBy): array
+    {
+        return [
+            'found_by' => $foundBy->value,
+            'start_time' => (float) $section->start_time,
+            'end_time' => (float) $section->end_time,
+            'church_service_item_id' => $section->church_service_item_id,
+            'song_id' => $section->resolvedSongId(),
+            'transcript_sha256' => $section->processingLog->serviceTranscriptSha256(),
+        ];
     }
 
     /**

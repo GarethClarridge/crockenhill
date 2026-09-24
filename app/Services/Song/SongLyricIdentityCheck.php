@@ -61,7 +61,9 @@ final class SongLyricIdentityCheck
      *     bound_score: array{coverage: float, word_pairs: int},
      *     rival_song_id: int|null,
      *     rival_title: string|null,
-     *     rival_score: array{coverage: float, word_pairs: int}|null
+     *     rival_score: array{coverage: float, word_pairs: int}|null,
+     *     leading_song_id: int|null,
+     *     leading_score: array{coverage: float, word_pairs: int}|null
      * }
      */
     public function assess(ChurchServiceTranscript $transcript, float $start, float $end, int $boundSongId): array
@@ -98,6 +100,8 @@ final class SongLyricIdentityCheck
             'rival_song_id' => null,
             'rival_title' => null,
             'rival_score' => null,
+            'leading_song_id' => null,
+            'leading_score' => null,
         ];
 
         if (count($distinct) < self::MINIMUM_DISTINCT_WORDS) {
@@ -117,6 +121,8 @@ final class SongLyricIdentityCheck
             }
         }
 
+        $result = ['leading_song_id' => $topId, 'leading_score' => $topScore] + $result;
+
         if ($topId === null || $topId === $boundSongId
             || $topScore['word_pairs'] < self::MINIMUM_RIVAL_WORD_PAIRS
             || $topScore['word_pairs'] < 2 * max($boundScore['word_pairs'], 1)
@@ -130,6 +136,29 @@ final class SongLyricIdentityCheck
             'rival_title' => $catalogue['titles'][$topId],
             'rival_score' => $topScore,
         ] + $result;
+    }
+
+    /**
+     * Whether the sung words positively name the bound song: no song in the catalogue
+     * scores above it, and it shares at least {@see self::MINIMUM_RIVAL_WORD_PAIRS} word
+     * pairs — the bar a rival has to clear to contradict a binding.
+     *
+     * The converse of {@see self::assess()}'s contradiction, and deliberately harder to
+     * reach: a hold this scorer raised clears only on this, never on a merely
+     * undecided reading, because Whisper drops much singing.
+     *
+     * @param  array<string, mixed>  $assessment  A result of {@see self::assess()}
+     */
+    public static function confirms(array $assessment): bool
+    {
+        $bound = $assessment['bound_score'] ?? null;
+        $leading = $assessment['leading_score'] ?? null;
+
+        return ($assessment['verdict'] ?? null) === self::CONSISTENT
+            && is_array($bound) && is_array($leading)
+            && $bound['word_pairs'] >= self::MINIMUM_RIVAL_WORD_PAIRS
+            && $bound['word_pairs'] === $leading['word_pairs']
+            && $bound['coverage'] >= $leading['coverage'];
     }
 
     private function sungText(ChurchServiceTranscript $transcript, float $start, float $end): string
