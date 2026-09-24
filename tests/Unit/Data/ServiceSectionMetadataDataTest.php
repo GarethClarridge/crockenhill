@@ -292,4 +292,16 @@ class ServiceSectionMetadataDataTest extends TestCase
         $this->assertArrayNotHasKey('expected_item_id', $arr);
         $this->assertSame(0.99, $arr['song_match_score']);
     }
+
+    /**
+     * Detection writes `talk_type: null` for every non-talk section so a re-run
+     * clears an old proposal; the null itself is not worth storing.
+     */
+    #[Test]
+    public function a_null_talk_type_is_not_stored(): void
+    {
+        $arr = ServiceSectionMetadata::fromArray(['summary' => 'A prayer.', 'talk_type' => null])->toArray();
+
+        $this->assertArrayNotHasKey('talk_type', $arr);
+    }
 }

@@ -27,6 +27,12 @@ class ServiceReviewDashboardQuery
 {
     private const LAZY_CHUNK_SIZE = 100;
 
+    /** @var list<ServiceSectionPublicationStatus> */
+    private const array TalkTypeSettledStatuses = [
+        ServiceSectionPublicationStatus::Published,
+        ServiceSectionPublicationStatus::Rejected,
+    ];
+
     /** @var array<string, ChurchService|null> */
     private array $serviceKeyLookupCache = [];
 
@@ -358,7 +364,7 @@ class ServiceReviewDashboardQuery
             ];
         }
 
-        if (! $section->hasResolvedTalkType()) {
+        if ($this->needsTalkTypeReview($section)) {
             $reasons[] = [
                 'key' => 'talk_type_review',
                 'label' => 'Talk type review',
@@ -677,7 +683,11 @@ class ServiceReviewDashboardQuery
                     })
                     ->orWhere(function (Builder $query): void {
                         $query->where('section_type', ServiceSectionType::ShortTalk->value)
-                            ->whereNull('metadata->talk_type->reviewed');
+                            ->whereNull('metadata->talk_type->reviewed')
+                            ->whereNotIn('publication_status', array_map(
+                                static fn (ServiceSectionPublicationStatus $status): string => $status->value,
+                                self::TalkTypeSettledStatuses,
+                            ));
                     })
                     ->when($this->hasActiveSpeakerProfiles(), function (Builder $query): void {
                         $query->orWhere(function (Builder $query): void {
@@ -705,6 +715,17 @@ class ServiceReviewDashboardQuery
                             });
                     });
             });
+    }
+
+    /**
+     * An unconfirmed talk type needs a person only while the talk can still be
+     * approved; a published or rejected talk is past that point (mirrors the
+     * candidate query).
+     */
+    private function needsTalkTypeReview(ServiceSection $section): bool
+    {
+        return ! $section->hasResolvedTalkType()
+            && ! in_array($section->publication_status, self::TalkTypeSettledStatuses, true);
     }
 
     private function hasManualConfirmation(ServiceSection $section): bool

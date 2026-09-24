@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Database;
 
+use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 use App\Models\ServiceSection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -112,6 +114,81 @@ class ShortTalkSectionMigrationTest extends TestCase
         $this->assertSame($renamed->refresh()->classificationSignature(), $renamedMetadata['publication_candidate_extraction']['classification_signature']);
         $this->assertSame($renamed->classificationSignature(), $renamedMetadata['publication']['approved_signature']);
         $this->assertSame('moved-boundary', $this->rawMetadata($reallyStale)['publication_candidate_extraction']['classification_signature']);
+    }
+
+    #[Test]
+    public function the_media_stamp_conversion_keeps_every_candidate_whose_cut_is_unchanged(): void
+    {
+        $reviewedSpeaker = ['reviewed' => ['preacher_id' => null, 'preacher_name' => 'Jane Doe', 'source' => 'manual']];
+
+        $stampedBeforeSpeakerReview = ServiceSection::factory()->create(['section_type' => ServiceSectionType::ShortTalk->value]);
+        $payload = $stampedBeforeSpeakerReview->classificationSignaturePayload();
+        $payload['publication_speaker'] = null;
+        $this->putMetadata($stampedBeforeSpeakerReview, [
+            'talk_speaker' => $reviewedSpeaker,
+            'publication_candidate_extraction' => ['processing_id' => 'p1', 'classification_signature' => hash('sha256', (string) json_encode($payload))],
+        ]);
+
+        $song = ServiceSection::factory()->create(['section_type' => ServiceSectionType::Song->value]);
+        $this->putMetadata($song, [
+            'publication_candidate_extraction' => ['processing_id' => 'p2', 'classification_signature' => $song->classificationSignature()],
+        ]);
+
+        $movedBoundary = ServiceSection::factory()->create(['section_type' => ServiceSectionType::Song->value]);
+        $this->putMetadata($movedBoundary, [
+            'publication_candidate_extraction' => ['processing_id' => 'p3', 'classification_signature' => 'moved-boundary'],
+        ]);
+
+        (require $this->migrationPath('stamp_candidate_media_signatures'))->up();
+
+        $converted = $this->rawMetadata($stampedBeforeSpeakerReview)['publication_candidate_extraction'];
+        $this->assertSame(['processing_id' => 'p1', 'media_signature' => $stampedBeforeSpeakerReview->refresh()->mediaSignature()], $converted);
+        $this->assertSame($song->refresh()->mediaSignature(), $this->rawMetadata($song)['publication_candidate_extraction']['media_signature']);
+        $this->assertSame(
+            ['processing_id' => 'p3', 'classification_signature' => 'moved-boundary'],
+            $this->rawMetadata($movedBoundary)['publication_candidate_extraction'],
+        );
+    }
+
+    #[Test]
+    public function approved_and_published_short_talks_keep_the_childrens_talk_type_they_were_approved_as(): void
+    {
+        $approved = ServiceSection::factory()->create([
+            'section_type' => ServiceSectionType::ShortTalk->value,
+            'publication_status' => ServiceSectionPublicationStatus::Approved->value,
+        ]);
+        $this->putMetadata($approved, [
+            'talk_type' => ['proposed' => 'childrens_talk'],
+            'publication' => ['approved_signature' => $approved->classificationSignature(), 'approved_at' => '2026-09-01T10:00:00+00:00'],
+        ]);
+        $published = ServiceSection::factory()->create([
+            'section_type' => ServiceSectionType::ShortTalk->value,
+            'publication_status' => ServiceSectionPublicationStatus::Published->value,
+        ]);
+        $this->putMetadata($published, ['talk_type' => ['proposed' => 'childrens_talk']]);
+        $pending = ServiceSection::factory()->create([
+            'section_type' => ServiceSectionType::ShortTalk->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
+        ]);
+        $this->putMetadata($pending, ['talk_type' => ['proposed' => 'childrens_talk']]);
+
+        (require $this->migrationPath('confirm_talk_type_of_approved_short_talks'))->up();
+
+        $approved->refresh();
+        $this->assertSame(TalkType::ChildrensTalk, $approved->publicationTalkType());
+        $this->assertNull($this->rawMetadata($approved)['talk_type']['reviewed']['user_id']);
+        $this->assertSame('2026-09-01T10:00:00+00:00', $this->rawMetadata($approved)['talk_type']['reviewed']['at']);
+        $this->assertSame($approved->classificationSignature(), $this->rawMetadata($approved)['publication']['approved_signature']);
+        $this->assertSame(TalkType::ChildrensTalk, $published->refresh()->publicationTalkType());
+        $this->assertNull($pending->refresh()->publicationTalkType());
+    }
+
+    private function migrationPath(string $name): string
+    {
+        $paths = glob(database_path("migrations/*_{$name}.php")) ?: [];
+        $this->assertCount(1, $paths);
+
+        return $paths[0];
     }
 
     /**

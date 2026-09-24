@@ -445,7 +445,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
                 [
                     'publication_candidate_extraction' => [
                         'processing_id' => $this->processingLog->processing_id,
-                        'classification_signature' => $section->classificationSignature(),
+                        'media_signature' => $section->mediaSignature(),
                         'extracted_at' => now()->toIso8601String(),
                     ],
                 ]
@@ -505,7 +505,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         }
 
         return ($provenance['processing_id'] ?? null) === $this->processingLog->processing_id
-            && ($provenance['classification_signature'] ?? null) === $section->classificationSignature();
+            && ($provenance['media_signature'] ?? null) === $section->mediaSignature();
     }
 
     protected function onJobFailure(\Throwable $exception): void

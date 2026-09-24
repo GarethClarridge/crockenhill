@@ -62,9 +62,11 @@ class SermonCreationService
      * - **Reject**: Refuse to downgrade (e.g., uploading audio for a sermon that
      *   already has video).
      *
-     * Match criteria for existing records: a section-published talk is its
-     * section's `published_sermon_id`; otherwise (date, service, content_type),
-     * never claiming a talk another section already published.
+     * Match criteria for existing records: a section-published talk is the talk
+     * its section published (`published_sermon_id`, or the id a classification
+     * refresh recorded when it superseded the section), and takes the section's
+     * reviewed type; otherwise (date, service, content_type), never claiming a
+     * talk another section already published.
      *
      * @param  MediaProcessingLog  $processingLog  The log of the current processing run
      * @param  SermonCreationOptions  $options  Consolidated options and metadata for creation
@@ -80,7 +82,8 @@ class SermonCreationService
         $sermonDate = $options->date ?? $this->extractDate($processingLog, $options->originalFilename);
         $service = $options->service ?? $this->extractServiceType($processingLog, $options->originalFilename);
 
-        $existing = $this->findExisting($sermonDate, $service, $options);
+        $existing = $this->findSectionTalk($options)
+            ?? $this->findByDateServiceAndType($sermonDate, $service, $options);
 
         if (blank($existing)) {
             return $this->createFresh($processingLog, $options, $sermonDate, $service);
@@ -118,24 +121,56 @@ class SermonCreationService
     }
 
     /**
+     * The talk a section already published is that section's, whatever its type
+     * was: an operator who re-approves it under another type retypes the talk
+     * rather than publishing a second one.
+     */
+    private function findSectionTalk(SermonCreationOptions $options): ?Sermon
+    {
+        $section = $options->publishingSection;
+
+        if (! $section instanceof ServiceSection) {
+            return null;
+        }
+
+        $talk = $this->talkPublishedBy($section, $section->published_sermon_id)
+            ?? $this->talkPublishedBy($section, $section->metadata?->toArray()['superseded']['previous_published_sermon_id'] ?? null);
+
+        if ($talk instanceof Sermon && $talk->content_type !== $options->contentType) {
+            $talk->update(['content_type' => $options->contentType]);
+        }
+
+        return $talk;
+    }
+
+    /**
+     * A recorded link counts only while no other section has since published that talk.
+     */
+    private function talkPublishedBy(ServiceSection $section, mixed $sermonId): ?Sermon
+    {
+        if (! is_int($sermonId)) {
+            return null;
+        }
+
+        return Sermon::query()
+            ->whereKey($sermonId)
+            ->whereDoesntHave(
+                'publishedServiceSection',
+                fn (Builder $sections): Builder => $sections->whereKeyNot($section->getKey()),
+            )
+            ->first();
+    }
+
+    /**
      * Two talks of one type can share a service (two testimonies), so the
      * date/service/type key alone would let the second overwrite the first.
      */
-    private function findExisting(
+    private function findByDateServiceAndType(
         Carbon|string $date,
         SermonService $service,
         SermonCreationOptions $options,
     ): ?Sermon {
         $section = $options->publishingSection;
-
-        if ($section?->published_sermon_id !== null) {
-            $published = Sermon::query()->find($section->published_sermon_id);
-
-            if ($published !== null) {
-                return $published;
-            }
-        }
-
         $dateString = $date instanceof Carbon ? $date->toDateString() : $date;
 
         $query = Sermon::query()

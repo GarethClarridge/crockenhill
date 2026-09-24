@@ -108,8 +108,12 @@ final readonly class ServiceSectionMetadata extends JsonData
             $data['talk_speaker'] = $this->talkSpeaker->toArray();
         }
 
+        // Detection writes `talk_type: null` for a non-talk so a re-run clears an
+        // old proposal; the null has done its job once merged and is not stored.
         if ($this->talkType instanceof TalkTypeMetadata) {
             $data['talk_type'] = $this->talkType->toArray();
+        } else {
+            unset($data['talk_type']);
         }
 
         if ($this->publication instanceof SectionPublicationMetadata) {

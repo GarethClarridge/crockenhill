@@ -821,4 +821,27 @@ class ServiceReviewDashboardQueryTest extends TestCase
         $this->assertContains('talk_type_review', array_column($this->query->reviewReasons($section), 'key'));
         $this->assertSame('talk type review required', $this->query->confirmationSkipReason($section));
     }
+
+    /**
+     * A published or rejected talk can no longer be approved, so an unconfirmed
+     * type on it is nothing to review.
+     */
+    #[Test]
+    public function a_published_or_rejected_short_talk_is_not_in_review_for_its_talk_type(): void
+    {
+        foreach ([ServiceSectionPublicationStatus::Published, ServiceSectionPublicationStatus::Rejected] as $status) {
+            $section = ServiceSection::factory()->create([
+                'section_type' => ServiceSectionType::ShortTalk,
+                'needs_manual_review' => false,
+                'confidence' => 0.99,
+                'publication_status' => $status,
+                'metadata' => ['talk_type' => ['proposed' => 'childrens_talk']],
+            ]);
+
+            $this->assertFalse($this->query->isReviewCandidate($section), $status->value);
+            $this->assertNotContains('talk_type_review', array_column($this->query->reviewReasons($section), 'key'), $status->value);
+        }
+
+        $this->assertSame([], $this->query->reviewGroups());
+    }
 }

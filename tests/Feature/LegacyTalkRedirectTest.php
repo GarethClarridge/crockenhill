@@ -81,4 +81,30 @@ class LegacyTalkRedirectTest extends TestCase
     {
         $this->get('/christ/childrens-corner/no-such-talk')->assertNotFound();
     }
+
+    /**
+     * The old slug-only URL goes straight to the dated URL rather than through
+     * the new slug-only URL, which would be a second redirect.
+     */
+    #[Test]
+    public function an_old_slug_only_url_redirects_once_to_the_dated_url(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'slug' => 'grace-abounding',
+            'date' => '2026-02-01',
+            'content_type' => TalkType::Sermon,
+        ]);
+
+        $this->get('/christ/sermons/grace-abounding')
+            ->assertStatus(301)
+            ->assertRedirect(route('sermons.show.dated', ['year' => '2026', 'month' => '02', 'sermon' => $sermon->slug]));
+    }
+
+    #[Test]
+    public function an_old_slug_only_url_for_an_unknown_slug_still_moves_to_the_new_path(): void
+    {
+        $this->get('/christ/sermons/no-such-sermon')
+            ->assertStatus(301)
+            ->assertRedirect('/christ/talks/no-such-sermon');
+    }
 }

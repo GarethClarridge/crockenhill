@@ -6,6 +6,7 @@ namespace Tests\Integration\Jobs;
 
 use App\Contracts\SpeakerIdentificationInterface;
 use App\Data\HistoricStagingContext;
+use App\Data\ServiceSectionMetadata;
 use App\Data\SpeakerMatchResult;
 use App\Enums\ProcessingStatus;
 use App\Enums\ServiceSectionPublicationStatus;
@@ -501,7 +502,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
                 'confidence_level' => 'high',
                 'publication_candidate_extraction' => [
                     'processing_id' => $processingLog->processing_id,
-                    'classification_signature' => 'stale-signature',
+                    'media_signature' => 'stale-signature',
                     'extracted_at' => now()->subDay()->toIso8601String(),
                 ],
             ],
@@ -542,9 +543,71 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $this->assertSame($expectedAudioPath, $section->extracted_audio_path);
         $this->assertCandidateVideoPath($section);
         $this->assertSame(
-            $section->classificationSignature(),
-            $section->metadata['publication_candidate_extraction']['classification_signature'] ?? null
+            $section->mediaSignature(),
+            $section->metadata['publication_candidate_extraction']['media_signature'] ?? null
         );
+    }
+
+    /**
+     * Confirming a short talk's speaker and type are approval facts: the cut does
+     * not depend on them, so the candidate media stamped before them stays valid.
+     */
+    #[Test]
+    public function it_reuses_candidate_media_after_the_speaker_and_talk_type_are_confirmed(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => ['short_talk' => TalkPublicationHandler::class],
+            'media-processing.speaker_identification.enabled' => false,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'source_file_path' => 'livestreams/source.mp4',
+        ]);
+        Storage::disk('local')->put('livestreams/source.mp4', 'source-video');
+        Storage::disk('public')->put('sermons/sections/kept/video.mp4', 'kept-video');
+        Storage::disk('public')->put('sermons/sections/kept/audio.mp3', 'kept-audio');
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::ShortTalk->value,
+            'status' => ServiceSectionStatus::Identified->value,
+            'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
+            'asset_disk' => 'public',
+            'extracted_video_path' => 'sermons/sections/kept/video.mp4',
+            'extracted_audio_path' => 'sermons/sections/kept/audio.mp3',
+            'start_time' => 120.0,
+            'end_time' => 420.0,
+        ]);
+        $section->metadata = ServiceSectionMetadata::fromArray([
+            'confidence_level' => 'high',
+            'publication_candidate_extraction' => [
+                'processing_id' => $processingLog->processing_id,
+                'media_signature' => $section->mediaSignature(),
+            ],
+            'talk_speaker' => ['reviewed' => ['preacher_id' => null, 'preacher_name' => 'Jane Doe', 'source' => 'manual']],
+            'talk_type' => ['proposed' => 'childrens_talk', 'reviewed' => ['value' => 'testimony', 'user_id' => 1, 'at' => now()->toIso8601String()]],
+        ]);
+        $section->save();
+
+        $videoExtractor = $this->createMock(VideoExtractionService::class);
+        $videoExtractor->expects($this->never())->method('extractSegmentAsFile');
+        $videoExtractor->expects($this->never())->method('extractOptimizedAudio');
+
+        (new PrepareSectionPublicationCandidates($processingLog))->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(SectionPublicationHandlerFactory::class),
+            app(ServiceSectionPublicationTransitionService::class)
+        );
+
+        $this->assertSame('sermons/sections/kept/video.mp4', $section->refresh()->extracted_video_path);
     }
 
     /**

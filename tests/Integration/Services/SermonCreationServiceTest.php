@@ -1126,6 +1126,75 @@ class SermonCreationServiceTest extends TestCase
         $this->assertSame($existing->id, $sermon->id);
     }
 
+    #[Test]
+    public function republishing_a_section_under_a_new_talk_type_retypes_its_talk(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2024-06-02',
+            'extracted_service' => SermonService::Morning,
+        ]);
+        $section = ServiceSection::factory()->create();
+        $published = $this->service->createSermon($log, $this->optionsForTestimony($log, $section, 'audio/first.mp3'));
+        $this->markPublished($section, $published);
+
+        $republished = $this->service->createSermon(
+            $log,
+            $this->optionsForTestimony($log, $section->fresh(), 'audio/second.mp3', TalkType::PartnerUpdate),
+        );
+
+        $this->assertSame($published->id, $republished->id);
+        $this->assertSame(TalkType::PartnerUpdate, $published->fresh()->content_type);
+        $this->assertSame(1, Sermon::query()->count());
+    }
+
+    /**
+     * A classification refresh supersedes the section and clears its link, but
+     * records which talk it had published; that, not the (possibly changed) type,
+     * identifies the talk to update.
+     */
+    #[Test]
+    public function a_superseded_section_republishes_onto_the_talk_it_had_published_even_under_a_new_type(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2024-06-02',
+            'extracted_service' => SermonService::Morning,
+        ]);
+        $section = ServiceSection::factory()->create();
+        $published = $this->service->createSermon($log, $this->optionsForTestimony($log, $section, 'audio/first.mp3'));
+        $section->update([
+            'published_sermon_id' => null,
+            'metadata' => ['superseded' => ['previous_published_sermon_id' => $published->id]],
+        ]);
+
+        $republished = $this->service->createSermon(
+            $log,
+            $this->optionsForTestimony($log, $section->fresh(), 'audio/second.mp3', TalkType::ChildrensTalk),
+        );
+
+        $this->assertSame($published->id, $republished->id);
+        $this->assertSame(TalkType::ChildrensTalk, $published->fresh()->content_type);
+        $this->assertSame(1, Sermon::query()->count());
+    }
+
+    #[Test]
+    public function a_superseded_section_does_not_take_back_a_talk_another_section_now_publishes(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2024-06-02',
+            'extracted_service' => SermonService::Morning,
+        ]);
+        $section = ServiceSection::factory()->create();
+        $claimant = ServiceSection::factory()->create();
+        $published = $this->service->createSermon($log, $this->optionsForTestimony($log, $claimant, 'audio/first.mp3'));
+        $this->markPublished($claimant, $published);
+        $section->update(['metadata' => ['superseded' => ['previous_published_sermon_id' => $published->id]]]);
+
+        $sermon = $this->service->createSermon($log, $this->optionsForTestimony($log, $section->fresh(), 'audio/second.mp3'));
+
+        $this->assertNotSame($published->id, $sermon->id);
+        $this->assertSame('audio/first.mp3', $published->fresh()->audio_file_path);
+    }
+
     private function markPublished(ServiceSection $section, Sermon $sermon): void
     {
         $section->update([
@@ -1138,14 +1207,18 @@ class SermonCreationServiceTest extends TestCase
         ]);
     }
 
-    private function optionsForTestimony(MediaProcessingLog $log, ServiceSection $section, string $audioPath): SermonCreationOptions
-    {
+    private function optionsForTestimony(
+        MediaProcessingLog $log,
+        ServiceSection $section,
+        string $audioPath,
+        TalkType $type = TalkType::Testimony,
+    ): SermonCreationOptions {
         return new SermonCreationOptions(
             audioFilePath: $audioPath,
             originalFilename: 'testimony.mkv',
             sourceType: SermonSourceType::Livestream,
             livestreamProcessingId: $log->processing_id,
-            contentType: TalkType::Testimony,
+            contentType: $type,
             titleStrategy: TitleGenerationStrategy::FilenameOnly,
             service: SermonService::Morning,
             date: '2024-06-02',

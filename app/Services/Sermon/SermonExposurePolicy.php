@@ -48,7 +48,7 @@ class SermonExposurePolicy
     public function isTypePublic(TalkType $type): bool
     {
         return $type->isSermon()
-            || in_array($type->value, (array) config('church.talks.public_types', []), true);
+            || in_array($type->value, array_map(trim(...), (array) config('church.talks.public_types', [])), true);
     }
 
     /**

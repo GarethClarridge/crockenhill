@@ -67,11 +67,6 @@ class SermonBuilder extends Builder
         return $this->where($this->qualifyColumn('content_type'), TalkType::Sermon);
     }
 
-    public function whereChildrensTalk(): self
-    {
-        return $this->where($this->qualifyColumn('content_type'), TalkType::ChildrensTalk);
-    }
-
     /**
      * Constrain to sermons visible in the public sitemap.
      */

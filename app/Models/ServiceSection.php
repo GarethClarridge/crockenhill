@@ -229,9 +229,34 @@ class ServiceSection extends Model
         return $payload;
     }
 
+    /**
+     * What an approval is of: the classification plus, for a short talk, the
+     * confirmed speaker and type. Changing any of it invalidates the approval.
+     */
     public function classificationSignature(): string
     {
         return hash('sha256', (string) json_encode($this->classificationSignaturePayload()));
+    }
+
+    /**
+     * What a candidate cut depends on: which handler cuts it and where. Titles,
+     * item bindings and publication facts (speaker, talk type) do not change the
+     * bytes, so confirming them never makes a candidate look due for re-cutting.
+     *
+     * @return array{section_type: string, start_time: float, end_time: float}
+     */
+    public function mediaSignaturePayload(): array
+    {
+        return [
+            'section_type' => $this->section_type->value,
+            'start_time' => (float) $this->start_time,
+            'end_time' => (float) $this->end_time,
+        ];
+    }
+
+    public function mediaSignature(): string
+    {
+        return hash('sha256', (string) json_encode($this->mediaSignaturePayload()));
     }
 
     /**

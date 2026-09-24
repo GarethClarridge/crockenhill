@@ -1852,3 +1852,5 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_23_212016_renam
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_23_215702_rename_childrens_talk_section_type_to_short_talk',102);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_23_215704_move_short_talk_section_metadata_keys',102);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_24_061346_restamp_short_talk_classification_signatures',103);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_24_073158_confirm_talk_type_of_approved_short_talks',104);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_24_073200_stamp_candidate_media_signatures',104);

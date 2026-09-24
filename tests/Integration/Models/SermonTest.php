@@ -184,8 +184,6 @@ class SermonTest extends TestCase
 
         $this->assertTrue(Sermon::query()->whereSermon()->get()->contains($sermon));
         $this->assertFalse(Sermon::query()->whereSermon()->get()->contains($childrensTalk));
-        $this->assertTrue(Sermon::query()->whereChildrensTalk()->get()->contains($childrensTalk));
-        $this->assertFalse(Sermon::query()->whereChildrensTalk()->get()->contains($sermon));
     }
 
     #[Test]

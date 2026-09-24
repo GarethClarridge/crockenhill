@@ -621,8 +621,12 @@ class ShowChurchServiceTest extends TestCase
         return [$service, $run];
     }
 
+    /**
+     * The proposal is shown, not preselected: saving the speaker (which every short
+     * talk needs) must not confirm the detector's guess as a side effect.
+     */
     #[Test]
-    public function a_short_talk_panel_offers_the_talk_type_prefilled_from_the_proposal(): void
+    public function a_short_talk_panel_shows_the_proposal_but_leaves_the_talk_type_unchosen(): void
     {
         [$service, $run] = $this->workbenchServiceWithRun();
 
@@ -638,8 +642,29 @@ class ShowChurchServiceTest extends TestCase
             ->test(ShowChurchService::class, ['churchService' => $service])
             ->assertSee('Talk type review')
             ->assertSee('Detector proposed:')
-            ->assertSee('Talk type')
-            ->assertSee('Not confirmed yet; saving records the type shown.')
+            ->assertSee('Not confirmed yet; choose the type to confirm it.')
+            ->assertSet('sectionEdits.'.$section->id.'.talk_type', '');
+    }
+
+    #[Test]
+    public function a_short_talk_panel_prefills_the_confirmed_talk_type(): void
+    {
+        [$service, $run] = $this->workbenchServiceWithRun();
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::ShortTalk->value,
+            'title' => 'Mission update',
+            'needs_manual_review' => true,
+            'metadata' => ['talk_type' => [
+                'proposed' => 'childrens_talk',
+                'reviewed' => ['value' => 'partner_update', 'user_id' => $this->admin->id, 'at' => now()->toIso8601String()],
+            ]],
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Confirmed: Partner Update')
             ->assertSet('sectionEdits.'.$section->id.'.talk_type', 'partner_update');
     }
 

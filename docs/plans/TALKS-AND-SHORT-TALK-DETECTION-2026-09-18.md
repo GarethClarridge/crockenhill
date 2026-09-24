@@ -4,7 +4,7 @@
 **Status:** PR1–PR4 landed 2026-09-23/24 (see the notes under §5 and **Remaining** at its end).
 PR3's measurement and PR5 are **retired from this plan** (operator, 2026-09-24): the historic
 video plan's corpus re-run re-detects every run with the new prompt anyway, so its canary
-carries four truth-set runs as the check and its Tier B pass does PR5's work. Split out of
+carries nine truth-set runs as the check and its Tier B pass does PR5's work. Split out of
 the historic video plan's BC-07 ruling (`HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md`
 §4.1c), which now points here. Originally verified against code at `b6cbd9acf`.
 **Scope:** Replace the sermon-or-children's-talk split with a single *talk* concept carrying a
@@ -342,16 +342,20 @@ read alias; section metadata keys were migrated with no dual-read, as planned); 
 earlier rows (`previous_section`, `derived_from_section_type`) keep the old value; the
 `TalkPublicationHandler` rename and the `short_talk` handler key moved here from PR4, because
 publication breaks the moment the section type changes; `church_service_item_assertions`
-(varchar) was retyped with the columns. The measurement is blocked on one question: this plan
-never says which runs "the nine blind runs" are.
+(varchar) was retyped with the columns. The measurement was blocked on one question: this plan
+never says which runs "the nine blind runs" are. It was never answered; the measurement moved to
+the historic re-run instead (below), where recall over untitled sections is read from the Tier B
+diff report of the whole 191-section bucket, not from a named nine.
 
-**PR4 landed 2026-09-24.** The panel's talk-type select is prefilled from the confirmed type,
-else the proposal, so confirming a right proposal is one save; saving records
+**PR4 landed 2026-09-24.** The panel's talk-type select shows the confirmed type, and is
+otherwise unchosen with the proposal shown beside it (review follow-up, same day: it was first
+prefilled with the proposal, but every short talk's first save must also set a speaker, so that
+save confirmed the detector's guess without anyone choosing it). Saving records
 `talk_type.reviewed` `{value, user_id, at}` and retyping away drops the record. Approval
 refuses without it ("Choose the talk type before approving publication."); the handler and
 `SermonCreationOptions` refuse too, so an unconfirmed talk can never publish as the proposal.
-The signature carries `talk_type` **only once confirmed** — an unconditional key would have
-re-stamped every candidate. Every unconfirmed short talk is a review candidate with reason
+The approval signature carries `talk_type` **only once confirmed**. Every unconfirmed short
+talk that can still be approved (not published or rejected) is a review candidate with reason
 `talk_type_review` (§4.5's intended queue); `ServiceSectionFactory` no longer picks
 `short_talk` at random, because that obligation made unrelated tests flaky.
 **Found and repaired in PR4, caused by PR3:** the signature hashes the section type, so the
@@ -361,6 +365,28 @@ would have re-cut their media, and some sources are gone. Migration
 hash (3 genuinely stale ones stay stale). Tests: `TalkPublicationWorkflowTest` (all three
 types), acceptance 5 in `ApproveSectionForPublicationTest`.
 
+**PR4 review follow-up, 2026-09-24.**
+- *Two signatures.* Candidate media is now stamped with `ServiceSection::mediaSignature()`
+  (section type and span: what the cut depends on) under `media_signature`; the
+  classification signature, with the confirmed speaker and type, is only what an approval is of.
+  Confirming a speaker or type used to make the candidate look stale, so the next preparation
+  re-cut it from source, the same trap the rename sprang. Migration
+  `stamp_candidate_media_signatures` moves every stamp that still matches its row's cut
+  (locally 1,293: the 1,290 the old check thought fresh plus 3 stamped before their speaker was
+  confirmed); the 8 stale for a real reason stay stale.
+- *Approved before PR4.* Migration `confirm_talk_type_of_approved_short_talks` records
+  `childrens_talk` (source `approved_as_childrens_talk`, no user) on every approved or published
+  short talk without a type, and re-signs a matching approval, so an approved talk is not
+  stranded by the new publication refusal. None exist locally; production is unknown.
+- *Frozen payloads.* All three signature migrations compute hashes from a payload frozen in the
+  migration, not the live model, so they mean the same thing whenever production runs them.
+- *Retyping a published talk.* A section republishing onto its talk (its `published_sermon_id`,
+  or the `superseded.previous_published_sermon_id` a classification refresh records) now
+  retypes that talk to the confirmed type instead of keeping the old type or creating a second row.
+- Smaller: `PUBLIC_TALK_TYPES` entries are trimmed; `/christ/sermons/{slug}` redirects once,
+  straight to the dated URL; a null `talk_type` is not stored; `SermonBuilder::whereChildrensTalk()`
+  (unused) is deleted.
+
 PR2 and PR3 are independent of each other and can proceed in parallel after PR1. Nothing here
 is a calendar gate (`feedback_no_calendar_time_gates`).
 
@@ -368,14 +394,16 @@ is a calendar gate (`feedback_no_calendar_time_gates`).
 
 - [x] ~~**PR3 measurement**~~ and ~~**PR5 re-detection**~~ — moved to the historic video plan
   (operator, 2026-09-24). Running detection here would duplicate the corpus re-run. Its
-  canary now includes runs 1108 / 1025 / 1112 / 1304 from §3 (a children's teaching talk, a
-  partner presentation, a testimony, and a baptism that must stay non-talk), and its Tier B
-  re-detects the 191-section bucket. Nothing here blocks the historic lane: it needed PR1 and PR3.
+  canary now includes nine runs from §3: three talks (1108 / 1025 / 1112), a mixed run (1311:
+  baptismal testimonies are a talk, the baptisms are not), and five that must stay non-talk
+  (1304 baptism, 1051 tribute and eulogy, 1262 Queen Elizabeth II reflection, 949 church sharing
+  and prayer, 936 pre-service), weighted to false positives because the widened rule makes those
+  the likelier failure. Its Tier B re-detects the 191-section bucket. Nothing here blocks the historic lane: it needed PR1 and PR3.
 - [ ] **Acceptance 2:** Playwright baselines not regenerated since the move (the spec already
   points at `/christ/talks`; the nav label now reads "Talks").
 - [ ] **Production**, `PROD-ACTIONS-PENDING` §5–§7: `PUBLIC_TALK_TYPES` env rename; podcast feed URL
   in Apple Podcasts Connect and Spotify; the Talks nav page's heading image. Deploying PR3/PR4
-  also runs four data migrations on prod's rows — restart workers after.
+  also runs six data migrations on prod's rows — restart workers after.
 - [ ] **Operator:** 151 pending short talks (local count) now each need a type confirmed
   before approval — the review queue §4.5 intends.
 

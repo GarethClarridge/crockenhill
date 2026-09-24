@@ -253,14 +253,26 @@ release stays with §4.5.
   rebinds them, that sync overwrites the stale livestream items 6901/9371 rather than
   anchoring on them, and that `lyric_identity_check` reads `consistent`. They are not rebound
   through the review queue in the meantime (no clip, not exposed).
-  **Plus four short-talk runs** from the talks plan's §3 truth set, which stand in for that
-  plan's retired measurement (operator, 2026-09-24): **1108** (§1895, Heidelberg Q122 —
-  expect `short_talk`, proposed `childrens_talk`), **1025** (§1374, Release International —
-  `short_talk`, `partner_update`), **1112** (§3735, Gavin Peacock — `short_talk`,
-  `testimony`), **1304** (§3871, "Baptism of Roy" — must stay non-talk: an ordinance is
-  excluded by the rule). Pass = all four as expected in the diff report. A miss is a prompt
-  fix before the batches (`feedback_measure_before_generalizing_a_fix`); a missed
-  *proposed type* alone does not block, because the operator confirms every type at approval.
+  **Plus nine short-talk runs** from the talks plan's §3 truth set, which stand in for that
+  plan's retired measurement (operator, 2026-09-24). The new prompt widens `short_talk` to
+  any substantial spoken item that is not the sermon, so the likelier failure is a false
+  positive; the set is weighted to the "not talks" cluster accordingly.
+  *Must become `short_talk`:* **1108** (§1895, Heidelberg Q122 — proposed `childrens_talk`
+  only if the transcript carries the prompt's children cues, else null; a catechism talk
+  without them is exactly BC-07's case), **1025** (§1374, Release International —
+  `partner_update`), **1112** (§3735, Gavin Peacock — `testimony`).
+  *Mixed:* **1311** — §3949 "Baptismal testimonies" becomes `short_talk` (`testimony`) while
+  §3951 "Baptisms" stays non-talk.
+  *Must stay non-talk:* **1304** (§3871, "Baptism of Roy" — an ordinance), **1051** (§1592,
+  "Family tribute and eulogy"), **1262** (§3279, "Reflection and prayer for Queen Elizabeth
+  II"), **949** (§719, "Church sharing and prayer"), **936** (§600, "Pre-service
+  preparation").
+  Three of the four positives carry their answer in the title, so this checks the rule's
+  exclusions far more than its recall; recall over the untitled cases is read from the Tier B
+  diff report of the 191-section bucket. Pass = every section as expected in the diff report.
+  A miss is a prompt fix before the batches (`feedback_measure_before_generalizing_a_fix`); a
+  missed *proposed type* alone does not block, because the operator confirms every type at
+  approval.
 - [ ] Batches by era, each checked against its diff before the next. Stop on any new regression.
 
 **Three prerequisites for the next bounded batch:**

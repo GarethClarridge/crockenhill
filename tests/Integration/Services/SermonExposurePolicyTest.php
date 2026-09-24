@@ -49,6 +49,18 @@ class SermonExposurePolicyTest extends TestCase
         $this->assertFalse($this->policy->isTypePublic(TalkType::ChildrensTalk));
     }
 
+    /**
+     * `PUBLIC_TALK_TYPES=sermon, childrens_talk` is an easy thing to type into an
+     * env file; a space must not quietly keep a type members-only.
+     */
+    #[Test]
+    public function listed_types_are_read_without_surrounding_whitespace(): void
+    {
+        Config::set('church.talks.public_types', ['sermon', ' childrens_talk ']);
+
+        $this->assertTrue($this->policy->isTypePublic(TalkType::ChildrensTalk));
+    }
+
     #[Test]
     public function each_non_sermon_type_is_members_only_until_listed(): void
     {

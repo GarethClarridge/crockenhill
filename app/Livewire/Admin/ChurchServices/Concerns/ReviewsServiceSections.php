@@ -346,8 +346,9 @@ trait ReviewsServiceSections
     }
 
     /**
-     * The talk type starts at the confirmed value, else the detector's proposal, so
-     * confirming a right proposal is one save; it is recorded only when saved.
+     * The talk type starts at the confirmed value and is otherwise unchosen. The
+     * proposal is shown beside it, never preselected: every short talk's first save
+     * also sets its speaker, and that save must not confirm the detector's guess.
      *
      * @return array{section_type: string, title: string, end_time: string, talk_type: string}
      */
@@ -357,9 +358,7 @@ trait ReviewsServiceSections
             'section_type' => $section->section_type->value,
             'title' => (string) ($section->title ?? ''),
             'end_time' => (string) $section->end_time,
-            'talk_type' => $section->publicationTalkType()->value
-                ?? $section->metadata->talkType->proposed->value
-                ?? '',
+            'talk_type' => $section->publicationTalkType()->value ?? '',
         ];
     }
 
