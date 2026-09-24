@@ -324,6 +324,8 @@ class OpenAiServiceStructureServiceTest extends TestCase
         $this->assertStringContainsString('Do not use it for an ordinance', $prompt['system']);
         $this->assertStringContainsString('A time of sharing and prayer', $prompt['system']);
         $this->assertStringContainsString('is prayer, not short_talk', $prompt['system']);
+        $this->assertStringContainsString('A baptism is never inside a song section', $prompt['system']);
+        $this->assertStringContainsString('each baptism is its own other section', $prompt['system']);
         $this->assertStringContainsString('Propose childrens_talk ONLY with structural cues', $prompt['system']);
         $this->assertStringContainsString('partner_update when a named mission, society or partner presents its work', $prompt['system']);
         $this->assertStringContainsString('that prayer belongs INSIDE the sermon section', $prompt['system']);

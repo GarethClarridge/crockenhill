@@ -728,6 +728,76 @@ class DetectServiceStructureTest extends TestCase
         $this->assertSame('llm_structure', $log->processing_metadata?->toArray()['sermon_bounds']['source'] ?? null);
     }
 
+    /**
+     * Run 949's shape: every item was written by the run's own earlier projection, so
+     * following them would only repeat the last round's answer (canary 2, 2026-09-24).
+     */
+    #[Test]
+    public function detection_never_sees_order_of_service_items_only_the_recording_attests(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $churchService = ChurchService::factory()->create();
+        ChurchServiceItem::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+            'title' => 'Elmstead share and prayer',
+            'position' => 1,
+            'metadata' => ['source_evidence' => ['livestream' => ['section_id' => 1]]],
+        ]);
+        ChurchServiceItem::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+            'title' => 'Court Farm share and prayer',
+            'position' => 2,
+            'metadata' => ['source_evidence' => ['livestream' => ['section_id' => 2]]],
+        ]);
+
+        $detector = $this->detectorCapturingItems();
+        $this->runDetection($churchService, $detector);
+
+        $this->assertSame([[]], $detector->itemsSeen);
+    }
+
+    #[Test]
+    public function detection_sees_items_an_email_openlp_or_manual_source_attests(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $churchService = ChurchService::factory()->create();
+        $mergedIntoEmail = ChurchServiceItem::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+            'title' => 'Praise My Soul',
+            'position' => 1,
+            'metadata' => ['source_evidence' => ['livestream' => ['section_id' => 1], 'email' => ['line' => 3]]],
+        ]);
+        ChurchServiceItem::factory()->livestream()->create([
+            'church_service_id' => $churchService->id,
+            'title' => 'Church sharing and prayer',
+            'position' => 2,
+            'metadata' => ['source_evidence' => ['livestream' => ['section_id' => 2]]],
+        ]);
+        $openLp = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'title' => 'Sermon',
+            'position' => 3,
+            'metadata' => ['source_evidence' => ['openlp' => ['item' => 7]]],
+        ]);
+        $manual = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'source' => 'manual',
+            'title' => 'Closing prayer',
+            'position' => 4,
+            'metadata' => null,
+        ]);
+
+        $detector = $this->detectorCapturingItems();
+        $this->runDetection($churchService, $detector);
+
+        $this->assertSame(
+            [[(int) $mergedIntoEmail->id, (int) $openLp->id, (int) $manual->id]],
+            array_map(fn (array $items): array => array_column($items, 'id'), $detector->itemsSeen),
+        );
+    }
+
     #[Test]
     public function primary_mode_retries_detection_once_when_output_is_mechanically_impossible(): void
     {
@@ -1314,6 +1384,44 @@ class DetectServiceStructureTest extends TestCase
     {
         (new DetectServiceStructure($log, $reconcile))->handle(
             app(ServiceStructureInterface::class),
+            app(SilenceSnapService::class),
+            app(ServiceStructureValidator::class),
+            app(ServiceSectionSyncService::class),
+            app(SermonCandidateConfidenceService::class),
+        );
+    }
+
+    /**
+     * @return ServiceStructureInterface&object{itemsSeen: list<list<array<string, mixed>>>}
+     */
+    private function detectorCapturingItems(): ServiceStructureInterface
+    {
+        return new class($this->validStructure()) implements ServiceStructureInterface
+        {
+            /** @var list<list<array<string, mixed>>> */
+            public array $itemsSeen = [];
+
+            public function __construct(private readonly ServiceStructure $structure) {}
+
+            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = []): ServiceStructure
+            {
+                $this->itemsSeen[] = $oosItems;
+
+                return $this->structure;
+            }
+        };
+    }
+
+    private function runDetection(ChurchService $churchService, ServiceStructureInterface $detector): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+
+        (new DetectServiceStructure($log))->handle(
+            $detector,
             app(SilenceSnapService::class),
             app(ServiceStructureValidator::class),
             app(ServiceSectionSyncService::class),

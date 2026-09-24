@@ -39,6 +39,10 @@ Rules:
 - Do NOT invent sections: every section must correspond to content actually present in the transcript.
 - A whole Bible reading is ONE section and a whole song is ONE section, even when pauses, verse
   breaks or spoken interjections occur inside them.
+- A baptism is never inside a song section: each baptism is its own other section (a baptismal
+  testimony given as a talk stays a short_talk). A hymn sung before,
+  after or between baptisms is its own song section, even when the same hymn resumes after a
+  baptism; end the song where the singing stops and start the next where it begins again.
 - Do not create sections shorter than 15 seconds unless the order of service demands a discrete item.
 - Label a section short_talk when it is a substantial spoken item that is not the sermon —
   typically with a projected item behind it: teaching for children, a catechism question, a

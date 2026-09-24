@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Contracts\ServiceStructureInterface;
 use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructure;
+use App\Enums\ChurchServiceItemSource;
 use App\Enums\ProcessingStep;
 use App\Enums\ServiceSectionType;
 use App\Enums\ServiceStructureMode;
@@ -708,6 +709,14 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
     }
 
     /**
+     * The planned service: only items a source other than the recording attests.
+     *
+     * An item the pipeline's own projection wrote is this detector's earlier answer, and
+     * reading it back as the plan would make each round follow the last (run 949's four
+     * church slots stayed talks across two canaries). A service whose items are all
+     * self-written is detected from its transcript alone. Provenance is read from the
+     * evidence, not the `source` column, which keeps the first writer after a merge.
+     *
      * @return list<ChurchServiceItem>
      */
     private function loadOosItems(): array
@@ -722,6 +731,8 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             ->orderBy('position')
             ->orderBy('id')
             ->get()
+            ->filter(fn (ChurchServiceItem $item): bool => collect($item->provenanceSources())
+                ->contains(fn (ChurchServiceItemSource $source): bool => ! $source->isDetected()))
             ->all());
     }
 
