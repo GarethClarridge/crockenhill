@@ -468,7 +468,17 @@ freeze, and the diff report binds that hash.
 2. Verify the supported dispatch route and immediate queue, worker-code, mount and
    disk readiness. `historic-import:retranscribe-video-run` is restricted to
    980/1258/1343/1287, all complete; the re-run needs the bounded re-detect route above,
-   and Tier A a tested extension of this one.
+   and Tier A a tested extension of this one. *Built 2026-09-24:*
+   `historic-import:rerun-retranscribe {snapshot} [runs] [--max=10] [--execute]`
+   (`RetranscribeForCorpusRerun`). It shares the re-detect route's batch guards
+   (`CorpusRerunGuard`: snapshot member, pinned commit, not already re-run on this commit by
+   either tier, completed, not excluded, unchanged since the snapshot), the orchestrator's
+   shared guards and the hash-verified staged source. It dispatches as the four-run route
+   does: supersede the recovery replay, reopen at `transcribe_full_service`, `start()`. Its
+   grounds are a live transcript-loss hold on the current transcript (`TranscriptLossHolds`,
+   the §4.0 definition as code). Read-only over the corpus it finds exactly the census's 64
+   runs, the same ones. Listening-selected runs need their grounds recorded before it accepts
+   them. The per-commit stamp means no run is re-transcribed and re-detected on one commit.
    A fresh `sail ps` result alone is not this preflight.
 3. Reuse the completed canary evidence and check representative first repaired
    outputs before expanding to a larger batch. Cover any materially different

@@ -114,6 +114,32 @@ final readonly class HistoricRerunSnapshot
         return isset($this->runs[$runId]);
     }
 
+    /**
+     * The runs a dispatch names, or every member when it names none. A batch is exactly its
+     * snapshot, so naming a run outside it is an error rather than a silent skip.
+     *
+     * @param  array<mixed>  $requested
+     * @return list<int>
+     *
+     * @throws RuntimeException
+     */
+    public function select(array $requested): array
+    {
+        $requested = self::membership($requested);
+
+        if ($requested === []) {
+            return $this->membership;
+        }
+
+        $outside = array_diff($requested, $this->membership);
+
+        if ($outside !== []) {
+            throw new RuntimeException('Not in the snapshot: '.implode(', ', $outside).'. A batch is exactly its snapshot.');
+        }
+
+        return $requested;
+    }
+
     public function encode(): string
     {
         return CanonicalJson::encodeReadable([
