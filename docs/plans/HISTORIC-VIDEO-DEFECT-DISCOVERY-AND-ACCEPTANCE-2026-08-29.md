@@ -20,6 +20,8 @@
 >   The listening queue, **306 windows across 164 runs**, awaits the operator.
 > - **Repairs since 09-20:** 1287 re-transcribed and re-detected 09-23.
 > - **Operational:** temp-file cleanup is paused locally so restaged sources survive.
+>   **All 9 concatenated runs are unreachable** by the re-run until a concatenation gate is
+>   built and they are restaged (§4.0); the other 429 of 438 eligible runs are reachable.
 > - **Regular uploads:** the per-route fix audit is recorded in §4.
 >
 > The 2026-09-20/22 status block and the detailed §4.0–§4.3a workstreams moved
@@ -306,6 +308,15 @@ freeze, and the diff report binds that hash.
   concatenation gate (each part against its recorded sha256 and the rebuilt duration against
   the run's, as the run-950 note prescribes), which is not built. Until then they stay as
   they are, quarantined.
+- [ ] **Restage the nine concatenated runs through a concatenation gate** (found 2026-09-24,
+  census above). 930, 936, 940, 942, 944, 950 and 975 have no staged source, and two more have
+  no recorded hash, so the re-detect route refuses all nine. Build the gate the run-950 note
+  prescribes: each archive part against its recorded sha256 in `historic_import.sources[]`,
+  and the rebuilt file's duration against the run's recorded `duration`. The byte hash of a
+  concatenation is the wrong gate, because a different ffmpeg writes different container
+  bytes over the same timeline. Then restage the nine and verify them. They stay quarantined
+  until this is done. It blocks the 09-14 concatenation-song ruling's re-detection of 940,
+  942 and 944 (below), and 936's return to the canary.
 - [ ] **Canary, run on the candidate freeze commit.** If it passes, that commit is frozen. A
   failure is fixed and the canary re-run on the new commit, so no detection change lands
   after the freeze.
@@ -786,7 +797,8 @@ check against the 09-17 speech-edge trim) deserve a closer look before being bui
     recording, which loses a song caught between segments (944 §666). The rule must
     keep a song section the evidence supports and demote only join fragments; the
     five affected runs (940, 942, 944, 973, 1014) are then re-detected through the
-    pipeline.
+    pipeline. *(2026-09-24: 940, 942 and 944 are concatenations with no staged source; their
+    re-detection waits for the concatenation gate in §4.0.)*
   - **A non-matching reading stays joined to the sermon (operator ruling
     2026-09-14).** When no reading matches the sermon's reference,
     `selectBibleReading()` joins the nearest one, across a hymn if need be, and that
