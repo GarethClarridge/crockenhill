@@ -58,6 +58,8 @@ class BackfillContentHoldChecksCommandTest extends TestCase
             'source_audio ' => $this->heldSection($run, ['reason' => 'short_transcript_loop_source_mismatch']),
             'source_audio  ' => $this->heldSection($run, ['reason' => 'Saved sermon text repeats a loop the delivered audio does not contain (P8-Q14 short loop, audio-confirmed)']),
             'source_audio   ' => $this->heldSection($run, ['reason' => 'Saved sermon text lost a passage to a sparse 30-second-cadence ASR hallucination the repetition and density screens cannot see']),
+            // A lyric comparison can only name a catalogued rival: this was heard, and no lyric check can clear it (1337 §4275).
+            'source_audio    ' => $this->heldSection($run, ['reason' => 'Song clip is the wrong song: bound to O great God of highest heaven (#699, listed twice) but the audio is Shine Your Light, which is not in the catalogue']),
             'boundary' => $this->heldSection($run, ['reason' => 'Song clip leaves out verses of its own song']),
         ];
 

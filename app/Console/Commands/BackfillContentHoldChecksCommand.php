@@ -36,8 +36,9 @@ use Illuminate\Support\Facades\DB;
  *
  * Re-running it corrects a check read from a reason (marked `found_by_inferred`): the
  * first reading took short loops and cadence hallucinations for loop-screen holds,
- * which the repetition screen then cleared on any rewrite though it cannot see them.
- * A clearance made by a check that could not re-test the hold is revoked, and the
+ * which the repetition screen then cleared on any rewrite though it cannot see them,
+ * and a song heard to be outside the catalogue for a lyric-comparison hold, which the
+ * lyric scorer cannot see either (1337 §4275 would have cleared). A clearance made by a check that could not re-test the hold is revoked, and the
  * section is held again.
  */
 class BackfillContentHoldChecksCommand extends Command
@@ -65,6 +66,9 @@ class BackfillContentHoldChecksCommand extends Command
     private const REASON_CHECKS = [
         ['semantic_substitution', ContentHoldCheck::Judgement],
         ['duplicate-performance', ContentHoldCheck::Decision],
+        // The census lyric scorer only ever names a catalogued rival, so a song outside
+        // the catalogue was heard, and no lyric comparison can clear it (1337 §4275).
+        ['not in the catalogue', ContentHoldCheck::SourceAudio],
         ['held by operator ruling', ContentHoldCheck::Decision],
         ['wrong song', ContentHoldCheck::LyricComparison],
         ['song identity contradicted', ContentHoldCheck::LyricComparison],
