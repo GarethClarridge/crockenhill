@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Services\DetectorEvaluation\SoundStageFlagRecompute;
 use App\Services\DetectorEvaluation\SoundStageFlagWriter;
@@ -50,9 +51,9 @@ class RecomputeSoundStageFlagsCommand extends Command
 
     public function handle(SoundStageFlagRecompute $recompute, SoundStageFlagWriter $writer): int
     {
-        $runs = $this->population();
+        ['eligible' => $runs, 'skipped' => $skipped] = $this->population();
 
-        if ($runs === []) {
+        if ($runs === [] && $skipped === []) {
             $this->components->error('No runs matched. Pass --all or --run=.');
 
             return self::FAILURE;
@@ -65,6 +66,7 @@ class RecomputeSoundStageFlagsCommand extends Command
 
         $report = [
             'population' => count($runs),
+            'skipped_ineligible_run_ids' => $skipped,
             'runs_assessed' => $scan['runs_assessed'],
             'runs_unassessable' => $scan['runs_unassessable'],
             'unassessable_run_ids' => $scan['unassessable_run_ids'],
@@ -94,6 +96,13 @@ class RecomputeSoundStageFlagsCommand extends Command
             $report['runs_assessed'],
             $report['runs_unassessable'],
         ));
+
+        if ($report['skipped_ineligible_run_ids'] !== []) {
+            $this->components->warn(sprintf(
+                'Skipped runs %s: excluded or not completed, as --all would skip them.',
+                implode(', ', $report['skipped_ineligible_run_ids']),
+            ));
+        }
 
         $this->table(['Measure', 'Value'], [
             ['Sections written', (string) $report['sections_written']],
@@ -132,7 +141,13 @@ class RecomputeSoundStageFlagsCommand extends Command
     }
 
     /**
-     * @return list<MediaProcessingLog>
+     * The runs to recompute, and the named runs left out.
+     *
+     * Named runs obey the same eligibility as `--all`. They did not once: 1089, excluded as a
+     * rehearsal duplicate, was flagged by a named pass and not by `--all`, which read as a
+     * harness defect until the exclusion was found.
+     *
+     * @return array{eligible: list<MediaProcessingLog>, skipped: list<int>}
      */
     private function population(): array
     {
@@ -151,19 +166,35 @@ class RecomputeSoundStageFlagsCommand extends Command
                 );
             }
 
-            return array_values($found->all());
+            return [
+                'eligible' => array_values($found->filter(fn (MediaProcessingLog $run): bool => $this->isEligible($run))->all()),
+                'skipped' => array_values($found
+                    ->reject(fn (MediaProcessingLog $run): bool => $this->isEligible($run))
+                    ->map(static fn (MediaProcessingLog $run): int => (int) $run->id)
+                    ->all()),
+            ];
         }
 
         if (! $this->option('all')) {
-            return [];
+            return ['eligible' => [], 'skipped' => []];
         }
 
-        return array_values(MediaProcessingLog::query()
-            ->whereNotNull('historic_import_operation_id')
-            ->where('status', 'completed')
-            ->orderBy('id')
-            ->get()
-            ->reject(static fn (MediaProcessingLog $run): bool => $run->isExcluded())
-            ->all());
+        return [
+            'eligible' => array_values(MediaProcessingLog::query()
+                ->whereNotNull('historic_import_operation_id')
+                ->where('status', 'completed')
+                ->orderBy('id')
+                ->get()
+                ->filter(fn (MediaProcessingLog $run): bool => $this->isEligible($run))
+                ->all()),
+            'skipped' => [],
+        ];
+    }
+
+    private function isEligible(MediaProcessingLog $run): bool
+    {
+        return $run->historic_import_operation_id !== null
+            && $run->status === ProcessingStatus::Completed
+            && ! $run->isExcluded();
     }
 }
