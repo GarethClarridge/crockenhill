@@ -4676,3 +4676,97 @@ documentation-only review. The raw census and outputs use the prefix
 > same day** (465 runs): 71 sections newly held, 5 holds withdrawn, published
 > exposure unchanged at zero. The recorded state was stale in both directions.
 >
+
+## Moved from the plan on 2026-09-24
+
+> Superseded by the 2026-09-24 plan review: §4.0's corpus re-run (operator decisions
+> 2026-09-23, refined 2026-09-24) replaced the 09-20/09-22 execution choices. Moved
+> verbatim; evidence, not current status.
+
+### Review headers (2026-09-20 and 2026-09-22)
+
+**Last reviewed:** 2026-09-22 — sequencing and regular-upload coverage reviewed
+against current code. The full harness and detector programme remains active;
+the operator may complete it before rerunning or choose a bounded background
+repair batch first, depending on available project time (§4). Sail is running:
+`vendor/bin/sail ps` succeeded outside the sandbox and listed all six workers up.
+The earlier sandbox failure was not evidence of a stopped stack. This check did
+not refresh database counts or verify loaded worker code, queues or mounts.
+
+**Previous review:** 2026-09-20 — execution state, the extreme-short-loop containment,
+and the bounded retranscription command/preflight are reconciled with the execution
+tasks. The database census remains dated 16 September; this review does not refresh
+it. Prioritise independent verification and bounded transcription/boundary repair
+before dependency-grouped reruns. Earlier measurements and operator rulings remain
+evidence, not current status where superseded.
+
+### §4 execution choices (2026-09-22)
+
+**Execution choices revised 2026-09-22 (operator instruction).** Keep the full
+harness and detector work visible and active. Whether it precedes the next rerun
+depends on the operator's available time, not an assumed decision to defer it.
+The detailed sections retain their stable numbers and evidence anchors.
+
+| Available time / intent | Next work | Completion boundary |
+|---|---|---|
+| Time to work actively on the project | Continue the full §4.3a harness and detector programme, the independent source reviews and the regular-upload regression work below. The operator may choose to finish this before another rerun. | Complete the named implementation/evaluation tasks and record remaining uncertainty; building a harness alone does not validate the outputs. |
+| Busy; wants useful processing in the background | Prepare and dispatch an explicitly selected, bounded repair batch using fixes already implemented, after the three prerequisites below. | Runs finish into quarantine with holds preserved; source/content review can wait for the operator's return. Job completion does not accept or release them. |
+
+Neither choice drops work from the other. Full harness completion is not a
+technical prerequisite for every bounded repair, but it remains a legitimate
+operator preference before rerunning. Do not automatically dispatch a batch
+merely because it is technically ready. This plan revision authorises no new
+processing membership or release.
+
+### §4 numbered workstream order (2026-09-20/22)
+
+The workstreams below retain their internal dependencies. Their numbering does
+not require completion of all independent review or detector work before a
+bounded background repair; the three batch prerequisites above govern dispatch.
+
+1. **Reconcile and contain.** The read-only status/exposure reconciliation is done
+   in §3, including subsequent identity containment (§4.4). Reconcile the blind-review
+   hold status against dated gate evidence; act on current-policy discrepancies and
+   unassessable evidence below through the tested paths. Keep historic and weekly
+   populations separate; inspect both whenever a shared rule changes.
+2. **Finish independent review without reusing discovery as acceptance.** The
+   nine-service inventory/comparison in §4.1b is complete (1336, 1221, 936, 1097,
+   1066, 1314, 1358, 950, 1034). **The 18 frozen interior semantic windows and
+   BC-05 source replay completed 2026-09-18 (§4.1d).** Preserve recorded prior exposure;
+   these cases now inform
+   tuning and are regression evidence, not untouched evaluation. Add bounded positive and detector-negative
+   audio checks for song loops and lyric edges; lyric agreement alone is not audio
+   adjudication. **There is no separate reserved evaluation set** — §4.3a's H9
+   rules that none survives; miss rate comes from H10's detector-negative sample.
+   This is discovery
+   and validation, not a nine-service claim of corpus accuracy.
+3. **Prove one bounded repair canary (§4.0a).** **Done 2026-09-17 for source-content
+   alignment and hold persistence.** macOS Safari playback across the shared join
+   path passed; iOS is an accepted untested limitation. The remaining actual-server,
+   repaired-output, song-clip and cache checks stay in §4.5's release evidence rather
+   than blocking bounded repairs. The canary also proved that re-running is not
+   automatically safe for a sermon span (1340 below), so every re-run is checked
+   against its opening words, not just its job status. Cover the Whisper
+   context fix and changed song boundaries as well as the latest smart-cut correction;
+   inspect dependent sermon endings and analysis, not just durations.
+4. **Repair by each run's dependencies.** Freeze a deduplicated run membership,
+   required stages, code/evidence versions and expected outcomes before dispatch.
+   Transcript recovery precedes dependent structure/analysis; structure and song
+   identity precede planning; extraction precedes measured stored-output checks,
+   derived items and final evidence banking. An unaffected run need not wait for
+   an unrelated detector. Do not repeatedly encode a run whose boundaries are
+   still under repair. Preserve holds until its independent acceptance passes.
+5. **Close substantive gaps and operation state before or alongside the repairs.** Prioritise
+   §4.2's context-drift recovery, short/varying loops and sparse loss; §4.3's
+   performed-song confirmation and unresolved speech-edge cases; quoted hymns
+   mistaken for singing and hymns wholly inside sermons; Scripture linking and
+   missing assets. Source dropouts/truncation can end in a reasoned hold or accepted
+   limitation rather than attempted reconstruction. The three failed runs have
+   recorded terminal dispositions in §4.5 (19 September); verify those when
+   refreshing state rather than reopening their old checklist. Resolve the
+   deferred source-adoption pairs and operation 4's legitimate completion route
+   before final convergence; do not fabricate checkpoints.
+6. **Accept and release only exact membership (§4.5).** Independent repaired-output
+   checks, current-policy evidence, editorial QA, thumbnails, convergence artifacts,
+   real browser delivery and operator-signed batches remain required. Increasing
+   the number of holds is not this phase's success measure.

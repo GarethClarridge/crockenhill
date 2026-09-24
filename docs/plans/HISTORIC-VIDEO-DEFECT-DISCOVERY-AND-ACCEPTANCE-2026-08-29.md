@@ -4,17 +4,21 @@
 > once bulk processing was complete and the remaining work became discovering,
 > containing and detecting defects, then proving acceptance.
 
-> **Status — 2026-09-23: bulk processing is drained; containment, content
-> acceptance and public release remain NO-GO.** Most media repairs await pipeline
-> reprocessing through bounded batches (§4 prerequisites). Where the work stands:
+> **Status — 2026-09-24: bulk processing is drained; containment, content
+> acceptance and public release remain NO-GO.** Repairs now run through §4.0's corpus
+> re-run: every eligible run re-detected against one frozen commit. Where the work stands:
 >
-> - **Detection:** the §4.3a harness is built and evaluated (38 detectors: 5 fail,
->   33 not established, 0 accepted). The remaining failures are diagnosed (see
->   "Workstream status").
+> - **Freeze gate (§4.0):** 6 unbuilt detector items and 1 prototype that change what the
+>   re-run produces, plus the song-edge check. Six release-side items gate acceptance
+>   (§4.5) instead (operator, 2026-09-24).
+> - **Detection:** the catalogue holds 79 classes: 45 promoted, 19 fixed at source, 2
+>   decided not to detect, 12 unbuilt, 1 prototype. The last full evaluation (38 detectors:
+>   5 fail, 33 not established, 0 accepted) predates the 09-23 detectors, which score
+>   `missed` until the re-run writes their output.
 > - **Miss rate:** H10b re-decoded and compared all 338 decodable runs under a rule
->   fixed before decoding (tripwire 2.20%, under 3%). A 208-window listening queue
->   awaits the operator (306 windows including batch 2, the 99 restaged runs).
-> - **Repairs ready:** 1287's retranscription is dry-run ready.
+>   fixed before decoding (tripwire 2.20%, under 3%), plus 99 restaged runs as batch 2.
+>   The listening queue, **306 windows across 164 runs**, awaits the operator.
+> - **Repairs since 09-20:** 1287 re-transcribed and re-detected 09-23.
 > - **Operational:** temp-file cleanup is paused locally so restaged sources survive.
 > - **Regular uploads:** the per-route fix audit is recorded in §4.
 >
@@ -33,20 +37,13 @@
 
 **Original date:** 2026-08-29
 **Last condensed:** 2026-09-23 (previously 2026-09-12)
-**Last reviewed:** 2026-09-22 — sequencing and regular-upload coverage reviewed
-against current code. The full harness and detector programme remains active;
-the operator may complete it before rerunning or choose a bounded background
-repair batch first, depending on available project time (§4). Sail is running:
-`vendor/bin/sail ps` succeeded outside the sandbox and listed all six workers up.
-The earlier sandbox failure was not evidence of a stopped stack. This check did
-not refresh database counts or verify loaded worker code, queues or mounts.
-
-**Previous review:** 2026-09-20 — execution state, the extreme-short-loop containment,
-and the bounded retranscription command/preflight are reconciled with the execution
-tasks. The database census remains dated 16 September; this review does not refresh
-it. Prioritise independent verification and bounded transcription/boundary repair
-before dependency-grouped reruns. Earlier measurements and operator rulings remain
-evidence, not current status where superseded.
+**Last reviewed:** 2026-09-24. A critical review of the 09-23 condensation against the
+code and the local database. It removed the excluded run 1051 from the canary and added
+the catalogue's own talk cases, split the freeze gate into re-run and acceptance items,
+decoupled Tier B from the listening queue, refreshed stale status lines, and linked each
+carried item to its full text in the log. The 09-20 and 09-22 review headers and their
+execution choices moved to the
+[log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-12-TO-2026-09-23.md#moved-from-the-plan-on-2026-09-24).
 
 ## 1. Outcome and boundaries
 
@@ -100,6 +97,8 @@ The census used a read-only transaction and the application's
 publication, worker or processing run, inspect production, decode media, or test a
 signed release authorisation. Evidence:
 `storage/scratch/plan-review-20260916-live-state.json`.
+**This census predates** the 1004 and 1287 repairs, the 09-23 hold provenance backfill
+and the 09-24 hold re-checks. It is recounted and hashed at the freeze (§4.0), not reused.
 
 | Population | Runs | Linked sermons | Sections | Generated SongVideos |
 |---|---:|---:|---:|---:|
@@ -160,7 +159,7 @@ repaired corpus, and a correct hold is not a confirmed defect.
 | Workstream | Implemented | Applied / verified on existing outputs | Remaining |
 |---|---|---|---|
 | Explicit holds and occasion exclusions | Yes; holds survive sync and merges | Named holds, identity containment, four occasion exclusions, publication demotions and held-then-reprocessed canary applied; dated state above | Current-policy residue; source-adoption decisions |
-| Song boundary/loop evidence | Version 5, input fingerprints, lyric-edge and loop risks | Successive backfills and demotions recorded in §4.3a | Current-policy scope/limitations; independent audio evaluation; identity confirmation |
+| Song boundary/loop evidence | Version 7, input fingerprints, lyric-edge and loop risks | Successive backfills and demotions recorded in §4.3a | Current-policy scope/limitations; independent audio evaluation; identity confirmation |
 | Smart cut, MP3, source audio format | Yes, including `fda414eb2` source-frame correction | Tests, source-content canary and limited real-source measurements; no completed corpus repair pass recorded | Affected media reruns; actual-server delivery checks at release |
 | Structure and song identity | Prompt seconds, closing prayer/reading retention, sustained singing, mistyped sung-item risk, catalogue-title priority and 17 September speech-edge trim | Retrospective measurements and tests; trim replay is not a corpus write | Per-run re-detection/re-resolution, then extraction and derived-item repair; speech-edge exceptions |
 | Local Whisper decoding | Context carry disabled; initial prompt retained on both request paths; options fingerprinted | Seven-run experiment, MP3-form check, 1314/1340/1343/1258/980 repairs and four-run recovery reconciliation; request/fingerprint tests | Wider raw-transcript census; full independent source/content and dependent-analysis checks |
@@ -168,27 +167,17 @@ repaired corpus, and a correct hold is not a confirmed defect.
 | Acceptance and release | Existing signed release machinery | Nine-service source inventories compared; acceptance incomplete; no new release authorised | Interior semantic review, H10 detector-negative sampling (no reserved set — H9), canary, bounded repairs, operation closeout, exact-membership QA and delivery |
 
 The 10–11 September transcript/media-readability census and its missing-hold list
-remain in the preserved follow-up review at the end of this document. They are not
+remain in the preserved follow-up review, now in the [log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-12-TO-2026-09-23.md). They are not
 fresh readability checks or current missing-hold counts. The five confirmed sermon
 loops and §§988/1457/3869 were held on 13 September (§4.1).
 
 ## 4. Remaining work in execution order
 
-**Execution choices revised 2026-09-22 (operator instruction).** Keep the full
-harness and detector work visible and active. Whether it precedes the next rerun
-depends on the operator's available time, not an assumed decision to defer it.
-The detailed sections retain their stable numbers and evidence anchors.
-
-| Available time / intent | Next work | Completion boundary |
-|---|---|---|
-| Time to work actively on the project | Continue the full §4.3a harness and detector programme, the independent source reviews and the regular-upload regression work below. The operator may choose to finish this before another rerun. | Complete the named implementation/evaluation tasks and record remaining uncertainty; building a harness alone does not validate the outputs. |
-| Busy; wants useful processing in the background | Prepare and dispatch an explicitly selected, bounded repair batch using fixes already implemented, after the three prerequisites below. | Runs finish into quarantine with holds preserved; source/content review can wait for the operator's return. Job completion does not accept or release them. |
-
-Neither choice drops work from the other. Full harness completion is not a
-technical prerequisite for every bounded repair, but it remains a legitimate
-operator preference before rerunning. Do not automatically dispatch a batch
-merely because it is technically ready. This plan revision authorises no new
-processing membership or release.
+**Execution model (operator decisions 2026-09-23, refined 2026-09-24).** §4.0's corpus
+re-run is the repair route. Before the freeze, a run is repaired only as a named exception
+with its own reason, as 1287 was on 09-23, and through the preflight below. The detector
+programme is no longer an alternative to background batches: the freeze waits for it.
+This plan revision authorises no new processing membership or release.
 
 ### 4.0 Corpus re-run — operator decisions 2026-09-23
 
@@ -198,11 +187,11 @@ title resolution, mistyped-sung flag, lyric identity check). They reach a run on
 is re-detected, so nearly every run with a song section is affected, and selecting runs
 costs more than re-running them. **Operator decisions:**
 
-1. **Freeze detection code only after every open detector item is closed.** Each item is
-   either built and tested, or recorded as a decision not to detect. The pass then runs
-   against one commit, and its evidence binds that commit. The gate (catalogue state
-   2026-09-23: 40 promoted, 16 fixed at source, 2 decided not to detect, **17 unbuilt, 1
-   prototype**):
+1. **Freeze detection code only after every open item that changes the re-run's output is
+   closed.** Each item is either built and tested, or recorded as a decision not to detect.
+   The pass then runs against one commit, and its evidence binds that commit. The gate
+   (catalogue state 2026-09-24: 45 promoted, 19 fixed at source, 2 decided not to detect,
+   12 unbuilt, 1 prototype; **6 unbuilt and the prototype gate the freeze**):
    - Structure/typing: ~~`structure-hymn-inside-sermon-section`~~ (built `994446a12`),
      ~~`structure-spoken-quotation-typed-as-song`~~ and
      ~~`detection-unplaced-hold-refusal-discarded`~~ (both already fixed; recorded `5a071a4af`),
@@ -211,7 +200,7 @@ costs more than re-running them. **Operator decisions:**
      ~~`talk-typed-other`~~ — **gates the freeze** (operator ruling 2026-09-23): talks plan PR1
      and PR3 (`short_talk` detection) land before the freeze, so the corpus re-run detects
      short talks in the same pass. *Landed 2026-09-23 (`887d73373`, `7e9eb824f`); PR2 and PR4
-     too. The talks plan's own measurement and PR5 re-detection pass moved into this re-run
+     too. The catalogue entry is `FixedAtSource` (09-24). The talks plan's own measurement and PR5 re-detection pass moved into this re-run
      (operator, 2026-09-24): the canary below checks the prompt, and Tier B re-detects the
      191-section bucket.*
    - Transcript/audio: `transcript-meaning-changing-substitution`,
@@ -219,28 +208,53 @@ costs more than re-running them. **Operator decisions:**
    - Scripture: `scripture-reference-never-linked`, `scripture-multi-passage-truncated`,
      `scripture-verse-in-prayer-typed-as-reading`
    - Identity/metadata: `oos-item-written-from-wrong-song`,
-     `published-title-contradicts-content`, `identity-duplicate-date-pair`
-   - Membership/staging/release: `membership-missing-occasion`,
-     `membership-rehearsal-imported-as-service`, `staging-held-candidates-not-promoted`,
-     `release-media-file-missing`, `video-discredited-verdict-unreassessable`
+     `published-title-contradicts-content`
    - Carried §4.3 items outside the catalogue: ~~the continuous-speech boundary check (§988)~~
      (built `4abce5f0c`), ~~`confirmed` redefined as two independent sources~~ (built
      `8ae957628`; operator ruling: **any two** of heard, sung, projected, planned — 126 of 1,185
      current bindings would become inferred, against 231 under the stricter plan wording),
      ~~speech under looped sung text~~ (built `cb024a9a6`), and song edge into an adjoining
      section.
+   - **Gate acceptance, not the freeze (operator, 2026-09-24):** `identity-duplicate-date-pair`,
+     `membership-missing-occasion`, `membership-rehearsal-imported-as-service`,
+     `staging-held-candidates-not-promoted`, `release-media-file-missing` and
+     `video-discredited-verdict-unreassessable`. They read stored outputs, custody or
+     membership, not the re-run's output, and this corpus's occasion exclusions and
+     identity holds are already applied. §4.5 still requires each before historic acceptance.
    - Each built rule was measured read-only over the corpus before commit; none was applied to
      existing rows, which change only when the re-run re-detects them. Evidence:
      `storage/scratch/{sungspan,songwithout,swallow,speechloop,confirmed}-20260923-*.json`.
 2. **Tier A (re-transcription) waits for the operator's H10b listening queue.** Runs are
-   chosen from the listening results, not from the tripwire alone.
+   chosen from the listening results, not from the tripwire alone. Only the runs in the
+   queue wait; the rest start at the freeze (operator, 2026-09-24).
 3. **All eligible historic runs are re-run**, not only those predicted to change. The
    censuses keep finding classes nobody predicted, and the diff report surfaces them.
 
 **Shape.** Tier A re-transcribes (H10b-selected runs plus the contained transcript-loss
-cases). Tier B re-detects every other eligible run from structure detection. Tier C,
-re-extraction, follows only where a span or binding moved. Everything lands in quarantine;
-release stays with §4.5.
+cases). Tier B re-detects from structure detection. At the freeze, Tier B takes every
+eligible run that is neither in the listening queue (164 runs,
+`storage/scratch/h10b-corpus-20260922/listening-queue*.json`) nor held for transcript
+loss. After listening, each queued run joins Tier A or Tier B, so no run is processed
+twice.
+
+*Held for transcript loss* means a live content hold (neither cleared nor released) that
+says the stored text is wrong where the audio is not: `found_by` = `loop_screen`, or a
+`source_audio` hold whose reason is a short loop, fragmentation, sparse-cadence loss or
+BC-08 drift (`short_transcript_loop_source_mismatch`, `held_sample_short_transcript_loop`,
+`reserved_fragmentation_source_mismatch`, "Saved sermon text repeats a loop…", "…lost a
+passage to a sparse…", "Blind review BC-08…"). Holds on the source itself (silence,
+cut-off recordings), on boundaries or on song identity are not transcript loss. A run
+counts only while its hold's `transcript_sha256` matches the stored transcript, so a run
+already re-transcribed at `max_context=0` goes to Tier B. **Measured read-only 2026-09-24**
+(`storage/scratch/tier-b-transcript-loss-20260924.{php,json}`): 67 runs hold such a record,
+3 on text since replaced (1258, 1314, 1343), leaving **64**, of which 26 are also queued.
+So **202 runs wait** for listening, and Tier B can start on the rest (about 235 of 437);
+recount both at the freeze. Tier C, re-extraction, follows only where a span or binding moved. Everything lands
+in quarantine; release stays with §4.5.
+
+**Membership.** Eligible means historic, completed, not superseded and not excluded (437 at
+the 09-16 census; H10b's 455 includes excluded runs). It is recounted and hashed at the
+freeze, and the diff report binds that hash.
 
 **To build before the pass:**
 - [ ] A per-run **before/after diff report**: sections, types, spans, bindings, holds (with
@@ -248,7 +262,10 @@ release stays with §4.5.
   compared after, so review reads "what changed and why" instead of re-examining every run.
 - [ ] A bounded **re-detect dispatch route**, tested. `historic-import:retranscribe-video-run`
   is restricted to four runs.
-- [ ] **Canary: runs 964 (§872) and 1250 (§3128)**, the first use of the diff report. Current
+- [ ] **Canary, run on the candidate freeze commit.** If it passes, that commit is frozen. A
+  failure is fixed and the canary re-run on the new commit, so no detection change lands
+  after the freeze.
+  **Runs 964 (§872) and 1250 (§3128)**, the first use of the diff report. Current
   code resolves both hints correctly (#304, #408). The canary checks that re-detection
   rebinds them, that sync overwrites the stale livestream items 6901/9371 rather than
   anchoring on them, and that `lyric_identity_check` reads `consistent`. They are not rebound
@@ -260,31 +277,36 @@ release stays with §4.5.
   *Must become `short_talk`:* **1108** (§1895, Heidelberg Q122 — proposed `childrens_talk`
   only if the transcript carries the prompt's children cues, else null; a catechism talk
   without them is exactly BC-07's case), **1025** (§1374, Release International —
-  `partner_update`), **1112** (§3735, Gavin Peacock — `testimony`).
+  `partner_update`), **1112** (§3735, Gavin Peacock — `testimony`), **1358** (§4684,
+  "Augustine of Hippo" — `childrens_talk`; a catalogue regression case whose title does not
+  say it is a talk).
+  *Must stay `short_talk`:* **1221** (§2721, Heidelberg "the fall" — the other catalogue
+  regression case; already `short_talk` since 09-21).
   *Mixed:* **1311** — §3949 "Baptismal testimonies" becomes `short_talk` (`testimony`) while
   §3951 "Baptisms" stays non-talk.
-  *Must stay non-talk:* **1304** (§3871, "Baptism of Roy" — an ordinance), **1051** (§1592,
-  "Family tribute and eulogy"), **1262** (§3279, "Reflection and prayer for Queen Elizabeth
+  *Must stay non-talk:* **1304** (§3871, "Baptism of Roy" — an ordinance), **935** (§599,
+  "Unidentifiable service audio", 61 min; replaces 1051's eulogy, whose run is excluded
+  and cannot be re-detected), **1262** (§3279, "Reflection and prayer for Queen Elizabeth
   II"), **949** (§719, "Church sharing and prayer"), **936** (§600, "Pre-service
   preparation").
-  Three of the four positives carry their answer in the title, so this checks the rule's
-  exclusions far more than its recall; recall over the untitled cases is read from the Tier B
+  Three of the five positives carry their answer in the title, so this checks the rule's
+  exclusions more than its recall; recall over the untitled cases is read from the Tier B
   diff report of the 191-section bucket. Pass = every section as expected in the diff report.
   A miss is a prompt fix before the batches (`feedback_measure_before_generalizing_a_fix`); a
   missed *proposed type* alone does not block, because the operator confirms every type at
   approval.
 - [ ] Batches by era, each checked against its diff before the next. Stop on any new regression.
 
-**Three prerequisites for the next bounded batch:**
+**Preflight for every dispatch** (the canary, each batch, and any named pre-freeze exception):
 
 1. Freeze exact run membership, required stages, source identity, prior artifacts,
    expected opening/ending and repair outcome. Deduplicate by run; settle upstream
    transcript/structure dependencies before spending on final extraction. Explicitly
    retain or exclude unresolved cases rather than letting them widen the batch.
 2. Verify the supported dispatch route and immediate queue, worker-code, mount and
-   disk readiness. The current `historic-import:retranscribe-video-run` action is
-   restricted to 980/1258/1343, whose bounded dispatch is complete; wider use needs
-   a tested, explicitly bounded extension or another verified existing route.
+   disk readiness. `historic-import:retranscribe-video-run` is restricted to
+   980/1258/1343/1287, all complete; the re-run needs the bounded re-detect route above,
+   and Tier A a tested extension of this one.
    A fresh `sail ps` result alone is not this preflight.
 3. Reuse the completed canary evidence and check representative first repaired
    outputs before expanding to a larger batch. Cover any materially different
@@ -359,7 +381,7 @@ treat historic acceptance as proof for all three modes.
   | Song publication review: lyric edges, loops, neighbour same-song (`SongPublicationReviewPolicy`) | yes | **no**: no song clips | n/a | n/a |
   | Enhanced audio keeps the source sample rate (`AudioEnhancementService::enhanceVideo`) | yes (song clips) | **no**: `EnhanceAudio` calls audio-only `enhance()`, which the fix did not touch. Its `loudnorm` has no `-ar` either, but `libmp3lame` caps output at 48 kHz, so the 96 kHz defect cannot occur there (a 44.1 kHz source may come out at 48 kHz) | no | no |
   | Video quality verdict on the owning run (`AssessSermonVideoQuality`) | yes | yes | yes | n/a: no video |
-  | Temp-file cleanup pause (`CleanupTemporaryFiles`, sweep) | yes | yes | yes | yes |
+  | Temp-file cleanup pause (`CleanupTemporaryFiles`, sweep): **operational, local only, not a fix**. It keeps restaged sources; unset it after the historic repairs | yes | yes | yes | yes |
 
   **Gaps that remain, by design or open:**
   - Direct uploads have no transcript loop detection. The loop class did not reproduce on
@@ -371,56 +393,10 @@ treat historic acceptance as proof for all three modes.
   - Historic acceptance is not evidence for the direct routes. It shares only the context
     fix and the video quality check with them.
 
-The workstreams below retain their internal dependencies. Their numbering does
-not require completion of all independent review or detector work before a
-bounded background repair; the three batch prerequisites above govern dispatch.
-
-1. **Reconcile and contain.** The read-only status/exposure reconciliation is done
-   in §3, including subsequent identity containment (§4.4). Reconcile the blind-review
-   hold status against dated gate evidence; act on current-policy discrepancies and
-   unassessable evidence below through the tested paths. Keep historic and weekly
-   populations separate; inspect both whenever a shared rule changes.
-2. **Finish independent review without reusing discovery as acceptance.** The
-   nine-service inventory/comparison in §4.1b is complete (1336, 1221, 936, 1097,
-   1066, 1314, 1358, 950, 1034). **The 18 frozen interior semantic windows and
-   BC-05 source replay completed 2026-09-18 (§4.1d).** Preserve recorded prior exposure;
-   these cases now inform
-   tuning and are regression evidence, not untouched evaluation. Add bounded positive and detector-negative
-   audio checks for song loops and lyric edges; lyric agreement alone is not audio
-   adjudication. **There is no separate reserved evaluation set** — §4.3a's H9
-   rules that none survives; miss rate comes from H10's detector-negative sample.
-   This is discovery
-   and validation, not a nine-service claim of corpus accuracy.
-3. **Prove one bounded repair canary (§4.0a).** **Done 2026-09-17 for source-content
-   alignment and hold persistence.** macOS Safari playback across the shared join
-   path passed; iOS is an accepted untested limitation. The remaining actual-server,
-   repaired-output, song-clip and cache checks stay in §4.5's release evidence rather
-   than blocking bounded repairs. The canary also proved that re-running is not
-   automatically safe for a sermon span (1340 below), so every re-run is checked
-   against its opening words, not just its job status. Cover the Whisper
-   context fix and changed song boundaries as well as the latest smart-cut correction;
-   inspect dependent sermon endings and analysis, not just durations.
-4. **Repair by each run's dependencies.** Freeze a deduplicated run membership,
-   required stages, code/evidence versions and expected outcomes before dispatch.
-   Transcript recovery precedes dependent structure/analysis; structure and song
-   identity precede planning; extraction precedes measured stored-output checks,
-   derived items and final evidence banking. An unaffected run need not wait for
-   an unrelated detector. Do not repeatedly encode a run whose boundaries are
-   still under repair. Preserve holds until its independent acceptance passes.
-5. **Close substantive gaps and operation state before or alongside the repairs.** Prioritise
-   §4.2's context-drift recovery, short/varying loops and sparse loss; §4.3's
-   performed-song confirmation and unresolved speech-edge cases; quoted hymns
-   mistaken for singing and hymns wholly inside sermons; Scripture linking and
-   missing assets. Source dropouts/truncation can end in a reasoned hold or accepted
-   limitation rather than attempted reconstruction. The three failed runs have
-   recorded terminal dispositions in §4.5 (19 September); verify those when
-   refreshing state rather than reopening their old checklist. Resolve the
-   deferred source-adoption pairs and operation 4's legitimate completion route
-   before final convergence; do not fabricate checkpoints.
-6. **Accept and release only exact membership (§4.5).** Independent repaired-output
-   checks, current-policy evidence, editorial QA, thumbnails, convergence artifacts,
-   real browser delivery and operator-signed batches remain required. Increasing
-   the number of holds is not this phase's success measure.
+The dependency order (transcript → structure and identity → planning → extraction →
+stored-output checks) is §4.0's tier shape. The 09-22 numbered workstream list moved to the
+[log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-12-TO-2026-09-23.md#moved-from-the-plan-on-2026-09-24); its open gaps are in §4.4, §4.5 and the
+carried items below.
 
 ### 4.1–4.3a Workstream status (condensed 2026-09-23)
 
@@ -429,17 +405,19 @@ censuses and rulings, transcript-loop and song-policy work, the class table and 
 H1–H10b detector harness) moved **verbatim** to the
 [execution log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-12-TO-2026-09-23.md).
 Cite it for evidence; do not copy histories back. The class-to-detector binding is
-data, in `resources/detector-classes.json`.
+data, in `resources/detector-classes.json`. Section numbers §3.1, §4.0a, §4.1–§4.1d and
+§4.3a, the §4.1b coverage matrix and the H-numbered harness steps refer to that log; this
+plan's §4.0 is the corpus re-run, not the log's.
 
 | Workstream | State on 2026-09-23 |
 |---|---|
-| §4.0a Repair canary | Done 09-17 (3/3). 1340 repaired 09-18. Held sermons park at extraction. Bounded retranscription of 980/1258/1343 done 09-20; 1287 is allowed and dry-run ready (stale replay stamp is now superseded on dispatch, `ed92d48f2`). |
+| §4.0a Repair canary | Done 09-17 (3/3). 1340 repaired 09-18. Held sermons park at extraction. Bounded retranscription of 980/1258/1343 done 09-20; 1287 re-transcribed and re-detected 09-23 (stale replay stamp superseded on dispatch, `ed92d48f2`). |
 | §4.1 Containment | Missing holds from the 09-10/11 review contained. Assets stay quarantined until their text or cuts are recovered. |
 | §4.1a/§4.1b Discovery censuses | Coverage censuses complete (residue, OoS order, titles, dates, sections, song loops, Scripture, consumer rendering, tails, video quality). The field coverage matrix is in the log. Human-only rows (end-to-end watching, real server/browser playback) remain open. |
 | §4.1c/§4.1d Rulings, interior review | BC-06/BC-07 ruled 09-18 (§4684 moved to the talks plan). 18 interior windows and BC-05 replay done. |
 | §4.2 Transcript loops | `max_context=0` fixes context drift; screen, sparse cadence (both-flank excuse) and recovery re-applied corpus-wide 09-21. Corpus re-decoding via H10b (below). Direct uploads: loops not reproduced on local Whisper. |
 | §4.3 Song policy | Speech-edge trim, sustained-sound widening, 10 s introduction bridge (09-22), lyric edges, neighbour same-song rule (09-23) built. Existing outputs need re-detection and re-extraction through the pipeline. Hint/binding contradiction rule measured and not built (all genuine cases already held). |
-| §4.3a Detector harness | Catalogue, five adapters, case book, replay and evaluation built. Latest evaluation: 38 detectors, 5 fail, 33 not established, 0 accepted. 1341 fixed (bridge), 1337 fixed (neighbour rule), 1287 diagnosed as transcript loss (not a detector gap), 1109 below the intentional threshold. Recall via H10/H10b. |
+| §4.3a Detector harness | Catalogue, five adapters, case book, replay and evaluation built. Last full evaluation (before the 09-23 detectors): 38 detectors, 5 fail, 33 not established, 0 accepted. 1341 fixed (bridge), 1337 fixed (neighbour rule), 1287 diagnosed as transcript loss (not a detector gap), 1109 below the intentional threshold. Recall via H10/H10b. |
 | H10b Re-decode comparison | Built, controlled (C1/C2/C3) and run over 338 runs; decision rule applied unchanged (tripwire 2.20%). 99 restaged runs decoding as batch 2. **Listening queue awaits the operator.** Details and the committed rule below. |
 
 #### H10b, 1337 and 1287: live notes (verbatim from the 2026-09-22/23 follow-up)
@@ -570,7 +548,8 @@ data, in `resources/detector-classes.json`.
   consequence (20 s unsustained, the reading, before song 2), and no widening rule should
   be bent to reach it. **Repair:** re-transcribe, then re-detect, through the pipeline in
   the next bounded batch. Its staged source is present (it was in the first decode batch),
-  but the retranscription command is still restricted to 980/1258/1343.
+  but the retranscription command is still restricted to 980/1258/1343. *(1287 was added
+  and repaired on 09-23, below.)*
 
 
 #### 1287 repair result and the hold carry-through ruling — 2026-09-23
@@ -658,20 +637,24 @@ sung-span-in-sermon 949/1014, song-swallows-speech 974/1036, speech-under-loop
 adjacent-same-song 1337 §4274/§4275. `song-identity-single-source` and
 `song-identity-contradicted-by-lyrics` have **no case-book entries**; they need adjudicated
 cases before they can be scored. Song boundary evidence went v5→v7 in one evening, so run the
-boundary-evidence backfill **once, at v7**.
+boundary-evidence backfill **once, after the freeze** (v7 today; a gate item that touches song
+boundaries would bump it).
 
 #### Carried open items
 
-Every box still unticked in the moved sections, grouped by the section it came from. **Triaged
-2026-09-23** against the log, the code and the database: ticked items name their evidence,
+Every box still unticked in the moved sections, grouped by the section it came from. Most
+items are the first line of the original; its scope, populations and acceptance are in the
+[log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-12-TO-2026-09-23.md) at the line cited, which is frozen. The coverage matrix, the "not a defect"
+rulings and the stopping rule are restored in full because §5 gates on them (09-24).
+**Triaged 2026-09-23** against the log, the code and the database: ticked items name their evidence,
 superseded ones say why, and partial ones say what remains. For unannotated items no
 evidence of completion was found, so they stay open; some (for example the §988 boundary
 check against the 09-17 speech-edge trim) deserve a closer look before being built.
 
 **1340's regression is a transcript regression — measured 2026-09-17/18**
 
-- [x] Exercise the supported pipeline re-extraction/replacement path, including an equal-duration recut and a held-then-reprocessed run. *Triage 09-23: done. Canary 09-17 recut three held sermons (3/3); held runs 980/1258/1343 were re-transcribed and re-extracted 09-20 with holds persisting; 1340 repaired 09-18.*
-- [ ] Compare source content with the actual stored video/MP3 at starts, ends, randomly selected interiors and every join.
+- [x] Exercise the supported pipeline re-extraction/replacement path, including an equal-duration recut and a held-then-reprocessed run. *Triage 09-23: done. Canary 09-17 recut three held sermons (3/3); held runs 980/1258/1343 were re-transcribed and re-extracted 09-20 with holds persisting; 1340 repaired 09-18.* *(Full text: log L489.)*
+- [ ] Compare source content with the actual stored video/MP3 at starts, ends, randomly selected interiors and every join. *(Full text: log L493.)*
 
 **4.1 Contain confirmed missing holds first**
 
@@ -679,97 +662,161 @@ check against the 09-17 speech-edge trim) deserve a closer look before being bui
 
 **Field coverage matrix (drafted 2026-09-14 from the schema; keep current)**
 
-- [ ] Extend the machine-readable matrix with exact eligible membership and its hash, counts actually checked and unassessable (with reasons), check kind, instrument/version, thresholds, run date, input/output evidence hash….
-- [ ] Split mixed populations and partially checked rows.
-- [ ] Reconcile expected outputs against actual outputs from source truth and applicable pipeline contracts: talks, readings, songs, media, passage enrichment and downstream artifacts.
+- [ ] Extend the machine-readable matrix with exact eligible membership and its
+  hash, counts actually checked and unassessable (with reasons), check kind,
+  instrument/version, thresholds, run date, input/output evidence hashes, evidence
+  lineage, known blind spots and adjudication state. An unavailable transcript,
+  source or external plan is unassessable, never a pass. Reprocessing or changed
+  policy invalidates dependent evidence until the relevant checks run again.
+- [ ] Split mixed populations and partially checked rows. *(Full text: log L848.)*
+- [ ] Reconcile expected outputs against actual outputs from source truth and applicable pipeline contracts: talks, readings, songs, media, passage enrichment and downstream artifacts. *(Full text: log L853.)*
 
 **Blind source review and evidence independence**
 
-- [ ] Draw and save random interior source windows before consulting detector results, alongside complete-source review.
-- [ ] For each corroborating signal, record its original evidence and every transformation that could have inherited another signal's answer.
-- [ ] Separate intended from performed content.
-- [ ] Give the 152 runs without an independent OoS in the recorded census their own coverage and result breakdown.
+- [ ] Draw and save random interior source windows before consulting detector results, alongside complete-source review. *(Full text: log L1071.)*
+- [ ] For each corroborating signal, record its original evidence and every transformation that could have inherited another signal's answer. *(Full text: log L1077.)*
+- [ ] Separate intended from performed content. *(Full text: log L1083.)*
+- [ ] Give the 152 runs without an independent OoS in the recorded census their own coverage and result breakdown. *(Full text: log L1088.)*
 
 **Content alignment across processing handoffs**
 
-- [ ] Census content alignment across every eligible sermon MP3/video pair and generated clip versus its source spans.
-- [ ] Bind source identity/hash, ordered extraction spans, final artifact hashes, stored object identity and applicable policy/version in the evidence for a run.
-- [ ] Compare each source audio channel with final MP3 and video audio.
-- [ ] Search the whole source/output corpus for exact and near-duplicate content using hashes, audio fingerprints and transcript similarity without first requiring equal dates, references or titles.
+- [ ] Census content alignment across every eligible sermon MP3/video pair and generated clip versus its source spans. *(Full text: log L1100.)*
+- [ ] Bind source identity/hash, ordered extraction spans, final artifact hashes, stored object identity and applicable policy/version in the evidence for a run. *(Full text: log L1108.)*
+- [ ] Compare each source audio channel with final MP3 and video audio. *(Full text: log L1114.)*
+- [ ] Search the whole source/output corpus for exact and near-duplicate content using hashes, audio fingerprints and transcript similarity without first requiring equal dates, references or titles. *(Full text: log L1120.)*
 
 **Controlled variations and interruption tests**
 
-- [ ] Implement and evaluate the following relations on the affected pipeline stages, then exercise representative cases through the weekly path.
-- [ ] Exercise failure around old-file removal and replacement upload in `SermonMetadataIntegrationService::organizeVideoFile`, plus downstream row linking and review recomputation.
-- [x] Include a held-then-reprocessed run. *Triage 09-23: done by 980/1258/1343 (09-20, holds persisted).*
-- [ ] Confirm each new regression fixture fails for its intended reason before fixing a reported bug, then passes through the standard pipeline.
+- [ ] Implement and evaluate the following relations on the affected pipeline stages, then exercise representative cases through the weekly path. *(Full text: log L1136.)*
+- [ ] Exercise failure around old-file removal and replacement upload in `SermonMetadataIntegrationService::organizeVideoFile`, plus downstream row linking and review recomputation. *(Full text: log L1170.)*
+- [x] Include a held-then-reprocessed run. *Triage 09-23: done by 980/1258/1343 (09-20, holds persisted).* *(Full text: log L1175.)*
+- [ ] Confirm each new regression fixture fails for its intended reason before fixing a reported bug, then passes through the standard pipeline. *(Full text: log L1179.)*
 
-**Disagreement censuses to run (all 442 active runs unless stated)**
+**Disagreement censuses to run (all 442 active runs unless stated; now the eligible membership frozen in §4.0)**
 
-- [ ] Complete sermon audio/video content alignment corpus-wide, including source spans and joins, under the handoff checks above.
+- [ ] Complete sermon audio/video content alignment corpus-wide, including source spans and joins, under the handoff checks above. *(Full text: log L1547.)*
 
 **Changes of examiner modality**
 
-- [ ] Watch and listen to five complete services' outputs end to end on the rendered local pages (sermon page with video and MP3, each song page), drawn across eras and including at least one held-then-repaired run.
-- [ ] Verify playback through an actual server and browser on a representative set spanning source codecs, frame rates, mono/stereo, concatenation joins and repaired artifacts.
-- [ ] Through real media URLs, test starting playback, seeking near the middle, across joins and near the end, and resuming playback.
-- [ ] Verify replacement at an existing URL returns the current artifact through storage/server/cache delivery, including a browser that has loaded the old one.
-- [ ] Carry these journeys into the separately authorised release's observation window on the actual destination, with exact asset membership checks before release and representative delivery checks after it.
+- [ ] Watch and listen to five complete services' outputs end to end on the rendered local pages (sermon page with video and MP3, each song page), drawn across eras and including at least one held-then-repaired run. *(Full text: log L1717.)*
+- [ ] Verify playback through an actual server and browser on a representative set spanning source codecs, frame rates, mono/stereo, concatenation joins and repaired artifacts. *(Full text: log L1762.)*
+- [ ] Through real media URLs, test starting playback, seeking near the middle, across joins and near the end, and resuming playback. *(Full text: log L1767.)*
+- [ ] Verify replacement at an existing URL returns the current artifact through storage/server/cache delivery, including a browser that has loaded the old one. *(Full text: log L1772.)*
+- [ ] Carry these journeys into the separately authorised release's observation window on the actual destination, with exact asset membership checks before release and representative delivery checks after it. *(Full text: log L1776.)*
 
 **Rulings and stopping rule**
 
-- [ ] Put every "not a defect" ruling to the operator explicitly, with the evidence, and record the decision here: the hymn cut from sermon videos (`selectBibleReading()`), the long song videos, video 970's timestamps, and….
-- [ ] **Stopping rule (replaces round 2's; strengthened 2026-09-14).** Close this discovery round only when each coverage row has an explicit eligible population, check kind, actually checked and unassessable counts, eviden….
-- [ ] Sample the held population on the other dimensions: draw 15 held runs and run the full checklist plus the matrix rows on them, so that clearing a hold for its recorded reason does not release an unexamined row.
+- [ ] Put every "not a defect" ruling to the operator explicitly, with the evidence,
+  and record the decision here: the hymn cut from sermon videos
+  (`selectBibleReading()`), the long song videos, video 970's
+  timestamps, and any ruling §4.1b adds. (The short MP3s were resolved as a defect
+  2026-09-14, not a ruling.) Added 2026-09-14:
+  - **Picture starting after its audio: not acceptable; use a smart cut (operator
+    ruling 2026-09-14).** Re-encode only from each cut point to the next keyframe
+    and copy the rest. Pieces then start exactly on time, without the lead-in from
+    the preceding item, at close to stream-copy speed and quality.
+  - **1225's partial video: show it (operator ruling 2026-09-14).** The repaired
+    detector must approve it, since most of the recording is real preaching;
+  - **whole-recording cards count as no video (operator ruling 2026-09-14).** The
+    7 card rejections are correct, and the repaired detector must keep rejecting
+    them. A ruling made in passing by the reviewer is
+  not a decision.
+  - **A concatenated recording can contain a song (operator ruling 2026-09-14).**
+    `dropSongsTheRecordingCannotContain` retypes every song section in a concatenated
+    recording, which loses a song caught between segments (944 §666). The rule must
+    keep a song section the evidence supports and demote only join fragments; the
+    five affected runs (940, 942, 944, 973, 1014) are then re-detected through the
+    pipeline.
+  - **A non-matching reading stays joined to the sermon (operator ruling
+    2026-09-14).** When no reading matches the sermon's reference,
+    `selectBibleReading()` joins the nearest one, across a hymn if need be, and that
+    is kept: the media reflect what the congregation heard, and a preceding passage
+    (1059, 967) is a useful lead-in. Carol services (930, 1120) fit badly but are a
+    couple a year. Applies to 930, 1120, 967, 1044, 1059, 1174, 1264, 1267 and 1311.
+    **1043 is not covered by this ruling:** its "reading" is a verse quoted inside the
+    prayer before the sermon, and the detector should not type that as a reading at
+    all (§4.3a).
+  - **Saturday rehearsals are excluded (operator ruling 2026-09-14).** 1043 and 1089
+    duplicate the sermons that Sunday runs 1042 and 1088 carry; the Sunday runs stay.
+  - **Funerals are excluded (operator ruling 2026-09-14), for a different reason.**
+    1051 and 1098 are right-dated real services, but they do not belong in the sermon
+    archive. Their sermons (985, 1025) and song videos (211, 231, 232) go with them.
+  - **No existing path records either exclusion.** `historic-import:exclude-run`
+    accepts only `no_sermon_in_source`, and `HistoricRunExclusion` (D1) rules that a real
+    service must not be excluded that way. Both rulings need a recorded reason of their
+    own and a defined effect on the Sermon and SongVideo rows the runs already created.
+    Until that exists, all four runs stay quarantined and must not enter release membership.
+    *(Superseded: built and applied 2026-09-15, §4.5.)*
+  - **A sermon video may end on the next hymn's announcement and instrumental
+    introduction: not a defect (operator ruling 2026-09-14).** Single-span plans for 942,
+    1135, 1304 and 1224 end 14–20 s after the song section starts, and sermon 1049 ends on
+    the leader reading the hymn's first verse aloud. None contains singing, so no
+    detector or re-plan is due; 1224 and 1049 need no hold.
+- [ ] **Stopping rule (replaces round 2's; strengthened 2026-09-14).** Close this
+  discovery round only when each coverage row has an explicit eligible population,
+  check kind, actually checked and unassessable counts, evidence lineage/version,
+  limitations and adjudicated results; expected-output omissions are reconciled;
+  and every cheap instrument has run over its current eligible membership. Complete
+  blind source review, handoff alignment, controlled variations/interruption tests,
+  tail inspection, local browser delivery and whole-output checks. Human-only
+  dimensions need justified samples; inapplicable/deferred subsets need scoped
+  reasons and decisions, not blanket exemptions. No unexplained or unassessable
+  case may silently become a pass. Record effective containment or an explicit
+  operator disposition for residual uncertainty and ratify the not-defect rulings.
+  §4.3a's detector evaluation and §4.5's acceptance evidence must then pass their
+  predeclared criteria. Closing a round is a bounded decision on this corpus and
+  these instruments, not proof that unknown classes cannot remain.
+- [ ] Sample the held population on the other dimensions: draw 15 held runs and run the full checklist plus the matrix rows on them, so that clearing a hold for its recorded reason does not release an unexamined row. *(Full text: log L1842.)*
 
 **4.2 Close the transcript-loop blind spot**
 
-- [x] After readiness verification, and **on workers running `7d6bbde95` or later**, re-transcribe 1343, 1258 and 980 through the pipeline in the canary/bounded batches. *Triage 09-23: done 09-20.*
-- [ ] Verify recovered full-service evidence and saved sermon text independently.
-- [ ] Apply §4.1b's blind interior-window review to fluent transcription errors and omitted or meaning-changing speech, as well as loops.
-- [x] Complete the identity consequence: unusable looped text cannot provide lyric confirmation. *Triage 09-23: done; song matching refuses a transcript-derived `confirmed` where a suspect block overlaps (OCR or audited review may still confirm).*
+- [x] After readiness verification, and **on workers running `7d6bbde95` or later**, re-transcribe 1343, 1258 and 980 through the pipeline in the canary/bounded batches. *Triage 09-23: done 09-20.* *(Full text: log L2132.)*
+- [ ] Verify recovered full-service evidence and saved sermon text independently. *(Full text: log L2341.)*
+- [ ] Apply §4.1b's blind interior-window review to fluent transcription errors and omitted or meaning-changing speech, as well as loops. *(Full text: log L2343.)*
+- [x] Complete the identity consequence: unusable looped text cannot provide lyric confirmation. *Triage 09-23: done; song matching refuses a transcript-derived `confirmed` where a suspect block overlaps (OCR or audited review may still confirm).* *(Full text: log L2382.)*
 
 **4.3 Refresh song policy for existing outputs**
 
-- [ ] Reconcile the 27 boundary-policy candidates in addition to confirmed mixed section 3869.
-- [x] Add a boundary check for continuous spoken material that does not depend solely on finding a wordless gap, using section 988 as the regression case. *Built 2026-09-23 (`4abce5f0c`): a song under half sustained with a 25 s spoken lead-in or 20 s tail is held, not trimmed; 34 flagged over 463 runs, 23 already held, §988 and §1475 included.*
-- [ ] Independently verify repaired starts and tails, including clean negatives, no lost singing, and the adjoining sermon ending (135 replay trims follow sermons).
-- [ ] Keep §988/§1475 (below the half-sustained floor), §2897 (speech over organ; proposed start trim unverified), and §1457's actual repaired output as explicit real-source checks.
-- [x] Preserve the rejected broad unsung-song rule as a measured decision: 14 of 21 candidates were sung. *Triage 09-23: recorded in the log (§4.3, 09-17 speech-edge trim).*
-- [ ] Re-resolve the 72 deterministic cases through the pipeline, adjudicate the three unchanged-fallback suggestions separately, and correct livestream-sourced order-of-service items after identity settles.
-- [ ] Settle the 31 pending-approval sections with the same hint disagreement before anyone approves them.
-- [x] Add a lyric-coverage check (calibrated in §4.1a) before a song match is recorded as `confirmed`. *Built test-first 2026-09-23.* `SongLyricIdentityCheck` ports the 09-14 lyric scorer's rule unchanged (≥15 distinct content words; a rival song with ≥4 word pairs, twice the bound song's, and +0.1 IDF coverage). `MatchSongsFromTranscript` runs it on every match not taken from OCR and records `lyric_identity_check`. A contradiction raises `song_identity_contradicted_by_lyrics`, which `SongCatalogueTitlePolicy` vetoes at any confidence (so it stays `inferred` and goes to review, and the recalculator cannot promote it). The section also stays eligible for OCR, which can settle it. It is a contradiction test, not a confirmation: an unreadable transcript (`unavailable`) or too few heard words (`insufficient_words`) does not block, because Whisper drops singing. The hand-applied `…_by_transcript` flag is a separate string and is never touched. Registered as the promoted detector `song-identity-contradicted-by-lyrics`. **Corpus measurement** (read-only, inside staging contexts; `storage/scratch/lyricid-20260923-measure.{php,json}`), 1,218 bound song sections: 954 consistent, 190 insufficient words, 15 unavailable, **58 contradicted, 56 already held**. Calibration reproduces: 0 of 42 frame-verified correct sections flagged; of the 8 known-wrong, 4 are contradicted, 2 score consistent (§519, §3218), and 2 have too few words (§508, §631). **Two new unheld candidates**: §872 (run 964; bound #275, sung words match "God We Praise You #177" at 45 pairs to 3) and §3128 (run 1250, `title_hint_fuzzy`; bound #19, sung words match "I Do Not Know What Lies Ahead #871" at 18 to 3, the title its own hint names). Both are historic, at `identified`, with no clip, so nothing is exposed. The check reaches existing rows only when matching re-runs through the pipeline. Those two need a binding decision, not a hand edit.
-- [x] Redefine `confirmed` as two agreeing evidence sources whose lineage is demonstrably independent, with at least one supporting the actual performed song. *Built 2026-09-23 (`8ae957628`) as **any two** independent sources, by operator ruling; the performed-song requirement was dropped after measurement (it would demote 105 planned-and-announced bindings where Whisper missed the singing).*
+- [ ] Reconcile the 27 boundary-policy candidates in addition to confirmed mixed section 3869. *(Full text: log L2425.)*
+- [x] Add a boundary check for continuous spoken material that does not depend solely on finding a wordless gap, using section 988 as the regression case. *Built 2026-09-23 (`4abce5f0c`): a song under half sustained with a 25 s spoken lead-in or 20 s tail is held, not trimmed; 34 flagged over 463 runs, 23 already held, §988 and §1475 included.* *(Full text: log L2427.)*
+- [ ] Independently verify repaired starts and tails, including clean negatives, no lost singing, and the adjoining sermon ending (135 replay trims follow sermons). *(Full text: log L2481.)*
+- [ ] Keep §988/§1475 (below the half-sustained floor), §2897 (speech over organ; proposed start trim unverified), and §1457's actual repaired output as explicit real-source checks. *(Full text: log L2484.)*
+- [x] Preserve the rejected broad unsung-song rule as a measured decision: 14 of 21 candidates were sung. *Triage 09-23: recorded in the log (§4.3, 09-17 speech-edge trim).* *(Full text: log L2488.)*
+- [ ] Re-resolve the 72 deterministic cases through the pipeline, adjudicate the three unchanged-fallback suggestions separately, and correct livestream-sourced order-of-service items after identity settles. *(Full text: log L2495.)*
+- [ ] **1287 §3596: decide the binding of OoS item 11981**, which binds no song while the sung words match #797. The lyric hold re-checks itself once the binding is made (09-24 fixes); it is not lifted by hand.
+- [ ] Settle the 31 pending-approval sections with the same hint disagreement before anyone approves them. *(Full text: log L2500.)*
+- [x] Add a lyric-coverage check (calibrated in §4.1a) before a song match is recorded as `confirmed`. *Built test-first 2026-09-23.* `SongLyricIdentityCheck` ports the 09-14 lyric scorer's rule unchanged (≥15 distinct content words; a rival song with ≥4 word pairs, twice the bound song's, and +0.1 IDF coverage). `MatchSongsFromTranscript` runs it on every match not taken from OCR and records `lyric_identity_check`. A contradiction raises `song_identity_contradicted_by_lyrics`, which `SongCatalogueTitlePolicy` vetoes at any confidence (so it stays `inferred` and goes to review, and the recalculator cannot promote it). The section also stays eligible for OCR, which can settle it. It is a contradiction test, not a confirmation: an unreadable transcript (`unavailable`) or too few heard words (`insufficient_words`) does not block, because Whisper drops singing. The hand-applied `…_by_transcript` flag is a separate string and is never touched. Registered as the promoted detector `song-identity-contradicted-by-lyrics`. **Corpus measurement** (read-only, inside staging contexts; `storage/scratch/lyricid-20260923-measure.{php,json}`), 1,218 bound song sections: 954 consistent, 190 insufficient words, 15 unavailable, **58 contradicted, 56 already held**. Calibration reproduces: 0 of 42 frame-verified correct sections flagged; of the 8 known-wrong, 4 are contradicted, 2 score consistent (§519, §3218), and 2 have too few words (§508, §631). **Two new unheld candidates**: §872 (run 964; bound #275, sung words match "God We Praise You #177" at 45 pairs to 3) and §3128 (run 1250, `title_hint_fuzzy`; bound #19, sung words match "I Do Not Know What Lies Ahead #871" at 18 to 3, the title its own hint names). Both are historic, at `identified`, with no clip, so nothing is exposed. The check reaches existing rows only when matching re-runs through the pipeline. Those two need a binding decision, not a hand edit. *(Full text: log L2502.)*
+- [x] Redefine `confirmed` as two agreeing evidence sources whose lineage is demonstrably independent, with at least one supporting the actual performed song. *Built 2026-09-23 (`8ae957628`) as **any two** independent sources, by operator ruling; the performed-song requirement was dropped after measurement (it would demote 105 planned-and-announced bindings where Whisper missed the singing).* *(Full text: log L2504.)*
 
 **4.3a Put a detector in the pipeline for every class found**
 
-- [ ] Each promoted detector ships with the corpus cases in this plan as regression fixtures (positive and negative), under `tests/Fixtures/StructureEval` or beside it, following the existing fixture conventions.
-- [x] Re-run every promoted detector over the current eligible historic membership and reconcile its output. *Triage 09-23: done by `detectors:replay` (H7a, 09-21) and the sound-stage re-derivation (H7c, applied 09-21).*
+- [ ] Each promoted detector ships with the corpus cases in this plan as regression fixtures (positive and negative), under `tests/Fixtures/StructureEval` or beside it, following the existing fixture conventions. *(Full text: log L2981.)*
+- [x] Re-run every promoted detector over the current eligible historic membership and reconcile its output. *Triage 09-23: done by `detectors:replay` (H7a, 09-21) and the sound-stage re-derivation (H7c, applied 09-21).* *(Full text: log L2984.)*
 
 **Detector quality and automation benefit**
 
-- [ ] For each detector, record a source-adjudicated evaluation of true and false positives, false negatives and unassessable cases, with exact denominators and uncertainty.
-- [ ] Draw detector-negative and approved examples independently of its alerts and review them against source evidence.
+- [ ] For each detector, record a source-adjudicated evaluation of true and false positives, false negatives and unassessable cases, with exact denominators and uncertainty. *(Full text: log L3001.)*
+- [ ] Draw detector-negative and approved examples independently of its alerts and review them against source evidence. *(Full text: log L3006.)*
 - [x] ~~Separate known-defect regression fixtures from the development data used to choose thresholds/prompts.~~ *Triage 09-23: superseded by the H9 ruling (no reserved set; historic results are retrospective validation).*
-- [x] Before evaluating a candidate, record acceptance thresholds by defect severity, tolerances and allowed review burden. *Triage 09-23: done; H4 predeclared thresholds contract (09-21).*
-- [x] Break results down by era, codec/channel setup, service kind and availability of independent evidence, explicitly including the no-OoS group. *Triage 09-23: done; the evaluation tabulates stored era, codec/channel, occasion and corroboration × independent OoS (H8 follow-up, 09-22).*
-- [x] Bind results to code, model/prompt, policy and evidence versions. *Triage 09-23: done; H6 version binding, and the report binds the evaluator file hash.*
-- [ ] Derive the era boundaries the breakdown needs from observed source codec/container/channel transitions in the corpus.
-- [ ] Draw and review the H10 detector-negative sample: 90 transcript-negative runs for the S1 target, by sampled interior windows rather than whole-service listening, reporting the quantity actually bounded. *Triage 09-23: partly served; H10a coverage done, and the H10b listening queue (208 windows) is the transcript half. Still needs the operator's listening.*
+- [x] Before evaluating a candidate, record acceptance thresholds by defect severity, tolerances and allowed review burden. *Triage 09-23: done; H4 predeclared thresholds contract (09-21).* *(Full text: log L3023.)*
+- [x] Break results down by era, codec/channel setup, service kind and availability of independent evidence, explicitly including the no-OoS group. *Triage 09-23: done; the evaluation tabulates stored era, codec/channel, occasion and corroboration × independent OoS (H8 follow-up, 09-22).* *(Full text: log L3029.)*
+- [x] Bind results to code, model/prompt, policy and evidence versions. *Triage 09-23: done; H6 version binding, and the report binds the evaluator file hash.* *(Full text: log L3034.)*
+- [ ] Derive the era boundaries the breakdown needs from observed source codec/container/channel transitions in the corpus. *(Full text: log L3038.)*
+- [ ] Draw and review the H10 detector-negative sample: 90 transcript-negative runs for the S1 target, by sampled interior windows rather than whole-service listening, reporting the quantity actually bounded. *Triage 09-23: partly served; H10a coverage done, and the H10b listening queue (208 windows) is the transcript half. Still needs the operator's listening.* *(Full text: log L3046.)*
 
 **H8. What this discharges, and what it leaves open**
 
-- [ ] Write the source-confirmed regression cases into the existing fixtures; distinguish test doubles from evaluations of real model outputs.
-- [ ] Complete each remaining detector class's tested response or explicit recorded decision not to automate it; retain the class table as the work list.
-- [ ] Complete independent positive/negative source adjudication and H10/H10b's scoped measurements, then report results and limitations against the declared criteria.
+- [ ] Write the source-confirmed regression cases into the existing fixtures; distinguish test doubles from evaluations of real model outputs. *(Full text: log L3701.)*
+- [ ] Complete each remaining detector class's tested response or explicit recorded decision not to automate it; retain the class table as the work list. *(Full text: log L3703.)*
+- [ ] Complete independent positive/negative source adjudication and H10/H10b's scoped measurements, then report results and limitations against the declared criteria. *(Full text: log L3705.)*
 
 **Final verification, interpretation and next actions**
 
-- [x] **Contain the five audio-proven corrupt transcripts and §3869/§988.** *Triage 09-23: containment verified; runs 929/1008/1068/1187/1317 sermons and §3869/§988 all carry `content_defect_hold`.*
+- [x] **Contain the five audio-proven corrupt transcripts and §3869/§988.** *Triage 09-23: containment verified; runs 929/1008/1068/1187/1317 sermons and §3869/§988 all carry `content_defect_hold`.* *(Full text: log L4570.)*
 - [ ] Recover the text or correct the cuts for those seven (through the pipeline).
-- [ ] **Close the short-loop blind spot contextually.** *Triage 09-23: detection and regression coverage built (`4e42e05e7`, `e6b9326fc`, 09-19/20). Validating the remaining candidates against their audio is still open.*
-- [ ] **Make policy refresh reach already-generated songs.** Reassess within each owning staging context and bind the result to current inputs.
-- [ ] **Bind the three deferred duplicate pairs into Phase 9's membership.** *Triage 09-23: tracked in §4.4; kept here only as a pointer.*
+- [ ] **Close the short-loop blind spot contextually.** *Triage 09-23: detection and regression coverage built (`4e42e05e7`, `e6b9326fc`, 09-19/20). Validating the remaining candidates against their audio is still open.* *(Full text: log L4574.)*
+- [ ] **Make policy refresh reach already-generated songs.** Reassess within each owning staging context and bind the result to current inputs. *(Full text: log L4579.)*
+- [ ] **Bind the three deferred duplicate pairs into Phase 9's membership.** *Triage 09-23: tracked in §4.4; kept here only as a pointer.* *(Full text: log L4584.)*
 
 ### 4.4 Bind deferred identity disputes
 
@@ -1082,9 +1129,10 @@ check against the 09-17 speech-edge trim) deserve a closer look before being bui
   duplicated cover identity; focused tests (30 assertions), PHPStan and Pint are
   clean. No cover was generated or signed. Resume only after the maintainer names
   the real backup receipt and configures the signing key without exposing it.
-- [ ] Re-run §4.1a's held-out validation on a fresh sample after repairs, as final
-  acceptance evidence, across eras and apparently clean cases,
-  covering split sermons, partial/composite recordings, corrupt transcripts,
+- [ ] Re-run §4.1a's sample validation on a fresh sample drawn after repairs, as final
+  acceptance evidence, across eras and apparently clean cases. It is not a held-out set:
+  H9 rules that none survives, so the sample is new, not reserved (wording corrected
+  2026-09-24). Cover split sermons, partial/composite recordings, corrupt transcripts,
   repeated performances, song identity/count and boundary quality. The sample
   frame must include repaired and previously held runs, not only the never-named
   population (§4.1a's two samples excluded them), and the checklist must cover
@@ -1161,9 +1209,9 @@ check against the 09-17 speech-edge trim) deserve a closer look before being bui
 | Gate | State | Required evidence to turn green |
 |---|---|---|
 | Processing | GO | Definitive passes drained; the three former failures have recorded terminal dispositions in §4.5 (19 September). This is dated execution evidence, not a new live census. |
-| Queued repair readiness | **CONDITIONAL GO** | Both canary blockers are closed (`283a6cd90`, `690ae1d5d`), merge-case hold persistence is verified (`8d98e45b8`), and 1340's transcript regression is repaired (`c933889b9`, `7d6bbde95`). Workers were restarted onto `1c65dd104` before that repair, and macOS Safari join playback passed; iOS is an accepted limitation. Every new bounded batch must still pass an immediate queue/mount/worker-code preflight and verify each sermon opening against source speech. Actual-server range, repaired-output, song-clip and cache checks remain release evidence. |
+| Queued repair readiness | **CONDITIONAL GO for named pre-freeze exceptions and the §4.0 canary only** | The corpus re-run itself waits for the freeze gate (§4.0). Both canary blockers are closed (`283a6cd90`, `690ae1d5d`), merge-case hold persistence is verified (`8d98e45b8`), and 1340's transcript regression is repaired (`c933889b9`, `7d6bbde95`). Workers were restarted onto `1c65dd104` before that repair, and macOS Safari join playback passed; iOS is an accepted limitation. Every new bounded batch must still pass an immediate queue/mount/worker-code preflight and verify each sermon opening against source speech. Actual-server range, repaired-output, song-clip and cache checks remain release evidence. |
 | Containment | **NO-GO** | The six disputed sermons and their seven song videos were held on 2026-09-16 and the sections those holds left published were demoted the same hour (§4.4), so the identity gate-clear gap is closed and published-while-held is zero again. Remaining: the current-policy and unassessable residue. Containment is not adoption — the three pairs are still undecided, and the holds are what make deferring them safe. |
-| Content acceptance | **NO-GO** | §4.1b's strengthened stopping rule passes: scoped coverage and limitations, omission reconciliation, independent source evidence, content handoffs, controlled variations/interruption tests, tail and whole-output reviews. Every §4.3a class has a tested response or recorded decision; detector errors and review burden are evaluated against predeclared criteria using H9/H10's retrospective, source-adjudicated evidence, with measured units and limitations explicit. There is no reserved historic set; insufficient evidence is not a pass, and H10b disagreement counts are not complete recall. The fresh release-membership sample includes repaired/held runs and meets its separate predeclared limits. Evidence is bound to current artifacts; operator rulings are recorded. |
+| Content acceptance | **NO-GO** | The strengthened stopping rule (carried items, "Rulings and stopping rule") passes: scoped coverage and limitations, omission reconciliation, independent source evidence, content handoffs, controlled variations/interruption tests, tail and whole-output reviews. Every §4.3a class has a tested response or recorded decision; detector errors and review burden are evaluated against predeclared criteria using H9/H10's retrospective, source-adjudicated evidence, with measured units and limitations explicit. There is no reserved historic set; insufficient evidence is not a pass, and H10b disagreement counts are not complete recall. The fresh release-membership sample includes repaired/held runs and meets its separate predeclared limits. Evidence is bound to current artifacts; operator rulings are recorded. |
 | Public release | **NO-GO** | Phase 9 convergence, QA and actual-server browser checks pass, then the operator signs an exact era-sized batch. Actual-destination delivery checks are scheduled within the authorised release's rollback window and must pass to close observation. |
 
 <a id="correctness-review-2026-09-10-followup"></a>
