@@ -4,14 +4,14 @@
 > once bulk processing was complete and the remaining work became discovering,
 > containing and detecting defects, then proving acceptance.
 
-> **Status — 2026-09-24: bulk processing is drained; containment, content
+> **Status — 2026-09-25: bulk processing is drained; containment, content
 > acceptance and public release remain NO-GO.** Repairs now run through §4.0's corpus
 > re-run: every eligible run re-detected against one frozen commit. Where the work stands:
 >
-> - **Freeze gate (§4.0): clear** (2026-09-24, after the song-edge correction was built
->   rather than left as a hold). Next is the candidate freeze commit and the canary on it;
->   canary runs 1108, 1221, 1250 and 1262 carry song-edge holds. Six release-side items gate acceptance
->   (§4.5) instead (operator, 2026-09-24).
+> - **Freeze gate (§4.0): clear.** Canary 3 (2026-09-25, `76c657bca`, detection rounds on
+>   all 13 runs) passed every truth-set check with custody clean. **Next (§4.0 "Before the
+>   freeze"):** commit, new snapshot, canary 4 with both tiers **and Tier C**, diff, freeze.
+>   Six release-side items gate acceptance (§4.5) instead (operator, 2026-09-24).
 > - **Detection:** the catalogue holds 79 classes: 47 promoted, 22 fixed at source, 4
 >   decided not to detect, 6 unbuilt. The last full evaluation (38 detectors:
 >   5 fail, 33 not established, 0 accepted) predates the 09-23 detectors, which score
@@ -19,11 +19,12 @@
 > - **Miss rate:** H10b re-decoded and compared all 338 decodable runs under a rule
 >   fixed before decoding (tripwire 2.20%, under 3%), plus 99 restaged runs as batch 2.
 >   The listening queue, **353 windows across 173 runs**, was judged by the operator on
->   2026-09-24 (352 judged, about 235 minutes): 128 runs route to Tier A, 45 to Tier B (§4.0).
-> - **Corpus re-run:** detection rounds built (`6282bbcba`); canary 2 failed on 949 through
->   self-anchoring (detection reads the pipeline's own earlier order-of-service items). Three
->   builds are ruled and not started: self-anchoring fix, Tier A grounds from listening, Tier A
->   as a detection round (§4.0).
+>   2026-09-24 (352 judged, about 235 minutes): 128 runs route to Tier A, 45 to Tier B (§4.0);
+>   126 routes are live (1112 and 1287 lapsed), so Tier A reaches 170 runs.
+> - **Corpus re-run:** detection rounds for both tiers; detection reads only independently
+>   sourced items; listening routes are frozen into the snapshot; the diff separates
+>   quarantine from public and parked from failed (all 2026-09-25, §4.0). Tier C will park
+>   74 runs held on a talk, 36 of them Tier A runs whose holds no code check can clear.
 > - **Repairs since 09-20:** 1287 re-transcribed and re-detected 09-23.
 > - **Operational:** temp-file cleanup is paused locally so restaged sources survive.
 >   **All 438 eligible runs are reachable:** the 9 concatenated runs were restaged through the
@@ -484,6 +485,22 @@ freeze, and the diff report binds that hash.
   items, so it is detected from its transcript alone); 1311's baptisms leave the song (§3950)
   and §3949 stays a `short_talk`; 1304 §3871 stays non-talk; read 1262 §3281 (31 s
   introduction) and 1356 §4483 (774 s song) again.
+  **Result 2026-09-25 (`canary3-20260925/diff-round.json`): every truth-set check passed;
+  custody clean (0 attention, media pending on 8 runs).** 949's four slots are `prayer`
+  (§722, §723, §4854, §4855), so self-anchoring is fixed. 1311's three baptisms are `other`
+  sections (§3955, §4865, §4874), each hymn between them its own song, and the testimonies
+  are `short_talk`s proposing `testimony`. 1304's "Baptism of Roy" (§3874), 1262's Queen
+  reflection (§3279), 936's pre-service audio and 949 stay non-talk. 1108 §1895, 1025 §1375
+  (`partner_update`), 1112 §3735 (`testimony`), 1358 §4684 and 1221 §2721 are `short_talk`.
+  964 §872 → #304 and 1250 §3128 → #408, both `consistent`. 1262 §3281 is now a 31 s
+  `other` (the false positive is gone). 1356's 774 s song is a 173 s song, a prayer and a
+  reading, and its cut now joins the preached reading (927–1039 s) to the sermon
+  (1234–3491 s); the old span began at 1446 s, losing the sermon's opening (the 09-17
+  macro-song class). All nine listening holds are live and followed their content (1262's
+  moved to sermon §3288). **Open, not blocking:** 1311 §3953 (46 s) is a `short_talk`
+  "Commendation of Naomi's Testimony": her father's comment plus the leader's link into the
+  baptisms, probably not a talk. 1358 §4684 proposes no type (not `childrens_talk`), a
+  missed proposal the operator settles at approval.
   **Runs 964 (§872) and 1250 (§3128)**, the first use of the diff report. Current
   code resolves both hints correctly (#304, #408). The canary checks that re-detection
   rebinds them, that sync overwrites the stale livestream items 6901/9371 rather than
@@ -617,17 +634,30 @@ freeze, and the diff report binds that hash.
   The operator then released the hold (`released_by: operator`, the evidence as its reason),
   mirroring `ContentHoldRechecker`: the flag dropped and §4862 left review
   (`storage/scratch/release-1112-hold-20260924.php`). 1112 can rejoin the next canary.
-- [ ] **Teach `rerun-diff` two custody facts before the Tier C diff** (proposed 2026-09-24, not
-  ruled). (1) Song review is a publication state (`pending_approval` with
+- [x] **Teach `rerun-diff` two custody facts before the Tier C diff** (proposed 2026-09-24;
+  built 2026-09-25 at the operator's request). (1) Song review is a publication state (`pending_approval` with
   `song_publication_review` reasons), not `needs_manual_review`, which only the boundary-evidence
   backfill ever set on a song, so after a full-media run the diff reports "left manual review"
   for songs that are still held (15 of the first canary's 23). (2) "Became published" does not
   distinguish a quarantined song video (the historic path's designed outcome) from a public
   one. Until then, read those two attention kinds by hand.
+  *Built 2026-09-25.* A section is in review while `needs_manual_review` is set **or** its
+  publication is `pending_approval`; leaving review names the new status. "Became published"
+  is attention only when something is public: a song video or linked sermon whose
+  `publication_state` is `published`. A section published with everything that shows it still
+  quarantined is the change `section_published_into_quarantine`. Two gaps closed on the way:
+  **a sermon or song video turning public was never attention** (only a change), and **a run
+  extraction parks for its held sermon read as a failed re-run**; it is now pending, with its
+  re-cut named (the capture records `manual_review.reason_code` while review is required).
+  Capture stays additive (VERSION 1).
 - [ ] **Tier C throughput** (noted 2026-09-24). Every media step goes through one
   `historic-ffmpeg` worker, about 8 minutes of ffmpeg work a run, so cutting the corpus's
-  media is roughly 30 hours unattended. More ffmpeg workers would shorten it at the cost of
+  media is roughly **59 hours** unattended (8 min × 437 runs; the earlier "30 hours" was
+  an arithmetic slip). More ffmpeg workers would shorten it at the cost of
   I/O on the Staging drive (the SuperSpeed link fault). Decide before the freeze.
+  *Recommended 2026-09-25, not ruled:* keep one worker. The cost that matters is a detach
+  mid-cut, which reads like missing media and costs more to untangle than the hours saved;
+  the work is unattended and split into era batches anyway.
 - [x] **Holds for the mixed and neither runs** (ruled 2026-09-24): a hold on each
   window the operator judged wrong in the stored text (mixed) or both wrong (neither).
   *Done 2026-09-25.* 63 windows over 29 runs (mixed: 33 `stored_loop` + 8 `both_wrong`;
@@ -650,6 +680,36 @@ freeze, and the diff report binds that hash.
   Not in the ruling, for the operator: 7 `both_wrong` windows on stored-better runs (Tier B
   keeps that text) and 14 on new-better runs (the new text is wrong there too, and a hold
   can only be raised on it after Tier A writes it).
+- [ ] **Before the freeze (agreed 2026-09-25).** The guards pin git HEAD, so the canary 3
+  commit cannot be the freeze commit once anything else is committed; nothing below changes
+  detection, so the freeze rule still holds.
+  1. ~~Build the diff custody facts~~ (above). ~~Refresh this plan.~~ Commit.
+  2. New snapshot with the bound routing file; **canary 4 on all 13 runs, both tiers, then
+     Tier C** (`rerun-extract`), about 30 minutes of rounds and 1¾ hours of ffmpeg. No canary
+     has exercised the frozen commit's media path: `rerun-extract` has only run in tests.
+     Canary 4 covers a held sermon parking (1262 §3288), a hand re-cut run (1112), a
+     concatenation (936) and four Tier A runs. Diff after the rounds and again after Tier C.
+     A second pass on unchanged detection code also shows how far the model's answers vary.
+  3. If it passes, freeze that commit.
+- [ ] **A report for re-transcribed runs' holds** (proposed 2026-09-25, **needs a ruling
+  before the first era batch**). Tier C parks every run with a live hold on a sermon or short
+  talk: **74 of 437 eligible runs** (47 `source_audio`, 11 `media_measurement`, 10 `boundary`,
+  7 `judgement`, 6 `decision`). **36 of the 64 transcript-loss runs** hold only records no
+  code check can re-test (none is `loop_screen`), so Tier A re-transcribes them and they
+  still park, each needing 1112's manual check. Proposal: a read-only report that applies
+  1112's measures to each held passage in the new transcript (words per minute, longest gap,
+  repeated cues) and lists which look restored, plus an operator release command. The
+  content-holds ruling (only code-found holds recheck themselves) means the report proposes
+  and the operator releases; it never clears a hold itself. It runs after Tier A and changes
+  no output, so it can land after the freeze.
+- [ ] **Recommendations awaiting a ruling (2026-09-25).**
+  - The 21 `both_wrong` windows outside the 09-24 ruling (7 on stored-better runs, 14 on
+    new-better runs): only two touch a holdable section, each an 8 s sliver at a song's edge
+    (945 §669, 1342 §4319), the boundary contact excluded for 1377. Recommend accepting all
+    21 unheld, as the 53 were.
+  - 1311 §3953 (46 s "Commendation of Naomi's Testimony" as a `short_talk`): no prompt fix
+    from one case. Count new `short_talk`s under 60 s in each era batch's diff and stop to fix
+    the prompt if it is more than a handful.
 - [ ] Batches by era, each checked against its diff before the next. Stop on any new regression.
 
 **Preflight for every dispatch** (the canary, each batch, and any named pre-freeze exception):
