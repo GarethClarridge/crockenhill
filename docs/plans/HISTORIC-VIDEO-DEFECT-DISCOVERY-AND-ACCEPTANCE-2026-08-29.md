@@ -475,6 +475,15 @@ freeze, and the diff report binds that hash.
   a probable false positive; 1356's "unclear" §4483 became a 774 s song. The 12 runs now read
   `media: deferred`: clips on sections whose spans moved are gone until Tier C cuts them at the
   freeze (quarantined and re-derivable).
+  *Third run (planned 2026-09-25), after the five ruled builds, all 13 runs.* Snapshot with
+  the bound routing file, so each run takes its tier from the frozen routes: **Tier A (live
+  `new_better`): 1250, 1304, 1356, 949**; **Tier B: 964, 1108, 1025, 1112 (route lapsed, hold
+  released), 1358, 1221, 1311, 1262 (neither; §3287 now held), 936 (neither)**. Both are
+  detection rounds, so the pass is judged on the diff with media pending. Checks beyond the
+  truth set: 949's four slots become `prayer` (self-anchoring fixed; 949 has no independent
+  items, so it is detected from its transcript alone); 1311's baptisms leave the song (§3950)
+  and §3949 stays a `short_talk`; 1304 §3871 stays non-talk; read 1262 §3281 (31 s
+  introduction) and 1356 §4483 (774 s song) again.
   **Runs 964 (§872) and 1250 (§3128)**, the first use of the diff report. Current
   code resolves both hints correctly (#304, #408). The canary checks that re-detection
   rebinds them, that sync overwrites the stale livestream items 6901/9371 rather than
@@ -553,18 +562,43 @@ freeze, and the diff report binds that hash.
   Tier C, on the same snapshot, applies every check. Talk speaker review, sermon text and audio
   checks and video quality are decided only by Tier C. Tier A (`rerun-retranscribe`) still runs
   the whole pipeline.
-- [ ] **Detection reads only independently sourced order-of-service items** (ruled
-  2026-09-24, not built). `DetectServiceStructure` filters items by `provenanceSources()`
+- [x] **Detection reads only independently sourced order-of-service items** (ruled
+  2026-09-24). `DetectServiceStructure` filters items by `provenanceSources()`
   (email, OpenLP, manual); a run whose items are all self-written is detected from its
   transcript alone. Test first: a service whose items are all written by the run's own
   projection reaches the prompt with no items. Changes detection output, so it lands before the
   freeze and the next canary measures it (949 must become `prayer`).
-- [ ] **Tier A accepts listening-routed runs** (ruled 2026-09-24, not built). Besides a live
+  *Built 2026-09-25 (`f174babcc`).* The filter is in `loadOosItems()`, which feeds both the
+  prompt and the validator's context, so no section can anchor to an item the model was not
+  shown. An item counts as independent when any evidence source is not `livestream`, so a
+  livestream-created row that email later corroborated stays in. Projection is unchanged: the
+  item sync matches by song, title and position, not by the section's `oos_item_id`.
+- [x] **Tier A accepts listening-routed runs** (ruled 2026-09-24). Besides a live
   transcript-loss hold, `rerun-retranscribe` accepts a run the routing file names `new_better`,
   checked against the file's hash, so the 128 need no hand-written holds.
-- [ ] **Tier A as a detection round** (ruled 2026-09-24, not built). `rerun-retranscribe`
+  *Built 2026-09-25 (`73d4634d1`).* The routes are frozen into the **snapshot**
+  (`rerun-snapshot --routing=<private path> --routing-sha256=<hash>`), so both tiers read the
+  same routes: Tier B refuses a `new_better` run as it refuses a transcript-loss one, and the
+  order of the two commands cannot strand a run on known-wrong text. **A route, like a hold,
+  describes one transcript** and lapses once the run holds different text. The routing file
+  does not say which text was judged, but each decode artifact does
+  (`stored_transcript.sha256`, `ServiceTranscriptRedecoder::transcriptHash`): it matched 444
+  of 446 runs' current text, and the two that differ are exactly 1112 (Tier A, 09-24) and
+  1287 (the 09-23 repair). The bound file
+  `storage/app/private/listening-20260924/routing-bound.json` (sha256
+  `2fc8903c7e239847a9a12ab449535e1b8398c588bfb88488c3bc47e230819f16`) is the operator's
+  routing file plus that hash per run; it records the original's sha256
+  (`6d751afa…`). **126 of the 128 routes are live; 20 of those runs also hold transcript
+  loss, so Tier A's reach is 64 + 106 = 170 runs.**
+- [x] **Tier A as a detection round** (ruled 2026-09-24). `rerun-retranscribe`
   re-transcribes, detects and stops before extraction, deferring media to Tier C like Tier B.
-- [ ] **A baptism is never inside a song section** (operator, 2026-09-24, not built). Canary 1
+  *Built 2026-09-25 (`73d4634d1`):* `ProcessingRunOrchestrator::startDetectionRound()` starts
+  the run afresh (`resuming: false`, so transcription is not reused) with the detection-only
+  chain. The stamp says `media: deferred` and the run is no longer marked as re-extraction,
+  so `rerun-extract` takes a finished Tier A round as it takes a Tier B one, and its
+  `reExtract()` rebuilds the sermon text from the new transcript.
+- [x] **A baptism is never inside a song section** (operator, 2026-09-24; prompt rule built
+  2026-09-25, `f174babcc`, which keeps a baptismal testimony a `short_talk`). Canary 1
   made 1311 §3950 a 518 s "I Will Sing Of The Lamb" song spanning the baptisms (1200–1718 s),
   where the first run had a separate `other` "Baptisms" section. A baptism is its own `other`
   section; a hymn sung before, after or between the baptisms is its own song section. It is
@@ -594,8 +628,28 @@ freeze, and the diff report binds that hash.
   `historic-ffmpeg` worker, about 8 minutes of ffmpeg work a run, so cutting the corpus's
   media is roughly 30 hours unattended. More ffmpeg workers would shorten it at the cost of
   I/O on the Staging drive (the SuperSpeed link fault). Decide before the freeze.
-- [ ] **Holds for the mixed and neither runs** (ruled 2026-09-24, not built): a hold on each
+- [x] **Holds for the mixed and neither runs** (ruled 2026-09-24): a hold on each
   window the operator judged wrong in the stored text (mixed) or both wrong (neither).
+  *Done 2026-09-25.* 63 windows over 29 runs (mixed: 33 `stored_loop` + 8 `both_wrong`;
+  neither: 22 `both_wrong`), mapped read-only onto current sections
+  (`storage/scratch/listening-holds-20260925/windows.json`). **Only 9 sections can hold:**
+  sermons 1262 §3287 (its opening, "Matthew 17"), 1051 §1593, 1089 §1790 (speech invented
+  over silence), 1330 §4188, 1322 §4090 and 944 §667 (two windows), and songs 1034 §1459
+  ("Father, heaven" for "Hark the herald") and 1214 §2623. Raised with
+  `service:hold-section-content --found-by=source_audio`, one record per window, the verdicts
+  file's sha256 and window key as evidence. The reason text matches no transcript-loss
+  pattern, so these holds are not Tier A grounds (corpus count still 64).
+  **Ruled (operator, 2026-09-25): accept the other 53 unheld.** They lie in prayers, `other`,
+  notices, readings, the welcome or outside any section (930's §534 alone has 14), which
+  the hold action refuses by design because nothing released reads their text. 1377's window
+  touches its song for 1 s, a boundary contact, and is not held. **Consequence, accepted:**
+  Tier C parks the six held-sermon runs at extraction (`sermon_section_content_held`), and
+  no re-transcription clears their holds (they stay on stored text); each needs
+  `sermons:re-extract --held-section` or a release. Also noted: 1034 (neither) and 1330
+  (mixed) carry older transcript-loss holds, so Tier A takes them despite their route.
+  Not in the ruling, for the operator: 7 `both_wrong` windows on stored-better runs (Tier B
+  keeps that text) and 14 on new-better runs (the new text is wrong there too, and a hold
+  can only be raised on it after Tier A writes it).
 - [ ] Batches by era, each checked against its diff before the next. Stop on any new regression.
 
 **Preflight for every dispatch** (the canary, each batch, and any named pre-freeze exception):
