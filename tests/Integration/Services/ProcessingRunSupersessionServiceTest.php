@@ -72,6 +72,25 @@ class ProcessingRunSupersessionServiceTest extends TestCase
     }
 
     #[Test]
+    public function a_run_being_re_detected_is_not_handed_over_to_a_failed_run_on_confidence_alone(): void
+    {
+        // Canary 4: re-detection re-opens run 936, and projection reconciles before the run
+        // completes again, so a ranking on completion still gave the service to failed 934.
+        $churchService = $this->churchService();
+
+        $reDetectedRun = $this->processingRun($churchService, status: 'processing');
+        $this->sections($reDetectedRun, [0.97, 0.97]);
+
+        $failedRun = $this->processingRun($churchService, status: 'failed');
+        $this->sections($failedRun, [0.9, 0.9, 0.9, 0.9]);
+
+        $result = $this->service->reconcile($churchService);
+
+        $this->assertTrue($result['winner']->is($reDetectedRun));
+        $this->assertSame([$failedRun->id], $result['superseded']);
+    }
+
+    #[Test]
     public function the_run_with_transcript_confirmed_songs_wins_over_a_higher_confidence_run_without_them(): void
     {
         // Reproduces service 785: a failed run classified its sections with a
@@ -247,7 +266,11 @@ class ProcessingRunSupersessionServiceTest extends TestCase
     private function processingRun(ChurchService $service, string $status = 'completed'): MediaProcessingLog
     {
         $factory = MediaProcessingLog::factory()->livestream();
-        $factory = $status === 'failed' ? $factory->failed() : $factory->completed();
+        $factory = match ($status) {
+            'failed' => $factory->failed(),
+            'processing' => $factory->processing(),
+            default => $factory->completed(),
+        };
 
         return $factory->create([
             'church_service_id' => $service->id,

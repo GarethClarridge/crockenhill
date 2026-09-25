@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
  * rest superseded so review and timeline surfaces show one coherent structure.
  *
  * Best-run-wins (decision OD-2, revised): the winner is ranked by
- * transcript-confirmed song count, then completed status, then high-confidence
+ * transcript-confirmed song count, then whether the run failed, then high-confidence
  * coverage, mean confidence, section count, and recency.
  *
  * Confirmed song matches lead the ordering because they are grounded evidence —
@@ -28,12 +28,13 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
  * A run that only *inferred* its songs by projecting the plan has verified
  * nothing, so it must not supersede a run that confirmed them (service 785).
  *
- * Completed status sits *below* confirmed songs, so a failed re-run that
- * confirmed more of them still wins (OD-2's original point), but *above* the
- * confidence terms: a failed run never takes a service from a completed one on
- * the classifier's self-assessment alone. Coverage is a count, so a re-detection
- * that merges a completed run's fragments lowers it; ranked first, it handed
- * run 936's service to a failed run with no confirmed songs (2026-09-25 ruling).
+ * Failure sits *below* confirmed songs, so a failed re-run that confirmed more of
+ * them still wins (OD-2's original point), but *above* the confidence terms: a
+ * failed run never takes a service on the classifier's self-assessment alone.
+ * Coverage is a count, so a re-detection that merges a run's fragments lowers it;
+ * ranked first, it handed run 936's service to a failed run with no confirmed songs
+ * (2026-09-25 ruling). The term is "not failed" rather than "completed" because
+ * projection reconciles while its own run is still processing, before it completes.
  */
 class ProcessingRunSupersessionService
 {
@@ -138,7 +139,7 @@ class ProcessingRunSupersessionService
 
         return [
             $confirmedSongs,
-            $run->isComplete() ? 1 : 0,
+            $run->isFailed() ? 0 : 1,
             $highConfidence,
             $meanConfidence,
             $count,
