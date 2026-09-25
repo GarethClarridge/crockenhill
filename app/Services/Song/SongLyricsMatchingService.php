@@ -60,23 +60,18 @@ class SongLyricsMatchingService
      */
     public function matchFromLyrics(string $transcript, bool $allowFirstLineKeyMatch = true): array
     {
-        $transcript = trim($transcript);
-
-        if ($transcript === '') {
-            return $this->noMatch();
-        }
-
-        // 1. Try canonical key lookup on the first line of the transcript.
-        $canonicalMatch = $this->tryCanonicalKeyLookup($transcript, $allowFirstLineKeyMatch);
-        if ($canonicalMatch !== null) {
-            return $canonicalMatch;
-        }
-
-        // 2. Fuzzy lyrics comparison against songs with lyrics_plain.
-        return $this->fuzzyLyricsMatch($transcript);
+        return $this->lyricsMatch($transcript, $allowFirstLineKeyMatch, refuseTiedHymns: false);
     }
 
     /**
+     * A hint that names no catalogued title falls back to the lyrics comparison, which
+     * scores bare containment as 1.0. When the phrase sits verbatim in several different
+     * hymns, every one of them ties. The tie goes to the one hymn it still names
+     * {@see self::hymnTheTieNames()}; otherwise the fallback refuses rather than hand the section
+     * to whichever row is scanned first ("Jesus Is Lord" titles two hymns and appears in four
+     * more). Rows of one hymn — a numbered and an unnumbered copy sharing a first line — tie
+     * as one and still match.
+     *
      * @return array{song_id: int|null, confidence: float, matched_title: string|null, match_source: string|null}
      */
     public function matchTitleHint(string $titleHint): array
@@ -87,7 +82,7 @@ class SongLyricsMatchingService
             return $catalogued;
         }
 
-        $result = $this->matchFromLyrics($titleHint);
+        $result = $this->lyricsMatch($titleHint, allowFirstLineKeyMatch: true, refuseTiedHymns: true);
 
         if ($result['song_id'] === null) {
             return [...$result, 'match_source' => null];
@@ -156,6 +151,27 @@ class SongLyricsMatchingService
     }
 
     /**
+     * @return array{song_id: int|null, confidence: float, matched_title: string|null}
+     */
+    private function lyricsMatch(string $transcript, bool $allowFirstLineKeyMatch, bool $refuseTiedHymns): array
+    {
+        $transcript = trim($transcript);
+
+        if ($transcript === '') {
+            return $this->noMatch();
+        }
+
+        // 1. Try canonical key lookup on the first line of the transcript.
+        $canonicalMatch = $this->tryCanonicalKeyLookup($transcript, $allowFirstLineKeyMatch);
+        if ($canonicalMatch !== null) {
+            return $canonicalMatch;
+        }
+
+        // 2. Fuzzy lyrics comparison against songs with lyrics_plain.
+        return $this->fuzzyLyricsMatch($transcript, $refuseTiedHymns);
+    }
+
+    /**
      * @return array{song_id: int|null, confidence: float, matched_title: string|null}|null
      */
     private function tryCanonicalKeyLookup(string $transcript, bool $allowFirstLineKeyMatch): ?array
@@ -214,7 +230,7 @@ class SongLyricsMatchingService
     /**
      * @return array{song_id: int|null, confidence: float, matched_title: string|null}
      */
-    private function fuzzyLyricsMatch(string $transcript): array
+    private function fuzzyLyricsMatch(string $transcript, bool $refuseTiedHymns): array
     {
         $threshold = (float) config('media-processing.song_matching.lyrics_threshold', 0.6);
         $transcriptNormalized = $this->normalize($transcript);
@@ -225,11 +241,13 @@ class SongLyricsMatchingService
 
         $bestScore = 0.0;
         $bestSong = null;
+        /** @var array<string, array{song: Song, lyrics: string}> $hymnsAtBestScore */
+        $hymnsAtBestScore = [];
 
         /** @var Collection<int, Song> $songs */
         $songs = Song::query()
             ->whereNotNull('lyrics_plain')
-            ->select(['id', 'title', 'lyrics_plain'])
+            ->select(['id', 'title', 'lyrics_plain', 'first_line_key'])
             ->get();
 
         foreach ($songs as $song) {
@@ -248,6 +266,17 @@ class SongLyricsMatchingService
             if ($score > $bestScore) {
                 $bestScore = $score;
                 $bestSong = $song;
+                $hymnsAtBestScore = [$this->hymnIdentity($song) => ['song' => $song, 'lyrics' => $lyricsNormalized]];
+            } elseif ($bestSong instanceof Song && $score === $bestScore) {
+                $hymnsAtBestScore[$this->hymnIdentity($song)] ??= ['song' => $song, 'lyrics' => $lyricsNormalized];
+            }
+        }
+
+        if ($refuseTiedHymns && count($hymnsAtBestScore) > 1) {
+            $bestSong = $this->hymnTheTieNames($transcriptNormalized, $hymnsAtBestScore);
+
+            if (! $bestSong instanceof Song) {
+                return $this->noMatch();
             }
         }
 
@@ -260,6 +289,57 @@ class SongLyricsMatchingService
         }
 
         return $this->noMatch();
+    }
+
+    /**
+     * The one hymn a tied phrase still names: the only tied hymn whose title carries it
+     * ("Take My Life" titles one of four hymns that sing it), else the hymn that sings it as a
+     * refrain — at least three times and twice as often as any rival ("The Servant King", eight
+     * times in From Heaven You Came, once in All Praise To Him). Anything less is a guess.
+     *
+     * @param  array<string, array{song: Song, lyrics: string}>  $tied
+     */
+    private function hymnTheTieNames(string $probe, array $tied): ?Song
+    {
+        $titled = array_values(array_filter(
+            $tied,
+            fn (array $candidate): bool => str_contains($this->normalize((string) $candidate['song']->title), $probe),
+        ));
+
+        if (count($titled) === 1) {
+            return $titled[0]['song'];
+        }
+
+        if (count($titled) > 1) {
+            return null;
+        }
+
+        $occurrences = array_map(
+            static fn (array $candidate): int => substr_count($candidate['lyrics'], $probe),
+            array_values($tied),
+        );
+        arsort($occurrences);
+        $counts = array_values($occurrences);
+        $leader = (int) array_key_first($occurrences);
+
+        if ($counts[0] >= 3 && $counts[0] >= 2 * ($counts[1] ?? 0)) {
+            return array_values($tied)[$leader]['song'];
+        }
+
+        return null;
+    }
+
+    /**
+     * Rows sharing a first line are one hymn catalogued twice ("Here Is Love #424" and "Here
+     * Is Love"), so a tie between them names one hymn, not a choice between two. The stored
+     * first line is compared as written: its punctuation separates hymns that merely open alike
+     * ("jesus is lord!" and "'jesus is lord' -" are different hymns).
+     */
+    private function hymnIdentity(Song $song): string
+    {
+        $firstLine = trim((string) $song->first_line_key);
+
+        return $firstLine !== '' ? "first-line:{$firstLine}" : "song:{$song->id}";
     }
 
     /**

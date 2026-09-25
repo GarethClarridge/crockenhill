@@ -59,9 +59,15 @@ class SongMatchKeyVariantsTest extends TestCase
                 'input' => 'all creatures of our god and king,',
                 'expected' => 'all creatures of our god and king',
             ],
-            'digit runs stay separated' => [
+            // The catalogue writes "Bless the Lord, O my soul (10000 reasons)"; a heard or
+            // emailed "10,000" must reach the same key rather than "10 000".
+            'digit-group comma dropped' => [
                 'input' => '10,000 Reasons',
-                'expected' => '10 000 reasons',
+                'expected' => '10000 reasons',
+            ],
+            'separate numbers stay separated' => [
+                'input' => 'Psalms 23, 24 and 121',
+                'expected' => 'psalms 23 24 and 121',
             ],
             'strips OpenLP @ search text' => [
                 'input' => 'He Will Hold Me Fast@when i fear my faith will fail',

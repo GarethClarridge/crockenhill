@@ -272,6 +272,25 @@ class SongTitleResolverTest extends TestCase
         $this->assertNull($this->resolver()->resolve('Abide with me evening hymn'));
     }
 
+    /**
+     * §1705 (run 1073) heard "Bless the Lord, O my soul (10,000 Reasons)". The raw line
+     * reduced to "… 10 000 reasons", which no key held, so the parenthetical-stripped probe
+     * won and linked the short chorus the catalogue files as "Bless the Lord, O My Soul".
+     * The pianist's workbook row for 2024-07-07 resolved the same way.
+     */
+    #[Test]
+    public function a_digit_group_comma_reaches_the_song_its_parenthetical_names(): void
+    {
+        $resolver = SongTitleResolver::fromRows([
+            ['id' => 131, 'canonical_key' => 'bless the lord o my soul 10000 reasons', 'title' => 'Bless the Lord, O my soul (10000 reasons)', 'alternate_title' => 'Ten Thousand Reasons'],
+            ['id' => 132, 'canonical_key' => 'bless the lord o my soul', 'title' => 'Bless the Lord, O My Soul'],
+        ]);
+
+        $this->assertSame(131, $resolver->resolve('Bless the Lord, O my soul (10,000 Reasons)')?->songId);
+        $this->assertSame(131, $resolver->resolve('Bless the Lord, O my soul  (10,000 reasons)')?->songId);
+        $this->assertSame(132, $resolver->resolve('Bless the Lord, O my soul')?->songId);
+    }
+
     #[Test]
     public function it_names_the_catalogue_title_behind_a_match(): void
     {

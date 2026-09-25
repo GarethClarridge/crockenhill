@@ -261,13 +261,17 @@ class Song extends Model
      * Punctuation-insensitive comparison form of {@see self::canonicalizeKey()}: apostrophes
      * vanish ("it's" → "its", matching OpenLP's stripped search titles), every other run of
      * non-letter/non-digit characters becomes a single space, so curly quotes, stray commas and
-     * parenthesis remnants never distinguish titles. Digit runs stay separated ("10,000" →
-     * "10 000") rather than concatenated, keeping numeric titles distinct from hymn numbers.
+     * parenthesis remnants never distinguish titles. A digit-group comma is the one exception:
+     * "10,000" joins to "10000", the way the catalogue writes "Bless the Lord, O my soul (10000
+     * reasons)" and the way the lyrics matcher already reads it. Split, it became "10 000", which
+     * no key held, and whose trailing "000" reads like a hymn number. Any other punctuation
+     * between digits still separates them ("23, 24" → "23 24").
      * Comparison-only — never persisted; the stored canonical_key is uniquely indexed.
      */
     public static function matchKey(string $value): string
     {
         $key = str_replace(["'", "\u{2018}", "\u{2019}"], '', self::canonicalizeKey($value));
+        $key = (string) preg_replace('/(?<=\d),(?=\d{3}(?!\d))/u', '', $key);
         $key = (string) preg_replace('/[^\p{L}\p{N}]+/u', ' ', $key);
 
         return trim((string) preg_replace('/\s+/', ' ', $key));

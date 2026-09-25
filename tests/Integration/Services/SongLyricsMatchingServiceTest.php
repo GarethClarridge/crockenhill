@@ -414,6 +414,155 @@ class SongLyricsMatchingServiceTest extends TestCase
         $this->assertSame($song->id, $result['song_id']);
     }
 
+    /**
+     * §1705 (run 1073): the hint names Ten Thousand Reasons, but "10,000" reduced to a key
+     * no song held, and the short chorus "Bless the Lord, O My Soul" took the section.
+     */
+    #[Test]
+    public function it_matches_a_hint_written_with_a_digit_group_comma(): void
+    {
+        $tenThousandReasons = Song::factory()->create([
+            'title' => 'Bless the Lord, O my soul (10000 reasons)',
+            'canonical_key' => 'bless the lord o my soul 10000 reasons',
+            'alternate_title' => 'Ten Thousand Reasons',
+            'first_line_key' => 'bless the lord, o my soul;',
+            'lyrics_plain' => "Bless the Lord, O my soul;\nO my soul, worship His holy name.\nSing like never before, O my soul.",
+        ]);
+
+        Song::factory()->create([
+            'title' => 'Bless the Lord, O My Soul',
+            'canonical_key' => 'bless the lord o my soul',
+            'alternate_title' => null,
+            'first_line_key' => 'bless the lord, o my soul,',
+            'lyrics_plain' => "Bless the Lord, O my soul,\nBless the Lord, O my soul,\nAnd all that is within me\nBless His holy name.",
+        ]);
+
+        $result = $this->service->matchTitleHint('Bless the Lord, O my soul (10,000 Reasons)');
+
+        $this->assertSame($tenThousandReasons->id, $result['song_id']);
+    }
+
+    /**
+     * §2683, §508 and §1817: "Jesus Is Lord" opens two catalogued hymns, so the title
+     * resolver rightly refuses to choose. The lyrics fallback then found the phrase verbatim
+     * in six songs, every one scoring 1.0, and the first scanned — "How Lovely On The
+     * Mountains" — took the section. A tie between different hymns is not evidence for any
+     * one of them; the hint must settle nothing and leave the section to its other evidence.
+     */
+    #[Test]
+    public function it_refuses_a_hint_whose_lyrics_fallback_ties_between_different_hymns(): void
+    {
+        Song::factory()->create([
+            'title' => 'How Lovely On The Mountains',
+            'canonical_key' => 'how lovely on the mountains',
+            'alternate_title' => 'Our God Reigns',
+            'first_line_key' => 'how lovely on the mountains',
+            'lyrics_plain' => "How lovely on the mountains\nare the feet of Him\nWho brings good news\nOur God reigns\nJesus is Lord, Jesus is Lord",
+        ]);
+
+        Song::factory()->create([
+            'title' => "Jesus Is Lord! Creation's Voice Proclaims It",
+            'canonical_key' => 'jesus is lord creations voice proclaims it',
+            'alternate_title' => null,
+            'first_line_key' => 'jesus is lord!',
+            'lyrics_plain' => "Jesus is Lord! Creation's voice proclaims it,\nFor by His power each tree and flower\nwas planned and made.",
+        ]);
+
+        Song::factory()->create([
+            'title' => "'Jesus Is Lord'—the cry that echoes through creation",
+            'canonical_key' => 'jesus is lord the cry that echoes through creation',
+            'alternate_title' => null,
+            'first_line_key' => "'jesus is lord' -",
+            'lyrics_plain' => "'Jesus is Lord' -\nthe cry that echoes through creation;\nResplendent power,\neternal Word, our Rock.",
+        ]);
+
+        $result = $this->service->matchTitleHint('Jesus Is Lord');
+
+        $this->assertNull($result['song_id']);
+        $this->assertNull($result['match_source']);
+    }
+
+    /**
+     * §1284 in the real catalogue: "The Servant King" sits in From Heaven You Came's refrain
+     * eight times and once in "All Praise To Him". A phrase a hymn keeps repeating is that
+     * hymn's name for the congregation; a passing mention elsewhere is not a rival.
+     */
+    #[Test]
+    public function it_breaks_a_tie_for_the_hymn_whose_refrain_repeats_the_hint(): void
+    {
+        $refrain = Song::factory()->create([
+            'title' => 'From Heaven You Came #396',
+            'canonical_key' => 'from heaven you came 396',
+            'alternate_title' => '#396 From Heaven You Came',
+            'first_line_key' => 'from heaven you came, helpless babe,',
+            'lyrics_plain' => "From heaven You came, helpless babe,\nThis is our God, the Servant King,\nHe calls us now to follow Him,\n\nThis is our God, the Servant King,\n\nThis is our God, the Servant King,",
+        ]);
+
+        Song::factory()->create([
+            'title' => 'All Praise To Him',
+            'canonical_key' => 'all praise to him',
+            'alternate_title' => null,
+            'first_line_key' => 'all praise to him who reigns above',
+            'lyrics_plain' => "All praise to Him who reigns above\nIn majesty supreme,\nWho gave His Son, the servant King,",
+        ]);
+
+        $this->assertSame($refrain->id, $this->service->matchTitleHint('The Servant King')['song_id']);
+    }
+
+    /**
+     * "Take My Life" is sung in four hymns but titles only one of them.
+     */
+    #[Test]
+    public function it_breaks_a_tie_for_the_one_hymn_the_hint_titles(): void
+    {
+        Song::factory()->create([
+            'title' => 'Lord You Have My Heart',
+            'canonical_key' => 'lord you have my heart',
+            'alternate_title' => null,
+            'first_line_key' => 'lord you have my heart',
+            'lyrics_plain' => "Lord You have my heart\nAnd I will search for Yours\nTake my life and let me be",
+        ]);
+
+        $titled = Song::factory()->create([
+            'title' => 'Take My Life And Let It Be #850',
+            'canonical_key' => 'take my life and let it be 850',
+            'alternate_title' => '#850 Take My Life And Let It Be',
+            'first_line_key' => 'take my life and let it be',
+            'lyrics_plain' => "Take my life and let it be\nConsecrated, Lord, to Thee;",
+        ]);
+
+        $this->assertSame($titled->id, $this->service->matchTitleHint('Take My Life')['song_id']);
+    }
+
+    /**
+     * Two catalogue rows of one hymn (a numbered and an unnumbered "Here Is Love") share
+     * their lyrics, so a phrase from them always ties. That tie names one hymn, not two,
+     * and must keep matching.
+     */
+    #[Test]
+    public function it_still_matches_a_hint_that_ties_only_between_rows_of_one_hymn(): void
+    {
+        $numbered = Song::factory()->create([
+            'title' => 'Here Is Love #424',
+            'canonical_key' => 'here is love 424',
+            'alternate_title' => '#424 Here Is Love',
+            'first_line_key' => 'here is love vast as the ocean,',
+            'lyrics_plain' => "Here is love vast as the ocean,\nLovingkindness as the flood,\nGrace and love like mighty rivers\nPoured incessant from above.",
+        ]);
+
+        $unnumbered = Song::factory()->create([
+            'title' => 'Here Is Love',
+            'canonical_key' => 'here is love',
+            'alternate_title' => null,
+            'first_line_key' => 'here is love vast as the ocean,',
+            'lyrics_plain' => "Here is love vast as the ocean,\nLovingkindness as the flood,\nGrace and love like mighty rivers\nPoured incessant from above.",
+        ]);
+
+        $result = $this->service->matchTitleHint('Grace and love like mighty rivers');
+
+        $this->assertContains($result['song_id'], [$numbered->id, $unnumbered->id]);
+    }
+
     // ---- Confidence value is returned ----
 
     #[Test]
