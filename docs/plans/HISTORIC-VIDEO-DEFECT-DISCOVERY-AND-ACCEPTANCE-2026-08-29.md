@@ -25,6 +25,10 @@
 >   sourced items; listening routes are frozen into the snapshot; the diff separates
 >   quarantine from public and parked from failed (all 2026-09-25, §4.0). Tier C will park
 >   74 runs held on a talk, 36 of them Tier A runs whose holds no code check can clear.
+> - **Pre-freeze checks (2026-09-25, §4.0):** the pianist's hymn workbook agrees with 88% of
+>   the video's songs on full recordings, and exposed two title-hint matcher defects, now fixed
+>   before the freeze. The re-run stays blind to Email; duplicate catalogue songs are merged after
+>   the freeze, before the convergence re-census. Half the workbook is held out for acceptance.
 > - **Repairs since 09-20:** 1287 re-transcribed and re-detected 09-23.
 > - **Operational:** temp-file cleanup is paused locally so restaged sources survive.
 >   **All 438 eligible runs are reachable:** the 9 concatenated runs were restaged through the
@@ -46,7 +50,7 @@
 
 **Original date:** 2026-08-29
 **Last condensed:** 2026-09-23 (previously 2026-09-12)
-**Last reviewed:** 2026-09-24. A critical review of the 09-23 condensation against the
+**Last reviewed:** 2026-09-25 (pre-freeze checks against the workbook, Email and catalogue; §4.0). Before that 2026-09-24. A critical review of the 09-23 condensation against the
 code and the local database. It removed the excluded run 1051 from the canary and added
 the catalogue's own talk cases, split the freeze gate into re-run and acceptance items,
 decoupled Tier B from the listening queue, refreshed stale status lines, and linked each
@@ -680,9 +684,57 @@ freeze, and the diff report binds that hash.
   Not in the ruling, for the operator: 7 `both_wrong` windows on stored-better runs (Tier B
   keeps that text) and 14 on new-better runs (the new text is wrong there too, and a hold
   can only be raised on it after Tier A writes it).
+- [x] **Pre-freeze checks against the other sources (2026-09-25, operator-requested review of
+  the programme).** Read-only, evidence in `storage/scratch/hymn-video-20260925/`.
+  1. **The pianist's hymn workbook against the video's song bindings.** The workbook is kept by
+     hand by the pianist and is reasonably accurate (operator), so it is an independent record
+     of what was sung. It has sheets for 2004–2018 and 2023–2026, none for 2019–2022. The 286
+     services with an eligible run in 2023–2026 were split by seed `20260925` (`split.json`,
+     held-out sha256 recorded there): **143 discovery, 143 held out.** No comparison is
+     computed for the held-out half until the song acceptance measurement after Tier C (§4.5).
+     On full recordings in the discovery half, **278 of the video's 316 songs (88%) match the
+     workbook.** Of the 38 that do not: 13 contradict the title the leader announced while the
+     workbook agrees with the announcement, and current code rebinds all 13 (4 held, 9 not);
+     9 are workbook titles the catalogue does not resolve (the video is right); 11 are services
+     with no workbook entry; 5 are listening cases (2024-06-30's two announced but unplanned
+     hymns, 2023-04-23 "Give Me the Faith", 1112 §3736 where slides, announcement and lyric check
+     disagree). 23 workbook songs have no video section: mostly communion hymns sung after the
+     stream stops, and run 1066, graded `full` although it starts at the Bible reading.
+  2. **Two matcher defects, fixed test-first before the freeze.** A replay of current code over
+     every distinct title hint found them. (a) `Song::matchKey()` split "10,000" into "10 000",
+     which no key held, so "Bless the Lord, O my soul (10,000 Reasons)" linked the short chorus
+     #132 instead of Ten Thousand Reasons #131. A digit-group comma now joins. It is the shared
+     resolver, so the workbook's six "10,000 reasons" rows move too. (b) When a title hint names no
+     catalogued title, the lyrics fallback scored bare containment as 1.0 and gave a tie to
+     whichever song was scanned first ("Jesus Is Lord", in six songs, went to "How Lovely On The
+     Mountains"). The tie now goes to the one tied hymn the hint titles, else to the hymn that
+     sings it as a refrain (at least three times and twice any rival), else nothing; rows of one
+     hymn with the same stored first line tie as one. **Measured old against new** over 656
+     distinct hints and 1,306 workbook titles: 18 hints (36 sections) and 6 workbook rows change.
+     13 sections move to the right song (the 10,000/2,000 hints, "Take My Life", "What a Saviour",
+     "King of Kings", "Saviour of the world"). 23 are refused instead of guessed: junk hints
+     ("together", "again", "Let", "Rejoice") and hints that fit several hymns ("Jesus Is Lord",
+     "Holy, Holy, Holy", "Christ Is Risen"). "The Servant King", "Knowing You" and "God So Loved
+     the World" still resolve. The transcript and OCR paths are unchanged.
+  3. **Email stays out of the re-run (ruled, operator 2026-09-25).** The settled Email corpus
+     lives in the rehearsal database; this one holds Email for three video-era services. Loading
+     it would not reach detection where it matters: Email imported at evidence tier without a
+     corroborating source writes no live items (rehearsal: 0 of 42 services in 2020, 6 of 55 in
+     2021), and `DetectServiceStructure::loadOosItems()` reads live items. It would reach
+     detection only where the video already agrees, which adds nothing and anchors the next
+     round on itself. Kept blind, the video stays an independent witness for the convergence
+     re-census. The "152 runs without an independent OoS" are a fact of this database, by design.
+  4. **Duplicate catalogue songs wait until after the freeze (ruled, operator 2026-09-25).** 19
+     groups share a first line; 28 historic sections are bound to one, and the matchers reach
+     each by its full title, so the re-run is barely affected. The damage is cross-source (11
+     rehearsal services where Email names one twin and OpenLP the other) and in usage history.
+     Merge them in OpenLP (song title curation plan) before the convergence re-census and the
+     hymn lane; merging locally reverts on the next sync.
+  5. **Identity pairs (§4.4):** the workbook dates both carol-service pairs, below.
 - [ ] **Before the freeze (agreed 2026-09-25).** The guards pin git HEAD, so the canary 3
-  commit cannot be the freeze commit once anything else is committed; nothing below changes
-  detection, so the freeze rule still holds.
+  commit cannot be the freeze commit once anything else is committed. The matcher fixes above
+  change song matching, so canary 4 runs on the commit that carries them and the freeze rule
+  holds. Restart the workers onto that commit first.
   1. ~~Build the diff custody facts~~ (above). ~~Refresh this plan.~~ Commit.
   2. New snapshot with the bound routing file; **canary 4 on all 13 runs, both tiers, then
      Tier C** (`rerun-extract`), about 30 minutes of rounds and 1¾ hours of ffmpeg. No canary
@@ -1329,6 +1381,11 @@ check against the 09-17 speech-edge trim) deserve a closer look before being bui
   the demotion, so demoting a held row does not release its hold. Corpus-wide
   published-while-held is back to **0**, which restores §3's claim on a basis that
   now includes these rows. Evidence: `identity-20260916-gate-after-demotion.json`.
+- **Workbook evidence for the carol pairs (2026-09-25, not a decision).** Run 1120, dated
+  Monday 2024-12-23, matches all nine carols the workbook records for Sunday 2024-12-22 evening
+  (Angels noted "had am and pm"), so it is the same service as run 930. Runs 1034 (dated Monday
+  2025-12-22) and 1035 (2025-12-21) both match the workbook's 2025-12-21 evening carol list, and
+  the workbook records no service on the 22nd.
 - [ ] Resolve source adoption for pairs 873/1045, 969/1307 and 1296/1297 without
   deleting the better master or substituting media beneath existing timings.
 - [ ] Update exact release membership only after each identity decision is
