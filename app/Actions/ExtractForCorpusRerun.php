@@ -24,7 +24,8 @@ use Throwable;
  * video quality, section candidates and their review, promotion and cleanup.
  *
  * Only a round on the running commit qualifies, so media is never cut from a structure an
- * earlier commit detected; a round that has not finished recording is refused, as is a run
+ * earlier commit detected, and only one whose worker booted on that commit, because the
+ * dispatching command's commit says nothing about the code a stale worker ran; a round that has not finished recording is refused, as is a run
  * already extracted. The staged source must hash to the recorded source, because the cut
  * reads the recording against timings that describe the original.
  *
@@ -112,6 +113,16 @@ final class ExtractForCorpusRerun
 
         if (($latest['media_recorded_at'] ?? null) === null || $run->status !== ProcessingStatus::Completed) {
             return sprintf('detection round has not finished (run is %s)', $run->status->value);
+        }
+
+        $workerCommit = $latest['worker_commit'] ?? null;
+
+        if ($workerCommit !== $commit) {
+            return sprintf(
+                'detection round finished on worker code from %s, not %s; restart the workers and re-detect',
+                is_string($workerCommit) ? $workerCommit : 'an unrecorded commit',
+                $commit,
+            );
         }
 
         if ($run->isExcluded()) {

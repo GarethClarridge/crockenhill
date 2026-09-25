@@ -146,6 +146,37 @@ class ExtractForCorpusRerunCommandTest extends TestCase
         Bus::assertNothingDispatched();
     }
 
+    /**
+     * The command's commit says what should have run; only the worker that finished the round
+     * can say what did. A worker booted before the freeze runs the old detectors.
+     */
+    #[Test]
+    public function it_refuses_a_round_a_worker_finished_on_older_code(): void
+    {
+        Bus::fake();
+        $run = $this->roundedRun(stampOverrides: ['worker_commit' => str_repeat('0', 40)]);
+
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('worker code from '.str_repeat('0', 40))
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+        self::assertSame('deferred', $run->refresh()->corpusRerunStamps()[0]['media']);
+    }
+
+    #[Test]
+    public function it_refuses_a_round_that_recorded_no_worker_code(): void
+    {
+        Bus::fake();
+        $this->roundedRun(stampOverrides: ['worker_commit' => null]);
+
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('worker code from an unrecorded commit')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+    }
+
     #[Test]
     public function it_refuses_a_round_that_has_not_finished(): void
     {
@@ -214,15 +245,21 @@ class ExtractForCorpusRerunCommandTest extends TestCase
     /**
      * A member whose detection round on the running commit has finished and deferred its media.
      */
-    private function roundedRun(bool $recorded = true): MediaProcessingLog
+    /**
+     * @param  array<string, mixed>  $stampOverrides
+     */
+    private function roundedRun(bool $recorded = true, array $stampOverrides = []): MediaProcessingLog
     {
         $run = $this->completedRun();
-        $this->roundedStamp($run, $recorded);
+        $this->roundedStamp($run, $recorded, $stampOverrides);
 
         return $run->refresh();
     }
 
-    private function roundedStamp(MediaProcessingLog $run, bool $recorded = true): void
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    private function roundedStamp(MediaProcessingLog $run, bool $recorded = true, array $overrides = []): void
     {
         $this->snapshot([$run->id]);
         $commit = json_decode((string) file_get_contents(storage_path('app/private/'.$this->snapshotPath())), true)['git_commit'];
@@ -232,7 +269,8 @@ class ExtractForCorpusRerunCommandTest extends TestCase
             'git_commit' => $commit,
             'media' => 'deferred',
             'dispatched_at' => '2026-09-24T19:00:00+00:00',
-            ...($recorded ? ['media_recorded_at' => '2026-09-24T19:30:00+00:00'] : []),
+            ...($recorded ? ['media_recorded_at' => '2026-09-24T19:30:00+00:00', 'worker_commit' => $commit] : []),
+            ...$overrides,
         ]);
     }
 

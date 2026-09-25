@@ -43,6 +43,8 @@ use App\Services\Sermon\SermonStorageService;
 use App\Sitemap\SermonSitemapPresenter;
 use App\Support\BibleCanon;
 use App\Support\ParallelTestingProcessLimiter;
+use App\Support\RepositoryCommit;
+use App\Support\WorkerCode;
 use Closure;
 use Faker\Factory as FakerFactory;
 use Faker\Generator as FakerGenerator;
@@ -115,11 +117,16 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(HistoricImportMutationFreeze::class);
 
         $this->registerDeterministicFakerForVisualRegression();
+
+        if ($this->app->runningInConsole()) {
+            WorkerCode::recordBoot(RepositoryCommit::current());
+        }
     }
 
     public function boot(): void
     {
         $this->freezeClockForVisualRegression();
+        $this->registerStaleWorkerExit();
         $this->registerHistoricStagingQueueContext();
         $this->registerHistoricImportMutationFreeze();
 
@@ -166,6 +173,33 @@ class AppServiceProvider extends ServiceProvider
             $model::saving($guard);
             $model::deleting($guard);
         }
+    }
+
+    /**
+     * Stop a worker whose checkout has moved past the commit it booted on, before it takes
+     * another job: it would run the old code under the new commit's name. Every worker
+     * container restarts on exit (`restart: unless-stopped`; Horizon's supervisor in
+     * production), so the replacement boots on current code. A job already running finishes.
+     *
+     * Registered ahead of the staging pause, so a stale worker exits even while paused.
+     */
+    private function registerStaleWorkerExit(): void
+    {
+        Queue::looping(function (Looping $event): ?bool {
+            if (! app(WorkerCode::class)->isStale()) {
+                return null;
+            }
+
+            Log::warning('Queue worker is running code from an older commit; exiting so it restarts on current code', [
+                'boot_commit' => WorkerCode::bootCommit(),
+                'current_commit' => RepositoryCommit::current(),
+                'queue' => $event->queue,
+            ]);
+
+            app('queue.worker')->shouldQuit = true;
+
+            return false;
+        });
     }
 
     private function registerHistoricStagingQueueContext(): void

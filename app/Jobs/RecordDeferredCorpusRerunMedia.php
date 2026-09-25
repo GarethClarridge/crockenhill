@@ -9,6 +9,7 @@ use App\Models\ServiceSection;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
 use App\Services\ChurchService\SectionPublication\SongPublicationHandler;
 use App\Services\Sermon\SermonExtractionPlanResolver;
+use App\Support\WorkerCode;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
@@ -96,6 +97,8 @@ class RecordDeferredCorpusRerunMedia implements ShouldQueue
         $run->amendLatestCorpusRerunStamp([
             'deferred_extraction_plan' => $this->extractionPlan($run, $planResolver),
             'media_recorded_at' => now()->toIso8601String(),
+            // The code that actually ran; the stamp's `git_commit` is the dispatching command's.
+            'worker_commit' => WorkerCode::bootCommit(),
         ]);
 
         Log::info('Recorded a corpus re-run round without cutting media', [

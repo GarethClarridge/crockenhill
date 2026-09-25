@@ -11,6 +11,7 @@ use App\Jobs\RecordDeferredCorpusRerunMedia;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
+use App\Support\WorkerCode;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -78,6 +79,7 @@ class RecordDeferredCorpusRerunMediaTest extends TestCase
 
         self::assertNotEmpty($stamp['deferred_extraction_plan']['segments'] ?? null);
         self::assertNotNull($stamp['media_recorded_at'] ?? null);
+        self::assertSame(WorkerCode::bootCommit(), $stamp['worker_commit'] ?? 'missing', 'The round records the code its worker booted on.');
         // JSON storage returns whole-number floats as integers, so compare by value.
         self::assertEquals(
             [['start_time' => 600.0, 'end_time' => 2400.0]],
