@@ -1026,6 +1026,31 @@ class MatchSongsFromTranscriptTest extends TestCase
     }
 
     #[Test]
+    public function a_run_item_keeps_a_song_an_independent_source_later_attested(): void
+    {
+        $attested = Song::factory()->create(['title' => 'All glory be to Christ', 'canonical_key' => 'all glory be to christ', 'lyrics_plain' => null]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        // The run wrote the item first, so `source` still reads livestream; OpenLP attested it since.
+        $item = ChurchServiceItem::factory()->livestream()->create([
+            'title' => 'All glory be to Christ',
+            'song_id' => $attested->id,
+            'metadata' => ['source_evidence' => [
+                'livestream' => ['recorded_at' => '2020-03-22T10:00:00Z'],
+                'openlp' => ['recorded_at' => '2020-03-22T10:00:00Z'],
+            ]],
+        ]);
+        $this->unmatchedSongSectionFor($log, $item, 'Nothing In The Catalogue');
+
+        $this->runSongMatching($log);
+
+        $item->refresh();
+
+        $this->assertSame($attested->id, $item->song_id, 'OpenLP attested this song; a failed transcript match is no evidence against it.');
+        $this->assertSame('All glory be to Christ', $item->title);
+    }
+
+    #[Test]
     public function it_leaves_an_order_of_service_item_untouched(): void
     {
         Song::factory()->create([

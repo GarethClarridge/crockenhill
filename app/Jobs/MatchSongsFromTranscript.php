@@ -432,6 +432,10 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
      * nothing, would otherwise leave the earlier song standing: §4.1a found items
      * written from fuzzy title bindings that were later corrected. A confirmed match
      * has already written its own song, and a song a person linked stays.
+     *
+     * "The run wrote" is read from the provenance evidence, not the `source` column:
+     * a song item keeps its first writer there after a merge, so an item the run wrote
+     * and OpenLP or the email attested since would read as the run's alone.
      */
     private function withdrawUnconfirmedItemSong(ServiceSection $section): void
     {
@@ -444,7 +448,7 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
             : null;
 
         if (! $item instanceof ChurchServiceItem
-            || $item->source !== ChurchServiceItemSource::Livestream
+            || ! $this->onlyTheRunAttests($item)
             || $item->song_id === null
             || filled($item->metadata['linked_song_canonical_key'] ?? null)) {
             return;
@@ -460,6 +464,13 @@ class MatchSongsFromTranscript extends ProcessingJob implements ShouldQueue
         }
 
         $item->save();
+    }
+
+    private function onlyTheRunAttests(ChurchServiceItem $item): bool
+    {
+        $sources = $item->provenanceSources();
+
+        return $sources !== [] && collect($sources)->every(fn (ChurchServiceItemSource $source): bool => $source->isDetected());
     }
 
     private function applyMatch(
