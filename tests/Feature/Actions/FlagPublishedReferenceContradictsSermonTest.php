@@ -88,6 +88,49 @@ class FlagPublishedReferenceContradictsSermonTest extends TestCase
     }
 
     /**
+     * Making no claim withdraws an earlier one: otherwise clearing a wrong reference leaves a
+     * hold that nothing will ever lift.
+     */
+    #[Test]
+    public function it_withdraws_the_hold_once_the_published_reference_is_cleared(): void
+    {
+        [$run, $section] = $this->sermonRun('Matthew 2:1-12', '2 Corinthians 9:15');
+        app(FlagPublishedReferenceContradictsSermon::class)($run);
+
+        $run->sermon?->update(['reference' => null]);
+
+        self::assertSame(['raised' => 0, 'withdrawn' => 1], app(FlagPublishedReferenceContradictsSermon::class)($run->fresh()));
+        self::assertNotContains(FlagPublishedReferenceContradictsSermon::FLAG, $section->fresh()?->metadata?->toArray()['review_flags'] ?? []);
+        self::assertFalse($section->fresh()?->needs_manual_review);
+    }
+
+    #[Test]
+    public function it_withdraws_the_hold_once_the_published_reference_cannot_be_parsed(): void
+    {
+        [$run, $section] = $this->sermonRun('Matthew 2:1-12', '2 Corinthians 9:15');
+        app(FlagPublishedReferenceContradictsSermon::class)($run);
+
+        $run->sermon?->update(['reference' => 'The Christmas story']);
+
+        self::assertSame(['raised' => 0, 'withdrawn' => 1], app(FlagPublishedReferenceContradictsSermon::class)($run->fresh()));
+        self::assertFalse($section->fresh()?->needs_manual_review);
+    }
+
+    #[Test]
+    public function it_withdraws_the_hold_once_no_heard_reference_remains(): void
+    {
+        [$run, $section] = $this->sermonRun('Matthew 2:1-12', '2 Corinthians 9:15');
+        app(FlagPublishedReferenceContradictsSermon::class)($run);
+
+        $metadata = $section->fresh()?->metadata?->toArray() ?? [];
+        $metadata['sermon_reference'] = null;
+        $section->forceFill(['metadata' => $metadata])->save();
+
+        self::assertSame(['raised' => 0, 'withdrawn' => 1], app(FlagPublishedReferenceContradictsSermon::class)($run->fresh()));
+        self::assertFalse($section->fresh()?->needs_manual_review);
+    }
+
+    /**
      * @return array{0: MediaProcessingLog, 1: ServiceSection}
      */
     private function sermonRun(?string $published, ?string $heard): array

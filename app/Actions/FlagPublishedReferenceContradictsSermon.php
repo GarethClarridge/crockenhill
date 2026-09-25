@@ -23,7 +23,8 @@ use App\Support\SectionReviewFlagPolicy;
  * share no verse are exactly the six known contradictions (881, 899, 954, 844, 845, 850).
  *
  * Derived, not stored as a verdict: each analysis, and each edit to the reference, raises or
- * withdraws it. A reference that is missing or cannot be parsed on either side makes no claim.
+ * withdraws it. A reference that is missing or cannot be parsed on either side makes no claim,
+ * which withdraws one made earlier.
  */
 class FlagPublishedReferenceContradictsSermon
 {
@@ -42,10 +43,6 @@ class FlagPublishedReferenceContradictsSermon
         $outcome = ['raised' => 0, 'withdrawn' => 0];
         $published = trim((string) $run->sermon?->reference);
 
-        if ($published === '' || $this->resolver->normalize($published) === null) {
-            return $outcome;
-        }
-
         $sections = $run->serviceSections()
             ->where('section_type', ServiceSectionType::Sermon->value)
             ->orderBy('start_time')
@@ -56,11 +53,12 @@ class FlagPublishedReferenceContradictsSermon
             ->filter(fn (mixed $reference): bool => is_string($reference) && $this->resolver->normalize($reference) !== null)
             ->values();
 
-        if ($heard->isEmpty()) {
-            return $outcome;
-        }
-
-        $contradicts = $heard->every(fn (string $reference): bool => ! $this->resolver->referencesOverlap($published, $reference));
+        // No claim either way withdraws an earlier one, or clearing a wrong reference would
+        // leave a hold nothing lifts.
+        $contradicts = $published !== ''
+            && $this->resolver->normalize($published) !== null
+            && $heard->isNotEmpty()
+            && $heard->every(fn (string $reference): bool => ! $this->resolver->referencesOverlap($published, $reference));
 
         foreach ($sections as $section) {
             if ($this->apply($section, $contradicts)) {

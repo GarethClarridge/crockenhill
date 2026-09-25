@@ -174,6 +174,29 @@ class SaveSermonDetailsTest extends TestCase
     }
 
     #[Test]
+    public function it_withdraws_the_contradiction_hold_when_the_reference_is_cleared(): void
+    {
+        $sermon = Sermon::factory()->create(['reference' => 'Matthew 2:1-12']);
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create(['sermon_id' => $sermon->id]);
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::Sermon,
+            'start_time' => 600,
+            'end_time' => 2400,
+            'duration' => 1800,
+            'needs_manual_review' => true,
+            'metadata' => ['sermon_reference' => '2 Corinthians 9:15', 'review_flags' => [FlagPublishedReferenceContradictsSermon::FLAG]],
+        ]);
+
+        $this->action->execute($sermon, $this->validData(['reference' => '']));
+
+        $section->refresh();
+        $this->assertNotContains(FlagPublishedReferenceContradictsSermon::FLAG, $section->metadata?->toArray()['review_flags'] ?? []);
+        $this->assertFalse($section->needs_manual_review);
+    }
+
+    #[Test]
     public function it_does_not_trigger_enrichment_when_reference_is_unchanged(): void
     {
         $sermon = Sermon::factory()->create(['reference' => 'John 3:16']);
