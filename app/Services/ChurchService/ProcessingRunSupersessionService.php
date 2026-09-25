@@ -18,8 +18,8 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
  * rest superseded so review and timeline surfaces show one coherent structure.
  *
  * Best-run-wins (decision OD-2, revised): the winner is ranked by
- * transcript-confirmed song count, then high-confidence coverage, then completed
- * status, then mean confidence, section count, and recency.
+ * transcript-confirmed song count, then completed status, then high-confidence
+ * coverage, mean confidence, section count, and recency.
  *
  * Confirmed song matches lead the ordering because they are grounded evidence —
  * the section's transcript matched the catalogue lyrics/title above the writeback
@@ -28,11 +28,12 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
  * A run that only *inferred* its songs by projecting the plan has verified
  * nothing, so it must not supersede a run that confirmed them (service 785).
  *
- * Completed status sits *below* the grounded evidence terms, never above them:
- * it only breaks ties once song evidence and high-confidence coverage are equal,
- * so it can never veto a failed re-run that carries genuinely better structure
- * (OD-2's original point). When everything grounded is equal, the run that
- * actually finished the pipeline is the record worth keeping.
+ * Completed status sits *below* confirmed songs, so a failed re-run that
+ * confirmed more of them still wins (OD-2's original point), but *above* the
+ * confidence terms: a failed run never takes a service from a completed one on
+ * the classifier's self-assessment alone. Coverage is a count, so a re-detection
+ * that merges a completed run's fragments lowers it; ranked first, it handed
+ * run 936's service to a failed run with no confirmed songs (2026-09-25 ruling).
  */
 class ProcessingRunSupersessionService
 {
@@ -137,8 +138,8 @@ class ProcessingRunSupersessionService
 
         return [
             $confirmedSongs,
-            $highConfidence,
             $run->isComplete() ? 1 : 0,
+            $highConfidence,
             $meanConfidence,
             $count,
             (int) $run->id,

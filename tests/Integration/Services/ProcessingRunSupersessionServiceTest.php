@@ -30,17 +30,15 @@ class ProcessingRunSupersessionServiceTest extends TestCase
     }
 
     #[Test]
-    public function the_higher_confidence_run_wins_even_when_it_failed(): void
+    public function a_failed_run_with_more_confirmed_songs_wins_over_a_completed_run(): void
     {
         $churchService = $this->churchService();
 
-        // The "completed" run carries a weaker structure.
         $weakRun = $this->processingRun($churchService, status: 'completed');
         $this->sections($weakRun, [0.3, 0.3, 0.4]);
 
-        // The "failed" re-run carries the stronger structure — it must still win.
         $strongRun = $this->processingRun($churchService, status: 'failed');
-        $this->sections($strongRun, [0.9, 0.95, 0.98]);
+        $this->sections($strongRun, [0.9, 0.95, 0.98], songMatch: ServiceSectionSongMatchType::Confirmed);
 
         $result = $this->service->reconcile($churchService);
 
@@ -50,6 +48,27 @@ class ProcessingRunSupersessionServiceTest extends TestCase
         $this->assertNotNull($weakRun->fresh()->superseded_at);
         $this->assertSame($strongRun->id, $weakRun->fresh()->superseded_by_processing_log_id);
         $this->assertNull($strongRun->fresh()->superseded_at);
+    }
+
+    #[Test]
+    public function a_failed_run_does_not_win_on_confidence_alone(): void
+    {
+        // Reproduces run 936 (service 544): re-detection merged a completed run's
+        // fragments, so an old failed run with more high-confidence sections and no
+        // more confirmed songs took the service away from it.
+        $churchService = $this->churchService();
+
+        $completedRun = $this->processingRun($churchService, status: 'completed');
+        $this->sections($completedRun, [0.97, 0.97]);
+
+        $failedRun = $this->processingRun($churchService, status: 'failed');
+        $this->sections($failedRun, [0.9, 0.9, 0.9, 0.9]);
+
+        $result = $this->service->reconcile($churchService);
+
+        $this->assertTrue($result['winner']->is($completedRun));
+        $this->assertSame([$failedRun->id], $result['superseded']);
+        $this->assertNull($completedRun->fresh()->superseded_at);
     }
 
     #[Test]
@@ -85,9 +104,9 @@ class ProcessingRunSupersessionServiceTest extends TestCase
     {
         // Service 785's two surviving candidates confirmed the identical songs and
         // had equal high-confidence coverage; the only real difference was that one
-        // completed and the other failed. Status breaks the tie *after* the grounded
-        // evidence terms, so it never vetoes better structure — but here, all else
-        // equal, the run that actually finished the pipeline is the record to keep.
+        // completed and the other failed. Status ranks after confirmed songs, so it
+        // never vetoes better song evidence — but here, all else equal, the run that
+        // actually finished the pipeline is the record to keep.
         $churchService = $this->churchService();
 
         // The failed run has a marginally higher mean confidence, so without a
@@ -127,9 +146,9 @@ class ProcessingRunSupersessionServiceTest extends TestCase
         $weakRun = $this->processingRun($churchService, status: 'completed');
         $this->sections($weakRun, [0.3, 0.3, 0.4, 0.4], needsManualReview: true);
 
-        // The stronger "failed" re-run wins and is clean.
+        // The "failed" re-run confirmed its songs, so it wins, and is clean.
         $strongRun = $this->processingRun($churchService, status: 'failed');
-        $this->sections($strongRun, [0.9, 0.95, 0.98]);
+        $this->sections($strongRun, [0.9, 0.95, 0.98], songMatch: ServiceSectionSongMatchType::Confirmed);
 
         $result = $this->service->reconcile($churchService);
 

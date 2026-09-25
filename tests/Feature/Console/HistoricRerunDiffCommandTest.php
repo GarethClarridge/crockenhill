@@ -7,9 +7,9 @@ namespace Tests\Feature\Console;
 use App\Enums\ContentHoldCheck;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
-use App\Models\ServiceSection;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
+use App\Models\ServiceSection;
 use App\Models\SongVideo;
 use App\Services\HistoricMedia\HistoricRerunSnapshot;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -454,6 +454,23 @@ class HistoricRerunDiffCommandTest extends TestCase
 
         $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json')])
             ->expectsOutputToContain('run is failed after the re-run')
+            ->assertFailed();
+    }
+
+    /**
+     * Canary 3 re-detected run 936, a failed sibling took its service in reconciliation, and the
+     * diff reported the supersession as a plain change: every later round then refused the run.
+     */
+    #[Test]
+    public function it_needs_attention_when_a_run_is_superseded_by_the_re_run(): void
+    {
+        $run = $this->processingRun();
+        $this->snapshot([$run->id]);
+
+        $run->update(['superseded_at' => now()]);
+
+        $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json')])
+            ->expectsOutputToContain('run was superseded by the re-run')
             ->assertFailed();
     }
 

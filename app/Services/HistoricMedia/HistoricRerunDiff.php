@@ -15,9 +15,9 @@ namespace App\Services\HistoricMedia;
  *
  * Holds are compared across the whole run, keyed by what they claim, because a hold follows its
  * content through a re-run and may land on a different section than the one it started on. A
- * live hold that is absent afterwards, a section that leaves review or loses its media, or a
- * sermon or song video that becomes public is listed under `attention`: those are the changes
- * that silently lose containment or custody. A section published into quarantine (every video
+ * live hold that is absent afterwards, a run the re-run superseded, a section that leaves review
+ * or loses its media, or a sermon or song video that becomes public is listed under `attention`:
+ * those are the changes that silently lose containment or custody. A section published into quarantine (every video
  * and sermon showing it still quarantined) is the historic path's designed outcome and only a
  * change; a run that extraction parked for its held sermon is pending its re-cut.
  *
@@ -73,6 +73,12 @@ final class HistoricRerunDiff
             } else {
                 $attention[] = sprintf('run is %s after the re-run', (string) ($after['status'] ?? 'unknown'));
             }
+        }
+
+        // Every later round refuses a superseded run, so it drops out of the re-run unnoticed
+        // unless the diff stops on it (936, handed to a failed sibling in canary 3).
+        if (($after['superseded'] ?? false) === true && ($before['superseded'] ?? false) !== true) {
+            $attention[] = 'run was superseded by the re-run';
         }
 
         if (! $this->spansEqual($before['sermon_span'] ?? null, $after['sermon_span'] ?? null)) {
@@ -137,7 +143,7 @@ final class HistoricRerunDiff
      * @param  list<array<string, mixed>>  $before
      * @param  list<array<string, mixed>>  $after
      * @return array{0: list<array<string, mixed>>, 1: list<string>, 2: list<string>} changes,
-     *                                                                                  attention, and the media custody a detection round defers
+     *                                                                                attention, and the media custody a detection round defers
      */
     private function sectionChanges(array $before, array $after): array
     {

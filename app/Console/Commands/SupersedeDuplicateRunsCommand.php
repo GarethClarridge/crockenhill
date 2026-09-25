@@ -38,9 +38,10 @@ class SupersedeDuplicateRunsCommand extends Command
         $runsSuperseded = 0;
 
         foreach ($this->candidateServices() as $service) {
+            $liveRunIds = $this->liveRunIds($service);
             $result = $supersessionService->reconcile($service, execute: $execute);
 
-            if ($result['superseded'] === []) {
+            if ($result['superseded'] === [] || $liveRunIds === [$result['winner']?->id]) {
                 continue;
             }
 
@@ -69,8 +70,9 @@ class SupersedeDuplicateRunsCommand extends Command
     }
 
     /**
-     * Services with more than one non-superseded segmentation run — the only
-     * ones that can carry overlap.
+     * Services with more than one segmentation run, superseded or not: a run the ranking
+     * now prefers can be the superseded one (936, handed to a failed run by a ranking
+     * since corrected), so a service with one live run is still a candidate.
      *
      * @return EloquentCollection<int, ChurchService>
      */
@@ -84,7 +86,6 @@ class SupersedeDuplicateRunsCommand extends Command
 
         $duplicateServiceIds = MediaProcessingLog::query()
             ->segmentationPipeline()
-            ->notSuperseded()
             ->whereNotNull('church_service_id')
             ->when($serviceIds !== [], fn ($query) => $query->whereIn('church_service_id', $serviceIds))
             ->selectRaw('church_service_id, COUNT(*) as run_count')
@@ -96,5 +97,20 @@ class SupersedeDuplicateRunsCommand extends Command
             ->whereIn('id', $duplicateServiceIds)
             ->orderBy('id')
             ->get();
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function liveRunIds(ChurchService $service): array
+    {
+        return array_values(MediaProcessingLog::query()
+            ->segmentationPipeline()
+            ->notSuperseded()
+            ->where('church_service_id', $service->id)
+            ->orderBy('id')
+            ->get(['id'])
+            ->map(fn (MediaProcessingLog $run): int => $run->id)
+            ->all());
     }
 }

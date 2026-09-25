@@ -44,6 +44,48 @@ class SupersedeDuplicateRunsCommandTest extends TestCase
         $this->assertNull($strongRun->fresh()->superseded_at);
     }
 
+    /**
+     * Run 936: a failed run took the service on a ranking since corrected, leaving it the only
+     * live run, so a service with one live run must still be re-ranked.
+     */
+    #[Test]
+    public function it_restores_a_run_the_current_ranking_prefers_when_only_the_loser_is_live(): void
+    {
+        $service = ChurchService::factory()->create([
+            'date' => '2026-06-21',
+            'service' => SermonService::Morning->value,
+        ]);
+
+        $failedRun = MediaProcessingLog::factory()->livestream()->failed()->create([
+            'church_service_id' => $service->id,
+            'extracted_date' => $service->date,
+            'extracted_service' => $service->service,
+        ]);
+        $this->sections($failedRun, [0.9, 0.9, 0.9, 0.9]);
+
+        $completedRun = $this->processingRun($service);
+        $this->sections($completedRun, [0.97, 0.97]);
+        $completedRun->forceFill(['superseded_at' => now(), 'superseded_by_processing_log_id' => $failedRun->id])->save();
+
+        $this->artisan('services:supersede-duplicate-runs', ['--execute' => true, '--service' => [$service->id]])
+            ->expectsOutputToContain("service {$service->id}: kept run #{$completedRun->id}")
+            ->assertSuccessful();
+
+        $this->assertNull($completedRun->fresh()->superseded_at);
+        $this->assertSame($completedRun->id, $failedRun->fresh()->superseded_by_processing_log_id);
+    }
+
+    #[Test]
+    public function a_settled_service_is_not_reported_again(): void
+    {
+        $this->serviceWithTwoRuns();
+        $this->artisan('services:supersede-duplicate-runs', ['--execute' => true])->assertSuccessful();
+
+        $this->artisan('services:supersede-duplicate-runs')
+            ->doesntExpectOutputToContain('kept run')
+            ->assertSuccessful();
+    }
+
     #[Test]
     public function superseded_run_sections_drop_out_of_the_review_queue(): void
     {
