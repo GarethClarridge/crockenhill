@@ -40,7 +40,7 @@ final class HistoricRerunState
         $metadata = $run->processing_metadata?->toArray() ?? [];
 
         $sections = $run->serviceSections()
-            ->with(['churchServiceItem', 'songVideos'])
+            ->with(['churchServiceItem', 'songVideos', 'publishedSermon'])
             ->orderBy('start_time')
             ->orderBy('section_order')
             ->get();
@@ -50,6 +50,7 @@ final class HistoricRerunState
             'church_service_id' => $run->church_service_id,
             'status' => $run->status->value,
             'current_step' => $run->current_step,
+            'manual_review_reason' => data_get($metadata, 'manual_review.status') === 'required' ? data_get($metadata, 'manual_review.reason_code') : null,
             'superseded' => $run->superseded_at !== null,
             'transcript_sha256' => $this->transcriptSha256($run),
             'sermon_absence' => $run->assertedSermonAbsence() !== null,
@@ -195,6 +196,7 @@ final class HistoricRerunState
             'status' => $section->status->value,
             'needs_manual_review' => $section->needs_manual_review,
             'publication_status' => $section->publication_status->value,
+            'published_sermon_state' => $section->publishedSermon?->publication_state->value,
             'review_flags' => $reviewFlags,
             'song_review' => $this->songReview($metadata),
             'holds' => $this->holds($metadata),

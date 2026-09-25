@@ -15,8 +15,11 @@ namespace App\Services\HistoricMedia;
  *
  * Holds are compared across the whole run, keyed by what they claim, because a hold follows its
  * content through a re-run and may land on a different section than the one it started on. A
- * live hold that is absent afterwards, or a section that leaves review or loses its media, is
- * listed under `attention`: those are the changes that silently lose containment or custody.
+ * live hold that is absent afterwards, a section that leaves review or loses its media, or a
+ * sermon or song video that becomes public is listed under `attention`: those are the changes
+ * that silently lose containment or custody. A section published into quarantine (every video
+ * and sermon showing it still quarantined) is the historic path's designed outcome and only a
+ * change; a run that extraction parked for its held sermon is pending its re-cut.
  *
  * After a detection round that deferred its media (plan §4.0), a lost clip or review is what the
  * round is expected to leave: no clip is cut and the review a clip decides is not yet made. Those
@@ -27,6 +30,12 @@ final class HistoricRerunDiff
 {
     /** Seconds a boundary may move before the section counts as re-spanned; below this is snapping noise. */
     private const SPAN_TOLERANCE_SECONDS = 0.5;
+
+    /** The publication state that puts a sermon or song video in public view. */
+    private const PUBLIC = 'published';
+
+    /** The manual-review reason extraction records when it parks a run for its held sermon. */
+    private const PARKED_FOR_HELD_SERMON = 'sermon_section_content_held';
 
     /**
      * @param  array<string, mixed>  $before
@@ -52,10 +61,18 @@ final class HistoricRerunDiff
             }
         }
 
+        $pending = [];
+
         // A run that was already unfinished and was not reached is no change; one the re-run
         // leaves unfinished is (run 935, failed and superseded since 08-27, is the first case).
+        // Extraction parking a run for its held sermon is containment working, with a named
+        // repair, so it is pending rather than a failed re-run.
         if (($after['status'] ?? null) !== 'completed' && ($after['status'] ?? null) !== ($before['status'] ?? null)) {
-            $attention[] = sprintf('run is %s after the re-run', (string) ($after['status'] ?? 'unknown'));
+            if (($after['manual_review_reason'] ?? null) === self::PARKED_FOR_HELD_SERMON) {
+                $pending[] = 'run parked for its held sermon; re-cut it with sermons:re-extract --held-section once its span is checked';
+            } else {
+                $attention[] = sprintf('run is %s after the re-run', (string) ($after['status'] ?? 'unknown'));
+            }
         }
 
         if (! $this->spansEqual($before['sermon_span'] ?? null, $after['sermon_span'] ?? null)) {
@@ -63,6 +80,10 @@ final class HistoricRerunDiff
         }
 
         $changes = [...$changes, ...$this->sermonChanges($before['sermon'] ?? null, $after['sermon'] ?? null)];
+
+        if (($after['sermon']['publication_state'] ?? null) === self::PUBLIC && ($before['sermon']['publication_state'] ?? null) !== self::PUBLIC) {
+            $attention[] = sprintf('sermon %d became public', $after['sermon']['id']);
+        }
 
         // A state check, not a change check: enrichment is queued rather than awaited, so
         // this diff is where a reference that never got its passage is noticed (908–915).
@@ -82,7 +103,7 @@ final class HistoricRerunDiff
         return [
             'changes' => [...$changes, ...$sectionChanges, ...$holdChanges],
             'attention' => [...$attention, ...$sectionAttention, ...($mediaDeferred ? [] : $mediaCustody), ...$holdAttention],
-            'pending' => $mediaDeferred ? $mediaCustody : [],
+            'pending' => [...$pending, ...($mediaDeferred ? $mediaCustody : [])],
         ];
     }
 
@@ -178,16 +199,59 @@ final class HistoricRerunDiff
                 $changes[] = ['kind' => 'section_song_videos_changed', 'section' => $label, 'before' => $old['song_videos'], 'after' => $new['song_videos']];
             }
 
-            if ($old['needs_manual_review'] === true && $new['needs_manual_review'] === false) {
-                $mediaCustody[] = sprintf('%s left manual review', $label);
+            $wasPublic = array_column(array_filter($old['song_videos'], static fn (array $video): bool => $video['publication_state'] === self::PUBLIC), 'id');
+
+            foreach ($new['song_videos'] as $video) {
+                if ($video['publication_state'] === self::PUBLIC && ! in_array($video['id'], $wasPublic, true)) {
+                    $attention[] = sprintf('%s song video %d became public', $label, $video['id']);
+                }
+            }
+
+            if ($this->inReview($old) && ! $this->inReview($new)) {
+                $mediaCustody[] = sprintf('%s left review (now %s)', $label, $new['publication_status']);
             }
 
             if ($old['publication_status'] !== 'published' && $new['publication_status'] === 'published') {
-                $attention[] = sprintf('%s became published', $label);
+                if ($this->quarantinedOnly($new)) {
+                    $changes[] = ['kind' => 'section_published_into_quarantine', 'section' => $label];
+                } elseif (($new['published_sermon_state'] ?? null) === self::PUBLIC) {
+                    $attention[] = sprintf('%s became public', $label);
+                } elseif ($new['song_videos'] === [] && ($new['published_sermon_state'] ?? null) === null) {
+                    $attention[] = sprintf('%s became published with nothing recording where it is shown', $label);
+                }
             }
         }
 
         return [$changes, $attention, $mediaCustody];
+    }
+
+    /**
+     * Whether a section is still waiting on a person. Song review is a publication state
+     * (`pending_approval`, with `song_publication_review` reasons), not `needs_manual_review`,
+     * which only the boundary-evidence backfill ever set on a song.
+     *
+     * @param  array<string, mixed>  $section
+     */
+    private function inReview(array $section): bool
+    {
+        return $section['needs_manual_review'] === true || $section['publication_status'] === 'pending_approval';
+    }
+
+    /**
+     * Published into quarantine, the historic path's designed outcome pending §4.5: everything
+     * that shows the section exists and none of it is public.
+     *
+     * @param  array<string, mixed>  $section
+     */
+    private function quarantinedOnly(array $section): bool
+    {
+        $states = array_column($section['song_videos'], 'publication_state');
+
+        if (($section['published_sermon_state'] ?? null) !== null) {
+            $states[] = $section['published_sermon_state'];
+        }
+
+        return $states !== [] && ! in_array(self::PUBLIC, $states, true);
     }
 
     /**

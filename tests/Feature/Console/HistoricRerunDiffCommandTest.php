@@ -10,6 +10,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
+use App\Models\SongVideo;
 use App\Services\HistoricMedia\HistoricRerunSnapshot;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
@@ -215,7 +216,7 @@ class HistoricRerunDiffCommandTest extends TestCase
         $section->update(['needs_manual_review' => false, 'extracted_video_path' => null, 'extracted_at' => null]);
 
         $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json')])
-            ->expectsOutputToContain('left manual review')
+            ->expectsOutputToContain('left review')
             ->expectsOutputToContain('lost its extracted media')
             ->assertFailed();
     }
@@ -309,8 +310,117 @@ class HistoricRerunDiffCommandTest extends TestCase
         $this->deferMedia($run);
 
         $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json')])
-            ->expectsOutputToContain('became published')
+            ->expectsOutputToContain('became public')
             ->assertFailed();
+    }
+
+    /**
+     * Song review is a publication state, not `needs_manual_review`: only the boundary-evidence
+     * backfill ever set the flag on a song. A song whose flag drops while it still waits for
+     * approval has not left review (15 of canary 1's 23 reports).
+     */
+    #[Test]
+    public function a_song_still_pending_approval_has_not_left_review(): void
+    {
+        $run = $this->processingRun();
+        $section = $this->section($run, ServiceSectionType::Song, 100, 300);
+        $section->update(['needs_manual_review' => true, 'publication_status' => 'pending_approval']);
+        $this->snapshot([$run->id]);
+
+        $section->update(['needs_manual_review' => false]);
+
+        $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json')])
+            ->doesntExpectOutputToContain('left manual review')
+            ->assertSuccessful();
+    }
+
+    #[Test]
+    public function a_section_that_leaves_approval_still_leaves_review(): void
+    {
+        $run = $this->processingRun();
+        $section = $this->section($run, ServiceSectionType::Song, 100, 300);
+        $section->update(['publication_status' => 'pending_approval', 'extracted_video_path' => 'sections/1.mp4', 'extracted_audio_path' => 'sections/1.mp3', 'extracted_at' => now()]);
+        $this->snapshot([$run->id]);
+
+        $section->update(['publication_status' => 'approved']);
+
+        $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json')])
+            ->expectsOutputToContain('left review')
+            ->assertFailed();
+    }
+
+    /**
+     * The historic path publishes a song's clip into quarantine: the section reads `published`
+     * while its video stays out of public view, pending §4.5. That is a change, not a custody loss.
+     */
+    #[Test]
+    public function a_song_published_into_quarantine_is_a_change_not_an_exposure(): void
+    {
+        $run = $this->processingRun();
+        $section = $this->section($run, ServiceSectionType::Song, 100, 300);
+        $this->snapshot([$run->id]);
+
+        $section->forceFill(['publication_status' => 'published', 'published_at' => now(), 'extracted_video_path' => 'sections/1.mp4', 'extracted_audio_path' => 'sections/1.mp3', 'extracted_at' => now()])->save();
+        SongVideo::factory()->quarantined()->create(['service_section_id' => $section->id]);
+
+        $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json'), '--output' => $this->path('diff.json')])
+            ->doesntExpectOutputToContain('became public')
+            ->assertSuccessful();
+
+        self::assertContains('section_published_into_quarantine', array_column($this->report()['runs'][(string) $run->id]['changes'], 'kind'));
+    }
+
+    #[Test]
+    public function a_song_video_that_becomes_public_needs_attention(): void
+    {
+        $run = $this->processingRun();
+        $section = $this->section($run, ServiceSectionType::Song, 100, 300);
+        $video = SongVideo::factory()->quarantined()->create(['service_section_id' => $section->id]);
+        $this->snapshot([$run->id]);
+
+        $video->update(['publication_state' => 'published']);
+
+        $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json')])
+            ->expectsOutputToContain('became public')
+            ->assertFailed();
+    }
+
+    #[Test]
+    public function a_sermon_that_becomes_public_needs_attention(): void
+    {
+        $run = $this->processingRun();
+        $run->sermon?->update(['publication_state' => 'quarantined']);
+        $this->snapshot([$run->id]);
+
+        $run->sermon?->update(['publication_state' => 'published']);
+
+        $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json')])
+            ->expectsOutputToContain('became public')
+            ->assertFailed();
+    }
+
+    /**
+     * Extraction parks a run whose sermon is held: containment working, with a named repair
+     * (`sermons:re-extract --held-section`). It is pending, not a failed re-run.
+     */
+    #[Test]
+    public function a_run_parked_for_its_held_sermon_is_pending_not_failed(): void
+    {
+        $run = $this->processingRun();
+        $this->section($run, ServiceSectionType::Sermon, 600, 2400, holds: [$this->hold('H10b listening: the stored transcript is wrong in this window')]);
+        $this->snapshot([$run->id]);
+
+        $run->update([
+            'status' => 'failed',
+            'current_step' => 'manual_review_required',
+            'processing_metadata' => ['manual_review' => ['status' => 'required', 'reason_code' => 'sermon_section_content_held']],
+        ]);
+
+        $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json'), '--output' => $this->path('diff.json')])
+            ->expectsOutputToContain('parked for its held sermon')
+            ->assertSuccessful();
+
+        self::assertSame([], $this->report()['runs'][(string) $run->id]['attention']);
     }
 
     #[Test]
