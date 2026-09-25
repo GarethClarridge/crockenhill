@@ -7,7 +7,7 @@ namespace App\Services\Scripture;
 use App\Actions\QueueScriptureEnrichment;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
@@ -42,27 +42,57 @@ class ScriptureOperatorService
         private readonly QueueScriptureEnrichment $queueScriptureEnrichment,
     ) {}
 
+    /** How long api.bible's miss on a reference keeps it out of enrichment batches. */
+    private const NOT_FOUND_MEMORY_DAYS = 30;
+
     public function countEnrichmentCandidates(int $limit = 100): int
     {
-        return $this->enrichmentCandidates()->limit($limit)->count();
+        return $this->enrichmentCandidates($limit)->count();
     }
 
     /**
-     * Sermons with a reference and no linked passage, newest first.
+     * Up to `$limit` sermons with a reference and no linked passage, newest first, leaving out
+     * references no attempt can link: those that do not parse, and those api.bible recently
+     * missed ({@see self::rememberNotFound()}).
      *
-     * Newest first because the candidates include hundreds of old references that never
-     * resolve, and in id order they filled every limited batch: sermons 908–915 lost their
-     * queued enrichment on 2026-09-02/03 and no backfill ever reached them.
+     * Newest first so a new sermon is never queued behind the backlog: sermons 908–915 lost
+     * their queued enrichment on 2026-09-02/03, and hundreds of older unlinked sermons came
+     * first in id order. The two exclusions keep newest-first from starving the backlog in
+     * turn, since an unresolvable reference would otherwise hold its slot in every batch.
      *
-     * @return Builder<Sermon>
+     * @return Collection<int, Sermon>
      */
-    private function enrichmentCandidates(): Builder
+    private function enrichmentCandidates(int $limit): Collection
     {
-        return Sermon::query()
+        $bibleId = (string) config('services.api_bible.default_bible_id');
+
+        return new Collection(Sermon::query()
             ->whereNotNull('reference')
             ->where('reference', '!=', '')
             ->whereNull('scripture_passage_id')
-            ->orderByDesc('id');
+            ->lazyByIdDesc(200)
+            ->filter(function (Sermon $sermon) use ($bibleId): bool {
+                $normalized = $this->resolver->normalize((string) $sermon->reference);
+
+                return $normalized !== null && ! Cache::has($this->notFoundKey($bibleId, $normalized));
+            })
+            ->take($limit)
+            ->values()
+            ->all());
+    }
+
+    /**
+     * api.bible's miss is terminal for a reference ({@see self::ensurePassage()}), so it is
+     * remembered for a while rather than retried by every batch.
+     */
+    private function rememberNotFound(string $bibleId, string $normalizedReference): void
+    {
+        Cache::put($this->notFoundKey($bibleId, $normalizedReference), true, now()->addDays(self::NOT_FOUND_MEMORY_DAYS));
+    }
+
+    private function notFoundKey(string $bibleId, string $normalizedReference): string
+    {
+        return 'scripture-enrichment:not-found:'.$bibleId.':'.hash('sha256', $normalizedReference);
     }
 
     public function countRefreshCandidates(): int
@@ -90,7 +120,7 @@ class ScriptureOperatorService
         int $delayMs = 500,
         ?callable $progress = null,
     ): array {
-        $sermons = $this->enrichmentCandidates()->limit($limit)->get();
+        $sermons = $this->enrichmentCandidates($limit);
 
         $summary = $this->emptySummary();
         $stoppedEarly = false;
@@ -260,8 +290,9 @@ class ScriptureOperatorService
             return 'unparseable';
         }
 
+        $bibleId = (string) config('services.api_bible.default_bible_id');
         $outcome = $this->ensurePassage(
-            (string) config('services.api_bible.default_bible_id'),
+            $bibleId,
             $normalizedReference,
             'FetchBibleTextForSermon',
             ['sermon_id' => $sermon->id],
@@ -269,6 +300,10 @@ class ScriptureOperatorService
         $passage = $outcome['passage'];
 
         if (! $passage instanceof ScripturePassage) {
+            if ($outcome['status'] === 'not_found') {
+                $this->rememberNotFound($bibleId, $normalizedReference);
+            }
+
             return $outcome['status'];
         }
 

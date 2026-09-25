@@ -94,7 +94,7 @@ class EnrichSermonsScriptureTest extends TestCase
         $this->app->instance(ApiBibleClient::class, $client);
 
         $this->artisan('sermons:enrich-scripture', ['--delay' => 0])
-            ->expectsOutputToContain('Resolved: 1, Not found: 0, Unparseable: 1')
+            ->expectsOutputToContain('Resolved: 1, Not found: 0, Unparseable: 0')
             ->assertExitCode(0);
     }
 

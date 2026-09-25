@@ -99,15 +99,15 @@ class ScriptureOperatorServiceTest extends TestCase
         $result = app(ScriptureOperatorService::class)->runEnrichment(delayMs: 0);
 
         $this->assertSame(1, $result['summary']['resolved']);
-        $this->assertSame(1, $result['summary']['unparseable']);
+        $this->assertSame(0, $result['summary']['unparseable'], 'An unparseable reference is left out of the batch, not attempted.');
+        $this->assertSame([$sermon->id], $result['sermons']->pluck('id')->all());
         $this->assertSame(0, $result['summary']['failed']);
         $this->assertNotNull($sermon->fresh()->scripture_passage_id);
     }
 
     /**
      * Sermons 908–915 (2026-09-02/03) queued enrichment that never ran, and no backfill
-     * reached them: 689 older sermons with unresolvable references filled every limited
-     * batch first, so the backfill never looked past them.
+     * reached them: hundreds of older unlinked sermons came first in id order.
      */
     public function test_enrichment_reaches_the_newest_unlinked_sermons_first(): void
     {
@@ -131,6 +131,75 @@ class ScriptureOperatorServiceTest extends TestCase
         $this->assertSame([$newest->id], $result['sermons']->pluck('id')->all());
         $this->assertNotNull($newest->fresh()->scripture_passage_id);
         $this->assertNull($older->fresh()->scripture_passage_id);
+    }
+
+    /**
+     * A reference that cannot parse never reaches the API, so it must not take the batch's
+     * slot either: newest-first would otherwise starve every older sermon behind it.
+     */
+    public function test_an_unparseable_reference_takes_no_slot_in_a_limited_batch(): void
+    {
+        $older = Sermon::factory()->create(['reference' => 'John 3:16', 'scripture_passage_id' => null]);
+        Sermon::factory()->create(['reference' => 'The Christmas story', 'scripture_passage_id' => null]);
+
+        $client = $this->mockClientWithBudget();
+        $this->mockResolver(['John 3:16' => 'John 3:16']);
+        $this->mockSanitizer();
+        $client->method('searchPassage')->willReturn($this->johnThreeSixteen());
+        $this->app->instance(ApiBibleClient::class, $client);
+
+        $result = app(ScriptureOperatorService::class)->runEnrichment(limit: 1, delayMs: 0);
+
+        $this->assertSame([$older->id], $result['sermons']->pluck('id')->all());
+        $this->assertNotNull($older->fresh()->scripture_passage_id);
+    }
+
+    /**
+     * api.bible's miss is terminal for a reference, so it is remembered: retrying it every
+     * run would hold the batch's newest slots for ever.
+     */
+    public function test_a_reference_api_bible_missed_is_not_retried_by_the_next_batch(): void
+    {
+        $older = Sermon::factory()->create(['reference' => 'John 3:16', 'scripture_passage_id' => null]);
+        $missed = Sermon::factory()->create(['reference' => 'Obadiah 1:30', 'scripture_passage_id' => null]);
+
+        $client = $this->mockClientWithBudget();
+        $this->mockResolver(['John 3:16' => 'John 3:16', 'Obadiah 1:30' => 'Obadiah 1:30']);
+        $this->mockSanitizer();
+        $client->expects($this->exactly(2))->method('searchPassage')
+            ->willReturnCallback(fn (string $reference): ?ApiBiblePassageResult => $reference === 'John 3:16' ? $this->johnThreeSixteen() : null);
+        $this->app->instance(ApiBibleClient::class, $client);
+
+        $first = app(ScriptureOperatorService::class)->runEnrichment(limit: 1, delayMs: 0);
+        $second = app(ScriptureOperatorService::class)->runEnrichment(limit: 1, delayMs: 0);
+
+        $this->assertSame([$missed->id], $first['sermons']->pluck('id')->all());
+        $this->assertSame(1, $first['summary']['not_found']);
+        $this->assertSame([$older->id], $second['sermons']->pluck('id')->all());
+        $this->assertNotNull($older->fresh()->scripture_passage_id);
+    }
+
+    public function test_the_candidate_count_honours_its_limit_and_skips_what_the_batch_would(): void
+    {
+        Sermon::factory()->count(3)->create(['reference' => 'John 3:16', 'scripture_passage_id' => null]);
+        Sermon::factory()->create(['reference' => 'The Christmas story', 'scripture_passage_id' => null]);
+        $this->mockResolver(['John 3:16' => 'John 3:16']);
+
+        $service = app(ScriptureOperatorService::class);
+
+        $this->assertSame(2, $service->countEnrichmentCandidates(2));
+        $this->assertSame(3, $service->countEnrichmentCandidates(10));
+    }
+
+    private function johnThreeSixteen(): ApiBiblePassageResult
+    {
+        return new ApiBiblePassageResult(
+            passageId: 'JHN.3.16',
+            displayReference: 'John 3:16',
+            htmlContent: '<p>For God so loved the world.</p>',
+            copyright: 'NIV',
+            fumsToken: 'tok',
+        );
     }
 
     public function test_enrichment_stores_normalized_reference_when_api_display_span_differs(): void

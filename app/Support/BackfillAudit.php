@@ -167,9 +167,9 @@ class BackfillAudit
     }
 
     /**
-     * Advisory drift for sermons:enrich-scripture; mirrors
-     * ScriptureOperatorService::countEnrichmentCandidates() without its limit.
-     * Unparseable references and api.bible misses leave a permanent residue.
+     * Advisory drift for sermons:enrich-scripture: every unlinked reference, including
+     * the unparseable ones and recent api.bible misses its batches leave out, which
+     * are a permanent residue.
      */
     public function sermonsMissingScripturePassage(): int
     {
