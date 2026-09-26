@@ -539,19 +539,36 @@ on a commit that includes them:
   audio. It now compresses and archives the recording as the real services do (only the words are
   mocked), so the real classifier runs.
 
+**§8 rule replay done (2026-09-26).** `structure:replay-music-rules --all` (read-only, no
+`--apply`) over the 437 current runs, none unassessable: R1 holds 19 (17 runs), R1 edge moves 4, R2
+widenings 9, **R3 proposals 0**. R2/R3 are isolated by running `SoundStage` twice, without and with
+the timeline; R1 by running `DeadFeedInsideSection` alone. Grouped by service year, not era: era
+boundaries are not derived yet. Output and checks in `storage/scratch/music-rule-replay-20260926/`
+(`replay.json`, `check.py`). **Every predeclared pass met:** 1050 held; 1346's end to 3901.6 s, not
+held; 1028's end to 1125.0 s (operator 1121.7); 1262's start to 1090.0 s; no R2/R3 action on the 2 +
+93 speech listening windows, the 18 speech edge rows (mostly-S rows less the readings) or the three
+spoken readings; no unattributed difference.
+- R3 is untested by the replay: its one truth case, 1304, is not a completed run (canary 4 parked it).
+  It is judged end-to-end at canary 5, as §8 already says.
+- Found and fixed on the way, tests first: superseded runs (943, 1189, 1249, 1377, 1378) are left out,
+  as the backfill leaves them out; and R2 now takes a remainder under 1 s rather than leave a sliver
+  (1030: `other` 560.0–560.1), unless it opens a dropout. `structure:recompute-sound-stage` has the
+  same superseded-run gap and could write flags onto one; not changed.
+
 **Where to resume (step 9):**
-1. Write the §8 rule replay: run `SoundStage` with each run's timeline over its current banked
-   structure, read-only, and list every R1 flag, R1 edge move, R2 widening and R3 proposal per era.
-   Check the §8 predeclared passes (1050 flagged, 1346's end to ~3902 s with no hold, 1028 and 1262
-   within a window of the §2 edges, no R2/R3 action on the speech rows).
-2. Operator precision gate (§12 ruling 4): listen to every action or a random 10 per rule; ≤ 1 wrong
-   in 10 passes, otherwise tighten the rule first.
+1. ~~§8 rule replay~~ (above).
+2. Operator precision gate (§12 ruling 4), **in progress**: https://claude.ai/artifact/Rij1KzQ1wWaDngKxTBk9CR
+   holds every R1 edge move (4), every R2 widening (9) and a seeded 10 of the 19 R1 holds, sealed
+   before listening (`storage/scratch/music-rule-precision-20260926/selection-sealed.json`, sha256
+   `7a0d2b7c…74da`). Verdicts are in the page's `verdicts` collection. ≤ 1 wrong in 10 per rule
+   passes, otherwise tighten the rule and replay first.
 3. Restart the workers (`queue:restart`; check `ps` ELAPSED), take a new snapshot (version 2) on the
    frozen commit, run canary 5: both tiers, diff, Tier C, diff, freeze.
 - Before that, check the local service: `curl http://localhost:2023/` (LaunchAgent
   `com.crockenhill.audio-classifier`), and that the workers read `AUDIO_CLASSIFIER_URL`.
 - Before weekly processing resumes (§10): rebuild the production image (Dockerfile carries torch,
   torchaudio, transformers and the weights) and confirm the host's CPU and memory headroom (~2 GB
-  resident, ~12 min a service on CPU). The local Sail image has not been rebuilt either; locally it
-  is not needed while the service is used.
+  resident, ~12 min a service on CPU). The local Sail image was rebuilt on 2026-09-26 but the running
+  container still uses the old one (`vendor/bin/sail up -d` swaps it in); locally it is not needed
+  while the service is used.
 

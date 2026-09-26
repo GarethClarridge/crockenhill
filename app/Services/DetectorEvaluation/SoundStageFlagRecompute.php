@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\DetectorEvaluation;
 
+use App\Actions\RedetectHistoricServiceStructure;
 use App\Data\ServiceStructure;
+use App\Data\ServiceStructureSection;
 use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\Structure\DeadFeedInsideSection;
 use App\Services\ChurchService\Structure\MistypedSungSections;
@@ -14,12 +16,7 @@ use App\Services\ChurchService\Structure\SoundStage;
 use App\Services\ChurchService\Structure\SungSpanInsideSermon;
 use App\Services\ChurchService\Structure\SustainedSoundSongSections;
 use App\Services\ChurchService\Structure\ValidationContext;
-use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Media\Audio\ServiceTranscriptReader;
-use App\Support\ServiceArtifactDisk;
-use Closure;
-use Illuminate\Support\Facades\Storage;
-use Throwable;
 
 /**
  * Re-derive the sound-stage review flags from banked structure, without
@@ -29,7 +26,7 @@ use Throwable;
  * corpus, three of them these: `structure_song_widened_to_sustained_sound`,
  * `structure_unidentified_singing` and `structure_section_reads_as_sung`. The
  * obvious remedy — re-run detection — is the wrong one.
- * {@see \App\Actions\RedetectHistoricServiceStructure} spells out why: detection
+ * {@see RedetectHistoricServiceStructure} spells out why: detection
  * costs a provider call, **replaces the projected sections**, and is not
  * deterministic, so a corpus-wide re-detection would rewrite months of
  * adjudicated boundaries and holds and leave no baseline to tell which runs came
@@ -55,10 +52,8 @@ use Throwable;
  * sections, which a flag write cannot carry, so the stage runs here without one
  * (music and silence plan §6.5).
  *
- * **Every read happens inside the run's own staging context.** H10a lost a pass
- * to this: reading from the ambient disk reports every run unavailable, which is
- * indistinguishable from a corpus with nothing to find. A run whose inputs
- * cannot be read is reported unassessable, never clean.
+ * **Every read happens inside the run's own staging context** ({@see BankedRunInputs}).
+ * A run whose inputs cannot be read is reported unassessable, never clean.
  */
 class SoundStageFlagRecompute
 {
@@ -82,7 +77,7 @@ class SoundStageFlagRecompute
     ];
 
     public function __construct(
-        private readonly HistoricStagingContextRegistry $stagingContexts,
+        private readonly BankedRunInputs $inputs,
         private readonly ServiceTranscriptReader $transcripts,
         private readonly SoundStage $soundStage,
     ) {}
@@ -150,21 +145,15 @@ class SoundStageFlagRecompute
      */
     public function forRun(MediaProcessingLog $run, array &$affected = []): ?array
     {
-        return $this->withRunContext($run, function () use ($run, &$affected): ?array {
-            $banked = data_get($run->processing_metadata?->toArray() ?? [], 'service_structure');
-
-            if (! is_array($banked)) {
-                return null;
-            }
-
-            $rms = $this->rmsLogContent($run);
+        return $this->inputs->within($run, function () use ($run, &$affected): ?array {
+            $structure = $this->inputs->structure($run);
+            $rms = $this->inputs->rmsLog($run);
             $transcript = $this->transcripts->tryRead($run);
 
-            if ($rms === null || $transcript === null) {
+            if ($structure === null || $rms === null || $transcript === null) {
                 return null;
             }
 
-            $structure = ServiceStructure::fromArray($banked);
             $before = $this->flagCounts($structure);
             $original = $structure->sections;
 
@@ -239,11 +228,11 @@ class SoundStageFlagRecompute
      * The original section this recomputed one came from, by greatest temporal
      * overlap, or null when it overlaps none of them.
      *
-     * @param  list<\App\Data\ServiceStructureSection>  $original
+     * @param  list<ServiceStructureSection>  $original
      * @param  array<int, true>  $claimed
      */
     private function bestOverlap(
-        \App\Data\ServiceStructureSection $section,
+        ServiceStructureSection $section,
         array $original,
         array $claimed,
     ): ?int {
@@ -281,40 +270,5 @@ class SoundStageFlagRecompute
         }
 
         return $counts;
-    }
-
-    private function rmsLogContent(MediaProcessingLog $run): ?string
-    {
-        $path = $run->rms_log_path;
-
-        if (! is_string($path) || $path === '') {
-            return null;
-        }
-
-        try {
-            $disk = Storage::disk(ServiceArtifactDisk::for($path));
-
-            return $disk->exists($path) ? (string) $disk->get($path) : null;
-        } catch (Throwable) {
-            // An unreadable artifact is unassessable, never clean.
-            return null;
-        }
-    }
-
-    /**
-     * @template TResult
-     *
-     * @param  Closure(): TResult  $callback
-     * @return TResult
-     */
-    private function withRunContext(MediaProcessingLog $run, Closure $callback): mixed
-    {
-        $context = $run->historicStagingContext();
-
-        if ($context === null) {
-            return $callback();
-        }
-
-        return $this->stagingContexts->within($context, $callback);
     }
 }
