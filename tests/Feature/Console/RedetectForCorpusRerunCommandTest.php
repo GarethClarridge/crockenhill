@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
+use App\Actions\RedetectForCorpusRerun;
 use App\Data\HistoricStagingContext;
 use App\Enums\ProcessingStatus;
 use App\Enums\ServiceSectionType;
@@ -311,6 +312,50 @@ class RedetectForCorpusRerunCommandTest extends TestCase
             ->assertSuccessful();
     }
 
+    /**
+     * 1304, canary 4: a round's detection left §3872's content hold with no song to land on, so
+     * the run parked. The park asks the operator to confirm or re-hold before re-running; once
+     * the hold is released the run goes back into the re-run, and the round's own reset clears
+     * the park.
+     */
+    #[Test]
+    public function it_admits_a_run_a_round_parked_on_an_unplaced_hold_once_the_hold_is_released(): void
+    {
+        Bus::fake();
+        [$run] = $this->parkedRun(holdStillLive: false);
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('dispatched from structure detection')
+            ->assertSuccessful();
+
+        self::assertCount(2, $run->fresh()?->corpusRerunStamps() ?? []);
+        self::assertArrayNotHasKey('manual_review', $run->fresh()?->processing_metadata?->toArray() ?? []);
+    }
+
+    #[Test]
+    public function it_refuses_a_parked_run_while_the_unplaced_hold_is_still_live(): void
+    {
+        [$run, $section] = $this->parkedRun(holdStillLive: true);
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+            ->expectsOutputToContain("run is parked: section {$section->id}'s content hold had nowhere to land; confirm the section to release it")
+            ->assertSuccessful();
+    }
+
+    /** Only a park the re-run itself caused: an ordinary failed run stays out. */
+    #[Test]
+    public function it_refuses_a_run_parked_on_an_unplaced_hold_by_something_other_than_a_rerun(): void
+    {
+        [$run] = $this->parkedRun(holdStillLive: false, stamped: false);
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+            ->expectsOutputToContain('run is failed, not completed')
+            ->assertSuccessful();
+    }
+
     #[Test]
     public function it_refuses_an_excluded_run(): void
     {
@@ -390,6 +435,37 @@ class RedetectForCorpusRerunCommandTest extends TestCase
             ],
             ...$attributes,
         ]);
+    }
+
+    /**
+     * A run parked the way canary 4 parked 1304: failed at manual review for an unplaced content
+     * hold, with the refused proposal naming the section whose hold had nowhere to land.
+     *
+     * @return array{0: MediaProcessingLog, 1: ServiceSection}
+     */
+    private function parkedRun(bool $holdStillLive, bool $stamped = true): array
+    {
+        $run = $this->completedRun(['status' => ProcessingStatus::Failed, 'current_step' => 'manual_review_required']);
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Song,
+            'start_time' => 261.0,
+            'end_time' => 364.6,
+            'needs_manual_review' => $holdStillLive,
+            'metadata' => $holdStillLive ? ['review_flags' => ['content_defect_hold']] : [],
+        ]);
+
+        $metadata = $run->processing_metadata?->toArray() ?? [];
+        $metadata['manual_review'] = ['status' => 'required', 'reason_code' => 'unplaced_content_hold'];
+        $metadata['service_structure_proposal'] = ['refused_reason' => 'unplaced_content_hold', 'unplaced_content_hold_section_ids' => [$section->id]];
+
+        if ($stamped) {
+            $metadata[RedetectForCorpusRerun::STAMP_KEY] = [['grounds' => 'corpus_rerun', 'git_commit' => str_repeat('e', 40), 'media' => 'deferred', 'dispatched_at' => '2026-09-25T10:32:55+00:00']];
+        }
+
+        $run->forceFill(['processing_metadata' => $metadata])->save();
+
+        return [$run->fresh() ?? $run, $section];
     }
 
     private function stagingContext(): HistoricStagingContext

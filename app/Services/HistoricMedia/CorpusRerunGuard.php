@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\HistoricMedia;
 
+use App\Actions\HoldSectionForContentReview;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
 use App\Support\RepositoryCommit;
 
 /**
@@ -16,7 +18,10 @@ use App\Support\RepositoryCommit;
  * - the run was not already re-run on this commit, by either tier, so a canary run is not run
  *   again by its batch, an interrupted batch resumes without repeating work, and no run is
  *   re-transcribed and re-detected on the same commit;
- * - the run is completed and not excluded (the eligible membership);
+ * - the run is completed and not excluded (the eligible membership). One failed run is let back
+ *   in: one a round parked because its detection left a content hold with nowhere to land
+ *   (canary 4, 1304 §3872), once the operator has released every hold it named. The park asks
+ *   for exactly that before re-running, and the round's reset clears it;
  * - the run has a readable audio timeline, which detection refuses to run without;
  * - the run has not changed since the snapshot, so the diff reads the re-run's change alone.
  *
@@ -48,7 +53,18 @@ final class CorpusRerunGuard
         }
 
         if ($run->status !== ProcessingStatus::Completed) {
-            return sprintf('run is %s, not completed', $run->status->value);
+            $stillHeld = $this->unplacedHoldsStillLive($run);
+
+            if ($stillHeld === null) {
+                return sprintf('run is %s, not completed', $run->status->value);
+            }
+
+            if ($stillHeld !== []) {
+                return sprintf(
+                    "run is parked: section %s's content hold had nowhere to land; confirm the section to release it",
+                    implode(', ', $stillHeld),
+                );
+            }
         }
 
         if ($run->isExcluded()) {
@@ -64,5 +80,37 @@ final class CorpusRerunGuard
         }
 
         return null;
+    }
+
+    /**
+     * For a run a corpus re-run round parked on an unplaced content hold, the sections it named
+     * that are still held; null for any other run that is not completed.
+     *
+     * @return list<int>|null
+     */
+    private function unplacedHoldsStillLive(MediaProcessingLog $run): ?array
+    {
+        $metadata = $run->processing_metadata?->toArray() ?? [];
+
+        if ($run->status !== ProcessingStatus::Failed
+            || $run->corpusRerunStamps() === []
+            || data_get($metadata, 'manual_review.reason_code') !== 'unplaced_content_hold'
+            || data_get($metadata, 'service_structure_proposal.refused_reason') !== 'unplaced_content_hold') {
+            return null;
+        }
+
+        $sectionIds = array_values(array_filter((array) data_get($metadata, 'service_structure_proposal.unplaced_content_hold_section_ids', []), 'is_int'));
+
+        return array_values(ServiceSection::query()
+            ->whereKey($sectionIds)
+            ->orderBy('id')
+            ->get()
+            ->filter(static function (ServiceSection $section): bool {
+                $flags = $section->metadata?->toArray()['review_flags'] ?? [];
+
+                return HoldSectionForContentReview::isHeld(is_array($flags) ? array_values(array_filter($flags, 'is_string')) : []);
+            })
+            ->map(static fn (ServiceSection $section): int => (int) $section->id)
+            ->all());
     }
 }

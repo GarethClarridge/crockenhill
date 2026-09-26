@@ -555,13 +555,35 @@ spoken readings; no unattributed difference.
   (1030: `other` 560.0–560.1), unless it opens a dropout. `structure:recompute-sound-stage` has the
   same superseded-run gap and could write flags onto one; not changed.
 
+**Precision gate passed (2026-09-26).** The operator listened to every R1 edge move (4), every R2
+widening (9) and a seeded 10 of the 19 R1 holds, sealed before listening
+(https://claude.ai/artifact/Rij1KzQ1wWaDngKxTBk9CR; `storage/scratch/music-rule-precision-20260926/`,
+`selection-sealed.json` sha256 `7a0d2b7c…74da`, scoring in `scored-20260926.txt`). A "partly" counts
+as right when the operator's mark is within one 5 s window of the rule's edge (the §8 tolerance).
+- R1 edge moves 4/4, R1 holds 10/10.
+- R2 widenings 8/9: **passes at the limit.** 1028 and 1033 are within a window of the operator's
+  marks (4.0 s, 3.9 s). **1215 is wrong:** its `other` (1766–1794 s, "Hymn transition") sits between
+  two songs, and R2 gave the next hymn's opening (to ~1790 s) to Rejoice, the Lord Is King, whose
+  real end is 1769.2 s. It is the only one of the 9 widened `other`s with a song on both sides.
+- **Accepted as it stands (operator, 2026-09-26).** Every R2 widening is held
+  (`structure_song_widened_into_music` forces manual review on a song, and a held section's song
+  video cannot be released), so the error reaches the operator as a held song, never a release.
+  Tightening would rest on one case. **Watch for the between-two-songs shape** at canary 5 and in
+  weekly runs; if it recurs, measure it and consider leaving such an `other` alone.
+- Operator notes: 1031's recording starts partway through the song (lost at source, the edge move is
+  right); 1030's dropout is a real pause for a technical fault (held correctly either way).
+
 **Where to resume (step 9):**
 1. ~~§8 rule replay~~ (above).
-2. Operator precision gate (§12 ruling 4), **in progress**: https://claude.ai/artifact/Rij1KzQ1wWaDngKxTBk9CR
-   holds every R1 edge move (4), every R2 widening (9) and a seeded 10 of the 19 R1 holds, sealed
-   before listening (`storage/scratch/music-rule-precision-20260926/selection-sealed.json`, sha256
-   `7a0d2b7c…74da`). Verdicts are in the page's `verdicts` collection. ≤ 1 wrong in 10 per rule
-   passes, otherwise tighten the rule and replay first.
+2. ~~Operator precision gate~~ (above).
+- **1304 back into the re-run (operator, 2026-09-26).** Canary 4 parked it (`failed`,
+  `unplaced_content_hold`), and `CorpusRerunGuard` admitted only completed runs, so canary 5 could
+  not reach R3's truth case. Its hold on §3872 is stale: placed 09-13 as "two songs joined" over
+  120–396 s, carried onto what is now one song (Lord, I Lift Your Name on High). The guard now
+  admits a failed run a round parked on an unplaced content hold once every section the refused
+  proposal named is no longer held; the round's `service_structure_validation` reset clears the
+  park. **Before the snapshot, the operator confirms §3872** (releasing the hold), then canary 5
+  covers all 17 runs.
 3. Restart the workers (`queue:restart`; check `ps` ELAPSED), take a new snapshot (version 2) on the
    frozen commit, run canary 5: both tiers, diff, Tier C, diff, freeze.
 - Before that, check the local service: `curl http://localhost:2023/` (LaunchAgent
