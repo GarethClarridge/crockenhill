@@ -435,6 +435,39 @@ class SustainedSoundSongSectionsTest extends TestCase
         $this->assertSame([1087.0, 1090.0], [$sections[1]->startTime, $sections[1]->endTime]);
     }
 
+    /**
+     * 1030 §1409: music reaches 560.0 s and the `other` ends at 560.1 s, off the 5 s window grid.
+     * A remainder under a second holds nothing, so the song takes it and the `other` goes.
+     */
+    #[Test]
+    public function it_takes_a_remainder_of_under_a_second_rather_than_leave_a_sliver(): void
+    {
+        $sections = $this->applyWithTimeline(
+            [$this->section('prayer', 0.0, 380.0), $this->section('song', 380.9, 496.0), $this->section('other', 496.0, 560.1), $this->section('sermon', 560.1, 2000.0)],
+            [[0, 380, 0.05, 0.9], [380, 560, 0.9, 0.2], [560, 2000, 0.05, 0.9]],
+            2000.0,
+        );
+
+        $this->assertCount(3, $sections);
+        $this->assertSame([380.9, 560.1], [$sections[1]->startTime, $sections[1]->endTime]);
+        $this->assertSame(ServiceSectionType::Sermon, $sections[2]->type);
+    }
+
+    /** Taking a sliver never enters a dropout (§6.5 barriers). */
+    #[Test]
+    public function it_leaves_a_sliver_that_opens_a_dropout(): void
+    {
+        $sections = $this->applyWithTimeline(
+            [$this->section('prayer', 0.0, 380.0), $this->section('song', 380.9, 496.0), $this->section('other', 496.0, 560.1), $this->section('sermon', 560.1, 2000.0)],
+            [[0, 380, 0.9, 0.2], [380, 560, 0.9, 0.2], [560, 2000, 0.05, 0.9]],
+            2000.0,
+            barriers: [[560.0, 580.0]],
+        );
+
+        $this->assertSame(560.0, $sections[1]->endTime);
+        $this->assertSame([560.0, 560.1], [$sections[2]->startTime, $sections[2]->endTime]);
+    }
+
     /** A leader at a microphone over the band: typed speech sections are never widened into. */
     #[Test]
     public function it_never_widens_into_a_prayer_even_over_music(): void

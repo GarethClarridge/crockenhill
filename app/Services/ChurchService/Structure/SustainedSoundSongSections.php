@@ -80,6 +80,13 @@ class SustainedSoundSongSections
     private const MINIMUM_MUSIC_WIDENING_SECONDS = 10.0;
 
     /**
+     * Section edges do not fall on the classifier's 5 s window grid, so music can stop a fraction
+     * short of a neighbour's far edge (1030: 560.0 s against 560.1 s). A remainder this short
+     * holds nothing to keep, so the song takes it rather than leave a sliver.
+     */
+    private const NEGLIGIBLE_REMAINDER_SECONDS = 1.0;
+
+    /**
      * An `other` section heard as music for at least this share of its span, and as speech for
      * no more than {@see self::MAXIMUM_PROPOSAL_SPEECH_SHARE}, is proposed as a song (plan §6.5 R3).
      */
@@ -422,7 +429,8 @@ class SustainedSoundSongSections
      * Widen each song into an adjacent interior `other` section across the windows the
      * classifier hears as music, stopping at the first window that is not music or that enters
      * a dropout. The neighbour shrinks, and is removed only when nothing of it remains: the music
-     * stops short of its far edge at a window that is not music, and that time stays `other`.
+     * stops short of its far edge at a window that is not music, and that time stays `other`
+     * unless it is under {@see self::NEGLIGIBLE_REMAINDER_SECONDS}.
      *
      * @param  list<ServiceStructureSection>  $sections
      * @param  list<array{0: float, 1: float}>  $barriers
@@ -443,6 +451,11 @@ class SustainedSoundSongSections
             if ($next !== null) {
                 $end = $this->musicReach($timeline, $song->endTime, $sections[$next]->endTime, 1, $barriers);
 
+                if ($sections[$next]->endTime - $end < self::NEGLIGIBLE_REMAINDER_SECONDS
+                    && ! $this->overlapsBarrier($end, $sections[$next]->endTime, $barriers)) {
+                    $end = $sections[$next]->endTime;
+                }
+
                 if ($end - $song->endTime >= self::MINIMUM_MUSIC_WIDENING_SECONDS) {
                     $song = $song->withTimes($song->startTime, $end, [sprintf(
                         'End widened %+.1fs to %.1fs into the following "other" section across audio the classifier hears as music.',
@@ -462,6 +475,11 @@ class SustainedSoundSongSections
 
             if ($previous !== null) {
                 $start = $this->musicReach($timeline, $song->startTime, $sections[$previous]->startTime, -1, $barriers);
+
+                if ($start - $sections[$previous]->startTime < self::NEGLIGIBLE_REMAINDER_SECONDS
+                    && ! $this->overlapsBarrier($sections[$previous]->startTime, $start, $barriers)) {
+                    $start = $sections[$previous]->startTime;
+                }
 
                 if ($song->startTime - $start >= self::MINIMUM_MUSIC_WIDENING_SECONDS) {
                     $song = $song->withTimes($start, $song->endTime, [sprintf(
