@@ -158,8 +158,12 @@ classifier follows that pattern:
   `docker/8.4/Dockerfile`, next to the existing torch/resemblyzer install (§12 ruling 1: approved).
 - **Model weights baked into the image** at a pinned Hugging Face revision, so prod never fetches
   at runtime and `model_revision` is whatever the image carries. `HF_HUB_OFFLINE=1` at runtime.
-- **CPU everywhere.** Docker on the Mac cannot reach MPS; prod has no GPU. One device class for
-  historic and routine runs keeps timelines comparable. No host-side fast path for the backfill.
+- **Where it runs (revised 2026-09-26).** Production runs the script in its container on CPU.
+  Locally, `AUDIO_CLASSIFIER_URL` points the same code at `scripts/classify_audio_server.py` on
+  the Mac's GPU, as transcription points at whisper-server; the audio's bytes are uploaded, so
+  the service needs no view of the container's mounts. This replaces an earlier "CPU everywhere"
+  line, which was a drafting choice rather than a ruling: on run 1304 the Mac (CPU and MPS) and
+  the container agreed on every window's class (§13).
 - **Cost.** Spike: ~0.23 s per window on CPU unbatched, ~3.5 min per 75-minute service (fine
   weekly). The historic backfill is ~1,300 runs, ~75 h unbatched. Step 1 measures batched
   throughput in the container and sets the backfill schedule from that number.
@@ -489,4 +493,17 @@ on 1304 (music 145–215, speech 220–261, music 265–360, speech from 360).
 - The historic result bundle exports `audio_timeline_path` like `rms_log_path`.
 - `historic-import:classify-audio {runs?*} [--max] [--execute]`: synchronous, create-once, re-attaches
   orphaned audio only when the file exists and its probed duration matches the RMS log.
+
+**Host service (2026-09-26, operator's choice over a manual three-step backfill).** Run 1304 on the
+Mac: CPU 151 s, **MPS 65 s**, against 746 s in the container; no window changed class and no score
+moved by more than 0.0001 (PyTorch 2.14 on the Mac, 2.10 in the container). Through the service
+from inside the container, 63 s. So every local classification, including the backfill and the
+Tier A re-transcriptions, runs at ~0.08 s a window: the backfill is ~27 h, not ~260 h.
+- `scripts/classify_audio_server.py` on :2023, bound to 0.0.0.0 (Docker Desktop cannot reach
+  loopback), LaunchAgent `com.crockenhill.audio-classifier`, log
+  `~/Library/Logs/audio-classifier.log`, venv `~/models/audio-classifier/venv` (torch 2.14,
+  torchaudio 2.11, transformers 5.17.0). Health: `curl http://localhost:2023/`.
+- `AudioClassifier` holds the service to the command's checks (valid timeline, input hash);
+  unreachable or refused fails the job, as a Whisper outage does. `phpunit.xml` pins the URL empty.
+- Recheck class changes on a few canary runs during the backfill as a guard, not a gate.
 

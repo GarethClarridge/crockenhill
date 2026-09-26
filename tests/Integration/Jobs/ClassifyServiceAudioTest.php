@@ -6,6 +6,7 @@ namespace Tests\Integration\Jobs;
 
 use App\Jobs\ClassifyServiceAudio;
 use App\Jobs\DetectServiceStructure;
+use App\Jobs\GenerateRmsLog;
 use App\Jobs\TranscribeFullService;
 use App\Models\MediaProcessingLog;
 use App\Services\HistoricMedia\HistoricProcessingThroughput;
@@ -18,7 +19,10 @@ use App\Services\Processing\ProcessingPipelineBuilder;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Support\ServiceArtifactDisk;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Request;
 use Illuminate\Process\PendingProcess;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -192,6 +196,65 @@ class ClassifyServiceAudioTest extends TestCase
         Process::assertRanTimes(fn (): bool => true, 1);
     }
 
+    /** Locally the classifier runs on the Mac's GPU; the audio's bytes are uploaded, not its path. */
+    #[Test]
+    public function it_classifies_through_the_service_when_one_is_configured(): void
+    {
+        config(['media-processing.audio_classifier.url' => 'http://host.docker.internal:2023/']);
+        Process::fake();
+        Http::fake(['host.docker.internal:2023/classify' => Http::response(AudioTimelineFixture::payload([], 60.0, hash('sha256', self::AUDIO_BYTES)))]);
+        $log = $this->processingRun();
+
+        $this->dispatch($log);
+
+        $this->assertIsString($log->fresh()?->audio_timeline_path);
+        Process::assertNothingRan();
+        Http::assertSent(fn (Request $request): bool => $request->url() === 'http://host.docker.internal:2023/classify'
+            && $request->method() === 'POST'
+            && $request->body() === self::AUDIO_BYTES);
+    }
+
+    #[Test]
+    public function it_fails_when_the_service_refuses_the_audio_and_writes_nothing(): void
+    {
+        config(['media-processing.audio_classifier.url' => 'http://host.docker.internal:2023']);
+        Http::fake(['*' => Http::response(['error' => 'ffmpeg failed to decode'], 422)]);
+        $log = $this->processingRun();
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Audio classifier service failed (HTTP 422): ffmpeg failed to decode');
+
+        try {
+            $this->dispatch($log);
+        } finally {
+            $this->assertNull($log->fresh()?->audio_timeline_path);
+        }
+    }
+
+    #[Test]
+    public function it_fails_when_the_service_is_unreachable(): void
+    {
+        config(['media-processing.audio_classifier.url' => 'http://host.docker.internal:2023']);
+        Http::fake(fn () => throw new ConnectionException('Connection refused'));
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Audio classifier service unreachable at http://host.docker.internal:2023/classify');
+
+        $this->dispatch($this->processingRun());
+    }
+
+    #[Test]
+    public function it_holds_the_service_to_the_same_checks_as_the_command(): void
+    {
+        config(['media-processing.audio_classifier.url' => 'http://host.docker.internal:2023']);
+        Http::fake(['*' => Http::response(AudioTimelineFixture::payload([], 60.0, hash('sha256', 'another file')))]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('different input hash');
+
+        $this->dispatch($this->processingRun());
+    }
+
     #[Test]
     public function both_pipelines_that_detect_structure_classify_between_transcription_and_detection(): void
     {
@@ -214,7 +277,7 @@ class ClassifyServiceAudioTest extends TestCase
         $throughput = app(HistoricProcessingThroughput::class);
 
         $this->assertSame(
-            $throughput->queueForClass(\App\Jobs\GenerateRmsLog::class),
+            $throughput->queueForClass(GenerateRmsLog::class),
             $throughput->queueForClass(ClassifyServiceAudio::class),
         );
         $this->assertNotSame(

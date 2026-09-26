@@ -215,6 +215,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Audio Classification
+    |--------------------------------------------------------------------------
+    |
+    | Where the music/speech classifier runs. Unset (production): the app runs
+    | scripts/classify_audio.py itself, on CPU. Locally it points at
+    | scripts/classify_audio_server.py on the Mac, which uses the GPU and is
+    | ~11x faster with identical output, as transcription points at
+    | whisper-server on :2022.
+    |
+    */
+    'audio_classifier' => [
+        'url' => env('AUDIO_CLASSIFIER_URL'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Speaker Identification
     |--------------------------------------------------------------------------
     */
