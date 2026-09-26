@@ -405,6 +405,36 @@ class SustainedSoundSongSectionsTest extends TestCase
         $this->assertContains(ServiceStructureValidator::FLAG_SONG_WIDENED_INTO_MUSIC, $sections[1]->reviewFlags);
     }
 
+    /** The neighbour is removed only when nothing of it remains: a few seconds of speech stay `other`. */
+    #[Test]
+    public function it_keeps_the_spoken_remainder_of_an_other_it_widens_into(): void
+    {
+        $sections = $this->applyWithTimeline(
+            [$this->section('prayer', 800.0, 975.0), $this->section('song', 977.9, 1089.0), $this->section('other', 1089.0, 1123.0), $this->section('sermon', 1123.0, 2000.0)],
+            [[0, 975, 0.05, 0.9], [975, 1120, 0.9, 0.3], [1120, 2000, 0.05, 0.9]],
+            2000.0,
+        );
+
+        $this->assertCount(4, $sections);
+        $this->assertSame(1120.0, $sections[1]->endTime);
+        $this->assertSame(ServiceSectionType::Other, $sections[2]->type);
+        $this->assertSame([1120.0, 1123.0], [$sections[2]->startTime, $sections[2]->endTime]);
+    }
+
+    #[Test]
+    public function it_keeps_the_spoken_remainder_of_an_other_it_widens_back_into(): void
+    {
+        $sections = $this->applyWithTimeline(
+            [$this->section('prayer', 900.0, 1087.0), $this->section('other', 1087.0, 1121.0), $this->section('song', 1121.0, 1400.0), $this->section('bible_reading', 1405.0, 1700.0)],
+            [[0, 1090, 0.05, 0.9], [1090, 1400, 0.9, 0.1], [1400, 1700, 0.05, 0.9]],
+            1700.0,
+        );
+
+        $this->assertCount(4, $sections);
+        $this->assertSame(1090.0, $sections[2]->startTime);
+        $this->assertSame([1087.0, 1090.0], [$sections[1]->startTime, $sections[1]->endTime]);
+    }
+
     /** A leader at a microphone over the band: typed speech sections are never widened into. */
     #[Test]
     public function it_never_widens_into_a_prayer_even_over_music(): void
@@ -492,6 +522,19 @@ class SustainedSoundSongSectionsTest extends TestCase
         $sections = $this->applyWithTimeline(
             [$this->section('prayer', 0.0, 261.0), $this->section('other', 261.0, 360.0), $this->section('sermon', 360.0, 1500.0)],
             [[261, 360, 0.9, 0.6]],
+            1500.0,
+        );
+
+        $this->assertSame(ServiceSectionType::Other, $sections[1]->type);
+    }
+
+    /** §6.3: R3 counts music windows only, so a mixed window is not music toward the 80 %. */
+    #[Test]
+    public function it_does_not_count_mixed_windows_as_music_when_proposing_a_song(): void
+    {
+        $sections = $this->applyWithTimeline(
+            [$this->section('prayer', 0.0, 260.0), $this->section('other', 260.0, 360.0), $this->section('sermon', 360.0, 1500.0)],
+            [[260, 320, 0.9, 0.1], [320, 340, 0.9, 0.6], [1000, 1500, 0.05, 0.9]],
             1500.0,
         );
 

@@ -525,6 +525,20 @@ re-attached then classified, 12 classified, 16 done in the canary pass), averagi
   backfill is done. `CorpusRerunGuard` refuses any run without a timeline, including Tier A runs that
   would make their own; moot while every run has one.
 
+**Review fixes (2026-09-26, Codex review of `734205f44`..`859400362`).** Four defects against this
+plan, each with a failing test first; all change rule output, so the §8 replay and canary 5 must run
+on a commit that includes them:
+- R2 removed the neighbouring `other` whenever under one window remained, even when that remainder
+  was speech. It is now removed only when the music reaches its far edge (§6.5 "if nothing remains").
+- R3 counted mixed windows toward its 80 % music share. It now counts music-only windows
+  (`AudioTimeline::classShare()`, §6.3 "R2 and R3 count music windows only").
+- R1 applied the whole-song test only to dropouts reaching ≥ 15 s into the song, so a 20 s song
+  with 14 s of a qualifying dropout escaped. Every second of dropout inside the song now counts
+  toward "< 15 s of live audio".
+- Mock-mode runs failed at `ClassifyServiceAudio`: `MockServiceTranscriptionService` archived no
+  audio. It now compresses and archives the recording as the real services do (only the words are
+  mocked), so the real classifier runs.
+
 **Where to resume (step 9):**
 1. Write the §8 rule replay: run `SoundStage` with each run's timeline over its current banked
    structure, read-only, and list every R1 flag, R1 edge move, R2 widening and R3 proposal per era.

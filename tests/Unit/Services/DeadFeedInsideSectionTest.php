@@ -102,6 +102,16 @@ class DeadFeedInsideSectionTest extends TestCase
         $this->assertSame([884.0, 916.0], [$song->startTime, $song->endTime]);
     }
 
+    /** Under 15 s of the dropout lies inside the song, but only 6 s of live audio remain. */
+    #[Test]
+    public function it_holds_a_song_left_with_under_fifteen_seconds_of_live_audio(): void
+    {
+        $song = $this->apply([$this->section('welcome', 0.0, 490.0), $this->section('song', 500.0, 520.0)], 600, [[506, 540, -85.0]])[1];
+
+        $this->assertContains(ServiceStructureValidator::FLAG_SONG_OVER_DEAD_FEED, $song->reviewFlags);
+        $this->assertStringContainsString('The whole song lies over a dead feed: 14 of its 20 s', implode(' ', $song->notes));
+    }
+
     /**
      * 1346 §4377: sung to ~3895, then a fade at or below −80 dB from 3901.4 s and digital zero
      * from 3901.6 s to the end. The song's end moves to where the zeros begin, with no hold.

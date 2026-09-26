@@ -172,6 +172,20 @@ final readonly class AudioTimeline
     }
 
     /**
+     * The share of a span, by overlap seconds, in windows of exactly one class. Unlike
+     * {@see self::musicShare()}, a mixed window is not music here.
+     */
+    public function classShare(SoundClass $class, float $from, float $to): float
+    {
+        return $this->share($from, $to, fn (array $window): bool => SoundClass::fromScores(
+            $window['music'],
+            $window['speech'],
+            self::MUSIC_CUTOFF,
+            self::SPEECH_CUTOFF,
+        ) === $class);
+    }
+
+    /**
      * Maximal runs of consecutive windows of one class lasting at least the minimum.
      *
      * @return list<array{0: float, 1: float}>
@@ -188,7 +202,7 @@ final readonly class AudioTimeline
                 continue;
             }
 
-            if ($openStart !== null && $window['start'] - $openStart >= $minimumSeconds) {
+            if ($openStart !== null && $minimumSeconds <= $window['start'] - $openStart) {
                 $spans[] = [$openStart, $window['start']];
             }
 

@@ -8,6 +8,7 @@ use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Services\Media\Audio\RmsAnalysisService;
+use App\Support\SermonAutoExtractionPolicy;
 
 /**
  * A stretch of a talk or a song where the source itself carried no audio.
@@ -25,7 +26,7 @@ use App\Services\Media\Audio\RmsAnalysisService;
  *
  * Nothing downstream can put the words back, so for a talk the flag is the outcome: it goes to
  * review for an operator to accept or exclude. It is registered as non-disqualifying in
- * {@see \App\Support\SermonAutoExtractionPolicy}, because the cut is not in question and the
+ * {@see SermonAutoExtractionPolicy}, because the cut is not in question and the
  * operator decides with the media in hand.
  *
  * Songs were the missing type (music and silence plan §6.5, 2026-09-25). The step 0 scan of 442
@@ -143,6 +144,20 @@ class DeadFeedInsideSection
      */
     private function song(ServiceStructureSection $section, array $dropouts, array $zeroRuns): ServiceStructureSection
     {
+        // Every second of dropout inside the song counts toward the whole-song test, even from a
+        // dropout that reaches less than the minimum into it: what matters is the live audio left.
+        $dead = array_sum(array_map(fn (array $dropout): float => max(0.0, $this->overlap($section, $dropout[0], $dropout[1])), $dropouts));
+        $duration = $section->endTime - $section->startTime;
+
+        if ($dead > 0.0 && $duration - $dead < self::MINIMUM_SECONDS) {
+            return $section->withReviewFlags([ServiceStructureValidator::FLAG_SONG_OVER_DEAD_FEED], [sprintf(
+                'The whole song lies over a dead feed: %.0f of its %.0f s are at or below %.0f dB.',
+                $dead,
+                $duration,
+                self::DROPOUT_LEVEL_DB,
+            )]);
+        }
+
         $overlapping = array_values(array_filter(
             $dropouts,
             fn (array $dropout): bool => $this->overlap($section, $dropout[0], $dropout[1]) >= self::MINIMUM_SECONDS,
@@ -150,18 +165,6 @@ class DeadFeedInsideSection
 
         if ($overlapping === []) {
             return $section;
-        }
-
-        $duration = $section->endTime - $section->startTime;
-        $dead = array_sum(array_map(fn (array $dropout): float => $this->overlap($section, $dropout[0], $dropout[1]), $overlapping));
-
-        if ($duration - $dead < self::MINIMUM_SECONDS) {
-            return $section->withReviewFlags([ServiceStructureValidator::FLAG_SONG_OVER_DEAD_FEED], [sprintf(
-                'The whole song lies over a dead feed: %.0f of its %.0f s are at or below %.0f dB.',
-                $dead,
-                $duration,
-                self::DROPOUT_LEVEL_DB,
-            )]);
         }
 
         $start = $section->startTime;

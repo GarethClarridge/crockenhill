@@ -56,6 +56,11 @@ class AudioTimelineTest extends TestCase
         $this->assertEqualsWithDelta(2 / 3, $timeline->musicShare(0.0, 30.0), 1e-9);
         $this->assertEqualsWithDelta(2 / 3, $timeline->speechShare(0.0, 30.0), 1e-9);
         $this->assertSame(0.0, $timeline->musicShare(12.0, 12.0));
+
+        // A class share counts windows of that class alone: mixed is not music.
+        $this->assertEqualsWithDelta(1 / 3, $timeline->classShare(SoundClass::Music, 0.0, 30.0), 1e-9);
+        $this->assertEqualsWithDelta(1 / 3, $timeline->classShare(SoundClass::Mixed, 0.0, 30.0), 1e-9);
+        $this->assertEqualsWithDelta(0.5, $timeline->classShare(SoundClass::Speech, 7.5, 12.5), 1e-9);
     }
 
     #[Test]

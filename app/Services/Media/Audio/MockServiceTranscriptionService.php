@@ -6,14 +6,24 @@ namespace App\Services\Media\Audio;
 
 use App\Contracts\ServiceTranscriptionInterface;
 use App\Data\ChurchServiceTranscript;
+use App\Jobs\ClassifyServiceAudio;
 use App\Services\Processing\SermonProcessingLogger;
 
+/**
+ * A fixed transcript in place of a paid or local Whisper call.
+ *
+ * Only the words are mocked. The recording is compressed and archived exactly as the real
+ * services do it, because {@see ClassifyServiceAudio} classifies that archived audio
+ * and detection refuses a run without its timeline.
+ */
 class MockServiceTranscriptionService implements ServiceTranscriptionInterface
 {
     private static ?ChurchServiceTranscript $fixtureTranscript = null;
 
     public function __construct(
         private readonly SermonProcessingLogger $logger,
+        private readonly AudioChunkingService $chunkingService,
+        private readonly ServiceArtifactStorage $artifactStorage,
     ) {}
 
     /**
@@ -29,6 +39,18 @@ class MockServiceTranscriptionService implements ServiceTranscriptionInterface
 
     public function transcribeService(string $audioOrVideoPath, string $processingId, ?string $prompt = null): ChurchServiceTranscript
     {
+        $audioPath = $this->chunkingService->compressAudioForTranscription($audioOrVideoPath, $processingId);
+
+        try {
+            $this->artifactStorage->archiveAudio($processingId, $audioPath, [
+                'profile' => TranscriptionAudioProfile::fallback() + ['codec' => 'mp3'],
+            ]);
+        } finally {
+            if (file_exists($audioPath)) {
+                unlink($audioPath);
+            }
+        }
+
         $this->logger->logProcessingStep(
             $processingId,
             'mock_service_transcription',

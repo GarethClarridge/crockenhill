@@ -8,6 +8,7 @@ use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Enums\SoundClass;
+use App\Services\DetectorEvaluation\SoundStageFlagRecompute;
 use App\Services\Media\Audio\AudioTimeline;
 use App\Services\Media\Audio\RmsAnalysisService;
 use App\Services\Media\Audio\SustainedSound;
@@ -93,7 +94,7 @@ class SustainedSoundSongSections
      * @param  bool  $recordingOmitsSongs  A concatenated recording had its songs cut out before assembly
      * @param  AudioTimeline|null  $audioTimeline  The run's music/speech timeline. Null only where the
      *                                             sections are re-derived from banked structure
-     *                                             ({@see \App\Services\DetectorEvaluation\SoundStageFlagRecompute}),
+     *                                             ({@see SoundStageFlagRecompute}),
      *                                             which replays flags, not the repairs that move them.
      * @param  list<array{0: float, 1: float}>  $barriers  Dropouts no repair may cross or enter
      */
@@ -420,7 +421,8 @@ class SustainedSoundSongSections
     /**
      * Widen each song into an adjacent interior `other` section across the windows the
      * classifier hears as music, stopping at the first window that is not music or that enters
-     * a dropout. The neighbour shrinks, and is removed when less than a window of it remains.
+     * a dropout. The neighbour shrinks, and is removed only when nothing of it remains: the music
+     * stops short of its far edge at a window that is not music, and that time stays `other`.
      *
      * @param  list<ServiceStructureSection>  $sections
      * @param  list<array{0: float, 1: float}>  $barriers
@@ -448,7 +450,7 @@ class SustainedSoundSongSections
                         $end,
                     )])->withReviewFlags([ServiceStructureValidator::FLAG_SONG_WIDENED_INTO_MUSIC]);
 
-                    if ($sections[$next]->endTime - $end < $timeline->windowSeconds) {
+                    if ($end >= $sections[$next]->endTime) {
                         $removed[$next] = true;
                     } else {
                         $sections[$next] = $sections[$next]->withTimes($end, $sections[$next]->endTime);
@@ -468,7 +470,7 @@ class SustainedSoundSongSections
                         $start,
                     )])->withReviewFlags([ServiceStructureValidator::FLAG_SONG_WIDENED_INTO_MUSIC]);
 
-                    if ($start - $sections[$previous]->startTime < $timeline->windowSeconds) {
+                    if ($start <= $sections[$previous]->startTime) {
                         $removed[$previous] = true;
                     } else {
                         $sections[$previous] = $sections[$previous]->withTimes($sections[$previous]->startTime, $start);
@@ -503,7 +505,7 @@ class SustainedSoundSongSections
                 continue;
             }
 
-            $musicShare = $timeline->musicShare($section->startTime, $section->endTime);
+            $musicShare = $timeline->classShare(SoundClass::Music, $section->startTime, $section->endTime);
             $speechShare = $timeline->speechShare($section->startTime, $section->endTime);
 
             if ($musicShare < self::MINIMUM_PROPOSAL_MUSIC_SHARE || $speechShare > self::MAXIMUM_PROPOSAL_SPEECH_SHARE) {

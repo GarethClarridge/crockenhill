@@ -12,15 +12,18 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\Media\Audio\MockServiceTranscriptionService;
 use App\Services\Media\Audio\ServiceAudioWindowExtractor;
+use App\Services\Media\Audio\ServiceTranscriptReader;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\CompressesServiceAudioWithoutFfmpeg;
 use Tests\TestCase;
 
 class RecoverTranscriptRepetitionCommandTest extends TestCase
 {
+    use CompressesServiceAudioWithoutFfmpeg;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -30,6 +33,7 @@ class RecoverTranscriptRepetitionCommandTest extends TestCase
         Storage::fake('local');
         Config::set('media-processing.storage.temp_disk', 'local');
         Config::set('media-processing.storage.transcript_disk', 'local');
+        $this->compressServiceAudioWithoutFfmpeg();
 
         $this->app->bind(ServiceTranscriptionInterface::class, MockServiceTranscriptionService::class);
         $this->swap(ServiceAudioWindowExtractor::class, new class extends ServiceAudioWindowExtractor
@@ -112,7 +116,7 @@ class RecoverTranscriptRepetitionCommandTest extends TestCase
         [$log] = $this->loopingRun();
         $log->update(['transcript_file_path' => 'transcripts/sermon_1.md']);
         $log->recordSermonDerivedFrom(MediaProcessingLog::hashServiceTranscriptContent(
-            app(\App\Services\Media\Audio\ServiceTranscriptReader::class)->read($log),
+            app(ServiceTranscriptReader::class)->read($log),
         ));
 
         self::assertFalse($log->refresh()->sermonDerivationIsOwed());

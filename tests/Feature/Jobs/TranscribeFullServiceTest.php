@@ -6,6 +6,7 @@ namespace Tests\Feature\Jobs;
 
 use App\Contracts\ServiceTranscriptionInterface;
 use App\Data\ChurchServiceTranscript;
+use App\Jobs\ClassifyServiceAudio;
 use App\Jobs\TranscribeFullService;
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Audio\MockServiceTranscriptionService;
@@ -19,10 +20,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\CompressesServiceAudioWithoutFfmpeg;
 use Tests\TestCase;
 
 class TranscribeFullServiceTest extends TestCase
 {
+    use CompressesServiceAudioWithoutFfmpeg;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -30,6 +33,7 @@ class TranscribeFullServiceTest extends TestCase
         parent::setUp();
 
         Storage::fake('local');
+        $this->compressServiceAudioWithoutFfmpeg();
 
         Config::set('media-processing.storage.temp_disk', 'local');
         Config::set('media-processing.storage.transcript_disk', 'local');
@@ -68,6 +72,22 @@ class TranscribeFullServiceTest extends TestCase
         $this->assertSame(5400.0, $stored->duration);
         $this->assertCount(2, $stored->cues);
         $this->assertSame('Good morning and welcome.', $stored->cues[0]['text']);
+    }
+
+    /** The mock archives the service audio as the real services do, so classification can run. */
+    #[Test]
+    public function it_archives_the_service_audio_for_classification_in_mock_mode(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        Storage::disk('local')->put((string) $log->source_file_path, 'fake video bytes');
+
+        $this->runJob($log);
+
+        $audio = ClassifyServiceAudio::recordedAudio($log->fresh() ?? $log);
+
+        $this->assertNotNull($audio);
+        Storage::disk($audio['disk'])->assertExists($audio['path']);
+        $this->assertSame('compressed fake video bytes', Storage::disk($audio['disk'])->get($audio['path']));
     }
 
     #[Test]
