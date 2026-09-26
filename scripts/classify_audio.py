@@ -37,6 +37,9 @@ MODEL_ID = "MIT/ast-finetuned-audioset-10-10-0.4593"
 MODEL_REVISION = "f826b80d28226b62986cc218e5cec390b1096902"
 SAMPLE_RATE = 16000
 WINDOW_SECONDS = 5
+# The feature extractor's filterbank reads 25 ms frames, so it cannot score a final
+# window shorter than one (run 1358 ended 85 samples into its last window).
+MINIMUM_WINDOW_SAMPLES = 400
 LABELS = {
     "music": "Music",
     "speech": "Speech",
@@ -132,6 +135,7 @@ class Classifier:
         for offset in range(0, len(starts), batch_size):
             batch_starts = starts[offset:offset + batch_size]
             chunks = [audio[start:start + window_samples] for start in batch_starts]
+            chunks = [np.pad(chunk, (0, MINIMUM_WINDOW_SAMPLES - chunk.size)) if chunk.size < MINIMUM_WINDOW_SAMPLES else chunk for chunk in chunks]
             inputs = self.extractor(chunks, sampling_rate=SAMPLE_RATE, return_tensors="pt")
 
             with torch.inference_mode():
@@ -158,7 +162,7 @@ class Classifier:
                 "arguments": [arg if arg != audio_path else "<input>" for arg in arguments],
                 "sample_rate": SAMPLE_RATE,
                 "channels": 1,
-                "final_window": "shorter; padded by the feature extractor",
+                "final_window": "shorter; padded by the feature extractor, and with silence to 25 ms when shorter than that",
             },
             "runtime": {
                 "python": platform.python_version(),
