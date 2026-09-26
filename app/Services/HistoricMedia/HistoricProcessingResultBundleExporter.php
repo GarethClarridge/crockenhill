@@ -384,7 +384,7 @@ class HistoricProcessingResultBundleExporter
                 $addReference(
                     HistoricProcessingResultAssetRole::run($field),
                     $path,
-                    $field === 'rms_log_path' ? ServiceArtifactDisk::for($path) : MediaAssetPath::disk(),
+                    in_array($field, ['rms_log_path', 'audio_timeline_path'], true) ? ServiceArtifactDisk::for($path) : MediaAssetPath::disk(),
                     $this->assetKind($field),
                 );
             }
@@ -547,6 +547,7 @@ class HistoricProcessingResultBundleExporter
     private function assetKind(string $field): string
     {
         return match (true) {
+            $field === 'audio_timeline_path' => 'artifact',
             str_contains($field, 'audio') => 'audio',
             str_contains($field, 'video') => 'video',
             str_contains($field, 'transcript') => 'transcript',

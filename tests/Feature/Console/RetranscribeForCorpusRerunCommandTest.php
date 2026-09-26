@@ -10,6 +10,7 @@ use App\Data\ChurchServiceTranscript;
 use App\Data\HistoricStagingContext;
 use App\Enums\ProcessingStatus;
 use App\Enums\ServiceSectionType;
+use App\Jobs\ClassifyServiceAudio;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\DetectServiceStructure;
@@ -37,6 +38,7 @@ use Illuminate\Support\Testing\Fakes\PendingBatchFake;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
+use Tests\Support\AudioTimelineFixture;
 use Tests\TestCase;
 
 class RetranscribeForCorpusRerunCommandTest extends TestCase
@@ -147,6 +149,7 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         Bus::assertChained([
             AnalyzeSegments::class,
             TranscribeFullService::class,
+            ClassifyServiceAudio::class,
             DetectServiceStructure::class,
             ProjectLivestreamServiceStructure::class,
             MatchSongsFromTranscript::class,
@@ -430,6 +433,7 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
             'file_hash' => hash('sha256', $bytes),
             'sermon_start_time' => 600.0,
             'sermon_end_time' => 2400.0,
+            'audio_timeline_path' => AudioTimelineFixture::put('local', 'temp/audio_timeline_'.$operation->id.'.classes.json'),
             'processing_metadata' => [
                 'historic_import' => [
                     'operation_id' => $operation->operation_id,

@@ -501,7 +501,7 @@ class RmsAnalysisService
      * that has real audio. Silence exclusion is terminal, so a false positive
      * silently skips a real recording.
      */
-    private function isDigitalSilence(float $rms): bool
+    public function isDigitalSilence(float $rms): bool
     {
         return $rms === self::DIGITAL_SILENCE_RMS;
     }

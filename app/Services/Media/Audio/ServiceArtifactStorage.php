@@ -108,7 +108,7 @@ final class ServiceArtifactStorage
      */
     public function archiveAudio(string $processingId, string $sourcePath, array $context = []): string
     {
-        $path = str_replace('service-transcripts/', 'service-audio/', $this->basePath($processingId)).'.mp3';
+        $path = $this->audioLocation($processingId)['path'];
         $stream = fopen($sourcePath, 'rb');
 
         if (! is_resource($stream)) {
@@ -126,6 +126,20 @@ final class ServiceArtifactStorage
         $this->record($processingId, 'audio', $this->sermonDisk(), $path, $context);
 
         return $path;
+    }
+
+    /**
+     * Where {@see self::archiveAudio()} writes a run's service audio. The corpus backfill uses it
+     * to find audio a run archived but lost the record of, so the two can never disagree.
+     *
+     * @return array{disk: string, path: string}
+     */
+    public function audioLocation(string $processingId): array
+    {
+        return [
+            'disk' => $this->sermonDisk(),
+            'path' => str_replace('service-transcripts/', 'service-audio/', $this->basePath($processingId)).'.mp3',
+        ];
     }
 
     public function archiveRms(string $processingId, string $temporaryPath): string

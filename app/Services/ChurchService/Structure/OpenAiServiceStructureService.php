@@ -10,7 +10,9 @@ use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Enums\ServiceOccasion;
 use App\Enums\ServiceSectionType;
+use App\Enums\SoundClass;
 use App\Enums\TalkType;
+use App\Services\Media\Audio\AudioTimeline;
 use App\Support\OpenAiChatPayload;
 use App\Support\OpenAiFlexFallback;
 use App\Support\OpenAiUsageLogger;
@@ -39,6 +41,14 @@ Rules:
 - Do NOT invent sections: every section must correspond to content actually present in the transcript.
 - A whole Bible reading is ONE section and a whole song is ONE section, even when pauses, verse
   breaks or spoken interjections occur inside them.
+- The sound classification comes from the audio, not the transcript, and the transcriber cannot
+  hear congregational singing. A music span inside the service is a sung item, including any
+  instrumental introduction or ending, and is never evidence of speech, even when the transcript
+  shows no lyrics there: a cue inside a music span that reads as filler ("Thank you.", ". . .",
+  "The End") or is empty is unheard singing, not speech. A speech+music span is speech over music,
+  such as a reading begun over a song's closing bars.
+- Music before the first spoken item of the service is pre-service music: type it other, not
+  song, unless the transcript or the order of service places a song there.
 - A baptism is never inside a song section: each baptism is its own other section (a baptismal
   testimony given as a talk stays a short_talk). A hymn sung before,
   after or between baptisms is its own song section, even when the same hymn resumes after a
@@ -103,6 +113,8 @@ Rules:
 - Use British English in all titles and notes.
 TEXT;
 
+    private const float MINIMUM_MUSIC_SPAN_SECONDS = 15.0;
+
     public function __construct(
         private readonly ?ServiceStructureEvaluationTelemetry $evaluationTelemetry = null,
     ) {}
@@ -112,6 +124,7 @@ TEXT;
         array $oosItems,
         ?string $processingId = null,
         array $feedback = [],
+        ?AudioTimeline $audioTimeline = null,
     ): ServiceStructure {
         if (empty(config('media-processing.analysis.openai_api_key') ?? config('openai.api_key'))) {
             throw new RuntimeException('OpenAI API key not configured for service structure detection.');
@@ -122,7 +135,7 @@ TEXT;
         }
 
         $model = (string) config('media-processing.service_structure.model', 'gpt-5.6-sol');
-        $prompt = $this->buildPrompt($transcript, $oosItems, $feedback);
+        $prompt = $this->buildPrompt($transcript, $oosItems, $feedback, $audioTimeline);
 
         try {
             /*
@@ -216,7 +229,7 @@ TEXT;
      * @param  list<string>  $feedback
      * @return array{system: string, user: string}
      */
-    public function buildPrompt(ChurchServiceTranscript $transcript, array $oosItems, array $feedback = []): array
+    public function buildPrompt(ChurchServiceTranscript $transcript, array $oosItems, array $feedback = [], ?AudioTimeline $audioTimeline = null): array
     {
         $lines = [
             sprintf(
@@ -251,6 +264,10 @@ TEXT;
             }
         }
 
+        if ($audioTimeline instanceof AudioTimeline) {
+            $lines = [...$lines, ...$this->soundClassificationLines($audioTimeline)];
+        }
+
         $lines[] = 'Timestamped transcript ([start-end] in seconds into the recording, the unit start_time and end_time use, then the spoken text):';
         $lines[] = $transcript->toPromptText();
 
@@ -258,6 +275,45 @@ TEXT;
             'system' => self::SYSTEM_PROMPT,
             'user' => implode("\n", $lines),
         ];
+    }
+
+    /**
+     * Music spans of 15 s or more, and the speech+music spans touching them, in time order.
+     *
+     * Speech is not shown: the transcript already carries it. A lone short speech+music span is
+     * noise, but one touching a music span is how a reading begun over a song's outro shows
+     * (1304, 215-220 s), so it survives the length filter.
+     *
+     * @return list<string>
+     */
+    private function soundClassificationLines(AudioTimeline $timeline): array
+    {
+        $music = $timeline->spans(SoundClass::Music, self::MINIMUM_MUSIC_SPAN_SECONDS);
+        $spans = array_map(static fn (array $span): array => [...$span, 'music'], $music);
+
+        foreach ($timeline->spans(SoundClass::Mixed) as [$from, $to]) {
+            foreach ($music as [$musicFrom, $musicTo]) {
+                if (abs($from - $musicTo) < 0.01 || abs($to - $musicFrom) < 0.01) {
+                    $spans[] = [$from, $to, 'speech+music'];
+
+                    break;
+                }
+            }
+        }
+
+        usort($spans, static fn (array $a, array $b): int => $a[0] <=> $b[0]);
+
+        $lines = ['Sound classification (5 s windows, from the audio, independent of the transcript):'];
+
+        if ($spans === []) {
+            $lines[] = sprintf('- no music span of %.0f s or more', self::MINIMUM_MUSIC_SPAN_SECONDS);
+        }
+
+        foreach ($spans as [$from, $to, $label]) {
+            $lines[] = sprintf('- %s %.0f-%.0f', $label, $from, $to);
+        }
+
+        return $lines;
     }
 
     /**

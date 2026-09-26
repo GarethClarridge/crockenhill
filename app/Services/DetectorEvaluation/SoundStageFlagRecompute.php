@@ -6,11 +6,12 @@ namespace App\Services\DetectorEvaluation;
 
 use App\Data\ServiceStructure;
 use App\Models\MediaProcessingLog;
-use App\Services\ChurchService\Structure\AudioDropoutInsideTalk;
+use App\Services\ChurchService\Structure\DeadFeedInsideSection;
 use App\Services\ChurchService\Structure\MistypedSungSections;
-use App\Services\ChurchService\Structure\SongSpeechEdges;
-use App\Services\ChurchService\Structure\SungSpanInsideSermon;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\ChurchService\Structure\SongSpeechEdges;
+use App\Services\ChurchService\Structure\SoundStage;
+use App\Services\ChurchService\Structure\SungSpanInsideSermon;
 use App\Services\ChurchService\Structure\SustainedSoundSongSections;
 use App\Services\ChurchService\Structure\ValidationContext;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
@@ -35,8 +36,9 @@ use Throwable;
  * back worse.
  *
  * None of that is needed, because these flags are not the detector's.
- * {@see SustainedSoundSongSections}, {@see SongSpeechEdges}, {@see MistypedSungSections}
- * and {@see SungSpanInsideSermon} run *after* detection, over the structure it
+ * {@see DeadFeedInsideSection}, {@see SustainedSoundSongSections}, {@see SongSpeechEdges},
+ * {@see MistypedSungSections} and {@see SungSpanInsideSermon} run *after* detection
+ * ({@see SoundStage}), over the structure it
  * produced plus the RMS log and the transcript, and all are pure functions of
  * those inputs. Every eligible run has all three
  * banked. So the flags can be re-derived exactly, with no provider call and no
@@ -48,6 +50,10 @@ use Throwable;
  * this corpus has been wrong in both directions before — the 2026-09-21 screen
  * application predicted 37 new holds, raised 71, and withdrew 5 nobody had
  * forecast at all.
+ *
+ * The audio timeline's repairs are not replayed: they move edges and replace
+ * sections, which a flag write cannot carry, so the stage runs here without one
+ * (music and silence plan §6.5).
  *
  * **Every read happens inside the run's own staging context.** H10a lost a pass
  * to this: reading from the ambient disk reports every run unavailable, which is
@@ -72,16 +78,13 @@ class SoundStageFlagRecompute
         ServiceStructureValidator::FLAG_SERMON_CONTAINS_SUNG_SPAN,
         ServiceStructureValidator::FLAG_SONG_SWALLOWS_SPEECH,
         ServiceStructureValidator::FLAG_TALK_AUDIO_DROPOUT,
+        ServiceStructureValidator::FLAG_SONG_OVER_DEAD_FEED,
     ];
 
     public function __construct(
         private readonly HistoricStagingContextRegistry $stagingContexts,
         private readonly ServiceTranscriptReader $transcripts,
-        private readonly SustainedSoundSongSections $sustainedSound,
-        private readonly SongSpeechEdges $speechEdges,
-        private readonly MistypedSungSections $mistypedSung,
-        private readonly SungSpanInsideSermon $sungSpanInsideSermon,
-        private readonly AudioDropoutInsideTalk $audioDropoutInsideTalk,
+        private readonly SoundStage $soundStage,
     ) {}
 
     /**
@@ -167,16 +170,8 @@ class SoundStageFlagRecompute
 
             $omitsSongs = ValidationContext::recordingOmitsSongs($run->processing_metadata);
 
-            // Applied in the pipeline's own order: widening first, so a song
-            // that grew across unsectioned singing is judged at its new edges,
-            // then the spoken-edge trim (or hold), and the mistyped-sung pass
-            // after, so a section still typed as something else is one no song
-            // claimed.
-            $recomputed = $this->sustainedSound->apply($structure, $rms, $omitsSongs);
-            $recomputed = $this->speechEdges->apply($recomputed, $rms, $omitsSongs);
-            $recomputed = $this->mistypedSung->apply($recomputed, $rms, $transcript);
-            $recomputed = $this->sungSpanInsideSermon->apply($recomputed, $rms, $transcript);
-            $recomputed = $this->audioDropoutInsideTalk->apply($recomputed, $rms);
+            // Applied in the pipeline's own order.
+            $recomputed = $this->soundStage->apply($structure, $rms, $transcript, $omitsSongs, null);
 
             $claimed = [];
 

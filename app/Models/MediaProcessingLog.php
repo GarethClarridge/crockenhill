@@ -65,6 +65,7 @@ use InvalidArgumentException;
  * @property string|null $video_file_path
  * @property string|null $transcript_file_path
  * @property string|null $rms_log_path
+ * @property string|null $audio_timeline_path
  * @property float|null $sermon_start_time
  * @property float|null $sermon_end_time
  * @property SermonAnalysis|null $ai_analysis
@@ -166,6 +167,7 @@ class MediaProcessingLog extends Model
 
         // Livestream-specific
         'rms_log_path',
+        'audio_timeline_path',
         'sermon_start_time',
         'sermon_end_time',
 
@@ -1396,13 +1398,25 @@ class MediaProcessingLog extends Model
     {
         $transcriptPath = $this->serviceTranscriptPath();
 
-        if ($transcriptPath === null) {
-            return null;
-        }
+        return $transcriptPath === null ? null : $this->storedArtifactContents($transcriptPath);
+    }
 
-        $read = static function () use ($transcriptPath): ?string {
+    /**
+     * The recorded audio timeline's bytes, read inside the run's staging context, or null when
+     * none is recorded or it cannot be read.
+     */
+    public function storedAudioTimelineContents(): ?string
+    {
+        $path = $this->audio_timeline_path;
+
+        return is_string($path) && $path !== '' ? $this->storedArtifactContents($path) : null;
+    }
+
+    private function storedArtifactContents(string $path): ?string
+    {
+        $read = static function () use ($path): ?string {
             try {
-                $contents = Storage::disk(ServiceArtifactDisk::for($transcriptPath))->get($transcriptPath);
+                $contents = Storage::disk(ServiceArtifactDisk::for($path))->get($path);
             } catch (\Throwable) {
                 return null;
             }
@@ -2021,6 +2035,7 @@ class MediaProcessingLog extends Model
             'transcript_file_path' => ['nullable', 'string', 'max:255'],
             'enhanced_audio_file_path' => ['nullable', 'string', 'max:255'],
             'rms_log_path' => ['nullable', 'string', 'max:255'],
+            'audio_timeline_path' => ['nullable', 'string', 'max:255'],
             'threshold_method' => ['nullable', 'string', 'max:255'],
             'adaptive_threshold' => ['nullable', 'numeric'],
             'queue_name' => ['nullable', 'string', 'max:255'],

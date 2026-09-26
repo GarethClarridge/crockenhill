@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Processing;
 
 use App\Models\MediaProcessingLog;
+use App\Services\Media\Audio\AudioTimeline;
 use App\Services\Media\Audio\RmsAnalysisService;
 use App\Support\ServiceArtifactDisk;
 use Illuminate\Support\Facades\Storage;
@@ -102,6 +103,33 @@ final class ProcessingArtifactReuse
         return is_array($decoded)
             && is_array($decoded['cues'] ?? null)
             && $decoded['cues'] !== [];
+    }
+
+    /**
+     * True when the run's recorded audio timeline exists and passes the same validation the
+     * detector reads it with.
+     */
+    public function audioTimelineIsUsable(MediaProcessingLog $processingLog): bool
+    {
+        $path = $processingLog->audio_timeline_path;
+
+        if (! is_string($path) || $path === '') {
+            return false;
+        }
+
+        $contents = $this->contents($path);
+
+        if ($contents === null) {
+            return false;
+        }
+
+        try {
+            AudioTimeline::fromJson($contents);
+        } catch (Throwable) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

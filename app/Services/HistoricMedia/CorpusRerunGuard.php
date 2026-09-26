@@ -17,6 +17,7 @@ use App\Support\RepositoryCommit;
  *   again by its batch, an interrupted batch resumes without repeating work, and no run is
  *   re-transcribed and re-detected on the same commit;
  * - the run is completed and not excluded (the eligible membership);
+ * - the run has a readable audio timeline, which detection refuses to run without;
  * - the run has not changed since the snapshot, so the diff reads the re-run's change alone.
  *
  * Delete once the corpus re-run's batches are accepted, alongside its other instruments.
@@ -52,6 +53,10 @@ final class CorpusRerunGuard
 
         if ($run->isExcluded()) {
             return 'run is excluded';
+        }
+
+        if (in_array($snapshot->runs[$run->id]['audio_timeline_sha256'] ?? 'none', ['none', 'unreadable'], true)) {
+            return 'run has no readable audio timeline; classify it (historic-import:classify-audio) and take a new snapshot';
         }
 
         if ($this->diff->compare($snapshot->runs[$run->id], $this->state->capture($run))['changes'] !== []) {

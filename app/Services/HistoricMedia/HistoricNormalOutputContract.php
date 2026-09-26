@@ -79,6 +79,7 @@ class HistoricNormalOutputContract
                         'video_file_path' => $this->field('nullable', 'portable', 'asset_path'),
                         'transcript_file_path' => $this->field('nullable', 'portable', 'asset_path'),
                         'rms_log_path' => $this->field('nullable', 'portable', 'asset_path'),
+                        'audio_timeline_path' => $this->field('nullable', 'portable', 'asset_path'),
                         'sermon_start_time' => $this->field('nullable', 'portable', 'none'),
                         'sermon_end_time' => $this->field('nullable', 'portable', 'none'),
                         'threshold_method' => $this->field('nullable', 'portable', 'none'),
@@ -534,7 +535,7 @@ class HistoricNormalOutputContract
                 nullable: [
                     'current_step', 'error_message', 'file_hash', 'file_size', 'duration', 'extracted_date',
                     'extracted_service', 'audio_file_path', 'video_file_path', 'transcript_file_path',
-                    'rms_log_path', 'sermon_start_time', 'sermon_end_time', 'processing_metadata',
+                    'rms_log_path', 'audio_timeline_path', 'sermon_start_time', 'sermon_end_time', 'processing_metadata',
                     'threshold_method', 'adaptive_threshold', 'rms_stats', 'started_at', 'completed_at',
                 ],
                 overrides: [
@@ -542,6 +543,7 @@ class HistoricNormalOutputContract
                     'video_file_path' => $this->field('nullable', 'portable', 'asset_path'),
                     'transcript_file_path' => $this->field('nullable', 'portable', 'asset_path'),
                     'rms_log_path' => $this->field('nullable', 'portable', 'asset_path'),
+                    'audio_timeline_path' => $this->field('nullable', 'portable', 'asset_path'),
                     'sermon_id' => $this->field('nullable', 'deterministically_rebuilt', 'local_foreign_key'),
                     'church_service_id' => $this->field('nullable', 'deterministically_rebuilt', 'local_foreign_key'),
                 ],
@@ -722,6 +724,7 @@ class HistoricNormalOutputContract
                 'video_file_path' => 'media_graph.run.video_file_path',
                 'transcript_file_path' => 'media_graph.run.transcript_file_path',
                 'rms_log_path' => 'media_graph.run.rms_log_path',
+                'audio_timeline_path' => 'media_graph.run.audio_timeline_path',
                 'sermon_start_time' => 'media_graph.run.sermon_start_time',
                 'sermon_end_time' => 'media_graph.run.sermon_end_time',
                 'processing_metadata' => 'media_graph.metadata',

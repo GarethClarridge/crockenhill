@@ -20,13 +20,10 @@ use App\Models\ServiceSection;
 use App\Services\ChurchService\ChurchServiceReviewSynchronizer;
 use App\Services\ChurchService\ContentHoldRechecker;
 use App\Services\ChurchService\ServiceSectionSyncService;
-use App\Services\ChurchService\Structure\AudioDropoutInsideTalk;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
-use App\Services\ChurchService\Structure\SongSpeechEdges;
-use App\Services\ChurchService\Structure\MistypedSungSections;
-use App\Services\ChurchService\Structure\SungSpanInsideSermon;
-use App\Services\ChurchService\Structure\SustainedSoundSongSections;
+use App\Services\ChurchService\Structure\SoundStage;
+use App\Services\Media\Audio\AudioTimeline;
 use App\Services\ChurchService\Structure\ValidationContext;
 use App\Services\ChurchService\Structure\ValidationResult;
 use App\Services\Processing\MediaProcessingIdentityResolver;
@@ -663,16 +660,18 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         array $feedback = [],
     ): array {
         $transcript = $this->loadTranscript();
+        $audioTimeline = $this->loadAudioTimeline();
         $oosItems = $this->loadOosItems();
 
         $structure = $detector->detect(
             $transcript,
             $this->oosItemPayloads($oosItems),
             $this->processingLog->processing_id,
-            $feedback
+            $feedback,
+            $audioTimeline,
         );
 
-        $structure = $this->snapToSilences($structure, $snapService, $transcript);
+        $structure = $this->snapToSilences($structure, $snapService, $transcript, $audioTimeline);
 
         $result = $validator->validate($structure, ValidationContext::for(
             $transcript,
@@ -706,6 +705,32 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         }
 
         return $transcript;
+    }
+
+    /**
+     * The run's music/speech timeline, which every run that reaches detection has
+     * ({@see ClassifyServiceAudio}). Refused before the detector is paid for: without it, sung
+     * audio Whisper cannot hear is an empty gap the detector guesses at.
+     */
+    private function loadAudioTimeline(): AudioTimeline
+    {
+        $path = $this->processingLog->audio_timeline_path;
+
+        if (! is_string($path) || $path === '') {
+            throw new \RuntimeException('No audio timeline recorded for this run; ClassifyServiceAudio must run first.');
+        }
+
+        $artifactDisk = ServiceArtifactDisk::for($path);
+
+        if (! Storage::disk($artifactDisk)->exists($path)) {
+            throw new \RuntimeException("Audio timeline artifact missing: {$path}");
+        }
+
+        try {
+            return AudioTimeline::fromJson((string) Storage::disk($artifactDisk)->get($path));
+        } catch (\UnexpectedValueException $exception) {
+            throw new \RuntimeException("Audio timeline artifact is unreadable ({$path}): ".$exception->getMessage(), previous: $exception);
+        }
     }
 
     /**
@@ -784,6 +809,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         ServiceStructure $structure,
         SilenceSnapService $snapService,
         ChurchServiceTranscript $transcript,
+        AudioTimeline $audioTimeline,
     ): ServiceStructure {
         $rmsLogPath = $this->processingLog->rms_log_path;
 
@@ -799,23 +825,13 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
 
         $rmsLogContent = (string) Storage::disk($artifactDisk)->get($rmsLogPath);
 
-        $recordingOmitsSongs = ValidationContext::recordingOmitsSongs($this->processingLog->processing_metadata);
-        $structure = app(SustainedSoundSongSections::class)->apply(
+        return app(SoundStage::class)->apply(
             $snapService->snap($structure, $rmsLogContent),
             $rmsLogContent,
-            $recordingOmitsSongs,
+            $transcript,
+            ValidationContext::recordingOmitsSongs($this->processingLog->processing_metadata),
+            $audioTimeline,
         );
-
-        // After widening, so a song that grew across unsectioned singing is judged at its new edges.
-        $structure = app(SongSpeechEdges::class)->apply($structure, $rmsLogContent, $recordingOmitsSongs);
-
-        // Runs after the sound stage has settled the song sections, so a section still typed as
-        // something else is one no song claimed, and singing inside a sermon is singing no song holds.
-        $structure = app(MistypedSungSections::class)->apply($structure, $rmsLogContent, $transcript);
-
-        $structure = app(SungSpanInsideSermon::class)->apply($structure, $rmsLogContent, $transcript);
-
-        return app(AudioDropoutInsideTalk::class)->apply($structure, $rmsLogContent);
     }
 
     /**

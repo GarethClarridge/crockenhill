@@ -51,10 +51,20 @@ RUN apt-get update && apt-get upgrade -y \
     && apt-get install -y yarn \
     && apt-get install -y $MYSQL_CLIENT \
     && apt-get install -y postgresql-client-$POSTGRES_VERSION \
-    && pip3 install --no-cache-dir --break-system-packages resemblyzer \
+    && pip3 install --no-cache-dir --break-system-packages \
+        --index-url https://download.pytorch.org/whl/cpu \
+        torch torchaudio \
+    && pip3 install --no-cache-dir --break-system-packages resemblyzer transformers==5.17.0 \
     && apt-get -y autoremove \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Audio classifier weights (scripts/classify_audio.py), baked at the revision
+# the script pins so no run fetches a model at runtime.
+ENV HF_HOME=/opt/huggingface
+RUN python3 -c "from huggingface_hub import snapshot_download; snapshot_download('MIT/ast-finetuned-audioset-10-10-0.4593', revision='f826b80d28226b62986cc218e5cec390b1096902', allow_patterns=['config.json', 'preprocessor_config.json', 'model.safetensors'])" \
+    && chmod -R a+rX /opt/huggingface
+ENV HF_HUB_OFFLINE=1
 
 RUN setcap "cap_net_bind_service=+ep" /usr/bin/php8.4
 

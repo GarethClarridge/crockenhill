@@ -11,6 +11,7 @@ use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonRecord;
 use App\Jobs\CreateSermonTranscriptFromService;
+use App\Jobs\ClassifyServiceAudio;
 use App\Jobs\DetectServiceStructure;
 use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtractAudioFromVideo;
@@ -445,6 +446,7 @@ class ProcessingPhaseRegistry
             $this->phase('analyze_segments', AnalyzeSegments::class, 'segmentation', progress: 30, resetScope: 'analyze_segments', rerunStrategy: 'targeted_reset'),
             $this->phase('legacy_analyze_segments', AnalyzeSegments::class, 'analyzing_segments', progress: 40),
             $this->phase('transcribe_full_service', TranscribeFullService::class, 'transcribe_full_service'),
+            $this->phase('classify_service_audio', ClassifyServiceAudio::class, 'classify_service_audio'),
             $this->phase('detect_service_structure', DetectServiceStructure::class, 'detect_service_structure'),
             $this->phase('manual_review', ExtractSermon::class, 'manual_review_required'),
             $this->phase('extract_sermon', ExtractSermon::class, 'extraction', progress: 57),
@@ -470,6 +472,7 @@ class ProcessingPhaseRegistry
             $this->phase('analyze_segments', AnalyzeSegments::class, 'segmentation', progress: 30, retryAction: 'dispatch_livestream_chain', resetScope: 'analyze_segments', rerunStrategy: 'targeted_reset'),
             $this->phase('legacy_analyze_segments', AnalyzeSegments::class, 'analyzing_segments', progress: 40),
             $this->phase('transcribe_full_service', TranscribeFullService::class, 'transcribe_full_service', retryAction: 'dispatch_livestream_chain'),
+            $this->phase('classify_service_audio', ClassifyServiceAudio::class, 'classify_service_audio', retryAction: 'dispatch_livestream_chain'),
             $this->phase('detect_service_structure', DetectServiceStructure::class, 'detect_service_structure', retryAction: 'dispatch_livestream_chain'),
             $this->phase('project_livestream_service_structure', ProjectLivestreamServiceStructure::class, 'project_livestream_service_structure', retryAction: 'dispatch_livestream_chain'),
             $this->phase('match_songs_from_transcript', MatchSongsFromTranscript::class, 'match_songs_from_transcript', retryAction: 'dispatch_livestream_chain'),

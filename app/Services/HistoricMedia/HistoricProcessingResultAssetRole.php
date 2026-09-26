@@ -25,6 +25,7 @@ final class HistoricProcessingResultAssetRole
         'video_file_path',
         'transcript_file_path',
         'rms_log_path',
+        'audio_timeline_path',
     ];
 
     /** @var list<string> */

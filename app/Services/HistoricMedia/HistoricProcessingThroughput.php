@@ -8,6 +8,7 @@ use App\Enums\ProcessingStep;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\CreateSermonTranscriptFromService;
+use App\Jobs\ClassifyServiceAudio;
 use App\Jobs\DetectServiceStructure;
 use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtractAudioFromVideo;
@@ -39,6 +40,8 @@ final class HistoricProcessingThroughput
         'ffmpeg' => [
             AnalyzeSegments::class,
             AssessSermonVideoQuality::class,
+            // CPU-bound model inference, not the GPU whisper pool.
+            ClassifyServiceAudio::class,
             EnhanceAudio::class,
             ExtractAudioFromVideo::class,
             ExtractSermon::class,
@@ -95,6 +98,7 @@ final class HistoricProcessingThroughput
         'prepare_section_publication_candidates' => 'ffmpeg',
         'preparing_section_publication_candidates' => 'ffmpeg',
         'transcribe_full_service' => 'whisper',
+        'classify_service_audio' => 'ffmpeg',
         'transcribing_audio' => 'whisper',
         'transcribing' => 'whisper',
         'transcription_completed' => 'whisper',

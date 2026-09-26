@@ -9,10 +9,12 @@ use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SustainedSoundSongSections;
+use App\Services\Media\Audio\AudioTimeline;
 use App\Services\Media\Audio\RmsAnalysisService;
 use App\Support\ServiceSectionConfidence;
 use Illuminate\Support\Facades\Config;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Support\AudioTimelineFixture;
 use Tests\TestCase;
 
 /**
@@ -360,6 +362,199 @@ class SustainedSoundSongSectionsTest extends TestCase
         $applied = $this->service->apply($structure, '', recordingOmitsSongs: false);
 
         $this->assertSame($structure->toArray(), $applied->toArray());
+    }
+
+    /**
+     * 1028: §1394 song 977.9–1089, then §1395 `other` 1089–1181. Music continues to ~1122 (operator:
+     * music stops 1121.7, speech 1125.2), so the song end widens into the `other`, stopping at the
+     * first window that is not music.
+     */
+    #[Test]
+    public function it_widens_a_song_end_into_an_interior_other_across_music(): void
+    {
+        $sections = $this->applyWithTimeline(
+            [$this->section('prayer', 800.0, 975.0), $this->section('song', 977.9, 1089.0), $this->section('other', 1089.0, 1181.0), $this->section('sermon', 1181.0, 2000.0)],
+            [[0, 975, 0.05, 0.9], [975, 1120, 0.9, 0.3], [1120, 1125, 0.7, 0.7], [1125, 2000, 0.05, 0.9]],
+            2000.0,
+        );
+
+        $this->assertSame(977.9, $sections[1]->startTime);
+        $this->assertSame(1120.0, $sections[1]->endTime);
+        $this->assertContains(ServiceStructureValidator::FLAG_SONG_WIDENED_INTO_MUSIC, $sections[1]->reviewFlags);
+        $this->assertStringContainsString('End widened +31.0s to 1120.0s', implode(' ', $sections[1]->notes));
+        $this->assertSame([1120.0, 1181.0], [$sections[2]->startTime, $sections[2]->endTime]);
+        $this->assertSame(ServiceSectionType::Other, $sections[2]->type);
+    }
+
+    /**
+     * 1262: §3282 `other` 1090–1121 is all music (sung from the start), then §3283 song from 1121.
+     * The song starts at 1090, and the `other` is removed.
+     */
+    #[Test]
+    public function it_widens_a_song_start_back_across_an_interior_other_heard_as_music(): void
+    {
+        $sections = $this->applyWithTimeline(
+            [$this->section('prayer', 900.0, 1088.0), $this->section('other', 1090.0, 1121.0), $this->section('song', 1121.0, 1400.0), $this->section('bible_reading', 1405.0, 1700.0)],
+            [[0, 1090, 0.05, 0.9], [1090, 1400, 0.9, 0.1], [1400, 1700, 0.05, 0.9]],
+            1700.0,
+        );
+
+        $this->assertCount(3, $sections);
+        $this->assertSame(ServiceSectionType::Song, $sections[1]->type);
+        $this->assertSame([1090.0, 1400.0], [$sections[1]->startTime, $sections[1]->endTime]);
+        $this->assertContains(ServiceStructureValidator::FLAG_SONG_WIDENED_INTO_MUSIC, $sections[1]->reviewFlags);
+    }
+
+    /** A leader at a microphone over the band: typed speech sections are never widened into. */
+    #[Test]
+    public function it_never_widens_into_a_prayer_even_over_music(): void
+    {
+        $sections = $this->applyWithTimeline(
+            [$this->section('welcome', 0.0, 290.0), $this->section('song', 300.0, 375.0), $this->section('prayer', 375.0, 450.0), $this->section('sermon', 450.0, 900.0)],
+            [[300, 440, 0.9, 0.3]],
+            900.0,
+        );
+
+        $this->assertSame([300.0, 375.0], [$sections[1]->startTime, $sections[1]->endTime]);
+        $this->assertSame([], $sections[1]->reviewFlags);
+    }
+
+    /** Pre-service music stays `other` (operator ruling 5): a leading `other` is never widened into. */
+    #[Test]
+    public function it_never_widens_into_a_leading_other(): void
+    {
+        $sections = $this->applyWithTimeline(
+            [$this->section('other', 0.0, 120.0), $this->section('song', 120.0, 300.0), $this->section('prayer', 300.0, 600.0)],
+            [[0, 300, 0.9, 0.3]],
+            600.0,
+        );
+
+        $this->assertSame([0.0, 120.0], [$sections[0]->startTime, $sections[0]->endTime]);
+        $this->assertSame([120.0, 300.0], [$sections[1]->startTime, $sections[1]->endTime]);
+    }
+
+    /** Under two windows is inside the classifier's resolution. */
+    #[Test]
+    public function it_leaves_a_song_alone_when_the_music_reaches_under_two_windows_into_the_other(): void
+    {
+        $sections = $this->applyWithTimeline(
+            [$this->section('prayer', 800.0, 975.0), $this->section('song', 977.9, 1089.0), $this->section('other', 1089.0, 1181.0), $this->section('sermon', 1181.0, 2000.0)],
+            [[975, 1095, 0.9, 0.3], [1095, 2000, 0.05, 0.9]],
+            2000.0,
+        );
+
+        $this->assertSame(1089.0, $sections[1]->endTime);
+        $this->assertSame([], $sections[1]->reviewFlags);
+    }
+
+    /**
+     * 1304, canary 4: Lord, I Lift Your Name on High typed `other` 261–360, heard as music
+     * throughout, between a reading and a prayer.
+     */
+    #[Test]
+    public function it_proposes_a_song_in_place_of_an_interior_other_heard_as_music(): void
+    {
+        $sections = $this->applyWithTimeline(
+            [
+                $this->section('song', 127.0, 215.0),
+                $this->section('bible_reading', 215.0, 261.0),
+                $this->section('other', 261.0, 360.0),
+                $this->section('prayer', 360.0, 500.0),
+                $this->section('sermon', 500.0, 1500.0),
+            ],
+            [[125, 215, 0.9, 0.1], [215, 220, 0.7, 0.7], [220, 261, 0.05, 0.9], [261, 360, 0.9, 0.2], [360, 1500, 0.05, 0.9]],
+            1500.0,
+        );
+
+        $this->assertSame(ServiceSectionType::Song, $sections[2]->type);
+        $this->assertSame(SustainedSoundSongSections::PROPOSED_TITLE, $sections[2]->title);
+        $this->assertSame([261.0, 360.0], [$sections[2]->startTime, $sections[2]->endTime]);
+        $this->assertContains(ServiceStructureValidator::FLAG_UNIDENTIFIED_SINGING, $sections[2]->reviewFlags);
+        $this->assertSame(ServiceSectionType::BibleReading, $sections[1]->type, 'The reading over the outro is left a reading.');
+        $this->assertSame([215.0, 261.0], [$sections[1]->startTime, $sections[1]->endTime]);
+    }
+
+    #[Test]
+    public function it_never_proposes_a_song_over_a_trailing_other(): void
+    {
+        $sections = $this->applyWithTimeline(
+            [$this->section('sermon', 0.0, 3000.0), $this->section('other', 3000.0, 3300.0)],
+            [[3000, 3300, 0.9, 0.1]],
+            3300.0,
+        );
+
+        $this->assertSame(ServiceSectionType::Other, $sections[1]->type);
+    }
+
+    #[Test]
+    public function it_does_not_propose_a_song_over_an_other_that_also_holds_speech(): void
+    {
+        $sections = $this->applyWithTimeline(
+            [$this->section('prayer', 0.0, 261.0), $this->section('other', 261.0, 360.0), $this->section('sermon', 360.0, 1500.0)],
+            [[261, 360, 0.9, 0.6]],
+            1500.0,
+        );
+
+        $this->assertSame(ServiceSectionType::Other, $sections[1]->type);
+    }
+
+    #[Test]
+    public function it_does_not_propose_a_song_over_an_other_that_overlaps_a_dropout(): void
+    {
+        $sections = $this->applyWithTimeline(
+            [$this->section('prayer', 0.0, 261.0), $this->section('other', 261.0, 360.0), $this->section('sermon', 360.0, 1500.0)],
+            [[261, 360, 0.9, 0.1]],
+            1500.0,
+            barriers: [[300.0, 320.0]],
+        );
+
+        $this->assertSame(ServiceSectionType::Other, $sections[1]->type);
+    }
+
+    #[Test]
+    public function it_stops_a_music_widening_at_a_dropout(): void
+    {
+        $sections = $this->applyWithTimeline(
+            [$this->section('prayer', 800.0, 975.0), $this->section('song', 977.9, 1089.0), $this->section('other', 1089.0, 1181.0), $this->section('sermon', 1181.0, 2000.0)],
+            [[975, 1180, 0.9, 0.3]],
+            2000.0,
+            barriers: [[1112.0, 1140.0]],
+        );
+
+        $this->assertSame(1110.0, $sections[1]->endTime);
+    }
+
+    #[Test]
+    public function it_stops_a_sustained_sound_widening_at_a_dropout(): void
+    {
+        $rmsLog = $this->rmsLog([[0, 300, 'speech'], [300, 440, 'sung'], [440, 900, 'speech']]);
+        $structure = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 290.0),
+            $this->section('song', 300.0, 375.0),
+            $this->section('bible_reading', 450.0, 900.0),
+        ]);
+
+        $song = $this->service->apply($structure, $rmsLog, false, null, [[410.0, 430.0]])->sections[1];
+
+        $this->assertLessThanOrEqual(410.0, $song->endTime);
+        $this->assertGreaterThan(375.0, $song->endTime);
+    }
+
+    /**
+     * @param  list<ServiceStructureSection>  $sections
+     * @param  list<array{0: float|int, 1: float|int, 2: float, 3: float}>  $timeline
+     * @param  list<array{0: float, 1: float}>  $barriers
+     * @return list<ServiceStructureSection>
+     */
+    private function applyWithTimeline(array $sections, array $timeline, float $audioSeconds, array $barriers = []): array
+    {
+        return $this->service->apply(
+            ServiceStructure::fromSections($sections),
+            $this->rmsLog([[0, (int) $audioSeconds, 'speech']]),
+            false,
+            AudioTimeline::fromJson(AudioTimelineFixture::json($timeline, $audioSeconds)),
+            $barriers,
+        )->sections;
     }
 
     private function section(string $type, float $start, float $end): ServiceStructureSection

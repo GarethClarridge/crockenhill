@@ -29,8 +29,11 @@ use App\Models\SongVideo;
  */
 final class HistoricRerunState
 {
-    /** Bumped whenever the captured shape changes, so a diff refuses to compare across shapes. */
-    public const VERSION = 1;
+    /**
+     * Bumped whenever the captured shape changes, so a diff refuses to compare across shapes.
+     * Version 2 records the audio timeline detection reads (music and silence plan §6.6).
+     */
+    public const VERSION = 2;
 
     /**
      * @return array<string, mixed>
@@ -53,6 +56,7 @@ final class HistoricRerunState
             'manual_review_reason' => data_get($metadata, 'manual_review.status') === 'required' ? data_get($metadata, 'manual_review.reason_code') : null,
             'superseded' => $run->superseded_at !== null,
             'transcript_sha256' => $this->transcriptSha256($run),
+            ...$this->audioTimeline($run),
             'sermon_absence' => $run->assertedSermonAbsence() !== null,
             ...$this->sermonPlan($run, $metadata),
             'sermon' => $this->sermon($run->sermon),
@@ -105,6 +109,33 @@ final class HistoricRerunState
         $contents = $run->storedServiceTranscriptContents();
 
         return $contents === null ? 'unreadable' : hash('sha256', $contents);
+    }
+
+    /**
+     * The hash of the audio timeline structure detection reads, and the model revision that wrote
+     * it. Re-detection reads the recorded timeline and never regenerates it, so a replaced
+     * timeline or a new model revision is a change the re-run did not make.
+     *
+     * @return array{audio_timeline_sha256: string, audio_model_revision: string|null}
+     */
+    private function audioTimeline(MediaProcessingLog $run): array
+    {
+        if (! is_string($run->audio_timeline_path) || $run->audio_timeline_path === '') {
+            return ['audio_timeline_sha256' => 'none', 'audio_model_revision' => null];
+        }
+
+        $contents = $run->storedAudioTimelineContents();
+
+        if ($contents === null) {
+            return ['audio_timeline_sha256' => 'unreadable', 'audio_model_revision' => null];
+        }
+
+        $revision = json_decode($contents, true)['model_revision'] ?? null;
+
+        return [
+            'audio_timeline_sha256' => hash('sha256', $contents),
+            'audio_model_revision' => is_string($revision) ? $revision : null,
+        ];
     }
 
     /**

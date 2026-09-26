@@ -55,7 +55,7 @@ final class HistoricRerunDiff
         $changes = [];
         $attention = [];
 
-        foreach (['status', 'current_step', 'superseded', 'transcript_sha256', 'sermon_absence', 'extraction_plan'] as $field) {
+        foreach (['status', 'current_step', 'superseded', 'transcript_sha256', 'audio_timeline_sha256', 'audio_model_revision', 'sermon_absence', 'extraction_plan'] as $field) {
             if (($before[$field] ?? null) !== ($after[$field] ?? null)) {
                 $changes[] = ['kind' => 'run_'.$field.'_changed', 'before' => $before[$field] ?? null, 'after' => $after[$field] ?? null];
             }

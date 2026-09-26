@@ -11,12 +11,14 @@ use App\Enums\ServiceSectionType;
 use App\Enums\TalkType;
 use App\Services\ChurchService\Structure\OpenAiServiceStructureService;
 use App\Services\ChurchService\Structure\ServiceStructureEvaluationTelemetry;
+use App\Services\Media\Audio\AudioTimeline;
 use Illuminate\Support\Facades\Config;
 use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Resources\Chat;
 use OpenAI\Responses\Chat\CreateResponse;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
+use Tests\Support\AudioTimelineFixture;
 use Tests\TestCase;
 
 class OpenAiServiceStructureServiceTest extends TestCase
@@ -335,6 +337,61 @@ class OpenAiServiceStructureServiceTest extends TestCase
         $this->assertStringContainsString('chapter_markers are the significant, listener-friendly sections', $prompt['system']);
         $this->assertStringContainsString('MUST come from the supplied cue', $prompt['system']);
         $this->assertStringContainsString('British English', $prompt['system']);
+    }
+
+    /**
+     * 1304: music 145–215, a reading over the song's outro 215–220 (speech and music), the
+     * reading, then the next song 265–360. A short music blip and a lone short mixed span
+     * elsewhere are noise and are left out.
+     */
+    #[Test]
+    public function the_prompt_shows_music_spans_and_the_mixed_spans_touching_them(): void
+    {
+        $timeline = AudioTimeline::fromJson(AudioTimelineFixture::json([
+            [145, 215, 0.9, 0.1],
+            [215, 220, 0.7, 0.7],
+            [220, 265, 0.05, 0.9],
+            [265, 360, 0.9, 0.2],
+            [600, 610, 0.9, 0.1],
+            [900, 905, 0.7, 0.7],
+        ], 2400.0));
+
+        $prompt = $this->service->buildPrompt($this->transcript(), $this->oosItems(), [], $timeline);
+
+        $this->assertStringContainsString(implode("\n", [
+            'Sound classification (5 s windows, from the audio, independent of the transcript):',
+            '- music 145-215',
+            '- speech+music 215-220',
+            '- music 265-360',
+            'Timestamped transcript',
+        ]), $prompt['user']);
+        $this->assertStringNotContainsString('600-610', $prompt['user']);
+        $this->assertStringNotContainsString('900-905', $prompt['user']);
+        $this->assertLessThan(
+            strpos($prompt['user'], 'Sound classification'),
+            strpos($prompt['user'], 'Planned order of service'),
+            'The sound classification follows the order of service.',
+        );
+    }
+
+    #[Test]
+    public function the_prompt_says_when_no_music_was_heard(): void
+    {
+        $timeline = AudioTimeline::fromJson(AudioTimelineFixture::json([[0, 2400, 0.05, 0.9]], 2400.0));
+
+        $prompt = $this->service->buildPrompt($this->transcript(), $this->oosItems(), [], $timeline);
+
+        $this->assertStringContainsString('- no music span of 15 s or more', $prompt['user']);
+    }
+
+    #[Test]
+    public function the_system_prompt_reads_music_as_a_sung_item_and_pre_service_music_as_other(): void
+    {
+        $system = $this->service->buildPrompt($this->transcript(), $this->oosItems())['system'];
+
+        $this->assertStringContainsString('A music span inside the service is a sung item, including any', $system);
+        $this->assertStringContainsString('is unheard singing, not speech', $system);
+        $this->assertStringContainsString('Music before the first spoken item of the service is pre-service music', $system);
     }
 
     #[Test]

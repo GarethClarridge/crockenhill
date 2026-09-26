@@ -157,12 +157,27 @@ class ServiceStructureValidator
     public const FLAG_SERMON_CONTAINS_SUNG_SPAN = 'structure_sermon_contains_sung_span';
 
     /**
-     * Applied by {@see AudioDropoutInsideTalk} to a sermon or short talk overlapping 15 s or
+     * Applied by {@see DeadFeedInsideSection} to a sermon or short talk overlapping 15 s or
      * more of source audio at or below -80 dB: a dead feed, not a pause. Nothing can restore
      * the words, so the talk goes to review to be accepted or excluded. Non-disqualifying:
      * the cut is not in question.
      */
     public const FLAG_TALK_AUDIO_DROPOUT = 'structure_talk_audio_dropout';
+
+    /**
+     * Applied by {@see DeadFeedInsideSection} to a song lying wholly over a dead feed (1050
+     * §1584), holding one inside it, or running into one that is not verified digital zero. Held:
+     * a phantom song, or media that would carry the gap. An edge that runs into digital zero is
+     * moved instead, with no flag.
+     */
+    public const FLAG_SONG_OVER_DEAD_FEED = 'structure_song_over_dead_feed';
+
+    /**
+     * Applied by {@see SustainedSoundSongSections} to a song widened into a neighbouring interior
+     * `other` section across windows the audio classifier hears as music (1028, 1262). Held,
+     * because it moves an edge the detector chose.
+     */
+    public const FLAG_SONG_WIDENED_INTO_MUSIC = 'structure_song_widened_into_music';
 
     /**
      * Applied by {@see SongSpeechEdges} to a song section under half sustained, on a run whose

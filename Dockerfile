@@ -59,17 +59,25 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
     # back to the sdist, and then needs a build backend the CPU-only index does
     # not carry. Current pip normalises and takes the wheel.
     && pip3 install --no-cache-dir --break-system-packages --upgrade pip \
-    # Speaker identification runtime dependencies. Install PyTorch from the
-    # CPU-only wheel index first; default Linux wheels include multi-GB CUDA
-    # libraries that are not needed on the production server.
+    # Speaker identification and audio classification runtime dependencies.
+    # Install PyTorch from the CPU-only wheel index first; default Linux wheels
+    # include multi-GB CUDA libraries that are not needed on the production
+    # server. torchaudio comes from the same index so its build matches torch.
     && pip3 install --no-cache-dir --break-system-packages \
         --index-url https://download.pytorch.org/whl/cpu \
-        torch \
-    && pip3 install --no-cache-dir --break-system-packages resemblyzer \
+        torch torchaudio \
+    && pip3 install --no-cache-dir --break-system-packages resemblyzer transformers==5.17.0 \
     && ! python3 -m pip freeze | grep -E '^nvidia-' \
     && apt-get purge -y --auto-remove $PHPIZE_DEPS build-essential python3-dev \
     # Cleanup
     && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Audio classifier weights (scripts/classify_audio.py), baked at the revision
+# the script pins so production never fetches a model at runtime.
+ENV HF_HOME=/opt/huggingface
+RUN python3 -c "from huggingface_hub import snapshot_download; snapshot_download('MIT/ast-finetuned-audioset-10-10-0.4593', revision='f826b80d28226b62986cc218e5cec390b1096902', allow_patterns=['config.json', 'preprocessor_config.json', 'model.safetensors'])" \
+    && chmod -R a+rX /opt/huggingface
+ENV HF_HUB_OFFLINE=1
 
 # Application user
 RUN if getent passwd ubuntu; then userdel -r ubuntu; fi \

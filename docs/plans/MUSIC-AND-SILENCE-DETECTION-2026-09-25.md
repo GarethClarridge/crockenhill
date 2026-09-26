@@ -1,7 +1,7 @@
 # Music and silence: an audio classifier for structure detection
 
 **Date:** 2026-09-25 (revised the same day after review by Codex and Claude)
-**Status:** Plan only; nothing built. Verified against code at `1bf59e65a`.
+**Status:** Steps 1–8 built 2026-09-26, uncommitted (§13). Step 9 (measurement, canary 5) not started. Plan verified against code at `1bf59e65a`.
 **Gates:** the historic corpus re-run freeze (`HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md`
 §4.0). Operator ruling 2026-09-25: build this **before** the freeze; canary 5 runs on the commit that
 carries it.
@@ -456,3 +456,37 @@ it blocks resuming weekly processing.
    first spoken item of the service is pre-service music, typed `other`, not a song, unless the
    transcript or the order of service places a song there. Canary 5 checks that no run gains a song
    section before its first spoken section that it did not have in canary 4.
+
+## 13. Build notes (2026-09-26)
+
+**Throughput (step 1).** Measured in the Sail container, CPU, on run 1304 (66 min, 789 windows):
+1.06 s a window unbatched (836 s), 0.95 s at batch 16 (746 s), ~2 GB resident at batch 16.
+Batching changed no window's class (largest score difference 0.0001), so batch 16 is used. The
+container is **~4× slower than the spike's host figure** (0.23 s): ~12 minutes a 75-minute
+service. The canary 5 set (17 runs) is ~3.5 h; the full historic backfill (~1,300 runs) is
+**~260 h serial**, not the ~75 h §5 estimated. One process already uses ~8.7 of 10 cores, so
+parallel workers will not shorten it much. The in-container whole-file run reproduces the spike
+on 1304 (music 145–215, speech 220–261, music 265–360, speech from 360).
+
+**What was built, and choices the plan left open:**
+- `scripts/classify_audio.py` (model pinned at `f826b80d…`), weights baked in both Dockerfiles with
+  `transformers==5.17.0` and `torchaudio` from the CPU index. The dev image has **not been rebuilt**:
+  Docker Desktop's registry proxy timed out resolving `ubuntu:24.04`; measurement used the same
+  packages installed under `storage/scratch/classifier-measure/`.
+- `AudioTimeline` + `SoundClass` (§6.3 rule exactly), `AudioClassifier`, `ClassifyServiceAudio`
+  (after `TranscribeFullService` in livestream and auto-trim; historic queue = the ffmpeg/CPU pool),
+  `audio_timeline_path` column, reuse on resume, detector refusal before the paid call.
+- `SoundStage` now holds the one rule order used by detection, `structure:evaluate` and
+  `SoundStageFlagRecompute` (they had three copies). R1 (`DeadFeedInsideSection`, renamed from
+  `AudioDropoutInsideTalk`) runs first and hands its dropouts on as barriers.
+- R2 widens only when the music reaches **≥ 10 s** (two windows) into the `other`: the classifier's
+  edges are only known to one window. New flags `structure_song_over_dead_feed` and
+  `structure_song_widened_into_music`, catalogued with case-book entries.
+- The detector interface takes `?AudioTimeline`; null only from `structure:evaluate` over runs without
+  one. The recompute replays the stage without a timeline (R2/R3 move sections; a flag write cannot).
+- Snapshot v2 records `audio_timeline_sha256` and `audio_model_revision`; the diff compares both; the
+  guard refuses a run with no readable timeline.
+- The historic result bundle exports `audio_timeline_path` like `rms_log_path`.
+- `historic-import:classify-audio {runs?*} [--max] [--execute]`: synchronous, create-once, re-attaches
+  orphaned audio only when the file exists and its probed duration matches the RMS log.
+

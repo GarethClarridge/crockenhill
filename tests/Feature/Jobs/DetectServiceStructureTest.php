@@ -11,6 +11,7 @@ use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Enums\ProcessingStatus;
 use App\Jobs\AnalyzeSegments;
+use App\Jobs\ClassifyServiceAudio;
 use App\Jobs\DetectServiceStructure;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateRmsLog;
@@ -24,6 +25,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\Structure\MockServiceStructureService;
+use App\Services\Media\Audio\AudioTimeline;
 use App\Enums\ContentHoldCheck;
 use App\Enums\ServiceSectionType;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
@@ -37,6 +39,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
+use Tests\Support\AudioTimelineFixture;
 use Tests\TestCase;
 
 class DetectServiceStructureTest extends TestCase
@@ -138,7 +141,7 @@ class DetectServiceStructureTest extends TestCase
                 private readonly ServiceStructure $candidateStructure,
             ) {}
 
-            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = []): ServiceStructure
+            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = [], ?AudioTimeline $audioTimeline = null): ServiceStructure
             {
                 $model = (string) config('media-processing.service_structure.model');
                 $this->modelsAtDetectTime[] = $model;
@@ -200,7 +203,7 @@ class DetectServiceStructureTest extends TestCase
                 private readonly ServiceStructure $candidateStructure,
             ) {}
 
-            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = []): ServiceStructure
+            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = [], ?AudioTimeline $audioTimeline = null): ServiceStructure
             {
                 $model = (string) config('media-processing.service_structure.model');
                 $this->modelsAtDetectTime[] = $model;
@@ -258,7 +261,7 @@ class DetectServiceStructureTest extends TestCase
                 private readonly ServiceStructure $candidateStructure,
             ) {}
 
-            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = []): ServiceStructure
+            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = [], ?AudioTimeline $audioTimeline = null): ServiceStructure
             {
                 $model = (string) config('media-processing.service_structure.model');
                 $this->modelsAtDetectTime[] = $model;
@@ -541,11 +544,12 @@ class DetectServiceStructureTest extends TestCase
             GenerateRmsLog::class,
             AnalyzeSegments::class,
             TranscribeFullService::class,
+            ClassifyServiceAudio::class,
             DetectServiceStructure::class,
             ExtractSermon::class,
         ], array_map(
             static fn (object $job): string => $job::class,
-            array_slice($pipeline, 0, 6),
+            array_slice($pipeline, 0, 7),
         ));
 
         $this->runJob($log);
@@ -1392,6 +1396,94 @@ class DetectServiceStructureTest extends TestCase
     }
 
     /**
+     * Without the timeline, sung audio Whisper cannot hear is an empty gap the detector guesses
+     * at (canary 4, run 1304), so the run is refused before the detector is paid for.
+     */
+    #[Test]
+    public function detection_refuses_a_run_with_no_audio_timeline_before_calling_the_detector(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $detector = $this->detectorCapturingItems();
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $log->forceFill(['audio_timeline_path' => null])->save();
+
+        try {
+            (new DetectServiceStructure($log))->handle(
+                $detector,
+                app(SilenceSnapService::class),
+                app(ServiceStructureValidator::class),
+                app(ServiceSectionSyncService::class),
+                app(SermonCandidateConfidenceService::class),
+            );
+            $this->fail('Detection ran without an audio timeline.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('No audio timeline recorded for this run', $exception->getMessage());
+        }
+
+        $this->assertSame([], $detector->itemsSeen);
+    }
+
+    #[Test]
+    public function detection_refuses_an_unreadable_audio_timeline(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $detector = $this->detectorCapturingItems();
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        Storage::disk('local')->put((string) $log->fresh()?->audio_timeline_path, '{"model": "x"}');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Audio timeline artifact is unreadable');
+
+        (new DetectServiceStructure($log->fresh() ?? $log))->handle(
+            $detector,
+            app(SilenceSnapService::class),
+            app(ServiceStructureValidator::class),
+            app(ServiceSectionSyncService::class),
+            app(SermonCandidateConfidenceService::class),
+        );
+    }
+
+    #[Test]
+    public function detection_hands_the_detector_the_runs_audio_timeline(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $detector = new class($this->validStructure()) implements ServiceStructureInterface
+        {
+            public ?AudioTimeline $timelineSeen = null;
+
+            public function __construct(private readonly ServiceStructure $structure) {}
+
+            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = [], ?AudioTimeline $audioTimeline = null): ServiceStructure
+            {
+                $this->timelineSeen = $audioTimeline;
+
+                return $this->structure;
+            }
+        };
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $this->storeAudioTimeline($log, [[2210, 2400, 0.9, 0.1]]);
+        $this->coveringSegments($log);
+
+        (new DetectServiceStructure($log->fresh() ?? $log))->handle(
+            $detector,
+            app(SilenceSnapService::class),
+            app(ServiceStructureValidator::class),
+            app(ServiceSectionSyncService::class),
+            app(SermonCandidateConfidenceService::class),
+        );
+
+        $this->assertInstanceOf(AudioTimeline::class, $detector->timelineSeen);
+        $this->assertEqualsWithDelta(1.0, $detector->timelineSeen->musicShare(2210.0, 2400.0), 1e-9);
+    }
+
+    /**
      * @return ServiceStructureInterface&object{itemsSeen: list<list<array<string, mixed>>>}
      */
     private function detectorCapturingItems(): ServiceStructureInterface
@@ -1403,7 +1495,7 @@ class DetectServiceStructureTest extends TestCase
 
             public function __construct(private readonly ServiceStructure $structure) {}
 
-            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = []): ServiceStructure
+            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = [], ?AudioTimeline $audioTimeline = null): ServiceStructure
             {
                 $this->itemsSeen[] = $oosItems;
 
@@ -1441,6 +1533,21 @@ class DetectServiceStructureTest extends TestCase
         $path = 'temp/service_transcript_'.$log->processing_id.'.json';
         Storage::disk('local')->put($path, (string) json_encode($transcript));
         $log->putServiceTranscriptPath($path);
+
+        $this->storeAudioTimeline($log, []);
+    }
+
+    /**
+     * Every run that reaches detection has a timeline; by default one that hears neither music
+     * nor speech, so it changes nothing.
+     *
+     * @param  list<array{0: float|int, 1: float|int, 2: float, 3: float}>  $spans
+     */
+    private function storeAudioTimeline(MediaProcessingLog $log, array $spans): void
+    {
+        $path = 'temp/audio_timeline_'.$log->processing_id.'.classes.json';
+        Storage::disk('local')->put($path, AudioTimelineFixture::json($spans, 2430.0));
+        $log->forceFill(['audio_timeline_path' => $path])->save();
     }
 
     /**

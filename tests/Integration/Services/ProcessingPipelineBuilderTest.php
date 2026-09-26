@@ -7,6 +7,7 @@ namespace Tests\Integration\Services;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\AwaitHistoricSermonVideoStorage;
+use App\Jobs\ClassifyServiceAudio;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonRecord;
 use App\Jobs\CreateSermonTranscriptFromService;
@@ -142,23 +143,24 @@ class ProcessingPipelineBuilderTest extends TestCase
 
         $jobs = $this->builder->buildAutoTrimVideoPipeline($log);
 
-        $this->assertCount(16, $jobs);
+        $this->assertCount(17, $jobs);
         $this->assertInstanceOf(ValidateVideoFile::class, $jobs[0]);
         $this->assertInstanceOf(GenerateRmsLog::class, $jobs[1]);
         $this->assertInstanceOf(AnalyzeSegments::class, $jobs[2]);
         $this->assertInstanceOf(TranscribeFullService::class, $jobs[3]);
-        $this->assertInstanceOf(DetectServiceStructure::class, $jobs[4]);
-        $this->assertInstanceOf(ExtractSermon::class, $jobs[5]);
-        $this->assertInstanceOf(EnhanceAudio::class, $jobs[6]);
-        $this->assertInstanceOf(CreateSermonRecord::class, $jobs[7]);
-        $this->assertInstanceOf(IdentifySpeaker::class, $jobs[8]);
-        $this->assertInstanceOf(CreateSermonTranscriptFromService::class, $jobs[9]);
-        $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[10]);
-        $this->assertInstanceOf(AssessSermonVideoQuality::class, $jobs[11]);
-        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[12]);
-        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[13]);
-        $this->assertInstanceOf(PromoteHistoricAssets::class, $jobs[14]);
-        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[15]);
+        $this->assertInstanceOf(ClassifyServiceAudio::class, $jobs[4]);
+        $this->assertInstanceOf(DetectServiceStructure::class, $jobs[5]);
+        $this->assertInstanceOf(ExtractSermon::class, $jobs[6]);
+        $this->assertInstanceOf(EnhanceAudio::class, $jobs[7]);
+        $this->assertInstanceOf(CreateSermonRecord::class, $jobs[8]);
+        $this->assertInstanceOf(IdentifySpeaker::class, $jobs[9]);
+        $this->assertInstanceOf(CreateSermonTranscriptFromService::class, $jobs[10]);
+        $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[11]);
+        $this->assertInstanceOf(AssessSermonVideoQuality::class, $jobs[12]);
+        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[13]);
+        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[14]);
+        $this->assertInstanceOf(PromoteHistoricAssets::class, $jobs[15]);
+        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[16]);
     }
 
     // --- buildLivestreamParallelJobs() ---
@@ -183,29 +185,30 @@ class ProcessingPipelineBuilderTest extends TestCase
 
         $jobs = $this->builder->buildLivestreamChainJobs($log);
 
-        $this->assertCount(20, $jobs);
+        $this->assertCount(21, $jobs);
         $this->assertInstanceOf(AnalyzeSegments::class, $jobs[0]);
         $this->assertInstanceOf(TranscribeFullService::class, $jobs[1]);
-        $this->assertInstanceOf(DetectServiceStructure::class, $jobs[2]);
-        $this->assertInstanceOf(ProjectLivestreamServiceStructure::class, $jobs[3]);
-        $this->assertInstanceOf(MatchSongsFromTranscript::class, $jobs[4]);
-        $this->assertInstanceOf(MergeSongContinuations::class, $jobs[5]);
-        $this->assertInstanceOf(ExtendSongsOverOwnLyrics::class, $jobs[6]);
+        $this->assertInstanceOf(ClassifyServiceAudio::class, $jobs[2]);
+        $this->assertInstanceOf(DetectServiceStructure::class, $jobs[3]);
+        $this->assertInstanceOf(ProjectLivestreamServiceStructure::class, $jobs[4]);
+        $this->assertInstanceOf(MatchSongsFromTranscript::class, $jobs[5]);
+        $this->assertInstanceOf(MergeSongContinuations::class, $jobs[6]);
+        $this->assertInstanceOf(ExtendSongsOverOwnLyrics::class, $jobs[7]);
         // Second pass: song matching has resolved catalogue songs by now, so the
         // merge can anchor on song identity instead of automated title text.
-        $this->assertInstanceOf(ProjectLivestreamServiceStructure::class, $jobs[7]);
-        $this->assertInstanceOf(ExtractSermon::class, $jobs[8]);
-        $this->assertInstanceOf(SubmitToProcessing::class, $jobs[9]);
-        $this->assertInstanceOf(EnhanceAudio::class, $jobs[10]);
-        $this->assertInstanceOf(IdentifySpeaker::class, $jobs[11]);
-        $this->assertInstanceOf(CreateSermonTranscriptFromService::class, $jobs[12]);
-        $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[13]);
-        $this->assertInstanceOf(AssessSermonVideoQuality::class, $jobs[14]);
-        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[15]);
-        $this->assertInstanceOf(PrepareSectionPublicationCandidates::class, $jobs[16]);
-        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[17]);
-        $this->assertInstanceOf(PromoteHistoricAssets::class, $jobs[18]);
-        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[19]);
+        $this->assertInstanceOf(ProjectLivestreamServiceStructure::class, $jobs[8]);
+        $this->assertInstanceOf(ExtractSermon::class, $jobs[9]);
+        $this->assertInstanceOf(SubmitToProcessing::class, $jobs[10]);
+        $this->assertInstanceOf(EnhanceAudio::class, $jobs[11]);
+        $this->assertInstanceOf(IdentifySpeaker::class, $jobs[12]);
+        $this->assertInstanceOf(CreateSermonTranscriptFromService::class, $jobs[13]);
+        $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[14]);
+        $this->assertInstanceOf(AssessSermonVideoQuality::class, $jobs[15]);
+        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[16]);
+        $this->assertInstanceOf(PrepareSectionPublicationCandidates::class, $jobs[17]);
+        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[18]);
+        $this->assertInstanceOf(PromoteHistoricAssets::class, $jobs[19]);
+        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[20]);
     }
 
     #[Test]
@@ -320,6 +323,7 @@ class ProcessingPipelineBuilderTest extends TestCase
         $this->assertSame([
             AnalyzeSegments::class,
             TranscribeFullService::class,
+            ClassifyServiceAudio::class,
             DetectServiceStructure::class,
             ProjectLivestreamServiceStructure::class,
             MatchSongsFromTranscript::class,

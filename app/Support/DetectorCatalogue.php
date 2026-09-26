@@ -26,10 +26,11 @@ use App\Services\ChurchService\SectionPublication\SongPublicationBoundaryEvidenc
 use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
 use App\Services\ChurchService\SectionPublication\SongSectionWithoutSong;
 use App\Services\ChurchService\SectionPublication\SongSpeechUnderLoop;
-use App\Services\ChurchService\Structure\AudioDropoutInsideTalk;
+use App\Services\ChurchService\Structure\DeadFeedInsideSection;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SongSpeechEdges;
 use App\Services\ChurchService\Structure\SungSpanInsideSermon;
+use App\Services\ChurchService\Structure\SustainedSoundSongSections;
 use App\Services\DetectorEvaluation\SongBoundaryEvidenceSignals;
 use App\Services\Media\Audio\ServiceTranscriptRepetitionScreen;
 use App\Services\Media\Video\SermonVideoQualityAssessmentService;
@@ -385,7 +386,7 @@ class DetectorCatalogue
                 unit: DetectorUnit::Section,
                 summary: 'Singing was heard where no song item accounts for it, so a performed song may have no section at all.',
                 owningClass: ServiceStructureValidator::class,
-                regressionCases: ['run 944'],
+                regressionCases: ['run 944', 'run 1304 (canary 4)'],
             ),
             new DetectorEntry(
                 id: 'structure-song-widened-to-sustained-sound',
@@ -397,6 +398,17 @@ class DetectorCatalogue
                 summary: 'A song section was widened to the sustained sound around it, recovering singing the transcript could not see.',
                 owningClass: ServiceStructureValidator::class,
                 regressionCases: ['run 965', 'run 1109'],
+            ),
+            new DetectorEntry(
+                id: 'structure-song-widened-into-music',
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: [ServiceStructureValidator::FLAG_SONG_WIDENED_INTO_MUSIC],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Section,
+                summary: 'A song section was widened into a neighbouring interior other section the audio classifier hears as music, recovering the start or end of a song the detector cut short.',
+                owningClass: SustainedSoundSongSections::class,
+                regressionCases: ['run 1028 §1394', 'run 1262 §3283'],
             ),
             new DetectorEntry(
                 id: 'structure-section-reads-as-sung',
@@ -1199,8 +1211,19 @@ class DetectorCatalogue
                 severity: DetectorSeverity::ContentLost,
                 unit: DetectorUnit::Section,
                 summary: 'A stretch of at least 15 seconds at or below -80 dB inside a talk, where the source itself carried no audio. Contained rather than reconstructed.',
-                owningClass: AudioDropoutInsideTalk::class,
+                owningClass: DeadFeedInsideSection::class,
                 regressionCases: ['run 1089 §1790'],
+            ),
+            new DetectorEntry(
+                id: 'song-over-dead-feed',
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: [ServiceStructureValidator::FLAG_SONG_OVER_DEAD_FEED],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Section,
+                summary: 'A song lies wholly over a dead feed, holds a dropout of at least 15 seconds, or runs into one that is not digital silence. Held; an edge in verified digital silence is moved instead, with no hold.',
+                owningClass: DeadFeedInsideSection::class,
+                regressionCases: ['run 1050 §1584', 'run 1346 §4377', 'run 1117 §1956'],
             ),
             new DetectorEntry(
                 id: 'video-stream-copy-keyframe-lead-in',

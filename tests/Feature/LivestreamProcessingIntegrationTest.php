@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Enums\LivestreamSegmentClassification;
 use App\Enums\SermonSourceType;
+use App\Jobs\ClassifyServiceAudio;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\CleanupTemporaryFiles;
@@ -181,6 +182,7 @@ class LivestreamProcessingIntegrationTest extends TestCase
         Bus::assertChained([
             AnalyzeSegments::class,
             TranscribeFullService::class,
+            ClassifyServiceAudio::class,
             DetectServiceStructure::class,
             ProjectLivestreamServiceStructure::class,
             MatchSongsFromTranscript::class,

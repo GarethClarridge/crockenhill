@@ -8,6 +8,8 @@ final class ChurchServiceProcessingTimeline
 {
     public const TRANSCRIBE_FULL_SERVICE = 'transcribe_full_service';
 
+    public const CLASSIFY_SERVICE_AUDIO = 'classify_service_audio';
+
     public const DETECT_SERVICE_STRUCTURE = 'detect_service_structure';
 
     public const PROJECT_LIVESTREAM_SERVICE_STRUCTURE = 'project_livestream_service_structure';
@@ -27,6 +29,10 @@ final class ChurchServiceProcessingTimeline
             [
                 'key' => self::TRANSCRIBE_FULL_SERVICE,
                 'label' => 'Transcribe full service',
+            ],
+            [
+                'key' => self::CLASSIFY_SERVICE_AUDIO,
+                'label' => 'Classify service audio',
             ],
             [
                 'key' => self::DETECT_SERVICE_STRUCTURE,
@@ -63,6 +69,7 @@ final class ChurchServiceProcessingTimeline
     {
         return match ($currentStep) {
             self::TRANSCRIBE_FULL_SERVICE => self::TRANSCRIBE_FULL_SERVICE,
+            self::CLASSIFY_SERVICE_AUDIO => self::CLASSIFY_SERVICE_AUDIO,
             self::DETECT_SERVICE_STRUCTURE => self::DETECT_SERVICE_STRUCTURE,
             'extraction',
             'extracting_sermon',

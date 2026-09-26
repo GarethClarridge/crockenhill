@@ -11,14 +11,11 @@ use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
-use App\Services\ChurchService\Structure\AudioDropoutInsideTalk;
-use App\Services\ChurchService\Structure\MistypedSungSections;
 use App\Services\ChurchService\Structure\ServiceStructureEvaluationTelemetry;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
-use App\Services\ChurchService\Structure\SongSpeechEdges;
-use App\Services\ChurchService\Structure\SungSpanInsideSermon;
-use App\Services\ChurchService\Structure\SustainedSoundSongSections;
+use App\Services\ChurchService\Structure\SoundStage;
+use App\Services\Media\Audio\AudioTimeline;
 use App\Services\ChurchService\Structure\ValidationContext;
 use App\Support\ServiceArtifactDisk;
 use Illuminate\Console\Command;
@@ -219,7 +216,7 @@ class StructureEvaluateCommand extends Command
             [$oosPayloads, $oosItemTypes, $oosItemPositions] = $this->resolveOosItems($entry, $log);
 
             $startedAt = microtime(true);
-            $structure = $detector->detect($transcript, $oosPayloads, $log?->processing_id);
+            $structure = $detector->detect($transcript, $oosPayloads, $log?->processing_id, audioTimeline: $log instanceof MediaProcessingLog ? $this->audioTimeline($log) : null);
             $latency = round(microtime(true) - $startedAt, 3);
             $usage = $usageTelemetry->take();
             $costUsd = $usage === null || $priceSnapshot === null ? null : round($this->cost($usage, $priceSnapshot), 8);
@@ -424,23 +421,28 @@ class StructureEvaluateCommand extends Command
 
         $rmsLogContent = (string) Storage::disk($rmsDisk)->get($rmsLogPath);
 
-        $recordingOmitsSongs = ValidationContext::recordingOmitsSongs($log->processing_metadata);
-        $structure = app(SustainedSoundSongSections::class)->apply(
+        return app(SoundStage::class)->apply(
             $snapService->snap($structure, $rmsLogContent),
             $rmsLogContent,
-            $recordingOmitsSongs,
+            $transcript,
+            ValidationContext::recordingOmitsSongs($log->processing_metadata),
+            $this->audioTimeline($log),
         );
+    }
 
-        // After widening, so a song that grew across unsectioned singing is judged at its new edges.
-        $structure = app(SongSpeechEdges::class)->apply($structure, $rmsLogContent, $recordingOmitsSongs);
+    /**
+     * The run's audio timeline when it has one. Evaluation runs over older runs too, so a run
+     * without one is evaluated as detection ran before the classifier existed.
+     */
+    private function audioTimeline(MediaProcessingLog $log): ?AudioTimeline
+    {
+        $path = $log->audio_timeline_path;
 
-        // Runs after the sound stage has settled the song sections, so a section still typed as
-        // something else is one no song claimed, and singing inside a sermon is singing no song holds.
-        $structure = app(MistypedSungSections::class)->apply($structure, $rmsLogContent, $transcript);
+        if (! is_string($path) || $path === '' || ! Storage::disk(ServiceArtifactDisk::for($path))->exists($path)) {
+            return null;
+        }
 
-        $structure = app(SungSpanInsideSermon::class)->apply($structure, $rmsLogContent, $transcript);
-
-        return app(AudioDropoutInsideTalk::class)->apply($structure, $rmsLogContent);
+        return AudioTimeline::fromJson((string) Storage::disk(ServiceArtifactDisk::for($path))->get($path));
     }
 
     /**

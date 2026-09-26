@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\Storage;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
+use Tests\Support\AudioTimelineFixture;
 use Tests\TestCase;
 
 class RedetectForCorpusRerunCommandTest extends TestCase
@@ -189,6 +190,85 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         Bus::assertNothingDispatched();
     }
 
+    /**
+     * Re-detection reads the recorded timeline and never regenerates it, so a timeline replaced
+     * after the snapshot is a change the re-run did not make (music and silence plan §6.6).
+     */
+    #[Test]
+    public function it_refuses_a_run_whose_audio_timeline_was_replaced_since_the_snapshot(): void
+    {
+        Bus::fake();
+        $run = $this->completedRun();
+        $this->snapshot([$run->id]);
+
+        Storage::disk('local')->put((string) $run->audio_timeline_path, AudioTimelineFixture::json([[0, 600, 0.9, 0.1]], 2430.0));
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('run has changed since the snapshot')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+    }
+
+    #[Test]
+    public function it_refuses_a_run_whose_audio_model_revision_changed_since_the_snapshot(): void
+    {
+        Bus::fake();
+        $run = $this->completedRun();
+        $this->snapshot([$run->id]);
+
+        $payload = AudioTimelineFixture::payload([], 2430.0);
+        $payload['model_revision'] = str_repeat('9', 40);
+        Storage::disk('local')->put((string) $run->audio_timeline_path, (string) json_encode($payload));
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('run has changed since the snapshot')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+    }
+
+    #[Test]
+    public function it_refuses_a_run_with_no_audio_timeline(): void
+    {
+        Bus::fake();
+        $run = $this->completedRun(['audio_timeline_path' => null]);
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('run has no readable audio timeline')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+    }
+
+    #[Test]
+    public function it_refuses_a_run_whose_audio_timeline_cannot_be_read(): void
+    {
+        Bus::fake();
+        $run = $this->completedRun(['audio_timeline_path' => 'temp/never-written.classes.json']);
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('run has no readable audio timeline')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+    }
+
+    /** A snapshot taken before the timeline was captured cannot describe it. */
+    #[Test]
+    public function it_refuses_a_snapshot_captured_in_the_shape_before_the_audio_timeline(): void
+    {
+        $run = $this->completedRun();
+        $this->snapshot([$run->id]);
+        $this->rewriteSnapshot(static fn (array $data): array => [...$data, 'version' => 1]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('captured shape version 1; this code captures version 2')
+            ->assertFailed();
+    }
+
     #[Test]
     public function it_refuses_runs_outside_the_snapshot(): void
     {
@@ -298,6 +378,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
             'file_hash' => hash('sha256', $bytes),
             'sermon_start_time' => 600.0,
             'sermon_end_time' => 2400.0,
+            'audio_timeline_path' => AudioTimelineFixture::put('local', 'temp/audio_timeline_'.$operation->id.'.classes.json'),
             'processing_metadata' => [
                 'historic_import' => [
                     'operation_id' => $operation->operation_id,

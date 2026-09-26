@@ -158,7 +158,7 @@ class ProcessingRunTimelineBuilderTest extends TestCase
             'current_step' => 'projecting_service_structure',
         ]);
 
-        // Record a log for the third step (Project service structure)
+        // Record a log for the fourth step (Project service structure)
         SermonProcessingStep::factory()->create([
             'processing_id' => $run->processing_id,
             'step' => ChurchServiceProcessingTimeline::PROJECT_LIVESTREAM_SERVICE_STRUCTURE,
@@ -167,11 +167,12 @@ class ProcessingRunTimelineBuilderTest extends TestCase
 
         $timeline = ProcessingRunTimelineBuilder::buildForRun($run);
 
-        // First two steps should be 'not_recorded' because step three has logs.
+        // Every step before it should be 'not_recorded' because a later step has logs.
         $this->assertSame('not_recorded', $timeline[0]['status']);
         $this->assertSame('not_recorded', $timeline[1]['status']);
+        $this->assertSame('not_recorded', $timeline[2]['status']);
 
-        $this->assertSame('completed', $timeline[2]['status']);
+        $this->assertSame('completed', $timeline[3]['status']);
     }
 
     #[Test]

@@ -840,6 +840,7 @@ CREATE TABLE `media_processing_logs` (
   `video_file_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `transcript_file_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `rms_log_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `audio_timeline_path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `sermon_start_time` double DEFAULT NULL,
   `sermon_end_time` double DEFAULT NULL,
   `ai_analysis` json DEFAULT NULL,
@@ -1854,3 +1855,4 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_23_215704_move_
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_24_061346_restamp_short_talk_classification_signatures',103);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_24_073158_confirm_talk_type_of_approved_short_talks',104);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_24_073200_stamp_candidate_media_signatures',104);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_25_222923_add_audio_timeline_path_to_media_processing_logs_table',105);

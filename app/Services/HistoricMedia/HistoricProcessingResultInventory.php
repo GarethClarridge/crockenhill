@@ -148,6 +148,7 @@ class HistoricProcessingResultInventory
             'video_file_path' => $log->video_file_path,
             'transcript_file_path' => $log->transcript_file_path,
             'rms_log_path' => $log->rms_log_path,
+            'audio_timeline_path' => $log->audio_timeline_path,
             'sermon_start_time' => $log->sermon_start_time,
             'sermon_end_time' => $log->sermon_end_time,
             'threshold_method' => $log->threshold_method,

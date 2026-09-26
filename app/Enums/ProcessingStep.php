@@ -37,6 +37,7 @@ enum ProcessingStep: string
     case Segmenting = 'segmenting';
     case AnalyzingSegments = 'analyzing_segments';
     case TranscribeFullService = 'transcribe_full_service';
+    case ClassifyServiceAudio = 'classify_service_audio';
     case DetectServiceStructure = 'detect_service_structure';
     case ProjectLivestreamServiceStructure = 'project_livestream_service_structure';
     case MatchSongsFromTranscript = 'match_songs_from_transcript';

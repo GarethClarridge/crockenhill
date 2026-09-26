@@ -10,6 +10,7 @@ use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Enums\TalkType;
+use App\Services\Media\Audio\AudioTimeline;
 
 /**
  * Deterministic structure detection for tests and CI: either a fixture set by
@@ -93,6 +94,7 @@ class MockServiceStructureService implements ServiceStructureInterface
         array $oosItems,
         ?string $processingId = null,
         array $feedback = [],
+        ?AudioTimeline $audioTimeline = null,
     ): ServiceStructure {
         self::$lastFeedback = $feedback;
 

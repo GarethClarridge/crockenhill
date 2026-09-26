@@ -10,6 +10,7 @@ use App\Jobs\AwaitHistoricSermonVideoStorage;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonRecord;
 use App\Jobs\CreateSermonTranscriptFromService;
+use App\Jobs\ClassifyServiceAudio;
 use App\Jobs\DetectServiceStructure;
 use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtendSongsOverOwnLyrics;
@@ -97,6 +98,7 @@ class ProcessingPipelineBuilder
             new GenerateRmsLog($log),
             new AnalyzeSegments($log),
             new TranscribeFullService($log),
+            new ClassifyServiceAudio($log),
             new DetectServiceStructure($log),
             new ExtractSermon($log),
             new EnhanceAudio($log),
@@ -132,6 +134,7 @@ class ProcessingPipelineBuilder
         return [
             new AnalyzeSegments($log),
             new TranscribeFullService($log, $resuming),
+            new ClassifyServiceAudio($log, $resuming),
             new DetectServiceStructure($log),
             // Provisional: song matching has not run, so this pass can only anchor
             // on automated title text and its merge findings are working guesses.

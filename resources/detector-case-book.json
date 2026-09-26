@@ -2767,6 +2767,96 @@
             "evidence": "storage/scratch/songentry-20260924/probes.json",
             "informed_fix": true,
             "note": "A prayer follows the edge; the last verse was skipped or not transcribed."
+        },
+        {
+            "case_id": "structure-unidentified-singing/run-1304-canary-4",
+            "detector_id": "structure-unidentified-singing",
+            "reference": "run 1304 (canary 4)",
+            "subject": {
+                "run": 1304,
+                "section": null,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "docs/plans/MUSIC-AND-SILENCE-DETECTION-2026-09-25.md §1: operator listening after canary 4 parked the run",
+            "informed_fix": true,
+            "note": "Lord, I Lift Your Name on High (261–~360 s) typed other; the audio classifier hears music throughout (§2 R3)."
+        },
+        {
+            "case_id": "song-over-dead-feed/run-1050-s1584",
+            "detector_id": "song-over-dead-feed",
+            "reference": "run 1050 §1584",
+            "subject": {
+                "run": 1050,
+                "section": 1584,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/filler-cue-listening-20260925/scored-20260925.json; storage/scratch/interior-dropout-scan-20260925/",
+            "informed_fix": true,
+            "note": "A song section 884–916 s over digital zero from ~868 s to the recording's end; the sampled window was heard as silence."
+        },
+        {
+            "case_id": "song-over-dead-feed/run-1346-s4377",
+            "detector_id": "song-over-dead-feed",
+            "reference": "run 1346 §4377",
+            "subject": {
+                "run": 1346,
+                "section": 4377,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "storage/scratch/filler-cue-listening-20260925/scored-20260925.json; storage/scratch/interior-dropout-scan-20260925/",
+            "informed_fix": true,
+            "note": "Sung 3664–~3895 s, digital zero from 3901.6 s to the end (3980 s): the edge moves, with no hold (§12 ruling 2)."
+        },
+        {
+            "case_id": "song-over-dead-feed/run-1117-s1956",
+            "detector_id": "song-over-dead-feed",
+            "reference": "run 1117 §1956",
+            "subject": {
+                "run": 1117,
+                "section": 1956,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "derived_comparison",
+            "evidence": "storage/scratch/interior-dropout-scan-20260925/",
+            "informed_fix": true,
+            "note": "Glory In The Highest, 131–343 s, one dropout 187.5–210.1 s at or below -80 dB (not zero) with live song either side; the canary 5 interior case (§12 ruling 3)."
+        },
+        {
+            "case_id": "structure-song-widened-into-music/run-1028-s1394",
+            "detector_id": "structure-song-widened-into-music",
+            "reference": "run 1028 §1394",
+            "subject": {
+                "run": 1028,
+                "section": 1394,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "docs/plans/MUSIC-AND-SILENCE-DETECTION-2026-09-25.md §7 step 0: operator marks, music stops 1121.7 s and speech starts 1125.2 s",
+            "informed_fix": true,
+            "note": "Song end at 1089 s, ~35 s early; the following other (§1395) is ~37% music."
+        },
+        {
+            "case_id": "structure-song-widened-into-music/run-1262-s3283",
+            "detector_id": "structure-song-widened-into-music",
+            "reference": "run 1262 §3283",
+            "subject": {
+                "run": 1262,
+                "section": 3283,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "source_reviewed",
+            "evidence": "docs/plans/MUSIC-AND-SILENCE-DETECTION-2026-09-25.md §7 step 0: operator heard §3282 (1090–1121 s) sung from the start",
+            "informed_fix": true,
+            "note": "§3282 other is the start of §3283; the song starts at ~1090 s (the classifier's edge, not an operator mark)."
         }
     ],
     "aggregates": [

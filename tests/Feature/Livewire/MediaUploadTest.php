@@ -8,6 +8,7 @@ use App\Data\ProcessingResult;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonService;
 use App\Enums\UploadState;
+use App\Jobs\ClassifyServiceAudio;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\CleanupTemporaryFiles;
@@ -545,6 +546,7 @@ class MediaUploadTest extends TestCase
         Bus::assertChained([
             AnalyzeSegments::class,
             TranscribeFullService::class,
+            ClassifyServiceAudio::class,
             DetectServiceStructure::class,
             ProjectLivestreamServiceStructure::class,
             MatchSongsFromTranscript::class,
