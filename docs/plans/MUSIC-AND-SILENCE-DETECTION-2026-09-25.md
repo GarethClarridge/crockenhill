@@ -1,7 +1,7 @@
 # Music and silence: an audio classifier for structure detection
 
 **Date:** 2026-09-25 (revised the same day after review by Codex and Claude)
-**Status:** Steps 1–8 built 2026-09-26, uncommitted (§13). Step 9 (measurement, canary 5) not started. Plan verified against code at `1bf59e65a`.
+**Status:** Steps 1–8 built and committed 2026-09-26 (`734205f44`, `fa7f2710c`, `6ecfcd0f2`); every eligible run has a timeline (§13). **Next: step 9**, starting with the §8 rule replay. Plan verified against code at `1bf59e65a`.
 **Gates:** the historic corpus re-run freeze (`HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md`
 §4.0). Operator ruling 2026-09-25: build this **before** the freeze; canary 5 runs on the commit that
 carries it.
@@ -165,7 +165,7 @@ classifier follows that pattern:
   line, which was a drafting choice rather than a ruling: on run 1304 the Mac (CPU and MPS) and
   the container agreed on every window's class (§13).
 - **Cost.** Spike: ~0.23 s per window on CPU unbatched, ~3.5 min per 75-minute service (fine
-  weekly). The historic backfill is ~1,300 runs, ~75 h unbatched. Step 1 measures batched
+  weekly). The historic backfill is ~1,300 runs, ~75 h unbatched (both wrong: 437 runs, done in ~5½ h on the Mac's GPU; §13). Step 1 measures batched
   throughput in the container and sets the backfill schedule from that number.
 
 ## 6. Pipeline changes (app)
@@ -364,7 +364,7 @@ classify. The dry run reports re-attach, classify and refuse counts separately.
    sound-stage test.
 6. Prompt block §6.4.
 7. Snapshot fields and guard refusals §6.6.
-8. Backfill command; run over the canary set, then the eligible corpus.
+8. ✅ Backfill command; run over the canary set, then the eligible corpus (2026-09-26, §13).
 9. Measurement §8, then worker restart, snapshot, **canary 5**: both tiers, diff, Tier C, diff, freeze.
 
 ## 8. Measurement
@@ -467,7 +467,7 @@ it blocks resuming weekly processing.
 1.06 s a window unbatched (836 s), 0.95 s at batch 16 (746 s), ~2 GB resident at batch 16.
 Batching changed no window's class (largest score difference 0.0001), so batch 16 is used. The
 container is **~4× slower than the spike's host figure** (0.23 s): ~12 minutes a 75-minute
-service. The canary 5 set (17 runs) is ~3.5 h; the full historic backfill (~1,300 runs) is
+service. The canary 5 set (17 runs) is ~3.5 h; the full historic backfill (~1,300 runs, in fact 437) is
 **~260 h serial**, not the ~75 h §5 estimated. One process already uses ~8.7 of 10 cores, so
 parallel workers will not shorten it much. The in-container whole-file run reproduces the spike
 on 1304 (music 145–215, speech 220–261, music 265–360, speech from 360).
@@ -506,4 +506,38 @@ Tier A re-transcriptions, runs at ~0.08 s a window: the backfill is ~27 h, not ~
 - `AudioClassifier` holds the service to the command's checks (valid timeline, input hash);
   unreachable or refused fails the job, as a Whisper outage does. `phpunit.xml` pins the URL empty.
 - Recheck class changes on a few canary runs during the backfill as a guard, not a gate.
+
+**Backfill done (2026-09-26, 14:20–19:45 BST).** The eligible corpus is **437 runs**, not ~1,300:
+the dry run found 17 with their `audio` artifact recorded and 420 needing it re-attached, and
+refused none. All 437 now have a timeline classified on the Mac's GPU through the service (409
+re-attached then classified, 12 classified, 16 done in the canary pass), averaging ~45 s a run.
+- **Canary 5 set first:** the 13 canary 4 runs (936, 949, 964, 1025, 1108, 1112, 1221, 1250, 1262,
+  1304, 1311, 1356, 1358) plus 1028, 1346, 1050, 1117. The §2 truth cases read as heard: 1028 music
+  to 1125 then speech; 1262 music from 1090; 1304 music 265–360; 1346 music to 3900 then neither;
+  1050 speech to 865 then neither.
+- **Bug found and fixed (`6ecfcd0f2`):** run 1358 ends 85 samples into its last window, shorter than
+  the filterbank's 25 ms frame, and the classifier crashed. A final window that short is padded with
+  silence to one frame; every other window is unchanged, so no earlier timeline needed redoing.
+  Production would have hit it too.
+- **Open question from the operator:** Tier A runs (~128) are re-transcribed, which re-runs
+  classification, so their backfilled timelines are replaced (~1.5 h duplicated). A cheaper route
+  would start re-detection at `ClassifyServiceAudio` instead of backfilling; not pursued now the
+  backfill is done. `CorpusRerunGuard` refuses any run without a timeline, including Tier A runs that
+  would make their own; moot while every run has one.
+
+**Where to resume (step 9):**
+1. Write the §8 rule replay: run `SoundStage` with each run's timeline over its current banked
+   structure, read-only, and list every R1 flag, R1 edge move, R2 widening and R3 proposal per era.
+   Check the §8 predeclared passes (1050 flagged, 1346's end to ~3902 s with no hold, 1028 and 1262
+   within a window of the §2 edges, no R2/R3 action on the speech rows).
+2. Operator precision gate (§12 ruling 4): listen to every action or a random 10 per rule; ≤ 1 wrong
+   in 10 passes, otherwise tighten the rule first.
+3. Restart the workers (`queue:restart`; check `ps` ELAPSED), take a new snapshot (version 2) on the
+   frozen commit, run canary 5: both tiers, diff, Tier C, diff, freeze.
+- Before that, check the local service: `curl http://localhost:2023/` (LaunchAgent
+  `com.crockenhill.audio-classifier`), and that the workers read `AUDIO_CLASSIFIER_URL`.
+- Before weekly processing resumes (§10): rebuild the production image (Dockerfile carries torch,
+  torchaudio, transformers and the weights) and confirm the host's CPU and memory headroom (~2 GB
+  resident, ~12 min a service on CPU). The local Sail image has not been rebuilt either; locally it
+  is not needed while the service is used.
 
