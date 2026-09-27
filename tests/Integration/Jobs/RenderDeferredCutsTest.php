@@ -74,6 +74,21 @@ class RenderDeferredCutsTest extends TestCase
     }
 
     #[Test]
+    public function a_render_deferred_before_a_later_detection_round_is_still_rendered(): void
+    {
+        $run = $this->deferredRun();
+        $run->putCorpusRerunStamp(['grounds' => 'corpus_rerun', 'media' => 'deferred']);
+        $this->sermonVideo($run);
+
+        $extractor = $this->createMock(VideoExtractionService::class);
+        $extractor->expects($this->once())->method('renderForDelivery')->willReturn(true);
+
+        $this->handle($run, $extractor);
+
+        $this->assertFalse($run->refresh()->defersCorpusRerunRender());
+    }
+
+    #[Test]
     public function a_run_whose_render_is_not_deferred_is_left_alone(): void
     {
         $run = $this->deferredRun(render: ExtractForCorpusRerun::RENDER_RENDERED);

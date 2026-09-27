@@ -667,6 +667,29 @@ class HistoricSermonReleaseBatchTest extends TestCase
         $this->assertSame(SermonPublicationState::Published, $sermon->refresh()->publication_state);
     }
 
+    /**
+     * A detection round after Tier C appends a stamp that says nothing about the render, while
+     * the smart cuts it deferred are still on disk. The obligation outlives the new stamp.
+     */
+    #[Test]
+    public function a_later_detection_round_does_not_clear_a_deferred_render(): void
+    {
+        $operation = $this->completedOperation();
+        $sermon = $this->quarantinedSermon($operation);
+        $run = MediaProcessingLog::query()->where('sermon_id', $sermon->id)->firstOrFail();
+
+        $run->putCorpusRerunStamp([
+            'media' => ExtractForCorpusRerun::MEDIA_EXTRACTED,
+            'render' => ExtractForCorpusRerun::RENDER_DEFERRED,
+        ]);
+        $run->putCorpusRerunStamp(['grounds' => 'corpus_rerun', 'media' => 'deferred']);
+
+        $this->assertStringContainsString(
+            "Sermon {$sermon->id} awaits its render",
+            implode(' ', app(HistoricReleaseReviewHolds::class)->assess([$sermon->refresh()], [])),
+        );
+    }
+
     /** @return array<string, array{string}> */
     public static function operatorExclusionReasons(): array
     {

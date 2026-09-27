@@ -582,8 +582,9 @@ class VideoExtractionService
      * The cut is replaced only once the render has kept every frame, the sound's
      * exact packets and the cut's length, and has come under the threshold; a
      * render that stays above it would be deferred for ever. A cut already at or
-     * under the threshold, or whose bitrate cannot be read, is left alone, so a
-     * repeat render skips what it has done.
+     * under the threshold is left alone, so a repeat render skips what it has done.
+     * A cut whose bitrate cannot be read is refused rather than left alone: "not
+     * rendered" would read as "already deliverable" and clear the release gate.
      *
      * @param  string  $path  Absolute path to a stored cut on a local disk
      * @return bool Whether the cut was re-encoded
@@ -593,9 +594,18 @@ class VideoExtractionService
     public function renderForDelivery(string $path): bool
     {
         $thresholdMbps = (float) config('media-processing.video_extraction.reencode_above_mbps', 0.0);
+
+        if ($thresholdMbps <= 0.0) {
+            return false;
+        }
+
         $cutMbps = $this->readSourceBitrateMbps($path);
 
-        if ($thresholdMbps <= 0.0 || $cutMbps === null || $cutMbps <= $thresholdMbps) {
+        if ($cutMbps === null) {
+            throw new VideoProcessingException("Render of {$path} refused: its bitrate could not be read");
+        }
+
+        if ($cutMbps <= $thresholdMbps) {
             return false;
         }
 
@@ -656,8 +666,13 @@ class VideoExtractionService
             return 'the frame count changed';
         }
 
-        if (isset($cut['audio']) && $this->audioPacketHash($cutPath) !== $this->audioPacketHash($renderedPath)) {
-            return 'the sound changed';
+        if (isset($cut['audio'])) {
+            $cutSound = $this->audioPacketHash($cutPath);
+
+            // Two failed digests are equal and prove nothing.
+            if ($cutSound === null || $cutSound !== $this->audioPacketHash($renderedPath)) {
+                return 'the sound changed or could not be verified';
+            }
         }
 
         $renderedMbps = $this->readSourceBitrateMbps($renderedPath);
@@ -688,9 +703,10 @@ class VideoExtractionService
     }
 
     /**
-     * A digest of the sound's packets, which a copy carries unchanged.
+     * A digest of the sound's packets, which a copy carries unchanged, or null when it
+     * cannot be read.
      */
-    private function audioPacketHash(string $path): ?string
+    protected function audioPacketHash(string $path): ?string
     {
         $output = [];
         exec(implode(' ', [

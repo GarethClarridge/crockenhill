@@ -273,6 +273,59 @@ class VideoExtractionSmartCutTest extends TestCase
         $this->assertSame([], glob(dirname($cut).'/cut-*') ?: [], 'The render must leave no work files behind.');
     }
 
+    /**
+     * An unreadable bitrate says nothing about whether the cut is deliverable, so it must not
+     * read as "already rendered": the job would clear the release gate on a failed probe.
+     */
+    #[Test]
+    public function a_render_whose_bitrate_cannot_be_read_is_refused(): void
+    {
+        $cut = $this->cut($this->closedGopSource(), 12.3, 20.7);
+        $hash = hash_file('sha256', $cut);
+
+        Config::set('media-processing.video_extraction.reencode_above_mbps', 0.001);
+        Config::set('media-processing.ffmpeg.ffprobe_path', '/nonexistent/ffprobe');
+
+        $this->expectException(VideoProcessingException::class);
+        $this->expectExceptionMessage('bitrate');
+
+        try {
+            $this->service->renderForDelivery($cut);
+        } finally {
+            $this->assertSame($hash, hash_file('sha256', $cut));
+        }
+    }
+
+    /**
+     * Two failed sound digests are equal (both absent), which proves nothing about the sound.
+     */
+    #[Test]
+    public function a_render_whose_sound_cannot_be_verified_is_refused(): void
+    {
+        $cut = $this->cut($this->closedGopSource(), 12.3, 20.7);
+        $hash = hash_file('sha256', $cut);
+
+        Config::set('media-processing.video_extraction.reencode_above_mbps', 0.9 * $this->bitrateMbps($cut));
+        Config::set('media-processing.video_extraction.reencode_crf', 40);
+
+        $service = new class(app(AudioCompressionService::class), app(StorageAdapterHelper::class)) extends VideoExtractionService
+        {
+            protected function audioPacketHash(string $path): ?string
+            {
+                return null;
+            }
+        };
+
+        try {
+            $service->renderForDelivery($cut);
+            $this->fail('A render whose sound cannot be verified must be refused.');
+        } catch (VideoProcessingException $exception) {
+            $this->assertStringContainsString('sound', $exception->getMessage());
+        }
+
+        $this->assertSame($hash, hash_file('sha256', $cut));
+    }
+
     private function cut(string $source, float $start, float $end, bool $deferRender = false): string
     {
         $relativePath = $this->service->extractSegmentAsFile(
