@@ -165,6 +165,41 @@ class VideoExtractionSmartCutTest extends TestCase
         $this->assertShowsSourceFramesFrom($output, $source, 12.3);
     }
 
+    #[Test]
+    public function a_smart_cut_of_a_source_without_b_frames_steps_one_frame_at_a_time_across_both_joins(): void
+    {
+        $source = $this->livestreamLikeSource();
+        $output = $this->cut($source, 12.3, 30.7);
+
+        $this->assertFramesStepEvenly($output);
+        $this->assertStartsTogetherAndRunsFor($output, 18.4);
+        $this->assertShowsSourceFramesFrom($output, $source, 12.3);
+    }
+
+    #[Test]
+    public function a_smart_cut_of_a_source_timed_in_milliseconds_steps_one_frame_at_a_time(): void
+    {
+        // 1025 and 1050: Matroska at 30 fps, so frames fall 33, 33 and 34 ms apart, and the
+        // re-encoded opening and closing, seeking half a frame early, paired every third frame.
+        // 1025 §1374 started 30 ms before a frame, as this span does; the seek then sits half a
+        // frame early, where the millisecond times round either way onto the 1/30 s grid.
+        $output = $this->cut($this->millisecondTimedSource(), 12.358, 30.7);
+
+        $this->assertFramesStepEvenly($output, 1 / 30);
+        $this->assertStartsTogetherAndRunsFor($output, 18.342);
+    }
+
+    #[Test]
+    public function joined_spans_of_a_source_without_b_frames_step_one_frame_at_a_time_across_every_join(): void
+    {
+        $relativePath = $this->service->extractConcatenatedSegmentAsFile($this->livestreamLikeSource(), [
+            ['start_time' => 12.3, 'end_time' => 20.7],
+            ['start_time' => 27.1, 'end_time' => 33.9],
+        ]);
+
+        $this->assertFramesStepEvenly(Storage::disk('local')->path($relativePath));
+    }
+
     private function cut(string $source, float $start, float $end): string
     {
         $relativePath = $this->service->extractSegmentAsFile($source, (object) ['start_time' => $start, 'end_time' => $end]);
@@ -214,6 +249,38 @@ class VideoExtractionSmartCutTest extends TestCase
             'frames' => (int) ($streams['video']['nb_read_frames'] ?? 0),
             'decode_errors' => $errors,
         ];
+    }
+
+    /**
+     * Neither length nor the frame shown can see a join that repeats or skips a
+     * timestamp: 50 of canary 6's 75 cuts held two frames' worth of gap where the
+     * copied frames met the re-encoded closing, and a repeated timestamp where the
+     * opening met them, while running the span's length. So require every picture
+     * to follow the one before by exactly one frame.
+     */
+    private function assertFramesStepEvenly(string $path, float $frameSeconds = self::ONE_FRAME): void
+    {
+        $probe = (new Process([
+            '/usr/bin/ffprobe', '-v', 'error', '-select_streams', 'v:0',
+            '-show_entries', 'packet=pts_time', '-of', 'csv=p=0', $path,
+        ]))->setTimeout(120)->mustRun();
+
+        $times = collect(preg_split('/\R/', trim($probe->getOutput())) ?: [])
+            ->filter(fn (string $line): bool => is_numeric($line))
+            ->map(fn (string $line): float => (float) $line)
+            ->sort()
+            ->values();
+
+        $uneven = $times->sliding(2)
+            ->map(fn ($pair): float => round($pair->last() - $pair->first(), 4))
+            ->filter(fn (float $step): bool => abs($step - $frameSeconds) > 0.002);
+
+        $this->assertTrue($uneven->isEmpty(), sprintf(
+            '%d of %d steps between pictures are not one frame: %s.',
+            $uneven->count(),
+            max($times->count() - 1, 0),
+            $uneven->take(5)->map(fn (float $step, int $index): string => sprintf('%.3f s after %.3f s', $step, $times[$index]))->implode(', '),
+        ));
     }
 
     /**
@@ -302,6 +369,28 @@ class VideoExtractionSmartCutTest extends TestCase
             ...$extraArguments,
         ], 'color=c=black:size=160x120:rate=25:duration=40,format=gray,'
             .'geq=lum=if(lt(X\,W/2)\,16+4*mod(N\,50)\,16+4*mod(floor(N/50)\,50))');
+    }
+
+    /**
+     * The frame-numbered recording as the livestream encoder writes it: no B-frames,
+     * so the copied frames carry no decode delay while the re-encoded opening and
+     * closing do, and a keyframe every 16 frames.
+     */
+    private function livestreamLikeSource(): string
+    {
+        return $this->frameNumberedSource(['-bf', '0', '-g', '16', '-keyint_min', '16'], 'frame-numbered-no-b-frames.mp4');
+    }
+
+    /**
+     * A 30 fps recording in Matroska, whose millisecond clock cannot hold a frame's length,
+     * starting 21 ms in as the livestream recordings do, so no frame sits on the 1/30 s grid.
+     */
+    private function millisecondTimedSource(): string
+    {
+        return $this->source('thirty-fps-offset.mkv', [
+            '-c:v', 'libx264', '-preset', 'veryfast', '-g', '16', '-keyint_min', '16', '-sc_threshold', '0',
+            '-bf', '1', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '128k', '-output_ts_offset', '0.021',
+        ], 'testsrc2=size=320x240:rate=30:duration=40');
     }
 
     private function closedGopSource(): string

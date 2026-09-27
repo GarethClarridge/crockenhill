@@ -271,8 +271,22 @@ class VideoExtractionService
              * before every keyframe; a copied `.mp4` join keeps only the first
              * part's, which a stricter decoder applies to frames they do not fit.
              */
+            $partSeconds = array_map(
+                fn (string $clipAbsolutePath): ?float => $this->cutStreams($clipAbsolutePath)['video']['duration'] ?? null,
+                $clipAbsolutePaths,
+            );
+            $parts = array_map(
+                static fn (string $clipAbsolutePath, ?float $seconds, array $segment): array => [
+                    'path' => $clipAbsolutePath,
+                    'seconds' => $seconds ?? (float) $segment['end_time'] - (float) $segment['start_time'],
+                ],
+                $clipAbsolutePaths,
+                $partSeconds,
+                $normalizedSegments->all(),
+            );
+
             try {
-                $this->joinThroughTransportStream($clipAbsolutePaths, $outputAbsolutePath, withAudio: true);
+                $this->joinThroughTransportStream($parts, $outputAbsolutePath, withAudio: true);
                 $concatReturnCode = 0;
             } catch (VideoProcessingException $exception) {
                 $concatReturnCode = 1;
@@ -305,11 +319,6 @@ class VideoExtractionService
             if (! $this->fileExists($outputRelativePath, $tempDisk)) {
                 throw new VideoProcessingException('Concatenated output file was not created');
             }
-
-            $partSeconds = array_map(
-                fn (string $clipAbsolutePath): ?float => $this->cutStreams($clipAbsolutePath)['video']['duration'] ?? null,
-                $clipAbsolutePaths,
-            );
 
             if (! in_array(null, $partSeconds, true)
                 && ! $this->cutIsAligned(
@@ -856,7 +865,10 @@ class VideoExtractionService
             $halfFrame = $plan['frame_seconds'] / 2;
 
             if ($plan['opening_frames'] > 0) {
-                $parts[] = $this->encodeVideoPart($inputPath, $plan['opening_start'] - $halfFrame, $plan['opening_frames'], "{$workDirectory}/opening.mp4");
+                $parts[] = [
+                    'path' => $this->encodeVideoPart($inputPath, $plan['opening_start'] - $halfFrame, $plan['opening_frames'], "{$workDirectory}/opening.mp4"),
+                    'seconds' => $plan['opening_frames'] * $plan['frame_seconds'],
+                ];
             }
 
             /*
@@ -880,15 +892,18 @@ class VideoExtractionService
                 '-avoid_negative_ts', 'make_zero',
                 '-y', escapeshellarg($copiedPath),
             ], 'stream copy');
-            $parts[] = $copiedPath;
+            $parts[] = ['path' => $copiedPath, 'seconds' => $plan['copy_frames'] * $plan['frame_seconds']];
 
             if ($plan['closing_frames'] > 0) {
-                $parts[] = $this->encodeVideoPart(
-                    $inputPath,
-                    $plan['last_keyframe'] - $halfFrame,
-                    $plan['closing_frames'],
-                    "{$workDirectory}/closing.mp4",
-                );
+                $parts[] = [
+                    'path' => $this->encodeVideoPart(
+                        $inputPath,
+                        $plan['last_keyframe'] - $halfFrame,
+                        $plan['closing_frames'],
+                        "{$workDirectory}/closing.mp4",
+                    ),
+                    'seconds' => $plan['closing_frames'] * $plan['frame_seconds'],
+                ];
             }
 
             $videoPath = "{$workDirectory}/video.mp4";
@@ -925,6 +940,14 @@ class VideoExtractionService
             ...$this->videoEncoderArguments(),
             ...($pixelFormat !== null ? ['-pix_fmt', escapeshellarg($pixelFormat)] : []),
             '-fps_mode', 'passthrough',
+            /*
+             * Encode on the source's own clock. The encoder otherwise counts in whole
+             * frames, and a source timed in milliseconds (Matroska at 30 fps: frames 33,
+             * 33 and 34 ms apart), seeked half a frame early, rounded every third frame
+             * onto its neighbour's tick (1025, 1050). `-1` rather than `demux`, which the
+             * production image's ffmpeg 5.1 does not know.
+             */
+            '-enc_time_base:v', '-1',
             ...$timescale,
             '-y', escapeshellarg($outputPath),
         ], 'part re-encode');
@@ -949,28 +972,38 @@ class VideoExtractionService
      * travel in-band before its keyframes. A copied `.mp4` join keeps only the
      * first piece's, and a re-encoded opening's differ from the copied frames.
      *
-     * @param  list<string>  $partPaths
+     * The pieces are joined by the concat demuxer, each placed after the one
+     * before by its own stated length. Joining the transport streams' bytes left
+     * FFmpeg to guess across each piece's restarted clock: on a source without
+     * B-frames the copied frames carry no decode delay while a re-encoded piece
+     * does, so the copy landed two frames early over the opening and the closing
+     * two frames late (canary 6, 50 of 75 cuts).
+     *
+     * @param  list<array{path: string, seconds: float}>  $parts
      *
      * @throws VideoProcessingException
      */
-    private function joinThroughTransportStream(array $partPaths, string $outputPath, bool $withAudio): void
+    private function joinThroughTransportStream(array $parts, string $outputPath, bool $withAudio): void
     {
-        if (count($partPaths) === 1) {
-            rename($partPaths[0], $outputPath);
+        if (count($parts) === 1) {
+            rename($parts[0]['path'], $outputPath);
 
             return;
         }
 
         $ffmpegPath = (string) config('media-processing.ffmpeg.ffmpeg_path');
         $transportPaths = [];
+        $listPath = "{$outputPath}.parts.txt";
 
         try {
-            foreach ($partPaths as $index => $partPath) {
+            $list = '';
+
+            foreach ($parts as $index => $part) {
                 $transportPath = "{$outputPath}.part-{$index}.ts";
 
                 $this->runFfmpeg([
                     $ffmpegPath,
-                    '-i', escapeshellarg($partPath),
+                    '-i', escapeshellarg($part['path']),
                     '-c', 'copy',
                     '-bsf:v', 'h264_mp4toannexb',
                     '-f', 'mpegts',
@@ -978,11 +1011,16 @@ class VideoExtractionService
                 ], 'transport stream remux');
 
                 $transportPaths[] = $transportPath;
+                $list .= sprintf("file '%s'\nduration %s\n", str_replace("'", "'\\''", $transportPath), $this->seconds($part['seconds']));
             }
+
+            file_put_contents($listPath, $list);
 
             $this->runFfmpeg([
                 $ffmpegPath,
-                '-i', escapeshellarg('concat:'.implode('|', $transportPaths)),
+                '-f', 'concat',
+                '-safe', '0',
+                '-i', escapeshellarg($listPath),
                 '-c', 'copy',
                 ...($withAudio ? ['-bsf:a', 'aac_adtstoasc'] : []),
                 '-avoid_negative_ts', 'make_zero',
@@ -990,9 +1028,9 @@ class VideoExtractionService
                 '-y', escapeshellarg($outputPath),
             ], 'transport stream join');
         } finally {
-            foreach ($transportPaths as $transportPath) {
-                if (file_exists($transportPath)) {
-                    unlink($transportPath);
+            foreach ([...$transportPaths, $listPath] as $path) {
+                if (file_exists($path)) {
+                    unlink($path);
                 }
             }
         }
