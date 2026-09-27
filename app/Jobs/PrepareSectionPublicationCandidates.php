@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Console\Commands\DemoteHeldPublicationsCommand;
 use App\Contracts\SectionPublicationHandler;
 use App\Data\HistoricStagingContext;
 use App\Data\ServiceSectionMetadata;
@@ -43,7 +42,7 @@ use Illuminate\Support\Facades\Storage;
  * deciding to.
  *
  * Reconciling those sections is
- * {@see DemoteHeldPublicationsCommand}'s job, which reports
+ * {@see \App\Console\Commands\DemoteHeldPublicationsCommand}'s job, which reports
  * before it writes and names every section it would take out of view.
  */
 class PrepareSectionPublicationCandidates extends ProcessingJob implements ShouldQueue
@@ -406,8 +405,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             $tempVideoPath = $videoExtractor->extractSegmentAsFile(
                 $localSourcePath,
                 $segment,
-                $this->processingLog->processing_id.'_section_'.$section->id.'.mp4',
-                $this->processingLog->defersCorpusRerunRender(),
+                $this->processingLog->processing_id.'_section_'.$section->id.'.mp4'
             );
 
             $videoStoragePath = $this->candidateVideoPath($section);

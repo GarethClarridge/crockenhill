@@ -157,8 +157,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                     $sermonVideoPath = $videoExtractor->extractConcatenatedSegmentAsFile(
                         $videoPath,
                         $extractionPlan['segments'],
-                        $this->processingLog->processing_id.'_sermon.mp4',
-                        $this->processingLog->defersCorpusRerunRender(),
+                        $this->processingLog->processing_id.'_sermon.mp4'
                     );
                 } else {
                     $sermonVideoPath = $videoExtractor->extractSegmentAsFile(
@@ -167,8 +166,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                             (float) $firstSegment['start_time'],
                             (float) $firstSegment['end_time']
                         ),
-                        $this->processingLog->processing_id.'_sermon.mp4',
-                        $this->processingLog->defersCorpusRerunRender(),
+                        $this->processingLog->processing_id.'_sermon.mp4'
                     );
                 }
 

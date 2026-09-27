@@ -112,9 +112,6 @@ class ExtractForCorpusRerunCommandTest extends TestCase
         self::assertSame('extracted', $stamps[0]['media']);
         self::assertFalse($run?->hasDeferredCorpusRerunMedia());
         self::assertTrue($run?->isReExtraction());
-        // The cuts are smart-cut now and re-encoded by `rerun-render` between batches.
-        self::assertSame('deferred', $stamps[0]['render']);
-        self::assertTrue($run?->defersCorpusRerunRender());
     }
 
     #[Test]

@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace App\Services\HistoricMedia;
 
 use App\Actions\HoldSectionForContentReview;
-use App\Jobs\RecordDeferredCorpusRerunMedia;
 use App\Models\MediaProcessingLog;
-use App\Models\Sermon;
 use App\Models\ServiceSection;
+use App\Models\Sermon;
 use App\Models\SongVideo;
 
 /**
@@ -59,8 +58,6 @@ final class HistoricRerunState
             'transcript_sha256' => $this->transcriptSha256($run),
             ...$this->audioTimeline($run),
             'sermon_absence' => $run->assertedSermonAbsence() !== null,
-            // Tier C cut the videos with their render deferred (plan §4.0); release waits for it.
-            'render_deferred' => $run->defersCorpusRerunRender(),
             ...$this->sermonPlan($run, $metadata),
             'sermon' => $this->sermon($run->sermon),
             'sections' => $sections->map(fn (ServiceSection $section): array => $this->section($section))->values()->all(),
@@ -254,7 +251,7 @@ final class HistoricRerunState
 
     /**
      * The doubts a song's publication review names, by kind. A detection round decides them
-     * without a clip ({@see RecordDeferredCorpusRerunMedia}).
+     * without a clip ({@see \App\Jobs\RecordDeferredCorpusRerunMedia}).
      *
      * @param  array<string, mixed>  $metadata
      * @return list<string>

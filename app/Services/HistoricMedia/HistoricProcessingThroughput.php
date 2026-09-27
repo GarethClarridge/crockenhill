@@ -7,12 +7,12 @@ namespace App\Services\HistoricMedia;
 use App\Enums\ProcessingStep;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\AssessSermonVideoQuality;
-use App\Jobs\ClassifyServiceAudio;
 use App\Jobs\CreateSermonTranscriptFromService;
+use App\Jobs\ClassifyServiceAudio;
 use App\Jobs\DetectServiceStructure;
 use App\Jobs\EnhanceAudio;
-use App\Jobs\ExtendSongsOverOwnLyrics;
 use App\Jobs\ExtractAudioFromVideo;
+use App\Jobs\ExtendSongsOverOwnLyrics;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateRmsLog;
 use App\Jobs\GenerateThumbnail;
@@ -21,7 +21,6 @@ use App\Jobs\MergeSongContinuations;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
-use App\Jobs\RenderDeferredCuts;
 use App\Jobs\TranscribeAudio;
 use App\Jobs\TranscribeFullService;
 use RuntimeException;
@@ -51,8 +50,6 @@ final class HistoricProcessingThroughput
             // Extracts per-section audio/video candidates, so it binds on CPU
             // like the rest of this stage rather than on the orchestration pool.
             PrepareSectionPublicationCandidates::class,
-            // The corpus re-run's deferred re-encode: the heaviest ffmpeg work of all.
-            RenderDeferredCuts::class,
         ],
         'whisper' => [
             CreateSermonTranscriptFromService::class,

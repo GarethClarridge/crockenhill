@@ -108,14 +108,12 @@ class VideoExtractionService
      * @param  string  $inputPath  Absolute path to the source video
      * @param  object  $segment  Segment data with start_time and end_time
      * @param  string|null  $outputFilename  Optional custom filename for the output
-     * @param  bool  $deferRender  Smart-cut a source the bitrate rule would re-encode, leaving
-     *                             {@see renderForDelivery()} to re-encode the stored cut later
      * @return string The relative path to the extracted video file
      *
      * @throws VideoProcessingException If output file was not created
      * @throws \Exception For underlying system or FFmpeg errors
      */
-    public function extractSegmentAsFile(string $inputPath, object $segment, ?string $outputFilename = null, bool $deferRender = false): string
+    public function extractSegmentAsFile(string $inputPath, object $segment, ?string $outputFilename = null): string
     {
         $startTime = $segment->startTime ?? $segment->start_time ?? 0;
         $endTime = $segment->endTime ?? $segment->end_time ?? 0;
@@ -135,7 +133,7 @@ class VideoExtractionService
              * Deciding here rather than in the caller keeps the weekly upload and
              * the historic import on one rule.
              */
-            if ($this->shouldReencodeSource($inputPath, $deferRender)) {
+            if ($this->shouldReencodeSource($inputPath)) {
                 return $this->extractSegmentWithReencoding($inputPath, $segment, $outputFilename);
             }
 
@@ -213,8 +211,7 @@ class VideoExtractionService
     public function extractConcatenatedSegmentAsFile(
         string $inputPath,
         array $segments,
-        ?string $outputFilename = null,
-        bool $deferRender = false,
+        ?string $outputFilename = null
     ): string {
         $normalizedSegments = collect($segments)
             ->filter(fn (array $segment): bool => $segment['end_time'] > $segment['start_time'])
@@ -233,8 +230,7 @@ class VideoExtractionService
                     'start_time' => (float) $segment['start_time'],
                     'end_time' => (float) $segment['end_time'],
                 ],
-                $outputFilename,
-                $deferRender,
+                $outputFilename
             );
         }
 
@@ -256,8 +252,7 @@ class VideoExtractionService
                         'start_time' => (float) $segment['start_time'],
                         'end_time' => (float) $segment['end_time'],
                     ],
-                    'concat-part-'.$index.'-'.Str::uuid().'.mp4',
-                    $deferRender,
+                    'concat-part-'.$index.'-'.Str::uuid().'.mp4'
                 );
             }
 
@@ -570,162 +565,6 @@ class VideoExtractionService
     }
 
     /**
-     * Re-encode the picture of a cut whose render was deferred, in place.
-     *
-     * The corpus re-run cuts a source above the bitrate threshold with a smart cut
-     * and renders it here later, from the stored cut rather than the source, so a
-     * render needs neither the recording nor its staging context (plan §4.0, "cut
-     * now, render later"). Only the picture is encoded: the sound is copied, which
-     * keeps a published song's enhanced sound, and timestamps pass through, so the
-     * cut stays aligned.
-     *
-     * The cut is replaced only once the render has kept every frame, the sound's
-     * exact packets and the cut's length, and has come under the threshold; a
-     * render that stays above it would be deferred for ever. A cut already at or
-     * under the threshold is left alone, so a repeat render skips what it has done.
-     * A cut whose bitrate cannot be read is refused rather than left alone: "not
-     * rendered" would read as "already deliverable" and clear the release gate.
-     *
-     * @param  string  $path  Absolute path to a stored cut on a local disk
-     * @return bool Whether the cut was re-encoded
-     *
-     * @throws VideoProcessingException When the render fails or does not verify; the cut is untouched
-     */
-    public function renderForDelivery(string $path): bool
-    {
-        $thresholdMbps = (float) config('media-processing.video_extraction.reencode_above_mbps', 0.0);
-
-        if ($thresholdMbps <= 0.0) {
-            return false;
-        }
-
-        $cutMbps = $this->readSourceBitrateMbps($path);
-
-        if ($cutMbps === null) {
-            throw new VideoProcessingException("Render of {$path} refused: its bitrate could not be read");
-        }
-
-        if ($cutMbps <= $thresholdMbps) {
-            return false;
-        }
-
-        $workDirectory = $this->makeWorkDirectory($path);
-        $renderedPath = "{$workDirectory}/rendered.".pathinfo($path, PATHINFO_EXTENSION);
-
-        try {
-            $this->runFfmpeg([
-                (string) config('media-processing.ffmpeg.ffmpeg_path'),
-                '-i', escapeshellarg($path),
-                '-map', '0:v:0',
-                '-map', '0:a?',
-                ...$this->videoEncoderArguments(),
-                '-c:a', 'copy',
-                '-movflags', '+faststart',
-                '-y', escapeshellarg($renderedPath),
-            ], 'render');
-
-            $refusal = $this->renderRefusal($path, $renderedPath, $thresholdMbps);
-
-            if ($refusal !== null) {
-                throw new VideoProcessingException("Render of {$path} refused: {$refusal}");
-            }
-
-            rename($renderedPath, $path);
-        } finally {
-            $this->removeWorkDirectory($workDirectory);
-        }
-
-        Log::info('Rendered a deferred cut for delivery', [
-            'path' => $path,
-            'cut_mbps' => round($cutMbps, 2),
-            'rendered_bytes' => @filesize($path) ?: null,
-        ]);
-
-        return true;
-    }
-
-    /**
-     * Why a render may not replace its cut, or null when it may.
-     */
-    private function renderRefusal(string $cutPath, string $renderedPath, float $thresholdMbps): ?string
-    {
-        $cut = $this->cutStreams($cutPath);
-        $rendered = $this->cutStreams($renderedPath);
-
-        if (! isset($cut['video'], $rendered['video'])) {
-            return 'the picture could not be measured';
-        }
-
-        if (abs($cut['video']['duration'] - $rendered['video']['duration']) > self::LENGTH_TOLERANCE_SECONDS) {
-            return sprintf('the picture ran %.3f s, not %.3f s', $rendered['video']['duration'], $cut['video']['duration']);
-        }
-
-        $cutFrames = $this->videoPacketCount($cutPath);
-
-        if ($cutFrames === null || $cutFrames !== $this->videoPacketCount($renderedPath)) {
-            return 'the frame count changed';
-        }
-
-        if (isset($cut['audio'])) {
-            $cutSound = $this->audioPacketHash($cutPath);
-
-            // Two failed digests are equal and prove nothing.
-            if ($cutSound === null || $cutSound !== $this->audioPacketHash($renderedPath)) {
-                return 'the sound changed or could not be verified';
-            }
-        }
-
-        $renderedMbps = $this->readSourceBitrateMbps($renderedPath);
-
-        if ($renderedMbps === null || $renderedMbps > $thresholdMbps) {
-            return sprintf('it is still above the %s Mbps threshold', $thresholdMbps);
-        }
-
-        return null;
-    }
-
-    private function videoPacketCount(string $path): ?int
-    {
-        $output = [];
-        exec(implode(' ', [
-            (string) config('media-processing.ffmpeg.ffprobe_path'),
-            '-v', 'error',
-            '-select_streams', 'v:0',
-            '-count_packets',
-            '-show_entries', 'stream=nb_read_packets',
-            '-of', 'default=nw=1:nk=1',
-            escapeshellarg($path),
-        ]).' 2>/dev/null', $output, $returnCode);
-
-        $count = trim(implode('', $output));
-
-        return $returnCode === 0 && ctype_digit($count) ? (int) $count : null;
-    }
-
-    /**
-     * A digest of the sound's packets, which a copy carries unchanged, or null when it
-     * cannot be read.
-     */
-    protected function audioPacketHash(string $path): ?string
-    {
-        $output = [];
-        exec(implode(' ', [
-            (string) config('media-processing.ffmpeg.ffmpeg_path'),
-            '-v', 'error',
-            '-i', escapeshellarg($path),
-            '-map', '0:a:0',
-            '-c', 'copy',
-            '-f', 'hash',
-            '-hash', 'sha256',
-            '-',
-        ]).' 2>/dev/null', $output, $returnCode);
-
-        $hash = trim(implode('', $output));
-
-        return $returnCode === 0 && $hash !== '' ? $hash : null;
-    }
-
-    /**
      * Whether this source must be re-encoded rather than stream-copied.
      *
      * Two independent reasons, checked in that order of severity. A video codec
@@ -734,17 +573,13 @@ class VideoExtractionService
      * unplayable, so Safari and every iOS browser silently refuse it. A bitrate
      * far above what delivery needs is merely wasteful.
      *
-     * A cut that defers its render skips the bitrate rule: it is smart-cut now
-     * and {@see renderForDelivery()} re-encodes it later. The codec rule still
-     * applies, because a smart cut copies the source's own codec.
-     *
      * Both rules act only on positive information. An unreadable codec, an
      * unreadable bitrate, an unset threshold or a probe error all leave the
      * existing stream-copy behaviour in place, because a blind re-encode of
      * every source is a worse default than shipping the occasional oversized
      * extract.
      */
-    private function shouldReencodeSource(string $inputPath, bool $deferRender = false): bool
+    private function shouldReencodeSource(string $inputPath): bool
     {
         $videoCodec = $this->probeStreamCodec($inputPath, 'v');
 
@@ -756,10 +591,6 @@ class VideoExtractionService
             ]);
 
             return true;
-        }
-
-        if ($deferRender) {
-            return false;
         }
 
         $thresholdMbps = (float) config('media-processing.video_extraction.reencode_above_mbps', 0.0);

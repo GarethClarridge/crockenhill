@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Actions\ExtractForCorpusRerun;
 use App\Actions\RedetectForCorpusRerun;
 use App\Actions\RedetectStructureOnRecoveredEvidence;
 use App\Data\ChurchServiceTranscript;
@@ -1635,28 +1634,6 @@ class MediaProcessingLog extends Model
 
             return $metadata;
         });
-    }
-
-    /**
-     * Whether this run owes a render: Tier C cut its videos with the render deferred and none
-     * has rendered them since (plan §4.0, "cut now, render later").
-     *
-     * Read from the most recent stamp that says anything about the render, not the latest
-     * stamp: a detection round after Tier C appends a stamp that is silent about it while the
-     * smart cuts stay on disk, and reading only the latest would clear the release gate. A
-     * withdrawn Tier C dispatch writes `render: null`, which says nothing either.
-     */
-    public function defersCorpusRerunRender(): bool
-    {
-        foreach (array_reverse($this->corpusRerunStamps()) as $stamp) {
-            $render = $stamp['render'] ?? null;
-
-            if ($render !== null) {
-                return $render === ExtractForCorpusRerun::RENDER_DEFERRED;
-            }
-        }
-
-        return false;
     }
 
     /**
