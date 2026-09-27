@@ -8,12 +8,17 @@
 > acceptance and public release remain NO-GO.** Repairs now run through §4.0's corpus
 > re-run: every eligible run re-detected against one frozen commit. Where the work stands:
 >
-> - **Freeze gate (§4.0): one build open.** Canary 4 failed (936 supersession, 1304 hold).
+> - **Freeze gate (§4.0): one ruling open.** Canary 4 failed (936 supersession, 1304 hold).
 >   **Canary 5 passed (2026-09-27, `e58978433`, 17 runs, both tiers and Tier C):** 0 rounds
 >   needed attention, every music-plan §8 check held, 1304 is one song; Tier C completed 16
 >   runs with 1262 parked for its held sermon, 4 flagged runs all explained, nothing public,
->   no hold lost. `e58978433` is **not** frozen: the operator ruled on 09-27 to build
->   "cut now, render later" first (§4.0 "Tier C throughput"), then canary 6 and the freeze.
+>   no hold lost. The operator then had "cut now, render later" built (§4.0 "Tier C
+>   throughput"); **canary 6 (2026-09-27, `fa6dc5937`) measured it slower, and it was
+>   withdrawn** (`5b60f2ee9`, whose code is identical to `e58978433`). The operator ruled to
+>   freeze on the revert without a canary 7 (canary 5's evidence stands for identical code).
+>   **Open before the freeze:** canary 6's render check exposed a smart-cut join defect (two
+>   frames lost at the closing join, a repeated timestamp at the opening join) in the code
+>   being frozen; fix it or record it (§4.0 "Before the freeze", step 5).
 >   Six release-side items gate acceptance (§4.5) instead (operator, 2026-09-24).
 > - **Detection:** the catalogue holds 79 classes: 47 promoted, 22 fixed at source, 4
 >   decided not to detect, 6 unbuilt. The last full evaluation (38 detectors:
@@ -657,7 +662,7 @@ freeze, and the diff report binds that hash.
   extraction parks for its held sermon read as a failed re-run**; it is now pending, with its
   re-cut named (the capture records `manual_review.reason_code` while review is required).
   Capture stays additive (VERSION 1).
-- [ ] **Tier C throughput: cut now, render later** (ruled 2026-09-27, operator: "I want to
+- [x] ~~**Tier C throughput: cut now, render later**~~ **Built, measured by canary 6 and withdrawn (2026-09-27, below).** (Ruled 2026-09-27, operator: "I want to
   build it"; **gates the freeze**). Canary 5 measured Tier C at 2 h 27 min for 17 runs,
   8.6 min a run on the one `historic-ffmpeg` worker, about **63 hours** for 437 runs. Step
   time: `extract_sermon` 49%, `prepare_section_publication_candidates` 24% (both cut video),
@@ -690,6 +695,36 @@ freeze, and the diff report binds that hash.
     unrendered pre-2024 run holds about 3–4 GB at source bitrate, so all ~160 would not fit;
     one era batch (~45 runs, ~170 GB) does. The batch preflight checks free space.
   - Then canary 6 on the new commit: rounds, diff, Tier C (cut), diff, render, diff, freeze.
+  - **Canary 6 result (2026-09-27, `fa6dc5937`, the canary 5 set; evidence in
+    `storage/app/private/canary6-20260927/`): the split is slower, withdrawn.** Operator:
+    "It's clearly not worth the split we just built." Reverted in `5b60f2ee9`.
+    - Rounds (Tier B, 16 runs; Tier A had no grounds, its routes consumed by canary 5):
+      **0 attention**, as in canary 5; about 10 minutes.
+    - Tier C cut worked as specified: every run stamped `render: deferred`, 67 smart cuts,
+      23 VP9 re-encodes and **no bitrate re-encodes**. But it took **212 step-minutes
+      against canary 5's 152** (08:53–12:01 UTC). The smart cut rewrites the full-size span
+      about four times (stream copy, transport-stream join, remux, sound mux); through
+      Docker's grpcfuse on the staging drive one 3 GB rewrite takes about 73 s, so cutting
+      1250's sermon took 6 min 22 s against canary 5's 7 min 45 s re-encode.
+      `promoting_historic_assets` rose from 5 to 25 minutes moving files 3.5 times larger
+      (31.5 GB unrendered against 8.9 GB); disk peaked at +52 GB for 16 runs. For about
+      30 minutes the dispatcher's source hashing also contended with the cuts on the same
+      drive (949's cut: 1,963 s against 648 s).
+    - Renders took **45 minutes** (12:11–12:56 UTC) for 267 minutes of video. Every file
+      rendered kept its frame count, sound packets and length exactly, at 1.0–2.5 Mbps.
+      **Five runs were refused ("the frame count changed")**: 949, 964, 1221, 1304, 1346.
+      The verification was right: the cuts themselves are not frame-exact (below).
+    - Diff after Tier C: 8 runs flagged (canary 5: 4). Songs published into quarantine
+      (1117, 1304, 1346) and sermons or a retyped section leaving review (1028, 1108, 1050)
+      are canary 5's explained classes; 936 §609 was removed by the round with its media.
+      **New: six songs (949 §719/§720, 1108 §1893/§1894, 1304 §3870/§3872) fell from
+      `confirmed` to `inferred`** onto order-of-service items with no `song_id`, so they
+      are no longer eligible for a clip and wait for review. This is model variation
+      between two passes of identical detection code, not the split. Listen: 1050's sermon
+      now runs over 863–920 s, which canary 5 called a song.
+    - Staging detached twice during the first Tier C dry run (a bus device with no disk;
+      no power event). Three full reads of 949's 10.9 GB source then passed (host `dd`,
+      host `shasum`, container `sha256sum`), matching its stored hash, so the file is sound.
 - [x] **Holds for the mixed and neither runs** (ruled 2026-09-24): a hold on each
   window the operator judged wrong in the stored text (mixed) or both wrong (neither).
   *Done 2026-09-25.* 63 windows over 29 runs (mixed: 33 `stored_loop` + 8 `both_wrong`;
@@ -784,6 +819,32 @@ freeze, and the diff report binds that hash.
      new commit** (the canary 5 set): rounds, diff, Tier C, diff, `rerun-render`, diff (only
      the render pending should clear), then spot-check rendered files against canary 5's
      (duration, frame count, bitrate), then freeze.
+  5. *(2026-09-27)* Canary 6 measured the split slower and it was withdrawn (Tier C throughput,
+     above). **Ruled (operator): freeze on the revert, `5b60f2ee9` or its docs successor,
+     without a canary 7.** Its application code is byte-identical to `e58978433`
+     (`git diff e58978433 5b60f2ee9 -- app tests config routes database bootstrap` is empty),
+     on which canary 5 passed; the guards pin HEAD, so the freeze still takes a fresh
+     snapshot. Gates on `5b60f2ee9`: phpstan clean, 8,868 tests, dusk 59.
+     **Open, needs a ruling before the snapshot: the smart cut is not frame-exact.** A scan of
+     canary 6's 75 cuts found timestamp faults in 50, at the smart cut's joins, with the
+     source regular at the same point (949: keyframes every 0.533 s, no gaps): two frames
+     lost (a 0.1 s gap) where the copied GOPs meet the re-encoded closing piece, a repeated
+     timestamp where the opening piece meets the copy, and the same at concatenation joins
+     (964, 1108, 1221, 1304, 1346). Re-encoded cuts (the VP9 runs) are clean. It predates the
+     split and is in the code being frozen: weekly clips and every sub-threshold Tier C cut
+     use it, and canary 5 could not see it because no check counts frames across a join.
+     About 66 ms of picture, sound unaffected. Evidence: `canary6-20260927/cut-gapscan.json`.
+     Options: fix it test-first before the freeze, proving it with a harness that cuts real
+     spans (sermon, song, concatenation, the mkv and variable-frame-rate sources) and checks
+     frames, gaps, length and alignment, rather than a canary (a canary's diff counts no
+     frames); or record it and freeze. Also open, operator's choice before or after the
+     freeze: the staging write probe uses one file name for every worker, so workers
+     collide on it (133,474 false "unwritable" holds in `laravel.log`, each pausing a worker
+     about 5 s), and Tier C's dispatch hashes each source while the ffmpeg worker cuts from
+     the same drive. 1262 is still parked for its held sermon (§4873; the operator is
+     checking its span, then `sermons:re-extract … --held-section=4873`). Five canary 6 runs
+     keep unrendered smart cuts in quarantine; nothing gates them after the revert, but the
+     corpus re-run re-cuts every run before any release.
 - [ ] **A report for re-transcribed runs' holds** (proposed 2026-09-25, **needs a ruling
   before the first era batch**). Tier C parks every run with a live hold on a sermon or short
   talk: **74 of 437 eligible runs** (47 `source_audio`, 11 `media_measurement`, 10 `boundary`,

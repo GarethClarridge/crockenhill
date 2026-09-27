@@ -593,6 +593,10 @@ as right when the operator's mark is within one 5 s window of the rule's edge (t
    failures: 1112 §3737 (workbook listening case, now two-source confirmed) and 1304 §3869 (stale
    "two songs joined" hold). **The freeze moved:** the operator ruled to build Tier C's
    cut-now/render-later split first (defect plan §4.0), so canary 6 precedes it.
+   **Canary 6 (2026-09-27, `fa6dc5937`) measured the split slower and it was withdrawn**
+   (`5b60f2ee9`, code identical to `e58978433`). Its rounds again needed no attention. The
+   operator ruled to freeze on the revert on canary 5's evidence; a smart-cut join defect
+   found by canary 6 awaits a ruling first (defect plan §4.0, "Before the freeze", step 5).
 - Before that, check the local service: `curl http://localhost:2023/` (LaunchAgent
   `com.crockenhill.audio-classifier`), and that the workers read `AUDIO_CLASSIFIER_URL`.
 - Before weekly processing resumes (§10): rebuild the production image (Dockerfile carries torch,
