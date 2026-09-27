@@ -38,11 +38,14 @@ final class HistoricStagingReachability
     private const ProbeTtlSeconds = 5;
 
     /**
-     * Written and immediately removed at the staging root. A fixed name is
-     * rewritten in place rather than accumulating one file per probe, and the
-     * leading dot keeps it out of any listing the pipeline walks.
+     * Written and immediately removed at the staging root, under a name of this
+     * process's own. On one shared name another worker's unlink raced this one's
+     * write through grpcfuse and read as an unwritable volume (133,474 false holds
+     * by 2026-09-27). A name per process still rewrites in place rather than
+     * accumulating one file per probe, and the leading dot keeps it out of any
+     * listing the pipeline walks.
      */
-    private const ProbeFilename = '.historic-staging-writable';
+    private const ProbeFilenamePrefix = '.historic-staging-writable-';
 
     /**
      * The last probe, shared across every instance in this process.
@@ -144,7 +147,7 @@ final class HistoricStagingReachability
      */
     private function writeFailure(string $root): ?string
     {
-        $path = rtrim($root, '/').'/'.self::ProbeFilename;
+        $path = rtrim($root, '/').'/'.self::ProbeFilenamePrefix.gethostname().'-'.getmypid();
 
         try {
             /**

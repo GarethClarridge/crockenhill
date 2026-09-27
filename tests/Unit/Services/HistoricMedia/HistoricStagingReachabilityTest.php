@@ -107,6 +107,24 @@ class HistoricStagingReachabilityTest extends TestCase
     }
 
     /**
+     * Every worker probes the same root every five seconds. On one shared name, one
+     * worker's unlink raced another's write through grpcfuse: 26 of 400 writes failed
+     * in two containers (2026-09-27), and 133,474 false "unwritable" holds each paused
+     * a worker. What another worker leaves at the shared name must not fail this one.
+     */
+    #[Test]
+    public function another_process_probing_the_same_root_does_not_make_it_unwritable(): void
+    {
+        mkdir($this->root.'/.historic-staging-writable');
+
+        try {
+            $this->assertTrue($this->reachability()->isReachable(), (string) $this->reachability()->unreachableReason());
+        } finally {
+            rmdir($this->root.'/.historic-staging-writable');
+        }
+    }
+
+    /**
      * Six workers looping once a second must not each stat the volume every
      * iteration, so a reading stands briefly. The volume disappearing inside
      * that window is the one failed job the guard already accepts as
