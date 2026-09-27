@@ -8,9 +8,12 @@
 > acceptance and public release remain NO-GO.** Repairs now run through §4.0's corpus
 > re-run: every eligible run re-detected against one frozen commit. Where the work stands:
 >
-> - **Freeze gate (§4.0): clear.** Canary 3 (2026-09-25, `76c657bca`, detection rounds on
->   all 13 runs) passed every truth-set check with custody clean. **Next (§4.0 "Before the
->   freeze"):** commit, new snapshot, canary 4 with both tiers **and Tier C**, diff, freeze.
+> - **Freeze gate (§4.0): one build open.** Canary 4 failed (936 supersession, 1304 hold).
+>   **Canary 5 passed (2026-09-27, `e58978433`, 17 runs, both tiers and Tier C):** 0 rounds
+>   needed attention, every music-plan §8 check held, 1304 is one song; Tier C completed 16
+>   runs with 1262 parked for its held sermon, 4 flagged runs all explained, nothing public,
+>   no hold lost. `e58978433` is **not** frozen: the operator ruled on 09-27 to build
+>   "cut now, render later" first (§4.0 "Tier C throughput"), then canary 6 and the freeze.
 >   Six release-side items gate acceptance (§4.5) instead (operator, 2026-09-24).
 > - **Detection:** the catalogue holds 79 classes: 47 promoted, 22 fixed at source, 4
 >   decided not to detect, 6 unbuilt. The last full evaluation (38 detectors:
@@ -654,14 +657,39 @@ freeze, and the diff report binds that hash.
   extraction parks for its held sermon read as a failed re-run**; it is now pending, with its
   re-cut named (the capture records `manual_review.reason_code` while review is required).
   Capture stays additive (VERSION 1).
-- [ ] **Tier C throughput** (noted 2026-09-24). Every media step goes through one
-  `historic-ffmpeg` worker, about 8 minutes of ffmpeg work a run, so cutting the corpus's
-  media is roughly **59 hours** unattended (8 min × 437 runs; the earlier "30 hours" was
-  an arithmetic slip). More ffmpeg workers would shorten it at the cost of
-  I/O on the Staging drive (the SuperSpeed link fault). Decide before the freeze.
-  *Recommended 2026-09-25, not ruled:* keep one worker. The cost that matters is a detach
-  mid-cut, which reads like missing media and costs more to untangle than the hours saved;
-  the work is unattended and split into era batches anyway.
+- [ ] **Tier C throughput: cut now, render later** (ruled 2026-09-27, operator: "I want to
+  build it"; **gates the freeze**). Canary 5 measured Tier C at 2 h 27 min for 17 runs,
+  8.6 min a run on the one `historic-ffmpeg` worker, about **63 hours** for 437 runs. Step
+  time: `extract_sermon` 49%, `prepare_section_publication_candidates` 24% (both cut video),
+  `audio_enhancement` 16%, `assessing_video_quality` 5%. Of canary 5's 102 cuts, 51
+  re-encoded on the bitrate rule, 23 on the codec rule (VP9) and 28 smart-cut.
+  - **Cut.** In Tier C a source above `reencode_above_mbps` is smart-cut
+    (`VideoExtractionService`: frame-exact edges re-encoded, keyframes to keyframes copied)
+    instead of re-encoded, and the run's stamp records `render: deferred`. The codec rule is
+    unchanged: an undeliverable codec still re-encodes at the cut. Weekly and every other
+    dispatch keep cutting and re-encoding in one step, as detection rounds keep full media
+    outside the re-run.
+  - **Render** (ruled: reads the stored cut). A job re-encodes the video stream of each
+    stored sermon video and section candidate / song video that is still above the
+    threshold, in place, with the same CRF and preset, and copies the audio stream
+    untouched (song publication has already rewritten it with `-c:v copy`). It needs no
+    source, staging context or guard. It verifies frame count, duration and audio packets
+    against the cut before replacing it, and refuses an output still above the threshold.
+  - **When** (ruled: between batches). An operator command,
+    `historic-import:rerun-render {snapshot}`, dispatches renders for a batch's
+    `render: deferred` runs after its diff is accepted, on the ffmpeg queue, and stamps
+    `render: rendered`. One ffmpeg worker stays (recommended 2026-09-25): a detach mid-cut
+    reads like missing media.
+  - **Gate.** The historic release refuses any asset of a run whose latest stamp still reads
+    `render: deferred`, and the diff treats it as pending, not attention. The stamp, not the
+    file, is the gate: a short song clip's own average bitrate can cross the threshold on a
+    source that sits below it, so a file-derived rule would hold clips the cut never
+    deferred. Inside the render job, re-probing each file only makes a repeat run skip what
+    is already rendered.
+  - **Disk.** Staging and quarantine share `/Volumes/Staging` (474 GB free on 09-27). An
+    unrendered pre-2024 run holds about 3–4 GB at source bitrate, so all ~160 would not fit;
+    one era batch (~45 runs, ~170 GB) does. The batch preflight checks free space.
+  - Then canary 6 on the new commit: rounds, diff, Tier C (cut), diff, render, diff, freeze.
 - [x] **Holds for the mixed and neither runs** (ruled 2026-09-24): a hold on each
   window the operator judged wrong in the stored text (mixed) or both wrong (neither).
   *Done 2026-09-25.* 63 windows over 29 runs (mixed: 33 `stored_loop` + 8 `both_wrong`;
@@ -743,6 +771,19 @@ freeze, and the diff report binds that hash.
      concatenation (936) and four Tier A runs. Diff after the rounds and again after Tier C.
      A second pass on unchanged detection code also shows how far the model's answers vary.
   3. If it passes, freeze that commit.
+  4. *(2026-09-27)* Canary 4 failed and canary 5 passed on `e58978433` (status above), but the
+     freeze moved behind "cut now, render later" (Tier C throughput, above). **Built
+     2026-09-27, uncommitted at the time of writing:** `VideoExtractionService` defers the
+     bitrate re-encode (`deferRender`) and `renderForDelivery()` re-encodes a stored cut in
+     place, verifying frames, length, sound packets and the threshold first; Tier C stamps
+     `render: deferred`, which `ExtractSermon` and `PrepareSectionPublicationCandidates` read;
+     `RenderDeferredCuts` (ffmpeg stage) renders every video promotion's own queries name,
+     looking for all of them first; `historic-import:rerun-render {snapshot} [runs] [--max=50]
+     [--execute]` dispatches it; release refuses records whose run is still deferred; the diff
+     lists a deferred render as pending. **Next: commit, restart the workers, canary 6 on the
+     new commit** (the canary 5 set): rounds, diff, Tier C, diff, `rerun-render`, diff (only
+     the render pending should clear), then spot-check rendered files against canary 5's
+     (duration, frame count, bitrate), then freeze.
 - [ ] **A report for re-transcribed runs' holds** (proposed 2026-09-25, **needs a ruling
   before the first era batch**). Tier C parks every run with a live hold on a sermon or short
   talk: **74 of 437 eligible runs** (47 `source_audio`, 11 `media_measurement`, 10 `boundary`,
@@ -771,7 +812,10 @@ freeze, and the diff report binds that hash.
    transcript/structure dependencies before spending on final extraction. Explicitly
    retain or exclude unresolved cases rather than letting them widen the batch.
 2. Verify the supported dispatch route and immediate queue, worker-code, mount and
-   disk readiness. `historic-import:retranscribe-video-run` is restricted to
+   disk readiness. *Disk (2026-09-27):* until `rerun-render`, a Tier C batch holds its
+   pre-2024 runs' cuts at source bitrate, about 4 GB a run, so `/Volumes/Staging` must have
+   that much free for the batch's pre-2024 runs, plus a margin, and the previous batch's
+   renders must have finished. `historic-import:retranscribe-video-run` is restricted to
    980/1258/1343/1287, all complete; the re-run needs the bounded re-detect route above,
    and Tier A a tested extension of this one. *Built 2026-09-24:*
    `historic-import:rerun-retranscribe {snapshot} [runs] [--max=10] [--execute]`

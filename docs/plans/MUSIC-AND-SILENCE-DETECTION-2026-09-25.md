@@ -584,8 +584,15 @@ as right when the operator's mark is within one 5 s window of the rule's edge (t
   proposal named is no longer held; the round's `service_structure_validation` reset clears the
   park. **Before the snapshot, the operator confirms §3872** (releasing the hold), then canary 5
   covers all 17 runs.
-3. Restart the workers (`queue:restart`; check `ps` ELAPSED), take a new snapshot (version 2) on the
-   frozen commit, run canary 5: both tiers, diff, Tier C, diff, freeze.
+3. ~~Restart the workers, snapshot, canary 5: both tiers, diff, Tier C, diff~~ **passed 2026-09-27 on
+   `e58978433`** (`storage/app/private/canary5-20260926/`). Rounds: 0 of 17 needed attention and
+   every end-to-end check above held; 1304 is "Lord I Lift" at 265–364.6 s with the phantom gone.
+   Tier C: 16 completed; 1262 parked for its held sermon (re-cut `--held-section=4873` once the
+   operator has checked the span); 4 flagged, all explained (1028 and 1112 songs published into
+   quarantine, 1346 §4372 kept its hold, 1050's sermon text regenerated). Listening list, not
+   failures: 1112 §3737 (workbook listening case, now two-source confirmed) and 1304 §3869 (stale
+   "two songs joined" hold). **The freeze moved:** the operator ruled to build Tier C's
+   cut-now/render-later split first (defect plan §4.0), so canary 6 precedes it.
 - Before that, check the local service: `curl http://localhost:2023/` (LaunchAgent
   `com.crockenhill.audio-classifier`), and that the workers read `AUDIO_CLASSIFIER_URL`.
 - Before weekly processing resumes (§10): rebuild the production image (Dockerfile carries torch,
