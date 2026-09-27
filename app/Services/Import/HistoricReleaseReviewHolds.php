@@ -10,6 +10,7 @@ use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Models\SongVideo;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Whether the records a release batch names are still under content review.
@@ -84,9 +85,73 @@ class HistoricReleaseReviewHolds
         return [
             ...$this->sermonExclusions($sermons),
             ...$this->songVideoExclusions($songVideos),
+            ...$this->pendingRenders($sermons, $songVideos),
             ...$this->sermonHolds($sermons),
             ...$this->songVideoHolds($songVideos),
         ];
+    }
+
+    /**
+     * Records whose run's corpus re-run cut its video and has not yet rendered it (plan §4.0,
+     * "cut now, render later"). The smart cut carries the source's own bitrate, which the site
+     * was never meant to serve, so the render must land before release. The stamp is the gate,
+     * not the file's bitrate: a short clip's own average can cross the threshold on a source
+     * that sits below it.
+     *
+     * @param  list<Sermon>  $sermons
+     * @param  list<SongVideo>  $songVideos
+     * @return list<string>
+     */
+    private function pendingRenders(array $sermons, array $songVideos): array
+    {
+        $sermonIds = array_map(static fn (Sermon $sermon): int => $sermon->id, $sermons);
+        $processingIds = array_values(array_filter(array_map(
+            static fn (Sermon $sermon): ?string => $sermon->livestream_processing_id,
+            $sermons,
+        )));
+        /** @var array<int, int> $runIdBySection */
+        $runIdBySection = ServiceSection::query()
+            ->whereIn('id', array_values(array_filter(array_map(
+                static fn (SongVideo $video): ?int => $video->service_section_id,
+                $songVideos,
+            ))))
+            ->whereNotNull('media_processing_log_id')
+            ->pluck('media_processing_log_id', 'id')
+            ->all();
+
+        if ($sermonIds === [] && $runIdBySection === []) {
+            return [];
+        }
+
+        $deferredRuns = MediaProcessingLog::query()
+            ->where(static function (Builder $query) use ($sermonIds, $processingIds, $runIdBySection): void {
+                $query->whereIn('sermon_id', $sermonIds)
+                    ->orWhereIn('processing_id', $processingIds)
+                    ->orWhereIn('id', array_values(array_unique($runIdBySection)));
+            })
+            ->get(['id', 'sermon_id', 'processing_id', 'processing_metadata'])
+            ->filter(static fn (MediaProcessingLog $run): bool => $run->defersCorpusRerunRender());
+
+        $pending = [];
+
+        foreach ($sermons as $sermon) {
+            $run = $deferredRuns->first(static fn (MediaProcessingLog $run): bool => $run->sermon_id === $sermon->id
+                || ($sermon->livestream_processing_id !== null && $run->processing_id === $sermon->livestream_processing_id));
+
+            if ($run instanceof MediaProcessingLog) {
+                $pending[] = "Sermon {$sermon->id} awaits its render: run {$run->processing_id}'s cut was deferred; run historic-import:rerun-render.";
+            }
+        }
+
+        foreach ($songVideos as $video) {
+            $run = $deferredRuns->firstWhere('id', $runIdBySection[$video->service_section_id] ?? 0);
+
+            if ($run instanceof MediaProcessingLog) {
+                $pending[] = "Song video {$video->id} awaits its render: run {$run->processing_id}'s cut was deferred; run historic-import:rerun-render.";
+            }
+        }
+
+        return $pending;
     }
 
     /**

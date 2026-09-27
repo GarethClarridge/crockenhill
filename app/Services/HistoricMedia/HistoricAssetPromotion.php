@@ -479,7 +479,7 @@ final class HistoricAssetPromotion
      *
      * @return Collection<int, ServiceSection>
      */
-    private function heldSectionCandidatesForRun(MediaProcessingLog $log): Collection
+    public function heldSectionCandidatesForRun(MediaProcessingLog $log): Collection
     {
         return ServiceSection::query()
             ->where('media_processing_log_id', $log->id)
@@ -659,7 +659,7 @@ final class HistoricAssetPromotion
     /**
      * @return Collection<int, Sermon>
      */
-    private function sermonsForRun(MediaProcessingLog $log): Collection
+    public function sermonsForRun(MediaProcessingLog $log): Collection
     {
         return Sermon::query()
             ->where(function ($query) use ($log): void {
@@ -676,7 +676,7 @@ final class HistoricAssetPromotion
     /**
      * @return Collection<int, SongVideo>
      */
-    private function songVideosForRun(MediaProcessingLog $log): Collection
+    public function songVideosForRun(MediaProcessingLog $log): Collection
     {
         return SongVideo::query()
             ->whereHas('serviceSection', function (Builder $query) use ($log): void {

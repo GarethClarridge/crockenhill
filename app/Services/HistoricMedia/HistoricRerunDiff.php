@@ -75,6 +75,10 @@ final class HistoricRerunDiff
             }
         }
 
+        if (($after['render_deferred'] ?? false) === true) {
+            $pending[] = 'videos cut with their render deferred; run historic-import:rerun-render once this batch is accepted';
+        }
+
         // Every later round refuses a superseded run, so it drops out of the re-run unnoticed
         // unless the diff stops on it (936, handed to a failed sibling in canary 3).
         if (($after['superseded'] ?? false) === true && ($before['superseded'] ?? false) !== true) {

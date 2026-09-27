@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Actions\ExtractForCorpusRerun;
 use App\Actions\RedetectForCorpusRerun;
 use App\Actions\RedetectStructureOnRecoveredEvidence;
 use App\Data\ChurchServiceTranscript;
@@ -1634,6 +1635,19 @@ class MediaProcessingLog extends Model
 
             return $metadata;
         });
+    }
+
+    /**
+     * Whether this run's cuts leave their render to later: the latest corpus re-run stamp
+     * extracted its media with the render deferred and has not yet rendered it (plan §4.0).
+     */
+    public function defersCorpusRerunRender(): bool
+    {
+        $stamps = $this->corpusRerunStamps();
+        $latest = $stamps === [] ? null : $stamps[count($stamps) - 1];
+
+        return ($latest['media'] ?? null) === ExtractForCorpusRerun::MEDIA_EXTRACTED
+            && ($latest['render'] ?? null) === ExtractForCorpusRerun::RENDER_DEFERRED;
     }
 
     /**

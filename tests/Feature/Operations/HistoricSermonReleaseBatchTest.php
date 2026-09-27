@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Operations;
 
+use App\Actions\ExtractForCorpusRerun;
 use App\Enums\ChurchServiceSource;
 use App\Enums\HistoricImportOperationState;
 use App\Enums\SermonPublicationState;
 use App\Enums\SermonService;
+use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\HistoricImportOperation;
 use App\Models\HistoricImportReleaseAsset;
@@ -18,9 +20,9 @@ use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongUsageReport;
 use App\Models\SongVideo;
-use App\Enums\ServiceSectionType;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\Import\HistoricImportTargetFingerprint;
+use App\Services\Import\HistoricReleaseReviewHolds;
 use App\Services\Import\HistoricSermonPublicationService;
 use App\Services\Public\PublicSongUsageService;
 use App\Services\Public\SermonRepository;
@@ -611,6 +613,58 @@ class HistoricSermonReleaseBatchTest extends TestCase
             ->assertFailed();
 
         $this->assertSame(SermonPublicationState::Quarantined, $songVideo->refresh()->publication_state);
+    }
+
+    /**
+     * Tier C smart-cuts a heavy source and leaves the re-encode for later (plan §4.0, "cut now,
+     * render later"). Until the run is rendered its videos are at source bitrate, so release
+     * refuses them; once rendered they release as before.
+     */
+    #[Test]
+    public function a_batch_naming_records_whose_render_is_still_deferred_is_refused(): void
+    {
+        $operation = $this->completedOperation();
+        $sermon = $this->quarantinedSermon($operation);
+        $run = MediaProcessingLog::query()->where('sermon_id', $sermon->id)->firstOrFail();
+        $songVideo = $this->quarantinedSongVideo($operation);
+        $songVideo->forceFill([
+            'service_section_id' => ServiceSection::factory()->create([
+                'media_processing_log_id' => $run->id,
+                'section_type' => ServiceSectionType::Song,
+                'needs_manual_review' => false,
+            ])->id,
+        ])->save();
+
+        $run->putCorpusRerunStamp([
+            'media' => ExtractForCorpusRerun::MEDIA_EXTRACTED,
+            'render' => ExtractForCorpusRerun::RENDER_DEFERRED,
+        ]);
+
+        $path = $this->authorisation($operation, [$sermon->id], [$songVideo->id]);
+
+        $this->artisan('historic-import:release-batch', ['authorisation' => $path])
+            ->expectsOutputToContain("Sermon {$sermon->id} awaits its render")
+            ->assertFailed();
+
+        $this->assertQuarantineIntact($sermon);
+        $this->assertSame(SermonPublicationState::Quarantined, $songVideo->refresh()->publication_state);
+        $this->assertStringContainsString(
+            "Song video {$songVideo->id} awaits its render",
+            implode(' ', app(HistoricReleaseReviewHolds::class)->assess([$sermon], [$songVideo])),
+        );
+
+        $run->amendLatestCorpusRerunStamp(['render' => ExtractForCorpusRerun::RENDER_RENDERED]);
+
+        // A refused release leaves its claim to reconcile, so the rendered batch is a new one.
+        $rendered = $this->authorisation($operation, [$sermon->id], [$songVideo->id], overrides: [
+            'batch_key' => 'batch-rendered',
+            'authorisation_id' => 'release-2026-09-27',
+        ]);
+
+        $this->artisan('historic-import:release-batch', ['authorisation' => $rendered])
+            ->assertSuccessful();
+
+        $this->assertSame(SermonPublicationState::Published, $sermon->refresh()->publication_state);
     }
 
     /** @return array<string, array{string}> */

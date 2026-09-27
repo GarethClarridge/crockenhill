@@ -23,6 +23,10 @@ use Throwable;
  * existing entry point ({@see ProcessingRunOrchestrator::reExtract()}): sermon cut, analysis,
  * video quality, section candidates and their review, promotion and cleanup.
  *
+ * The cuts defer their render: a source above the bitrate threshold is smart-cut, and the
+ * stamp reads `render: deferred` until {@see RenderForCorpusRerun} re-encodes the stored cuts
+ * between batches (plan §4.0, "cut now, render later").
+ *
  * Only a round on the running commit qualifies, so media is never cut from a structure an
  * earlier commit detected, and only one whose worker booted on that commit, because the
  * dispatching command's commit says nothing about the code a stale worker ran; a round that has not finished recording is refused, as is a run
@@ -34,6 +38,11 @@ use Throwable;
 final class ExtractForCorpusRerun
 {
     public const MEDIA_EXTRACTED = 'extracted';
+
+    /** Tier C smart-cut the run's media and left the render to `rerun-render`. */
+    public const RENDER_DEFERRED = 'deferred';
+
+    public const RENDER_RENDERED = 'rendered';
 
     public function __construct(
         private readonly ProcessingRunOrchestrator $orchestrator,
@@ -58,6 +67,7 @@ final class ExtractForCorpusRerun
 
         $run->amendLatestCorpusRerunStamp([
             'media' => self::MEDIA_EXTRACTED,
+            'render' => self::RENDER_DEFERRED,
             'extraction_dispatched_at' => now()->toIso8601String(),
         ]);
 
@@ -66,6 +76,7 @@ final class ExtractForCorpusRerun
         if (! $result->success) {
             $run->amendLatestCorpusRerunStamp([
                 'media' => RedetectForCorpusRerun::MEDIA_DEFERRED,
+                'render' => null,
                 'extraction_dispatched_at' => null,
             ]);
 

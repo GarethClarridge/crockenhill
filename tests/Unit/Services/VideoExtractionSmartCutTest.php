@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Exceptions\VideoProcessingException;
 use App\Services\Media\Audio\AudioCompressionService;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
@@ -165,11 +166,183 @@ class VideoExtractionSmartCutTest extends TestCase
         $this->assertShowsSourceFramesFrom($output, $source, 12.3);
     }
 
-    private function cut(string $source, float $start, float $end): string
+    #[Test]
+    public function a_cut_that_defers_its_render_copies_a_source_above_the_bitrate_threshold(): void
     {
-        $relativePath = $this->service->extractSegmentAsFile($source, (object) ['start_time' => $start, 'end_time' => $end]);
+        Config::set('media-processing.video_extraction.reencode_above_mbps', 0.001);
+
+        $source = $this->frameNumberedSource();
+        $output = $this->cut($source, 12.3, 30.7, deferRender: true);
+
+        $this->assertStartsTogetherAndRunsFor($output, 18.4);
+        $this->assertShowsSourceFramesFrom($output, $source, 12.3);
+
+        $detailed = $this->closedGopSource();
+        $this->assertGreaterThan(
+            0.6,
+            $this->shareOfPicturesCopiedFrom($this->cut($detailed, 12.3, 30.7, deferRender: true), $detailed),
+            'The middle must be copied, not re-encoded.',
+        );
+    }
+
+    #[Test]
+    public function a_cut_that_defers_its_render_still_re_encodes_an_undeliverable_codec(): void
+    {
+        $source = $this->source('vp9.webm', [
+            '-c:v', 'libvpx-vp9', '-deadline', 'realtime', '-cpu-used', '8', '-g', '125', '-b:v', '300k',
+            '-c:a', 'libopus',
+        ]);
+
+        $output = $this->cut($source, 12.3, 20.7, deferRender: true);
+
+        $this->assertStartsTogetherAndRunsFor($output, 8.4);
+        $this->assertSame('h264', $this->videoCodec($output));
+    }
+
+    #[Test]
+    public function joined_spans_that_defer_their_render_are_copied(): void
+    {
+        Config::set('media-processing.video_extraction.reencode_above_mbps', 0.001);
+
+        $source = $this->closedGopSource();
+        $relativePath = $this->service->extractConcatenatedSegmentAsFile($source, [
+            ['start_time' => 12.3, 'end_time' => 20.7],
+            ['start_time' => 27.1, 'end_time' => 33.9],
+        ], deferRender: true);
+        $output = Storage::disk('local')->path($relativePath);
+
+        $this->assertStartsTogetherAndRunsFor($output, 15.2, 2 * self::LENGTH_TOLERANCE);
+        // Only 15-20 s holds a whole GOP to copy (keyframes every 5 s): 5 of 15.2 s.
+        $this->assertGreaterThan(0.3, $this->shareOfPicturesCopiedFrom($output, $source));
+    }
+
+    #[Test]
+    public function rendering_a_cut_above_the_threshold_re_encodes_its_picture_and_keeps_its_sound(): void
+    {
+        $source = $this->closedGopSource();
+        $cut = $this->cut($source, 12.3, 30.7);
+        $copiedBefore = $this->shareOfPicturesCopiedFrom($cut, $source);
+        $before = $this->measure($cut);
+        $soundBefore = $this->audioPacketHash($cut);
+
+        // Just under the cut's own bitrate, which a CRF 40 render falls far below.
+        Config::set('media-processing.video_extraction.reencode_above_mbps', 0.9 * $this->bitrateMbps($cut));
+        Config::set('media-processing.video_extraction.reencode_crf', 40);
+
+        $this->assertTrue($this->service->renderForDelivery($cut));
+
+        $after = $this->measure($cut);
+        $this->assertSame($before['frames'], $after['frames'], 'Every frame must survive the render.');
+        $this->assertStartsTogetherAndRunsFor($cut, 18.4);
+        $this->assertSame($soundBefore, $this->audioPacketHash($cut), 'The sound must be copied untouched.');
+        $this->assertGreaterThan(0.6, $copiedBefore);
+        $this->assertLessThan(0.1, $this->shareOfPicturesCopiedFrom($cut, $source), 'The picture must be re-encoded.');
+    }
+
+    #[Test]
+    public function rendering_a_cut_at_or_below_the_threshold_leaves_it_alone(): void
+    {
+        $cut = $this->cut($this->closedGopSource(), 12.3, 20.7);
+        $hash = hash_file('sha256', $cut);
+
+        Config::set('media-processing.video_extraction.reencode_above_mbps', 1000.0);
+
+        $this->assertFalse($this->service->renderForDelivery($cut));
+        $this->assertSame($hash, hash_file('sha256', $cut));
+    }
+
+    #[Test]
+    public function a_render_that_stays_above_the_threshold_is_refused_and_leaves_the_cut_in_place(): void
+    {
+        $cut = $this->cut($this->closedGopSource(), 12.3, 20.7);
+        $hash = hash_file('sha256', $cut);
+
+        // Lossless output is larger than the cut, so it cannot come under a
+        // threshold the cut itself only just exceeds.
+        Config::set('media-processing.video_extraction.reencode_above_mbps', 0.9 * $this->bitrateMbps($cut));
+        Config::set('media-processing.video_extraction.reencode_crf', 0);
+
+        try {
+            $this->service->renderForDelivery($cut);
+            $this->fail('A render still above the threshold must be refused.');
+        } catch (VideoProcessingException $exception) {
+            $this->assertStringContainsString('above', $exception->getMessage());
+        }
+
+        $this->assertSame($hash, hash_file('sha256', $cut));
+        $this->assertSame([], glob(dirname($cut).'/cut-*') ?: [], 'The render must leave no work files behind.');
+    }
+
+    private function cut(string $source, float $start, float $end, bool $deferRender = false): string
+    {
+        $relativePath = $this->service->extractSegmentAsFile(
+            $source,
+            (object) ['start_time' => $start, 'end_time' => $end],
+            deferRender: $deferRender,
+        );
 
         return Storage::disk('local')->path($relativePath);
+    }
+
+    /**
+     * How many of a cut's pictures decode to exactly a picture of its source.
+     *
+     * A copied frame decodes to its source frame bit for bit; a lossy re-encode of
+     * a detailed picture does not. Compared as a multiset, so the measure does not
+     * depend on where the copied run starts. Packet bytes cannot be compared: the
+     * smart cut's MPEG-TS join reframes every packet it copies.
+     */
+    private function shareOfPicturesCopiedFrom(string $path, string $source): float
+    {
+        $cutPictures = $this->pictureHashes($path);
+        $sourcePictures = array_count_values($this->pictureHashes($source));
+
+        $copied = 0;
+        foreach ($cutPictures as $picture) {
+            if (($sourcePictures[$picture] ?? 0) > 0) {
+                $sourcePictures[$picture]--;
+                $copied++;
+            }
+        }
+
+        return $cutPictures === [] ? 0.0 : $copied / count($cutPictures);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function pictureHashes(string $path): array
+    {
+        $probe = (new Process([
+            '/usr/bin/ffmpeg', '-v', 'error', '-i', $path, '-map', '0:v:0', '-f', 'framemd5', '-',
+        ]))->setTimeout(120)->mustRun();
+
+        return collect(preg_split('/\R/', trim($probe->getOutput())) ?: [])
+            ->reject(fn (string $line): bool => $line === '' || str_starts_with($line, '#'))
+            ->map(fn (string $line): string => trim((string) last(explode(',', $line))))
+            ->values()
+            ->all();
+    }
+
+    private function audioPacketHash(string $path): string
+    {
+        return trim((new Process([
+            '/usr/bin/ffmpeg', '-v', 'error', '-i', $path, '-map', '0:a:0', '-c', 'copy', '-f', 'hash', '-hash', 'sha256', '-',
+        ]))->setTimeout(120)->mustRun()->getOutput());
+    }
+
+    private function bitrateMbps(string $path): float
+    {
+        return (float) trim((new Process([
+            '/usr/bin/ffprobe', '-v', 'error', '-show_entries', 'format=bit_rate', '-of', 'default=nw=1:nk=1', $path,
+        ]))->setTimeout(60)->mustRun()->getOutput()) / 1_000_000;
+    }
+
+    private function videoCodec(string $path): string
+    {
+        return trim((new Process([
+            '/usr/bin/ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=codec_name', '-of', 'default=nw=1:nk=1', $path,
+        ]))->setTimeout(60)->mustRun()->getOutput());
     }
 
     private function assertStartsTogetherAndRunsFor(string $path, float $expectedSeconds, float $lengthTolerance = self::LENGTH_TOLERANCE): void

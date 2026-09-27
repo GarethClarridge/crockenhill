@@ -238,7 +238,7 @@ class HistoricRerunDiffCommandTest extends TestCase
         $this->deferMedia($run);
 
         $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json'), '--output' => $this->path('diff.json')])
-            ->expectsOutputToContain('pending extraction')
+            ->expectsOutputToContain('have media work pending')
             ->assertSuccessful();
 
         $result = $this->report()['runs'][(string) $run->id];
@@ -421,6 +421,41 @@ class HistoricRerunDiffCommandTest extends TestCase
             ->assertSuccessful();
 
         self::assertSame([], $this->report()['runs'][(string) $run->id]['attention']);
+    }
+
+    /**
+     * Tier C cuts with the render deferred (plan §4.0, "cut now, render later"): the videos
+     * exist at source bitrate and release refuses them until `rerun-render` lands. That is
+     * pending, and it clears once the run is rendered.
+     */
+    #[Test]
+    public function a_run_whose_render_is_deferred_is_pending_until_it_is_rendered(): void
+    {
+        $run = $this->processingRun();
+        $this->snapshot([$run->id]);
+        $run->putCorpusRerunStamp([
+            'grounds' => 'corpus_rerun',
+            'git_commit' => str_repeat('a', 40),
+            'media' => 'extracted',
+            'render' => 'deferred',
+        ]);
+
+        $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json'), '--output' => $this->path('diff.json')])
+            ->expectsOutputToContain('render deferred')
+            ->assertSuccessful();
+
+        $diff = $this->report()['runs'][(string) $run->id];
+        self::assertSame([], $diff['attention']);
+        self::assertCount(1, array_filter($diff['pending'], static fn (string $line): bool => str_contains($line, 'historic-import:rerun-render')));
+
+        $run->amendLatestCorpusRerunStamp(['render' => 'rendered']);
+
+        // Reports are written once, so the rendered diff gets its own.
+        $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json'), '--output' => $this->path('diff-rendered.json')])
+            ->assertSuccessful();
+
+        $rendered = json_decode((string) file_get_contents(storage_path('app/private/'.$this->path('diff-rendered.json'))), true);
+        self::assertSame([], $rendered['runs'][(string) $run->id]['pending']);
     }
 
     #[Test]

@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Jobs;
 
+use App\Actions\ExtractForCorpusRerun;
 use App\Actions\FlagSermonAudioLengthMismatch;
 use App\Actions\HoldSectionForContentReview;
+use App\Actions\RedetectForCorpusRerun;
 use App\Enums\ServiceSectionType;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\ExtractSermon;
@@ -181,6 +183,64 @@ class ExtractSermonTest extends TestCase
 
         @unlink($videoFile);
         @unlink($extractedAudioFile);
+    }
+
+    #[Test]
+    public function a_cut_defers_its_render_only_when_tier_c_deferred_the_runs_render(): void
+    {
+        $this->assertSame([false], $this->renderDeferralsOfCut(null));
+        $this->assertSame([false], $this->renderDeferralsOfCut(['media' => 'deferred']));
+        $this->assertSame([true], $this->renderDeferralsOfCut([
+            'media' => ExtractForCorpusRerun::MEDIA_EXTRACTED,
+            'render' => ExtractForCorpusRerun::RENDER_DEFERRED,
+        ]));
+        $this->assertSame([false], $this->renderDeferralsOfCut([
+            'media' => ExtractForCorpusRerun::MEDIA_EXTRACTED,
+            'render' => ExtractForCorpusRerun::RENDER_RENDERED,
+        ]));
+    }
+
+    /**
+     * The `deferRender` argument each sermon cut received for a run whose latest
+     * corpus re-run stamp is the one given.
+     *
+     * @param  array<string, mixed>|null  $stamp
+     * @return list<bool>
+     */
+    private function renderDeferralsOfCut(?array $stamp): array
+    {
+        config(['media-processing.storage.temp_disk' => 'local']);
+        Storage::disk('local')->put('livestreams/render-deferral.mp4', str_repeat("\x00", 1024));
+        Storage::disk('local')->put('extracted/render-deferral.mp3', str_repeat("\xFF\xFB", 512));
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'sermon_start_time' => 300.0,
+            'sermon_end_time' => 2100.0,
+            'source_file_path' => 'livestreams/render-deferral.mp4',
+            'processing_metadata' => $stamp === null ? [] : [RedetectForCorpusRerun::STAMP_KEY => [$stamp]],
+        ]);
+
+        $deferrals = [];
+        $mockExtractor = $this->createStub(VideoExtractionService::class);
+        $mockExtractor->method('extractSegmentAsFile')
+            ->willReturnCallback(function (string $input, object $segment, ?string $name = null, bool $deferRender = false) use (&$deferrals): string {
+                $deferrals[] = $deferRender;
+
+                return 'extracted/render-deferral.mp4';
+            });
+        $mockExtractor->method('extractOptimizedAudio')->willReturn([
+            'audio_path' => 'extracted/render-deferral.mp3',
+            'full_path' => Storage::disk('local')->path('extracted/render-deferral.mp3'),
+            'original_size' => 1024,
+            'final_size' => 1024,
+            'compression_applied' => false,
+            'compression_ratio' => 1.0,
+            'valid_for_transcription' => true,
+        ]);
+
+        $this->runJob(new ExtractSermon($log), $mockExtractor, $this->createStub(VideoStorageService::class), $this->probeWithDuration(1800.0));
+
+        return $deferrals;
     }
 
     #[Test]

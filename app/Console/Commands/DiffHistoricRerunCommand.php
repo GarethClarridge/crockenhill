@@ -101,7 +101,7 @@ class DiffHistoricRerunCommand extends Command
         ];
 
         $this->table(['Change', 'Count'], array_map(static fn (string $kind, int $count): array => [$kind, $count], array_keys($kinds), array_values($kinds)));
-        $this->line(sprintf('%d of %d run(s) changed; %d need attention; %d have media custody pending extraction.', $changed, count($snapshot->membership), $needingAttention, $pendingExtraction));
+        $this->line(sprintf('%d of %d run(s) changed; %d need attention; %d have media work pending (a cut, a re-cut or a render).', $changed, count($snapshot->membership), $needingAttention, $pendingExtraction));
 
         foreach ($runs as $runId => $result) {
             foreach ($result['attention'] as $item) {
@@ -111,7 +111,7 @@ class DiffHistoricRerunCommand extends Command
 
         foreach ($runs as $runId => $result) {
             foreach ($result['pending'] as $item) {
-                $this->line(sprintf('  run #%s (pending extraction): %s', $runId, $item));
+                $this->line(sprintf('  run #%s (pending): %s', $runId, $item));
             }
         }
 

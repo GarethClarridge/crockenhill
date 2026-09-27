@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Jobs;
 
+use App\Actions\ExtractForCorpusRerun;
+use App\Actions\RedetectForCorpusRerun;
 use App\Contracts\SpeakerIdentificationInterface;
 use App\Data\HistoricStagingContext;
 use App\Data\ServiceSectionMetadata;
@@ -146,6 +148,76 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         // deploy wipes — and audio and video must land on the *same* disk.
         Storage::disk('public')->assertExists($videoPath);
         Storage::disk('local')->assertMissing($videoPath);
+    }
+
+    #[Test]
+    public function a_candidate_cut_defers_its_render_only_when_tier_c_deferred_the_runs_render(): void
+    {
+        $this->assertSame([false], $this->renderDeferralsOfCandidateCut(null));
+        $this->assertSame([true], $this->renderDeferralsOfCandidateCut([
+            'media' => ExtractForCorpusRerun::MEDIA_EXTRACTED,
+            'render' => ExtractForCorpusRerun::RENDER_DEFERRED,
+        ]));
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $stamp
+     * @return list<bool>
+     */
+    private function renderDeferralsOfCandidateCut(?array $stamp): array
+    {
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => ['short_talk' => TalkPublicationHandler::class],
+            'media-processing.speaker_identification.enabled' => false,
+        ]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'source_file_path' => 'livestreams/source.mp4',
+            'processing_metadata' => $stamp === null ? [] : [RedetectForCorpusRerun::STAMP_KEY => [$stamp]],
+        ]);
+        Storage::disk('local')->put('livestreams/source.mp4', 'source-video');
+        Storage::disk('local')->put('temp/section-video.mp4', 'section-video');
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::ShortTalk->value,
+            'status' => ServiceSectionStatus::Identified->value,
+            'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+            'metadata' => ['confidence_level' => 'high'],
+            'start_time' => 120.0,
+            'end_time' => 420.0,
+        ]);
+
+        $deferrals = [];
+        $videoExtractor = $this->createStub(VideoExtractionService::class);
+        $videoExtractor->method('extractSegmentAsFile')
+            ->willReturnCallback(function (string $input, object $segment, ?string $name = null, bool $deferRender = false) use (&$deferrals): string {
+                $deferrals[] = $deferRender;
+
+                return 'temp/section-video.mp4';
+            });
+        $videoExtractor->method('extractOptimizedAudio')->willReturn([
+            'audio_path' => 'section-publications/render-deferral.mp3',
+            'full_path' => Storage::disk('local')->path('section-publications/render-deferral.mp3'),
+            'original_size' => 1024,
+            'final_size' => 1024,
+            'compression_applied' => false,
+            'compression_ratio' => 1.0,
+            'valid_for_transcription' => true,
+        ]);
+
+        (new PrepareSectionPublicationCandidates($processingLog))->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(SectionPublicationHandlerFactory::class),
+            app(ServiceSectionPublicationTransitionService::class)
+        );
+
+        return $deferrals;
     }
 
     #[Test]
