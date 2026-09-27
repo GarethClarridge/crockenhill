@@ -8,7 +8,7 @@
 > acceptance and public release remain NO-GO.** Repairs now run through §4.0's corpus
 > re-run: every eligible run re-detected against one frozen commit. Where the work stands:
 >
-> - **Freeze gate (§4.0): one ruling open.** Canary 4 failed (936 supersession, 1304 hold).
+> - **Freeze gate (§4.0): ready to freeze.** Canary 4 failed (936 supersession, 1304 hold).
 >   **Canary 5 passed (2026-09-27, `e58978433`, 17 runs, both tiers and Tier C):** 0 rounds
 >   needed attention, every music-plan §8 check held, 1304 is one song; Tier C completed 16
 >   runs with 1262 parked for its held sermon, 4 flagged runs all explained, nothing public,
@@ -16,9 +16,10 @@
 >   throughput"); **canary 6 (2026-09-27, `fa6dc5937`) measured it slower, and it was
 >   withdrawn** (`5b60f2ee9`, whose code is identical to `e58978433`). The operator ruled to
 >   freeze on the revert without a canary 7 (canary 5's evidence stands for identical code).
->   **Open before the freeze:** canary 6's render check exposed a smart-cut join defect (two
->   frames lost at the closing join, a repeated timestamp at the opening join) in the code
->   being frozen; fix it or record it (§4.0 "Before the freeze", step 5).
+>   Canary 6's render check exposed a smart-cut join defect; the operator ruled to fix it and
+>   every other flagged item before the freeze, done 2026-09-27 (§4.0 "Before the freeze",
+>   step 6): frame-exact smart cut, a size check in place of source hashing, and a staging
+>   probe name per process. **Next: snapshot and freeze on the fix commit.**
 >   Six release-side items gate acceptance (§4.5) instead (operator, 2026-09-24).
 > - **Detection:** the catalogue holds 79 classes: 47 promoted, 22 fixed at source, 4
 >   decided not to detect, 6 unbuilt. The last full evaluation (38 detectors:
@@ -845,6 +846,38 @@ freeze, and the diff report binds that hash.
      checking its span, then `sermons:re-extract … --held-section=4873`). Five canary 6 runs
      keep unrendered smart cuts in quarantine; nothing gates them after the revert, but the
      corpus re-run re-cuts every run before any release.
+  6. *(2026-09-27)* **Ruled (operator): fix everything flagged before the freeze.** Built
+     test-first; proven by a harness that cuts real spans instead of a canary (operator: a
+     canary's diff counts no frames, so it could not show the fix).
+     - **The smart cut is frame-exact.** Two separate defects. (a) Its pieces were joined by
+       concatenating MPEG-TS bytes, each piece's clock restarting, and FFmpeg guessed across
+       the jumps: on a source without B-frames (949, 1250, 1304) the copy landed two frames
+       early over the opening and the closing two frames late. The pieces are now joined by
+       the concat demuxer, each placed by its own length in frames. (b) The re-encoded opening
+       and closing counted time in whole frames, so a source timed in milliseconds (Matroska
+       at 30 fps, 1025 and 1050), seeked half a frame early, paired every third frame; they now
+       encode on the source's clock (`-enc_time_base:v -1`, which the production image's
+       ffmpeg 5.1 understands). Real-span harness
+       (`storage/app/private/canary6-20260927/smartcut-harness.json`): ten cuts (mp4 without
+       B-frames, mkv, the irregular 1311, VP9, a 920 s sermon from 0, two concatenations) all
+       carry the source's frames with no gap or repeat, picture and sound start together, no
+       decode error and no fallback. The remaining differences are the source's own (1050's
+       last frame follows the one before by 0.1 s in the recording) or one edge frame (1311).
+     - **The staged-source check reads the size, not the whole file.** Tier A, Tier C and the
+       historic re-transcription now compare the staged source's exact size with the recorded
+       one instead of hashing it. Every source was hashed as it arrived (import,
+       `restage-source`, the concatenation gate), nothing else writes a staged source, and a
+       replaced or truncated file changes size. A census of all 442 runs found every present
+       source at its recorded size, the nine rebuilt joins included; duration was dropped as
+       a second check because 35 webm and mkv sources carry none in their headers. The gate
+       now stamps its rebuild's size; a lossless concatenation without the gate's stamp is
+       refused. This also ends Tier C's dispatch reading each source while the ffmpeg worker
+       cuts from the same drive.
+     - **The staging write probe uses a name per process.** On one shared name, workers'
+       writes and unlinks collided through grpcfuse (26 of 400 failed in a two-container test,
+       0 of 400 on separate names), which caused the 133,474 false "unwritable" holds.
+     Still with the operator: 1262's span check before its `--held-section=4873` re-cut.
+     **Next: gates, restart the workers onto the fix commit, snapshot, freeze.**
 - [ ] **A report for re-transcribed runs' holds** (proposed 2026-09-25, **needs a ruling
   before the first era batch**). Tier C parks every run with a live hold on a sermon or short
   talk: **74 of 437 eligible runs** (47 `source_audio`, 11 `media_measurement`, 10 `boundary`,
