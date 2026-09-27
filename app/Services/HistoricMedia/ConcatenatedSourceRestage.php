@@ -6,6 +6,7 @@ namespace App\Services\HistoricMedia;
 
 use App\Models\MediaProcessingLog;
 use App\Services\Media\MediaCodecFingerprint;
+use App\Services\Media\Video\HistoricVideoImporter;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Symfony\Component\Process\Process;
@@ -131,7 +132,7 @@ final class ConcatenatedSourceRestage
                 $sha256 = (string) hash_file('sha256', $disk->path($target));
 
                 if ($execute) {
-                    $this->stamp($run, $sha256, $duration, $codec, count($parts), 'already_staged');
+                    $this->stamp($run, $sha256, $disk->size($target), $duration, $codec, count($parts), 'already_staged');
                 }
 
                 return ['outcome' => 'already_staged', 'sha256' => $sha256, 'duration' => $duration, 'recorded_duration' => $recordedDuration, 'parts' => count($parts)];
@@ -147,7 +148,7 @@ final class ConcatenatedSourceRestage
                 throw new RuntimeException('The rebuilt source did not arrive intact at its staged path and has been removed.');
             }
 
-            $this->stamp($run, $sha256, $duration, $codec, count($parts), 'restaged');
+            $this->stamp($run, $sha256, $disk->size($target), $duration, $codec, count($parts), 'restaged');
 
             return ['outcome' => 'restaged', 'sha256' => $sha256, 'duration' => $duration, 'recorded_duration' => $recordedDuration, 'parts' => count($parts)];
         } finally {
@@ -202,7 +203,7 @@ final class ConcatenatedSourceRestage
     }
 
     /**
-     * The importer's recipe ({@see \App\Services\Media\Video\HistoricVideoImporter}): the concat
+     * The importer's recipe ({@see HistoricVideoImporter}): the concat
      * demuxer, stream copy, Matroska by extension.
      *
      * @param  list<string>  $parts
@@ -268,11 +269,12 @@ final class ConcatenatedSourceRestage
         return (float) $duration;
     }
 
-    private function stamp(MediaProcessingLog $run, string $sha256, float $duration, ?string $codec, int $parts, string $outcome): void
+    private function stamp(MediaProcessingLog $run, string $sha256, int $size, float $duration, ?string $codec, int $parts, string $outcome): void
     {
-        $run->writeProcessingMetadata(static function (array $metadata) use ($sha256, $duration, $codec, $parts, $outcome): array {
+        $run->writeProcessingMetadata(static function (array $metadata) use ($sha256, $size, $duration, $codec, $parts, $outcome): array {
             $metadata[self::STAMP_KEY] = [
                 'sha256' => $sha256,
+                'size' => $size,
                 'duration' => $duration,
                 'codec_fingerprint' => $codec,
                 'parts' => $parts,

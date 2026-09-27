@@ -58,7 +58,7 @@ class RetranscribeForCorpusRerunCommand extends Command
         }
 
         if (! $execute) {
-            $this->warn('DRY RUN: nothing will be written or dispatched. Each run\'s source is hashed, which reads the whole recording.');
+            $this->warn('DRY RUN: nothing will be written or dispatched.');
         } else {
             $this->warn('This re-opens completed runs from full-service transcription: each is transcribed again and re-detected; media is deferred to rerun-extract.');
         }
@@ -67,7 +67,7 @@ class RetranscribeForCorpusRerunCommand extends Command
         $counts = ['ready' => 0, 'dispatched' => 0, 'refused' => 0];
 
         foreach ($runIds as $runId) {
-            if ($counts['dispatched'] + ($execute ? 0 : $counts['ready']) >= $max) {
+            if ($max <= $counts['dispatched'] + ($execute ? 0 : $counts['ready'])) {
                 $rows[] = [$runId, 'not reached', sprintf('--max=%d reached', $max)];
 
                 continue;

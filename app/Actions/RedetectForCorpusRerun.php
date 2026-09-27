@@ -7,8 +7,8 @@ namespace App\Actions;
 use App\Enums\StructureRedetectionGrounds;
 use App\Models\MediaProcessingLog;
 use App\Services\HistoricMedia\CorpusRerunGuard;
-use App\Services\HistoricMedia\ListeningRouting;
 use App\Services\HistoricMedia\HistoricRerunSnapshot;
+use App\Services\HistoricMedia\ListeningRouting;
 use App\Services\HistoricMedia\TranscriptLossHolds;
 use App\Services\Processing\ProcessingRunOrchestrator;
 use Illuminate\Support\Facades\Log;
@@ -27,7 +27,7 @@ use Illuminate\Support\Facades\Log;
  * Each dispatch is a detection round: the chain stops before extraction, because rounds are
  * repeated after every detector fix and nothing they judge needs media. The stamp records the
  * media as deferred; {@see ExtractForCorpusRerun} cuts it once, on the frozen commit, and is
- * where the staged source's hash is checked, because the cut is what reads the recording.
+ * where the staged source is checked, because the cut is what reads the recording.
  *
  * The dispatch is stamped on the run before it is sent and the stamp withdrawn if the
  * orchestrator refuses. Transcription is not repeated: Tier A's re-transcription is

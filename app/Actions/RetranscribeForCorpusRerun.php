@@ -126,7 +126,7 @@ final class RetranscribeForCorpusRerun
     }
 
     /**
-     * Cheap checks first; the source hash reads the whole recording, so it runs last.
+     * Cheap checks first; the staged source is checked last, as it is the only one on the drive.
      */
     private function refusal(MediaProcessingLog $run, HistoricRerunSnapshot $snapshot): ?string
     {

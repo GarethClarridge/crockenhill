@@ -151,12 +151,12 @@ class RetranscribeHistoricVideoRunCommandTest extends TestCase
     }
 
     #[Test]
-    public function it_refuses_when_the_staged_source_hash_does_not_match(): void
+    public function it_refuses_when_the_staged_source_is_not_the_recorded_size(): void
     {
-        $run = $this->completedRun(attributes: ['file_hash' => str_repeat('f', 64)]);
+        $run = $this->completedRun(attributes: ['file_size' => 999]);
         $this->fakeStagingContext();
 
-        $this->assertRefused($run, 'hash does not match');
+        $this->assertRefused($run, 'staged source is not the recorded size');
     }
 
     /**
@@ -265,6 +265,7 @@ class RetranscribeHistoricVideoRunCommandTest extends TestCase
             'current_step' => $status === ProcessingStatus::Completed ? 'completed' : 'failed',
             'source_file_path' => self::Source,
             'file_hash' => hash('sha256', 'source bytes'),
+            'file_size' => strlen('source bytes'),
             'completed_at' => now(),
             'processing_metadata' => $metadata,
             ...$attributes,

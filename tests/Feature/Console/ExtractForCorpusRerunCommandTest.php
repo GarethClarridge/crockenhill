@@ -192,18 +192,31 @@ class ExtractForCorpusRerunCommandTest extends TestCase
     }
 
     #[Test]
-    public function it_refuses_when_the_staged_source_hash_does_not_match(): void
+    public function it_refuses_when_the_staged_source_is_not_the_recorded_size(): void
     {
         Bus::fake();
         $run = $this->roundedRun();
         Storage::disk('local')->put((string) $run->source_file_path, 'a different encode');
 
         $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
-            ->expectsOutputToContain('staged source hash does not match')
+            ->expectsOutputToContain('staged source is not the recorded size')
             ->assertSuccessful();
 
         Bus::assertNothingDispatched();
         self::assertTrue($run->fresh()?->hasDeferredCorpusRerunMedia());
+    }
+
+    #[Test]
+    public function it_accepts_a_staged_source_of_the_recorded_size_without_hashing_it(): void
+    {
+        // Every source was hash-checked as it was staged; re-reading 10 GB a tier bought nothing.
+        Bus::fake();
+        $run = $this->roundedRun();
+        $run->forceFill(['file_hash' => str_repeat('0', 64)])->save();
+
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('dispatched from extraction')
+            ->assertSuccessful();
     }
 
     #[Test]
@@ -212,7 +225,6 @@ class ExtractForCorpusRerunCommandTest extends TestCase
         // Runs 973 and 1014: the original join is still staged, but nothing recorded its hash.
         Bus::fake();
         $run = $this->concatenatedRun();
-        $run->forceFill(['file_hash' => null])->save();
         $this->roundedStamp($run);
 
         $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
@@ -231,6 +243,7 @@ class ExtractForCorpusRerunCommandTest extends TestCase
         $rebuilt = 'the same packets in another container';
         $run = $this->concatenatedRun();
         Storage::disk('local')->put((string) $run->source_file_path, $rebuilt);
+        $run->forceFill(['file_size' => strlen($rebuilt)])->save();
         $run->writeProcessingMetadata(static fn (array $metadata): array => [
             ...$metadata,
             'concatenated_source_restage' => ['sha256' => hash('sha256', $rebuilt), 'duration' => 3001.531, 'parts' => 7],
@@ -290,6 +303,7 @@ class ExtractForCorpusRerunCommandTest extends TestCase
             'historic_import_operation_id' => $operation->id,
             'source_file_path' => self::SOURCE.'.'.$operation->id,
             'file_hash' => hash('sha256', $bytes),
+            'file_size' => strlen($bytes),
             'sermon_start_time' => 600.0,
             'sermon_end_time' => 2400.0,
             'processing_metadata' => [

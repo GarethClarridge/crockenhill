@@ -867,7 +867,7 @@ class MediaProcessingLog extends Model
     /**
      * The concatenation gate's stamp, when this run's staged source was rebuilt through it.
      *
-     * @return array{sha256: string, duration: float, parts: int}|null
+     * @return array{sha256: string, size: ?int, duration: float, parts: int}|null
      */
     public function concatenatedSourceRestage(): ?array
     {
@@ -879,6 +879,7 @@ class MediaProcessingLog extends Model
 
         return [
             'sha256' => $stamp['sha256'],
+            'size' => is_int($stamp['size'] ?? null) ? $stamp['size'] : null,
             'duration' => is_numeric($stamp['duration'] ?? null) ? (float) $stamp['duration'] : 0.0,
             'parts' => is_int($stamp['parts'] ?? null) ? $stamp['parts'] : 0,
         ];

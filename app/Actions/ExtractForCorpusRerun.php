@@ -26,7 +26,7 @@ use Throwable;
  * Only a round on the running commit qualifies, so media is never cut from a structure an
  * earlier commit detected, and only one whose worker booted on that commit, because the
  * dispatching command's commit says nothing about the code a stale worker ran; a round that has not finished recording is refused, as is a run
- * already extracted. The staged source must hash to the recorded source, because the cut
+ * already extracted. The staged source must still be the recorded one, because the cut
  * reads the recording against timings that describe the original.
  *
  * Delete once the corpus re-run's batches are accepted, alongside its other instruments.
@@ -82,7 +82,7 @@ final class ExtractForCorpusRerun
     }
 
     /**
-     * Cheap checks first; the source hash reads the whole recording, so it runs last.
+     * Cheap checks first; the staged source is checked last, as it is the only one on the drive.
      */
     private function refusal(MediaProcessingLog $run, HistoricRerunSnapshot $snapshot): ?string
     {

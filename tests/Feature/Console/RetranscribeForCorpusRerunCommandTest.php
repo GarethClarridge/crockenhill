@@ -10,8 +10,8 @@ use App\Data\ChurchServiceTranscript;
 use App\Data\HistoricStagingContext;
 use App\Enums\ProcessingStatus;
 use App\Enums\ServiceSectionType;
-use App\Jobs\ClassifyServiceAudio;
 use App\Jobs\AnalyzeSegments;
+use App\Jobs\ClassifyServiceAudio;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\DetectServiceStructure;
 use App\Jobs\ExtendSongsOverOwnLyrics;
@@ -356,7 +356,7 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
     }
 
     #[Test]
-    public function it_refuses_when_the_staged_source_hash_does_not_match(): void
+    public function it_refuses_when_the_staged_source_is_not_the_recorded_size(): void
     {
         Bus::fake();
         $run = $this->heldRun();
@@ -364,11 +364,25 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         Storage::disk('local')->put((string) $run->source_file_path, 'a different encode');
 
         $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
-            ->expectsOutputToContain('staged source hash does not match')
+            ->expectsOutputToContain('staged source is not the recorded size')
             ->assertSuccessful();
 
         Bus::assertNothingDispatched();
         self::assertSame(ProcessingStatus::Completed, $run->fresh()?->status);
+    }
+
+    #[Test]
+    public function it_accepts_a_staged_source_of_the_recorded_size_without_hashing_it(): void
+    {
+        // Every source was hash-checked as it was staged; re-reading 10 GB a tier bought nothing.
+        Bus::fake();
+        $run = $this->heldRun();
+        $run->forceFill(['file_hash' => str_repeat('0', 64)])->save();
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('dispatched from full-service transcription')
+            ->assertSuccessful();
     }
 
     private function assertRefused(MediaProcessingLog $run, string $reason, ?string $routingSha256 = null): void
@@ -431,6 +445,7 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
             'historic_import_operation_id' => $operation->id,
             'source_file_path' => self::SOURCE.'.'.$operation->id,
             'file_hash' => hash('sha256', $bytes),
+            'file_size' => strlen($bytes),
             'sermon_start_time' => 600.0,
             'sermon_end_time' => 2400.0,
             'audio_timeline_path' => AudioTimelineFixture::put('local', 'temp/audio_timeline_'.$operation->id.'.classes.json'),

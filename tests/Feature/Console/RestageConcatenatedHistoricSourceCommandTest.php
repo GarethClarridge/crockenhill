@@ -107,6 +107,7 @@ class RestageConcatenatedHistoricSourceCommandTest extends TestCase
         $stamp = $run->fresh()?->concatenatedSourceRestage();
         self::assertSame(hash_file('sha256', Storage::disk('local')->path(self::TARGET)), $stamp['sha256'] ?? null);
         self::assertSame(2, $stamp['parts'] ?? null);
+        self::assertSame(Storage::disk('local')->size(self::TARGET), $stamp['size'] ?? null);
 
         // The original join's hash stays as provenance; the staged check reads the stamp.
         self::assertSame(str_repeat('e', 64), $run->fresh()?->file_hash);

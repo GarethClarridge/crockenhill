@@ -8,15 +8,20 @@ use App\Models\MediaProcessingLog;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Whether a historic run's staged source is the recording its transcript and section timings
- * were derived from.
+ * Whether a historic run's staged source is still the recording its transcript and section
+ * timings were derived from.
  *
  * A re-run that re-cuts media from a different encode shifts every cut against timings that
- * describe the original, so the staged bytes must hash to the run's recorded hash. A
- * concatenated source restaged with another ffmpeg differs in container bytes while keeping
- * the timeline (run 950), so a concatenation is checked against the hash the concatenation
- * gate stamped when it rebuilt the source ({@see ConcatenatedSourceRestage}); until then it is
- * refused, which is the safe direction.
+ * describe the original. Every way a source reaches staging proves it there: the importer
+ * records the size and hash of the bytes it processed, `historic-import:restage-source` refuses
+ * a file that does not hash to them, and a concatenation is rebuilt only through
+ * {@see ConcatenatedSourceRestage}, which proves its parts and timeline. Nothing else writes a
+ * staged source, so what remains to catch is a file replaced or truncated since, and its exact
+ * size does that without reading it. Hashing here re-read up to 11 GB a run, twice a batch, on
+ * the drive the cuts read from (canary 6, 2026-09-27).
+ *
+ * A lossless concatenation must carry the gate's stamp: an original join nobody rebuilt was
+ * never proven, so it is refused, which is the safe direction.
  *
  * Call inside the run's staging context: the staging guard re-roots `temp_disk` at the batch.
  */
@@ -28,35 +33,30 @@ final class StagedSourceVerification
     {
         $sourcePath = $run->source_file_path;
         $disk = Storage::disk((string) config('media-processing.storage.temp_disk'));
-        $unrebuiltConcatenation = $run->concatenatedSourceRestage() === null
-            && data_get($run->processing_metadata?->toArray(), 'historic_import.concatenation') === 'lossless';
+
+        $restage = $run->concatenatedSourceRestage();
+
+        if ($restage === null
+            && data_get($run->processing_metadata?->toArray(), 'historic_import.concatenation') === 'lossless') {
+            return self::UNREBUILT_CONCATENATION;
+        }
 
         if (! is_string($sourcePath) || $sourcePath === '' || ! $disk->exists($sourcePath)) {
-            return $unrebuiltConcatenation ? self::UNREBUILT_CONCATENATION : 'staged source is missing';
+            return 'staged source is missing';
         }
 
-        $expectedHash = $run->stagedSourceFileHash();
+        // A rebuilt join is the size the gate stamped. Stamps from before the gate recorded one
+        // fall back to the run's: all nine rebuilt joins matched it (census, 2026-09-27).
+        $recordedSize = $restage['size'] ?? $run->file_size;
 
-        if ($expectedHash === null) {
-            return $unrebuiltConcatenation ? self::UNREBUILT_CONCATENATION : 'run has no recorded source hash';
+        if (! is_int($recordedSize) || $recordedSize <= 0) {
+            return 'run has no recorded source size';
         }
 
-        $stream = $disk->readStream($sourcePath);
+        $size = $disk->size($sourcePath);
 
-        if ($stream === null) {
-            return 'staged source could not be read';
-        }
-
-        try {
-            $hash = hash_init('sha256');
-            hash_update_stream($hash, $stream);
-            $actualHash = hash_final($hash);
-        } finally {
-            fclose($stream);
-        }
-
-        if (! hash_equals($expectedHash, $actualHash)) {
-            return 'staged source hash does not match recorded evidence';
+        if ($size !== $recordedSize) {
+            return sprintf('staged source is not the recorded size (%d bytes, recorded %d)', $size, $recordedSize);
         }
 
         return null;
