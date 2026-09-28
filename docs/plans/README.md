@@ -97,6 +97,14 @@ None of these lanes blocks the public product sequence except where a plan expli
 
 ## Active plans
 
+The historic video's immediate next work is the
+[canary-8 detection reliability work package](HISTORIC-VIDEO-DETECTION-RELIABILITY-2026-09-28.md)
+(investigated 2026-09-28; implementation/evaluation proposed). It belongs to the historic defect
+plan under H0. Canary 8 failed; Tier C and corpus dispatch remain on HOLD at `3ffe4b54c`.
+Its proposed replacement for single-draw detection, the
+[ensemble structure detection plan](HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md), awaits review
+before any implementation.
+
 | Order | Plan | Verified status | Next independently useful slice |
 |---|---|---|---|
 | H0 | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | **Plan of record; video status reconciled 2026-09-20.** Definitive processing is drained; exact missing holds and identity containment are applied; the repair canary and macro-song reruns exposed and closed their pipeline blockers. The disposable retranscription command is implemented and all three approved runs passed real dry-run source-integrity preflight; nothing was dispatched. Queued bounded repair remains conditionally GO after an immediate worker/queue preflight. Content acceptance and release remain NO-GO; all audited outputs remain quarantined. | Finish the focused plan's independent interior/source review and current-policy residue; then execute 1343/1258/980 one at a time with source-speech and dependent structure/song/analysis verification between runs, before dependency-grouped repairs or final acceptance. |

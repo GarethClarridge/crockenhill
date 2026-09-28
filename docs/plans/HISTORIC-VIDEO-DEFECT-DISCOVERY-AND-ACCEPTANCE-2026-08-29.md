@@ -1,5 +1,12 @@
 # Historic Video Defect Discovery and Acceptance Plan
 
+> **Latest update — 2026-09-28 evening:** canary 8 on `3ffe4b54c` failed: 949 produced four
+> spurious talks after validation retry. Tier C and corpus dispatch remain on HOLD; the freeze
+> is unchanged. The [detection reliability work package](HISTORIC-VIDEO-DETECTION-RELIABILITY-2026-09-28.md)
+> records the read-only investigation and proposed route to canary 9. Its new evaluation and
+> rollout thresholds are proposals, not adopted operator rulings. This update takes precedence
+> over the older next-action summaries below; custody and release controls remain unchanged.
+
 > Formerly `HISTORIC-VIDEO-PILOT-TO-BULK-PLAN-2026-08-29.md`. Renamed 2026-09-14
 > once bulk processing was complete and the remaining work became discovering,
 > containing and detecting defects, then proving acceptance.
