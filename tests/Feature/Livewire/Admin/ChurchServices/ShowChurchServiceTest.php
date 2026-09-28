@@ -21,10 +21,10 @@ use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
-use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Models\Song;
 use App\Models\User;
 use App\Presenters\ChurchServiceShowPresenter;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -953,6 +953,62 @@ class ShowChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_splits_a_talk_in_two_at_the_time_the_reviewer_enters(): void
+    {
+        Queue::fake();
+
+        [$service, $run] = $this->workbenchServiceWithRun();
+
+        $talk = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::ShortTalk->value,
+            'section_order' => 1,
+            'needs_manual_review' => true,
+            'title' => 'Baptismal testimonies',
+            'start_time' => 820.0,
+            'end_time' => 1198.0,
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Split this section at')
+            ->set("splitTimes.{$talk->id}", '916')
+            ->call('splitSection', $talk->id)
+            ->assertDispatched('notify', type: 'success', message: 'Section split in two at 15:16.');
+
+        $this->assertSame(916.0, (float) $talk->refresh()->end_time);
+        $this->assertDatabaseHas('service_sections', [
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::ShortTalk->value,
+            'start_time' => 916.0,
+            'end_time' => 1198.0,
+        ]);
+    }
+
+    #[Test]
+    public function a_split_without_a_time_in_seconds_is_refused(): void
+    {
+        [$service, $run] = $this->workbenchServiceWithRun();
+
+        $talk = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::ShortTalk->value,
+            'section_order' => 1,
+            'needs_manual_review' => true,
+            'start_time' => 820.0,
+            'end_time' => 1198.0,
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->set("splitTimes.{$talk->id}", 'soon')
+            ->call('splitSection', $talk->id)
+            ->assertDispatched('notify', type: 'error', message: 'Enter the split time in seconds into the recording.');
+
+        $this->assertSame(1198.0, (float) $talk->refresh()->end_time);
+    }
+
+    #[Test]
     public function workbench_mutating_actions_require_admin(): void
     {
         [$service, $run] = $this->workbenchServiceWithRun();
@@ -977,6 +1033,7 @@ class ShowChurchServiceTest extends TestCase
             fn ($component) => $component->call('initiateInterruptedTalkMerge', $section->id),
             fn ($component) => $component->call('confirmInterruptedTalkMerge'),
             fn ($component) => $component->call('cancelInterruptedTalkMerge'),
+            fn ($component) => $component->call('splitSection', $section->id),
             fn ($component) => $component->call('markServiceReviewed', $service->id),
         ] as $invoke) {
             $invoke(

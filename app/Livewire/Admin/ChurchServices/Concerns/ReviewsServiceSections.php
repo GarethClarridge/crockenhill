@@ -11,6 +11,7 @@ use App\Actions\ServiceReview\MarkServiceReviewed;
 use App\Actions\ServiceReview\MergeAdjacentServiceSections;
 use App\Actions\ServiceReview\MergeInterruptedTalk;
 use App\Actions\ServiceReview\SaveServiceSection;
+use App\Actions\ServiceReview\SplitServiceSection;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\Preacher;
@@ -22,8 +23,8 @@ use Livewire\Attributes\Computed;
 
 /**
  * Section review editing for the service workbench: inline type/title/boundary edits,
- * children's-talk speaker picks, batch approval, adjacent-section merging, and merging a talk
- * across the readings or prayers that interrupted it.
+ * children's-talk speaker picks, batch approval, adjacent-section merging, merging a talk
+ * across the readings or prayers that interrupted it, and splitting a section in two.
  *
  * Edit state is seeded for review-candidate sections only — seeding every
  * section of every run would balloon the Livewire payload.
@@ -62,6 +63,13 @@ trait ReviewsServiceSections
      */
     public ?int $pendingInterruptedTalkMerge = null;
 
+    /**
+     * Split times the reviewer has typed, in seconds into the recording, keyed by section id.
+     *
+     * @var array<int, string>
+     */
+    public array $splitTimes = [];
+
     protected ServiceReviewDashboardQuery $dashboardQuery;
 
     protected SaveServiceSection $saveSectionAction;
@@ -78,6 +86,8 @@ trait ReviewsServiceSections
 
     protected MergeInterruptedTalk $interruptedTalkMergeAction;
 
+    protected SplitServiceSection $splitAction;
+
     public function bootReviewsServiceSections(
         ServiceReviewDashboardQuery $dashboardQuery,
         SaveServiceSection $saveSectionAction,
@@ -87,6 +97,7 @@ trait ReviewsServiceSections
         BatchApproveServicePublications $batchApproveAction,
         MergeAdjacentServiceSections $mergeAction,
         MergeInterruptedTalk $interruptedTalkMergeAction,
+        SplitServiceSection $splitAction,
     ): void {
         $this->dashboardQuery = $dashboardQuery;
         $this->saveSectionAction = $saveSectionAction;
@@ -96,6 +107,7 @@ trait ReviewsServiceSections
         $this->batchApproveAction = $batchApproveAction;
         $this->mergeAction = $mergeAction;
         $this->interruptedTalkMergeAction = $interruptedTalkMergeAction;
+        $this->splitAction = $splitAction;
     }
 
     public function saveSection(int $sectionId): void
@@ -351,6 +363,39 @@ trait ReviewsServiceSections
         $this->authorizeAdmin();
 
         $this->pendingInterruptedTalkMerge = null;
+    }
+
+    public function splitSection(int $sectionId): void
+    {
+        $this->authorizeAdmin();
+
+        $at = trim($this->splitTimes[$sectionId] ?? '');
+
+        if (! is_numeric($at)) {
+            $this->error('Enter the split time in seconds into the recording.');
+
+            return;
+        }
+
+        $section = ServiceSection::query()->find($sectionId);
+
+        if (! $section instanceof ServiceSection) {
+            $this->error('Section not found.');
+
+            return;
+        }
+
+        $error = $this->splitAction->execute($section, (float) $at, $this->reviewingUserId());
+
+        if ($error !== null) {
+            $this->error($error);
+
+            return;
+        }
+
+        unset($this->splitTimes[$sectionId]);
+        $seconds = (int) round((float) $at);
+        $this->success(sprintf('Section split in two at %d:%02d.', intdiv($seconds, 60), $seconds % 60));
     }
 
     /**

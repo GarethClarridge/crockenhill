@@ -15,10 +15,14 @@
     $interruptedTalkEndingId = ($item['section_id'] ?? null) !== null
         ? (($interruptedTalkPairs ?? [])[$item['section_id']] ?? null)
         : null;
+    $canSplit = ($item['section_id'] ?? null) !== null
+        && $item['publication_status'] !== ServiceSectionPublicationStatus::Published
+        && ($reviewPanel !== null || ($item['type'] ?? null) === \App\Enums\ServiceSectionType::ShortTalk);
     $hasDetails = $reviewPanel !== null
         || $hasRequeueAction
         || $mergeSecondaryId !== null
         || $interruptedTalkEndingId !== null
+        || $canSplit
         || ($item['mismatch_reason'] ?? null) !== null;
     $detailsId = "service-row-details-{$rowIndex}";
     $summary = trim((string) ($item['description'] ?? ''));
@@ -118,6 +122,22 @@
                         Merge the next talk and what separates it into this talk
                     </x-form-button>
                 @endif
+            @endif
+
+            @if($canSplit)
+                <form wire:submit="splitSection({{ $item['section_id'] }})" class="flex flex-wrap items-end gap-2">
+                    <x-input
+                        id="split-at-{{ $item['section_id'] }}"
+                        label="Split this section at (seconds into the recording)"
+                        type="number"
+                        step="0.1"
+                        inputmode="decimal"
+                        wire:model="splitTimes.{{ $item['section_id'] }}"
+                        placeholder="{{ (int) round(((float) $item['start_time'] + (float) $item['end_time']) / 2) }}"
+                        class="w-32"
+                    />
+                    <x-form-button type="submit" variant="outline" size="sm">Split in two</x-form-button>
+                </form>
             @endif
         </div>
     @endif
