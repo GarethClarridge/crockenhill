@@ -8,7 +8,7 @@
 > acceptance and public release remain NO-GO.** Repairs now run through §4.0's corpus
 > re-run: every eligible run re-detected against one frozen commit. Where the work stands:
 >
-> - **Freeze gate (§4.0): ready to freeze.** Canary 4 failed (936 supersession, 1304 hold).
+> - **Freeze moved 2026-09-28 (§4.0 "Before the freeze", step 8): batch 1 failed as the canary on `adeab654c`** (a reading inside a talk split the talk; flag and review action built). Nothing is committed until the re-run ends. Canary 4 failed (936 supersession, 1304 hold).
 >   **Canary 5 passed (2026-09-27, `e58978433`, 17 runs, both tiers and Tier C):** 0 rounds
 >   needed attention, every music-plan §8 check held, 1304 is one song; Tier C completed 16
 >   runs with 1262 parked for its held sermon, 4 flagged runs all explained, nothing public,
@@ -878,6 +878,27 @@ freeze, and the diff report binds that hash.
        0 of 400 on separate names), which caused the 133,474 false "unwritable" holds.
      Still with the operator: 1262's span check before its `--held-section=4873` re-cut.
      **Next: gates, restart the workers onto the fix commit, snapshot, freeze.**
+  7. ***Frozen 2026-09-27 on `adeab654c`*** (operator go-ahead; local tag
+     `historic-rerun-freeze-20260927`). **Nothing is committed until the corpus re-run
+     ends,** docs included: every snapshot and dispatch guard pins HEAD. This entry stays
+     uncommitted until then. Workers booted on `adeab654c` (17:36 BST). Membership recounted:
+     **437 eligible** of 455 historic (10 superseded, 6 excluded; 1143 and 1262 failed and
+     outside, each awaiting the operator: 1143's evidence decision, §4.5, and 1262's span check
+     before `--held-section=4873`). Freeze snapshot `storage/app/private/freeze-20260927/
+     membership.json`, membership sha256 `8fe5add72e916e3a890435921157033d879221e28ec4f9d4842b14366227f46c`,
+     bound routing `2fc8903c…19f16` (routes for 166 members). Dry runs over it
+     (`dryrun-{retranscribe,redetect}.txt`): **Tier A 162** (99 new-better routes, 63
+     transcript-loss holds), **Tier B 275**, each refusing exactly the other's runs, none
+     unreachable. Era batches run as subsets of this snapshot (`[runs]`), each diffed before the
+     next. Before the first: the two rulings below (the re-transcribed holds report, the 21
+     `both_wrong` windows) and the batch preflight (queues, mounts, worker code, free space).
+  8. ***Freeze moved 2026-09-28*** (operator go-ahead): batch 1 on `adeab654c` failed as the
+     canary (the talk-interruption regression under "Batch 1" below). The flag
+     (`209dc0a9d`) and the review action (`bed982c87`) are committed with this entry; the new
+     snapshot is taken on this commit, the workers restarted onto it, and batch 1's rounds
+     re-run as the canary. Its baseline is batch 1's output, so the check is that 936 and
+     1356 come out whole or flagged, with the rest as batch 1. **Nothing is committed until
+     the re-run ends**; the new snapshot's details are recorded below, uncommitted.
 - [ ] **A report for re-transcribed runs' holds** (proposed 2026-09-25, **needs a ruling
   before the first era batch**). Tier C parks every run with a live hold on a sermon or short
   talk: **74 of 437 eligible runs** (47 `source_audio`, 11 `media_measurement`, 10 `boundary`,
@@ -889,14 +910,54 @@ freeze, and the diff report binds that hash.
   content-holds ruling (only code-found holds recheck themselves) means the report proposes
   and the operator releases; it never clears a hold itself. It runs after Tier A and changes
   no output, so it can land after the freeze.
-- [ ] **Recommendations awaiting a ruling (2026-09-25).**
+- [x] **Recommendations ruled (operator, 2026-09-28).**
   - The 21 `both_wrong` windows outside the 09-24 ruling (7 on stored-better runs, 14 on
     new-better runs): only two touch a holdable section, each an 8 s sliver at a song's edge
-    (945 §669, 1342 §4319), the boundary contact excluded for 1377. Recommend accepting all
-    21 unheld, as the 53 were.
+    (945 §669, 1342 §4319), the boundary contact excluded for 1377. **Ruled: hold those two**
+    (`source_audio`; both runs are Tier A, and a third decode may be wrong there again, so
+    the hold guarantees the new text is looked at). **Accept the other 19 unheld;** whether a
+    known-wrong passage in a prayer or reading needs its own review route is a question for
+    after the re-run. **Raised after Tier A writes their new text (operator, 09-28):** the snapshot captures
+    every hold record and `CorpusRerunGuard` refuses a run whose state differs from it, so a
+    hold raised before would need a new snapshot. **Open until raised on 945 and 1342.**
   - 1311 §3953 (46 s "Commendation of Naomi's Testimony" as a `short_talk`): no prompt fix
-    from one case. Count new `short_talk`s under 60 s in each era batch's diff and stop to fix
-    the prompt if it is more than a handful.
+    from one case. **Ruled:** each era batch's diff lists every new `short_talk` under 60 s,
+    and each is checked by hand. **Stop before the next batch if more than 3 in one batch are
+    confirmed false positives**, then fix the prompt. Genuine short talks do not count.
+- [ ] **Batch 1 (ruled 2026-09-28): the canary 5 set on `adeab654c`,** 16 runs (canary 5's
+  17 less 1262, outside the freeze): `freeze-20260927/batch1-runs.txt`. Dry runs
+  (`batch1-dryrun-{retranscribe,redetect}.txt`): **Tier B 16 ready; Tier A 0** (canary 5
+  consumed their routes). Dispatch needs `--max=16`. Preflight 2026-09-28 08:10 BST: HEAD
+  `adeab654c`, all six workers booted 17:36:14 BST (one second after the commit), all queues
+  empty, 0 failed jobs and 0 runs in flight, `/mnt/historic-work` writable with 440 GB free.
+  1311 checks the short-talk rule at once. **Dispatched 2026-09-28 (re-detect, 16 of 16); all 16 completed.**
+  *Round diff* (`batch1-diff-round.{json,txt}`, whole snapshot): 16 of 437 changed, no hold
+  dropped or cleared (4 carried), media custody pending extraction on 15. Truth set as canary
+  5: 964 → #304 and 1250 → #408 `consistent`; 949 four `prayer` slots and both songs back to
+  `confirmed`; 1311 baptisms `other`, hymns their own songs, three `testimony` talks, the 46 s
+  talk gone; 1304 one song at 140–220 s; 1108, 1025, 1112, 1221, 1358 keep their talks; 1356
+  sermon from 1234 s. **Regression (operator, 2026-09-28): a reading given inside a talk is split out and the
+  talk's tail becomes its own `short_talk`.** 1356: the Bach talk (204–526 s whole in canaries
+  5 and 6) is now talk 204–449, Psalm 150 as `bible_reading` 449–490, and a 32 s tail talk
+  490–522. 936: the partner update reads 1 Peter 1:3–9 mid-talk, then continues 2041–2108 as a
+  67 s `short_talk` (canary 5 made the same split and it was missed; the under-60 s filter
+  cannot see it). Tier C would cut both talks without their endings. Corpus census of
+  talk–reading–talk sandwiches (contiguous): exactly these 2 of 437. The under-60 s count is
+  the wrong instrument for this class.
+  **Ruled (operator, 2026-09-28): flag, never merge.** A census of talk → readings/prayers → talk
+  found 3 of 437: 1356 and 936 are one talk, but **1117 is two** (an Open Doors talk, a prayer,
+  then "Right. Moving on…" into a new subject), and only the words at the join tell them apart.
+  Built (uncommitted): `ServiceStructureValidator::FLAG_TALK_INTERRUPTED` on both talks (derived
+  from the structure, so in `REANNOTATED_FLAGS`; forces review and blocks auto-extraction, so a
+  truncated talk cannot publish), catalogued `structure-talk-interrupted`, and a one-step review
+  action `MergeInterruptedTalk` ("Merge the next talk and what separates it into this talk" on
+  the service page): the talk that began absorbs the readings, prayers and ending, carrying
+  holds and resetting media as the same-type merge does. Keeping two talks is an ordinary
+  confirm. **Batch 1 fails as the canary; the freeze moves:** commit, new snapshot, worker
+  restart, re-run batch 1 on the new commit. The 6 attention lines are runs outside the
+  batch (972, 973, 974, 975, 979, 982: sermon names a reference, no passage linked), a
+  current-state check the diff applies to every member, so the exit is failing on them.
+  Canary diffs never covered them. Tier C not yet dispatched.
 - [ ] Batches by era, each checked against its diff before the next. Stop on any new regression.
 
 **Preflight for every dispatch** (the canary, each batch, and any named pre-freeze exception):
