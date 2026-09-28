@@ -745,36 +745,59 @@ class ServiceStructureValidator
      * cue's overlap with the proposed sections. Raw section duration would let
      * a long section in the wrong (silent) part of the recording satisfy the
      * floor despite covering none of what was said. Contexts built without
-     * cues fall back to summing section durations.
+     * cues fall back to the sections' own covered time.
+     *
+     * Sections are merged first: chronology permits adjacent sections to
+     * overlap, and speech two sections share is still covered only once.
      */
     private function coveredSpeechSeconds(ServiceStructure $structure, ValidationContext $context): float
     {
+        $spans = $this->mergedSectionSpans($structure);
+
         if ($context->cues === []) {
-            return array_sum(array_map(
-                static fn (ServiceStructureSection $section): float => $section->duration(),
-                $structure->sections
-            ));
+            return array_sum(array_map(static fn (array $span): float => $span[1] - $span[0], $spans));
         }
 
         $covered = 0.0;
 
         foreach ($context->cues as $cue) {
-            $cueCovered = 0.0;
-
-            foreach ($structure->sections as $section) {
-                $overlap = min($cue['end'], $section->endTime) - max($cue['start'], $section->startTime);
-
-                if ($overlap > 0.0) {
-                    $cueCovered += $overlap;
-                }
+            foreach ($spans as [$start, $end]) {
+                $covered += max(0.0, min($cue['end'], $end) - max($cue['start'], $start));
             }
-
-            // Overlapping sections (a hard failure in their own right) must
-            // not let a cue count for more than its own length.
-            $covered += min($cueCovered, $cue['end'] - $cue['start']);
         }
 
         return $covered;
+    }
+
+    /**
+     * The union of the sections' spans, as disjoint [start, end] pairs in order.
+     *
+     * @return list<array{0: float, 1: float}>
+     */
+    private function mergedSectionSpans(ServiceStructure $structure): array
+    {
+        $spans = array_map(
+            static fn (ServiceStructureSection $section): array => [$section->startTime, $section->endTime],
+            array_filter($structure->sections, static fn (ServiceStructureSection $section): bool => $section->duration() > 0.0),
+        );
+
+        usort($spans, static fn (array $a, array $b): int => $a[0] <=> $b[0]);
+
+        $merged = [];
+
+        foreach ($spans as [$start, $end]) {
+            $last = array_key_last($merged);
+
+            if ($last !== null && $start <= $merged[$last][1]) {
+                $merged[$last][1] = max($merged[$last][1], $end);
+
+                continue;
+            }
+
+            $merged[] = [$start, $end];
+        }
+
+        return $merged;
     }
 
     /**

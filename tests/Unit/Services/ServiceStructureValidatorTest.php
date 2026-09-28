@@ -261,6 +261,35 @@ class ServiceStructureValidatorTest extends TestCase
     }
 
     #[Test]
+    public function overlapping_sections_count_the_speech_they_share_once(): void
+    {
+        // Two sections sharing 39 s — short of gross containment, so chronology
+        // lets them through — cover 41 s of a 100 s cue, not the 80 s their
+        // summed overlaps would claim.
+        $context = new ValidationContext(
+            recordingDuration: 100.0,
+            speechDuration: 100.0,
+            cues: [
+                ['start' => 0.0, 'end' => 100.0, 'text' => 'One long stretch of speech.'],
+            ],
+        );
+
+        $overlapping = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 40.0),
+            $this->section('notices', 1.0, 41.0),
+        ]);
+
+        $this->assertContains('insufficient_coverage', $this->validator->validate($overlapping, $context)->failureCodes());
+
+        $adjacent = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 40.0),
+            $this->section('notices', 40.0, 80.0),
+        ]);
+
+        $this->assertNotContains('insufficient_coverage', $this->validator->validate($adjacent, $context)->failureCodes());
+    }
+
+    #[Test]
     public function two_sermons_fail_hard(): void
     {
         $structure = ServiceStructure::fromSections([
