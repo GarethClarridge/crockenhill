@@ -57,12 +57,19 @@ Rules:
 - Label a section short_talk when it is a substantial spoken item that is not the sermon —
   typically with a projected item behind it: teaching for children, a catechism question, a
   hero-of-faith or Bible-character presentation, a mission or partner presentation, a testimony
-  or interview. A whole talk is ONE short_talk section even when the speaker prays or asks
-  questions inside it. Do not use it for an ordinance (baptism, communion), a tribute, notices,
-  or pre-service audio. A time of sharing and prayer — people give news or prayer requests and
-  the church then prays over them — is prayer, not short_talk, even when each contributor speaks
-  for a church or partner; one prayer section per contributor is fine. A partner that presents
-  its work is still a short_talk even if it closes in prayer.
+  or interview. A whole talk is ONE short_talk section even when the speaker prays, asks
+  questions or reads a Bible passage inside it: a passage the speaker introduces and reads as
+  part of their talk belongs to the talk, not to a separate bible_reading, and the talk
+  continues after it. This applies only to short talks: a sermon's Bible reading is always its
+  own bible_reading section, even when the preacher reads it. A passage read after a talk has
+  concluded is its own bible_reading section, even when the same person reads it. Each person's testimony is its own short_talk; never merge testimonies
+  given by different people into one section. Do not use it for an ordinance (baptism,
+  communion), a tribute, notices, or pre-service audio. A time of sharing and prayer — people
+  give news or prayer requests and the church then prays over them — is prayer, not short_talk,
+  even when each contributor speaks for a church or partner; one prayer section per contributor
+  is fine. A partner or mission focus that presents its work is still a short_talk even if it
+  leads into prayer: end the talk where the prayer begins and give the prayer its own section,
+  rather than folding the presentation into the prayer.
 - talk_type: only for type=short_talk — your proposal of what kind of talk it is; null otherwise.
   Propose childrens_talk ONLY with structural cues that it is aimed at children: the children are
   addressed or called forward, are dismissed to their groups afterwards, or the speaker addresses

@@ -394,6 +394,27 @@ class OpenAiServiceStructureServiceTest extends TestCase
         $this->assertStringContainsString('Music before the first spoken item of the service is pre-service music', $system);
     }
 
+    /**
+     * The splits and merges the operator ruled unacceptable (2026-09-28): 936 and 1356 split a
+     * talk around a passage its speaker read, 1311 merged three people's testimonies, and 1028's
+     * mission focus disappeared into the prayer after it.
+     */
+    #[Test]
+    public function the_system_prompt_keeps_a_talk_whole_and_each_testimony_separate(): void
+    {
+        $system = $this->service->buildPrompt($this->transcript(), $this->oosItems())['system'];
+
+        $this->assertStringContainsString('reads a Bible passage inside it', $system);
+        $this->assertStringContainsString('belongs to the talk, not to a separate bible_reading', $system);
+        $this->assertStringContainsString("Each person's testimony is its own short_talk", $system);
+        // The first draws over-applied the rule: 1050's preacher read 1 Peter 4 into the sermon,
+        // and 964's children's talk swallowed the Deuteronomy 6 reading read after it had ended.
+        $this->assertStringContainsString("This applies only to short talks: a sermon's Bible reading is always its", $system);
+        $this->assertStringContainsString('own bible_reading section, even when the preacher reads it', $system);
+        $this->assertStringContainsString('concluded is its own bible_reading section, even when the same person reads it', $system);
+        $this->assertStringContainsString('end the talk where the prayer begins', $system);
+    }
+
     #[Test]
     public function the_prompt_states_when_no_oos_is_available(): void
     {
