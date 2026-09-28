@@ -111,6 +111,31 @@ class ServiceStructureValidator
     public const FLAG_SERMON_INTERRUPTION_MERGED = 'structure_sermon_interruption_merged';
 
     /**
+     * Two talks separated only by readings or prayers, raised on both talks.
+     *
+     * The talk-shaped twin of {@see self::FLAG_SERMON_INTERRUPTION_MERGED}, and deliberately
+     * not a merge. A service holds one sermon, so two sermon fragments are one sermon; it can
+     * hold several talks, so the same shape is sometimes one talk that read a passage and
+     * resumed (1356's Bach talk around Psalm 150, 936's partner update around 1 Peter 1) and
+     * sometimes two talks (1117: an Open Doors talk, a prayer, then "Moving on" into another).
+     * Only the words at the join tell them apart, and that is the judgement the detector got
+     * wrong, so a person makes it. Forcing review is what keeps the resumed case from
+     * publishing a talk without its ending.
+     */
+    public const FLAG_TALK_INTERRUPTED = 'structure_talk_interrupted';
+
+    /**
+     * What may sit between two talks for {@see self::FLAG_TALK_INTERRUPTED}; anything else,
+     * a song above all, separates them.
+     *
+     * @var list<ServiceSectionType>
+     */
+    private const TALK_INTERRUPTION_TYPES = [
+        ServiceSectionType::BibleReading,
+        ServiceSectionType::Prayer,
+    ];
+
+    /**
      * The sermon-side boundary evidence found a corroborated material-risk
      * transition. This is intentionally separate from generic structure
      * uncertainty so the extraction gate can route only this class of risk.
@@ -254,6 +279,7 @@ class ServiceStructureValidator
         self::FLAG_MICRO_SECTION,
         self::FLAG_MACRO_SECTION,
         self::FLAG_BENEDICTION_SUSPECT,
+        self::FLAG_TALK_INTERRUPTED,
         self::FLAG_SONG_TITLE_MARKER_MISMATCH,
         'unknown_section_type',
     ];
@@ -283,6 +309,7 @@ class ServiceStructureValidator
         self::FLAG_MICRO_SECTION,
         self::FLAG_MACRO_SECTION,
         self::FLAG_BENEDICTION_SUSPECT,
+        self::FLAG_TALK_INTERRUPTED,
         self::FLAG_SONG_TITLE_MARKER_MISMATCH,
     ];
 
@@ -303,6 +330,7 @@ class ServiceStructureValidator
         self::FLAG_MICRO_SECTION,
         self::FLAG_MACRO_SECTION,
         self::FLAG_BENEDICTION_SUSPECT,
+        self::FLAG_TALK_INTERRUPTED,
         'unknown_section_type',
     ];
 
@@ -921,6 +949,7 @@ class ServiceStructureValidator
     private function annotateSoftFlags(ServiceStructure $structure, ValidationContext $context, array $inversions): ServiceStructure
     {
         $minSectionSeconds = (float) config('media-processing.service_structure.min_section_seconds', 15);
+        $interruptedTalks = $this->interruptedTalkIndices($structure->sections);
 
         $sections = [];
 
@@ -966,6 +995,10 @@ class ServiceStructureValidator
                 $flags[] = self::FLAG_SONG_TITLE_MARKER_MISMATCH;
             }
 
+            if (isset($interruptedTalks[$index])) {
+                $flags[] = self::FLAG_TALK_INTERRUPTED;
+            }
+
             $sections[] = $flags === [] ? $section : $section->withReviewFlags($flags);
         }
 
@@ -978,6 +1011,44 @@ class ServiceStructureValidator
             $structure->chapterMarkers,
             $structure->sermonAbsence,
         );
+    }
+
+    /**
+     * The talks on either side of a run of readings and prayers {@see self::FLAG_TALK_INTERRUPTED}.
+     *
+     * @param  list<ServiceStructureSection>  $sections
+     * @return array<int, true>
+     */
+    private function interruptedTalkIndices(array $sections): array
+    {
+        $indices = [];
+        $lastTalk = null;
+        $interrupted = false;
+
+        foreach ($sections as $index => $section) {
+            if ($section->type === ServiceSectionType::ShortTalk) {
+                if ($lastTalk !== null && $interrupted) {
+                    $indices[$lastTalk] = true;
+                    $indices[$index] = true;
+                }
+
+                $lastTalk = $index;
+                $interrupted = false;
+
+                continue;
+            }
+
+            if ($lastTalk !== null && in_array($section->type, self::TALK_INTERRUPTION_TYPES, true)) {
+                $interrupted = true;
+
+                continue;
+            }
+
+            $lastTalk = null;
+            $interrupted = false;
+        }
+
+        return $indices;
     }
 
     /**

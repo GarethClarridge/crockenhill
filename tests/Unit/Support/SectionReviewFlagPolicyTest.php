@@ -149,6 +149,19 @@ class SectionReviewFlagPolicyTest extends TestCase
     }
 
     /**
+     * Two talks around a reading may be one talk missing its ending, so the span itself is in
+     * question: the talk waits for a person and is not cut on its own.
+     */
+    #[Test]
+    public function an_interrupted_talk_forces_review_and_is_not_auto_extracted(): void
+    {
+        $flags = [ServiceStructureValidator::FLAG_TALK_INTERRUPTED];
+
+        $this->assertTrue(SectionReviewFlagPolicy::requiresManualReview(ServiceSectionType::ShortTalk, $flags));
+        $this->assertFalse(SermonAutoExtractionPolicy::reviewStatePermitsAutoExtraction(true, $flags));
+    }
+
+    /**
      * A dead feed inside the talk cannot be restored and does not question the cut, so the
      * talk is reviewed with its media rather than left unextracted.
      */

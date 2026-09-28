@@ -660,6 +660,126 @@ class ServiceStructureValidatorTest extends TestCase
         );
     }
 
+    /**
+     * Run 1356's shape: a children's talk reads Psalm 150 and then finishes, and the detector
+     * split the reading out and typed the talk's ending as a second talk.
+     */
+    #[Test]
+    public function a_talk_resumed_after_a_reading_flags_both_talks(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 200.0),
+            $this->section('short_talk', 204.0, 449.0),
+            $this->section('bible_reading', 449.0, 490.0),
+            $this->section('short_talk', 490.0, 522.0),
+            $this->section('song', 522.0, 700.0),
+            $this->section('sermon', 700.0, 2400.0),
+        ]);
+
+        $sections = $this->validator->validate($structure, $this->context())->structure->sections;
+
+        $this->assertContains(ServiceStructureValidator::FLAG_TALK_INTERRUPTED, $sections[1]->reviewFlags);
+        $this->assertContains(ServiceStructureValidator::FLAG_TALK_INTERRUPTED, $sections[3]->reviewFlags);
+        $this->assertNotContains(ServiceStructureValidator::FLAG_TALK_INTERRUPTED, $sections[2]->reviewFlags, 'The reading is what a reviewer would absorb, not what is in question.');
+    }
+
+    /**
+     * Run 1117's shape: an Open Doors talk, a prayer for the persecuted church, then "Moving on"
+     * into a separate talk. The pattern cannot tell this from a resumed talk, so it asks.
+     */
+    #[Test]
+    public function a_talk_after_a_prayer_following_another_talk_is_flagged_too(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 700.0),
+            $this->section('short_talk', 713.0, 1242.0),
+            $this->section('prayer', 1244.0, 1527.0),
+            $this->section('short_talk', 1535.0, 1714.0),
+            $this->section('sermon', 1714.0, 2400.0),
+        ]);
+
+        $sections = $this->validator->validate($structure, $this->context())->structure->sections;
+
+        $this->assertContains(ServiceStructureValidator::FLAG_TALK_INTERRUPTED, $sections[1]->reviewFlags);
+        $this->assertContains(ServiceStructureValidator::FLAG_TALK_INTERRUPTED, $sections[3]->reviewFlags);
+    }
+
+    #[Test]
+    public function several_interruptions_in_a_row_still_join_the_two_talks(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('short_talk', 0.0, 400.0),
+            $this->section('bible_reading', 400.0, 480.0),
+            $this->section('prayer', 480.0, 600.0),
+            $this->section('short_talk', 600.0, 700.0),
+            $this->section('sermon', 700.0, 2400.0),
+        ]);
+
+        $sections = $this->validator->validate($structure, $this->context())->structure->sections;
+
+        $this->assertContains(ServiceStructureValidator::FLAG_TALK_INTERRUPTED, $sections[0]->reviewFlags);
+        $this->assertContains(ServiceStructureValidator::FLAG_TALK_INTERRUPTED, $sections[3]->reviewFlags);
+    }
+
+    /**
+     * @param  list<string>  $between
+     */
+    #[Test]
+    #[TestWith([['song']], 'a song separates two talks')]
+    #[TestWith([['bible_reading', 'song']], 'a song after the reading still separates them')]
+    #[TestWith([['notices']], 'notices are not an interruption of a talk')]
+    #[TestWith([[]], 'adjacent talks are a same-type merge, not an interruption')]
+    public function talks_not_separated_by_only_readings_or_prayers_are_not_flagged(array $between): void
+    {
+        $sections = [$this->section('short_talk', 0.0, 400.0)];
+        $cursor = 400.0;
+
+        foreach ($between as $type) {
+            $sections[] = $this->section($type, $cursor, $cursor + 100.0);
+            $cursor += 100.0;
+        }
+
+        $sections[] = $this->section('short_talk', $cursor, $cursor + 200.0);
+        $sections[] = $this->section('sermon', $cursor + 200.0, 2400.0);
+
+        $result = $this->validator->validate(ServiceStructure::fromSections($sections), $this->context());
+
+        foreach ($result->structure->sections as $section) {
+            $this->assertNotContains(ServiceStructureValidator::FLAG_TALK_INTERRUPTED, $section->reviewFlags);
+        }
+    }
+
+    #[Test]
+    public function a_reading_between_a_talk_and_the_sermon_is_not_a_talk_interruption(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('short_talk', 0.0, 400.0),
+            $this->section('bible_reading', 400.0, 600.0),
+            $this->section('sermon', 600.0, 2400.0),
+        ]);
+
+        foreach ($this->validator->validate($structure, $this->context())->structure->sections as $section) {
+            $this->assertNotContains(ServiceStructureValidator::FLAG_TALK_INTERRUPTED, $section->reviewFlags);
+        }
+    }
+
+    #[Test]
+    public function reannotation_derives_the_talk_interruption_from_a_banked_structure(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('short_talk', 0.0, 400.0),
+            $this->section('bible_reading', 400.0, 480.0),
+            $this->section('short_talk', 480.0, 540.0),
+            $this->section('sermon', 540.0, 2400.0),
+        ]);
+
+        $sections = $this->validator->reannotate($structure, $this->context())->sections;
+
+        $this->assertContains(ServiceStructureValidator::FLAG_TALK_INTERRUPTED, ServiceStructureValidator::REANNOTATED_FLAGS);
+        $this->assertContains(ServiceStructureValidator::FLAG_TALK_INTERRUPTED, $sections[0]->reviewFlags);
+        $this->assertContains(ServiceStructureValidator::FLAG_TALK_INTERRUPTED, $sections[2]->reviewFlags);
+    }
+
     #[Test]
     public function unmatched_oos_items_are_reported_softly(): void
     {

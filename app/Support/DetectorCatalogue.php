@@ -378,6 +378,16 @@ class DetectorCatalogue
                 owningClass: ServiceStructureValidator::class,
             ),
             new DetectorEntry(
+                id: 'structure-talk-interrupted',
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: [ServiceStructureValidator::FLAG_TALK_INTERRUPTED],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Section,
+                summary: 'Two talks are separated only by readings or prayers, so they may be one talk whose ending would be cut off.',
+                owningClass: ServiceStructureValidator::class,
+            ),
+            new DetectorEntry(
                 id: 'structure-unidentified-singing',
                 surface: DetectorSurface::SectionReviewFlag,
                 signals: [ServiceStructureValidator::FLAG_UNIDENTIFIED_SINGING],
