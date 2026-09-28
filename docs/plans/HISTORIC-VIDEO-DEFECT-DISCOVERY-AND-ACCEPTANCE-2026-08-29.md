@@ -906,6 +906,44 @@ freeze, and the diff report binds that hash.
   9. ***Freeze moved again 2026-09-28*** (operator go-ahead) after the detection evaluation below:
      the talk prompt, `structure_talk_fragment` and the split review action are committed with
      this entry; new snapshot, worker restart, batch 1 as the canary, scored by the harness.
+     *Frozen on `cf6839b6b`* (local tag `historic-rerun-freeze-20260928b`; `.env` keeps
+     `SERVICE_STRUCTURE_MODEL=gpt-5.6-luna`); workers restarted 16:27:53 BST, 11 s after the commit,
+     queues empty. Snapshot `freeze-20260928b/membership.json`: same 437 members (`8fe5add7…`),
+     routing `2fc8903c…` bound (166). Batch 1 dry runs: Tier B 16 ready, Tier A 0. **The canary is
+     NOT dispatched** (operator stopped for a fresh session; this paragraph is uncommitted, as
+     every commit now invalidates the snapshot). **Next:** preflight (queues, worker ELAPSED
+     against `cf6839b6b`, mounts, free space), then `historic-import:rerun-redetect
+     freeze-20260928b/membership.json <batch1-runs.txt> --max=16 --execute`; on completion
+     `rerun-diff`, then dump the 16 runs' sections in the harness's draw format and score them
+     with `storage/scratch/detection-score-20260928.py`. **Pass: 0 talk-count errors** against
+     `detection-truth-20260928.json`, no hold dropped or cleared, and the truth set as before.
+     Then Tier C for batch 1, then era batches, each scored the same way where the key covers it.
+     *Superseded before dispatch by step 10.*
+  10. ***Freeze moved again 2026-09-28 evening*** after a Codex review of the pipeline. The
+     operator ruled that every fix goes in before the canary ("moving the freeze is trivial;
+     redoing the canary later is more effort"). Committed with this entry:
+     - `9837c8ef6` coverage counts shared speech once (union of spans; max corpus overlap 18.8 s,
+       no verdict changes);
+     - `83891029a` the missing-reading retry is adopted only when its short talks match the
+       original's within 30 s, and a nearby reading counts only when it overlaps the sermon's
+       `sermon_reference` (14 corpus runs now retry: carol services, and 1311 in batch 1);
+     - `7445ec57c` a micro-section holds a sermon's release only when no song separates it
+       from a sermon, talk or reading (no change on current stored state: 276/443 clear);
+     - `84248c3b9` the prompt lets same-type items sung out of printed order keep their
+       bindings. Five draws: 0 talk-count errors, 8/16 runs stable (the current prompt: 2/16).
+       Codex's second prompt change, grounding music sections in the sound classification, was
+       **rejected**: 0.2 errors/draw alone, 0.9 combined with the first.
+
+     **Canary bar strengthened** (`detection-score-20260928.py`): PASS = every run scored,
+     0 talk-count errors, every talk span and sermon start on a ruled span; ADJUDICATE = spans
+     off a ruled span (each needs an operator disposition); FAIL = an unscored run or any
+     talk-count error. A talk cut short was invisible to the old count. **Operator span rulings
+     (truth file):** a prayer before the sermon *about the sermon*, by the preacher or someone
+     praying for the preacher, may be included; a talk's closing prayer on its theme may be
+     included or left out (964, 1025, as 936); 1250's passage announcement is preferred but
+     optional; 1221's One-to-One talk is best ending at 1600, and running to 1671 with the
+     book-voucher notice is acceptable; 1112 may end before the hymn introduction (1250
+     precedent). 1028's sermon absorbing a 30 s music outro is not covered: a genuine error.
 - [ ] **A report for re-transcribed runs' holds** (proposed 2026-09-25, **needs a ruling
   before the first era batch**). Tier C parks every run with a live hold on a sermon or short
   talk: **74 of 437 eligible runs** (47 `source_audio`, 11 `media_measurement`, 10 `boundary`,
