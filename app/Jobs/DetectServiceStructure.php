@@ -23,11 +23,12 @@ use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
 use App\Services\ChurchService\Structure\SoundStage;
-use App\Services\Media\Audio\AudioTimeline;
 use App\Services\ChurchService\Structure\ValidationContext;
 use App\Services\ChurchService\Structure\ValidationResult;
+use App\Services\Media\Audio\AudioTimeline;
 use App\Services\Processing\MediaProcessingIdentityResolver;
 use App\Services\Processing\ProcessingNotificationRouter;
+use App\Services\Scripture\ScriptureReferenceResolver;
 use App\Services\Sermon\SermonCandidateConfidenceService;
 use App\Support\ChurchServiceProcessingTimeline;
 use App\Support\SermonAutoExtractionPolicy;
@@ -63,6 +64,15 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
     use InteractsWithQueue;
     use Queueable;
     use SerializesModels;
+
+    /**
+     * How far a re-drawn talk's ends may move and still be the same talk.
+     *
+     * Repeated draws of a stable talk agree within 20 s (the stability measure
+     * in the 2026-09-28 detection evaluation); the truncations this guards
+     * against move an end by minutes.
+     */
+    private const TALK_RECHECK_TOLERANCE_SECONDS = 30.0;
 
     public int $tries = 3;
 
@@ -482,10 +492,12 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
      * another section (the 2024-11-03 corpus run absorbed the Luke reading
      * into the pastoral prayer) — sermon extraction would then publish audio
      * without its reading. One feedback-guided retry names the anomaly to the
-     * detector; its result is adopted only when it validates AND recovers a
-     * reading, so reconsideration can never make a passing run worse. When
-     * the retry finds nothing the original structure stands, with the sermon
-     * flagged for the reviewer (a non-disqualifying flag — see
+     * detector; its result is adopted only when it validates, recovers the
+     * reading AND leaves every short talk where the original put it — the
+     * retry is a whole fresh draw, and a recovered reading is not worth a
+     * truncated talk. So reconsideration can never make a passing run worse.
+     * When the retry is not adopted the original structure stands, with the
+     * sermon flagged for the reviewer (a non-disqualifying flag — see
      * SermonAutoExtractionPolicy).
      */
     private function recheckMissingPreachedReading(
@@ -512,15 +524,9 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         ]);
 
         try {
-            [$retry] = $this->detectAndValidate($detector, $snapService, $validator, [sprintf(
-                'The previous attempt found a sermon starting at %.0f seconds but no bible_reading section '
-                .'in the %.0f minutes before it. The preached passage is usually read shortly before the '
-                .'sermon and may be embedded inside another section (often a prayer, or the sermon opening). '
-                .'If a distinct Bible reading is present there, return it as its own bible_reading section '
-                .'with its reading_reference; do NOT invent one if no reading occurs.',
-                $sermonStart,
-                $windowSeconds / 60.0,
-            )]);
+            [$retry] = $this->detectAndValidate($detector, $snapService, $validator, [
+                $this->readingRecheckFeedback($result->structure, $sermonStart),
+            ]);
         } catch (\Throwable $exception) {
             // The recheck is a best-effort recovery on an already-passing run; a transient
             // detector error (OpenAI timeout, malformed JSON, a missing artifact) must never
@@ -545,7 +551,9 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             );
         }
 
-        if ($retry->passed() && $this->readinglessSermonStart($retry->structure) === null) {
+        $readingRecovered = $retry->passed() && $this->readinglessSermonStart($retry->structure) === null;
+
+        if ($readingRecovered && $this->shortTalksAgree($result->structure, $retry->structure)) {
             $this->putStructureMetadata('service_structure_reading_recheck', [
                 'generated_at' => now()->toIso8601String(),
                 'outcome' => 'retry_adopted',
@@ -557,7 +565,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
 
         $this->putStructureMetadata('service_structure_reading_recheck', [
             'generated_at' => now()->toIso8601String(),
-            'outcome' => 'reading_still_missing',
+            'outcome' => $readingRecovered ? 'retry_changed_talks' : 'reading_still_missing',
             'sermon_start' => $sermonStart,
             'retry_passed_validation' => $retry->passed(),
         ]);
@@ -569,10 +577,34 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         );
     }
 
+    private function readingRecheckFeedback(ServiceStructure $structure, float $sermonStart): string
+    {
+        $sermonReference = $this->sermonReference($structure);
+        $missing = $sermonReference === null
+            ? 'no bible_reading section'
+            : "no bible_reading section of its passage ({$sermonReference})";
+
+        return sprintf(
+            'The previous attempt found a sermon starting at %.0f seconds but %s '
+            .'in the %.0f minutes before it. The preached passage is usually read shortly before the '
+            .'sermon and may be embedded inside another section (often a prayer, or the sermon opening). '
+            .'If a distinct Bible reading is present there, return it as its own bible_reading section '
+            .'with its reading_reference; do NOT invent one if no reading occurs.',
+            $sermonStart,
+            $missing,
+            $this->readingPairingWindowSeconds() / 60.0,
+        );
+    }
+
     /**
      * The sermon's start time when the structure has a sermon but no
      * bible_reading section ending within the pairing window before it;
      * null when there is no sermon or a reading sits close enough.
+     *
+     * When the sermon names its passage, only a reading of that passage
+     * counts — judged as SermonExtractionPlanResolver pairs them. A Psalm read
+     * before a sermon on Luke says nothing about where Luke went. Without a
+     * sermon reference, nearness is the only evidence there is.
      */
     private function readinglessSermonStart(ServiceStructure $structure): ?float
     {
@@ -583,15 +615,58 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         }
 
         $sermonStart = $sermons[0]->startTime;
+        $sermonReference = $this->sermonReference($structure);
         $windowSeconds = $this->readingPairingWindowSeconds();
+        $scriptureReferences = app(ScriptureReferenceResolver::class);
 
         foreach ($structure->sectionsOfType(ServiceSectionType::BibleReading) as $reading) {
-            if ($reading->endTime <= $sermonStart && $sermonStart - $reading->endTime <= $windowSeconds) {
+            if ($reading->endTime > $sermonStart || $sermonStart - $reading->endTime > $windowSeconds) {
+                continue;
+            }
+
+            if ($sermonReference === null) {
+                return null;
+            }
+
+            if ($reading->readingReference !== null
+                && $scriptureReferences->referencesOverlap($reading->readingReference, $sermonReference)) {
                 return null;
             }
         }
 
         return $sermonStart;
+    }
+
+    private function sermonReference(ServiceStructure $structure): ?string
+    {
+        $reference = $structure->sectionsOfType(ServiceSectionType::Sermon)[0]->sermonReference ?? null;
+
+        return $reference !== null && trim($reference) !== '' ? $reference : null;
+    }
+
+    /**
+     * Whether the retry kept every short talk the original found, one for one,
+     * with both ends within {@see self::TALK_RECHECK_TOLERANCE_SECONDS}.
+     */
+    private function shortTalksAgree(ServiceStructure $original, ServiceStructure $retry): bool
+    {
+        $originalTalks = $original->sectionsOfType(ServiceSectionType::ShortTalk);
+        $retryTalks = $retry->sectionsOfType(ServiceSectionType::ShortTalk);
+
+        if (count($originalTalks) !== count($retryTalks)) {
+            return false;
+        }
+
+        foreach ($originalTalks as $index => $before) {
+            $after = $retryTalks[$index];
+
+            if (abs($before->startTime - $after->startTime) > self::TALK_RECHECK_TOLERANCE_SECONDS
+                || abs($before->endTime - $after->endTime) > self::TALK_RECHECK_TOLERANCE_SECONDS) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

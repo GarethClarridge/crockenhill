@@ -9,7 +9,9 @@ use App\Contracts\ServiceStructureInterface;
 use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
+use App\Enums\ContentHoldCheck;
 use App\Enums\ProcessingStatus;
+use App\Enums\ServiceSectionType;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\ClassifyServiceAudio;
 use App\Jobs\DetectServiceStructure;
@@ -25,14 +27,13 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\Structure\MockServiceStructureService;
-use App\Services\Media\Audio\AudioTimeline;
-use App\Enums\ContentHoldCheck;
-use App\Enums\ServiceSectionType;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
+use App\Services\Media\Audio\AudioTimeline;
 use App\Services\Processing\ProcessingPipelineBuilder;
 use App\Services\Sermon\SermonCandidateConfidenceService;
 use App\Services\Sermon\SermonExtractionPlanResolver;
+use App\Support\SermonAutoExtractionPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Mail;
@@ -489,7 +490,7 @@ class DetectServiceStructureTest extends TestCase
 
     /**
      * The flag must never land on a sermon, whatever its audio.
-     * {@see \App\Support\SermonAutoExtractionPolicy} permits automatic extraction only when every
+     * {@see SermonAutoExtractionPolicy} permits automatic extraction only when every
      * flag on the chosen section is registered as non-disqualifying, so an unregistered flag here
      * would quietly stop the sermon extracting. This paints the sermon's own span as unbroken
      * sound, where only the type exclusion stands between it and the flag.
@@ -983,6 +984,123 @@ class DetectServiceStructureTest extends TestCase
             $log->processing_metadata?->toArray() ?? []
         );
         $this->assertSame([], MockServiceStructureService::lastFeedback());
+    }
+
+    #[Test]
+    public function a_nearby_reading_of_another_passage_does_not_stand_in_for_the_preached_one(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+
+        // The Psalm read before the sermon is not the Luke passage it preaches;
+        // the retry recovers Luke and keeps the talk within a re-draw's jitter.
+        MockServiceStructureService::useStructureSequence(
+            ServiceStructure::fromSections([
+                $this->section('welcome', 0.0, 120.0),
+                $this->section('short_talk', 130.0, 400.0),
+                $this->referencedSection('bible_reading', 420.0, 590.0, readingReference: 'Psalm 23'),
+                $this->referencedSection('sermon', 600.0, 2200.0, sermonReference: 'Luke 15:1-10'),
+                $this->section('song', 2210.0, 2400.0),
+            ], model: 'mock'),
+            ServiceStructure::fromSections([
+                $this->section('welcome', 0.0, 120.0),
+                $this->section('short_talk', 136.0, 392.0),
+                $this->referencedSection('bible_reading', 400.0, 470.0, readingReference: 'Psalm 23'),
+                $this->referencedSection('bible_reading', 480.0, 590.0, readingReference: 'Luke 15:1-10'),
+                $this->referencedSection('sermon', 600.0, 2200.0, sermonReference: 'Luke 15:1-10'),
+                $this->section('song', 2210.0, 2400.0),
+            ], model: 'mock'),
+        );
+
+        $this->runJob($log);
+
+        $log->refresh();
+        $recheck = $log->processing_metadata?->toArray()['service_structure_reading_recheck'] ?? null;
+        $this->assertIsArray($recheck);
+        $this->assertSame('retry_adopted', $recheck['outcome']);
+        $this->assertStringContainsString('Luke 15:1-10', implode(' ', MockServiceStructureService::lastFeedback()));
+        $this->assertSame(2, ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->where('section_type', 'bible_reading')
+            ->count());
+    }
+
+    #[Test]
+    public function a_nearby_reading_of_the_preached_passage_needs_no_recheck(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+        MockServiceStructureService::useStructure(ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->referencedSection('bible_reading', 420.0, 590.0, readingReference: 'Luke 15:1-7'),
+            $this->referencedSection('sermon', 600.0, 2200.0, sermonReference: 'Luke 15:1-10'),
+            $this->section('song', 2210.0, 2400.0),
+        ], model: 'mock'));
+
+        $this->runJob($log);
+
+        $this->assertArrayNotHasKey(
+            'service_structure_reading_recheck',
+            $log->refresh()->processing_metadata?->toArray() ?? []
+        );
+    }
+
+    #[Test]
+    public function the_recheck_keeps_the_original_structure_when_the_retry_disturbs_a_talk(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+
+        // The retry recovers the reading but, being a fresh draw, also cuts the
+        // talk short. A reading is not worth a truncated talk: keep the original.
+        MockServiceStructureService::useStructureSequence(
+            ServiceStructure::fromSections([
+                $this->section('welcome', 0.0, 120.0),
+                $this->section('short_talk', 130.0, 400.0),
+                $this->section('prayer', 420.0, 590.0),
+                $this->section('sermon', 600.0, 2200.0),
+                $this->section('song', 2210.0, 2400.0),
+            ], model: 'mock'),
+            ServiceStructure::fromSections([
+                $this->section('welcome', 0.0, 120.0),
+                $this->section('short_talk', 130.0, 250.0),
+                $this->section('other', 250.0, 400.0),
+                $this->section('bible_reading', 420.0, 590.0),
+                $this->section('sermon', 600.0, 2200.0),
+                $this->section('song', 2210.0, 2400.0),
+            ], model: 'mock'),
+        );
+
+        $this->runJob($log);
+
+        $log->refresh();
+        $recheck = $log->processing_metadata?->toArray()['service_structure_reading_recheck'] ?? null;
+        $this->assertIsArray($recheck);
+        $this->assertSame('retry_changed_talks', $recheck['outcome']);
+
+        $talk = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->where('section_type', 'short_talk')
+            ->sole();
+        $this->assertEqualsWithDelta(400.0, (float) $talk->end_time, 0.01);
+
+        $sermon = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->where('section_type', 'sermon')
+            ->sole();
+        $this->assertContains(
+            ServiceStructureValidator::FLAG_MISSING_PREACHED_READING,
+            $sermon->metadata['review_flags'] ?? []
+        );
     }
 
     #[Test]
@@ -1615,6 +1733,27 @@ class DetectServiceStructureTest extends TestCase
             'confidence' => $confidence,
             'oos_item_id' => $oosItemId,
             'summary' => $summary,
+        ]);
+
+        assert($section instanceof ServiceStructureSection);
+
+        return $section;
+    }
+
+    private function referencedSection(
+        string $type,
+        float $start,
+        float $end,
+        ?string $readingReference = null,
+        ?string $sermonReference = null,
+    ): ServiceStructureSection {
+        $section = ServiceStructureSection::fromArray([
+            'type' => $type,
+            'start_time' => $start,
+            'end_time' => $end,
+            'confidence' => 0.95,
+            'reading_reference' => $readingReference,
+            'sermon_reference' => $sermonReference,
         ]);
 
         assert($section instanceof ServiceStructureSection);
