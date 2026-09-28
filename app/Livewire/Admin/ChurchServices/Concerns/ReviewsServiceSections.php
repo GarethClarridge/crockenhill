@@ -9,6 +9,7 @@ use App\Actions\ServiceReview\ConfirmServiceSection;
 use App\Actions\ServiceReview\ConfirmServiceSections;
 use App\Actions\ServiceReview\MarkServiceReviewed;
 use App\Actions\ServiceReview\MergeAdjacentServiceSections;
+use App\Actions\ServiceReview\MergeInterruptedTalk;
 use App\Actions\ServiceReview\SaveServiceSection;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
@@ -21,7 +22,8 @@ use Livewire\Attributes\Computed;
 
 /**
  * Section review editing for the service workbench: inline type/title/boundary edits,
- * children's-talk speaker picks, batch approval, and adjacent-section merging.
+ * children's-talk speaker picks, batch approval, adjacent-section merging, and merging a talk
+ * across the readings or prayers that interrupted it.
  *
  * Edit state is seeded for review-candidate sections only — seeding every
  * section of every run would balloon the Livewire payload.
@@ -55,6 +57,11 @@ trait ReviewsServiceSections
      */
     public ?array $pendingSectionMerge = null;
 
+    /**
+     * The talk a reviewer has asked to merge across its interruption, awaiting confirmation.
+     */
+    public ?int $pendingInterruptedTalkMerge = null;
+
     protected ServiceReviewDashboardQuery $dashboardQuery;
 
     protected SaveServiceSection $saveSectionAction;
@@ -69,6 +76,8 @@ trait ReviewsServiceSections
 
     protected MergeAdjacentServiceSections $mergeAction;
 
+    protected MergeInterruptedTalk $interruptedTalkMergeAction;
+
     public function bootReviewsServiceSections(
         ServiceReviewDashboardQuery $dashboardQuery,
         SaveServiceSection $saveSectionAction,
@@ -77,6 +86,7 @@ trait ReviewsServiceSections
         MarkServiceReviewed $markReviewedAction,
         BatchApproveServicePublications $batchApproveAction,
         MergeAdjacentServiceSections $mergeAction,
+        MergeInterruptedTalk $interruptedTalkMergeAction,
     ): void {
         $this->dashboardQuery = $dashboardQuery;
         $this->saveSectionAction = $saveSectionAction;
@@ -85,6 +95,7 @@ trait ReviewsServiceSections
         $this->markReviewedAction = $markReviewedAction;
         $this->batchApproveAction = $batchApproveAction;
         $this->mergeAction = $mergeAction;
+        $this->interruptedTalkMergeAction = $interruptedTalkMergeAction;
     }
 
     public function saveSection(int $sectionId): void
@@ -298,6 +309,48 @@ trait ReviewsServiceSections
         $this->authorizeAdmin();
 
         $this->pendingSectionMerge = null;
+    }
+
+    public function initiateInterruptedTalkMerge(int $talkId): void
+    {
+        $this->authorizeAdmin();
+
+        $this->pendingInterruptedTalkMerge = $talkId;
+    }
+
+    public function confirmInterruptedTalkMerge(): void
+    {
+        $this->authorizeAdmin();
+
+        if ($this->pendingInterruptedTalkMerge === null) {
+            return;
+        }
+
+        $talk = ServiceSection::query()->find($this->pendingInterruptedTalkMerge);
+        $this->pendingInterruptedTalkMerge = null;
+
+        if (! $talk instanceof ServiceSection) {
+            $this->error('The talk could not be found.');
+
+            return;
+        }
+
+        $error = $this->interruptedTalkMergeAction->execute($talk, $this->reviewingUserId());
+
+        if ($error !== null) {
+            $this->error($error);
+
+            return;
+        }
+
+        $this->success('Talk merged across its interruption.');
+    }
+
+    public function cancelInterruptedTalkMerge(): void
+    {
+        $this->authorizeAdmin();
+
+        $this->pendingInterruptedTalkMerge = null;
     }
 
     /**

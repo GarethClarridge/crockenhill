@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Presenters;
 
+use App\Actions\ServiceReview\MergeInterruptedTalk;
 use App\Data\ChurchServiceProcessingRunView;
 use App\Data\ChurchServiceShowReadModel;
 use App\Data\ChurchServiceStatusSummary;
@@ -90,6 +91,7 @@ class ChurchServiceShowPresenter
             reviewNeedsAttention: $rollup['attention_count'] > 0,
             sectionReviewPanels: $this->sectionReviewPanels($processingRuns),
             mergeCandidatePairs: $this->mergeCandidatePairs($processingRuns),
+            interruptedTalkPairs: $this->interruptedTalkPairs($processingRuns),
             segmentConfirmations: $this->segmentConfirmations($processingRuns),
             pendingApprovalCount: $processingRuns
                 ->flatMap(fn (MediaProcessingLog $run) => $run->serviceSections)
@@ -317,6 +319,24 @@ class ChurchServiceShowPresenter
                     $pairs[$section->id] = $next->id;
                 }
             }
+        }
+
+        return $pairs;
+    }
+
+    /**
+     * Talks separated from a later talk only by readings or prayers, keyed by the earlier
+     * talk's id, with the later talk's id {@see MergeInterruptedTalk}.
+     *
+     * @param  Collection<int, MediaProcessingLog>  $processingRuns
+     * @return array<int, int>
+     */
+    private function interruptedTalkPairs(Collection $processingRuns): array
+    {
+        $pairs = [];
+
+        foreach ($processingRuns as $run) {
+            $pairs += MergeInterruptedTalk::candidates($run->serviceSections->sortBy('section_order')->values());
         }
 
         return $pairs;

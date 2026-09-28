@@ -21,6 +21,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Models\Song;
 use App\Models\User;
 use App\Presenters\ChurchServiceShowPresenter;
@@ -904,6 +905,54 @@ class ShowChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function it_merges_a_talk_across_the_reading_that_interrupted_it_in_one_step(): void
+    {
+        Queue::fake();
+
+        [$service, $run] = $this->workbenchServiceWithRun();
+
+        $talk = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::ShortTalk->value,
+            'section_order' => 1,
+            'needs_manual_review' => true,
+            'start_time' => 204.0,
+            'end_time' => 449.0,
+            'metadata' => ['review_flags' => [ServiceStructureValidator::FLAG_TALK_INTERRUPTED]],
+        ]);
+        $reading = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::BibleReading->value,
+            'section_order' => 2,
+            'start_time' => 449.0,
+            'end_time' => 490.0,
+        ]);
+        $ending = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::ShortTalk->value,
+            'section_order' => 3,
+            'needs_manual_review' => true,
+            'start_time' => 490.0,
+            'end_time' => 522.0,
+            'metadata' => ['review_flags' => [ServiceStructureValidator::FLAG_TALK_INTERRUPTED]],
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Merge the next talk and what separates it into this talk')
+            ->call('initiateInterruptedTalkMerge', $talk->id)
+            ->assertSee('Make this talk, the readings and prayers after it, and the next talk one talk?')
+            ->call('confirmInterruptedTalkMerge')
+            ->assertDispatched('notify', type: 'success', message: 'Talk merged across its interruption.');
+
+        $talk->refresh();
+        $this->assertSame(204.0, (float) $talk->start_time);
+        $this->assertSame(522.0, (float) $talk->end_time);
+        $this->assertDatabaseMissing('service_sections', ['id' => $reading->id]);
+        $this->assertDatabaseMissing('service_sections', ['id' => $ending->id]);
+    }
+
+    #[Test]
     public function workbench_mutating_actions_require_admin(): void
     {
         [$service, $run] = $this->workbenchServiceWithRun();
@@ -925,6 +974,9 @@ class ShowChurchServiceTest extends TestCase
             fn ($component) => $component->call('initiateMerge', $section->id, $section->id),
             fn ($component) => $component->call('confirmMerge'),
             fn ($component) => $component->call('cancelMerge'),
+            fn ($component) => $component->call('initiateInterruptedTalkMerge', $section->id),
+            fn ($component) => $component->call('confirmInterruptedTalkMerge'),
+            fn ($component) => $component->call('cancelInterruptedTalkMerge'),
             fn ($component) => $component->call('markServiceReviewed', $service->id),
         ] as $invoke) {
             $invoke(

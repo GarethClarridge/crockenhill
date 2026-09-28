@@ -12,9 +12,13 @@
     $hasRequeueAction = ($sectionPublishingEnabled ?? false)
         && ($item['section_id'] ?? null) !== null
         && $item['publication_status'] === ServiceSectionPublicationStatus::Rejected;
+    $interruptedTalkEndingId = ($item['section_id'] ?? null) !== null
+        ? (($interruptedTalkPairs ?? [])[$item['section_id']] ?? null)
+        : null;
     $hasDetails = $reviewPanel !== null
         || $hasRequeueAction
         || $mergeSecondaryId !== null
+        || $interruptedTalkEndingId !== null
         || ($item['mismatch_reason'] ?? null) !== null;
     $detailsId = "service-row-details-{$rowIndex}";
     $summary = trim((string) ($item['description'] ?? ''));
@@ -95,6 +99,23 @@
                 @else
                     <x-form-button variant="ghost" size="sm" wire:click="initiateMerge({{ $item['section_id'] }}, {{ $mergeSecondaryId }})">
                         Merge with the next {{ $item['type_label'] }} section
+                    </x-form-button>
+                @endif
+            @endif
+
+            @if($interruptedTalkEndingId !== null)
+                @if(($pendingInterruptedTalkMerge ?? null) === $item['section_id'])
+                    <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm">
+                        <p class="font-medium text-amber-900">Make this talk, the readings and prayers after it, and the next talk one talk?</p>
+                        <p class="mt-1 text-amber-800">Choose this when the talk read a passage or prayed and then carried on. Leave them separate when the next talk starts something new.</p>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            <x-form-button variant="primary" size="sm" wire:click="confirmInterruptedTalkMerge">Confirm merge</x-form-button>
+                            <x-form-button variant="outline" size="sm" wire:click="cancelInterruptedTalkMerge">Cancel</x-form-button>
+                        </div>
+                    </div>
+                @else
+                    <x-form-button variant="ghost" size="sm" wire:click="initiateInterruptedTalkMerge({{ $item['section_id'] }})">
+                        Merge the next talk and what separates it into this talk
                     </x-form-button>
                 @endif
             @endif

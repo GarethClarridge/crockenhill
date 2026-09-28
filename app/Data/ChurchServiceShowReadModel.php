@@ -19,6 +19,7 @@ final readonly class ChurchServiceShowReadModel
      * @param  list<array{label: string, state: string}>  $pipelineSteps
      * @param  array<int, array{section: ServiceSection, reasons: array<int, array{key: string, label: string, classes: string}>, review_reason: string|null, confirmable: bool, audio_url: string|null, video_url: string|null}>  $sectionReviewPanels
      * @param  array<int, int>  $mergeCandidatePairs
+     * @param  array<int, int>  $interruptedTalkPairs
      * @param  array<int, array{segments: Collection<int, LivestreamSegment>, confirmed_segment_id: int|null, source_available: bool}>  $segmentConfirmations
      */
     public function __construct(
@@ -39,6 +40,7 @@ final readonly class ChurchServiceShowReadModel
         public bool $reviewNeedsAttention,
         public array $sectionReviewPanels,
         public array $mergeCandidatePairs,
+        public array $interruptedTalkPairs,
         public array $segmentConfirmations,
         public int $pendingApprovalCount,
         public bool $sectionPublishingEnabled,
@@ -63,6 +65,7 @@ final readonly class ChurchServiceShowReadModel
      *     reviewNeedsAttention: bool,
      *     sectionReviewPanels: array<int, array{section: ServiceSection, reasons: array<int, array{key: string, label: string, classes: string}>, review_reason: string|null, confirmable: bool, audio_url: string|null, video_url: string|null}>,
      *     mergeCandidatePairs: array<int, int>,
+     *     interruptedTalkPairs: array<int, int>,
      *     segmentConfirmations: array<int, array{segments: Collection<int, LivestreamSegment>, confirmed_segment_id: int|null, source_available: bool}>,
      *     pendingApprovalCount: int,
      *     sectionPublishingEnabled: bool
@@ -88,6 +91,7 @@ final readonly class ChurchServiceShowReadModel
             'reviewNeedsAttention' => $this->reviewNeedsAttention,
             'sectionReviewPanels' => $this->sectionReviewPanels,
             'mergeCandidatePairs' => $this->mergeCandidatePairs,
+            'interruptedTalkPairs' => $this->interruptedTalkPairs,
             'segmentConfirmations' => $this->segmentConfirmations,
             'pendingApprovalCount' => $this->pendingApprovalCount,
             'sectionPublishingEnabled' => $this->sectionPublishingEnabled,
