@@ -34,7 +34,8 @@ class HistoricReleaseReviewHolds
 {
     /**
      * Flags that question *where the sermon's material lies*, wherever on the
-     * run they land.
+     * run they land — except a micro-section, which counts only within a
+     * clip's reach ({@see self::withinReachOfPublishedSpeech()}).
      *
      * A sermon is not represented by its own section alone. The historic corpus
      * contains preaching buried inside an over-long "song" — run 1040's §1511
@@ -66,6 +67,17 @@ class HistoricReleaseReviewHolds
     private const SpokenContentTypes = [
         ServiceSectionType::Sermon,
         ServiceSectionType::ShortTalk,
+    ];
+
+    /**
+     * The section types a published clip is cut from or paired with.
+     *
+     * @var list<ServiceSectionType>
+     */
+    private const ClipAnchorTypes = [
+        ServiceSectionType::Sermon,
+        ServiceSectionType::ShortTalk,
+        ServiceSectionType::BibleReading,
     ];
 
     /**
@@ -205,27 +217,29 @@ class HistoricReleaseReviewHolds
 
         $holds = [];
 
-        $sections = ServiceSection::query()
+        $sectionsByLog = ServiceSection::query()
             ->whereIn('media_processing_log_id', array_keys($sermonIdByLog))
-            ->where('needs_manual_review', true)
             ->orderBy('media_processing_log_id')
             ->orderBy('start_time')
-            ->get();
+            ->get()
+            ->groupBy('media_processing_log_id');
 
-        foreach ($sections as $section) {
-            $sermonId = $sermonIdByLog[$section->media_processing_log_id] ?? null;
+        foreach ($sectionsByLog as $logId => $runSections) {
+            $sermonId = $sermonIdByLog[$logId] ?? null;
 
             if ($sermonId === null) {
                 continue;
             }
 
-            $reason = $this->sermonHoldReason($section);
+            foreach ($runSections->where('needs_manual_review', true) as $section) {
+                $reason = $this->sermonHoldReason($section, array_values($runSections->all()));
 
-            if ($reason === null) {
-                continue;
+                if ($reason === null) {
+                    continue;
+                }
+
+                $holds[] = "Sermon {$sermonId} is held for review: {$reason}.";
             }
-
-            $holds[] = "Sermon {$sermonId} is held for review: {$reason}.";
         }
 
         return $holds;
@@ -233,8 +247,10 @@ class HistoricReleaseReviewHolds
 
     /**
      * Why this held section speaks for the sermon, or null where it does not.
+     *
+     * @param  list<ServiceSection>  $runSections  every section of the run, in time order
      */
-    private function sermonHoldReason(ServiceSection $section): ?string
+    private function sermonHoldReason(ServiceSection $section, array $runSections): ?string
     {
         $flags = $section->metadata->reviewFlags ?? [];
         $described = $flags === [] ? 'no recorded flag' : implode(', ', $flags);
@@ -244,6 +260,10 @@ class HistoricReleaseReviewHolds
         }
 
         $spanFlags = array_values(array_intersect($flags, self::SpanQuestioningFlags));
+
+        if (! $this->withinReachOfPublishedSpeech($section, $runSections)) {
+            $spanFlags = array_values(array_diff($spanFlags, [ServiceStructureValidator::FLAG_MICRO_SECTION]));
+        }
 
         if ($spanFlags === []) {
             return null;
@@ -255,6 +275,42 @@ class HistoricReleaseReviewHolds
             $section->section_type->value,
             implode(', ', $spanFlags),
         );
+    }
+
+    /**
+     * Whether a published clip could reach this section: no song stands between
+     * it and a sermon, talk or reading.
+     *
+     * Songs bound every spoken clip — a sermon's published span runs on to the
+     * next song and no further — so a brief welcome before the first hymn, or
+     * notices after the last, cannot move one. Of 91 micro-section flags in the
+     * 2026-09-28 detection draws, 90 were welcomes, notices, prayers or other.
+     * A macro section keeps its run-wide reach: the preaching it hides is what
+     * it is flagged for (run 1040).
+     *
+     * @param  list<ServiceSection>  $runSections
+     */
+    private function withinReachOfPublishedSpeech(ServiceSection $section, array $runSections): bool
+    {
+        $position = array_search($section->id, array_map(static fn (ServiceSection $candidate): int => $candidate->id, $runSections), true);
+
+        if ($position === false) {
+            return true;
+        }
+
+        foreach ([array_reverse(array_slice($runSections, 0, $position)), array_slice($runSections, $position + 1)] as $direction) {
+            foreach ($direction as $neighbour) {
+                if ($neighbour->section_type === ServiceSectionType::Song) {
+                    break;
+                }
+
+                if (in_array($neighbour->section_type, self::ClipAnchorTypes, true)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

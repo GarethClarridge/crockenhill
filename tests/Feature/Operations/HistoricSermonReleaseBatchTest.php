@@ -8,6 +8,7 @@ use App\Enums\ChurchServiceSource;
 use App\Enums\HistoricImportOperationState;
 use App\Enums\SermonPublicationState;
 use App\Enums\SermonService;
+use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\HistoricImportOperation;
 use App\Models\HistoricImportReleaseAsset;
@@ -18,7 +19,6 @@ use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongUsageReport;
 use App\Models\SongVideo;
-use App\Enums\ServiceSectionType;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\Import\HistoricImportTargetFingerprint;
 use App\Services\Import\HistoricSermonPublicationService;
@@ -479,6 +479,50 @@ class HistoricSermonReleaseBatchTest extends TestCase
     }
 
     /**
+     * A micro-section speaks for the sermon only when it could sit inside a
+     * published clip. Songs bound every clip — the sermon runs to the next one
+     * — so a brief welcome before the first hymn cannot move any talk.
+     */
+    #[Test]
+    public function a_micro_section_a_song_separates_from_every_talk_still_releases_the_sermon(): void
+    {
+        $operation = $this->completedOperation();
+        $sermon = $this->quarantinedSermon($operation);
+
+        $this->runSection($sermon, ServiceSectionType::Welcome, 0.0, 20.0, [ServiceStructureValidator::FLAG_MICRO_SECTION]);
+        $this->runSection($sermon, ServiceSectionType::Song, 30.0, 300.0);
+        $this->runSection($sermon, ServiceSectionType::Sermon, 400.0, 2000.0);
+        $this->runSection($sermon, ServiceSectionType::Song, 2010.0, 2200.0);
+
+        $path = $this->authorisation($operation, [$sermon->id], []);
+
+        $this->artisan('historic-import:release-batch', ['authorisation' => $path])
+            ->assertSuccessful();
+
+        $this->assertSame(SermonPublicationState::Published, $sermon->refresh()->publication_state);
+    }
+
+    #[Test]
+    public function a_micro_section_within_the_sermons_reach_refuses_the_batch(): void
+    {
+        $operation = $this->completedOperation();
+        $sermon = $this->quarantinedSermon($operation);
+
+        $this->runSection($sermon, ServiceSectionType::Song, 30.0, 300.0);
+        $this->runSection($sermon, ServiceSectionType::Sermon, 400.0, 2000.0);
+        $this->runSection($sermon, ServiceSectionType::Prayer, 2000.0, 2015.0, [ServiceStructureValidator::FLAG_MICRO_SECTION]);
+        $this->runSection($sermon, ServiceSectionType::Song, 2020.0, 2200.0);
+
+        $path = $this->authorisation($operation, [$sermon->id], []);
+
+        $this->artisan('historic-import:release-batch', ['authorisation' => $path])
+            ->expectsOutputToContain('questions the sermon span')
+            ->assertFailed();
+
+        $this->assertQuarantineIntact($sermon);
+    }
+
+    /**
      * A song video names its own section, so its hold needs no inference — and
      * refusing it must leave the whole batch, sermon included, unreleased.
      */
@@ -795,6 +839,35 @@ class HistoricSermonReleaseBatchTest extends TestCase
             'media_processing_log_id' => $log->id,
             'section_type' => $type,
             'needs_manual_review' => true,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'classification_mode' => 'openlp_aligned',
+                'review_flags' => $reviewFlags,
+            ],
+        ]);
+    }
+
+    /**
+     * A timed section of the run that produced this sermon, held when flagged.
+     *
+     * @param  list<string>  $reviewFlags
+     */
+    private function runSection(
+        Sermon $sermon,
+        ServiceSectionType $type,
+        float $start,
+        float $end,
+        array $reviewFlags = [],
+    ): ServiceSection {
+        $log = MediaProcessingLog::query()->where('sermon_id', $sermon->id)->firstOrFail();
+
+        return ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => $type,
+            'section_order' => ServiceSection::query()->where('media_processing_log_id', $log->id)->count(),
+            'start_time' => $start,
+            'end_time' => $end,
+            'needs_manual_review' => $reviewFlags !== [],
             'metadata' => [
                 'confidence_level' => 'high',
                 'classification_mode' => 'openlp_aligned',
