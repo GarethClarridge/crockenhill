@@ -780,6 +780,69 @@ class ServiceStructureValidatorTest extends TestCase
         $this->assertContains(ServiceStructureValidator::FLAG_TALK_INTERRUPTED, $sections[2]->reviewFlags);
     }
 
+    /**
+     * Across 196 talks in the historic corpus the only two under a minute were "Children
+     * dismissed" (14 s) and "Children come forward" (23 s); the shortest real talk in the
+     * 2026-09-28 answer key is a 96 s testimony.
+     */
+    #[Test]
+    #[TestWith([14.0], 'children dismissed')]
+    #[TestWith([59.0], 'just under a minute')]
+    public function a_talk_under_a_minute_is_flagged_as_a_fragment(float $seconds): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 400.0),
+            $this->section('short_talk', 400.0, 400.0 + $seconds),
+            $this->section('sermon', 400.0 + $seconds, 2400.0),
+        ]);
+
+        $sections = $this->validator->validate($structure, $this->context())->structure->sections;
+
+        $this->assertContains(ServiceStructureValidator::FLAG_TALK_FRAGMENT, $sections[1]->reviewFlags);
+    }
+
+    #[Test]
+    public function a_talk_of_a_minute_or_more_is_not_a_fragment(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 400.0),
+            $this->section('short_talk', 400.0, 460.0),
+            $this->section('sermon', 460.0, 2400.0),
+        ]);
+
+        $sections = $this->validator->validate($structure, $this->context())->structure->sections;
+
+        $this->assertNotContains(ServiceStructureValidator::FLAG_TALK_FRAGMENT, $sections[1]->reviewFlags);
+    }
+
+    #[Test]
+    public function only_talks_are_checked_for_fragments(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 30.0),
+            $this->section('prayer', 30.0, 400.0),
+            $this->section('sermon', 400.0, 2400.0),
+        ]);
+
+        foreach ($this->validator->validate($structure, $this->context())->structure->sections as $section) {
+            $this->assertNotContains(ServiceStructureValidator::FLAG_TALK_FRAGMENT, $section->reviewFlags);
+        }
+    }
+
+    #[Test]
+    public function reannotation_derives_the_talk_fragment_from_a_banked_structure(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('short_talk', 0.0, 23.0),
+            $this->section('sermon', 23.0, 2400.0),
+        ]);
+
+        $sections = $this->validator->reannotate($structure, $this->context())->sections;
+
+        $this->assertContains(ServiceStructureValidator::FLAG_TALK_FRAGMENT, ServiceStructureValidator::REANNOTATED_FLAGS);
+        $this->assertContains(ServiceStructureValidator::FLAG_TALK_FRAGMENT, $sections[0]->reviewFlags);
+    }
+
     #[Test]
     public function unmatched_oos_items_are_reported_softly(): void
     {

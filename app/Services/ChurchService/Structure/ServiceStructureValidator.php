@@ -125,6 +125,19 @@ class ServiceStructureValidator
     public const FLAG_TALK_INTERRUPTED = 'structure_talk_interrupted';
 
     /**
+     * A talk shorter than {@see self::TALK_FRAGMENT_SECONDS}: almost always a fragment of
+     * something else, so a person decides what it is before anything is cut.
+     *
+     * Across 196 talks in the historic corpus (2026-09-28) the only two under a minute were
+     * "Children dismissed" (14 s) and "Children come forward" (23 s), and model draws produced
+     * others the same way ("Introduction to the prayer and reading", 24 s). The shortest real
+     * talk in that day's answer key is a 96 s testimony.
+     */
+    public const FLAG_TALK_FRAGMENT = 'structure_talk_fragment';
+
+    private const TALK_FRAGMENT_SECONDS = 60.0;
+
+    /**
      * What may sit between two talks for {@see self::FLAG_TALK_INTERRUPTED}; anything else,
      * a song above all, separates them.
      *
@@ -280,6 +293,7 @@ class ServiceStructureValidator
         self::FLAG_MACRO_SECTION,
         self::FLAG_BENEDICTION_SUSPECT,
         self::FLAG_TALK_INTERRUPTED,
+        self::FLAG_TALK_FRAGMENT,
         self::FLAG_SONG_TITLE_MARKER_MISMATCH,
         'unknown_section_type',
     ];
@@ -310,6 +324,7 @@ class ServiceStructureValidator
         self::FLAG_MACRO_SECTION,
         self::FLAG_BENEDICTION_SUSPECT,
         self::FLAG_TALK_INTERRUPTED,
+        self::FLAG_TALK_FRAGMENT,
         self::FLAG_SONG_TITLE_MARKER_MISMATCH,
     ];
 
@@ -331,6 +346,7 @@ class ServiceStructureValidator
         self::FLAG_MACRO_SECTION,
         self::FLAG_BENEDICTION_SUSPECT,
         self::FLAG_TALK_INTERRUPTED,
+        self::FLAG_TALK_FRAGMENT,
         'unknown_section_type',
     ];
 
@@ -997,6 +1013,10 @@ class ServiceStructureValidator
 
             if (isset($interruptedTalks[$index])) {
                 $flags[] = self::FLAG_TALK_INTERRUPTED;
+            }
+
+            if ($section->type === ServiceSectionType::ShortTalk && $section->duration() < self::TALK_FRAGMENT_SECONDS) {
+                $flags[] = self::FLAG_TALK_FRAGMENT;
             }
 
             $sections[] = $flags === [] ? $section : $section->withReviewFlags($flags);

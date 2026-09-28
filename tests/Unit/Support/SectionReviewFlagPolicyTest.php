@@ -162,6 +162,19 @@ class SectionReviewFlagPolicyTest extends TestCase
     }
 
     /**
+     * A talk under a minute is almost always a fragment of something else ("Children
+     * dismissed"), so a person decides what it is before anything is cut.
+     */
+    #[Test]
+    public function a_talk_fragment_forces_review_and_is_not_auto_extracted(): void
+    {
+        $flags = [ServiceStructureValidator::FLAG_TALK_FRAGMENT];
+
+        $this->assertTrue(SectionReviewFlagPolicy::requiresManualReview(ServiceSectionType::ShortTalk, $flags));
+        $this->assertFalse(SermonAutoExtractionPolicy::reviewStatePermitsAutoExtraction(true, $flags));
+    }
+
+    /**
      * A dead feed inside the talk cannot be restored and does not question the cut, so the
      * talk is reviewed with its media rather than left unextracted.
      */

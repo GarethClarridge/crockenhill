@@ -388,6 +388,16 @@ class DetectorCatalogue
                 owningClass: ServiceStructureValidator::class,
             ),
             new DetectorEntry(
+                id: 'structure-talk-fragment',
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: [ServiceStructureValidator::FLAG_TALK_FRAGMENT],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::WrongMetadata,
+                unit: DetectorUnit::Section,
+                summary: 'A talk under a minute, which is almost always a fragment of another item rather than a talk.',
+                owningClass: ServiceStructureValidator::class,
+            ),
+            new DetectorEntry(
                 id: 'structure-unidentified-singing',
                 surface: DetectorSurface::SectionReviewFlag,
                 signals: [ServiceStructureValidator::FLAG_UNIDENTIFIED_SINGING],
