@@ -92,9 +92,10 @@ Rules:
   or one that follows a hymn or other intervening item, is its own prayer section.
 - oos_item_id: the id of the matching order-of-service item. Use each id AT MOST ONCE across all
   sections, and use null when no item clearly matches. Match on both the OoS text and the words
-  actually spoken. Items of the SAME type (e.g. two songs) must be claimed in their planned
-  relative order; if two same-type items appear swapped, claim the one that genuinely matches and
-  use null for the other. Items of DIFFERENT types may legitimately be performed in a different
+  actually spoken. Items of the SAME type (e.g. two songs) are usually performed in their planned
+  relative order, so prefer that order when the evidence is ambiguous; but when the words actually
+  sung or read show two same-type items were performed out of printed order, claim each item it
+  genuinely matches rather than dropping either. Items of DIFFERENT types may legitimately be performed in a different
   order from the printed list — the projection software groups songs into a block even when
   readings and prayers are interleaved between them — so claim the genuinely matching item
   regardless of its printed position relative to other types.

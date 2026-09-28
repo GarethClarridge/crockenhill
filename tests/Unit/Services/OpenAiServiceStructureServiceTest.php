@@ -316,7 +316,8 @@ class OpenAiServiceStructureServiceTest extends TestCase
         // deterministic gate depends on.
         $this->assertStringContainsString('Do NOT invent sections', $prompt['system']);
         $this->assertStringContainsString('AT MOST ONCE', $prompt['system']);
-        $this->assertStringContainsString('Items of the SAME type (e.g. two songs) must be claimed', $prompt['system']);
+        $this->assertStringContainsString('Items of the SAME type (e.g. two songs) are usually performed in their planned', $prompt['system']);
+        $this->assertStringContainsString('genuinely matches rather than dropping either', $prompt['system']);
         $this->assertStringContainsString('DIFFERENT types may legitimately be performed in a different', $prompt['system']);
         $this->assertStringContainsString('shorter than 15 seconds', $prompt['system']);
         $this->assertStringContainsString('exactly ONE primary sermon', $prompt['system']);
