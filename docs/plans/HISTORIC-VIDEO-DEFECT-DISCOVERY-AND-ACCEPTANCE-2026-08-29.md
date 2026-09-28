@@ -8,7 +8,7 @@
 > acceptance and public release remain NO-GO.** Repairs now run through §4.0's corpus
 > re-run: every eligible run re-detected against one frozen commit. Where the work stands:
 >
-> - **Freeze moved 2026-09-28 (§4.0 "Before the freeze", step 8): batch 1 failed as the canary on `adeab654c`** (a reading inside a talk split the talk; flag and review action built). Nothing is committed until the re-run ends. Canary 4 failed (936 supersession, 1304 hold).
+> - **Freeze moved twice 2026-09-28 (§4.0 "Before the freeze", steps 8 and 9):** batch 1 failed as the canary on `adeab654c` (a reading inside a talk split the talk), then a detection evaluation against operator-ruled boundaries found the talk prompt fix (0 talk-count errors in 7 draws on gpt-5.6-luna). Canary on the step-9 commit is scored by that harness. Nothing is committed until the re-run ends. Canary 4 failed (936 supersession, 1304 hold).
 >   **Canary 5 passed (2026-09-27, `e58978433`, 17 runs, both tiers and Tier C):** 0 rounds
 >   needed attention, every music-plan §8 check held, 1304 is one song; Tier C completed 16
 >   runs with 1262 parked for its held sermon, 4 flagged runs all explained, nothing public,
@@ -899,6 +899,13 @@ freeze, and the diff report binds that hash.
      re-run as the canary. Its baseline is batch 1's output, so the check is that 936 and
      1356 come out whole or flagged, with the rest as batch 1. **Nothing is committed until
      the re-run ends**; the new snapshot's details are recorded below, uncommitted.
+     *Frozen on `4105cfa7b`* (local tag `historic-rerun-freeze-20260928`); workers restarted
+     09:52:45 BST, a minute after the commit. Snapshot `freeze-20260928/membership.json`: the
+     same 437 members (membership sha256 `8fe5add7…`), routing `2fc8903c…` bound (166). Batch 1
+     dry runs: Tier B 16 ready, Tier A 0. **Canary dispatched 2026-09-28 (16 of 16).**
+  9. ***Freeze moved again 2026-09-28*** (operator go-ahead) after the detection evaluation below:
+     the talk prompt, `structure_talk_fragment` and the split review action are committed with
+     this entry; new snapshot, worker restart, batch 1 as the canary, scored by the harness.
 - [ ] **A report for re-transcribed runs' holds** (proposed 2026-09-25, **needs a ruling
   before the first era batch**). Tier C parks every run with a live hold on a sermon or short
   talk: **74 of 437 eligible runs** (47 `source_audio`, 11 `media_measurement`, 10 `boundary`,
@@ -958,6 +965,35 @@ freeze, and the diff report binds that hash.
   batch (972, 973, 974, 975, 979, 982: sermon names a reference, no passage linked), a
   current-state check the diff applies to every member, so the exit is failing on them.
   Canary diffs never covered them. Tier C not yet dispatched.
+- [x] **Detection evaluation (2026-09-28), after the canary on `4105cfa7b`.** That canary flagged
+  936 and 1117 but split 1356 differently again (tail typed `other`) and merged 1311's three
+  testimonies: detection varies run to run, so single canaries could not show whether a change
+  helped. Read-only harness in `storage/scratch/` (no run is written): `detection-draws-20260928.php`
+  runs production's `DetectServiceStructure` detect, retry and reading re-check per model;
+  `detection-truth-20260928.json` is the answer key; `detection-score-20260928.py` scores it.
+  - *Answer key:* the operator ruled the disputed boundaries from clips
+    (artifact `AhXDwapiDdK385at73PUVy`): 1356 and 936 one talk each (reading inside), 1117's Open
+    Doors talk 713 s to 1288 s (1244 acceptable), 1250's talk to 986 s (1018 acceptable), 1311 three
+    testimonies, 1112 one item, 1117's Bible-study encouragement a talk or `other`. **Boundaries
+    are partly editorial, so the key accepts every span the operator called acceptable; splitting
+    or merging talks is never acceptable.** The published sermon runs to the next song
+    (`SermonExtractionPlanResolver::resolveSermonEnd`), so sermons are scored on their start.
+  - *Models* (16 runs, `medium` effort): gpt-5.6-luna 1.0–1.8 talk-count errors a draw, gpt-6-luna
+    1.6, the sol models no better at 16–35× the cost (dropped). **Only 2–5 of 16 runs come out the
+    same every draw on any model**: boundary wobble inside the accepted spans, which is
+    tolerated. Half of all errors were one shape, a talk split around a passage its speaker read.
+  - *Prompt:* a talk keeps a passage its speaker introduces and reads; a sermon's reading, and a
+    reading after a talk has ended, stay their own sections; each person's testimony is its own
+    talk; a partner talk ends where the prayer begins. **gpt-5.6-luna: 0 talk-count errors in 7
+    of 7 draws** (readings intact after a first wording swallowed 1050's and 964's); gpt-6-luna
+    0.2 a draw, 1.4× faster (40 s against 57 s a call) and about $1 cheaper over the corpus.
+    **Ruled (operator): stay on gpt-5.6-luna.** gpt-6 would also need
+    `OpenAiChatPayload::isReasoningModel()` widened (it sends gpt-6 a rejected `temperature` and no
+    `reasoning_effort`).
+  - *Also built:* `structure_talk_fragment` (a talk under 60 s; the corpus's two were "Children
+    dismissed" and "Children come forward") and a review action to split a section in two.
+  - **The freeze moves again** (step 9): the canary's pass bar is the harness score on batch 1
+    against the answer key, 0 talk-count errors, not a diff read by eye.
 - [ ] Batches by era, each checked against its diff before the next. Stop on any new regression.
 
 **Preflight for every dispatch** (the canary, each batch, and any named pre-freeze exception):
