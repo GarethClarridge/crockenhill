@@ -1,10 +1,10 @@
 # Historic video detection reliability after canary 8
 
-**Status — 2026-09-28 (late): reviewed; DR2 implemented uncommitted (freeze and HOLD unchanged);
-DR4/DR6 sizing awaits operator decision.** See §0.
-The operator requested investigation and a plan. No application code, processing state,
-freeze, model configuration or acceptance rule was changed; no paid detections were run.
-Canary 8 remains FAIL. Tier C and corpus dispatch remain on hold.
+**Status — 2026-09-28 (after Codex review): delivery sequence revised for the ensemble and
+deterministic review loop; not implemented.** The original retry repair remains uncommitted code,
+not the chosen next design. Baseline plans are preserved in `2bb569482`; this revision changes
+documents only. Canary 8 remains FAIL; Tier C and corpus dispatch remain on HOLD at `3ffe4b54c`.
+No paid calls, processing operations or acceptance-policy changes are authorised by these commits.
 
 This is a focused work package under the
 [historic video defect plan](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md),
@@ -15,19 +15,25 @@ the existing canary bar nor the operator's HOLD until adopted. Earlier canary re
 evidence, not permission to proceed. This document owns only the detection-reliability work
 between canary 8 and a decision to dispatch canary 9.
 
-**Recommendation:** improve and measure both corrective retries and first-attempt
-classification before moving the freeze. Do not redefine a flagged classification error
-as a correct result. The first consumer is the approximately 400-service historic rerun;
-the current frozen membership is exactly **437** runs.
+**Recommendation:** implement the reviewed ensemble design and complete the reusable
+answer → correction → deterministic replay loop before increasing reprocessing volume.
+Do not redefine a flagged classification error as a correct result. The first consumer is the
+historic rerun of exactly **437** frozen runs; routine processing uses the same implementation.
 
 ## 0. Review outcome (2026-09-28, late)
 
-> **Superseding proposal (2026-09-28, later):** the operator directed a four-draw ensemble
+> **Current design (2026-09-28, after review):** the operator directed a four-draw ensemble
 > (2 × gpt-5.6-luna, 2 × gpt-6-luna, parallel, consensus-composed, disagreements flagged, validation
 > retry deleted). It is specified in [ensemble structure detection](HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md),
-> **a plan awaiting Codex review; nothing is built.** If it is adopted, the DR2 retry repair and
-> `FLAG_RETRY_CHANGED_TALKS` described below are deleted. The spot-check comparison then reads
-> the ensemble's disputes instead of a scratch second draw.
+> **reviewed and revised; nothing is built.** It owns composition, runtime, evidence, review and
+> replay specifications. The revised DR1–DR6 below replace the original retry-oriented delivery
+> sequence. Remove the original retry implementation only with its regression coverage preserved.
+> Spot checks consume ensemble disputes, and their answers correct output instead of merely
+> suppressing future questions. Q5 (changing the canary bar) remains an operator decision.
+
+The remainder of §0 records the earlier work and operator decisions. §1 preserves the original
+investigation; its code/scorer gaps have partly been addressed by the work recorded here. Neither
+section is an instruction to rebuild the superseded retry path or undo the later review design.
 
 **949's retry evidence was partly recoverable.** `processing_metadata.service_structure_retry` on
 run 949 reads: *"Section 13 (prayer, starts 1661.7s) lies almost entirely inside the previous
@@ -36,7 +42,7 @@ region around 1662–2003 s as prayer, nested, where the retry placed the Cold H
 Crockenhill talks. That strongly supports the hypothesis that blind regeneration, not the first
 attempt, produced the false talks. It does not show the rejected attempt's treatment of 781–1341 s.
 
-**DR2 implemented (uncommitted; no paid calls):**
+**Original DR2 retry repair implemented (uncommitted; no paid calls for that repair):**
 
 - `DetectServiceStructure::detectionRetryFeedback()` now lists the rejected structure, numbered
   as the findings number it, and asks for a repair that keeps unnamed sections' type, times and
@@ -52,7 +58,7 @@ attempt, produced the false talks. It does not show the rejected attempt's treat
 - Four regressions in `DetectServiceStructureTest` cover repair feedback, an introduced talk, a
   dropped talk and an agreeing retry. The full suite, PHPStan and Pint pass.
 
-**Not implemented / departures:** structured (section-indexed) validation findings were not needed:
+**Original retry-plan departures:** structured (section-indexed) validation findings were not needed:
 the flag compares every talk, so a legitimate talk repair such as a `multiple_sermons`
 reclassification is reviewed, not exempted. That review is the guard's measured cost. DR4's held-out design (32 new services needing full-transcript
 operator rulings, 96 sequences) and DR6's per-batch five-service clean audits (~22 batches for 437)
@@ -219,146 +225,144 @@ the presence of instructions, not model compliance.
 
 ## 2. Delivery sequence
 
-### DR1 — Preserve evidence and make evaluation trustworthy
+This sequence incorporates the session's review. Detailed contracts, tests and remaining decisions
+live in the [ensemble plan](HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md). Historical retry
+experiments, 80/96-sequence gates and five-clean-service audits from the baseline are superseded;
+do not execute them alongside this sequence.
 
-**Outcome:** every score can be traced to its exact inputs, attempts and acceptance decision.
+### DR1 — Preserve evidence and establish deterministic replay
 
-- [ ] Preserve the named artifacts and their hashes outside disposable scratch retention before
-  experimentation. Bind code revision, prompt, truth, transcript, audio timeline, attested OoS
-  inputs, model, effort and actual tier. Keep transcripts and response bodies in private artifacts.
-- [ ] Recover 949's saved retry summary through a read-only application/database path; search
-  retained artifacts for the initial response. If absent, record that absence permanently.
-  Any reconstructed overlap fixture must be labelled synthetic, never the original response.
-- [ ] Extend the existing evaluation path, rather than introduce another scratch/tinker driver.
-  Capture initial and subsequent raw/validated structures, exact feedback, pre/post-snap bounds,
-  hard failures, review flags, adoption/refusal and call usage. Prove parity with production
-  recovery and prove it does not mutate runs, sections, holds, publication or freeze metadata.
-- [ ] Make the scorer use explicit membership, reject missing/duplicate/unexpected runs and hard
-  failures, support partial diagnostic manifests, normalise flags and report one-to-one expected
-  talk matches. Add fixtures for a false positive cancelling a missing talk in the total count,
-  splits, merges, optional spans, unscored runs and accepted boundary alternatives.
-- [ ] Report erroneous sections, affected services and total calls separately; break down first
-  attempts, validation retries, reading rechecks and queue retries. Report refusals/parked runs
-  separately, not as accurate detections. Do not infer extraction safety from a flag string alone.
+**Outcome:** every result is reproducible locally from immutable inputs, draws and rule versions.
 
-### DR2 — Reproduce and constrain corrective retries
+- [ ] Preserve the named source/draw/truth artifacts on private backed-up storage; record the
+  partially recovered 949 summary and absence of its complete original response. Label synthetic
+  fixtures honestly. Do not depend on scratch retention for acceptance or future re-derivation.
+- [ ] Bind source identity, transcript, RMS, audio timeline, attested OoS, policies, code, prompt,
+  schema, model/effort and actual tier. Bank raw/parsed/refined outputs, failures and usage per slot.
+- [ ] Extract reusable orchestration into existing application/evaluation locations. Reuse sound,
+  validation, flag and hold services. Provide deterministic composition/replay with read-only
+  evaluation and explicit persistence; avoid another scratch or historic-only implementation.
+- [ ] Test idempotence, stale-input rejection and evaluator parity. Evaluation must not mutate
+  authoritative runs/sections/segments/holds/publication/freeze state; private evidence writes are
+  explicit. Local rule changes must not require new LLM calls.
 
-**Outcome:** a chronology correction cannot silently introduce unrelated publishable content.
+### DR2 — Implement the ensemble and extraction-aware agreement
 
-- [ ] First add a failing PHPUnit regression using an overlapping-prayer initial structure and
-  a mechanically valid retry with new talks. Include successful chronology correction, genuine
-  partner talks, a retry still invalid, reading recheck after recovery, and reconcile preservation.
-- [ ] Compare the current retry with one narrowly scoped candidate: provide the prior proposal
-  and specific faulty sections with the full transcript, request a bounded repair, then validate
-  the whole result and check for collateral changes. Define affected sections explicitly from
-  structured validation findings, not fragile parsing of human error text.
-- [ ] If repair scope cannot be established or unrelated talk identity/count/bounds change,
-  route to review. Never adopt the invalid first attempt. In reconcile mode retain previously
-  authoritative sections and their holds; for first processing keep the proposal non-authoritative.
-  This is a candidate policy to verify against legitimate repairs, not an instruction to preserve
-  every classification in an invalid proposal.
-- [ ] Keep the retry bounded. Do not add repeated whole-service draws until one passes, a vote
-  over outputs, or hard-coded handling of run 949. Measure review refusals as a cost of the guard.
+**Outcome:** supported claims compose the output; disagreement protects the decisions it affects.
 
-### DR3 — Improve first-attempt classification where evidence supports it
+- [ ] Implement explicit per-call models and four stable slots (2 × 5.6, 2 × 6) over identical
+  inputs. Fix gpt-6 request shaping and preserve flex fallback/actual-tier usage accounting.
+- [ ] Implement bounded subprocess isolation, per-child outcome collection and durable slot
+  results. Prove context restoration, timeouts/abrupt exits, sibling survival, cleanup and safe
+  resume with real subprocess tests. No completed invalid draw is retried into a passing vote.
+- [ ] Define/test one-to-one matching, non-transitive tolerances, split/merge conflicts, identity
+  comparison and stable tie resolution. Include references, absence and every extraction-relevant
+  boundary/filler decision. Treat reduced model/draw coverage as degraded and review-required.
+- [ ] Compose supported boundary pairs and coherent fields; ER1 selects a complete accepted
+  prayer alternative, never a midpoint. Preserve existing flags/confidence policy and provenance.
+- [ ] Propagate disputes through actual extraction plans, including song boundaries, omitted
+  readings, no-sermon completion and baseline fallback. Test outcomes, not merely flag strings.
+- [ ] Replace validation retry and automatic single-model reading-recheck adoption. Preserve the
+  original regression behaviours in ensemble tests. An optional reading diagnostic is review-only,
+  bounded and not a default fifth call. Defer shadow deletion until its non-voting role is replaced.
 
-**Outcome:** sharing/prayer, song introductions and standalone prayers stop becoming talks
-without losing genuine partner presentations, children's talks or testimonies.
+### DR3 — Complete the review-answer-to-correction loop
 
-- [ ] Use 949 plus contrasting existing cases: 936/1356 talks containing readings; 1117 distinct
-  talks separated by prayer; 1311 separate testimonies; 964/1025/1250/1112/1221 accepted boundaries.
-- [ ] Inspect full transcript context for the distinction between reporting prayer needs and
-  presenting a partner's work. Propose a concise general rule or prompt reorganisation only
-  where that distinction is supported. Do not classify by title, duration or organisation name.
-- [ ] Evaluate the retry candidate alone, then any prompt candidate separately. Keep the current
-  model/effort initially. A new model comparison is not the default response to this failure.
+**Outcome:** each answer repairs current output and survives reprocessing without repeated questions.
 
-### DR4 — Predeclare and run a bounded evaluation
+- [ ] Bank scoped rulings with source/transcript identity, anchors, alternatives, operator and
+  revision history. Replace approximate-span-only suppression with verified evidence matching.
+  Changed evidence or ambiguous/conflicting mappings stay stale/unresolved, never silently cleared.
+- [ ] Apply local answers as constraints, then recompose, validate and update dependent extraction
+  plans. Resolve only the named issue; preserve unrelated holds and publication controls.
+- [ ] Deduplicate questions by issue. Resolve presence before edges, support omitted/split/merged
+  claims, expandable clip/transcript context, both-acceptable/none-correct/cannot-tell answers and
+  deferred status. Do not use blanket section confirmation to implement a narrow spot answer.
+- [ ] Prove an answer corrects output, survives changed section rows and replay, and does not
+  reopen unchanged resolved questions. Metadata changes do not trigger unnecessary recuts.
+- [ ] Separate content corrections, accepted alternatives and general rules. Generalisation needs
+  observable preconditions and counterexamples, not recurring wording or disputed model labels.
+  Use existing contrasts (949, 936/1356, 1117, 1311 and accepted boundary cases) as regression evidence.
+- [ ] Replay candidate rules on saved corpus evidence; enumerate changes, clearances, affected
+  media plans and known-correct regressions. Add fixtures before adoption. No further LLM call is
+  needed for applying answers, changing composition/validation or measuring equivalence rules.
 
-**Outcome:** measured improvement survives repetitions and examples not used to tune it.
+### DR4 — Predeclare and run the bounded evaluation
 
-Before any new paid evaluation, record the exact manifests, revisions, draw counts, score rules,
-maximum call/spend budget and stop conditions. Estimate spend from saved usage and the local
-price snapshot; count feedback, reading rechecks and transport retries too. No paid calls were
-made as part of writing this plan.
+**Outcome:** measure classification, composition, containment and review separately on the agreed scope.
 
-Recommended design, subject to adoption before execution:
+- [ ] First run deterministic replay against saved evidence. Extend the DR1 scorer to all claim
+  types and actual extraction plans; update ensemble containment mapping and application-policy
+  parity. Enforce exact membership and one-to-one matches; keep false/missing/split/merged cases.
+- [ ] Separate operator-ruled accuracy from provisional model-consensus stability. Refusals,
+  degraded sequences, unreadable evidence and unanswered claims are not clean verified results.
+- [ ] Freeze manifests, candidate versions, score rules, draw counts, maximum spend/calls and stop
+  conditions before paid work. Follow ensemble §6: 16 services × 3 four-draw sequences, plus
+  10 four-draw sequences on 949 (232 base calls, approximately $1.1 before any separately declared
+  retry allowance). Do not run the superseded synthetic-repair experiment as an additional arm.
+- [ ] Measure pre-review errors, post-review correctness, extraction eligibility, disputed spots,
+  degraded/refused runs, latency/cost and review time/reuse. Measure ER1's correctness as well as
+  its flag reduction. Answer unknowns through targeted source questions, not invented truth.
+- [ ] Report the scope limit: repeated detections on these tuned services do not establish
+  unseen-service accuracy. Do not reinstate whole-service markup or a held-out workload by default.
 
-| Set | Membership and draws | Purpose |
-|---|---|---|
-| Retry diagnostic | 949: 10 fresh first attempts, 10 calls with the captured validation feedback, 10 candidate repairs using a fixed invalid proposal; two contrasting repair cases, five calls per arm | Separate feedback effects from ordinary variance; synthetic inputs explicitly labelled. Forced feedback alone is a conditional diagnostic, not an end-to-end pass. |
-| Regression | Existing 16 services, five complete production-equivalent sequences per service on the selected candidate | Preserve known talks, readings and ruled boundaries. Compare against frozen baseline evidence; generate matched baseline observations where saved inputs/revisions are not comparable. |
-| Held-out acceptance | 32 previously unused services, three complete sequences each | 16 seeded random services from remaining frozen membership plus 16 distinct challenge services spanning eras, ordinary services, prayer/sharing, partner presentations, baptisms/testimonies and poor transcripts. Fix selection before looking at candidate outputs. |
+### DR5 — Verification, acceptance and canary 9
 
-The challenge sample is deliberately enriched and must be reported separately from the random
-sample. Select from inputs and existing metadata, not candidate errors. Establish expected talks
-and acceptable spans from full transcripts before scoring. The operator rules on ambiguous
-content from full transcripts or source clips, never an agent's summary. Do not invent rulings.
-Any unreadable source receives an explicit disposition, not a silent sample replacement.
+**Outcome:** one verified implementation and completed review loop support a concrete dispatch decision.
 
-Limit development to the retry candidate and at most one accompanying prompt candidate in this
-cycle. If neither meets the gates, stop and report the failure class and review cost; propose a
-new bounded cycle. Do not keep tuning against the held-out set. Once inspected for tuning, that
-set becomes regression material and a new held-out set is required.
-
-### DR5 — Acceptance and canary 9
-
-**Outcome:** a single frozen implementation earns permission for bounded corpus processing.
-
-Proposed gates, to adopt before DR4 rather than adjust after its results:
-
-| Gate | Required result |
+| Gate | Required evidence |
 |---|---|
-| Deterministic correctness | Focused regressions pass; invalid originals are never adopted; collateral retry changes cannot bypass review; evaluation leaves authoritative state unchanged. |
-| Known-case accuracy | All 80 regression sequences scored; zero false/missing/split/merged talks, and all required spans within operator-accepted alternatives. A refusal is not a clean sequence. |
-| Held-out accuracy | All 96 sequences scored; zero confirmed talk-count errors, including flagged ones. Resolve every boundary adjudication before acceptance. Report failures rather than relax this gate mid-cycle. |
-| Safety | Zero observed erroneous outputs eligible for automatic extraction/publication; prove downstream behaviour with integration tests, including isolated false talks and retry refusals. Existing holds remain effective. |
-| Review burden | Report distinct affected services, repeat flags, refusals and operator minutes separately from pre-existing holds. Proposed tripwire: more than 10% of unique acceptance services newly need detection review, or more than 5 minutes median review per affected service, requires an explicit workload decision before scaling. This is not a classification-error allowance. |
-| Coverage | Retry-specific tests and diagnostic arms complete; passing first-attempt draws alone cannot satisfy retry coverage. Missing and unreadable cases remain visible. |
+| Deterministic correctness | Ensemble §5 tests; supported composition, preserved holds, read-only evaluation, repeatable replay and durable scoped rulings. |
+| Runtime | Real subprocess partial failure, deadlines, cleanup, staging identity, slot resume and capacity verified. |
+| Accuracy | All declared sequences accounted for; ruled errors separate from provisional matches and unresolved claims. A flag is containment, not correctness. |
+| Extraction | Integration tests and evaluation of actual cuts/absence decisions; no review bypass through omitted reading, next-song boundary or RMS fallback. |
+| Learning loop | A review answer demonstrably repairs and persists through replay; candidate rules have corpus diffs and counterexample tests. |
+| Operator work | Questions, corrections, accepted alternatives, deferred/stale issues and minutes reported; no unadopted 10%/five-minute workload tripwire. |
 
-These are finite acceptance tests, not a claim of perfect accuracy across the corpus. Repeated
-draws on one service are correlated; do not present 96 sequences as 96 independent services
-or derive a population confidence claim from the enriched sample.
+- [ ] Run focused PHPUnit tests, PHPStan, Pint and full parallel suite through Sail; retain output.
+  Run Dusk for review interactions and keep Playwright visual-only. Documentation edits do not
+  substitute for those implementation checks.
+- [ ] Resolve ensemble Q5 before interpreting a different canary bar. The existing **zero
+  talk-count errors including flagged ones** remains in force. If changed explicitly to zero
+  unflagged errors plus completed review/correction, report pre-review accuracy separately from
+  post-review correctness. Do not change the gate after seeing a failure.
+- [ ] Present concrete evidence. Only after the dispatch HOLD is explicitly lifted: commit the
+  implementation, move the operational freeze, snapshot authoritative state, verify membership,
+  routes and holds, restart/verify workers and perform preflight. Plan commits do none of this.
+- [ ] Dispatch the complete 16-run canary once, score it and run the custody/hold diff. Finish
+  adjudication before advancement; do not rerun 949 alone to erase a failure. A failure stops
+  advancement and remains evidence. Parent gates still govern Tier C and public release.
 
-- [ ] Run project-required checks after implementation: focused PHPUnit tests, PHPStan, Pint,
-  and the full parallel suite for the non-trivial retry change. Use Sail and retain full output.
-  Dusk is required only if browser behaviour changes; no UI work is proposed here.
-- [ ] Present results and any unresolved operator rulings. Only after the HOLD is explicitly
-  lifted for the concrete change: commit, move the freeze, snapshot current authoritative state,
-  verify membership/routes/holds, restart and verify workers, perform the existing preflight.
-- [ ] Dispatch the complete 16-run canary once as canary 9, score it and run the custody/hold diff.
-  Keep zero talk-count errors as its bar. Adjudication must finish before advancement. Do not
-  rerun 949 alone to erase a failure. A failure stops dispatch and remains in the evidence.
-- [ ] Only a passed canary and the parent plan's operational gates permit batch-1 Tier C.
-  Verify actual extraction plans and source openings/endings under the existing checks.
-  Detection acceptance does not authorise public release.
+### DR6 — Controlled batches and measured learning
 
-### DR6 — Controlled rollout and review of apparently clean services
+**Outcome:** targeted review improves current outputs and reusable rules before the next batch.
 
-**Outcome:** new corpus errors are detected before the next batch, including missing talks
-that cannot flag themselves.
-
-- [ ] Resume parent-plan era batches with an initial maximum of 20 services per batch.
-  Review every retry/refusal, every new or changed talk, and every flagged talk before extraction
-  decisions. Review full-service context, not just the proposed talk list.
-- [ ] Before each next batch, audit five seeded, apparently clean services (or all when fewer
-  than five), using full transcripts to search for missing talks as well as false positives.
-  Keep this sample separate from flagged-service review and record selection before reading.
-- [ ] Stop before the next batch on any confirmed new talk-count error, unacceptable content
-  boundary, lost hold or error escaping review. This proposed stop rule is stricter than the
-  existing “more than three false talks under 60 seconds” tripwire; on adoption it supersedes
-  that tripwire for this rollout. It covers errors longer than 60 seconds and missing talks too.
-- [ ] Track cumulative accuracy by unique service and failure class, conditional retry outcomes,
-  review minutes and newly parked services. Apply the workload tripwire over completed batches.
-  A review hold is containment, never a silently accepted accuracy failure.
+- [ ] Resume only under adopted parent-plan batching/operational controls. Use ensemble disputes
+  instead of scratch second draws; retain edge and weak-song selectors, deduplicated by issue.
+  The operator's no-whole-service-markup decision remains binding.
+- [ ] Apply existing matching rulings before asking new questions. Resolve presence first and
+  recompute affected plans after answers; defer cannot-tell without disguising it as resolved.
+  Finish the repair/replay loop before increasing volume or advancing affected content.
+- [ ] Between batches, test recurring-rule candidates against saved evidence; show changes and
+  known-truth regressions before adoption. A smaller queue alone cannot justify a rule.
+- [ ] Track distinct services, new/reused/deferred/stale questions, corrections versus accepted
+  alternatives, rule-driven reductions, review minutes, degradation/refusals and residual errors.
+- [ ] A lost hold or error bypassing review blocks affected progression and requires investigation.
+  Explicitly record any changed rollout size or stop threshold before applying it; old proposals
+  are not adopted thresholds. Detection acceptance never grants publication authority.
+- [ ] Keep the known completeness gap visible: unanimous omissions may produce no question.
+  Targeted selectors and banked rulings mitigate only the cases they reach. Additional audits are
+  an operator workload decision, not silently required by this revised sequence.
 
 ## 3. Completion and unresolved decisions
 
-Complete this work package when the evaluation gates are met, canary 9 passes, and its evidence
-and rollout monitoring are handed back to the parent plan. Archive this plan at historic closeout;
-retire temporary evaluation tooling under the existing IC8 ownership.
+Complete when the ensemble's deterministic/runtime/review tests pass, the declared evaluation and
+canary meet the adopted gates, and reusable evidence, ruling application, replay and batch metrics
+are handed back to the parent plan. Archive this work package at historic closeout; temporary
+scratch tooling retires under IC8, while routine detection/review/replay remain application features.
 
-The operator still needs to adopt the evaluation sizes/workload limits and resolve any ambiguous
-truth spans. The single maintainer can perform all review and acceptance roles. No second person
-or independent human approval is required. A request to write this plan does not lift the existing
-dispatch HOLD or approve changes to publication policy.
+The outstanding acceptance decision is ensemble Q5. Exact matching/tolerance fixtures and ER1's
+general predicate/measurement must also be settled before their respective implementation and
+evaluation gates. Changes to degraded-ensemble policy, evaluation scope or rollout workload need
+an explicit recorded decision. The one maintainer can perform every review role. These document
+commits do not lift the dispatch HOLD or change publication policy.

@@ -99,11 +99,14 @@ None of these lanes blocks the public product sequence except where a plan expli
 
 The historic video's immediate next work is the
 [canary-8 detection reliability work package](HISTORIC-VIDEO-DETECTION-RELIABILITY-2026-09-28.md)
-(investigated 2026-09-28; implementation/evaluation proposed). It belongs to the historic defect
+(reviewed 2026-09-28; revised implementation/evaluation sequence). It belongs to the historic defect
 plan under H0. Canary 8 failed; Tier C and corpus dispatch remain on HOLD at `3ffe4b54c`.
 Its proposed replacement for single-draw detection, the
-[ensemble structure detection plan](HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md), awaits review
-before any implementation.
+[ensemble structure detection plan](HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md), incorporates
+Codex's review and the operator's preference for deterministic reuse of review answers. Next:
+preserve immutable draw evidence, implement extraction-aware agreement, and complete the
+answer/correction/replay loop before scaling. Neither is implemented; the baseline plans are
+preserved in `2bb569482`. Changing the canary bar remains an explicit operator decision (Q5).
 
 | Order | Plan | Verified status | Next independently useful slice |
 |---|---|---|---|

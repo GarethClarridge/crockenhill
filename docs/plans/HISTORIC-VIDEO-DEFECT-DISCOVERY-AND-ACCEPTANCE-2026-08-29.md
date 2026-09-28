@@ -1,11 +1,18 @@
 # Historic Video Defect Discovery and Acceptance Plan
 
-> **Latest update — 2026-09-28 evening:** canary 8 on `3ffe4b54c` failed: 949 produced four
-> spurious talks after validation retry. Tier C and corpus dispatch remain on HOLD; the freeze
-> is unchanged. The [detection reliability work package](HISTORIC-VIDEO-DETECTION-RELIABILITY-2026-09-28.md)
-> records the read-only investigation and proposed route to canary 9. Its new evaluation and
-> rollout thresholds are proposals, not adopted operator rulings. This update takes precedence
-> over the older next-action summaries below; custody and release controls remain unchanged.
+> **Latest update — 2026-09-28, after Codex review:** canary 8 on `3ffe4b54c` failed: 949
+> produced four spurious talks after validation retry. Tier C and corpus dispatch remain on HOLD;
+> the operational freeze is unchanged by the plan commits. The
+> [detection reliability work package](HISTORIC-VIDEO-DETECTION-RELIABILITY-2026-09-28.md) now sequences
+> the reviewed [ensemble and deterministic review-loop design](HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md).
+> Next: preserve replayable evidence, implement extraction-aware consensus and finish
+> answer → correction → deterministic replay before increasing reprocessing volume. Local rulings
+> must correct output; recurring patterns become general rules only after measured corpus replay
+> and counterexample tests. These are plans, not implemented ensemble behaviour.
+> The existing zero-talk-count-error canary bar (including flagged errors) remains until an explicit
+> Q5 ruling; targeted review remains the operator's chosen workload, with no reinstated full-service
+> audits. This update supersedes older next-action summaries below. Custody, extraction and release
+> controls remain in force; documentation commits authorise no paid calls, dispatch or publication.
 
 > Formerly `HISTORIC-VIDEO-PILOT-TO-BULK-PLAN-2026-08-29.md`. Renamed 2026-09-14
 > once bulk processing was complete and the remaining work became discovering,
