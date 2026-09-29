@@ -198,6 +198,8 @@ class ServiceStructureEnsembleComposer
             ];
         }
 
+        [$sections, $provenance] = $this->resolveFillerOverlaps($sections, $provenance);
+
         $sermonVotes = count(array_filter($eligible, static fn (ValidationResult $draw): bool => $draw->structure->sectionsOfType(ServiceSectionType::Sermon) !== []));
         $absenceVotes = array_filter($eligible, static fn (ValidationResult $draw): bool => $draw->structure->assertsSermonAbsence());
 
@@ -250,6 +252,82 @@ class ServiceStructureEnsembleComposer
         );
 
         return new EnsembleComposition($structure, $disputes, $provenance, $degraded, false, $validVotes);
+    }
+
+    /**
+     * Groups are composed independently, so a written section and its neighbour can come from
+     * different voters and overlap by a few seconds. An edge that is not held to agreement gives
+     * way to one that is: filler's edges, and a song's edges other than the start of the song
+     * that ends the sermon (ruled 2026-09-29). It is trimmed back to the neighbour's supported
+     * edge, so no new cut is invented. Where both edges are unheld, the less supported gives way.
+     * A section left under a second long is dropped. Two held edges that overlap are left for
+     * validation to refuse.
+     *
+     * @param  list<ServiceStructureSection>  $sections
+     * @param  list<array<string, mixed>>  $provenance  Parallel to $sections
+     * @return array{0: list<ServiceStructureSection>, 1: list<array<string, mixed>>}
+     */
+    private function resolveFillerOverlaps(array $sections, array $provenance): array
+    {
+        $order = array_keys($sections);
+        usort($order, static fn (int $a, int $b): int => [$sections[$a]->startTime, $sections[$a]->endTime, $a]
+            <=> [$sections[$b]->startTime, $sections[$b]->endTime, $b]);
+        $sections = array_map(static fn (int $index): ServiceStructureSection => $sections[$index], $order);
+        $provenance = array_map(static fn (int $index): array => $provenance[$index], $order);
+        $sermonStart = null;
+
+        foreach ($sections as $section) {
+            if ($section->type === ServiceSectionType::Sermon) {
+                $sermonStart = min($sermonStart ?? $section->startTime, $section->startTime);
+            }
+        }
+
+        $endingSongStart = null;
+
+        foreach ($sections as $section) {
+            if ($sermonStart !== null && $section->type === ServiceSectionType::Song && $section->startTime >= $sermonStart) {
+                $endingSongStart = $section->startTime;
+
+                break;
+            }
+        }
+
+        $unheld = static fn (ServiceStructureSection $section, bool $atItsStart): bool => in_array($section->type, self::FILLER_TYPES, true)
+            || ($section->type === ServiceSectionType::Song && ! ($atItsStart && $section->startTime === $endingSongStart));
+
+        for ($index = 0; $index < count($sections) - 1; $index++) {
+            $earlier = $sections[$index];
+            $later = $sections[$index + 1];
+
+            $earlierUnheld = $unheld($earlier, false);
+            $laterUnheld = $unheld($later, true);
+
+            if ($earlier->endTime - $later->startTime <= 1.0 || (! $earlierUnheld && ! $laterUnheld)) {
+                continue;
+            }
+
+            $earlierGivesWay = match (true) {
+                ! $laterUnheld => true,
+                ! $earlierUnheld => false,
+                default => count($provenance[$index]['supporting_slots'] ?? []) < count($provenance[$index + 1]['supporting_slots'] ?? []),
+            };
+            $loser = $earlierGivesWay ? $index : $index + 1;
+            $trimmed = $earlierGivesWay
+                ? $earlier->withTimes($earlier->startTime, $later->startTime)
+                : $later->withTimes($earlier->endTime, $later->endTime);
+
+            if ($trimmed->endTime - $trimmed->startTime < 1.0) {
+                array_splice($sections, $loser, 1);
+                array_splice($provenance, $loser, 1);
+            } else {
+                $sections[$loser] = $trimmed;
+                $provenance[$loser]['trimmed_for_overlap'] = [$trimmed->startTime, $trimmed->endTime];
+            }
+
+            $index = max(-1, $index - 2);
+        }
+
+        return [array_values($sections), $provenance];
     }
 
     /**

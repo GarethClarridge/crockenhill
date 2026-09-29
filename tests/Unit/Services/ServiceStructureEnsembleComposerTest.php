@@ -384,6 +384,79 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         $this->assertContains('song', array_column($presence->disputes, 'type'));
     }
 
+    /** The shape of run 1356 in the baseline draws: the written filler and song come from different voters. */
+    #[Test]
+    public function filler_gives_way_to_the_claim_it_overlaps(): void
+    {
+        $sermon = $this->section(ServiceSectionType::Sermon, 1000, 3000);
+        $sections = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($this->structure($this->section(ServiceSectionType::Other, 497, 526), $this->song(530, 700, 'Amazing Grace'), $sermon)),
+            1 => $this->vote($this->structure($this->song(522, 695, 'Amazing Grace'), $sermon)),
+            2 => $this->vote($this->structure($this->song(497, 700, 'Amazing Grace'), $sermon)),
+            3 => $this->vote($this->structure($this->section(ServiceSectionType::Other, 490, 521), $this->song(522, 700, 'Amazing Grace'), $sermon)),
+        ])->structure->sections;
+
+        $this->assertSame(['other', 'song', 'sermon'], array_map(static fn ($section): string => $section->type->value, $sections));
+        $this->assertSame(522.0, $sections[1]->startTime);
+        $this->assertSame(522.0, $sections[0]->endTime);
+    }
+
+    /** The shape of run 1117 in the p3 draws: two fillers written over one span from different groups. */
+    #[Test]
+    public function the_less_supported_of_two_overlapping_fillers_gives_way(): void
+    {
+        $sermon = $this->section(ServiceSectionType::Sermon, 1000, 3900);
+        $sections = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($this->structure($sermon, $this->song(4015, 4176, 'Amazing Grace'), $this->section(ServiceSectionType::Other, 4176, 4219))),
+            1 => $this->vote($this->structure($sermon, $this->song(4005, 4175, 'Amazing Grace'), $this->section(ServiceSectionType::Prayer, 4176, 4219))),
+            2 => $this->vote($this->structure($sermon, $this->song(3980, 4174, 'Amazing Grace'), $this->section(ServiceSectionType::Prayer, 4176, 4219))),
+            3 => $this->vote($this->structure($sermon, $this->song(4005, 4175, 'Amazing Grace'), $this->section(ServiceSectionType::Other, 4175, 4200), $this->section(ServiceSectionType::Prayer, 4200, 4219))),
+        ])->structure->sections;
+
+        $this->assertSame(['sermon', 'song', 'prayer'], array_map(static fn ($section): string => $section->type->value, $sections));
+        $this->assertSame([4176.0, 4219.0], [$sections[2]->startTime, $sections[2]->endTime]);
+    }
+
+    /** The shape of run 1028 in the p5order draws: a mid-service song's unheld end runs into a talk. */
+    #[Test]
+    public function a_mid_service_song_edge_gives_way_to_a_talk(): void
+    {
+        $sermon = $this->section(ServiceSectionType::Sermon, 1965, 4097);
+        $draw = fn (int $songStart, int $songEnd, int $talkStart): ServiceStructure => $this->structure(
+            $this->song($songStart, $songEnd, 'Amazing Grace'),
+            $this->section(ServiceSectionType::ShortTalk, $talkStart, 1242),
+            $sermon,
+        );
+
+        $sections = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($draw(990, 1120, 1120)),
+            1 => $this->vote($draw(979, 1125, 1120)),
+            2 => $this->vote($draw(979, 1125, 1129)),
+            3 => $this->vote($draw(979, 1120, 1120)),
+        ])->structure->sections;
+
+        $this->assertSame(['song', 'short_talk', 'sermon'], array_map(static fn ($section): string => $section->type->value, $sections));
+        $this->assertSame(1120.0, $sections[1]->startTime);
+        $this->assertSame(1120.0, $sections[0]->endTime);
+    }
+
+    #[Test]
+    public function a_song_and_the_sermon_after_it_share_one_supported_boundary(): void
+    {
+        $result = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($this->structure($this->song(500, 720, 'Amazing Grace'), $this->section(ServiceSectionType::Sermon, 720, 3000))),
+            1 => $this->vote($this->structure($this->song(500, 720, 'Amazing Grace'), $this->section(ServiceSectionType::Sermon, 720, 3000))),
+            2 => $this->vote($this->structure($this->song(500, 750, 'Amazing Grace'), $this->section(ServiceSectionType::Sermon, 740, 3000))),
+            3 => $this->vote($this->structure($this->song(500, 750, 'Amazing Grace'), $this->section(ServiceSectionType::Sermon, 740, 3000))),
+        ]);
+        $song = $result->structure->sectionsOfType(ServiceSectionType::Song)[0];
+        $sermon = $result->structure->sectionsOfType(ServiceSectionType::Sermon)[0];
+
+        $this->assertSame(500.0, $song->startTime);
+        $this->assertSame(720.0, $sermon->startTime);
+        $this->assertSame($sermon->startTime, $song->endTime);
+    }
+
     private function song(int $start, int $end, string $title): ServiceStructureSection
     {
         return new ServiceStructureSection(ServiceSectionType::Song, null, (float) $start, (float) $end, 0.9, null, $title, null);
