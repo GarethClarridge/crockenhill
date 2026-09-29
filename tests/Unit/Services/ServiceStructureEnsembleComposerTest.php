@@ -159,12 +159,12 @@ class ServiceStructureEnsembleComposerTest extends TestCase
     {
         $result = app(ServiceStructureEnsembleComposer::class)->compose([
             0 => $this->vote($this->structure(
-                $this->section(ServiceSectionType::Other, 105, 120),
-                $this->section(ServiceSectionType::Other, 120, 140),
+                $this->section(ServiceSectionType::ShortTalk, 105, 120),
+                $this->section(ServiceSectionType::ShortTalk, 120, 140),
             )),
-            1 => $this->vote($this->structure($this->section(ServiceSectionType::Other, 125, 135))),
-            2 => $this->vote($this->structure($this->section(ServiceSectionType::Other, 125, 135))),
-            3 => $this->vote($this->structure($this->section(ServiceSectionType::Other, 125, 135))),
+            1 => $this->vote($this->structure($this->section(ServiceSectionType::ShortTalk, 125, 135))),
+            2 => $this->vote($this->structure($this->section(ServiceSectionType::ShortTalk, 125, 135))),
+            3 => $this->vote($this->structure($this->section(ServiceSectionType::ShortTalk, 125, 135))),
         ]);
 
         $this->assertContains('alignment', array_column($result->disputes, 'type'));
@@ -290,6 +290,103 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         $this->assertSame([], array_values(array_filter($result->disputes, static fn (array $dispute): bool => ($dispute['type'] ?? null) === 'song')));
         $this->assertSame(100.0, $result->structure->sections[0]->startTime);
         $this->assertContains(ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH, $result->structure->sections[0]->reviewFlags);
+    }
+
+    #[Test]
+    public function filler_far_from_the_sermon_follows_the_representative_without_a_question(): void
+    {
+        $draw = fn (float $welcomeEnd, bool $withNotices): ServiceStructure => $this->structure(...array_values(array_filter([
+            $this->section(ServiceSectionType::Welcome, 0, (int) $welcomeEnd),
+            $withNotices ? $this->section(ServiceSectionType::Notices, (int) $welcomeEnd, 400) : null,
+            $this->section(ServiceSectionType::Sermon, 2000, 4000),
+        ])));
+
+        $result = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($draw(100, true)),
+            1 => $this->vote($draw(160, true)),
+            2 => $this->vote($draw(130, false)),
+            3 => $this->vote($draw(100, true)),
+        ]);
+
+        $this->assertSame([], $result->disputes);
+        $this->assertSame(['welcome', 'notices', 'sermon'], array_map(static fn ($section): string => $section->type->value, $result->structure->sections));
+    }
+
+    #[Test]
+    public function filler_that_can_change_the_sermon_cut_is_still_compared(): void
+    {
+        $draw = fn (int $prayerStart): ServiceStructure => $this->structure(
+            $this->section(ServiceSectionType::Prayer, $prayerStart, 1990),
+            $this->section(ServiceSectionType::Sermon, 2000, 4000),
+            $this->section(ServiceSectionType::Notices, 4000, 4100),
+            $this->section(ServiceSectionType::Song, 4100, 4300),
+        );
+
+        $result = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($draw(1900)),
+            1 => $this->vote($draw(1900)),
+            2 => $this->vote($draw(1850)),
+            3 => $this->vote($draw(1850)),
+        ]);
+
+        $this->assertSame(['prayer', 'prayer'], array_column($result->disputes, 'type'));
+    }
+
+    #[Test]
+    public function a_mid_service_song_matches_on_overlap_but_the_song_ending_the_sermon_is_held_to_its_start(): void
+    {
+        $draw = fn (int $firstSongStart, int $closingSongStart): ServiceStructure => $this->structure(
+            $this->song($firstSongStart, 600, 'Amazing Grace'),
+            $this->section(ServiceSectionType::Sermon, 1000, $closingSongStart),
+            $this->song($closingSongStart, 3500, 'In Christ Alone'),
+        );
+
+        $midServiceOnly = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($draw(300, 3200)),
+            1 => $this->vote($draw(340, 3200)),
+            2 => $this->vote($draw(300, 3200)),
+            3 => $this->vote($draw(345, 3200)),
+        ]);
+        $closing = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($draw(300, 3200)),
+            1 => $this->vote($draw(300, 3200)),
+            2 => $this->vote($draw(300, 3240)),
+            3 => $this->vote($draw(300, 3240)),
+        ]);
+
+        $this->assertSame([], $midServiceOnly->disputes);
+        $this->assertSame(300.0, $midServiceOnly->structure->sectionsOfType(ServiceSectionType::Song)[0]->startTime);
+        $this->assertContains('song', array_column($closing->disputes, 'type'));
+    }
+
+    #[Test]
+    public function a_mid_service_song_identity_or_presence_disagreement_is_still_a_question(): void
+    {
+        $draw = fn (?string $title): ServiceStructure => $this->structure(...array_values(array_filter([
+            $title === null ? null : $this->song(300, 600, $title),
+            $this->section(ServiceSectionType::Sermon, 1000, 3000),
+        ])));
+
+        $identity = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($draw('Amazing Grace')),
+            1 => $this->vote($draw('Amazing Grace')),
+            2 => $this->vote($draw('Be Thou My Vision')),
+            3 => $this->vote($draw('Amazing Grace')),
+        ]);
+        $presence = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($draw('Amazing Grace')),
+            1 => $this->vote($draw('Amazing Grace')),
+            2 => $this->vote($draw(null)),
+            3 => $this->vote($draw('Amazing Grace')),
+        ]);
+
+        $this->assertContains('song', array_column($identity->disputes, 'type'));
+        $this->assertContains('song', array_column($presence->disputes, 'type'));
+    }
+
+    private function song(int $start, int $end, string $title): ServiceStructureSection
+    {
+        return new ServiceStructureSection(ServiceSectionType::Song, null, (float) $start, (float) $end, 0.9, null, $title, null);
     }
 
     private function vote(ServiceStructure $structure): ValidationResult

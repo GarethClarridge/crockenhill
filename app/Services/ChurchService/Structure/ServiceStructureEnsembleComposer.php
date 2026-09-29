@@ -17,6 +17,24 @@ use App\Services\Song\SongTitleHygiene;
  */
 class ServiceStructureEnsembleComposer
 {
+    /**
+     * Section types that frame the service's content rather than being published themselves.
+     * They are held to agreement only where they can change the sermon's cut (plan §3.5,
+     * ruled 2026-09-29); elsewhere they follow the representative voter without a question.
+     */
+    private const FILLER_TYPES = [
+        ServiceSectionType::Welcome,
+        ServiceSectionType::Prayer,
+        ServiceSectionType::Notices,
+        ServiceSectionType::Other,
+    ];
+
+    /** How far before the earliest sermon start filler can still change the cut (the pre-sermon prayer). */
+    private const PRE_SERMON_MARGIN_SECONDS = 120.0;
+
+    /** Share of the shorter span two claims must overlap to be the same song or the same filler. */
+    private const SAME_SPAN_OVERLAP = 0.5;
+
     public function __construct(
         private readonly ScriptureReferenceResolver $scriptureReferences,
         private readonly SongTitleHygiene $songTitles,
@@ -49,6 +67,11 @@ class ServiceStructureEnsembleComposer
             $b['section']->startTime, $b['section']->endTime, $b['section']->type->value, $b['slot'], $b['index'],
         ]);
 
+        $context = $this->alignmentContext($eligible);
+        $claims = array_map(fn (array $claim): array => [
+            ...$claim,
+            'cut_relevant' => $this->cutRelevant($claim, $context),
+        ], $claims);
         $groups = [];
         $alignmentConflicts = [];
 
@@ -56,7 +79,7 @@ class ServiceStructureEnsembleComposer
             $candidateGroups = [];
 
             foreach ($groups as $groupIndex => $group) {
-                if ($this->compatibleWithGroup($claim, $group, $eligible)) {
+                if ($this->compatibleWithGroup($claim, $group, $eligible, $context)) {
                     $candidateGroups[] = $groupIndex;
                 }
             }
@@ -125,7 +148,9 @@ class ServiceStructureEnsembleComposer
             $source = $representative['section'];
             $prayerEquivalent = $source->type === ServiceSectionType::Prayer
                 && $this->equivalentPreSermonPrayer($source, $eligible);
-            $flagged = ! $prayerEquivalent && ($supported !== $validVotes || count($variants) !== 1);
+            $quietFiller = in_array($source->type, self::FILLER_TYPES, true)
+                && ! in_array(true, array_column($group, 'cut_relevant'), true);
+            $flagged = ! $prayerEquivalent && ! $quietFiller && ($supported !== $validVotes || count($variants) !== 1);
             $written = $winningVotes > $absent || ($winningVotes === $absent && min(array_keys($eligible)) === min(array_column($winner, 'slot')));
 
             if ($flagged) {
@@ -228,14 +253,15 @@ class ServiceStructureEnsembleComposer
     }
 
     /**
-     * @param  array{slot:int,index:int,section:ServiceStructureSection}  $claim
-     * @param  list<array{slot:int,index:int,section:ServiceStructureSection}>  $group
+     * @param  array{slot:int,index:int,section:ServiceStructureSection,cut_relevant:bool}  $claim
+     * @param  list<array{slot:int,index:int,section:ServiceStructureSection,cut_relevant:bool}>  $group
      * @param  array<int,ValidationResult>  $draws
+     * @param  array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>}  $context
      */
-    private function compatibleWithGroup(array $claim, array $group, array $draws): bool
+    private function compatibleWithGroup(array $claim, array $group, array $draws, array $context): bool
     {
         foreach ($group as $member) {
-            if ($member['slot'] === $claim['slot'] || ! $this->compatible($claim['section'], $member['section'], $draws)) {
+            if ($member['slot'] === $claim['slot'] || ! $this->compatible($claim, $member, $draws, $context)) {
                 return false;
             }
         }
@@ -243,16 +269,39 @@ class ServiceStructureEnsembleComposer
         return true;
     }
 
-    /** @param  array<int,ValidationResult>  $draws */
-    private function compatible(ServiceStructureSection $a, ServiceStructureSection $b, array $draws): bool
+    /**
+     * @param  array{slot:int,index:int,section:ServiceStructureSection,cut_relevant:bool}  $claimA
+     * @param  array{slot:int,index:int,section:ServiceStructureSection,cut_relevant:bool}  $claimB
+     * @param  array<int,ValidationResult>  $draws
+     * @param  array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>}  $context
+     */
+    private function compatible(array $claimA, array $claimB, array $draws, array $context): bool
     {
+        $a = $claimA['section'];
+        $b = $claimB['section'];
+
         if ($a->type !== $b->type) {
             return false;
         }
 
+        /**
+         * A song is the same song wherever most of it overlaps; only the start of the song that
+         * ends the sermon is a cut (ruled 2026-09-29). Identity is compared as a claim field.
+         */
+        if ($a->type === ServiceSectionType::Song) {
+            $bothEndSermon = isset($context['ending_songs'][$this->claimKey($claimA)], $context['ending_songs'][$this->claimKey($claimB)]);
+
+            return $this->overlapShare($a, $b) >= self::SAME_SPAN_OVERLAP
+                && (! $bothEndSermon || abs($a->startTime - $b->startTime) <= 15.0);
+        }
+
+        if (in_array($a->type, self::FILLER_TYPES, true) && ! ($claimA['cut_relevant'] && $claimB['cut_relevant'])) {
+            return $this->overlapShare($a, $b) >= self::SAME_SPAN_OVERLAP;
+        }
+
         $tolerance = match ($a->type) {
             ServiceSectionType::Sermon, ServiceSectionType::ShortTalk => 30.0,
-            ServiceSectionType::Song, ServiceSectionType::BibleReading => 15.0,
+            ServiceSectionType::BibleReading => 15.0,
             default => 20.0,
         };
 
@@ -263,6 +312,80 @@ class ServiceStructureEnsembleComposer
         }
 
         return $startAgrees && abs($a->endTime - $b->endTime) <= $tolerance;
+    }
+
+    /**
+     * Where filler can change the sermon's cut, and which song each voter ends its sermon with.
+     *
+     * The window runs from shortly before the earliest sermon start (the pre-sermon prayer) to
+     * the latest point any voter's sermon could extend to: the first song after its sermon, or
+     * the reading-pairing window past the sermon's end when no song follows.
+     *
+     * @param  array<int,ValidationResult>  $draws
+     * @return array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>}
+     */
+    private function alignmentContext(array $draws): array
+    {
+        $extension = (float) config('media-processing.section_extraction.enhanced_sermon.max_pairing_gap_seconds', 900);
+        $starts = [];
+        $limits = [];
+        $endingSongs = [];
+
+        foreach ($draws as $slot => $draw) {
+            foreach ($draw->structure->sections as $sermon) {
+                if ($sermon->type !== ServiceSectionType::Sermon) {
+                    continue;
+                }
+
+                $starts[] = $sermon->startTime;
+                $limit = $sermon->endTime + $extension;
+
+                foreach ($draw->structure->sections as $index => $song) {
+                    if ($song->type === ServiceSectionType::Song && $song->startTime >= $sermon->startTime) {
+                        $endingSongs["{$slot}:{$index}"] = true;
+                        $limit = $song->startTime;
+
+                        break;
+                    }
+                }
+
+                $limits[] = $limit;
+            }
+        }
+
+        return [
+            'window' => $starts === [] || $limits === []
+                ? null
+                : [min($starts) - self::PRE_SERMON_MARGIN_SECONDS, max($limits)],
+            'ending_songs' => $endingSongs,
+        ];
+    }
+
+    /**
+     * @param  array{slot:int,index:int,section:ServiceStructureSection}  $claim
+     * @param  array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>}  $context
+     */
+    private function cutRelevant(array $claim, array $context): bool
+    {
+        $window = $context['window'];
+
+        return $window !== null
+            && $claim['section']->startTime < $window[1]
+            && $claim['section']->endTime > $window[0];
+    }
+
+    /** @param  array{slot:int,index:int}  $claim */
+    private function claimKey(array $claim): string
+    {
+        return "{$claim['slot']}:{$claim['index']}";
+    }
+
+    private function overlapShare(ServiceStructureSection $a, ServiceStructureSection $b): float
+    {
+        $overlap = min($a->endTime, $b->endTime) - max($a->startTime, $b->startTime);
+        $shorter = min($a->endTime - $a->startTime, $b->endTime - $b->startTime);
+
+        return $overlap <= 0 || $shorter <= 0 ? 0.0 : $overlap / $shorter;
     }
 
     /** @param array<int,ValidationResult> $draws */
