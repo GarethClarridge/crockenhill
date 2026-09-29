@@ -9,8 +9,9 @@
 > answer → correction → deterministic replay before increasing reprocessing volume. Local rulings
 > must correct output; recurring patterns become general rules only after measured corpus replay
 > and counterexample tests. These are plans, not implemented ensemble behaviour.
-> The existing zero-talk-count-error canary bar (including flagged errors) remains until an explicit
-> Q5 ruling; targeted review remains the operator's chosen workload, with no reinstated full-service
+> 2026-09-29: delivery is split — canary 9 needs the ensemble, evidence banking and evaluation; the
+> review loop must be finished before batch 1. The canary bar (Q5) is now zero unflagged talk-count
+> errors with every dispute answered, adopted before canary 9. Targeted review remains the operator's chosen workload, with no reinstated full-service
 > audits. This update supersedes older next-action summaries below. Custody, extraction and release
 > controls remain in force; documentation commits authorise no paid calls, dispatch or publication.
 

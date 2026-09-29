@@ -226,7 +226,11 @@ the presence of instructions, not model compliance.
 ## 2. Delivery sequence
 
 This sequence incorporates the session's review. Detailed contracts, tests and remaining decisions
-live in the [ensemble plan](HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md). Historical retry
+live in the [ensemble plan](HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md).
+
+**Split (operator, 2026-09-29):** canary 9 needs DR2, DR1's evidence banking (not its full
+replay tooling) and DR4. DR3 and the rest of DR1 must be complete before DR6's first batch.
+Q5 is decided: zero unflagged talk-count errors and every dispute answered. Historical retry
 experiments, 80/96-sequence gates and five-clean-service audits from the baseline are superseded;
 do not execute them alongside this sequence.
 
@@ -316,16 +320,15 @@ do not execute them alongside this sequence.
 | Runtime | Real subprocess partial failure, deadlines, cleanup, staging identity, slot resume and capacity verified. |
 | Accuracy | All declared sequences accounted for; ruled errors separate from provisional matches and unresolved claims. A flag is containment, not correctness. |
 | Extraction | Integration tests and evaluation of actual cuts/absence decisions; no review bypass through omitted reading, next-song boundary or RMS fallback. |
-| Learning loop | A review answer demonstrably repairs and persists through replay; candidate rules have corpus diffs and counterexample tests. |
+| Learning loop | Not a canary-9 gate (split). Required before DR6: a review answer repairs and persists through replay; candidate rules have replay diffs approved by the operator. |
 | Operator work | Questions, corrections, accepted alternatives, deferred/stale issues and minutes reported; no unadopted 10%/five-minute workload tripwire. |
 
 - [ ] Run focused PHPUnit tests, PHPStan, Pint and full parallel suite through Sail; retain output.
   Run Dusk for review interactions and keep Playwright visual-only. Documentation edits do not
   substitute for those implementation checks.
-- [ ] Resolve ensemble Q5 before interpreting a different canary bar. The existing **zero
-  talk-count errors including flagged ones** remains in force. If changed explicitly to zero
-  unflagged errors plus completed review/correction, report pre-review accuracy separately from
-  post-review correctness. Do not change the gate after seeing a failure.
+- [x] Ensemble Q5 decided 2026-09-29, before canary 9: zero unflagged talk-count errors and every
+  dispute answered. Report pre-review accuracy separately from post-review correctness. Do not
+  change the gate after seeing results.
 - [ ] Present concrete evidence. Only after the dispatch HOLD is explicitly lifted: commit the
   implementation, move the operational freeze, snapshot authoritative state, verify membership,
   routes and holds, restart/verify workers and perform preflight. Plan commits do none of this.
@@ -361,8 +364,7 @@ canary meet the adopted gates, and reusable evidence, ruling application, replay
 are handed back to the parent plan. Archive this work package at historic closeout; temporary
 scratch tooling retires under IC8, while routine detection/review/replay remain application features.
 
-The outstanding acceptance decision is ensemble Q5. Exact matching/tolerance fixtures and ER1's
-general predicate/measurement must also be settled before their respective implementation and
-evaluation gates. Changes to degraded-ensemble policy, evaluation scope or rollout workload need
+Q5, ER1's scope, rule adoption and job retry were decided 2026-09-29 (ensemble §0, items 7–11).
+Exact matching/tolerance fixtures must be settled before the composer is implemented. Changes to degraded-ensemble policy, evaluation scope or rollout workload need
 an explicit recorded decision. The one maintainer can perform every review role. These document
 commits do not lift the dispatch HOLD or change publication policy.

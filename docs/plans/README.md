@@ -104,9 +104,9 @@ plan under H0. Canary 8 failed; Tier C and corpus dispatch remain on HOLD at `3f
 Its proposed replacement for single-draw detection, the
 [ensemble structure detection plan](HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md), incorporates
 Codex's review and the operator's preference for deterministic reuse of review answers. Next:
-preserve immutable draw evidence, implement extraction-aware agreement, and complete the
-answer/correction/replay loop before scaling. Neither is implemented; the baseline plans are
-preserved in `2bb569482`. Changing the canary bar remains an explicit operator decision (Q5).
+preserve draw evidence, implement extraction-aware agreement and evaluate before canary 9;
+complete the answer/correction/replay loop before batch 1 (split and Q5 bar decided 2026-09-29).
+Neither is implemented; the baseline plans are preserved in `2bb569482`.
 
 | Order | Plan | Verified status | Next independently useful slice |
 |---|---|---|---|

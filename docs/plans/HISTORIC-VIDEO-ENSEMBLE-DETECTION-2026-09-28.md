@@ -4,7 +4,8 @@
 The operator requested that the review and deterministic-review-loop recommendations be incorporated.
 The pre-revision plan is preserved in commit `2bb569482`. These are documentation commits, not a
 new processing freeze: the freeze (`3ffe4b54c`), canary-8 FAIL and dispatch HOLD remain unchanged.
-Changing the canary acceptance bar still requires the explicit decision in §9/Q5.
+The operator's follow-up decisions of 2026-09-29 (§0, items 7–11) split delivery around canary 9
+and settle Q5, ER1's scope, rule adoption and job retry.
 
 This plan belongs to the [detection reliability work package](HISTORIC-VIDEO-DETECTION-RELIABILITY-2026-09-28.md)
 (§0 records today's rulings and measurements). This is the design authority for its revised
@@ -30,6 +31,23 @@ following the standing ruling that historic work improves routine processing and
    correction is immediately reusable on matching evidence; generalisation requires observable
    preconditions, counterexamples and measurement against saved corpus evidence before adoption.
 6. **Run the draws in parallel.** Wall time should be the slowest single call, not the sum.
+
+### Operator decisions after the review (2026-09-29)
+
+7. **Split the delivery.** Canary 9 tests detection: the ensemble (DR2), per-draw evidence (slim
+   DR1) and the bounded evaluation (DR4). The answer → correction → replay loop (DR3) is required
+   before batch 1, not before canary 9. Canary-9 disputes are answered and scored, not used to
+   correct output.
+8. **Canary bar (Q5) adopted before canary 9:** zero **unflagged** talk-count errors and every
+   dispute answered. Pre-review accuracy (flagged errors included) is still reported separately.
+9. **ER1 is general, not local.** Including or excluding the preacher's prayer is always acceptable.
+   Two sermon starts that differ only by a span some voter types as prayer are agreement; no
+   unanimity on the prayer and no prior local ruling is required. The span is not the prayer case
+   if any voter types it as a song or reading. Composition picks one start, never a midpoint.
+10. **Rule adoption:** after each batch, a recurring ruling is proposed as a rule, replayed over the
+    saved draws with the before/after diff shown, and adopted on operator approval with a fixture.
+11. **Whole-job retry redraws all four slots** and keeps the previous bundle as evidence. No
+    per-slot resume.
 
 Agreement never overrides an existing content hold. The implementation guarantee is that every
 decision affecting extraction has supported evidence, and unresolved disagreement reaches the
@@ -177,10 +195,9 @@ Verified 2026-09-28 against the uncommitted tree on top of `3ffe4b54c`. Re-verif
   interrupted/unknown, with usage and latency where known. Use isolated writes/atomic aggregation
   rather than concurrent read-modify-write of the run's metadata. A lost response can have incurred
   provider cost; do not report unknown usage as zero.
-- Whole-job retries resume genuinely unfinished slots only when evidence and request versions still
-  match. Valid and invalid completed draws are both final evidence: never redraw an invalid result
-  until enough votes pass. Retain attempt history for unavailable slots and bound any retry budget.
-  Protect slot claiming and final persistence against duplicate workers and stale run revisions.
+- A whole-job retry (crash or timeout) runs a fresh four-draw ensemble (decision 11); the previous
+  bundle is kept as evidence. Within one ensemble an invalid draw is never redrawn. Final
+  persistence still checks the run revision so a stale worker cannot overwrite a newer result.
 - Bus batches are an alternative only with an explicit worker-topology change: the historic LLM
   queue defaults to one replica, so four queued draws would otherwise be sequential. Never block
   its sole worker awaiting work on that same queue. Concurrent HTTP would need equivalent async
@@ -237,7 +254,7 @@ Verified 2026-09-28 against the uncommitted tree on top of `3ffe4b54c`. Re-verif
 
   | Rule | Authority and conditions | Measurement required before general application |
   |---|---|---|
-  | ER1: complete pre-sermon prayer may be included or excluded | Operator ruling 2026-09-28; recorded alternatives on 949/936. Everything between starts must be established as that complete prayer, by a matching content ruling or a verified deterministic predicate. Unknown or mixed prayer/reading/song content stays disputed. | Replay saved corpus evidence; list every suppressed dispute and affected cut, including counterexamples. Recorded local alternatives are usable immediately on matching evidence; a general predicate is not yet proven. |
+  | ER1: pre-sermon prayer may be included or excluded | Operator rulings 2026-09-28 and 2026-09-29 (decision 9): always acceptable, general. Applies when the span between the two starts is typed prayer by at least one voter and no voter types it song or reading. | Replay on saved draws to list the disputes it removes; no adoption gate beyond decision 9. |
 
 - Additional recurring rulings are candidates, not automatically general principles. §3.10 defines
   the replay, counterexample and regression requirements for adoption.
@@ -367,10 +384,10 @@ Banking an answer or suppressing a question alone does not complete a repair.
   blanket section confirmation to clear other flags or content holds. The review UI must support
   the correction needed, including starts, splits/merges and omitted claims; the current short-talk
   end-shortening form alone is insufficient. Reuse shared components/actions and project UI skills.
-- Recurring answers propose a rule with explicit preconditions, version, local examples and
-  counterexamples. Replay against the saved corpus before adoption; list changed outputs, cleared
-  questions, changed extraction plans and any regression of a known-correct decision. An uncertain
-  semantic pattern remains a targeted question rather than a brittle keyword/LLM-label rule.
+- Recurring answers propose a rule (decision 10). Replay it over saved draws and show the operator
+  changed outputs, cleared questions, changed extraction plans and any regression of a known-correct
+  decision; the operator approves or rejects. An uncertain semantic pattern remains a targeted
+  question rather than a brittle keyword/LLM-label rule.
 - Keep regression fixtures for the ruling and its counterexamples. Adopt a rule only when its
   predicate and observed effects support the generalisation; repeat frequency alone is insufficient.
 - After each batch report new/reused/deferred/stale questions, actual corrections versus accepted
@@ -409,9 +426,9 @@ Banking an answer or suppressing a question alone does not complete a repair.
   existing sections are retained.
 - Two/three valid voters, including same-model survivors, produce explicitly degraded review
   proposals and cannot silently obtain the full-ensemble unattended gate.
-- ER1: sermon starts differing only by a pre-sermon prayer are agreed. Differing by a song or a
-  reading is disputed; unknown prayer evidence is not enough. Two starts on either side of a prayer
-  select a complete supported alternative, never its midpoint or an internal silence.
+- ER1: sermon starts differing only by a span one voter types as prayer are agreed. A span any
+  voter types as song or reading is disputed. Two starts on either side of a prayer select a
+  complete supported alternative, never its midpoint or an internal silence.
 - Different references, identities, OoS bindings, continuation/absence decisions and consequential
   filler are disputes. Free-text paraphrases do not invent semantic disagreement. Confidence and
   existing flags follow the explicit policy; unrelated holds survive every composition/replay.
@@ -421,8 +438,9 @@ Banking an answer or suppressing a question alone does not complete a repair.
 - Real subprocess integration tests: one timeout, provider error, abrupt exit, sibling results
   retained, parent cancellation/cleanup, staging mismatch and artifact identity. Fake or synchronous
   drivers alone cannot prove these. Test flex fallback and whole-stage deadlines.
-- Completed slots survive worker retry; no invalid-draw replacement, duplicate slot claim, stale
-  input reuse or concurrent metadata loss. Record interrupted/unknown usage honestly.
+- A whole-job retry runs a fresh ensemble and keeps the previous bundle; no invalid-draw
+  replacement within an ensemble, stale input reuse or stale-revision overwrite. Record
+  interrupted/unknown usage honestly.
 - Missing-reading diagnostic cannot overwrite ensemble sections/flags; no default fifth call.
 - `isReasoningModel()` covers gpt-6.
 - Flag policy and catalogue cover disagreement/degradation; missing or stale banked evidence cannot
@@ -480,16 +498,15 @@ independent services or reinstate a larger review workload without an operator d
 
 ## 7. Canary 9 and rollout
 
-- Finish and verify the reusable answer/correction/replay loop before scaling reprocessing. Complete
-  implementation/evaluation and present concrete results. Only after the dispatch HOLD is explicitly
+- Canary 9 needs DR2, slim DR1 and DR4 (decision 7). The reusable answer/correction/replay loop
+  (DR3) must be finished and verified before batch 1. Complete implementation/evaluation and
+  present concrete results. Only after the dispatch HOLD is explicitly
   lifted: commit the implementation, move the operational freeze, snapshot authoritative state,
   restart/verify workers, check membership/routes/holds and run preflight and the complete 16-run canary.
   Documentation commits do not move the freeze or authorise paid calls, dispatch or publication.
-- **Canary bar (Q5, operator):** the existing bar is zero talk-count errors including flagged ones. With
-  an ensemble, a disputed spot is written as a flagged proposal. Keep the existing bar unless the
-  operator explicitly adopts zero unflagged errors plus completed review/correction of every dispute.
-  Under either policy a flagged error remains an accuracy error, not a correct detection. Record
-  pre-review accuracy and post-review correctness separately; do not relax a gate after seeing failure.
+- **Canary bar (Q5, adopted 2026-09-29 before canary 9):** zero unflagged talk-count errors and
+  every dispute answered. A flagged error remains an accuracy error, not a correct detection: record
+  pre-review accuracy and post-review correctness separately. Do not change the bar after seeing results.
 - Rollout follows the reliability plan's revised DR6 and its recorded operator decisions:
   - the spot-check selector reads `service_structure_ensemble` disputes, not a scratch second
     draw, and shows the voters' versions as the answer options;
@@ -529,13 +546,12 @@ independent services or reinstate a larger review workload without an operator d
 | Q2: concurrency | Controlled isolated subprocess runner; prove partial failure/deadlines/staging with real workers (§3.2). |
 | Q3: reading recheck | No automatic whole-structure replacement or default fifth call; optional diagnostic is review-only (§3.7). |
 | Q4: flag replay | Evidence-aware deterministic re-derivation; no blind addition to the generic flag list (§3.6). |
-| Q5: canary bar | **Operator decision remains open.** Existing zero-error bar stays in force; containment and accuracy stay distinct (§7). |
+| Q5: canary bar | **Decided 2026-09-29:** zero unflagged errors plus every dispute answered; pre-review accuracy reported separately (§7). |
 | Q6: shadow | Defer deletion until a tested non-voting evaluation replacement exists (§4). |
 | Q7: claim scope | Include identities/references, absence and all extraction dependencies; predeclare exact boundary/normalisation rules before evaluation (§3.4). |
 | Q8: boundaries | Select supported pairs/complete alternatives, not arithmetic medians (§3.5). |
 
 Before coding the composer, settle the deterministic matching objective, residual assignment
 ties and per-claim tolerances in fixtures. These are implementation specifications to measure, not
-permission to weaken the acceptance bar. ER1's general predicate needs its corpus measurement;
-until then apply only evidence-backed local alternatives. Any relaxed degraded-ensemble gate,
+permission to weaken the acceptance bar. ER1 is general (decision 9). Any relaxed degraded-ensemble gate,
 expanded paid evaluation or changed rollout workload requires an explicit recorded decision.
