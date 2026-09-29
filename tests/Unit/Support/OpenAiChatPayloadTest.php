@@ -22,6 +22,7 @@ class OpenAiChatPayloadTest extends TestCase
             'gpt-5-nano' => ['gpt-5-nano', true],
             'gpt-5.4-mini' => ['gpt-5.4-mini', true],
             'gpt-5.6-sol' => ['gpt-5.6-sol', true],
+            'gpt-6-luna' => ['gpt-6-luna', true],
             'o1' => ['o1', true],
             'o3-mini' => ['o3-mini', true],
             'o4-mini' => ['o4-mini', true],

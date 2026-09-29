@@ -254,6 +254,63 @@ class HistoricStagingGuardTest extends TestCase
         return rtrim($base, '/').'/'.$batchRoot;
     }
 
+    #[Test]
+    public function it_accepts_a_private_local_service_artifact_disk_beside_staging(): void
+    {
+        $this->configure('historic_staging', 'historic_staging', 'historic_staging');
+        $this->configureArtifactDisk(['driver' => 'local', 'root' => storage_path('framework/testing/disks/artifacts'), 'visibility' => 'private']);
+
+        $this->expectNotToPerformAssertions();
+
+        app(HistoricStagingGuard::class)->assertLocalProcessingIsIsolated();
+    }
+
+    #[Test]
+    public function it_refuses_a_publicly_served_service_artifact_disk(): void
+    {
+        $this->configure('historic_staging', 'historic_staging', 'historic_staging');
+        $this->configureArtifactDisk(['driver' => 'local', 'root' => storage_path('framework/testing/disks/artifacts'), 'url' => 'https://example.test/artifacts']);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage("'service_artifacts' is publicly served");
+
+        app(HistoricStagingGuard::class)->assertLocalProcessingIsIsolated();
+    }
+
+    #[Test]
+    public function it_refuses_a_remote_service_artifact_disk(): void
+    {
+        $this->configure('historic_staging', 'historic_staging', 'historic_staging');
+        $this->configureArtifactDisk(['driver' => 's3', 'bucket' => 'production', 'visibility' => 'private']);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage("Historic processing would write service artifacts to the 's3' disk 'service_artifacts'");
+
+        app(HistoricStagingGuard::class)->assertLocalProcessingIsIsolated();
+    }
+
+    #[Test]
+    public function it_accepts_export_sources_on_the_service_artifact_disk(): void
+    {
+        config()->set('media-processing.storage.historic_staging_disk', 'historic_staging');
+        $this->configureArtifactDisk(['driver' => 'local', 'root' => storage_path('framework/testing/disks/artifacts'), 'visibility' => 'private']);
+
+        $this->expectNotToPerformAssertions();
+
+        app(HistoricStagingGuard::class)->assertExportSourcesAreStaged(['historic_staging', 'service_artifacts']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $disk
+     */
+    private function configureArtifactDisk(array $disk): void
+    {
+        config([
+            'filesystems.disks.service_artifacts' => $disk,
+            'media-processing.storage.service_artifact_disk' => 'service_artifacts',
+        ]);
+    }
+
     private function configure(string $staging, string $sermon, string $transcript): void
     {
         config([

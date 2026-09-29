@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Media\Audio;
 
 use App\Models\MediaProcessingLog;
+use App\Support\ServiceArtifactDisk;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -36,12 +37,13 @@ final class ServiceArtifactStorage
     {
         $path = $this->pathForKind($processingId, $kind, $context);
 
-        Storage::disk($this->transcriptDisk())->put(
+        Storage::disk($this->artifactDisk())->put(
             $path,
             json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
+            ServiceArtifactDisk::WRITE_OPTIONS,
         );
 
-        $this->record($processingId, $kind, $this->transcriptDisk(), $path, $context);
+        $this->record($processingId, $kind, $this->artifactDisk(), $path, $context);
 
         return $path;
     }
@@ -116,14 +118,14 @@ final class ServiceArtifactStorage
         }
 
         try {
-            if (Storage::disk($this->sermonDisk())->put($path, $stream) === false) {
+            if (Storage::disk($this->artifactDisk())->put($path, $stream, ServiceArtifactDisk::WRITE_OPTIONS) === false) {
                 throw new \RuntimeException("Unable to archive compressed service audio: {$path}");
             }
         } finally {
             fclose($stream);
         }
 
-        $this->record($processingId, 'audio', $this->sermonDisk(), $path, $context);
+        $this->record($processingId, 'audio', $this->artifactDisk(), $path, $context);
 
         return $path;
     }
@@ -137,7 +139,7 @@ final class ServiceArtifactStorage
     public function audioLocation(string $processingId): array
     {
         return [
-            'disk' => $this->sermonDisk(),
+            'disk' => $this->artifactDisk(),
             'path' => str_replace('service-transcripts/', 'service-audio/', $this->basePath($processingId)).'.mp3',
         ];
     }
@@ -153,12 +155,12 @@ final class ServiceArtifactStorage
         }
 
         try {
-            Storage::disk($this->transcriptDisk())->put($path, $stream);
+            Storage::disk($this->artifactDisk())->put($path, $stream, ServiceArtifactDisk::WRITE_OPTIONS);
         } finally {
             fclose($stream);
         }
 
-        $this->record($processingId, 'rms', $this->transcriptDisk(), $path);
+        $this->record($processingId, 'rms', $this->artifactDisk(), $path);
 
         return $path;
     }
@@ -211,14 +213,9 @@ final class ServiceArtifactStorage
         return is_string($slug) && $slug !== '' ? $slug : 'artifact';
     }
 
-    private function transcriptDisk(): string
+    private function artifactDisk(): string
     {
-        return (string) config('media-processing.storage.transcript_disk', 'local');
-    }
-
-    private function sermonDisk(): string
-    {
-        return (string) config('media-processing.storage.sermon_disk', 'public');
+        return ServiceArtifactDisk::name();
     }
 
     /**

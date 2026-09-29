@@ -209,6 +209,50 @@ class HistoricProcessingResultAssetTransferTest extends TestCase
         Storage::disk('local')->assertMissing('sermons/7/video.mp4');
     }
 
+    /**
+     * Service artifacts live on their own disk, media on staging; one bundle carries both.
+     */
+    #[Test]
+    public function service_artifacts_are_read_from_the_service_artifact_disk_and_media_from_staging(): void
+    {
+        Storage::fake('service_artifacts');
+        config()->set('media-processing.storage.service_artifact_disk', 'service_artifacts');
+        Storage::disk('service_artifacts')->put('service-transcripts/2021-09-05/evening-run.normalized.json', '{"cues":[]}');
+        Storage::disk('service_artifacts')->put('service-audio/2021-09-05/evening-run.mp3', 'service audio');
+        Storage::disk('historic_staging')->put('historic/run/sermon.mp4', 'sermon video');
+        $transfer = app(HistoricProcessingResultAssetTransfer::class);
+        $assets = [
+            $this->asset('service-transcripts/2021-09-05/evening-run.normalized.json', '{"cues":[]}', 'artifact:normalized'),
+            $this->asset('service-audio/2021-09-05/evening-run.mp3', 'service audio', 'artifact:audio'),
+            $this->asset('historic/run/sermon.mp4', 'sermon video', 'run_video_file_path'),
+        ];
+
+        $transfer->verifyStaged($assets);
+        $created = $transfer->copyToDestinations($assets, [
+            'artifact:normalized' => 'service-transcripts/run/normalized.json',
+            'artifact:audio' => 'service-audio/run/audio.mp3',
+            'run_video_file_path' => 'sermons/run/sermon.mp4',
+        ]);
+
+        $this->assertCount(3, $created);
+        $this->assertSame('service audio', Storage::disk('local')->get('service-audio/run/audio.mp3'));
+        $this->assertSame('sermon video', Storage::disk('local')->get('sermons/run/sermon.mp4'));
+    }
+
+    /**
+     * @return array{path: string, size: int, sha256: string, kind: string, roles: list<string>}
+     */
+    private function asset(string $path, string $contents, string $role): array
+    {
+        return [
+            'path' => $path,
+            'size' => strlen($contents),
+            'sha256' => hash('sha256', $contents),
+            'kind' => 'artifact',
+            'roles' => [$role],
+        ];
+    }
+
     #[Test]
     public function direct_pipeline_copy_uses_exact_sizes_for_new_destinations(): void
     {

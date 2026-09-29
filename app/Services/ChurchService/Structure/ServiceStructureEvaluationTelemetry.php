@@ -24,9 +24,15 @@ class ServiceStructureEvaluationTelemetry
     /** @var array{input_tokens: int, cached_input_tokens: int, output_tokens: int, reasoning_tokens: int, total_tokens: int}|null */
     private ?array $lastUsage = null;
 
-    public function record(CreateResponse $response): void
+    private ?string $lastServiceTier = null;
+
+    private ?string $lastRawResponse = null;
+
+    public function record(CreateResponse $response, ?string $serviceTier = null): void
     {
         $this->lastUsage = OpenAiUsageLogger::extractUsage($response);
+        $this->lastServiceTier = $serviceTier;
+        $this->lastRawResponse = $response->choices[0]->message->content;
     }
 
     /**
@@ -42,5 +48,21 @@ class ServiceStructureEvaluationTelemetry
         $this->lastUsage = null;
 
         return $usage;
+    }
+
+    public function takeServiceTier(): ?string
+    {
+        $tier = $this->lastServiceTier;
+        $this->lastServiceTier = null;
+
+        return $tier;
+    }
+
+    public function takeRawResponse(): ?string
+    {
+        $raw = $this->lastRawResponse;
+        $this->lastRawResponse = null;
+
+        return $raw;
     }
 }

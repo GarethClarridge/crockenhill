@@ -6,6 +6,7 @@ namespace App\Services\HistoricMedia;
 
 use App\Services\Import\HistoricImportProductionGuard;
 use App\Services\Import\HistoricImportResourceIdentity;
+use App\Support\ServiceArtifactDisk;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -41,11 +42,11 @@ class HistoricProcessingResultAssetTransfer
      */
     public function verifyStaged(array $assets): void
     {
-        $disk = $this->stagingDisk();
+        $this->stagingDisk();
 
         foreach ($assets as $asset) {
             $this->guardPath($asset['path']);
-            $this->verify($disk, $asset);
+            $this->verify($this->sourceDiskFor($asset['path']), $asset);
         }
     }
 
@@ -128,12 +129,13 @@ class HistoricProcessingResultAssetTransfer
      */
     private function copy(array $assets, array $destinations, bool $requireOperationOwnedPaths): array
     {
-        $source = $this->stagingDisk();
+        $this->stagingDisk();
         $target = Storage::disk($this->targetDiskName());
         $created = [];
 
         try {
             foreach ($assets as $asset) {
+                $source = $this->sourceDiskFor($asset['path']);
                 $this->verify($source, $asset);
 
                 foreach ($this->roles($asset) as $role) {
@@ -164,7 +166,7 @@ class HistoricProcessingResultAssetTransfer
                     try {
                         $created[] = $targetPath;
 
-                        if (! $target->writeStream($targetPath, $stream)) {
+                        if (! $target->writeStream($targetPath, $stream, $this->writeOptions($asset['path']))) {
                             throw new RuntimeException("Unable to copy verified asset {$asset['path']} to {$targetPath}.");
                         }
                     } finally {
@@ -193,7 +195,7 @@ class HistoricProcessingResultAssetTransfer
      */
     private function copyPipeline(array $assets, array $destinations, bool $allowReplacement = false): array
     {
-        $source = $this->stagingDisk();
+        $this->stagingDisk();
         $target = Storage::disk($this->targetDiskName());
         $created = [];
 
@@ -207,6 +209,7 @@ class HistoricProcessingResultAssetTransfer
         try {
             foreach ($assets as $asset) {
                 $sourcePath = $this->pipelinePath($asset);
+                $source = $this->sourceDiskFor($sourcePath);
                 $size = $this->pipelineSize($asset);
                 $this->guardPath($sourcePath);
                 $this->verifyPipelineSourceAtPath($source, $sourcePath, $size);
@@ -254,7 +257,7 @@ class HistoricProcessingResultAssetTransfer
                     try {
                         $created[] = $targetPath;
 
-                        if (! $target->writeStream($targetPath, $stream)) {
+                        if (! $target->writeStream($targetPath, $stream, $this->writeOptions($sourcePath))) {
                             throw new RuntimeException("Unable to copy verified asset {$sourcePath} to {$targetPath}.");
                         }
                     } finally {
@@ -310,7 +313,7 @@ class HistoricProcessingResultAssetTransfer
         try {
             $created[] = $stagedPath;
 
-            if (! $target->writeStream($stagedPath, $stream)) {
+            if (! $target->writeStream($stagedPath, $stream, $this->writeOptions($sourcePath))) {
                 throw new RuntimeException("Unable to stage the replacement for {$targetPath}.");
             }
         } finally {
@@ -557,6 +560,31 @@ class HistoricProcessingResultAssetTransfer
         }
 
         return Storage::disk($staging);
+    }
+
+    /**
+     * Service artifacts keep their privacy on the production disk, whatever its default visibility.
+     *
+     * @return array<string, string>
+     */
+    private function writeOptions(string $sourcePath): array
+    {
+        return ServiceArtifactDisk::isArtifactPath($sourcePath) ? ServiceArtifactDisk::WRITE_OPTIONS : [];
+    }
+
+    /**
+     * Service artifacts are read from their own disk when one is configured; everything else,
+     * and every artifact when none is, from staging.
+     */
+    private function sourceDiskFor(string $path): FilesystemAdapter
+    {
+        $artifactDisk = config('media-processing.storage.service_artifact_disk');
+
+        if (is_string($artifactDisk) && $artifactDisk !== '' && ServiceArtifactDisk::isArtifactPath($path)) {
+            return Storage::disk($artifactDisk);
+        }
+
+        return $this->stagingDisk();
     }
 
     private function stagingName(): string

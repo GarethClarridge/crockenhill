@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\HistoricMedia;
 
+use App\Services\ChurchService\Structure\ServiceStructureEnsembleRunner;
+
 use RuntimeException;
 
 class HistoricProcessingMetadataSerializer
@@ -35,6 +37,13 @@ class HistoricProcessingMetadataSerializer
      * revision that was never applied, so it is local review state; it is listed
      * here rather than left to the generic `proposal` guard, which still fails
      * closed for any proposal key nobody has classified.
+     *
+     * `service_structure_ensemble` and `service_structure_ensemble_rulings` are the
+     * structure draws, their composition and the operator's answers to them. They are
+     * evidence for local review and replay, bound to this machine's artifact disk and
+     * to local order-of-service ids and operators; the review they served has already
+     * shaped the sections the export carries. Their files stay with the local service
+     * artifacts and its backups.
      */
     private const RUNTIME_KEYS = [
         'historic_promotion',
@@ -46,6 +55,8 @@ class HistoricProcessingMetadataSerializer
         'owner_user_id',
         'queue_name',
         'retry_state',
+        'service_structure_ensemble',
+        'service_structure_ensemble_rulings',
         'service_structure_proposal',
         'source_file_path',
     ];
@@ -75,6 +86,14 @@ class HistoricProcessingMetadataSerializer
 
             if ($key === 'service_structure' && is_array($value)) {
                 $value = $this->portableServiceStructure($value);
+            }
+
+            if ($key === 'service_artifacts' && is_array($value)) {
+                $value = array_values(array_filter(
+                    $value,
+                    static fn (mixed $artifact): bool => ! is_array($artifact)
+                        || ($artifact['kind'] ?? null) !== ServiceStructureEnsembleRunner::ARTIFACT_KIND,
+                ));
             }
 
             $this->guardPortableValue($key, $value);

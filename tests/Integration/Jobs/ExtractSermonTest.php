@@ -1095,6 +1095,37 @@ class ExtractSermonTest extends TestCase
     }
 
     #[Test]
+    public function an_unresolved_ensemble_dispute_blocks_even_the_baseline_sermon_cut(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'sermon_start_time' => 100.0,
+            'sermon_end_time' => 500.0,
+            'source_file_path' => 'livestreams/ensemble-dispute.mp4',
+            'processing_metadata' => [
+                'service_structure_ensemble' => [[
+                    'attempt_id' => 'fixture',
+                    'composition' => [
+                        'validation_passed' => true,
+                        'degraded' => false,
+                        'disputes' => [['type' => 'song', 'start_time' => 490.0]],
+                    ],
+                ]],
+            ],
+        ]);
+
+        $extractor = $this->createMock(VideoExtractionService::class);
+        $extractor->expects($this->never())->method('extractSegmentAsFile');
+        $extractor->expects($this->never())->method('extractConcatenatedSegmentAsFile');
+        Mail::fake();
+
+        $this->runJob(new ExtractSermon($log), $extractor, $this->createStub(VideoStorageService::class));
+
+        $log->refresh();
+        $this->assertSame('manual_review_required', $log->current_step);
+        $this->assertStringContainsString('ensemble evidence needs review', (string) $log->error_message);
+    }
+
+    #[Test]
     public function it_marks_for_manual_review_when_no_speech_block_meets_twenty_minutes(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->pending()->create([

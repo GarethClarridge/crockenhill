@@ -133,6 +133,7 @@ TEXT;
         ?string $processingId = null,
         array $feedback = [],
         ?AudioTimeline $audioTimeline = null,
+        ?string $model = null,
     ): ServiceStructure {
         if (empty(config('media-processing.analysis.openai_api_key') ?? config('openai.api_key'))) {
             throw new RuntimeException('OpenAI API key not configured for service structure detection.');
@@ -142,7 +143,7 @@ TEXT;
             throw new RuntimeException('Cannot detect service structure from an empty transcript.');
         }
 
-        $model = (string) config('media-processing.service_structure.model', 'gpt-5.6-sol');
+        $model ??= (string) config('media-processing.service_structure.model', 'gpt-5.6-sol');
         $prompt = $this->buildPrompt($transcript, $oosItems, $feedback, $audioTimeline);
 
         try {
@@ -178,7 +179,7 @@ TEXT;
         }
 
         OpenAiUsageLogger::log($response, 'service_structure', $model, $processingId, (string) config('media-processing.service_structure.reasoning_effort', 'medium'), $tiered->serviceTier);
-        $this->evaluationTelemetry?->record($response);
+        $this->evaluationTelemetry?->record($response, $tiered->serviceTier);
 
         $content = $response->choices[0]->message->content ?? null;
 
@@ -327,7 +328,7 @@ TEXT;
     /**
      * @return array<string, mixed>
      */
-    private function responseFormat(): array
+    public function responseFormat(): array
     {
         return [
             'type' => 'json_schema',

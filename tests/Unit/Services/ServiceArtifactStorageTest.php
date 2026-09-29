@@ -6,6 +6,7 @@ namespace Tests\Unit\Services;
 
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Audio\ServiceArtifactStorage;
+use App\Support\ServiceArtifactDisk;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -45,6 +46,17 @@ class ServiceArtifactStorageTest extends TestCase
             $path,
         );
         Storage::disk('public')->assertExists($path);
+    }
+
+    #[Test]
+    public function artifacts_are_private_even_on_a_publicly_visible_disk(): void
+    {
+        $log = $this->log();
+        $this->assertSame('public', config('filesystems.disks.public.visibility'));
+
+        $path = $this->storage->putJson($log->processing_id, 'normalized', ['cues' => []]);
+
+        $this->assertSame('private', Storage::disk('public')->getVisibility($path));
     }
 
     #[Test]
@@ -112,6 +124,58 @@ class ServiceArtifactStorageTest extends TestCase
         );
 
         $this->assertCount(2, ServiceArtifactStorage::recordedFor($log->refresh()));
+    }
+
+    /**
+     * Artifacts are small, read by every re-derivation and costly to remake, so they get a
+     * disk of their own rather than following the (large, possibly external) media disk.
+     */
+    #[Test]
+    public function every_artifact_goes_to_the_service_artifact_disk_when_one_is_configured(): void
+    {
+        Storage::fake('service_artifacts');
+        config(['media-processing.storage.service_artifact_disk' => 'service_artifacts']);
+        $log = $this->log();
+        Storage::disk('local')->put('temp/rms.log', 'lavfi.astats.Overall.RMS_level=-20.0');
+        $audioPath = tempnam(sys_get_temp_dir(), 'service-audio-');
+        file_put_contents($audioPath, 'compressed audio');
+
+        $jsonPath = $this->storage->putJson($log->processing_id, 'raw', ['segments' => []]);
+        $rmsPath = $this->storage->archiveRms($log->processing_id, 'temp/rms.log');
+        $this->storage->archiveAudio($log->processing_id, $audioPath);
+
+        unlink($audioPath);
+
+        $audio = $this->storage->audioLocation($log->processing_id);
+        $this->assertSame('service_artifacts', $audio['disk']);
+
+        foreach ([$jsonPath, $rmsPath, $audio['path']] as $path) {
+            Storage::disk('service_artifacts')->assertExists($path);
+            Storage::disk('public')->assertMissing($path);
+        }
+
+        $this->assertSame(
+            ['service_artifacts'],
+            collect(ServiceArtifactStorage::recordedFor($log->refresh()))->pluck('disk')->unique()->values()->all(),
+        );
+        $this->assertSame('service_artifacts', ServiceArtifactDisk::for($jsonPath));
+    }
+
+    #[Test]
+    public function without_a_service_artifact_disk_artifacts_follow_the_transcript_disk(): void
+    {
+        config([
+            'media-processing.storage.service_artifact_disk' => null,
+            'media-processing.storage.transcript_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+        ]);
+        $log = $this->log();
+
+        $jsonPath = $this->storage->putJson($log->processing_id, 'raw', ['segments' => []]);
+
+        Storage::disk('local')->assertExists($jsonPath);
+        $this->assertSame('local', $this->storage->audioLocation($log->processing_id)['disk']);
+        $this->assertSame('local', ServiceArtifactDisk::for($jsonPath));
     }
 
     private function log(): MediaProcessingLog

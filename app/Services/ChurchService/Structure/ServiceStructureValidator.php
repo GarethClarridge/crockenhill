@@ -7,6 +7,7 @@ namespace App\Services\ChurchService\Structure;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
+use App\Jobs\DetectServiceStructure;
 use App\Services\ChurchService\ChurchServiceSongLinker;
 use App\Services\Song\SongCatalogueNaming;
 use App\Support\SectionReviewFlagPolicy;
@@ -134,6 +135,10 @@ class ServiceStructureValidator
      * talk in that day's answer key is a 96 s testimony.
      */
     public const FLAG_TALK_FRAGMENT = 'structure_talk_fragment';
+
+    public const FLAG_ENSEMBLE_DISAGREES = 'structure_ensemble_disagrees';
+
+    public const FLAG_ENSEMBLE_DEGRADED = 'structure_ensemble_degraded';
 
     private const TALK_FRAGMENT_SECONDS = 60.0;
 

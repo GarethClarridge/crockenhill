@@ -98,6 +98,45 @@ class HistoricStagingGuard
         }
 
         $this->assertNotPubliclyServed($staging);
+
+        $artifactDisk = $this->serviceArtifactDisk();
+
+        if ($artifactDisk !== null) {
+            $this->assertPrivateLocalArtifactDisk($artifactDisk);
+        }
+    }
+
+    /**
+     * The disk service artifacts are configured onto, when it is not simply the transcript disk.
+     *
+     * Service artifacts — full transcripts, RMS, audio timelines, service audio — are small, read
+     * by every re-derivation and costly to remake, so they may live on a fast local disk apart
+     * from the media. The context does not swap it: it holds the same property staging does, by
+     * assertion rather than by being staging.
+     */
+    public function serviceArtifactDisk(): ?string
+    {
+        $configured = config('media-processing.storage.service_artifact_disk');
+
+        return is_string($configured) && $configured !== '' ? $configured : null;
+    }
+
+    /**
+     * Refuse a service artifact disk that could put historic output where it would be served
+     * or reach production's storage: it must be a local-driver disk that no public disk aliases.
+     */
+    private function assertPrivateLocalArtifactDisk(string $disk): void
+    {
+        $driver = (string) ($this->diskConfiguration($disk)['driver'] ?? '');
+
+        if ($driver !== 'local') {
+            throw new RuntimeException(
+                "Historic processing would write service artifacts to the '{$driver}' disk '{$disk}'. ".
+                'Service artifacts must stay on a private local disk.'
+            );
+        }
+
+        $this->assertNotPubliclyServed($disk);
     }
 
     /**
@@ -136,8 +175,16 @@ class HistoricStagingGuard
     {
         $staging = $this->stagingDisk();
 
+        $artifactDisk = $this->serviceArtifactDisk();
+
         foreach (array_unique($disks) as $disk) {
             if ($disk === $staging) {
+                continue;
+            }
+
+            if ($disk === $artifactDisk) {
+                $this->assertPrivateLocalArtifactDisk($disk);
+
                 continue;
             }
 

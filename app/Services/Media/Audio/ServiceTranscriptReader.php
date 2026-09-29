@@ -6,6 +6,7 @@ namespace App\Services\Media\Audio;
 
 use App\Data\ChurchServiceTranscript;
 use App\Models\MediaProcessingLog;
+use App\Support\ServiceArtifactDisk;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
@@ -66,8 +67,6 @@ class ServiceTranscriptReader
 
     private function diskFor(string $transcriptPath): string
     {
-        return str_starts_with($transcriptPath, 'service-transcripts/')
-            ? (string) config('media-processing.storage.transcript_disk', 'local')
-            : (string) config('media-processing.storage.temp_disk', 'local');
+        return ServiceArtifactDisk::for($transcriptPath);
     }
 }

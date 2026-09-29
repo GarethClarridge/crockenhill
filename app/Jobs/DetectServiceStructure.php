@@ -20,15 +20,20 @@ use App\Models\ServiceSection;
 use App\Services\ChurchService\ChurchServiceReviewSynchronizer;
 use App\Services\ChurchService\ContentHoldRechecker;
 use App\Services\ChurchService\ServiceSectionSyncService;
+use App\Services\ChurchService\Structure\EnsembleComposition;
+use App\Services\ChurchService\Structure\ServiceStructureDrawExecutor;
+use App\Services\ChurchService\Structure\ServiceStructureEnsembleComposer;
+use App\Services\ChurchService\Structure\ServiceStructureEnsembleReplay;
+use App\Services\ChurchService\Structure\ServiceStructureEnsembleRunner;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
 use App\Services\ChurchService\Structure\SoundStage;
 use App\Services\ChurchService\Structure\ValidationContext;
 use App\Services\ChurchService\Structure\ValidationResult;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Media\Audio\AudioTimeline;
 use App\Services\Processing\MediaProcessingIdentityResolver;
 use App\Services\Processing\ProcessingNotificationRouter;
-use App\Services\Scripture\ScriptureReferenceResolver;
 use App\Services\Sermon\SermonCandidateConfidenceService;
 use App\Support\ChurchServiceProcessingTimeline;
 use App\Support\SermonAutoExtractionPolicy;
@@ -39,14 +44,15 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * One LLM call turns the full-service transcript plus the order of service
- * into typed, timed sections — then deterministic code takes over: silence
- * snapping, structural validation, and only then persistence.
+ * Primary mode collects four independent detector readings of one banked
+ * snapshot, then composes typed, timed sections deterministically. Shadow mode
+ * retains its single non-authoritative reading.
  *
  * In shadow mode the heuristic sections stay authoritative: the proposal is
  * written to run metadata with a structured diff, and no failure here ever
@@ -64,15 +70,6 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
     use InteractsWithQueue;
     use Queueable;
     use SerializesModels;
-
-    /**
-     * How far a re-drawn talk's ends may move and still be the same talk.
-     *
-     * Repeated draws of a stable talk agree within 20 s (the stability measure
-     * in the 2026-09-28 detection evaluation); the truncations this guards
-     * against move an end by minutes.
-     */
-    private const TALK_RECHECK_TOLERANCE_SECONDS = 30.0;
 
     public int $tries = 3;
 
@@ -235,15 +232,16 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         ServiceSectionSyncService $syncService,
         SermonCandidateConfidenceService $sermonConfidenceService,
     ): void {
-        [$result, $transcript] = $this->detectWithPrimaryRecovery($detector, $snapService, $validator);
+        $sectionRevision = $this->sectionRevision();
+        [$result, $transcript, $ensemble, $input] = $this->detectWithEnsemble($detector, $snapService, $validator);
 
-        if (! $result->passed() && $this->reconcile) {
+        if ((! $result->passed() || $ensemble->requiresReview()) && $this->reconcile) {
             // The run completed with validated sections; a failed re-detection
             // must not un-complete it. Keep the existing sections authoritative
             // and record the rejected proposal for diagnosis.
             $this->persistFailedProposal($result, $transcript);
 
-            $reasonMessage = 'Reconcile re-detection failed validation; existing sections retained: '.$result->failureSummary();
+            $reasonMessage = 'Reconcile ensemble needs review; existing sections retained: '.$result->failureSummary();
             $this->logStepSkipped(ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE, $reasonMessage);
 
             Log::warning('Service structure reconcile re-detection failed validation; existing sections retained', [
@@ -286,9 +284,40 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         $classified = $result->structure->toClassifiedSections($this->processingLog, $transcript);
 
         try {
-            $syncService->sync($this->processingLog, $classified);
+            // The draws take minutes. Whatever changed meanwhile — a cancellation, an operator's
+            // section edit, a new input — is checked under the run's row lock in the same
+            // transaction as the write, so nothing can land between the check and the sync.
+            $refusal = DB::transaction(function () use ($input, $sectionRevision, $syncService, $classified): ?string {
+                $locked = MediaProcessingLog::query()->lockForUpdate()->findOrFail($this->processingLog->id);
+
+                if ($locked->isCancelled()) {
+                    return 'cancelled';
+                }
+
+                if ($this->sectionRevision() !== $sectionRevision) {
+                    return 'sections_changed';
+                }
+
+                $this->assertEnsembleInputCurrent($input);
+                $syncService->sync($this->processingLog, $classified);
+
+                return null;
+            });
         } catch (UnplacedContentHoldException $exception) {
             $this->refuseUnplacedContentHold($exception, $result, $classified);
+
+            return;
+        }
+
+        if ($refusal === 'cancelled') {
+            $this->chained = [];
+            $this->logStepSkipped(ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE, 'Run was cancelled while the structure draws were running; nothing written.');
+
+            return;
+        }
+
+        if ($refusal === 'sections_changed') {
+            $this->refuseConcurrentSectionChange($result, $transcript, $sermonConfidenceService);
 
             return;
         }
@@ -298,6 +327,22 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         // Holds have just followed their content; a check that exists in code now
         // re-tests the content against the transcript this detection read.
         app(ContentHoldRechecker::class)->recheck($this->processingLog);
+
+        if ($ensemble->requiresReview()) {
+            $reasonMessage = 'Service structure ensemble has unresolved disagreement or reduced vote coverage.';
+            $evaluation = $sermonConfidenceService->evaluateForProcessingLog($this->processingLog);
+            $this->markProcessingRunForManualReview(
+                $this->processingLog,
+                'service_structure_ensemble_review',
+                $reasonMessage,
+                $evaluation['speech_segments'],
+            );
+            $this->notifyManualReviewRequired($reasonMessage, $evaluation['speech_segments']);
+            $this->chained = [];
+            $this->logStepComplete(ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE, 'Reviewable ensemble proposal persisted');
+
+            return;
+        }
 
         if ($this->reconcile) {
             $this->openServiceReviewFromSyncedSections();
@@ -312,42 +357,203 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
     }
 
     /**
-     * Run the recovery steps required before detector output can become authoritative.
-     *
-     * @return array{0: ValidationResult, 1: ChurchServiceTranscript}
+     * @return array{0: ValidationResult, 1: ChurchServiceTranscript, 2: EnsembleComposition, 3: array<string, mixed>}
      */
-    private function detectWithPrimaryRecovery(
+    private function detectWithEnsemble(
         ServiceStructureInterface $detector,
         SilenceSnapService $snapService,
         ServiceStructureValidator $validator,
     ): array {
-        [$result, $transcript] = $this->detectAndValidate($detector, $snapService, $validator);
+        $transcriptPath = $this->processingLog->serviceTranscriptPath();
+        $timelinePath = $this->processingLog->audio_timeline_path;
 
-        if (! $result->passed() && $this->detectionWorthRetrying($result)) {
-            Log::warning('Service structure output failed recoverable validation; retrying detection once', [
-                'processing_id' => $this->processingLog->processing_id,
-                'failure_codes' => $result->failureCodes(),
-            ]);
+        if (! is_string($transcriptPath)) {
+            throw new \RuntimeException('No full-service transcript recorded for this run; TranscribeFullService must run first.');
+        }
 
-            $this->putStructureMetadata('service_structure_retry', [
-                'generated_at' => now()->toIso8601String(),
-                'failure_codes' => $result->failureCodes(),
-                'failure_summary' => $result->failureSummary(),
-            ]);
+        if (! is_string($timelinePath)) {
+            throw new \RuntimeException('No audio timeline recorded for this run; ClassifyServiceAudio must run first.');
+        }
 
-            [$result, $transcript] = $this->detectAndValidate(
-                $detector,
-                $snapService,
-                $validator,
-                [$this->detectionRetryFeedback($result)],
+        $transcriptRaw = Storage::disk(ServiceArtifactDisk::for($transcriptPath))->get($transcriptPath);
+        $timelineRaw = Storage::disk(ServiceArtifactDisk::for($timelinePath))->get($timelinePath);
+
+        if (! is_string($transcriptRaw) || ! is_string($timelineRaw)) {
+            throw new \RuntimeException('Ensemble detection source artifacts are missing.');
+        }
+
+        $transcript = ChurchServiceTranscript::fromArray(json_decode($transcriptRaw, true, flags: JSON_THROW_ON_ERROR));
+        try {
+            $timeline = AudioTimeline::fromJson($timelineRaw);
+        } catch (\UnexpectedValueException $exception) {
+            throw new \RuntimeException("Audio timeline artifact is unreadable ({$timelinePath}): ".$exception->getMessage(), previous: $exception);
+        }
+
+        if ($transcript->isEmpty()) {
+            throw new \RuntimeException('Stored full-service transcript contains no cues.');
+        }
+        $oosItems = $this->loadOosItems();
+        $context = ValidationContext::for(
+            $transcript,
+            $oosItems,
+            ValidationContext::recordingOmitsSongs($this->processingLog->processing_metadata),
+        );
+        $rmsPath = $this->processingLog->rms_log_path;
+        $rms = is_string($rmsPath) && Storage::disk(ServiceArtifactDisk::for($rmsPath))->exists($rmsPath)
+            ? Storage::disk(ServiceArtifactDisk::for($rmsPath))->get($rmsPath)
+            : null;
+
+        $input = [
+            'processing_id' => $this->processingLog->processing_id,
+            'transcript' => $transcript->toArray(),
+            'audio_timeline' => $timeline->toArray(),
+            'oos_items' => $this->oosItemPayloads($oosItems),
+            'validation_context' => ServiceStructureDrawExecutor::contextSnapshot($context),
+            'rms_log' => $rms,
+            'source' => [
+                'church_service_id' => $this->processingLog->church_service_id,
+                'transcript_path' => $transcriptPath,
+                'audio_timeline_path' => $timelinePath,
+                'rms_log_path' => $rmsPath,
+                'transcript_hash' => hash('sha256', $transcriptRaw),
+                'audio_timeline_hash' => hash('sha256', $timelineRaw),
+                'rms_log_hash' => is_string($rms) ? hash('sha256', $rms) : null,
+            ],
+        ];
+
+        $runner = new ServiceStructureEnsembleRunner(
+            new ServiceStructureDrawExecutor($detector, $snapService, app(SoundStage::class), $validator),
+            app(HistoricStagingContextRegistry::class),
+        );
+        $run = $runner->run($this->processingLog, $input);
+        $this->assertEnsembleInputCurrent($input);
+        $composition = app(ServiceStructureEnsembleComposer::class)->compose($run['draws']);
+        $replayed = null;
+        $rulings = $this->processingLog->fresh()?->processing_metadata?->raw['service_structure_ensemble_rulings'] ?? [];
+
+        if (! is_array($rulings) || ! array_is_list($rulings)) {
+            throw new \RuntimeException('Service structure ensemble ruling history is malformed.');
+        }
+
+        $answers = [];
+
+        foreach ($rulings as $ruling) {
+            if (! is_array($ruling)) {
+                throw new \RuntimeException('Service structure ensemble ruling history is malformed.');
+            }
+
+            $answers[] = $ruling;
+        }
+
+        if ($answers !== []) {
+            $replayed = app(ServiceStructureEnsembleReplay::class)->replay($run['evidence'], $answers);
+            $composition = new EnsembleComposition(
+                ServiceStructure::fromArray($replayed['structure']),
+                $replayed['disputes'],
+                $replayed['provenance'],
+                $replayed['degraded'],
+                $composition->refused,
+                $composition->validVotes,
+                $replayed['degraded_reviewed'],
             );
         }
 
-        if ($result->passed()) {
-            $result = $this->recheckMissingPreachedReading($result, $detector, $snapService, $validator);
+        $result = $composition->refused
+            ? new ValidationResult(
+                $composition->structure,
+                [['code' => 'insufficient_ensemble_votes', 'message' => 'Fewer than two validated ensemble draws.']],
+            )
+            : $validator->validate($composition->structure, $context);
+
+        $runner->recordComposition($this->processingLog, $run['evidence']['attempt_id'], [
+            'structure' => $composition->structure->toArray(),
+            'validation_passed' => $result->passed(),
+            'failure_codes' => $result->failureCodes(),
+            'degraded' => $composition->degraded,
+            'degraded_reviewed' => $composition->degradedReviewed,
+            'disputes' => $composition->disputes,
+            'provenance' => $composition->provenance,
+            'applied_rulings' => $replayed['applied_rulings'] ?? [],
+            'stale_rulings' => $replayed['stale_rulings'] ?? [],
+            'conflicting_rulings' => $replayed['conflicting_rulings'] ?? [],
+        ]);
+        $this->processingLog->refresh();
+
+        return [$result, $transcript, $composition, $input];
+    }
+
+    /**
+     * A fingerprint of every stored section row for this run, taken before the draws and
+     * compared before writing, so an operator's edit made while the draws ran is not overwritten.
+     */
+    private function sectionRevision(): string
+    {
+        $rows = ServiceSection::query()
+            ->where('media_processing_log_id', $this->processingLog->id)
+            ->orderBy('id')
+            ->toBase()
+            ->get();
+
+        return hash('sha256', json_encode($rows, JSON_THROW_ON_ERROR));
+    }
+
+    private function refuseConcurrentSectionChange(
+        ValidationResult $result,
+        ChurchServiceTranscript $transcript,
+        SermonCandidateConfidenceService $sermonConfidenceService,
+    ): void {
+        $reasonMessage = 'Service sections changed while the structure draws were running; the operator\'s changes were kept and the ensemble proposal banked for review.';
+        $evaluation = $sermonConfidenceService->evaluateForProcessingLog($this->processingLog);
+
+        $this->persistFailedProposal($result, $transcript);
+        $this->markProcessingRunForManualReview(
+            $this->processingLog,
+            'service_structure_sections_changed',
+            $reasonMessage,
+            $evaluation['speech_segments'],
+        );
+        $this->notifyManualReviewRequired($reasonMessage, $evaluation['speech_segments']);
+        $this->chained = [];
+        $this->logStepFailed(ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE, $reasonMessage);
+    }
+
+    /** @param  array<string, mixed>  $input */
+    private function assertEnsembleInputCurrent(array $input): void
+    {
+        $this->processingLog->refresh();
+        $source = $input['source'];
+
+        if ($this->processingLog->church_service_id !== $source['church_service_id']
+            || $this->processingLog->serviceTranscriptPath() !== $source['transcript_path']
+            || $this->processingLog->audio_timeline_path !== $source['audio_timeline_path']
+            || $this->processingLog->rms_log_path !== $source['rms_log_path']
+            || $this->oosItemPayloads($this->loadOosItems()) !== $input['oos_items']
+            || ValidationContext::recordingOmitsSongs($this->processingLog->processing_metadata)
+                !== $input['validation_context']['recording_omits_songs']) {
+            throw new \RuntimeException('Service structure ensemble input changed while draws were running.');
         }
 
-        return [$result, $transcript];
+        foreach ([
+            'transcript_path' => 'transcript_hash',
+            'audio_timeline_path' => 'audio_timeline_hash',
+            'rms_log_path' => 'rms_log_hash',
+        ] as $pathKey => $hashKey) {
+            $path = $source[$pathKey] ?? null;
+
+            if ($path === null && ($source[$hashKey] ?? null) === null) {
+                continue;
+            }
+
+            if (! is_string($path)) {
+                throw new \RuntimeException('Service structure ensemble input has an invalid source path.');
+            }
+
+            $current = Storage::disk(ServiceArtifactDisk::for($path))->get($path);
+
+            if (! is_string($current) || hash('sha256', $current) !== $source[$hashKey]) {
+                throw new \RuntimeException('Service structure ensemble source changed while draws were running.');
+            }
+        }
     }
 
     /**
@@ -484,244 +690,6 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
                 'email_error' => $exception->getMessage(),
             ]);
         }
-    }
-
-    /**
-     * A validated structure with a sermon but no Bible reading anywhere near
-     * it almost always means the detector buried the preached passage inside
-     * another section (the 2024-11-03 corpus run absorbed the Luke reading
-     * into the pastoral prayer) — sermon extraction would then publish audio
-     * without its reading. One feedback-guided retry names the anomaly to the
-     * detector; its result is adopted only when it validates, recovers the
-     * reading AND leaves every short talk where the original put it — the
-     * retry is a whole fresh draw, and a recovered reading is not worth a
-     * truncated talk. So reconsideration can never make a passing run worse.
-     * When the retry is not adopted the original structure stands, with the
-     * sermon flagged for the reviewer (a non-disqualifying flag — see
-     * SermonAutoExtractionPolicy).
-     */
-    private function recheckMissingPreachedReading(
-        ValidationResult $result,
-        ServiceStructureInterface $detector,
-        SilenceSnapService $snapService,
-        ServiceStructureValidator $validator,
-    ): ValidationResult {
-        if (! (bool) config('media-processing.service_structure.reading_recheck', true)) {
-            return $result;
-        }
-
-        $sermonStart = $this->readinglessSermonStart($result->structure);
-
-        if ($sermonStart === null) {
-            return $result;
-        }
-
-        $windowSeconds = $this->readingPairingWindowSeconds();
-
-        Log::info('Validated structure lacks a reading near the sermon; retrying detection with feedback', [
-            'processing_id' => $this->processingLog->processing_id,
-            'sermon_start' => $sermonStart,
-        ]);
-
-        try {
-            [$retry] = $this->detectAndValidate($detector, $snapService, $validator, [
-                $this->readingRecheckFeedback($result->structure, $sermonStart),
-            ]);
-        } catch (\Throwable $exception) {
-            // The recheck is a best-effort recovery on an already-passing run; a transient
-            // detector error (OpenAI timeout, malformed JSON, a missing artifact) must never
-            // downgrade that pass to a job failure. Keep the validated structure, sermon flagged.
-            Log::warning('Missing-reading recheck failed; keeping the original validated structure', [
-                'processing_id' => $this->processingLog->processing_id,
-                'sermon_start' => $sermonStart,
-                'recheck_error' => $exception->getMessage(),
-            ]);
-
-            $this->putStructureMetadata('service_structure_reading_recheck', [
-                'generated_at' => now()->toIso8601String(),
-                'outcome' => 'recheck_errored',
-                'sermon_start' => $sermonStart,
-                'error' => $exception->getMessage(),
-            ]);
-
-            return new ValidationResult(
-                structure: $this->withSermonFlagged($result->structure),
-                hardFailures: $result->hardFailures,
-                unmatchedOosItemIds: $result->unmatchedOosItemIds,
-            );
-        }
-
-        $readingRecovered = $retry->passed() && $this->readinglessSermonStart($retry->structure) === null;
-
-        if ($readingRecovered && $this->shortTalksAgree($result->structure, $retry->structure)) {
-            $this->putStructureMetadata('service_structure_reading_recheck', [
-                'generated_at' => now()->toIso8601String(),
-                'outcome' => 'retry_adopted',
-                'sermon_start' => $sermonStart,
-            ]);
-
-            return $retry;
-        }
-
-        $this->putStructureMetadata('service_structure_reading_recheck', [
-            'generated_at' => now()->toIso8601String(),
-            'outcome' => $readingRecovered ? 'retry_changed_talks' : 'reading_still_missing',
-            'sermon_start' => $sermonStart,
-            'retry_passed_validation' => $retry->passed(),
-        ]);
-
-        return new ValidationResult(
-            structure: $this->withSermonFlagged($result->structure),
-            hardFailures: $result->hardFailures,
-            unmatchedOosItemIds: $result->unmatchedOosItemIds,
-        );
-    }
-
-    private function readingRecheckFeedback(ServiceStructure $structure, float $sermonStart): string
-    {
-        $sermonReference = $this->sermonReference($structure);
-        $missing = $sermonReference === null
-            ? 'no bible_reading section'
-            : "no bible_reading section of its passage ({$sermonReference})";
-
-        return sprintf(
-            'The previous attempt found a sermon starting at %.0f seconds but %s '
-            .'in the %.0f minutes before it. The preached passage is usually read shortly before the '
-            .'sermon and may be embedded inside another section (often a prayer, or the sermon opening). '
-            .'If a distinct Bible reading is present there, return it as its own bible_reading section '
-            .'with its reading_reference; do NOT invent one if no reading occurs.',
-            $sermonStart,
-            $missing,
-            $this->readingPairingWindowSeconds() / 60.0,
-        );
-    }
-
-    /**
-     * The sermon's start time when the structure has a sermon but no
-     * bible_reading section ending within the pairing window before it;
-     * null when there is no sermon or a reading sits close enough.
-     *
-     * When the sermon names its passage, only a reading of that passage
-     * counts — judged as SermonExtractionPlanResolver pairs them. A Psalm read
-     * before a sermon on Luke says nothing about where Luke went. Without a
-     * sermon reference, nearness is the only evidence there is.
-     */
-    private function readinglessSermonStart(ServiceStructure $structure): ?float
-    {
-        $sermons = $structure->sectionsOfType(ServiceSectionType::Sermon);
-
-        if ($sermons === []) {
-            return null;
-        }
-
-        $sermonStart = $sermons[0]->startTime;
-        $sermonReference = $this->sermonReference($structure);
-        $windowSeconds = $this->readingPairingWindowSeconds();
-        $scriptureReferences = app(ScriptureReferenceResolver::class);
-
-        foreach ($structure->sectionsOfType(ServiceSectionType::BibleReading) as $reading) {
-            if ($reading->endTime > $sermonStart || $sermonStart - $reading->endTime > $windowSeconds) {
-                continue;
-            }
-
-            if ($sermonReference === null) {
-                return null;
-            }
-
-            if ($reading->readingReference !== null
-                && $scriptureReferences->referencesOverlap($reading->readingReference, $sermonReference)) {
-                return null;
-            }
-        }
-
-        return $sermonStart;
-    }
-
-    private function sermonReference(ServiceStructure $structure): ?string
-    {
-        $reference = $structure->sectionsOfType(ServiceSectionType::Sermon)[0]->sermonReference ?? null;
-
-        return $reference !== null && trim($reference) !== '' ? $reference : null;
-    }
-
-    /**
-     * Whether the retry kept every short talk the original found, one for one,
-     * with both ends within {@see self::TALK_RECHECK_TOLERANCE_SECONDS}.
-     */
-    private function shortTalksAgree(ServiceStructure $original, ServiceStructure $retry): bool
-    {
-        $originalTalks = $original->sectionsOfType(ServiceSectionType::ShortTalk);
-        $retryTalks = $retry->sectionsOfType(ServiceSectionType::ShortTalk);
-
-        if (count($originalTalks) !== count($retryTalks)) {
-            return false;
-        }
-
-        foreach ($originalTalks as $index => $before) {
-            $after = $retryTalks[$index];
-
-            if (abs($before->startTime - $after->startTime) > self::TALK_RECHECK_TOLERANCE_SECONDS
-                || abs($before->endTime - $after->endTime) > self::TALK_RECHECK_TOLERANCE_SECONDS) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * The same window SermonExtractionPlanResolver pairs readings within —
-     * a reading further out would not reach the published audio anyway.
-     */
-    private function readingPairingWindowSeconds(): float
-    {
-        return (float) config('media-processing.section_extraction.enhanced_sermon.max_pairing_gap_seconds', 900);
-    }
-
-    private function withSermonFlagged(ServiceStructure $structure): ServiceStructure
-    {
-        $sections = array_map(
-            static fn ($section) => $section->type === ServiceSectionType::Sermon
-                ? $section->withReviewFlags([ServiceStructureValidator::FLAG_MISSING_PREACHED_READING])
-                : $section,
-            $structure->sections
-        );
-
-        return new ServiceStructure(
-            $sections,
-            $structure->notes,
-            $structure->model,
-            $structure->summary,
-            $structure->notices,
-            $structure->chapterMarkers,
-            $structure->sermonAbsence,
-        );
-    }
-
-    /**
-     * Whether one corrective detector attempt could resolve the validation failure.
-     *
-     * A section timestamped beyond the recording cannot be a legitimate reading
-     * of the audio — it is corrupted model output (the 2023-02-26 corpus run
-     * placed a sermon end at 41410s in a 4408s recording), and one fresh
-     * detection attempt is cheap relative to a manual review. The live corpus also
-     * showed chronology, competing-sermon classification, and incompatible OoS claims
-     * changing between attempts, so those receive the same single bounded retry.
-     */
-    private function detectionWorthRetrying(ValidationResult $result): bool
-    {
-        return array_intersect($result->failureCodes(), [
-            'timestamps_outside_recording',
-            'non_chronological',
-            'multiple_sermons',
-            'incompatible_oos_item',
-        ]) !== [];
-    }
-
-    private function detectionRetryFeedback(ValidationResult $result): string
-    {
-        return 'The previous structure failed deterministic validation. Correct these exact findings '
-            .'without inventing service content: '.$result->failureSummary();
     }
 
     /**
@@ -1087,7 +1055,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         $boundStructure = null;
 
         if ($requireBoundBaseline) {
-            [$boundResult] = $this->detectWithPrimaryRecovery($detector, $snapService, $validator);
+            [$boundResult] = $this->detectAndValidate($detector, $snapService, $validator);
 
             if (! $boundResult->passed()) {
                 throw new \UnexpectedValueException(

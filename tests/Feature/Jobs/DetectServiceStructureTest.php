@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Jobs;
 
 use App\Actions\HoldSectionForContentReview;
+use App\Actions\ServiceReview\AnswerServiceStructureEnsembleQuestion;
 use App\Contracts\ServiceStructureInterface;
 use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructure;
@@ -19,14 +20,17 @@ use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateRmsLog;
 use App\Jobs\TranscribeFullService;
 use App\Jobs\ValidateVideoFile;
+use App\Livewire\Admin\ChurchServices\ShowChurchService;
 use App\Mail\ManualReviewRequired;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Models\User;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\Structure\MockServiceStructureService;
+use App\Services\ChurchService\Structure\ServiceStructureEnsembleReplay;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
 use App\Services\Media\Audio\AudioTimeline;
@@ -38,6 +42,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\Support\AudioTimelineFixture;
@@ -142,7 +147,7 @@ class DetectServiceStructureTest extends TestCase
                 private readonly ServiceStructure $candidateStructure,
             ) {}
 
-            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = [], ?AudioTimeline $audioTimeline = null): ServiceStructure
+            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = [], ?AudioTimeline $audioTimeline = null, ?string $model = null): ServiceStructure
             {
                 $model = (string) config('media-processing.service_structure.model');
                 $this->modelsAtDetectTime[] = $model;
@@ -179,10 +184,6 @@ class DetectServiceStructureTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->pending()->create();
         $this->storeTranscript($log);
 
-        $invalidBoundStructure = ServiceStructure::fromSections([
-            $this->section('welcome', 0.0, 120.0),
-            $this->section('sermon', 600.0, 41410.0),
-        ], model: 'gpt-5');
         $recoveredBoundStructure = $this->validStructure();
         $candidateStructure = ServiceStructure::fromSections([
             $this->section('welcome', 0.0, 120.0),
@@ -191,20 +192,17 @@ class DetectServiceStructureTest extends TestCase
             $this->section('song', 2210.0, 2400.0),
         ], model: 'gpt-6-candidate');
 
-        $detector = new class($invalidBoundStructure, $recoveredBoundStructure, $candidateStructure) implements ServiceStructureInterface
+        $detector = new class($recoveredBoundStructure, $candidateStructure) implements ServiceStructureInterface
         {
             /** @var list<string> */
             public array $modelsAtDetectTime = [];
 
-            private int $boundAttempts = 0;
-
             public function __construct(
-                private readonly ServiceStructure $invalidBoundStructure,
                 private readonly ServiceStructure $recoveredBoundStructure,
                 private readonly ServiceStructure $candidateStructure,
             ) {}
 
-            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = [], ?AudioTimeline $audioTimeline = null): ServiceStructure
+            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = [], ?AudioTimeline $audioTimeline = null, ?string $model = null): ServiceStructure
             {
                 $model = (string) config('media-processing.service_structure.model');
                 $this->modelsAtDetectTime[] = $model;
@@ -213,9 +211,7 @@ class DetectServiceStructureTest extends TestCase
                     return $this->candidateStructure;
                 }
 
-                return $this->boundAttempts++ === 0
-                    ? $this->invalidBoundStructure
-                    : $this->recoveredBoundStructure;
+                return $this->recoveredBoundStructure;
             }
         };
 
@@ -227,7 +223,7 @@ class DetectServiceStructureTest extends TestCase
             app(SermonCandidateConfidenceService::class),
         );
 
-        $this->assertSame(['gpt-5', 'gpt-5', 'gpt-6-candidate'], $detector->modelsAtDetectTime);
+        $this->assertSame(['gpt-5', 'gpt-6-candidate'], $detector->modelsAtDetectTime);
         $this->assertSame('gpt-5', config('media-processing.service_structure.model'));
 
         $shadow = $log->refresh()->processing_metadata?->toArray()['service_structure_shadow'] ?? null;
@@ -262,7 +258,7 @@ class DetectServiceStructureTest extends TestCase
                 private readonly ServiceStructure $candidateStructure,
             ) {}
 
-            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = [], ?AudioTimeline $audioTimeline = null): ServiceStructure
+            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = [], ?AudioTimeline $audioTimeline = null, ?string $model = null): ServiceStructure
             {
                 $model = (string) config('media-processing.service_structure.model');
                 $this->modelsAtDetectTime[] = $model;
@@ -279,7 +275,7 @@ class DetectServiceStructureTest extends TestCase
             app(SermonCandidateConfidenceService::class),
         );
 
-        $this->assertSame(['gpt-5', 'gpt-5'], $detector->modelsAtDetectTime);
+        $this->assertSame(['gpt-5'], $detector->modelsAtDetectTime);
         $this->assertSame('gpt-5', config('media-processing.service_structure.model'));
 
         $shadow = $log->refresh()->processing_metadata?->toArray()['service_structure_shadow'] ?? null;
@@ -759,7 +755,7 @@ class DetectServiceStructureTest extends TestCase
         $detector = $this->detectorCapturingItems();
         $this->runDetection($churchService, $detector);
 
-        $this->assertSame([[]], $detector->itemsSeen);
+        $this->assertSame(array_fill(0, 4, []), $detector->itemsSeen);
     }
 
     #[Test]
@@ -798,13 +794,13 @@ class DetectServiceStructureTest extends TestCase
         $this->runDetection($churchService, $detector);
 
         $this->assertSame(
-            [[(int) $mergedIntoEmail->id, (int) $openLp->id, (int) $manual->id]],
+            array_fill(0, 4, [(int) $mergedIntoEmail->id, (int) $openLp->id, (int) $manual->id]),
             array_map(fn (array $items): array => array_column($items, 'id'), $detector->itemsSeen),
         );
     }
 
     #[Test]
-    public function primary_mode_retries_detection_once_when_output_is_mechanically_impossible(): void
+    public function invalid_draw_does_not_vote_and_survivors_require_review(): void
     {
         Config::set('media-processing.service_structure.mode', 'primary');
 
@@ -827,16 +823,17 @@ class DetectServiceStructureTest extends TestCase
         $this->runJob($log);
 
         $log->refresh();
-        $this->assertNotSame(ProcessingStatus::Failed, $log->status);
+        $this->assertSame(ProcessingStatus::Failed, $log->status);
         $this->assertSame(4, ServiceSection::query()->where('media_processing_log_id', $log->id)->count());
 
-        $retry = $log->processing_metadata?->toArray()['service_structure_retry'] ?? null;
-        $this->assertIsArray($retry);
-        $this->assertContains('timestamps_outside_recording', $retry['failure_codes']);
+        $attempt = $log->processing_metadata?->toArray()['service_structure_ensemble'][0] ?? null;
+        $this->assertIsArray($attempt);
+        $this->assertSame(['invalid', 'valid', 'valid', 'valid'], array_column($attempt['outcomes'], 'status'));
+        $this->assertTrue($attempt['composition']['degraded']);
     }
 
     #[Test]
-    public function primary_mode_rechecks_a_readingless_sermon_and_adopts_the_retry(): void
+    public function disagreement_about_a_preached_reading_is_banked_for_review(): void
     {
         Config::set('media-processing.service_structure.mode', 'primary');
 
@@ -861,7 +858,7 @@ class DetectServiceStructureTest extends TestCase
         $this->runJob($log);
 
         $log->refresh();
-        $this->assertNotSame(ProcessingStatus::Failed, $log->status);
+        $this->assertSame(ProcessingStatus::Failed, $log->status);
 
         $types = ServiceSection::query()
             ->where('media_processing_log_id', $log->id)
@@ -871,15 +868,15 @@ class DetectServiceStructureTest extends TestCase
             ->all();
         $this->assertContains('bible_reading', $types);
 
-        $recheck = $log->processing_metadata?->toArray()['service_structure_reading_recheck'] ?? null;
-        $this->assertIsArray($recheck);
-        $this->assertSame('retry_adopted', $recheck['outcome']);
-
-        $this->assertNotSame([], MockServiceStructureService::lastFeedback());
+        $attempt = $log->processing_metadata?->toArray()['service_structure_ensemble'][0] ?? null;
+        $this->assertIsArray($attempt);
+        $this->assertNotEmpty($attempt['composition']['disputes']);
+        $this->assertArrayNotHasKey('service_structure_reading_recheck', $log->processing_metadata?->toArray() ?? []);
+        $this->assertSame([], MockServiceStructureService::lastFeedback());
     }
 
     #[Test]
-    public function primary_mode_keeps_and_flags_a_readingless_structure_when_the_recheck_finds_nothing(): void
+    public function unanimous_readingless_structure_keeps_missing_reading_review_flag(): void
     {
         Config::set('media-processing.service_structure.mode', 'primary');
 
@@ -900,9 +897,7 @@ class DetectServiceStructureTest extends TestCase
         $log->refresh();
         $this->assertNotSame(ProcessingStatus::Failed, $log->status, 'A missing reading never fails the run.');
 
-        $recheck = $log->processing_metadata?->toArray()['service_structure_reading_recheck'] ?? null;
-        $this->assertIsArray($recheck);
-        $this->assertSame('reading_still_missing', $recheck['outcome']);
+        $this->assertArrayNotHasKey('service_structure_reading_recheck', $log->processing_metadata?->toArray() ?? []);
 
         $sermon = ServiceSection::query()
             ->where('media_processing_log_id', $log->id)
@@ -921,7 +916,7 @@ class DetectServiceStructureTest extends TestCase
     }
 
     #[Test]
-    public function primary_mode_keeps_the_passing_structure_when_the_recheck_errors(): void
+    public function three_unavailable_draws_do_not_promote_one_valid_structure(): void
     {
         Config::set('media-processing.service_structure.mode', 'primary');
 
@@ -946,24 +941,11 @@ class DetectServiceStructureTest extends TestCase
         $this->runJob($log);
 
         $log->refresh();
-        $this->assertNotSame(ProcessingStatus::Failed, $log->status, 'A recheck error must not fail an already-valid run.');
-
-        $recheck = $log->processing_metadata?->toArray()['service_structure_reading_recheck'] ?? null;
-        $this->assertIsArray($recheck);
-        $this->assertSame('recheck_errored', $recheck['outcome']);
-
-        // The original validated structure stands, sermon flagged for the reviewer.
-        $sermon = ServiceSection::query()
-            ->where('media_processing_log_id', $log->id)
-            ->where('section_type', 'sermon')
-            ->firstOrFail();
-        $this->assertTrue((bool) $sermon->needs_manual_review);
-        $this->assertContains(
-            ServiceStructureValidator::FLAG_MISSING_PREACHED_READING,
-            $sermon->metadata['review_flags'] ?? []
-        );
-        $this->assertEqualsWithDelta(600.0, (float) $log->sermon_start_time, 0.01);
-        $this->assertEqualsWithDelta(2200.0, (float) $log->sermon_end_time, 0.01);
+        $this->assertSame(ProcessingStatus::Failed, $log->status);
+        $this->assertSame(0, ServiceSection::query()->where('media_processing_log_id', $log->id)->count());
+        $attempt = $log->processing_metadata?->toArray()['service_structure_ensemble'][0] ?? null;
+        $this->assertIsArray($attempt);
+        $this->assertSame(['valid', 'unavailable', 'unavailable', 'unavailable'], array_column($attempt['outcomes'], 'status'));
     }
 
     #[Test]
@@ -987,7 +969,7 @@ class DetectServiceStructureTest extends TestCase
     }
 
     #[Test]
-    public function a_nearby_reading_of_another_passage_does_not_stand_in_for_the_preached_one(): void
+    public function competing_reading_references_are_recorded_as_ensemble_disputes(): void
     {
         Config::set('media-processing.service_structure.mode', 'primary');
 
@@ -1018,14 +1000,225 @@ class DetectServiceStructureTest extends TestCase
         $this->runJob($log);
 
         $log->refresh();
-        $recheck = $log->processing_metadata?->toArray()['service_structure_reading_recheck'] ?? null;
-        $this->assertIsArray($recheck);
-        $this->assertSame('retry_adopted', $recheck['outcome']);
-        $this->assertStringContainsString('Luke 15:1-10', implode(' ', MockServiceStructureService::lastFeedback()));
+        $attempt = $log->processing_metadata?->toArray()['service_structure_ensemble'][0] ?? null;
+        $this->assertIsArray($attempt);
+        $this->assertNotEmpty($attempt['composition']['disputes']);
+        $this->assertSame([], MockServiceStructureService::lastFeedback());
         $this->assertSame(2, ServiceSection::query()
             ->where('media_processing_log_id', $log->id)
             ->where('section_type', 'bible_reading')
             ->count());
+    }
+
+    #[Test]
+    public function an_answer_carries_to_a_fresh_ensemble_of_the_same_recording(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        [$service, $log, $dispute, $admin] = $this->disputedReadingRun();
+
+        app(AnswerServiceStructureEnsembleQuestion::class)->execute($log->id, $dispute['question_id'], 'choose', $admin, slot: 1);
+
+        MockServiceStructureService::useStructureSequence(...$this->readingDisputeDraws());
+        $this->runJob($log->fresh());
+
+        $bank = $log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble'] ?? [];
+        $latest = end($bank);
+
+        $this->assertCount(2, $bank);
+        $this->assertNotSame($bank[0]['attempt_id'], $latest['attempt_id']);
+        $this->assertSame([], array_values(array_filter($latest['composition']['disputes'], static fn (array $open): bool => $open['type'] === 'bible_reading')));
+        $this->assertCount(1, $latest['composition']['applied_rulings']);
+        $this->assertSame('Luke 15:1-10', ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->where('section_type', 'bible_reading')
+            ->firstOrFail()
+            ->metadata?->readingReference);
+    }
+
+    #[Test]
+    public function answering_on_a_run_with_extracted_media_banks_the_ruling_without_resyncing_sections(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        [$service, $log, $dispute, $admin] = $this->disputedReadingRun();
+        $reading = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->where('section_type', 'bible_reading')
+            ->firstOrFail();
+        $sermon = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->where('section_type', 'sermon')
+            ->firstOrFail();
+        $sermon->forceFill(['extracted_audio_path' => 'sections/extracted-sermon.m4a'])->save();
+        Storage::disk($sermon->extractedAssetDisk())->put('sections/extracted-sermon.m4a', 'audio');
+
+        $result = app(AnswerServiceStructureEnsembleQuestion::class)->execute($log->id, $dispute['question_id'], 'choose', $admin, slot: 1);
+
+        $this->assertFalse($result['sections_synced']);
+        $this->assertSame('Psalm 23', $reading->fresh()?->metadata?->readingReference);
+        $this->assertSame('sections/extracted-sermon.m4a', $sermon->fresh()?->extracted_audio_path);
+        $this->assertTrue(Storage::disk($sermon->extractedAssetDisk())->exists('sections/extracted-sermon.m4a'));
+        $this->assertCount(1, $log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble_rulings'] ?? []);
+
+        Storage::disk($sermon->extractedAssetDisk())->delete('sections/extracted-sermon.m4a');
+    }
+
+    #[Test]
+    public function the_review_panel_plays_the_recording_and_takes_a_structured_correction(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        [$service, $log, $dispute, $admin] = $this->disputedReadingRun();
+        $metadata = $log->processing_metadata?->toArray() ?? [];
+        $metadata['service_artifacts'][] = ['kind' => 'audio', 'disk' => 'local', 'path' => 'service-audio/2026-03-22/morning-x.mp3'];
+        $log->forceFill(['processing_metadata' => $metadata])->save();
+
+        $component = Livewire::actingAs($admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee(route('admin.recordings.service-audio', $log).'#t=410,600', false)
+            ->assertDontSee('Replacement sections as JSON')
+            ->call('startEnsembleCorrection', $log->id, $dispute['question_id'])
+            ->assertSet("ensembleCorrections.{$dispute['question_id']}.0.start", '7:00')
+            ->set("ensembleCorrections.{$dispute['question_id']}.0.end", 'later')
+            ->call('answerEnsembleQuestion', $log->id, $dispute['question_id'], 'correct');
+
+        $this->assertSame([], $log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble_rulings'] ?? []);
+
+        $component
+            ->set("ensembleCorrections.{$dispute['question_id']}.0.end", '9:50')
+            ->set("ensembleCorrections.{$dispute['question_id']}.0.reference", 'Luke 15:1-10')
+            ->call('answerEnsembleQuestion', $log->id, $dispute['question_id'], 'correct')
+            ->assertHasNoErrors();
+
+        $ruling = $log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble_rulings'][0] ?? [];
+        $this->assertSame('correct', $ruling['kind']);
+        $this->assertEquals([[
+            'type' => 'bible_reading',
+            'title' => null,
+            'start_time' => 420.0,
+            'end_time' => 590.0,
+            'confidence' => 1.0,
+            'song_title' => null,
+            'reading_reference' => 'Luke 15:1-10',
+            'sermon_reference' => null,
+        ]], $ruling['resolution']['sections']);
+    }
+
+    /** @return array{0: ChurchService, 1: MediaProcessingLog, 2: array<string, mixed>, 3: User} */
+    private function disputedReadingRun(): array
+    {
+        $service = ChurchService::factory()->create();
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create(['church_service_id' => $service->id]);
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+        MockServiceStructureService::useStructureSequence(...$this->readingDisputeDraws());
+
+        $this->runJob($log);
+        $dispute = collect($log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble'][0]['composition']['disputes'] ?? [])
+            ->firstWhere('type', 'bible_reading');
+        $this->assertIsArray($dispute);
+
+        return [$service, $log->fresh(), $dispute, User::factory()->admin()->create()];
+    }
+
+    /**
+     * A 2–2 split on the reading's reference: the tie-break slot 0 writes Psalm 23.
+     *
+     * @return list<ServiceStructure>
+     */
+    private function readingDisputeDraws(): array
+    {
+        $draws = [
+            ServiceStructure::fromSections([
+                $this->section('welcome', 0.0, 120.0),
+                $this->referencedSection('bible_reading', 420.0, 590.0, readingReference: 'Psalm 23'),
+                $this->referencedSection('sermon', 600.0, 2200.0, sermonReference: 'Luke 15:1-10'),
+                $this->section('song', 2210.0, 2400.0),
+            ], model: 'mock'),
+            ServiceStructure::fromSections([
+                $this->section('welcome', 0.0, 120.0),
+                $this->referencedSection('bible_reading', 420.0, 590.0, readingReference: 'Luke 15:1-10'),
+                $this->referencedSection('sermon', 600.0, 2200.0, sermonReference: 'Luke 15:1-10'),
+                $this->section('song', 2210.0, 2400.0),
+            ], model: 'mock'),
+        ];
+
+        return [...$draws, ...$draws];
+    }
+
+    #[Test]
+    public function an_operator_answer_corrects_banked_structure_without_resuming_the_run(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $service = ChurchService::factory()->create();
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create(['church_service_id' => $service->id]);
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+
+        $psalm = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->referencedSection('bible_reading', 420.0, 590.0, readingReference: 'Psalm 23'),
+            $this->referencedSection('sermon', 600.0, 2200.0, sermonReference: 'Luke 15:1-10'),
+            $this->section('song', 2210.0, 2400.0),
+        ], model: 'mock');
+        $luke = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->referencedSection('bible_reading', 420.0, 590.0, readingReference: 'Luke 15:1-10'),
+            $this->referencedSection('sermon', 600.0, 2200.0, sermonReference: 'Luke 15:1-10'),
+            $this->section('song', 2210.0, 2400.0),
+        ], model: 'mock');
+        MockServiceStructureService::useStructureSequence($psalm, $luke);
+
+        $this->runJob($log);
+        $log->refresh();
+        $this->assertSame(ProcessingStatus::Failed, $log->status);
+        $dispute = collect($log->processing_metadata?->toArray()['service_structure_ensemble'][0]['composition']['disputes'] ?? [])
+            ->firstWhere('type', 'bible_reading');
+        $this->assertIsArray($dispute);
+        $admin = User::factory()->admin()->create();
+
+        Livewire::actingAs($admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Structure questions')
+            ->assertSee('Recorded alternatives');
+
+        $transcriptPath = $log->serviceTranscriptPath();
+        $originalTranscript = Storage::disk('local')->get($transcriptPath);
+        Storage::disk('local')->put($transcriptPath, $originalTranscript.' ');
+
+        try {
+            app(AnswerServiceStructureEnsembleQuestion::class)->execute(
+                $log->id,
+                $dispute['question_id'],
+                'choose',
+                $admin,
+                slot: 1,
+            );
+            $this->fail('Changed source evidence should block the answer.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('no longer matches', $exception->getMessage());
+        } finally {
+            Storage::disk('local')->put($transcriptPath, $originalTranscript);
+        }
+
+        $this->assertSame([], $log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble_rulings'] ?? []);
+
+        Livewire::actingAs($admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->call('answerEnsembleQuestion', $log->id, $dispute['question_id'], 'choose', 1)
+            ->assertHasNoErrors()
+            ->assertDontSee('Structure questions');
+
+        $metadata = $log->fresh()?->processing_metadata?->toArray() ?? [];
+        $answer = app(ServiceStructureEnsembleReplay::class)->replay(
+            $metadata['service_structure_ensemble'][0],
+            $metadata['service_structure_ensemble_rulings'],
+        );
+
+        $this->assertSame([], $answer['disputes']);
+        $this->assertSame('Luke 15:1-10', $answer['structure']['sections'][1]['reading_reference']);
+        $this->assertSame(ProcessingStatus::Failed, $log->fresh()?->status);
+        $this->assertCount(1, $log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble_rulings'] ?? []);
+        $this->assertArrayHasKey('extraction_plan', $metadata['service_structure_ensemble'][0]['composition']);
     }
 
     #[Test]
@@ -1052,7 +1245,7 @@ class DetectServiceStructureTest extends TestCase
     }
 
     #[Test]
-    public function the_recheck_keeps_the_original_structure_when_the_retry_disturbs_a_talk(): void
+    public function talk_boundary_disagreement_remains_held_when_reading_is_recovered(): void
     {
         Config::set('media-processing.service_structure.mode', 'primary');
 
@@ -1083,28 +1276,28 @@ class DetectServiceStructureTest extends TestCase
         $this->runJob($log);
 
         $log->refresh();
-        $recheck = $log->processing_metadata?->toArray()['service_structure_reading_recheck'] ?? null;
-        $this->assertIsArray($recheck);
-        $this->assertSame('retry_changed_talks', $recheck['outcome']);
+        $attempt = $log->processing_metadata?->toArray()['service_structure_ensemble'][0] ?? null;
+        $this->assertIsArray($attempt);
+        $this->assertNotEmpty($attempt['composition']['disputes']);
 
         $talk = ServiceSection::query()
             ->where('media_processing_log_id', $log->id)
             ->where('section_type', 'short_talk')
             ->sole();
-        $this->assertEqualsWithDelta(400.0, (float) $talk->end_time, 0.01);
+        $this->assertContains(ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES, $talk->metadata['review_flags'] ?? []);
 
         $sermon = ServiceSection::query()
             ->where('media_processing_log_id', $log->id)
             ->where('section_type', 'sermon')
             ->sole();
         $this->assertContains(
-            ServiceStructureValidator::FLAG_MISSING_PREACHED_READING,
+            ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES,
             $sermon->metadata['review_flags'] ?? []
         );
     }
 
     #[Test]
-    public function primary_mode_retries_recoverable_semantic_validation_failures_with_feedback(): void
+    public function invalid_semantic_draw_is_banked_without_a_retry(): void
     {
         Config::set('media-processing.service_structure.mode', 'primary');
         Config::set('media-processing.email.admin_email', 'admin@example.com');
@@ -1127,15 +1320,160 @@ class DetectServiceStructureTest extends TestCase
         $this->runJob($log);
 
         $log->refresh();
-        $this->assertNotSame(ProcessingStatus::Failed, $log->status);
-        $retry = $log->processing_metadata?->toArray()['service_structure_retry'] ?? null;
-        $this->assertIsArray($retry);
-        $this->assertContains('multiple_sermons', $retry['failure_codes']);
-        $this->assertNotSame([], MockServiceStructureService::lastFeedback());
+        $this->assertSame(ProcessingStatus::Failed, $log->status);
+        $attempt = $log->processing_metadata?->toArray()['service_structure_ensemble'][0] ?? null;
+        $this->assertIsArray($attempt);
+        $this->assertSame('invalid', $attempt['outcomes'][0]['status']);
+        $this->assertArrayNotHasKey('service_structure_retry', $log->processing_metadata?->toArray() ?? []);
+        $this->assertSame([], MockServiceStructureService::lastFeedback());
+    }
+
+    /**
+     * Canary 8, run 949: the first attempt nested one prayer inside another during a time of
+     * sharing and prayer. Regenerated from scratch, the retry fixed the chronology by typing
+     * the church updates as talks — publishable content the failure had nothing to do with.
+     */
+    #[Test]
+    public function invalid_chronology_draw_is_preserved_without_feedback_regeneration(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+
+        MockServiceStructureService::useStructureSequence(
+            $this->nestedPrayersStructure(),
+            $this->validStructure(),
+        );
+
+        $this->runJob($log);
+
+        $this->assertSame([], MockServiceStructureService::lastFeedback());
+        $attempt = $log->refresh()->processing_metadata?->toArray()['service_structure_ensemble'][0] ?? null;
+        $this->assertIsArray($attempt);
+        $this->assertSame('invalid', $attempt['outcomes'][0]['status']);
+        $raw = Storage::disk($attempt['artifact_disk'])->get($attempt['slots'][0]['path']);
+        $this->assertIsString($raw);
+        $invalid = json_decode($raw, true);
+        $this->assertSame(
+            ['welcome', 'prayer', 'prayer', 'bible_reading', 'sermon', 'song'],
+            array_column($invalid['validated']['sections'], 'type'),
+        );
     }
 
     #[Test]
-    public function primary_mode_routes_to_manual_review_when_the_retry_also_fails(): void
+    public function talk_from_three_surviving_draws_is_flagged_as_degraded(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+
+        MockServiceStructureService::useStructureSequence(
+            $this->nestedPrayersStructure(),
+            ServiceStructure::fromSections([
+                $this->section('welcome', 0.0, 120.0),
+                $this->section('short_talk', 130.0, 400.0),
+                $this->section('bible_reading', 420.0, 590.0),
+                $this->section('sermon', 600.0, 2200.0),
+                $this->section('song', 2210.0, 2400.0),
+            ], model: 'mock'),
+        );
+
+        $this->runJob($log);
+
+        $log->refresh();
+        $talk = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->where('section_type', 'short_talk')
+            ->sole();
+        $this->assertContains(ServiceStructureValidator::FLAG_ENSEMBLE_DEGRADED, $talk->metadata['review_flags'] ?? []);
+        $this->assertArrayNotHasKey('service_structure_retry', $log->processing_metadata?->toArray() ?? []);
+    }
+
+    #[Test]
+    public function invalid_draw_talk_cannot_outvote_three_prayer_draws(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+
+        MockServiceStructureService::useStructureSequence(
+            ServiceStructure::fromSections([
+                $this->section('welcome', 0.0, 120.0),
+                $this->section('short_talk', 130.0, 400.0),
+                $this->section('bible_reading', 420.0, 590.0),
+                $this->section('bible_reading', 430.0, 580.0),
+                $this->section('sermon', 600.0, 2200.0),
+                $this->section('song', 2210.0, 2400.0),
+            ], model: 'mock'),
+            ServiceStructure::fromSections([
+                $this->section('welcome', 0.0, 120.0),
+                $this->section('prayer', 130.0, 400.0),
+                $this->section('bible_reading', 420.0, 590.0),
+                $this->section('sermon', 600.0, 2200.0),
+                $this->section('song', 2210.0, 2400.0),
+            ], model: 'mock'),
+        );
+
+        $this->runJob($log);
+
+        $prayer = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->where('section_type', 'prayer')
+            ->sole();
+        $this->assertContains(ServiceStructureValidator::FLAG_ENSEMBLE_DEGRADED, $prayer->metadata['review_flags'] ?? []);
+        $this->assertSame(0, ServiceSection::query()->where('media_processing_log_id', $log->id)->where('section_type', 'short_talk')->count());
+    }
+
+    #[Test]
+    public function stable_talk_from_surviving_draws_still_carries_degraded_flag(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+
+        MockServiceStructureService::useStructureSequence(
+            ServiceStructure::fromSections([
+                $this->section('welcome', 0.0, 120.0),
+                $this->section('short_talk', 130.0, 400.0),
+                $this->section('bible_reading', 420.0, 590.0),
+                $this->section('bible_reading', 430.0, 580.0),
+                $this->section('sermon', 600.0, 2200.0),
+                $this->section('song', 2210.0, 2400.0),
+            ], model: 'mock'),
+            ServiceStructure::fromSections([
+                $this->section('welcome', 0.0, 120.0),
+                $this->section('short_talk', 130.0, 400.0),
+                $this->section('bible_reading', 420.0, 590.0),
+                $this->section('sermon', 600.0, 2200.0),
+                $this->section('song', 2210.0, 2400.0),
+            ], model: 'mock'),
+        );
+
+        $this->runJob($log);
+
+        $log->refresh();
+        $flagged = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->get()
+            ->filter(fn (ServiceSection $section): bool => in_array(
+                ServiceStructureValidator::FLAG_ENSEMBLE_DEGRADED,
+                $section->metadata['review_flags'] ?? [],
+                true,
+            ));
+        $this->assertGreaterThan(0, $flagged->count());
+        $this->assertArrayNotHasKey('service_structure_retry', $log->processing_metadata?->toArray() ?? []);
+    }
+
+    #[Test]
+    public function primary_mode_routes_to_manual_review_when_all_draws_fail(): void
     {
         Config::set('media-processing.service_structure.mode', 'primary');
         Config::set('media-processing.email.admin_email', 'admin@example.com');
@@ -1157,11 +1495,11 @@ class DetectServiceStructureTest extends TestCase
         $this->assertSame(ProcessingStatus::Failed, $log->status);
         $this->assertSame('manual_review_required', $log->current_step);
 
-        // The retry was attempted and recorded; the persisted proposal is the
-        // second attempt's, so the reviewer sees what the detector last said.
+        // Every rejected draw is banked, and none becomes an authoritative section.
         $metadata = $log->processing_metadata?->toArray() ?? [];
-        $this->assertArrayHasKey('service_structure_retry', $metadata);
-        $this->assertArrayHasKey('service_structure_proposal', $metadata);
+        $this->assertArrayNotHasKey('service_structure_retry', $metadata);
+        $this->assertCount(4, $metadata['service_structure_ensemble'][0]['outcomes']);
+        $this->assertSame(['invalid', 'invalid', 'invalid', 'invalid'], array_column($metadata['service_structure_ensemble'][0]['outcomes'], 'status'));
     }
 
     #[Test]
@@ -1197,7 +1535,7 @@ class DetectServiceStructureTest extends TestCase
         $log->refresh();
         $this->assertSame(ProcessingStatus::Failed, $log->status);
         $this->assertSame('manual_review_required', $log->current_step);
-        $this->assertStringContainsString('sermon', (string) $log->error_message);
+        $this->assertStringContainsString('Fewer than two validated ensemble draws', (string) $log->error_message);
         $this->assertSame(0, ServiceSection::query()->where('media_processing_log_id', $log->id)->count());
         $this->assertSame([], $job->chained, 'The remaining chained jobs are cancelled.');
 
@@ -1206,10 +1544,11 @@ class DetectServiceStructureTest extends TestCase
         $proposal = $log->processing_metadata?->toArray()['service_structure_proposal'] ?? null;
         $this->assertIsArray($proposal);
         $this->assertFalse($proposal['passed_validation']);
-        $this->assertContains('multiple_sermons', array_column($proposal['hard_failures'], 'code'));
-        $this->assertCount(2, $proposal['sections']);
-        $this->assertSame('sermon', $proposal['sections'][0]['section_type']);
-        $this->assertArrayNotHasKey('transcript', $proposal['sections'][0]['metadata']);
+        $this->assertContains('insufficient_ensemble_votes', array_column($proposal['hard_failures'], 'code'));
+        $this->assertCount(0, $proposal['sections']);
+        $attempt = $log->processing_metadata?->toArray()['service_structure_ensemble'][0] ?? null;
+        $this->assertIsArray($attempt);
+        $this->assertSame(['invalid', 'invalid', 'invalid', 'invalid'], array_column($attempt['outcomes'], 'status'));
         $this->assertSame(3, LivestreamSegment::query()->where('media_processing_log_id', $log->id)->count());
 
         Mail::assertNothingQueued();
@@ -1576,7 +1915,7 @@ class DetectServiceStructureTest extends TestCase
 
             public function __construct(private readonly ServiceStructure $structure) {}
 
-            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = [], ?AudioTimeline $audioTimeline = null): ServiceStructure
+            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = [], ?AudioTimeline $audioTimeline = null, ?string $model = null): ServiceStructure
             {
                 $this->timelineSeen = $audioTimeline;
 
@@ -1601,6 +1940,133 @@ class DetectServiceStructureTest extends TestCase
         $this->assertEqualsWithDelta(1.0, $detector->timelineSeen->musicShare(2210.0, 2400.0), 1e-9);
     }
 
+    #[Test]
+    public function input_changed_during_the_four_draws_cannot_sync_stale_sections(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        $churchService = ChurchService::factory()->create();
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'church_service_id' => $churchService->id,
+        ]);
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+
+        $detector = new class($this->validStructure(), $churchService) implements ServiceStructureInterface
+        {
+            private int $calls = 0;
+
+            public function __construct(
+                private readonly ServiceStructure $structure,
+                private readonly ChurchService $churchService,
+            ) {}
+
+            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = [], ?AudioTimeline $audioTimeline = null, ?string $model = null): ServiceStructure
+            {
+                if ($this->calls++ === 0) {
+                    ChurchServiceItem::factory()->create([
+                        'church_service_id' => $this->churchService->id,
+                        'source' => 'manual',
+                        'title' => 'Newly attested reading',
+                    ]);
+                }
+
+                return $this->structure;
+            }
+        };
+
+        try {
+            (new DetectServiceStructure($log))->handle(
+                $detector,
+                app(SilenceSnapService::class),
+                app(ServiceStructureValidator::class),
+                app(ServiceSectionSyncService::class),
+                app(SermonCandidateConfidenceService::class),
+            );
+            $this->fail('Expected stale ensemble input to be refused.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('input changed while draws were running', $exception->getMessage());
+        }
+
+        $this->assertSame(0, ServiceSection::query()->where('media_processing_log_id', $log->id)->count());
+        $this->assertCount(1, $log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble'] ?? []);
+    }
+
+    #[Test]
+    public function an_operator_section_edit_during_the_draws_is_not_overwritten(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+        $existing = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'title' => 'Before the draws',
+        ]);
+
+        $detector = $this->detectorRunningOnce($this->validStructure(), static function () use ($existing): void {
+            $existing->forceFill(['title' => 'Operator correction'])->save();
+            ServiceSection::query()->whereKey($existing->id)->update(['updated_at' => now()->addMinute()]);
+        });
+
+        $this->handleDetection($log, $detector);
+
+        $this->assertSame('Operator correction', $existing->fresh()?->title);
+        $this->assertSame(1, ServiceSection::query()->where('media_processing_log_id', $log->id)->count());
+        $this->assertSame(ProcessingStatus::Failed, $log->fresh()?->status);
+        $this->assertStringContainsString('changed while the structure draws were running', (string) $log->fresh()?->error_message);
+    }
+
+    #[Test]
+    public function cancelling_the_run_during_the_draws_prevents_sync(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+
+        $detector = $this->detectorRunningOnce($this->validStructure(), static function () use ($log): void {
+            MediaProcessingLog::query()->whereKey($log->id)->update(['status' => ProcessingStatus::Cancelled->value]);
+        });
+
+        $this->handleDetection($log, $detector);
+
+        $this->assertSame(0, ServiceSection::query()->where('media_processing_log_id', $log->id)->count());
+        $this->assertSame(ProcessingStatus::Cancelled, $log->fresh()?->status);
+    }
+
+    private function detectorRunningOnce(ServiceStructure $structure, \Closure $duringFirstDraw): ServiceStructureInterface
+    {
+        return new class($structure, $duringFirstDraw) implements ServiceStructureInterface
+        {
+            private int $calls = 0;
+
+            public function __construct(
+                private readonly ServiceStructure $structure,
+                private readonly \Closure $duringFirstDraw,
+            ) {}
+
+            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = [], ?AudioTimeline $audioTimeline = null, ?string $model = null): ServiceStructure
+            {
+                if ($this->calls++ === 0) {
+                    ($this->duringFirstDraw)();
+                }
+
+                return $this->structure;
+            }
+        };
+    }
+
+    private function handleDetection(MediaProcessingLog $log, ServiceStructureInterface $detector): void
+    {
+        (new DetectServiceStructure($log))->handle(
+            $detector,
+            app(SilenceSnapService::class),
+            app(ServiceStructureValidator::class),
+            app(ServiceSectionSyncService::class),
+            app(SermonCandidateConfidenceService::class),
+        );
+    }
+
     /**
      * @return ServiceStructureInterface&object{itemsSeen: list<list<array<string, mixed>>>}
      */
@@ -1613,7 +2079,7 @@ class DetectServiceStructureTest extends TestCase
 
             public function __construct(private readonly ServiceStructure $structure) {}
 
-            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = [], ?AudioTimeline $audioTimeline = null): ServiceStructure
+            public function detect(ChurchServiceTranscript $transcript, array $oosItems, ?string $processingId = null, array $feedback = [], ?AudioTimeline $audioTimeline = null, ?string $model = null): ServiceStructure
             {
                 $this->itemsSeen[] = $oosItems;
 
@@ -1716,6 +2182,21 @@ class DetectServiceStructureTest extends TestCase
             $this->section('sermon', 600.0, 2200.0),
             $this->section('song', 2210.0, 2400.0),
         ], ['Fixture structure.'], 'mock');
+    }
+
+    /**
+     * One prayer nested inside another — the shape run 949's first attempt failed on.
+     */
+    private function nestedPrayersStructure(): ServiceStructure
+    {
+        return ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('prayer', 130.0, 400.0),
+            $this->section('prayer', 150.0, 380.0),
+            $this->section('bible_reading', 420.0, 590.0),
+            $this->section('sermon', 600.0, 2200.0),
+            $this->section('song', 2210.0, 2400.0),
+        ], model: 'mock');
     }
 
     private function section(

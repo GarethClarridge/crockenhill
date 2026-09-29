@@ -58,6 +58,10 @@ return [
         'sermon_disk' => env('SERMON_STORAGE_DISK', env('FILESYSTEM_DISK', 'local')),
         // TRANSCRIPT_STORAGE_DISK is the canonical key; falls back to sermon disk, then filesystem disk.
         'transcript_disk' => env('TRANSCRIPT_STORAGE_DISK', env('SERMON_STORAGE_DISK', env('FILESYSTEM_DISK', 'local'))),
+        // Per-run service artifacts (full transcripts, RMS, audio timeline, service audio): small,
+        // read by every re-derivation and costly to remake, so they may live apart from the media.
+        // Unset, they follow transcript_disk — resolved at read time by App\Support\ServiceArtifactDisk.
+        'service_artifact_disk' => env('SERVICE_ARTIFACT_DISK'),
         'historic_staging_disk' => env('HISTORIC_STAGING_DISK', 'historic_staging'),
         'historic_quarantine_disk' => env('HISTORIC_QUARANTINE_DISK', 'historic_quarantine'),
         // MEDIA_PROCESSING_TEMP_DISK moves the pipeline's working space off the project volume.
@@ -372,18 +376,16 @@ return [
         // Owns the sermon-vs-children's-talk judgement, so it defaults to the
         // flagship reasoning model.
         'model' => env('SERVICE_STRUCTURE_MODEL', 'gpt-5.6-sol'),
+        'ensemble' => [
+            'models' => ['gpt-5.6-luna', 'gpt-5.6-luna', 'gpt-6-luna', 'gpt-6-luna'],
+            'draw_timeout_seconds' => 300,
+        ],
         'reasoning_effort' => env('SERVICE_STRUCTURE_REASONING_EFFORT', 'medium'),
         // Candidate model for shadow runs. When set, shadow detection uses
         // this model while `model` stays authoritative — the permanent
         // model-upgrade mechanism once the heuristic baseline is retired.
         // Null means shadow runs the bound model.
         'shadow_model' => env('SERVICE_STRUCTURE_SHADOW_MODEL'),
-        // When a validated structure has a sermon but no bible_reading section
-        // within the extraction pairing window before it, retry detection once
-        // with feedback naming the anomaly (the reading is usually embedded in
-        // another section). The retry is adopted only if it validates and
-        // recovers a reading.
-        'reading_recheck' => env('SERVICE_STRUCTURE_READING_RECHECK', true),
         // mock|openai|local — the ServiceTranscriptionInterface binding.
         'transcription_service' => env('SERVICE_TRANSCRIPTION_SERVICE', 'mock'),
         // Whisper model for the whole-recording pass. Must support verbose_json

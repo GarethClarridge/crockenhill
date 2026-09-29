@@ -61,6 +61,13 @@
         ])
     @endif
 
+    @if(isset($ensembleReviewPanels[$run->id]))
+        @include('livewire.admin.church-services.partials.ensemble-review', [
+            'panel' => $ensembleReviewPanels[$run->id],
+            'run' => $run,
+        ])
+    @endif
+
     <details class="rounded-lg border border-gray-200 bg-gray-50">
         <summary class="min-h-11 cursor-pointer px-4 py-3 text-sm font-semibold text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cbc-teal">
             Technical processing details

@@ -56,9 +56,9 @@ class ClassifyHistoricAudioCommandTest extends TestCase
 
         $this->artisan('historic-import:classify-audio', ['runs' => [$recorded->id, $orphaned->id, $missing->id, $mismatched->id, $done->id]])
             ->expectsOutputToContain('DRY RUN')
-            ->expectsOutputToContain('would classify sermons:')
-            ->expectsOutputToContain('would re-attach sermons:')
-            ->expectsOutputToContain('no audio artifact recorded; audio missing at sermons:')
+            ->expectsOutputToContain('would classify durable:')
+            ->expectsOutputToContain('would re-attach durable:')
+            ->expectsOutputToContain('no audio artifact recorded; audio missing at durable:')
             ->expectsOutputToContain('audio lasts 90.0s but the RMS log ends at 60.0s')
             ->expectsOutputToContain('already has a usable audio timeline')
             ->expectsOutputToContain('1 classify, 1 done, 1 reattach, 2 refused')
@@ -82,11 +82,11 @@ class ClassifyHistoricAudioCommandTest extends TestCase
 
         $run->refresh();
         $entry = collect($run->processing_metadata?->toArray()[ServiceArtifactStorage::METADATA_KEY] ?? [])->firstWhere('kind', 'audio');
-        $this->assertSame(['sermons', $audio['path'], BackfillAudioTimeline::REATTACHED_BY], [$entry['disk'] ?? null, $entry['path'] ?? null, $entry['reattached_by'] ?? null]);
+        $this->assertSame(['durable', $audio['path'], BackfillAudioTimeline::REATTACHED_BY], [$entry['disk'] ?? null, $entry['path'] ?? null, $entry['reattached_by'] ?? null]);
         $this->assertIsString($run->audio_timeline_path);
         Storage::disk('durable')->assertExists($run->audio_timeline_path);
         Process::assertRan(fn (PendingProcess $process): bool => is_array($process->command)
-            && $process->command[2] === Storage::disk('sermons')->path($audio['path']));
+            && $process->command[2] === Storage::disk('durable')->path($audio['path']));
     }
 
     #[Test]
@@ -125,8 +125,8 @@ class ClassifyHistoricAudioCommandTest extends TestCase
         Storage::disk('durable')->put($rmsPath, $this->rmsLog(60.0));
 
         if ($file) {
-            Storage::disk('sermons')->put($audio['path'], self::AUDIO_BYTES);
-            $this->durations[Storage::disk('sermons')->path($audio['path'])] = $duration;
+            Storage::disk('durable')->put($audio['path'], self::AUDIO_BYTES);
+            $this->durations[Storage::disk('durable')->path($audio['path'])] = $duration;
         }
 
         $artifacts = [['kind' => 'rms', 'disk' => 'durable', 'path' => $rmsPath]];

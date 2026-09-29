@@ -18,6 +18,7 @@ use App\Enums\DetectorSeverity;
 use App\Enums\DetectorStatus;
 use App\Enums\DetectorSurface;
 use App\Enums\DetectorUnit;
+use App\Jobs\DetectServiceStructure;
 use App\Jobs\MatchSongsFromTranscript;
 use App\Services\ChurchService\SectionPublication\SongLoopedTranscript;
 use App\Services\ChurchService\SectionPublication\SongLyricsOutsideSection;
@@ -451,6 +452,26 @@ class DetectorCatalogue
                 summary: 'A song section under half sung, with a long spoken lead-in or tail, has swallowed a prayer or talk; held rather than trimmed because the separate item\'s boundary is unknown.',
                 owningClass: SongSpeechEdges::class,
                 regressionCases: ['run 974 §988', 'run 1036 §1475'],
+            ),
+            new DetectorEntry(
+                id: 'structure-ensemble-disagrees',
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: [ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Section,
+                summary: 'Validated structure draws disagree about an output-relevant claim or boundary.',
+                owningClass: DetectServiceStructure::class,
+            ),
+            new DetectorEntry(
+                id: 'structure-ensemble-degraded',
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: [ServiceStructureValidator::FLAG_ENSEMBLE_DEGRADED],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Section,
+                summary: 'Fewer than four validated structure draws support the proposed section.',
+                owningClass: DetectServiceStructure::class,
             ),
             new DetectorEntry(
                 id: 'structure-missing-preached-reading',

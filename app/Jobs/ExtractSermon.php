@@ -13,6 +13,7 @@ use App\Enums\LivestreamSegmentClassification;
 use App\Mail\ManualReviewRequired;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\Structure\EnsembleReviewGate;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\Media\ExtractedMediaDurationProbe;
 use App\Services\Media\Video\VideoExtractionService;
@@ -82,6 +83,17 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
 
             // Update status to show sermon extraction is starting
             $this->markProcessingRunAsProcessing($this->processingLog, 'extraction');
+
+            if (app(EnsembleReviewGate::class)->requiresReview($this->processingLog)) {
+                $reason = 'Service structure ensemble evidence needs review before any sermon extraction or no-sermon conclusion.';
+                $this->markProcessingRunForManualReview($this->processingLog, 'service_structure_ensemble_review', $reason);
+                $this->processingLog->refresh();
+                $this->notifyManualReviewRequired($reason, []);
+                $this->chained = [];
+                $this->logStepSkipped(ChurchServiceProcessingTimeline::EXTRACT_SERMON, $reason);
+
+                return;
+            }
 
             if ($this->concludeWithoutSermon()) {
                 return;

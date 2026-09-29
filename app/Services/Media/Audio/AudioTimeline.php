@@ -122,6 +122,18 @@ final readonly class AudioTimeline
         return new self($model, $modelRevision, $windowSeconds, $audioSeconds, $windows);
     }
 
+    /** @return array<string, mixed> */
+    public function toArray(): array
+    {
+        return [
+            'model' => $this->model,
+            'model_revision' => $this->modelRevision,
+            'window_seconds' => $this->windowSeconds,
+            'audio_seconds' => $this->audioSeconds,
+            'windows' => $this->windows,
+        ];
+    }
+
     public function end(): float
     {
         return $this->windows[count($this->windows) - 1]['end'];

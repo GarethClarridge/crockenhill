@@ -6,9 +6,11 @@ namespace App\Livewire\Admin\ChurchServices;
 
 use App\Actions\ConfirmLivestreamSermonSegment;
 use App\Actions\DeleteLivestreamUpload;
+use App\Actions\ServiceReview\AnswerServiceStructureEnsembleQuestion;
 use App\Actions\ServiceReview\ResolvePendingStructureMerge;
 use App\Actions\ServiceReview\ReviewChurchServiceEvidence;
 use App\Enums\ChurchServiceProposalStatus;
+use App\Enums\ServiceSectionType;
 use App\Livewire\Admin\ChurchServices\Concerns\EditsPlannedItems;
 use App\Livewire\Admin\ChurchServices\Concerns\ManagesSectionPublication;
 use App\Livewire\Admin\ChurchServices\Concerns\ReviewsServiceSections;
@@ -23,6 +25,10 @@ use App\Models\ServiceSection;
 use App\Models\User;
 use App\Presenters\ChurchServiceShowPresenter;
 use App\Queries\ChurchServiceProcessingRunQuery;
+use App\Services\ChurchService\Structure\EnsembleReviewGate;
+use App\Services\ChurchService\Structure\ServiceStructureEnsembleReplay;
+use App\Services\Media\Audio\ServiceArtifactStorage;
+use App\Support\ServiceTimestamp;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -66,6 +72,16 @@ class ShowChurchService extends Component
 
     public int $loadedProposalMaxId = 0;
 
+    /**
+     * Correction rows being edited, per open ensemble question.
+     *
+     * @var array<string, list<array{type: string, start: string, end: string, reference: string, song_title: string}>>
+     */
+    public array $ensembleCorrections = [];
+
+    /** @var array<string, string> */
+    public array $ensembleAbsenceExplanation = [];
+
     #[Url(except: false)]
     public bool $edit = false;
 
@@ -107,12 +123,283 @@ class ShowChurchService extends Component
             'linkedSongTitles' => $this->edit ? $this->form->linkedSongTitles() : [],
             'evidenceProposals' => $evidenceProposals,
             'evidenceChangedSinceLoad' => $latestProposalId > $this->loadedProposalMaxId,
+            'ensembleReviewPanels' => $this->ensembleReviewPanels(),
+            'ensembleSectionTypes' => array_map(
+                static fn (ServiceSectionType $type): array => ['id' => $type->value, 'name' => $type->label()],
+                ServiceSectionType::cases(),
+            ),
         ])
             ->layout('layouts.admin', [
                 'title' => "{$dateHeading} — {$serviceLabel}",
                 'heading' => $dateHeading,
                 'breadcrumbHeading' => $this->churchService->date->format('j F Y'),
             ]);
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    private function ensembleReviewPanels(): array
+    {
+        $panels = [];
+
+        foreach (app(ChurchServiceProcessingRunQuery::class)->forService($this->churchService) as $run) {
+            $bank = $run->processing_metadata?->raw['service_structure_ensemble'] ?? null;
+            $evidence = is_array($bank) && $bank !== [] ? end($bank) : null;
+
+            if (! is_array($evidence) || ! is_array($evidence['composition'] ?? null)) {
+                continue;
+            }
+
+            $composition = $evidence['composition'];
+            $questions = $composition['disputes'] ?? [];
+
+            if (! is_array($questions) || $questions === []) {
+                continue;
+            }
+
+            $run->loadMissing('serviceSections');
+
+            $current = app(EnsembleReviewGate::class)->inputIsCurrent($run, $evidence);
+            $cues = [];
+
+            if ($current) {
+                try {
+                    $snapshot = app(ServiceStructureEnsembleReplay::class)->snapshot($evidence);
+                    $cues = is_array($snapshot['transcript']['cues'] ?? null) ? $snapshot['transcript']['cues'] : [];
+                } catch (\Throwable) {
+                    $current = false;
+                }
+            }
+
+            $hasServiceAudio = collect(ServiceArtifactStorage::recordedFor($run))
+                ->contains(static fn (array $entry): bool => $entry['kind'] === 'audio');
+
+            $panels[$run->id] = [
+                'current' => $current,
+                'service_audio_url' => $hasServiceAudio ? route('admin.recordings.service-audio', $run) : null,
+                'deferred_count' => count(array_filter($questions, static fn (array $question): bool => ($question['deferred'] ?? false) === true)),
+                'stale_count' => count($composition['stale_rulings'] ?? []),
+                'applied_count' => count($composition['applied_rulings'] ?? []),
+                'questions' => array_map(function (array $question) use ($cues, $run): array {
+                    $nearby = [];
+
+                    if (is_numeric($question['start_time'] ?? null) && is_numeric($question['end_time'] ?? null)) {
+                        $start = (float) $question['start_time'];
+                        $end = (float) $question['end_time'];
+                        $nearby = array_values(array_filter($cues, static fn (mixed $cue): bool => is_array($cue)
+                            && (float) ($cue['end'] ?? 0) >= $start - 20
+                            && (float) ($cue['start'] ?? 0) <= $end + 20));
+                    }
+
+                    $section = $run->serviceSections->first(static fn (ServiceSection $candidate): bool => $candidate->section_type->value === ($question['type'] ?? null)
+                        && abs((float) $candidate->start_time - (float) ($question['start_time'] ?? -1000)) < 1
+                        && abs((float) $candidate->end_time - (float) ($question['end_time'] ?? -1000)) < 1);
+                    $media = $section instanceof ServiceSection ? $this->dashboardQuery->reviewEntryFor($section) : null;
+
+                    return [
+                        ...$question,
+                        'clip' => $this->ensembleQuestionClip($question),
+                        'context' => array_slice($nearby, 0, 12),
+                        'audio_url' => $media['audio_url'] ?? null,
+                        'video_url' => $media['video_url'] ?? null,
+                    ];
+                }, $questions),
+            ];
+        }
+
+        return $panels;
+    }
+
+    public function answerEnsembleQuestion(int $processingLogId, string $questionId, string $kind, ?int $slot = null): void
+    {
+        $this->authorizeAdmin();
+
+        $log = MediaProcessingLog::query()->findOrFail($processingLogId);
+
+        if (! $this->processingLogMatchesService($log)) {
+            abort(404);
+        }
+
+        $sections = [];
+        $explanation = null;
+
+        if ($kind === 'correct') {
+            try {
+                $sections = $this->ensembleCorrectionSections($questionId);
+            } catch (\InvalidArgumentException $exception) {
+                $this->error($exception->getMessage());
+
+                return;
+            }
+        }
+
+        if ($kind === 'absent') {
+            $explanation = trim($this->ensembleAbsenceExplanation[$questionId] ?? '');
+
+            if ($explanation === '') {
+                $this->error('Explain what happened instead of a sermon.');
+
+                return;
+            }
+        }
+
+        /** @var User $user */
+        $user = Auth::user();
+
+        try {
+            $result = app(AnswerServiceStructureEnsembleQuestion::class)->execute(
+                $log->id,
+                $questionId,
+                $kind,
+                $user,
+                $slot,
+                $sections,
+                $explanation,
+            );
+        } catch (\InvalidArgumentException|\RuntimeException $exception) {
+            $this->error($exception->getMessage());
+
+            return;
+        }
+
+        unset($this->ensembleCorrections[$questionId]);
+        unset($this->ensembleAbsenceExplanation[$questionId]);
+        $this->success(match (true) {
+            $kind === 'defer' => 'Question deferred.',
+            ($result['sections_synced'] ?? false) === true => 'Answer saved and structure replayed.',
+            default => 'Answer saved. This run already has extracted media, so its sections were left alone; the answer applies when the structure is next re-detected.',
+        });
+    }
+
+    /** Open the correction rows for a question, starting from the version the proposal wrote. */
+    public function startEnsembleCorrection(int $processingLogId, string $questionId): void
+    {
+        $this->authorizeAdmin();
+
+        $question = null;
+
+        foreach ($this->ensembleReviewPanels()[$processingLogId]['questions'] ?? [] as $open) {
+            if (is_array($open) && ($open['question_id'] ?? null) === $questionId) {
+                $question = $open;
+            }
+        }
+
+        if (! is_array($question)) {
+            $this->error('This question is no longer open.');
+
+            return;
+        }
+
+        $alternatives = is_array($question['alternatives'] ?? null) ? $question['alternatives'] : [];
+        $section = $alternatives[0]['section'] ?? [
+            'type' => $question['type'] ?? ServiceSectionType::Other->value,
+            'start_time' => $question['start_time'] ?? 0,
+            'end_time' => $question['end_time'] ?? 0,
+        ];
+
+        $this->ensembleCorrections[$questionId] = [$this->correctionRow(is_array($section) ? $section : [])];
+    }
+
+    public function addEnsembleCorrectionRow(string $questionId): void
+    {
+        $this->authorizeAdmin();
+
+        $rows = $this->ensembleCorrections[$questionId] ?? [];
+        $last = end($rows);
+        $start = is_array($last) ? $last['end'] : '';
+        $this->ensembleCorrections[$questionId][] = [
+            'type' => ServiceSectionType::Other->value,
+            'start' => $start,
+            'end' => $start,
+            'reference' => '',
+            'song_title' => '',
+        ];
+    }
+
+    public function removeEnsembleCorrectionRow(string $questionId, int $index): void
+    {
+        $this->authorizeAdmin();
+
+        $rows = $this->ensembleCorrections[$questionId] ?? [];
+        unset($rows[$index]);
+        $this->ensembleCorrections[$questionId] = array_values($rows);
+    }
+
+    /**
+     * @param  array<string, mixed>  $question
+     * @return array{start: float, end: float}|null
+     */
+    private function ensembleQuestionClip(array $question): ?array
+    {
+        $starts = [];
+        $ends = [];
+
+        foreach ([$question, ...array_column($question['alternatives'] ?? [], 'section')] as $span) {
+            if (is_array($span) && is_numeric($span['start_time'] ?? null) && is_numeric($span['end_time'] ?? null)) {
+                $starts[] = (float) $span['start_time'];
+                $ends[] = (float) $span['end_time'];
+            }
+        }
+
+        if ($starts === [] || $ends === []) {
+            return null;
+        }
+
+        return ['start' => max(0.0, min($starts) - 10.0), 'end' => max($ends) + 10.0];
+    }
+
+    /**
+     * @param  array<string, mixed>  $section
+     * @return array{type: string, start: string, end: string, reference: string, song_title: string}
+     */
+    private function correctionRow(array $section): array
+    {
+        return [
+            'type' => (string) ($section['type'] ?? ServiceSectionType::Other->value),
+            'start' => ServiceTimestamp::format((float) ($section['start_time'] ?? 0)),
+            'end' => ServiceTimestamp::format((float) ($section['end_time'] ?? 0)),
+            'reference' => (string) ($section['reading_reference'] ?? $section['sermon_reference'] ?? ''),
+            'song_title' => (string) ($section['song_title'] ?? ''),
+        ];
+    }
+
+    /**
+     * The correction rows as full sections; no rows means the claim is not there.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function ensembleCorrectionSections(string $questionId): array
+    {
+        $sections = [];
+
+        foreach ($this->ensembleCorrections[$questionId] ?? [] as $number => $row) {
+            $label = 'Row '.($number + 1);
+            $type = ServiceSectionType::tryFrom($row['type']);
+            $start = ServiceTimestamp::parse($row['start']);
+            $end = ServiceTimestamp::parse($row['end']);
+
+            if ($type === null) {
+                throw new \InvalidArgumentException("{$label}: choose what this section is.");
+            }
+
+            if ($start === null || $end === null || $end <= $start) {
+                throw new \InvalidArgumentException("{$label}: enter a start before the end, as h:mm:ss, m:ss or seconds.");
+            }
+
+            $reference = trim($row['reference']);
+            $songTitle = trim($row['song_title']);
+            $sections[] = [
+                'type' => $type->value,
+                'title' => null,
+                'start_time' => $start,
+                'end_time' => $end,
+                'confidence' => 1.0,
+                'song_title' => $type === ServiceSectionType::Song && $songTitle !== '' ? $songTitle : null,
+                'reading_reference' => $type === ServiceSectionType::BibleReading && $reference !== '' ? $reference : null,
+                'sermon_reference' => $type === ServiceSectionType::Sermon && $reference !== '' ? $reference : null,
+            ];
+        }
+
+        return $sections;
     }
 
     public function startEditingOrderOfService(): void

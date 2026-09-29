@@ -23,7 +23,7 @@ class OpenAiChatPayload
      */
     public static function isReasoningModel(string $model): bool
     {
-        return (bool) preg_match('/^(gpt-5|o[1-9])/i', $model);
+        return (bool) preg_match('/^(gpt-[56]|o[1-9])/i', $model);
     }
 
     /**

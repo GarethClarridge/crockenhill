@@ -12,6 +12,22 @@ use Tests\TestCase;
 class HistoricProcessingMetadataSerializerTest extends TestCase
 {
     #[Test]
+    public function structure_ensemble_evidence_stays_local_review_state(): void
+    {
+        $rms = ['kind' => 'rms', 'path' => 'service-transcripts/2026-03-22/morning-x.rms.json', 'sha256' => str_repeat('a', 64)];
+        $result = (new HistoricProcessingMetadataSerializer)->serialize([
+            'service_artifacts' => [
+                $rms,
+                ['kind' => 'service_structure_ensemble', 'disk' => 'service_artifacts', 'path' => 'service-transcripts/x.ensemble.a.input.json', 'attempt_id' => 'a'],
+            ],
+            'service_structure_ensemble' => [['attempt_id' => 'a', 'input_path' => 'service-transcripts/x.ensemble.a.input.json']],
+            'service_structure_ensemble_rulings' => [['ruling_key' => 'r', 'operator_id' => 1, 'kind' => 'remove']],
+        ]);
+
+        $this->assertSame(['service_artifacts' => [$rms]], $result);
+    }
+
+    #[Test]
     public function it_preserves_supported_durable_blocks_and_removes_runtime_state(): void
     {
         $result = (new HistoricProcessingMetadataSerializer)->serialize([

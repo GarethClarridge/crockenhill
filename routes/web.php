@@ -2,6 +2,7 @@
 
 use App\Enums\SermonService;
 use App\Http\Controllers\Admin\SermonThumbnailCandidateController;
+use App\Http\Controllers\Admin\ServiceArtifactAudioController;
 use App\Http\Controllers\Admin\ServiceSectionCandidateMediaController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\CalendarController;
@@ -227,6 +228,8 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
         })->name('services.processing.review');
         Route::get('/services/songs', ListSongs::class)->name('services.songs.index');
         Route::get('/services/songs/{song}', ShowSong::class)->name('services.songs.show');
+        Route::get('/recordings/{processingLog:processing_id}/service-audio', ServiceArtifactAudioController::class)
+            ->name('recordings.service-audio');
         Route::get('/services/section-publications/{serviceSection}/preview/audio', [ServiceSectionCandidateMediaController::class, 'serveAudio'])
             ->name('services.section-publications.preview-audio');
         Route::get('/services/section-publications/{serviceSection}/preview/video', [ServiceSectionCandidateMediaController::class, 'serveVideo'])

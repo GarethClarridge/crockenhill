@@ -55,6 +55,13 @@ return [
             'visibility' => 'public',
         ],
 
+        'service_artifacts' => [
+            'driver' => 'local',
+            'root' => env('SERVICE_ARTIFACTS_ROOT', storage_path('app/private/service-artifacts')),
+            'visibility' => 'private',
+            'throw' => true,
+        ],
+
         'historic_temp' => [
             'driver' => 'local',
             'root' => env('HISTORIC_TEMP_ROOT', storage_path('app/private/historic-temp')),

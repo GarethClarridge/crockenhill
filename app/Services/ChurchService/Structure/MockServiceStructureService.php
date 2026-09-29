@@ -95,6 +95,7 @@ class MockServiceStructureService implements ServiceStructureInterface
         ?string $processingId = null,
         array $feedback = [],
         ?AudioTimeline $audioTimeline = null,
+        ?string $model = null,
     ): ServiceStructure {
         self::$lastFeedback = $feedback;
 
