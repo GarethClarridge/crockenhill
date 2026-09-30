@@ -487,6 +487,14 @@ Fresh detection evaluation remains read-only and predeclared (≈$0.02 per four-
 | 16 batch-1 services | 3 complete ensemble sequences each (48 × 4 calls ≈ $0.9) | Composed-output accuracy against ruled truth; provisional regression stability reported separately; flag rate; latency |
 | 949 | 10 ensemble sequences (≈$0.2) | The canary-8 case: the false talks must never be written unflagged. They should be out-voted. |
 
+**Built 2026-09-30:** `structure:ensemble-evaluate {manifest} --detector=openai` runs this table from
+`storage/scratch/ensemble-eval-20260930/manifest.json` (caps 280 calls / $3.00, $0.025 worst-case
+reserve per call checked before each sequence; stops after two sequences in a row lose draws).
+Inputs come from the job's own builder; draws run four at a time in separate processes and are
+kept whole; the cut is planned by the production resolver on a rolled-back copy of the run
+(`SermonCutProbe`) and scored for wrong, unflagged and unreviewed-to-extraction cuts, plus each
+service's cut spread across sequences. Without `--detector` it only builds inputs and prints the plan.
+
 Extend the DR1 scorer before using it for acceptance. Do not infer whole-output correctness from
 the existing talk/start score or a review flag alone. Bind expected membership, input hashes,
 truth basis, code/prompt/rule versions, draw counts, maximum calls/spend and stop conditions.
