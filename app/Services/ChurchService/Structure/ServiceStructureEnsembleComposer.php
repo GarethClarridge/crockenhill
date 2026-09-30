@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService\Structure;
 
+use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
@@ -35,6 +36,15 @@ class ServiceStructureEnsembleComposer
     /** Share of the shorter span two claims must overlap to be the same song or the same filler. */
     private const SAME_SPAN_OVERLAP = 0.5;
 
+    /**
+     * The longest leader's introduction two reading starts may differ by and still be one
+     * reading (ruled 2026-09-30): "Peter will come and do his readings", "Luke chapter 16".
+     */
+    private const READING_INTRODUCTION_SECONDS = 60.0;
+
+    /** Spoken forms of a numbered book's prefix. */
+    private const SPOKEN_BOOK_NUMBERS = ['1' => 'first', '2' => 'second', '3' => 'third'];
+
     public function __construct(
         private readonly ScriptureReferenceResolver $scriptureReferences,
         private readonly SongTitleHygiene $songTitles,
@@ -42,9 +52,19 @@ class ServiceStructureEnsembleComposer
 
     /**
      * @param  array<int, ValidationResult>  $draws  Immutable slot number => validated draw
+     * @param  ChurchServiceTranscript|null  $transcript  What was said, for rules that read it
+     *                                                    (a reading's introduction); without it they do not apply
+     * @param  list<int>  $cutNeutralGroups  Filler groups whose disagreement cannot change the sermon's
+     *                                       cut, from {@see CutAwareEnsembleComposer}; they raise no question
+     * @param  array<int, bool>  $forcedGroups  Group => written, to plan the cut under each version of a
+     *                                          disputed group; only {@see CutAwareEnsembleComposer} sets it
      */
-    public function compose(array $draws): EnsembleComposition
-    {
+    public function compose(
+        array $draws,
+        ?ChurchServiceTranscript $transcript = null,
+        array $cutNeutralGroups = [],
+        array $forcedGroups = [],
+    ): EnsembleComposition {
         ksort($draws);
         $eligible = array_filter($draws, static fn (ValidationResult $draw): bool => $draw->passed());
         $validVotes = count($eligible);
@@ -67,7 +87,7 @@ class ServiceStructureEnsembleComposer
             $b['section']->startTime, $b['section']->endTime, $b['section']->type->value, $b['slot'], $b['index'],
         ]);
 
-        $context = $this->alignmentContext($eligible);
+        $context = [...$this->alignmentContext($eligible), 'transcript' => $transcript];
         $claims = array_map(fn (array $claim): array => [
             ...$claim,
             'cut_relevant' => $this->cutRelevant($claim, $context),
@@ -145,13 +165,19 @@ class ServiceStructureEnsembleComposer
             $winner = $variantList[0];
             $winningVotes = count($winner);
             $representative = $this->representative($winner);
+
+            if ($representative['section']->type === ServiceSectionType::BibleReading) {
+                $representative = $this->readingIntroductionChoice($winner, $representative, $transcript);
+            }
+
             $source = $representative['section'];
             $prayerEquivalent = $source->type === ServiceSectionType::Prayer
                 && $this->equivalentPreSermonPrayer($source, $eligible);
             $quietFiller = in_array($source->type, self::FILLER_TYPES, true)
-                && ! in_array(true, array_column($group, 'cut_relevant'), true);
+                && (! in_array(true, array_column($group, 'cut_relevant'), true) || in_array($groupIndex, $cutNeutralGroups, true));
             $flagged = ! $prayerEquivalent && ! $quietFiller && ($supported !== $validVotes || count($variants) !== 1);
-            $written = $winningVotes > $absent || ($winningVotes === $absent && min(array_keys($eligible)) === min(array_column($winner, 'slot')));
+            $written = $forcedGroups[$groupIndex]
+                ?? ($winningVotes > $absent || ($winningVotes === $absent && min(array_keys($eligible)) === min(array_column($winner, 'slot'))));
 
             if ($flagged) {
                 $disputes[] = [
@@ -219,9 +245,10 @@ class ServiceStructureEnsembleComposer
                     : $section, $sections);
         }
 
+        $disputes = $this->mergeEdgeSplits($disputes, array_keys($eligible));
         $disputes = array_map(static function (array $dispute): array {
             $identity = $dispute;
-            unset($identity['group'], $identity['candidate_groups'], $identity['claim_index']);
+            unset($identity['group'], $identity['groups'], $identity['candidate_groups'], $identity['claim_index']);
             $dispute['question_id'] = hash('sha256', json_encode($identity, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
 
             return $dispute;
@@ -334,7 +361,7 @@ class ServiceStructureEnsembleComposer
      * @param  array{slot:int,index:int,section:ServiceStructureSection,cut_relevant:bool}  $claim
      * @param  list<array{slot:int,index:int,section:ServiceStructureSection,cut_relevant:bool}>  $group
      * @param  array<int,ValidationResult>  $draws
-     * @param  array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>, held_readings: array<string, true>}  $context
+     * @param  array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>, held_readings: array<string, true>, transcript?: ChurchServiceTranscript|null}  $context
      */
     private function compatibleWithGroup(array $claim, array $group, array $draws, array $context): bool
     {
@@ -351,7 +378,7 @@ class ServiceStructureEnsembleComposer
      * @param  array{slot:int,index:int,section:ServiceStructureSection,cut_relevant:bool}  $claimA
      * @param  array{slot:int,index:int,section:ServiceStructureSection,cut_relevant:bool}  $claimB
      * @param  array<int,ValidationResult>  $draws
-     * @param  array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>, held_readings: array<string, true>}  $context
+     * @param  array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>, held_readings: array<string, true>, transcript?: ChurchServiceTranscript|null}  $context
      */
     private function compatible(array $claimA, array $claimB, array $draws, array $context): bool
     {
@@ -386,6 +413,12 @@ class ServiceStructureEnsembleComposer
             && ! isset($context['held_readings'][$this->claimKey($claimA)])
             && ! isset($context['held_readings'][$this->claimKey($claimB)])) {
             return $this->overlapShare($a, $b) >= self::SAME_SPAN_OVERLAP;
+        }
+
+        if ($a->type === ServiceSectionType::BibleReading
+            && abs($a->endTime - $b->endTime) <= 15.0
+            && $this->introductionBetween(min($a->startTime, $b->startTime), max($a->startTime, $b->startTime), $draws, $context['transcript'] ?? null)) {
+            return true;
         }
 
         $tolerance = match ($a->type) {
@@ -486,7 +519,7 @@ class ServiceStructureEnsembleComposer
 
     /**
      * @param  array{slot:int,index:int,section:ServiceStructureSection}  $claim
-     * @param  array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>, held_readings: array<string, true>}  $context
+     * @param  array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>, held_readings: array<string, true>, transcript?: ChurchServiceTranscript|null}  $context
      */
     private function cutRelevant(array $claim, array $context): bool
     {
@@ -501,6 +534,146 @@ class ServiceStructureEnsembleComposer
     private function claimKey(array $claim): string
     {
         return "{$claim['slot']}:{$claim['index']}";
+    }
+
+    /**
+     * Whether two reading starts differ only by the leader's introduction: a short stretch in
+     * which no voter hears a song, talk or sermon, and no other reading ends.
+     *
+     * @param  array<int,ValidationResult>  $draws
+     */
+    private function introductionBetween(float $start, float $end, array $draws, ?ChurchServiceTranscript $transcript): bool
+    {
+        if (! $transcript instanceof ChurchServiceTranscript || $end - $start > self::READING_INTRODUCTION_SECONDS) {
+            return false;
+        }
+
+        foreach ($draws as $draw) {
+            foreach ($draw->structure->sections as $section) {
+                $content = in_array($section->type, [ServiceSectionType::Song, ServiceSectionType::ShortTalk, ServiceSectionType::Sermon], true);
+                $readingEnds = $section->type === ServiceSectionType::BibleReading && $section->endTime > $start && $section->endTime < $end;
+
+                if (($content && $section->startTime < $end && $section->endTime > $start) || $readingEnds) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Where a reading starts when its voters differ only by the leader's introduction: with the
+     * introduction when it names the passage, after it when it does not (ruled 2026-09-30).
+     * The start is always one voter's, never invented; the book named is the reading's own.
+     *
+     * @param  non-empty-list<array{slot:int,index:int,section:ServiceStructureSection}>  $supporters
+     * @param  array{slot:int,index:int,section:ServiceStructureSection}  $representative
+     * @return array{slot:int,index:int,section:ServiceStructureSection}
+     */
+    private function readingIntroductionChoice(array $supporters, array $representative, ?ChurchServiceTranscript $transcript): array
+    {
+        $starts = array_map(static fn (array $claim): float => $claim['section']->startTime, $supporters);
+
+        if (! $transcript instanceof ChurchServiceTranscript || max($starts) - min($starts) <= 15.0) {
+            return $representative;
+        }
+
+        $introduction = mb_strtolower($transcript->sliceText(min($starts), max($starts)));
+        $announced = false;
+
+        foreach ($supporters as $claim) {
+            foreach ($this->spokenBookNames($claim['section']->readingReference) as $book) {
+                $announced = $announced || preg_match('/\b'.preg_quote($book, '/').'\b/u', $introduction) === 1;
+            }
+        }
+
+        usort($supporters, static fn (array $a, array $b): int => $announced
+            ? [$a['section']->startTime, $a['slot']] <=> [$b['section']->startTime, $b['slot']]
+            : [-$a['section']->startTime, $a['slot']] <=> [-$b['section']->startTime, $b['slot']]);
+
+        return $supporters[0];
+    }
+
+    /**
+     * The ways a reading's book is said aloud: "John", "1 Corinthians" or "First Corinthians",
+     * "Psalm" or "Psalms".
+     *
+     * @return list<string>
+     */
+    private function spokenBookNames(?string $reference): array
+    {
+        $normalized = $reference === null ? null : $this->normalizedReference($reference);
+
+        if ($normalized === null || preg_match('/^(?:([1-3])\s+)?([A-Za-z][A-Za-z ]*?)\s+\d/', $normalized, $match) !== 1) {
+            return [];
+        }
+
+        $book = mb_strtolower($match[2]);
+        $names = [$book];
+
+        if (in_array($book, ['psalm', 'psalms'], true)) {
+            $names = ['psalm', 'psalms'];
+        }
+
+        if ($match[1] !== '') {
+            $names = [...array_map(static fn (string $name): string => "{$match[1]} {$name}", $names),
+                ...array_map(static fn (string $name): string => self::SPOKEN_BOOK_NUMBERS[$match[1]].' '.$name, $names)];
+        }
+
+        return $names;
+    }
+
+    /**
+     * One disagreement over a span's edges is one question: two flagged groups of the same type
+     * that no voter shares and that mostly overlap become one dispute offering every version.
+     * It stays anchored to the written group, so an answer replaces the section it asks about.
+     * Two written groups are left apart, since each is its own section.
+     *
+     * @param  list<array<string, mixed>>  $disputes
+     * @param  list<int>  $slots
+     * @return list<array<string, mixed>>
+     */
+    private function mergeEdgeSplits(array $disputes, array $slots): array
+    {
+        $groupSlots = static fn (array $dispute): array => array_merge(...array_map(
+            static fn (array $alternative): array => $alternative['slots'],
+            $dispute['alternatives'] ?? [],
+        ));
+
+        for ($i = 0; $i < count($disputes); $i++) {
+            for ($j = $i + 1; $j < count($disputes); $j++) {
+                $a = $disputes[$i];
+                $b = $disputes[$j];
+
+                if (! isset($a['group'], $b['group'], $a['start_time'], $b['start_time'])
+                    || $a['type'] !== $b['type']
+                    || ($a['written'] && $b['written'])
+                    || array_intersect($groupSlots($a), $groupSlots($b)) !== []) {
+                    continue;
+                }
+
+                $overlap = min($a['end_time'], $b['end_time']) - max($a['start_time'], $b['start_time']);
+                $shorter = min($a['end_time'] - $a['start_time'], $b['end_time'] - $b['start_time']);
+
+                if ($shorter <= 0 || $overlap / $shorter < self::SAME_SPAN_OVERLAP) {
+                    continue;
+                }
+
+                [$anchor, $other] = $b['written'] && ! $a['written'] ? [$b, $a] : [$a, $b];
+                $covered = [...$groupSlots($anchor), ...$groupSlots($other)];
+                $disputes[$i] = [
+                    ...$anchor,
+                    'groups' => [...($anchor['groups'] ?? [$anchor['group']]), ...($other['groups'] ?? [$other['group']])],
+                    'absent_slots' => array_values(array_diff($slots, $covered)),
+                    'alternatives' => [...$anchor['alternatives'], ...$other['alternatives']],
+                ];
+                array_splice($disputes, $j, 1);
+                $j = $i;
+            }
+        }
+
+        return $disputes;
     }
 
     private function overlapShare(ServiceStructureSection $a, ServiceStructureSection $b): float

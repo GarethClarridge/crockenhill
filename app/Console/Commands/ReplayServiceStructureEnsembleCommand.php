@@ -47,7 +47,7 @@ class ReplayServiceStructureEnsembleCommand extends Command
             throw new RuntimeException('Ensemble ruling history is malformed.');
         }
 
-        $report = $replay->replay($attempt, $savedRulings);
+        $report = $replay->replay($attempt, $savedRulings, $log);
         $report['processing_id'] = $log->processing_id;
         $report['changed_from_banked'] = ($report['before']['structure'] ?? null) !== $report['structure']
             || ($report['before']['disputes'] ?? null) !== $report['disputes']

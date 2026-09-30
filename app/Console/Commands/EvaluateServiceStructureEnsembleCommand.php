@@ -7,9 +7,9 @@ namespace App\Console\Commands;
 use App\Data\ServiceStructure;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
+use App\Services\ChurchService\Structure\CutAwareEnsembleComposer;
 use App\Services\ChurchService\Structure\EnsembleEvidenceVersion;
 use App\Services\ChurchService\Structure\ServiceStructureDrawExecutor;
-use App\Services\ChurchService\Structure\ServiceStructureEnsembleComposer;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleInput;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleScorer;
 use App\Services\ChurchService\Structure\ServiceStructureEvaluationTelemetry;
@@ -58,7 +58,7 @@ class EvaluateServiceStructureEnsembleCommand extends Command
 
     public function handle(
         ServiceStructureEnsembleInput $inputs,
-        ServiceStructureEnsembleComposer $composer,
+        CutAwareEnsembleComposer $composer,
         ServiceStructureValidator $validator,
         ServiceStructureEnsembleScorer $scorer,
         SermonCutProbe $cutProbe,
@@ -250,7 +250,7 @@ class EvaluateServiceStructureEnsembleCommand extends Command
             }
 
             $spent += $replaying ? 0.0 : $sequenceCost;
-            $composition = $composer->compose($draws);
+            $composition = $composer->compose($draws, $run['transcript'], $run['log']);
             $lostDraws = array_intersect(array_column($slots, 'status'), ['unavailable', 'interrupted']);
             $lossyRun = $lostDraws !== [] && $composition->validVotes < 3 ? $lossyRun + 1 : 0;
             $validation = $composition->refused ? null : $validator->validate($composition->structure, $run['context']);

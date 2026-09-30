@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService\Structure;
 
+use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructure;
+use App\Models\MediaProcessingLog;
 use App\Support\ServiceArtifactDisk;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
@@ -14,7 +16,7 @@ class ServiceStructureEnsembleReplay
 {
     public function __construct(
         private readonly ServiceStructureDrawExecutor $executor,
-        private readonly ServiceStructureEnsembleComposer $composer,
+        private readonly CutAwareEnsembleComposer $composer,
         private readonly ServiceStructureValidator $validator,
         private readonly ServiceStructureEnsembleRulingApplier $rulings,
     ) {}
@@ -22,9 +24,11 @@ class ServiceStructureEnsembleReplay
     /**
      * @param  array<string, mixed>  $evidence
      * @param  list<array<string, mixed>>  $rulings
+     * @param  MediaProcessingLog|null  $log  The run the draws were made for; without it the cut
+     *                                        cannot be planned, so no filler question is dropped
      * @return array<string, mixed>
      */
-    public function replay(array $evidence, array $rulings = []): array
+    public function replay(array $evidence, array $rulings = [], ?MediaProcessingLog $log = null): array
     {
         $input = $this->snapshot($evidence);
         $inputHash = $evidence['input_hash'];
@@ -93,7 +97,7 @@ class ServiceStructureEnsembleReplay
         }
 
         ksort($outcomes);
-        $composition = $this->composer->compose($draws);
+        $composition = $this->composer->compose($draws, ChurchServiceTranscript::fromArray($input['transcript'] ?? null), $log);
         $contextPayload = $input['validation_context'] ?? null;
 
         if (! is_array($contextPayload)) {

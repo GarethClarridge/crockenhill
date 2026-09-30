@@ -89,7 +89,7 @@ class AnswerServiceStructureEnsembleQuestion
                 $rulings[] = $storedRuling;
             }
 
-            $before = $this->replay->replay($evidence, $rulings);
+            $before = $this->replay->replay($evidence, $rulings, $log);
             $question = null;
 
             foreach ($before['disputes'] as $dispute) {
@@ -126,7 +126,7 @@ class AnswerServiceStructureEnsembleQuestion
                 'answered_at' => now()->toIso8601String(),
             ];
             $rulings[] = $ruling;
-            $after = $this->replay->replay($evidence, $rulings);
+            $after = $this->replay->replay($evidence, $rulings, $log);
 
             if ($kind !== 'defer' && $after['validation_passed'] !== true) {
                 throw new InvalidArgumentException('The correction does not pass structural validation: '.implode(', ', $after['failure_codes']));

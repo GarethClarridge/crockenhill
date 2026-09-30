@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceSermonAbsence;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
@@ -248,6 +249,67 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         $this->assertSame('Amazing Grace', $result->structure->sectionsOfType(ServiceSectionType::Song)[0]->songTitle);
     }
 
+    /**
+     * The shape of runs 949 and 936 in the 2026-09-30 evaluation: one voter starts the reading
+     * at the leader's introduction, three at the first verse. The reading is included with its
+     * introduction when that names the passage, and starts after it when it does not.
+     */
+    #[Test]
+    public function a_reading_starts_with_an_introduction_that_names_its_passage_and_after_one_that_does_not(): void
+    {
+        $draw = fn (int $readingStart): ServiceStructure => $this->structure(
+            $this->section(ServiceSectionType::BibleReading, $readingStart, 2447, 'John 19'),
+            $this->section(ServiceSectionType::Sermon, 2500, 4600),
+        );
+        $votes = [
+            0 => $this->vote($draw(2209)),
+            1 => $this->vote($draw(2226)),
+            2 => $this->vote($draw(2226)),
+            3 => $this->vote($draw(2226)),
+        ];
+        $transcript = fn (string $introduction): ChurchServiceTranscript => ChurchServiceTranscript::fromCues([
+            ['start' => 2209.0, 'end' => 2225.0, 'text' => $introduction],
+            ['start' => 2226.0, 'end' => 2447.0, 'text' => 'Then Pilate took Jesus and had him flogged.'],
+            ['start' => 2500.0, 'end' => 4600.0, 'text' => 'Behold the man.'],
+        ], 4700.0, ChurchServiceTranscript::SOURCE_MOCK);
+        $composer = app(ServiceStructureEnsembleComposer::class);
+
+        $named = $composer->compose($votes, $transcript("We're going to be reading from John and chapter 19."));
+        $unnamed = $composer->compose($votes, $transcript('Peter will come and do his readings. Thank you, Laurie.'));
+        $unheard = $composer->compose($votes);
+
+        $this->assertSame([], $named->disputes);
+        $this->assertSame(2209.0, $named->structure->sectionsOfType(ServiceSectionType::BibleReading)[0]->startTime);
+        $this->assertSame([], $unnamed->disputes);
+        $this->assertSame(2226.0, $unnamed->structure->sectionsOfType(ServiceSectionType::BibleReading)[0]->startTime);
+        $this->assertContains('bible_reading', array_column($unheard->disputes, 'type'));
+    }
+
+    #[Test]
+    public function a_numbered_book_is_recognised_in_its_spoken_form_and_a_song_in_the_gap_is_no_introduction(): void
+    {
+        $draw = fn (int $readingStart, bool $song = false): ServiceStructure => $this->structure(...array_values(array_filter([
+            $song ? $this->song(2200, 2220, 'Amazing Grace') : null,
+            $this->section(ServiceSectionType::BibleReading, $readingStart, 2447, '1 Corinthians 13'),
+            $this->section(ServiceSectionType::Sermon, 2500, 4600),
+        ])));
+        $transcript = ChurchServiceTranscript::fromCues([
+            ['start' => 2190.0, 'end' => 2225.0, 'text' => 'Our reading this morning is from First Corinthians thirteen.'],
+            ['start' => 2226.0, 'end' => 2447.0, 'text' => 'If I speak in the tongues of men.'],
+        ], 4700.0, ChurchServiceTranscript::SOURCE_MOCK);
+        $composer = app(ServiceStructureEnsembleComposer::class);
+
+        $spoken = $composer->compose([
+            0 => $this->vote($draw(2190)), 1 => $this->vote($draw(2226)), 2 => $this->vote($draw(2226)), 3 => $this->vote($draw(2226)),
+        ], $transcript);
+        $sung = $composer->compose([
+            0 => $this->vote($draw(2190, true)), 1 => $this->vote($draw(2226, true)), 2 => $this->vote($draw(2226, true)), 3 => $this->vote($draw(2226, true)),
+        ], $transcript);
+
+        $this->assertSame(2190.0, $spoken->structure->sectionsOfType(ServiceSectionType::BibleReading)[0]->startTime);
+        $this->assertContains('bible_reading', array_column($sung->disputes, 'type'));
+    }
+
     /** The shape of run 1025 in the 2026-09-30 evaluation: one item, its title spelt two ways. */
     #[Test]
     public function a_song_bound_to_one_order_of_service_item_is_one_song_however_its_title_is_spelt(): void
@@ -370,7 +432,11 @@ class ServiceStructureEnsembleComposerTest extends TestCase
             3 => $this->vote($draw(1850)),
         ]);
 
-        $this->assertSame(['prayer', 'prayer'], array_column($result->disputes, 'type'));
+        $this->assertSame(['prayer'], array_column($result->disputes, 'type'));
+        $starts = array_map(static fn (array $alternative): float => $alternative['section']['start_time'], $result->disputes[0]['alternatives']);
+        sort($starts);
+        $this->assertSame([1850.0, 1900.0], $starts);
+        $this->assertSame([], $result->disputes[0]['absent_slots']);
     }
 
     #[Test]

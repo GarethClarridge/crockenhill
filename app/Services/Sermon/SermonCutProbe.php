@@ -42,6 +42,20 @@ class SermonCutProbe
      */
     public function probe(MediaProcessingLog $log, ServiceStructure $structure, ChurchServiceTranscript $transcript): array
     {
+        return [
+            'gated' => $this->plan($log, $structure, $transcript),
+            'as_written' => $this->asWritten($log, $structure, $transcript),
+        ];
+    }
+
+    /**
+     * The cut the pipeline would plan if every ensemble question were answered by accepting
+     * what was written.
+     *
+     * @return array<string, mixed>
+     */
+    public function asWritten(MediaProcessingLog $log, ServiceStructure $structure, ChurchServiceTranscript $transcript): array
+    {
         $accepted = ServiceStructure::fromSections(
             array_map(
                 static fn (ServiceStructureSection $section): ServiceStructureSection => $section->withoutReviewFlags()
@@ -56,10 +70,7 @@ class SermonCutProbe
             $structure->sermonAbsence,
         );
 
-        return [
-            'gated' => $this->plan($log, $structure, $transcript),
-            'as_written' => $this->plan($log, $accepted, $transcript),
-        ];
+        return $this->plan($log, $accepted, $transcript);
     }
 
     /** @return array<string, mixed> */

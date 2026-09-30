@@ -19,9 +19,9 @@ use App\Models\ServiceSection;
 use App\Services\ChurchService\ChurchServiceReviewSynchronizer;
 use App\Services\ChurchService\ContentHoldRechecker;
 use App\Services\ChurchService\ServiceSectionSyncService;
+use App\Services\ChurchService\Structure\CutAwareEnsembleComposer;
 use App\Services\ChurchService\Structure\EnsembleComposition;
 use App\Services\ChurchService\Structure\ServiceStructureDrawExecutor;
-use App\Services\ChurchService\Structure\ServiceStructureEnsembleComposer;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleInput;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleReplay;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleRunner;
@@ -376,7 +376,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         );
         $run = $runner->run($this->processingLog, $input);
         $this->assertEnsembleInputCurrent($input);
-        $composition = app(ServiceStructureEnsembleComposer::class)->compose($run['draws']);
+        $composition = app(CutAwareEnsembleComposer::class)->compose($run['draws'], $transcript, $this->processingLog);
         $replayed = null;
         $rulings = $this->processingLog->fresh()?->processing_metadata?->raw['service_structure_ensemble_rulings'] ?? [];
 
@@ -395,7 +395,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         }
 
         if ($answers !== []) {
-            $replayed = app(ServiceStructureEnsembleReplay::class)->replay($run['evidence'], $answers);
+            $replayed = app(ServiceStructureEnsembleReplay::class)->replay($run['evidence'], $answers, $this->processingLog);
             $composition = new EnsembleComposition(
                 ServiceStructure::fromArray($replayed['structure']),
                 $replayed['disputes'],
