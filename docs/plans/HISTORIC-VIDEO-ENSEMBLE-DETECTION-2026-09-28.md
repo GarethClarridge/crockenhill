@@ -71,6 +71,24 @@ following the standing ruling that historic work improves routine processing and
     edges now come from a different supporting voter in 9 of 58 compositions (0–20 s, one 55 s
     mid-service song; the sermon-ending song start moved 1 s and 8 s, inside ±15 s); 1108's third
     run becomes the first composition with no question, its cut matching truth.
+15. **One edge disagreement is one question (2026-09-30).** Two flagged groups of one type that
+    share no voter and mostly overlap become one dispute offering every version, anchored to the
+    written group (two written groups stay apart).
+16. **A reading's introduction (2026-09-30).** Reading starts that differ only by the leader's
+    introduction (≤60 s, no song, talk or sermon in it, no other reading ending in it) are one
+    reading. It starts with the introduction when the introduction names the reading's own book
+    (spoken forms: "First Corinthians", "Psalm/Psalms"), after it when it does not; always one
+    voter's start. Needs the transcript; without it the old ±15 s comparison applies.
+17. **Filler is asked only where it changes the cut (2026-09-30, extends 12).** A welcome, prayer
+    or `other` question is dropped when the production resolver plans the same cut with each
+    disputed group written and left out (`CutAwareEnsembleComposer` via `SermonCutProbe`).
+    Notices are always asked. Applied in the job, the replay (answers, replay command) and the
+    evaluation.
+    Replay of 15–17 over the 232 paid draws: questions 4.46 → 2.33 per service (other 0.85 → 0.08,
+    prayer 0.25 → 0, reading 0.90 → 0.48, talk 0.83 → 0.50, sermon 0.48 → 0.33); 949 ×10 5.0 → 3.0;
+    compositions with no question 1 → 8 of 48, every one's cut right; talk-count errors 0/0; two
+    cuts moved by rule 16, both as ruled (1112 includes "Luke chapter 17, from verse 11";
+    949 excludes a handover that names no passage).
 
 Agreement never overrides an existing content hold. The implementation guarantee is that every
 decision affecting extraction has supported evidence, and unresolved disagreement reaches the
