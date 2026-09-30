@@ -63,6 +63,14 @@ following the standing ruling that historic work improves routine processing and
     Replay on the saved draws (which carry no references, so the narrowing cannot show): reading
     questions 0.81 → 0.66 per service on p2, 0.72 → 0.53 on p3; every one left is a presence split,
     two-thirds of them the preached reading where one voter's edge is more than 15 s out.
+14. **A song bound to an order-of-service item is that item's song (2026-09-30).** Voters binding the
+    same item agree however they spell its title; the title is compared only for an unbound song.
+    Different items, bound against unbound, and presence splits remain questions. Replay over the
+    232 paid §6 draws (`--replay-draws`, no calls): song questions 1.71 → 0.77 per service
+    (exactly the 45 same-item splits removed, none added); talk and cut results unchanged; song
+    edges now come from a different supporting voter in 9 of 58 compositions (0–20 s, one 55 s
+    mid-service song; the sermon-ending song start moved 1 s and 8 s, inside ±15 s); 1108's third
+    run becomes the first composition with no question, its cut matching truth.
 
 Agreement never overrides an existing content hold. The implementation guarantee is that every
 decision affecting extraction has supported evidence, and unresolved disagreement reaches the
