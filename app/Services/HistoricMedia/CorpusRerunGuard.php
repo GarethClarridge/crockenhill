@@ -52,7 +52,7 @@ final class CorpusRerunGuard
             }
         }
 
-        if ($run->status !== ProcessingStatus::Completed) {
+        if ($run->status !== ProcessingStatus::Completed && ! $this->heldForEnsembleReviewByARound($run)) {
             $stillHeld = $this->unplacedHoldsStillLive($run);
 
             if ($stillHeld === null) {
@@ -80,6 +80,18 @@ final class CorpusRerunGuard
         }
 
         return null;
+    }
+
+    /**
+     * A run a corpus re-run round held for the ensemble's questions. Re-detecting it is the
+     * round's own work (canary 10 re-ran canary 9's held runs); its earlier bundles stay banked,
+     * so the questions survive. A hold from routine processing is not the round's to override.
+     */
+    private function heldForEnsembleReviewByARound(MediaProcessingLog $run): bool
+    {
+        return $run->status === ProcessingStatus::Failed
+            && $run->corpusRerunStamps() !== []
+            && data_get($run->processing_metadata?->toArray() ?? [], 'manual_review.reason_code') === 'service_structure_ensemble_review';
     }
 
     /**

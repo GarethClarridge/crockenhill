@@ -356,6 +356,37 @@ class RedetectForCorpusRerunCommandTest extends TestCase
             ->assertSuccessful();
     }
 
+    /**
+     * Canary 9: the four-draw ensemble held 13 of the 16 runs for its questions. Re-detecting
+     * them on a new freeze is the round's own work; their earlier bundles stay banked as
+     * evidence, so the questions are not lost.
+     */
+    #[Test]
+    public function it_admits_a_run_a_round_held_for_ensemble_review(): void
+    {
+        Bus::fake();
+        $run = $this->heldForEnsembleReview();
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('dispatched from structure detection')
+            ->assertSuccessful();
+
+        self::assertCount(2, $run->fresh()?->corpusRerunStamps() ?? []);
+    }
+
+    /** Only a hold the re-run itself caused: an ensemble hold from routine processing stays out. */
+    #[Test]
+    public function it_refuses_a_run_held_for_ensemble_review_by_something_other_than_a_rerun(): void
+    {
+        $run = $this->heldForEnsembleReview(stamped: false);
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+            ->expectsOutputToContain('run is failed, not completed')
+            ->assertSuccessful();
+    }
+
     #[Test]
     public function it_refuses_an_excluded_run(): void
     {
@@ -466,6 +497,21 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         $run->forceFill(['processing_metadata' => $metadata])->save();
 
         return [$run->fresh() ?? $run, $section];
+    }
+
+    private function heldForEnsembleReview(bool $stamped = true): MediaProcessingLog
+    {
+        $run = $this->completedRun(['status' => ProcessingStatus::Failed, 'current_step' => 'manual_review_required']);
+        $metadata = $run->processing_metadata?->toArray() ?? [];
+        $metadata['manual_review'] = ['status' => 'required', 'reason_code' => 'service_structure_ensemble_review'];
+
+        if ($stamped) {
+            $metadata[RedetectForCorpusRerun::STAMP_KEY] = [['grounds' => 'corpus_rerun', 'git_commit' => str_repeat('e', 40), 'media' => 'deferred', 'dispatched_at' => '2026-09-30T19:12:05+00:00']];
+        }
+
+        $run->forceFill(['processing_metadata' => $metadata])->save();
+
+        return $run->fresh() ?? $run;
     }
 
     private function stagingContext(): HistoricStagingContext
