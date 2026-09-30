@@ -5,7 +5,8 @@ The operator requested that the review and deterministic-review-loop recommendat
 The pre-revision plan is preserved in commit `2bb569482`. These are documentation commits, not a
 new processing freeze: the freeze (`3ffe4b54c`), canary-8 FAIL and dispatch HOLD remain unchanged.
 The operator's follow-up decisions of 2026-09-29 (§0, items 7–11) split delivery around canary 9
-and settle Q5, ER1's scope, rule adoption and job retry.
+and settle Q5, ER1's scope, rule adoption and job retry. Items 12–13 (2026-09-29/30) hold filler, song
+and reading timings to agreement only where they change a cut.
 
 This plan belongs to the [detection reliability work package](HISTORIC-VIDEO-DETECTION-RELIABILITY-2026-09-28.md)
 (§0 records today's rulings and measurements). This is the design authority for its revised
@@ -48,6 +49,20 @@ following the standing ruling that historic work improves routine processing and
     saved draws with the before/after diff shown, and adopted on operator approval with a fixture.
 11. **Whole-job retry redraws all four slots** and keeps the previous bundle as evidence. No
     per-slot resume.
+12. **Hold timings to agreement only where they change a cut (2026-09-29).** Filler (welcome,
+    prayer, notices, other) is compared on its edges only inside the cut window (earliest sermon
+    start − 120 s to the latest first song after a sermon, or sermon end + the pairing gap);
+    elsewhere it matches on ≥50% overlap and is never a question. A song matches on ≥50% overlap
+    plus identity; only the start of each voter's first song after its sermon is held to ±15 s.
+    Presence and identity disagreements are still questions.
+13. **Readings follow the same principle (2026-09-30).** Only a reading the sermon could be cut with
+    is held to ±15 s on both edges: one ending before a voter's sermon and within the pairing gap
+    (900 s), narrowed to those matching the sermon's own reference when any does, since that
+    outranks all other pairing evidence. Any other reading matches on ≥50% overlap and is never a
+    question about its timings; a reading one voter lacks, or a reference disagreement, still is.
+    Replay on the saved draws (which carry no references, so the narrowing cannot show): reading
+    questions 0.81 → 0.66 per service on p2, 0.72 → 0.53 on p3; every one left is a presence split,
+    two-thirds of them the preached reading where one voter's edge is more than 15 s out.
 
 Agreement never overrides an existing content hold. The implementation guarantee is that every
 decision affecting extraction has supported evidence, and unresolved disagreement reaches the
@@ -227,9 +242,9 @@ Verified 2026-09-28 against the uncommitted tree on top of `3ffe4b54c`. Re-verif
   |---|---|
   | Short talk | Presence, both edges, talk type and output-relevant binding |
   | Sermon | Presence/absence, both edges, preached reference, continuation and pairing decisions |
-  | Song | Presence, identity, OoS binding and boundaries, especially the start used to end a sermon |
-  | Bible reading | Presence, reference, OoS binding, both edges and sermon pairing |
-  | Adjacent filler | Type/bounds wherever these change inclusion or stopping of an extraction span |
+  | Song | Presence, identity and OoS binding; boundaries only for the start used to end a sermon (decision 12) |
+  | Bible reading | Presence, reference and OoS binding; both edges only where the sermon could pair it (decision 13) |
+  | Adjacent filler | Type/bounds wherever these change inclusion or stopping of an extraction span (decision 12) |
 
 - ±30 s talk edges remain the initial alignment tolerance, not proof that every cut in the interval
   is acceptable. Overlap (including the old ≥50% of the shorter span) is a candidate-match signal,
