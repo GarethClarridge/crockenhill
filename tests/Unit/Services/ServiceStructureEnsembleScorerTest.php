@@ -79,6 +79,137 @@ class ServiceStructureEnsembleScorerTest extends TestCase
         $this->assertFalse($wrongElsewhere['wrong_reaches_extraction_unreviewed']);
     }
 
+    /** 1358: the sermon swallowed the closing prayer, but the resolver cuts to the next song either way. */
+    #[Test]
+    public function a_cut_is_judged_against_the_cut_the_ruled_sermon_would_produce_when_that_cut_is_known(): void
+    {
+        $truth = [['type' => 'sermon', 'start' => 300, 'end' => 600, 'basis' => 'operator', 'tolerance' => 20]];
+        $plan = fn (float $end): array => ['mode' => 'single_span', 'strategy' => 'adjacent_bible_plus_sermon', 'from_sections' => true, 'segments' => [['start_time' => 250.0, 'end_time' => $end]]];
+        $score = fn (float $truthCutEnd, array $disputes = []): array => app(ServiceStructureEnsembleScorer::class)->score([
+            'structure' => ServiceStructure::fromSections([$this->section(ServiceSectionType::Sermon, 300, 700)])->toArray(),
+            'validation_passed' => true,
+            'degraded' => false,
+            'disputes' => $disputes,
+            'cut' => ['gated' => $plan(720.0), 'as_written' => $plan(720.0), 'truth' => [$plan($truthCutEnd)]],
+        ], $truth)['cut'];
+
+        $sameCut = $score(715.0);
+        $differentCut = $score(640.0);
+        $differentCutQuestioned = $score(640.0, [['type' => 'sermon', 'start_time' => 600, 'end_time' => 700]]);
+
+        $this->assertSame('truth_cut', $sameCut['basis']);
+        $this->assertSame('wrong_boundary', $sameCut['sermon_status']);
+        $this->assertFalse($sameCut['wrong']);
+        $this->assertSame([['start_time' => 250.0, 'end_time' => 715.0]], $sameCut['truth_segments']);
+        $this->assertTrue($differentCut['wrong']);
+        $this->assertTrue($differentCut['wrong_reaches_extraction_unreviewed']);
+        $this->assertFalse($differentCutQuestioned['wrong_unflagged']);
+    }
+
+    #[Test]
+    public function a_cut_is_right_when_it_matches_the_cut_of_any_acceptable_sermon_span(): void
+    {
+        $plan = fn (float $start): array => ['mode' => 'single_span', 'from_sections' => true, 'segments' => [['start_time' => $start, 'end_time' => 900.0]]];
+
+        $report = app(ServiceStructureEnsembleScorer::class)->score([
+            'structure' => ServiceStructure::fromSections([$this->section(ServiceSectionType::Sermon, 260, 880)])->toArray(),
+            'validation_passed' => true,
+            'degraded' => false,
+            'disputes' => [],
+            'cut' => ['gated' => $plan(260.0), 'as_written' => $plan(260.0), 'truth' => [$plan(300.0), $plan(262.0)]],
+        ], [['type' => 'sermon', 'start' => 300, 'end' => 880, 'alternatives' => [['start' => 262, 'end' => 880]], 'basis' => 'operator']]);
+
+        $this->assertFalse($report['cut']['wrong']);
+        $this->assertSame([['start_time' => 262.0, 'end_time' => 900.0]], $report['cut']['truth_segments']);
+    }
+
+    /** 949/1250: an interrupted sermon is held by policy, so neither the proposal nor the truth cuts it. */
+    #[Test]
+    public function a_cut_held_whichever_span_is_right_is_unscored_with_its_reason(): void
+    {
+        $held = ['mode' => 'baseline', 'from_sections' => false, 'segments' => []];
+        $cutFromSections = ['mode' => 'single_span', 'from_sections' => true, 'segments' => [['start_time' => 300.0, 'end_time' => 640.0]]];
+        $score = fn (array $asWritten, array $truthPlans): array => app(ServiceStructureEnsembleScorer::class)->score([
+            'structure' => ServiceStructure::fromSections([$this->section(ServiceSectionType::Sermon, 300, 600)])->toArray(),
+            'validation_passed' => true,
+            'degraded' => false,
+            'disputes' => [],
+            'cut' => ['gated' => $asWritten, 'as_written' => $asWritten, 'truth' => $truthPlans],
+        ], [['type' => 'sermon', 'start' => 300, 'end' => 600, 'basis' => 'operator']])['cut'];
+
+        $heldEitherWay = $score($held, [$held]);
+        $heldOnlyAsWritten = $score($held, [$cutFromSections]);
+        $cutWhereTruthHolds = $score($cutFromSections, [$held]);
+
+        $this->assertFalse($heldEitherWay['scored']);
+        $this->assertSame('held_either_way', $heldEitherWay['unscored_reason']);
+        $this->assertFalse($heldOnlyAsWritten['scored']);
+        $this->assertSame('held_as_written', $heldOnlyAsWritten['unscored_reason']);
+        $this->assertTrue($cutWhereTruthHolds['scored']);
+        $this->assertTrue($cutWhereTruthHolds['wrong']);
+    }
+
+    #[Test]
+    public function truth_structures_put_each_acceptable_sermon_span_and_every_ruled_talk_onto_the_proposal(): void
+    {
+        $proposal = ServiceStructure::fromSections([
+            $this->section(ServiceSectionType::ShortTalk, 100, 190),
+            $this->section(ServiceSectionType::Song, 200, 290),
+            $this->section(ServiceSectionType::Sermon, 300, 700),
+            $this->section(ServiceSectionType::Song, 720, 900),
+        ]);
+
+        $structures = app(ServiceStructureEnsembleScorer::class)->truthStructures($proposal, [
+            ['type' => 'short_talk', 'start' => 95, 'end' => 195, 'basis' => 'operator'],
+            ['type' => 'sermon', 'start' => 310, 'end' => 600, 'alternatives' => [['start' => 295, 'end' => 600]], 'basis' => 'operator'],
+        ]);
+
+        $spans = array_map(static fn (ServiceStructure $structure): array => array_map(
+            static fn (ServiceStructureSection $section): array => [$section->type->value, $section->startTime, $section->endTime],
+            $structure->sections,
+        ), $structures);
+
+        $this->assertSame([
+            [['short_talk', 95.0, 195.0], ['song', 200.0, 290.0], ['sermon', 310.0, 600.0], ['song', 720.0, 900.0]],
+            [['short_talk', 95.0, 195.0], ['song', 200.0, 290.0], ['sermon', 295.0, 600.0], ['song', 720.0, 900.0]],
+        ], $spans);
+    }
+
+    /** 1358 seq 2: a reading written to 1497 must not overlap a sermon ruled to start at 1486. */
+    #[Test]
+    public function proposed_neighbours_give_way_to_a_ruled_span(): void
+    {
+        $proposal = ServiceStructure::fromSections([
+            $this->section(ServiceSectionType::BibleReading, 1366, 1497),
+            $this->section(ServiceSectionType::Sermon, 1497, 3323),
+            $this->section(ServiceSectionType::Prayer, 3323, 3340),
+        ]);
+
+        [$structure] = app(ServiceStructureEnsembleScorer::class)->truthStructures($proposal, [
+            ['type' => 'sermon', 'start' => 1486, 'end' => 3335, 'basis' => 'operator'],
+        ]);
+
+        $this->assertSame([
+            ['bible_reading', 1366.0, 1486.0],
+            ['sermon', 1486.0, 3335.0],
+            ['prayer', 3335.0, 3340.0],
+        ], array_map(
+            static fn (ServiceStructureSection $section): array => [$section->type->value, $section->startTime, $section->endTime],
+            $structure->sections,
+        ));
+    }
+
+    #[Test]
+    public function there_is_no_truth_structure_when_the_proposal_has_no_sermon_to_place_it_on(): void
+    {
+        $structures = app(ServiceStructureEnsembleScorer::class)->truthStructures(
+            ServiceStructure::fromSections([$this->section(ServiceSectionType::Song, 200, 290)]),
+            [['type' => 'sermon', 'start' => 300, 'end' => 600, 'basis' => 'operator']],
+        );
+
+        $this->assertSame([], $structures);
+    }
+
     #[Test]
     public function a_cut_not_planned_from_sections_is_not_scored(): void
     {

@@ -76,7 +76,7 @@ class EvaluateServiceStructureEnsembleCommandTest extends TestCase
         $this->assertCount(2, $report['sequences']);
         $this->assertSame(8, $report['calls']);
         $this->assertSame(4, $report['sequences'][0]['valid_votes']);
-        $this->assertSame(['gated', 'as_written'], array_keys($report['sequences'][0]['cut']));
+        $this->assertSame(['gated', 'as_written', 'truth'], array_keys($report['sequences'][0]['cut']));
         $this->assertIsArray($report['sequences'][0]['score']);
         $this->assertSame(2, $report['summary']['batch']['sequences']);
         $this->assertCount(8, File::glob($this->directory.'/manifest-report-draws/*slot*'));

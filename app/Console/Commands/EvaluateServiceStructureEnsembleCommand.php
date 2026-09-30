@@ -254,8 +254,16 @@ class EvaluateServiceStructureEnsembleCommand extends Command
             $lostDraws = array_intersect(array_column($slots, 'status'), ['unavailable', 'interrupted']);
             $lossyRun = $lostDraws !== [] && $composition->validVotes < 3 ? $lossyRun + 1 : 0;
             $validation = $composition->refused ? null : $validator->validate($composition->structure, $run['context']);
-            $cut = $composition->refused ? null : $cutProbe->probe($run['log'], $composition->structure, $run['transcript']);
             $truth = $truthRuns[(string) $runId] ?? null;
+            $cut = $composition->refused ? null : [
+                ...$cutProbe->probe($run['log'], $composition->structure, $run['transcript']),
+                'truth' => is_array($truth) && array_is_list($truth)
+                    ? array_map(
+                        static fn (ServiceStructure $truthStructure): array => $cutProbe->asWritten($run['log'], $truthStructure, $run['transcript']),
+                        $scorer->truthStructures($composition->structure, array_values(array_filter($truth, 'is_array'))),
+                    )
+                    : [],
+            ];
             $replay = [
                 'structure' => $composition->structure->toArray(),
                 'validation_passed' => $validation?->passed() ?? false,
@@ -554,6 +562,7 @@ class EvaluateServiceStructureEnsembleCommand extends Command
                 'talk_count_errors' => count(array_filter($scores, static fn (array $score): bool => $score['talk_count']['error'])),
                 'unflagged_talk_count_errors' => count(array_filter($scores, static fn (array $score): bool => $score['talk_count']['unflagged_error'])),
                 'cuts_scored' => count(array_filter($cutScores, static fn (array $cut): bool => $cut['scored'])),
+                'cuts_unscored_by_reason' => array_count_values(array_map('strval', array_filter(array_column($cutScores, 'unscored_reason')))),
                 'cuts_wrong' => count(array_filter($cutScores, static fn (array $cut): bool => $cut['wrong'] ?? false)),
                 'cuts_wrong_unflagged' => count(array_filter($cutScores, static fn (array $cut): bool => $cut['wrong_unflagged'] ?? false)),
                 'cuts_reaching_extraction_unreviewed' => count(array_filter($cutScores, static fn (array $cut): bool => $cut['reaches_extraction_unreviewed'])),
