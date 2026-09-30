@@ -384,6 +384,85 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         $this->assertContains('song', array_column($presence->disputes, 'type'));
     }
 
+    #[Test]
+    public function a_reading_the_sermon_cannot_pair_matches_on_overlap_but_the_preached_reading_is_held_to_both_edges(): void
+    {
+        $draw = fn (int $earlyReadingStart, int $preachedReadingEnd): ServiceStructure => $this->structure(
+            $this->section(ServiceSectionType::BibleReading, $earlyReadingStart, 500, 'Isaiah 40'),
+            $this->section(ServiceSectionType::BibleReading, 1800, $preachedReadingEnd, 'John 3'),
+            $this->section(ServiceSectionType::Sermon, 2000, 4000),
+        );
+
+        $earlyOnly = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($draw(300, 1990)),
+            1 => $this->vote($draw(340, 1990)),
+            2 => $this->vote($draw(300, 1990)),
+            3 => $this->vote($draw(345, 1990)),
+        ]);
+        $preached = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($draw(300, 1990)),
+            1 => $this->vote($draw(300, 1990)),
+            2 => $this->vote($draw(300, 1960)),
+            3 => $this->vote($draw(300, 1960)),
+        ]);
+
+        $this->assertSame([], $earlyOnly->disputes);
+        $this->assertSame(300.0, $earlyOnly->structure->sectionsOfType(ServiceSectionType::BibleReading)[0]->startTime);
+        $this->assertContains('bible_reading', array_column($preached->disputes, 'type'));
+    }
+
+    #[Test]
+    public function an_unpaired_reading_reference_or_presence_disagreement_is_still_a_question(): void
+    {
+        $draw = fn (?string $reference): ServiceStructure => $this->structure(...array_values(array_filter([
+            $reference === null ? null : $this->section(ServiceSectionType::BibleReading, 300, 500, $reference),
+            $this->section(ServiceSectionType::Sermon, 2000, 4000),
+        ])));
+
+        $reference = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($draw('Isaiah 40')),
+            1 => $this->vote($draw('Isaiah 40')),
+            2 => $this->vote($draw('Isaiah 53')),
+            3 => $this->vote($draw('Isaiah 40')),
+        ]);
+        $presence = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($draw('Isaiah 40')),
+            1 => $this->vote($draw('Isaiah 40')),
+            2 => $this->vote($draw(null)),
+            3 => $this->vote($draw('Isaiah 40')),
+        ]);
+
+        $this->assertContains('bible_reading', array_column($reference->disputes, 'type'));
+        $this->assertContains('bible_reading', array_column($presence->disputes, 'type'));
+    }
+
+    /**
+     * The sermon's own reference outranks every other pairing evidence, so a reading within
+     * reach that does not match it can never be cut. Without a sermon reference, any reading
+     * within reach could be, so each is held.
+     */
+    #[Test]
+    public function only_readings_the_sermon_could_pair_with_are_held_to_their_edges(): void
+    {
+        $draw = fn (int $psalmEnd, ?string $sermonReference): ServiceStructure => $this->structure(
+            $this->section(ServiceSectionType::BibleReading, 1400, $psalmEnd, 'Psalm 23'),
+            $this->section(ServiceSectionType::BibleReading, 1800, 1990, 'John 3'),
+            new ServiceStructureSection(ServiceSectionType::Sermon, null, 2000.0, 4000.0, 0.9, null, null, null, $sermonReference),
+        );
+        $votes = fn (?string $sermonReference): array => [
+            0 => $this->vote($draw(1600, $sermonReference)),
+            1 => $this->vote($draw(1600, $sermonReference)),
+            2 => $this->vote($draw(1640, $sermonReference)),
+            3 => $this->vote($draw(1640, $sermonReference)),
+        ];
+
+        $named = app(ServiceStructureEnsembleComposer::class)->compose($votes('John 3:16'));
+        $unnamed = app(ServiceStructureEnsembleComposer::class)->compose($votes(null));
+
+        $this->assertSame([], $named->disputes);
+        $this->assertContains('bible_reading', array_column($unnamed->disputes, 'type'));
+    }
+
     /** The shape of run 1356 in the baseline draws: the written filler and song come from different voters. */
     #[Test]
     public function filler_gives_way_to_the_claim_it_overlaps(): void

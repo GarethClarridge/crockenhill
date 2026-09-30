@@ -334,7 +334,7 @@ class ServiceStructureEnsembleComposer
      * @param  array{slot:int,index:int,section:ServiceStructureSection,cut_relevant:bool}  $claim
      * @param  list<array{slot:int,index:int,section:ServiceStructureSection,cut_relevant:bool}>  $group
      * @param  array<int,ValidationResult>  $draws
-     * @param  array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>}  $context
+     * @param  array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>, held_readings: array<string, true>}  $context
      */
     private function compatibleWithGroup(array $claim, array $group, array $draws, array $context): bool
     {
@@ -351,7 +351,7 @@ class ServiceStructureEnsembleComposer
      * @param  array{slot:int,index:int,section:ServiceStructureSection,cut_relevant:bool}  $claimA
      * @param  array{slot:int,index:int,section:ServiceStructureSection,cut_relevant:bool}  $claimB
      * @param  array<int,ValidationResult>  $draws
-     * @param  array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>}  $context
+     * @param  array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>, held_readings: array<string, true>}  $context
      */
     private function compatible(array $claimA, array $claimB, array $draws, array $context): bool
     {
@@ -377,6 +377,17 @@ class ServiceStructureEnsembleComposer
             return $this->overlapShare($a, $b) >= self::SAME_SPAN_OVERLAP;
         }
 
+        /**
+         * Only a reading the sermon could pair with is cut, so only it is held to its edges
+         * (ruled 2026-09-30); any other reading is the same reading wherever most of it
+         * overlaps. Its reference is compared as a claim field.
+         */
+        if ($a->type === ServiceSectionType::BibleReading
+            && ! isset($context['held_readings'][$this->claimKey($claimA)])
+            && ! isset($context['held_readings'][$this->claimKey($claimB)])) {
+            return $this->overlapShare($a, $b) >= self::SAME_SPAN_OVERLAP;
+        }
+
         $tolerance = match ($a->type) {
             ServiceSectionType::Sermon, ServiceSectionType::ShortTalk => 30.0,
             ServiceSectionType::BibleReading => 15.0,
@@ -393,14 +404,15 @@ class ServiceStructureEnsembleComposer
     }
 
     /**
-     * Where filler can change the sermon's cut, and which song each voter ends its sermon with.
+     * Where filler can change the sermon's cut, which song each voter ends its sermon with,
+     * and which of each voter's readings its sermon could pair with.
      *
      * The window runs from shortly before the earliest sermon start (the pre-sermon prayer) to
      * the latest point any voter's sermon could extend to: the first song after its sermon, or
      * the reading-pairing window past the sermon's end when no song follows.
      *
      * @param  array<int,ValidationResult>  $draws
-     * @return array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>}
+     * @return array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>, held_readings: array<string, true>}
      */
     private function alignmentContext(array $draws): array
     {
@@ -408,6 +420,7 @@ class ServiceStructureEnsembleComposer
         $starts = [];
         $limits = [];
         $endingSongs = [];
+        $heldReadings = [];
 
         foreach ($draws as $slot => $draw) {
             foreach ($draw->structure->sections as $sermon) {
@@ -428,6 +441,7 @@ class ServiceStructureEnsembleComposer
                 }
 
                 $limits[] = $limit;
+                $heldReadings += $this->pairableReadings($slot, $draw->structure->sections, $sermon, $extension);
             }
         }
 
@@ -436,12 +450,43 @@ class ServiceStructureEnsembleComposer
                 ? null
                 : [min($starts) - self::PRE_SERMON_MARGIN_SECONDS, max($limits)],
             'ending_songs' => $endingSongs,
+            'held_readings' => $heldReadings,
         ];
     }
 
     /**
+     * The readings `SermonExtractionPlanResolver` could cut into this sermon's media: those that
+     * end before it starts and within the pairing gap. The resolver ranks a reading matching the
+     * sermon's own reference above all other evidence, so when one within reach matches, only
+     * matching readings can win; otherwise any reading within reach could.
+     *
+     * @param  list<ServiceStructureSection>  $sections
+     * @return array<string, true>
+     */
+    private function pairableReadings(int $slot, array $sections, ServiceStructureSection $sermon, float $maxPairingGap): array
+    {
+        $withinReach = [];
+
+        foreach ($sections as $index => $reading) {
+            $gap = $sermon->startTime - $reading->endTime;
+
+            if ($reading->type === ServiceSectionType::BibleReading && $gap >= 0.0 && $gap <= $maxPairingGap) {
+                $withinReach["{$slot}:{$index}"] = $reading;
+            }
+        }
+
+        $matching = $sermon->sermonReference === null ? [] : array_filter(
+            $withinReach,
+            fn (ServiceStructureSection $reading): bool => $reading->readingReference !== null
+                && $this->scriptureReferences->referencesOverlap($reading->readingReference, $sermon->sermonReference),
+        );
+
+        return array_fill_keys(array_keys($matching !== [] ? $matching : $withinReach), true);
+    }
+
+    /**
      * @param  array{slot:int,index:int,section:ServiceStructureSection}  $claim
-     * @param  array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>}  $context
+     * @param  array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>, held_readings: array<string, true>}  $context
      */
     private function cutRelevant(array $claim, array $context): bool
     {
