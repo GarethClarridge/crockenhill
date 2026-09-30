@@ -584,6 +584,28 @@ independent services or reinstate a larger review workload without an operator d
   stops advancement; do not rerun only 949 to erase it. No public release follows from detection
   acceptance alone. Changes to rollout size/stop thresholds remain explicitly adopted decisions.
 
+### Canary 9 (2026-09-30) — detection passed, custody failed
+
+Freeze `historic-rerun-freeze-20260930` on `61ff438b0`; snapshot `freeze-20260930/`; the 16 batch-1
+runs dispatched 20:12 and settled 20:36 BST. All 64 draws valid. Talk-count errors 0 (unflagged 0);
+cuts wrong 0 (1050, 1250 and 1356 held either way: interrupted sermon); 41 questions over 13 runs
+(song 15, talk 11, reading 7, sermon 6, other 1, notices 1); 1025, 1028 and 1108 question-free with
+the right cut. Every hold carried.
+
+**Custody failed on 1221:** the composed titles respelt two bound songs ("Speak O Lord" →
+"Speak, O Lord", "King Of Kings Majesty" → "King of Kings Majesty") on the same item and span, and
+`ServiceSectionSyncService` compared raw title text, so it deleted both extracted clips, song video
+619 (quarantined) and §2727's published state. No other copy; recovery is pipeline re-extraction.
+The same review found the sync paired rows by position, so any inserted or removed section would
+have shifted every later clip onto its neighbour's row and deleted it (1176 media-bearing sections
+in the corpus, 261 published). Fixed: a bound section is identified by its item and an unbound
+title is compared without case or punctuation; rows pair by that identity first, then position,
+parked clear of the unique position while positions are rewritten. Simulated on the canary's own
+before/after sections: the old rule loses exactly the two 1221 clips, the new rule none. The
+operator chose to move the freeze to the fix and run canary 10 on the same 16 runs to see the
+custody diff clean on live runs; 1221 is re-extracted through the pipeline after its questions
+are answered.
+
 ## 8. Risks
 
 - **Composition can be wrong despite validation.** Use supported boundary pairs and coherent field
