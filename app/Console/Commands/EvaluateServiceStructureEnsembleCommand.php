@@ -35,17 +35,21 @@ use Throwable;
  *
  * Without --detector nothing is called: the inputs are built and the plan printed. Before each
  * sequence the command reserves the worst-case cost of four calls, so neither the call cap nor
- * the spend cap can be crossed, and it stops after two sequences in a row lose draws.
+ * the spend cap can be crossed. It stops after two sequences in a row lose draws to the provider
+ * and are left with fewer than three valid votes (ruled 2026-09-30: a stray server error is
+ * noise; an outage is not). --resume continues a stopped report under the same manifest and
+ * inputs, keeping its spend and calls against the caps and every sequence already bought.
  */
 class EvaluateServiceStructureEnsembleCommand extends Command
 {
-    /** Consecutive sequences with an unavailable draw before the run stops. */
+    /** Consecutive sequences that lose draws and keep fewer than three valid votes before the run stops. */
     private const MAX_CONSECUTIVE_LOSSY_SEQUENCES = 2;
 
     protected $signature = 'structure:ensemble-evaluate
                             {manifest : Predeclared evaluation manifest JSON}
                             {--detector= : mock|openai; omitted, no draw is made and only the plan is printed}
-                            {--report= : Write the JSON report here (default: beside the manifest)}';
+                            {--report= : Write the JSON report here (default: beside the manifest)}
+                            {--resume : Continue the stopped report at --report under the same manifest and inputs}';
 
     protected $description = 'Run the predeclared four-draw ensemble evaluation against labelled truth, read-only';
 
@@ -123,6 +127,43 @@ class EvaluateServiceStructureEnsembleCommand extends Command
 
         $queue = $this->queue($manifest);
         $plannedCalls = count($queue) * 4;
+        $calls = 0;
+        $spent = 0.0;
+
+        if ($this->option('resume')) {
+            $previous = $this->readJson($reportPath);
+
+            if (($previous['manifest_hash'] ?? null) !== $report['manifest_hash']) {
+                throw new RuntimeException('The report to resume was made under a different manifest.');
+            }
+
+            foreach ($report['inputs'] as $runId => $input) {
+                if (($previous['inputs'][$runId]['input_hash'] ?? null) !== $input['input_hash']) {
+                    throw new RuntimeException("Run {$runId}'s input changed since the report began, so its sequences would not be comparable.");
+                }
+            }
+
+            $report['sequences'] = $previous['sequences'] ?? [];
+            $report['code_versions'] = [...($previous['code_versions'] ?? [['from_sequence' => 1, 'version' => $previous['code_version'] ?? null]]), [
+                'from_sequence' => count($report['sequences']) + 1,
+                'version' => $report['code_version'],
+            ]];
+            $report['resumed_after'] = $previous['stop_reason'] ?? null;
+            $calls = (int) ($previous['calls'] ?? 0);
+            $spent = (float) ($previous['spent_usd'] ?? 0.0);
+            $done = [];
+
+            foreach ($report['sequences'] as $sequence) {
+                $done["{$sequence['set']}:{$sequence['run']}:{$sequence['sequence']}"] = true;
+            }
+
+            $queue = array_values(array_filter(
+                $queue,
+                static fn (array $item): bool => ! isset($done["{$item['set']}:{$item['run']}:{$item['sequence']}"]),
+            ));
+            $this->line(sprintf('Resuming: %d sequences kept, %d calls and $%.4f already spent.', count($report['sequences']), $calls, $spent));
+        }
+
         $this->line(sprintf(
             'Plan: %d sequences, %d calls; caps %d calls / $%.2f; worst case reserved $%.3f per call.',
             count($queue),
@@ -140,8 +181,6 @@ class EvaluateServiceStructureEnsembleCommand extends Command
             return self::SUCCESS;
         }
 
-        $calls = 0;
-        $spent = 0.0;
         $lossyRun = 0;
         $stopReason = null;
         $started = microtime(true);
@@ -197,10 +236,9 @@ class EvaluateServiceStructureEnsembleCommand extends Command
             }
 
             $spent += $sequenceCost;
-            $lostDraws = array_intersect(array_column($slots, 'status'), ['unavailable', 'interrupted']);
-            $lossyRun = $lostDraws === [] ? 0 : $lossyRun + 1;
-
             $composition = $composer->compose($draws);
+            $lostDraws = array_intersect(array_column($slots, 'status'), ['unavailable', 'interrupted']);
+            $lossyRun = $lostDraws !== [] && $composition->validVotes < 3 ? $lossyRun + 1 : 0;
             $validation = $composition->refused ? null : $validator->validate($composition->structure, $run['context']);
             $cut = $composition->refused ? null : $cutProbe->probe($run['log'], $composition->structure, $run['transcript']);
             $truth = $truthRuns[(string) $runId] ?? null;
@@ -213,7 +251,7 @@ class EvaluateServiceStructureEnsembleCommand extends Command
             ];
 
             $report['sequences'][] = [
-                'number' => $number + 1,
+                'number' => count($report['sequences']) + 1,
                 'set' => $item['set'],
                 'run' => $runId,
                 'sequence' => $item['sequence'],
@@ -221,6 +259,7 @@ class EvaluateServiceStructureEnsembleCommand extends Command
                 'cost_usd' => round($sequenceCost, 6),
                 'valid_votes' => $composition->validVotes,
                 'refused' => $composition->refused,
+                'validation_passed' => $replay['validation_passed'],
                 'validation_failures' => $validation?->failureCodes() ?? [],
                 'degraded' => $composition->degraded,
                 'disputes' => $composition->disputes,
@@ -249,6 +288,10 @@ class EvaluateServiceStructureEnsembleCommand extends Command
         }
 
         $report['stop_reason'] = $stopReason;
+        $report['sequences'] = array_values(array_map(
+            fn (array $sequence): array => $this->rescore($sequence, $truthRuns, $scorer),
+            $report['sequences'],
+        ));
         $report['summary'] = $this->summary($report['sequences']);
         $this->writeReport($reportPath, $report);
 
@@ -259,6 +302,30 @@ class EvaluateServiceStructureEnsembleCommand extends Command
         $this->info(sprintf('%d calls, $%.4f. Report: %s', $calls, $spent, $reportPath));
 
         return $stopReason === null ? self::SUCCESS : self::FAILURE;
+    }
+
+    /**
+     * Scores a sequence again from what it recorded, so every sequence in a resumed report is
+     * judged by the current scorer, not the one in force when it was bought.
+     *
+     * @param  array<string, mixed>  $sequence
+     * @param  array<string, mixed>  $truthRuns
+     * @return array<string, mixed>
+     */
+    private function rescore(array $sequence, array $truthRuns, ServiceStructureEnsembleScorer $scorer): array
+    {
+        $truth = $truthRuns[(string) $sequence['run']] ?? null;
+        $sequence['score'] = is_array($truth) && array_is_list($truth)
+            ? $scorer->score([
+                'structure' => $sequence['structure'],
+                'validation_passed' => $sequence['validation_passed'] ?? (! $sequence['refused'] && $sequence['validation_failures'] === []),
+                'degraded' => $sequence['degraded'],
+                'disputes' => $sequence['disputes'],
+                'cut' => $sequence['cut'],
+            ], array_values(array_filter($truth, 'is_array')))
+            : null;
+
+        return $sequence;
     }
 
     /**

@@ -489,7 +489,11 @@ Fresh detection evaluation remains read-only and predeclared (≈$0.02 per four-
 
 **Built 2026-09-30:** `structure:ensemble-evaluate {manifest} --detector=openai` runs this table from
 `storage/scratch/ensemble-eval-20260930/manifest.json` (caps 280 calls / $3.00, $0.025 worst-case
-reserve per call checked before each sequence; stops after two sequences in a row lose draws).
+reserve per call checked before each sequence). First run stopped at 15/58 ($0.39) on the original
+rule (two sequences in a row losing any draw) after OpenAI HTTP 520s; operator ruled 2026-09-30 to
+resume (`--resume`, same manifest and inputs, spend carried) with the rule narrowed to two
+sequences in a row left under three valid votes by lost draws. The cut is judged by its sermon
+section only: it runs on to the next song by ruling, which the sermon-only truth cannot label.
 Inputs come from the job's own builder; draws run four at a time in separate processes and are
 kept whole; the cut is planned by the production resolver on a rolled-back copy of the run
 (`SermonCutProbe`) and scored for wrong, unflagged and unreviewed-to-extraction cuts, plus each

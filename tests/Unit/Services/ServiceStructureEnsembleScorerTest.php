@@ -49,31 +49,30 @@ class ServiceStructureEnsembleScorerTest extends TestCase
     }
 
     #[Test]
-    public function a_cut_past_the_truth_end_is_wrong_and_unflagged_unless_a_question_touches_it(): void
+    public function a_cut_is_judged_by_its_sermon_section_and_unflagged_unless_a_question_touches_it(): void
     {
-        $structure = ServiceStructure::fromSections([$this->section(ServiceSectionType::Sermon, 300, 600)]);
         $truth = [['type' => 'sermon', 'start' => 300, 'end' => 600, 'basis' => 'operator', 'tolerance' => 20]];
-        $cut = static fn (float $end): array => [
-            'gated' => ['mode' => 'single_span', 'from_sections' => true, 'segments' => [['start_time' => 250.0, 'end_time' => $end]]],
-            'as_written' => ['mode' => 'single_span', 'strategy' => 'adjacent_bible_plus_sermon', 'from_sections' => true, 'segments' => [['start_time' => 250.0, 'end_time' => $end]]],
+        $cut = [
+            'gated' => ['mode' => 'single_span', 'from_sections' => true, 'segments' => [['start_time' => 250.0, 'end_time' => 640.0]]],
+            'as_written' => ['mode' => 'single_span', 'strategy' => 'adjacent_bible_plus_sermon', 'from_sections' => true, 'segments' => [['start_time' => 250.0, 'end_time' => 640.0]]],
         ];
-        $score = fn (float $end, array $disputes): array => app(ServiceStructureEnsembleScorer::class)->score([
-            'structure' => $structure->toArray(),
+        $score = fn (int $sermonEnd, array $disputes): array => app(ServiceStructureEnsembleScorer::class)->score([
+            'structure' => ServiceStructure::fromSections([$this->section(ServiceSectionType::Sermon, 300, $sermonEnd)])->toArray(),
             'validation_passed' => true,
             'degraded' => false,
             'disputes' => $disputes,
-            'cut' => $cut($end),
+            'cut' => $cut,
         ], $truth)['cut'];
 
-        $right = $score(610.0, []);
-        $wrongUnreviewed = $score(700.0, []);
-        $wrongQuestioned = $score(700.0, [['type' => 'song', 'start_time' => 640, 'end_time' => 900]]);
-        $wrongElsewhere = $score(700.0, [['type' => 'song', 'start_time' => 1000, 'end_time' => 1200]]);
+        $rightToTheNextSong = $score(605, []);
+        $wrongUnreviewed = $score(700, []);
+        $wrongQuestioned = $score(700, [['type' => 'song', 'start_time' => 640, 'end_time' => 900]]);
+        $wrongElsewhere = $score(700, [['type' => 'song', 'start_time' => 1000, 'end_time' => 1200]]);
 
-        $this->assertFalse($right['wrong']);
-        $this->assertTrue($right['reaches_extraction_unreviewed']);
+        $this->assertFalse($rightToTheNextSong['wrong']);
+        $this->assertSame(40.0, $rightToTheNextSong['end_past_truth_seconds']);
+        $this->assertTrue($rightToTheNextSong['reaches_extraction_unreviewed']);
         $this->assertTrue($wrongUnreviewed['wrong_reaches_extraction_unreviewed']);
-        $this->assertSame(100.0, $wrongUnreviewed['end_error_seconds']);
         $this->assertFalse($wrongQuestioned['wrong_unflagged']);
         $this->assertFalse($wrongQuestioned['reaches_extraction_unreviewed']);
         $this->assertTrue($wrongElsewhere['wrong_unflagged']);

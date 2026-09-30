@@ -4,15 +4,20 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
+use App\Contracts\ServiceStructureInterface;
 use App\Data\ChurchServiceTranscript;
+use App\Data\ServiceStructure;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\Structure\MockServiceStructureService;
+use App\Services\Media\Audio\AudioTimeline;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\Support\AudioTimelineFixture;
 use Tests\TestCase;
 
@@ -109,6 +114,98 @@ class EvaluateServiceStructureEnsembleCommandTest extends TestCase
 
         $this->assertSame('max_calls', $this->report()['stop_reason']);
         $this->assertSame(4, $this->report()['calls']);
+    }
+
+    #[Test]
+    public function a_resumed_report_keeps_its_sequences_and_spend_against_the_caps(): void
+    {
+        $log = $this->serviceRun();
+        $manifest = $this->manifest([$log->id], 3);
+        $this->failingDetector(everyNthCall: 1);
+
+        $this->artisan('structure:ensemble-evaluate', ['manifest' => $manifest, '--detector' => 'mock'])->assertFailed();
+        $this->assertCount(2, $this->report()['sequences']);
+
+        $this->app->instance(ServiceStructureInterface::class, app(MockServiceStructureService::class));
+        $this->artisan('structure:ensemble-evaluate', ['manifest' => $manifest, '--detector' => 'mock', '--resume' => true])
+            ->expectsOutputToContain('Resuming: 2 sequences kept, 8 calls')
+            ->assertSuccessful();
+
+        $report = $this->report();
+        $this->assertSame([1, 2, 3], array_column($report['sequences'], 'sequence'));
+        $this->assertSame([0, 0, 4], array_column($report['sequences'], 'valid_votes'));
+        $this->assertSame(12, $report['calls']);
+        $this->assertSame('repeated_unavailable_draws', $report['resumed_after']);
+        $this->assertNull($report['stop_reason']);
+        $this->assertCount(2, $report['code_versions']);
+    }
+
+    #[Test]
+    public function a_resume_under_a_changed_manifest_is_refused(): void
+    {
+        $log = $this->serviceRun();
+        $this->artisan('structure:ensemble-evaluate', [
+            'manifest' => $this->manifest([$log->id], 2, maxCalls: 4),
+            '--detector' => 'mock',
+        ])->assertFailed();
+
+        $this->expectExceptionMessage('different manifest');
+        $this->artisan('structure:ensemble-evaluate', [
+            'manifest' => $this->manifest([$log->id], 2, maxCalls: 8),
+            '--detector' => 'mock',
+            '--resume' => true,
+        ]);
+    }
+
+    /** A stray server error leaves three votes and is noise; an outage leaves fewer and stops the run. */
+    #[Test]
+    public function only_sequences_left_under_three_valid_votes_by_lost_draws_stop_the_run(): void
+    {
+        $log = $this->serviceRun();
+        $this->failingDetector(everyNthCall: 4);
+
+        $this->artisan('structure:ensemble-evaluate', [
+            'manifest' => $this->manifest([$log->id], 3),
+            '--detector' => 'mock',
+        ])->assertSuccessful();
+        $this->assertCount(3, $this->report()['sequences']);
+
+        $this->failingDetector(everyNthCall: 2);
+
+        $this->artisan('structure:ensemble-evaluate', [
+            'manifest' => $this->manifest([$log->id], 3),
+            '--detector' => 'mock',
+        ])->assertFailed();
+        $this->assertSame('repeated_unavailable_draws', $this->report()['stop_reason']);
+        $this->assertCount(2, $this->report()['sequences']);
+    }
+
+    private function failingDetector(int $everyNthCall): void
+    {
+        $mock = app(MockServiceStructureService::class);
+        $detector = new class($mock, $everyNthCall) implements ServiceStructureInterface
+        {
+            private int $calls = 0;
+
+            public function __construct(private readonly MockServiceStructureService $mock, private readonly int $everyNthCall) {}
+
+            public function detect(
+                ChurchServiceTranscript $transcript,
+                array $oosItems,
+                ?string $processingId = null,
+                array $feedback = [],
+                ?AudioTimeline $audioTimeline = null,
+                ?string $model = null,
+            ): ServiceStructure {
+                if ($this->calls++ % $this->everyNthCall === 0) {
+                    throw new RuntimeException('Server error (HTTP 520) occurred.');
+                }
+
+                return $this->mock->detect($transcript, $oosItems, $processingId, $feedback, $audioTimeline, $model);
+            }
+        };
+
+        $this->app->instance(ServiceStructureInterface::class, $detector);
     }
 
     private function serviceRun(): MediaProcessingLog

@@ -154,8 +154,10 @@ class ServiceStructureEnsembleScorer
     /**
      * Judges the sermon cut the production resolver planned from this proposal.
      *
-     * The cut is wrong when the sermon section it starts from missed the truth, or when its
-     * end (the next song, after any closing prayer) misses the truth's end. It reaches
+     * The cut is wrong when the sermon section it is planned from missed the truth. Its end is
+     * not judged: the resolver runs the cut on to the next song through any closing prayer
+     * (ruled), and the truth labels the sermon, not the next song, so the two legitimately
+     * differ; how far is reported as `end_past_truth_seconds`. It reaches
      * extraction unreviewed only when the run raises no question at all; a wrong cut is
      * flagged only when a question touches the cut's own span, since a question elsewhere
      * in the service will not lead a reviewer to it.
@@ -202,17 +204,7 @@ class ServiceStructureEnsembleScorer
 
         $cutStart = (float) $segments[0]['start_time'];
         $cutEnd = (float) $segments[array_key_last($segments)]['end_time'];
-        $truthEnds = [(float) $sermonTruth['end']];
-
-        foreach ($sermonTruth['alternatives'] ?? [] as $alternative) {
-            if (is_array($alternative) && is_numeric($alternative['end'] ?? null)) {
-                $truthEnds[] = (float) $alternative['end'];
-            }
-        }
-
-        $tolerance = (float) ($sermonTruth['tolerance'] ?? 20);
-        $endError = min(array_map(static fn (float $end): float => abs($cutEnd - $end), $truthEnds));
-        $wrong = ($sermonMatch['status'] ?? null) !== 'matched' || $endError > $tolerance;
+        $wrong = ($sermonMatch['status'] ?? null) !== 'matched';
         $flagged = $this->disputeTouches($disputes, $cutStart - 30.0, $cutEnd + 30.0);
 
         return [
@@ -220,7 +212,7 @@ class ServiceStructureEnsembleScorer
             'segments' => $segments,
             'scored' => true,
             'sermon_status' => $sermonMatch['status'] ?? null,
-            'end_error_seconds' => round($endError, 2),
+            'end_past_truth_seconds' => round($cutEnd - (float) $sermonTruth['end'], 2),
             'wrong' => $wrong,
             'wrong_unflagged' => $wrong && ! $flagged,
             'reaches_extraction_unreviewed' => $reachesUnreviewed,
