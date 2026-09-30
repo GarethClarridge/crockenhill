@@ -17,6 +17,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
+use App\Models\SongVideo;
 use App\Models\User;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -211,6 +212,183 @@ class ServiceSectionSyncServiceTest extends TestCase
         $this->assertDatabaseHas('sermons', ['id' => $publishedSermon->id]);
         Storage::disk('public')->assertMissing('sermons/sections/'.$churchServiceItem->id.'/video.mp4');
         Storage::disk('public')->assertMissing('sermons/audio/section-'.$churchServiceItem->id.'.mp3');
+    }
+
+    /**
+     * Canary 9, run 1221: re-detection respelt "Speak O Lord" as "Speak, O Lord" on the same
+     * order-of-service item and span, and the sync deleted the published clip and its song video.
+     */
+    #[Test]
+    public function a_bound_section_whose_title_is_only_respelt_keeps_its_media_and_publication(): void
+    {
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $item = ChurchServiceItem::factory()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 12,
+            'title' => 'Speak O Lord',
+            'start_time' => 2248.0,
+            'end_time' => 2440.03,
+            'publication_status' => ServiceSectionPublicationStatus::Published->value,
+            'extracted_video_path' => 'section-publications/2727/video.mp4',
+            'extracted_at' => now(),
+        ]);
+        $songVideo = SongVideo::factory()->create([
+            'service_section_id' => $section->id,
+            'video_file_path' => 'sermons/songs/2727.mp4',
+        ]);
+        Storage::disk('public')->put('section-publications/2727/video.mp4', 'video');
+        Storage::disk('public')->put('sermons/songs/2727.mp4', 'video');
+
+        $this->service->sync($processingLog, [
+            $this->sectionData(
+                churchServiceItemId: $item->id,
+                sectionOrder: 12,
+                sectionType: ServiceSectionType::Song->value,
+                title: 'Speak, O Lord',
+                startTime: 2248.0,
+                endTime: 2440.03,
+                duration: 192.03,
+            ),
+        ]);
+
+        $section->refresh();
+
+        $this->assertSame('Speak, O Lord', $section->title);
+        $this->assertSame(ServiceSectionPublicationStatus::Published, $section->publication_status);
+        $this->assertSame('section-publications/2727/video.mp4', $section->extracted_video_path);
+        $this->assertArrayNotHasKey('superseded', $section->metadata?->toArray() ?? []);
+        $this->assertModelExists($songVideo);
+        Storage::disk('public')->assertExists('section-publications/2727/video.mp4');
+        Storage::disk('public')->assertExists('sermons/songs/2727.mp4');
+    }
+
+    /** Canary 9, run 1221: "King Of Kings Majesty" → "King of Kings Majesty", here with no item bound. */
+    #[Test]
+    public function an_unbound_section_whose_title_differs_only_in_case_and_punctuation_keeps_its_media(): void
+    {
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 3,
+            'title' => 'King Of Kings Majesty',
+            'start_time' => 114.11,
+            'end_time' => 251.06,
+            'extracted_video_path' => 'section-publications/2718/video.mp4',
+            'extracted_at' => now(),
+        ]);
+        Storage::disk('public')->put('section-publications/2718/video.mp4', 'video');
+
+        $this->service->sync($processingLog, [
+            $this->sectionData(
+                churchServiceItemId: null,
+                sectionOrder: 3,
+                sectionType: ServiceSectionType::Song->value,
+                title: 'King of Kings, Majesty',
+                startTime: 114.11,
+                endTime: 251.06,
+                duration: 136.95,
+            ),
+        ]);
+
+        $this->assertSame('section-publications/2718/video.mp4', $section->fresh()->extracted_video_path);
+        Storage::disk('public')->assertExists('section-publications/2718/video.mp4');
+    }
+
+    /** A section inserted or removed earlier in the service no longer shifts a clip onto its neighbour's row. */
+    #[Test]
+    public function an_unchanged_section_keeps_its_media_when_an_earlier_section_is_inserted_or_removed(): void
+    {
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $item = ChurchServiceItem::factory()->create();
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::Welcome->value,
+            'section_order' => 1,
+            'title' => 'Welcome',
+            'start_time' => 0.0,
+            'end_time' => 100.0,
+        ]);
+        $song = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 2,
+            'title' => 'More About Jesus',
+            'start_time' => 1753.0,
+            'end_time' => 1937.24,
+            'extracted_video_path' => 'section-publications/1398/video.mp4',
+            'extracted_at' => now(),
+        ]);
+        Storage::disk('public')->put('section-publications/1398/video.mp4', 'video');
+        $welcome = $this->sectionData(null, 1, ServiceSectionType::Welcome->value, 'Welcome', 0.0, 100.0, 100.0);
+        $prayer = $this->sectionData(null, 2, ServiceSectionType::Prayer->value, 'Prayer', 100.0, 200.0, 100.0);
+        $songAt = fn (int $order): array => $this->sectionData($item->id, $order, ServiceSectionType::Song->value, 'More About Jesus', 1753.0, 1937.24, 184.24);
+
+        $this->service->sync($processingLog, [$welcome, $prayer, $songAt(3)]);
+
+        $song->refresh();
+        $this->assertSame(3, $song->section_order);
+        $this->assertSame('section-publications/1398/video.mp4', $song->extracted_video_path);
+        $this->assertSame(3, ServiceSection::query()->where('media_processing_log_id', $processingLog->id)->count());
+
+        $this->service->sync($processingLog, [$songAt(1)]);
+
+        $song->refresh();
+        $this->assertSame(1, $song->section_order);
+        $this->assertSame('section-publications/1398/video.mp4', $song->extracted_video_path);
+        $this->assertSame(1, ServiceSection::query()->where('media_processing_log_id', $processingLog->id)->count());
+        Storage::disk('public')->assertExists('section-publications/1398/video.mp4');
+    }
+
+    #[Test]
+    public function an_unbound_section_given_a_different_title_is_still_superseded(): void
+    {
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 3,
+            'title' => 'King Of Kings Majesty',
+            'start_time' => 114.11,
+            'end_time' => 251.06,
+            'extracted_video_path' => 'section-publications/2718/video.mp4',
+            'extracted_at' => now(),
+        ]);
+        Storage::disk('public')->put('section-publications/2718/video.mp4', 'video');
+
+        $this->service->sync($processingLog, [
+            $this->sectionData(
+                churchServiceItemId: null,
+                sectionOrder: 3,
+                sectionType: ServiceSectionType::Song->value,
+                title: 'Majesty',
+                startTime: 114.11,
+                endTime: 251.06,
+                duration: 136.95,
+            ),
+        ]);
+
+        $this->assertNull($section->fresh()->extracted_video_path);
+        Storage::disk('public')->assertMissing('section-publications/2718/video.mp4');
     }
 
     #[Test]

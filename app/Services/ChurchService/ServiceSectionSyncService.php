@@ -57,6 +57,9 @@ class ServiceSectionSyncService
 {
     use SanitizesLogData;
 
+    /** Added to a row's id to park it clear of every real position while positions are rewritten. */
+    private const PARKED_ORDER_OFFSET = 1_000_000_000;
+
     public function __construct(
         private readonly SectionPublicationHandlerFactory $handlerFactory,
     ) {}
@@ -111,11 +114,11 @@ class ServiceSectionSyncService
             );
             $this->keepUnplacedHoldHistory($processingLog, $heldContent, $classifiedSections);
 
-            $incomingOrders = [];
+            $pairs = $this->pairWithExisting($existingByOrder->values()->all(), $classifiedSections);
+            $claimedIds = array_map(static fn (ServiceSection $section): int => $section->id, $pairs);
+            $this->parkMovingRows($existingByOrder->all(), $pairs, $classifiedSections);
 
-            foreach ($classifiedSections as $sectionData) {
-                $incomingOrders[] = $sectionData['section_order'];
-
+            foreach ($classifiedSections as $index => $sectionData) {
                 $payload = [
                     'media_processing_log_id' => $processingLog->id,
                     'church_service_item_id' => $sectionData['church_service_item_id'],
@@ -133,7 +136,7 @@ class ServiceSectionSyncService
                     'metadata' => $sectionData['metadata'],
                 ];
 
-                $existing = $existingByOrder->get($sectionData['section_order']);
+                $existing = $pairs[$index] ?? null;
 
                 $validationPayload = array_merge($payload, [
                     'publication_status' => $existing instanceof ServiceSection
@@ -183,15 +186,8 @@ class ServiceSectionSyncService
                 ));
             }
 
-            $staleSections = ServiceSection::query()
-                ->where('media_processing_log_id', $processingLog->id)
-                ->when(
-                    $incomingOrders !== [],
-                    fn ($query) => $query->whereNotIn('section_order', $incomingOrders),
-                    fn ($query) => $query
-                )
-                ->lockForUpdate()
-                ->get();
+            $staleSections = $existingByOrder
+                ->reject(static fn (ServiceSection $section): bool => in_array($section->id, $claimedIds, true));
 
             foreach ($staleSections as $staleSection) {
                 $this->cleanupExtractedAssets($staleSection);
@@ -199,6 +195,84 @@ class ServiceSectionSyncService
                 $staleSection->delete();
             }
         });
+    }
+
+    /**
+     * Which stored row each incoming section updates.
+     *
+     * A stored row the incoming section is materially identical to is claimed first, wherever
+     * either sits in the order; only then does an unclaimed row at the same position take a
+     * section. Pairing by position alone compared every section after an inserted or removed
+     * one with its neighbour's row and deleted that row's extracted media.
+     *
+     * @param  array<int, ServiceSection>  $existing
+     * @param  array<int, ClassifiedSection>  $classifiedSections
+     * @return array<int, ServiceSection>
+     */
+    private function pairWithExisting(array $existing, array $classifiedSections): array
+    {
+        $pairs = [];
+        $claimed = [];
+
+        foreach ($classifiedSections as $index => $sectionData) {
+            $identity = $this->materialIdentity($this->buildSignatureFromPayload($sectionData));
+
+            foreach ($existing as $candidate) {
+                if (! isset($claimed[$candidate->id])
+                    && $this->materialIdentity($this->buildSignatureFromExisting($candidate)) === $identity) {
+                    $pairs[$index] = $candidate;
+                    $claimed[$candidate->id] = true;
+
+                    break;
+                }
+            }
+        }
+
+        foreach ($classifiedSections as $index => $sectionData) {
+            if (isset($pairs[$index])) {
+                continue;
+            }
+
+            foreach ($existing as $candidate) {
+                if (! isset($claimed[$candidate->id]) && $candidate->section_order === $sectionData['section_order']) {
+                    $pairs[$index] = $candidate;
+                    $claimed[$candidate->id] = true;
+
+                    break;
+                }
+            }
+        }
+
+        return $pairs;
+    }
+
+    /**
+     * Moves every row that changes position, or is about to be removed, to a temporary position
+     * past any real one, so no row is written onto a position another still holds (unique per
+     * run, unsigned).
+     *
+     * @param  array<int, ServiceSection>  $existing
+     * @param  array<int, ServiceSection>  $pairs
+     * @param  array<int, ClassifiedSection>  $classifiedSections
+     */
+    private function parkMovingRows(array $existing, array $pairs, array $classifiedSections): void
+    {
+        $staying = [];
+
+        foreach ($pairs as $index => $section) {
+            if ($section->section_order === $classifiedSections[$index]['section_order']) {
+                $staying[$section->id] = true;
+            }
+        }
+
+        foreach ($existing as $section) {
+            if (! isset($staying[$section->id])) {
+                $parked = self::PARKED_ORDER_OFFSET + $section->id;
+                ServiceSection::query()->whereKey($section->id)->toBase()->update(['section_order' => $parked]);
+                $section->section_order = $parked;
+                $section->syncOriginalAttribute('section_order');
+            }
+        }
     }
 
     /**
@@ -214,7 +288,32 @@ class ServiceSectionSyncService
      */
     private function hasMaterialSignatureChange(ServiceSection $existing, array $incomingPayload): bool
     {
-        return $this->buildSignatureFromExisting($existing) !== $this->buildSignatureFromPayload($incomingPayload);
+        return $this->materialIdentity($this->buildSignatureFromExisting($existing))
+            !== $this->materialIdentity($this->buildSignatureFromPayload($incomingPayload));
+    }
+
+    /**
+     * The part of a signature that decides whether extracted media still belongs to the section.
+     *
+     * A section bound to an order-of-service item is identified by that item, so its title text
+     * is not compared at all; an unbound title is compared without case or punctuation. Either
+     * way a respelling ("Speak O Lord" → "Speak, O Lord") keeps the media, where comparing the
+     * raw text once deleted a published clip and its song video (canary 9, run 1221). The new
+     * title is still written.
+     *
+     * @param  array{church_service_item_id: int|null, section_type: string, title: ?string, start_time: float, end_time: float}  $signature
+     * @return array{church_service_item_id: int|null, section_type: string, title: ?string, start_time: float, end_time: float}
+     */
+    private function materialIdentity(array $signature): array
+    {
+        $title = $signature['title'];
+
+        $signature['title'] = match (true) {
+            $signature['church_service_item_id'] !== null, $title === null => null,
+            default => trim((string) preg_replace('/[^\p{L}\p{N}]+/u', ' ', mb_strtolower($title))),
+        };
+
+        return $signature;
     }
 
     /**
