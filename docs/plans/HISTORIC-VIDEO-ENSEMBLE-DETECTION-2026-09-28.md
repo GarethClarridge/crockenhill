@@ -89,6 +89,18 @@ following the standing ruling that historic work improves routine processing and
     compositions with no question 1 → 8 of 48, every one's cut right; talk-count errors 0/0; two
     cuts moved by rule 16, both as ruled (1112 includes "Luke chapter 17, from verse 11";
     949 excludes a handover that names no passage).
+18. **A cut is judged by the cut the truth would produce; a sermon's closing prayer is preferred
+    in it (2026-09-30).** The scorer places each ruled talk and sermon span (every acceptable
+    sermon span) on the proposal, neighbours giving way, and has the production resolver plan
+    that cut; the proposal's cut is right when it lands within the sermon's tolerance of any of
+    them. Cuts held by policy either way are reported as unscored with their reason, not
+    scored. Operator: "Including closing prayers in sermons should be actively preferred" —
+    stronger than the 2026-09-28 talk ruling (either way): a sermon truth ends after its closing
+    prayer, with no alternative ending before it. Only 1358 was ruled short of one (3203 → 3323).
+    Replay over the 232 paid draws, structures and questions unchanged: cuts wrong 5 → 0
+    (1050 ×2 plan the same 0–920 cut either way; 1358 ×3 now match); 7 cuts (949, 1250) held
+    either way on `no_high_confidence_sermon_section`; talk-count errors 0/0; no wrong cut
+    reaches extraction unreviewed.
 
 Agreement never overrides an existing content hold. The implementation guarantee is that every
 decision affecting extraction has supported evidence, and unresolved disagreement reaches the
