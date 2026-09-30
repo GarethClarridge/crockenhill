@@ -49,6 +49,56 @@ class ServiceStructureEnsembleScorerTest extends TestCase
     }
 
     #[Test]
+    public function a_cut_past_the_truth_end_is_wrong_and_unflagged_unless_a_question_touches_it(): void
+    {
+        $structure = ServiceStructure::fromSections([$this->section(ServiceSectionType::Sermon, 300, 600)]);
+        $truth = [['type' => 'sermon', 'start' => 300, 'end' => 600, 'basis' => 'operator', 'tolerance' => 20]];
+        $cut = static fn (float $end): array => [
+            'gated' => ['mode' => 'single_span', 'from_sections' => true, 'segments' => [['start_time' => 250.0, 'end_time' => $end]]],
+            'as_written' => ['mode' => 'single_span', 'strategy' => 'adjacent_bible_plus_sermon', 'from_sections' => true, 'segments' => [['start_time' => 250.0, 'end_time' => $end]]],
+        ];
+        $score = fn (float $end, array $disputes): array => app(ServiceStructureEnsembleScorer::class)->score([
+            'structure' => $structure->toArray(),
+            'validation_passed' => true,
+            'degraded' => false,
+            'disputes' => $disputes,
+            'cut' => $cut($end),
+        ], $truth)['cut'];
+
+        $right = $score(610.0, []);
+        $wrongUnreviewed = $score(700.0, []);
+        $wrongQuestioned = $score(700.0, [['type' => 'song', 'start_time' => 640, 'end_time' => 900]]);
+        $wrongElsewhere = $score(700.0, [['type' => 'song', 'start_time' => 1000, 'end_time' => 1200]]);
+
+        $this->assertFalse($right['wrong']);
+        $this->assertTrue($right['reaches_extraction_unreviewed']);
+        $this->assertTrue($wrongUnreviewed['wrong_reaches_extraction_unreviewed']);
+        $this->assertSame(100.0, $wrongUnreviewed['end_error_seconds']);
+        $this->assertFalse($wrongQuestioned['wrong_unflagged']);
+        $this->assertFalse($wrongQuestioned['reaches_extraction_unreviewed']);
+        $this->assertTrue($wrongElsewhere['wrong_unflagged']);
+        $this->assertFalse($wrongElsewhere['wrong_reaches_extraction_unreviewed']);
+    }
+
+    #[Test]
+    public function a_cut_not_planned_from_sections_is_not_scored(): void
+    {
+        $report = app(ServiceStructureEnsembleScorer::class)->score([
+            'structure' => ServiceStructure::fromSections([$this->section(ServiceSectionType::Sermon, 300, 600)])->toArray(),
+            'validation_passed' => true,
+            'degraded' => false,
+            'disputes' => [],
+            'cut' => [
+                'gated' => ['mode' => 'baseline', 'from_sections' => false, 'segments' => [['start_time' => 0.0, 'end_time' => 900.0]]],
+                'as_written' => ['mode' => 'baseline', 'from_sections' => false, 'segments' => [['start_time' => 0.0, 'end_time' => 900.0]]],
+            ],
+        ], [['type' => 'sermon', 'start' => 300, 'end' => 600, 'basis' => 'operator']]);
+
+        $this->assertFalse($report['cut']['scored']);
+        $this->assertFalse($report['cut']['reaches_extraction_unreviewed']);
+    }
+
+    #[Test]
     public function an_accepted_complete_alternative_matches_but_provisional_truth_is_not_verified(): void
     {
         $structure = ServiceStructure::fromSections([$this->section(ServiceSectionType::Sermon, 2706, 4600)]);

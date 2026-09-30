@@ -8,6 +8,7 @@ use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Services\Scripture\ScriptureReferenceResolver;
+use App\Services\Sermon\SermonCutProbe;
 use App\Services\Song\SongTitleHygiene;
 
 /** Scores a composed proposal against explicitly labelled truth without treating consensus as adjudication. */
@@ -144,7 +145,100 @@ class ServiceStructureEnsembleScorer
                 && $disputes === [],
             'degraded' => (bool) ($replay['degraded'] ?? true),
             'refused' => ($replay['validation_passed'] ?? null) !== true,
+            'cut' => is_array($replay['cut'] ?? null)
+                ? $this->scoreCut($replay['cut'], $truth, $matches, $disputes, $replay)
+                : null,
         ];
+    }
+
+    /**
+     * Judges the sermon cut the production resolver planned from this proposal.
+     *
+     * The cut is wrong when the sermon section it starts from missed the truth, or when its
+     * end (the next song, after any closing prayer) misses the truth's end. It reaches
+     * extraction unreviewed only when the run raises no question at all; a wrong cut is
+     * flagged only when a question touches the cut's own span, since a question elsewhere
+     * in the service will not lead a reviewer to it.
+     *
+     * @param  array<string, mixed>  $cut  {gated, as_written} from {@see SermonCutProbe}
+     * @param  list<array<string, mixed>>  $truth
+     * @param  list<array<string, mixed>>  $matches
+     * @param  list<array<string, mixed>>  $disputes
+     * @param  array<string, mixed>  $replay
+     * @return array<string, mixed>
+     */
+    private function scoreCut(array $cut, array $truth, array $matches, array $disputes, array $replay): array
+    {
+        $gated = is_array($cut['gated'] ?? null) ? $cut['gated'] : [];
+        $written = is_array($cut['as_written'] ?? null) ? $cut['as_written'] : [];
+        $segments = ($written['from_sections'] ?? false) === true && is_array($written['segments'] ?? null)
+            ? $written['segments']
+            : [];
+        $sermonTruth = null;
+        $sermonMatch = null;
+
+        foreach ($matches as $match) {
+            if (($match['type'] ?? null) === ServiceSectionType::Sermon->value) {
+                $sermonMatch = $match;
+                $sermonTruth = $truth[$match['truth_index']] ?? null;
+
+                break;
+            }
+        }
+
+        $reachesUnreviewed = ($gated['from_sections'] ?? false) === true
+            && $disputes === []
+            && ($replay['validation_passed'] ?? null) === true
+            && ($replay['degraded'] ?? true) === false;
+
+        if ($segments === [] || ! is_array($sermonTruth)) {
+            return [
+                'strategy' => $written['strategy'] ?? null,
+                'segments' => $segments,
+                'scored' => false,
+                'reaches_extraction_unreviewed' => $reachesUnreviewed,
+            ];
+        }
+
+        $cutStart = (float) $segments[0]['start_time'];
+        $cutEnd = (float) $segments[array_key_last($segments)]['end_time'];
+        $truthEnds = [(float) $sermonTruth['end']];
+
+        foreach ($sermonTruth['alternatives'] ?? [] as $alternative) {
+            if (is_array($alternative) && is_numeric($alternative['end'] ?? null)) {
+                $truthEnds[] = (float) $alternative['end'];
+            }
+        }
+
+        $tolerance = (float) ($sermonTruth['tolerance'] ?? 20);
+        $endError = min(array_map(static fn (float $end): float => abs($cutEnd - $end), $truthEnds));
+        $wrong = ($sermonMatch['status'] ?? null) !== 'matched' || $endError > $tolerance;
+        $flagged = $this->disputeTouches($disputes, $cutStart - 30.0, $cutEnd + 30.0);
+
+        return [
+            'strategy' => $written['strategy'] ?? null,
+            'segments' => $segments,
+            'scored' => true,
+            'sermon_status' => $sermonMatch['status'] ?? null,
+            'end_error_seconds' => round($endError, 2),
+            'wrong' => $wrong,
+            'wrong_unflagged' => $wrong && ! $flagged,
+            'reaches_extraction_unreviewed' => $reachesUnreviewed,
+            'wrong_reaches_extraction_unreviewed' => $wrong && $reachesUnreviewed,
+        ];
+    }
+
+    /** @param  list<array<string, mixed>>  $disputes */
+    private function disputeTouches(array $disputes, float $start, float $end): bool
+    {
+        foreach ($disputes as $dispute) {
+            if (is_numeric($dispute['start_time'] ?? null) && is_numeric($dispute['end_time'] ?? null)
+                && (float) $dispute['start_time'] < $end && (float) $dispute['end_time'] > $start) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

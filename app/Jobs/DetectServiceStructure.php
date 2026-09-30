@@ -7,7 +7,6 @@ namespace App\Jobs;
 use App\Contracts\ServiceStructureInterface;
 use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructure;
-use App\Enums\ChurchServiceItemSource;
 use App\Enums\ProcessingStep;
 use App\Enums\ServiceSectionType;
 use App\Enums\ServiceStructureMode;
@@ -23,6 +22,7 @@ use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\Structure\EnsembleComposition;
 use App\Services\ChurchService\Structure\ServiceStructureDrawExecutor;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleComposer;
+use App\Services\ChurchService\Structure\ServiceStructureEnsembleInput;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleReplay;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleRunner;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
@@ -364,62 +364,11 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         SilenceSnapService $snapService,
         ServiceStructureValidator $validator,
     ): array {
-        $transcriptPath = $this->processingLog->serviceTranscriptPath();
-        $timelinePath = $this->processingLog->audio_timeline_path;
-
-        if (! is_string($transcriptPath)) {
-            throw new \RuntimeException('No full-service transcript recorded for this run; TranscribeFullService must run first.');
-        }
-
-        if (! is_string($timelinePath)) {
-            throw new \RuntimeException('No audio timeline recorded for this run; ClassifyServiceAudio must run first.');
-        }
-
-        $transcriptRaw = Storage::disk(ServiceArtifactDisk::for($transcriptPath))->get($transcriptPath);
-        $timelineRaw = Storage::disk(ServiceArtifactDisk::for($timelinePath))->get($timelinePath);
-
-        if (! is_string($transcriptRaw) || ! is_string($timelineRaw)) {
-            throw new \RuntimeException('Ensemble detection source artifacts are missing.');
-        }
-
-        $transcript = ChurchServiceTranscript::fromArray(json_decode($transcriptRaw, true, flags: JSON_THROW_ON_ERROR));
-        try {
-            $timeline = AudioTimeline::fromJson($timelineRaw);
-        } catch (\UnexpectedValueException $exception) {
-            throw new \RuntimeException("Audio timeline artifact is unreadable ({$timelinePath}): ".$exception->getMessage(), previous: $exception);
-        }
-
-        if ($transcript->isEmpty()) {
-            throw new \RuntimeException('Stored full-service transcript contains no cues.');
-        }
-        $oosItems = $this->loadOosItems();
-        $context = ValidationContext::for(
-            $transcript,
-            $oosItems,
-            ValidationContext::recordingOmitsSongs($this->processingLog->processing_metadata),
-        );
-        $rmsPath = $this->processingLog->rms_log_path;
-        $rms = is_string($rmsPath) && Storage::disk(ServiceArtifactDisk::for($rmsPath))->exists($rmsPath)
-            ? Storage::disk(ServiceArtifactDisk::for($rmsPath))->get($rmsPath)
-            : null;
-
-        $input = [
-            'processing_id' => $this->processingLog->processing_id,
-            'transcript' => $transcript->toArray(),
-            'audio_timeline' => $timeline->toArray(),
-            'oos_items' => $this->oosItemPayloads($oosItems),
-            'validation_context' => ServiceStructureDrawExecutor::contextSnapshot($context),
-            'rms_log' => $rms,
-            'source' => [
-                'church_service_id' => $this->processingLog->church_service_id,
-                'transcript_path' => $transcriptPath,
-                'audio_timeline_path' => $timelinePath,
-                'rms_log_path' => $rmsPath,
-                'transcript_hash' => hash('sha256', $transcriptRaw),
-                'audio_timeline_hash' => hash('sha256', $timelineRaw),
-                'rms_log_hash' => is_string($rms) ? hash('sha256', $rms) : null,
-            ],
-        ];
+        [
+            'input' => $input,
+            'transcript' => $transcript,
+            'context' => $context,
+        ] = app(ServiceStructureEnsembleInput::class)->build($this->processingLog, $this->resolveChurchService());
 
         $runner = new ServiceStructureEnsembleRunner(
             new ServiceStructureDrawExecutor($detector, $snapService, app(SoundStage::class), $validator),
@@ -777,31 +726,11 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
     }
 
     /**
-     * The planned service: only items a source other than the recording attests.
-     *
-     * An item the pipeline's own projection wrote is this detector's earlier answer, and
-     * reading it back as the plan would make each round follow the last (run 949's four
-     * church slots stayed talks across two canaries). A service whose items are all
-     * self-written is detected from its transcript alone. Provenance is read from the
-     * evidence, not the `source` column, which keeps the first writer after a merge.
-     *
      * @return list<ChurchServiceItem>
      */
     private function loadOosItems(): array
     {
-        $churchService = $this->resolveChurchService();
-
-        if (! $churchService instanceof ChurchService) {
-            return [];
-        }
-
-        return array_values($churchService->items()
-            ->orderBy('position')
-            ->orderBy('id')
-            ->get()
-            ->filter(fn (ChurchServiceItem $item): bool => collect($item->provenanceSources())
-                ->contains(fn (ChurchServiceItemSource $source): bool => ! $source->isDetected()))
-            ->all());
+        return app(ServiceStructureEnsembleInput::class)->oosItems($this->resolveChurchService());
     }
 
     private function resolveChurchService(): ?ChurchService
@@ -832,20 +761,11 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
 
     /**
      * @param  list<ChurchServiceItem>  $items
-     * @return array<int, array{id: int, position: int, type: string, title: ?string, song_id: ?int}>
+     * @return list<array{id: int, position: int, type: string, title: ?string, song_id: ?int}>
      */
     private function oosItemPayloads(array $items): array
     {
-        return array_map(
-            static fn (ChurchServiceItem $item): array => [
-                'id' => (int) $item->id,
-                'position' => (int) $item->position,
-                'type' => $item->semanticSectionType()->value,
-                'title' => $item->title,
-                'song_id' => $item->song_id === null ? null : (int) $item->song_id,
-            ],
-            $items
-        );
+        return app(ServiceStructureEnsembleInput::class)->oosItemPayloads($items);
     }
 
     private function snapToSilences(
