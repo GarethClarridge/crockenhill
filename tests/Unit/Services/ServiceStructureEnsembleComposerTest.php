@@ -248,6 +248,47 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         $this->assertSame('Amazing Grace', $result->structure->sectionsOfType(ServiceSectionType::Song)[0]->songTitle);
     }
 
+    /** The shape of run 1025 in the 2026-09-30 evaluation: one item, its title spelt two ways. */
+    #[Test]
+    public function a_song_bound_to_one_order_of_service_item_is_one_song_however_its_title_is_spelt(): void
+    {
+        $song = fn (string $title, ?int $item): ServiceStructure => $this->structure(
+            new ServiceStructureSection(ServiceSectionType::Song, null, 100.0, 200.0, 0.9, $item, $title, null),
+            $this->section(ServiceSectionType::Sermon, 210, 500),
+        );
+
+        $bound = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($song('Praise My Soul The King Of Heaven', 4860)),
+            1 => $this->vote($song('Praise My Soul The King Of Heaven', 4860)),
+            2 => $this->vote($song('Praise My Soul, the King of Heaven', 4860)),
+            3 => $this->vote($song('Praise My Soul, the King of Heaven', 4860)),
+        ]);
+        $unbound = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($song('Praise My Soul The King Of Heaven', null)),
+            1 => $this->vote($song('Praise My Soul The King Of Heaven', null)),
+            2 => $this->vote($song('Bless the Lord, O my soul', null)),
+            3 => $this->vote($song('Bless the Lord, O my soul', null)),
+        ]);
+        $differentItems = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($song('Praise My Soul The King Of Heaven', 4860)),
+            1 => $this->vote($song('Praise My Soul The King Of Heaven', 4860)),
+            2 => $this->vote($song('Praise My Soul The King Of Heaven', 4861)),
+            3 => $this->vote($song('Praise My Soul The King Of Heaven', 4860)),
+        ]);
+        $boundAndUnbound = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($song('Praise My Soul The King Of Heaven', 4860)),
+            1 => $this->vote($song('Praise My Soul The King Of Heaven', 4860)),
+            2 => $this->vote($song('Praise My Soul The King Of Heaven', null)),
+            3 => $this->vote($song('Praise My Soul The King Of Heaven', 4860)),
+        ]);
+
+        $this->assertSame([], $bound->disputes);
+        $this->assertSame(4860, $bound->structure->sectionsOfType(ServiceSectionType::Song)[0]->oosItemId);
+        $this->assertContains('song', array_column($unbound->disputes, 'type'));
+        $this->assertContains('song', array_column($differentItems->disputes, 'type'));
+        $this->assertContains('song', array_column($boundAndUnbound->disputes, 'type'));
+    }
+
     #[Test]
     public function no_sermon_is_clean_only_when_each_voter_explicitly_asserts_absence(): void
     {

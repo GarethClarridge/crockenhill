@@ -141,6 +141,40 @@ class EvaluateServiceStructureEnsembleCommandTest extends TestCase
     }
 
     #[Test]
+    public function a_replay_recomposes_saved_draws_without_drawing_or_spending(): void
+    {
+        $log = $this->serviceRun();
+        $manifest = $this->manifest([$log->id], 2);
+        $this->artisan('structure:ensemble-evaluate', ['manifest' => $manifest, '--detector' => 'mock'])->assertSuccessful();
+        $bought = $this->report();
+        $this->failingDetector(everyNthCall: 1);
+
+        $replayReport = $this->directory.'/replay-report.json';
+        $this->artisan('structure:ensemble-evaluate', [
+            'manifest' => $manifest,
+            '--replay-draws' => $this->directory.'/manifest-report-draws',
+            '--report' => $replayReport,
+        ])->assertSuccessful();
+
+        $replay = json_decode((string) File::get($replayReport), true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame(0, $replay['calls']);
+        $this->assertSame(0, $replay['spent_usd']);
+        $this->assertSame(array_column($bought['sequences'], 'structure'), array_column($replay['sequences'], 'structure'));
+        $this->assertSame([], File::glob($this->directory.'/replay-report-draws/*slot*'));
+    }
+
+    #[Test]
+    public function a_replay_refuses_a_detector(): void
+    {
+        $this->expectExceptionMessage('A replay makes no draws');
+        $this->artisan('structure:ensemble-evaluate', [
+            'manifest' => $this->manifest([$this->serviceRun()->id], 1),
+            '--replay-draws' => $this->directory,
+            '--detector' => 'mock',
+        ]);
+    }
+
+    #[Test]
     public function a_resume_under_a_changed_manifest_is_refused(): void
     {
         $log = $this->serviceRun();

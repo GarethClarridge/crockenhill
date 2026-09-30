@@ -39,6 +39,8 @@ use Throwable;
  * and are left with fewer than three valid votes (ruled 2026-09-30: a stray server error is
  * noise; an outage is not). --resume continues a stopped report under the same manifest and
  * inputs, keeping its spend and calls against the caps and every sequence already bought.
+ * --replay-draws recomposes, re-cuts and rescores a finished evaluation's saved draws under the
+ * current code, so a candidate rule is measured on bought evidence before it is adopted.
  */
 class EvaluateServiceStructureEnsembleCommand extends Command
 {
@@ -49,7 +51,8 @@ class EvaluateServiceStructureEnsembleCommand extends Command
                             {manifest : Predeclared evaluation manifest JSON}
                             {--detector= : mock|openai; omitted, no draw is made and only the plan is printed}
                             {--report= : Write the JSON report here (default: beside the manifest)}
-                            {--resume : Continue the stopped report at --report under the same manifest and inputs}';
+                            {--resume : Continue the stopped report at --report under the same manifest and inputs}
+                            {--replay-draws= : Compose, cut and score the draws already saved in this directory instead of drawing; costs nothing}';
 
     protected $description = 'Run the predeclared four-draw ensemble evaluation against labelled truth, read-only';
 
@@ -173,7 +176,18 @@ class EvaluateServiceStructureEnsembleCommand extends Command
             $manifest['reserve_per_call_usd'],
         ));
 
-        if (! is_string($detector) || $detector === '') {
+        $replayDirectory = $this->option('replay-draws');
+        $replaying = is_string($replayDirectory) && $replayDirectory !== '';
+
+        if ($replaying && is_string($detector) && $detector !== '') {
+            throw new RuntimeException('A replay makes no draws; omit --detector.');
+        }
+
+        if ($replaying) {
+            $report['replayed_from'] = $replayDirectory;
+        }
+
+        if (! $replaying && (! is_string($detector) || $detector === '')) {
             $report['dry_run'] = true;
             $this->writeReport($reportPath, $report);
             $this->info("Dry run: inputs built, no draw made. Report: {$reportPath}");
@@ -186,28 +200,28 @@ class EvaluateServiceStructureEnsembleCommand extends Command
         $started = microtime(true);
 
         foreach ($queue as $number => $item) {
-            if ($calls + 4 > $manifest['max_calls']) {
-                $stopReason = 'max_calls';
-
-                break;
-            }
-
-            if ($spent + 4 * $manifest['reserve_per_call_usd'] > $manifest['max_spend_usd']) {
-                $stopReason = 'max_spend';
-
-                break;
-            }
-
-            if ($lossyRun >= self::MAX_CONSECUTIVE_LOSSY_SEQUENCES) {
-                $stopReason = 'repeated_unavailable_draws';
-
-                break;
-            }
-
             $runId = $item['run'];
             $run = $prepared[$runId];
-            $outcomes = $this->draw($run['path'], "{$workDirectory}/{$item['set']}-{$runId}-s{$item['sequence']}", array_values($models), $detector);
-            $calls += 4;
+            $drawBase = "{$item['set']}-{$runId}-s{$item['sequence']}";
+
+            if ($replaying) {
+                $outcomes = $this->readOutcomes("{$replayDirectory}/{$drawBase}", array_values($models));
+            } else {
+                $stopReason = match (true) {
+                    $calls + 4 > $manifest['max_calls'] => 'max_calls',
+                    $spent + 4 * $manifest['reserve_per_call_usd'] > $manifest['max_spend_usd'] => 'max_spend',
+                    $lossyRun >= self::MAX_CONSECUTIVE_LOSSY_SEQUENCES => 'repeated_unavailable_draws',
+                    default => null,
+                };
+
+                if ($stopReason !== null) {
+                    break;
+                }
+
+                $outcomes = $this->draw($run['path'], "{$workDirectory}/{$drawBase}", array_values($models), (string) $detector);
+                $calls += 4;
+            }
+
             $draws = [];
             $slots = [];
             $sequenceCost = 0.0;
@@ -235,7 +249,7 @@ class EvaluateServiceStructureEnsembleCommand extends Command
                 }
             }
 
-            $spent += $sequenceCost;
+            $spent += $replaying ? 0.0 : $sequenceCost;
             $composition = $composer->compose($draws);
             $lostDraws = array_intersect(array_column($slots, 'status'), ['unavailable', 'interrupted']);
             $lossyRun = $lostDraws !== [] && $composition->validVotes < 3 ? $lossyRun + 1 : 0;
@@ -384,6 +398,17 @@ class EvaluateServiceStructureEnsembleCommand extends Command
             $this->warn('A draw process failed: '.mb_substr($exception->getMessage(), 0, 300));
         }
 
+        return $this->readOutcomes($outputBase, $models);
+    }
+
+    /**
+     * Each slot's saved outcome; a slot with no file of its own model is an interrupted draw.
+     *
+     * @param  list<string>  $models
+     * @return array<int, array<string, mixed>>
+     */
+    private function readOutcomes(string $outputBase, array $models): array
+    {
         $outcomes = [];
 
         foreach ($models as $slot => $model) {

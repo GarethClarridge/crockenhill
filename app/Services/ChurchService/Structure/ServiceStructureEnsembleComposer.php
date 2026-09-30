@@ -579,13 +579,19 @@ class ServiceStructureEnsembleComposer
             + abs($claim['section']->endTime - $member['section']->endTime), $group));
     }
 
+    /**
+     * A song bound to an order-of-service item is that item's song, so two voters binding the
+     * same item agree however they spell its title (ruled 2026-09-30); the title is compared
+     * only for a song no voter could bind.
+     */
     private function signature(ServiceStructureSection $section): string
     {
+        $boundSong = $section->type === ServiceSectionType::Song && $section->oosItemId !== null;
         $fields = [
             $section->type->value,
             $section->talkType?->value,
             $section->oosItemId,
-            $section->songTitle === null ? null : $this->songTitles->normalise($section->songTitle),
+            $section->songTitle === null || $boundSong ? null : $this->songTitles->normalise($section->songTitle),
             $this->normalizedReference($section->readingReference),
             $this->normalizedReference($section->sermonReference),
         ];
