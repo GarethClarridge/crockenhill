@@ -845,14 +845,16 @@ class DetectServiceStructureTest extends TestCase
         // bible_reading section anywhere near the sermon (the 2024-11-03
         // corpus run absorbed the Luke reading into the pastoral prayer).
         // One feedback-guided retry should recover the reading.
+        // Two of four drafts each way: a three-to-one vote would settle it (ruled 2026-10-01).
         MockServiceStructureService::useStructureSequence(
+            $this->validStructure(),
+            $this->validStructure(),
             ServiceStructure::fromSections([
                 $this->section('welcome', 0.0, 120.0),
                 $this->section('prayer', 420.0, 590.0),
                 $this->section('sermon', 600.0, 2200.0),
                 $this->section('song', 2210.0, 2400.0),
             ], model: 'mock'),
-            $this->validStructure(),
         );
 
         $this->runJob($log);
@@ -979,19 +981,22 @@ class DetectServiceStructureTest extends TestCase
 
         // The Psalm read before the sermon is not the Luke passage it preaches;
         // the retry recovers Luke and keeps the talk within a re-draw's jitter.
+        $recovered = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('short_talk', 136.0, 392.0),
+            $this->referencedSection('bible_reading', 400.0, 470.0, readingReference: 'Psalm 23'),
+            $this->referencedSection('bible_reading', 480.0, 590.0, readingReference: 'Luke 15:1-10'),
+            $this->referencedSection('sermon', 600.0, 2200.0, sermonReference: 'Luke 15:1-10'),
+            $this->section('song', 2210.0, 2400.0),
+        ], model: 'mock');
+        // Two of four drafts each way: a three-to-one vote would settle it (ruled 2026-10-01).
         MockServiceStructureService::useStructureSequence(
+            $recovered,
+            $recovered,
             ServiceStructure::fromSections([
                 $this->section('welcome', 0.0, 120.0),
                 $this->section('short_talk', 130.0, 400.0),
                 $this->referencedSection('bible_reading', 420.0, 590.0, readingReference: 'Psalm 23'),
-                $this->referencedSection('sermon', 600.0, 2200.0, sermonReference: 'Luke 15:1-10'),
-                $this->section('song', 2210.0, 2400.0),
-            ], model: 'mock'),
-            ServiceStructure::fromSections([
-                $this->section('welcome', 0.0, 120.0),
-                $this->section('short_talk', 136.0, 392.0),
-                $this->referencedSection('bible_reading', 400.0, 470.0, readingReference: 'Psalm 23'),
-                $this->referencedSection('bible_reading', 480.0, 590.0, readingReference: 'Luke 15:1-10'),
                 $this->referencedSection('sermon', 600.0, 2200.0, sermonReference: 'Luke 15:1-10'),
                 $this->section('song', 2210.0, 2400.0),
             ], model: 'mock'),
@@ -1166,7 +1171,8 @@ class DetectServiceStructureTest extends TestCase
             $this->referencedSection('sermon', 600.0, 2200.0, sermonReference: 'Luke 15:1-10'),
             $this->section('song', 2210.0, 2400.0),
         ], model: 'mock');
-        MockServiceStructureService::useStructureSequence($psalm, $luke);
+        // Two of four drafts each way: a three-to-one vote would settle it (ruled 2026-10-01).
+        MockServiceStructureService::useStructureSequence($luke, $luke, $psalm);
 
         $this->runJob($log);
         $log->refresh();
@@ -1255,19 +1261,22 @@ class DetectServiceStructureTest extends TestCase
 
         // The retry recovers the reading but, being a fresh draw, also cuts the
         // talk short. A reading is not worth a truncated talk: keep the original.
+        $recovered = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('short_talk', 130.0, 250.0),
+            $this->section('other', 250.0, 400.0),
+            $this->section('bible_reading', 420.0, 590.0),
+            $this->section('sermon', 600.0, 2200.0),
+            $this->section('song', 2210.0, 2400.0),
+        ], model: 'mock');
+        // Two of four drafts each way: a three-to-one vote would settle it (ruled 2026-10-01).
         MockServiceStructureService::useStructureSequence(
+            $recovered,
+            $recovered,
             ServiceStructure::fromSections([
                 $this->section('welcome', 0.0, 120.0),
                 $this->section('short_talk', 130.0, 400.0),
                 $this->section('prayer', 420.0, 590.0),
-                $this->section('sermon', 600.0, 2200.0),
-                $this->section('song', 2210.0, 2400.0),
-            ], model: 'mock'),
-            ServiceStructure::fromSections([
-                $this->section('welcome', 0.0, 120.0),
-                $this->section('short_talk', 130.0, 250.0),
-                $this->section('other', 250.0, 400.0),
-                $this->section('bible_reading', 420.0, 590.0),
                 $this->section('sermon', 600.0, 2200.0),
                 $this->section('song', 2210.0, 2400.0),
             ], model: 'mock'),

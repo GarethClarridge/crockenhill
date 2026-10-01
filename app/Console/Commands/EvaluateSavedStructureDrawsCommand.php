@@ -186,6 +186,7 @@ class EvaluateSavedStructureDrawsCommand extends Command
                 'slots' => $slots,
                 'disputes' => count($composition->disputes),
                 'disputes_by_type' => $disputesByType,
+                'majority_decisions' => count($composition->majorityDecisions),
                 'talks_written' => array_map(
                     static fn (ServiceStructureSection $talk): array => [$talk->startTime, $talk->endTime, $talk->reviewFlags],
                     $composition->structure->sectionsOfType(ServiceSectionType::ShortTalk),

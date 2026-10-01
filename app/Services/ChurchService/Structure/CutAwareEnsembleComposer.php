@@ -41,7 +41,8 @@ class CutAwareEnsembleComposer
 
         $neutral = [];
 
-        foreach ($composition->disputes as $dispute) {
+        // A filler span the majority settled still reaches the skim list only if it can move the cut.
+        foreach ([...$composition->disputes, ...$composition->majorityDecisions] as $dispute) {
             $groups = $dispute['groups'] ?? (isset($dispute['group']) ? [$dispute['group']] : []);
 
             if (! in_array($dispute['type'] ?? null, self::CUT_JUDGED_TYPES, true) || $groups === []) {

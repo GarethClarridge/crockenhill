@@ -285,6 +285,7 @@ class EvaluateServiceStructureEnsembleCommand extends Command
                 'validation_failures' => $validation?->failureCodes() ?? [],
                 'degraded' => $composition->degraded,
                 'disputes' => $composition->disputes,
+                'majority_decisions' => $composition->majorityDecisions,
                 'structure' => $replay['structure'],
                 'cut' => $cut,
                 'score' => is_array($truth) && array_is_list($truth)
@@ -556,6 +557,7 @@ class EvaluateServiceStructureEnsembleCommand extends Command
                 'flagged' => count(array_filter($items, static fn (array $item): bool => $item['disputes'] !== [])),
                 'questions_per_sequence' => round(array_sum($byType) / max(1, $count), 2),
                 'questions_per_sequence_by_type' => array_map(static fn (int $n): float => round($n / max(1, $count), 2), $byType),
+                'majority_decisions_per_sequence' => round(array_sum(array_map(static fn (array $item): int => count($item['majority_decisions'] ?? []), $items)) / max(1, $count), 2),
                 'refused' => count(array_filter($items, static fn (array $item): bool => $item['refused'])),
                 'validation_failed' => count(array_filter($items, static fn (array $item): bool => ! $item['refused'] && $item['validation_failures'] !== [])),
                 'degraded' => count(array_filter($items, static fn (array $item): bool => $item['degraded'])),

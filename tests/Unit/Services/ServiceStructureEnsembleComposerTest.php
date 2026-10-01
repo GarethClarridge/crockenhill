@@ -9,14 +9,126 @@ use App\Data\ServiceSermonAbsence;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleComposer;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\ValidationResult;
+use App\Services\Song\SongTitleResolver;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class ServiceStructureEnsembleComposerTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->app->instance(SongTitleResolver::class, SongTitleResolver::fromRows([
+            ['id' => 304, 'canonical_key' => 'god we praise you 177', 'title' => 'God We Praise You #177', 'praise_number' => '177', 'first_line_key' => 'God, we praise you, God, we bless you'],
+            ['id' => 991, 'canonical_key' => 'we have heard a joyful sound', 'title' => 'We Have Heard A Joyful Sound', 'alternate_title' => 'Jesus Saves'],
+            ['id' => 1, 'canonical_key' => 'amazing grace', 'title' => 'Amazing Grace'],
+            ['id' => 2, 'canonical_key' => 'be thou my vision', 'title' => 'Be Thou My Vision'],
+        ]));
+    }
+
+    /** The shape of runs 949, 964, 1221, 1356 and 1358 in canary 9: one passage cited at two granularities. */
+    #[Test]
+    public function overlapping_references_are_one_passage_unless_they_pair_the_sermon_differently(): void
+    {
+        $draw = fn (string $readingReference, string $sermonReference): ServiceStructure => $this->structure(
+            $this->section(ServiceSectionType::BibleReading, 100, 200, $readingReference),
+            new ServiceStructureSection(ServiceSectionType::Sermon, null, 1000.0, 3000.0, 0.9, null, null, null, $sermonReference),
+        );
+        $votes = fn (array $first, array $second): array => [
+            0 => $this->vote($draw(...$first)),
+            1 => $this->vote($draw(...$first)),
+            2 => $this->vote($draw(...$second)),
+            3 => $this->vote($draw(...$second)),
+        ];
+        $composer = app(ServiceStructureEnsembleComposer::class);
+
+        $granularity = $composer->compose($votes(['Psalm 95', 'Philippians 3:4-9'], ['Psalm 95:1-7', 'Philippians 3:4b-9']));
+        $differentPassages = $composer->compose($votes(['Acts 17:22-31', 'Acts 17:22-25'], ['Acts 17:22-31', '1 Peter 4:7-11']));
+        $differentPairing = $composer->compose($votes(['John 19:1-16', 'John 19'], ['John 19:1-16', 'John 19:17-42']));
+
+        $this->assertSame([], $granularity->disputes);
+        $this->assertSame(['sermon'], array_column($differentPassages->disputes, 'type'));
+        $this->assertSame(['sermon'], array_column($differentPairing->disputes, 'type'));
+    }
+
+    /** The shape of runs 964, 1304 and 1356 in canary 9; 1311 and 1304 ruled an untitled song both ways. */
+    #[Test]
+    public function unbound_titles_naming_one_catalogued_song_are_one_song(): void
+    {
+        $votes = function (?string $first, ?string $second): array {
+            $draw = fn (?string $title): ServiceStructure => $this->structure(
+                new ServiceStructureSection(ServiceSectionType::Song, null, 100.0, 200.0, 0.9, null, $title, null),
+                $this->section(ServiceSectionType::Sermon, 1000, 3000),
+            );
+
+            return [0 => $this->vote($draw($first)), 1 => $this->vote($draw($first)), 2 => $this->vote($draw($second)), 3 => $this->vote($draw($second))];
+        };
+        $composer = app(ServiceStructureEnsembleComposer::class);
+
+        $this->assertSame([], $composer->compose($votes('Jesus Saves', 'We Have Heard a Joyful Sound (Jesus Saves)'))->disputes);
+        $this->assertSame([], $composer->compose($votes('God, we praise you, God, we bless you', 'God, We Praise You'))->disputes);
+        $this->assertSame(['song'], array_column($composer->compose($votes('Amazing Grace', 'Be Thou My Vision'))->disputes, 'type'));
+        $this->assertSame(['song'], array_column($composer->compose($votes('Everlasting God', 'Strength Will Rise'))->disputes, 'type'));
+        $this->assertSame(['song'], array_column($composer->compose($votes('Amazing Grace', null))->disputes, 'type'));
+    }
+
+    /** The shape of run 936 in canary 9: the operator confirms a talk's type in its own review. */
+    #[Test]
+    public function a_proposed_talk_type_is_left_to_talk_type_review(): void
+    {
+        $draw = fn (?TalkType $talkType): ServiceStructure => $this->structure(
+            new ServiceStructureSection(ServiceSectionType::ShortTalk, null, 1495.0, 2103.0, 0.9, 3636, null, null, talkType: $talkType),
+            $this->section(ServiceSectionType::Sermon, 2600, 3800),
+        );
+
+        $result = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($draw(TalkType::PartnerUpdate)),
+            1 => $this->vote($draw(TalkType::PartnerUpdate)),
+            2 => $this->vote($draw(null)),
+            3 => $this->vote($draw(null)),
+        ]);
+
+        $this->assertSame([], $result->disputes);
+        $this->assertCount(1, $result->structure->sectionsOfType(ServiceSectionType::ShortTalk));
+    }
+
+    /**
+     * Canary 9 and the 232 §6 draws: where the truth was ruled, a three-to-one vote was never
+     * wrong about a talk or sermon. The majority decides; each decision is kept for a skim list
+     * and stays answerable, but holds nothing.
+     */
+    #[Test]
+    public function a_three_to_one_majority_decides_and_is_recorded_for_the_skim_list(): void
+    {
+        $draw = fn (int $talkEnd): ServiceStructure => $this->structure(
+            $this->section(ServiceSectionType::ShortTalk, 632, $talkEnd),
+            $this->section(ServiceSectionType::Sermon, 2454, 4310),
+        );
+
+        $result = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($draw(985)),
+            1 => $this->vote($draw(1018)),
+            2 => $this->vote($draw(985)),
+            3 => $this->vote($draw(985)),
+        ]);
+        $talks = $result->structure->sectionsOfType(ServiceSectionType::ShortTalk);
+
+        $this->assertSame([], $result->disputes);
+        $this->assertFalse($result->requiresReview());
+        $this->assertSame(985.0, $talks[0]->endTime);
+        $this->assertNotContains(ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES, $talks[0]->reviewFlags);
+        $this->assertNotContains(ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES, $result->structure->sectionsOfType(ServiceSectionType::Sermon)[0]->reviewFlags);
+        $this->assertCount(1, $result->majorityDecisions);
+        $this->assertSame('short_talk', $result->majorityDecisions[0]['type']);
+        $this->assertCount(2, $result->majorityDecisions[0]['alternatives']);
+        $this->assertIsString($result->majorityDecisions[0]['question_id']);
+    }
+
     #[Test]
     public function one_voter_cannot_write_an_unflagged_talk(): void
     {
@@ -34,9 +146,9 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         ]);
 
         $this->assertSame([], $result->structure->sectionsOfType(ServiceSectionType::ShortTalk));
-        $this->assertNotEmpty($result->disputes);
-        $this->assertTrue($result->requiresReview());
-        $this->assertFalse($result->disputes[0]['written']);
+        $this->assertNotContains('short_talk', array_column($result->disputes, 'type'));
+        $this->assertSame(['short_talk'], array_column($result->majorityDecisions, 'type'));
+        $this->assertFalse($result->majorityDecisions[0]['written']);
     }
 
     #[Test]
@@ -147,7 +259,7 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         );
 
         $result = app(ServiceStructureEnsembleComposer::class)->compose([
-            0 => $this->vote($before), 1 => $this->vote($after),
+            0 => $this->vote($before), 1 => $this->vote($before),
             2 => $this->vote($after), 3 => $this->vote($song),
         ]);
 
@@ -263,7 +375,7 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         );
         $votes = [
             0 => $this->vote($draw(2209)),
-            1 => $this->vote($draw(2226)),
+            1 => $this->vote($draw(2209)),
             2 => $this->vote($draw(2226)),
             3 => $this->vote($draw(2226)),
         ];
@@ -300,10 +412,10 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         $composer = app(ServiceStructureEnsembleComposer::class);
 
         $spoken = $composer->compose([
-            0 => $this->vote($draw(2190)), 1 => $this->vote($draw(2226)), 2 => $this->vote($draw(2226)), 3 => $this->vote($draw(2226)),
+            0 => $this->vote($draw(2190)), 1 => $this->vote($draw(2190)), 2 => $this->vote($draw(2226)), 3 => $this->vote($draw(2226)),
         ], $transcript);
         $sung = $composer->compose([
-            0 => $this->vote($draw(2190, true)), 1 => $this->vote($draw(2226, true)), 2 => $this->vote($draw(2226, true)), 3 => $this->vote($draw(2226, true)),
+            0 => $this->vote($draw(2190, true)), 1 => $this->vote($draw(2190, true)), 2 => $this->vote($draw(2226, true)), 3 => $this->vote($draw(2226, true)),
         ], $transcript);
 
         $this->assertSame(2190.0, $spoken->structure->sectionsOfType(ServiceSectionType::BibleReading)[0]->startTime);
@@ -335,13 +447,13 @@ class ServiceStructureEnsembleComposerTest extends TestCase
             0 => $this->vote($song('Praise My Soul The King Of Heaven', 4860)),
             1 => $this->vote($song('Praise My Soul The King Of Heaven', 4860)),
             2 => $this->vote($song('Praise My Soul The King Of Heaven', 4861)),
-            3 => $this->vote($song('Praise My Soul The King Of Heaven', 4860)),
+            3 => $this->vote($song('Praise My Soul The King Of Heaven', 4861)),
         ]);
         $boundAndUnbound = app(ServiceStructureEnsembleComposer::class)->compose([
             0 => $this->vote($song('Praise My Soul The King Of Heaven', 4860)),
             1 => $this->vote($song('Praise My Soul The King Of Heaven', 4860)),
             2 => $this->vote($song('Praise My Soul The King Of Heaven', null)),
-            3 => $this->vote($song('Praise My Soul The King Of Heaven', 4860)),
+            3 => $this->vote($song('Praise My Soul The King Of Heaven', null)),
         ]);
 
         $this->assertSame([], $bound->disputes);
@@ -478,13 +590,13 @@ class ServiceStructureEnsembleComposerTest extends TestCase
             0 => $this->vote($draw('Amazing Grace')),
             1 => $this->vote($draw('Amazing Grace')),
             2 => $this->vote($draw('Be Thou My Vision')),
-            3 => $this->vote($draw('Amazing Grace')),
+            3 => $this->vote($draw('Be Thou My Vision')),
         ]);
         $presence = app(ServiceStructureEnsembleComposer::class)->compose([
             0 => $this->vote($draw('Amazing Grace')),
             1 => $this->vote($draw('Amazing Grace')),
             2 => $this->vote($draw(null)),
-            3 => $this->vote($draw('Amazing Grace')),
+            3 => $this->vote($draw(null)),
         ]);
 
         $this->assertContains('song', array_column($identity->disputes, 'type'));
@@ -530,13 +642,13 @@ class ServiceStructureEnsembleComposerTest extends TestCase
             0 => $this->vote($draw('Isaiah 40')),
             1 => $this->vote($draw('Isaiah 40')),
             2 => $this->vote($draw('Isaiah 53')),
-            3 => $this->vote($draw('Isaiah 40')),
+            3 => $this->vote($draw('Isaiah 53')),
         ]);
         $presence = app(ServiceStructureEnsembleComposer::class)->compose([
             0 => $this->vote($draw('Isaiah 40')),
             1 => $this->vote($draw('Isaiah 40')),
             2 => $this->vote($draw(null)),
-            3 => $this->vote($draw('Isaiah 40')),
+            3 => $this->vote($draw(null)),
         ]);
 
         $this->assertContains('bible_reading', array_column($reference->disputes, 'type'));

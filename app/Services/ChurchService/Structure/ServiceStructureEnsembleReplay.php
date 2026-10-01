@@ -117,6 +117,7 @@ class ServiceStructureEnsembleReplay
             'structure' => $composition->structure->toArray(),
             'degraded' => $composition->degraded,
             'disputes' => $composition->disputes,
+            'majority_decisions' => $composition->majorityDecisions,
             'provenance' => $composition->provenance,
             'before' => $evidence['composition'] ?? null,
         ];

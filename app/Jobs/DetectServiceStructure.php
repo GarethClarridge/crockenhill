@@ -404,6 +404,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
                 $composition->refused,
                 $composition->validVotes,
                 $replayed['degraded_reviewed'],
+                $replayed['majority_decisions'],
             );
         }
 
@@ -421,6 +422,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             'degraded' => $composition->degraded,
             'degraded_reviewed' => $composition->degradedReviewed,
             'disputes' => $composition->disputes,
+            'majority_decisions' => $composition->majorityDecisions,
             'provenance' => $composition->provenance,
             'applied_rulings' => $replayed['applied_rulings'] ?? [],
             'stale_rulings' => $replayed['stale_rulings'] ?? [],

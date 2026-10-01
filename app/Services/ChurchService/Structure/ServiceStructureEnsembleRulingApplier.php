@@ -40,17 +40,23 @@ class ServiceStructureEnsembleRulingApplier
     public function apply(array $proposal, array $rulings): array
     {
         $sourceHash = $proposal['source_hash'] ?? null;
-        $disputes = $proposal['disputes'] ?? null;
+        $questions = $proposal['disputes'] ?? null;
+        $majorityDecisions = $proposal['majority_decisions'] ?? [];
 
-        if (! is_string($sourceHash) || ! is_array($disputes) || ! is_array($proposal['structure'] ?? null)) {
+        if (! is_string($sourceHash) || ! is_array($questions) || ! is_array($majorityDecisions) || ! is_array($proposal['structure'] ?? null)) {
             throw new InvalidArgumentException('Ensemble proposal is incomplete.');
         }
+
+        // A majority decision is answered like a question, so an operator's answer outranks the vote.
+        $decidedFrom = count($questions);
+        $disputes = [...array_values($questions), ...array_values($majorityDecisions)];
 
         $structure = ServiceStructure::fromArray($proposal['structure']);
         $sections = $structure->sections;
         $sermonAbsence = $structure->sermonAbsence;
         $attemptId = $proposal['attempt_id'] ?? null;
         $remaining = [];
+        $remainingDecisions = [];
         $applied = [];
         $stale = [];
         $conflicting = [];
@@ -114,7 +120,15 @@ class ServiceStructureEnsembleRulingApplier
             $answer = $key !== null ? ($current[$key] ?? null) : null;
 
             if ($answer === null) {
-                $remaining[] = $key === null ? $dispute : [...$dispute, 'ruling_key' => $rulingKeyByUnit[$key]];
+                $unanswered = $key === null ? $dispute : [...$dispute, 'ruling_key' => $rulingKeyByUnit[$key]];
+
+                if ($disputeIndex >= $decidedFrom) {
+                    $remainingDecisions[] = $unanswered;
+
+                    continue;
+                }
+
+                $remaining[] = $unanswered;
 
                 continue;
             }
@@ -228,6 +242,7 @@ class ServiceStructureEnsembleRulingApplier
             ...$proposal,
             'structure' => $corrected->toArray(),
             'disputes' => $remaining,
+            'majority_decisions' => $remainingDecisions,
             'degraded_reviewed' => $degradedReviewed,
             'applied_rulings' => $applied,
             'stale_rulings' => $stale,

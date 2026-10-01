@@ -7,9 +7,11 @@ namespace App\Services\ChurchService\Structure;
 use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
+use App\Data\SongTitleMatch;
 use App\Enums\ServiceSectionType;
 use App\Services\Scripture\ScriptureReferenceResolver;
 use App\Services\Song\SongTitleHygiene;
+use App\Services\Song\SongTitleResolver;
 
 /**
  * Deterministically composes complete validated draws. Every selected section is
@@ -37,6 +39,23 @@ class ServiceStructureEnsembleComposer
     private const SAME_SPAN_OVERLAP = 0.5;
 
     /**
+     * Votes that decide a claim without a question (ruled 2026-10-01). Where the truth was ruled,
+     * a three-to-one vote was never wrong about a talk or sermon: 26 canary-9 answers and 31 splits
+     * in the 232 §6 draws. Only ties and three-way splits are asked.
+     */
+    private const MAJORITY_VOTES = 3;
+
+    /** Catalogue matches that name one song without inference; a fuzzy or hymnbook-absent match guesses. */
+    private const DETERMINISTIC_SONG_MATCHES = [
+        SongTitleMatch::TYPE_EXACT,
+        SongTitleMatch::TYPE_PRAISE_NUMBER,
+        SongTitleMatch::TYPE_STRIPPED_NUMBER,
+        SongTitleMatch::TYPE_LOOSE_TITLE,
+        SongTitleMatch::TYPE_ALTERNATE_TITLE,
+        SongTitleMatch::TYPE_FIRST_LINE,
+    ];
+
+    /**
      * The longest leader's introduction two reading starts may differ by and still be one
      * reading (ruled 2026-09-30): "Peter will come and do his readings", "Luke chapter 16".
      */
@@ -45,9 +64,13 @@ class ServiceStructureEnsembleComposer
     /** Spoken forms of a numbered book's prefix. */
     private const SPOKEN_BOOK_NUMBERS = ['1' => 'first', '2' => 'second', '3' => 'third'];
 
+    /**
+     * @param  SongTitleResolver|null  $songCatalogue  Read from the database on first use when not given
+     */
     public function __construct(
         private readonly ScriptureReferenceResolver $scriptureReferences,
         private readonly SongTitleHygiene $songTitles,
+        private ?SongTitleResolver $songCatalogue = null,
     ) {}
 
     /**
@@ -132,6 +155,7 @@ class ServiceStructureEnsembleComposer
 
         $sections = [];
         $disputes = $alignmentConflicts;
+        $records = [];
         $provenance = [];
         $degraded = $validVotes < 4;
 
@@ -148,8 +172,15 @@ class ServiceStructureEnsembleComposer
             $variants = [];
 
             foreach ($group as $claim) {
-                $signature = $this->signature($claim['section']);
-                $variants[$signature][] = $claim;
+                foreach ($variants as $variantIndex => $variant) {
+                    if ($this->sameClaim($claim, $variant, $context)) {
+                        $variants[$variantIndex][] = $claim;
+
+                        continue 2;
+                    }
+                }
+
+                $variants[] = [$claim];
             }
 
             $supported = count($group);
@@ -175,12 +206,15 @@ class ServiceStructureEnsembleComposer
                 && $this->equivalentPreSermonPrayer($source, $eligible);
             $quietFiller = in_array($source->type, self::FILLER_TYPES, true)
                 && (! in_array(true, array_column($group, 'cut_relevant'), true) || in_array($groupIndex, $cutNeutralGroups, true));
-            $flagged = ! $prayerEquivalent && ! $quietFiller && ($supported !== $validVotes || count($variants) !== 1);
+            $disagrees = ! $prayerEquivalent && ! $quietFiller && ($supported !== $validVotes || count($variants) !== 1);
+            $decided = $disagrees && max($winningVotes, $absent) >= self::MAJORITY_VOTES;
+            $flagged = $disagrees && ! $decided;
             $written = $forcedGroups[$groupIndex]
                 ?? ($winningVotes > $absent || ($winningVotes === $absent && min(array_keys($eligible)) === min(array_column($winner, 'slot'))));
 
-            if ($flagged) {
-                $disputes[] = [
+            if ($disagrees) {
+                $records[] = [
+                    'decided' => $decided,
                     'group' => $groupIndex,
                     'type' => $source->type->value,
                     'start_time' => $source->startTime,
@@ -225,6 +259,8 @@ class ServiceStructureEnsembleComposer
         }
 
         [$sections, $provenance] = $this->resolveFillerOverlaps($sections, $provenance);
+        [$questions, $majorityDecisions] = $this->separateMajorityDecisions($records, array_keys($eligible));
+        $disputes = [...$disputes, ...$questions];
 
         $sermonVotes = count(array_filter($eligible, static fn (ValidationResult $draw): bool => $draw->structure->sectionsOfType(ServiceSectionType::Sermon) !== []));
         $absenceVotes = array_filter($eligible, static fn (ValidationResult $draw): bool => $draw->structure->assertsSermonAbsence());
@@ -245,14 +281,8 @@ class ServiceStructureEnsembleComposer
                     : $section, $sections);
         }
 
-        $disputes = $this->mergeEdgeSplits($disputes, array_keys($eligible));
-        $disputes = array_map(static function (array $dispute): array {
-            $identity = $dispute;
-            unset($identity['group'], $identity['groups'], $identity['candidate_groups'], $identity['claim_index']);
-            $dispute['question_id'] = hash('sha256', json_encode($identity, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
-
-            return $dispute;
-        }, $disputes);
+        $disputes = $this->withQuestionIds($this->mergeEdgeSplits($disputes, array_keys($eligible)));
+        $majorityDecisions = $this->withQuestionIds($this->mergeEdgeSplits($majorityDecisions, array_keys($eligible)));
 
         $sections = $this->flagMissingPreachedReading($sections);
 
@@ -278,7 +308,60 @@ class ServiceStructureEnsembleComposer
             $absence ? reset($absenceVotes)->structure->sermonAbsence : null,
         );
 
-        return new EnsembleComposition($structure, $disputes, $provenance, $degraded, false, $validVotes);
+        return new EnsembleComposition($structure, $disputes, $provenance, $degraded, false, $validVotes, majorityDecisions: $majorityDecisions);
+    }
+
+    /**
+     * Splits the disagreements a three-to-one vote settles from those that stay questions. A
+     * settled group whose edge split joins an unsettled one stays with it, so the question
+     * still offers every version.
+     *
+     * @param  list<array<string, mixed>>  $records
+     * @param  list<int>  $slots
+     * @return array{0: list<array<string, mixed>>, 1: list<array<string, mixed>>}
+     */
+    private function separateMajorityDecisions(array $records, array $slots): array
+    {
+        $askedGroups = [];
+
+        foreach ($this->mergeEdgeSplits($records, $slots) as $merged) {
+            if (! $merged['decided']) {
+                foreach ($merged['groups'] ?? [$merged['group']] as $group) {
+                    $askedGroups[$group] = true;
+                }
+            }
+        }
+
+        $questions = [];
+        $decisions = [];
+
+        foreach ($records as $record) {
+            if ($record['decided'] && ! isset($askedGroups[$record['group']])) {
+                $decisions[] = $record;
+
+                continue;
+            }
+
+            $questions[] = [...$record, 'decided' => false];
+        }
+
+        return [$questions, $decisions];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $disputes
+     * @return list<array<string, mixed>>
+     */
+    private function withQuestionIds(array $disputes): array
+    {
+        return array_map(static function (array $dispute): array {
+            unset($dispute['decided']);
+            $identity = $dispute;
+            unset($identity['group'], $identity['groups'], $identity['candidate_groups'], $identity['claim_index']);
+            $dispute['question_id'] = hash('sha256', json_encode($identity, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+
+            return $dispute;
+        }, $disputes);
     }
 
     /**
@@ -361,7 +444,7 @@ class ServiceStructureEnsembleComposer
      * @param  array{slot:int,index:int,section:ServiceStructureSection,cut_relevant:bool}  $claim
      * @param  list<array{slot:int,index:int,section:ServiceStructureSection,cut_relevant:bool}>  $group
      * @param  array<int,ValidationResult>  $draws
-     * @param  array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>, held_readings: array<string, true>, transcript?: ChurchServiceTranscript|null}  $context
+     * @param  array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>, held_readings: array<string, true>, reading_references: list<string>, sermon_references: list<string>, transcript?: ChurchServiceTranscript|null}  $context
      */
     private function compatibleWithGroup(array $claim, array $group, array $draws, array $context): bool
     {
@@ -378,7 +461,7 @@ class ServiceStructureEnsembleComposer
      * @param  array{slot:int,index:int,section:ServiceStructureSection,cut_relevant:bool}  $claimA
      * @param  array{slot:int,index:int,section:ServiceStructureSection,cut_relevant:bool}  $claimB
      * @param  array<int,ValidationResult>  $draws
-     * @param  array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>, held_readings: array<string, true>, transcript?: ChurchServiceTranscript|null}  $context
+     * @param  array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>, held_readings: array<string, true>, reading_references: list<string>, sermon_references: list<string>, transcript?: ChurchServiceTranscript|null}  $context
      */
     private function compatible(array $claimA, array $claimB, array $draws, array $context): bool
     {
@@ -445,7 +528,7 @@ class ServiceStructureEnsembleComposer
      * the reading-pairing window past the sermon's end when no song follows.
      *
      * @param  array<int,ValidationResult>  $draws
-     * @return array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>, held_readings: array<string, true>}
+     * @return array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>, held_readings: array<string, true>, reading_references: list<string>, sermon_references: list<string>}
      */
     private function alignmentContext(array $draws): array
     {
@@ -454,8 +537,19 @@ class ServiceStructureEnsembleComposer
         $limits = [];
         $endingSongs = [];
         $heldReadings = [];
+        $references = ['reading' => [], 'sermon' => []];
 
         foreach ($draws as $slot => $draw) {
+            foreach ($draw->structure->sections as $section) {
+                if ($section->readingReference !== null) {
+                    $references['reading'][$section->readingReference] = true;
+                }
+
+                if ($section->sermonReference !== null) {
+                    $references['sermon'][$section->sermonReference] = true;
+                }
+            }
+
             foreach ($draw->structure->sections as $sermon) {
                 if ($sermon->type !== ServiceSectionType::Sermon) {
                     continue;
@@ -484,6 +578,8 @@ class ServiceStructureEnsembleComposer
                 : [min($starts) - self::PRE_SERMON_MARGIN_SECONDS, max($limits)],
             'ending_songs' => $endingSongs,
             'held_readings' => $heldReadings,
+            'reading_references' => array_map('strval', array_keys($references['reading'])),
+            'sermon_references' => array_map('strval', array_keys($references['sermon'])),
         ];
     }
 
@@ -519,7 +615,7 @@ class ServiceStructureEnsembleComposer
 
     /**
      * @param  array{slot:int,index:int,section:ServiceStructureSection}  $claim
-     * @param  array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>, held_readings: array<string, true>, transcript?: ChurchServiceTranscript|null}  $context
+     * @param  array{window: array{0: float, 1: float}|null, ending_songs: array<string, true>, held_readings: array<string, true>, reading_references: list<string>, sermon_references: list<string>, transcript?: ChurchServiceTranscript|null}  $context
      */
     private function cutRelevant(array $claim, array $context): bool
     {
@@ -664,6 +760,7 @@ class ServiceStructureEnsembleComposer
                 $covered = [...$groupSlots($anchor), ...$groupSlots($other)];
                 $disputes[$i] = [
                     ...$anchor,
+                    'decided' => ($anchor['decided'] ?? false) && ($other['decided'] ?? false),
                     'groups' => [...($anchor['groups'] ?? [$anchor['group']]), ...($other['groups'] ?? [$other['group']])],
                     'absent_slots' => array_values(array_diff($slots, $covered)),
                     'alternatives' => [...$anchor['alternatives'], ...$other['alternatives']],
@@ -753,33 +850,98 @@ class ServiceStructureEnsembleComposer
     }
 
     /**
+     * Whether a claim makes the same output-relevant statement as every claim of a variant.
+     *
+     * @param  array{slot:int,index:int,section:ServiceStructureSection}  $claim
+     * @param  non-empty-list<array{slot:int,index:int,section:ServiceStructureSection}>  $variant
+     * @param  array{reading_references: list<string>, sermon_references: list<string>}  $context
+     */
+    private function sameClaim(array $claim, array $variant, array $context): bool
+    {
+        $section = $claim['section'];
+
+        foreach ($variant as $member) {
+            $other = $member['section'];
+
+            if ($this->signature($section) !== $this->signature($other)
+                || ! $this->referencesAgree($section->readingReference, $other->readingReference, $context['sermon_references'])
+                || ! $this->referencesAgree($section->sermonReference, $other->sermonReference, $context['reading_references'])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * A song bound to an order-of-service item is that item's song, so two voters binding the
-     * same item agree however they spell its title (ruled 2026-09-30); the title is compared
-     * only for a song no voter could bind.
+     * same item agree however they spell its title (ruled 2026-09-30); an unbound song is the
+     * catalogue song its title names. A short talk's proposed type is not compared: only the
+     * type an operator confirms in talk type review is ever published (ruled 2026-10-01).
      */
     private function signature(ServiceStructureSection $section): string
     {
         $boundSong = $section->type === ServiceSectionType::Song && $section->oosItemId !== null;
-        $fields = [
-            $section->type->value,
-            $section->talkType?->value,
-            $section->oosItemId,
-            $section->songTitle === null || $boundSong ? null : $this->songTitles->normalise($section->songTitle),
-            $this->normalizedReference($section->readingReference),
-            $this->normalizedReference($section->sermonReference),
-        ];
 
-        return json_encode(array_map(static fn (mixed $value): mixed => is_string($value)
-            ? mb_strtolower(trim(preg_replace('/\s+/u', ' ', $value) ?? $value))
-            : $value, $fields), JSON_THROW_ON_ERROR);
+        return json_encode([
+            $section->type->value,
+            $section->oosItemId,
+            $section->songTitle === null || $boundSong ? null : $this->songIdentity($section->songTitle),
+        ], JSON_THROW_ON_ERROR);
     }
 
-    private function normalizedReference(?string $reference): ?string
+    /**
+     * Titles that resolve deterministically to one catalogue song name that song, however they
+     * spell it ("Jesus Saves" is the alternate title of "We Have Heard A Joyful Sound"; ruled
+     * 2026-10-01). A title the catalogue cannot name is compared as normalised text.
+     */
+    private function songIdentity(string $title): string
     {
-        if ($reference === null) {
-            return null;
+        $this->songCatalogue ??= SongTitleResolver::fromDatabase();
+        $match = $this->songCatalogue->resolve($title);
+
+        if ($match instanceof SongTitleMatch && in_array($match->matchType, self::DETERMINISTIC_SONG_MATCHES, true)) {
+            return "catalogue:{$match->songId}";
         }
 
+        $normalised = $this->songTitles->normalise($title);
+
+        return mb_strtolower(trim(preg_replace('/\s+/u', ' ', $normalised) ?? $normalised));
+    }
+
+    /**
+     * Two citations of one passage at different granularity agree ("Psalm 95" and "Psalm 95:1-7";
+     * ruled 2026-10-01) unless they would pair the sermon with different readings: a reading
+     * reference is checked against every voter's sermon reference, and a sermon reference
+     * against every voter's reading reference. A missing reference agrees only with another.
+     *
+     * @param  list<string>  $counterparts
+     */
+    private function referencesAgree(?string $a, ?string $b, array $counterparts): bool
+    {
+        if ($a === null || $b === null) {
+            return $a === $b;
+        }
+
+        if (mb_strtolower($this->normalizedReference($a)) === mb_strtolower($this->normalizedReference($b))) {
+            return true;
+        }
+
+        if (! $this->scriptureReferences->referencesOverlap($a, $b)) {
+            return false;
+        }
+
+        foreach ($counterparts as $counterpart) {
+            if ($this->scriptureReferences->referencesOverlap($a, $counterpart) !== $this->scriptureReferences->referencesOverlap($b, $counterpart)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private function normalizedReference(string $reference): string
+    {
         return $this->scriptureReferences->normalizeAll($reference) ?? $reference;
     }
 

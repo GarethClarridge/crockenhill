@@ -11,6 +11,8 @@ final readonly class EnsembleComposition
     /**
      * @param  list<array<string, mixed>>  $disputes
      * @param  list<array<string, mixed>>  $provenance
+     * @param  list<array<string, mixed>>  $majorityDecisions  Disagreements a three-to-one vote settled; shown
+     *                                                         for skimming and still answerable, never held
      */
     public function __construct(
         public ServiceStructure $structure,
@@ -20,6 +22,7 @@ final readonly class EnsembleComposition
         public bool $refused,
         public int $validVotes,
         public bool $degradedReviewed = false,
+        public array $majorityDecisions = [],
     ) {}
 
     public function requiresReview(): bool

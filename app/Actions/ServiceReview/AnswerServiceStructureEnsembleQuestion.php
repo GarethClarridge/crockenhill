@@ -92,7 +92,7 @@ class AnswerServiceStructureEnsembleQuestion
             $before = $this->replay->replay($evidence, $rulings, $log);
             $question = null;
 
-            foreach ($before['disputes'] as $dispute) {
+            foreach ([...$before['disputes'], ...$before['majority_decisions']] as $dispute) {
                 if (($dispute['question_id'] ?? null) === $questionId) {
                     $question = $dispute;
 
@@ -160,6 +160,7 @@ class AnswerServiceStructureEnsembleQuestion
                 'degraded' => $after['degraded'],
                 'degraded_reviewed' => $after['degraded_reviewed'],
                 'disputes' => $after['disputes'],
+                'majority_decisions' => $after['majority_decisions'],
                 'provenance' => $after['provenance'],
                 'applied_rulings' => $after['applied_rulings'],
                 'stale_rulings' => $after['stale_rulings'],

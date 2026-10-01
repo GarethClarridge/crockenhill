@@ -88,6 +88,40 @@ class ServiceStructureEnsembleRulingApplierTest extends TestCase
         ]);
     }
 
+    /**
+     * The shape of 936-q0 in canary 9: three drafts omitted a reading the operator said is there.
+     * The majority now settles that dispute without asking, but the answer still outranks it.
+     */
+    #[Test]
+    public function an_answer_overrides_a_majority_decision_and_unanswered_decisions_stay_on_the_skim_list(): void
+    {
+        $decided = [
+            'question_id' => 'decided-reading',
+            'type' => 'bible_reading',
+            'written' => false,
+            'start_time' => 1040.0,
+            'end_time' => 1114.0,
+        ];
+        $untouched = [...$decided, 'question_id' => 'decided-notice', 'type' => 'notices', 'start_time' => 2445.0, 'end_time' => 2460.0];
+        $proposal = [
+            ...$this->proposal(),
+            'disputes' => [],
+            'majority_decisions' => [$decided, $untouched],
+        ];
+        $answer = [
+            ...$this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::BibleReading, 1040, 1114)->toArray()]], 'reading-ruling'),
+            'scope' => ['type' => 'bible_reading', 'start_time' => 1040.0, 'end_time' => 1114.0],
+        ];
+
+        $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($proposal, [$answer]);
+
+        $this->assertContains(['bible_reading', 1040.0, 1114.0], $this->spans($result));
+        $this->assertSame([], $result['disputes']);
+        $this->assertSame(['decided-notice'], array_column($result['majority_decisions'], 'question_id'));
+        $this->assertSame([], $result['stale_rulings']);
+        $this->assertCount(1, $result['applied_rulings']);
+    }
+
     #[Test]
     public function an_answer_survives_a_small_rule_driven_boundary_shift(): void
     {

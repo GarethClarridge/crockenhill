@@ -31,6 +31,18 @@ class CutAwareEnsembleComposerTest extends TestCase
         $this->assertSame([], $result->disputes);
     }
 
+    /** The shape of runs 1028, 1050 and 1358 in canary 9: one draft types a filler span the others leave out. */
+    #[Test]
+    public function a_filler_span_the_majority_settles_without_moving_the_cut_is_not_on_the_skim_list(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create(['sermon_start_time' => 600.0, 'sermon_end_time' => 2150.0]);
+
+        $result = app(CutAwareEnsembleComposer::class)->compose($this->votes(ServiceSectionType::Other, 1), $this->transcript(), $log);
+
+        $this->assertSame([], $result->disputes);
+        $this->assertSame([], $result->majorityDecisions);
+    }
+
     #[Test]
     public function notices_are_still_asked_and_nothing_is_dropped_without_a_run(): void
     {
@@ -65,7 +77,7 @@ class CutAwareEnsembleComposerTest extends TestCase
     }
 
     /** @return array<int, ValidationResult> */
-    private function votes(ServiceSectionType $fillerType): array
+    private function votes(ServiceSectionType $fillerType, int $fillerVotes = 2): array
     {
         $draw = fn (bool $filler): ValidationResult => new ValidationResult(ServiceStructure::fromSections(array_values(array_filter([
             new ServiceStructureSection(ServiceSectionType::Sermon, 'Sermon', 600.0, 2150.0, 0.95, null, null, null),
@@ -73,7 +85,7 @@ class CutAwareEnsembleComposerTest extends TestCase
             new ServiceStructureSection(ServiceSectionType::Song, 'Praise my soul', 2210.0, 2400.0, 0.95, null, 'Praise my soul', null),
         ]))));
 
-        return [0 => $draw(true), 1 => $draw(true), 2 => $draw(false), 3 => $draw(false)];
+        return [0 => $draw(true), 1 => $draw($fillerVotes > 1), 2 => $draw(false), 3 => $draw(false)];
     }
 
     private function transcript(): ChurchServiceTranscript
