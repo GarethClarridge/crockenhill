@@ -102,6 +102,31 @@ following the standing ruling that historic work improves routine processing and
     either way on `no_high_confidence_sermon_section`; talk-count errors 0/0; no wrong cut
     reaches extraction unreviewed.
 
+19. **Canary 9's answers become four rules (2026-10-01).** Measured against the 41 answers and the
+    saved draws before adoption; the operator approved all four.
+    - **A. Overlapping references are one passage** ("Psalm 95" = "Psalm 95:1-7", "Philippians
+      3:4-9" = "3:4b-9") unless they would pair the sermon with different readings: a reading
+      reference is checked against every voter's sermon reference and vice versa.
+    - **B. An unbound song is the catalogue song its title names** when `SongTitleResolver`
+      matches it deterministically (not fuzzy or hymnbook-absent): "Jesus Saves" = "We Have
+      Heard a Joyful Sound". Untitled versus titled stays a question (1311 and 1304 were ruled
+      opposite ways).
+    - **C. A short talk's proposed type is not compared**: only the type confirmed in talk type
+      review is ever published.
+    - **D. A three-to-one vote decides.** Only ties and three-way splits are asked. Where truth
+      was ruled the majority was never wrong (26 canary-9 answers; 31 talk/sermon splits in the
+      §6 draws); the one structural mismatch (936's Psalm 100, unpairable) changes no cut.
+      Each decision is kept as `majority_decisions` for a skim list, stays answerable (an
+      answer outranks the vote) and holds nothing; filler the cut probe finds neutral is left
+      off it. Contested sermon absence is still asked.
+    The composer never compared free-text titles or exact edges: the canary-9 "either" answers
+    were reference granularity, unbound song titles and three-to-one edge splits, and the music
+    detector found no music in any disputed gap (closing-song gaps are the spoken announcement).
+    Replay, no calls: canary 9 41 → 7 questions (24 on the skim list; with the answers, 0 open,
+    0 conflicting, all valid; 10 "either" answers now match no question). §6 232 draws:
+    questions 2.33 → 0.77 per batch-1 sequence, 949 ×10 3.0 → 1.0, sermon questions 0.33 → 0;
+    talk-count errors 0/0, cuts wrong 0, wrong cuts reaching extraction unreviewed 0.
+
 Agreement never overrides an existing content hold. The implementation guarantee is that every
 decision affecting extraction has supported evidence, and unresolved disagreement reaches the
 actual extraction gate. The technical policies below implement this alongside the operator's
