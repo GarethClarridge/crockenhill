@@ -101,7 +101,11 @@ class ProcessingRunOrchestrator
                 $processingLog,
                 ProcessingRunFailureHandler::PROFILE_VIDEO_AUTO_TRIM
             ),
-            'livestream' => $this->dispatchLivestreamStart($processingLog, $resuming),
+            'livestream' => $this->dispatchLivestreamStart(
+                $processingLog,
+                $this->pipelineBuilder->buildLivestreamParallelJobs($processingLog, $resuming),
+                $this->pipelineBuilder->buildLivestreamChainJobs($processingLog, $resuming),
+            ),
             default => throw new \InvalidArgumentException(
                 'Unknown processing pipeline profile: '.$processingLog->processingPipelineProfile()
             ),
@@ -109,20 +113,25 @@ class ProcessingRunOrchestrator
     }
 
     /**
-     * Start a livestream run from the top, but stop before extraction: the corpus re-run's
+     * Start a livestream run from the top, but stop before detection: the corpus re-run's
      * Tier A round (plan §4.0).
      *
-     * Transcription runs afresh, as in {@see self::start()}, and the chain ends as a detection
-     * round's does ({@see ProcessingPipelineBuilder::buildLivestreamDetectionOnlyChainJobs()}),
-     * so the media is cut once, on the frozen commit, by {@see self::reExtract()}.
+     * Transcription runs afresh, as in {@see self::start()}, and the chain ends once the new text
+     * is recorded ({@see ProcessingPipelineBuilder::buildLivestreamTranscriptionOnlyChainJobs()}).
+     * A Tier B round detects it and {@see self::reExtract()} cuts the media, both on the frozen
+     * commit.
      */
-    public function startDetectionRound(MediaProcessingLog $processingLog): void
+    public function startTranscriptionRound(MediaProcessingLog $processingLog): void
     {
         if ($processingLog->processingPipelineProfile() !== 'livestream') {
-            throw new \InvalidArgumentException('Only a livestream run can start a detection round.');
+            throw new \InvalidArgumentException('Only a livestream run can start a transcription round.');
         }
 
-        $this->dispatchLivestreamStart($processingLog, detectionOnly: true);
+        $this->dispatchLivestreamStart(
+            $processingLog,
+            $this->pipelineBuilder->buildLivestreamTranscriptionOnlyParallelJobs($processingLog),
+            $this->pipelineBuilder->buildLivestreamTranscriptionOnlyChainJobs($processingLog),
+        );
     }
 
     /**
@@ -927,15 +936,15 @@ class ProcessingRunOrchestrator
         $this->recordHistoricQueueDispatch($processingId, $mainChainId, mainChainDispatched: true);
     }
 
-    private function dispatchLivestreamStart(MediaProcessingLog $processingLog, bool $resuming = false, bool $detectionOnly = false): void
+    /**
+     * @param  non-empty-list<object>  $parallelJobs
+     * @param  non-empty-list<object>  $chainJobs
+     */
+    private function dispatchLivestreamStart(MediaProcessingLog $processingLog, array $parallelJobs, array $chainJobs): void
     {
         $queueName = $this->livestreamQueue();
         $processingId = $processingLog->processing_id;
         $mainChainId = $this->historicMainChainId($processingLog);
-        $parallelJobs = $this->pipelineBuilder->buildLivestreamParallelJobs($processingLog, $resuming);
-        $chainJobs = $detectionOnly
-            ? $this->pipelineBuilder->buildLivestreamDetectionOnlyChainJobs($processingLog, $resuming)
-            : $this->pipelineBuilder->buildLivestreamChainJobs($processingLog, $resuming);
 
         $batch = Bus::batch($parallelJobs)
             ->then(function (Batch $batch) use ($chainJobs, $queueName, $processingId): void {

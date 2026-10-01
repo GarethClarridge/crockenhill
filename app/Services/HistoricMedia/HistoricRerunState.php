@@ -82,8 +82,7 @@ final class HistoricRerunState
             ];
         }
 
-        $stamps = $run->corpusRerunStamps();
-        $plan = $stamps[count($stamps) - 1]['deferred_extraction_plan'] ?? null;
+        $plan = $run->latestCorpusRerunDetection()['deferred_extraction_plan'] ?? null;
         $segments = array_values(array_filter(is_array($plan) ? (array) ($plan['segments'] ?? []) : [], 'is_array'));
 
         return [

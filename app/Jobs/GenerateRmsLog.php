@@ -30,9 +30,11 @@ class GenerateRmsLog implements ShouldQueue
 
     /**
      * @param  bool  $mayReuseRecordedRmsLog  True only when this dispatch is resuming a
-     *                                        failed run. A fresh run has no recorded log
-     *                                        to reuse, and a deliberate re-run is asking
-     *                                        for the measurement to be taken again.
+     *                                        failed run, or re-running only transcription
+     *                                        (the corpus re-run's Tier A). A fresh run has
+     *                                        no recorded log to reuse, and any other
+     *                                        deliberate re-run is asking for the
+     *                                        measurement to be taken again.
      */
     public function __construct(
         private MediaProcessingLog $processingLog,

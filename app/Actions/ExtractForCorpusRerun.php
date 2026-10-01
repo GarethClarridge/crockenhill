@@ -103,6 +103,11 @@ final class ExtractForCorpusRerun
             return 'run has no detection round on this commit; re-detect it first';
         }
 
+        // Its sections were detected on the text it replaced.
+        if (RetranscribeForCorpusRerun::transcribedOnly($latest)) {
+            return 'run was re-transcribed on this commit but not re-detected; re-detect it first (historic-import:rerun-redetect)';
+        }
+
         if (($latest['media'] ?? null) === self::MEDIA_EXTRACTED) {
             return sprintf('media already extracted on this commit at %s', (string) ($latest['extraction_dispatched_at'] ?? 'an unrecorded time'));
         }

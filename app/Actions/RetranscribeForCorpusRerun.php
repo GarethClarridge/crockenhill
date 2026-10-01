@@ -17,6 +17,7 @@ use App\Services\Processing\MediaProcessingRunTransitionService;
 use App\Services\Processing\ProcessingRunOrchestrator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Support\RepositoryCommit;
 use RuntimeException;
 use Throwable;
 
@@ -34,17 +35,22 @@ use Throwable;
  *
  * The dispatch is the one {@see RetranscribeHistoricVideoRun} proved on 980, 1258, 1343 and
  * 1287: supersede any recovery replay stamp, reopen at `transcribe_full_service` and start the
- * chain afresh. `retry()` would reuse the stored transcript. Like Tier B, it is a detection
- * round (operator, 2026-09-24): the chain stops before extraction and records what would be
- * cut, and Tier C cuts the media once on the frozen commit. The corpus re-run stamp is written
- * first and withdrawn if the dispatch fails, and it also keeps Tier B from re-detecting the run
- * again on the same commit.
+ * chain afresh. `retry()` would reuse the stored transcript. It is a transcription round
+ * (operator, 2026-10-01; it was a detection round from 2026-09-24): the chain stops before
+ * detection and records the text it wrote, so Tier A can run early, off the critical path, and
+ * a rule commit landing later costs its runs only a Tier B round. That round re-detects the
+ * run, on the same snapshot or a later one ({@see CorpusRerunGuard}), and Tier C cuts the media.
+ * The corpus re-run stamp is written first and withdrawn if the dispatch fails; a run is
+ * re-transcribed at most once on a commit.
  *
  * Delete once the corpus re-run's batches are accepted, alongside its other instruments.
  */
 final class RetranscribeForCorpusRerun
 {
     public const TIER = 'retranscription';
+
+    /** A transcription round's stamp: the round wrote new text and detected nothing. */
+    public const DETECTION_NONE = 'none';
 
     public function __construct(
         private readonly CorpusRerunGuard $guard,
@@ -81,7 +87,7 @@ final class RetranscribeForCorpusRerun
             'tier' => self::TIER,
             'transcript_loss_sections' => array_values(array_unique(array_column($holds, 'section'))),
             'listening_routing_sha256' => $listening ? $snapshot->listening?->fileSha256 : null,
-            'media' => RedetectForCorpusRerun::MEDIA_DEFERRED,
+            'detection' => self::DETECTION_NONE,
             'git_commit' => $snapshot->gitCommit,
             'snapshot_file_sha256' => $snapshot->fileSha256,
             'membership_sha256' => $snapshot->membershipSha256,
@@ -102,7 +108,17 @@ final class RetranscribeForCorpusRerun
             'membership_sha256' => $snapshot->membershipSha256,
         ]);
 
-        return ['outcome' => 'dispatched', 'reason' => "dispatched from full-service transcription ({$grounds}); media deferred"];
+        return ['outcome' => 'dispatched', 'reason' => "dispatched from full-service transcription ({$grounds}); detection deferred to a Tier B round"];
+    }
+
+    /**
+     * Whether a corpus re-run stamp records a transcription round, which detected nothing.
+     *
+     * @param  array<string, mixed>  $stamp
+     */
+    public static function transcribedOnly(array $stamp): bool
+    {
+        return ($stamp['detection'] ?? null) === self::DETECTION_NONE;
     }
 
     /**
@@ -121,7 +137,7 @@ final class RetranscribeForCorpusRerun
                 throw new RuntimeException('run could not be reopened');
             }
 
-            $this->orchestrator->startDetectionRound($lockedRun->fresh() ?? $lockedRun);
+            $this->orchestrator->startTranscriptionRound($lockedRun->fresh() ?? $lockedRun);
         }));
     }
 
@@ -130,6 +146,14 @@ final class RetranscribeForCorpusRerun
      */
     private function refusal(MediaProcessingLog $run, HistoricRerunSnapshot $snapshot): ?string
     {
+        // The batch guard lets a transcription round through for the detection round that
+        // follows it, so a second transcription on the commit is refused here.
+        foreach ($run->corpusRerunStamps() as $stamp) {
+            if (self::transcribedOnly($stamp) && ($stamp['git_commit'] ?? null) === RepositoryCommit::current()) {
+                return sprintf('already re-transcribed on this commit at %s', (string) ($stamp['dispatched_at'] ?? 'an unrecorded time'));
+            }
+        }
+
         $batchRefusal = $this->guard->refusal($run, $snapshot);
 
         if ($batchRefusal !== null) {

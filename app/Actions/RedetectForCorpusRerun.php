@@ -31,7 +31,8 @@ use Illuminate\Support\Facades\Log;
  *
  * The dispatch is stamped on the run before it is sent and the stamp withdrawn if the
  * orchestrator refuses. Transcription is not repeated: Tier A's re-transcription is
- * {@see RetranscribeForCorpusRerun}.
+ * {@see RetranscribeForCorpusRerun}, which stops before detection, so a run it re-transcribed
+ * against this snapshot is this tier's whatever its grounds still say.
  *
  * Delete once the corpus re-run's batches are accepted, alongside its other instruments.
  */
@@ -95,6 +96,12 @@ final class RedetectForCorpusRerun
 
         if ($batchRefusal !== null) {
             return $batchRefusal;
+        }
+
+        // A run Tier A has re-transcribed against this snapshot is this round's, whatever its
+        // grounds still say: identical text would otherwise leave it reachable by neither tier.
+        if ($this->guard->transcriptionRoundOn($run, $snapshot) !== null) {
+            return $this->orchestrator->structureRedetectionRefusal($run, StructureRedetectionGrounds::CorpusRerun)['message'] ?? null;
         }
 
         // Re-detecting known-wrong text would stamp the run on this commit and leave Tier A

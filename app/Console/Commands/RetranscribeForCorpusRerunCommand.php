@@ -16,11 +16,11 @@ use RuntimeException;
  *
  * The same batch discipline as `historic-import:rerun-redetect`: the snapshot is the batch, the
  * commit is pinned, each invocation dispatches at most `--max` runs and a run already re-run on
- * this commit, by either tier, is refused. A member is dispatched only on its grounds, a live
- * transcript-loss hold on the text it holds now or a `new_better` listening route on that text
- * (frozen into the snapshot by `rerun-snapshot --routing`). Each run costs a full Whisper pass
- * and stops before extraction, like a Tier B round: keep `--max` to what the workers can take,
- * and cut the media with `historic-import:rerun-extract` on the frozen commit.
+ * this commit is refused. A member is dispatched only on its grounds, a live transcript-loss
+ * hold on the text it holds now or a `new_better` listening route on that text (frozen into the
+ * snapshot by `rerun-snapshot --routing`). Each run costs a full Whisper pass and stops before
+ * detection: re-detect it with `historic-import:rerun-redetect` on this snapshot or a later one,
+ * then cut the media with `historic-import:rerun-extract`, both on the frozen commit.
  *
  * Complete the plan's dispatch preflight (queues, worker code, mounts, disk) first; this
  * command checks each run, not the workers that will process it.
@@ -35,7 +35,7 @@ class RetranscribeForCorpusRerunCommand extends Command
         {--max=10 : The most runs one invocation will dispatch}
         {--execute : Dispatch; without this option the command is a dry run}';
 
-    protected $description = 'Re-transcribe and re-detect the transcript-loss and listening-routed members of a corpus re-run batch (Tier A)';
+    protected $description = 'Re-transcribe the transcript-loss and listening-routed members of a corpus re-run batch, leaving detection to Tier B (Tier A)';
 
     public function handle(RetranscribeForCorpusRerun $retranscriber): int
     {

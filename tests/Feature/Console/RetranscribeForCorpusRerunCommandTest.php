@@ -20,12 +20,14 @@ use App\Jobs\MatchSongsFromTranscript;
 use App\Jobs\MergeSongContinuations;
 use App\Jobs\ProjectLivestreamServiceStructure;
 use App\Jobs\PromoteHistoricAssets;
-use App\Jobs\RecordDeferredCorpusRerunMedia;
+use App\Jobs\RecordCorpusRerunTranscription;
 use App\Jobs\TranscribeFullService;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Media\Audio\ServiceTranscriptRedecoder;
+use App\Support\RepositoryCommit;
+use App\Support\WorkerCode;
 use Carbon\CarbonImmutable;
 use Closure;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -111,17 +113,17 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         self::assertCount(1, $stamps);
         self::assertSame(RetranscribeForCorpusRerun::TIER, $stamps[0]['tier']);
         self::assertSame('corpus_rerun', $stamps[0]['grounds']);
-        self::assertSame('deferred', $stamps[0]['media']);
+        self::assertSame(RetranscribeForCorpusRerun::DETECTION_NONE, $stamps[0]['detection']);
         self::assertCount(1, $stamps[0]['transcript_loss_sections']);
         self::assertNull($stamps[0]['listening_routing_sha256']);
     }
 
     /**
-     * Tier A is a detection round too (operator, 2026-09-24): it transcribes afresh, detects and
-     * records what extraction would cut, and Tier C cuts the media once on the frozen commit.
+     * Tier A only transcribes (operator, 2026-10-01): its runs then join a Tier B round on
+     * whichever commit is frozen, so a rule commit never throws away a Tier A detection.
      */
     #[Test]
-    public function it_transcribes_afresh_and_stops_before_extraction(): void
+    public function it_transcribes_afresh_and_stops_before_detection(): void
     {
         Bus::fake();
         $run = $this->heldRun();
@@ -130,8 +132,9 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
             ->assertSuccessful();
 
-        // Nothing is re-cut, so the run is not marked as re-cutting published media.
         self::assertFalse($run->fresh()?->isReExtraction());
+        self::assertTrue(RetranscribeForCorpusRerun::transcribedOnly($run->fresh()?->corpusRerunStamps()[0] ?? []));
+        self::assertFalse($run->fresh()?->hasDeferredCorpusRerunMedia());
 
         $batches = 0;
         Bus::assertBatched(function (PendingBatchFake $batch) use (&$batches): bool {
@@ -150,16 +153,156 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
             AnalyzeSegments::class,
             TranscribeFullService::class,
             ClassifyServiceAudio::class,
-            DetectServiceStructure::class,
-            ProjectLivestreamServiceStructure::class,
-            MatchSongsFromTranscript::class,
-            MergeSongContinuations::class,
-            ExtendSongsOverOwnLyrics::class,
-            ProjectLivestreamServiceStructure::class,
-            RecordDeferredCorpusRerunMedia::class,
+            RecordCorpusRerunTranscription::class,
             PromoteHistoricAssets::class,
             CleanupTemporaryFiles::class,
         ]);
+    }
+
+    /**
+     * The transcription round leaves its run for Tier B on the same snapshot: the only change
+     * since the snapshot is the text the round wrote, and Tier A's grounds are spent.
+     */
+    #[Test]
+    public function a_re_transcribed_run_is_ready_for_its_detection_round_on_the_same_snapshot(): void
+    {
+        Bus::fake();
+        $run = $this->heldRun();
+        $this->storeTranscript($run, 'The Lord is my shepherd shepherd shepherd.');
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->assertSuccessful();
+        $this->finishTranscriptionRound($run, 'The Lord is my shepherd; I shall not want.');
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+            ->expectsOutputToContain('ready for re-detection')
+            ->assertSuccessful();
+    }
+
+    #[Test]
+    public function it_refuses_to_re_detect_before_the_transcription_round_has_recorded_its_text(): void
+    {
+        Bus::fake();
+        $run = $this->heldRun();
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->assertSuccessful();
+        $run->refresh()->update(['status' => ProcessingStatus::Completed]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+            ->expectsOutputToContain('re-transcription on this commit has not finished')
+            ->assertSuccessful();
+    }
+
+    /**
+     * Only the text the round wrote is let through; any other change still needs a snapshot.
+     */
+    #[Test]
+    public function a_re_transcribed_run_that_changed_in_any_other_way_is_still_refused(): void
+    {
+        Bus::fake();
+        $run = $this->heldRun();
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->assertSuccessful();
+        $this->finishTranscriptionRound($run, 'The Lord is my shepherd; I shall not want.');
+        ServiceSection::query()->where('media_processing_log_id', $run->id)->update(['end_time' => 2500, 'duration' => 1900]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+            ->expectsOutputToContain('run has changed since the snapshot')
+            ->assertSuccessful();
+    }
+
+    #[Test]
+    public function a_re_transcribed_run_whose_text_changed_again_is_still_refused(): void
+    {
+        Bus::fake();
+        $run = $this->heldRun();
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->assertSuccessful();
+        $this->finishTranscriptionRound($run, 'The Lord is my shepherd; I shall not want.');
+        $this->storeTranscript($run, 'Some other text written since.');
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+            ->expectsOutputToContain('run has changed since the snapshot')
+            ->assertSuccessful();
+    }
+
+    /**
+     * As Tier C refuses a round finished on older code: the text is the workers' code's output.
+     */
+    #[Test]
+    public function it_refuses_to_re_detect_text_workers_on_older_code_wrote(): void
+    {
+        Bus::fake();
+        $run = $this->heldRun();
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->assertSuccessful();
+        $this->finishTranscriptionRound($run, 'The Lord is my shepherd; I shall not want.');
+        $run->refresh()->amendLatestCorpusRerunStamp(['worker_commit' => 'an-older-commit']);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+            ->expectsOutputToContain('re-transcribed by workers on an-older-commit')
+            ->assertSuccessful();
+    }
+
+    #[Test]
+    public function it_refuses_to_re_transcribe_a_run_twice_on_one_commit(): void
+    {
+        Bus::fake();
+        $run = $this->heldRun();
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->assertSuccessful();
+        // Identical text keeps the hold's grounds alive, so only the stamp stops a second round.
+        $this->finishTranscriptionRound($run, null);
+
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath()])
+            ->expectsOutputToContain('already re-transcribed on this commit')
+            ->assertSuccessful();
+    }
+
+    /**
+     * Tier A replaces only the transcript. The recording is unchanged, so its RMS log and audio
+     * timeline are reused rather than measured again on the one ffmpeg worker Tier C's cuts use.
+     */
+    #[Test]
+    public function it_reuses_the_recorded_audio_measurements_but_transcribes_afresh(): void
+    {
+        Bus::fake();
+        $run = $this->heldRun();
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->assertSuccessful();
+
+        $rmsJob = null;
+        Bus::assertBatched(function (PendingBatchFake $batch) use (&$rmsJob): bool {
+            $rmsJob = $batch->jobs->first();
+
+            foreach ($batch->thenCallbacks() as $callback) {
+                $callback(new BatchFake('batch', '', 1, 0, 0, [], [], CarbonImmutable::now()));
+            }
+
+            return true;
+        });
+
+        $chain = collect(Bus::dispatched(AnalyzeSegments::class)->first()->chained)
+            ->map(fn (string $serialized): object => unserialize($serialized));
+        $transcription = $chain->first(fn (object $job): bool => $job instanceof TranscribeFullService);
+        $classification = $chain->first(fn (object $job): bool => $job instanceof ClassifyServiceAudio);
+
+        self::assertTrue($this->privateProperty($rmsJob, 'mayReuseRecordedRmsLog'));
+        self::assertFalse($this->privateProperty($transcription, 'mayReuseStoredTranscript'));
+        self::assertTrue($this->privateProperty($classification, 'mayReuseRecordedTimeline'));
     }
 
     /**
@@ -176,7 +319,7 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         $this->snapshot([$run->id], $sha256);
 
         $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
-            ->expectsOutputToContain('dispatched from full-service transcription (listening rated the new decode better); media deferred')
+            ->expectsOutputToContain('dispatched from full-service transcription (listening rated the new decode better); detection deferred to a Tier B round')
             ->assertSuccessful();
 
         $stamps = $run->fresh()?->corpusRerunStamps() ?? [];
@@ -313,20 +456,25 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
     }
 
     /**
-     * No run is re-transcribed and re-detected on the same commit: whichever tier dispatches
-     * first stamps it, and the other refuses.
+     * A run detected on this commit is not re-transcribed on it: its new text would need the
+     * detection round again. (Tier B following Tier A is the designed order.)
      */
     #[Test]
-    public function neither_tier_re_runs_a_run_the_other_dispatched_on_this_commit(): void
+    public function tier_a_does_not_re_transcribe_a_run_tier_b_detected_on_this_commit(): void
     {
         Bus::fake();
-        $run = $this->heldRun();
-        $this->snapshot([$run->id]);
+        $run = $this->completedRun();
+        $listened = $this->storeTranscript($run, 'The Lord is my shepherd.');
+        $sha256 = $this->routing([$run->id => ['new_better', $listened]]);
+        $this->snapshot([$run->id], $sha256);
+        $run->putCorpusRerunStamp([
+            'grounds' => 'corpus_rerun',
+            'git_commit' => json_decode((string) File::get(storage_path('app/private/'.$this->snapshotPath())), true)['git_commit'],
+            'media' => 'deferred',
+            'dispatched_at' => '2026-10-01T09:00:00+00:00',
+        ]);
 
         $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
-            ->assertSuccessful();
-
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
             ->expectsOutputToContain('already re-run on this commit')
             ->assertSuccessful();
     }
@@ -532,5 +680,33 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
     private function routingPath(): string
     {
         return $this->directory.'/routing.json';
+    }
+
+    /**
+     * What the chain does after the dispatch: write the new text (or keep the old when null),
+     * record it on the stamp and complete the run.
+     */
+    private function finishTranscriptionRound(MediaProcessingLog $run, ?string $text): void
+    {
+        $run->refresh();
+
+        if ($text !== null) {
+            $this->storeTranscript($run, $text);
+        }
+
+        // Bus is faked, so the chain's job is run by hand, on a worker booted on this commit.
+        WorkerCode::recordBoot(RepositoryCommit::current());
+
+        try {
+            (new RecordCorpusRerunTranscription($run))->handle();
+        } finally {
+            WorkerCode::recordBoot(null);
+        }
+        $run->refresh()->update(['status' => ProcessingStatus::Completed]);
+    }
+
+    private function privateProperty(object $job, string $property): mixed
+    {
+        return (fn (): mixed => $this->{$property})->call($job);
     }
 }

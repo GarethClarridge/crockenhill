@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
+use App\Actions\RetranscribeForCorpusRerun;
 use App\Data\HistoricStagingContext;
 use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\AwaitHistoricSermonVideoStorage;
@@ -19,6 +20,7 @@ use App\Jobs\PromoteHistoricAssets;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Models\MediaProcessingLog;
+use App\Services\HistoricMedia\HistoricRerunState;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use Closure;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -189,6 +191,57 @@ class ExtractForCorpusRerunCommandTest extends TestCase
 
         Bus::assertNothingDispatched();
         self::assertTrue($run->fresh()?->hasDeferredCorpusRerunMedia());
+    }
+
+    /**
+     * A Tier A round wrote new text but detected nothing; cutting now would cut the sections the
+     * old text was detected on.
+     */
+    #[Test]
+    public function it_refuses_a_run_whose_latest_round_on_this_commit_only_transcribed(): void
+    {
+        Bus::fake();
+        $run = $this->roundedRun();
+        $commit = $run->corpusRerunStamps()[0]['git_commit'];
+        $run->putCorpusRerunStamp([
+            'grounds' => 'corpus_rerun',
+            'tier' => RetranscribeForCorpusRerun::TIER,
+            'detection' => RetranscribeForCorpusRerun::DETECTION_NONE,
+            'git_commit' => $commit,
+            'dispatched_at' => '2026-10-01T09:00:00+00:00',
+            'transcribed_at' => '2026-10-01T09:05:00+00:00',
+            'worker_commit' => $commit,
+        ]);
+
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('re-transcribed on this commit but not re-detected')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+    }
+
+    /**
+     * A transcription round leaves the sections, and the media they describe, as the detection
+     * round before it did, so the snapshot and diff still read that round's deferred plan.
+     */
+    #[Test]
+    public function a_transcription_round_keeps_the_previous_detection_rounds_deferred_media(): void
+    {
+        $run = $this->roundedRun(stampOverrides: ['deferred_extraction_plan' => ['segments' => [['start_time' => 700.0, 'end_time' => 2500.0]]]]);
+        $before = app(HistoricRerunState::class)->capture($run);
+
+        $run->putCorpusRerunStamp([
+            'grounds' => 'corpus_rerun',
+            'tier' => RetranscribeForCorpusRerun::TIER,
+            'detection' => RetranscribeForCorpusRerun::DETECTION_NONE,
+            'git_commit' => 'a-later-commit',
+            'dispatched_at' => '2026-10-01T09:00:00+00:00',
+        ]);
+        $run->refresh();
+
+        self::assertTrue($run->hasDeferredCorpusRerunMedia());
+        self::assertSame($before['sermon_span'], app(HistoricRerunState::class)->capture($run)['sermon_span']);
+        self::assertSame(['start' => 700.0, 'end' => 2500.0], $before['sermon_span']);
     }
 
     #[Test]

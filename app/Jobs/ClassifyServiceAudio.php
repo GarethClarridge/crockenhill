@@ -53,7 +53,8 @@ class ClassifyServiceAudio extends ProcessingJob implements ShouldQueue
 
     /**
      * @param  bool  $mayReuseRecordedTimeline  True only when this dispatch is resuming a failed
-     *                                          run, as for {@see GenerateRmsLog}
+     *                                          run or re-running only transcription, as for
+     *                                          {@see GenerateRmsLog}
      */
     public function __construct(
         private MediaProcessingLog $processingLog,

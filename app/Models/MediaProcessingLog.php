@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Actions\RedetectForCorpusRerun;
+use App\Actions\RetranscribeForCorpusRerun;
 use App\Actions\RedetectStructureOnRecoveredEvidence;
 use App\Data\ChurchServiceTranscript;
 use App\Data\HistoricStagingContext;
@@ -1638,14 +1639,28 @@ class MediaProcessingLog extends Model
     }
 
     /**
-     * Whether this run's latest corpus re-run left its media to be cut later (plan §4.0).
+     * Whether this run's latest corpus re-run detection left its media to be cut later (plan §4.0).
      */
     public function hasDeferredCorpusRerunMedia(): bool
     {
-        $stamps = $this->corpusRerunStamps();
-        $latest = $stamps === [] ? null : $stamps[count($stamps) - 1];
+        return ($this->latestCorpusRerunDetection()['media'] ?? null) === RedetectForCorpusRerun::MEDIA_DEFERRED;
+    }
 
-        return ($latest['media'] ?? null) === RedetectForCorpusRerun::MEDIA_DEFERRED;
+    /**
+     * The stamp of this run's latest corpus re-run round that detected, passing over transcription
+     * rounds ({@see RetranscribeForCorpusRerun}): those wrote new text but left the sections, and
+     * the media they describe, as the detection round before them did.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function latestCorpusRerunDetection(): ?array
+    {
+        $detections = array_values(array_filter(
+            $this->corpusRerunStamps(),
+            static fn (array $stamp): bool => ! RetranscribeForCorpusRerun::transcribedOnly($stamp),
+        ));
+
+        return $detections === [] ? null : $detections[count($detections) - 1];
     }
 
     /**

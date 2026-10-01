@@ -25,6 +25,7 @@ use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
 use App\Jobs\PromoteHistoricAssets;
+use App\Jobs\RecordCorpusRerunTranscription;
 use App\Jobs\RecordDeferredCorpusRerunMedia;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
@@ -194,6 +195,40 @@ class ProcessingPipelineBuilder
             new RecordDeferredCorpusRerunMedia($log),
             ...$this->buildSermonlessServiceChainJobs($log),
         ];
+    }
+
+    /**
+     * The corpus re-run's Tier A round (plan §4.0; operator, 2026-10-01): transcribe afresh and
+     * stop before detection.
+     *
+     * The run then joins a Tier B round on whichever commit is frozen, so a rule commit never
+     * throws away a Tier A detection. The recording is unchanged, so its RMS log
+     * ({@see self::buildLivestreamTranscriptionOnlyParallelJobs()}) and audio timeline are reused:
+     * measuring them again would only occupy the ffmpeg worker the cuts need.
+     * {@see RecordCorpusRerunTranscription} records the text written, and the sermonless tail
+     * completes the run.
+     *
+     * @return non-empty-list<object>
+     */
+    public function buildLivestreamTranscriptionOnlyChainJobs(MediaProcessingLog $log): array
+    {
+        return [
+            new AnalyzeSegments($log),
+            new TranscribeFullService($log),
+            new ClassifyServiceAudio($log, mayReuseRecordedTimeline: true),
+            new RecordCorpusRerunTranscription($log),
+            ...$this->buildSermonlessServiceChainJobs($log),
+        ];
+    }
+
+    /**
+     * The parallel phase of {@see self::buildLivestreamTranscriptionOnlyChainJobs()}.
+     *
+     * @return non-empty-list<object>
+     */
+    public function buildLivestreamTranscriptionOnlyParallelJobs(MediaProcessingLog $log): array
+    {
+        return [new GenerateRmsLog($log, mayReuseRecordedRmsLog: true)];
     }
 
     /**

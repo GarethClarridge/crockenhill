@@ -25,6 +25,7 @@ use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
 use App\Jobs\PromoteHistoricAssets;
+use App\Jobs\RecordCorpusRerunTranscription;
 use App\Jobs\RecordDeferredCorpusRerunMedia;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
@@ -334,6 +335,28 @@ class ProcessingPipelineBuilderTest extends TestCase
             PromoteHistoricAssets::class,
             CleanupTemporaryFiles::class,
         ], $classes);
+    }
+
+    /**
+     * The corpus re-run's Tier A round (plan §4.0): the livestream chain up to detection, reusing
+     * the recording's audio measurements, then a step that records the new text, then the
+     * sermonless tail. Detection is left to the Tier B round that follows.
+     */
+    #[Test]
+    public function it_builds_a_transcription_only_chain_that_stops_before_detection(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+
+        $jobs = $this->builder->buildLivestreamTranscriptionOnlyChainJobs($log);
+
+        $this->assertSame([
+            AnalyzeSegments::class,
+            TranscribeFullService::class,
+            ClassifyServiceAudio::class,
+            RecordCorpusRerunTranscription::class,
+            PromoteHistoricAssets::class,
+            CleanupTemporaryFiles::class,
+        ], array_map(static fn (object $job): string => $job::class, $jobs));
     }
 
     /**
