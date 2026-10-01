@@ -180,6 +180,252 @@ class ServiceStructureEnsembleRulingApplierTest extends TestCase
         $this->assertSame('remove', $result['applied_rulings'][0]['kind']);
     }
 
+    #[Test]
+    public function a_chosen_version_absorbs_a_section_it_wholly_covers(): void
+    {
+        $proposal = $this->proposalOf(
+            [
+                $this->section(ServiceSectionType::ShortTalk, 100, 200),
+                $this->section(ServiceSectionType::Prayer, 201, 300),
+                $this->section(ServiceSectionType::Sermon, 400, 600),
+            ],
+            ['type' => 'short_talk', 'written' => true, 'start_time' => 100.0, 'end_time' => 200.0],
+        );
+
+        $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($proposal, [
+            $this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::ShortTalk, 100, 300)->toArray()]]),
+        ]);
+
+        $this->assertSame([], $result['disputes']);
+        $this->assertSame([
+            ['short_talk', 100.0, 300.0],
+            ['sermon', 400.0, 600.0],
+        ], $this->spans($result));
+    }
+
+    #[Test]
+    public function a_chosen_version_inside_a_section_splits_that_section_around_it(): void
+    {
+        $proposal = $this->proposalOf(
+            [
+                $this->section(ServiceSectionType::Welcome, 0, 150),
+                $this->section(ServiceSectionType::Sermon, 400, 600),
+            ],
+            ['type' => 'bible_reading', 'written' => false, 'start_time' => 60.0, 'end_time' => 140.0],
+        );
+
+        $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($proposal, [[
+            ...$this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::BibleReading, 60, 140)->toArray()]]),
+            'scope' => ['type' => 'bible_reading', 'start_time' => 60.0, 'end_time' => 140.0],
+        ]]);
+
+        $this->assertSame([
+            ['welcome', 0.0, 60.0],
+            ['bible_reading', 60.0, 140.0],
+            ['welcome', 140.0, 150.0],
+            ['sermon', 400.0, 600.0],
+        ], $this->spans($result));
+    }
+
+    #[Test]
+    public function a_chosen_version_trims_a_section_it_partly_overlaps(): void
+    {
+        $proposal = $this->proposalOf(
+            [
+                $this->section(ServiceSectionType::Other, 100, 200),
+                $this->section(ServiceSectionType::Sermon, 400, 600),
+            ],
+            ['type' => 'short_talk', 'written' => false, 'start_time' => 150.0, 'end_time' => 200.0],
+        );
+
+        $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($proposal, [[
+            ...$this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::ShortTalk, 150, 200)->toArray()]]),
+            'scope' => ['type' => 'short_talk', 'start_time' => 150.0, 'end_time' => 200.0],
+        ]]);
+
+        $this->assertSame([
+            ['other', 100.0, 150.0],
+            ['short_talk', 150.0, 200.0],
+            ['sermon', 400.0, 600.0],
+        ], $this->spans($result));
+    }
+
+    #[Test]
+    public function a_neighbour_touching_the_chosen_version_by_a_snap_is_left_alone(): void
+    {
+        $proposal = $this->proposalOf(
+            [
+                $this->section(ServiceSectionType::ShortTalk, 100, 200),
+                $this->section(ServiceSectionType::Song, 199.5, 300),
+            ],
+            ['type' => 'short_talk', 'written' => true, 'start_time' => 100.0, 'end_time' => 200.0],
+        );
+
+        $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($proposal, [
+            $this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::ShortTalk, 100, 200)->toArray()]]),
+        ]);
+
+        $this->assertSame([
+            ['short_talk', 100.0, 200.0],
+            ['song', 199.5, 300.0],
+        ], $this->spans($result));
+    }
+
+    #[Test]
+    public function an_answer_about_part_of_a_passage_does_not_block_the_answer_about_the_whole(): void
+    {
+        $proposal = [
+            'source_hash' => 'source-a',
+            'attempt_id' => 'attempt-1',
+            'structure' => ServiceStructure::fromSections([
+                $this->section(ServiceSectionType::ShortTalk, 100, 300),
+                $this->section(ServiceSectionType::Sermon, 400, 600),
+            ])->toArray(),
+            'disputes' => [
+                ['question_id' => 'whole', 'type' => 'short_talk', 'written' => true, 'start_time' => 100.0, 'end_time' => 300.0],
+                ['question_id' => 'part', 'type' => 'short_talk', 'written' => false, 'start_time' => 150.0, 'end_time' => 260.0],
+            ],
+            'degraded' => false,
+        ];
+
+        $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($proposal, [
+            [
+                ...$this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::ShortTalk, 100, 300)->toArray()]], key: 'whole'),
+                'scope' => ['type' => 'short_talk', 'start_time' => 100.0, 'end_time' => 300.0],
+            ],
+            [
+                ...$this->ruling('accept', ['absent' => true], key: 'part'),
+                'scope' => ['type' => 'short_talk', 'start_time' => 150.0, 'end_time' => 260.0],
+            ],
+        ]);
+
+        $this->assertSame([], $result['disputes']);
+        $this->assertSame([], $result['conflicting_rulings']);
+        $this->assertCount(2, $result['applied_rulings']);
+        $this->assertSame([
+            ['short_talk', 100.0, 300.0],
+            ['sermon', 400.0, 600.0],
+        ], $this->spans($result));
+    }
+
+    #[Test]
+    public function a_drifted_answer_still_reaches_its_question_when_a_closer_answer_claims_the_other(): void
+    {
+        $proposal = [
+            'source_hash' => 'source-a',
+            'attempt_id' => 'attempt-1',
+            'structure' => ServiceStructure::fromSections([
+                $this->section(ServiceSectionType::ShortTalk, 100, 300),
+                $this->section(ServiceSectionType::Sermon, 400, 600),
+            ])->toArray(),
+            'disputes' => [
+                ['question_id' => 'whole', 'type' => 'short_talk', 'written' => true, 'start_time' => 100.0, 'end_time' => 300.0],
+                ['question_id' => 'part', 'type' => 'short_talk', 'written' => false, 'start_time' => 150.0, 'end_time' => 260.0],
+            ],
+            'degraded' => false,
+        ];
+
+        $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($proposal, [
+            [
+                ...$this->ruling('remove', ['absent' => true], key: 'whole'),
+                'scope' => ['type' => 'short_talk', 'start_time' => 100.0, 'end_time' => 200.0],
+            ],
+            [
+                ...$this->ruling('accept', ['absent' => true], key: 'part'),
+                'scope' => ['type' => 'short_talk', 'start_time' => 150.0, 'end_time' => 260.0],
+            ],
+        ]);
+
+        $this->assertSame([], $result['disputes']);
+        $this->assertSame([], $result['conflicting_rulings']);
+        $this->assertSame([['sermon', 400.0, 600.0]], $this->spans($result));
+    }
+
+    #[Test]
+    public function a_later_revision_about_another_span_does_not_replace_the_first_answer(): void
+    {
+        $proposal = [
+            'source_hash' => 'source-a',
+            'attempt_id' => 'attempt-1',
+            'structure' => ServiceStructure::fromSections([
+                $this->section(ServiceSectionType::ShortTalk, 100, 300),
+                $this->section(ServiceSectionType::Sermon, 400, 600),
+            ])->toArray(),
+            'disputes' => [
+                ['question_id' => 'whole', 'type' => 'short_talk', 'written' => true, 'start_time' => 100.0, 'end_time' => 300.0],
+                ['question_id' => 'part', 'type' => 'short_talk', 'written' => false, 'start_time' => 150.0, 'end_time' => 260.0],
+            ],
+            'degraded' => false,
+        ];
+
+        $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($proposal, [
+            [
+                ...$this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::ShortTalk, 100, 300)->toArray()]], key: 'shared'),
+                'scope' => ['type' => 'short_talk', 'start_time' => 100.0, 'end_time' => 300.0],
+            ],
+            [
+                ...$this->ruling('accept', ['absent' => true], key: 'shared'),
+                'revision' => 2,
+                'scope' => ['type' => 'short_talk', 'start_time' => 150.0, 'end_time' => 260.0],
+            ],
+        ]);
+
+        $this->assertSame([], $result['disputes']);
+        $this->assertCount(2, $result['applied_rulings']);
+        $this->assertSame([
+            ['short_talk', 100.0, 300.0],
+            ['sermon', 400.0, 600.0],
+        ], $this->spans($result));
+    }
+
+    #[Test]
+    public function a_re_answer_after_a_boundary_drift_supersedes_the_earlier_answer(): void
+    {
+        $drifted = $this->proposal(talkStart: 104.0, talkEnd: 196.0);
+
+        $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($drifted, [
+            $this->ruling('accept', ['sections' => [$this->section(ServiceSectionType::ShortTalk, 100, 200)->toArray()]]),
+            [
+                ...$this->ruling('remove', ['absent' => true]),
+                'revision' => 2,
+                'scope' => ['type' => 'short_talk', 'start_time' => 104.0, 'end_time' => 196.0],
+            ],
+        ]);
+
+        $this->assertSame([], $result['disputes']);
+        $this->assertSame([], $result['conflicting_rulings']);
+        $this->assertSame('remove', $result['applied_rulings'][0]['kind']);
+        $this->assertSame([['sermon', 250.0, 500.0]], $this->spans($result));
+    }
+
+    /**
+     * @param  list<ServiceStructureSection>  $sections
+     * @param  array<string, mixed>  $dispute
+     * @return array<string, mixed>
+     */
+    private function proposalOf(array $sections, array $dispute): array
+    {
+        return [
+            'source_hash' => 'source-a',
+            'attempt_id' => 'attempt-1',
+            'structure' => ServiceStructure::fromSections($sections)->toArray(),
+            'disputes' => [['question_id' => 'question', ...$dispute]],
+            'degraded' => false,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $result
+     * @return list<array{0: string, 1: float, 2: float}>
+     */
+    private function spans(array $result): array
+    {
+        return array_map(
+            static fn (array $section): array => [$section['type'], $section['start_time'], $section['end_time']],
+            $result['structure']['sections'],
+        );
+    }
+
     /**
      * @param  array<string, mixed>|null  $resolution
      * @return array<string, mixed>

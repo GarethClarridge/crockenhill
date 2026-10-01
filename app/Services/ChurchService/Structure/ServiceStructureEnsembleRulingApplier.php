@@ -29,6 +29,9 @@ class ServiceStructureEnsembleRulingApplier
     /** Share of the union two spans must overlap for an answer to carry to a dispute. */
     public const SPAN_MATCH_OVERLAP = 0.5;
 
+    /** Seconds of contact between settled content and a neighbour that are snap noise, not a crossing. */
+    public const RULING_EDGE_TOLERANCE = 1.0;
+
     /**
      * @param  array<string, mixed>  $proposal
      * @param  list<array<string, mixed>>  $rulings
@@ -52,6 +55,7 @@ class ServiceStructureEnsembleRulingApplier
         $stale = [];
         $conflicting = [];
         $byKey = [];
+        $rulingKeyByUnit = [];
 
         foreach ($rulings as $ruling) {
             $key = $ruling['ruling_key'] ?? null;
@@ -62,7 +66,9 @@ class ServiceStructureEnsembleRulingApplier
                 continue;
             }
 
-            $byKey[$key][] = $ruling;
+            $unit = $key.'|'.self::scopeSignature($ruling['scope']);
+            $byKey[$unit][] = $ruling;
+            $rulingKeyByUnit[$unit] = $key;
         }
 
         $current = [];
@@ -80,39 +86,35 @@ class ServiceStructureEnsembleRulingApplier
             $current[$key] = $latest[0];
         }
 
-        $keysByDispute = [];
-        $disputesByKey = [];
+        $scores = [];
 
         foreach ($disputes as $disputeIndex => $dispute) {
             foreach ($byKey as $key => $answers) {
-                if ($this->matches($answers[0]['scope'], $dispute, $attemptId)) {
-                    $keysByDispute[$disputeIndex][] = $key;
-                    $disputesByKey[$key][] = $disputeIndex;
+                $score = $this->matchScore($answers[0]['scope'], $dispute, $attemptId);
+
+                if ($score !== null) {
+                    $scores[$key][$disputeIndex] = $score;
                 }
             }
         }
 
-        foreach ($disputesByKey as $key => $matched) {
-            if (count($matched) > 1 && isset($current[$key])) {
+        $pairs = $this->closestFitPairs($scores);
+        $disputesByKey = $scores;
+
+        foreach (array_keys($scores) as $key) {
+            if (! isset($pairs[$key]) && isset($current[$key]) && ! $this->isSuperseded($key, $pairs, $current, $rulingKeyByUnit)) {
                 $conflicting[] = $current[$key];
             }
         }
 
-        foreach ($disputes as $disputeIndex => $dispute) {
-            $keys = $keysByDispute[$disputeIndex] ?? [];
-            $key = count($keys) === 1 ? $keys[0] : null;
-            $answer = $key !== null && count($disputesByKey[$key]) === 1 ? ($current[$key] ?? null) : null;
+        $keyByDispute = array_flip($pairs);
 
-            if (count($keys) > 1) {
-                foreach ($keys as $competing) {
-                    if (isset($current[$competing])) {
-                        $conflicting[] = $current[$competing];
-                    }
-                }
-            }
+        foreach ($disputes as $disputeIndex => $dispute) {
+            $key = $keyByDispute[$disputeIndex] ?? null;
+            $answer = $key !== null ? ($current[$key] ?? null) : null;
 
             if ($answer === null) {
-                $remaining[] = $key === null ? $dispute : [...$dispute, 'ruling_key' => $key];
+                $remaining[] = $key === null ? $dispute : [...$dispute, 'ruling_key' => $rulingKeyByUnit[$key]];
 
                 continue;
             }
@@ -121,7 +123,7 @@ class ServiceStructureEnsembleRulingApplier
             $type = $dispute['type'] ?? null;
 
             if ($kind === 'defer') {
-                $remaining[] = [...$dispute, 'deferred' => true, 'ruling_key' => $key];
+                $remaining[] = [...$dispute, 'deferred' => true, 'ruling_key' => $rulingKeyByUnit[$key]];
 
                 continue;
             }
@@ -173,10 +175,10 @@ class ServiceStructureEnsembleRulingApplier
                         static fn (ServiceStructureSection $section): ServiceStructureSection => $section->withReviewFlags($preservedFlags),
                         $replacements,
                     );
-                    array_splice($sections, $target, 1, $replacements);
-                } else {
-                    array_push($sections, ...$replacements);
+                    array_splice($sections, $target, 1);
                 }
+
+                $sections = [...$this->makeRoomFor($sections, $replacements), ...$replacements];
             }
 
             $applied[] = $answer;
@@ -234,6 +236,58 @@ class ServiceStructureEnsembleRulingApplier
         ];
     }
 
+    /**
+     * Gives the operator's settled content the time it claims.
+     *
+     * A version the operator chose often came from a minority draft that divided the passage
+     * differently from the majority, so the composed neighbours can cross it: a prayer the
+     * chosen talk includes, a welcome wrapped around the chosen reading, a notice that runs
+     * into the chosen talk. The answer outranks the composition there, so a neighbour the
+     * content wholly covers is absorbed, one that contains it is split around it and one that
+     * crosses an edge is trimmed back to that edge. Contact within a snap is left alone.
+     *
+     * @param  list<ServiceStructureSection>  $sections
+     * @param  list<ServiceStructureSection>  $replacements
+     * @return list<ServiceStructureSection>
+     */
+    private function makeRoomFor(array $sections, array $replacements): array
+    {
+        $note = 'Adjusted around an operator ruling.';
+        $kept = [];
+
+        foreach ($sections as $section) {
+            $pieces = [$section];
+
+            foreach ($replacements as $claim) {
+                $next = [];
+
+                foreach ($pieces as $piece) {
+                    $overlap = min($piece->endTime, $claim->endTime) - max($piece->startTime, $claim->startTime);
+
+                    if ($overlap <= self::RULING_EDGE_TOLERANCE) {
+                        $next[] = $piece;
+
+                        continue;
+                    }
+
+                    if ($piece->startTime < $claim->startTime - self::RULING_EDGE_TOLERANCE) {
+                        $next[] = $piece->withTimes($piece->startTime, $claim->startTime, [$note]);
+                    }
+
+                    if ($piece->endTime > $claim->endTime + self::RULING_EDGE_TOLERANCE) {
+                        $next[] = $piece->withTimes($claim->endTime, $piece->endTime, [$note]);
+                    }
+                }
+
+                $pieces = $next;
+            }
+
+            array_push($kept, ...$pieces);
+        }
+
+        return $kept;
+    }
+
     /** @param  list<ServiceStructureSection>  $sections
      * @param  array<string, mixed>  $dispute
      */
@@ -286,23 +340,67 @@ class ServiceStructureEnsembleRulingApplier
     }
 
     /**
+     * Whether a later revision under the same key, about the question's drifted span, has
+     * already been paired: the earlier answer was replaced, not contradicted.
+     *
+     * @param  array<string, int>  $pairs
+     * @param  array<string, array<string, mixed>>  $current
+     * @param  array<string, string>  $rulingKeyByUnit
+     */
+    private function isSuperseded(string $unit, array $pairs, array $current, array $rulingKeyByUnit): bool
+    {
+        $revision = (int) ($current[$unit]['revision'] ?? 0);
+
+        foreach (array_keys($pairs) as $paired) {
+            if ($rulingKeyByUnit[$paired] === $rulingKeyByUnit[$unit]
+                && (int) ($current[$paired]['revision'] ?? 0) > $revision) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Revisions replace one another only when they answer the same scope. A later answer
+     * filed under the same key about a different span (a part of the passage the first
+     * answer covered as a whole) is a separate answer, not a revision of the first.
+     *
+     * @param  array<string, mixed>  $scope
+     */
+    private static function scopeSignature(array $scope): string
+    {
+        $time = static fn (mixed $value): ?string => is_numeric($value) ? number_format((float) $value, 3, '.', '') : null;
+
+        return (string) json_encode([
+            $scope['type'] ?? null,
+            $time($scope['start_time'] ?? null),
+            $time($scope['end_time'] ?? null),
+            $scope['attempt_id'] ?? null,
+        ]);
+    }
+
+    /**
+     * How closely an answer's scope fits a dispute: the share of their union the two spans
+     * overlap, 1.0 for a question with no span, or null when the answer cannot carry to it.
+     *
      * @param  array<string, mixed>  $scope
      * @param  array<string, mixed>  $dispute
      */
-    private function matches(array $scope, array $dispute, mixed $attemptId): bool
+    private function matchScore(array $scope, array $dispute, mixed $attemptId): ?float
     {
         if (($scope['type'] ?? null) !== ($dispute['type'] ?? null)) {
-            return false;
+            return null;
         }
 
         if (($scope['type'] ?? null) === 'degraded_coverage') {
-            return is_string($attemptId) && ($scope['attempt_id'] ?? null) === $attemptId;
+            return is_string($attemptId) && ($scope['attempt_id'] ?? null) === $attemptId ? 1.0 : null;
         }
 
         $current = self::scopeFor($dispute, null);
 
         if ($scope['start_time'] === null || $current['start_time'] === null) {
-            return $scope['start_time'] === null && $current['start_time'] === null;
+            return $scope['start_time'] === null && $current['start_time'] === null ? 1.0 : null;
         }
 
         $overlap = min((float) $scope['end_time'], (float) $current['end_time'])
@@ -310,7 +408,67 @@ class ServiceStructureEnsembleRulingApplier
         $union = max((float) $scope['end_time'], (float) $current['end_time'])
             - min((float) $scope['start_time'], (float) $current['start_time']);
 
-        return $overlap > 0 && $union > 0 && $overlap / $union >= self::SPAN_MATCH_OVERLAP;
+        if ($overlap <= 0 || $union <= 0 || $overlap / $union < self::SPAN_MATCH_OVERLAP) {
+            return null;
+        }
+
+        return $overlap / $union;
+    }
+
+    /**
+     * Pairs answers with disputes, closest fit first.
+     *
+     * Questions about part of a passage and about the whole of it overlap, so an answer can
+     * fit more than one open question. The closest remaining fit is paired first and both
+     * sides leave the pool, so a part answer and a whole answer each reach their own
+     * question. Two equally close fits competing for one answer or one question are
+     * ambiguous: neither side is paired, and it resolves nothing.
+     *
+     * @param  array<string, array<int, float>>  $scores  Answer key → dispute index → fit
+     * @return array<string, int> Answer key → dispute index
+     */
+    private function closestFitPairs(array $scores): array
+    {
+        $candidates = [];
+
+        foreach ($scores as $key => $byDispute) {
+            foreach ($byDispute as $disputeIndex => $score) {
+                $candidates[] = ['key' => (string) $key, 'dispute' => $disputeIndex, 'score' => $score];
+            }
+        }
+
+        usort($candidates, static fn (array $left, array $right): int => $right['score'] <=> $left['score']);
+
+        $pairs = [];
+        $usedKeys = [];
+        $usedDisputes = [];
+
+        foreach ($candidates as $candidate) {
+            if (isset($usedKeys[$candidate['key']]) || isset($usedDisputes[$candidate['dispute']])) {
+                continue;
+            }
+
+            $rivals = array_filter($candidates, static fn (array $other): bool => $other !== $candidate
+                && $other['score'] === $candidate['score']
+                && ! isset($usedKeys[$other['key']]) && ! isset($usedDisputes[$other['dispute']])
+                && ($other['key'] === $candidate['key'] || $other['dispute'] === $candidate['dispute']));
+
+            $usedKeys[$candidate['key']] = true;
+            $usedDisputes[$candidate['dispute']] = true;
+
+            if ($rivals !== []) {
+                foreach ($rivals as $rival) {
+                    $usedKeys[$rival['key']] = true;
+                    $usedDisputes[$rival['dispute']] = true;
+                }
+
+                continue;
+            }
+
+            $pairs[$candidate['key']] = $candidate['dispute'];
+        }
+
+        return $pairs;
     }
 
     /**
