@@ -642,6 +642,18 @@ freeze, and the diff report binds that hash.
   chain. The stamp says `media: deferred` and the run is no longer marked as re-extraction,
   so `rerun-extract` takes a finished Tier A round as it takes a Tier B one, and its
   `reExtract()` rebuilds the sermon text from the new transcript.
+  *Superseded 2026-10-01 (operator): Tier A only transcribes.* So that Tier A can run early, off
+  the critical path, without a later rule commit discarding its detections (and the operator's
+  answers to their questions), `startTranscriptionRound()` stops before detection: RMS log and
+  audio timeline reused (the recording is unchanged; re-measuring cost ≈170 s of the one ffmpeg
+  worker per run, ≈8 h over 170 runs), Whisper afresh, then `RecordCorpusRerunTranscription`
+  stamps `detection: none` with the new text's hash and the worker's commit. The run then joins
+  a Tier B round on the same snapshot or a later one. On the same snapshot `CorpusRerunGuard`
+  lets through exactly the recorded text (and the step the run ended on), refuses an unfinished
+  round or one stale workers ran, and Tier B takes the run whatever its spent grounds say. Tier A
+  refuses a second transcription on a commit; Tier C refuses a run whose latest round on the
+  commit only transcribed; a transcription stamp never changes the previous detection round's
+  deferred media in the snapshot or diff.
 - [x] **A baptism is never inside a song section** (operator, 2026-09-24; prompt rule built
   2026-09-25, `f174babcc`, which keeps a baptismal testimony a `short_talk`). Canary 1
   made 1311 §3950 a 518 s "I Will Sing Of The Lamb" song spanning the baptisms (1200–1718 s),
