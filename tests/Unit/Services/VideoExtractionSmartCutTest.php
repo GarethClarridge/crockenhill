@@ -204,6 +204,20 @@ class VideoExtractionSmartCutTest extends TestCase
     }
 
     #[Test]
+    public function a_real_unindexed_webm_can_be_cut_without_container_duration(): void
+    {
+        $source = $this->source('unindexed-webm.webm', [
+            '-c:v', 'libvpx-vp9', '-deadline', 'realtime', '-cpu-used', '8', '-c:a', 'libopus', '-live', '1',
+        ], 'color=black:size=160x120:rate=25:duration=3', 'sine=frequency=1000:sample_rate=48000:duration=3');
+        $probe = (new Process(['/usr/bin/ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'json', $source]))->mustRun();
+        $this->assertArrayNotHasKey('duration', json_decode($probe->getOutput(), true)['format']);
+        $duration = app(SourceAwareMediaTimingChecker::class)->duration($source);
+        $this->assertGreaterThanOrEqual(3.0, $duration);
+        $path = $this->service->extractSegmentAsFile($source, (object) ['start_time' => 0.0, 'end_time' => $duration]);
+        $this->assertFramesStepEvenly(Storage::disk('local')->path($path));
+    }
+
+    #[Test]
     public function paired_spans_and_enhancement_preserve_simultaneous_events_through_the_last_seconds(): void
     {
         $source = $this->eventSource();

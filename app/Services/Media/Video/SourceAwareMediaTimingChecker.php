@@ -183,7 +183,7 @@ class SourceAwareMediaTimingChecker
         $process->setTimeout(600)->run();
         /** @var array{format?: array{start_time?: string, duration?: string}, streams?: list<array{index: int, codec_type: string, sample_rate?: string, avg_frame_rate?: string}>, packets?: list<array{stream_index: int, pts_time?: string, duration_time?: string}>}|null $data */
         $data = json_decode($process->getOutput(), true);
-        if (! $process->isSuccessful() || ! is_array($data) || ! is_numeric($data['format']['duration'] ?? null)) {
+        if (! $process->isSuccessful() || ! is_array($data)) {
             throw new VideoProcessingException('Timing check: source or output cannot be probed: '.$path);
         }
         $origin = (float) ($data['format']['start_time'] ?? 0);
@@ -197,6 +197,7 @@ class SourceAwareMediaTimingChecker
             $streams[$stream['index']] = ['type' => $stream['codec_type'], 'duration' => $frameDuration];
         }
         $frames = [];
+        $presentationEnd = 0.0;
         foreach ($data['packets'] ?? [] as $packet) {
             $stream = $streams[$packet['stream_index']] ?? null;
             if ($stream === null) {
@@ -210,13 +211,23 @@ class SourceAwareMediaTimingChecker
             if ($time < -0.001) {
                 continue;
             }
-            $frames[$stream['type']][] = ['time' => $time, 'duration' => (float) ($packet['duration_time'] ?? $stream['duration'])];
+            $duration = (float) ($packet['duration_time'] ?? $stream['duration']);
+            $frames[$stream['type']][] = ['time' => $time, 'duration' => $duration];
+            $presentationEnd = max($presentationEnd, $time + $duration);
         }
         foreach ($frames as &$streamFrames) {
             usort($streamFrames, static fn (array $a, array $b): int => $a['time'] <=> $b['time']);
         }
         unset($streamFrames);
-        $result = ['origin' => $origin, 'duration' => (float) $data['format']['duration'] - max(0, $origin), 'frames' => $frames];
+        // Unindexed WebM recordings may omit container duration. The complete
+        // packet scan already establishes their actual presentation extent.
+        $duration = is_numeric($data['format']['duration'] ?? null)
+            ? (float) $data['format']['duration'] - max(0, $origin)
+            : $presentationEnd;
+        if (! is_finite($duration) || $duration <= 0) {
+            throw new VideoProcessingException('Timing check: source or output has no measurable duration: '.$path);
+        }
+        $result = ['origin' => $origin, 'duration' => $duration, 'frames' => $frames];
         if ($cache) {
             // Bound memory across a long-lived worker. One source serves all sections in a job.
             $this->sources = [$identity => $result];

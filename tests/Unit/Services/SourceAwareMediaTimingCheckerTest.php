@@ -25,11 +25,13 @@ class SourceAwareMediaTimingCheckerTest extends TestCase
 <?php
 $damaged = str_contains(end($argv), 'damaged');
 $packets = [];
+$format = ['start_time' => '0'];
+if (! str_contains(end($argv), 'no-duration')) { $format['duration'] = '1'; }
 for ($i = 0; $i < 30; $i++) {
     $packets[] = ['stream_index' => 0, 'pts_time' => (string) ($i / 30 + ($damaged && $i >= 2 ? 0.016 : 0)), 'duration_time' => (string) (1 / 30)];
     $packets[] = ['stream_index' => 1, 'pts_time' => (string) ($i / 30), 'duration_time' => (string) (1 / 30)];
 }
-echo json_encode(['format' => ['start_time' => '0', 'duration' => '1'], 'streams' => [['index' => 0, 'codec_type' => 'video', 'avg_frame_rate' => '30/1'], ['index' => 1, 'codec_type' => 'audio']], 'packets' => $packets]);
+echo json_encode(['format' => $format, 'streams' => [['index' => 0, 'codec_type' => 'video', 'avg_frame_rate' => '30/1'], ['index' => 1, 'codec_type' => 'audio']], 'packets' => $packets]);
 PROBE);
         chmod($probe, 0755);
         config(['media-processing.ffmpeg.ffprobe_path' => $probe]);
@@ -65,5 +67,16 @@ PROBE);
             ['start_time' => 2 / 30, 'end_time' => 1.0],
         ]);
         $this->assertTrue($report['passed']);
+    }
+
+    #[Test]
+    public function an_unindexed_webm_uses_observed_packet_extent_when_container_duration_is_absent(): void
+    {
+        $checker = app(SourceAwareMediaTimingChecker::class);
+        $source = $this->directory.'/no-duration-source';
+        $spans = [['start_time' => 0.0, 'end_time' => 1.0]];
+        $this->assertEqualsWithDelta(1.0, $checker->duration($source), 0.000001);
+        $checker->validateSpans($source, $spans);
+        $this->assertTrue($checker->check($source, $this->directory.'/output', $spans)['passed']);
     }
 }
