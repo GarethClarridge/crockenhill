@@ -44,7 +44,7 @@ class ServiceStructureEnsembleRunner
         $attempt = (string) Str::uuid();
         $base = ServiceArtifactDisk::DURABLE_PREFIX.$log->processing_id.'.ensemble.'.$attempt;
         $inputPath = $base.'.input.json';
-        $rawInput = json_encode($input, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        $rawInput = json_encode(ServiceStructureEnsembleInput::forStorage($input), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         $hash = hash('sha256', $rawInput);
         $disk = Storage::disk(ServiceArtifactDisk::name());
 

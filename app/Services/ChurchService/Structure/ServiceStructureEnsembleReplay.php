@@ -30,7 +30,7 @@ class ServiceStructureEnsembleReplay
      */
     public function replay(array $evidence, array $rulings = [], ?MediaProcessingLog $log = null): array
     {
-        $input = $this->snapshot($evidence);
+        $input = ServiceStructureEnsembleInput::hydrate($this->snapshot($evidence));
         $inputHash = $evidence['input_hash'];
         $diskName = $evidence['artifact_disk'];
         $writtenTo = self::originDisk($evidence);
@@ -132,6 +132,8 @@ class ServiceStructureEnsembleReplay
 
         return [
             ...$corrected,
+            'refused' => $composition->refused,
+            'valid_votes' => $composition->validVotes,
             'validation_passed' => $validated?->passed() ?? false,
             'failure_codes' => $validated?->failureCodes() ?? ['insufficient_ensemble_votes'],
         ];

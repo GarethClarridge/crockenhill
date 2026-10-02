@@ -94,6 +94,53 @@ class ServiceStructureEnsembleInput
     }
 
     /**
+     * The input as it is banked: the RMS log is named by its path and hash in `source`, not
+     * copied. It is almost all of a snapshot's size (an hour's log is 11–16 MB against about
+     * 300 KB for everything else), it is already a retained service artifact, and every
+     * attempt on a run would otherwise bank another copy of it.
+     *
+     * @param  array<string, mixed>  $input
+     * @return array<string, mixed>
+     */
+    public static function forStorage(array $input): array
+    {
+        unset($input['rms_log']);
+
+        return $input;
+    }
+
+    /**
+     * A banked input with its RMS log read back from the artifact its hash names. An input
+     * banked before {@see self::forStorage()} carries its log inside and is returned as it is.
+     * A log that is missing or no longer matches its hash refuses: draws refined without it
+     * would differ from the ones banked.
+     *
+     * @param  array<string, mixed>  $input
+     * @return array<string, mixed>
+     */
+    public static function hydrate(array $input): array
+    {
+        if (array_key_exists('rms_log', $input)) {
+            return $input;
+        }
+
+        $path = $input['source']['rms_log_path'] ?? null;
+        $hash = $input['source']['rms_log_hash'] ?? null;
+
+        if ($hash === null) {
+            return [...$input, 'rms_log' => null];
+        }
+
+        $rms = is_string($path) ? Storage::disk(ServiceArtifactDisk::for($path))->get($path) : null;
+
+        if (! is_string($rms) || hash('sha256', $rms) !== $hash) {
+            throw new RuntimeException('The RMS log an ensemble input names is missing or has changed.');
+        }
+
+        return [...$input, 'rms_log' => $rms];
+    }
+
+    /**
      * The planned service: only items a source other than the recording attests.
      *
      * An item the pipeline's own projection wrote is this detector's earlier answer, and

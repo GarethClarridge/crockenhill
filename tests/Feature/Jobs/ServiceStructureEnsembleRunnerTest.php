@@ -8,6 +8,7 @@ use App\Data\ChurchServiceTranscript;
 use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\Structure\ServiceStructureDrawExecutor;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleComposer;
+use App\Services\ChurchService\Structure\ServiceStructureEnsembleInput;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleReplay;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleRunner;
 use App\Services\ChurchService\Structure\ValidationContext;
@@ -52,6 +53,70 @@ class ServiceStructureEnsembleRunnerTest extends TestCase
         foreach ($result['evidence']['slots'] as $slot) {
             $this->assertSame('private', Storage::disk('public')->getVisibility($slot['path']));
         }
+    }
+
+    #[Test]
+    public function the_banked_input_names_the_rms_log_by_its_hash_instead_of_copying_it(): void
+    {
+        Config::set('media-processing.service_structure.detector', 'mock');
+        $diskName = ServiceArtifactDisk::name();
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $rmsPath = ServiceArtifactDisk::DURABLE_PREFIX.'rms-by-reference-'.$log->processing_id.'.log';
+        $rms = "frame:0 pts:0 pts_time:0.0\nlavfi.astats.Overall.RMS_level=-25.0\n";
+        Storage::disk($diskName)->put($rmsPath, $rms);
+        $transcript = ChurchServiceTranscript::fromCues([
+            ['start' => 0.0, 'end' => 100.0, 'text' => 'Welcome and Bible reading.'],
+            ['start' => 100.0, 'end' => 500.0, 'text' => 'Turn with me to John.'],
+        ], 500.0, ChurchServiceTranscript::SOURCE_MOCK);
+        $input = [
+            'processing_id' => $log->processing_id,
+            'transcript' => $transcript->toArray(),
+            'audio_timeline' => AudioTimelineFixture::payload([], 500.0),
+            'oos_items' => [],
+            'validation_context' => ServiceStructureDrawExecutor::contextSnapshot(ValidationContext::for($transcript)),
+            'rms_log' => $rms,
+            'source' => ['rms_log_path' => $rmsPath, 'rms_log_hash' => hash('sha256', $rms)],
+        ];
+
+        try {
+            $result = app(ServiceStructureEnsembleRunner::class)->run($log, $input);
+            $banked = json_decode((string) Storage::disk($diskName)->get($result['evidence']['input_path']), true, flags: JSON_THROW_ON_ERROR);
+
+            $this->assertArrayNotHasKey('rms_log', $banked);
+            $this->assertSame(hash('sha256', $rms), $banked['source']['rms_log_hash']);
+            $this->assertSame($rms, ServiceStructureEnsembleInput::hydrate($banked)['rms_log']);
+            $this->assertTrue(app(ServiceStructureEnsembleReplay::class)->replay($result['evidence'])['validation_passed']);
+
+            Storage::disk($diskName)->put($rmsPath, $rms.'lavfi.astats.Overall.RMS_level=-60.0'."\n");
+
+            try {
+                app(ServiceStructureEnsembleReplay::class)->replay($result['evidence']);
+                $this->fail('A banked input whose RMS log changed must not replay.');
+            } catch (RuntimeException $exception) {
+                $this->assertStringContainsString('RMS log', $exception->getMessage());
+            }
+        } finally {
+            Storage::disk($diskName)->delete($rmsPath);
+
+            foreach ($log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble'] ?? [] as $evidence) {
+                Storage::disk($diskName)->delete($evidence['input_path']);
+
+                foreach ($evidence['slots'] as $slot) {
+                    Storage::disk($diskName)->delete($slot['path']);
+                }
+            }
+        }
+    }
+
+    #[Test]
+    public function an_input_banked_with_its_rms_log_inside_still_replays_as_it_was(): void
+    {
+        $embedded = ['rms_log' => 'embedded', 'source' => ['rms_log_path' => 'gone.log', 'rms_log_hash' => 'irrelevant']];
+        $none = ['source' => ['rms_log_path' => null, 'rms_log_hash' => null]];
+
+        $this->assertSame('embedded', ServiceStructureEnsembleInput::hydrate($embedded)['rms_log']);
+        $this->assertNull(ServiceStructureEnsembleInput::hydrate($none)['rms_log']);
+        $this->assertSame($none + ['rms_log' => null], ServiceStructureEnsembleInput::hydrate(ServiceStructureEnsembleInput::forStorage($none + ['rms_log' => null])));
     }
 
     #[Test]

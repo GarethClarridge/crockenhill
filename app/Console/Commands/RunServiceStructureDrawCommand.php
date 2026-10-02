@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Data\HistoricStagingContext;
 use App\Services\ChurchService\Structure\ServiceStructureDrawExecutor;
+use App\Services\ChurchService\Structure\ServiceStructureEnsembleInput;
 use App\Services\ChurchService\Structure\ServiceStructureEvaluationTelemetry;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Support\ServiceArtifactDisk;
@@ -69,6 +70,8 @@ class RunServiceStructureDrawCommand extends Command
             if (! is_array($input)) {
                 throw new RuntimeException('Ensemble input snapshot is not an object.');
             }
+
+            $input = ServiceStructureEnsembleInput::hydrate($input);
 
             $started = microtime(true);
 
