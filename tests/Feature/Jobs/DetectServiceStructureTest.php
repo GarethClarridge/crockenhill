@@ -560,8 +560,9 @@ class DetectServiceStructureTest extends TestCase
         $this->assertEqualsWithDelta(600.0, (float) $sermonSection->start_time, 0.01);
         $this->assertEqualsWithDelta(2200.0, (float) $sermonSection->end_time, 0.01);
         $this->assertSame('service_sections', $extractionPlan['source']);
-        $this->assertEqualsWithDelta(420.0, $extractionPlan['segments'][0]['start_time'], 0.01);
-        $this->assertEqualsWithDelta(2210.0, $extractionPlan['segments'][0]['end_time'], 0.01);
+        $this->assertEqualsWithDelta(600.0, $extractionPlan['segments'][0]['start_time'], 0.01);
+        $this->assertTrue($extractionPlan['metadata']['requires_review']);
+        $this->assertEqualsWithDelta(2200.0, $extractionPlan['segments'][0]['end_time'], 0.01);
         $this->assertSame('llm_structure', $log->processing_metadata?->toArray()['sermon_bounds']['source'] ?? null);
     }
 
@@ -593,8 +594,8 @@ class DetectServiceStructureTest extends TestCase
 
         $this->assertEqualsWithDelta(500.0, (float) $log->sermon_start_time, 0.01);
         $this->assertEqualsWithDelta(2100.0, (float) $log->sermon_end_time, 0.01);
-        $this->assertSame('processing_log', $extractionPlan['source']);
-        $this->assertSame('no_high_confidence_sermon_section', $extractionPlan['metadata']['reason']);
+        $this->assertSame('service_sections', $extractionPlan['source']);
+        $this->assertSame('sermon_composition_review', $extractionPlan['metadata']['reason']);
         $this->assertArrayNotHasKey('sermon_bounds', $log->processing_metadata?->toArray() ?? []);
     }
 
@@ -705,8 +706,8 @@ class DetectServiceStructureTest extends TestCase
         MockServiceStructureService::useStructure(ServiceStructure::fromSections([
             $this->section('welcome', 0.0, 120.0),
             $this->section('song', 130.0, 400.0, oosItemId: (int) $songItem->id),
-            $this->section('bible_reading', 420.0, 590.0),
-            $this->section('sermon', 600.0, 2200.0, oosItemId: (int) $sermonItem->id),
+            $this->referencedSection('bible_reading', 420.0, 590.0, readingReference: 'John 3'),
+            $this->section('sermon', 600.0, 2200.0, oosItemId: (int) $sermonItem->id, sermonReference: 'John 3'),
             $this->section('song', 2210.0, 2400.0),
         ], ['Fixture structure.'], 'mock'));
 
@@ -2329,6 +2330,7 @@ class DetectServiceStructureTest extends TestCase
         float $confidence = 0.95,
         ?int $oosItemId = null,
         ?string $summary = null,
+        ?string $sermonReference = null,
     ): ServiceStructureSection {
         $section = ServiceStructureSection::fromArray([
             'type' => $type,
@@ -2337,6 +2339,7 @@ class DetectServiceStructureTest extends TestCase
             'confidence' => $confidence,
             'oos_item_id' => $oosItemId,
             'summary' => $summary,
+            'sermon_reference' => $sermonReference,
         ]);
 
         assert($section instanceof ServiceStructureSection);

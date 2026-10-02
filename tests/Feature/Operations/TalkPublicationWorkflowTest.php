@@ -24,6 +24,7 @@ use App\Models\User;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
 use App\Services\ChurchService\SectionPublication\TalkPublicationHandler;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
+use App\Services\Media\ExtractedMediaDurationProbe;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Sermon\SermonExposurePolicy;
@@ -65,6 +66,9 @@ class TalkPublicationWorkflowTest extends TestCase
     {
         config(['church.talks.public_types' => ['sermon']]);
 
+        $probe = $this->createStub(ExtractedMediaDurationProbe::class);
+        $probe->method('durationOf')->willReturn(300.0);
+        $this->instance(ExtractedMediaDurationProbe::class, $probe);
         Storage::fake('local');
         Storage::fake('public');
 

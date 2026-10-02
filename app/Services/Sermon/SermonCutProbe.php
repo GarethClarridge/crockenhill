@@ -90,7 +90,8 @@ class SermonCutProbe
                 'mode' => $plan['mode'],
                 'strategy' => $plan['metadata']['strategy'] ?? $plan['metadata']['reason'] ?? null,
                 'segments' => $plan['segments'],
-                'from_sections' => $plan['source'] === 'service_sections',
+                'from_sections' => true,
+                'requires_review' => $plan['metadata']['requires_review'] ?? false,
             ];
         } catch (Throwable $exception) {
             return ['mode' => 'error', 'error' => $exception::class.': '.$exception->getMessage()];

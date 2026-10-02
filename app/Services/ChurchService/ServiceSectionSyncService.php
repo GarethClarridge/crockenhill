@@ -10,6 +10,7 @@ use App\Exceptions\UnplacedContentHoldException;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
+use App\Services\Sermon\SermonExtractionPlanResolver;
 use App\Support\ServiceSectionConfidence;
 use App\Traits\SanitizesLogData;
 use Carbon\CarbonImmutable;
@@ -195,6 +196,8 @@ class ServiceSectionSyncService
                 $staleSection->delete();
             }
         });
+
+        app(SermonExtractionPlanResolver::class)->compose($processingLog);
     }
 
     /**

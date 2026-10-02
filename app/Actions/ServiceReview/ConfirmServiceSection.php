@@ -8,6 +8,7 @@ use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
+use Illuminate\Validation\ValidationException;
 
 class ConfirmServiceSection
 {
@@ -34,6 +35,12 @@ class ConfirmServiceSection
     public function apply(ServiceSection $section, int $userId): void
     {
         $metadata = $section->metadata?->toArray() ?? [];
+        if ($section->section_type === ServiceSectionType::Sermon
+            && ($metadata['sermon_boundary']['method'] ?? null) === 'identified_sections'
+            && ($metadata['sermon_boundary']['requires_review'] ?? false) === true) {
+            throw ValidationException::withMessages(['sermon_section_ids' => 'Resolve the sermon membership and coverage using Save before confirming.']);
+        }
+
         $now = now()->toIso8601String();
         $manualReview = is_array($metadata['manual_review'] ?? null)
             ? $metadata['manual_review']

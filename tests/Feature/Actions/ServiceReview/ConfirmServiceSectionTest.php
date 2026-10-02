@@ -10,7 +10,9 @@ use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\User;
+use App\Services\Sermon\SermonExtractionPlanResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -101,5 +103,19 @@ class ConfirmServiceSectionTest extends TestCase
         $this->assertFalse($fresh?->needs_manual_review);
         $this->assertSame(ServiceSectionSongMatchType::Unmatched, $fresh?->song_match_type);
         $this->assertNotEmpty($metadata['manual_review']['song_match_reviewed_at'] ?? null);
+    }
+
+    #[Test]
+    public function a_generic_confirmation_cannot_hide_an_unresolved_sermon_composition(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create();
+        $sermon = ServiceSection::factory()->create(['media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon, 'start_time' => 100, 'end_time' => 300, 'needs_manual_review' => false]);
+        ServiceSection::factory()->create(['media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::BibleReading, 'start_time' => 10, 'end_time' => 90]);
+        app(SermonExtractionPlanResolver::class)->compose($log);
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Resolve the sermon membership');
+        $this->action->execute($sermon->fresh(), $this->admin->id);
     }
 }

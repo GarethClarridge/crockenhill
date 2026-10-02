@@ -269,18 +269,18 @@ return [
     | plays: the site serves web video, and the archive is the source file, not
     | the extract.
     |
-    | Above `reencode_above_mbps` the extract is re-encoded instead. The default
-    | sits in the gap between the legacy camera era and the current OBS era, so
-    | ordinary weekly uploads stream-copy byte-identically and only heavyweight
-    | material is touched. Set to 0 to always stream copy.
+    | Every selected section now uses one paired picture/sound encoding pass.
+    | Multiple sections use paired concat; there is no stream-copy or smart-cut path.
     |
     | Quality is expressed as CRF rather than a target bitrate: a fixed bitrate
     | would inflate an already-small source while degrading it, whereas CRF
     | spends bits only where the picture needs them.
     |
     */
+    // Bump when cutting or enhancement behaviour changes. Older assets must be regenerated.
+    'media_processing_version' => 2,
+
     'video_extraction' => [
-        'reencode_above_mbps' => (float) env('VIDEO_EXTRACTION_REENCODE_ABOVE_MBPS', 6.0),
         'reencode_crf' => (int) env('VIDEO_EXTRACTION_REENCODE_CRF', 23),
         // Measured on 300 s of 1080p speech from the historic corpus, ten cores:
         // medium 67.5 s at SSIM 0.99507, faster 36.6 s at 0.99431, veryfast 25.1 s
@@ -290,11 +290,6 @@ return [
         // (VP9, or above the bitrate threshold), so this is the setting that
         // decides how long a bulk pass takes.
         'reencode_preset' => env('VIDEO_EXTRACTION_REENCODE_PRESET', 'faster'),
-        // How far before the cut a stream copy's coarse input seek lands. It only
-        // has to clear the source GOP so the fine output seek still decides where
-        // the cut falls; see VideoExtractionService::streamCopySeekArguments().
-        // Zero restores the single output seek.
-        'copy_seek_prefix_seconds' => (float) env('VIDEO_EXTRACTION_COPY_SEEK_PREFIX_SECONDS', 30.0),
     ],
 
     /*
@@ -335,7 +330,6 @@ return [
     ],
 
     'section_classification' => [
-        'prefer_high_confidence_sermon_section' => env('SERVICE_SECTION_PREFER_HIGH_CONFIDENCE_SERMON', true),
         'adjacent_merge_max_gap_seconds' => (int) env('SERVICE_SECTION_ADJACENT_MERGE_MAX_GAP_SECONDS', 2),
 
         /*
@@ -510,15 +504,8 @@ return [
     */
     'section_extraction' => [
         'enhanced_sermon' => [
-            'enabled' => env('SERVICE_SECTION_ENHANCED_SERMON_ENABLED', true),
-            'adjacent_gap_seconds' => 60,
-            'allow_non_adjacent_concat' => env('SERVICE_SECTION_ALLOW_NON_ADJACENT_CONCAT', true),
-            // Beyond this gap a bible reading is too far from the sermon to be the preached
-            // text, so it is not paired (F3). 15 minutes is deliberately generous.
+            // Detection/review context window; extraction never infers membership from a gap.
             'max_pairing_gap_seconds' => 900,
-            // Readings shorter than this are demoted (not excluded) when ranking the preached
-            // text, so a short "let us turn to..." preamble loses to the substantive reading (F17).
-            'min_reading_duration_seconds' => 90,
             // A sermon span longer than this is implausible and indicates under-segmentation
             // (e.g. RMS collapsing a whole service into one block). The run is routed to manual
             // review rather than silently extracting the wrong content (F10).
@@ -545,10 +532,6 @@ return [
                 'morning' => 1500,
                 'evening' => 900,
             ],
-            // A long trailing section is review-worthy only when another timed
-            // service item corroborates a separate boundary; duration alone is
-            // never a sermon-side review trigger.
-            'long_tail_review_seconds' => 120,
         ],
     ],
 

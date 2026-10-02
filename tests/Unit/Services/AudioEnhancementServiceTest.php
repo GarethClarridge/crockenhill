@@ -31,6 +31,15 @@ class AudioEnhancementServiceTest extends TestCase
         $this->service = new AudioEnhancementService;
     }
 
+    #[Test]
+    public function loudness_normalisation_rebuilds_sample_timestamps_after_lookahead_flush(): void
+    {
+        $chain = $this->service->buildFilterChain('/nonexistent/file.mp3', 'timing-regression');
+
+        $this->assertNotNull($chain);
+        $this->assertStringEndsWith(',asetpts=N/SR/TB', $chain);
+    }
+
     // ---- enhance() returns null when disabled ----
 
     #[Test]

@@ -15,6 +15,7 @@ use App\Services\Media\Audio\AudioEnhancementService;
 use App\Services\Media\ExtractedMediaDurationProbe;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Song\SongVideoService;
+use App\Support\MediaProcessingVersion;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -163,7 +164,8 @@ class SongPublicationHandler implements SectionPublicationHandler
     public function publish(ServiceSection $section): void
     {
         // Idempotent: skip if a SongVideo already exists for this section.
-        if (SongVideo::query()->where('service_section_id', $section->id)->exists()) {
+        if (SongVideo::query()->where('service_section_id', $section->id)->exists()
+            && ($section->metadata?->raw['song_video_extraction']['media_signature'] ?? null) === $section->mediaSignature()) {
             Log::info('SongPublicationHandler: SongVideo already exists for section, skipping', $this->sanitizeArrayForLog([
                 'service_section_id' => $section->id,
             ]));
@@ -221,10 +223,18 @@ class SongPublicationHandler implements SectionPublicationHandler
         }
 
         $section->extracted_video_path = $promotedPath;
+        $metadata = $section->metadata?->toArray() ?? [];
+        $metadata['song_video_extraction'] = [
+            'media_signature' => $section->mediaSignature(),
+            'media_processing' => MediaProcessingVersion::signature(),
+            'generated_at' => now()->toIso8601String(),
+        ];
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
 
         $this->songVideoService->createFromExtraction($section, $promotedPath, $clipSeconds);
 
-        if (! $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::Published)) {
+        if ($section->publication_status !== ServiceSectionPublicationStatus::Published
+            && ! $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::Published)) {
             throw new \RuntimeException('Invalid state transition when publishing song section');
         }
 

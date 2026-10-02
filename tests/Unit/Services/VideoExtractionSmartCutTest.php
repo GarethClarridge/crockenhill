@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Exceptions\VideoProcessingException;
 use App\Services\Media\Audio\AudioCompressionService;
+use App\Services\Media\Audio\AudioEnhancementService;
+use App\Services\Media\Video\SourceAwareMediaTimingChecker;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
 use Illuminate\Support\Facades\Config;
@@ -115,11 +118,11 @@ class VideoExtractionSmartCutTest extends TestCase
     }
 
     #[Test]
-    public function a_span_past_the_end_of_its_source_keeps_what_the_source_holds(): void
+    public function a_span_past_the_end_of_its_source_is_rejected(): void
     {
-        $output = $this->cut($this->closedGopSource(), 35.0, 45.0);
-
-        $this->assertStartsTogetherAndRunsFor($output, 5.0);
+        $this->expectException(VideoProcessingException::class);
+        $this->expectExceptionMessage('outside source');
+        $this->cut($this->closedGopSource(), 35.0, 45.0);
     }
 
     #[Test]
@@ -198,6 +201,157 @@ class VideoExtractionSmartCutTest extends TestCase
         ]);
 
         $this->assertFramesStepEvenly(Storage::disk('local')->path($relativePath));
+    }
+
+    #[Test]
+    public function paired_spans_and_enhancement_preserve_simultaneous_events_through_the_last_seconds(): void
+    {
+        $source = $this->eventSource();
+        $path = $this->service->extractConcatenatedSegmentAsFile($source, [
+            ['start_time' => 0.13, 'end_time' => 8.337],
+            ['start_time' => 12.17, 'end_time' => 20.037],
+        ]);
+        $output = Storage::disk('local')->path($path);
+        $this->assertEventsTogether($output);
+
+        Config::set('media-processing.audio_enhancement.enabled', true);
+        Config::set('media-processing.audio_enhancement.skip_tolerance_lufs', 0);
+        $enhanced = app(AudioEnhancementService::class)->enhanceVideo($output, 'paired-events-'.getmypid());
+        $this->assertNotNull($enhanced);
+        try {
+            $this->assertEventsTogether($enhanced);
+        } finally {
+            unlink($enhanced);
+        }
+    }
+
+    #[Test]
+    public function loudnorm_flush_damage_is_reproduced_and_the_fixed_enhancement_keeps_the_final_events(): void
+    {
+        $source = $this->source('loudnorm-tail-events.mp4', [
+            '-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-c:a', 'aac',
+        ], 'color=black:size=160x120:rate=25:duration=192.049,geq=lum=if(between(mod(T\\,1)\\,0.48\\,0.60)\\,235\\,16)',
+            'aevalsrc=if(between(mod(t\\,1)\\,0.48\\,0.60)\\,0.6*sin(2*PI*1000*t)\\,0):s=48000:d=192.049');
+        config(['media-processing.audio_enhancement.enabled' => true, 'media-processing.audio_enhancement.skip_tolerance_lufs' => 0]);
+        $enhancement = app(AudioEnhancementService::class);
+        $chain = $enhancement->buildFilterChain($source, 'loudnorm-tail');
+        $this->assertNotNull($chain);
+        $legacy = $this->sourceDirectory.'/loudnorm-tail-legacy.mp4';
+        $legacyChain = str_replace(',asetpts=N/SR/TB', '', $chain);
+        (new Process(['/usr/bin/ffmpeg', '-v', 'error', '-y', '-i', $source, '-af', $legacyChain,
+            '-c:v', 'copy', '-c:a', 'aac', '-ar', '48000', '-b:a', '128k', $legacy]))->setTimeout(120)->mustRun();
+        $checker = app(SourceAwareMediaTimingChecker::class);
+        try {
+            $checker->check($source, $legacy, [['start_time' => 0.0, 'end_time' => $checker->duration($source)]]);
+            $this->fail('The pre-fix loudnorm chain must reproduce its late audio hole.');
+        } catch (VideoProcessingException $exception) {
+            $this->assertStringContainsString('introduced audio discontinuity', $exception->getMessage());
+        }
+        $fixed = $enhancement->enhanceVideo($source, 'loudnorm-tail-fixed-'.getmypid());
+        $this->assertNotNull($fixed);
+        try {
+            $this->assertEventsTogether($fixed);
+            $this->assertGreaterThan(180, count($this->eventOffsets($fixed)));
+        } finally {
+            unlink($fixed);
+        }
+    }
+
+    #[Test]
+    public function regularly_timed_shifted_audio_is_a_negative_control_for_event_alignment(): void
+    {
+        $source = $this->eventSource();
+        $shifted = $this->sourceDirectory.'/shifted-events.mp4';
+        (new Process(['/usr/bin/ffmpeg', '-v', 'error', '-y', '-i', $source, '-af', 'adelay=200:all=1', '-c:v', 'copy', '-c:a', 'aac', $shifted]))->setTimeout(120)->mustRun();
+
+        $offsets = $this->eventOffsets($shifted);
+        $this->assertNotEmpty($offsets);
+        $this->assertGreaterThan(0.15, max(array_map(abs(...), $offsets)));
+    }
+
+    #[Test]
+    public function the_source_aware_checker_blocks_an_introduced_audio_hole(): void
+    {
+        $source = $this->eventSource();
+        $damaged = $this->sourceDirectory.'/introduced-audio-hole.mp4';
+        (new Process(['/usr/bin/ffmpeg', '-v', 'error', '-y', '-i', $source,
+            '-af', 'asetpts=PTS+if(gte(T\\,20)\\,0.08/TB\\,0)', '-c:v', 'copy', '-c:a', 'aac', $damaged]))->setTimeout(120)->mustRun();
+        $this->expectException(VideoProcessingException::class);
+        $this->expectExceptionMessage('introduced audio discontinuity');
+        app(SourceAwareMediaTimingChecker::class)->check($source, $damaged, [['start_time' => 0.0, 'end_time' => 40.0]]);
+    }
+
+    #[Test]
+    public function the_checker_accepts_an_irregular_last_frame_already_present_in_the_source(): void
+    {
+        $source = $this->source('irregular-last-frame.mp4', [
+            '-vf', 'setpts=PTS+if(gte(N\\,999)\\,0.08/TB\\,0)', '-fps_mode', 'vfr',
+            '-c:v', 'libx264', '-preset', 'veryfast', '-c:a', 'aac',
+        ]);
+        $checker = app(SourceAwareMediaTimingChecker::class);
+        $report = $checker->check($source, $source, [['start_time' => 0.0, 'end_time' => $checker->duration($source)]]);
+        $this->assertTrue($report['passed']);
+        $this->assertGreaterThan(0, $report['source_anomalies']);
+    }
+
+    #[Test]
+    public function an_audio_codec_change_does_not_hide_a_small_introduced_timing_hole(): void
+    {
+        $source = $this->source('mp3-track.mp4', [
+            '-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-c:a', 'libmp3lame', '-ar', '44100',
+        ]);
+        $damaged = $this->sourceDirectory.'/mp3-track-damaged.mp4';
+        (new Process(['/usr/bin/ffmpeg', '-v', 'error', '-y', '-i', $source,
+            '-af', 'asetpts=PTS+if(gte(T\\,20)\\,0.009/TB\\,0)', '-c:v', 'copy', '-c:a', 'aac', '-ar', '48000', $damaged]))->setTimeout(120)->mustRun();
+        $this->expectException(VideoProcessingException::class);
+        $this->expectExceptionMessage('introduced audio discontinuity');
+        app(SourceAwareMediaTimingChecker::class)->check($source, $damaged, [['start_time' => 0.0, 'end_time' => 40.0]]);
+    }
+
+    private function eventSource(): string
+    {
+        return $this->source('simultaneous-events.mp4', [
+            '-c:v', 'libx264', '-preset', 'veryfast', '-g', '125', '-pix_fmt', 'yuv420p', '-c:a', 'aac',
+        ], 'color=black:size=160x120:rate=25:duration=40,geq=lum=if(between(mod(T\\,1)\\,0.48\\,0.60)\\,235\\,16)',
+            'aevalsrc=if(between(mod(t\\,1)\\,0.48\\,0.60)\\,0.6*sin(2*PI*1000*t)\\,0):s=48000:d=40');
+    }
+
+    private function assertEventsTogether(string $path): void
+    {
+        $offsets = $this->eventOffsets($path);
+        $this->assertGreaterThan(10, count($offsets), 'Include events in the final seconds.');
+        // One 25 fps picture plus one 48 kHz AAC frame and one sample. No accumulated allowance.
+        $this->assertLessThanOrEqual(1 / 25 + 1024 / 48000 + 1 / 48000, max(array_map(abs(...), $offsets)));
+    }
+
+    /** @return list<float> */
+    private function eventOffsets(string $path): array
+    {
+        $video = (new Process(['/usr/bin/ffmpeg', '-v', 'error', '-i', $path, '-vf', 'scale=1:1,format=gray', '-f', 'rawvideo', '-']))->setTimeout(120)->mustRun()->getOutput();
+        $audio = (new Process(['/usr/bin/ffmpeg', '-v', 'error', '-i', $path, '-vn', '-ac', '1', '-ar', '48000', '-f', 'f32le', '-']))->setTimeout(120)->mustRun()->getOutput();
+        $pictureEvents = [];
+        $wasBright = false;
+        foreach (str_split($video) as $index => $pixel) {
+            $bright = ord($pixel) > 128;
+            if ($bright && ! $wasBright) {
+                $pictureEvents[] = $index / 25;
+            }
+            $wasBright = $bright;
+        }
+        $soundEvents = [];
+        $wasLoud = false;
+        foreach (str_split($audio, 480 * 4) as $index => $window) {
+            $samples = unpack('g*', $window) ?: [];
+            $power = array_sum(array_map(fn (float $sample): float => $sample * $sample, $samples)) / max(count($samples), 1);
+            $loud = $power > 0.002;
+            if ($loud && ! $wasLoud) {
+                $soundEvents[] = $index * 0.01;
+            }
+            $wasLoud = $loud;
+        }
+        $this->assertCount(count($pictureEvents), $soundEvents, 'Every flash must have its sound.');
+
+        return array_map(fn (float $picture, float $sound): float => $sound - $picture, $pictureEvents, $soundEvents);
     }
 
     private function cut(string $source, float $start, float $end): string
@@ -408,7 +562,7 @@ class VideoExtractionSmartCutTest extends TestCase
      *
      * @param  list<string>  $encoderArguments
      */
-    private function source(string $name, array $encoderArguments, string $picture = 'testsrc2=size=320x240:rate=25:duration=40'): string
+    private function source(string $name, array $encoderArguments, string $picture = 'testsrc2=size=320x240:rate=25:duration=40', string $sound = 'sine=frequency=440:sample_rate=48000:duration=40'): string
     {
         $path = "{$this->sourceDirectory}/{$name}";
 
@@ -421,7 +575,7 @@ class VideoExtractionSmartCutTest extends TestCase
         (new Process([
             '/usr/bin/ffmpeg', '-v', 'error', '-y',
             '-f', 'lavfi', '-i', $picture,
-            '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000:duration=40',
+            '-f', 'lavfi', '-i', $sound,
             ...$encoderArguments,
             $partial,
         ]))->setTimeout(180)->mustRun();

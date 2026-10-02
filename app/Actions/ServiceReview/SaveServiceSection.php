@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\ServiceReview;
 
+use App\Actions\HoldSectionForContentReview;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
@@ -12,7 +13,10 @@ use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ExtractedSectionMediaChecker;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Preacher\TalkSpeakerService;
+use App\Services\Sermon\SermonExtractionPlanResolver;
+use Closure;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -52,6 +56,8 @@ class SaveServiceSection
             'preacher_id' => '',
             'speaker_name' => '',
             'talk_type' => $section->publicationTalkType()->value ?? '',
+            'sermon_section_ids' => null,
+            'sermon_composition_identity' => null,
         ], $sectionEdits[$section->id] ?? [], $speakerEdits[$section->id] ?? []);
 
         $originalSectionType = $section->section_type;
@@ -66,6 +72,8 @@ class SaveServiceSection
                     ServiceSectionType::cases()
                 ))],
                 'title' => ['required', 'string', 'max:255'],
+                'sermon_section_ids' => ['nullable', 'string', 'regex:/^\d+(?:\s*,\s*\d+)*$/'],
+                'sermon_composition_identity' => ['nullable', 'string', 'size:64'],
                 'end_time' => ['required', 'numeric', 'min:0', 'max:9999999.999'],
                 'preacher_id' => ['nullable', 'integer', 'exists:preachers,id'],
                 'speaker_name' => ['nullable', 'string', 'max:255'],
@@ -142,6 +150,22 @@ class SaveServiceSection
         });
 
         $validated = $validator->validate();
+        $compositionChanged = $originalSectionType->value !== $validated['section_type']
+            || abs((float) $validated['end_time'] - $originalEndTime) > 0.0005;
+
+        if ($section->section_type === ServiceSectionType::Sermon && is_string($validated['sermon_section_ids'] ?? null)) {
+            try {
+                $this->withSourceContext($section, fn () => app(SermonExtractionPlanResolver::class)->reviewComposition(
+                    $section->processingLog,
+                    array_map(static fn (string $id): int => (int) trim($id), explode(',', $validated['sermon_section_ids'])),
+                    $validated['sermon_composition_identity'] ?? '',
+                    $userId,
+                ));
+                $section->refresh();
+            } catch (\InvalidArgumentException $exception) {
+                throw ValidationException::withMessages(['sermon_section_ids' => $exception->getMessage()]);
+            }
+        }
 
         $targetEndTime = (float) $validated['end_time'];
         $boundaryChanged = $originalSectionType === ServiceSectionType::ShortTalk
@@ -185,7 +209,16 @@ class SaveServiceSection
             $userId,
         ));
 
+        $compositionOnly = is_string($validated['sermon_section_ids'] ?? null);
+        $heldFlags = $section->metadata->reviewFlags;
+        $held = $compositionOnly && HoldSectionForContentReview::isHeld($heldFlags);
         $this->confirmSection->apply($section, $userId);
+        if ($held) {
+            $metadata = $section->metadata?->toArray() ?? [];
+            $metadata['review_flags'] = $heldFlags;
+            $section->metadata = ServiceSectionMetadata::fromArray($metadata);
+            $section->needs_manual_review = true;
+        }
 
         if ($boundaryChanged) {
             $this->invalidateCandidateAfterRecut($section);
@@ -197,6 +230,7 @@ class SaveServiceSection
             }
 
             $section->save();
+            $this->recomposeIfChanged($section, $compositionChanged);
             $section->loadMissing('processingLog');
             PrepareSectionPublicationCandidates::dispatchStandalone($section->processingLog);
 
@@ -232,10 +266,36 @@ class SaveServiceSection
                 PrepareSectionPublicationCandidates::dispatchStandalone($section->processingLog);
             }
 
+            $this->recomposeIfChanged($section, $compositionChanged);
+
             return;
         }
 
         $section->save();
+        $this->recomposeIfChanged($section, $compositionChanged);
+    }
+
+    private function recomposeIfChanged(ServiceSection $section, bool $changed): void
+    {
+        if (! $changed || (! isset($section->processingLog->processing_metadata?->raw['sermon_composition'])
+            && ! $section->processingLog->serviceSections()->where('section_type', ServiceSectionType::Sermon)->exists())) {
+            return;
+        }
+
+        $this->withSourceContext($section, fn () => app(SermonExtractionPlanResolver::class)->compose($section->processingLog->refresh()));
+    }
+
+    /**
+     * @template TResult
+     *
+     * @param  Closure(): TResult  $callback
+     * @return TResult
+     */
+    private function withSourceContext(ServiceSection $section, Closure $callback): mixed
+    {
+        $context = $section->processingLog->historicStagingContext();
+
+        return $context === null ? $callback() : app(HistoricStagingContextRegistry::class)->within($context, $callback);
     }
 
     /**

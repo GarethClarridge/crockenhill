@@ -230,7 +230,8 @@ class ChurchServiceShowPresenter
      *     review_reason: string|null,
      *     confirmable: bool,
      *     audio_url: string|null,
-     *     video_url: string|null
+     *     video_url: string|null,
+     *     composition_sections: Collection<int, ServiceSection>
      * }>
      */
     private function sectionReviewPanels(Collection $processingRuns): array
@@ -242,7 +243,7 @@ class ChurchServiceShowPresenter
                 $entry = $this->dashboardQuery->reviewEntryFor($section);
 
                 if ($entry !== null) {
-                    $panels[$section->id] = ['section' => $section, ...$entry];
+                    $panels[$section->id] = ['section' => $section, 'composition_sections' => $run->serviceSections, ...$entry];
                 }
             }
         }

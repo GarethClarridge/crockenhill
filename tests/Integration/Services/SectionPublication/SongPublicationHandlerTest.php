@@ -494,6 +494,7 @@ class SongPublicationHandlerTest extends TestCase
             'service_section_id' => $section->id,
         ]);
 
+        $section->update(['metadata' => ['song_video_extraction' => ['media_signature' => $section->mediaSignature()]]]);
         $this->handler->publish($section);
 
         Log::shouldHaveReceived('info')
@@ -501,6 +502,29 @@ class SongPublicationHandlerTest extends TestCase
             ->withArgs(fn (string $message) => str_contains($message, 'already exists'));
 
         $this->assertCount(1, SongVideo::query()->where('service_section_id', $section->id)->get());
+    }
+
+    #[Test]
+    public function a_version_change_regenerates_the_song_video_and_preserves_its_identity_and_feature(): void
+    {
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+        $song = Song::factory()->create();
+        $section = $this->makePublishableSection($song, 'sections/fresh.mp4');
+        Storage::disk('public')->put('sections/fresh.mp4', 'regenerated-content');
+        $section->update(['publication_status' => ServiceSectionPublicationStatus::Published, 'published_at' => now(),
+            'metadata' => ['song_video_extraction' => ['media_signature' => $section->mediaSignature()]]]);
+        $existing = SongVideo::factory()->create(['song_id' => $song->id, 'service_section_id' => $section->id, 'is_featured' => true]);
+        config(['media-processing.media_processing_version' => 3]);
+        $this->audioEnhancement->shouldReceive('enhanceVideo')->once()->andReturn(null);
+
+        $this->handler->publish($section->fresh());
+
+        $this->assertSame(1, SongVideo::query()->where('service_section_id', $section->id)->count());
+        $this->assertTrue($existing->fresh()->is_featured);
+        $this->assertSame('regenerated-content', Storage::disk('public')->get($existing->fresh()->video_file_path));
+        $this->assertSame($section->mediaSignature(), $section->fresh()->metadata->raw['song_video_extraction']['media_signature']);
+        $this->assertSame(3, $section->fresh()->metadata->raw['song_video_extraction']['media_processing']['version']);
     }
 
     #[Test]

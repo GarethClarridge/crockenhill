@@ -22,9 +22,9 @@ use App\Services\Processing\ProcessingNotificationRouter;
 use App\Services\Processing\ProcessingRunOrchestrator;
 use App\Services\Processing\SermonMetadataIntegrationService;
 use App\Services\Processing\StorageAdapterHelper;
-use App\Services\Sermon\SermonCandidateConfidenceService;
 use App\Services\Sermon\SermonExtractionPlanResolver;
 use App\Support\ChurchServiceProcessingTimeline;
+use App\Support\MediaProcessingVersion;
 use App\Traits\DetectsStorageType;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -57,7 +57,6 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
         VideoStorageService $storageService,
         StorageAdapterHelper $storageHelper,
         SermonExtractionPlanResolver $planResolver,
-        SermonCandidateConfidenceService $sermonConfidenceService,
         ExtractedMediaDurationProbe $durationProbe,
     ): void {
         try {
@@ -100,10 +99,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
             }
 
             $extractionPlan = $planResolver->resolve($this->processingLog);
-            $extractionPlan = $this->guardAutoExtractionPolicy(
-                $extractionPlan,
-                $sermonConfidenceService
-            );
+            $extractionPlan = $this->guardAutoExtractionPolicy($extractionPlan);
 
             if ($extractionPlan === null) {
                 $this->logStepSkipped(ChurchServiceProcessingTimeline::EXTRACT_SERMON, 'Awaiting manual sermon review');
@@ -321,22 +317,6 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
     }
 
     /**
-     * Stop before extraction when the accepted structure says this service held
-     * no sermon, handing the run to the custody tail that completes it.
-     *
-     * Absence is a content fact and the projection is the instrument that reads
-     * content; the confidence service reads RMS speech duration, which cannot
-     * tell "no sermon happened" from "one long block of speech". Left to it, the
-     * 2024-02-11 mission-presentation evening failed on
-     * `candidate_exceeds_maximum_duration` — a right answer reached through the
-     * wrong instrument, and reported as a defect (D1, 2026-09-03).
-     *
-     * The structure has already passed the deterministic gate by the time this
-     * runs, and {@see ServiceStructure::fromSections()} drops any
-     * assertion that sits beside a detected sermon section, so an assertion
-     * reaching here is one nothing in the run contradicts.
-     */
-    /**
      * A cut that no longer matches the stored video is a replacement, whoever asked for it.
      *
      * The re-cut path already exists and works: {@see MediaProcessingLog::isReExtraction()}
@@ -353,9 +333,8 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
      * duration of the video it just produced against the duration of the video
      * already on disk. Either differing is a new cut. Duration alone misses a
      * span that moved without changing length, which is exactly what correcting
-     * a boundary written one minute late produces. A null superseded value means
-     * that evidence could not be established, and unestablished evidence
-     * authorises nothing.
+     * a boundary written one minute late produces. Missing or older processing
+     * provenance independently requires replacement under the current media version.
      *
      * The tolerance absorbs container rounding — a stored duration and a fresh
      * probe of the same cut differ in the third decimal — without absorbing any
@@ -363,7 +342,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
      * corpus was 1.0 s.
      *
      * @param  list<array{start: float, end: float}>|null  $supersededSpans
-     * @param  array<int, array{start_time: float, end_time: float}>  $plannedSegments
+     * @param  list<array{start_time: float, end_time: float}>  $plannedSegments
      */
     private function authoriseReplacementIfCutChanged(
         ?float $supersededDuration,
@@ -376,7 +355,9 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
             && $observedDuration !== null
             && abs($observedDuration - $supersededDuration) > self::StoredVideoToleranceSeconds;
 
-        if (! $spansChanged && ! $durationChanged) {
+        $versionChanged = ! MediaProcessingVersion::matches(data_get($this->processingLog->processing_metadata?->toArray(), 'stored_video.media_processing'));
+
+        if (! $spansChanged && ! $durationChanged && ! $versionChanged) {
             return;
         }
 
@@ -394,11 +375,10 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
 
     /**
      * @param  list<array{start: float, end: float}>  $supersededSpans
-     * @param  array<int, array{start_time: float, end_time: float}>  $plannedSegments
+     * @param  list<array{start_time: float, end_time: float}>  $plannedSegments
      */
     private function spansDiffer(array $supersededSpans, array $plannedSegments): bool
     {
-        $plannedSegments = array_values($plannedSegments);
 
         if (count($supersededSpans) !== count($plannedSegments)) {
             return true;
@@ -414,6 +394,22 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
         return false;
     }
 
+    /**
+     * Stop before extraction when the accepted structure says this service held
+     * no sermon, handing the run to the custody tail that completes it.
+     *
+     * Absence is a content fact and the projection is the instrument that reads
+     * content; the confidence service reads RMS speech duration, which cannot
+     * tell "no sermon happened" from "one long block of speech". Left to it, the
+     * 2024-02-11 mission-presentation evening failed on
+     * `candidate_exceeds_maximum_duration` — a right answer reached through the
+     * wrong instrument, and reported as a defect (D1, 2026-09-03).
+     *
+     * The structure has already passed the deterministic gate by the time this
+     * runs, and {@see ServiceStructure::fromSections()} drops any
+     * assertion that sits beside a detected sermon section, so an assertion
+     * reaching here is one nothing in the run contradicts.
+     */
     private function concludeWithoutSermon(): bool
     {
         $absence = $this->processingLog->assertedSermonAbsence();
@@ -497,7 +493,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
     }
 
     /**
-     * @param  array<int, array{start_time: float, end_time: float}>  $segments
+     * @param  list<array{start_time: float, end_time: float}>  $segments
      */
     private function totalPlannedDuration(array $segments): float
     {
@@ -516,27 +512,22 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
 
     /**
      * @param  array{
-     *     mode: 'single_span'|'concat_spans'|'baseline',
-     *     source: 'service_sections'|'processing_log'|'manual_review',
-     *     segments: array<int, array{start_time: float, end_time: float}>,
+     *     mode: 'single_span'|'concat_spans',
+     *     source: 'service_sections',
+     *     segments: list<array{start_time: float, end_time: float}>,
      *     metadata: array<string, mixed>
      * }  $extractionPlan
      * @return array{
-     *     mode: 'single_span'|'concat_spans'|'baseline',
-     *     source: 'service_sections'|'processing_log'|'manual_review',
-     *     segments: array<int, array{start_time: float, end_time: float}>,
+     *     mode: 'single_span'|'concat_spans',
+     *     source: 'service_sections',
+     *     segments: list<array{start_time: float, end_time: float}>,
      *     metadata: array<string, mixed>
      * }|null
      */
     private function guardAutoExtractionPolicy(
-        array $extractionPlan,
-        SermonCandidateConfidenceService $sermonConfidenceService
+        array $extractionPlan
     ): ?array {
         $this->recordSermonBoundaryEvidence($extractionPlan);
-
-        if ($extractionPlan['source'] !== 'processing_log') {
-            return $extractionPlan;
-        }
 
         if (($extractionPlan['metadata']['reason'] ?? null) === 'sermon_section_content_held') {
             $this->parkForHeldSermon($extractionPlan['metadata']['held_sermon_section_ids'] ?? []);
@@ -544,65 +535,24 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
             return null;
         }
 
-        $evaluation = $sermonConfidenceService->evaluateForProcessingLog($this->processingLog);
-        $speechSegments = $evaluation['speech_segments'];
-
-        if ($speechSegments === []) {
-            return $extractionPlan;
-        }
-
-        if (! $evaluation['is_clear']) {
-            $reasonCode = $evaluation['reason'];
-            $reasonMessage = $this->manualReviewReason($reasonCode);
-            $this->markProcessingRunForManualReview($this->processingLog, $reasonCode, $reasonMessage, $speechSegments);
+        if (($extractionPlan['metadata']['requires_review'] ?? false) === true || $extractionPlan['segments'] === []) {
+            $reason = 'Resolve the identified sermon sections and uncovered speech before extraction.';
+            $this->markProcessingRunForManualReview($this->processingLog, 'sermon_composition_review', $reason);
             $this->processingLog->refresh();
-            $this->notifyManualReviewRequired($reasonMessage, $speechSegments);
-
-            // Stop the remaining chained jobs; extraction is intentionally deferred.
+            $this->notifyManualReviewRequired($reason, []);
             $this->chained = [];
-
-            Log::warning('Sermon extraction halted for manual review', [
-                'processing_id' => $this->processingLog->processing_id,
-                'reason' => $evaluation['reason'],
-                'speech_segment_count' => count($speechSegments),
-            ]);
 
             return null;
         }
 
-        $candidate = $evaluation['candidate'];
-
-        if (! $candidate instanceof \App\Models\LivestreamSegment) {
-            return $extractionPlan;
-        }
-
-        return [
-            'mode' => 'single_span',
-            'source' => 'processing_log',
-            'segments' => [[
-                'start_time' => (float) $candidate->start_time,
-                'end_time' => (float) $candidate->end_time,
-            ]],
-            'metadata' => array_merge($extractionPlan['metadata'], [
-                'strategy' => 'dominant_speech_segment',
-                'sermon_segment_id' => $candidate->id,
-                'next_longest_duration' => $evaluation['next_longest_duration'],
-            ]),
-        ];
+        return $extractionPlan;
     }
 
     /**
      * Record the resolved sermon-boundary evidence on the sermon section, and
      * mark it for review when that evidence names a material risk.
      *
-     * The inclusive span is still extracted. M5's asymmetric policy is to
-     * preserve an ambiguous conclusion and let a person judge it afterwards, so
-     * a boundary risk routes the *section* to a reviewer rather than stopping
-     * the run: halting here would abandon the sermon, the songs, the analysis
-     * and the boundary evidence itself, and would leave the run's working
-     * copies stranded because cleanup is the last link in the chain.
-     *
-     * @param  array{metadata: array<string, mixed>, mode: string, source: string, segments: array<int, array{start_time: float, end_time: float}>}  $extractionPlan
+     * @param  array{metadata: array<string, mixed>, mode: string, source: string, segments: list<array{start_time: float, end_time: float}>}  $extractionPlan
      */
     private function recordSermonBoundaryEvidence(array $extractionPlan): void
     {
@@ -645,7 +595,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
             return;
         }
 
-        Log::warning('Sermon boundary evidence routed the section to review; the inclusive span is still extracted', [
+        Log::warning('Sermon composition evidence requires review before extraction', [
             'processing_id' => $this->processingLog->processing_id,
             'sermon_section_id' => $section->id,
             'risks' => $evidence['risks'] ?? [],
@@ -713,18 +663,6 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
         ]);
     }
 
-    private function manualReviewReason(string $reason): string
-    {
-        return match ($reason) {
-            'no_qualifying_speech_block' => 'No speech block met the 20-minute sermon threshold.',
-            'multiple_qualifying_speech_blocks' => 'Multiple speech blocks met the 20-minute sermon threshold.',
-            'ratio_below_threshold' => 'The longest speech block was not at least 1.5x longer than the next-longest speech block.',
-            'candidate_exceeds_maximum_duration' => 'The longest speech block exceeded the maximum plausible sermon duration, indicating under-segmentation.',
-            'sermon_shorter_than_typical' => 'The recording is of the sermon alone, but the sermon is shorter than this service usually runs. It may be a genuinely short sermon, or it may not be a sermon at all.',
-            default => 'Sermon auto-selection confidence was insufficient.',
-        };
-    }
-
     /**
      * @param  array<int, array{segment_id: int, start_time: float, end_time: float, duration: float}>  $speechSegments
      */
@@ -755,13 +693,10 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
      * Keep a durable record of which bounds the clip was actually cut from.
      * The "Starting sermon extraction" log line carries the same facts but
      * does not survive log rotation; this metadata is what lets an operator
-     * later tell an LLM-structure cut from a silent RMS-baseline fallback.
+     * later inspect the selected sections, bounds and processing version.
      *
-     * The run-level sermon bounds are aligned to the same plan: the guard can
-     * replace a baseline plan with the dominant RMS candidate after any
-     * earlier write-back, and SubmitToProcessing/SermonMetadataIntegration
-     * persist these fields as the Sermon's segment times — they must describe
-     * the media actually cut, whichever source won.
+     * The run-level sermon bounds follow the selected source window because
+     * SubmitToProcessing/SermonMetadataIntegration persist these fields on the sermon.
      *
      * The bounds stay the true source window — first span start to last span
      * end — so segment_end_time remains a real livestream timestamp (it is
@@ -771,7 +706,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
      * through MediaProcessingLog::extractedSermonMediaDuration(); the emitted
      * video's FFprobe result is stored separately as observed duration.
      *
-     * @param  array{mode: string, source: string, segments: array<int, array{start_time: float, end_time: float}>, metadata: array<string, mixed>}  $extractionPlan
+     * @param  array{mode: string, source: string, segments: list<array{start_time: float, end_time: float}>, metadata: array<string, mixed>}  $extractionPlan
      */
     private function recordExtractionPlanAudit(array $extractionPlan): void
     {
@@ -783,10 +718,12 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
             'reason' => $extractionPlan['metadata']['reason'] ?? null,
             'sermon_boundary' => $extractionPlan['metadata']['sermon_boundary'] ?? null,
             'segments' => $extractionPlan['segments'],
+            'selected_section_ids' => $extractionPlan['metadata']['selected_section_ids'] ?? [],
+            'media_processing' => MediaProcessingVersion::signature(),
             'resolved_at' => now()->toIso8601String(),
         ];
 
-        $segments = array_values($extractionPlan['segments']);
+        $segments = $extractionPlan['segments'];
         $lastSegment = $segments[count($segments) - 1];
 
         $this->processingLog->forceFill([

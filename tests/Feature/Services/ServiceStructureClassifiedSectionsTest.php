@@ -166,11 +166,11 @@ class ServiceStructureClassifiedSectionsTest extends TestCase
 
         $this->assertSame('service_sections', $plan['source']);
         $this->assertSame(420.0, $plan['segments'][0]['start_time'], 'The paired reading opens the extraction.');
-        $this->assertSame(2210.0, $plan['segments'][array_key_last($plan['segments'])]['end_time'], 'The span runs to the next song.');
+        $this->assertSame(2200.0, $plan['segments'][array_key_last($plan['segments'])]['end_time'], 'The last span stops at the sermon section boundary.');
     }
 
     #[Test]
-    public function a_low_confidence_sermon_falls_back_to_the_baseline_gate(): void
+    public function a_low_confidence_sermon_keeps_its_named_spans_and_requires_review(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->pending()->create([
             'sermon_start_time' => 600.0,
@@ -184,8 +184,9 @@ class ServiceStructureClassifiedSectionsTest extends TestCase
 
         $plan = app(SermonExtractionPlanResolver::class)->resolve($log);
 
-        $this->assertSame('baseline', $plan['mode']);
-        $this->assertSame('processing_log', $plan['source']);
+        $this->assertSame('concat_spans', $plan['mode']);
+        $this->assertTrue($plan['metadata']['requires_review']);
+        $this->assertSame('service_sections', $plan['source']);
     }
 
     #[Test]

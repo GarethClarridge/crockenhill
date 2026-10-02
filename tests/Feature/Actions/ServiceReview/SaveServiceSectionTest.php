@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Actions\ServiceReview;
 
+use App\Actions\HoldSectionForContentReview;
 use App\Actions\ServiceReview\SaveServiceSection;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
@@ -14,6 +15,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\ServiceSection;
 use App\Models\User;
+use App\Services\Sermon\SermonExtractionPlanResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Storage;
@@ -460,6 +462,65 @@ class SaveServiceSectionTest extends TestCase
         );
 
         $this->assertArrayNotHasKey('talk_type', $section->refresh()->metadata?->toArray() ?? []);
+    }
+
+    #[Test]
+    public function reviewing_sermon_membership_records_the_selection_and_keeps_an_existing_content_hold(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 400]);
+        $sermon = ServiceSection::factory()->create(['media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon, 'title' => 'Held sermon', 'start_time' => 100, 'end_time' => 300,
+            'needs_manual_review' => true, 'metadata' => ['review_flags' => [HoldSectionForContentReview::FLAG]]]);
+        $reading = ServiceSection::factory()->create(['media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::BibleReading, 'start_time' => 10, 'end_time' => 90, 'needs_manual_review' => false]);
+        $resolver = app(SermonExtractionPlanResolver::class);
+        $composition = $resolver->compose($log);
+        $this->action->execute($sermon->fresh(), [$sermon->id => [
+            'sermon_section_ids' => "{$reading->id}, {$sermon->id}",
+            'sermon_composition_identity' => $composition['input_identity'],
+        ]], [], $this->admin->id);
+
+        $this->assertSame([$reading->id, $sermon->id], $log->fresh()->processing_metadata->raw['sermon_composition']['selected_section_ids']);
+        $this->assertContains(HoldSectionForContentReview::FLAG, $sermon->fresh()->metadata->reviewFlags);
+        $this->assertTrue($resolver->resolve($log->fresh())['metadata']['requires_review']);
+        $this->assertSame('sermon_section_content_held', $resolver->resolve($log->fresh())['metadata']['reason']);
+    }
+
+    #[Test]
+    public function retyping_a_selected_reading_recomposes_the_sermon_immediately(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 400]);
+        $sermon = ServiceSection::factory()->create(['media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon, 'start_time' => 100, 'end_time' => 300,
+            'needs_manual_review' => false, 'metadata' => ['sermon_reference' => 'John 3:16']]);
+        $reading = ServiceSection::factory()->create(['media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::BibleReading, 'start_time' => 10, 'end_time' => 90,
+            'metadata' => ['reading_reference' => 'John 3:16'], 'needs_manual_review' => true]);
+        $resolver = app(SermonExtractionPlanResolver::class);
+        $composition = $resolver->compose($log);
+        $resolver->reviewComposition($log, [$reading->id, $sermon->id], $composition['input_identity'], $this->admin->id);
+
+        $this->action->execute($reading, [$reading->id => ['section_type' => ServiceSectionType::Other->value, 'title' => 'Introduction']], [], $this->admin->id);
+
+        $current = $log->fresh()->processing_metadata->raw['sermon_composition'];
+        $this->assertNotSame($composition['input_identity'], $current['input_identity']);
+        $this->assertSame([$sermon->id], $current['selected_section_ids']);
+    }
+
+    #[Test]
+    public function removing_the_only_sermon_invalidates_its_stored_composition(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 400]);
+        $sermon = ServiceSection::factory()->create(['media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon, 'start_time' => 100, 'end_time' => 300,
+            'needs_manual_review' => true]);
+        app(SermonExtractionPlanResolver::class)->compose($log);
+
+        $this->action->execute($sermon->fresh(), [$sermon->id => ['section_type' => ServiceSectionType::Other->value, 'title' => 'Introduction']], [], $this->admin->id);
+
+        $current = $log->fresh()->processing_metadata->raw['sermon_composition'];
+        $this->assertSame([], $current['selected_section_ids']);
+        $this->assertTrue($current['requires_review']);
     }
 
     /**

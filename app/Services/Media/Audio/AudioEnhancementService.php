@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Media\Audio;
 
+use App\Exceptions\VideoProcessingException;
+use App\Services\Media\Video\SourceAwareMediaTimingChecker;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\Process\Process;
@@ -141,6 +143,10 @@ class AudioEnhancementService
             // Fall back to single-pass loudnorm if measurement failed
             $filters[] = sprintf('loudnorm=I=%.1f:TP=%.1f:LRA=%.1f', $targetLufs, $truePeak, $lra);
         }
+
+        // loudnorm's lookahead flush can skip timestamps; rebuild from emitted samples.
+        // Bump MediaProcessingVersion whenever this chain's behaviour changes.
+        $filters[] = 'asetpts=N/SR/TB';
 
         return implode(',', $filters);
     }
@@ -301,6 +307,9 @@ class AudioEnhancementService
             $ffmpegPath = (string) config('media-processing.ffmpeg.ffmpeg_path', '/usr/bin/ffmpeg');
 
             $this->runVideoEnhancement($ffmpegPath, $inputPath, $filterChain, $outputPath, $processingId);
+            $checker = app(SourceAwareMediaTimingChecker::class);
+            $report = $checker->check($inputPath, $outputPath, [['start_time' => 0.0, 'end_time' => $checker->duration($inputPath)]]);
+            Log::info('Enhanced media passed source-aware timing checks', ['processing_id' => $processingId, 'timing_check' => $report]);
 
             Log::info('AudioEnhancementService: video enhancement complete', $this->sanitizeArrayForLog([
                 'processing_id' => $processingId,
@@ -308,6 +317,11 @@ class AudioEnhancementService
             ]));
 
             return $outputPath;
+        } catch (VideoProcessingException $exception) {
+            if (isset($outputPath) && is_file($outputPath)) {
+                unlink($outputPath);
+            }
+            throw $exception;
         } catch (\Throwable $e) {
             Log::warning('AudioEnhancementService: video enhancement failed, continuing with original', $this->sanitizeArrayForLog([
                 'processing_id' => $processingId,

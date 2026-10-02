@@ -68,13 +68,7 @@ class VideoExtractionServiceTest extends TestCase
     #[Test]
     public function it_recognises_the_output_file_created_by_a_successful_stream_copy(): void
     {
-        // Stand in for ffmpeg: write fake content to the output path (the final
-        // argument) and exit 0, mimicking a successful stream copy.
-        $stubPath = storage_path('framework/testing/ffmpeg-stub.sh');
-        file_put_contents($stubPath, "#!/bin/sh\nfor last in \"\$@\"; do :; done\nprintf 'fake-video' > \"\$last\"\n");
-        chmod($stubPath, 0755);
-
-        Config::set('media-processing.ffmpeg.ffmpeg_path', $stubPath);
+        $this->stubFfmpegAndFfprobe(2_600_000);
 
         $relativePath = $this->service->extractSegmentAsFile(
             '/tmp/input.mp4',
@@ -87,7 +81,7 @@ class VideoExtractionServiceTest extends TestCase
         $this->assertTrue(Storage::disk('local')->exists($relativePath));
         $this->assertSame('fake-video', Storage::disk('local')->get($relativePath));
 
-        unlink($stubPath);
+        unlink(storage_path('framework/testing/ffmpeg-stub.sh'));
     }
 
     // ---- Segment time property access ----
@@ -236,31 +230,32 @@ class VideoExtractionServiceTest extends TestCase
         );
         chmod($ffmpegStub, 0755);
 
-        // A real ffprobe answers whichever entry it was asked for, so the stub
-        // must branch too: the codec gate and the bitrate gate query it
-        // differently, and conflating them would let either rule pass by
-        // accident. `N/A` is what the webm corpus genuinely reports for bitrate.
-        $bitrateReply = $probeBitrate > 0 ? (string) $probeBitrate : 'N/A';
-        $recordCall = $probeCallLog === null
-            ? ''
-            : 'echo "$@" >> '.escapeshellarg($probeCallLog)."\n";
-
-        $ffprobeStub = storage_path('framework/testing/ffprobe-stub.sh');
-        file_put_contents(
-            $ffprobeStub,
-            "#!/bin/sh\n"
-            .$recordCall
-            ."case \"$*\" in\n"
-            // The smart cut's packet read: 30 fps with a keyframe every 2 s, over
-            // the window asked for, so a cut at a whole even second lands on one.
-            ."  *packet=*)\n"
-            ."    for arg in \"\$@\"; do [ \"\$previous\" = '-read_intervals' ] && window=\"\$arg\"; previous=\"\$arg\"; done\n"
-            ."    awk -v window=\"\$window\" 'BEGIN { split(window, bounds, \"%\"); for (f = int(bounds[1] * 30); f <= bounds[2] * 30; f++) printf \"%.6f,%s\\n\", f / 30, (f % 60 == 0 ? \"K__\" : \"___\") }' ;;\n"
-            ."  *v:0*) echo '{$videoCodec}' ;;\n"
-            ."  *a:0*) echo '{$audioCodec}' ;;\n"
-            ."  *) echo '{$bitrateReply}' ;;\n"
-            ."esac\n"
-        );
+        $ffprobeStub = storage_path('framework/testing/ffprobe-stub.php');
+        $probeCode = <<<'PHP'
+#!/usr/bin/env php
+<?php
+$path = $argv[count($argv) - 1];
+$source = str_contains($path, 'input.') || str_contains($path, 'probe-source');
+$duration = 10000.0;
+if (! $source) {
+    preg_match('/-t ([0-9.]+)/', file_get_contents(ARGV_LOG), $matches);
+    $duration = (float) ($matches[1] ?? 4);
+}
+$packets = [];
+foreach ([0 => 1 / 30, 1 => 1024 / 48000] as $stream => $step) {
+    $count = $source ? 2 : (int) ceil($duration / $step);
+    for ($index = 0; $index < $count; $index++) {
+        $time = $source && $index === 1 ? $duration - $step : $index * $step;
+        $packets[] = ['stream_index' => $stream, 'pts_time' => (string) $time, 'duration_time' => (string) min($step, $duration - $time)];
+    }
+}
+if (PROBE_LOG !== null) { file_put_contents(PROBE_LOG, $path."\n", FILE_APPEND); }
+echo json_encode(['format' => ['start_time' => '0', 'duration' => (string) $duration], 'streams' => [
+    ['index' => 0, 'codec_type' => 'video', 'avg_frame_rate' => '30/1'],
+    ['index' => 1, 'codec_type' => 'audio', 'sample_rate' => '48000'],
+], 'packets' => $packets]);
+PHP;
+        file_put_contents($ffprobeStub, str_replace(['ARGV_LOG', 'PROBE_LOG'], [var_export($argvLog, true), var_export($probeCallLog, true)], $probeCode));
         chmod($ffprobeStub, 0755);
 
         Config::set('media-processing.ffmpeg.ffmpeg_path', $ffmpegStub);
@@ -270,9 +265,8 @@ class VideoExtractionServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_stream_copies_a_source_at_or_below_the_reencode_threshold(): void
+    public function it_pairs_picture_and_sound_for_a_low_bitrate_source(): void
     {
-        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
         $argvLog = $this->stubFfmpegAndFfprobe(2_600_000); // 2.6 Mbps - a current-era upload
 
         $relativePath = $this->service->extractSegmentAsFile(
@@ -280,19 +274,15 @@ class VideoExtractionServiceTest extends TestCase
             (object) ['start_time' => 1.0, 'end_time' => 5.0]
         );
 
-        // Below the threshold the cut is a smart cut: the frames between its
-        // keyframes are copied, counted exactly, and only the stretches either
-        // side are re-encoded.
         $argv = file_get_contents($argvLog);
-        $this->assertStringContainsString('-frames:v', $argv);
-        $this->assertStringContainsString('-c copy', $argv);
+        $this->assertStringContainsString('trim=duration=', $argv);
+        $this->assertStringContainsString('-c:a aac', $argv);
         $this->assertTrue(Storage::disk('local')->exists($relativePath));
     }
 
     #[Test]
-    public function it_reencodes_a_source_above_the_reencode_threshold(): void
+    public function it_reencodes_a_high_bitrate_source(): void
     {
-        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
         Config::set('media-processing.video_extraction.reencode_crf', 23);
         $argvLog = $this->stubFfmpegAndFfprobe(21_800_000); // 21.8 Mbps - camera-original
 
@@ -309,7 +299,7 @@ class VideoExtractionServiceTest extends TestCase
     }
 
     #[Test]
-    public function a_zero_threshold_always_stream_copies(): void
+    public function a_legacy_zero_threshold_cannot_restore_stream_copy(): void
     {
         Config::set('media-processing.video_extraction.reencode_above_mbps', 0.0);
         $argvLog = $this->stubFfmpegAndFfprobe(48_900_000); // the heaviest source in the corpus
@@ -319,31 +309,29 @@ class VideoExtractionServiceTest extends TestCase
             (object) ['start_time' => 1.0, 'end_time' => 5.0]
         );
 
-        $this->assertStringContainsString('-frames:v', file_get_contents($argvLog));
+        $this->assertStringContainsString('libx264', file_get_contents($argvLog));
     }
 
     #[Test]
-    public function a_source_whose_packets_cannot_be_read_is_re_encoded(): void
+    public function a_source_whose_timing_cannot_be_read_is_rejected(): void
     {
-        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
         $argvLog = $this->stubFfmpegAndFfprobe(0);
 
         // This used to stream-copy, on the premise that a copy is never wrong,
         // only sometimes larger. The §4.1b censuses disproved that: a copy that
         // cannot see the keyframes starts its picture late. With nothing readable
         // the cut cannot be placed, so it is re-encoded, which is exact.
-        $ffprobeStub = storage_path('framework/testing/ffprobe-stub.sh');
+        $ffprobeStub = storage_path('framework/testing/ffprobe-stub.php');
         file_put_contents($ffprobeStub, "#!/bin/sh\nexit 1\n");
         chmod($ffprobeStub, 0755);
 
+        $this->expectException(VideoProcessingException::class);
+        $this->expectExceptionMessage('cannot be probed');
         $this->service->extractSegmentAsFile(
             '/tmp/input.mp4',
             (object) ['start_time' => 1.0, 'end_time' => 5.0]
         );
 
-        $argv = file_get_contents($argvLog);
-        $this->assertStringContainsString('libx264', $argv);
-        $this->assertStringNotContainsString('-frames:v', $argv);
     }
 
     #[Test]
@@ -351,7 +339,7 @@ class VideoExtractionServiceTest extends TestCase
     {
         Storage::fake('historic_temp');
         Config::set('media-processing.storage.temp_disk', 'historic_temp');
-        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
+        $this->service = new VideoExtractionService(app(AudioCompressionService::class), $this->storageHelper);
         $this->stubFfmpegAndFfprobe(21_800_000);
 
         $relativePath = $this->service->extractSegmentAsFile(
@@ -371,7 +359,6 @@ class VideoExtractionServiceTest extends TestCase
     #[Test]
     public function it_reencodes_a_vp9_source_whose_bitrate_reads_as_unavailable(): void
     {
-        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
 
         // The historic webm corpus exactly: VP9, and a container reporting
         // neither duration nor bitrate. The bitrate rule alone reads that as
@@ -393,7 +380,6 @@ class VideoExtractionServiceTest extends TestCase
     #[Test]
     public function the_codec_rule_outranks_a_bitrate_comfortably_below_the_threshold(): void
     {
-        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
         $argvLog = $this->stubFfmpegAndFfprobe(1_000_000, videoCodec: 'vp9');
 
         $this->service->extractSegmentAsFile(
@@ -405,26 +391,21 @@ class VideoExtractionServiceTest extends TestCase
     }
 
     #[Test]
-    public function an_unreadable_video_codec_does_not_force_a_blind_reencode(): void
+    public function a_readable_stream_without_a_codec_label_still_uses_the_paired_encode(): void
     {
-        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
         $argvLog = $this->stubFfmpegAndFfprobe(2_600_000, videoCodec: '');
 
-        // Acting on absent information would re-encode every source whenever
-        // ffprobe is misconfigured. The codec rule reads positively or not at all;
-        // the packets are still readable, so the smart cut copies between keyframes.
         $this->service->extractSegmentAsFile(
             '/tmp/input.mp4',
             (object) ['start_time' => 1.0, 'end_time' => 5.0]
         );
 
-        $this->assertStringContainsString('-frames:v', file_get_contents($argvLog));
+        $this->assertStringContainsString('libx264', file_get_contents($argvLog));
     }
 
     #[Test]
-    public function a_reencode_seeks_the_input_and_a_stream_copy_seeks_the_output(): void
+    public function all_codecs_use_an_accurate_input_seek(): void
     {
-        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
 
         $reencodeLog = $this->stubFfmpegAndFfprobe(0, videoCodec: 'vp9');
         $this->service->extractSegmentAsFile(
@@ -433,16 +414,13 @@ class VideoExtractionServiceTest extends TestCase
         );
         $reencodeArgv = file_get_contents($reencodeLog);
 
-        // An input seek skips work that grows with the segment's offset. It stays
-        // frame-exact on a re-encode, but on a stream copy it would move the cut
-        // to a keyframe, so only one branch may carry it.
+        // Accurate seeking bounds decoding cost to the requested interval.
         $this->assertLessThan(
             strpos($reencodeArgv, '-i '),
             strpos($reencodeArgv, '-ss '),
             'A re-encode must seek the input: -ss has to precede -i.'
         );
 
-        Config::set('media-processing.video_extraction.copy_seek_prefix_seconds', 30.0);
         $copyLog = $this->stubFfmpegAndFfprobe(2_600_000);
         $this->service->extractSegmentAsFile(
             '/tmp/input.mp4',
@@ -450,18 +428,13 @@ class VideoExtractionServiceTest extends TestCase
         );
         $copyArgv = file_get_contents($copyLog);
 
-        // The stream copy still seeks its output — that is what decides where the
-        // cut lands — but only across the pad. The coarse input seek ahead of it
-        // carries the rest of the offset, and buys back the prefix read.
-        $this->assertStringContainsString('-ss 870 -i ', $copyArgv);
-        $this->assertMatchesRegularExpression('/-i \S+ -ss 30 /', $copyArgv);
+        $this->assertStringContainsString('-ss 900 -t 300 -i ', $copyArgv);
+        $this->assertStringContainsString('atrim=duration=300', $copyArgv);
     }
 
     #[Test]
-    public function a_stream_copy_splits_its_seek_so_only_the_pad_is_demuxed(): void
+    public function a_late_cut_seeks_directly_to_its_selected_start(): void
     {
-        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
-        Config::set('media-processing.video_extraction.copy_seek_prefix_seconds', 30.0);
         $argvLog = $this->stubFfmpegAndFfprobe(2_600_000);
 
         $this->service->extractSegmentAsFile(
@@ -473,16 +446,14 @@ class VideoExtractionServiceTest extends TestCase
         // corpus sources at 600 s, 2400 s and 3600 s: the pair of seeks sums to
         // the requested offset and the fine half still picks the keyframe.
         $argv = file_get_contents($argvLog);
-        $this->assertStringContainsString('-ss 2370 -i ', $argv);
-        $this->assertMatchesRegularExpression('/-i \S+ -ss 30 /', $argv);
-        $this->assertStringContainsString('-c copy', $argv);
+        $this->assertStringContainsString('-ss 2400 -t 300 -i ', $argv);
+        $this->assertStringContainsString('concat=n=1:v=1:a=1', $argv);
+        $this->assertStringContainsString('-c:a aac', $argv);
     }
 
     #[Test]
-    public function a_cut_inside_the_pad_keeps_the_single_output_seek(): void
+    public function an_early_cut_uses_the_same_paired_input_path(): void
     {
-        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
-        Config::set('media-processing.video_extraction.copy_seek_prefix_seconds', 30.0);
         $argvLog = $this->stubFfmpegAndFfprobe(2_600_000);
 
         $this->service->extractSegmentAsFile(
@@ -493,13 +464,12 @@ class VideoExtractionServiceTest extends TestCase
         // There is no prefix worth skipping this close to the start, and a coarse
         // seek to a negative offset would be nonsense.
         $argv = file_get_contents($argvLog);
-        $this->assertMatchesRegularExpression('/^\s*-i \S+ -ss 12 .*-c:a copy/m', $argv);
+        $this->assertStringContainsString('-ss 12 -t 28 -i ', $argv);
     }
 
     #[Test]
-    public function a_zero_pad_restores_the_single_output_seek(): void
+    public function a_legacy_zero_pad_cannot_enable_an_output_seek(): void
     {
-        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
         Config::set('media-processing.video_extraction.copy_seek_prefix_seconds', 0.0);
         $argvLog = $this->stubFfmpegAndFfprobe(2_600_000);
 
@@ -509,14 +479,12 @@ class VideoExtractionServiceTest extends TestCase
         );
 
         $argv = file_get_contents($argvLog);
-        $this->assertMatchesRegularExpression('/^\s*-i \S+ -ss 900 .*-c:a copy/m', $argv);
+        $this->assertStringContainsString('-ss 900 -t 300 -i ', $argv);
     }
 
     #[Test]
-    public function a_smart_cut_copies_its_picture_from_an_input_seek_to_the_keyframe(): void
+    public function a_cut_has_one_paired_trim_and_concat_graph(): void
     {
-        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
-        Config::set('media-processing.video_extraction.copy_seek_prefix_seconds', 30.0);
         $argvLog = $this->stubFfmpegAndFfprobe(2_600_000);
 
         $this->service->extractSegmentAsFile(
@@ -524,21 +492,16 @@ class VideoExtractionServiceTest extends TestCase
             (object) ['start_time' => 900.0, 'end_time' => 1200.0]
         );
 
-        // An output seek on a copy drops a keyframe that decodes before it shows,
-        // and the copy then starts a whole GOP late. The picture copy must seek
-        // its input, half a frame past the keyframe, and never its output.
-        $copyLine = collect(explode("\n", (string) file_get_contents($argvLog)))
-            ->first(fn (string $line): bool => str_contains($line, '-map 0:v:0') && str_contains($line, '-c copy'));
+        $argv = file_get_contents($argvLog);
+        $this->assertStringContainsString('trim=duration=300,setpts=PTS-STARTPTS', $argv);
+        $this->assertStringContainsString('atrim=duration=300,asetpts=PTS-STARTPTS', $argv);
+        $this->assertStringNotContainsString('-c copy', $argv);
 
-        $this->assertNotNull($copyLine, 'The smart cut must copy the picture.');
-        $this->assertMatchesRegularExpression('/^\s*-ss 900\.01\d* -i \S+ -map 0:v:0/', $copyLine);
-        $this->assertDoesNotMatchRegularExpression('/-i \S+ .*-ss /', $copyLine);
     }
 
     #[Test]
     public function repeated_extractions_probe_each_source_once(): void
     {
-        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
         $probeLog = storage_path('framework/testing/ffprobe-calls.log');
         @unlink($probeLog);
         $this->stubFfmpegAndFfprobe(2_600_000, probeCallLog: $probeLog);
@@ -553,21 +516,15 @@ class VideoExtractionServiceTest extends TestCase
             );
         }
 
-        // A section-candidate run extracts once per section from one unchanging
-        // source. Re-asking ffprobe the same question per section spends a process
-        // spawn and a staging-drive header read for an answer already held. The
-        // packet read around each span and the measure of each cut differ per
-        // extraction, so only the questions about the source itself are counted.
-        $calls = collect(file_exists($probeLog) ? file($probeLog, FILE_IGNORE_NEW_LINES) : [])
-            ->reject(fn (string $call): bool => str_contains($call, 'packet=') || str_contains($call, 'stream=codec_type,start_time,duration'))
-            ->count();
-        $this->assertSame(4, $calls, 'Three extractions must share one video codec, one bitrate, one audio codec and one file start probe.');
+        $calls = collect(file($probeLog, FILE_IGNORE_NEW_LINES) ?: [])
+            ->filter(fn (string $call): bool => $call === $source)->count();
+        $this->assertSame(1, $calls, 'The full source timing scan is shared across selected clips.');
+
     }
 
     #[Test]
-    public function a_reencode_copies_audio_the_container_already_carries(): void
+    public function aac_sound_is_encoded_in_the_same_pass_as_the_picture(): void
     {
-        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
         $argvLog = $this->stubFfmpegAndFfprobe(0, videoCodec: 'vp9', audioCodec: 'aac');
 
         $this->service->extractSegmentAsFile(
@@ -578,14 +535,13 @@ class VideoExtractionServiceTest extends TestCase
         // Re-encoding AAC to AAC at the same bitrate spends a second generation
         // of lossy compression for no gain in size or compatibility.
         $argv = file_get_contents($argvLog);
-        $this->assertStringContainsString('-c:a copy', $argv);
-        $this->assertStringNotContainsString('-c:a aac', $argv);
+        $this->assertStringNotContainsString('-c:a copy', $argv);
+        $this->assertStringContainsString('-c:a aac', $argv);
     }
 
     #[Test]
     public function a_reencode_encodes_audio_the_container_cannot_carry(): void
     {
-        Config::set('media-processing.video_extraction.reencode_above_mbps', 6.0);
         $argvLog = $this->stubFfmpegAndFfprobe(0, videoCodec: 'vp9', audioCodec: 'opus');
 
         $this->service->extractSegmentAsFile(

@@ -44,7 +44,7 @@ trait ReviewsServiceSections
     ];
 
     /**
-     * @var array<int, array{section_type: string, title: string, end_time: string}>
+     * @var array<int, array{section_type: string, title: string, end_time: string, talk_type?: string, sermon_section_ids?: string, sermon_composition_identity?: string}>
      */
     public array $sectionEdits = [];
 
@@ -448,16 +448,22 @@ trait ReviewsServiceSections
      * proposal is shown beside it, never preselected: every short talk's first save
      * also sets its speaker, and that save must not confirm the detector's guess.
      *
-     * @return array{section_type: string, title: string, end_time: string, talk_type: string}
+     * @return array{section_type: string, title: string, end_time: string, talk_type: string, sermon_section_ids?: string, sermon_composition_identity?: string}
      */
     private function sectionEditState(ServiceSection $section): array
     {
-        return [
+        $state = [
             'section_type' => $section->section_type->value,
             'title' => (string) ($section->title ?? ''),
             'end_time' => (string) $section->end_time,
             'talk_type' => $section->publicationTalkType()->value ?? '',
         ];
+        if ($section->section_type === ServiceSectionType::Sermon && is_array($section->metadata?->raw['sermon_boundary'] ?? null)) {
+            $state['sermon_section_ids'] = implode(', ', $section->metadata->raw['sermon_boundary']['selected_section_ids'] ?? []);
+            $state['sermon_composition_identity'] = (string) ($section->metadata->raw['sermon_boundary']['input_identity'] ?? '');
+        }
+
+        return $state;
     }
 
     /**

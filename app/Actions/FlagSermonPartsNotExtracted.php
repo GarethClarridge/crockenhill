@@ -85,10 +85,6 @@ class FlagSermonPartsNotExtracted
 
         $plan = $this->plans->resolve($run);
 
-        if ($plan['source'] !== 'service_sections') {
-            return 0.0;
-        }
-
         $uncovered = 0.0;
 
         foreach ($plan['segments'] as $segment) {

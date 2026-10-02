@@ -31,6 +31,7 @@ use App\Services\ChurchService\SectionPublication\TalkPublicationHandler;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\HistoricMedia\HistoricStagingGuard;
+use App\Services\Media\ExtractedMediaDurationProbe;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Support\ChurchServiceProcessingTimeline;
@@ -49,6 +50,14 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 {
     use CreatesHistoricImportOperations;
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $probe = $this->createStub(ExtractedMediaDurationProbe::class);
+        $probe->method('durationOf')->willReturn(300.0);
+        $this->instance(ExtractedMediaDurationProbe::class, $probe);
+    }
 
     #[Test]
     public function it_extracts_publishable_section_media_and_marks_pending_approval(): void

@@ -157,14 +157,15 @@ class SongVideoService
         $processingLog = $section->processingLog;
         $churchService = $processingLog->churchService;
 
+        $existing = SongVideo::query()->where('service_section_id', $section->id)->first();
         $attributes = [
+            'is_featured' => $existing->is_featured ?? false,
             'song_id' => $item->song_id,
             'service_section_id' => $section->id,
             'church_service_id' => $processingLog->church_service_id,
             'video_file_path' => $videoPath,
             'duration' => $clipSeconds ?? $section->duration,
             'recorded_date' => $churchService?->date,
-            'is_featured' => false,
         ];
 
         if ($processingLog->historic_import_operation_id !== null) {
@@ -173,7 +174,7 @@ class SongVideoService
             $attributes['historic_import_operation_id'] = $processingLog->historic_import_operation_id;
         }
 
-        return SongVideo::query()->create($attributes);
+        return SongVideo::query()->updateOrCreate(['service_section_id' => $section->id], $attributes);
     }
 
     private function resetLinkedSectionForReExtraction(int $sectionId): void

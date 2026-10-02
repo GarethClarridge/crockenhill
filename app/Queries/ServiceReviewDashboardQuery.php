@@ -552,6 +552,12 @@ class ServiceReviewDashboardQuery
 
     public function confirmationSkipReason(ServiceSection $section): ?string
     {
+        if ($section->section_type === ServiceSectionType::Sermon
+            && ($section->metadata?->raw['sermon_boundary']['method'] ?? null) === 'identified_sections'
+            && ($section->metadata?->raw['sermon_boundary']['requires_review'] ?? false) === true) {
+            return 'sermon composition review required';
+        }
+
         $reviewReasons = collect($this->reviewReasons($section));
 
         if ($reviewReasons->isEmpty() || $reviewReasons->every(

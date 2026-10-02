@@ -30,6 +30,7 @@ use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\Media\Audio\ServiceTranscriptRepetitionScreen;
 use App\Services\Processing\ProcessingRunOrchestrator;
 use App\Services\Processing\SermonMetadataIntegrationService;
+use App\Support\MediaProcessingVersion;
 use App\Support\ServiceArtifactDisk;
 use Database\Factories\MediaProcessingLogFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -581,6 +582,7 @@ class MediaProcessingLog extends Model
             $metadata['stored_video'] = [
                 'observed_duration' => $observedDuration,
                 'stored_at' => now()->toISOString(),
+                'media_processing' => MediaProcessingVersion::signature(),
             ];
 
             if ($segments !== null) {

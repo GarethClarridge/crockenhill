@@ -7,13 +7,18 @@ namespace Tests\Browser;
 use App\Enums\ChurchServiceEvidenceKind;
 use App\Enums\ChurchServiceProposalStatus;
 use App\Enums\ChurchServiceSource;
+use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItemAssertion;
 use App\Models\ChurchServiceMergeProposal;
 use App\Models\ChurchServiceSourceRecord;
+use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
 use App\Models\User;
+use App\Services\Sermon\SermonExtractionPlanResolver;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Laravel\Dusk\Browser;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\DuskTestCase;
 
 class ChurchServiceEvidenceReviewTest extends DuskTestCase
@@ -67,6 +72,33 @@ class ChurchServiceEvidenceReviewTest extends DuskTestCase
             $browser->waitForText('New evidence arrived after this screen loaded.')
                 ->assertAttribute('@complete-evidence-review', 'disabled', 'true');
         });
+    }
+
+    #[Test]
+    public function a_sermon_composition_can_be_reviewed_with_the_keyboard_on_mobile(): void
+    {
+        $admin = User::factory()->crockenhillAdmin()->create();
+        $service = ChurchService::factory()->create();
+        $log = MediaProcessingLog::factory()->livestream()->completed()->create(['church_service_id' => $service->id, 'duration' => 400]);
+        $reading = ServiceSection::factory()->create(['media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::BibleReading, 'title' => 'Separate reading', 'start_time' => 10, 'end_time' => 90, 'needs_manual_review' => false]);
+        $sermon = ServiceSection::factory()->create(['media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon, 'title' => 'Reviewed sermon', 'start_time' => 100, 'end_time' => 300, 'needs_manual_review' => false]);
+        app(SermonExtractionPlanResolver::class)->compose($log);
+
+        $this->browse(function (Browser $browser) use ($admin, $service, $reading, $sermon): void {
+            $browser->resize(390, 844)->loginAs($admin)->visit("/admin/services/{$service->id}")
+                ->waitFor("@sermon-composition-{$sermon->id}")
+                ->scrollIntoView("@sermon-composition-{$sermon->id}")
+                ->click("@sermon-composition-{$sermon->id}")
+                ->assertFocused("@sermon-composition-{$sermon->id}")
+                ->clear("@sermon-composition-{$sermon->id}")
+                ->type("@sermon-composition-{$sermon->id}", "{$reading->id}, {$sermon->id}")
+                ->click("@save-section-{$sermon->id}")
+                ->waitUntilMissing("@sermon-composition-{$sermon->id}");
+        });
+        $this->assertSame([$reading->id, $sermon->id], $log->fresh()->processing_metadata->raw['sermon_composition']['selected_section_ids']);
+        $this->assertFalse(app(SermonExtractionPlanResolver::class)->resolve($log->fresh())['metadata']['requires_review']);
     }
 
     private function createProposal(

@@ -102,9 +102,9 @@ class ReExtractSermonCommand extends Command
         $this->line(sprintf('Recorded: %.1fs - %.1fs', (float) $processingLog->sermon_start_time, (float) $processingLog->sermon_end_time));
         $this->line(sprintf('Planned:  %.1fs - %.1fs  [%s from %s]', $newStart, $newEnd, (string) ($plan['metadata']['strategy'] ?? 'unknown'), $plan['source']));
 
-        if ($plan['source'] === 'processing_log') {
-            $reason = (string) ($plan['metadata']['reason'] ?? 'baseline');
-            $this->error("The plan falls back to the recorded bounds ({$reason}), so this is not a re-cut from the structure.");
+        if (($plan['metadata']['requires_review'] ?? true) === true) {
+            $reason = (string) ($plan['metadata']['reason'] ?? 'sermon_composition_review');
+            $this->error("The selected structure requires review ({$reason}); resolve it before re-cutting.");
             $this->suggestHeldSermons($processingLog);
 
             return self::FAILURE;

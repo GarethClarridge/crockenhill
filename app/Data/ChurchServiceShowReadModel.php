@@ -17,7 +17,7 @@ final readonly class ChurchServiceShowReadModel
      * @param  list<ChurchServiceProcessingRunView>  $processingRunViews
      * @param  list<ChurchServiceProcessingRunView>  $otherProcessingRunViews
      * @param  list<array{label: string, state: string}>  $pipelineSteps
-     * @param  array<int, array{section: ServiceSection, reasons: array<int, array{key: string, label: string, classes: string}>, review_reason: string|null, confirmable: bool, audio_url: string|null, video_url: string|null}>  $sectionReviewPanels
+     * @param  array<int, array{section: ServiceSection, reasons: array<int, array{key: string, label: string, classes: string}>, review_reason: string|null, confirmable: bool, audio_url: string|null, video_url: string|null, composition_sections?: Collection<int, ServiceSection>}>  $sectionReviewPanels
      * @param  array<int, int>  $mergeCandidatePairs
      * @param  array<int, int>  $interruptedTalkPairs
      * @param  array<int, array{segments: Collection<int, LivestreamSegment>, confirmed_segment_id: int|null, source_available: bool}>  $segmentConfirmations
@@ -63,7 +63,7 @@ final readonly class ChurchServiceShowReadModel
      *     planSourceLabel: string,
      *     planSourceNote: string,
      *     reviewNeedsAttention: bool,
-     *     sectionReviewPanels: array<int, array{section: ServiceSection, reasons: array<int, array{key: string, label: string, classes: string}>, review_reason: string|null, confirmable: bool, audio_url: string|null, video_url: string|null}>,
+     *     sectionReviewPanels: array<int, array{section: ServiceSection, reasons: array<int, array{key: string, label: string, classes: string}>, review_reason: string|null, confirmable: bool, audio_url: string|null, video_url: string|null, composition_sections?: Collection<int, ServiceSection>}>,
      *     mergeCandidatePairs: array<int, int>,
      *     interruptedTalkPairs: array<int, int>,
      *     segmentConfirmations: array<int, array{segments: Collection<int, LivestreamSegment>, confirmed_segment_id: int|null, source_available: bool}>,

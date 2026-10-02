@@ -30,9 +30,9 @@ class SermonCutProbeTest extends TestCase
 
         $cut = app(SermonCutProbe::class)->probe($log, $this->structure([]), $this->transcript());
 
-        $this->assertSame('single_span', $cut['as_written']['mode'], $cut['as_written']['error'] ?? '');
-        $this->assertSame('adjacent_bible_plus_sermon', $cut['as_written']['strategy']);
-        $this->assertEquals([['start_time' => 420.0, 'end_time' => 2210.0]], $cut['as_written']['segments']);
+        $this->assertSame('concat_spans', $cut['as_written']['mode'], $cut['as_written']['error'] ?? '');
+        $this->assertSame('identified_sections', $cut['as_written']['strategy']);
+        $this->assertEquals([['start_time' => 420.0, 'end_time' => 590.0], ['start_time' => 600.0, 'end_time' => 2200.0]], $cut['as_written']['segments']);
         $this->assertSame($logs, MediaProcessingLog::query()->count());
         $this->assertSame($sections, ServiceSection::query()->count());
         $this->assertNotNull($existing->fresh());
@@ -52,10 +52,12 @@ class SermonCutProbeTest extends TestCase
             $this->transcript(),
         );
 
-        $this->assertSame('baseline', $cut['gated']['mode'], $cut['gated']['error'] ?? '');
-        $this->assertFalse($cut['gated']['from_sections']);
+        $this->assertSame('concat_spans', $cut['gated']['mode'], $cut['gated']['error'] ?? '');
+        $this->assertTrue($cut['gated']['from_sections']);
+        $this->assertTrue($cut['gated']['requires_review']);
+        $this->assertFalse($cut['as_written']['requires_review']);
         $this->assertTrue($cut['as_written']['from_sections']);
-        $this->assertEquals([['start_time' => 420.0, 'end_time' => 2210.0]], $cut['as_written']['segments']);
+        $this->assertEquals([['start_time' => 420.0, 'end_time' => 590.0], ['start_time' => 600.0, 'end_time' => 2200.0]], $cut['as_written']['segments']);
     }
 
     /** @param  list<string>  $sermonFlags */

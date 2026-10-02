@@ -234,7 +234,7 @@ class ReExtractSermonCommandTest extends TestCase
      * recorded-bounds baseline is refused.
      */
     #[Test]
-    public function it_re_cuts_a_manually_confirmed_segment(): void
+    public function it_re_cuts_identified_sections_instead_of_a_legacy_confirmed_rms_segment(): void
     {
         Bus::fake();
 
@@ -247,7 +247,7 @@ class ReExtractSermonCommandTest extends TestCase
         $log->update(['processing_metadata' => ['manual_review' => ['confirmed_segment_id' => $segment->id]]]);
 
         $this->artisan('sermons:re-extract', ['processing_id' => $log->processing_id, '--dry-run' => true])
-            ->expectsOutputToContain('640.0s - 2050.0s')
+            ->expectsOutputToContain('630.0s - 2260.0s')
             ->assertExitCode(0);
 
         Bus::assertNothingDispatched();

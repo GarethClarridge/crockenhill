@@ -208,14 +208,14 @@ class SectionReviewFlagPolicyTest extends TestCase
      * sermon at all, which is the opposite of a reviewable outcome.
      */
     #[Test]
-    public function a_material_sermon_boundary_flag_still_permits_auto_extraction(): void
+    public function a_material_sermon_composition_flag_blocks_auto_extraction_until_reviewed(): void
     {
-        $this->assertTrue(SermonAutoExtractionPolicy::reviewStatePermitsAutoExtraction(
+        $this->assertFalse(SermonAutoExtractionPolicy::reviewStatePermitsAutoExtraction(
             false,
             [ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK],
         ));
 
-        $this->assertTrue(SermonAutoExtractionPolicy::reviewStatePermitsAutoExtraction(
+        $this->assertFalse(SermonAutoExtractionPolicy::reviewStatePermitsAutoExtraction(
             true,
             [ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK],
         ));

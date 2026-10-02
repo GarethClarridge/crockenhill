@@ -80,6 +80,23 @@
         </div>
     @endif
 
+    @if($section->section_type === \App\Enums\ServiceSectionType::Sermon && is_array($section->metadata?->raw['sermon_boundary'] ?? null))
+        <x-card heading="Sermon composition">
+            <p class="text-sm text-gray-700">Include the separate sermon reading, the sermon parts and the concluding prayer before the closing song. Each selected section is cut at its own boundaries.</p>
+            <p class="text-sm text-gray-700">Selected sections: {{ implode(', ', $section->metadata->raw['sermon_boundary']['selected_section_ids'] ?? []) ?: 'None' }}.</p>
+            @foreach($section->metadata->raw['sermon_boundary']['risks'] ?? [] as $risk)
+                <p class="text-sm text-amber-800" role="alert">{{ $risk['detail'] }}</p>
+            @endforeach
+            <ul class="space-y-1 text-sm text-gray-700" aria-label="Detected sections">
+                @foreach($panel['composition_sections'] ?? [] as $candidate)
+                    <li><span class="font-medium">{{ $candidate->id }}</span>: {{ $candidate->section_type->label() }} — {{ $candidate->title }} ({{ \App\Services\ChurchService\ServiceRecordTimeline::formatTimestamp((float) $candidate->start_time) }}–{{ \App\Services\ChurchService\ServiceRecordTimeline::formatTimestamp((float) $candidate->end_time) }})</li>
+                @endforeach
+            </ul>
+            <x-input label="Sermon section IDs" wire:model.blur="sectionEdits.{{ $section->id }}.sermon_section_ids" dusk="sermon-composition-{{ $section->id }}" />
+            <p class="text-sm text-gray-600">Separate IDs with commas. Saving confirms this membership and resolves the coverage questions shown above. Correct section boundaries first if any speech is missing.</p>
+        </x-card>
+    @endif
+
     <div class="grid gap-3 md:grid-cols-[12rem_minmax(0,1fr)_auto]">
         <x-select
             label="Section type"
@@ -99,6 +116,7 @@
                 size="sm"
                 variant="primary"
                 wire:click="saveSection({{ $section->id }})"
+                dusk="save-section-{{ $section->id }}"
                 wire:target="saveSection({{ $section->id }})"
             >
                 Save

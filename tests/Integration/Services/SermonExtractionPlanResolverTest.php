@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Services;
 
 use App\Actions\HoldSectionForContentReview;
+use App\Data\ChurchServiceTranscript;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
@@ -13,13 +14,14 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\Sermon\SermonExtractionPlanResolver;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class SermonExtractionPlanResolverTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     private SermonExtractionPlanResolver $resolver;
 
@@ -28,6 +30,141 @@ class SermonExtractionPlanResolverTest extends TestCase
         parent::setUp();
 
         $this->resolver = app(SermonExtractionPlanResolver::class);
+    }
+
+    #[Test]
+    public function composition_does_not_clear_an_upstream_material_boundary_review(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 400]);
+        $sermon = ServiceSection::factory()->create(['media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon, 'start_time' => 100, 'end_time' => 300,
+            'needs_manual_review' => true, 'metadata' => ['review_flags' => [ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK]]]);
+
+        $plan = app(SermonExtractionPlanResolver::class)->resolve($log);
+
+        $this->assertContains(ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK, $sermon->fresh()->metadata->reviewFlags);
+        $this->assertTrue($plan['metadata']['requires_review']);
+    }
+
+    #[Test]
+    public function it_cuts_only_named_sections_without_absorbing_gaps_or_using_baseline_times(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 5000, 'sermon_start_time' => 0, 'sermon_end_time' => 4000]);
+        $reading = ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => 'bible_reading', 'start_time' => 100, 'end_time' => 200, 'needs_manual_review' => false, 'metadata' => ['reading_reference' => 'Jn 3:1-16']]);
+        $sermon = ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => 'sermon', 'start_time' => 220, 'end_time' => 3200, 'confidence' => 0.4, 'needs_manual_review' => false, 'metadata' => ['sermon_reference' => 'John 3:1-16']]);
+        $prayer = ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => 'prayer', 'start_time' => 3210, 'end_time' => 3250, 'needs_manual_review' => false]);
+        ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => 'song', 'start_time' => 3280, 'end_time' => 3500]);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame('service_sections', $plan['source']);
+        $this->assertSame([[100.0, 200.0], [220.0, 3200.0], [3210.0, 3250.0]], array_map(fn (array $span): array => [$span['start_time'], $span['end_time']], $plan['segments']));
+        $this->assertSame([$reading->id, $sermon->id, $prayer->id], $plan['metadata']['selected_section_ids']);
+    }
+
+    #[Test]
+    public function absent_accepted_sections_never_fall_back_to_the_old_detector(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['sermon_start_time' => 0, 'sermon_end_time' => 3000]);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame([], $plan['segments']);
+        $this->assertTrue($plan['metadata']['requires_review']);
+    }
+
+    #[Test]
+    public function duplicate_matching_readings_and_multiple_prayers_require_membership_review(): void
+    {
+        $log = $this->logWithSermon(500.0, 1200.0);
+        $sermon = $log->serviceSections()->sole();
+        $sermon->update(['metadata' => ['sermon_reference' => 'John 3:1-16']]);
+        $this->reading($log, 3, 100, 200, reference: 'John 3:1-16');
+        $this->reading($log, 4, 300, 400, reference: 'Jn 3:1-16');
+        $this->section($log, ServiceSectionType::Prayer, 5, 1210, 1250);
+        $this->section($log, ServiceSectionType::Prayer, 6, 1260, 1300);
+
+        $plan = $this->resolver->resolve($log);
+        $this->assertTrue($plan['metadata']['requires_review']);
+        $this->assertSame(['sermon_reading_membership_unresolved', 'sermon_prayer_membership_unresolved'], array_column($plan['metadata']['risks'], 'kind'));
+    }
+
+    #[Test]
+    public function a_reviewed_selection_survives_recomposition_but_not_changed_section_bounds(): void
+    {
+        $log = $this->logWithSermon(500.0, 1200.0);
+        $sermon = $log->serviceSections()->sole();
+        $reading = $this->reading($log, 3, 100, 200);
+        $composition = $this->resolver->compose($log);
+        $this->resolver->reviewComposition($log, [$reading->id, $sermon->id], $composition['input_identity'], 1);
+        $plan = $this->resolver->resolve($log->fresh());
+        $this->assertSame([$reading->id, $sermon->id], $plan['metadata']['selected_section_ids']);
+        $this->assertFalse($plan['metadata']['requires_review']);
+
+        $reading->update(['end_time' => 210, 'duration' => 110]);
+        $changed = $this->resolver->resolve($log->fresh());
+        $this->assertTrue($changed['metadata']['requires_review']);
+        $this->assertNotSame($composition['input_identity'], $changed['metadata']['input_identity']);
+    }
+
+    #[Test]
+    public function selected_sections_with_overlapping_bounds_are_rejected_without_a_fallback(): void
+    {
+        $log = $this->logWithSermon(500.0, 1200.0);
+        $sermon = $log->serviceSections()->sole();
+        $this->section($log, ServiceSectionType::Other, 3, 1100, 1400)->update(['metadata' => ['sermon_continuation' => ['of_section_id' => $sermon->id, 'evidence' => 'Same sermon continues', 'source' => 'review']]]);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('overlapping');
+        $this->resolver->resolve($log);
+    }
+
+    #[Test]
+    public function a_media_version_change_invalidates_a_section_signature(): void
+    {
+        $section = ServiceSection::factory()->create();
+        $before = $section->mediaSignature();
+        config(['media-processing.media_processing_version' => 3]);
+        $this->assertNotSame($before, $section->mediaSignature());
+    }
+
+    #[Test]
+    public function uncovered_timed_speech_requires_review_but_silence_and_identified_content_do_not(): void
+    {
+        Storage::fake('local');
+        config(['media-processing.storage.temp_disk' => 'local']);
+        $log = $this->logWithSermon(100, 200);
+        $log->update(['duration' => 300, 'audio_timeline_path' => 'temp/timeline.json', 'processing_metadata' => ['service_transcript_path' => 'temp/transcript.json']]);
+        $this->section($log, ServiceSectionType::Song, 3, 240, 270);
+        $transcript = ChurchServiceTranscript::fromCues([
+            ['start' => 100, 'end' => 200, 'text' => 'Identified sermon.'],
+            ['start' => 205, 'end' => 210, 'text' => 'Words outside the sermon.'],
+            ['start' => 245, 'end' => 260, 'text' => 'Identified singing.'],
+        ], 300, ChurchServiceTranscript::SOURCE_MOCK);
+        Storage::disk('local')->put('temp/transcript.json', json_encode($transcript->toArray(), JSON_THROW_ON_ERROR));
+        $timeline = ['model' => 'test', 'model_revision' => '1', 'window_seconds' => 300, 'audio_seconds' => 300,
+            'windows' => [['start' => 0, 'end' => 300, 'music' => 0, 'speech' => 0.9]]];
+        Storage::disk('local')->put('temp/timeline.json', json_encode($timeline, JSON_THROW_ON_ERROR));
+        $composition = $this->resolver->compose($log);
+        $this->assertSame(['sermon_uncovered_speech'], array_column($composition['risks'], 'kind'));
+        $this->assertTrue($composition['requires_review']);
+        $this->assertCount(1, $this->resolver->resolve($log)['segments']);
+
+        $timeline['windows'][0]['speech'] = 0.1;
+        Storage::disk('local')->put('temp/timeline.json', json_encode($timeline, JSON_THROW_ON_ERROR));
+        $this->assertFalse($this->resolver->compose($log)['requires_review']);
+    }
+
+    #[Test]
+    public function a_review_cannot_include_a_prayer_after_the_post_sermon_song(): void
+    {
+        $log = $this->logWithSermon(100, 200);
+        $sermon = $log->serviceSections()->sole();
+        $this->section($log, ServiceSectionType::Song, 3, 220, 250);
+        $prayer = $this->section($log, ServiceSectionType::Prayer, 4, 260, 270);
+        $composition = $this->resolver->compose($log);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('before the post-sermon song');
+        $this->resolver->reviewComposition($log, [$sermon->id, $prayer->id], $composition['input_identity'], 1);
     }
 
     /**
@@ -40,16 +177,15 @@ class SermonExtractionPlanResolverTest extends TestCase
      * sermon's span swallowed one, because the span does not exist until the plan is resolved.
      */
     #[Test]
-    public function it_raises_a_risk_when_the_sermon_absorbs_a_section_that_reads_as_sung(): void
+    public function it_excludes_an_unselected_sung_item_from_the_sermon(): void
     {
         $log = $this->runWithAbsorbedSection([ServiceStructureValidator::FLAG_SECTION_READS_AS_SUNG]);
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertContains(
-            'sermon_absorbed_sung_item',
-            array_column($plan['metadata']['sermon_boundary']['risks'], 'kind'),
-        );
+        $this->assertCount(1, $plan['segments']);
+        $this->assertSame(1157.0, $plan['segments'][0]['end_time']);
+
     }
 
     /**
@@ -57,16 +193,15 @@ class SermonExtractionPlanResolverTest extends TestCase
      * conclusion, not a separate item — so absorbing one on its own raises nothing.
      */
     #[Test]
-    public function it_raises_no_risk_when_the_absorbed_section_does_not_read_as_sung(): void
+    public function it_does_not_absorb_an_unrelated_other_section(): void
     {
         $log = $this->runWithAbsorbedSection([]);
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertNotContains(
-            'sermon_absorbed_sung_item',
-            array_column($plan['metadata']['sermon_boundary']['risks'], 'kind'),
-        );
+        $this->assertCount(1, $plan['segments']);
+        $this->assertSame(1157.0, $plan['segments'][0]['end_time']);
+
     }
 
     /**
@@ -75,9 +210,10 @@ class SermonExtractionPlanResolverTest extends TestCase
      * to the coarse baseline cut, which contains the hymn just the same and says nothing.
      */
     #[Test]
-    public function a_sermon_holding_a_sung_span_still_plans_its_span_and_raises_a_risk(): void
+    public function a_sermon_holding_a_sung_span_keeps_its_identified_bounds(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create([
+            'duration' => 5000.0,
             'sermon_start_time' => 100.0,
             'sermon_end_time' => 200.0,
         ]);
@@ -98,8 +234,8 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $this->assertSame('service_sections', $plan['source']);
         $this->assertSame($sermon->id, $plan['metadata']['sermon_section_id']);
-        $this->assertContains('sermon_contains_sung_span', array_column($plan['metadata']['sermon_boundary']['risks'], 'kind'));
-        $this->assertTrue($plan['metadata']['sermon_boundary']['requires_review']);
+        $this->assertSame(4827.0, $plan['segments'][0]['end_time']);
+
     }
 
     /**
@@ -224,7 +360,7 @@ class SermonExtractionPlanResolverTest extends TestCase
     }
 
     #[Test]
-    public function it_declines_a_sermon_section_carrying_a_boundary_quality_review_flag(): void
+    public function it_parks_a_boundary_question_without_substituting_detector_bounds(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create([
             'sermon_start_time' => 100.0,
@@ -245,13 +381,14 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertSame('processing_log', $plan['source']);
-        $this->assertSame(100.0, $plan['segments'][0]['start_time']);
-        $this->assertSame(200.0, $plan['segments'][0]['end_time']);
+        $this->assertSame('service_sections', $plan['source']);
+        $this->assertTrue($plan['metadata']['requires_review']);
+        $this->assertSame(500.0, $plan['segments'][0]['start_time']);
+
     }
 
     #[Test]
-    public function it_declines_a_review_flagged_sermon_section_without_recorded_flags(): void
+    public function it_parks_an_unexplained_review_hold_without_substituting_detector_bounds(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create([
             'sermon_start_time' => 100.0,
@@ -271,11 +408,12 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertSame('processing_log', $plan['source']);
+        $this->assertTrue($plan['metadata']['requires_review']);
+
     }
 
     #[Test]
-    public function it_merges_adjacent_bible_and_sermon_sections_into_single_span(): void
+    public function it_keeps_adjacent_reading_and_sermon_as_exact_separate_spans(): void
     {
         config(['media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60]);
 
@@ -291,7 +429,7 @@ class SermonExtractionPlanResolverTest extends TestCase
             'start_time' => 300.0,
             'end_time' => 600.0,
             'needs_manual_review' => false,
-            'metadata' => ['confidence_level' => 'high'],
+            'metadata' => ['confidence_level' => 'high', 'reading_reference' => 'John 3:1-16'],
         ]);
 
         ServiceSection::factory()->create([
@@ -301,15 +439,14 @@ class SermonExtractionPlanResolverTest extends TestCase
             'start_time' => 630.0,
             'end_time' => 2100.0,
             'needs_manual_review' => false,
-            'metadata' => ['confidence_level' => 'high'],
+            'metadata' => ['confidence_level' => 'high', 'sermon_reference' => 'John 3:1-16'],
         ]);
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertSame('single_span', $plan['mode']);
-        $this->assertSame(300.0, $plan['segments'][0]['start_time']);
-        $this->assertSame(2100.0, $plan['segments'][0]['end_time']);
-        $this->assertSame('adjacent_bible_plus_sermon', $plan['metadata']['strategy']);
+        $this->assertSame('concat_spans', $plan['mode']);
+        $this->assertSame([['start_time' => 300.0, 'end_time' => 600.0], ['start_time' => 630.0, 'end_time' => 2100.0]], $plan['segments']);
+
     }
 
     /**
@@ -318,7 +455,7 @@ class SermonExtractionPlanResolverTest extends TestCase
      * reliably, so the published span runs through it rather than depending on it.
      */
     #[Test]
-    public function it_extends_the_published_span_through_an_adjacent_closing_prayer(): void
+    public function it_adds_an_identified_closing_prayer_as_its_own_span(): void
     {
         config(['media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60]);
 
@@ -327,12 +464,13 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertSame(2260.0, $plan['segments'][0]['end_time']);
+        $this->assertSame([['start_time' => 630.0, 'end_time' => 2100.0], ['start_time' => 2110.0, 'end_time' => 2260.0]], $plan['segments']);
         $this->assertSame([$prayer->id], $plan['metadata']['trailing_section_ids']);
+
     }
 
     #[Test]
-    public function it_stops_the_published_span_at_the_next_song(): void
+    public function it_excludes_the_song_and_the_prayer_after_it(): void
     {
         config(['media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60]);
 
@@ -342,8 +480,9 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertSame(2110.0, $plan['segments'][0]['end_time']);
-        $this->assertSame([], $plan['metadata']['trailing_section_ids']);
+        $this->assertSame(2100.0, $plan['segments'][0]['end_time']);
+        $this->assertCount(1, $plan['segments']);
+
     }
 
     /**
@@ -352,7 +491,7 @@ class SermonExtractionPlanResolverTest extends TestCase
      * Seven sermons (1027, 981, 1193, 1299, 1172, 986, 990) lost theirs.
      */
     #[Test]
-    public function it_extends_the_published_span_through_an_unsectioned_closing_prayer_to_the_next_song(): void
+    public function it_never_extends_into_uncovered_time_before_the_song(): void
     {
         config(['media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60]);
 
@@ -361,12 +500,13 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertSame(2250.0, $plan['segments'][0]['end_time']);
-        $this->assertSame([], $plan['metadata']['trailing_section_ids']);
+        $this->assertSame(2100.0, $plan['segments'][0]['end_time']);
+        $this->assertCount(1, $plan['segments']);
+
     }
 
     #[Test]
-    public function it_extends_through_trailing_sections_beyond_the_adjacency_window_when_a_song_follows(): void
+    public function an_identified_prayer_is_selected_without_a_proximity_rule(): void
     {
         config(['media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60]);
 
@@ -376,8 +516,9 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertSame(2530.0, $plan['segments'][0]['end_time']);
-        $this->assertSame([$prayer->id], $plan['metadata']['trailing_section_ids']);
+        $this->assertCount(2, $plan['segments']);
+        $this->assertSame(['start_time' => 2400.0, 'end_time' => 2500.0], $plan['segments'][1]);
+
     }
 
     #[Test]
@@ -397,7 +538,7 @@ class SermonExtractionPlanResolverTest extends TestCase
     }
 
     #[Test]
-    public function it_keeps_a_short_ambiguous_bridge_with_the_sermon_without_reviewing_it(): void
+    public function it_excludes_an_unrelated_bridge_without_extending_to_the_song(): void
     {
         config(['media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60]);
 
@@ -407,14 +548,13 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertSame(2160.0, $plan['segments'][0]['end_time']);
-        $this->assertSame([$bridge->id], $plan['metadata']['trailing_section_ids']);
-        $this->assertSame('retain_ambiguous_bridge', $plan['metadata']['sermon_boundary']['decision']);
-        $this->assertFalse($plan['metadata']['sermon_boundary']['requires_review']);
+        $this->assertSame(2100.0, $plan['segments'][0]['end_time']);
+        $this->assertNotContains($bridge->id, $plan['metadata']['selected_section_ids']);
+
     }
 
     #[Test]
-    public function it_routes_multiple_following_items_as_a_material_sermon_boundary_risk(): void
+    public function it_selects_the_immediately_following_prayer_without_absorbing_other_items(): void
     {
         config(['media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60]);
 
@@ -425,12 +565,9 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertSame(2230.0, $plan['segments'][0]['end_time']);
-        $this->assertTrue($plan['metadata']['sermon_boundary']['requires_review']);
-        $this->assertContains(
-            'sermon_boundary_multiple_following_items',
-            array_column($plan['metadata']['sermon_boundary']['risks'], 'kind'),
-        );
+        $this->assertCount(2, $plan['segments']);
+        $this->assertSame(2160.0, $plan['segments'][1]['end_time']);
+
     }
 
     /**
@@ -440,7 +577,7 @@ class SermonExtractionPlanResolverTest extends TestCase
      * choose — and a needless hold pins the run's staged source.
      */
     #[Test]
-    public function a_section_crossing_the_sermon_end_is_recorded_without_obligating_review(): void
+    public function an_unselected_crossing_section_does_not_change_the_sermon_bounds(): void
     {
         config(['media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60]);
 
@@ -451,12 +588,8 @@ class SermonExtractionPlanResolverTest extends TestCase
         $plan = $this->resolver->resolve($log);
 
         $this->assertSame(2100.0, $plan['segments'][0]['end_time']);
-        $this->assertFalse($plan['metadata']['sermon_boundary']['requires_review']);
-        $this->assertSame([], $plan['metadata']['sermon_boundary']['risks']);
-        $this->assertSame(
-            [$crossing->id],
-            $plan['metadata']['sermon_boundary']['overlapping_section_ids'],
-        );
+        $this->assertNotContains($crossing->id, $plan['metadata']['selected_section_ids']);
+
     }
 
     /**
@@ -465,7 +598,7 @@ class SermonExtractionPlanResolverTest extends TestCase
      * sermon automatically however long it runs.
      */
     #[Test]
-    public function a_long_tail_without_an_independent_boundary_does_not_create_sermon_review_on_duration_alone(): void
+    public function an_unidentified_tail_is_excluded_regardless_of_duration(): void
     {
         config([
             'media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60,
@@ -483,9 +616,9 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertSame(2400.0, $plan['segments'][0]['end_time']);
-        $this->assertFalse($plan['metadata']['sermon_boundary']['requires_review']);
-        $this->assertSame([], $plan['metadata']['sermon_boundary']['risks']);
+        $this->assertSame(2100.0, $plan['segments'][0]['end_time']);
+        $this->assertNotContains($tail->id, $plan['metadata']['selected_section_ids']);
+
     }
 
     /**
@@ -493,7 +626,7 @@ class SermonExtractionPlanResolverTest extends TestCase
      * item of its own, is the non-duration evidence that makes it reviewable.
      */
     #[Test]
-    public function a_long_tail_attested_by_another_source_is_a_material_sermon_boundary_risk(): void
+    public function an_other_section_is_not_a_prayer_because_another_source_attests_it(): void
     {
         config([
             'media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60,
@@ -508,12 +641,9 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         // Still cut inclusively -- the risk routes a reviewer to it, it does not
         // move the boundary.
-        $this->assertSame($tail->end_time, $plan['segments'][0]['end_time']);
-        $this->assertTrue($plan['metadata']['sermon_boundary']['requires_review']);
-        $this->assertContains(
-            'sermon_boundary_long_tail',
-            array_column($plan['metadata']['sermon_boundary']['risks'], 'kind'),
-        );
+        $this->assertSame(2100.0, $plan['segments'][0]['end_time']);
+        $this->assertNotContains($tail->id, $plan['metadata']['selected_section_ids']);
+
     }
 
     #[Test]
@@ -535,7 +665,7 @@ class SermonExtractionPlanResolverTest extends TestCase
      * songs excised, so there is no song to stop at.
      */
     #[Test]
-    public function it_extends_through_a_mid_sermon_reading_and_an_other_typed_conclusion(): void
+    public function it_excludes_unrelated_readings_and_other_sections_after_the_sermon(): void
     {
         config(['media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60]);
 
@@ -545,7 +675,9 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertSame(3055.0, $plan['segments'][0]['end_time']);
+        $this->assertSame(2690.0, $plan['segments'][0]['end_time']);
+        $this->assertCount(1, $plan['segments']);
+
     }
 
     #[Test]
@@ -584,7 +716,7 @@ class SermonExtractionPlanResolverTest extends TestCase
             'start_time' => 300.0,
             'end_time' => 600.0,
             'needs_manual_review' => false,
-            'metadata' => ['confidence_level' => 'high'],
+            'metadata' => ['confidence_level' => 'high', 'reading_reference' => 'John 3:1-16'],
         ]);
 
         ServiceSection::factory()->create([
@@ -594,7 +726,7 @@ class SermonExtractionPlanResolverTest extends TestCase
             'start_time' => 1500.0,
             'end_time' => 2400.0,
             'needs_manual_review' => false,
-            'metadata' => ['confidence_level' => 'high'],
+            'metadata' => ['confidence_level' => 'high', 'sermon_reference' => 'John 3:1-16'],
         ]);
 
         $plan = $this->resolver->resolve($log);
@@ -608,7 +740,7 @@ class SermonExtractionPlanResolverTest extends TestCase
     }
 
     #[Test]
-    public function it_falls_back_to_baseline_when_legacy_section_preference_is_disabled(): void
+    public function legacy_section_preference_cannot_enable_a_detector_fallback(): void
     {
         config(['media-processing.section_classification.prefer_high_confidence_sermon_section' => false]);
 
@@ -628,14 +760,13 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertSame('baseline', $plan['mode']);
-        $this->assertSame('processing_log', $plan['source']);
-        $this->assertSame(250.0, $plan['segments'][0]['start_time']);
-        $this->assertSame(1900.0, $plan['segments'][0]['end_time']);
+        $this->assertSame('service_sections', $plan['source']);
+        $this->assertSame(500.0, $plan['segments'][0]['start_time']);
+
     }
 
     #[Test]
-    public function it_ignores_bible_section_when_it_overlaps_sermon_start(): void
+    public function a_reading_with_missing_references_raises_membership_review(): void
     {
         config([
             'media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60,
@@ -669,15 +800,13 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertSame('single_span', $plan['mode']);
-        $this->assertSame('service_sections', $plan['source']);
-        $this->assertSame(1000.0, $plan['segments'][0]['start_time']);
-        $this->assertSame(2400.0, $plan['segments'][0]['end_time']);
-        $this->assertSame('sermon_only_invalid_bible_timing', $plan['metadata']['strategy']);
+        $this->assertTrue($plan['metadata']['requires_review']);
+        $this->assertCount(1, $plan['segments']);
+
     }
 
     #[Test]
-    public function it_prefers_the_bibles_linked_reading_over_a_closer_unlinked_one(): void
+    public function item_linkage_does_not_resolve_missing_reading_references(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create([
             'sermon_start_time' => 100.0,
@@ -693,13 +822,13 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertSame('non_adjacent_bible_plus_sermon_concat', $plan['metadata']['strategy']);
-        $this->assertSame($linkedReading->id, $plan['metadata']['bible_section_id']);
-        $this->assertSame(1500.0, $plan['segments'][0]['start_time']);
+        $this->assertTrue($plan['metadata']['requires_review']);
+        $this->assertNull($plan['metadata']['bible_section_id']);
+
     }
 
     #[Test]
-    public function it_prefers_the_closest_reading_rather_than_the_earliest(): void
+    public function proximity_does_not_resolve_missing_reading_references(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create([
             'sermon_start_time' => 100.0,
@@ -715,12 +844,13 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertSame($closerReading->id, $plan['metadata']['bible_section_id']);
-        $this->assertSame(1750.0, $plan['segments'][0]['start_time']);
+        $this->assertTrue($plan['metadata']['requires_review']);
+        $this->assertNull($plan['metadata']['bible_section_id']);
+
     }
 
     #[Test]
-    public function it_demotes_a_short_preamble_reading_in_favour_of_a_substantive_one(): void
+    public function duration_does_not_resolve_missing_reading_references(): void
     {
         config(['media-processing.section_extraction.enhanced_sermon.min_reading_duration_seconds' => 90]);
 
@@ -738,7 +868,9 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertSame($substantiveReading->id, $plan['metadata']['bible_section_id']);
+        $this->assertTrue($plan['metadata']['requires_review']);
+        $this->assertNull($plan['metadata']['bible_section_id']);
+
     }
 
     #[Test]
@@ -851,7 +983,7 @@ class SermonExtractionPlanResolverTest extends TestCase
     }
 
     #[Test]
-    public function it_does_not_pair_a_reading_beyond_the_max_pairing_gap(): void
+    public function a_far_reading_without_references_requires_membership_review(): void
     {
         config(['media-processing.section_extraction.enhanced_sermon.max_pairing_gap_seconds' => 900]);
 
@@ -867,14 +999,13 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertSame('single_span', $plan['mode']);
-        $this->assertSame('sermon_only_reading_gap_exceeded', $plan['metadata']['strategy']);
-        $this->assertSame(2000.0, $plan['segments'][0]['start_time']);
-        $this->assertSame(3500.0, $plan['segments'][0]['end_time']);
+        $this->assertSame('service_sections', $plan['source']);
+        $this->assertTrue($plan['metadata']['requires_review']);
+
     }
 
     #[Test]
-    public function it_routes_an_over_long_sermon_section_to_the_baseline_for_manual_review(): void
+    public function an_accepted_long_sermon_has_no_cut_time_duration_ceiling(): void
     {
         config(['media-processing.section_extraction.enhanced_sermon.max_sermon_duration_seconds' => 2700]);
 
@@ -888,9 +1019,9 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertSame('baseline', $plan['mode']);
-        $this->assertSame('processing_log', $plan['source']);
-        $this->assertSame('sermon_section_exceeds_maximum_duration', $plan['metadata']['reason']);
+        $this->assertSame('service_sections', $plan['source']);
+        $this->assertCount(1, $plan['segments']);
+
     }
 
     private function reading(
@@ -1193,7 +1324,7 @@ class SermonExtractionPlanResolverTest extends TestCase
         $plan = $this->resolver->resolve($log);
 
         $this->assertSame([$continuation->id], $plan['metadata']['continuation_section_ids']);
-        $this->assertStringContainsString('continuation', (string) $plan['metadata']['strategy']);
+        $this->assertSame('identified_sections', $plan['metadata']['strategy']);
     }
 
     #[Test]
@@ -1257,7 +1388,7 @@ class SermonExtractionPlanResolverTest extends TestCase
     }
 
     #[Test]
-    public function it_does_not_repeat_a_marked_part_the_sermon_span_already_covers(): void
+    public function a_separate_marked_continuation_has_its_own_exact_span(): void
     {
         // `resolveSermonEnd()` runs the published span forward through trailing `other`
         // material, so a part directly after the sermon is inside the span already.
@@ -1297,14 +1428,15 @@ class SermonExtractionPlanResolverTest extends TestCase
         $plan = $this->resolver->resolve($log);
 
         // Absorbed by the sermon-end rule, so one contiguous span, counted once.
-        $this->assertSame('single_span', $plan['mode']);
-        $this->assertCount(1, $plan['segments']);
+        $this->assertSame('concat_spans', $plan['mode']);
+        $this->assertCount(2, $plan['segments']);
         $this->assertSame(500.0, $plan['segments'][0]['start_time']);
-        $this->assertSame(1400.0, $plan['segments'][0]['end_time']);
+        $this->assertSame(1400.0, $plan['segments'][1]['end_time']);
+
     }
 
     #[Test]
-    public function it_refuses_continuation_parts_that_would_exceed_the_sermon_duration_ceiling(): void
+    public function accepted_continuations_have_no_cut_time_duration_ceiling(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create([
             'sermon_start_time' => 100.0,
@@ -1352,10 +1484,10 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         // Refused, but never silently: discarding what the detector named is the
         // defect this item exists to correct, so the refusal is on the record.
-        $this->assertSame('single_span', $plan['mode']);
-        $this->assertCount(1, $plan['segments']);
-        $this->assertTrue($plan['metadata']['continuation_ceiling_applied']);
-        $this->assertSame([$rejected->id], $plan['metadata']['continuation_rejected_section_ids']);
+        $this->assertSame('concat_spans', $plan['mode']);
+        $this->assertCount(2, $plan['segments']);
+        $this->assertContains($rejected->id, $plan['metadata']['selected_section_ids']);
+
     }
 
     #[Test]
@@ -1424,7 +1556,7 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertSame('processing_log', $plan['source']);
+        $this->assertSame('service_sections', $plan['source']);
         $this->assertSame('sermon_section_content_held', $plan['metadata']['reason']);
         $this->assertSame([$log->serviceSections()->sole()->id], $plan['metadata']['held_sermon_section_ids']);
     }
@@ -1476,7 +1608,7 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log->fresh());
 
-        $this->assertSame('processing_log', $plan['source']);
+        $this->assertSame('service_sections', $plan['source']);
         $this->assertSame('sermon_section_content_held', $plan['metadata']['reason']);
     }
 
@@ -1492,7 +1624,7 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log->fresh());
 
-        $this->assertSame('processing_log', $plan['source']);
+        $this->assertSame('service_sections', $plan['source']);
     }
 
     /**

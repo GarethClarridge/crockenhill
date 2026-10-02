@@ -11,6 +11,7 @@ use App\Data\ServiceSectionMetadata;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStep;
 use App\Enums\ServiceSectionPublicationStatus;
+use App\Enums\ServiceSectionType;
 use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
@@ -18,11 +19,13 @@ use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFacto
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\HistoricMedia\HistoricProcessingThroughput;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
+use App\Services\Media\ExtractedMediaDurationProbe;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\ProcessingRunOrchestrator;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Support\ChurchServiceProcessingTimeline;
 use App\Support\MediaAssetPath;
+use App\Support\MediaProcessingVersion;
 use App\Traits\DetectsStorageType;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -279,6 +282,10 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             }
 
             if ($section->publication_status === ServiceSectionPublicationStatus::Published) {
+                if ($section->section_type === ServiceSectionType::Song
+                    && ($section->metadata?->raw['song_video_extraction']['media_signature'] ?? null) !== $section->mediaSignature()) {
+                    $handler->publish($section);
+                }
                 $this->saveSectionIfDirty($section);
 
                 continue;
@@ -417,14 +424,13 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
 
             Storage::disk($this->candidateDisk())->put($videoStoragePath, $videoReadStream);
             fclose($videoReadStream);
-            Storage::disk($tempDisk)->delete($tempVideoPath);
 
             $section->extracted_video_path = $videoStoragePath;
 
             if ($handler->requiresAudioExtraction()) {
                 $audioResult = $videoExtractor->extractOptimizedAudio(
-                    $localSourcePath,
-                    $segment,
+                    Storage::disk($tempDisk)->path($tempVideoPath),
+                    (object) ['start_time' => 0.0, 'end_time' => app(ExtractedMediaDurationProbe::class)->durationOf(Storage::disk($tempDisk)->path($tempVideoPath))],
                     $this->processingLog->processing_id.'_section_'.$section->id.'.mp3',
                     $this->candidateDisk(),
                     $this->candidateAudioDirectory($section)
@@ -447,11 +453,15 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
                     'publication_candidate_extraction' => [
                         'processing_id' => $this->processingLog->processing_id,
                         'media_signature' => $section->mediaSignature(),
+                        'media_processing' => MediaProcessingVersion::signature(),
                         'extracted_at' => now()->toIso8601String(),
                     ],
                 ]
             ));
         } finally {
+            if (isset($tempVideoPath)) {
+                Storage::disk($tempDisk)->delete($tempVideoPath);
+            }
             if ($isS3TempDisk) {
                 $storageHelper->cleanupTempFile($localSourcePath);
             }
@@ -502,7 +512,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         $provenance = $metadata['publication_candidate_extraction'] ?? null;
 
         if (! is_array($provenance)) {
-            return true;
+            return false;
         }
 
         return ($provenance['processing_id'] ?? null) === $this->processingLog->processing_id

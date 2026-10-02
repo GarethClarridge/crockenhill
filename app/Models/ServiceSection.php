@@ -13,6 +13,7 @@ use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Enums\TalkType;
 use App\Support\MediaAssetPath;
+use App\Support\MediaProcessingVersion;
 use Database\Factories\ServiceSectionFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -243,7 +244,7 @@ class ServiceSection extends Model
      * item bindings and publication facts (speaker, talk type) do not change the
      * bytes, so confirming them never makes a candidate look due for re-cutting.
      *
-     * @return array{section_type: string, start_time: float, end_time: float}
+     * @return array{section_type: string, start_time: float, end_time: float, media_processing: array<string, mixed>}
      */
     public function mediaSignaturePayload(): array
     {
@@ -251,6 +252,7 @@ class ServiceSection extends Model
             'section_type' => $this->section_type->value,
             'start_time' => (float) $this->start_time,
             'end_time' => (float) $this->end_time,
+            'media_processing' => MediaProcessingVersion::signature(),
         ];
     }
 

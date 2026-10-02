@@ -142,8 +142,8 @@ class ShortTalkSectionMigrationTest extends TestCase
         (require $this->migrationPath('stamp_candidate_media_signatures'))->up();
 
         $converted = $this->rawMetadata($stampedBeforeSpeakerReview)['publication_candidate_extraction'];
-        $this->assertSame(['processing_id' => 'p1', 'media_signature' => $stampedBeforeSpeakerReview->refresh()->mediaSignature()], $converted);
-        $this->assertSame($song->refresh()->mediaSignature(), $this->rawMetadata($song)['publication_candidate_extraction']['media_signature']);
+        $this->assertSame(['processing_id' => 'p1', 'media_signature' => $this->legacyMediaSignature($stampedBeforeSpeakerReview->refresh())], $converted);
+        $this->assertSame($this->legacyMediaSignature($song->refresh()), $this->rawMetadata($song)['publication_candidate_extraction']['media_signature']);
         $this->assertSame(
             ['processing_id' => 'p3', 'classification_signature' => 'moved-boundary'],
             $this->rawMetadata($movedBoundary)['publication_candidate_extraction'],
@@ -222,5 +222,14 @@ class ShortTalkSectionMigrationTest extends TestCase
             ->value('column_type');
 
         return $columnType;
+    }
+
+    private function legacyMediaSignature(ServiceSection $section): string
+    {
+        return hash('sha256', json_encode([
+            'section_type' => $section->section_type->value,
+            'start_time' => (float) $section->start_time,
+            'end_time' => (float) $section->end_time,
+        ], JSON_THROW_ON_ERROR));
     }
 }
