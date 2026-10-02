@@ -462,7 +462,7 @@ class TalkPublicationHandlerTest extends TestCase
             ->andReturn(['date' => now()->toDateString(), 'service' => SermonService::Morning]);
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage("Short talk speaker must be reviewed");
+        $this->expectExceptionMessage('Short talk speaker must be reviewed');
 
         $this->handler->publish($section);
     }

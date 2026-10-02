@@ -160,8 +160,7 @@ final class HistoricVideoRoundEvidence
         array $reports,
         array $manifest,
         HistoricImportOperation $operation,
-    ): void
-    {
+    ): void {
         $membership = $this->readReport($reports, 'membership_census');
         $assets = $this->readReport($reports, 'asset_audit');
         $scripture = $this->readReport($reports, 'scripture_settlement');

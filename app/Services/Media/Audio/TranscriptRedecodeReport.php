@@ -329,5 +329,4 @@ final class TranscriptRedecodeReport
 
         return $hashes;
     }
-
 }

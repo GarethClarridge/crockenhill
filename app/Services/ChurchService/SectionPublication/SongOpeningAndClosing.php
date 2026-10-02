@@ -7,6 +7,7 @@ namespace App\Services\ChurchService\SectionPublication;
 use App\Data\ChurchServiceTranscript;
 use App\Models\ServiceSection;
 use App\Models\Song;
+use App\Services\ChurchService\Structure\SongLyricEdgeExtension;
 use App\Services\Media\Audio\SustainedSound;
 use App\Services\Song\OpenLpLyricsParser;
 
@@ -61,7 +62,7 @@ final class SongOpeningAndClosing
     /**
      * The leader speaking inside the clip: naming the song, calling the church to stand, sing,
      * pray or bow. A skipped line only loses one placement, so this is wider than
-     * {@see \App\Services\ChurchService\Structure\SongLyricEdgeExtension}'s, which stops a walk.
+     * {@see SongLyricEdgeExtension}'s, which stops a walk.
      */
     private const LEADER_PATTERN = '/(going to sing|let\'?s (stand|sing|pray|bow)|let us (stand|sing|pray|bow)|shall we sing|we\'?ll sing|remain standing|sit down|hymn number|number \d|verse reads|first verse|next hymn|our (next|closing|opening) (hymn|song)|in prayer|word of prayer|reading|the title of|this hymn|this song|we\'?re going to|entitled)/i';
 

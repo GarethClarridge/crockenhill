@@ -4,22 +4,22 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Actions;
 
+use App\Actions\FlagPublishedReferenceContradictsSermon;
 use App\Actions\QueueScriptureEnrichment;
 use App\Actions\SaveSermonDetails;
 use App\Enums\PreacherSource;
 use App\Enums\SermonService;
+use App\Enums\ServiceSectionType;
+use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
+use App\Models\ServiceSection;
 use App\Services\Preacher\PreacherResolutionService;
 use App\Services\Processing\SermonIdentitySyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
-use App\Actions\FlagPublishedReferenceContradictsSermon;
-use App\Enums\ServiceSectionType;
-use App\Models\MediaProcessingLog;
-use App\Models\ServiceSection;
 
 class SaveSermonDetailsTest extends TestCase
 {

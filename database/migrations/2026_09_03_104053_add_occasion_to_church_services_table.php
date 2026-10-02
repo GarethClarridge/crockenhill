@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\ServiceOccasion;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -17,7 +18,7 @@ use Illuminate\Support\Facades\Schema;
  * same reason the service `summary` is stored but never rendered there.
  *
  * The value is validated as an enum in the application
- * ({@see \App\Enums\ServiceOccasion}) rather than by a database enum type, which
+ * ({@see ServiceOccasion}) rather than by a database enum type, which
  * matches every other enumerated column on this table and keeps adding a case a
  * code change rather than a migration.
  */

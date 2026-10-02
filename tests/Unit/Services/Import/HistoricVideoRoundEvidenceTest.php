@@ -363,7 +363,7 @@ class HistoricVideoRoundEvidenceTest extends TestCase
     }
 
     /** @param array<string, array<string, string>> $reports
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     private function writeReport(array &$reports, string $key, array $payload): void
     {

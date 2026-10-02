@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\HistoricMedia;
 
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleRunner;
-
 use RuntimeException;
 
 class HistoricProcessingMetadataSerializer

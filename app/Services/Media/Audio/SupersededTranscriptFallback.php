@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Media\Audio;
 
 use App\Data\ChurchServiceTranscript;
+use App\Services\HistoricMedia\HistoricTranscriptRecoveryReplay;
 
 /**
  * Fill a window this pass could not decode from the transcript it replaced.
@@ -20,7 +21,7 @@ use App\Data\ChurchServiceTranscript;
  *
  * So when a window ends the pass as `retranscription_failed`, the superseded
  * transcript is consulted before the window is written off. This is the same
- * reasoning {@see \App\Services\HistoricMedia\HistoricTranscriptRecoveryReplay}
+ * reasoning {@see HistoricTranscriptRecoveryReplay}
  * records for replaying banked retries: the question is not "what would this
  * audio yield today" — today's pass already answered that, badly — but "what
  * did this run once have". Only the superseded transcript answers it, and it

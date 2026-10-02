@@ -8,6 +8,7 @@ use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
+use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
@@ -28,7 +29,7 @@ use Illuminate\Support\Facades\Storage;
  * the population the replay below measured; a quotation the check releases over speech is
  * never absorbed. What it declines stays held: the correction only has to be right when it
  * acts, and the hold re-checks the corrected span. It moves bounds and nothing else, so
- * {@see \App\Jobs\PrepareSectionPublicationCandidates} re-cuts the clip on its changed media
+ * {@see PrepareSectionPublicationCandidates} re-cuts the clip on its changed media
  * signature, and it leaves a section an operator has published, approved or rejected alone:
  * the pipeline never withdraws a decision nobody made.
  *

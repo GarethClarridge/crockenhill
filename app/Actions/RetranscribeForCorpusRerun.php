@@ -17,7 +17,6 @@ use App\Services\Processing\MediaProcessingRunTransitionService;
 use App\Services\Processing\ProcessingRunOrchestrator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Support\RepositoryCommit;
 use RuntimeException;
 use Throwable;
 

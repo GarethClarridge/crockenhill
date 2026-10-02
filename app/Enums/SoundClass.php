@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
+use App\Services\Media\Audio\AudioTimeline;
+
 /**
  * What the audio classifier hears in one window of a recording.
  *
  * Music and speech are scored independently, so a window can hold both: a reading over a song's
- * outro is `Mixed`, not speech. See {@see \App\Services\Media\Audio\AudioTimeline}.
+ * outro is `Mixed`, not speech. See {@see AudioTimeline}.
  */
 enum SoundClass: string
 {

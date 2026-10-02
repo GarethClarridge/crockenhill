@@ -10,6 +10,8 @@ use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Services\Media\Audio\RmsAnalysisService;
 use App\Services\Media\Audio\SustainedSound;
+use App\Services\Sermon\SermonExtractionPlanResolver;
+use App\Support\SermonAutoExtractionPolicy;
 
 /**
  * Congregational singing typed as something other than a song.
@@ -31,13 +33,13 @@ use App\Services\Media\Audio\SustainedSound;
  * all; they are simply not speech. What separates §1301 from them is where it sits: exactly one
  * of the 13 falls inside the span a sermon absorbs, and that is the harm worth preventing,
  * because run 1014's sermon media (0–1501 s) contains the hymn. That second test belongs to
- * {@see \App\Services\Sermon\SermonExtractionPlanResolver}, which knows the absorbed span; when
+ * {@see SermonExtractionPlanResolver}, which knows the absorbed span; when
  * structure is detected the span does not exist yet. This class only says which sections read as
  * sung, and is deliberately quiet about what that means.
  *
  * Never applied to a song, sermon or children's talk. A song is not mistyped whatever its sound,
  * and a sermon carrying an unregistered review flag would fail
- * {@see \App\Support\SermonAutoExtractionPolicy}'s final test and quietly stop extracting.
+ * {@see SermonAutoExtractionPolicy}'s final test and quietly stop extracting.
  */
 class MistypedSungSections
 {

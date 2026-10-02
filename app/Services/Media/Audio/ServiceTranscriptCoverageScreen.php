@@ -120,7 +120,7 @@ class ServiceTranscriptCoverageScreen
         $merged = [];
 
         foreach ($gaps as $gap) {
-            if ($gap['end'] - $gap['start'] < $minGapSeconds) {
+            if ($minGapSeconds > $gap['end'] - $gap['start']) {
                 continue;
             }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Media\Audio;
 
 use App\Exceptions\SegmentationException;
+use App\Services\ChurchService\Structure\SustainedSoundSongSections;
 
 /**
  * Where a recording holds sustained sound: loud, and without the pauses speech has.
@@ -17,7 +18,7 @@ use App\Exceptions\SegmentationException;
  * speech by this measure.
  *
  * The recording is judged in 5 s bins, each on the 30 s around it by default, so one breath does
- * not split a song. Fresh audio adjudicated what it finds: {@see \App\Services\ChurchService\Structure\SustainedSoundSongSections}.
+ * not split a song. Fresh audio adjudicated what it finds: {@see SustainedSoundSongSections}.
  */
 final readonly class SustainedSound
 {

@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Testing\PendingCommand;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
@@ -224,7 +225,7 @@ class RedecodeServiceTranscriptsCommandTest extends TestCase
     }
 
     /** @param list<int> $runs */
-    private function redecode(array $runs): \Illuminate\Testing\PendingCommand
+    private function redecode(array $runs): PendingCommand
     {
         return $this->artisan('service:redecode-transcripts', ['runs' => $runs, '--output-dir' => $this->outputDir]);
     }

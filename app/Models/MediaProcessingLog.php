@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Actions\RedetectForCorpusRerun;
-use App\Actions\RetranscribeForCorpusRerun;
 use App\Actions\RedetectStructureOnRecoveredEvidence;
+use App\Actions\RetranscribeForCorpusRerun;
 use App\Data\ChurchServiceTranscript;
 use App\Data\HistoricStagingContext;
 use App\Data\ProcessingManualReviewMetadata;

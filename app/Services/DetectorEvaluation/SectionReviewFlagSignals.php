@@ -9,6 +9,7 @@ use App\Enums\DetectorSurface;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Support\RetiredSectionReviewFlags;
+use App\Support\SectionReviewFlagPolicy;
 
 /**
  * Reads what the structure and song detectors recorded on a run's sections.
@@ -24,7 +25,7 @@ use App\Support\RetiredSectionReviewFlags;
  * someone looking for a detector that was removed on purpose.
  *
  * `held` is taken from the section's own `needs_manual_review`, not inferred
- * from the flag: {@see \App\Support\SectionReviewFlagPolicy} demotes several
+ * from the flag: {@see SectionReviewFlagPolicy} demotes several
  * flags on section types where they imply no operator action, and a flag that
  * fired without holding has contained nothing.
  */

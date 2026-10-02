@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Jobs;
 
+use App\Actions\FlagPublishedReferenceContradictsSermon;
 use App\Contracts\SermonAnalysisInterface;
 use App\Data\SermonAnalysis;
 use App\Enums\SermonTitleProvenance;
+use App\Enums\ServiceSectionType;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Models\ServiceSection;
 use App\Services\Public\SermonRepository;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Contracts\Queue\Job;
@@ -20,9 +23,6 @@ use OpenAI\Exceptions\RateLimitException;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
-use App\Actions\FlagPublishedReferenceContradictsSermon;
-use App\Enums\ServiceSectionType;
-use App\Models\ServiceSection;
 
 class ProcessTranscriptWithAITest extends TestCase
 {

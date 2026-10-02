@@ -8,6 +8,8 @@ use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Services\HistoricMedia\HistoricVideoPassStatus;
 use App\Services\Processing\ProcessingNotificationRouter;
+use Illuminate\Contracts\Queue\Factory;
+use Illuminate\Contracts\Queue\Queue;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -390,13 +392,13 @@ class HistoricVideoPassStatusCommandTest extends TestCase
 
     private function fakeQueueDepth(int $depth): void
     {
-        $connection = $this->createStub(\Illuminate\Contracts\Queue\Queue::class);
+        $connection = $this->createStub(Queue::class);
         $connection->method('size')->willReturn($depth);
 
-        $factory = $this->createStub(\Illuminate\Contracts\Queue\Factory::class);
+        $factory = $this->createStub(Factory::class);
         $factory->method('connection')->willReturn($connection);
 
-        $this->app->instance(\Illuminate\Contracts\Queue\Factory::class, $factory);
+        $this->app->instance(Factory::class, $factory);
     }
 
     private function createRun(

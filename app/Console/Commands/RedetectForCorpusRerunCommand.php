@@ -68,7 +68,7 @@ class RedetectForCorpusRerunCommand extends Command
         $counts = ['ready' => 0, 'dispatched' => 0, 'refused' => 0];
 
         foreach ($runIds as $runId) {
-            if ($counts['dispatched'] + ($execute ? 0 : $counts['ready']) >= $max) {
+            if ($max <= $counts['dispatched'] + ($execute ? 0 : $counts['ready'])) {
                 $rows[] = [$runId, 'not reached', sprintf('--max=%d reached', $max)];
 
                 continue;

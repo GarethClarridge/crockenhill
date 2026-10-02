@@ -8,6 +8,7 @@ use App\Data\DetectorSignal;
 use App\Enums\DetectorSurface;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\SectionPublication\SongLoopedTranscript;
 use App\Services\ChurchService\SectionPublication\SongPublicationBoundaryEvidenceService;
 
 /**
@@ -18,7 +19,7 @@ use App\Services\ChurchService\SectionPublication\SongPublicationBoundaryEvidenc
  * key — but only to ask whether it exists, as its discriminator between
  * "assessed and clear" and "never assessed". It never reads `risks`. So until
  * 2026-09-21 nine risk kinds were written by production and read by nobody in
- * the harness, including {@see \App\Services\ChurchService\SectionPublication\SongLoopedTranscript}'s
+ * the harness, including {@see SongLoopedTranscript}'s
  * `song_looped_transcript`, which is §4.3a's song-loop class over 226 sections.
  *
  * The two surfaces are not merged because they make different claims. The review

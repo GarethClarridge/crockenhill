@@ -7,14 +7,14 @@ namespace App\Console\Commands;
 use App\Data\TranscriptCoverageGap;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Media\Audio\RmsAnalysisService;
 use App\Services\Media\Audio\ServiceTranscriptCoverageScreen;
-use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Media\Audio\ServiceTranscriptReader;
 use App\Support\CanonicalJson;
 use App\Support\ServiceArtifactDisk;
-use Illuminate\Console\Command;
 use Closure;
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 

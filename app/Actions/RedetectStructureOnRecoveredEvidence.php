@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions;
 
 use App\Models\MediaProcessingLog;
+use App\Services\HistoricMedia\HistoricTranscriptRecoveryReplay;
 use App\Services\Processing\ProcessingRunOrchestrator;
 use Illuminate\Support\Facades\Log;
 
@@ -20,7 +21,7 @@ use Illuminate\Support\Facades\Log;
  * simply has a 2,068-second hole). The second shape is invisible to any check
  * that looks for a suspicious section, because there is no section to find.
  *
- * Once {@see \App\Services\HistoricMedia\HistoricTranscriptRecoveryReplay} puts
+ * Once {@see HistoricTranscriptRecoveryReplay} puts
  * the speech back, those boundaries describe evidence the run no longer holds.
  *
  * **This is not a cheap operation and it is not reversible by itself.** It

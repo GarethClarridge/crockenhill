@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Enums\ServiceOccasion;
 use App\Enums\SermonService;
+use App\Enums\ServiceOccasion;
 use App\Models\ChurchService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;

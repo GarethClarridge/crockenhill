@@ -7,10 +7,12 @@ namespace Tests\Feature\DetectorEvaluation;
 use App\Data\ChurchServiceTranscript;
 use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\ChurchService\Structure\SongSpeechEdges;
 use App\Services\DetectorEvaluation\SoundStageFlagRecompute;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
+use Tests\Unit\Services\SongSpeechEdgesTest;
 
 class SoundStageFlagRecomputeTest extends TestCase
 {
@@ -64,7 +66,7 @@ class SoundStageFlagRecomputeTest extends TestCase
     }
 
     /**
-     * The pipeline runs {@see \App\Services\ChurchService\Structure\SongSpeechEdges} between
+     * The pipeline runs {@see SongSpeechEdges} between
      * widening and the mistyped-sung pass, and its held-not-trimmed flag is a sound-stage flag
      * like the rest, so a replay that skipped it would report 974 §988's shape as clean.
      */
@@ -96,7 +98,7 @@ class SoundStageFlagRecomputeTest extends TestCase
     }
 
     /**
-     * The RMS log shape of {@see \Tests\Unit\Services\SongSpeechEdgesTest}: singing holds a level,
+     * The RMS log shape of {@see SongSpeechEdgesTest}: singing holds a level,
      * speech pauses every three seconds.
      *
      * @param  list<array{0: int, 1: int, 2: 'sung'|'speech'}>  $spans

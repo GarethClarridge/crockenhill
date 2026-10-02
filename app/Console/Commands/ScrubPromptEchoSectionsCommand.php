@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Models\ServiceSection;
 use App\Actions\HoldSectionForContentReview;
+use App\Models\ServiceSection;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Support\TranscriptPromptEchoDetector;
 use Illuminate\Console\Command;

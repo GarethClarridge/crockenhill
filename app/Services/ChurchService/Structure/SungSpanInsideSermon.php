@@ -10,6 +10,7 @@ use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Services\Media\Audio\RmsAnalysisService;
 use App\Services\Media\Audio\SustainedSound;
+use App\Support\SermonAutoExtractionPolicy;
 
 /**
  * Singing inside a sermon section that no song section holds.
@@ -25,7 +26,7 @@ use App\Services\Media\Audio\SustainedSound;
  * {@see self::MAXIMUM_WORDS_PER_MINUTE} leaves two — run 949's hymn and run 1014 §1300's
  * "Thank you ×4" ASR artefact, both genuine — and the count is stable from <20 to <60 wpm.
  *
- * The flag is registered as non-disqualifying in {@see \App\Support\SermonAutoExtractionPolicy},
+ * The flag is registered as non-disqualifying in {@see SermonAutoExtractionPolicy},
  * as a material boundary risk is: the inclusive span still extracts, and the extraction planner
  * turns the flag into a boundary risk that holds the sermon for review.
  */

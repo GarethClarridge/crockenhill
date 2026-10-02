@@ -6,6 +6,7 @@ namespace App\Actions;
 
 use App\Data\ServiceSectionMetadata;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\ContentHoldRechecker;
 use App\Support\SectionReviewFlagPolicy;
 use InvalidArgumentException;
 
@@ -14,7 +15,7 @@ use InvalidArgumentException;
  *
  * The record is marked released, never deleted, so the history keeps what was held and why it
  * was let go. The hold flag goes only when no live record is left, and review is recomputed by
- * {@see SectionReviewFlagPolicy}, as {@see \App\Services\ChurchService\ContentHoldRechecker} does
+ * {@see SectionReviewFlagPolicy}, as {@see ContentHoldRechecker} does
  * when a check clears one. This is how run 1112's sermon hold was released on 2026-09-24.
  */
 final class ReleaseSectionContentHold

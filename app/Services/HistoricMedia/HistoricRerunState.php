@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace App\Services\HistoricMedia;
 
 use App\Actions\HoldSectionForContentReview;
+use App\Jobs\RecordDeferredCorpusRerunMedia;
 use App\Models\MediaProcessingLog;
-use App\Models\ServiceSection;
 use App\Models\Sermon;
+use App\Models\ServiceSection;
 use App\Models\SongVideo;
 
 /**
@@ -250,7 +251,7 @@ final class HistoricRerunState
 
     /**
      * The doubts a song's publication review names, by kind. A detection round decides them
-     * without a clip ({@see \App\Jobs\RecordDeferredCorpusRerunMedia}).
+     * without a clip ({@see RecordDeferredCorpusRerunMedia}).
      *
      * @param  array<string, mixed>  $metadata
      * @return list<string>

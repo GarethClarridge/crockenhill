@@ -16,8 +16,8 @@ use App\Services\DetectorEvaluation\DetectorEvaluation;
 use App\Services\DetectorEvaluation\FreezeDetectorCaseBook;
 use App\Support\DetectorAcceptanceThresholds;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use RuntimeException;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
 

@@ -12,6 +12,7 @@ use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
 use App\Models\SongVideo;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
+use App\Services\Import\HistoricSermonPublicationService;
 
 /**
  * Take a published section back out of view when its own state no longer
@@ -94,7 +95,7 @@ final class PublishedSectionReconciler
      * storage, and why not when it cannot.
      *
      * A released historic song video was *moved* to the delivery disk by
-     * {@see \App\Services\Import\HistoricSermonPublicationService}. Setting its
+     * {@see HistoricSermonPublicationService}. Setting its
      * state back without reversing that move would leave `publication_state` and
      * `asset_disk` describing different decisions — the shape P8-Q3 records, where
      * a row says one thing and the bytes another. That reversal belongs to the

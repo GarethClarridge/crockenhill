@@ -9,6 +9,7 @@ use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\HistoricImportNestedJob;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
+use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -152,7 +153,7 @@ class AutoPublishServiceSection implements ShouldQueue
      *
      * Nothing is lost by leaving it out. A section that came to require approval
      * during preparation was transitioned to `pending_approval`, and
-     * {@see \App\Services\ChurchService\ServiceSectionPublicationTransitionService}
+     * {@see ServiceSectionPublicationTransitionService}
      * already refuses `pending_approval` to `published`. The states this guard
      * has to cover are the ones that table permits — `not_applicable` and
      * `approved` — and for those the hold is the durable expression of "a

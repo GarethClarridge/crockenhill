@@ -21,7 +21,6 @@ class HistoricStagingContextRegistry
 
     public const SOURCE_WITHIN = 'within';
 
-
     private ?HistoricStagingContext $context = null;
 
     private ?HistoricStagingActivation $activation = null;

@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Services\Processing;
 
+use App\Actions\RedetectForCorpusRerun;
 use App\Contracts\ProvidesSafeMessage;
 use App\Data\HistoricStagingContext;
 use App\Data\ProcessingResult;
 use App\Enums\HistoricImportOperationState;
 use App\Enums\ProcessingStatus;
-use App\Enums\StructureRedetectionGrounds;
 use App\Enums\ProcessingStep;
+use App\Enums\StructureRedetectionGrounds;
 use App\Jobs\AwaitHistoricSermonVideoStorage;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\ExtractSermon;
@@ -481,7 +482,7 @@ class ProcessingRunOrchestrator
      * transcript actually changed after its structure was projected, so the set
      * can only ever be runs a recovery replay touched. On corpus re-run grounds
      * the caller proves membership of a snapshotted batch
-     * ({@see \App\Actions\RedetectForCorpusRerun}). Neither is a general
+     * ({@see RedetectForCorpusRerun}). Neither is a general
      * "re-run a completed run" facility.
      *
      * @return array{code: string, message: string}|null

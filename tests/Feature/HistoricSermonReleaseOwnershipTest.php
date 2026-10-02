@@ -438,7 +438,6 @@ class HistoricSermonReleaseOwnershipTest extends TestCase
             'thumbnail_file_path' => null,
         ]);
 
-
         /**
          * Every historic-import sermon in the corpus has a processing run — it
          * is what the release review gate reads their service sections through.

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\ServiceSection;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
@@ -15,7 +16,7 @@ use Illuminate\Support\Facades\DB;
  * re-stamped; one that was already stale for a real reason stays stale.
  *
  * The payload is frozen here as it stood on 2026-09-24 rather than read from
- * {@see \App\Models\ServiceSection::classificationSignaturePayload()}, so the
+ * {@see ServiceSection::classificationSignaturePayload()}, so the
  * migration computes the same hashes whenever it runs, whatever the model says by then.
  */
 return new class extends Migration

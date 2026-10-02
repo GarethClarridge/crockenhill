@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Providers\AppServiceProvider;
+
 /**
  * The commit a long-running process booted on, against the commit its checkout holds now.
  *
@@ -11,7 +13,7 @@ namespace App\Support;
  * {@see RepositoryCommit::current()} already reads the new one: the corpus re-run's stamps
  * would then name code that never ran. The boot commit is recorded once per process, as the
  * application registers, and a worker whose checkout has moved on exits before its next job
- * (registered in {@see \App\Providers\AppServiceProvider}).
+ * (registered in {@see AppServiceProvider}).
  */
 class WorkerCode
 {

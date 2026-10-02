@@ -47,9 +47,9 @@ class ServiceTranscriptRepetitionRecovery
 
     /**
      * @param  Closure(float, float, SuspectTranscriptBlock): ?ChurchServiceTranscript  $decode
-     *                                                                                  Given the padded window bounds and the block, returns a decode of
-     *                                                                                  that window in window-relative time, or null when the attempt could
-     *                                                                                  not be made at all.
+     *                                                                                           Given the padded window bounds and the block, returns a decode of
+     *                                                                                           that window in window-relative time, or null when the attempt could
+     *                                                                                           not be made at all.
      */
     public function recover(ChurchServiceTranscript $transcript, Closure $decode): TranscriptRepetitionRecoveryResult
     {

@@ -6,9 +6,9 @@ namespace Tests\Feature;
 
 use App\Enums\LivestreamSegmentClassification;
 use App\Enums\SermonSourceType;
-use App\Jobs\ClassifyServiceAudio;
 use App\Jobs\AnalyzeSegments;
 use App\Jobs\AssessSermonVideoQuality;
+use App\Jobs\ClassifyServiceAudio;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonTranscriptFromService;
 use App\Jobs\DetectServiceStructure;

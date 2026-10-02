@@ -121,13 +121,13 @@ class SaveServiceSection
             }
 
             if ($targetType !== ServiceSectionType::ShortTalk) {
-                $validator->errors()->add('end_time', "Only short-talk candidates can be recut from this review panel.");
+                $validator->errors()->add('end_time', 'Only short-talk candidates can be recut from this review panel.');
 
                 return;
             }
 
             if ($originalSectionType !== ServiceSectionType::ShortTalk) {
-                $validator->errors()->add('end_time', "The inclusive short-talk candidate must be prepared before it can be recut.");
+                $validator->errors()->add('end_time', 'The inclusive short-talk candidate must be prepared before it can be recut.');
 
                 return;
             }

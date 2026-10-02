@@ -159,7 +159,7 @@ class TalkPublicationHandler implements SectionPublicationHandler
         }
 
         if (! $section->hasResolvedTalkSpeaker()) {
-            throw new \RuntimeException("Short talk speaker must be reviewed before publication");
+            throw new \RuntimeException('Short talk speaker must be reviewed before publication');
         }
 
         if (! $section->hasResolvedTalkType()) {

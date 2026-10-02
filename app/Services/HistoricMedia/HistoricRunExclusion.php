@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\HistoricMedia;
 
+use App\Data\ServiceSermonAbsence;
 use App\Enums\ChurchServiceSource;
 use App\Jobs\AnalyzeSegments;
 use App\Models\ChurchService;
@@ -11,6 +12,7 @@ use App\Models\ChurchServiceSourceRecord;
 use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\SourceAdapters\LivestreamSourceAdapter;
+use App\Services\Import\HistoricReleaseReviewHolds;
 use App\Services\Processing\ProcessingNotificationRouter;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -27,7 +29,7 @@ use RuntimeException;
  * the grounds that it could not be detected at all. That stopped being true when
  * the LLM-first structure pipeline went `primary`: the projection reads content,
  * and it can now say so in a structured way that the run honours
- * ({@see \App\Data\ServiceSermonAbsence}). Two claims that sound alike have to
+ * ({@see ServiceSermonAbsence}). Two claims that sound alike have to
  * be kept apart (D1, 2026-09-03):
  *
  *  - *This service held no sermon* — a mission presentation, a carol service. A
@@ -56,7 +58,7 @@ use RuntimeException;
  * record and is refused, never deleted.
  *
  * Exclusion does not withdraw the sermon or song videos a run created. Release
- * refuses them instead ({@see \App\Services\Import\HistoricReleaseReviewHolds}),
+ * refuses them instead ({@see HistoricReleaseReviewHolds}),
  * and the quarantined bytes stay where they are.
  *
  * Deletion trigger: Delete once the historic import operation is closed out and

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService;
 
+use App\Actions\HoldSectionForContentReview;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionPublicationStatus;
-use App\Actions\HoldSectionForContentReview;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;

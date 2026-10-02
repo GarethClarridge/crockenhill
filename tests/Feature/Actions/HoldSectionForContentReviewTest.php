@@ -16,6 +16,7 @@ use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
 use App\Models\User;
+use App\Services\ChurchService\ContentHoldRechecker;
 use App\Services\ChurchService\SectionReviewFlagRecalculator;
 use App\Services\Import\HistoricReleaseReviewHolds;
 use App\Services\Song\UnmatchedSongReviewApplicator;
@@ -309,7 +310,7 @@ class HoldSectionForContentReviewTest extends TestCase
     }
 
     /**
-     * Stamp a record as cleared by its check, as {@see \App\Services\ChurchService\ContentHoldRechecker} does.
+     * Stamp a record as cleared by its check, as {@see ContentHoldRechecker} does.
      */
     private function clearRecord(ServiceSection $section, int $index, ?string $transcriptSha256 = null): void
     {

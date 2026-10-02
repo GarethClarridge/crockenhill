@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\HistoricMedia;
 
 use App\Data\ChurchServiceTranscript;
+use App\Jobs\TranscribeFullService;
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Media\Audio\ServiceTranscriptPathologyDetector;
@@ -241,7 +242,7 @@ class HistoricTranscriptRecoveryReplay
 
     /**
      * The transcript as recovery first saw it: the banked provider response with
-     * the prompt echoes filtered out, exactly as {@see \App\Jobs\TranscribeFullService}
+     * the prompt echoes filtered out, exactly as {@see TranscribeFullService}
      * assembles it. Rebuilt rather than read back, because the banked transcript
      * has already had the pathological cues deleted — detection over it would
      * find nothing to replay.

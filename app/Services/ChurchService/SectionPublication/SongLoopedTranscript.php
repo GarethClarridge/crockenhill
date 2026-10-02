@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService\SectionPublication;
 
+use App\Actions\FlagSuspectTranscriptRepetition;
 use App\Data\SuspectTranscriptBlock;
 use App\Models\ServiceSection;
 use App\Models\Song;
@@ -13,7 +14,7 @@ use App\Services\Media\Audio\ServiceTranscriptRepetitionScreen;
  * A song section whose transcript claims text the audio did not produce.
  *
  * {@see ServiceTranscriptRepetitionScreen} has run over every service transcript since P8-Q14,
- * and {@see \App\Actions\FlagSuspectTranscriptRepetition} holds a *sermon* on what it finds. No
+ * and {@see FlagSuspectTranscriptRepetition} holds a *sermon* on what it finds. No
  * song check ever read its blocks. The §4.1b census measured what that missed: 226 song sections
  * carrying blocks, 63 of them half loop or more, 25 unheld with 22 carrying a generated clip.
  *

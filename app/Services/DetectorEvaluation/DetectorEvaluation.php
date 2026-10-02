@@ -309,7 +309,7 @@ class DetectorEvaluation
      * H5: retain unknown dimensions and the same service-group denominator in
      * each stratum. These are case-book results, not corpus prevalence estimates.
      *
-     * @param list<array<string, mixed>> $cases
+     * @param  list<array<string, mixed>>  $cases
      * @return array<string, array<string, array<string, mixed>>>
      */
     private function breakdowns(array $cases, ?float $ceiling, float $z): array

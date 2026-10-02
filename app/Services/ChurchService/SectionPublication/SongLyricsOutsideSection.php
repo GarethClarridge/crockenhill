@@ -8,6 +8,7 @@ use App\Data\ChurchServiceTranscript;
 use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
 use App\Models\Song;
+use App\Services\ChurchService\Structure\SongLyricEdgeExtension;
 use App\Services\Media\Audio\SustainedSound;
 
 /**
@@ -281,7 +282,7 @@ final class SongLyricsOutsideSection
 
     /**
      * Adjacent content-word pairs, so "praise him" matches wherever the words sit together.
-     * {@see \App\Services\ChurchService\Structure\SongLyricEdgeExtension} reads lyrics the same way,
+     * {@see SongLyricEdgeExtension} reads lyrics the same way,
      * so a line that raised this hold is a line the correction can act on.
      *
      * @return array<string, true>

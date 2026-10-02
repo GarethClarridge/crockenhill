@@ -7,6 +7,7 @@ namespace App\Services\ChurchService\SectionPublication;
 use App\Data\SuspectTranscriptBlock;
 use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\Structure\SongSpeechEdges;
 use App\Services\Media\Audio\SustainedSound;
 
 /**
@@ -34,7 +35,7 @@ final class SongSpeechUnderLoop
 
     private const MAXIMUM_SUSTAINED_SHARE = 0.2;
 
-    /** The {@see \App\Services\ChurchService\Structure\SongSpeechEdges} guard: below this the run's singing reads as speech. */
+    /** The {@see SongSpeechEdges} guard: below this the run's singing reads as speech. */
     private const MINIMUM_OTHER_SONGS_SHARE = 0.6;
 
     /**

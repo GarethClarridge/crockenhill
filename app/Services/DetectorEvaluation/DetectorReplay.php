@@ -116,8 +116,7 @@ class DetectorReplay
         array &$uncatalogued,
         array &$nonDetector,
         DetectorSignal $signal,
-    ): void
-    {
+    ): void {
         if ($signal->detectorId === null) {
             $key = $signal->surface->value.'::'.$signal->signal;
 

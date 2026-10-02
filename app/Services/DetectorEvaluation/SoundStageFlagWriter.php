@@ -6,6 +6,7 @@ namespace App\Services\DetectorEvaluation;
 
 use App\Data\ServiceSectionMetadata;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Support\SectionReviewFlagPolicy;
 
 /**
@@ -18,7 +19,7 @@ use App\Support\SectionReviewFlagPolicy;
  * section it *proposes* — a song over sustained sound nothing accounted for — so
  * six of the 2026-09-21 findings have no stored row to annotate. Inserting them
  * is not this class's job and must not become it: sections are matched to
- * incoming ones by `section_order` in {@see \App\Services\ChurchService\ServiceSectionSyncService},
+ * incoming ones by `section_order` in {@see ServiceSectionSyncService},
  * while the change signature that decides asset cleanup ignores order. An insert
  * therefore shifts every later section into a different comparison, mismatches
  * its signature, and deletes its extracted video and audio. Measured on the five

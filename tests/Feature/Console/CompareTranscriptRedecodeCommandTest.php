@@ -13,6 +13,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Testing\PendingCommand;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -254,7 +255,7 @@ class CompareTranscriptRedecodeCommandTest extends TestCase
     }
 
     /** @param array<string, mixed> $options */
-    private function compare(array $options = []): \Illuminate\Testing\PendingCommand
+    private function compare(array $options = []): PendingCommand
     {
         return $this->artisan('service:compare-transcript-redecode', [
             '--input-dir' => $this->inputDir,
