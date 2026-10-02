@@ -17,6 +17,8 @@ class WorkerCode
 {
     private static ?string $bootCommit = null;
 
+    private static ?string $bootRevision = null;
+
     public function __construct(private readonly ?string $basePath = null) {}
 
     public static function recordBoot(?string $commit): void
@@ -27,6 +29,33 @@ class WorkerCode
     public static function bootCommit(): ?string
     {
         return self::$bootCommit;
+    }
+
+    /**
+     * The {@see CodeRevision} a queue worker booted on: what the re-run's stamps compare, since a
+     * commit that changes only documentation leaves the code, and the evidence, unchanged.
+     */
+    public static function recordBootRevision(?string $revision): void
+    {
+        self::$bootRevision = $revision;
+    }
+
+    public static function bootRevision(): ?string
+    {
+        return self::$bootRevision;
+    }
+
+    /**
+     * Whether this process is a queue worker, the only kind whose boot revision is recorded: the
+     * fingerprint reads every code file, which a command or test has no need to pay for at boot.
+     *
+     * @param  list<string>|null  $argv
+     */
+    public static function isQueueWorker(?array $argv = null): bool
+    {
+        $argv ??= is_array($_SERVER['argv'] ?? null) ? $_SERVER['argv'] : [];
+
+        return in_array($argv[1] ?? null, ['queue:work', 'queue:listen'], true);
     }
 
     /**

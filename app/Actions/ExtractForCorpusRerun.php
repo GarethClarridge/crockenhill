@@ -90,17 +90,15 @@ final class ExtractForCorpusRerun
             return 'run is not a member of this snapshot';
         }
 
-        $commit = RepositoryCommit::current();
-
-        if ($snapshot->gitCommit === null || $snapshot->gitCommit !== $commit) {
-            return sprintf('snapshot was taken on %s but %s is running; extract on the commit the round detected on', $snapshot->gitCommit ?? 'an unknown commit', $commit ?? 'an unknown commit');
+        if (! $snapshot->isOnRunningCode()) {
+            return sprintf('snapshot was taken on %s but other code is running (commit %s); extract on the code the round detected on', $snapshot->codeDescription(), RepositoryCommit::current() ?? 'unknown');
         }
 
         $stamps = $run->corpusRerunStamps();
         $latest = $stamps === [] ? null : $stamps[count($stamps) - 1];
 
-        if ($latest === null || ($latest['git_commit'] ?? null) !== $commit) {
-            return 'run has no detection round on this commit; re-detect it first';
+        if ($latest === null || ! $snapshot->stampedOnItsCode($latest)) {
+            return 'run has no detection round on this code; re-detect it first';
         }
 
         // Its sections were detected on the text it replaced.
@@ -120,13 +118,13 @@ final class ExtractForCorpusRerun
             return sprintf('detection round has not finished (run is %s)', $run->status->value);
         }
 
-        $workerCommit = $latest['worker_commit'] ?? null;
+        if (! $snapshot->workersRanItsCode($latest)) {
+            $workerCommit = $latest['worker_commit'] ?? null;
 
-        if ($workerCommit !== $commit) {
             return sprintf(
                 'detection round finished on worker code from %s, not %s; restart the workers and re-detect',
                 is_string($workerCommit) ? $workerCommit : 'an unrecorded commit',
-                $commit,
+                $snapshot->codeDescription(),
             );
         }
 

@@ -99,6 +99,7 @@ class RecordDeferredCorpusRerunMedia implements ShouldQueue
             'media_recorded_at' => now()->toIso8601String(),
             // The code that actually ran; the stamp's `git_commit` is the dispatching command's.
             'worker_commit' => WorkerCode::bootCommit(),
+            'worker_code_revision' => WorkerCode::bootRevision(),
         ]);
 
         Log::info('Recorded a corpus re-run round without cutting media', [

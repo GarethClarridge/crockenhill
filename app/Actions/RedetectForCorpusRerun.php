@@ -67,6 +67,7 @@ final class RedetectForCorpusRerun
         $run->putCorpusRerunStamp([
             'grounds' => StructureRedetectionGrounds::CorpusRerun->value,
             'git_commit' => $snapshot->gitCommit,
+            'code_revision' => $snapshot->codeRevision,
             'snapshot_file_sha256' => $snapshot->fileSha256,
             'membership_sha256' => $snapshot->membershipSha256,
             'media' => self::MEDIA_DEFERRED,

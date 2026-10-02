@@ -22,6 +22,7 @@ use App\Jobs\SubmitToProcessing;
 use App\Models\MediaProcessingLog;
 use App\Services\HistoricMedia\HistoricRerunState;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
+use App\Support\CodeRevision;
 use Closure;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
@@ -142,7 +143,7 @@ class ExtractForCorpusRerunCommandTest extends TestCase
         $run->putCorpusRerunStamp(['git_commit' => str_repeat('0', 40), 'media' => 'deferred', 'media_recorded_at' => '2026-09-24T20:00:00+00:00']);
 
         $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
-            ->expectsOutputToContain('no detection round on this commit')
+            ->expectsOutputToContain('no detection round on this code')
             ->assertSuccessful();
 
         Bus::assertNothingDispatched();
@@ -164,6 +165,34 @@ class ExtractForCorpusRerunCommandTest extends TestCase
 
         Bus::assertNothingDispatched();
         self::assertSame('deferred', $run->refresh()->corpusRerunStamps()[0]['media']);
+    }
+
+    /**
+     * A plan commit after the round restarts the workers on a new commit of the same code: the
+     * revisions agree, so the round is cut rather than stranded.
+     */
+    #[Test]
+    public function it_cuts_a_round_whose_workers_ran_the_same_code_on_another_commit(): void
+    {
+        Bus::fake();
+        $this->roundedRun(stampOverrides: ['worker_commit' => str_repeat('0', 40), 'worker_code_revision' => CodeRevision::current()]);
+
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('dispatched from extraction')
+            ->assertSuccessful();
+    }
+
+    #[Test]
+    public function it_refuses_a_round_whose_workers_ran_other_code_on_the_same_commit(): void
+    {
+        Bus::fake();
+        $this->roundedRun(stampOverrides: ['worker_code_revision' => str_repeat('0', 64)]);
+
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('restart the workers and re-detect')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
     }
 
     #[Test]

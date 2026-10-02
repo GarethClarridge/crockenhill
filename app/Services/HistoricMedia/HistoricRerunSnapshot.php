@@ -6,12 +6,17 @@ namespace App\Services\HistoricMedia;
 
 use App\Models\MediaProcessingLog;
 use App\Support\CanonicalJson;
+use App\Support\CodeRevision;
 use App\Support\RepositoryCommit;
 use RuntimeException;
 
 /**
- * The before-state of a corpus re-run batch: an exact membership, its hash, the commit it was
- * taken on, and each run's {@see HistoricRerunState}.
+ * The before-state of a corpus re-run batch: an exact membership, its hash, the commit and
+ * {@see CodeRevision} it was taken on, and each run's {@see HistoricRerunState}.
+ *
+ * The code revision is what binds the batch: a commit that changes only documentation leaves
+ * the code, the snapshot and every round on it valid. A snapshot written before revisions were
+ * recorded binds its commit, as it always did.
  *
  * The file is the batch's frozen membership as well as its baseline. The diff reads its runs
  * back, and the dispatch route refuses a run the snapshot does not hold, so nothing can be
@@ -35,6 +40,7 @@ final readonly class HistoricRerunSnapshot
         public array $runs,
         public ?string $fileSha256 = null,
         public ?ListeningRouting $listening = null,
+        public ?string $codeRevision = null,
     ) {}
 
     /**
@@ -62,6 +68,7 @@ final readonly class HistoricRerunSnapshot
             membershipSha256: CanonicalJson::hash($membership),
             runs: $runs,
             listening: $listening?->only($membership),
+            codeRevision: CodeRevision::current(),
         );
     }
 
@@ -109,12 +116,60 @@ final readonly class HistoricRerunSnapshot
             runs: $runs,
             fileSha256: hash('sha256', $contents),
             listening: is_array($data['listening_routing'] ?? null) ? ListeningRouting::fromArray($data['listening_routing']) : null,
+            codeRevision: is_string($data['code_revision'] ?? null) ? $data['code_revision'] : null,
         );
     }
 
     public function holds(int $runId): bool
     {
         return isset($this->runs[$runId]);
+    }
+
+    /** Whether the checkout now holds the code this snapshot was taken on. */
+    public function isOnRunningCode(): bool
+    {
+        if ($this->codeRevision !== null) {
+            return $this->codeRevision === CodeRevision::current();
+        }
+
+        return $this->gitCommit !== null && $this->gitCommit === RepositoryCommit::current();
+    }
+
+    /**
+     * Whether a corpus re-run stamp was dispatched on this snapshot's code, whichever snapshot of
+     * that code it was dispatched against.
+     *
+     * @param  array<string, mixed>  $stamp
+     */
+    public function stampedOnItsCode(array $stamp): bool
+    {
+        if ($this->codeRevision !== null && is_string($stamp['code_revision'] ?? null)) {
+            return $stamp['code_revision'] === $this->codeRevision;
+        }
+
+        return $this->gitCommit !== null && ($stamp['git_commit'] ?? null) === $this->gitCommit;
+    }
+
+    /**
+     * Whether the workers that finished a stamped round booted on this snapshot's code.
+     *
+     * @param  array<string, mixed>  $stamp
+     */
+    public function workersRanItsCode(array $stamp): bool
+    {
+        if ($this->codeRevision !== null && is_string($stamp['worker_code_revision'] ?? null)) {
+            return $stamp['worker_code_revision'] === $this->codeRevision;
+        }
+
+        return $this->gitCommit !== null && ($stamp['worker_commit'] ?? null) === $this->gitCommit;
+    }
+
+    /** The snapshot's code, for a refusal to name. */
+    public function codeDescription(): string
+    {
+        $commit = $this->gitCommit ?? 'an unknown commit';
+
+        return $this->codeRevision === null ? $commit : sprintf('code %s (commit %s)', substr($this->codeRevision, 0, 12), $commit);
     }
 
     /**
@@ -158,6 +213,7 @@ final readonly class HistoricRerunSnapshot
             'version' => HistoricRerunState::VERSION,
             'taken_at' => $this->takenAt,
             'git_commit' => $this->gitCommit,
+            ...($this->codeRevision === null ? [] : ['code_revision' => $this->codeRevision]),
             'membership' => $this->membership,
             'membership_sha256' => $this->membershipSha256,
             'runs' => array_combine(array_map('strval', array_keys($this->runs)), array_values($this->runs)),

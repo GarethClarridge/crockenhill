@@ -89,6 +89,7 @@ final class RetranscribeForCorpusRerun
             'listening_routing_sha256' => $listening ? $snapshot->listening?->fileSha256 : null,
             'detection' => self::DETECTION_NONE,
             'git_commit' => $snapshot->gitCommit,
+            'code_revision' => $snapshot->codeRevision,
             'snapshot_file_sha256' => $snapshot->fileSha256,
             'membership_sha256' => $snapshot->membershipSha256,
             'dispatched_at' => now()->toIso8601String(),
@@ -149,7 +150,7 @@ final class RetranscribeForCorpusRerun
         // The batch guard lets a transcription round through for the detection round that
         // follows it, so a second transcription on the commit is refused here.
         foreach ($run->corpusRerunStamps() as $stamp) {
-            if (self::transcribedOnly($stamp) && ($stamp['git_commit'] ?? null) === RepositoryCommit::current()) {
+            if (self::transcribedOnly($stamp) && $snapshot->stampedOnItsCode($stamp)) {
                 return sprintf('already re-transcribed on this commit at %s', (string) ($stamp['dispatched_at'] ?? 'an unrecorded time'));
             }
         }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\HistoricMedia;
 
 use App\Actions\HoldSectionForContentReview;
+use App\Actions\RedetectForCorpusRerun;
 use App\Actions\RetranscribeForCorpusRerun;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
@@ -15,8 +16,9 @@ use App\Support\RepositoryCommit;
  * The batch guards every corpus re-run dispatch shares, whichever tier it is (plan §4.0).
  *
  * - the run is a member of the batch's snapshot, so the diff report has its before-state;
- * - the snapshot was taken on the commit now running, so the evidence binds one commit;
- * - the run was not already re-run on this commit, by either tier, so a canary run is not run
+ * - the snapshot was taken on the code now running, so the evidence binds one code revision
+ *   ({@see \App\Support\CodeRevision}; a commit that changes only documentation keeps it);
+ * - the run was not already re-run on this code, by either tier, so a canary run is not run
  *   again by its batch and an interrupted batch resumes without repeating work. A transcription
  *   round (Tier A) is the exception: it detected nothing, so its run goes on to a detection
  *   round, and Tier A itself refuses a second transcription on the commit;
@@ -41,18 +43,14 @@ final class CorpusRerunGuard
 
     public function refusal(MediaProcessingLog $run, HistoricRerunSnapshot $snapshot): ?string
     {
-        if (! $snapshot->holds($run->id)) {
-            return 'run is not a member of this snapshot';
-        }
+        $snapshotRefusal = $this->snapshotRefusal($run, $snapshot);
 
-        $commit = RepositoryCommit::current();
-
-        if ($snapshot->gitCommit === null || $snapshot->gitCommit !== $commit) {
-            return sprintf('snapshot was taken on %s but %s is running; take a new snapshot on the frozen commit', $snapshot->gitCommit ?? 'an unknown commit', $commit ?? 'an unknown commit');
+        if ($snapshotRefusal !== null) {
+            return $snapshotRefusal;
         }
 
         foreach ($run->corpusRerunStamps() as $stamp) {
-            if (($stamp['git_commit'] ?? null) !== $commit) {
+            if (! $snapshot->stampedOnItsCode($stamp)) {
                 continue;
             }
 
@@ -65,11 +63,11 @@ final class CorpusRerunGuard
             }
 
             // As re-extraction refuses a round finished on older code: the text is that code's.
-            if (($stamp['worker_commit'] ?? null) !== $commit) {
+            if (! $snapshot->workersRanItsCode($stamp)) {
                 return sprintf(
                     'run was re-transcribed by workers on %s, not %s; restart the workers and move the freeze to re-transcribe it',
                     is_string($stamp['worker_commit'] ?? null) ? $stamp['worker_commit'] : 'an unrecorded commit',
-                    $commit,
+                    $snapshot->codeDescription(),
                 );
             }
         }
@@ -104,6 +102,51 @@ final class CorpusRerunGuard
         }
 
         return null;
+    }
+
+    /**
+     * Whether the run belongs to this snapshot and the snapshot was taken on the code now running.
+     */
+    public function snapshotRefusal(MediaProcessingLog $run, HistoricRerunSnapshot $snapshot): ?string
+    {
+        if (! $snapshot->holds($run->id)) {
+            return 'run is not a member of this snapshot';
+        }
+
+        if (! $snapshot->isOnRunningCode()) {
+            return sprintf('snapshot was taken on %s but other code is running (commit %s); take a new snapshot on the frozen code', $snapshot->codeDescription(), RepositoryCommit::current() ?? 'unknown');
+        }
+
+        return null;
+    }
+
+    /**
+     * The detection round a recompose continues, if the run has one: its latest stamp, dispatched
+     * against this snapshot on the running commit, whose media has not been cut, and the round
+     * settled with its sections written (completed, or held for the ensemble's questions).
+     *
+     * Answers given after such a round reach its sections only by composing its draws again
+     * ({@see \App\Actions\RecomposeForCorpusRerun}); a second detection on the commit is refused.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function roundToContinue(MediaProcessingLog $run, HistoricRerunSnapshot $snapshot): ?array
+    {
+        $stamps = $run->corpusRerunStamps();
+        $latest = $stamps === [] ? null : $stamps[count($stamps) - 1];
+
+        if ($latest === null
+            || RetranscribeForCorpusRerun::transcribedOnly($latest)
+            || ! $snapshot->stampedOnItsCode($latest)
+            || ($latest['snapshot_file_sha256'] ?? null) !== $snapshot->fileSha256
+            || ($latest['media'] ?? null) !== RedetectForCorpusRerun::MEDIA_DEFERRED) {
+            return null;
+        }
+
+        $settled = ($run->status === ProcessingStatus::Completed && ($latest['media_recorded_at'] ?? null) !== null)
+            || $this->heldForEnsembleReviewByARound($run);
+
+        return $settled ? $latest : null;
     }
 
     /**

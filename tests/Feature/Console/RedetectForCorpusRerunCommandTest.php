@@ -153,7 +153,46 @@ class RedetectForCorpusRerunCommandTest extends TestCase
     }
 
     #[Test]
-    public function it_refuses_a_snapshot_taken_on_another_commit(): void
+    public function it_refuses_a_snapshot_taken_on_other_code(): void
+    {
+        Bus::fake();
+        $run = $this->completedRun();
+        $this->snapshot([$run->id]);
+        $this->rewriteSnapshot(static fn (array $data): array => [...$data, 'git_commit' => str_repeat('0', 40), 'code_revision' => str_repeat('0', 64)]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('take a new snapshot on the frozen code')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+    }
+
+    /** A snapshot written before code revisions binds its commit, as it always did. */
+    #[Test]
+    public function it_refuses_a_snapshot_without_a_code_revision_taken_on_another_commit(): void
+    {
+        Bus::fake();
+        $run = $this->completedRun();
+        $this->snapshot([$run->id]);
+        $this->rewriteSnapshot(static function (array $data): array {
+            unset($data['code_revision']);
+
+            return [...$data, 'git_commit' => str_repeat('0', 40)];
+        });
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('take a new snapshot on the frozen code')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+    }
+
+    /**
+     * A commit that changes only the plan leaves the code, and so the snapshot, as it was: the
+     * batch's rounds are not stranded by writing down what they found.
+     */
+    #[Test]
+    public function it_accepts_a_snapshot_taken_on_another_commit_of_the_same_code(): void
     {
         Bus::fake();
         $run = $this->completedRun();
@@ -161,10 +200,10 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         $this->rewriteSnapshot(static fn (array $data): array => [...$data, 'git_commit' => str_repeat('0', 40)]);
 
         $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
-            ->expectsOutputToContain('take a new snapshot on the frozen commit')
+            ->expectsOutputToContain('dispatched from structure detection')
             ->assertSuccessful();
 
-        Bus::assertNothingDispatched();
+        self::assertSame(str_repeat('0', 40), $run->fresh()?->corpusRerunStamps()[0]['git_commit'] ?? null);
     }
 
     #[Test]
@@ -545,7 +584,8 @@ class RedetectForCorpusRerunCommandTest extends TestCase
     private function rewriteSnapshot(Closure $change): void
     {
         $path = storage_path('app/private/'.$this->snapshotPath());
-        file_put_contents($path, json_encode($change(json_decode((string) file_get_contents($path), true))));
+        // Floats keep their fraction, so only the change under test differs from what was captured.
+        file_put_contents($path, json_encode($change(json_decode((string) file_get_contents($path), true)), JSON_PRESERVE_ZERO_FRACTION));
     }
 
     private function snapshotPath(): string

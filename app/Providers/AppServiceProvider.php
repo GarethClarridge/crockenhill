@@ -44,6 +44,7 @@ use App\Sitemap\SermonSitemapPresenter;
 use App\Support\BibleCanon;
 use App\Support\ParallelTestingProcessLimiter;
 use App\Support\RepositoryCommit;
+use App\Support\CodeRevision;
 use App\Support\WorkerCode;
 use Closure;
 use Faker\Factory as FakerFactory;
@@ -120,6 +121,10 @@ class AppServiceProvider extends ServiceProvider
 
         if ($this->app->runningInConsole()) {
             WorkerCode::recordBoot(RepositoryCommit::current());
+
+            if (WorkerCode::isQueueWorker()) {
+                WorkerCode::recordBootRevision(CodeRevision::compute(base_path()));
+            }
         }
     }
 
