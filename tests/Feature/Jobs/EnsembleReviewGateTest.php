@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature\Jobs;
 
 use App\Models\MediaProcessingLog;
+use App\Models\ChurchService;
+use App\Models\ChurchServiceItem;
 use App\Services\ChurchService\Structure\EnsembleReviewGate;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
@@ -15,6 +17,61 @@ use Tests\TestCase;
 class EnsembleReviewGateTest extends TestCase
 {
     use DatabaseTransactions;
+
+    #[Test]
+    public function projection_renumbering_preserves_input_but_order_content_and_membership_changes_do_not(): void
+    {
+        Config::set('media-processing.storage.service_artifact_disk', 'local');
+        Storage::fake('local');
+        $service = ChurchService::factory()->create();
+        $first = ChurchServiceItem::factory()->for($service)->bible()->create([
+            'position' => 9,
+            'title' => 'Acts 17:22-31',
+            'metadata' => null,
+        ]);
+        $second = ChurchServiceItem::factory()->for($service)->create([
+            'position' => 10,
+            'title' => 'Reading 2',
+            'metadata' => null,
+        ]);
+        $log = MediaProcessingLog::factory()->livestream()->create(['church_service_id' => $service->id]);
+        $inputPath = 'service-transcripts/renumbered-oos.input.json';
+        $input = json_encode([
+            'source' => [
+                'church_service_id' => $service->id,
+                'transcript_path' => null,
+                'audio_timeline_path' => null,
+                'rms_log_path' => null,
+                'transcript_hash' => null,
+                'audio_timeline_hash' => null,
+                'rms_log_hash' => null,
+            ],
+            'validation_context' => ['recording_omits_songs' => false],
+            'oos_items' => [
+                ['id' => $first->id, 'position' => 9, 'type' => 'bible_reading', 'title' => 'Acts 17:22-31', 'song_id' => null],
+                ['id' => $second->id, 'position' => 10, 'type' => 'other', 'title' => 'Reading 2', 'song_id' => null],
+            ],
+        ], JSON_THROW_ON_ERROR);
+        Storage::disk('local')->put($inputPath, $input);
+        $evidence = ['artifact_disk' => 'local', 'input_path' => $inputPath, 'input_hash' => hash('sha256', $input)];
+        $gate = app(EnsembleReviewGate::class);
+        $this->assertTrue($gate->inputIsCurrent($log, $evidence));
+
+        $first->update(['position' => 11]);
+        $second->update(['position' => 12]);
+        $this->assertTrue($gate->inputIsCurrent($log, $evidence));
+
+        $first->update(['position' => 13]);
+        $this->assertFalse($gate->inputIsCurrent($log, $evidence));
+        $first->update(['position' => 11, 'title' => 'A different passage']);
+        $this->assertFalse($gate->inputIsCurrent($log, $evidence));
+        $first->update(['title' => 'Acts 17:22-31']);
+        $this->assertTrue($gate->inputIsCurrent($log, $evidence));
+        $second->delete();
+        $this->assertFalse($gate->inputIsCurrent($log, $evidence));
+        ChurchServiceItem::factory()->for($service)->create(['position' => 12, 'title' => 'Reading 2', 'metadata' => null]);
+        $this->assertFalse($gate->inputIsCurrent($log, $evidence));
+    }
 
     #[Test]
     public function complete_evidence_cannot_authorise_extraction_after_policy_or_artifact_drift(): void

@@ -20,8 +20,9 @@
 > - **Canary 10 dispatched 2026-10-02:** all 16 runs reached Tier B; 11 completed and five await
 >   review. Draw coverage is 63/64 valid (one invalid draw on 936); all 16 bundles replay. The
 >   operator granted a bounded exception for the benign 1112 carry-forward flag (below). The
->   review export has six questions and eight samples. Answers, recompose, accuracy and Tier C
->   remain before Tier A or batches; the matcher fix follows the drained canary cut queue.
+>   finalized answers are applied, six runs recomposed with no new draws, and all 16 have no
+>   open question. All eight samples pass. Tier C dispatched all 16, then paused after 936
+>   failed the input gate on projection-only OoS renumbering; see the recovery record below.
 > - Release-side items, identity pairs and acceptance are unchanged (§4.4, §4.5).
 >
 > The 2026-09-24 to 10-02 status blocks and §4.0 narrative (route builds, canaries 1–8, freezes
@@ -361,6 +362,32 @@ fragments are absent or merged, and the settled passages remain represented. Acc
 still includes 964's chosen Psalm 105 start (141.998 s → 145.017 s), 936's corrected closing-hymn
 introduction now split into adjacent sections, and 1358's opening Revelation verse-reference
 change. These differences are retained as evidence; source listening and cut acceptance remain.
+
+**Tier C attempt and pause — 2026-10-02.** The finalized answers file is
+`storage/scratch/canary10-questions/answers-final.json`. Ten rulings applied; the last answer,
+1356-q1, was already closed by keeping the same passage as a notice through 1356-q0. The final
+structure contains one notice and no duplicate other section. The conditional 1108 song answer
+was checked: "Who has held the oceans in His hands" is followed by "His Mercy Is More". Six runs
+(936, 949, 964, 1108, 1346, 1356) recomposed; banked attempt counts stayed unchanged. All 16
+completed with zero open questions. The post-recompose diff has zero attention failures and
+media custody pending extraction. The review report records 3/3 sampled cuts right and 5/5
+sampled majority decisions upheld.
+
+Tier C's dry run accepted all 16, and all 16 were dispatched. ExtractSermon then refused 936:
+projection had renumbered canonical OoS positions without changing identities, content or
+relative order. All source and slot hashes still match. This is a gate defect, not an
+unanswered question. Historic workers were paused between jobs; 949's in-flight extraction
+finished, with 14 ffmpeg jobs and one orchestration job queued and none reserved. Evidence is
+in `storage/app/private/canary10-20261002/` (`answers-applied.txt`, `answer-application-note.json`,
+`after-recompose-status.json`, `diff-after-recompose.json`, `batch-report-after-review.json`,
+`extract-dispatch.txt`, `936-extraction-gate-source.json`, `936-current-oos-source.json`,
+`tier-c-pause.json`). The gate fix is tested first against the renumbering regression and retains
+rejection of real ordering, content, membership, policy and artifact changes. The regression failed
+on renumbering before the fix and passed afterwards; 24 focused tests and the full 9,107-test
+parallel suite pass, with PHPStan and Pint clean. Historic ffmpeg and orchestration containers
+are stopped with their queued jobs preserved, so a commit cannot auto-resume the old round. Recovery requires
+a new snapshot on the fixed code; the operator's choice between the strict fresh-draw round and
+a bounded reuse exception is pending. Do not resume the old queued round on changed code.
 
 #### Batches
 

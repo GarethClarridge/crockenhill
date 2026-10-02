@@ -147,7 +147,7 @@ class EnsembleReviewGate
 
         if (($snapshot['validation_context']['recording_omits_songs'] ?? null)
             !== ValidationContext::recordingOmitsSongs($log->processing_metadata)
-            || ($snapshot['oos_items'] ?? null) !== $this->currentOosItems($log)) {
+            || ! $this->oosItemsMatch($snapshot['oos_items'] ?? null, $this->currentOosItems($log))) {
             return false;
         }
 
@@ -176,14 +176,42 @@ class EnsembleReviewGate
         return true;
     }
 
-    /** @return array<int, array{id: int, position: int, type: string, title: ?string, song_id: ?int}> */
+    /**
+     * Projection inserts detected items and renumbers canonical positions. The input stays
+     * current when the source items have the same identities, content and relative order.
+     *
+     * @param  list<array{id: int, position: int, type: string, title: ?string, song_id: ?int}>  $current
+     */
+    private function oosItemsMatch(mixed $banked, array $current): bool
+    {
+        if (! is_array($banked) || ! array_is_list($banked) || count($banked) !== count($current)) {
+            return false;
+        }
+
+        foreach ($banked as $index => $item) {
+            if (! is_array($item) || ! is_int($item['position'] ?? null)) {
+                return false;
+            }
+
+            $currentItem = $current[$index];
+            unset($item['position'], $currentItem['position']);
+
+            if ($item !== $currentItem) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** @return list<array{id: int, position: int, type: string, title: ?string, song_id: ?int}> */
     private function currentOosItems(MediaProcessingLog $log): array
     {
         if ($log->church_service_id === null) {
             return [];
         }
 
-        return $log->churchService()->first()?->items()
+        return array_values($log->churchService()->first()?->items()
             ->orderBy('position')
             ->orderBy('id')
             ->get()
@@ -196,7 +224,6 @@ class EnsembleReviewGate
                 'title' => $item->title,
                 'song_id' => $item->song_id === null ? null : (int) $item->song_id,
             ])
-            ->values()
-            ->all() ?? [];
+            ->all() ?? []);
     }
 }
