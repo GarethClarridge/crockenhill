@@ -66,10 +66,17 @@
                 Last 3 years
             </button>
         </div>
+        <div class="flex justify-center py-2">
+            <x-toggle
+                wire:model.live="notInPraise"
+                label="Not in Praise!"
+                hint="Only songs without a Praise! hymnbook number"
+            />
+        </div>
     </section>
 
     {{-- Results area --}}
-    <div id="song-results" tabindex="-1" class="focus:outline-none" wire:loading.class="opacity-60 pointer-events-none" wire:target="search, range" aria-busy="false" wire:loading.attr="aria-busy">
+    <div id="song-results" tabindex="-1" class="focus:outline-none" wire:loading.class="opacity-60 pointer-events-none" wire:target="search, range, notInPraise" aria-busy="false" wire:loading.attr="aria-busy">
 
         {{-- Empty state --}}
         @if ($songs->isEmpty())
@@ -82,6 +89,16 @@
                     >
                         <x-form-button type="button" variant="outline" size="sm" icon="x-mark" wire:click="$set('search', '')">
                             Clear search
+                        </x-form-button>
+                    </x-empty-state>
+                @elseif ($notInPraise)
+                    <x-empty-state
+                        icon="book-open"
+                        title="No songs outside Praise! match these filters"
+                        description="Turn off the hymnbook filter to include songs from Praise!, or try another search or date range."
+                    >
+                        <x-form-button type="button" variant="outline" size="sm" wire:click="$set('notInPraise', false)">
+                            Include Praise! songs
                         </x-form-button>
                     </x-empty-state>
                 @else

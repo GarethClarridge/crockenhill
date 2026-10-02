@@ -22,6 +22,89 @@ class BrowseSongsTest extends TestCase
 
     private User $user;
 
+    #[Test]
+    public function hymnbook_filter_excludes_numbered_songs_and_can_be_cleared(): void
+    {
+        Song::factory()->create(['title' => 'Numbered Hymn', 'praise_number' => '046A']);
+        Song::factory()->create(['title' => 'Unnumbered Song', 'praise_number' => null]);
+        Song::factory()->create(['title' => 'Empty Number Song', 'praise_number' => '']);
+
+        Livewire::test(BrowseSongs::class)
+            ->set('range', 'all')
+            ->assertSee('Numbered Hymn')
+            ->set('paginators.page', 2)
+            ->set('notInPraise', true)
+            ->assertSet('paginators.page', 1)
+            ->assertSee('Unnumbered Song')
+            ->assertSee('Empty Number Song')
+            ->assertDontSee('Numbered Hymn')
+            ->set('notInPraise', false)
+            ->assertSee('Numbered Hymn');
+    }
+
+    #[Test]
+    public function hymnbook_filter_combines_with_search_and_recent_usage(): void
+    {
+        $recent = Song::factory()->create(['title' => 'Grace Recently Sung', 'praise_number' => null]);
+        $numbered = Song::factory()->create(['title' => 'Grace Numbered Hymn', 'praise_number' => '123']);
+        Song::factory()->create(['title' => 'Grace Never Sung', 'praise_number' => null]);
+        Song::factory()->create(['title' => 'Unrelated Song', 'praise_number' => null]);
+        $service = ChurchService::factory()->create(['date' => today()]);
+        foreach ([$recent, $numbered] as $song) {
+            ChurchServiceItem::factory()->create([
+                'church_service_id' => $service->id,
+                'type' => 'songs',
+                'song_id' => $song->id,
+            ]);
+        }
+
+        Livewire::test(BrowseSongs::class)
+            ->set('notInPraise', true)
+            ->set('search', 'Grace')
+            ->assertSee('Grace Recently Sung')
+            ->assertDontSee('Grace Numbered Hymn')
+            ->assertDontSee('Grace Never Sung')
+            ->assertDontSee('Unrelated Song')
+            ->set('range', 'all')
+            ->assertSee('Grace Never Sung')
+            ->assertDontSee('Grace Numbered Hymn');
+    }
+
+    #[Test]
+    public function hymnbook_filter_is_bookmarkable_and_preserved_in_canonical_url(): void
+    {
+        $this->actingAs($this->user);
+
+        Song::factory()->create(['title' => 'Numbered Hymn', 'praise_number' => '123']);
+
+        Livewire::withQueryParams(['range' => 'all', 'not-in-praise' => '1'])
+            ->test(BrowseSongs::class)
+            ->assertSet('notInPraise', true)
+            ->assertDontSee('Numbered Hymn')
+            ->assertSee('No songs outside Praise! match these filters')
+            ->assertSet('seoCanonical', route('church.songs.index', ['range' => 'all', 'not-in-praise' => 1]))
+            ->call('$set', 'notInPraise', false)
+            ->assertSee('Numbered Hymn');
+
+        $this->get(route('church.songs.index', ['range' => 'all', 'not-in-praise' => 1]))
+            ->assertOk()
+            ->assertSee('All Songs | Not in Praise!')
+            ->assertSee('not-in-praise=1');
+    }
+
+    #[Test]
+    public function malformed_hymnbook_filter_is_ignored(): void
+    {
+        $this->actingAs($this->user);
+
+        Livewire::withQueryParams(['not-in-praise' => ['1']])
+            ->test(BrowseSongs::class)
+            ->assertSet('notInPraise', false);
+
+        $this->get(route('church.songs.index', ['not-in-praise' => ['1']]))
+            ->assertOk();
+    }
+
     protected function setUp(): void
     {
         parent::setUp();

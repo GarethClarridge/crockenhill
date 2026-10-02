@@ -35,7 +35,7 @@ class PublicSongCatalogService
      *
      * @return Builder<Song>
      */
-    public function query(string $range = self::RANGE_RECENT, string $search = ''): Builder
+    public function query(string $range = self::RANGE_RECENT, string $search = '', bool $notInPraise = false): Builder
     {
         $normalizedRange = $this->normalizeRange($range);
         $tokens = $this->tokenize($search);
@@ -61,6 +61,12 @@ class PublicSongCatalogService
 
         if ($normalizedRange === self::RANGE_RECENT) {
             $query->whereExists($this->qualifyingUsageSubquery($normalizedRange)->selectRaw('1'));
+        }
+
+        if ($notInPraise) {
+            $query->where(fn (Builder $query) => $query
+                ->whereNull('songs.praise_number')
+                ->orWhere('songs.praise_number', ''));
         }
 
         if ($tokens->isNotEmpty()) {

@@ -10,7 +10,7 @@ class SongArchiveSeoPresenter
 {
     public function __construct(private readonly PublicSongCatalogService $catalog) {}
 
-    public function title(?string $search, string $range, int $page = 1): string
+    public function title(?string $search, string $range, int $page = 1, bool $notInPraise = false): string
     {
         if (filled($search)) {
             $base = "{$search} | Songs";
@@ -20,6 +20,10 @@ class SongArchiveSeoPresenter
                 : 'All Songs';
         }
 
+        if ($notInPraise) {
+            $base .= ' | Not in Praise!';
+        }
+
         if ($page > 1) {
             return "{$base} (Page {$page})";
         }
@@ -27,7 +31,7 @@ class SongArchiveSeoPresenter
         return $base;
     }
 
-    public function description(?string $search, string $range, int $page = 1): string
+    public function description(?string $search, string $range, int $page = 1, bool $notInPraise = false): string
     {
         if (filled($search)) {
             $desc = "Browse songs matching '{$search}' at Crockenhill Baptist Church.";
@@ -37,6 +41,10 @@ class SongArchiveSeoPresenter
                 : 'Browse the full song catalogue of Crockenhill Baptist Church.';
         }
 
+        if ($notInPraise) {
+            $desc .= ' Showing songs without a Praise! hymnbook number.';
+        }
+
         if ($page > 1) {
             return "{$desc} - Page {$page}";
         }
@@ -44,13 +52,14 @@ class SongArchiveSeoPresenter
         return $desc;
     }
 
-    public function canonical(?string $search, string $range, int $page = 1): string
+    public function canonical(?string $search, string $range, int $page = 1, bool $notInPraise = false): string
     {
         $normalizedRange = $this->catalog->normalizeRange($range);
 
         $params = array_filter([
             'q' => filled($search) ? $search : null,
             'range' => $normalizedRange === PublicSongCatalogService::RANGE_RECENT ? null : $normalizedRange,
+            'not-in-praise' => $notInPraise ? 1 : null,
             'page' => $page > 1 ? $page : null,
         ], fn ($val) => $val !== null);
 

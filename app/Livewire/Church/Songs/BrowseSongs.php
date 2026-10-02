@@ -33,6 +33,16 @@ class BrowseSongs extends Component
     #[Url(except: 'recent')]
     public mixed $range = PublicSongCatalogService::RANGE_RECENT;
 
+    #[Url(as: 'not-in-praise', except: false)]
+    public mixed $notInPraise = false;
+
+    public function updatedNotInPraise(): void
+    {
+        $this->notInPraise = filter_var($this->notInPraise, FILTER_VALIDATE_BOOLEAN);
+        $this->resetPage();
+        $this->dispatchSeoTitleUpdate();
+    }
+
     public function updatedSearch(): void
     {
         $this->resetPage();
@@ -47,25 +57,25 @@ class BrowseSongs extends Component
 
     private function dispatchSeoTitleUpdate(): void
     {
-        $this->dispatch('seo-title-updated', title: app(SongArchiveSeoPresenter::class)->title($this->search, $this->range));
+        $this->dispatch('seo-title-updated', title: $this->seoTitle);
     }
 
     #[Computed]
     public function seoTitle(): string
     {
-        return app(SongArchiveSeoPresenter::class)->title($this->search, $this->range);
+        return app(SongArchiveSeoPresenter::class)->title($this->search, $this->range, notInPraise: $this->notInPraise);
     }
 
     #[Computed]
     public function seoDescription(): string
     {
-        return app(SongArchiveSeoPresenter::class)->description($this->search, $this->range);
+        return app(SongArchiveSeoPresenter::class)->description($this->search, $this->range, notInPraise: $this->notInPraise);
     }
 
     #[Computed]
     public function seoCanonical(): string
     {
-        return app(SongArchiveSeoPresenter::class)->canonical($this->search, $this->range, $this->getPage());
+        return app(SongArchiveSeoPresenter::class)->canonical($this->search, $this->range, $this->getPage(), $this->notInPraise);
     }
 
     /**
@@ -85,7 +95,7 @@ class BrowseSongs extends Component
     {
         $normalizedRange = app(PublicSongCatalogService::class)->normalizeRange($this->range);
 
-        return app(PublicSongCatalogService::class)->query($normalizedRange, $this->search)
+        return app(PublicSongCatalogService::class)->query($normalizedRange, $this->search, $this->notInPraise)
             ->paginate(24)
             ->withQueryString();
     }
@@ -94,6 +104,7 @@ class BrowseSongs extends Component
     {
         $this->search = is_array($this->search) ? '' : (string) $this->search;
         $this->range = is_array($this->range) ? PublicSongCatalogService::RANGE_RECENT : (string) $this->range;
+        $this->notInPraise = filter_var($this->notInPraise, FILTER_VALIDATE_BOOLEAN);
     }
 
     public function render(PublicSongCatalogService $catalogService, SongLyricSnippetBuilder $snippetBuilder): View

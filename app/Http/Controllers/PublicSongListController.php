@@ -23,13 +23,14 @@ class PublicSongListController extends Controller
         $search = is_array($request->query('q')) ? '' : (string) $request->query('q', '');
         $range = is_array($request->query('range')) ? PublicSongCatalogService::RANGE_RECENT : (string) $request->query('range', PublicSongCatalogService::RANGE_RECENT);
         $page = $request->integer('page', 1);
+        $notInPraise = $request->boolean('not-in-praise');
 
         return view('church.songs.index', [
-            'heading' => $seoPresenter->title($search, $range, $page),
+            'heading' => $seoPresenter->title($search, $range, $page, $notInPraise),
             'area' => 'church',
             'slug' => 'songs',
-            'description' => $seoPresenter->description($search, $range, $page),
-            'canonical_url' => $seoPresenter->canonical($search, $range, $page),
+            'description' => $seoPresenter->description($search, $range, $page, $notInPraise),
+            'canonical_url' => $seoPresenter->canonical($search, $range, $page, $notInPraise),
             'links' => collect(),
         ]);
     }
