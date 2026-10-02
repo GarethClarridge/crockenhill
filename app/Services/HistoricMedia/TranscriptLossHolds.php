@@ -60,7 +60,7 @@ final class TranscriptLossHolds
                     $heldText = $record['transcript_sha256'] ?? null;
 
                     if (! HoldSectionForContentReview::isLive($record)
-                        || ! self::isTranscriptLoss($record)
+                        || ! self::describesTranscriptLoss($record)
                         || (is_string($heldText) && $heldText !== $transcriptSha256)) {
                         continue;
                     }
@@ -73,9 +73,11 @@ final class TranscriptLossHolds
     }
 
     /**
+     * Whether a hold record says the text lost content the audio has, by the census definition.
+     *
      * @param  array<string, mixed>  $record
      */
-    private static function isTranscriptLoss(array $record): bool
+    public static function describesTranscriptLoss(array $record): bool
     {
         if (($record['found_by'] ?? null) === ContentHoldCheck::LoopScreen->value) {
             return true;
