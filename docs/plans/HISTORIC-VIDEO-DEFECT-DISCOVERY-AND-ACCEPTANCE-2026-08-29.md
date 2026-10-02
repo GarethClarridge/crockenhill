@@ -401,6 +401,22 @@ original before.json for full custody comparison as well as the new recovery sna
 partially completed first extraction attempt is retained as evidence. This approval does not
 waive any input content/order change, any additional answer conflict or any other failed gate.
 
+**Saved-draw recovery follow-up — 2026-10-02.** The first recovery snapshot is
+`canary10-20261002/reuse-before.json`, on `ee49aabd3` with the gate fix `a66da8ced`. All 16 draws
+recomposed with unchanged banked attempt counts and zero open questions, but a second raw-position
+comparison in DetectServiceStructure's locked write guard rejected most runs before syncing.
+1050 alone completed that round. This duplicate check was missed in the first fix. No Tier C
+was dispatched from this recovery snapshot. Three pending retries (936, 1221, 1250) were retired
+by exact preserved payload and the interrupted/failed runs settled for recovery.
+
+The follow-up unifies the write, dispatch and extraction input checks in EnsembleReviewGate,
+retaining source artifact hashes, policy, canonical identity/content and relative order guards.
+The full-job regression failed on the duplicate check before the fix; it then passed alongside
+55 other focused tests. The full suite passes (9,108 tests); PHPStan and Pint are clean. A second recovery snapshot on this code
+must precede recomposition and extraction; the operator's saved-draw exception still applies to
+this same projection-only defect. Original before.json and both recovery attempts remain
+custody evidence, and the 1112 exception and all other acceptance gates remain as recorded.
+
 #### Batches
 
 **Tier A** starts once canary 10 passes (dispatch only after its custody diff is clean): 170 runs,

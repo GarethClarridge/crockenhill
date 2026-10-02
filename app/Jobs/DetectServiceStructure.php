@@ -609,38 +609,8 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
     private function assertEnsembleInputCurrent(array $input): void
     {
         $this->processingLog->refresh();
-        $source = $input['source'];
-
-        if ($this->processingLog->church_service_id !== $source['church_service_id']
-            || $this->processingLog->serviceTranscriptPath() !== $source['transcript_path']
-            || $this->processingLog->audio_timeline_path !== $source['audio_timeline_path']
-            || $this->processingLog->rms_log_path !== $source['rms_log_path']
-            || $this->oosItemPayloads($this->loadOosItems()) !== $input['oos_items']
-            || ValidationContext::recordingOmitsSongs($this->processingLog->processing_metadata)
-                !== $input['validation_context']['recording_omits_songs']) {
+        if (! app(EnsembleReviewGate::class)->snapshotIsCurrent($this->processingLog, $input)) {
             throw new \RuntimeException('Service structure ensemble input changed while draws were running.');
-        }
-
-        foreach ([
-            'transcript_path' => 'transcript_hash',
-            'audio_timeline_path' => 'audio_timeline_hash',
-            'rms_log_path' => 'rms_log_hash',
-        ] as $pathKey => $hashKey) {
-            $path = $source[$pathKey] ?? null;
-
-            if ($path === null && ($source[$hashKey] ?? null) === null) {
-                continue;
-            }
-
-            if (! is_string($path)) {
-                throw new \RuntimeException('Service structure ensemble input has an invalid source path.');
-            }
-
-            $current = Storage::disk(ServiceArtifactDisk::for($path))->get($path);
-
-            if (! is_string($current) || hash('sha256', $current) !== $source[$hashKey]) {
-                throw new \RuntimeException('Service structure ensemble source changed while draws were running.');
-            }
         }
     }
 

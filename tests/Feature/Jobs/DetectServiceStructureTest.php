@@ -1104,6 +1104,36 @@ class DetectServiceStructureTest extends TestCase
     }
 
     #[Test]
+    public function a_recompose_can_write_its_structure_after_projection_renumbers_source_items(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        $service = ChurchService::factory()->create();
+        $item = ChurchServiceItem::factory()->for($service)->create([
+            'position' => 9,
+            'title' => 'Reading 2',
+            'metadata' => null,
+        ]);
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create(['church_service_id' => $service->id]);
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+        MockServiceStructureService::useStructure($this->validStructure());
+        $this->runJob($log);
+        $attemptId = $log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble'][0]['attempt_id'];
+
+        $item->update(['position' => 11]);
+        $this->requestRecompose($log, $attemptId);
+        $this->runJob($log->fresh());
+
+        $metadata = $log->fresh()?->processing_metadata?->toArray() ?? [];
+        $this->assertCount(1, $metadata['service_structure_ensemble']);
+        $this->assertSame($attemptId, $metadata['service_structure_ensemble'][0]['attempt_id']);
+        $this->assertSame([], $metadata['service_structure_ensemble'][0]['composition']['disputes']);
+        $this->assertArrayNotHasKey(DetectServiceStructure::RECOMPOSE_KEY, $metadata);
+        $this->assertNotSame(ProcessingStatus::Failed, $log->fresh()?->status);
+        $this->assertGreaterThan(0, ServiceSection::query()->where('media_processing_log_id', $log->id)->count());
+    }
+
+    #[Test]
     public function a_recompose_request_refuses_rather_than_draws_when_the_banked_input_is_stale(): void
     {
         Config::set('media-processing.service_structure.mode', 'primary');

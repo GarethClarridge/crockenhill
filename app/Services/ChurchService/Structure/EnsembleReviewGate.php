@@ -64,7 +64,7 @@ class EnsembleReviewGate
 
         $snapshot = json_decode($input, true);
 
-        if (! is_array($snapshot) || ! $this->snapshotMatchesCurrent($log, $snapshot)) {
+        if (! is_array($snapshot) || ! $this->snapshotIsCurrent($log, $snapshot)) {
             return true;
         }
 
@@ -124,13 +124,14 @@ class EnsembleReviewGate
             $input = Storage::disk($diskName)->get($path);
 
             return is_string($input) && hash('sha256', $input) === $hash
-                && $this->snapshotMatchesCurrent($log, json_decode($input, true));
+                && $this->snapshotIsCurrent($log, json_decode($input, true));
         } catch (Throwable) {
             return false;
         }
     }
 
-    private function snapshotMatchesCurrent(MediaProcessingLog $log, mixed $snapshot): bool
+    /** The same input identity check at dispatch, structure write and extraction. */
+    public function snapshotIsCurrent(MediaProcessingLog $log, mixed $snapshot): bool
     {
         if (! is_array($snapshot) || ! is_array($snapshot['source'] ?? null)) {
             return false;
