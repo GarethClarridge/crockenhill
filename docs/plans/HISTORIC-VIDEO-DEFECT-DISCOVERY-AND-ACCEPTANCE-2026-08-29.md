@@ -500,8 +500,10 @@ containing songs. See [Cut What Was Identified, In Sync](CUT-FROM-SECTIONS-IN-SY
 **Follow-up operator decision — 2026-10-02:** sermon media contains the sermon reading
 (if separate), the sermon, and a concluding prayer if before the post-sermon song. The linked
 plan now records this composition and the simplified shared cutter, focused sync regression
-tests and explicit media-processing version. Next: implement test-first, then canary 10 again
-on the same 16 runs under the existing dispatch and acceptance controls. The production
+tests and explicit media-processing version. Implementation is committed through `fbfd9d1cd`,
+with the 1112 matcher fix in `0098afe2c`; the full suite passes (9,138 tests), PHPStan and Pint
+are clean, and the frontend build passes. The linked plan records corpus validation and the
+fresh same-16 canary snapshot. Canary 10 remains unaccepted under the existing controls. The production
 weekly-media audit is a separate follow-up.
 
 #### Batches

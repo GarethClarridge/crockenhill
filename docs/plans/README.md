@@ -106,9 +106,10 @@ review tooling are committed through `e42c8e338` (2026-10-02), with all quality 
 Canary 10 ran on 2026-10-02 and met its predeclared bar. The operator did not accept it: any
 sound/picture drift is a defect, and a cut must be the identified sections.
 [Cut What Was Identified, In Sync](CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md) traces the causes
-and records the revised design and settled sermon composition. Implement and test the shared
-section-based cutter, then canary 10 runs again, followed by
-Tier A and the batches. The detection reliability work package is complete and archived.
+records the revised design and settled sermon composition. The shared section-based cutter and
+1112 matcher fix are committed through `fbfd9d1cd`; the full suite, PHPStan, Pint, build and Dusk
+pass. Complete corpus validation and the fresh same-16 canary under its review and dispatch
+controls before Tier A and the batches. The detection reliability work package is complete and archived.
 
 | Order | Plan | Verified status | Next independently useful slice |
 |---|---|---|---|

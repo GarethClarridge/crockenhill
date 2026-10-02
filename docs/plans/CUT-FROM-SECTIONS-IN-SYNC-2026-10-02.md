@@ -1,6 +1,6 @@
 # Cut What Was Identified, In Sync
 
-**Date:** 2026-10-02 · **Status:** REVISED after operator review; composition settled (§5), implementation pending · **Blocks:** canary 10
+**Date:** 2026-10-02 · **Status:** IMPLEMENTED on master; corpus validation and operator acceptance pending · **Blocks:** canary 10
 acceptance and Tier A ([main plan §4.0](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md))
 
 ## 1. Why
@@ -201,3 +201,36 @@ The other clips (songs, readings, talks) are already cut at their section's own 
    known failure points and actual sound/picture alignment at joins and after enhancement.
 5. Accept canary 10 under the existing operator acceptance process, then Tier A. Track the
    already-published weekly-media audit separately (D4).
+
+## 6. Implementation and validation
+
+Implementation commits: `aec30eb0e` first committed the revised plan; `0098afe2c` fixes the
+1112 nested ruling; `fbfd9d1cd` delivers C1–C4 and S1–S4. Media processing version is **2**.
+The shared cutter has one paired encode path; no smart-cut, TS join or source-audio remux path
+remains. Composition owns its review flag, so it cannot clear an upstream boundary doubt.
+Reviewed membership is bound to section/evidence identity and invalidated on section changes.
+
+Validation on the settled code: **9,138 tests / 94,233 assertions passed**, PHPStan **0 errors**,
+Pint clean, and the frontend build passed. The source-aware regressions include the documented
+16 ms picture jump, MP3-to-AAC timing, legitimate source irregularities, simultaneous sound/picture
+events, shifted-but-regular audio as a negative control, and the real late `loudnorm` flush defect.
+The full Dusk browser gate passes (**61 tests / 150 assertions**), including mobile keyboard
+review. The corpus benchmark is being completed; its results belong here before canary acceptance.
+
+The read-only census was replayed over **475 runs**, with **0 resolver errors**, section-exact
+selected spans and **0 unsectioned seconds added**. It parks 331 runs for composition or selected
+boundary review, preserves 77 content-held runs, and leaves 67 without an extraction blocker.
+Evidence: `storage/app/private/cut-rule-census-after-sections-20261002/census.json`.
+The original census remains unchanged in `cut-rule-census-20261002/census.json`.
+
+The fresh same-16 canary snapshot is `cut-sections-canary10-20261002/before.json`, on `fbfd9d1cd`,
+with membership hash `0bbc51836e06a7d9e9ed7b3edd8c0e185723495670bc4f6e323da78291eb4c2e` and the
+existing bound listening routes. The saved-draw dry run reports **16 ready, 0 refused**.
+A local database backup was captured before dispatch. Refreshing the external backups requires
+explicit approval for the private payload and `/Volumes/Sonnics` destination; no canary job has
+been dispatched from this snapshot yet.
+
+The census names membership/coverage questions on **15 of the 16 canary runs** (all except 1117).
+These must be settled through the existing review path before Tier C can satisfy the new bar;
+no automatic gap filling or release of existing content holds is authorised. Canary acceptance,
+Tier A and published weekly-media recuts remain pending under their existing controls.
