@@ -96,6 +96,10 @@ class ServiceStructureEnsembleRulingApplier
 
         foreach ($disputes as $disputeIndex => $dispute) {
             foreach ($byKey as $key => $answers) {
+                if ($this->removedInnerIsAlreadyAbsent($answers[0], $dispute, $sections, $current)) {
+                    continue;
+                }
+
                 $score = $this->matchScore($answers[0]['scope'], $dispute, $attemptId);
 
                 if ($score !== null) {
@@ -428,6 +432,59 @@ class ServiceStructureEnsembleRulingApplier
         }
 
         return $overlap / $union;
+    }
+
+    /**
+     * A rejected standalone inner item cannot remove its containing talk when no
+     * standalone section remains. Equal-scope contradictory answers still compete.
+     *
+     * @param  array<string, mixed>  $answer
+     * @param  array<string, mixed>  $dispute
+     * @param  list<ServiceStructureSection>  $sections
+     * @param  array<string, array<string, mixed>>  $current
+     */
+    private function removedInnerIsAlreadyAbsent(array $answer, array $dispute, array $sections, array $current): bool
+    {
+        $scope = $answer['scope'] ?? null;
+        if (($answer['kind'] ?? null) !== 'remove' || ! is_array($scope)
+            || ($answer['resolution']['absent'] ?? false) !== true
+            || ($scope['type'] ?? null) !== ($dispute['type'] ?? null)
+            || ! is_numeric($scope['start_time'] ?? null) || ! is_numeric($scope['end_time'] ?? null)
+            || ! is_numeric($dispute['start_time'] ?? null) || ! is_numeric($dispute['end_time'] ?? null)) {
+            return false;
+        }
+        $start = (float) $scope['start_time'];
+        $end = (float) $scope['end_time'];
+        if ($start <= (float) $dispute['start_time'] + self::RULING_EDGE_TOLERANCE
+            || $end >= (float) $dispute['end_time'] - self::RULING_EDGE_TOLERANCE) {
+            return false;
+        }
+        $acceptedContaining = false;
+        foreach ($current as $other) {
+            if (($other['ruling_key'] ?? null) === ($answer['ruling_key'] ?? null)
+                || ! in_array($other['kind'] ?? null, ['accept', 'choose', 'correct'], true)) {
+                continue;
+            }
+            foreach ($other['resolution']['sections'] ?? [] as $resolved) {
+                if (is_array($resolved) && ($resolved['type'] ?? null) === $scope['type']
+                    && abs((float) ($resolved['start_time'] ?? -1) - (float) $dispute['start_time']) <= self::RULING_EDGE_TOLERANCE
+                    && abs((float) ($resolved['end_time'] ?? -1) - (float) $dispute['end_time']) <= self::RULING_EDGE_TOLERANCE) {
+                    $acceptedContaining = true;
+                }
+            }
+        }
+        if (! $acceptedContaining) {
+            return false;
+        }
+        foreach ($sections as $section) {
+            if ($section->type->value === $scope['type']
+                && abs($section->startTime - $start) <= self::RULING_EDGE_TOLERANCE
+                && abs($section->endTime - $end) <= self::RULING_EDGE_TOLERANCE) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

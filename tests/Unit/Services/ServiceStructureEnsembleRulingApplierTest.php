@@ -15,6 +15,24 @@ use Tests\TestCase;
 class ServiceStructureEnsembleRulingApplierTest extends TestCase
 {
     #[Test]
+    public function rejecting_an_absent_inner_talk_does_not_compete_with_the_accepted_containing_talk(): void
+    {
+        $proposal = $this->proposal(talkStart: 886.0, talkEnd: 1596.0, sermonStart: 2000.0, sermonEnd: 3000.0);
+        $proposal['majority_decisions'] = $proposal['disputes'];
+        $proposal['disputes'] = [];
+        $accepted = [...$this->ruling('accept', ['sections' => [$this->section(ServiceSectionType::ShortTalk, 886, 1596)->toArray()]], 'containing'),
+            'scope' => ['type' => 'short_talk', 'start_time' => 886.0, 'end_time' => 1596.0]];
+        $removed = [...$this->ruling('remove', ['absent' => true], 'inner'),
+            'scope' => ['type' => 'short_talk', 'start_time' => 1057.0, 'end_time' => 1455.0]];
+
+        $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($proposal, [$accepted, $removed]);
+
+        $this->assertSame([], $result['conflicting_rulings']);
+        $this->assertContains(['short_talk', 886.0, 1596.0], $this->spans($result));
+        $this->assertCount(2, $result['structure']['sections']);
+    }
+
+    #[Test]
     public function a_content_bound_correction_replaces_the_claim_and_replay_is_idempotent(): void
     {
         $proposal = $this->proposal();
