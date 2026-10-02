@@ -127,6 +127,17 @@ following the standing ruling that historic work improves routine processing and
     questions 2.33 → 0.77 per batch-1 sequence, 949 ×10 3.0 → 1.0, sermon questions 0.33 → 0;
     talk-count errors 0/0, cuts wrong 0, wrong cuts reaching extraction unreviewed 0.
 
+20. **A reading or recording inside a talk stays a question (2026-10-02).** Canary 9 ruled 964's
+    children's talk one talk including its Deuteronomy 6 reading (573–1166; its closing prayer on
+    the talk's theme optional, so 573–1054 also right) and 1112's talk one item including its
+    filmed testimony. The 09-28 prompt clause "a passage read after a talk has concluded is its own
+    bible_reading" had been added on a misreading of 964; the truth file now holds the ruling.
+    A prompt defining "concluded" and adding recordings was evaluated (24 calls, $0.12, 964 and
+    1112 × 3): no effect. gpt-5.6-luna splits 964 in 6 of 6 draws under either prompt and
+    gpt-6-luna keeps it whole in 6 of 6, so the composition is a 2–2 question every time; 1112 is
+    one talk throughout. Operator: accept it as a question; the prompt change was not adopted.
+    With the corrected truth the §6 draws score 4 of 60 talk boundaries wrong, all flagged.
+
 Agreement never overrides an existing content hold. The implementation guarantee is that every
 decision affecting extraction has supported evidence, and unresolved disagreement reaches the
 actual extraction gate. The technical policies below implement this alongside the operator's

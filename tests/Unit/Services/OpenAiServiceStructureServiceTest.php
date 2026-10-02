@@ -408,8 +408,9 @@ class OpenAiServiceStructureServiceTest extends TestCase
         $this->assertStringContainsString('reads a Bible passage inside it', $system);
         $this->assertStringContainsString('belongs to the talk, not to a separate bible_reading', $system);
         $this->assertStringContainsString("Each person's testimony is its own short_talk", $system);
-        // The first draws over-applied the rule: 1050's preacher read 1 Peter 4 into the sermon,
-        // and 964's children's talk swallowed the Deuteronomy 6 reading read after it had ended.
+        // The first draws over-applied the rule: 1050's preacher read 1 Peter 4 into the sermon.
+        // 964's Deuteronomy 6 reading, once cited here as read after the talk had ended, was ruled
+        // part of the talk in canary 9; gpt-5.6 still splits it, which the ensemble asks (decision 20).
         $this->assertStringContainsString("This applies only to short talks: a sermon's Bible reading is always its", $system);
         $this->assertStringContainsString('own bible_reading section, even when the preacher reads it', $system);
         $this->assertStringContainsString('concluded is its own bible_reading section, even when the same person reads it', $system);
