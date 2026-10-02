@@ -796,6 +796,22 @@ decision when deletion/extraction costs more than the complexity it removes.
 2. Reconfirm `resources/views/components/admin/shell.blade.php` has no rendered production consumer.
    Delete it and the obsolete `BladeShellRenderingTest` branch in one commit. Do not confuse it with
    the service-workbench plan's separate orphan partial.
+
+   **Reconfirmed 2026-09-04** (evidence originally gathered in PR #1255): no Blade or PHP file
+   renders the component. Searches for `admin.shell`, `x-admin.shell`, `admin/shell`, `admin_shell`
+   and `admin:shell` across `app/`, `resources/` and `routes/` return no consumer; every admin
+   Livewire component reaches the chrome through `->layout('layouts.admin', [...])` instead. Two
+   things the deletion commit must handle, which the slice text above does not yet say:
+
+   - `tests/Feature/BladeShellRenderingTest.php:112-124` is **not** an obsolete branch despite its
+     `// x-admin.shell` comment header and the `admin_shell_pushes_heading_as_page_title` method
+     name. It requests `/admin/meetings`, which `ListMeetings::render()` returns through
+     `layout('layouts.admin', ['title' => 'Meetings', ...])` — so it is live coverage of
+     `layouts.admin`'s title handling, not of the shell component. Rename the method and its comment
+     to name `layouts.admin`; deleting it would drop real coverage.
+   - `docs/design-style-guide.md:56,62,64` still presents `<x-admin.shell>` as the sanctioned wrapper
+     for controller-rendered admin pages and documents its `heading`/`title` props. Update the guide
+     in the same commit or it will point at a deleted component.
 3. Extract shared flash rendering only if two live shells still duplicate it after deletion.
 
 ### AM14b — Explicit bespoke page ownership

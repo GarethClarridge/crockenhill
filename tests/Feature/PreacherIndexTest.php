@@ -83,4 +83,32 @@ class PreacherIndexTest extends TestCase
             '13',
         ]);
     }
+
+    #[Test]
+    public function it_renders_root_relative_preacher_links_using_named_routes(): void
+    {
+        $preacher = Preacher::factory()->create(['name' => 'John Owen', 'slug' => 'john-owen', 'is_active' => true]);
+
+        $response = $this->get('/christ/sermons/preachers');
+
+        $response->assertOk();
+        $expectedUrl = route('sermons.preacher', $preacher->slug, false);
+        $this->assertSame('/christ/sermons/preachers/john-owen', $expectedUrl);
+        $response->assertSee('href="'.$expectedUrl.'"', false);
+        // The directory-relative form resolved to /christ/sermons/preachers/preachers/{slug} and 404'd.
+        $response->assertDontSee('href="preachers/john-owen"', false);
+    }
+
+    #[Test]
+    public function it_keeps_preacher_cards_on_the_livewire_navigate_path(): void
+    {
+        Preacher::factory()->create(['name' => 'John Owen', 'slug' => 'john-owen', 'is_active' => true]);
+
+        $response = $this->get('/christ/sermons/preachers');
+
+        $response->assertOk();
+        // <x-clickable-card> only applies wire:navigate when the link does not start with "http",
+        // so an absolute route() URL would silently drop SPA navigation.
+        $response->assertSee('href="/christ/sermons/preachers/john-owen" wire:navigate', false);
+    }
 }
