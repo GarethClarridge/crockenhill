@@ -22,6 +22,7 @@ class HistoricProcessingMetadataSerializerTest extends TestCase
             ],
             'service_structure_ensemble' => [['attempt_id' => 'a', 'input_path' => 'service-transcripts/x.ensemble.a.input.json']],
             'service_structure_ensemble_rulings' => [['ruling_key' => 'r', 'operator_id' => 1, 'kind' => 'remove']],
+            'service_structure_recompose' => ['attempt_id' => 'a', 'requested_at' => '2026-10-02T10:00:00+00:00'],
         ]);
 
         $this->assertSame(['service_artifacts' => [$rms]], $result);

@@ -1068,6 +1068,90 @@ class DetectServiceStructureTest extends TestCase
     }
 
     #[Test]
+    public function a_recompose_request_applies_the_answer_to_the_reviewed_draws_without_drawing_again(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        [$service, $log, $dispute, $admin] = $this->disputedReadingRun();
+        $sermon = ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->where('section_type', 'sermon')
+            ->firstOrFail();
+        $sermon->forceFill(['extracted_audio_path' => 'sections/extracted-sermon.m4a'])->save();
+        Storage::disk($sermon->extractedAssetDisk())->put('sections/extracted-sermon.m4a', 'audio');
+        app(AnswerServiceStructureEnsembleQuestion::class)->execute($log->id, $dispute['question_id'], 'choose', $admin, slot: 1);
+        $attemptId = $log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble'][0]['attempt_id'];
+        $this->requestRecompose($log, $attemptId);
+        // A fresh draw would write this structure, with no reading at all.
+        MockServiceStructureService::useStructure($this->validStructure());
+
+        $this->runJob($log->fresh());
+
+        $metadata = $log->fresh()?->processing_metadata?->toArray() ?? [];
+        $this->assertCount(1, $metadata['service_structure_ensemble']);
+        $this->assertSame([], $metadata['service_structure_ensemble'][0]['composition']['disputes']);
+        $this->assertCount(1, $metadata['service_structure_ensemble'][0]['composition']['applied_rulings']);
+        $this->assertArrayHasKey('recomposed_at', $metadata['service_structure_ensemble'][0]['composition']);
+        $this->assertArrayNotHasKey(DetectServiceStructure::RECOMPOSE_KEY, $metadata);
+        $this->assertSame('Luke 15:1-10', ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->where('section_type', 'bible_reading')
+            ->firstOrFail()
+            ->metadata?->readingReference);
+        $this->assertSame('sections/extracted-sermon.m4a', $sermon->fresh()?->extracted_audio_path);
+        $this->assertNotSame(ProcessingStatus::Failed, $log->fresh()?->status);
+
+        Storage::disk($sermon->extractedAssetDisk())->delete('sections/extracted-sermon.m4a');
+    }
+
+    #[Test]
+    public function a_recompose_request_refuses_rather_than_draws_when_the_banked_input_is_stale(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        [$service, $log, $dispute, $admin] = $this->disputedReadingRun();
+        $attemptId = $log->processing_metadata?->toArray()['service_structure_ensemble'][0]['attempt_id'];
+        $this->requestRecompose($log, $attemptId);
+        // Re-transcription replaced the text the answers were given on.
+        Storage::disk('local')->put('temp/service_transcript_'.$log->processing_id.'.json', (string) json_encode(ChurchServiceTranscript::fromCues([
+            ['start' => 0.0, 'end' => 2400.0, 'text' => 'A different decode of the same service.'],
+        ], 2430.0, ChurchServiceTranscript::SOURCE_MOCK)));
+
+        try {
+            $this->runJob($log->fresh());
+            $this->fail('A recompose over a changed input must refuse.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('no longer matches', $exception->getMessage());
+        }
+
+        $this->assertCount(1, $log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble'] ?? []);
+    }
+
+    #[Test]
+    public function a_recompose_request_for_an_older_attempt_refuses_rather_than_draws(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        [$service, $log, $dispute, $admin] = $this->disputedReadingRun();
+        $this->requestRecompose($log, 'an-earlier-attempt');
+
+        try {
+            $this->runJob($log->fresh());
+            $this->fail('A recompose of anything but the latest attempt must refuse.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('no longer this run\'s latest', $exception->getMessage());
+        }
+
+        $this->assertCount(1, $log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble'] ?? []);
+    }
+
+    private function requestRecompose(MediaProcessingLog $log, string $attemptId): void
+    {
+        $log->writeProcessingMetadata(static function (array $metadata) use ($attemptId): array {
+            $metadata[DetectServiceStructure::RECOMPOSE_KEY] = ['attempt_id' => $attemptId, 'requested_at' => now()->toIso8601String()];
+
+            return $metadata;
+        });
+    }
+
+    #[Test]
     public function the_review_panel_plays_the_recording_and_takes_a_structured_correction(): void
     {
         Config::set('media-processing.service_structure.mode', 'primary');

@@ -43,7 +43,8 @@ class HistoricProcessingMetadataSerializer
      * evidence for local review and replay, bound to this machine's artifact disk and
      * to local order-of-service ids and operators; the review they served has already
      * shaped the sections the export carries. Their files stay with the local service
-     * artifacts and its backups.
+     * artifacts and its backups. `service_structure_recompose` is a pending instruction to
+     * compose those draws again, naming a local attempt; it lives only until its job settles.
      */
     private const RUNTIME_KEYS = [
         'historic_promotion',
@@ -58,6 +59,7 @@ class HistoricProcessingMetadataSerializer
         'service_structure_ensemble',
         'service_structure_ensemble_rulings',
         'service_structure_proposal',
+        'service_structure_recompose',
         'source_file_path',
     ];
 

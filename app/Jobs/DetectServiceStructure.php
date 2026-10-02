@@ -21,6 +21,7 @@ use App\Services\ChurchService\ContentHoldRechecker;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\Structure\CutAwareEnsembleComposer;
 use App\Services\ChurchService\Structure\EnsembleComposition;
+use App\Services\ChurchService\Structure\EnsembleReviewGate;
 use App\Services\ChurchService\Structure\ServiceStructureDrawExecutor;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleInput;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleReplay;
@@ -64,12 +65,24 @@ use Illuminate\Support\Facades\Storage;
  * artifact with the new items, but never re-opens the completed run: run
  * status is left untouched, and a hard validation failure keeps the existing
  * sections authoritative instead of routing to manual review.
+ *
+ * A recompose request ({@see self::RECOMPOSE_KEY}) makes no draw: the run's latest banked
+ * draws are composed again under the current rules and every answer on the run, and the
+ * result goes through the same validation, sync and review as a fresh ensemble. What the
+ * operator reviewed is then what is cut, and adopting a rule costs no new draws or questions.
  */
 class DetectServiceStructure extends ProcessingJob implements ShouldQueue
 {
     use InteractsWithQueue;
     use Queueable;
     use SerializesModels;
+
+    /**
+     * Where a request to recompose the latest banked draws waits for this job, naming the attempt.
+     * It is a durable instruction rather than a job argument so a retry recomposes again instead of
+     * paying for new draws, and it is withdrawn once the job settles either way.
+     */
+    public const RECOMPOSE_KEY = 'service_structure_recompose';
 
     public int $tries = 3;
 
@@ -145,10 +158,13 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         }
 
         $this->runPrimary($detector, $snapService, $validator, $syncService, $sermonConfidenceService);
+        $this->withdrawRecomposeRequest();
     }
 
     protected function onJobFailure(\Throwable $exception): void
     {
+        // A request left behind would turn the run's next fresh detection into a recompose.
+        $this->withdrawRecomposeRequest();
         $this->initializeStepLogging($this->processingLog->processing_id);
         $this->logStepFailed(
             ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE,
@@ -364,35 +380,27 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         SilenceSnapService $snapService,
         ServiceStructureValidator $validator,
     ): array {
+        $runner = new ServiceStructureEnsembleRunner(
+            new ServiceStructureDrawExecutor($detector, $snapService, app(SoundStage::class), $validator),
+            app(HistoricStagingContextRegistry::class),
+        );
+        $recompose = $this->reconcile ? null : $this->recomposeRequest();
+
+        if ($recompose !== null) {
+            return $this->recomposeBankedAttempt($recompose, $runner, $validator);
+        }
+
         [
             'input' => $input,
             'transcript' => $transcript,
             'context' => $context,
         ] = app(ServiceStructureEnsembleInput::class)->build($this->processingLog, $this->resolveChurchService());
 
-        $runner = new ServiceStructureEnsembleRunner(
-            new ServiceStructureDrawExecutor($detector, $snapService, app(SoundStage::class), $validator),
-            app(HistoricStagingContextRegistry::class),
-        );
         $run = $runner->run($this->processingLog, $input);
         $this->assertEnsembleInputCurrent($input);
         $composition = app(CutAwareEnsembleComposer::class)->compose($run['draws'], $transcript, $this->processingLog);
         $replayed = null;
-        $rulings = $this->processingLog->fresh()?->processing_metadata?->raw['service_structure_ensemble_rulings'] ?? [];
-
-        if (! is_array($rulings) || ! array_is_list($rulings)) {
-            throw new \RuntimeException('Service structure ensemble ruling history is malformed.');
-        }
-
-        $answers = [];
-
-        foreach ($rulings as $ruling) {
-            if (! is_array($ruling)) {
-                throw new \RuntimeException('Service structure ensemble ruling history is malformed.');
-            }
-
-            $answers[] = $ruling;
-        }
+        $answers = $this->ensembleRulings();
 
         if ($answers !== []) {
             $replayed = app(ServiceStructureEnsembleReplay::class)->replay($run['evidence'], $answers, $this->processingLog);
@@ -431,6 +439,135 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         $this->processingLog->refresh();
 
         return [$result, $transcript, $composition, $input];
+    }
+
+    /**
+     * Compose the run's latest banked draws again, with no provider call, under the current rules
+     * and every answer on the run. Refuses rather than draws when the request names an attempt
+     * that is no longer the latest or the banked input no longer matches the run: the answers
+     * were given on those draws and that input.
+     *
+     * @param  array{attempt_id: string}  $request
+     * @return array{0: ValidationResult, 1: ChurchServiceTranscript, 2: EnsembleComposition, 3: array<string, mixed>}
+     */
+    private function recomposeBankedAttempt(
+        array $request,
+        ServiceStructureEnsembleRunner $runner,
+        ServiceStructureValidator $validator,
+    ): array {
+        $this->processingLog->refresh();
+        $bank = $this->processingLog->processing_metadata?->raw['service_structure_ensemble'] ?? null;
+        $evidence = is_array($bank) && $bank !== [] ? end($bank) : null;
+
+        if (! is_array($evidence) || ($evidence['attempt_id'] ?? null) !== $request['attempt_id']) {
+            throw new \RuntimeException('The ensemble attempt asked to be recomposed is no longer this run\'s latest; re-detect the run instead.');
+        }
+
+        if (! app(EnsembleReviewGate::class)->inputIsCurrent($this->processingLog, $evidence)) {
+            throw new \RuntimeException('The banked ensemble input no longer matches this run; re-detect the run instead.');
+        }
+
+        $replay = app(ServiceStructureEnsembleReplay::class);
+        $input = $replay->snapshot($evidence);
+        $context = $input['validation_context'] ?? null;
+
+        if (! is_array($context)) {
+            throw new \RuntimeException('The banked ensemble input has no validation context.');
+        }
+
+        $replayed = $replay->replay($evidence, $this->ensembleRulings(), $this->processingLog);
+        $composition = new EnsembleComposition(
+            ServiceStructure::fromArray($replayed['structure']),
+            $replayed['disputes'],
+            $replayed['provenance'],
+            $replayed['degraded'],
+            $replayed['refused'],
+            $replayed['valid_votes'],
+            $replayed['degraded_reviewed'],
+            $replayed['majority_decisions'],
+        );
+        $result = $composition->refused
+            ? new ValidationResult(
+                $composition->structure,
+                [['code' => 'insufficient_ensemble_votes', 'message' => 'Fewer than two validated ensemble draws.']],
+            )
+            : $validator->validate($composition->structure, ServiceStructureDrawExecutor::contextFromSnapshot($context));
+
+        $runner->recordComposition($this->processingLog, $request['attempt_id'], [
+            'structure' => $composition->structure->toArray(),
+            'validation_passed' => $result->passed(),
+            'failure_codes' => $result->failureCodes(),
+            'degraded' => $composition->degraded,
+            'degraded_reviewed' => $composition->degradedReviewed,
+            'disputes' => $composition->disputes,
+            'majority_decisions' => $composition->majorityDecisions,
+            'provenance' => $composition->provenance,
+            'applied_rulings' => $replayed['applied_rulings'] ?? [],
+            'stale_rulings' => $replayed['stale_rulings'] ?? [],
+            'conflicting_rulings' => $replayed['conflicting_rulings'] ?? [],
+            'recomposed_at' => now()->toIso8601String(),
+        ]);
+        $this->processingLog->refresh();
+
+        Log::info('Recomposed banked service structure draws without a provider call', [
+            'processing_id' => $this->processingLog->processing_id,
+            'attempt_id' => $request['attempt_id'],
+            'open_questions' => count($composition->disputes),
+        ]);
+
+        return [$result, ChurchServiceTranscript::fromArray($input['transcript'] ?? null), $composition, $input];
+    }
+
+    /** @return array{attempt_id: string}|null */
+    private function recomposeRequest(): ?array
+    {
+        $request = $this->processingLog->fresh()?->processing_metadata?->raw[self::RECOMPOSE_KEY] ?? null;
+
+        if ($request === null) {
+            return null;
+        }
+
+        if (! is_array($request) || ! is_string($request['attempt_id'] ?? null) || $request['attempt_id'] === '') {
+            throw new \RuntimeException('Service structure recompose request is malformed.');
+        }
+
+        return ['attempt_id' => $request['attempt_id']];
+    }
+
+    private function withdrawRecomposeRequest(): void
+    {
+        if (($this->processingLog->fresh()?->processing_metadata?->raw[self::RECOMPOSE_KEY] ?? null) === null) {
+            return;
+        }
+
+        $this->processingLog->writeProcessingMetadata(static function (array $metadata): array {
+            unset($metadata[self::RECOMPOSE_KEY]);
+
+            return $metadata;
+        });
+        $this->processingLog->refresh();
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function ensembleRulings(): array
+    {
+        $rulings = $this->processingLog->fresh()?->processing_metadata?->raw['service_structure_ensemble_rulings'] ?? [];
+
+        if (! is_array($rulings) || ! array_is_list($rulings)) {
+            throw new \RuntimeException('Service structure ensemble ruling history is malformed.');
+        }
+
+        $answers = [];
+
+        foreach ($rulings as $ruling) {
+            if (! is_array($ruling)) {
+                throw new \RuntimeException('Service structure ensemble ruling history is malformed.');
+            }
+
+            $answers[] = $ruling;
+        }
+
+        return $answers;
     }
 
     /**
