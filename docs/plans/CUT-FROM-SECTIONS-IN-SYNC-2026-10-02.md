@@ -1,6 +1,6 @@
 # Cut What Was Identified, In Sync
 
-**Date:** 2026-10-02 · **Status:** PROPOSED, awaiting the operator's rulings (§5) · **Blocks:** canary 10
+**Date:** 2026-10-02 · **Status:** REVISED after operator review; composition settled (§5), implementation pending · **Blocks:** canary 10
 acceptance and Tier A ([main plan §4.0](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md))
 
 ## 1. Why
@@ -12,8 +12,9 @@ Canary 10's cuts met the predeclared bar as written. The operator then ruled on 
 - **A cut is the video for what was identified.** Detection has already found the talk or song.
   A second set of rules at cut time, deciding the times all over again, should not exist.
 
-This plan traces both findings to their causes (§2, §3), proposes one design (§4) and lists the
-rulings it needs (§5). Everything here was measured read-only. Evidence is in
+This plan records the original investigation (§2, §3), the revised implementation (§4) and
+the operator's composition decision (§5). The original measurements were read-only; the
+revision below does not represent a new media experiment. Evidence is in
 `storage/app/private/canary10-20261002/` (`cut-avscan.json`, `cut-gapscan.json`) and
 `storage/app/private/cut-rule-census-20261002/census.json`. Scripts are
 `storage/scratch/canary10-avscan-20261002.py`, `canary10-srcwindow-20261002.py` and
@@ -67,60 +68,136 @@ detector's times, and those cuts include songs. A further two were rejected as l
 The other clips (songs, readings, talks) are already cut at their section's own times
 (`PrepareSectionPublicationCandidates`). Only the sermon carries the extra rules.
 
-## 4. Proposed design
+## 4. Revised design
 
 ### Cut rules
 
-- **C1. A sermon video is a list of sections.** The structure names the sections that make the
-  sermon video (§5 D1), and they are visible on review pages. The cut takes exactly those
-  sections' times. Nothing outside a section is cut, and nothing extends by time arithmetic. If
-  the closing prayer belongs in the video, it must be a section; finding it is detection's job,
-  and its absence is an ensemble question.
-- **C2. Untrusted sections hold; they are never replaced.** If a section cannot be cut, the run
-  parks for review, as content-held sermons already do. Delete the old-detector route from the
-  cut (`baselinePlan` and the `sermon_start_time`/`sermon_end_time` it reads), along with the
-  confidence threshold, the 45-minute ceiling and flag-based rejection. A flag asks for review;
-  it never chooses a different cut. Text flags go to text repair.
-- **C3. Song, reading and talk clips are unchanged.**
+- **C1. Sermon media takes an ordered list of accepted sections.** Include the sermon reading
+  when separate from the sermon, the sermon (including identified continuation sections), and
+  an identified concluding prayer if it occurs before the post-sermon song. Do not duplicate a
+  reading or prayer already inside the sermon section. Structure/review identifies membership;
+  the cutter neither ranks readings nor infers a prayer from elapsed time. It uses exactly the
+  selected sections' boundaries, excluding intervening songs, unrelated sections and uncovered
+  gaps. An absent optional reading/prayer does not itself create a review question; uncertainty
+  about membership or boundaries belongs to the existing structure/review process.
+  **Resolve membership when composing the structure:** use the existing `sermon_reference`
+  and `reading_reference` fields and passage normalisation to select an unambiguous separate
+  sermon reading. Include identified sermon continuations and the concluding prayer before
+  the post-sermon song. A prayer immediately following the sermon is the straightforward
+  automatic case; intervening sections or multiple plausible prayers require review of
+  membership, not automatic exclusion or inclusion. Missing references or multiple plausible
+  readings must not fall through to duration/proximity scoring: where membership is uncertain,
+  use the existing review process. Record the ordered selection in existing structure metadata
+  and show it in existing review; recompute it when sections change, respecting recorded review
+  decisions. This is a deterministic composition step using existing detection fields, not a
+  new prompt/schema field. Saved draws remain reusable inputs to recompose; the resulting
+  selection still needs validation.
+- **C2. Consume the existing review decision; never substitute another detector.** An unresolved
+  structure decision or content hold preventing use of a selected section keeps extraction
+  parked through the existing review mechanism, including its recorded operator-authority path.
+  The cutter only validates usable input: selected sections belong to the source run, have
+  finite ordered bounds within the source, and do not overlap or repeat. Invalid input stops
+  extraction with a specific reason; it does not select another span. Delete `baselinePlan`
+  and the cut-time use of `sermon_start_time`/`sermon_end_time`, confidence thresholds,
+  duration ceilings, reading ranking, gap absorption and end extension. Text repair and
+  publication holds remain owned by their existing stages, not a new cutter trust policy.
+- **C3. Reuse the existing plan and jobs.** Keep the existing ordered-span representation with
+  its source section IDs; resolve timestamps from those sections for execution and record them
+  in the existing extraction audit. Do not introduce a second persisted composition model,
+  resolver hierarchy, queue or review workflow. Individual song, reading and talk clips retain
+  their section membership and use the same shared cutter. Sermon audio uses the same selected
+  content as its video, preferably extracted from the resulting video as today.
+- **C4. Review uncovered speech upstream.** During structure composition/validation, use the
+  existing timestamped transcript and segmentation evidence to identify speech outside all
+  identified sections that could be lost from the selected sermon content. Raise it through
+  the existing structure-review mechanism and correct or explicitly resolve the section
+  coverage before cutting the affected output. Gap duration alone is not evidence of speech;
+  silence and intentionally excluded, identified songs or other sections do not trigger this
+  check. Do not add another detector or fill gaps inside the cutter.
 
 ### Sync
 
-- **S1. Cut sound and picture as one.** Cut every output in one FFmpeg pass that trims each span's
-  picture and sound together (`trim`/`atrim`, then `concat=v=1:a=1`) and encodes once. Joins are
-  then exact by construction. This removes the smart cut (`smartCutPlan`, `writeSmartCut`, the
-  transport-stream join, separate sound mux), which A2 and A3 come from. In canary 10, 69 of 98
-  cuts were already full re-encodes (source above 6 Mbps or VP9). **Measure the cost first**:
-  re-encode the 29 smart-cut spans and time them. A rough guess from canary 10 timings is 10–15%
-  more Tier C time; the measurement decides.
-- **S2. Fix `loudnorm`:** `asetpts=N/SR/TB` after the filter chain (A1), test first.
-- **S3. Check sync on every output, whole-file.** After every cut and every audio pass, sound and
-  picture must start together, end together within one audio frame, and have no timestamp step
-  beyond tolerance anywhere. A failure is never accepted. This replaces `cutIsAligned`, runs in
-  weekly processing as well as historic, and joins the canary bar.
-- **S4. A cut records the cutter that made it.** Add the code revision of the cutting code to the
-  media signature, so a changed cutter means a re-cut. For the re-run, Tier C re-cuts every
-  output.
+- **S1. One encoding path for sound and picture.** Trim each selected span's picture and sound
+  together and encode once, using `trim`/`atrim` and the paired concat filter for multiple
+  spans. Handle the source clock, segment timestamp origins and frame/sample rounding
+  explicitly; concat requires zero-based segments and may pad shorter audio. A shared pass
+  reduces the failure surface but is not proof of sync by itself. Delete `smartCutPlan`,
+  `writeSmartCut`, the transport-stream join and separate source-audio mux. In canary 10,
+  69 of 98 cuts were already full re-encodes. Benchmark representative single- and multi-span
+  outputs, including the 29 previously smart-cut spans, against the available processing window
+  and existing job timeouts. There is no 15% veto or permanent second cutter: if runtime is
+  unacceptable, address encoding settings/capacity or scheduling before batch dispatch.
+- **S2. Fix and test enhancement timing.** Reproduce A1 in a regression test, then verify the
+  proposed `asetpts=N/SR/TB` correction after the filter chain. Assert sound/picture event
+  alignment and preserved audio content through the final seconds, not just continuous packet
+  timestamps. Final enhanced media must receive the output checks too.
+- **S3. Prove sync with media tests and check each output against its source.** Use small fixtures
+  with known simultaneous sound/picture events to test off-keyframe cuts, non-zero source
+  timestamps, multiple spans and joins, the last seconds, and enhancement. Include a negative
+  control with shifted audio and regular timestamps so the test cannot mistake regularity for
+  sync. Derive explicit numerical tolerances from frame/sample resolution and encoder delay;
+  they account for representation limits, not permission to introduce cumulative drift.
+  For each real output, retain checks for readable required streams, valid timing and expected
+  duration, and scan the whole output for unexpected introduced timing discontinuities. Compare
+  anomalies with the corresponding selected source intervals, mapping through cuts and joins;
+  account for timestamp rebasing, frame/sample rounding, encoder pre-roll and legitimate source
+  irregularities. Run the check after cutting and after any enhancement pass, while source
+  evidence is available. An unexplained introduced discontinuity blocks acceptance of the
+  output with a specific reason; neither constant packet spacing nor exact equality with source
+  packets is required. Test the checker against known defective outputs and legitimate source
+  irregularities, including 1050's final frame, and measure its runtime with the cutter.
+  This catches detectable per-file timing failures; it does not prove content alignment or
+  replace the simultaneous-event fixtures. Confirmed processing-induced sync defects fail
+  acceptance even when timestamps look regular.
+- **S4. Version generated media explicitly.** Add one explicit media-processing version to the
+  existing reuse signatures/provenance for affected section clips, song videos and sermons.
+  Bump it when cutting or enhancement behaviour changes; do not infer it from Git revisions.
+  Include the selected input sections/bounds and relevant output settings in reuse decisions.
+  Missing or older versions require regeneration. Canary 10 must regenerate every output;
+  recording a new version without regenerating the asset is not sufficient.
+  Test that a version change invalidates reuse and document the bump requirement beside the
+  cutter and enhancement implementation. Do not pin source-code hashes: harmless edits change
+  them while behaviour changes in dependencies or unlisted helpers can escape them.
 
-## 5. Rulings needed
+## 5. Decisions and scope
 
-- **D1. What a sermon video contains.** (a) The sermon only. (b) The preached reading and the
-  sermon. (c) The reading, the sermon and a directly following closing prayer. Today's behaviour
-  is closest to (c), done by time arithmetic. With C1 each part is a named section.
-- **D2. When the sections cannot be trusted, hold.** No cut, review instead (C2). Confirm.
-- **D3. Smart cut or one-pass re-encode,** decided by the S1 measurement. Recommendation: one pass
-  unless it costs more than about 15% of Tier C. It deletes the most fragile code.
-- **D4. Already-published weekly media.** A1–A3 apply to weekly uploads too. Production is a
-  separate machine, so propose a read-only sync scan of published media there, then re-cut what
-  fails.
+- **D1 — operator decision, 2026-10-02:** “Sermons should be the sermon reading (if separate
+  from the sermon itself), the sermon, and a concluding prayer (if before the post-sermon
+  song).” This applies to both sermon audio and video. C1 implements it using named sections,
+  without extending the sermon boundary to the song.
+- **D2 — review boundary:** keep existing structure/content authority and publication holds;
+  remove cut-time reclassification and fallback selection as specified in C2.
+- **D3 — implementation direction:** one shared encoding path, with performance measured for
+  scheduling and capacity rather than an arbitrary percentage threshold for retaining smart cuts.
+- **D4 — separate production follow-up:** already-published weekly media may be affected too.
+  A read-only source-aware audit can identify candidates for repair; a timestamp anomaly alone
+  is not proof of drift. Production re-cuts/publication are a separate operational action, not
+  authorised by this documentation revision and not a prerequisite for implementing the cutter.
 
 ## 6. Order
 
-1. Rulings D1–D4.
-2. Build test-first, failing test first for each: S3 (makes every defect visible), S2, S1, S4,
-   C2, C1. Build them with the 1112 matcher fix already required before batch 1. One commit
-   series, then the gates (full suite, Dusk, PHPStan, Pint).
-3. Replay the census with C1/C2 and the whole-file sync check over canary 10's existing outputs,
-   to confirm that every defect found here is caught.
-4. **Canary 10 again** on the same 16 runs: fresh snapshot, saved draws, Tier C. Add to the bar:
-   every output passes S3, and no sermon is cut from anything but its named sections.
-5. Then Tier A.
+1. Write failing regressions for the known cut/enhancement defects and wrong-span fallbacks.
+   Add composition coverage for separate/embedded readings, sermon continuations, a concluding
+   prayer before the post-sermon song, excluded prayers after that song, absent optional parts,
+   intervening songs/gaps, ambiguous or missing reading references, multiple prayer candidates,
+   uncovered speech versus silence, existing holds and invalid bounds. Test the source-aware
+   output checker against known failures and legitimate source irregularities, and test version
+   invalidation. Reuse existing test suites.
+2. Record deterministic section membership and check uncovered speech during composition
+   (C1, C4), simplify the resolver and shared cutter (C2–C3, S1), fix enhancement (S2), add
+   source-aware output checks (S3), and version reuse (S4). Preserve the same selected content
+   in audio, video and saved sermon text. Inventory
+   all callers, including weekly and auto-trim processing, so deleting the fallback cannot
+   leave a caller silently depending on it. Use the existing review path where accepted
+   sections are unavailable. Complete the 1112 matcher fix already required before batch 1.
+3. Run the media regressions and normal project gates (focused/full tests, PHPStan and Pint;
+   Dusk if browser behaviour changes). Benchmark the completed path and check job timeouts.
+   Replay the census to confirm every proposed sermon span comes from its selected sections;
+   inspect changed compositions and holds rather than requiring the old cut times to survive.
+4. **Canary 10 again** on the same 16 runs, subject to the existing dispatch/custody controls:
+   fresh snapshot, saved draws and regenerated Tier C outputs. Require section-exact membership,
+   current media versions, resolved membership/coverage questions, passing source-aware output
+   checks and no confirmed processing-induced sync defect. Check
+   known failure points and actual sound/picture alignment at joins and after enhancement.
+5. Accept canary 10 under the existing operator acceptance process, then Tier A. Track the
+   already-published weekly-media audit separately (D4).

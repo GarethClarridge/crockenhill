@@ -28,7 +28,8 @@
 >   sound/picture drift is a defect** and that **a cut is the identified sections, with no
 >   second set of times**. Canary 10 is therefore **not accepted**. The causes and the
 >   redesign are in [Cut What Was Identified, In Sync](CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md);
->   Tier A waits for its rulings and a repeat of canary 10.
+>   Sermon composition is now settled in its §5 D1. Tier A waits for implementation and
+>   acceptance of the repeated canary 10.
 > - Release-side items, identity pairs and acceptance are unchanged (§4.4, §4.5).
 >
 > The 2026-09-24 to 10-02 status blocks and §4.0 narrative (route builds, canaries 1–8, freezes
@@ -496,7 +497,12 @@ extra logic about times. Canary 10 is not accepted. A whole-file sync scan found
 all in our code (`loudnorm` in song videos, span joins, smart-cut piece placement, and reuse of
 old cuts). A census of 475 runs found 46 sermons cut from the old detector's times, 26 of them
 containing songs. See [Cut What Was Identified, In Sync](CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md).
-Next: its rulings D1–D4, build test-first, then canary 10 again on the same 16 runs.
+**Follow-up operator decision — 2026-10-02:** sermon media contains the sermon reading
+(if separate), the sermon, and a concluding prayer if before the post-sermon song. The linked
+plan now records this composition and the simplified shared cutter, focused sync regression
+tests and explicit media-processing version. Next: implement test-first, then canary 10 again
+on the same 16 runs under the existing dispatch and acceptance controls. The production
+weekly-media audit is a separate follow-up.
 
 #### Batches
 
