@@ -19,9 +19,9 @@
 >   clean. `.env` unchanged after Dusk. External backups completed and verified before dispatch.
 > - **Canary 10 dispatched 2026-10-02:** all 16 runs reached Tier B; 11 completed and five await
 >   review. Draw coverage is 63/64 valid (one invalid draw on 936); all 16 bundles replay. The
->   carry-forward gate is not passed: 1112 has one conflicting saved answer about the recorded
->   testimony inside its wider talk. The review export has six questions and eight samples.
->   Resolve the conflict, then answers, recompose and Tier C against §4.0 before Tier A or batches.
+>   operator granted a bounded exception for the benign 1112 carry-forward flag (below). The
+>   review export has six questions and eight samples. Answers, recompose, accuracy and Tier C
+>   remain before Tier A or batches; the matcher fix follows the drained canary cut queue.
 > - Release-side items, identity pairs and acceptance are unchanged (§4.4, §4.5).
 >
 > The 2026-09-24 to 10-02 status blocks and §4.0 narrative (route builds, canaries 1–8, freezes
@@ -339,6 +339,29 @@ Reported, not judged: new questions on fresh draws (about 3 expected from the 11
 rate), review minutes and the samples. **A failure stops advancement and remains evidence**: fix,
 commit, new snapshot, and canary 10 again on the same set.
 
+**Operator amendment — 2026-10-02, after the Tier B result.** The predeclared bar above is
+retained as the original contract. The operator explicitly permits one exception for 1112's
+logged conflicting answer in this canary: canary 9 accepted one talk at 886–1596 s and rejected
+a separate inner testimony at 1057–1455 s. Fresh draws contain the wider talk and no separate
+inner testimony. The rejected inner scope overlaps the wider majority decision above the 0.5
+matching threshold, so the matcher reports a competing answer although the two operator
+instructions agree. Run 1112 completed with one talk and no open question. This exception does
+not excuse any other conflicting answer, re-asked decision, accuracy, custody or cut failure;
+the canary has not yet passed. The evidence is the banked compositions and saved rulings,
+`storage/scratch/c10_1112.out` and the private canary batch report.
+
+Before batch 1, fix the matcher after the canary cut queue drains. Write the reproducing test
+first and cover a genuine contradictory answer as well. A rejected standalone inner section
+must not compete with, or remove, the accepted containing talk when the inner section is
+already absent. Preserve the evidence and check the corrected matcher against this saved bundle.
+
+The 17 stale answers were compared with the final banked compositions, not just their source
+hashes (`storage/app/private/canary10-20261002/stale-content-audit.json`). Rejected standalone
+fragments are absent or merged, and the settled passages remain represented. Accuracy review
+still includes 964's chosen Psalm 105 start (141.998 s → 145.017 s), 936's corrected closing-hymn
+introduction now split into adjacent sections, and 1358's opening Revelation verse-reference
+change. These differences are retained as evidence; source listening and cut acceptance remain.
+
 #### Batches
 
 **Tier A** starts once canary 10 passes (dispatch only after its custody diff is clean): 170 runs,
@@ -365,7 +388,10 @@ round.
 - a sampled majority decision is overruled: investigate rule D; two in one batch stop it;
 - more than three new talks under 60 s in one batch are confirmed false (standing decision 5);
 - more than 10% of a batch's ensembles lose a draft (provider trouble);
-- questions per run exceed twice canary 10's rate (the rules are not carrying to new services).
+- unresolved composer disputes per run, **before saved answers**, exceed **2.0**. The operator
+  adopted the raw canary 10 baseline of 16 disputes / 16 runs = **1.0** on 2026-10-02, replacing
+  the post-answer rate of 0.31. Use the same composer-dispute unit in later batches; a dispute
+  may produce more than one review-page question. Samples are excluded from this rate.
 
 **Performance.** Tier C dominates: about 50–58 hours on one ffmpeg worker at `veryfast` (60–68 at
 `faster`, measured on canary 5). Tier B rounds take about 88 s a run on the one LLM worker (about
