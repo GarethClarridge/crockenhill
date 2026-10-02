@@ -65,6 +65,74 @@ class EnsembleReviewExport
     }
 
     /**
+     * A sampled check of a run's sermon cut, for a run the ensemble asked nothing about: the cut
+     * Tier C will make (the round's deferred plan), or the composed sermon outside a round.
+     *
+     * Agreement cannot show an error every draft shares, so a few question-free cuts per batch are
+     * heard to estimate how often one gets through (plan §4.0, batch learning). The answer is a
+     * measurement: it is recorded for the batch report and never applied to the run.
+     *
+     * @return array{id: string, run: int, decided: bool, question_id: null, type: string, title: string, context: string, question: string, options: list<array{0: string, 1: string}>, answers: array<string, array{kind: string, slot: int|null}>, clips: list<array{start: float, end: float, label: string, cues: list<array{t: float, x: string}>}>}|null
+     */
+    public function cutCheck(MediaProcessingLog $log): ?array
+    {
+        $bank = $log->processing_metadata?->raw['service_structure_ensemble'] ?? null;
+        $evidence = is_array($bank) && $bank !== [] ? end($bank) : null;
+
+        if (! is_array($evidence)) {
+            return null;
+        }
+
+        $segments = $log->latestCorpusRerunDetection()['deferred_extraction_plan']['segments'] ?? null;
+        $source = 'the cut this round planned';
+
+        if (! is_array($segments) || $segments === []) {
+            $sermons = array_values(array_filter(
+                $evidence['composition']['structure']['sections'] ?? [],
+                static fn (mixed $section): bool => is_array($section) && ($section['type'] ?? null) === ServiceSectionType::Sermon->value,
+            ));
+            $segments = $sermons === [] ? [] : [['start_time' => $sermons[0]['start_time'], 'end_time' => $sermons[0]['end_time']]];
+            $source = 'the composed sermon';
+        }
+
+        if ($segments === []) {
+            return null;
+        }
+
+        $from = (float) $segments[0]['start_time'];
+        $to = (float) $segments[count($segments) - 1]['end_time'];
+        $cues = $this->replay->snapshot($evidence)['transcript']['cues'] ?? [];
+        $cues = is_array($cues) ? array_values(array_filter($cues, 'is_array')) : [];
+        $windows = [
+            [max(0.0, $from - self::EDGE_CONTEXT_SECONDS), $from + self::EDGE_CONTEXT_SECONDS, 'Around the start'],
+            [max(0.0, $to - self::EDGE_CONTEXT_SECONDS), $to + self::EDGE_CONTEXT_SECONDS, 'Around the end'],
+        ];
+
+        return [
+            'id' => "{$log->id}-c0",
+            'run' => $log->id,
+            'decided' => false,
+            'question_id' => null,
+            'type' => 'sample_cut',
+            'title' => 'Sampled cut: sermon '.$this->clock($from).'–'.$this->clock($to).' ('.$this->serviceHeading($log).')',
+            'context' => sprintf('The four drafts agreed on this service, so nothing was asked. This is %s, chosen at random to measure how often an agreed cut is wrong. Your answer is recorded, not applied.', $source),
+            'question' => 'Does the cut start and end in the right places?',
+            'options' => [['right', 'Yes — both edges are right'], ['wrong', 'No — say what is wrong in the note'], ['defer', 'Can’t tell']],
+            'answers' => [
+                'right' => ['kind' => 'sample_right', 'slot' => null],
+                'wrong' => ['kind' => 'sample_wrong', 'slot' => null],
+                'defer' => ['kind' => 'defer', 'slot' => null],
+            ],
+            'clips' => array_map(fn (array $window): array => [
+                'start' => round($window[0], 2),
+                'end' => round($window[1], 2),
+                'label' => $window[2],
+                'cues' => $this->cuesBetween($cues, $window[0], $window[1]),
+            ], $windows),
+        ];
+    }
+
+    /**
      * @param  array<string, mixed>  $dispute
      * @param  list<array<string, mixed>>  $cues
      * @return array{id: string, run: int, decided: bool, question_id: string, type: string, title: string, context: string, question: string, options: list<array{0: string, 1: string}>, answers: array<string, array{kind: string, slot: int|null}>, clips: list<array{start: float, end: float, label: string, cues: list<array{t: float, x: string}>}>}
@@ -96,7 +164,11 @@ class EnsembleReviewExport
                 ? ucfirst($this->noun($type))." ({$heading})"
                 : ucfirst($this->noun($type)).' at '.$this->clock($from).'–'.$this->clock((float) $to)." ({$heading})",
             'context' => $this->context($type, $dispute, $alternatives, $decided),
-            'question' => $decided ? 'Is the majority right?' : 'Which is right?',
+            'question' => match (true) {
+                ($dispute['check'] ?? null) === TalkEdgeChecks::CHECK => $this->edgeQuestion($dispute),
+                $decided => 'Is the majority right?',
+                default => 'Which is right?',
+            },
             'options' => $options,
             'answers' => $answers,
             'clips' => $spans === [] ? [] : $this->clips($spans, $cues),
@@ -120,6 +192,23 @@ class EnsembleReviewExport
             return [
                 [['accept', 'Accept the structure from the drafts that completed'], ['defer', 'Can’t tell']],
                 ['accept' => ['kind' => 'accept', 'slot' => null], 'defer' => ['kind' => 'defer', 'slot' => null]],
+            ];
+        }
+
+        if (($dispute['check'] ?? null) === TalkEdgeChecks::CHECK && $alternatives !== []) {
+            $section = $alternatives[0]['section'];
+
+            return [
+                [
+                    ['alt0', sprintf('Yes — the talk is right as proposed, %s–%s', $this->clock((float) $section['start_time']), $this->clock((float) $section['end_time']))],
+                    ['neither', 'No — say where it should start or end in the note'],
+                    ['defer', 'Can’t tell'],
+                ],
+                [
+                    'alt0' => ['kind' => 'choose', 'slot' => (int) $alternatives[0]['slots'][0]],
+                    'neither' => ['kind' => 'correct', 'slot' => null],
+                    'defer' => ['kind' => 'defer', 'slot' => null],
+                ],
             ];
         }
 
@@ -206,6 +295,19 @@ class EnsembleReviewExport
 
         if ($type === 'alignment') {
             return 'One draft’s section could belong to more than one of the others’ sections.';
+        }
+
+        if (($dispute['check'] ?? null) === TalkEdgeChecks::CHECK) {
+            $touches = array_map(
+                fn (array $neighbour): string => sprintf('its %s runs straight into %s “%s”', $neighbour['edge'], $this->withArticle($this->noun((string) $neighbour['type'])), $neighbour['title'] ?? 'untitled'),
+                array_values(array_filter($dispute['neighbours'] ?? [], 'is_array')),
+            );
+
+            return sprintf(
+                'All %d drafts agree on this talk, but %s with no pause, where an error every draft shares would hide. Listen to the edge.',
+                $this->voterCount($dispute, $alternatives),
+                implode(' and ', $touches),
+            );
         }
 
         $noun = $this->withArticle($this->noun($type));
@@ -338,6 +440,18 @@ class EnsembleReviewExport
         $slots = array_merge($dispute['absent_slots'] ?? [], ...array_column($alternatives, 'slots'));
 
         return max(1, count(array_unique($slots)));
+    }
+
+    /** @param  array<string, mixed>  $dispute */
+    private function edgeQuestion(array $dispute): string
+    {
+        $edges = $dispute['edges'] ?? [];
+
+        return match (true) {
+            $edges === ['start'] => 'Does the talk start in the right place?',
+            $edges === ['end'] => 'Does the talk end in the right place?',
+            default => 'Does the talk start and end in the right places?',
+        };
     }
 
     private function serviceHeading(MediaProcessingLog $log): string

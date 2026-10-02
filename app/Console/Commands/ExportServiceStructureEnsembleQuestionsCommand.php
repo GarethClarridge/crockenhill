@@ -11,6 +11,8 @@ use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use Random\Engine\Mt19937;
+use Random\Randomizer;
 use RuntimeException;
 use Throwable;
 
@@ -18,6 +20,11 @@ use Throwable;
  * Writes the operator's review page for a batch: every open ensemble question and every
  * majority decision, each with a clip of the recording and its transcript, plus the map the
  * apply command answers from. Reads only; nothing is answered or synced.
+ *
+ * Two optional samples measure what review alone cannot (plan §4.0, batch learning): majority
+ * decisions moved from the skim list into the questions, so the rate a three-to-one vote is wrong
+ * is known on services the rules were not tuned on, and question-free runs whose cut is heard,
+ * so the rate an agreed cut is wrong is known. Both are drawn with a recorded seed.
  */
 class ExportServiceStructureEnsembleQuestionsCommand extends Command
 {
@@ -25,7 +32,10 @@ class ExportServiceStructureEnsembleQuestionsCommand extends Command
         {runs?* : Processing log ids; without them, --since selects the batch}
         {--since= : Every run whose latest ensemble bundle started at or after this time}
         {--out= : Directory for index.html, clips/ and answers-map.json (default storage/scratch/ensemble-review-<time>)}
-        {--title=Ensemble questions : Page title and heading}';
+        {--title=Ensemble questions : Page title and heading}
+        {--sample-decided=0 : Majority decisions drawn at random to be answered, measuring how often a three-to-one vote is wrong}
+        {--sample-cuts=0 : Question-free runs drawn at random to have their cut heard, measuring how often an agreed cut is wrong}
+        {--seed= : Seed for the draws, recorded in answers-map.json (default: random)}';
 
     protected $description = 'Write a review page of open ensemble questions and majority decisions, with a clip for each, read-only';
 
@@ -46,15 +56,12 @@ class ExportServiceStructureEnsembleQuestionsCommand extends Command
             throw new RuntimeException("Cannot create {$clipDirectory}.");
         }
 
-        $questions = [];
-        $decided = [];
-        $map = [];
+        $entries = [];
         $failed = false;
 
         foreach ($logs as $log) {
             try {
                 $items = $export->items($log);
-                $audio = $items === [] ? null : $this->audioPath($log);
             } catch (Throwable $exception) {
                 $this->error("Run {$log->id}: {$exception->getMessage()}");
                 $failed = true;
@@ -62,47 +69,91 @@ class ExportServiceStructureEnsembleQuestionsCommand extends Command
                 continue;
             }
 
+            $open = count(array_filter($items, static fn (array $item): bool => ! $item['decided']));
+            $this->line(sprintf('Run %d: %d open, %d settled by majority', $log->id, $open, count($items) - $open));
+
             foreach ($items as $item) {
-                $clips = [];
-
-                foreach ($item['clips'] as $index => $clip) {
-                    $file = "{$item['id']}-{$index}.mp3";
-                    $this->cut((string) $audio, $clip['start'], $clip['end'], "{$clipDirectory}/{$file}");
-                    $clips[] = ['src' => "clips/{$file}", 'offset' => $clip['start'], 'end' => $clip['end'], 'label' => $clip['label'], 'cues' => $clip['cues']];
-                }
-
-                $page = [
-                    'id' => $item['id'],
-                    'run' => $item['run'],
-                    'decided' => $item['decided'],
-                    'title' => $item['title'],
-                    'context' => $item['context'],
-                    'question' => $item['question'],
-                    'options' => $item['options'],
-                    'clips' => $clips,
-                ];
-
-                if ($item['decided']) {
-                    $decided[] = $page;
-                } else {
-                    $questions[] = $page;
-                }
-
-                $map[$item['id']] = [
-                    'run' => $item['run'],
-                    'question_id' => $item['question_id'],
-                    'decided' => $item['decided'],
-                    'type' => $item['type'],
-                    'title' => $item['title'],
-                    'answers' => $item['answers'],
-                ];
+                $entries[] = ['log' => $log, 'item' => $item, 'sampled' => false];
             }
 
-            $this->line(sprintf('Run %d: %d open, %d settled by majority', $log->id, count(array_filter($items, static fn (array $item): bool => ! $item['decided'])), count(array_filter($items, static fn (array $item): bool => $item['decided']))));
+            if ($open === 0 && (int) $this->option('sample-cuts') > 0) {
+                $check = $export->cutCheck($log);
+
+                if ($check !== null) {
+                    $entries[] = ['log' => $log, 'item' => $check, 'sampled' => false, 'cut_candidate' => true];
+                }
+            }
+        }
+
+        $seed = is_numeric($this->option('seed')) ? (int) $this->option('seed') : random_int(1, PHP_INT_MAX);
+        $entries = $this->sample($entries, $seed);
+        $questions = [];
+        $decided = [];
+        $map = [];
+        $audio = [];
+
+        foreach ($entries as $entry) {
+            $log = $entry['log'];
+            $item = $entry['item'];
+
+            if (! array_key_exists($log->id, $audio)) {
+                try {
+                    $audio[$log->id] = $this->audioPath($log);
+                } catch (Throwable $exception) {
+                    $this->error("Run {$log->id}: {$exception->getMessage()}");
+                    $failed = true;
+                    $audio[$log->id] = null;
+                }
+            }
+
+            if ($audio[$log->id] === null) {
+                continue;
+            }
+
+            $clips = [];
+
+            foreach ($item['clips'] as $index => $clip) {
+                $file = "{$item['id']}-{$index}.mp3";
+                $this->cut($audio[$log->id], $clip['start'], $clip['end'], "{$clipDirectory}/{$file}");
+                $clips[] = ['src' => "clips/{$file}", 'offset' => $clip['start'], 'end' => $clip['end'], 'label' => $clip['label'], 'cues' => $clip['cues']];
+            }
+
+            $askedNow = ! $item['decided'] || $entry['sampled'];
+            $page = [
+                'id' => $item['id'],
+                'run' => $item['run'],
+                'decided' => ! $askedNow,
+                'title' => $entry['sampled'] ? 'Sampled majority decision: '.$item['title'] : $item['title'],
+                'context' => $item['context'],
+                'question' => $item['question'],
+                'options' => $item['options'],
+                'clips' => $clips,
+            ];
+
+            if ($askedNow) {
+                $questions[] = $page;
+            } else {
+                $decided[] = $page;
+            }
+
+            $map[$item['id']] = [
+                'run' => $item['run'],
+                'question_id' => $item['question_id'],
+                'decided' => $item['decided'],
+                'sampled' => $entry['sampled'],
+                'type' => $item['type'],
+                'title' => $item['title'],
+                'answers' => $item['answers'],
+            ];
         }
 
         file_put_contents("{$out}/answers-map.json", json_encode([
             'generated_at' => now()->toIso8601String(),
+            'samples' => [
+                'seed' => $seed,
+                'decided' => count(array_filter($map, static fn (array $item): bool => $item['sampled'] && $item['decided'])),
+                'cuts' => count(array_filter($map, static fn (array $item): bool => $item['type'] === 'sample_cut')),
+            ],
             'items' => $map,
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
 
@@ -119,6 +170,33 @@ class ExportServiceStructureEnsembleQuestionsCommand extends Command
         $this->info(sprintf('%d questions and %d majority decisions over %d runs written to %s', count($questions), count($decided), count($logs), $out));
 
         return $failed ? self::FAILURE : self::SUCCESS;
+    }
+
+    /**
+     * Marks the drawn majority decisions as sampled and keeps only the drawn cut checks.
+     *
+     * @param  list<array{log: MediaProcessingLog, item: array<string, mixed>, sampled: bool, cut_candidate?: bool}>  $entries
+     * @return list<array{log: MediaProcessingLog, item: array<string, mixed>, sampled: bool, cut_candidate?: bool}>
+     */
+    private function sample(array $entries, int $seed): array
+    {
+        $randomizer = new Randomizer(new Mt19937($seed));
+        $decided = array_keys(array_filter($entries, static fn (array $entry): bool => $entry['item']['decided'] === true));
+        $cuts = array_keys(array_filter($entries, static fn (array $entry): bool => ($entry['cut_candidate'] ?? false) === true));
+        $drawnDecided = array_slice($randomizer->shuffleArray($decided), 0, max(0, (int) $this->option('sample-decided')));
+        $drawnCuts = array_slice($randomizer->shuffleArray($cuts), 0, max(0, (int) $this->option('sample-cuts')));
+
+        $kept = [];
+
+        foreach ($entries as $index => $entry) {
+            if (($entry['cut_candidate'] ?? false) === true && ! in_array($index, $drawnCuts, true)) {
+                continue;
+            }
+
+            $kept[] = [...$entry, 'sampled' => in_array($index, $drawnDecided, true)];
+        }
+
+        return $kept;
     }
 
     /** @return list<MediaProcessingLog> */
