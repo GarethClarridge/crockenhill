@@ -23,6 +23,12 @@
 >   finalized answers are applied, six runs recomposed with no new draws, and all 16 have no
 >   open question. All eight samples pass. Tier C dispatched all 16, then paused after 936
 >   failed the input gate on projection-only OoS renumbering; see the recovery record below.
+>   After three gate fixes (through `da7e4900b`), all 16 were recomposed from saved draws and
+>   cut. The predeclared bar was met as written, but the operator then ruled that **any
+>   sound/picture drift is a defect** and that **a cut is the identified sections, with no
+>   second set of times**. Canary 10 is therefore **not accepted**. The causes and the
+>   redesign are in [Cut What Was Identified, In Sync](CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md);
+>   Tier A waits for its rulings and a repeat of canary 10.
 > - Release-side items, identity pairs and acceptance are unchanged (§4.4, §4.5).
 >
 > The 2026-09-24 to 10-02 status blocks and §4.0 narrative (route builds, canaries 1–8, freezes
@@ -434,6 +440,63 @@ The source ingestion guard against replaying superseded evidence is unchanged. T
 failed on that guard before the fix and passes afterwards, including final-pass idempotence;
 62 focused tests and the full suite (9,109 tests) pass; PHPStan and Pint are clean. All earlier snapshots remain custody
 evidence. Recovery continues with the saved bundles and operator answers, without new draws.
+
+**Canary 10 result — 2026-10-02, after Tier C.** Snapshot `reuse-provenance-before.json` on
+`da7e4900b`; the ffmpeg worker started after that commit. All 16 recomposed from saved draws
+(32 banked attempts unchanged, 0 new draws, 0 open questions), and Tier C dispatched all 16 at
+16:38Z. The queue drained at 18:33Z with 0 failed jobs; all 16 are `completed` and stamped
+`extracted`. Every predeclared criterion is met as written, with the two operator amendments
+above (1112's carry exception, saved-draw recovery). Three findings for the operator follow
+the list. Evidence is in `canary10-20261002/`: `diff-after-tier-c.json`,
+`original-before-diff-after-tier-c.json`, `media-after-tier-c.json`, `cut-gapscan.json`,
+`canary10-score.json` and `batch-report-after-tier-c.{json,txt}`. Scripts are
+`storage/scratch/canary10-measure-20261002.php`, `canary10-gapscan-20261002.py` and
+`canary10/score.php`, copied from the canary 6 and canary 9 harnesses.
+
+- *Custody:* against the recovery snapshot, 0 runs need attention and 0 have custody pending.
+  Against the original `before.json`, 10 runs list 25 sections that "left review". In
+  `before.json` each was in review only through `structure_ensemble_disagrees`, the
+  open-question flag; those questions are answered, and all 25 were already out of review in
+  the recovery snapshot. Neither diff has a lost hold, lost or removed media, or anything
+  public. The 20 newly published songs are all `section_published_into_quarantine`. For 1221:
+  §2718 was retitled "King of Kings" → "King Of Kings" (canary 9's failure shape) and
+  re-cut, not deleted. §2727 and its song video 659 were re-cut.
+- *Draws, carry, recompose:* as recorded above (63/64 valid, with 936's lost draw shown as
+  reduced coverage; every bundle replays). 1 conflicting answer, which is 1112's excepted one.
+- *Accuracy:* against `detection-truth-20260928.json`, 0 talk-count errors (flagged or
+  unflagged), every truth section matched, and 0 wrong cuts. For the 13 scored cuts, the
+  written video matches the planned span to within 0.05 s. Samples: 0/5 majority decisions
+  overruled, 0/3 cuts wrong.
+- *Cut:* 72 files measured plus 1221 §2718, none missing, at `veryfast`. 70 of 73 have
+  regular frame timing. Two of the three exceptions are not this round's defects: 1050's last
+  frame (+0.1 s, in the recording, as canary 6), and 1028 §1398's held clip, a 09-27 cut
+  reused because its section did not change (1112's song video 614 was reused the same way).
+
+**Findings for the operator (not failures of the bar as written):**
+
+1. **936 sermon, half-frame step at 59.25 s.** The stream-copied piece and the re-encoded tail
+   of the first span join 0.049 s apart instead of 0.033 s. No frame is lost or repeated: the
+   span holds 1,799 frames against 1,798.8 planned. The source has no part boundary there and
+   is regular (33/34 ms steps, keyframe at 248.0 s in `11-02.mkv`), so the cut introduced it.
+   The step is a 16 ms timing hold, not a missing frame. Accept, or investigate the piece
+   placement on millisecond-clock Matroska before batches.
+2. **Sermons merged across an interruption are cut from the baseline.** In 1050, 1250 and 1356,
+   detection's sermon matches the truth. However, `structure_sermon_interruption_merged` is a
+   `MATERIAL_BOUNDARY_FLAGS` entry, so the resolver falls back to the dominant speech segment
+   (`no_high_confidence_sermon_section`). 1050 is cut 0–920 s (truth 79–838), 1250 is cut
+   1739–4391 s (truth 2454–4310; it started at 2182 s before this round), and 1356 is cut
+   1233–3555 s (truth 1234–3489). All three sermon sections have `needs_manual_review`,
+   are quarantined and remain unscored as in canary 9. This is designed behaviour, but the
+   held cut is worse than the detected span. A rule change would come before batch 1.
+3. The 1112 matcher fix (above) remains required before batch 1.
+
+**Operator ruling — 2026-10-02, after the result.** "Anything that gets audio out of sync
+with video is bad", and a cut should simply be the video for what was identified, with no
+extra logic about times. Canary 10 is not accepted. A whole-file sync scan found four causes,
+all in our code (`loudnorm` in song videos, span joins, smart-cut piece placement, and reuse of
+old cuts). A census of 475 runs found 46 sermons cut from the old detector's times, 26 of them
+containing songs. See [Cut What Was Identified, In Sync](CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md).
+Next: its rulings D1–D4, build test-first, then canary 10 again on the same 16 runs.
 
 #### Batches
 

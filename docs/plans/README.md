@@ -103,9 +103,11 @@ in the [historic defect plan's §4.0](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPT
 [ensemble structure detection](HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md) is built and passed
 canary 9 on detection; its custody fault is fixed. The recompose round, code-revision freeze and
 review tooling are committed through `e42c8e338` (2026-10-02), with all quality gates passing.
-The operator authorised canary 10; dispatch awaits snapshot, worker restart and backup preflight,
-then Tier C against its predeclared bar, then Tier A and the batches. The detection reliability
-work package is complete and archived.
+Canary 10 ran on 2026-10-02 and met its predeclared bar. The operator did not accept it: any
+sound/picture drift is a defect, and a cut must be the identified sections.
+[Cut What Was Identified, In Sync](CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md) traces the causes
+and proposes the redesign, which awaits rulings D1–D4. Then canary 10 runs again, followed by
+Tier A and the batches. The detection reliability work package is complete and archived.
 
 | Order | Plan | Verified status | Next independently useful slice |
 |---|---|---|---|
