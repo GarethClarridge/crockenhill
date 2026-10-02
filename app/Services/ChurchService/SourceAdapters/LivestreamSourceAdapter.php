@@ -44,10 +44,34 @@ class LivestreamSourceAdapter
                 'version' => self::FORMAT_VERSION,
                 'processing_id' => $processingLog->processing_id,
                 ...$this->historicCorroborationFingerprint($processingLog),
+                ...$this->corpusRoundFingerprint($processingLog),
             ],
             serviceContent: $serviceContent,
             capturedAt: $processingLog->completed_at ?? $processingLog->updated_at ?? now(),
         );
+    }
+
+    /**
+     * A recompose round legitimately observes its provisional payload again before song
+     * refinement. Keep that new observation distinct from the previous round's superseded
+     * payload, while retries within the same round retain an identical revision identity.
+     *
+     * @return array<string, mixed>
+     */
+    private function corpusRoundFingerprint(MediaProcessingLog $processingLog): array
+    {
+        $round = $processingLog->latestCorpusRerunDetection();
+
+        if ($round === null) {
+            return [];
+        }
+
+        return [
+            'corpus_rerun_round' => [
+                'snapshot_file_sha256' => $round['snapshot_file_sha256'] ?? null,
+                'dispatched_at' => $round['dispatched_at'] ?? null,
+            ],
+        ];
     }
 
     /**

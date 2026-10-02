@@ -417,6 +417,24 @@ must precede recomposition and extraction; the operator's saved-draw exception s
 this same projection-only defect. Original before.json and both recovery attempts remain
 custody evidence, and the 1112 exception and all other acceptance gates remain as recorded.
 
+
+**Projection provenance follow-up — 2026-10-02.** The next snapshot,
+`canary10-20261002/reuse-shared-guard-before.json` on `fe605f442`, passed detection's shared
+input guard for all 16 saved bundles, with unchanged attempts and zero questions. Projection
+then exposed a separate round-identity omission: the provisional song payload had already
+been superseded by the previous round's refined payload, so ingestion refused to replay it.
+936 and 1050 completed; the other 14 failed after exhausting retries. No Tier C was dispatched.
+The failures were settled through the existing manual-review transition, with the complete
+pre-transition records saved in `projection-retirement-before.json` and no evidence deleted.
+
+LivestreamSourceAdapter now retains the latest detection round's snapshot hash and dispatch
+time as immutable processing provenance. A new recorded round may legitimately observe its
+provisional payload before refinement; a retry of the same round keeps the same identity.
+The source ingestion guard against replaying superseded evidence is unchanged. The regression
+failed on that guard before the fix and passes afterwards, including final-pass idempotence;
+62 focused tests and the full suite (9,109 tests) pass; PHPStan and Pint are clean. All earlier snapshots remain custody
+evidence. Recovery continues with the saved bundles and operator answers, without new draws.
+
 #### Batches
 
 **Tier A** starts once canary 10 passes (dispatch only after its custody diff is clean): 170 runs,

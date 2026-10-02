@@ -699,6 +699,48 @@ class LivestreamChurchServiceProjectionServiceTest extends TestCase
     }
 
     #[Test]
+    public function test_a_new_saved_draw_round_can_project_before_repeating_song_refinement(): void
+    {
+        $song = Song::factory()->create(['title' => 'In Christ Alone']);
+        $log = $this->createProcessingLog('2026-03-23', SermonService::Morning);
+        [$section] = $this->createSections($log, [
+            ['type' => ServiceSectionType::Song, 'title' => 'In Christ Alone', 'confidence' => 0.9],
+        ]);
+        $log->putCorpusRerunStamp([
+            'detection' => 'recompose',
+            'snapshot_file_sha256' => str_repeat('a', 64),
+            'dispatched_at' => '2026-10-02T12:00:00+00:00',
+        ]);
+        $this->service->project($log, refining: false);
+        $matched = [
+            'transcript_song_match' => [
+                'song_id' => $song->id,
+                'title' => 'In Christ Alone',
+                'confidence' => 0.95,
+                'match_source' => 'title_hint_canonical',
+            ],
+        ];
+        $section->forceFill(['song_match_type' => ServiceSectionSongMatchType::Confirmed, 'metadata' => $matched])->save();
+        $this->service->project($log, refining: true);
+
+        $log->putCorpusRerunStamp([
+            'detection' => 'recompose',
+            'snapshot_file_sha256' => str_repeat('b', 64),
+            'dispatched_at' => '2026-10-02T13:00:00+00:00',
+        ]);
+        $section->forceFill(['song_match_type' => null, 'metadata' => null])->save();
+        $this->service->project($log, refining: false);
+        $section->forceFill(['song_match_type' => ServiceSectionSongMatchType::Confirmed, 'metadata' => $matched])->save();
+        $this->service->project($log, refining: true);
+        $count = ChurchServiceSourceRecord::query()->where('source', ChurchServiceSource::Livestream->value)->count();
+        $this->service->project($log, refining: true);
+
+        $this->assertSame(4, $count);
+        $this->assertSame($count, ChurchServiceSourceRecord::query()->where('source', ChurchServiceSource::Livestream->value)->count());
+        $this->assertTrue($log->fresh()->churchService->items()->where('song_id', $song->id)->exists());
+    }
+
+    #[Test]
     public function test_provisional_projection_does_not_set_review_state(): void
     {
         $churchService = ChurchService::factory()->create([
