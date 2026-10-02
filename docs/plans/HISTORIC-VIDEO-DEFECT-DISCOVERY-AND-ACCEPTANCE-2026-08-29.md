@@ -16,9 +16,12 @@
 >   report; a held-transcript report and an operator release command.
 > - **Committed 2026-10-02:** `f3b8f8893` through `e42c8e338`; the operator adopted the closing-prayer
 >   exemption and authorised canary 10. Gates: 9,106 tests and 59 Dusk tests pass; PHPStan and Pint
->   clean. `.env` unchanged after Dusk. External backup authorisation is pending before dispatch.
-> - **Next:** snapshot and restart the workers, then **canary 10** on the 16 batch-1 runs
->   **including Tier C**, against the bar predeclared in §4.0. Then Tier A, then batches.
+>   clean. `.env` unchanged after Dusk. External backups completed and verified before dispatch.
+> - **Canary 10 dispatched 2026-10-02:** all 16 runs reached Tier B; 11 completed and five await
+>   review. Draw coverage is 63/64 valid (one invalid draw on 936); all 16 bundles replay. The
+>   carry-forward gate is not passed: 1112 has one conflicting saved answer about the recorded
+>   testimony inside its wider talk. The review export has six questions and eight samples.
+>   Resolve the conflict, then answers, recompose and Tier C against §4.0 before Tier A or batches.
 > - Release-side items, identity pairs and acceptance are unchanged (§4.4, §4.5).
 >
 > The 2026-09-24 to 10-02 status blocks and §4.0 narrative (route builds, canaries 1–8, freezes
@@ -344,7 +347,7 @@ Tier B batches use the LLM worker. Then raise the 945 and 1342 holds, take a new
 code is unchanged, so no commit is needed), and run the held-transcript report after each batch's
 round.
 
-**Batch shape, proposed (adopt or amend before batch 1):**
+**Batch shape, adopted by the operator 2026-10-02:**
 
 - About 40 runs a batch, in era order: about 5 hours of Tier C and, at canary 9's rate after rules
   plus the talk-edge checks, about 35 questions.
@@ -354,7 +357,7 @@ round.
   answers → recompose → held-transcript releases → Tier C → diff → back up → batch report → rule
   proposals.
 
-**Stop rules, proposed (adopt or amend before batch 1):** stop before the next batch when any of:
+**Stop rules, adopted by the operator 2026-10-02:** stop before the next batch when any of:
 
 - a live hold is lost or anything becomes public;
 - a sampled cut is judged wrong with no question raised on it (an unflagged error): investigate
@@ -373,7 +376,7 @@ rule commit does, and it waits until the cut queue has drained.
 
 #### Open before batch 1
 
-- Adopt or amend the batch shape and stop rules above.
+- Batch shape and stop rules adopted 2026-10-02 as written above.
 - Talk-ending prayer exemption adopted 2026-10-02 (built 4); retain checks at other speech edges.
 - Raise the 945 §669 and 1342 §4319 holds after Tier A writes their text.
 - Run the held-transcript report and release what listening confirms.
@@ -1324,7 +1327,7 @@ check against the 09-17 speech-edge trim) deserve a closer look before being bui
 | Gate | State | Required evidence to turn green |
 |---|---|---|
 | Processing | GO | Definitive passes drained; the three former failures have recorded terminal dispositions in §4.5 (19 September). This is dated execution evidence, not a new live census. |
-| Queued repair readiness | **CONDITIONAL GO for canary 10 only (2026-10-02)** | Canary 9's detection passed and its custody fault is fixed (`1210d534e`); the recompose round, code revision and review tooling are committed through `e42c8e338` (§4.0). The operator authorised canary 10 on 2026-10-02; snapshot, worker restart and the §4.0 preflight still precede dispatch, including the external backup. Batches wait for its predeclared bar. Actual-server range, repaired-output, song-clip and cache checks remain release evidence. |
+| Queued repair readiness | **CONDITIONAL GO for canary 10 only (2026-10-02)** | Canary 9's detection passed and its custody fault is fixed (`1210d534e`); the recompose round, code revision and review tooling are committed through `e42c8e338` (§4.0). The operator authorised canary 10 on 2026-10-02; snapshot, worker restart, the §4.0 preflight and external backups completed before all 16 runs were dispatched. Five runs await six review answers; recompose and Tier C remain. Batches wait for its predeclared bar. Actual-server range, repaired-output, song-clip and cache checks remain release evidence. |
 | Containment | **NO-GO** | The six disputed sermons and their seven song videos were held on 2026-09-16 and the sections those holds left published were demoted the same hour (§4.4), so the identity gate-clear gap is closed and published-while-held is zero again. Remaining: the current-policy and unassessable residue. Containment is not adoption — the three pairs are still undecided, and the holds are what make deferring them safe. |
 | Content acceptance | **NO-GO** | The strengthened stopping rule (carried items, "Rulings and stopping rule") passes: scoped coverage and limitations, omission reconciliation, independent source evidence, content handoffs, controlled variations/interruption tests, tail and whole-output reviews. Every §4.3a class has a tested response or recorded decision; detector errors and review burden are evaluated against predeclared criteria using H9/H10's retrospective, source-adjudicated evidence, with measured units and limitations explicit. There is no reserved historic set; insufficient evidence is not a pass, and H10b disagreement counts are not complete recall. The fresh release-membership sample includes repaired/held runs and meets its separate predeclared limits. Evidence is bound to current artifacts; operator rulings are recorded. |
 | Public release | **NO-GO** | Phase 9 convergence, QA and actual-server browser checks pass, then the operator signs an exact era-sized batch. Actual-destination delivery checks are scheduled within the authorised release's rollback window and must pass to close observation. |
