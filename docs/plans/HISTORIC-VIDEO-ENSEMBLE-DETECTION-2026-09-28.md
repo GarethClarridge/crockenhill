@@ -1,18 +1,22 @@
 # Ensemble structure detection
 
-**Status — 2026-09-28 (after Codex review): REVISED IMPLEMENTATION PLAN; not implemented.**
-The operator requested that the review and deterministic-review-loop recommendations be incorporated.
-The pre-revision plan is preserved in commit `2bb569482`. These are documentation commits, not a
-new processing freeze: the freeze (`3ffe4b54c`), canary-8 FAIL and dispatch HOLD remain unchanged.
-The operator's follow-up decisions of 2026-09-29 (§0, items 7–11) split delivery around canary 9
-and settle Q5, ER1's scope, rule adoption and job retry. Items 12–13 (2026-09-29/30) hold filler, song
-and reading timings to agreement only where they change a cut.
+**Status — 2026-10-02: BUILT, evaluated and canaried; this is the design authority and the register
+of operator decisions on what the ensemble compares.** Built from `92040d273` (2026-09-29), evaluated
+over 232 paid draws (§6 evaluation, 2026-09-30) and run as canary 9 (2026-09-30: detection passed,
+custody failed and was fixed in `1210d534e`). Decisions 12–20 were each measured by replaying saved
+draws before adoption (decision 10). Decisions 21–23 (2026-10-02) prepare the final canary.
+Execution, the canary bar and the batches live in the
+[historic plan's §4.0](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md).
 
-This plan belongs to the [detection reliability work package](HISTORIC-VIDEO-DETECTION-RELIABILITY-2026-09-28.md)
-(§0 records today's rulings and measurements). This is the design authority for its revised
-DR1–DR6 delivery sequence and replaces its DR2 retry repair once implemented and verified.
-It is a change to the **routine** detection pipeline. Historic and weekly runs behave identically,
-following the standing ruling that historic work improves routine processing and gets no special path.
+The pre-build evidence (§1), the code this plan changed (§2), the test specification (§5), the §6
+evaluation and the canary 9 record (§7) moved verbatim to the
+[2026-09-24 to 10-02 execution log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-24-TO-2026-10-02.md);
+section numbers are kept so references to §3–§9 still hold. It belonged to the
+[detection reliability work package](../archived-plans/HISTORIC-VIDEO-DETECTION-RELIABILITY-2026-09-28.md),
+now complete and archived. It is a change to the **routine** detection pipeline: historic and
+weekly runs behave identically, following the standing ruling that historic work improves routine
+processing and gets no special path.
+
 
 ## 0. Operator decisions this plan implements (2026-09-28)
 
@@ -138,113 +142,44 @@ following the standing ruling that historic work improves routine processing and
     one talk throughout. Operator: accept it as a question; the prompt change was not adopted.
     With the corrected truth the §6 draws score 4 of 60 talk boundaries wrong, all flagged.
 
+21. **A talk edge every draft agrees on is asked where it touches other speech (2026-10-02).**
+    Agreement cannot show an error every draft shares, and the 2026-09-28 ruling asks about every
+    talk edge within 3 s of a speech section (welcome, prayer, notices, reading, talk, sermon,
+    `other`; never music). `TalkEdgeChecks` adds each such edge on an undisputed talk as an
+    ordinary question whose one version is the composed talk, so it holds the run like any
+    question and its answer, confirming or correcting, carries by scope. Measured before adoption
+    (no calls): canary 9 with its answers 7 → 12 questions, every check a talk ending into a
+    prayer; the 232 §6 draws 0.77 → 1.19 questions per batch-1 sequence, 23 → 15 of 48 sequences
+    question-free; none on an edge the truth file marks wrong. **Operator adopted 2026-10-02:**
+    exempt a talk's end running into prayer under the closing-prayer ruling. Prayer before a
+    talk and other speech edges remain checked; disputed talks and interruptions still follow
+    their existing questions. The 232-draw replay removes 12 of 20 checks, leaving 0.94 questions
+    per batch-1 sequence and 20 of 48 question-free; zero unflagged talk-count errors and zero
+    wrong scored cuts (45 scored, three accepted holds). No provider calls; evidence at
+    `storage/scratch/carryover-20261002/prayer-exempt-report.json`.
+22. **Answers reach the cut from the draws they were given on (2026-10-02; implements §3.9).** A
+    recompose request makes the job compose the latest banked draws again under the current rules
+    and every answer, with no provider call, then validate, sync and review as after fresh draws.
+    It refuses rather than draws when the attempt is not the latest or its input no longer matches
+    the run. Measured: canary 9's answers over the 58 saved §6 sequences of the same recordings
+    left 11 re-rounds asking again (6 lost drafts, one 0.49 overlap, 6 new content questions); a
+    recompose asks none of them. Fresh draws remain the route for new text, new items, a prompt
+    or model change, and a whole-job retry (decision 11).
+23. **The RMS log is banked by reference (2026-10-02; §3.6).** An attempt's input names the log by
+    the path and hash it already recorded instead of copying 11–16 MB; a draw or replay reads it
+    back and refuses if it changed.
+
 Agreement never overrides an existing content hold. The implementation guarantee is that every
 decision affecting extraction has supported evidence, and unresolved disagreement reaches the
 actual extraction gate. The technical policies below implement this alongside the operator's
 preference for deterministic correction/replay rather than further model calls.
 
-## 1. Evidence
 
-The measurements below were reported from saved read-only draws on the 16 batch-1 services.
-Truth is `storage/scratch/detection-truth-20260928.json`; the scorer is
-`storage/scratch/detection-score-20260928.py`. Prompt labels p2, p3, p4 and p5order name the prompt
-revisions evaluated on 2026-09-28; p5order is the current prompt.
+## 1–2. Evidence and the code this plan changed
 
-**Evidence limits found in review:** the truth file mixes operator rulings with entries explicitly
-labelled `consensus` (provisional, not verified). Agreement with the latter measures regression
-stability, not independent accuracy. The current scorer covers talks and sermon starts, not all
-song/reading identities, boundaries or extraction outcomes. §6 extends it before accepting results.
-Repeated draws on these tuned services test variability, not unseen-service accuracy. Retain the
-operator's targeted-question approach; do not silently reinstate whole-service markup or the
-superseded held-out/clean-audit workload from the reliability plan.
-
-- **Canary 8, run 949.** The rejected first attempt nested one prayer inside another. The stored
-  summary reads: "Section 13 (prayer, starts 1661.7s) lies almost entirely inside the previous
-  section (prayer, ends 2003.0s)". Blind whole-service regeneration then typed four church updates as
-  talks. Ten read-only first attempts of 949 produced **9 clean, 1 with two different false talks**.
-  These probes suggest unstable first-attempt errors on this example. The rejected original
-  response was not recovered in full; its summary does not establish the classification of every
-  span later called a talk. Do not claim that every false talk was caused by retry feedback.
-- **Error capture by a second opinion.** This counts the primary's talk and sermon errors that
-  land on a disagreement.
-
-  | Primary + opinions (prompt) | Errors caught |
-  |---|---|
-  | 5.6 + 5.6 (p4, 24 talk errors) | 21 (88%) |
-  | 5.6 + 5.6 (p2) | 54% |
-  | 5.6 + gpt-6 (p2) | 65% |
-  | 5.6 + 5.6 + gpt-6 + gpt-6 (p2) | 75% |
-  | any combination (p3) | 25% |
-
-  p3's remaining errors were shared by every draw of both models, so they are systematic and
-  invisible to any ensemble.
-- **Flag volume** (share of services with any output-relevant disagreement). Talks are compared
-  on both edges ±30 s, the sermon on its start ±30 s, songs and readings on presence (≥50% overlap).
-  - Current prompt, 5.6 + 5.6: **24.4%** (320 draw pairs). Of the disagreeing claims, sermons
-    are 42%, talks 27%, songs and readings 15% each.
-  - p2/p3, 5.6 + 5.6: 31–33%. 2 × 5.6 + 2 × gpt-6 with any disagreement: 66–69%. With a
-    majority rule (the written claim outvoted): 39–40%.
-  - Many sermon disagreements are a preacher-prayer choice the operator has ruled either way:
-    949 at 2706 or 2744 s, 1025 at 1984 or 2020 s. Hence decision 5.
-- **What the disagreements are** (p3, talks). With a second 5.6 draw, 44% of the second draw's
-  differing talks were themselves acceptable spans. With gpt-6, 20% were acceptable and 28% had
-  wrong edges on a real talk. gpt-6 disagrees more, and more of its disagreements are its own
-  errors. The operator judged this acceptable: the aim is a different opinion, and review answers
-  become rules.
-- **Cost and latency per call** (saved usage, local price snapshot): 5.6-luna costs $0.0054–0.0056
-  with a median of 55–57 s and p95 of 68–80 s. gpt-6-luna costs $0.0034, median 40 s, p95 56 s.
-  **Four draws cost about $0.018 per service, ≈$8 for the 437-run corpus.** Run in parallel,
-  wall time is about the slowest draw, roughly 1–1.5 minutes.
-
-## 2. Current code this plan changes
-
-Verified 2026-09-28 against the uncommitted tree on top of `3ffe4b54c`. Re-verify before coding.
-
-- `app/Jobs/DetectServiceStructure.php`
-  - `detectWithPrimaryRecovery()`: one detection, then one feedback retry when
-    `detectionWorthRetrying()` matches `timestamps_outside_recording`, `non_chronological`,
-    `multiple_sermons` or `incompatible_oos_item`, then `recheckMissingPreachedReading()`.
-  - **Uncommitted today:** `detectionRetryFeedback()` lists the rejected structure for a repair,
-    and `sectionsDisagreeingOnTalks()` / `withRetryTalkChangesFlagged()` raise
-    `ServiceStructureValidator::FLAG_RETRY_CHANGED_TALKS`, also registered in `DetectorCatalogue`.
-    Four regression tests exist in `DetectServiceStructureTest`; §4 preserves their behaviours
-    while replacing the retry implementation.
-  - `detectAndValidate()` loads the transcript, audio timeline and attested OoS, then runs the
-    detector, `snapToSilences()` and `ServiceStructureValidator::validate()`.
-  - `runPrimary()` persists through `ServiceSectionSyncService::sync()`, which keys rows by
-    `section_order`. It records `service_structure` metadata and rechecks content holds. In
-    reconcile mode a failed re-detection keeps the existing sections.
-  - `runShadow()` / `detectShadowCandidate()` implement the `shadow` mode with
-    `service_structure.shadow_model`. That is a model-upgrade evaluation path that runs *instead of*
-    primary. Deletion is deferred under §9/Q6.
-  - `public int $timeout = 900; public int $tries = 3; backoff [120, 300, 600]`.
-- `app/Services/ChurchService/Structure/OpenAiServiceStructureService.php` reads the model from
-  `config('media-processing.service_structure.model')` at call time. It sends `service_tier` through
-  the flex fallback.
-- `app/Support/OpenAiChatPayload::isReasoningModel()` is `/^(gpt-5|o[1-9])/i`. **gpt-6 does not
-  match**, so a gpt-6 request keeps `temperature` (rejected) and never carries
-  `reasoning_effort`. The scratch draw driver patches this per process. Production must fix it.
-- `SectionReviewFlagPolicy` forces review for any flag it does not demote.
-  `SermonAutoExtractionPolicy::NON_DISQUALIFYING_REVIEW_FLAGS` lists the flags that do not block
-  auto-extraction. Every `ServiceStructureValidator::FLAG_*` must be catalogued in `DetectorCatalogue`
-  (`DetectorCatalogueTest`).
-- Laravel 13's process concurrency driver uses separate `php artisan` children. Its default process
-  timeout is 60 s and `Concurrency::run()` propagates a failed child/timeout instead of returning
-  sibling successes plus an unavailable vote. A bare call does not meet §3.2's contract.
-- `recheckMissingPreachedReading()` returns the entire new structure when a reading is recovered
-  and talks approximately match. It can replace agreed songs, sermon boundaries, references and
-  flags; preserving its talk guard alone does not preserve ensemble authority.
-- `SermonExtractionPlanResolver` uses the next song's start, trailing prayer/reading/other sections,
-  and reading references/bounds. Notices can stop extension. It can omit a flagged reading while
-  still extracting the sermon; a flag on a song does not automatically hold the sermon using it.
-  `ExtractSermon::concludeWithoutSermon()` skips extraction based on the absence assertion.
-- `SoundStage`, `SectionStructureFlagRederiver` and `ContentHoldRechecker` already provide shared
-  deterministic processing. Extend these established responsibilities rather than build a parallel
-  historic-only framework. Existing generic re-annotation has no ensemble evidence reader.
-- Scratch spot-checks bank a transcript hash and anchor, but `select.php::$alreadyRuled` compares
-  only run, question kind and approximate times. It suppresses questions without verifying that
-  hash or applying the correction. `ConfirmServiceSection::apply()` clears all review flags;
-  answering one new spot question must not invoke that blanket clearing behaviour.
+Moved to the [execution log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-24-TO-2026-10-02.md)
+(pre-build measurements from saved draws, and the 2026-09-28 code). Read the code itself for its
+current shape.
 
 ## 3. Design
 
@@ -398,6 +333,8 @@ Verified 2026-09-28 against the uncommitted tree on top of `3ffe4b54c`. Re-verif
   - composed output, extraction-plan dependencies, disputes, applied rulings and rule versions.
   Store large bodies on the existing private service artifact disk, with references in metadata;
   back them up with the service artifacts before disposable scratch can be removed.
+  *Since 2026-10-02 (decision 23) the input names the RMS log by its recorded path and hash rather
+  than copying it.*
 - Re-derive disputes without paid calls only when the evidence bundle is complete and still maps
   to current content. Missing/stale evidence means unresolved, not agreement. Extend the established
   re-derivation path with an evidence-aware ensemble pass; do **not** merely add the flag to
@@ -437,6 +374,10 @@ holds, publishing or moving freeze state. Private evaluation artifacts are allow
 | Corrected media boundary | Recalculate the plan and use existing authorised re-extraction/publication controls |
 | Model, prompt or reasoning settings | New explicitly scoped detection evidence; preserve the old bundle |
 | Source/transcript/OoS change | Invalidate dependent results; remap rulings only with verified matching evidence, otherwise mark stale |
+
+*Implemented for answers and rules 2026-10-02 (decision 22):* `historic-import:rerun-recompose`
+asks the job to compose the latest banked draws again, with no detection call, for a run whose
+answers or rules changed and whose input still matches.
 
 Replay is deterministic and idempotent: same evidence/rules/rulings gives the same semantic
 output; a second application causes no boundary drift, repeated recut or reopened resolved issue.
@@ -501,146 +442,16 @@ Banking an answer or suppressing a question alone does not complete a repair.
 - Move reusable evaluation/review/replay logic into existing application locations. Retire scratch
   duplicates only after parity and artifact preservation; temporary tooling retains IC8 ownership.
 
-## 5. Tests (written first, failing, then green)
+## 5–7. Tests, evaluation and canary 9
 
-- Four agreeing voters produce coherent supported boundary pairs with provenance. No new dispute.
-- One voter invents talks (949 shape): majority writes no talk. The spot is flagged, with the voter's
-  version kept; a dropped claim in an uncovered gap still reaches review.
-- A 2–2 split uses the specified model/slot tie-break, flagged. Both tie-break-model slots
-  disagreeing, absent tie-break model, reordered completion and reordered claim arrays are covered.
-- Non-transitive 100/125/150 s starts, overlapping clusters, long-reading/two-reading matches,
-  type conflicts, absence votes, splits and merges cannot manufacture consensus or duplicate votes.
-- A voter failing validation (nested prayers, timestamps beyond the recording) does not vote. No retry is made.
-- Fewer than two valid voters → manual review with all draws persisted. In reconcile mode the
-  existing sections are retained.
-- Two/three valid voters, including same-model survivors, produce explicitly degraded review
-  proposals and cannot silently obtain the full-ensemble unattended gate.
-- ER1: sermon starts differing only by a span one voter types as prayer are agreed. A span any
-  voter types as song or reading is disputed. Two starts on either side of a prayer select a
-  complete supported alternative, never its midpoint or an internal silence.
-- Different references, identities, OoS bindings, continuation/absence decisions and consequential
-  filler are disputes. Free-text paraphrases do not invent semantic disagreement. Confidence and
-  existing flags follow the explicit policy; unrelated holds survive every composition/replay.
-- Validate real extraction outcomes: disputed next-song start, omitted reading, notice versus
-  prayer tail, no song after sermon, sermon-end movement and disputed absence. Review reaches the
-  actual extraction/publication gates, including baseline fallback, not just a flag-string test.
-- Real subprocess integration tests: one timeout, provider error, abrupt exit, sibling results
-  retained, parent cancellation/cleanup, staging mismatch and artifact identity. Fake or synchronous
-  drivers alone cannot prove these. Test flex fallback and whole-stage deadlines.
-- A whole-job retry runs a fresh ensemble and keeps the previous bundle; no invalid-draw
-  replacement within an ensemble, stale input reuse or stale-revision overwrite. Record
-  interrupted/unknown usage honestly.
-- Missing-reading diagnostic cannot overwrite ensemble sections/flags; no default fifth call.
-- `isReasoningModel()` covers gpt-6.
-- Flag policy and catalogue cover disagreement/degradation; missing or stale banked evidence cannot
-  clear a flag. Rule re-derivation recomputes it from matching evidence and preserves operator holds.
-- Ruling tests: source/hash match, stale evidence, ambiguous mapping, conflicting/superseded answers,
-  scoped resolution, cannot-tell/deferred, presence-before-edge deduplication and omitted claims.
-- End-to-end review test: answer changes the output, survives new section rows and deterministic
-  replay, updates only dependent plans, does not ask the same resolved question again, and leaves
-  unrelated holds intact. Dusk covers browser interactions; Playwright remains visual-only.
-- Replay twice and compare semantic output: no drift, repeated recut or reopened questions.
-  Rule fixtures include counterexamples and known-correct decisions that must remain correct.
-- Evaluation parity and read-only tests: invoke the same production services; no authoritative
-  section/segment/hold/publication/freeze mutation. Scorer fixtures cover all claim types, missing/
-  duplicate membership, provisional truth, refused/degraded results and extraction dependencies.
+Moved to the [execution log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-24-TO-2026-10-02.md):
+the test specification the build followed, the §6 evaluation (232 calls, $1.19: talk-count errors 0
+of 58, every composition flagged before rules), its free replays under decisions 14–19, and canary
+9. The rollout (canary 10, batches, stop rules) is the
+[historic plan's §4.0](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md). The evaluation
+command and its manifest remain: `structure:ensemble-evaluate {manifest} --replay-draws={dir}` replays
+the bought draws free under any candidate rule.
 
-Run focused PHPUnit tests, PHPStan, Pint and the full parallel suite through Sail; retain suite
-output. Run Dusk for the review interactions. This document revision itself changes no code.
-
-## 6. Evaluation before canary 9
-
-First run zero-provider-cost replay and deterministic tests against saved draws/rulings. Fix the
-composer, scorer and review loop before buying fresh evidence. Freeze their versions and the input
-manifest for evaluation; log any subsequent change as a new candidate rather than mixing results.
-
-Fresh detection evaluation remains read-only and predeclared (≈$0.02 per four-draw sequence):
-
-| Set | Draws | Purpose |
-|---|---|---|
-| 16 batch-1 services | 3 complete ensemble sequences each (48 × 4 calls ≈ $0.9) | Composed-output accuracy against ruled truth; provisional regression stability reported separately; flag rate; latency |
-| 949 | 10 ensemble sequences (≈$0.2) | The canary-8 case: the false talks must never be written unflagged. They should be out-voted. |
-
-**Built 2026-09-30:** `structure:ensemble-evaluate {manifest} --detector=openai` runs this table from
-`storage/scratch/ensemble-eval-20260930/manifest.json` (caps 280 calls / $3.00, $0.025 worst-case
-reserve per call checked before each sequence). First run stopped at 15/58 ($0.39) on the original
-rule (two sequences in a row losing any draw) after OpenAI HTTP 520s; operator ruled 2026-09-30 to
-resume (`--resume`, same manifest and inputs, spend carried) with the rule narrowed to two
-sequences in a row left under three valid votes by lost draws. The cut is judged by its sermon
-section only: it runs on to the next song by ruling, which the sermon-only truth cannot label.
-Inputs come from the job's own builder; draws run four at a time in separate processes and are
-kept whole; the cut is planned by the production resolver on a rolled-back copy of the run
-(`SermonCutProbe`) and scored for wrong, unflagged and unreviewed-to-extraction cuts, plus each
-service's cut spread across sequences. Without `--detector` it only builds inputs and prints the plan.
-
-Extend the DR1 scorer before using it for acceptance. Do not infer whole-output correctness from
-the existing talk/start score or a review flag alone. Bind expected membership, input hashes,
-truth basis, code/prompt/rule versions, draw counts, maximum calls/spend and stop conditions.
-The table plans 232 base calls (~$1.1); predeclare any transport/queue retry allowance separately
-and account for actual tiers. No automatic reading-recheck allowance. Report:
-
-- talk-count errors in the **composed** output, flagged and unflagged;
-- boundary, reference, song identity, OoS binding and sermon-absence errors or unadjudicated claims;
-- actual extraction-plan differences and whether erroneous outcomes can reach extraction/publication;
-- services flagged and disputed spots per service, split by claim type and by which models disagreed;
-- invalid/unavailable draws, degraded sequences, refusals, actual cost and wall-clock time;
-- pre-review accuracy, post-review correctness and residual uncertainty as separate measures;
-- review questions/time and ruling/rule reuse metrics from §3.10.
-
-Update containment mapping for the ensemble flag and test it against application policy. Refused,
-unscored and provisional-only results must not count as clean independently verified detections.
-Use targeted operator questions for unknown identities/boundaries and conflicting alternatives;
-unanswered items stay visible. Neither a count match nor an ensemble agreement proves completeness.
-
-For ER1 and each candidate rule, replay the saved evidence and enumerate every suppressed dispute,
-changed boundary/plan and known-truth regression. Measure correctness alongside flag reduction.
-This bounded set cannot estimate unseen-service accuracy; do not portray repeated calls as
-independent services or reinstate a larger review workload without an operator decision.
-
-## 7. Canary 9 and rollout
-
-- Canary 9 needs DR2, slim DR1 and DR4 (decision 7). The reusable answer/correction/replay loop
-  (DR3) must be finished and verified before batch 1. Complete implementation/evaluation and
-  present concrete results. Only after the dispatch HOLD is explicitly
-  lifted: commit the implementation, move the operational freeze, snapshot authoritative state,
-  restart/verify workers, check membership/routes/holds and run preflight and the complete 16-run canary.
-  Documentation commits do not move the freeze or authorise paid calls, dispatch or publication.
-- **Canary bar (Q5, adopted 2026-09-29 before canary 9):** zero unflagged talk-count errors and
-  every dispute answered. A flagged error remains an accuracy error, not a correct detection: record
-  pre-review accuracy and post-review correctness separately. Do not change the bar after seeing results.
-- Rollout follows the reliability plan's revised DR6 and its recorded operator decisions:
-  - the spot-check selector reads `service_structure_ensemble` disputes, not a scratch second
-    draw, and shows the voters' versions as the answer options;
-  - retain edge and weak-song selectors, deduplicated with ensemble questions;
-  - apply matching rulings, correct output and deterministically recheck dependent plans before
-    proceeding under existing extraction/release controls;
-  - between batches, measure candidate general rules on saved evidence; adopt only justified rules;
-  - report unresolved/deferred/stale questions, degraded runs, corrections, time and reuse.
-- Keep the canary custody/hold diff and parent operational gates. A failure remains evidence and
-  stops advancement; do not rerun only 949 to erase it. No public release follows from detection
-  acceptance alone. Changes to rollout size/stop thresholds remain explicitly adopted decisions.
-
-### Canary 9 (2026-09-30) — detection passed, custody failed
-
-Freeze `historic-rerun-freeze-20260930` on `61ff438b0`; snapshot `freeze-20260930/`; the 16 batch-1
-runs dispatched 20:12 and settled 20:36 BST. All 64 draws valid. Talk-count errors 0 (unflagged 0);
-cuts wrong 0 (1050, 1250 and 1356 held either way: interrupted sermon); 41 questions over 13 runs
-(song 15, talk 11, reading 7, sermon 6, other 1, notices 1); 1025, 1028 and 1108 question-free with
-the right cut. Every hold carried.
-
-**Custody failed on 1221:** the composed titles respelt two bound songs ("Speak O Lord" →
-"Speak, O Lord", "King Of Kings Majesty" → "King of Kings Majesty") on the same item and span, and
-`ServiceSectionSyncService` compared raw title text, so it deleted both extracted clips, song video
-619 (quarantined) and §2727's published state. No other copy; recovery is pipeline re-extraction.
-The same review found the sync paired rows by position, so any inserted or removed section would
-have shifted every later clip onto its neighbour's row and deleted it (1176 media-bearing sections
-in the corpus, 261 published). Fixed: a bound section is identified by its item and an unbound
-title is compared without case or punctuation; rows pair by that identity first, then position,
-parked clear of the unique position while positions are rewritten. Simulated on the canary's own
-before/after sections: the old rule loses exactly the two 1221 clips, the new rule none. The
-operator chose to move the freeze to the fix and run canary 10 on the same 16 runs to see the
-custody diff clean on live runs; 1221 is re-extracted through the pipeline after its questions
-are answered.
 
 ## 8. Risks
 

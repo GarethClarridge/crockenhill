@@ -1,5 +1,15 @@
 # Historic video detection reliability after canary 8
 
+> **Archived 2026-10-02: complete.** DR1–DR5 were delivered through the ensemble build (`92040d273`
+> onwards), the §6 evaluation (2026-09-30) and canary 9 (2026-09-30: detection passed, custody failed
+> and was fixed in `1210d534e`); the answer → correction → replay loop (DR3) closed with the applier
+> fixes and export/apply commands of 2026-10-01 and the recompose round of 2026-10-02. DR6
+> (controlled batches and measured learning) now lives in the
+> [plan's §4.0 "Batches"](../plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md).
+> The status lines and unticked boxes below are as they stood on 2026-09-29; read them as history.
+> Links to the plans are relative to `docs/plans/`.
+
+
 **Status — 2026-09-28 (after Codex review): delivery sequence revised for the ensemble and
 deterministic review loop; not implemented.** The original retry repair remains uncommitted code,
 not the chosen next design. Baseline plans are preserved in `2bb569482`; this revision changes
@@ -7,9 +17,9 @@ documents only. Canary 8 remains FAIL; Tier C and corpus dispatch remain on HOLD
 No paid calls, processing operations or acceptance-policy changes are authorised by these commits.
 
 This is a focused work package under the
-[historic video defect plan](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md),
+[historic video defect plan](../plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md),
 §4.0. It does not replace the
-[incremental convergence plan](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md)
+[incremental convergence plan](../plans/HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md)
 or its publication, hold and import controls. The proposed sequence below replaces neither
 the existing canary bar nor the operator's HOLD until adopted. Earlier canary results remain
 evidence, not permission to proceed. This document owns only the detection-reliability work
@@ -24,7 +34,7 @@ historic rerun of exactly **437** frozen runs; routine processing uses the same 
 
 > **Current design (2026-09-28, after review):** the operator directed a four-draw ensemble
 > (2 × gpt-5.6-luna, 2 × gpt-6-luna, parallel, consensus-composed, disagreements flagged, validation
-> retry deleted). It is specified in [ensemble structure detection](HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md),
+> retry deleted). It is specified in [ensemble structure detection](../plans/HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md),
 > **reviewed and revised; nothing is built.** It owns composition, runtime, evidence, review and
 > replay specifications. The revised DR1–DR6 below replace the original retry-oriented delivery
 > sequence. Remove the original retry implementation only with its regression coverage preserved.
@@ -226,7 +236,7 @@ the presence of instructions, not model compliance.
 ## 2. Delivery sequence
 
 This sequence incorporates the session's review. Detailed contracts, tests and remaining decisions
-live in the [ensemble plan](HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md).
+live in the [ensemble plan](../plans/HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md).
 
 **Split (operator, 2026-09-29):** canary 9 needs DR2, DR1's evidence banking (not its full
 replay tooling) and DR4. DR3 and the rest of DR1 must be complete before DR6's first batch.

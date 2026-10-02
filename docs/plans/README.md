@@ -97,16 +97,15 @@ None of these lanes blocks the public product sequence except where a plan expli
 
 ## Active plans
 
-The historic video's immediate next work is the
-[canary-8 detection reliability work package](HISTORIC-VIDEO-DETECTION-RELIABILITY-2026-09-28.md)
-(reviewed 2026-09-28; revised implementation/evaluation sequence). It belongs to the historic defect
-plan under H0. Canary 8 failed; Tier C and corpus dispatch remain on HOLD at `3ffe4b54c`.
-Its proposed replacement for single-draw detection, the
-[ensemble structure detection plan](HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md), incorporates
-Codex's review and the operator's preference for deterministic reuse of review answers. Next:
-preserve draw evidence, implement extraction-aware agreement and evaluate before canary 9;
-complete the answer/correction/replay loop before batch 1 (split and Q5 bar decided 2026-09-29).
-Neither is implemented; the baseline plans are preserved in `2bb569482`.
+The historic video's immediate next work is **canary 10, the final canary** of the corpus re-run,
+in the [historic defect plan's §4.0](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md)
+(redrafted 2026-10-02; it belongs to H0). The four-draw
+[ensemble structure detection](HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md) is built and passed
+canary 9 on detection; its custody fault is fixed. The recompose round, code-revision freeze and
+review tooling are committed through `e42c8e338` (2026-10-02), with all quality gates passing.
+The operator authorised canary 10; dispatch awaits snapshot, worker restart and backup preflight,
+then Tier C against its predeclared bar, then Tier A and the batches. The detection reliability
+work package is complete and archived.
 
 | Order | Plan | Verified status | Next independently useful slice |
 |---|---|---|---|
