@@ -386,8 +386,20 @@ rejection of real ordering, content, membership, policy and artifact changes. Th
 on renumbering before the fix and passed afterwards; 24 focused tests and the full 9,107-test
 parallel suite pass, with PHPStan and Pint clean. Historic ffmpeg and orchestration containers
 are stopped with their queued jobs preserved, so a commit cannot auto-resume the old round. Recovery requires
-a new snapshot on the fixed code; the operator's choice between the strict fresh-draw round and
-a bounded reuse exception is pending. Do not resume the old queued round on changed code.
+a new snapshot on the fixed code; the operator's approval of
+a bounded reuse exception is recorded below. Do not resume the old queued round on changed code.
+
+**Operator recovery exception — 2026-10-02.** The operator explicitly ruled "Reuse the saved
+draws" after the projection-renumbering fix (`a66da8ced`). This is a second, bounded amendment to
+the original predeclared failure rule: no fresh provider draws are required for this gate-only
+fix. Retire the preserved stopped Tier C payloads by exact membership, settle their interrupted
+runs, then take a new snapshot of the same 16 on the fixed code. Restart workers after the
+commit and recompose all 16 from their latest saved attempts and finalized answers. Banked
+attempt counts and attempt identities must stay unchanged, with no open questions. Then Tier C
+and every original accuracy, frame-gap, custody and containment check still apply. Keep the
+original before.json for full custody comparison as well as the new recovery snapshot; the
+partially completed first extraction attempt is retained as evidence. This approval does not
+waive any input content/order change, any additional answer conflict or any other failed gate.
 
 #### Batches
 
