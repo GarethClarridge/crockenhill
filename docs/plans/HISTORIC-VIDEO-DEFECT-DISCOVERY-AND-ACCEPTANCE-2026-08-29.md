@@ -574,7 +574,7 @@ rule commit does, and it waits until the cut queue has drained.
    path it did not; stop expansion on a new regression or an unassessable result. Outputs stay
    quarantined pending §4.5.
 
-**Canary 10 word-pause dispatch, 2026-10-03 — extraction held for an open question.** The
+**Canary 10 word-pause dispatch, 2026-10-03 — initial extraction hold, resolved below.** The
 operator authorized only the same sixteen, with 1050, 1250 and 1356's interruption-merged
 sermons parked. Preflight passed on unchanged code `6b355b8cd` / revision
 `e09d11928eeb5a3401e9e5068b4eb247234c3b3a7696b6ce35b505533fb09cde`; `8ea5a0a99` is
@@ -596,6 +596,73 @@ songs. The operator prohibited other answers and required zero open questions, s
 held pending the requested choice: park 1311 and cut twelve, or hold all cuts pending review.
 No answer was invented or recorded. The thirteen excluding the three interruption-merged
 runs pass the extraction dry run, but this does not resolve the zero-question condition.
+
+**1311 continuation, 13:42 UTC:** the operator confirmed Naomi's testimony as proposed,
+1056.60–1149.31 s; the father's words from 1152.28 belong to the baptism section.
+`structure:ensemble-export-questions 1311` produced an exact answer map for
+`ea480c55f1eaa6e5a690af4c315a4720f532e361d806e5135c3ce2c004cf0ae5`.
+`structure:ensemble-apply-answers` dry run reported one ready/no attention, then `--execute`
+recorded the choice through the existing review action as verified admin 1. All sixteen have
+zero open questions; bank counts, attempt IDs and draw hashes remain unchanged. The batch
+replay corroborates zero open and zero unreplayable runs: `batch-after-1311-answer.json`.
+Refreshed preflight (`preflight-tierc.json`): unchanged code/snapshot, workers started
+13:18:13 UTC, empty queued/reserved/delayed queues, read/write mounts, 20,118,940 KiB internal
+and 490,289,896 KiB staging free, checksum backups refreshed successfully. At 13:50–13:51 UTC,
+Tier C dispatched thirteen with zero refusals (`tierc-dispatch.txt`), excluding 1050, 1250 and
+1356. Those three retain their interruption flags and await the operator's join confirmation.
+The answer receipt is `1311-answer-receipt.json`; extraction/check results follow below.
+
+**Cut/check receipt, completed 2026-10-03:** thirteen Tier C runs completed by 15:53:33 UTC,
+queues drained and failed jobs remained 479 (zero new). No fresh draw or extra answer was
+made. 1050/1250/1356 remain parked with interruption flags retained. `receipt.json` under
+`storage/app/private/canary10-word-run-20261003/` binds all evidence; the detailed per-step
+receipt is in [the cut/sync plan](CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md).
+
+- Timing: the all-sixteen step checked 153 windows, 152 reused/one decoded in 2.135 compute
+  seconds; Tier C rechecked 135, all reused. No no-word fallback or missing-cache blocker.
+  Ninety-eight generated-cut edge audits, 83 text disagreements; absolute movement median
+  0.92 s, p90 7.22 s, p95 10.61 s, max 27.54 s. Sixty-two transcript-gap edges retained their
+  originals, with reasons in `edge-inventory.json`.
+- Generation/sync: thirteen sermon and 57 section audits are current version 6 and match the
+  cached selected plans; 70 distinct new videos (60 quarantine/ten private staging candidates).
+  Seventy cut checks plus seventeen enhancement checks passed, no source anomaly or timing
+  refusal. Original AV/gap scripts covered all seventy, including ten diagnostic candidates
+  omitted by the promotion inventory: zero packet jumps/gaps/repeats, max packet-end offset
+  29 ms. No pre-redesign file was reused for a generated output. 1050's known final-frame gap
+  is confirmed in source; it remains parked. Evidence: `in-cutter-final.json`,
+  `new-videos-all.tsv`, `avscan-final.json`, `gapscan-final.json`, `file-generation-check.json`.
+- **Bar not met.** Original/latest custody diffs have 9/11 attention runs; all 48 attention/
+  pending strings are explained in `attention-explained.json`, without waivers. No lost live
+  hold or public output. Three held extraction signatures remain unrestored: 1108 §1897,
+  1221 §2718/§73036. Five other media losses belong to parked 1250. Review exits are changes
+  in saved-draw projection/publication routing, not operator acceptance.
+- **Naomi clip still blocked.** 1311's authorized answer closed the question in the bank,
+  but the action preserves projections on runs with media. §73575 still carries the old
+  disagreement flag and was skipped. It should have been reprojected while the round was
+  deferred, before Tier C; that ordering was missed. The subsequent 1311-only recompose dry
+  run refused `already re-run on this commit at 2026-10-03T12:48:32+00:00`. No repeat, flag/
+  stamp bypass, code/freeze change or fresh draw was dispatched. Its plan is
+  1056.70–1149.31; the father's 1152.28 words are excluded, but no new Naomi clip exists.
+- Accuracy: scorer talk-count errors zero; copied-run cache probes leave cuts unscored, so
+  `accuracy-direct.json` and `accuracy-talk-direct.json` report every selected/actual plan
+  against truth spans. All sermon/talk planned boundaries are within tolerance; thirteen
+  sermons/seventeen talks have new audits, with parked outputs and Naomi explicitly pending.
+  `listening-list.json` has 106 moved-edge/join/comparison entries; `joins.json` supplies the
+  three parked interruption candidates and 1250's four-part joins, transcript lines and
+  review URLs. Only output-edge timing windows were decoded.
+- Further read-only findings: five talk texts preserved/flagged as predating evidence;
+  quality assessments before promotion inspect prior quarantine files; seventeen published
+  song sections retain staging disk pointers although canonical new quarantine files exist.
+  These were recorded without fixes. 1267's two-song/silence finding remains separate.
+- Both Sonnics backups refreshed with checksum rsync, no deletions, exit zero. The fresh
+  detection-ruling export contains current bank/ruling/review/hold state and its backup SHA
+  matches. The final batch report ran afterwards: zero open/deferred/unreplayable questions,
+  34 applied/17 stale/one conflicting answer (known 1112), one degraded attempt (known 936).
+  `batch-final-after-backup.json`. Unchanged implementation gates remain valid; this receipt
+  changes documentation only. **No canary acceptance, Tier A or hold release.**
+
+The paragraphs below retain the initial pre-cut chronology; the cut/check receipt above is
+the current result.
 
 1250's all-readings ruling was recorded through the existing composition review at 12:57:59
 UTC, by verified admin user 1. Recomposition remapped the earlier IDs: Job 29 73103→3128,

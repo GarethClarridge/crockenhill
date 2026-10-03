@@ -1006,3 +1006,144 @@ conditions. `open-question.json` provides 1311's question, transcript lines, sou
 [review URL](http://localhost/admin/services/1061). No Tier C, Tier A, acceptance, hold release
 or answer other than 1250's recorded reading decision occurred. The operator's 1311 handling
 choice is still required before the held cut dispatch can proceed.
+
+### Canary 10 continuation — 1311 answered, 2026-10-03
+
+The operator confirmed question `ea480c55…`: Naomi's testimony is right as proposed,
+1056.60–1149.31 s; the father's words from 1152.28 belong to baptism. Exported the exact
+question and applied the saved `alt0` choice through `structure:ensemble-apply-answers`,
+dry run first (one ready, zero attention), then `--execute` (one applied, zero failed).
+Verified admin 1 is the recorded operator. `1311-answer-receipt.json` records the decision;
+`after-1311-answer.json` and `batch-after-1311-answer.json` show zero open questions on all
+sixteen, unchanged 32 attempts/attempt IDs/draw hashes, zero unreplayable runs. Only this
+explicitly authorized answer and the earlier 1250 composition ruling were recorded.
+
+Refreshed §4.0 preflight passed on unchanged bound code and the reused same-sixteen snapshot.
+Workers started 13:18:13 UTC, after the last code commit; all queues were empty, mounts passed
+read/write probes, free space was 20,118,940 KiB internally and 490,289,896 KiB on staging.
+Both Sonnics backups refreshed with `rsync -a --checksum`, without deletions. At 13:50–13:51 UTC
+Tier C dispatched thirteen, zero refused; 1050/1250/1356 remain parked with interruption flags
+unchanged. Receipts: `preflight-tierc.json`, `tierc-dispatch.txt`, all under
+`storage/app/private/canary10-word-run-20261003/`. Post-cut results are recorded below.
+
+### Canary 10 cut receipts and bar — 2026-10-03, stopped without acceptance
+
+**Result: the thirteen authorized runs completed Tier C; the acceptance bar did not pass.**
+1050, 1250 and 1356 remain parked for interruption-join review. No hold was released, no
+Tier A or fresh draw ran, and no additional operator answer was recorded. The only new answer
+in this continuation was the explicitly authorized 1311 testimony confirmation; 1250's
+four-section composition ruling remains as recorded above.
+
+All paths below are relative to `storage/app/private/canary10-word-run-20261003/` unless
+otherwise stated. `receipt.json` binds the evidence hashes and stop boundary.
+
+1. **Preflight and dispatch.** `preflight-tierc.json`, `1311-answer-receipt.json` and
+   `batch-after-1311-answer.json` record empty queued/reserved/delayed queues, unchanged bound
+   code/snapshot, the worker and mount checks, free space and checksum backups. The same
+   sixteen remain frozen; Tier C dispatched only 936, 949, 964, 1025, 1028, 1108, 1112, 1117,
+   1221, 1304, 1311, 1346 and 1358. `tierc-dispatch.txt`: thirteen dispatched, zero refused.
+   They completed between the 13:50–13:51 UTC dispatch and 15:53:33 UTC. Queues then drained;
+   failed jobs stayed at 479 (zero new). `final-state.json` records all sixteen, including the
+   three whose media remains deferred. Attempt counts remain 32, with unchanged IDs and
+   immutable draw-bank hashes; no new draw was made.
+2. **Timing collection.** The separate all-sixteen step checked 153 windows, reused 152 and
+   decoded one (1304) in **2.135 compute seconds**. Tier C rechecked 135 windows on the Whisper
+   queue, all cache hits, zero new decodes. Zero no-word fallbacks and zero missing-word-cache
+   output blockers. Stored full-service transcripts and draws were not re-transcribed.
+   `timing-summary.json`, `timing-results.json`, `edge-inventory.json` and
+   `final-check-summary.json` record the evidence. Of the newly generated cuts, 98 edges have
+   word-pause audits, 83 record text disagreement; timings were used as ruled. Another 62 edges
+   are in transcript gaps with no crossing/touching cue: their original edges are retained,
+   with that reason in the inventory. Absolute word-pause movement: median **0.92 s**, p90
+   **7.22 s**, p95 **10.61 s**, maximum **27.54 s**. These are movements from selected section
+   edges; the listening list separately includes prior-cut comparisons.
+3. **Sync and generation.** There are **70 distinct new videos**: thirteen main sermons and
+   57 section candidates. Sixty are in quarantine; ten diagnostic candidates remain private in
+   staging. All exist, have post-dispatch timestamps and current version-6 extraction
+   signatures. `composition-version-check.json` verifies every actual selected cut plan against
+   the cached plan; source-span float serialization differs by at most 4.55e-13 s.
+   `in-cutter-final.json` records **70 paired cut checks plus 17 post-enhancement checks**, all
+   passed, zero source anomalies and zero timing refusals. The original AV/gap scripts ran on
+   every new file, with input from the original measurement harness extended to include all
+   retained section candidates. The initial inventory covered sixty promoted/review files;
+   the ten otherwise omitted diagnostic files were scanned separately, without rescanning
+   those sixty. `new-videos-all.tsv`, `avscan-final.json`, `gapscan-final.json` and
+   `file-generation-check.json`: **70/70 clean**, no packet jumps, frame gaps or repeats.
+   Maximum audio/video packet-end difference is **29 ms**, below one 30 fps frame; AAC priming
+   and final packet padding explain packet boundary offsets, while decoded-frame checks pass.
+   1050's known source final-frame gap remains evidenced in `1050-source-tail.txt` (0.067 s
+   source excess versus 0.0666 s baseline); 1050 was not recut. Parked outputs are not claimed
+   to have current versions or new-file checks.
+4. **Custody — failed restoration condition.** `diff-original-final.json` reports nine
+   attention runs (25 attention strings) and two pending runs. `diff-latest-final.json` reports
+   eleven attention runs (13 attention strings) and one pending run. All **48 attention/pending
+   strings** have per-item explanations and current section/flag context in
+   `attention-explained.json`; none was waived or cleared. Both diffs confirm no lost live
+   hold and no output made public. The latest diff has eight media losses: **1108 §1897;
+   1221 §2718 and §73036** remain held and were skipped by candidate preparation after their
+   prior extraction signatures were invalidated. **1250 §3124, §3127, §73103, §3131 and §4911**
+   remain pending because 1250 is parked. An earlier progress message incorrectly treated the
+   held clips' absent paths as proof of no restoration loss: the snapshot retains their
+   extraction signatures/timestamps and the custody diff correctly flags their loss.
+   Other attention items concern review routing: recomposition resolves prior composition/
+   ensemble flags; unsupported publication types become `not_applicable`; existing song policy
+   publishes eligible regenerated clips into private quarantine. These explanations are
+   evidence for operator review, not acceptance of review exits.
+5. **1311 answer reached the bank, not the clip projection.** The answer action deliberately
+   preserves projected sections when old extracted media exists. Its result has zero open
+   questions and Naomi's banked section has no disagreement flag, but projected **§73575**
+   retains `structure_ensemble_disagrees`, so candidate preparation skipped it. The planned
+   span is **1056.70–1149.31** after the cached start adjustment; the father's words from
+   1152.28 remain excluded. **No new Naomi clip exists.** The operator's answer should have
+   been projected with `rerun-recompose` while media was still deferred, before Tier C; that
+   necessary ordering was missed. After the cuts, the 1311-only replay dry run refused:
+   `already re-run on this commit at 2026-10-03T12:48:32+00:00`. The guard permits continuation
+   only while media is deferred. No repeat was dispatched, no stamp or flag was edited to
+   bypass it, and no code/freeze change or fresh draw was invented. This remains an explicit
+   blocker, despite the zero-open-question result.
+6. **Accuracy.** Re-ran `storage/scratch/canary10/score.php`: zero talk-count errors. Its
+   rolled-back copied-run cut probes cannot use caches keyed to the real run and leave all
+   sixteen cut probes unscored (`edge_word_timings_missing`/`held_either_way`).
+   `accuracy-direct.json` supplies every real selected sermon plan, actual cut audit and truth
+   span; `accuracy-talk-direct.json` supplies all twenty talk plans and their truth spans.
+   There are zero sermon/talk boundary mismatches within the ruled tolerances. Thirteen main
+   sermons and seventeen talks have new cut audits; the three sermons and two talks on parked
+   runs, plus Naomi, remain unrendered. Preparatory reading membership is shown separately
+   because the truth file labels sermon/talk boundaries; 1250 follows the recorded operator
+   ruling. The older truth alternative allowing the father does not replace today's 1149.31
+   ruling. Correct planned boundaries do not pass the missing-output or custody bar.
+7. **Listening and other read-only findings.** `listening-list.json` has **106 entries**:
+   movements over two seconds from section edges or prior cut plans/bounds, the requested
+   selected-section and interruption joins, and prior accepted whole-cue comparisons clearly
+   labelled. It retains the existing listening shape, source windows, old/new edges, cached
+   words either side and cue text context where word timings are absent. `joins.json` has
+   22 selected/interruption join entries, including 1250's four-part joins. For 1050, 1250 and
+   1356 it gives raw-draw sermon parts, the intervening readings, transcript lines at both
+   joins and `/admin/services/{service}` review URLs; differing draw candidates are labelled
+   rather than asserted as an accepted split. No word decode was run at interior joins.
+   The separate **1267 two-songs/silence boundary finding remains separate from this fix**.
+   Five existing talk texts were preserved and flagged `sermon_text_predates_evidence`:
+   1117 §1960/§1962/§1967 and 1346 §4368/§4373; no text or answer was changed.
+   Two additional pipeline observations are recorded without fixes: pre-promotion quality
+   assessments read prior quarantine files, so their approvals are not used as evidence for
+   these new cuts; and seventeen published song sections still name `historic_staging`, while
+   their `SongVideo` canonical quarantine files exist and are newly generated
+   (`published-song-section-disk-pointers.json`). The source-aware checks and final scans
+   inspect the actual new files. One read-only exporter namespace error was corrected; its
+   transaction rolled back and no extraction job failed.
+8. **Backups and final report.** Refreshed both Sonnics backups with `rsync -a --checksum`,
+   excluding `._*`, without deletions; both exited zero. The detection-ruling export
+   `storage/app/private/detection-rulings/canary10-word-edges-20261003-after.json` now contains
+   the current banks, operator rulings, composition review and section/hold state; its SHA-256
+   matches the backup. Then ran the batch report: `batch-final-after-backup.json`, zero open
+   questions on all sixteen, zero deferred/unreplayable runs, 34 applied/17 stale/one
+   conflicting answer. The conflict is the predeclared 1112 exception; the one degraded
+   attempt is 936's pre-existing invalid `non_chronological` slot, not a new failed draw.
+   The implementation quality gates recorded for unchanged code `6b355b8cd` continue to
+   apply (focused/full parallel suite, PHPStan and Pint). This operational continuation changes
+   only these two plans; no application code, dependencies or stored service transcript changed.
+
+**Stop:** no Canary 10 acceptance, Tier A, hold release, extra answer or recompose bypass.
+Sync, current-version generation and direct boundary checks pass for generated files; media
+restoration and Naomi's projection/output remain unresolved. Operator listening and acceptance
+are still required, after those gaps are addressed through an authorized path.
