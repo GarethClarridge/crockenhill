@@ -1895,3 +1895,68 @@ notices and no failure (7m 45.818s). Every gate ran with all workers stopped. Ex
 is prepared but not executed: 15 pending and one reserved payload match the preserved
 bytes, reserved score and exact sixteen-run membership. No payload, file, hold, answer or
 operator confirmation has been removed or changed during this preparation.
+
+
+**Exact recovery and worker/snapshot preflight completed, 21:32 UTC.** Code commit
+`eb95fcd4227b024f4c6a6327f7cb6579a89ad960` binds revision
+`655e2ed6494ee285a9264c706d4c6a92d289d04765dc2576cdadaf7ef00daae5`.
+At 21:26:11 UTC the recovery retired precisely the preserved 15 pending and one reserved
+historic FFmpeg payloads, verified their bytes, UUIDs, reserved score and sixteen-run
+membership, and released only their job-specific uniqueness locks. It settled all sixteen
+through `markAsCompleted(..., interrupted_corpus_round_retired, ...)`, explicitly recording
+the interrupted old-code round and need for a fresh replay. Full pre-transition rows,
+payload copies and `recovery-receipt.json` remain; no cut file or other evidence was deleted.
+
+All six workers were recreated and started after the 21:25:42 UTC code commit:
+orchestration at 21:27:01 UTC, the other five at 21:27:13 UTC. App and worker staging/temp
+write-and-read probes passed; internal free space was 19,721,216,000 bytes, staging
+498,583,126,016 bytes. Ten monitored queues were empty in all three states; failed jobs
+remain 479. The initial pre-start snapshot was retained as
+`snapshot-before-worker-start-check.json` and superseded, without dispatch, by a fresh
+`snapshot.json` after the start-time checks. That snapshot binds the same sixteen and
+listening routing; the saved-draw dry run is 16 ready / zero refused. The service-artifact
+checksum backup is still running; the detection-rulings backup is being refreshed again
+with this recovery evidence. Recompose waits for both backups and final preflight.
+
+
+**Recompose stopped on a restored saved-ruling flag, 21:41 UTC.** Both checksum backups
+completed with exit 0 before dispatch. `preflight-recompose.json` records the empty queues,
+post-commit worker starts, writable mounts, 19,681,169,408 internal free bytes and fresh
+snapshot. `recompose-dispatch.txt` records 16 dispatched / zero refused. All sixteen saved
+bundles were recomposed and projected, but the deferred orchestration tail was stopped
+before completion when 1250 again required the interruption review. Timings and Tier C
+were not dispatched; there are no new cuts or new quality verdicts in this round.
+
+**New blocker: 1250's saved answer restores a flag after the majority composer removes it.**
+Fix A's composer produces an unflagged sermon, but the carried canary-9 answer
+`f7b2a77ec5269f967e8a8ff86b6c3fdc86fc22ae059a0ff966c9a2938f5d01a1`, ruling
+`0dfb6c27-4a43-4d5d-af65-c3c71c7cbd97` (2026-10-01 19:55:39 UTC), contains
+`structure_sermon_interruption_merged` in its saved resolution. The existing
+`ServiceStructureEnsembleRulingApplier::apply()` copies that resolution's flags onto
+the replacement section after composition. The read-only replay demonstrates the sequence:
+no stitch flag before rulings, stitch flag after rulings. Section 73105 therefore has
+`needs_manual_review=true` and its extraction plan has `requires_review=true`.
+1050 and 1356 have no remaining stitch flag. The prior authorised passage confirmations
+remain evidence; none was rewritten or repeated to clear this restored flag.
+
+Evidence under `storage/app/private/canary10-exact-file-rerun-20261003/`:
+`stitch-flag-blocker.json`, `1250-stitch-replay-readonly.json`,
+`evidence-stitch-blocker.json`, `stopped-state.json` and `stopped-checks.json`.
+Review: [1250 — Job's final defence](http://localhost/admin/services/400).
+The 1250 four-part review and selected sections [3128, 73104, 4910, 73105] are unchanged.
+Naomi §73575 remains projected at 1056.60–1149.31 s with no ensemble flag; no fresh clip
+exists yet. Run 964's recorded 1166–1167.21 s prayer fragment and micro-section flag remain
+unchanged. All 32 attempt IDs and bank hashes are unchanged, all 64 saved artifact
+checksums match, zero questions are open and all sixteen projection-provenance guards pass.
+Failed jobs remain 479.
+
+All six workers stopped normally (exit 0). Precisely 16 pending orchestration payloads
+remain preserved, with no reserved or delayed job; every other monitored queue is empty.
+`stopped-workers.json`, `stopped-queues.json` and
+`stopped-historic-orchestration-pending-payloads.jsonl` bind that state. They have not been
+retired or resumed, and the sixteen processing states remain evidence of the interrupted
+tail. The prior stopped round's cut files have not been replaced or deleted. No hold was
+released and no answer was recorded. Fresh-file quality, including 1050's fresh verdict,
+all final custody/AV/gap/accuracy/disk-pointer checks and the listening list remain pending.
+This is a stop before extraction, not acceptance or a final cut receipt. Stopped-evidence
+checksum backups are running; a read-only stopped-batch report will follow them.
