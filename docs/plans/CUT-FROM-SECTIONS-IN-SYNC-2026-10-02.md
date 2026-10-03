@@ -873,3 +873,20 @@ Operational logs are `/tmp/cut-word-edges-{snapshot,worker-restart,saved-draw-dr
 and `/tmp/cut-word-edges-worker-{ffmpeg,whisper,llm,orchestration}{,-commit}.txt`.
 **Stopped here:** no recomposition dispatch, Tier C, hold release or answers. The additional
 documentation-only receipt commit does not change the snapshotted processing code.
+
+**Operator relisten of word-pause edges — 2026-10-03.** All **15 of 15** canary edges were
+ruled **right** (nothing missing, nothing extra worth worrying about), including run 1028's
+reading start and every edge previously judged not good: 936's and 949's sermon starts, which
+now begin after the prayer's "Amen", 1346's and 1117's talk starts, and the song edges that
+moved earlier (964 "Shine, Jesus, Shine" end −4.42 s; 1221 "King of Kings" start −0.77 s).
+Page: https://claude.ai/artifact/Ew2BkX4cLawe7Wev4FRRYd; clips, edges and saved rulings in
+`storage/scratch/word-edge-listening-20261003/{edges.json,clips/,saved/rulings/}`. Edge
+placement is accepted for the canary. Still open: 1148's +9.98 s corpus edge (not a canary
+run; watch for it in batch listening samples), 1267's two-songs detection finding, and 1250's
+reading-membership question, which must be answered before its sermon is cut.
+
+**Operator ruling — 1250 reading membership, 2026-10-03.** "For 1250 all the readings are
+for the sermon." Run 1250 (2022-12-04, sermon "Job's Final Defence", no sermon reference):
+the sermon video and audio comprise Job 29 (§73103, 1352–1527 s), Job 30 (§3131, 1739–1958 s),
+Job 31 (§3132, 2182–2448 s) and the sermon (§4910, 2454–4310 s), with the intervening items
+excluded. To be recorded through the existing composition review path, not by a code rule.
