@@ -10,6 +10,7 @@ use App\Actions\FlagSermonPartsNotExtracted;
 use App\Actions\FlagSermonTextPredatesEvidence;
 use App\Actions\HoldSectionForContentReview;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\ChurchService\Structure\TranscriptCueBoundaries;
 
 /**
  * Decides whether a section's review state still permits automatic sermon
@@ -40,6 +41,7 @@ class SermonAutoExtractionPolicy
      */
     private const MATERIAL_BOUNDARY_FLAGS = [
         self::COMPOSITION_REVIEW_FLAG,
+        TranscriptCueBoundaries::FLAG,
         ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED,
         ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK,
     ];

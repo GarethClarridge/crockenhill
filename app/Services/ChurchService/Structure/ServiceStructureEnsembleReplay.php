@@ -122,7 +122,7 @@ class ServiceStructureEnsembleReplay
             'before' => $evidence['composition'] ?? null,
         ];
 
-        $corrected = $this->rulings->apply($proposal, $rulings);
+        $corrected = $this->rulings->apply($proposal, $rulings, ChurchServiceTranscript::fromArray($input['transcript'] ?? null));
         $validated = $composition->refused
             ? null
             : $this->validator->validate(

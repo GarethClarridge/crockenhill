@@ -293,6 +293,10 @@ class EnsembleReviewExport
             return 'No draft found a sermon, but not every draft said the service had none.';
         }
 
+        if (($dispute['check'] ?? null) === TranscriptCueBoundaries::CHECK) {
+            return (string) $dispute['detail'];
+        }
+
         if ($type === 'alignment') {
             return 'One draft’s section could belong to more than one of the others’ sections.';
         }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService\Structure;
 
+use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceSermonAbsence;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
@@ -37,7 +38,7 @@ class ServiceStructureEnsembleRulingApplier
      * @param  list<array<string, mixed>>  $rulings
      * @return array<string, mixed>
      */
-    public function apply(array $proposal, array $rulings): array
+    public function apply(array $proposal, array $rulings, ?ChurchServiceTranscript $transcript = null): array
     {
         $sourceHash = $proposal['source_hash'] ?? null;
         $questions = $proposal['disputes'] ?? null;
@@ -208,7 +209,9 @@ class ServiceStructureEnsembleRulingApplier
             }
         }
 
-        $hasUnresolved = $remaining !== [];
+        $hasUnresolved = $transcript === null
+            ? $remaining !== []
+            : array_any($remaining, static fn (array $question): bool => ($question['check'] ?? null) !== TranscriptCueBoundaries::CHECK);
         $degraded = ($proposal['degraded'] ?? false) === true;
         $degradedReviewed = $degraded && ! in_array('degraded_coverage', array_column($remaining, 'type'), true);
         $sections = array_map(static function (ServiceStructureSection $section) use ($hasUnresolved, $degraded, $degradedReviewed): ServiceStructureSection {
@@ -241,6 +244,13 @@ class ServiceStructureEnsembleRulingApplier
             $chapterMarkers,
             $sermonAbsence,
         );
+
+        if ($transcript !== null) {
+            $boundaries = app(TranscriptCueBoundaries::class);
+            $final = $boundaries->finish($boundaries->apply($corrected, $transcript), $transcript);
+            $corrected = $final['structure'];
+            $remaining = [...array_values(array_filter($remaining, static fn (array $question): bool => ($question['check'] ?? null) !== TranscriptCueBoundaries::CHECK)), ...$final['questions']];
+        }
 
         return [
             ...$proposal,

@@ -35,7 +35,14 @@ class CutAwareEnsembleComposer
      */
     public function compose(array $draws, ?ChurchServiceTranscript $transcript, ?MediaProcessingLog $log): EnsembleComposition
     {
-        return $this->talkEdgeChecks->apply($this->composeCutAware($draws, $transcript, $log), $draws);
+        $composition = $this->talkEdgeChecks->apply($this->composeCutAware($draws, $transcript, $log), $draws);
+        if ($transcript === null || $composition->refused) {
+            return $composition;
+        }
+        $final = app(TranscriptCueBoundaries::class)->finish($composition->structure, $transcript);
+
+        return new EnsembleComposition($final['structure'], [...$composition->disputes, ...$final['questions']], $composition->provenance,
+            $composition->degraded, $composition->refused, $composition->validVotes, $composition->degradedReviewed, $composition->majorityDecisions);
     }
 
     /**

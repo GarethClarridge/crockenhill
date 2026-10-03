@@ -254,7 +254,8 @@ class EnsembleReviewCommandsTest extends TestCase
     {
         $transcript = ChurchServiceTranscript::fromCues([
             ['start' => 0.0, 'end' => 120.0, 'text' => 'Good morning everyone and a very warm welcome.'],
-            ['start' => 130.0, 'end' => 400.0, 'text' => 'A word for the children before they go out.'],
+            ['start' => 130.0, 'end' => 330.0, 'text' => 'A word for the children.'],
+            ['start' => 330.0, 'end' => 400.0, 'text' => 'Before they go out.'],
             ['start' => 420.0, 'end' => 590.0, 'text' => 'Our reading is from Luke chapter fifteen.'],
             ['start' => 600.0, 'end' => 2200.0, 'text' => 'Please turn with me to our passage.'],
             ['start' => 2210.0, 'end' => 2400.0, 'text' => 'Praise my soul the King of heaven.'],

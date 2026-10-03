@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService\Structure;
 
+use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
@@ -39,7 +40,7 @@ class SilenceSnapService
      *
      * @param  string  $rmsLogContent  Raw contents of the rms_log_path artifact
      */
-    public function snap(ServiceStructure $structure, string $rmsLogContent): ServiceStructure
+    public function snap(ServiceStructure $structure, string $rmsLogContent, ?ChurchServiceTranscript $transcript = null): ServiceStructure
     {
         if ($structure->isEmpty()) {
             return $structure;
@@ -72,6 +73,12 @@ class SilenceSnapService
 
             $newStart = $this->nearestSilence($silences, $section->startTime, $window, $startLowerBound, $midpoint);
             $newEnd = $this->nearestSilence($silences, $section->endTime, $window, $midpoint, $endUpperBound);
+
+            if ($transcript !== null) {
+                $boundaries = app(TranscriptCueBoundaries::class);
+                $newStart = $newStart === null ? null : $boundaries->snapEdge($section, $newStart, 'start', $transcript);
+                $newEnd = $newEnd === null ? null : $boundaries->snapEdge($section, $newEnd, 'end', $transcript);
+            }
 
             $notes = [];
 

@@ -19,7 +19,6 @@ use App\Models\ServiceSection;
 use App\Services\ChurchService\ChurchServiceReviewSynchronizer;
 use App\Services\ChurchService\ContentHoldRechecker;
 use App\Services\ChurchService\ServiceSectionSyncService;
-use App\Services\ChurchService\Structure\TranscriptCueBoundaries;
 use App\Services\ChurchService\Structure\CutAwareEnsembleComposer;
 use App\Services\ChurchService\Structure\EnsembleComposition;
 use App\Services\ChurchService\Structure\EnsembleReviewGate;
@@ -30,6 +29,7 @@ use App\Services\ChurchService\Structure\ServiceStructureEnsembleRunner;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
 use App\Services\ChurchService\Structure\SoundStage;
+use App\Services\ChurchService\Structure\TranscriptCueBoundaries;
 use App\Services\ChurchService\Structure\ValidationContext;
 use App\Services\ChurchService\Structure\ValidationResult;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
@@ -889,24 +889,26 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         $rmsLogPath = $this->processingLog->rms_log_path;
 
         if (! is_string($rmsLogPath) || $rmsLogPath === '') {
-            return $structure;
+            return app(TranscriptCueBoundaries::class)->finish($structure, $transcript)['structure'];
         }
 
         $artifactDisk = ServiceArtifactDisk::for($rmsLogPath);
 
         if (! Storage::disk($artifactDisk)->exists($rmsLogPath)) {
-            return $structure;
+            return app(TranscriptCueBoundaries::class)->finish($structure, $transcript)['structure'];
         }
 
         $rmsLogContent = (string) Storage::disk($artifactDisk)->get($rmsLogPath);
 
-        return app(SoundStage::class)->apply(
-            $snapService->snap($structure, $rmsLogContent),
+        $structure = app(SoundStage::class)->apply(
+            $snapService->snap($structure, $rmsLogContent, $transcript),
             $rmsLogContent,
             $transcript,
             ValidationContext::recordingOmitsSongs($this->processingLog->processing_metadata),
             $audioTimeline,
         );
+
+        return app(TranscriptCueBoundaries::class)->finish($structure, $transcript)['structure'];
     }
 
     /**

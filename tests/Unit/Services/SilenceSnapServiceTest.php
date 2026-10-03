@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
@@ -315,6 +316,31 @@ class SilenceSnapServiceTest extends TestCase
         $snapped = $this->service->snap($structure, $this->rmsLog([[0.0, -20.0], [500.0, -25.0]]));
 
         $this->assertSame($structure->toArray(), $snapped->toArray());
+    }
+
+    #[Test]
+    public function silence_snaps_cannot_retreat_into_runs_936_and_1117s_last_spoken_cues(): void
+    {
+        foreach ([[2472.96, 2532.16, 2529.0, 2531.95], [1717.78, 1800.64, 1798.0, 1800.52]] as [$start, $end, $cueStart, $silence]) {
+            $transcript = ChurchServiceTranscript::fromCues([
+                ['start' => $cueStart, 'end' => $end, 'text' => 'Last word'],
+            ], 3000, ChurchServiceTranscript::SOURCE_MOCK);
+            $structure = ServiceStructure::fromSections([$this->section('bible_reading', $start, $end)]);
+            $result = $this->service->snap($structure, $this->rmsLog([[0.0, -20.0], [$silence, -60.0], [3000.0, -20.0]]), $transcript);
+            $this->assertSame($end, $result->sections[0]->endTime);
+        }
+    }
+
+    #[Test]
+    public function silence_cannot_advance_a_start_into_speech_or_cross_the_next_cue(): void
+    {
+        $transcript = ChurchServiceTranscript::fromCues([
+            ['start' => 100.4, 'end' => 110.8, 'text' => 'This item'],
+            ['start' => 112.2, 'end' => 120.5, 'text' => 'Next item'],
+        ], 3000, ChurchServiceTranscript::SOURCE_MOCK);
+        $structure = ServiceStructure::fromSections([$this->section('prayer', 100.4, 110.8)]);
+        $result = $this->service->snap($structure, $this->rmsLog([[0.0, -20.0], [100.8, -60.0], [113.0, -60.0], [3000.0, -20.0]]), $transcript);
+        $this->assertSame([100.4, 110.8], [$result->sections[0]->startTime, $result->sections[0]->endTime]);
     }
 
     private function section(string $type, float $start, float $end): ServiceStructureSection

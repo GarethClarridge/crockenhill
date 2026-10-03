@@ -11,11 +11,11 @@ use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
-use App\Services\ChurchService\Structure\TranscriptCueBoundaries;
 use App\Services\ChurchService\Structure\ServiceStructureEvaluationTelemetry;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
 use App\Services\ChurchService\Structure\SoundStage;
+use App\Services\ChurchService\Structure\TranscriptCueBoundaries;
 use App\Services\ChurchService\Structure\ValidationContext;
 use App\Services\Media\Audio\AudioTimeline;
 use App\Support\ServiceArtifactDisk;
@@ -413,24 +413,26 @@ class StructureEvaluateCommand extends Command
         $rmsLogPath = $log?->rms_log_path;
 
         if (! is_string($rmsLogPath) || $rmsLogPath === '') {
-            return $structure;
+            return app(TranscriptCueBoundaries::class)->finish($structure, $transcript)['structure'];
         }
 
         $rmsDisk = ServiceArtifactDisk::for($rmsLogPath);
 
         if (! Storage::disk($rmsDisk)->exists($rmsLogPath)) {
-            return $structure;
+            return app(TranscriptCueBoundaries::class)->finish($structure, $transcript)['structure'];
         }
 
         $rmsLogContent = (string) Storage::disk($rmsDisk)->get($rmsLogPath);
 
-        return app(SoundStage::class)->apply(
-            $snapService->snap($structure, $rmsLogContent),
+        $structure = app(SoundStage::class)->apply(
+            $snapService->snap($structure, $rmsLogContent, $transcript),
             $rmsLogContent,
             $transcript,
             ValidationContext::recordingOmitsSongs($log->processing_metadata),
             $this->audioTimeline($log),
         );
+
+        return app(TranscriptCueBoundaries::class)->finish($structure, $transcript)['structure'];
     }
 
     /**

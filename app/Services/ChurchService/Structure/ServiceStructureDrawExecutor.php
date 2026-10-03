@@ -99,13 +99,15 @@ class ServiceStructureDrawExecutor
 
         if (is_string($rms) && $rms !== '') {
             $refined = $this->soundStage->apply(
-                $this->snapService->snap($refined, $rms),
+                $this->snapService->snap($refined, $rms, $transcript),
                 $rms,
                 $transcript,
                 $context->recordingOmitsSongs,
                 $timeline,
             );
         }
+
+        $refined = app(TranscriptCueBoundaries::class)->finish($refined, $transcript)['structure'];
 
         return [
             'refined' => $refined,

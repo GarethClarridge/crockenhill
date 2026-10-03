@@ -490,3 +490,123 @@ jobs. Receipt: `cut-sections-canary10-20261002/cue-edges-preflight-readonly.json
 No recomposition or Tier C was dispatched, no hold released and no answer recorded. The
 remaining clipped edges are not acceptance evidence. This readiness record is a documentation-only
 follow-up; it does not change the snapshot's bound code revision.
+
+
+### Canary 10 follow-up — final spoken-cue invariant (operator ruling, 2026-10-03)
+
+The operator rules that **no section edge may fall inside a transcript cue**, regardless of
+which composition step caused it. This supersedes the earlier unique-match-only fallback and
+its restriction on changing silence snap or saved resolution bounds. It applies to every
+section type, weekly/live detection and saved-draw replay. The whole-second prompt display is
+unchanged. Published weekly clips have the same defect recorded in D4; this change does not
+repair already-published media.
+
+Evidence from `f18b56ea9`: end straddles fell from 150 to 77 at the original 0.05 s measurement
+margin. The remaining causes were silence retreat (14), floor-derived saved rulings (17),
+missing/ambiguous matches (31), and advancing snap/overlap handling (15). Three readings the
+operator heard clipped remained clipped: 936 restored 2532.16 then snapped to 2531.95 (“Amen”);
+1117 restored 1800.64 then snapped to 1800.52; 1108's ruling
+`c4f169de-5cf8-486e-8463-dc176888a7ef` reinstated 2389.99 inside the cue ending 2390.98 (“found”).
+Their three regression tests were written first and all failed before the fix
+(`/tmp/cut-invariant-red.txt`). They now pass, retaining the ruling's chosen reading.
+
+Implementation: displayed times restore to the earliest matching start/latest matching end,
+including ambiguous matches. Missing matches are handled by the final check. Silence proposals
+stay in the speech-free interval adjacent to their contained cues; crossing a cue returns to
+the cue boundary. The final check moves interior starts outwards to cue starts and interior
+ends outwards to cue ends, following overlapping cues until the edge is outside them all.
+It runs after sound/overlap refinement and again after ensemble composition and saved ruling
+application. Recorded resolution choices and versions stay intact; only clipped times move.
+MediaProcessingVersion is **4**.
+
+**Shared-cue exception:** if that outward move would overlap a neighbouring section, retain
+the incoming edges and raise `shared_cue`, naming both sections and the cue. It is a structure
+question, not an invented split or answer. `structure_shared_cue` forces review on the affected
+sections and the run's sermon, preventing automatic extraction even when the transition is
+elsewhere in the service. The question and retained edges are regenerated after rulings.
+
+**Read-only same-16 replay:** all writes used copied runs in rolled-back transactions. No new
+draw, provider call, authoritative section update, dispatch, answer or hold release occurred.
+This scan uses the **strict cue interior**, with no 0.05 s tolerance: 288/506 edges before,
+20/510 after. All 20 remaining edges (nine ends, eleven starts) are covered by the eleven
+shared-cue questions below. **Unexplained interior ends: 0; starts: 0.** The stricter baseline
+is not directly comparable with the preceding tolerance-based 240/506 report. Evidence:
+`storage/app/private/cut-cue-invariant-20261003/{before,after,remaining-edges,shared-cue-questions,composition-review,summary}.json`.
+Each retained edge lists its question IDs; the question file names both sections and quotes
+the complete cue. Reading ends now include 936 **2532.16**, 1117 **1800.64**, 1108 **2390.98**.
+
+| Type | Strict interior starts/total, before → after | Strict interior ends/total, before → after |
+|---|---|---|
+| bible_reading | 15/31 → 0/31 | 26/31 → 1/31 |
+| notices | 10/19 → 0/19 | 16/19 → 1/19 |
+| other | 18/43 → 2/43 | 32/43 → 1/43 |
+| prayer | 23/51 → 1/52 | 37/51 → 1/52 |
+| sermon | 8/16 → 2/16 | 5/16 → 0/16 |
+| short_talk | 8/20 → 3/20 | 13/20 → 0/20 |
+| song | 25/60 → 2/60 | 34/60 → 3/60 |
+| welcome | 6/13 → 1/14 | 12/13 → 2/14 |
+
+Shared-cue questions, each retained for operator review:
+
+| Run | Cue seconds | Left section → right section | Cue text |
+|---|---|---|---|
+| 936 | 2593.98–2594.38 | Prayer before the sermon → Serving God by his grace | name. |
+| 936 | 3815.96–3816.08 | Introduction to closing hymn → Who Is on the Lord's Side | the |
+| 964 | 1354.72–1355.24 | All My Days → Christian Institute Update | Now, |
+| 964 | 3929.68–3940.68 | Shine, Jesus, Shine → Closing Prayer | And that truly is our prayer to you this morning. |
+| 1117 | 708.66–713.62 | Cast Your Burden On The Lord → Open Doors and the Persecuted Church | Shirev ayo kamotan |
+| 1221 | 87.25–91.18 | Revelation 5 → Call to worship | of Kings and the Lord of Lords. |
+| 1221 | 112.62–114.14 | Call to worship → King Of Kings Majesty | Let's stand and sing King of Kings. |
+| 1221 | 2459.57–2460.50 | Word One-to-One promotional video announcement → Jesus the Good Shepherd | service. |
+| 1311 | 1304.84–1306.48 | Untitled song → Aled's baptism | Where is our first candidate? |
+| 1346 | 34.21–35.10 | Opening words → I Will Sing the Wondrous Story | me. |
+| 1346 | 362.08–366.41 | Opening prayer → George Washington Carver | things in Jesus' name and for his sake. Amen. Well, I |
+
+Canary findings per run: shared questions are **936: 2; 964: 2; 1117: 1; 1221: 3; 1311: 1;
+1346: 2**; all other ten runs have zero. 1311 also has one talk-end question for Naomi's testimony
+next to baptismal instructions. 1250 retains one reading-membership composition risk; the other
+fifteen have zero composition risks. All sixteen have zero C4 speech findings and pass hard
+validation. Copied extraction plans park **nine** runs under `sermon_composition_review`:
+936, 964, 1117, 1221, 1311 and 1346 have shared-cue flags; 1050, 1250 and 1356 have interruption-
+merge flags (1250 also has the reading question).
+**Seven** plans are unblocked: 949, 1025, 1028, 1108, 1112, 1304 and 1358. A test-first cleanup
+removes the obsolete disagreement flag when a saved choice resolves a temporary shared cue
+(`/tmp/cut-invariant-shared-red.txt`); it does not invent or alter an answer. These copied plans do not
+adjudicate original content holds. The replay has two more sections than the authoritative
+baseline: residual prayer/welcome fragments retained around saved choices, not new draws.
+
+**475-run census:** apply restoration and the final check to existing authoritative sections
+inside rolled-back transactions, preserving IDs, membership and content-hold metadata; then
+compose and resolve. This measures the invariant on existing sections, not 475 new ensemble
+compositions. Evidence:
+`storage/app/private/cut-rule-census-cue-invariant-20261003/{census,summary}.json`.
+There are **61 unblocked, 336 composition/selected-boundary review, 76 content-held, and two
+invalid-selected-bounds refusals**. Shared-cue questions total **1,527 across 382 runs**:
+320 composition-parked and 62 content-held (overlapping reasons, not extra runs). Each census
+row contains its questions and parking reason. Reading membership remains 29, prayer membership
+six; the only remaining same-item coverage risk is 943's missing evidence. The 1073 and 1116
+speech gaps no longer appear after outward cue correction. The source-bound refusals are 1089
+and 1136: their corrected sermon ends are 2291.78 and 1221.00 s, beyond their source durations
+2291.333 and 1220.20 s respectively. The existing selected-span source validation refuses
+them. No duration tolerance or fallback is invented.
+
+The 382 shared-cue runs are a material increase in review workload. It follows the operator's
+all-section invariant, including transitions outside the sermon cut; it is not acceptance
+of any ambiguous transition. No shared question has been answered.
+
+
+Validation: the final focused suites pass **217 tests / 815 assertions**, including live
+and saved-draw detection, silence limits, all section types, shared cues, missing/ambiguous
+matches, overlapping cues, music intros, saved choices and review exports. The full parallel
+suite passes **9,156 tests / 94,298 assertions**, with 162 existing PHPUnit notices. PHPStan
+reports **zero errors** and Pint passes. No browser behavior or template changed, so Dusk is
+not required. Logs: `/tmp/cut-invariant-{red,shared-red,focused,review-focused,full-clean,phpstan,pint,replay,census}.txt`.
+
+The operational readiness receipt for this follow-up is
+`cut-sections-canary10-20261002/cue-invariant-preflight-readonly.json`. It binds the code commit,
+the fresh same-16 snapshot `before-cue-invariant.json` and original listening routing, each
+historic worker's checkout and start time, and the saved-draw dry-run result. Logs use
+`/tmp/cut-invariant-{snapshot,worker-restart,saved-draw-dry,queues}.txt` and
+`/tmp/cut-invariant-worker-{ffmpeg,whisper,llm,orchestration}{,-commit}.txt`.
+Readiness is permission to inspect readiness only. Stop before recomposition dispatch, Tier C,
+hold release or answers. Shared-cue questions and source-bound refusals are not acceptance.

@@ -170,8 +170,8 @@ class DetectServiceStructureTest extends TestCase
         $shadow = $log->refresh()->processing_metadata?->toArray()['service_structure_shadow'] ?? null;
         $this->assertIsArray($shadow);
         $this->assertSame(['gpt-5'], $shadow['diff']['baseline']['models'] ?? null);
-        $this->assertEqualsWithDelta(520.0, $shadow['diff']['sermon']['start_delta'], 0.01);
-        $this->assertEqualsWithDelta(1980.0, $shadow['diff']['sermon']['end_delta'], 0.01);
+        $this->assertEqualsWithDelta(500.0, $shadow['diff']['sermon']['start_delta'], 0.01);
+        $this->assertEqualsWithDelta(2000.0, $shadow['diff']['sermon']['end_delta'], 0.01);
     }
 
     #[Test]
@@ -229,8 +229,8 @@ class DetectServiceStructureTest extends TestCase
         $shadow = $log->refresh()->processing_metadata?->toArray()['service_structure_shadow'] ?? null;
         $this->assertIsArray($shadow);
         $this->assertSame(['gpt-5'], $shadow['diff']['baseline']['models'] ?? null);
-        $this->assertEqualsWithDelta(20.0, $shadow['diff']['sermon']['start_delta'], 0.01);
-        $this->assertEqualsWithDelta(-20.0, $shadow['diff']['sermon']['end_delta'], 0.01);
+        $this->assertEqualsWithDelta(0.0, $shadow['diff']['sermon']['start_delta'], 0.01);
+        $this->assertEqualsWithDelta(0.0, $shadow['diff']['sermon']['end_delta'], 0.01);
     }
 
     #[Test]

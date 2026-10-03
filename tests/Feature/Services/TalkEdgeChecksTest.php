@@ -154,7 +154,8 @@ class TalkEdgeChecksTest extends TestCase
     {
         return ChurchServiceTranscript::fromCues([
             ['start' => 0.0, 'end' => 120.0, 'text' => 'Welcome everyone.'],
-            ['start' => 600.0, 'end' => 1000.0, 'text' => 'News from the mission field, and then we pray.'],
+            ['start' => 600.0, 'end' => 880.0, 'text' => 'News from the mission field.'],
+            ['start' => 900.0, 'end' => 1000.0, 'text' => 'And then we pray.'],
             ['start' => 1200.0, 'end' => 2150.0, 'text' => 'Please turn with me to the passage.'],
         ], 2430.0, ChurchServiceTranscript::SOURCE_MOCK);
     }
