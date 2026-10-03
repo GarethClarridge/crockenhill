@@ -476,3 +476,17 @@ checking that each started after the code commit, and a **saved-draw dry run onl
 readiness is permission to inspect readiness, not permission to dispatch. Stop before any
 recomposition dispatch, Tier C, hold release or new answer. The residual edge findings above
 remain visible for the operator's next decision.
+
+
+Readiness completed on code commit **`f18b56ea9`** (06:36:16 UTC). The fresh snapshot
+`cut-sections-canary10-20261002/before-cue-edges.json` preserves membership
+`0bbc51836e06a7d9e9ed7b3edd8c0e185723495670bc4f6e323da78291eb4c2e` and the existing bound
+listening routes. All four historic worker lanes restarted at **06:37:06 UTC**, 50 s after
+the code commit, and each checkout reports that full commit. The saved-draw dry run reports
+**16 ready, 0 refused, 0 not reached**. Historic queues contain no queued, reserved or delayed
+jobs. Receipt: `cut-sections-canary10-20261002/cue-edges-preflight-readonly.json`; logs
+`/tmp/cut-cue-{snapshot,worker-restart,saved-draw-dry,queues}.txt` and
+`/tmp/cut-cue-worker-{ffmpeg,whisper,llm,orchestration}{,-commit}.txt`.
+No recomposition or Tier C was dispatched, no hold released and no answer recorded. The
+remaining clipped edges are not acceptance evidence. This readiness record is a documentation-only
+follow-up; it does not change the snapshot's bound code revision.
