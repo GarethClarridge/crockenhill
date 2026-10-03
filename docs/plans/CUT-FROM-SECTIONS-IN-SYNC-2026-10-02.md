@@ -857,3 +857,19 @@ suite passes **9,178 tests / 94,404 assertions**, with 162 existing PHPUnit noti
 PHPStan reports zero errors and Pint passes for changed and new PHP files. No browser
 behaviour changes require Dusk. Evidence logs are `/tmp/cut-word-edges-{focused-complete,
 full-pass,phpstan-pass,pint-complete,canary-final-replay,canary-final-summary,canary-listening}.txt`.
+
+**Committed preflight:** implementation commit on master is
+`6b355b8cd24f41d3dfc2bcb4a3adec1cf20ecdd2` (2026-10-03 11:46:27 UTC). Fresh same-16 snapshot
+`storage/app/private/cut-sections-canary10-20261002/before-word-edges.json` was taken at
+11:46:43 UTC, binding the original routing and membership hashes recorded above. All four
+historic workers (FFmpeg, Whisper, LLM and orchestration) restarted at **11:46:55 UTC**,
+after that commit, and each reports that revision. The saved-draw recomposition **dry run**
+returned **16 ready, zero refused, zero not reached**. Redis has only the existing historic
+notify keys, with no pending historic job keys.
+
+The hash-bound receipt is
+`storage/app/private/cut-sections-canary10-20261002/word-edges-preflight-readonly.json`.
+Operational logs are `/tmp/cut-word-edges-{snapshot,worker-restart,saved-draw-dry,queues}.txt`
+and `/tmp/cut-word-edges-worker-{ffmpeg,whisper,llm,orchestration}{,-commit}.txt`.
+**Stopped here:** no recomposition dispatch, Tier C, hold release or answers. The additional
+documentation-only receipt commit does not change the snapshotted processing code.
