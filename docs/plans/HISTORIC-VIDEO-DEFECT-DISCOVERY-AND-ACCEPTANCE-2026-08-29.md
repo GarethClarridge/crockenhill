@@ -574,6 +574,66 @@ rule commit does, and it waits until the cut queue has drained.
    path it did not; stop expansion on a new regression or an unassessable result. Outputs stay
    quarantined pending §4.5.
 
+**Canary 10 word-pause dispatch, 2026-10-03 — extraction held for an open question.** The
+operator authorized only the same sixteen, with 1050, 1250 and 1356's interruption-merged
+sermons parked. Preflight passed on unchanged code `6b355b8cd` / revision
+`e09d11928eeb5a3401e9e5068b4eb247234c3b3a7696b6ce35b505533fb09cde`; `8ea5a0a99` is
+documentation only. The latest `before-word-edges.json` snapshot was reused. All historic
+workers started at 12:29:54 UTC, after the last code commit. Queues were empty, staging and
+temp mounts passed read/write probes, internal free space was 20,249,888 KiB and staging
+489,518,068 KiB. Sonnics service-artifact and detection-ruling backups were refreshed with
+checksum comparison and no deletions. Receipt: `canary10-word-run-20261003/preflight.json`.
+
+All sixteen saved-draw recompositions completed. The bank still has 32 attempts with unchanged
+attempt IDs and draw-bank hashes; failed jobs remain at 479, with zero new failures.
+`before.json`, `after-recompose.json` and `timing-results.json` in that receipt directory bind
+the comparison. All 64 immutable draw artifacts match their checksums; 63 remain valid.
+936's pre-existing slot 2 still fails `non_chronological`, giving three valid votes rather
+than four (`936-slot-replay.json`); no provider draw or new bank input was made.
+**1311 still has one open talk-edge question**, Naomi's testimony
+1056.60–1149.31, beside baptismal instructions. Its accepted word-pause relisten concerned
+songs. The operator prohibited other answers and required zero open questions, so Tier C is
+held pending the requested choice: park 1311 and cut twelve, or hold all cuts pending review.
+No answer was invented or recorded. The thirteen excluding the three interruption-merged
+runs pass the extraction dry run, but this does not resolve the zero-question condition.
+
+1250's all-readings ruling was recorded through the existing composition review at 12:57:59
+UTC, by verified admin user 1. Recomposition remapped the earlier IDs: Job 29 73103→3128,
+Job 30 3131→73104, Job 31 3132→4910, sermon 4910→73105. References and source bounds were
+checked before recording; the old-ID request was safely refused because those IDs now name
+different items. `ruling-receipt.json` records the remap and decision. Intervening items remain
+excluded; the interruption flag is retained, so 1250 is still parked. No code or other answer
+changed.
+
+`TranscribeOutputEdges` completed for all sixteen on the Whisper queue: **153 windows checked,
+152 reused, one newly decoded in 2.135 seconds**, zero no-word fallbacks, zero missing-cache
+output blockers and zero failed jobs (`timing-summary.json`, `timings-receipt.json`). Queues
+drained. Both custody diffs before extraction report zero attention runs, no lost live holds
+and nothing public; they retain 13/14 runs pending extraction, with 25 section-media pointers
+pending restoration in the latest diff. Reports: `diff-original-before-extraction.json` and
+`diff-latest-before-extraction.json`. These do not pass final custody until media is restored.
+
+The scorer reports zero talk-count errors. Its copied-run probe cannot read real-run-keyed
+edge caches; `accuracy-direct.json` supplements every unscored cut with selected planned
+spans and truth spans/alternatives. All sixteen planned sermon boundaries are within the ruled
+tolerances; preparatory reading membership is reported separately. New-output timing scans,
+in-cutter evidence, current-version/file-reuse checks and final custody remain pending cuts.
+Baseline scans/score were preserved. 1050's source at PTS 920.321 has the same excess final-
+frame gap (0.067 s) as the baseline cut (0.0666 s); source audio is regular in that window.
+
+`listening-list.json` has 90 moved-edge/join entries; `joins.json` supplies raw sermon parts,
+intervening readings, transcript lines and review URLs for the three parked sermons, and the
+three joins of 1250's four selected parts. Full steps, source-tail evidence and log paths are
+in [the cut redesign plan](CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md#authorized-canary-10-dispatch--2026-10-03-cut-dispatch-held-for-1311).
+The bar has **not passed**; no canary acceptance, Tier A, Tier C, hold release or other answer
+has been dispatched or recorded in this operation.
+Both backups completed again with checksum comparison, exit zero and no deletions; the batch
+report then ran (`batch-after-backup.json`). It reports 16 replayable runs, one open question,
+33 applied, 17 stale and one conflicting ruling (the declared 1112 exception), with no
+unreplayable bundle. `receipt.json` binds all evidence hashes and pending steps;
+`open-question.json` includes 1311's source context and review URL. Cut dispatch still awaits
+the operator's requested scope choice. No acceptance is claimed.
+
 ### 4.0b Regular uploads are the lasting outcome
 
 Historic imports use the livestream

@@ -890,3 +890,119 @@ for the sermon." Run 1250 (2022-12-04, sermon "Job's Final Defence", no sermon r
 the sermon video and audio comprise Job 29 (§73103, 1352–1527 s), Job 30 (§3131, 1739–1958 s),
 Job 31 (§3132, 2182–2448 s) and the sermon (§4910, 2454–4310 s), with the intervening items
 excluded. To be recorded through the existing composition review path, not by a code rule.
+
+### Authorized Canary 10 dispatch — 2026-10-03 (cut dispatch held for 1311)
+
+The operator authorized recomposition and extraction for the same sixteen runs, with 1050,
+1250 and 1356's interruption-merged sermons explicitly parked pending listening. No Tier A,
+canary acceptance, hold release or answer other than 1250's reading membership is authorized.
+Operational evidence lives in `storage/app/private/canary10-word-run-20261003/`.
+
+**Preflight and dispatch:** `preflight.json` binds exact membership, the reused
+`cut-sections-canary10-20261002/before-word-edges.json` snapshot and unchanged code revision
+`e09d11928eeb5a3401e9e5068b4eb247234c3b3a7696b6ce35b505533fb09cde`. HEAD `8ea5a0a99`
+is documentation only; the last code commit is `6b355b8cd`, at 11:46:27 UTC. Every historic
+worker started at 12:29:54 UTC and passed staging/temp read-write checks. App write probes
+created and removed files on both mounts. The internal disk had 20,249,888 KiB free and
+staging 489,518,068 KiB free. Queued, reserved and delayed queues were empty; only historic
+notify keys existed. Both Sonnics backups were refreshed by `rsync -a --checksum`, excluding
+`._*`, without destination deletions. Ruling-backup verification found permission-only
+differences on the external filesystem and no content differences. The saved-draw dry run
+returned 16 ready; the executed command dispatched exactly 16, with no refusals.
+Logs: `/tmp/canary10-word-{recompose-dry,recompose-dispatch,pre-backup-artifacts,
+pre-backup-rulings,pre-verify-rulings,worker-{ffmpeg,whisper,llm,orchestration}}.txt`.
+
+**Recomposition:** all sixteen completed; queues drained. `before.json`,
+`after-recompose.json` and `timing-results.json` record unchanged attempt counts (32 total),
+attempt IDs and immutable draw-bank hashes. No new draw was made. Failed jobs remain at the
+479-entry pre-dispatch baseline: zero new failures. Both the original and recomposed latest
+banks retain 63 valid immutable draws and 936's
+one invalid draw (slot 2, `non_chronological`): reduced coverage is three valid votes on that
+run, rather than four. All 64 artifact checksums match; no new provider draw or new input
+was made. `evidence-planned.json` and `936-slot-replay.json` record that evidence.
+`batch-before.json` and the latest bank both expose one open ensemble question on **1311**, question
+`ea480c55f1eaa6e5a690af4c315a4720f532e361d806e5135c3ce2c004cf0ae5`:
+Naomi's testimony, 1056.60–1149.31 seconds, with an end beside baptismal service instructions.
+The word-edge relisten answers for 1311 concern songs, not this testimony. It was not
+answered. This conflicts with the requested zero-open-question condition and the explicit
+ban on other answers. The operator was asked whether to park 1311 and cut the remaining
+twelve, or hold all cuts pending its review. **No Tier C has been dispatched while that
+decision is pending.** The thirteen excluding the interruption-merged runs pass the
+extraction command's dry run (`/tmp/canary10-word-extract-dry.txt`); that readiness does not
+resolve the open-question condition.
+
+**1250 ruling recorded:** recomposition reassigned section IDs, so the literal old-ID request
+was safely refused by `reviewComposition` (it would have selected songs and a prayer).
+References and source bounds establish the exact correspondence:
+
+| Selected item | Operator's earlier ID | Current ID | Current source bounds (s) |
+|---|---:|---:|---:|
+| Job 29:1–25 | 73103 | 3128 | 1348.56–1527.00 |
+| Job 30:1–31 | 3131 | 73104 | 1735.74–1958.77 |
+| Job 31:1–40 | 3132 | 4910 | 2182.57–2448.52 |
+| Sermon | 4910 | 73105 | 2454.06–4310.36 |
+
+The existing `SermonExtractionPlanResolver::reviewComposition` accepted all four current IDs
+in the run's staging context, recording verified admin user 1, input identity and time
+**12:57:59 UTC**. `ruling-receipt.json` records the ruling and remap. No code or type change,
+intervening-item inclusion, interruption-flag clearance or other answer was made. Its planned
+word-refined spans are 1354.38–1527.00, 1742.20–1958.77, 2182.57–2448.52 and
+2454.06–4310.36 seconds. It still requires review because the interruption-merge flag remains.
+The initial refusal and accepted remap are in `/tmp/canary10-word-ruling{,-remapped}.txt`.
+
+**Edge timings:** `TranscribeOutputEdges` ran on the historic Whisper queue for all sixteen,
+followed by the existing deferred-plan recording and sermonless completion tail. No media
+was cut. It checked **153 windows**, reused **152**, and decoded **one** (1304), taking
+**2.135 seconds** of new extraction/Whisper compute. All jobs completed. There are **zero
+no-word fallbacks, zero cache-blocked output plans and zero new failed jobs**. Review blockers
+are separate from missing-cache blockers. Receipts: `timings-receipt.json`,
+`timing-results.json`, `timing-summary.json`; log `/tmp/canary10-word-timings-dispatch.txt`.
+
+**Read-only checks before extraction:** `diff-original-before-extraction.json` against
+`canary10-20261002/before.json` and `diff-latest-before-extraction.json` against the latest
+snapshot each report **zero runs needing attention**, no live hold lost and nothing public.
+They report **13 and 14 runs pending extraction**, respectively. The latest diff includes
+25 lost section-media pointers pending regeneration; these are not cleared custody and the
+bar's media-restoration condition has not passed. Both command logs use the corresponding
+`/tmp/canary10-word-diff-*-before-extraction.txt` names.
+
+The requested `storage/scratch/canary10/score.php` was rerun; `score.json` reports **zero
+talk-count errors across all sixteen**. Its copied-run cut probe cannot borrow caches keyed
+to the real run, so its empty cuts are supplemented by `accuracy-direct.json`: every current
+selected span, word-pause adjustment and sermon truth span/alternative is shown directly.
+All sixteen planned sermon boundaries are within the ruled tolerances. Reading membership
+is shown separately because that truth file labels sermon edges, not preparatory reading
+membership. These are planned comparisons, not acceptance of cuts that have not happened.
+The original A/V scan, gap scan and score were preserved as `baseline-{avscan,gapscan,score}.json`.
+No new outputs exist yet, so full new-output scans, current-version/reuse checks and final
+in-cutter timing evidence remain pending Tier C.
+
+**Listening and parked joins:** `listening-list.json` contains 90 entries: 68 word-pause
+movements greater than two seconds and 22 selected-section or raw-draw interruption join
+entries. `joins.json` contains the joins with sermon parts, intervening items, transcript
+lines before/after each join, source clips and review URLs. Raw-draw interruption splits
+are labelled as candidates, never accepted splits. Parked review links are
+[1050](http://localhost/admin/services/699), [1250](http://localhost/admin/services/400) and
+[1356](http://localhost/admin/services/1105). 1050's raw draw 1 contains reading interruptions
+275–346, 387–425, 517–536 and 580–605 seconds (draw 3 also proposes 517–536); 1250 draw 3
+proposes the Job 30 reading at 3070–3122 between sermon parts ending 3070 and resuming 3124;
+1356 draws 1/3 propose Isaiah reading 2573–2605 between sermon parts around 2572/2573 and
+2605/2606. 1250's four selected parts additionally have planned joins 1527→1742.20,
+1958.77→2182.57 and 2448.52→2454.06, with the intervening songs/prayer excluded.
+
+1050's known final-frame irregularity was checked against the source at 919–922 seconds:
+the video has a **0.067-second excess gap at source PTS 920.321**, matching the baseline
+cut's 0.0666-second excess gap. Source audio has no irregularity in that window. Evidence:
+`/tmp/canary10-word-1050-source-tail.txt`. 1050 remains parked, with no new cut claimed.
+
+**Post-run backup and batch report:** both Sonnics backups completed again with
+`rsync -a --checksum`, no deletions, exit zero (`/tmp/canary10-word-post-backup-{artifacts,
+rulings}.txt`). The batch report was then run and saved as `batch-after-backup.json`:
+16 replayable runs, one open question, no unreplayable bundle, 33 applied rulings, 17 stale
+and one conflicting ruling (1112's already-declared exception). No stale/conflicting ruling
+was newly answered. The report log is `/tmp/canary10-word-batch-after-backup.txt`.
+`receipt.json` binds the evidence hashes and explicitly records pending cuts and unpassed bar
+conditions. `open-question.json` provides 1311's question, transcript lines, source and
+[review URL](http://localhost/admin/services/1061). No Tier C, Tier A, acceptance, hold release
+or answer other than 1250's recorded reading decision occurred. The operator's 1311 handling
+choice is still required before the held cut dispatch can proceed.
