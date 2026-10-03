@@ -109,7 +109,10 @@ The other clips (songs, readings, talks) are already cut at their section's own 
   content as its video, preferably extracted from the resulting video as today.
 - **C4. Review uncovered speech upstream.** During structure composition/validation, use the
   existing timestamped transcript and segmentation evidence to identify speech outside all
-  identified sections that could be lost from the selected sermon content. Raise it through
+  identified sections **strictly between consecutive sections selected for the same output**:
+  the interior gap a multi-span cut would drop. Speech before the first selected section or
+  after the last is not a composition finding; the ensemble owns those outer edges through
+  talk-edge checks (decision 21) and answered rulings. Raise interior findings through
   the existing structure-review mechanism and correct or explicitly resolve the section
   coverage before cutting the affected output. Gap duration alone is not evidence of speech;
   silence and intentionally excluded, identified songs or other sections do not trigger this
@@ -270,3 +273,66 @@ The ensemble batch report (`ensemble-after-recompose.json`) has **0 open ensembl
 These must be settled through the existing review path before Tier C can satisfy the new bar;
 no automatic gap filling or release of existing content holds is authorised. Canary acceptance,
 Tier A and published weekly-media recuts remain pending under their existing controls.
+
+### C4 scope ruling and read-only replay — 2026-10-03
+
+The operator narrowed C4 to interior gaps only. Reading/prayer membership questions remain
+unchanged. No word lists, duration/word-count thresholds or special treatment of “Amen” were
+introduced. The earlier canary evidence contained 98 uncovered-speech findings: 91 after the
+last selected section (55 at least 10 s afterwards), four before the first, and three between
+selected sections. These included 20 “Amen” occurrences, song announcements and lyrics;
+median 0.9 s/two words, maximum 14.4 s/13 words. The three existing interior findings end a
+pre-sermon prayer deliberately excluded by D1 (1025: 2019.0–2020.0 s; 1112: 2046.9 s).
+The ensemble batch already had zero open questions and zero open talk-edge checks.
+
+The requested regression failed first on the old 205–210 s tail finding, then passed with
+the narrowed check. It also covers speech between a selected reading and sermon, leading
+speech, identified intervening content and silence. The cutter, selected membership and
+timestamps are unchanged; media processing version remains **2**. No UI code changed.
+
+**Actual read-only canary result:** **53 uncovered-speech findings plus 1250's one unresolved
+reading question, across 12 runs**, not the expected three plus one. The previous window
+started near the sermon rather than at the selected reading, so it did not examine much of
+the reading-to-sermon gap. The corrected consecutive-selection check retains the original
+three inner findings and additionally finds 50 uncovered cue fragments in those interior
+gaps. No rule was added to suppress these findings. Counts by run:
+
+| Run | Uncovered speech | Reading membership |
+|---|---:|---:|
+| 936 | 9 | 0 |
+| 949 | 1 | 0 |
+| 1025 | 10 | 0 |
+| 1028 | 1 | 0 |
+| 1108 | 1 | 0 |
+| 1112 | 6 | 0 |
+| 1117 | 3 | 0 |
+| 1221 | 1 | 0 |
+| 1250 | 0 | 1 |
+| 1304 | 12 | 0 |
+| 1346 | 7 | 0 |
+| 1356 | 2 | 0 |
+
+964, 1050, 1311 and 1358 have no composition findings in the preview.
+Evidence and service review links:
+`storage/app/private/cut-sections-canary10-20261002/composition-review-c4-readonly.{json,md}`.
+These fresh compositions were calculated inside rolled-back transactions. Stored review
+state still describes the preceding dispatched round; no question was answered or hold released.
+
+**475-run census:** composition/boundary parking falls from **331 to 225**, content-held
+classification from **77 to 73**, and unblocked plans rise from **67 to 177**; zero resolver
+errors. Risk-bearing runs (overlapping categories) are 228 uncovered-speech, 29 reading
+membership and six prayer membership. Same-state old/new replays confirm **zero changed
+selected memberships or output spans**. The four held classifications that become unblocked
+(980, 1258, 1314, 1340) retain their content-hold flags: removing the composition flag allows
+their existing, bound held-span repair authority to apply; no hold was released.
+Evidence: `storage/app/private/cut-rule-census-c4-20261003/{census,summary}.json` and the
+same-state old-scope replay `storage/app/private/cut-rule-census-c4-before-20261003/census.json`.
+
+Validation: the focused resolver suite passes (**56 tests / 137 assertions**), full parallel
+suite passes (**9,140 tests / 94,244 assertions**, 162 existing PHPUnit notices), PHPStan has
+**0 errors**, and Pint passes. Logs: `/tmp/cut-c4-{red,focused,full,phpstan,pint}.txt`.
+Dusk was not rerun because review UI behaviour did not change. After this code commit, freeze
+the same membership in `cut-sections-canary10-20261002/before-c4-scope.json`, restart all four
+historic worker lanes and record start times, then require **16 ready** in the saved-draw dry
+run. Stop there: no recomposition, Tier C dispatch, hold release or composition answer is
+authorised by this ruling.

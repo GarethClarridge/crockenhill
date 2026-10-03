@@ -145,9 +145,32 @@ class SermonExtractionPlanResolverTest extends TestCase
             'windows' => [['start' => 0, 'end' => 300, 'music' => 0, 'speech' => 0.9]]];
         Storage::disk('local')->put('temp/timeline.json', json_encode($timeline, JSON_THROW_ON_ERROR));
         $composition = $this->resolver->compose($log);
+        $this->assertSame([], $composition['risks']);
+        $this->assertFalse($composition['requires_review']);
+        $this->assertCount(1, $this->resolver->resolve($log)['segments']);
+
+        $sermon = $log->serviceSections()->where('section_type', ServiceSectionType::Sermon)->sole();
+        $sermon->update(['metadata' => ['sermon_reference' => 'John 3:16']]);
+        $reading = $this->section($log, ServiceSectionType::BibleReading, 1, 40, 60);
+        $reading->update(['metadata' => ['reading_reference' => 'John 3:16']]);
+        $transcript = ChurchServiceTranscript::fromCues([
+            ['start' => 30, 'end' => 35, 'text' => 'Speech before the selected reading.'],
+            ['start' => 45, 'end' => 55, 'text' => 'Identified reading.'],
+            ['start' => 70, 'end' => 75, 'text' => 'Speech between selected sections.'],
+            ['start' => 100, 'end' => 200, 'text' => 'Identified sermon.'],
+            ['start' => 205, 'end' => 210, 'text' => 'Speech after the selected sermon.'],
+            ['start' => 245, 'end' => 260, 'text' => 'Identified singing.'],
+        ], 300, ChurchServiceTranscript::SOURCE_MOCK);
+        Storage::disk('local')->put('temp/transcript.json', json_encode($transcript->toArray(), JSON_THROW_ON_ERROR));
+        $composition = $this->resolver->compose($log);
         $this->assertSame(['sermon_uncovered_speech'], array_column($composition['risks'], 'kind'));
         $this->assertTrue($composition['requires_review']);
-        $this->assertCount(1, $this->resolver->resolve($log)['segments']);
+        $this->assertStringContainsString('70.000–75.000s', $composition['risks'][0]['detail']);
+        $this->assertCount(2, $this->resolver->resolve($log)['segments']);
+
+        $this->section($log, ServiceSectionType::Prayer, 2, 60, 100);
+        $this->assertFalse($this->resolver->compose($log)['requires_review']);
+        $log->serviceSections()->where('section_type', ServiceSectionType::Prayer)->delete();
 
         $timeline['windows'][0]['speech'] = 0.1;
         Storage::disk('local')->put('temp/timeline.json', json_encode($timeline, JSON_THROW_ON_ERROR));

@@ -87,7 +87,7 @@ class SermonExtractionPlanResolver
             } elseif ($prayers !== []) {
                 $risks[] = ['kind' => 'sermon_prayer_membership_unresolved', 'detail' => 'Choose the concluding prayer: intervening sections or multiple prayers make membership uncertain.'];
             }
-            foreach ($this->uncoveredSpeech($log, $sections, $first, $last) as $cue) {
+            foreach ($this->uncoveredSpeech($log, $sections, $selected) as $cue) {
                 $risks[] = ['kind' => 'sermon_uncovered_speech', 'detail' => sprintf('Speech outside identified sections at %.3f–%.3fs: %s', $cue['start'], $cue['end'], $cue['text'])];
             }
         }
@@ -304,52 +304,58 @@ class SermonExtractionPlanResolver
     }
 
     /**
-     * Use timed words corroborated as speech by the existing audio timeline, in gaps near
-     * the selected sermon. Identified songs and other sections already cover their content.
+     * Use timed words corroborated as speech only in gaps between selected sections.
+     * Identified songs and other sections already cover their intentionally excluded content.
      *
      * @param  array<int, ServiceSection>  $sections
+     * @param  list<ServiceSection>  $selected
      * @return list<array{start: float, end: float, text: string}>
      */
-    private function uncoveredSpeech(MediaProcessingLog $log, array $sections, ServiceSection $first, ServiceSection $last): array
+    private function uncoveredSpeech(MediaProcessingLog $log, array $sections, array $selected): array
     {
+        usort($selected, static fn (ServiceSection $a, ServiceSection $b): int => $a->start_time <=> $b->start_time);
+        $gaps = [];
+        foreach ($selected as $index => $section) {
+            $next = $selected[$index + 1] ?? null;
+            if ($next !== null && $section->end_time < $next->start_time) {
+                $gaps[] = [(float) $section->end_time, (float) $next->start_time];
+            }
+        }
+        if ($gaps === []) {
+            return [];
+        }
+        $before = $gaps[0][0];
+        $after = $gaps[count($gaps) - 1][1];
         $path = $log->serviceTranscriptPath();
         $timelinePath = $log->audio_timeline_path;
         if ($path === null && $timelinePath === null) {
             return [];
         }
         if ($path === null || $timelinePath === null) {
-            return [['start' => (float) $first->start_time, 'end' => (float) $last->end_time, 'text' => 'Required coverage evidence is missing.']];
+            return [['start' => $before, 'end' => $after, 'text' => 'Required coverage evidence is missing.']];
         }
         $transcriptDisk = Storage::disk(ServiceArtifactDisk::for($path));
         $timelineDisk = Storage::disk(ServiceArtifactDisk::for($timelinePath));
         if (! $transcriptDisk->exists($path) || ! $timelineDisk->exists($timelinePath)) {
-            return [['start' => (float) $first->start_time, 'end' => (float) $last->end_time, 'text' => 'Required coverage evidence is missing.']];
+            return [['start' => $before, 'end' => $after, 'text' => 'Required coverage evidence is missing.']];
         }
         $raw = $transcriptDisk->get($path);
         $audio = $timelineDisk->get($timelinePath);
         if (! is_string($raw) || ! is_string($audio)) {
-            return [['start' => (float) $first->start_time, 'end' => (float) $last->end_time, 'text' => 'Required coverage evidence is missing.']];
+            return [['start' => $before, 'end' => $after, 'text' => 'Required coverage evidence is missing.']];
         }
         $transcript = ChurchServiceTranscript::fromArray(json_decode($raw, true));
         $timeline = AudioTimeline::fromJson($audio);
-        $before = 0.0;
-        $after = $log->duration ?? $transcript->duration;
-        foreach ($sections as $section) {
-            if ($section->end_time <= $first->start_time) {
-                $before = max($before, (float) $section->end_time);
-            }
-            if ($section->start_time >= $last->end_time && $section->section_type === ServiceSectionType::Song) {
-                $after = min($after, (float) $section->start_time);
-            }
-        }
         $uncovered = [];
         foreach ($transcript->cues as $cue) {
-            $start = max($before, $cue['start']);
-            $end = min($after, $cue['end']);
-            if ($end <= $start) {
-                continue;
+            $pieces = [];
+            foreach ($gaps as [$from, $to]) {
+                $start = max($from, $cue['start']);
+                $end = min($to, $cue['end']);
+                if ($end > $start) {
+                    $pieces[] = [$start, $end];
+                }
             }
-            $pieces = [[$start, $end]];
             foreach ($sections as $section) {
                 $remaining = [];
                 foreach ($pieces as [$from, $to]) {
