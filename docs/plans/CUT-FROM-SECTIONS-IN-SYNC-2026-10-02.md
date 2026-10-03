@@ -336,3 +336,13 @@ the same membership in `cut-sections-canary10-20261002/before-c4-scope.json`, re
 historic worker lanes and record start times, then require **16 ready** in the saved-draw dry
 run. Stop there: no recomposition, Tier C dispatch, hold release or composition answer is
 authorised by this ruling.
+
+Readiness completed on code commit **`87c22ab72`** (03:26:25 UTC): the new snapshot retains
+membership `0bbc51836e06a7d9e9ed7b3edd8c0e185723495670bc4f6e323da78291eb4c2e` and the same
+bound listening routing. All four historic worker lanes started at **03:26:52 UTC**, after
+the code commit. The saved-draw dry run reports **16 ready, 0 refused**; queues remain empty.
+Receipt: `storage/app/private/cut-sections-canary10-20261002/c4-preflight-readonly.json`;
+logs `/tmp/cut-c4-{snapshot,worker-restart,saved-draw-dry}.txt` and
+`/tmp/cut-c4-worker-{ffmpeg,whisper,llm,orchestration}.txt`. No recomposition or Tier C was
+dispatched, no hold released and no composition question answered. This readiness record is
+a documentation-only commit; it does not change the snapshot's bound code revision.
