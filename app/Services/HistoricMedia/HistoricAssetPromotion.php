@@ -717,13 +717,17 @@ final class HistoricAssetPromotion
                 'historic_import_operation_id' => $log->historic_import_operation_id,
             ];
 
-            if ($locked->publication_state === $updates['publication_state']
-                && $locked->asset_disk === $updates['asset_disk']
-                && $locked->historic_import_operation_id === $updates['historic_import_operation_id']) {
-                return;
-            }
-
             $locked->forceFill($updates)->save();
+
+            $section = ServiceSection::query()->whereKey($locked->service_section_id)->lockForUpdate()->first();
+
+            if ($section instanceof ServiceSection) {
+                if (filled($section->asset_disk) && ! in_array($section->asset_disk, [$staging, $quarantine], true)) {
+                    throw new RuntimeException("Service section {$section->getKey()} is already owned by disk {$section->asset_disk}.");
+                }
+
+                $section->forceFill(['asset_disk' => $quarantine, 'extracted_video_path' => $locked->video_file_path])->save();
+            }
         });
 
         $songVideo->refresh();

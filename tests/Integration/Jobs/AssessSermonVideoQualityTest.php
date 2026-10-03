@@ -15,13 +15,40 @@ use App\Services\Media\MediaDiskReachability;
 use App\Services\Media\Video\FrameExtractionService;
 use App\Services\Media\Video\SermonVideoQualityAssessmentService;
 use App\Services\Sermon\SermonExposurePolicy;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class AssessSermonVideoQualityTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
+
+    #[Test]
+    public function a_recut_is_assessed_from_fresh_staging_bytes_before_quarantine_promotion(): void
+    {
+        config(['media-processing.storage.sermon_disk' => 'historic_staging']);
+        \Illuminate\Support\Facades\Storage::fake('historic_staging');
+        \Illuminate\Support\Facades\Storage::fake('historic_quarantine');
+        $path = 'sermons/1311/video.mp4';
+        \Illuminate\Support\Facades\Storage::disk('historic_quarantine')->put($path, 'stale prior cut');
+        \Illuminate\Support\Facades\Storage::disk('historic_staging')->put($path, 'fresh paired cut');
+        $sermon = Sermon::factory()->create(['video_file_path' => $path, 'asset_disk' => 'historic_quarantine']);
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create(['sermon_id' => $sermon->id]);
+        $log->markAsReExtraction();
+        $observed = null;
+        $service = $this->createMock(SermonVideoQualityAssessmentService::class);
+        $service->method('assessAndRetainLocalPath')->willReturnCallback(function ($sermon, $videoPath, $disk) use (&$observed): array {
+            $observed = \Illuminate\Support\Facades\Storage::disk($disk)->get($videoPath);
+
+            return ['result' => $this->approvedResult(), 'localVideoPath' => null];
+        });
+
+        (new AssessSermonVideoQuality($log))->handle($service, $this->createStub(FrameExtractionService::class), $this->createStub(SermonExposurePolicy::class), new MediaDiskReachability);
+
+        $this->assertSame('fresh paired cut', $observed);
+        $this->assertSame('historic_staging', $log->refresh()->videoQualityMetadata()['asset_disk'] ?? null);
+        $this->assertSame($path, $log->videoQualityMetadata()['video_path'] ?? null);
+    }
 
     /**
      * `sermons:assess-video-quality` dispatches with a sermon id only, and 13

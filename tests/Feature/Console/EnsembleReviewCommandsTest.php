@@ -19,7 +19,7 @@ use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Sermon\SermonCandidateConfidenceService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
@@ -30,7 +30,8 @@ use Tests\TestCase;
 
 class EnsembleReviewCommandsTest extends TestCase
 {
-    use RefreshDatabase;
+    use \Tests\Concerns\CreatesHistoricImportOperations;
+    use DatabaseTransactions;
 
     private string $out;
 
@@ -53,6 +54,33 @@ class EnsembleReviewCommandsTest extends TestCase
         File::deleteDirectory($this->out);
 
         parent::tearDown();
+    }
+
+    #[Test]
+    public function an_answer_banked_after_media_exists_requires_recomposition_before_tier_c(): void
+    {
+        $log = $this->disputedRun();
+        $log->update(['historic_import_operation_id' => $this->createHistoricImportOperation()->id, 'sermon_id' => \App\Models\Sermon::factory()->create()->id, 'status' => \App\Enums\ProcessingStatus::Completed]);
+        $snapshot = 'ensemble-review-test-'.getmypid().'/before.json';
+        File::ensureDirectoryExists(storage_path('app/private/'.dirname($snapshot)));
+        $this->artisan('historic-import:rerun-snapshot', ['runs' => [$log->id], '--output' => $snapshot])->assertSuccessful();
+        $commit = json_decode((string) file_get_contents(storage_path('app/private/'.$snapshot)), true)['git_commit'];
+        $log->putCorpusRerunStamp(['git_commit' => $commit, 'media' => 'deferred', 'media_recorded_at' => now()->toIso8601String(), 'worker_commit' => $commit]);
+        $this->artisan('structure:ensemble-export-questions', ['runs' => [$log->id], '--out' => $this->out])->assertSuccessful();
+        $answers = "{$this->out}/answers.json";
+        file_put_contents($answers, json_encode([['question_id' => "{$log->id}-q0", 'choice' => 'alt1']]));
+        $this->artisan('structure:ensemble-apply-answers', ['export' => $this->out, 'answers' => $answers, '--execute' => true])->assertSuccessful();
+        \Illuminate\Support\Facades\Bus::fake();
+
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $snapshot, '--execute' => true])
+            ->expectsOutputToContain('historic-import:rerun-recompose')
+            ->assertSuccessful();
+
+        $result = app(\App\Services\Processing\ProcessingRunOrchestrator::class)->reExtract($log->fresh());
+        $this->assertFalse($result->success);
+        $this->assertStringContainsString('historic-import:rerun-recompose', $result->message);
+        \Illuminate\Support\Facades\Bus::assertNothingDispatched();
+        File::deleteDirectory(storage_path('app/private/'.dirname($snapshot)));
     }
 
     #[Test]

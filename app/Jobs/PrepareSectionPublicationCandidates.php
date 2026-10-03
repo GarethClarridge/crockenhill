@@ -269,8 +269,8 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             }
 
             $flags = $section->metadata->reviewFlags ?? [];
-            if (HoldSectionForContentReview::isHeld($flags)
-                || in_array(ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES, $flags, true)) {
+            if (in_array(ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES, $flags, true)
+                || ($section->section_type === ServiceSectionType::Sermon && HoldSectionForContentReview::isHeld($flags))) {
                 $this->moveToNotApplicable($section, $publicationTransitions);
 
                 continue;
@@ -295,6 +295,13 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             unset($metadata['publication_candidate_extraction_blocked']);
             $section->metadata = ServiceSectionMetadata::fromArray($metadata);
             $handler->afterExtraction($section);
+
+            if (HoldSectionForContentReview::isHeld($section->metadata->reviewFlags ?? [])) {
+                $section->needs_manual_review = true;
+                $this->moveToNotApplicable($section, $publicationTransitions);
+
+                continue;
+            }
 
             if ($section->needs_manual_review) {
                 if (

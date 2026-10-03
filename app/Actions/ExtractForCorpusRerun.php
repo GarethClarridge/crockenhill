@@ -6,6 +6,7 @@ namespace App\Actions;
 
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
+use App\Services\ChurchService\Structure\EnsembleReviewGate;
 use App\Services\HistoricMedia\HistoricRerunSnapshot;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\HistoricMedia\StagedSourceVerification;
@@ -134,6 +135,12 @@ final class ExtractForCorpusRerun
 
         if ($run->superseded_at !== null || $run->isRetired()) {
             return 'run is superseded or retired';
+        }
+
+        $projectionRefusal = app(EnsembleReviewGate::class)->projectionRefusal($run);
+
+        if ($projectionRefusal !== null) {
+            return $projectionRefusal;
         }
 
         $context = $run->historicStagingContext();

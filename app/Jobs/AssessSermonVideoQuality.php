@@ -92,7 +92,9 @@ class AssessSermonVideoQuality extends ProcessingJob implements ShouldBeUnique, 
             return;
         }
 
-        $disk = $sermon->assetDisk();
+        $disk = $processingLog?->isReExtraction()
+            ? (string) config('media-processing.storage.sermon_disk', 'public')
+            : $sermon->assetDisk();
 
         /**
          * An unreachable disk answers every read exactly as a deleted file
@@ -259,7 +261,13 @@ class AssessSermonVideoQuality extends ProcessingJob implements ShouldBeUnique, 
             'video_quality_assessed_at' => now(),
         ])->save();
 
-        ($processingLog ?? $this->owningRun($sermon))?->putVideoQualityMetadata($result->toArray());
+        ($processingLog ?? $this->owningRun($sermon))?->putVideoQualityMetadata([
+            ...$result->toArray(),
+            'asset_disk' => $processingLog?->isReExtraction()
+                ? (string) config('media-processing.storage.sermon_disk', 'public')
+                : $sermon->assetDisk(),
+            'video_path' => $sermon->video_file_path,
+        ]);
     }
 
     /**

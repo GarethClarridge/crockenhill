@@ -18,6 +18,7 @@ use App\Jobs\ExtractSermon;
 use App\Jobs\PromoteHistoricAssets;
 use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
+use App\Services\ChurchService\Structure\EnsembleReviewGate;
 use App\Services\HistoricMedia\HistoricPassInFlightProbe;
 use App\Services\HistoricMedia\HistoricProcessingThroughput;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
@@ -584,6 +585,12 @@ class ProcessingRunOrchestrator
 
     public function reExtract(MediaProcessingLog $processingLog): ProcessingResult
     {
+        $projectionRefusal = app(EnsembleReviewGate::class)->projectionRefusal($processingLog);
+
+        if ($projectionRefusal !== null) {
+            return ProcessingResult::failure(processingId: $processingLog->processing_id, message: $projectionRefusal, errorCode: 'STRUCTURE_RECOMPOSE_REQUIRED');
+        }
+
         try {
             return $this->withRecordedStagingContext($processingLog, function () use ($processingLog): ProcessingResult {
                 $plan = $this->phaseRegistry->reExtractionPlanFor($processingLog);

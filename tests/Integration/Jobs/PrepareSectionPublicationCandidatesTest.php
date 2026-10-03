@@ -36,7 +36,7 @@ use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Support\ChurchServiceProcessingTimeline;
 use App\Support\MediaAssetPath;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -49,7 +49,7 @@ use Tests\TestCase;
 class PrepareSectionPublicationCandidatesTest extends TestCase
 {
     use CreatesHistoricImportOperations;
-    use RefreshDatabase;
+    use DatabaseTransactions;
     use \Tests\Support\BanksNoWordOutputEdges;
 
     protected function setUp(): void
@@ -178,8 +178,9 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'end_time' => 300.0,
         ]);
 
+        $heldSections = [];
         foreach (['content_defect_hold', 'structure_ensemble_disagrees'] as $index => $flag) {
-            ServiceSection::factory()->create([
+            $heldSections[] = ServiceSection::factory()->create([
                 'media_processing_log_id' => $processingLog->id, 'church_service_item_id' => $item->id,
                 'section_type' => ServiceSectionType::Song, 'start_time' => 400.0 + 200 * $index,
                 'end_time' => 500.0 + 200 * $index, 'needs_manual_review' => true,
@@ -195,10 +196,14 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $this->bankNoWordOutputEdges($processingLog);
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
-        $videoExtractor->expects($this->once())
+        $videoExtractor->expects($this->exactly(2))
             ->method('extractSegmentAsFile')
-            ->with($this->anything(), $this->callback(fn (object $segment): bool => $segment->start_time === 112.62), $this->anything())
-            ->willReturn('temp/section-video.mp4');
+            ->with($this->anything(), $this->callback(fn (object $segment): bool => in_array($segment->start_time, [112.62, 400.0], true)), $this->anything())
+            ->willReturnCallback(function (): string {
+                Storage::disk('local')->put('temp/section-video.mp4', 'section-video');
+
+                return 'temp/section-video.mp4';
+            });
         // The key assertion: audio extraction should NEVER be called for songs.
         $videoExtractor->expects($this->never())
             ->method('extractOptimizedAudio');
@@ -218,6 +223,21 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $this->assertSame(113.38, (float) $section->start_time);
         $this->assertNotNull($section->extracted_video_path);
         $this->assertNull($section->extracted_audio_path);
+        $this->assertNotNull($heldSections[0]->refresh()->extracted_video_path);
+        $this->assertTrue($heldSections[0]->needs_manual_review);
+        $this->assertSame(ServiceSectionPublicationStatus::NotApplicable, $heldSections[0]->publication_status);
+        $this->assertNull($heldSections[1]->refresh()->extracted_video_path);
+        Bus::assertNotDispatched(AutoPublishServiceSection::class, fn ($job): bool => $job->serviceSectionId === $heldSections[0]->id);
+        (new AutoPublishServiceSection($heldSections[0]->id))->handle(app(SectionPublicationHandlerFactory::class));
+        $this->assertSame(ServiceSectionPublicationStatus::NotApplicable, $heldSections[0]->refresh()->publication_status);
+        $video = \App\Models\SongVideo::factory()->create([
+            'service_section_id' => $heldSections[0]->id,
+            'video_file_path' => $heldSections[0]->extracted_video_path,
+            'asset_disk' => $heldSections[0]->asset_disk,
+            'publication_state' => \App\Enums\SermonPublicationState::Quarantined,
+        ]);
+        $this->assertNotEmpty(app(\App\Services\Import\HistoricReleaseReviewHolds::class)->assess([], [$video]));
+        Storage::disk($heldSections[0]->extractedAssetDisk())->assertExists($heldSections[0]->extracted_video_path);
         $this->assertSame(\App\Enums\ProcessingStatus::Failed, $processingLog->fresh()->status);
         $this->assertSame('manual_review_required', $processingLog->fresh()->current_step);
     }

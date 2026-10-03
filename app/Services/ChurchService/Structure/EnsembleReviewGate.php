@@ -7,13 +7,41 @@ namespace App\Services\ChurchService\Structure;
 use App\Enums\ChurchServiceItemSource;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
 use App\Support\ServiceArtifactDisk;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 /** Fail closed when a banked ensemble is incomplete or has unresolved claims. */
 class EnsembleReviewGate
 {
+    public function projectionRefusal(MediaProcessingLog $log): ?string
+    {
+        $metadata = $log->processing_metadata?->toArray() ?? [];
+        $bank = $metadata['service_structure_ensemble'] ?? null;
+
+        if (! is_array($bank) || $bank === []) {
+            return null;
+        }
+
+        $latest = end($bank);
+        $composition = is_array($latest) ? ($latest['composition'] ?? null) : null;
+        $structure = is_array($composition) ? ($composition['structure'] ?? null) : null;
+        $projected = $metadata['service_structure'] ?? null;
+
+        if (! is_array($structure)
+            || ! is_array($projected)
+            || ($composition['sections_synced'] ?? null) === false
+            || Arr::sortRecursive($structure) !== Arr::sortRecursive($projected)
+            || ServiceSection::query()->where('media_processing_log_id', $log->id)
+                ->whereJsonContains('metadata->review_flags', ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES)->exists()) {
+            return 'Banked composition/answers are not reflected in projected sections; run historic-import:rerun-recompose before extraction.';
+        }
+
+        return null;
+    }
+
     /** @param list<array{start_time: float, end_time: float}>|null $spans */
     public function requiresReview(MediaProcessingLog $log, ?array $spans = null): bool
     {

@@ -19,7 +19,7 @@ use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
 use App\Services\HistoricMedia\HistoricAssetPromotion;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
@@ -30,7 +30,7 @@ use Tests\TestCase;
 class HistoricAssetPromotionTest extends TestCase
 {
     use CreatesHistoricImportOperations;
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     protected function setUp(): void
     {
@@ -50,6 +50,23 @@ class HistoricAssetPromotionTest extends TestCase
         config()->set('media-processing.storage.sermon_disk', 'historic_staging');
         config()->set('media-processing.storage.transcript_disk', 'historic_staging');
         config()->set('thumbnail-generation.storage.disk', 'historic_staging');
+    }
+
+    #[Test]
+    public function song_promotion_updates_the_sections_disk_and_canonical_path_on_repromotion(): void
+    {
+        [$log] = $this->historicRun();
+        $songVideo = $this->songVideoForRun($log);
+        $section = ServiceSection::findOrFail($songVideo->service_section_id);
+        $section->update(['asset_disk' => 'historic_staging', 'extracted_video_path' => 'sections/stale.mp4', 'extracted_at' => now(), 'publication_status' => ServiceSectionPublicationStatus::Published, 'published_at' => now()]);
+        $songVideo->update(['asset_disk' => 'historic_quarantine', 'publication_state' => SermonPublicationState::Quarantined, 'historic_import_operation_id' => $log->historic_import_operation_id]);
+        Storage::disk('historic_quarantine')->put($songVideo->video_file_path, 'canonical song');
+
+        app(HistoricAssetPromotion::class)->promoteSongVideos($log);
+
+        $this->assertSame('historic_quarantine', $section->refresh()->asset_disk);
+        $this->assertSame($songVideo->video_file_path, $section->extracted_video_path);
+        $this->assertSame(ServiceSectionPublicationStatus::Published, $section->publication_status);
     }
 
     #[Test]

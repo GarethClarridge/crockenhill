@@ -90,6 +90,7 @@ class ApplyServiceStructureEnsembleAnswersCommand extends Command
 
         foreach ($openByRun as $run => $open) {
             $this->line("Run {$run}: {$open} questions still open");
+            $this->line("Next step for run {$run}: historic-import:rerun-recompose using its batch snapshot, before historic-import:rerun-extract.");
         }
 
         $this->info(sprintf('%d applied, %d failed, %d need attention.', count($ready) - $failed, $failed, $blocked));

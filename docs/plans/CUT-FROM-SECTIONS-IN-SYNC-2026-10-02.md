@@ -1147,3 +1147,31 @@ otherwise stated. `receipt.json` binds the evidence hashes and stop boundary.
 Sync, current-version generation and direct boundary checks pass for generated files; media
 restoration and Naomi's projection/output remain unresolved. Operator listening and acceptance
 are still required, after those gaps are addressed through an authorized path.
+
+### Canary 10 four-defect repair and same-sixteen re-run — 2026-10-03
+
+The operator authorised repairs of the four failures in the preceding receipt, followed by
+another saved-draw round of the same sixteen. No acceptance, Tier A, hold release or new answer
+is authorised. 1050, 1250 and 1356 remain parked until the operator confirms their joins.
+
+All four defects were reproduced before their fixes: an answer banked on a run with media
+without recomposition; a content-held song skipped before extraction; fresh staging video
+assessed from stale quarantine bytes; and a song section retaining its staging pointer after
+promotion of its canonical SongVideo. Tier C now refuses an unapplied ensemble projection in
+both `rerun-extract` and the orchestrator, naming `historic-import:rerun-recompose`; the answer
+command prints that next step. Content-held non-sermon candidates now extract and run their
+post-extraction hooks before the manual-review route withholds publication. Content-held
+sermons and ensemble-disagreement skips retain their guards. The regression also exercises
+weekly auto-publication and `HistoricReleaseReviewHolds`: both still withhold the held song.
+Pre-promotion quality assessment reads the configured fresh output disk for a re-extraction
+and records the assessed disk/path. Song promotion binds the section's disk and canonical
+video path in its locked custody transaction, including an already-promoted replay.
+
+Gates: focused tests **84 passed**; full parallel suite **9,181 tests, 94,429 assertions**, no
+failures (163 PHPUnit notices); PHPStan zero errors; Pint passed. Queues were empty throughout
+testing. No UI changed and no Dusk ran. The paired cutter and output recipe are unchanged, so
+media-processing version remains **6**. Private evidence for this new operation is
+`storage/app/private/canary10-defect-rerun-20261003/`; its `before-state.json` records 32
+unchanged attempts, zero open questions, the saved Naomi answer and 1250's recorded four-part
+selection. Implementation is ready for the commit, worker restart, fresh bound snapshot and
+preflight; dispatch/results will be recorded below. Canary 10 remains unaccepted.
