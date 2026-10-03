@@ -451,6 +451,54 @@ class ServiceStructureEnsembleRulingApplierTest extends TestCase
     }
 
     /**
+     * The shape of 1250 in canary 10: a canary-9 answer chose a draft whose sermon had been
+     * stitched across a quoted passage, but most drafts read one unbroken sermon, so the
+     * composition dropped the stitch flag. The answer decides the sermon, not the vote on
+     * how a minority of drafts reached it.
+     */
+    #[Test]
+    public function a_chosen_version_does_not_restore_a_stitch_flag_the_composition_dropped(): void
+    {
+        $chosen = $this->section(ServiceSectionType::Sermon, 2454, 4311)
+            ->withReviewFlags([ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, 'chosen_version_review']);
+        $proposal = $this->proposalOf(
+            [$this->section(ServiceSectionType::Sermon, 2454, 4311)->withReviewFlags([ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES])],
+            ['type' => 'sermon', 'written' => true, 'start_time' => 2454.0, 'end_time' => 4311.0],
+        );
+
+        $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($proposal, [[
+            ...$this->ruling('choose', ['sections' => [$chosen->toArray()]], key: 'sermon'),
+            'scope' => ['type' => 'sermon', 'start_time' => 2454.0, 'end_time' => 4311.0],
+        ]]);
+
+        $flags = $result['structure']['sections'][0]['review_flags'];
+        $this->assertNotContains(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $flags);
+        $this->assertContains('chosen_version_review', $flags);
+    }
+
+    #[Test]
+    public function a_chosen_version_keeps_a_stitch_flag_the_composition_carries(): void
+    {
+        $proposal = $this->proposalOf(
+            [$this->section(ServiceSectionType::Sermon, 2454, 4311)->withReviewFlags([
+                ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES,
+                ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED,
+            ])],
+            ['type' => 'sermon', 'written' => true, 'start_time' => 2454.0, 'end_time' => 4311.0],
+        );
+
+        $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($proposal, [[
+            ...$this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::Sermon, 2454, 4311)->toArray()]], key: 'sermon'),
+            'scope' => ['type' => 'sermon', 'start_time' => 2454.0, 'end_time' => 4311.0],
+        ]]);
+
+        $this->assertContains(
+            ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED,
+            $result['structure']['sections'][0]['review_flags'],
+        );
+    }
+
+    /**
      * @param  list<ServiceStructureSection>  $sections
      * @param  array<string, mixed>  $dispute
      * @return array<string, mixed>

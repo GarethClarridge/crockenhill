@@ -186,7 +186,13 @@ class ServiceStructureEnsembleRulingApplier
                     array_splice($sections, $target, 1);
                 }
             } else {
-                $replacements = $this->resolvedSections($resolution);
+                // An answer decides the section, not the vote: a flag the drafts decide by majority
+                // comes from the composed section, never from the answered draft's own copy.
+                $replacements = array_map(
+                    static fn (ServiceStructureSection $section): ServiceStructureSection => $section->withoutReviewFlags()
+                        ->withReviewFlags(array_values(array_diff($section->reviewFlags, self::majorityFlags()))),
+                    $this->resolvedSections($resolution),
+                );
 
                 if ($target !== null) {
                     $preservedFlags = array_values(array_diff($sections[$target]->reviewFlags, self::ensembleFlags()));
@@ -368,6 +374,17 @@ class ServiceStructureEnsembleRulingApplier
             ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES,
             ServiceStructureValidator::FLAG_ENSEMBLE_DEGRADED,
         ];
+    }
+
+    /**
+     * Flags the composer keeps only when most supporting drafts carry them, so an answer
+     * that chose one draft's section must not bring that draft's copy back.
+     *
+     * @return list<string>
+     */
+    public static function majorityFlags(): array
+    {
+        return [ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED];
     }
 
     /**
