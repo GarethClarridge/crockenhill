@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Console\Commands\DemoteHeldPublicationsCommand;
+use App\Actions\HoldSectionForContentReview;
+use App\Enums\ProcessingStatus;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Contracts\SectionPublicationHandler;
 use App\Data\HistoricStagingContext;
 use App\Data\ServiceSectionMetadata;
@@ -16,6 +19,7 @@ use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
+use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\HistoricMedia\HistoricProcessingThroughput;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
@@ -221,7 +225,10 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         }
 
         $this->logStepStart(ChurchServiceProcessingTimeline::PREPARE_SECTION_PUBLICATION_CANDIDATES);
-        $this->markProcessingRunAsProcessing($this->processingLog, ProcessingStep::PreparingSectionPublicationCandidates->value);
+        if ($this->standalone || $this->processingLog->status !== ProcessingStatus::Failed
+            || $this->processingLog->processing_metadata?->manualReview?->status !== 'required') {
+            $this->markProcessingRunAsProcessing($this->processingLog, ProcessingStep::PreparingSectionPublicationCandidates->value);
+        }
         $this->markHistoricNestedJobRunning();
 
         $retainHours = (int) config('media-processing.section_publishing.retain_unpublished_hours', 48);
@@ -254,6 +261,14 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
                     continue;
                 }
 
+                $this->moveToNotApplicable($section, $publicationTransitions);
+
+                continue;
+            }
+
+            $flags = $section->metadata->reviewFlags ?? [];
+            if (HoldSectionForContentReview::isHeld($flags)
+                || in_array(ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES, $flags, true)) {
                 $this->moveToNotApplicable($section, $publicationTransitions);
 
                 continue;
@@ -405,10 +420,8 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         }
 
         try {
-            $segment = (object) [
-                'start_time' => (float) $section->start_time,
-                'end_time' => (float) $section->end_time,
-            ];
+            $cutPlan = app(CueSafeExtractionPlan::class)->forSection($section);
+            $segment = (object) $cutPlan['segments'][0];
 
             $tempVideoPath = $videoExtractor->extractSegmentAsFile(
                 $localSourcePath,
@@ -451,6 +464,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
                 $section->metadata?->toArray() ?? [],
                 [
                     'publication_candidate_extraction' => [
+                        ...$cutPlan,
                         'processing_id' => $this->processingLog->processing_id,
                         'media_signature' => $section->mediaSignature(),
                         'media_processing' => MediaProcessingVersion::signature(),

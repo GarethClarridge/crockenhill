@@ -11,6 +11,7 @@ use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\Media\Audio\AudioTimeline;
+use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\Scripture\ScriptureReferenceResolver;
 use App\Support\SermonAutoExtractionPolicy;
 use App\Support\ServiceArtifactDisk;
@@ -250,12 +251,21 @@ class SermonExtractionPlanResolver
             $spans[] = ['start_time' => $start, 'end_time' => $end];
         }
 
+        $cuePlan = app(CueSafeExtractionPlan::class)->forSpans($processingLog, $spans);
+        $spans = $cuePlan['segments'];
+        foreach ($spans as $span) {
+            if ($span['start_time'] < 0 || ($processingLog->duration !== null && $span['end_time'] > $processingLog->duration + 0.001)) {
+                throw new InvalidArgumentException('Widened cut bounds are outside source');
+            }
+        }
+
         return [
             'mode' => count($spans) > 1 ? 'concat_spans' : 'single_span',
             'source' => 'service_sections',
             'segments' => $spans,
             'metadata' => [
                 ...$composition,
+                'cue_edge_widening' => $cuePlan['cue_edge_widening'],
                 'strategy' => 'identified_sections',
                 'requires_review' => $requiresReview,
                 'reason' => $held !== [] ? 'sermon_section_content_held' : ($requiresReview ? 'sermon_composition_review' : null),
@@ -320,7 +330,13 @@ class SermonExtractionPlanResolver
             if ($next !== null && $section->end_time < $next->start_time
                 && ($section->id === $sermonId || $section->metadata?->sermonContinuation?->continues($sermonId))
                 && ($next->id === $sermonId || $next->metadata?->sermonContinuation?->continues($sermonId))) {
-                $gaps[] = [(float) $section->end_time, (float) $next->start_time];
+                $pair = app(CueSafeExtractionPlan::class)->forSpans($log, [
+                    ['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time],
+                    ['start_time' => (float) $next->start_time, 'end_time' => (float) $next->end_time],
+                ])['segments'];
+                if (count($pair) === 2) {
+                    $gaps[] = [$pair[0]['end_time'], $pair[1]['start_time']];
+                }
             }
         }
         if ($gaps === []) {

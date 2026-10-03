@@ -33,6 +33,86 @@ class SermonExtractionPlanResolverTest extends TestCase
     }
 
     #[Test]
+    public function every_clip_type_widens_through_overlapping_cues_and_audits_each_edge(): void
+    {
+        Storage::fake('local');
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 500]);
+        $log->putServiceTranscriptPath('temp/overlapping.json');
+        Storage::disk('local')->put('temp/overlapping.json', json_encode(ChurchServiceTranscript::fromCues([
+            ['start' => 90.0, 'end' => 101.0, 'text' => 'First line'],
+            ['start' => 95.0, 'end' => 105.0, 'text' => 'Overlapping line'],
+            ['start' => 195.0, 'end' => 205.0, 'text' => 'Closing line'],
+            ['start' => 204.0, 'end' => 210.0, 'text' => 'Overlapping close'],
+        ], 500, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        foreach ([ServiceSectionType::Song, ServiceSectionType::BibleReading, ServiceSectionType::ShortTalk, ServiceSectionType::Prayer] as $index => $type) {
+            $section = $this->section($log, $type, $index + 1, 100, 200);
+            $plan = app(\App\Services\ChurchService\CueSafeExtractionPlan::class)->forSection($section);
+            $this->assertSame([['start_time' => 90.0, 'end_time' => 210.0]], $plan['segments']);
+            $this->assertSame([10.0, 10.0], array_column($plan['cue_edge_widening'], 'seconds_added'));
+            $this->assertCount(2, $plan['cue_edge_widening'][0]['cues']);
+            $this->assertCount(2, $plan['cue_edge_widening'][1]['cues']);
+            $this->assertSame(100.0, (float) $section->fresh()->start_time);
+        }
+    }
+
+    #[Test]
+    public function run_936s_sermon_cut_includes_the_shared_name_cue_without_moving_the_prayer(): void
+    {
+        Storage::fake('local');
+        $log = $this->logWithSermon(2594.18, 3789.12);
+        $prayer = $this->section($log, ServiceSectionType::Prayer, 1, 2500, 2594.18);
+        $log->putServiceTranscriptPath('temp/shared.json');
+        Storage::disk('local')->put('temp/shared.json', json_encode(ChurchServiceTranscript::fromCues([
+            ['start' => 2593.98, 'end' => 2594.38, 'text' => 'name.'],
+        ], 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        $plan = $this->resolver->resolve($log->fresh());
+        $this->assertSame(2593.98, $plan['segments'][0]['start_time']);
+        $this->assertSame(2594.18, (float) $prayer->fresh()->end_time);
+        $this->assertEqualsWithDelta(0.20, $plan['metadata']['cue_edge_widening'][0]['seconds_added'], 0.0001);
+    }
+
+    #[Test]
+    public function a_two_span_sermon_merges_after_both_spans_widen_into_the_same_cue(): void
+    {
+        Storage::fake('local');
+        $log = $this->logWithSermon(100, 200);
+        $sermon = $log->serviceSections()->sole();
+        $continuation = $this->section($log, ServiceSectionType::Other, 3, 201, 300);
+        $continuation->update(['metadata' => ['sermon_continuation' => ['of_section_id' => $sermon->id, 'evidence' => 'Same sermon', 'source' => 'review']]]);
+        $log->putServiceTranscriptPath('temp/shared.json');
+        Storage::disk('local')->put('temp/shared.json', json_encode(ChurchServiceTranscript::fromCues([
+            ['start' => 199.5, 'end' => 201.5, 'text' => 'One complete line.'],
+        ], 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        $plan = $this->resolver->resolve($log->fresh());
+        $this->assertSame([['start_time' => 100.0, 'end_time' => 300.0]], $plan['segments']);
+        $this->assertSame('single_span', $plan['mode']);
+        $this->assertCount(2, $plan['metadata']['cue_edge_widening']);
+        $this->assertFalse($plan['metadata']['requires_review']);
+    }
+
+    #[Test]
+    public function a_shared_cue_between_two_songs_does_not_ask_questions_or_park_the_sermon(): void
+    {
+        $transcript = ChurchServiceTranscript::fromCues([
+            ['start' => 199.5, 'end' => 200.5, 'text' => 'Singing across the join.'],
+        ], 5000, ChurchServiceTranscript::SOURCE_MOCK);
+        $structure = \App\Data\ServiceStructure::fromArray(['sections' => [
+            ['type' => 'song', 'start_time' => 100, 'end_time' => 200, 'confidence' => 0.9],
+            ['type' => 'song', 'start_time' => 200, 'end_time' => 300, 'confidence' => 0.9],
+            ['type' => 'sermon', 'start_time' => 400, 'end_time' => 1200, 'confidence' => 0.9],
+        ]]);
+        $final = app(\App\Services\ChurchService\Structure\TranscriptCueBoundaries::class)->finish($structure, $transcript);
+        $log = $this->logWithSermon(400, 1200);
+        $sermon = $log->serviceSections()->sole();
+        $flags = $final['structure']->sections[2]->reviewFlags;
+        $sermon->update(['needs_manual_review' => $flags !== [], 'metadata' => ['review_flags' => $flags]]);
+        $this->assertFalse($this->resolver->resolve($log)['metadata']['requires_review']);
+        $this->assertSame([], $final['questions']);
+        $this->assertSame(200.0, $final['structure']->sections[0]->endTime);
+        $this->assertSame(200.0, $final['structure']->sections[1]->startTime);
+    }
+
+    #[Test]
     public function composition_does_not_clear_an_upstream_material_boundary_review(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 400]);
@@ -1457,10 +1537,10 @@ class SermonExtractionPlanResolverTest extends TestCase
         $plan = $this->resolver->resolve($log);
 
         // Absorbed by the sermon-end rule, so one contiguous span, counted once.
-        $this->assertSame('concat_spans', $plan['mode']);
-        $this->assertCount(2, $plan['segments']);
+        $this->assertSame('single_span', $plan['mode']);
+        $this->assertCount(1, $plan['segments']);
         $this->assertSame(500.0, $plan['segments'][0]['start_time']);
-        $this->assertSame(1400.0, $plan['segments'][1]['end_time']);
+        $this->assertSame(1400.0, $plan['segments'][0]['end_time']);
 
     }
 

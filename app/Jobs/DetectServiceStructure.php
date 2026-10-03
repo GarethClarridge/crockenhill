@@ -345,22 +345,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         // re-tests the content against the transcript this detection read.
         app(ContentHoldRechecker::class)->recheck($this->processingLog);
 
-        if ($ensemble->requiresReview()) {
-            $reasonMessage = 'Service structure ensemble has unresolved disagreement or reduced vote coverage.';
-            $evaluation = $sermonConfidenceService->evaluateForProcessingLog($this->processingLog);
-            $this->markProcessingRunForManualReview(
-                $this->processingLog,
-                'service_structure_ensemble_review',
-                $reasonMessage,
-                $evaluation['speech_segments'],
-            );
-            $this->notifyManualReviewRequired($reasonMessage, $evaluation['speech_segments']);
-            $this->chained = [];
-            $this->logStepComplete(ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE, 'Reviewable ensemble proposal persisted');
-
-            return;
-        }
-
+        // Questions remain on their affected sections. Extraction gates each output separately.
         if ($this->reconcile) {
             $this->openServiceReviewFromSyncedSections();
         }

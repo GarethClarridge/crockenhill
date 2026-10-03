@@ -60,6 +60,95 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
     }
 
     #[Test]
+    public function run_1221s_song_cut_includes_the_shared_welcome_cue_and_records_the_widening(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        Bus::fake([AutoPublishServiceSection::class]);
+
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => [
+                'song' => SongPublicationHandler::class,
+            ],
+        ]);
+
+        $song = Song::factory()->create();
+        $item = ChurchServiceItem::factory()->create(['song_id' => $song->id]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'source_file_path' => 'livestreams/source.mp4',
+            'status' => \App\Enums\ProcessingStatus::Failed,
+            'current_step' => 'manual_review_required',
+            'processing_metadata' => ['manual_review' => ['status' => 'required', 'reason_code' => 'sermon_section_content_held']],
+        ]);
+
+        Storage::disk('local')->put('livestreams/source.mp4', 'source-video');
+        Storage::disk('local')->put('temp/section-video.mp4', 'section-video');
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'status' => ServiceSectionStatus::Identified->value,
+            'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
+            'metadata' => ['confidence_level' => 'high'],
+            'start_time' => 113.38,
+            'end_time' => 300.0,
+        ]);
+
+        foreach (['content_defect_hold', 'structure_ensemble_disagrees'] as $index => $flag) {
+            ServiceSection::factory()->create([
+                'media_processing_log_id' => $processingLog->id, 'church_service_item_id' => $item->id,
+                'section_type' => ServiceSectionType::Song, 'start_time' => 400.0 + 200 * $index,
+                'end_time' => 500.0 + 200 * $index, 'needs_manual_review' => true,
+                'song_match_type' => ServiceSectionSongMatchType::Confirmed,
+                'metadata' => ['review_flags' => [$flag]],
+            ]);
+        }
+        $processingLog->putServiceTranscriptPath('temp/shared.json');
+        Storage::disk('local')->put('temp/shared.json', json_encode(\App\Data\ChurchServiceTranscript::fromCues([
+            ['start' => 112.62, 'end' => 114.14, 'text' => "Let's stand and sing King of Kings."],
+        ], 5000, \App\Data\ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+
+        $videoExtractor = $this->createMock(VideoExtractionService::class);
+        $videoExtractor->expects($this->once())
+            ->method('extractSegmentAsFile')
+            ->with($this->anything(), $this->callback(fn (object $segment): bool => $segment->start_time === 112.62), $this->anything())
+            ->willReturn('temp/section-video.mp4');
+        // The key assertion: audio extraction should NEVER be called for songs.
+        $videoExtractor->expects($this->never())
+            ->method('extractOptimizedAudio');
+
+        $job = new PrepareSectionPublicationCandidates($processingLog);
+        $job->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(SectionPublicationHandlerFactory::class),
+            app(ServiceSectionPublicationTransitionService::class)
+        );
+
+        $section->refresh();
+        $audit = $section->metadata->raw['publication_candidate_extraction'];
+        $this->assertSame(112.62, $audit['segments'][0]['start_time']);
+        $this->assertEqualsWithDelta(0.76, $audit['cue_edge_widening'][0]['seconds_added'], 0.0001);
+        $this->assertSame(113.38, (float) $section->start_time);
+        $this->assertNotNull($section->extracted_video_path);
+        $this->assertNull($section->extracted_audio_path);
+        $this->assertSame(\App\Enums\ProcessingStatus::Failed, $processingLog->fresh()->status);
+        $this->assertSame('manual_review_required', $processingLog->fresh()->current_step);
+    }
+
+    /**
+     * Audio and video of one section must land on the same disk. Changing only
+     * the video's disk would split the pair, and DeleteLivestreamUpload's
+     * per-field disk map would then be right about one and wrong about the other.
+     */
+    #[Test]
     public function it_extracts_publishable_section_media_and_marks_pending_approval(): void
     {
         Storage::fake('local');

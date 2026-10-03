@@ -124,6 +124,20 @@ class EnsembleReviewGateTest extends TestCase
         $gate = app(EnsembleReviewGate::class);
         $this->assertFalse($gate->requiresReview($log->fresh()));
 
+        $original = $log->processing_metadata->toArray();
+        $questioned = $original;
+        $questioned['service_structure_ensemble'][0]['composition']['disputes'] = [[
+            'type' => 'song', 'start_time' => 200.0, 'end_time' => 300.0,
+        ]];
+        $log->forceFill(['processing_metadata' => $questioned])->save();
+        $this->assertTrue($gate->requiresReview($log->fresh()));
+        $this->assertFalse($gate->requiresReview($log->fresh(), [['start_time' => 500.0, 'end_time' => 1200.0]]));
+        $this->assertTrue($gate->requiresReview($log->fresh(), [['start_time' => 250.0, 'end_time' => 1200.0]]));
+        $questioned['service_structure_ensemble'][0]['composition']['disputes'][0]['check'] = 'shared_cue';
+        $log->forceFill(['processing_metadata' => $questioned])->save();
+        $this->assertFalse($gate->requiresReview($log->fresh(), [['start_time' => 250.0, 'end_time' => 1200.0]]));
+        $log->forceFill(['processing_metadata' => $original])->save();
+
         $metadata = $log->processing_metadata->toArray();
         $metadata['service_structure_ensemble'][0]['outcomes'][0]['status'] = 'invalid';
         $metadata['service_structure_ensemble'][0]['composition']['degraded'] = true;

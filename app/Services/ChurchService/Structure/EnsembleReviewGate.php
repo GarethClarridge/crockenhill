@@ -14,7 +14,8 @@ use Throwable;
 /** Fail closed when a banked ensemble is incomplete or has unresolved claims. */
 class EnsembleReviewGate
 {
-    public function requiresReview(MediaProcessingLog $log): bool
+    /** @param list<array{start_time: float, end_time: float}>|null $spans */
+    public function requiresReview(MediaProcessingLog $log, ?array $spans = null): bool
     {
         $bank = $log->processing_metadata?->raw['service_structure_ensemble'] ?? null;
 
@@ -23,14 +24,17 @@ class EnsembleReviewGate
         }
 
         try {
-            return $this->bankRequiresReview($log, $bank);
+            return $this->bankRequiresReview($log, $bank, $spans);
         } catch (Throwable) {
             return true;
         }
     }
 
-    /** @param  array<int, mixed>  $bank */
-    private function bankRequiresReview(MediaProcessingLog $log, array $bank): bool
+    /**
+     * @param array<int, mixed> $bank
+     * @param list<array{start_time: float, end_time: float}>|null $spans
+     */
+    private function bankRequiresReview(MediaProcessingLog $log, array $bank, ?array $spans): bool
     {
 
         $latest = end($bank);
@@ -43,7 +47,7 @@ class EnsembleReviewGate
 
         if (($composition['validation_passed'] ?? null) !== true
             || (($composition['degraded'] ?? null) !== false && ($composition['degraded_reviewed'] ?? null) !== true)
-            || ! empty($composition['disputes'] ?? [])) {
+            || array_any($composition['disputes'] ?? [], static fn (array $question): bool => ($question['check'] ?? null) !== TranscriptCueBoundaries::CHECK && ($spans === null || OutputEdgeReview::touches($question, $spans)))) {
             return true;
         }
 

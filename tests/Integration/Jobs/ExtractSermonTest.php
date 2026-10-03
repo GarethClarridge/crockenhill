@@ -953,7 +953,11 @@ class ExtractSermonTest extends TestCase
         Log::shouldReceive('warning')->zeroOrMoreTimes();
         Log::shouldReceive('info')->zeroOrMoreTimes();
 
-        $this->runJob(new ExtractSermon($log), $mockExtractor, $this->createStub(VideoStorageService::class));
+        $job = new ExtractSermon($log);
+        $job->chain([new \App\Jobs\SubmitToProcessing($log), new \App\Jobs\PrepareSectionPublicationCandidates($log)]);
+        $candidateJob = $job->chained[1];
+        $this->runJob($job, $mockExtractor, $this->createStub(VideoStorageService::class));
+        $this->assertSame([$candidateJob], $job->chained, 'Only unrelated section preparation continues; no sermon jobs or cleanup.');
 
         $log->refresh();
         $this->assertSame('failed', $log->status->value);

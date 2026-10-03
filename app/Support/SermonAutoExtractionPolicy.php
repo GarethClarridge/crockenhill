@@ -41,7 +41,6 @@ class SermonAutoExtractionPolicy
      */
     private const MATERIAL_BOUNDARY_FLAGS = [
         self::COMPOSITION_REVIEW_FLAG,
-        TranscriptCueBoundaries::FLAG,
         ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED,
         ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK,
     ];
@@ -103,6 +102,12 @@ class SermonAutoExtractionPolicy
      */
     public static function reviewStatePermitsAutoExtraction(bool $needsManualReview, array $reviewFlags): bool
     {
+        $hadRetiredFlag = in_array(TranscriptCueBoundaries::FLAG, $reviewFlags, true);
+        $reviewFlags = array_values(array_diff($reviewFlags, [TranscriptCueBoundaries::FLAG]));
+        if ($hadRetiredFlag && $reviewFlags === []) {
+            return true;
+        }
+
         if (array_intersect($reviewFlags, self::MATERIAL_BOUNDARY_FLAGS) !== []) {
             return false;
         }

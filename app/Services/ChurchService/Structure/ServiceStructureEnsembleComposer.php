@@ -276,9 +276,6 @@ class ServiceStructureEnsembleComposer
 
         if ($disputes !== []) {
             $sections = $this->coverOmittedDisputes($sections, $disputes);
-            $sections = array_map(static fn (ServiceStructureSection $section): ServiceStructureSection => $section->type === ServiceSectionType::Sermon
-                    ? $section->withReviewFlags([ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES])
-                    : $section, $sections);
         }
 
         $disputes = $this->withQuestionIds($this->mergeEdgeSplits($disputes, array_keys($eligible)));
@@ -308,7 +305,7 @@ class ServiceStructureEnsembleComposer
             $absence ? reset($absenceVotes)->structure->sermonAbsence : null,
         );
 
-        return new EnsembleComposition($structure, $disputes, $provenance, $degraded, false, $validVotes, majorityDecisions: $majorityDecisions);
+        return new EnsembleComposition(OutputEdgeReview::apply($structure, $disputes), $disputes, $provenance, $degraded, false, $validVotes, majorityDecisions: $majorityDecisions);
     }
 
     /**

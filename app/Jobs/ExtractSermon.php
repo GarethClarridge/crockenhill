@@ -83,12 +83,13 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
             // Update status to show sermon extraction is starting
             $this->markProcessingRunAsProcessing($this->processingLog, 'extraction');
 
-            if (app(EnsembleReviewGate::class)->requiresReview($this->processingLog)) {
+            $extractionPlan = $planResolver->resolve($this->processingLog);
+            if (app(EnsembleReviewGate::class)->requiresReview($this->processingLog, $extractionPlan['segments'])) {
                 $reason = 'Service structure ensemble evidence needs review before any sermon extraction or no-sermon conclusion.';
                 $this->markProcessingRunForManualReview($this->processingLog, 'service_structure_ensemble_review', $reason);
                 $this->processingLog->refresh();
                 $this->notifyManualReviewRequired($reason, []);
-                $this->chained = [];
+                $this->keepSectionCandidatePreparation();
                 $this->logStepSkipped(ChurchServiceProcessingTimeline::EXTRACT_SERMON, $reason);
 
                 return;
@@ -98,7 +99,6 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                 return;
             }
 
-            $extractionPlan = $planResolver->resolve($this->processingLog);
             $extractionPlan = $this->guardAutoExtractionPolicy($extractionPlan);
 
             if ($extractionPlan === null) {
@@ -540,7 +540,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
             $this->markProcessingRunForManualReview($this->processingLog, 'sermon_composition_review', $reason);
             $this->processingLog->refresh();
             $this->notifyManualReviewRequired($reason, []);
-            $this->chained = [];
+            $this->keepSectionCandidatePreparation();
 
             return null;
         }
@@ -637,6 +637,13 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
             ->first();
     }
 
+    private function keepSectionCandidatePreparation(): void
+    {
+        // A parked sermon does not park unrelated clips or run sermon-only jobs without media.
+        $this->chained = array_values(array_filter($this->chained,
+            static fn (string $job): bool => str_contains($job, PrepareSectionPublicationCandidates::class)));
+    }
+
     /**
      * Stop before cutting anything when the sermon is under a content hold.
      *
@@ -655,7 +662,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
         $this->markProcessingRunForManualReview($this->processingLog, 'sermon_section_content_held', $reasonMessage);
         $this->processingLog->refresh();
         $this->notifyManualReviewRequired($reasonMessage, []);
-        $this->chained = [];
+        $this->keepSectionCandidatePreparation();
 
         Log::warning('Sermon extraction halted: the sermon section is under a content hold', [
             'processing_id' => $this->processingLog->processing_id,
@@ -718,6 +725,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
             'reason' => $extractionPlan['metadata']['reason'] ?? null,
             'sermon_boundary' => $extractionPlan['metadata']['sermon_boundary'] ?? null,
             'segments' => $extractionPlan['segments'],
+            'cue_edge_widening' => $extractionPlan['metadata']['cue_edge_widening'] ?? [],
             'selected_section_ids' => $extractionPlan['metadata']['selected_section_ids'] ?? [],
             'media_processing' => MediaProcessingVersion::signature(),
             'resolved_at' => now()->toIso8601String(),

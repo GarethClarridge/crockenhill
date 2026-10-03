@@ -107,7 +107,7 @@ final class TalkEdgeChecks
             $isChecked = $section->type === ServiceSectionType::ShortTalk
                 && in_array([$section->startTime, $section->endTime], $checked, true);
 
-            return $isChecked || $section->type === ServiceSectionType::Sermon
+            return $isChecked
                 ? $section->withReviewFlags([ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES])
                 : $section;
         }, $composition->structure->sections);

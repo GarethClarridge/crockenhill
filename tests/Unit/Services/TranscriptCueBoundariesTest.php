@@ -165,7 +165,7 @@ class TranscriptCueBoundariesTest extends TestCase
     }
 
     #[Test]
-    public function a_shared_cue_keeps_both_edges_and_names_both_items_for_review(): void
+    public function a_shared_cue_keeps_both_section_edges_without_a_question_or_review_flag(): void
     {
         $transcript = ChurchServiceTranscript::fromCues([
             ['start' => 99.5, 'end' => 101.5, 'text' => "For ever. Amen. Well, let's sing."],
@@ -177,12 +177,9 @@ class TranscriptCueBoundariesTest extends TestCase
         $result = app(TranscriptCueBoundaries::class)->finish($structure, $transcript);
         $this->assertSame(100.0, $result['structure']->sections[0]->endTime);
         $this->assertSame(100.0, $result['structure']->sections[1]->startTime);
-        $this->assertCount(1, $result['questions']);
-        $this->assertSame('shared_cue', $result['questions'][0]['check']);
-        $this->assertStringContainsString('Closing prayer', $result['questions'][0]['detail']);
-        $this->assertStringContainsString('Next hymn', $result['questions'][0]['detail']);
-        $this->assertSame($transcript->cues[0], $result['questions'][0]['cue']);
-        $this->assertContains(TranscriptCueBoundaries::FLAG, $result['structure']->sections[0]->reviewFlags);
+        $this->assertSame([], $result['questions']);
+        $this->assertSame([], $result['structure']->sections[0]->reviewFlags);
+        $this->assertSame([], $result['structure']->sections[1]->reviewFlags);
     }
 
     #[Test]

@@ -252,6 +252,8 @@ class ServiceStructureEnsembleRulingApplier
             $remaining = [...array_values(array_filter($remaining, static fn (array $question): bool => ($question['check'] ?? null) !== TranscriptCueBoundaries::CHECK)), ...$final['questions']];
         }
 
+        $corrected = OutputEdgeReview::apply($corrected, $remaining);
+
         return [
             ...$proposal,
             'structure' => $corrected->toArray(),

@@ -824,7 +824,7 @@ class DetectServiceStructureTest extends TestCase
         $this->runJob($log);
 
         $log->refresh();
-        $this->assertSame(ProcessingStatus::Failed, $log->status);
+        $this->assertSame(ProcessingStatus::Processing, $log->status);
         $this->assertSame(4, ServiceSection::query()->where('media_processing_log_id', $log->id)->count());
 
         $attempt = $log->processing_metadata?->toArray()['service_structure_ensemble'][0] ?? null;
@@ -861,7 +861,7 @@ class DetectServiceStructureTest extends TestCase
         $this->runJob($log);
 
         $log->refresh();
-        $this->assertSame(ProcessingStatus::Failed, $log->status);
+        $this->assertSame(ProcessingStatus::Processing, $log->status);
 
         $types = ServiceSection::query()
             ->where('media_processing_log_id', $log->id)
@@ -1291,7 +1291,7 @@ class DetectServiceStructureTest extends TestCase
 
         $this->runJob($log);
         $log->refresh();
-        $this->assertSame(ProcessingStatus::Failed, $log->status);
+        $this->assertSame(ProcessingStatus::Processing, $log->status);
         $dispute = collect($log->processing_metadata?->toArray()['service_structure_ensemble'][0]['composition']['disputes'] ?? [])
             ->firstWhere('type', 'bible_reading');
         $this->assertIsArray($dispute);
@@ -1337,7 +1337,7 @@ class DetectServiceStructureTest extends TestCase
 
         $this->assertSame([], $answer['disputes']);
         $this->assertSame('Luke 15:1-10', $answer['structure']['sections'][1]['reading_reference']);
-        $this->assertSame(ProcessingStatus::Failed, $log->fresh()?->status);
+        $this->assertSame(ProcessingStatus::Processing, $log->fresh()?->status);
         $this->assertCount(1, $log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble_rulings'] ?? []);
         $this->assertArrayHasKey('extraction_plan', $metadata['service_structure_ensemble'][0]['composition']);
     }
@@ -1414,7 +1414,7 @@ class DetectServiceStructureTest extends TestCase
             ->where('media_processing_log_id', $log->id)
             ->where('section_type', 'sermon')
             ->sole();
-        $this->assertContains(
+        $this->assertNotContains(
             ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES,
             $sermon->metadata['review_flags'] ?? []
         );
@@ -1444,7 +1444,7 @@ class DetectServiceStructureTest extends TestCase
         $this->runJob($log);
 
         $log->refresh();
-        $this->assertSame(ProcessingStatus::Failed, $log->status);
+        $this->assertSame(ProcessingStatus::Processing, $log->status);
         $attempt = $log->processing_metadata?->toArray()['service_structure_ensemble'][0] ?? null;
         $this->assertIsArray($attempt);
         $this->assertSame('invalid', $attempt['outcomes'][0]['status']);

@@ -176,7 +176,7 @@ The other clips (songs, readings, talks) are already cut at their section's own 
   scheduling and capacity rather than an arbitrary percentage threshold for retaining smart cuts.
 - **D4 — separate production follow-up:** already-published weekly clips have the same
   section-edge defect: weekly processing uses the same floored cue display and refinement
-  path. The exact-cue fix below applies to future weekly processing too. Published weekly
+  path. The exact-cue fixes and shared-cue cut widening below apply to future weekly processing too. Published weekly
   media may also have the sync defects described above.
   A read-only source-aware audit can identify candidates for repair; a timestamp anomaly alone
   is not proof of drift. Production re-cuts/publication are a separate operational action, not
@@ -519,7 +519,7 @@ It runs after sound/overlap refinement and again after ensemble composition and 
 application. Recorded resolution choices and versions stay intact; only clipped times move.
 MediaProcessingVersion is **4**.
 
-**Shared-cue exception:** if that outward move would overlap a neighbouring section, retain
+**Historical shared-cue exception (superseded by the ruling below):** if that outward move would overlap a neighbouring section, retain
 the incoming edges and raise `shared_cue`, naming both sections and the cue. It is a structure
 question, not an invented split or answer. `structure_shared_cue` forces review on the affected
 sections and the run's sermon, preventing automatic extraction even when the transition is
@@ -610,3 +610,151 @@ historic worker's checkout and start time, and the saved-draw dry-run result. Lo
 `/tmp/cut-invariant-worker-{ffmpeg,whisper,llm,orchestration}{,-commit}.txt`.
 Readiness is permission to inspect readiness only. Stop before recomposition dispatch, Tier C,
 hold release or answers. Shared-cue questions and source-bound refusals are not acceptance.
+
+
+### Canary 10 follow-up — whole shared cues in both outputs (operator ruling, 2026-10-03)
+
+**The operator rules that missing content is the defect; overlap between neighbouring clips
+is acceptable. A cue shared by touching sections belongs to both outputs.** This supersedes
+the shared-cue question/flag/parking exception above. Sections retain their non-overlapping
+joins, their existing model, validation and review choices. There is no guessed allocation of
+words to either item and no new operator question.
+
+Evidence at `e3a70c5bf`, in
+`storage/app/private/cut-rule-census-cue-invariant-20261003/census.json`: 1,527 shared-cue
+questions across 382 of 475 runs (median four), exceeding the batch stop rule of 2.0 composer
+disputes per run. Parking rose from 46 to 336. Only 372 questions touch an edge of the planned
+sermon cut; the other 1,155 concern unrelated items but the old run-wide flag parked the
+sermon anyway. Ninety-eight runs had no other parking reason. Of the joins, 895 have a song
+on one side and 632 are both spoken; 482 cues exceed five seconds.
+
+**Implementation:** the common cut planner expands interior starts to the cue start and ends
+to the cue end, following overlapping cues until no cut edge is inside any cue. It applies
+at extraction planning to sermons, songs, readings and talks. Sermon audio and video use the
+same expanded spans; spans within one output merge when they overlap or meet. The existing
+sermon and publication-candidate extraction audits record each changed edge, original/final
+time, cue(s), and seconds added. Section joins remain unchanged for shared cues; the final
+section invariant continues to correct non-shared edges. Shared-cue questions and flags are
+removed on composition/replay and retired flags cannot block sermon extraction.
+
+Non-shared questions flag only the sections whose edges they touch. The sermon evidence gate
+checks its selected cut spans; unrelated questions remain available in their existing review.
+A parked sermon retains only candidate preparation from its job chain, so unrelated clips
+can still be prepared. Candidate preparation skips held/questioned outputs and preserves the
+sermon's parked status. Existing holds, review choices and saved versions remain intact.
+C4 evaluates the remaining same-item gaps after widening, so a cue now included in the output
+does not produce a false uncovered-speech finding. Existing source-bound validation still
+refuses invalid selected or widened sermon spans. MediaProcessingVersion is **5**.
+
+**Test-first evidence:** the four requested cases failed before implementation
+(`/tmp/cut-shared-output-red.txt`) and now pass: 936's sermon starts at **2593.98** while its
+prayer section still ends at **2594.18**; 1221's song starts at **112.62** while its section
+join stays at **113.38**; a song-to-song shared cue neither asks a question nor parks the
+sermon; widened sermon/continuation spans merge into one cut. Further red-to-green checks
+cover C4 after merged widening, clipping audits across overlapping cues for each clip type,
+and preparing an unrelated song without cutting held/questioned songs or overwriting the
+sermon's manual-review status. Logs include `/tmp/cut-shared-{c4-red,output-park-red,output-candidate-hold-red}.txt`.
+
+**Read-only same-16 cut-span replay:** `straddle.php` replays the same saved draws and rulings,
+composes copied runs in rolled-back transactions, and scans the planned output spans rather
+than unrelated section edges. Candidate output types are enumerated before publication
+eligibility; both sermon media use one audited plan. All **276 planned cut edges** are outside
+strict cue interiors: **zero starts, zero ends, zero shared-cue questions**. Before widening,
+selected output edges have 25 strict straddles out of 280 edges. Spans that merge reduce the edge count.
+Evidence: `storage/app/private/cut-shared-output-20261003/{before,after,listening-list,composition-review,summary}.json`.
+| Output | Interior starts / total, before → after | Interior ends / total, before → after |
+|---|---|---|
+| sermon | 3/29 → 0/27 | 1/29 → 0/27 |
+| song | 4/60 → 0/60 | 7/60 → 0/60 |
+| bible_reading | 1/31 → 0/31 | 4/31 → 0/31 |
+| short_talk | 3/20 → 0/20 | 2/20 → 0/20 |
+
+The listening list below records every widened edge, longest first. Ten entries are only
+floating-point differences below 1e-9 seconds; they are retained in the strict audit, with
+no measurement tolerance applied to cutting.
+
+| Run | Output / edge | Cue seconds | Seconds added | Cue text |
+|---|---|---|---|---|
+| 949 | sermon video and audio / start | 2738.9600–2744.9900 | 6.03 | him in jesus name we ask amen thank you mark it is such a |
+| 1028 | bible_reading Psalm 150 (section 4) / start | 196.3000–201.2000 | 4.9 | Well, all that said, let me read to us, before we pray, |
+| 1117 | short_talk Open Doors and the Persecuted Church (section 9) / start | 708.6600–713.6200 | 4.493 | Shirev ayo kamotan |
+| 1346 | short_talk George Washington Carver (section 4) / start | 362.0800–366.4100 | 3.921 | things in Jesus' name and for his sake. Amen. Well, I |
+| 964 | song Shine, Jesus, Shine (section 15) / end | 3929.6800–3940.6800 | 3.19 | And that truly is our prayer to you this morning. |
+| 1025 | song Praise My Soul The King Of Heaven (section 5) / start | 418.2200–420.2800 | 2.06 | We thank him for it this morning. |
+| 1311 | song Song after Ralph's baptism (section 18) / start | 1512.1600–1514.1000 | 1.94 | of the Holy Spirit. |
+| 1311 | song  (section 14) / end | 1304.8400–1306.4800 | 0.82 | Where is our first candidate? |
+| 1221 | song King Of Kings Majesty (section 4) / start | 112.6200–114.1400 | 0.76 | Let's stand and sing King of Kings. |
+| 1346 | song I Will Sing the Wondrous Story (section 2) / start | 34.2100–35.1000 | 0.445 | me. |
+| 1221 | sermon video and audio / start | 2459.5700–2460.5000 | 0.38 | service. |
+| 964 | song All My Days (section 8) / end | 1354.7200–1355.2400 | 0.26 | Now, |
+| 964 | short_talk Christian Institute Update (section 9) / start | 1354.7200–1355.2400 | 0.26 | Now, |
+| 936 | sermon video and audio / start | 2593.9800–2594.3800 | 0.2 | name. |
+| 1221 | bible_reading Revelation 5 (section 2) / end | 87.2500–91.1800 | 0.1729 | of Kings and the Lord of Lords. |
+| 1250 | song All I Once Held Dear (section 16) / end | 4469.0400–4475.4800 | 9.09e-13 | Glory to you, there is no greater thing |
+| 964 | sermon video and audio / end | 3723.8400–3724.1800 | 4.55e-13 | Amen. |
+| 1108 | short_talk Interview with Colin (section 11) / end | 2164.8000–2166.7200 | 4.55e-13 | And then we'll hand over to you to preach. |
+| 1346 | song Take My Life and Let It Be (section 9) / end | 3546.1600–3552.7200 | 4.55e-13 | Let's pray once again. |
+| 964 | bible_reading Salt and Light (section 11) / end | 1817.8200–1818.8600 | 2.27e-13 | So this is the |
+| 949 | song How Deep the Father's Love for Us (section 8) / end | 718.2200–720.1800 | 1.14e-13 | Whenever we meet together like this, |
+| 1250 | short_talk F is for Fish (section 6) / end | 983.6200–985.6800 | 1.14e-13 | into the world. |
+| 964 | song God, We Praise You (section 4) / end | 369.6200–374.2800 | 5.68e-14 | Savior, be God, come in today. |
+| 1025 | bible_reading Psalm 103 (section 4) / end | 418.2200–420.2800 | 5.68e-14 | We thank him for it this morning. |
+| 949 | bible_reading Call to worship (section 3) / end | 132.4600–134.9200 | 2.84e-14 | I'm going to stand and sing in just a few moments, |
+
+Canary findings per run: **1311 has one talk-end question**; the other fifteen runs have
+zero structure questions. **1250 has one reading-membership composition risk**; the other
+fifteen have zero composition risks. All sixteen have zero C4 findings and pass hard
+validation. Thirteen copied sermon plans are unblocked: **936, 949, 964, 1025, 1028, 1108,
+1112, 1117, 1221, 1304, 1311, 1346, 1358**. Three remain parked for selected-section/composition
+review: **1050** (merged interruption), **1250** (merged interruption and reading membership),
+**1356** (merged interruption). The talk question in 1311 does not park its sermon. These
+copied replay plans do not adjudicate the authoritative runs' existing content holds.
+
+**475-run read-only census:** apply restoration and the retained non-shared section invariant
+to authoritative sections, then scope existing bank questions and compose expanded cuts
+inside rolled-back transactions. IDs, membership, holds and existing repair authority stay
+intact. This is a census of existing sections, not 475 new ensemble compositions. Evidence:
+`storage/app/private/cut-rule-census-shared-output-20261003/{census,summary}.json`.
+Mutually exclusive results: **352 unblocked, 75 content-held, 46 composition/section review,
+two invalid-bounds refusals**. No shared-cue parking remains. Each of 475 rows has zero new
+cue questions and zero outstanding non-shared questions in its current stored bank; the
+fresh same-16 replay's separate talk question above is reported separately. The summary
+lists every parked run and its flags/risks. Existing repair authority permits 1343's named
+held-span repair; its hold remains. 1089 has a hold as well as an invalid source bound and
+is counted under the invalid-bound refusal, once.
+
+Remaining membership findings are **29 reading** and **six prayer** (reasons overlap holds).
+Run 943 retains the only C4 finding: required evidence for its same-item gap is missing.
+Among the 46 non-held review runs, overlapping reasons are reading membership (29), prayer
+membership (five), material boundary risk (six), interruption merged (four), low confidence
+(three), explicit composition-review flag (three), OoS mismatch (four), incomplete sermon
+evidence (one), and C4 missing evidence (one). The source-bound refusals remain 1089 and
+1136, whose sermon ends exceed their source durations; no fallback or changed tolerance.
+
+Across all enumerated sermon and candidate outputs, **1,895 edges widen**: **939 add <1 s,
+593 add 1–5 s, 363 add >5 s**. Median **1.04 s**, p90 **8.28 s**, p95 **14.06 s**, maximum
+**39.13 s**. Sixty-one entries are numerical differences below 1e-9 s. Counts include
+parked output previews and include sermon audio/video once because their spans are identical.
+Every edge and its cue is recorded in the census output plans.
+
+**Gates:** focused integration/unit suites pass **242 tests / 941 assertions**; the final
+candidate-preparation suite after the output-hold and parked-status regressions passes
+**21 tests / 112 assertions**. The full parallel suite passes **9,162 tests / 94,345
+assertions**, with 162 existing PHPUnit notices. PHPStan reports **zero errors**; Pint passes
+for dirty files and the new planner/review classes. No UI behavior or template changed;
+Dusk is not required. Logs:
+`/tmp/cut-shared-output-{focused-final,candidates-final,full,phpstan,pint-final,canary,census}.txt`.
+
+**Post-commit operational evidence:** the readiness receipt is
+`storage/app/private/cut-sections-canary10-20261002/shared-output-preflight-readonly.json`.
+It records the committed master revision, fresh same-16 snapshot
+`before-shared-output.json`, original listening routing/hash, each of the four historic
+workers' revision and UTC start after the commit, and the saved-draw dry-run result.
+The same sixteen IDs are **936, 949, 964, 1025, 1028, 1050, 1108, 1112, 1117, 1221, 1250,
+1304, 1311, 1346, 1356, 1358**; membership SHA-256
+`0bbc51836e06a7d9e9ed7b3edd8c0e185723495670bc4f6e323da78291eb4c2e`.
+Operational logs use `/tmp/cut-shared-output-{snapshot,worker-restart,saved-draw-dry,queues}.txt`
+and `/tmp/cut-shared-output-worker-{ffmpeg,whisper,llm,orchestration}{,-commit}.txt`.
+
+Stop before recomposition dispatch, Tier C, hold release or answers. Previewed widened cuts
+and readiness checks do not accept the parked outputs or repair already-published media.

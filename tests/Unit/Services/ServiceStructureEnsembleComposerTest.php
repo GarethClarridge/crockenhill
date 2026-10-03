@@ -33,6 +33,16 @@ class ServiceStructureEnsembleComposerTest extends TestCase
 
     /** The shape of runs 949, 964, 1221, 1356 and 1358 in canary 9: one passage cited at two granularities. */
     #[Test]
+    public function a_talk_end_question_does_not_block_a_neighbour_touching_only_its_start(): void
+    {
+        $question = ['check' => \App\Services\ChurchService\Structure\TalkEdgeChecks::CHECK,
+            'type' => 'short_talk', 'edges' => ['end'], 'start_time' => 100.0, 'end_time' => 200.0];
+        $this->assertFalse(\App\Services\ChurchService\Structure\OutputEdgeReview::touches($question, [['start_time' => 0.0, 'end_time' => 100.0]]));
+        $this->assertTrue(\App\Services\ChurchService\Structure\OutputEdgeReview::touches($question, [['start_time' => 100.0, 'end_time' => 200.0]]));
+        $this->assertTrue(\App\Services\ChurchService\Structure\OutputEdgeReview::touches($question, [['start_time' => 200.0, 'end_time' => 500.0]]));
+    }
+
+    #[Test]
     public function overlapping_references_are_one_passage_unless_they_pair_the_sermon_differently(): void
     {
         $draw = fn (string $readingReference, string $sermonReference): ServiceStructure => $this->structure(
@@ -298,7 +308,7 @@ class ServiceStructureEnsembleComposerTest extends TestCase
     }
 
     #[Test]
-    public function disputed_song_boundary_holds_the_sermon_it_could_cut(): void
+    public function disputed_song_boundary_does_not_hold_an_unrelated_sermon(): void
     {
         $early = $this->structure(
             $this->section(ServiceSectionType::Sermon, 100, 500),
@@ -315,7 +325,7 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         ]);
 
         $this->assertNotEmpty($result->disputes);
-        $this->assertContains(
+        $this->assertNotContains(
             ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES,
             $result->structure->sectionsOfType(ServiceSectionType::Sermon)[0]->reviewFlags,
         );
