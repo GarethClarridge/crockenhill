@@ -1673,3 +1673,43 @@ media-processing version remains **6**. Private evidence for this new operation 
 unchanged attempts, zero open questions, the saved Naomi answer and 1250's recorded four-part
 selection. Implementation is ready for the commit, worker restart, fresh bound snapshot and
 preflight; dispatch/results will be recorded below. Canary 10 remains unaccepted.
+
+
+### Canary 10 four-defect continuation — stopped on run 964, 2026-10-03
+
+The authorised same-sixteen saved-draw recomposition completed on code commit
+`288975926fcf42be6405990499a21d1ff9432cbb` (revision
+`ef594e1344d9bbb85dd253fc36c0320660b9b49db10b0468a50c8c1c9701a3cd`).
+All 16 runs completed, all 32 attempt IDs and bank hashes are unchanged, all 64 immutable
+saved draw artifacts match their checksums, and there are zero open questions. Failed jobs
+remain 479, with no new failures. Receipts: `after-recompose.json`,
+`evidence-after-recompose.json` and `recompose-dispatch.txt` in
+`storage/app/private/canary10-defect-rerun-20261003/`.
+
+1311's projected Naomi section 73575 is 1056.60–1149.31 s with no disagreement flag;
+the father's words begin in the next section at 1152.28 s. 1250's existing composition review
+survived: by content, the selected sections are Job 29:1–25, Job 30:1–31, Job 31:1–40,
+and the sermon 2454.06–4310.36 s. No replacement ruling or question answer was needed.
+1050, 1250 and 1356 remain parked; their interruption flags were not cleared.
+
+**New blocker: stop before timing or Tier C.** The 13-run extraction dry run returned
+12 ready and one refusal, run 964. Its saved composition and projected structure differ
+only at `/sections/6/review_flags`: the bank has `[]`, while projection added
+`["structure_micro_section"]`. No projected section has `structure_ensemble_disagrees`.
+The new equality guard therefore refuses this successfully recomposed run with the
+instruction to run `historic-import:rerun-recompose`. This is recorded, not resolved,
+because the operator explicitly required stopping on any new blocker. Evidence:
+`964-projection-blocker.json`, `tierc-dry-run.txt`, and the enclosing `receipt.json`.
+Review: [run 964's service](http://localhost/admin/services/982).
+
+Queues drained after recomposition; every worker still started at 17:13:48 UTC, after the
+code commit, and refreshed mount probes passed. Internal free space was 19,677,424 KiB
+and staging 491,847,568 KiB. No timing or extraction jobs were dispatched in this
+continuation. There are no new cuts to scan, assess or listen to; both custody diffs,
+accuracy checks, listening list and final batch report remain unperformed. Canary 10 is
+not accepted, Tier A has not started, and no hold or question was resolved.
+
+Both Sonnics backups completed again after recomposition with `rsync -a --checksum`,
+excluding `._*` and without `--delete` (both exit 0). The stopped receipt records these
+results, empty queues and evidence SHA-256 hashes. This stop is documentation only;
+the four-defect code commit and its passing quality gates remain unchanged.
