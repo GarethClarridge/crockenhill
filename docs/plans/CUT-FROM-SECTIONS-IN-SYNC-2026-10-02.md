@@ -1262,3 +1262,103 @@ refusing any change beyond the interruption flag and its review audit. All sixte
 then authorised for timing and Tier C, conditional on current provenance and the
 unchanged preflight and acceptance checks. No canary acceptance or public release is
 included in this ruling.
+
+
+**Same-sixteen replay and stitched confirmations completed, 18:37 UTC.** Code commit
+`ca1af7f59e4da955a4db2b29c94dbbba94b398cf`; all six workers restarted at 18:22:25 UTC
+and passed mount probes. Fresh `snapshot.json` binds the same membership hash
+`0bbc51836e06a7d9e9ed7b3edd8c0e185723495670bc4f6e323da78291eb4c2e` and listening
+routing hash `2fc8903c7e239847a9a12ab449535e1b8398c588bfb88488c3bc47e230819f16`.
+Internal free space was 19,608,148 KiB and staging 491,895,840 KiB; queues were empty,
+both checksum backups completed without deletion, and saved-draw dry run was 16 ready.
+`preflight-recompose.json` and `recompose-dispatch.txt` bind the dispatch.
+
+All 16 completed, with 32 unchanged attempts, no new draw, all 64 artifact checksums
+matching, zero open questions and failed jobs unchanged at 479. `after-recompose.json`
+and `evidence-after-recompose.json` record the replay. Run 964 retains its 1.21 s prayer
+fragment and derived flag, but its current projection provenance now passes the guard.
+Naomi's ruled section is reflected in the projection, and 1250 retains all three Job
+readings plus its sermon.
+
+The existing `ConfirmServiceSection` action then recorded the three authorised merged
+sermons (sections 1582, 73105 and 4485) as verified operator 1. The transaction checked
+that each section had only the interruption flag and reason, preserved all other section
+metadata, and verified run metadata—including provenance and 1250's composition ruling—
+was unchanged. Receipt: `confirm-stitches-receipt.json`; preserved operator evidence is
+in `stitched-sermon-rulings/`, including hashes of the six saved decisions and passages.
+`after-stitch-confirmation.json` confirms no remaining interruption flag, no projection
+refusal and no parked run. The all-sixteen extraction dry run is 16 ready / zero refused
+(`tierc-dry-run.txt`). Timing and cutting have not yet been dispatched.
+
+
+**All-sixteen edge timing completed, 18:48 UTC.** `preflight-timings.json` records empty
+queues, refreshed staging/temp probes in the app and all workers, unchanged post-commit
+worker starts, 19,475,968 KiB internal free space, 491,895,836 KiB staging free space,
+and both refreshed checksum backups (exit 0). `timings-receipt.json` binds all 16 chains.
+The new timing steps checked 153 windows, reused all 153 and decoded zero new windows
+(zero decode compute seconds). All 16 resolved plans use word-pause audits: 182 planned
+audits, no no-word fallback and no missing-cache blocker. `timing-window-summary.json`,
+`timing-plan-summary.json`, `timing-results.json` and `evidence-planned.json` record this.
+All runs completed and queues drained; failed jobs remain 479. Provenance remains current,
+all three interruption confirmations remain settled, and 1250's four-part membership
+remains intact. Tier C is awaiting its refreshed backup/preflight, not yet dispatched.
+
+
+**Tier C dispatched for all sixteen, 19:00 UTC.** Fresh post-timing extraction dry run
+was 16 ready / zero refused. `preflight-tierc.json` binds empty queues, all worker starts
+still 18:22:25 UTC after the code commit, refreshed staging/temp read/write probes,
+19,444,604 KiB internal free space, 491,895,836 KiB staging free space and both refreshed
+checksum backups (exit 0, no deletion). `tierc-dispatch.txt` records 16 dispatched / zero
+refused. No run remains parked. The initial `receipt.json` records the running state;
+cut/file checks, both custody comparisons, accuracy, the listening list and final backups
+and batch report remain pending. No test suite or Dusk is running alongside queue work.
+
+
+**Tier C stopped on stale-file quality assessment, 20:38 UTC.** All sixteen main
+sermon cuts passed their source-aware timing checks. Tier C checked 153 edge windows,
+reused all 153 and decoded none. There were no timing errors or new failed jobs; the
+failed-job baseline remains 479. All 32 attempt IDs and draw-bank hashes are unchanged,
+all 64 saved draw checksums match, no question is open, projection provenance is current
+for all sixteen, and the three authorised interruption confirmations remain settled.
+Run 964's 1166–1167.21 s prayer fragment is unchanged and outside the outputs; 1250's
+four-part composition ruling is preserved.
+
+**New blocker: the quality repair still selects the prior file in the real pipeline.**
+`SermonMetadataIntegrationService` spends `re_extraction.requested` when the new video is
+stored, replacing it with `replacement_authorised`. By the time
+`AssessSermonVideoQuality` runs, `isReExtraction()` is false; its disk selection therefore
+falls back to the sermon's existing quarantine disk. For run 936, the assessment at
+20:35:04 UTC cites `historic_quarantine:sermons/876/video.mp4`, modified at 15:19:07 UTC,
+while this round's file exists on `historic_staging` and was stored at 19:03:01 UTC.
+The seven assessments completed before the stop (936, 949, 964, 1025, 1028, 1050, 1108)
+all cite prior quarantine files. Six approvals and 1050's `mostly_black` rejection are
+not evidence about this round's new files; no fresh-file quality verdict is claimed.
+Evidence: `quality-blocker.json`, `evidence-quality-blocker.json`,
+`in-cutter-stopped.json` and `stopped-state.json` under
+`storage/app/private/canary10-provenance-rerun-20261003/`.
+Review: [run 936](http://localhost/admin/services/544),
+[run 1050](http://localhost/admin/services/699).
+
+All six worker containers were stopped; five exited normally and the active historic
+FFmpeg worker was terminated after its stop grace period (exit 137). Payloads were
+preserved, not deleted, cancelled, retried or settled. `stopped-workers.json` and
+`stopped-queues.txt` record 15 pending and one reserved historic FFmpeg job, with every
+other monitored queue empty. All sixteen runs remain in processing at the AI-analysis
+completed step; none has completed the section-cut/promotion tail. The three held clips
+(1108 §1897, 1221 §2718/§73036) and Naomi §73575 still have no media. Both final custody
+diffs, AV/gap scans, final accuracy and disk-pointer checks, the listening list and final
+checksum backups remain incomplete. The pre-dispatch backups passed as recorded above.
+The failure is recorded without another fix or resumed dispatch. No canary acceptance,
+Tier A, content-hold release or ensemble answer was made.
+
+
+The read-only stopped-batch report completed at 20:46:50 UTC (`batch-stopped.json`):
+16 bundles replay, 32 attempts, zero open or deferred questions, 34 applied / 17 stale /
+one conflicting ruling (the predeclared 1112 exception), and one degraded attempt
+(the pre-existing 936 invalid slot). It is a stopped-state report, not the final report
+after completed cuts and backups. `stopped-pending-payloads.jsonl` and
+`stopped-reserved-payloads.txt` preserve the exact remaining payloads: eight pending and
+one reserved assessment, plus seven pending thumbnail-chain continuations. The operation's
+`receipt.json` now records `stopped_quality_reads_prior_quarantine_file`. Do not restart
+these workers or resume this queued round on changed code without a separately recorded
+recovery; no payload was retired or database status changed to conceal the interruption.
