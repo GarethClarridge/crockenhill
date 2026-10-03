@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Tests\Integration\Jobs;
 
 use App\Contracts\SpeakerIdentificationInterface;
+use App\Data\ChurchServiceTranscript;
 use App\Data\HistoricStagingContext;
 use App\Data\ServiceSectionMetadata;
 use App\Data\SpeakerMatchResult;
 use App\Enums\ProcessingStatus;
+use App\Enums\SermonPublicationState;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionStatus;
@@ -24,6 +26,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\ServiceSection;
 use App\Models\Song;
+use App\Models\SongVideo;
 use App\Models\SpeakerProfile;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
 use App\Services\ChurchService\SectionPublication\SongPublicationHandler;
@@ -31,6 +34,7 @@ use App\Services\ChurchService\SectionPublication\TalkPublicationHandler;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\HistoricMedia\HistoricStagingGuard;
+use App\Services\Import\HistoricReleaseReviewHolds;
 use App\Services\Media\ExtractedMediaDurationProbe;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
@@ -44,13 +48,14 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
+use Tests\Support\BanksNoWordOutputEdges;
 use Tests\TestCase;
 
 class PrepareSectionPublicationCandidatesTest extends TestCase
 {
+    use BanksNoWordOutputEdges;
     use CreatesHistoricImportOperations;
     use DatabaseTransactions;
-    use \Tests\Support\BanksNoWordOutputEdges;
 
     protected function setUp(): void
     {
@@ -81,7 +86,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create([
             'source_file_path' => 'livestreams/source.mp4',
-            'status' => \App\Enums\ProcessingStatus::Failed,
+            'status' => ProcessingStatus::Failed,
             'current_step' => 'manual_review_required',
             'processing_metadata' => ['manual_review' => ['status' => 'required', 'reason_code' => 'sermon_section_content_held']],
         ]);
@@ -109,9 +114,9 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'metadata' => ['confidence_level' => 'high'],
         ]);
         $processingLog->putServiceTranscriptPath('temp/shared.json');
-        Storage::disk('local')->put('temp/shared.json', json_encode(\App\Data\ChurchServiceTranscript::fromCues([
+        Storage::disk('local')->put('temp/shared.json', json_encode(ChurchServiceTranscript::fromCues([
             ['start' => 112.62, 'end' => 114.14, 'text' => "Let's stand and sing King of Kings."],
-        ], 5000, \App\Data\ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        ], 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
@@ -157,7 +162,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create([
             'source_file_path' => 'livestreams/source.mp4',
-            'status' => \App\Enums\ProcessingStatus::Failed,
+            'status' => ProcessingStatus::Failed,
             'current_step' => 'manual_review_required',
             'processing_metadata' => ['manual_review' => ['status' => 'required', 'reason_code' => 'sermon_section_content_held']],
         ]);
@@ -189,9 +194,9 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             ]);
         }
         $processingLog->putServiceTranscriptPath('temp/shared.json');
-        Storage::disk('local')->put('temp/shared.json', json_encode(\App\Data\ChurchServiceTranscript::fromCues([
+        Storage::disk('local')->put('temp/shared.json', json_encode(ChurchServiceTranscript::fromCues([
             ['start' => 112.62, 'end' => 114.14, 'text' => "Let's stand and sing King of Kings."],
-        ], 5000, \App\Data\ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        ], 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
 
         $this->bankNoWordOutputEdges($processingLog);
 
@@ -224,21 +229,24 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $this->assertNotNull($section->extracted_video_path);
         $this->assertNull($section->extracted_audio_path);
         $this->assertNotNull($heldSections[0]->refresh()->extracted_video_path);
+        $recorded = data_get($processingLog->fresh()->processing_metadata?->toArray(), 'media_outputs.section_'.$heldSections[0]->id);
+        $this->assertSame(hash('sha256', 'section-video'), $recorded['sha256'] ?? null);
+        $this->assertSame($heldSections[0]->extracted_video_path, $recorded['path'] ?? null);
         $this->assertTrue($heldSections[0]->needs_manual_review);
         $this->assertSame(ServiceSectionPublicationStatus::NotApplicable, $heldSections[0]->publication_status);
         $this->assertNull($heldSections[1]->refresh()->extracted_video_path);
         Bus::assertNotDispatched(AutoPublishServiceSection::class, fn ($job): bool => $job->serviceSectionId === $heldSections[0]->id);
         (new AutoPublishServiceSection($heldSections[0]->id))->handle(app(SectionPublicationHandlerFactory::class));
         $this->assertSame(ServiceSectionPublicationStatus::NotApplicable, $heldSections[0]->refresh()->publication_status);
-        $video = \App\Models\SongVideo::factory()->create([
+        $video = SongVideo::factory()->create([
             'service_section_id' => $heldSections[0]->id,
             'video_file_path' => $heldSections[0]->extracted_video_path,
             'asset_disk' => $heldSections[0]->asset_disk,
-            'publication_state' => \App\Enums\SermonPublicationState::Quarantined,
+            'publication_state' => SermonPublicationState::Quarantined,
         ]);
-        $this->assertNotEmpty(app(\App\Services\Import\HistoricReleaseReviewHolds::class)->assess([], [$video]));
+        $this->assertNotEmpty(app(HistoricReleaseReviewHolds::class)->assess([], [$video]));
         Storage::disk($heldSections[0]->extractedAssetDisk())->assertExists($heldSections[0]->extracted_video_path);
-        $this->assertSame(\App\Enums\ProcessingStatus::Failed, $processingLog->fresh()->status);
+        $this->assertSame(ProcessingStatus::Failed, $processingLog->fresh()->status);
         $this->assertSame('manual_review_required', $processingLog->fresh()->current_step);
     }
 

@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Data\SermonCreationOptions;
 use App\Enums\MediaType;
 use App\Models\MediaProcessingLog;
+use App\Services\Media\RecordedVideoOutput;
 use App\Services\Processing\SermonProcessingLogger;
 use App\Services\Sermon\SermonCreationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -153,7 +154,10 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
      */
     private function storeVideoForSermon(int $sermonId, string $tempVideoPath): string
     {
-        $sermonDisk = Storage::disk(config('media-processing.storage.sermon_disk', 'public'));
+        $disk = (string) config('media-processing.storage.sermon_disk', 'public');
+        $sermonDisk = Storage::disk($disk);
+        $outputs = app(RecordedVideoOutput::class);
+        $provenance = $outputs->provenance($this->processingLog);
 
         // Get the temp disk and resolve absolute path
         $tempDisk = config('filesystems.default', 'local');
@@ -174,6 +178,7 @@ class CreateSermonRecord extends ProcessingJob implements ShouldQueue
             new File($absoluteTempPath),
             $filename
         );
+        $outputs->record($this->processingLog, 'sermon', $disk, $finalPath, $provenance);
 
         Log::info('Video file moved to permanent storage', [
             'source_path' => $tempVideoPath,

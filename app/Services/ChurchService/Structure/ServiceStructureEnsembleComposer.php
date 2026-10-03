@@ -243,12 +243,16 @@ class ServiceStructureEnsembleComposer
                 $flags[] = ServiceStructureValidator::FLAG_ENSEMBLE_DEGRADED;
             }
 
-            // Agreement never clears a flag: a supporter's held proposal stays held on the written section.
+            // Holds remain a union; the stitch warning describes the supporting majority's structure.
             $supporterFlags = array_merge(...array_map(
                 static fn (array $supporter): array => $supporter['section']->reviewFlags,
                 $winner,
             ));
-            $section = $this->withConfidence($source->withReviewFlags([...$supporterFlags, ...$flags]), $winner);
+            $stitchVotes = count(array_filter($winner, static fn (array $supporter): bool => in_array(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $supporter['section']->reviewFlags, true)));
+            if ($stitchVotes <= count($winner) / 2) {
+                $supporterFlags = array_values(array_diff($supporterFlags, [ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED]));
+            }
+            $section = $this->withConfidence($source->withoutReviewFlags()->withReviewFlags([...$supporterFlags, ...$flags]), $winner);
             $sections[] = $section;
             $provenance[] = [
                 'group' => $groupIndex,

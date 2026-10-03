@@ -8,14 +8,24 @@ use App\Data\SermonVideoQualityAssessmentResult;
 use App\Enums\SermonVideoQualityStatus;
 use App\Enums\ServiceSectionType;
 use App\Jobs\AssessSermonVideoQuality;
+use App\Jobs\StoreSermonVideo;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
+use App\Presenters\SermonViewPresenter;
 use App\Services\Media\MediaDiskReachability;
+use App\Services\Media\RecordedVideoOutput;
 use App\Services\Media\Video\FrameExtractionService;
 use App\Services\Media\Video\SermonVideoQualityAssessmentService;
+use App\Services\Processing\ProcessingPipelineBuilder;
+use App\Services\Processing\SermonMetadataIntegrationService;
+use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Sermon\SermonExposurePolicy;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Storage;
+use Mockery;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -23,22 +33,124 @@ class AssessSermonVideoQualityTest extends TestCase
 {
     use DatabaseTransactions;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Storage::fake('public');
+        Storage::fake('historic_quarantine');
+    }
+
+    #[Test]
+    public function the_real_store_then_assess_chain_grades_the_new_file_after_the_request_is_spent(): void
+    {
+        config(['queue.default' => 'sync', 'media-processing.storage.sermon_disk' => 'historic_staging', 'media-processing.storage.temp_disk' => 'local']);
+        Storage::fake('local');
+        Storage::fake('historic_staging');
+        Storage::fake('historic_quarantine');
+        $sermon = Sermon::factory()->create(['asset_disk' => 'historic_quarantine']);
+        $path = "sermons/{$sermon->id}/video.mp4";
+        $sermon->update(['video_file_path' => $path]);
+        Storage::disk('historic_quarantine')->put($path, 'stale prior quarantine cut');
+        Storage::disk('local')->put('temp/fresh.mp4', 'fresh paired cut');
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'sermon_id' => $sermon->id, 'video_file_path' => 'temp/fresh.mp4',
+            'processing_metadata' => ['trim' => ['observed_duration' => 1253.666667, 'segments' => [['start_time' => 2472.78, 'end_time' => 2532.17], ['start_time' => 2594.88, 'end_time' => 3789.12]]]],
+        ]);
+        $log->putCorpusRerunStamp(['snapshot_file_sha256' => str_repeat('a', 64), 'code_revision' => str_repeat('b', 64), 'dispatched_at' => now()->toIso8601String(), 'extraction_dispatched_at' => now()->toIso8601String()]);
+        $log->markAsReExtraction();
+        $integration = Mockery::mock(SermonMetadataIntegrationService::class, [app(StorageAdapterHelper::class), app(SermonViewPresenter::class)])->makePartial();
+        $integration->shouldReceive('validateVideoFile')->once()->andReturnTrue();
+        $this->app->instance(SermonMetadataIntegrationService::class, $integration);
+        $observed = null;
+        $service = $this->createMock(SermonVideoQualityAssessmentService::class);
+        $service->expects($this->once())->method('assessAndRetainLocalPath')->willReturnCallback(function ($sermon, $videoPath, $disk) use (&$observed): array {
+            $observed = Storage::disk($disk)->get($videoPath);
+
+            return ['result' => $this->approvedResult(), 'localVideoPath' => null];
+        });
+        $this->app->instance(SermonVideoQualityAssessmentService::class, $service);
+        $this->app->instance(FrameExtractionService::class, $this->createStub(FrameExtractionService::class));
+        $jobs = app(ProcessingPipelineBuilder::class)->buildLivestreamPostReviewChainJobs($log);
+        $assessment = collect($jobs)->first(fn ($job): bool => $job instanceof AssessSermonVideoQuality);
+
+        Bus::chain([new StoreSermonVideo($log, $sermon->id), $assessment])->dispatch();
+
+        $this->assertFalse($log->refresh()->isReExtraction());
+        $this->assertTrue($log->permitsPromotionVideoReplacement());
+        $this->assertSame('fresh paired cut', $observed);
+        $output = data_get($log->processing_metadata?->toArray(), 'media_outputs.sermon');
+        $this->assertSame('historic_staging', $output['disk']);
+        $this->assertSame($path, $output['path']);
+        $this->assertSame(strlen('fresh paired cut'), $output['size']);
+        $this->assertSame(hash('sha256', 'fresh paired cut'), $output['sha256']);
+        $this->assertSame($output, $log->videoQualityMetadata()['graded_output']);
+    }
+
+    #[Test]
+    #[DataProvider('invalidRecordedOutputs')]
+    public function changed_bytes_at_the_recorded_path_are_an_error_without_grading_the_other_copy(string $change, string $reason): void
+    {
+        Storage::fake('historic_staging');
+        Storage::fake('historic_quarantine');
+        $path = 'sermons/936/video.mp4';
+        Storage::disk('historic_staging')->put($path, 'fresh video!');
+        Storage::disk('historic_quarantine')->put($path, 'stale but valid file');
+        $sermon = Sermon::factory()->create(['video_file_path' => $path, 'asset_disk' => 'historic_quarantine']);
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create(['sermon_id' => $sermon->id, 'processing_metadata' => ['trim' => ['segments' => [['start_time' => 100, 'end_time' => 200], ['start_time' => 300, 'end_time' => 400]]]]]);
+        $outputs = app(RecordedVideoOutput::class);
+        $outputs->record($log, 'sermon', 'historic_staging', $path, $outputs->provenance($log));
+        match ($change) {
+            'hash' => Storage::disk('historic_staging')->put($path, 'other video!'),
+            'size' => Storage::disk('historic_staging')->put($path, 'short'),
+            'file' => Storage::disk('historic_staging')->delete($path),
+            'record' => $log->writeProcessingMetadata(static function (array $metadata): array {
+                unset($metadata['media_outputs']);
+
+                return $metadata;
+            }),
+            'provenance' => $log->putCorpusRerunStamp(['snapshot_file_sha256' => str_repeat('c', 64)]),
+            'span_order' => $log->writeProcessingMetadata(static function (array $metadata): array {
+                $metadata['trim']['segments'] = array_reverse($metadata['trim']['segments']);
+
+                return $metadata;
+            }),
+        };
+        $service = $this->createMock(SermonVideoQualityAssessmentService::class);
+        $service->expects($this->never())->method('assessAndRetainLocalPath');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage($reason);
+        try {
+            (new AssessSermonVideoQuality($log))->handle($service, $this->createStub(FrameExtractionService::class), $this->createStub(SermonExposurePolicy::class), new MediaDiskReachability);
+        } finally {
+            $this->assertSame($reason, $log->refresh()->videoQualityMetadata()['reason']);
+            $this->assertSame('unassessed', $log->videoQualityMetadata()['status']);
+            $this->assertNull($log->videoQualityMetadata()['graded_output']);
+        }
+    }
+
+    public static function invalidRecordedOutputs(): array
+    {
+        return [['hash', 'recorded_video_hash_mismatch'], ['size', 'recorded_video_size_mismatch'], ['file', 'recorded_video_file_missing'], ['record', 'recorded_video_output_missing'], ['provenance', 'recorded_video_provenance_mismatch'], ['span_order', 'recorded_video_provenance_mismatch']];
+    }
+
     #[Test]
     public function a_recut_is_assessed_from_fresh_staging_bytes_before_quarantine_promotion(): void
     {
         config(['media-processing.storage.sermon_disk' => 'historic_staging']);
-        \Illuminate\Support\Facades\Storage::fake('historic_staging');
-        \Illuminate\Support\Facades\Storage::fake('historic_quarantine');
+        Storage::fake('historic_staging');
+        Storage::fake('historic_quarantine');
         $path = 'sermons/1311/video.mp4';
-        \Illuminate\Support\Facades\Storage::disk('historic_quarantine')->put($path, 'stale prior cut');
-        \Illuminate\Support\Facades\Storage::disk('historic_staging')->put($path, 'fresh paired cut');
+        Storage::disk('historic_quarantine')->put($path, 'stale prior cut');
+        Storage::disk('historic_staging')->put($path, 'fresh paired cut');
         $sermon = Sermon::factory()->create(['video_file_path' => $path, 'asset_disk' => 'historic_quarantine']);
         $log = MediaProcessingLog::factory()->livestream()->processing()->create(['sermon_id' => $sermon->id]);
         $log->markAsReExtraction();
+        app(RecordedVideoOutput::class)->record($log, 'sermon', 'historic_staging', $path, app(RecordedVideoOutput::class)->provenance($log));
         $observed = null;
         $service = $this->createMock(SermonVideoQualityAssessmentService::class);
         $service->method('assessAndRetainLocalPath')->willReturnCallback(function ($sermon, $videoPath, $disk) use (&$observed): array {
-            $observed = \Illuminate\Support\Facades\Storage::disk($disk)->get($videoPath);
+            $observed = Storage::disk($disk)->get($videoPath);
 
             return ['result' => $this->approvedResult(), 'localVideoPath' => null];
         });
@@ -65,6 +177,7 @@ class AssessSermonVideoQualityTest extends TestCase
             'section_type' => ServiceSectionType::Sermon->value,
             'published_sermon_id' => $sermon->id,
         ]);
+        $this->recordAssessmentOutput($sermon, $owningRun);
 
         $service = $this->createMock(SermonVideoQualityAssessmentService::class);
         $service->method('assessAndRetainLocalPath')->willReturn([
@@ -106,6 +219,7 @@ class AssessSermonVideoQualityTest extends TestCase
             'video_file_path' => 'sermons/video.mp4',
             'livestream_processing_id' => 'assess-livestream-run',
         ]);
+        $this->recordAssessmentOutput($sermon, $owningRun);
 
         $service = $this->createMock(SermonVideoQualityAssessmentService::class);
         $service->method('assessAndRetainLocalPath')->willReturn([
@@ -131,6 +245,7 @@ class AssessSermonVideoQualityTest extends TestCase
             'sermon_id' => $sermon->id,
             'video_file_path' => 'sermons/video.mp4',
         ]);
+        $this->recordAssessmentOutput($sermon, $log);
 
         $assessmentResult = new SermonVideoQualityAssessmentResult(
             status: SermonVideoQualityStatus::Rejected,
@@ -166,6 +281,7 @@ class AssessSermonVideoQualityTest extends TestCase
     public function it_records_analysis_failed_without_throwing_when_service_errors(): void
     {
         $sermon = Sermon::factory()->create(['video_file_path' => 'sermons/video.mp4']);
+        $this->recordAssessmentOutput($sermon);
 
         $service = $this->createMock(SermonVideoQualityAssessmentService::class);
         $service->method('assessAndRetainLocalPath')->willThrowException(new \RuntimeException('boom'));
@@ -190,6 +306,7 @@ class AssessSermonVideoQualityTest extends TestCase
             'video_file_path' => 'sermons/977/video.mp4',
             'asset_disk' => 'historic_quarantine',
         ]);
+        $this->recordAssessmentOutput($sermon);
 
         $service = $this->createMock(SermonVideoQualityAssessmentService::class);
         $service->expects($this->once())
@@ -226,6 +343,7 @@ class AssessSermonVideoQualityTest extends TestCase
             'asset_disk' => null,
         ]);
 
+        $this->recordAssessmentOutput($sermon);
         $service = $this->createMock(SermonVideoQualityAssessmentService::class);
         $service->expects($this->once())
             ->method('assessAndRetainLocalPath')
@@ -246,7 +364,7 @@ class AssessSermonVideoQualityTest extends TestCase
     }
 
     #[Test]
-    public function it_leaves_an_existing_verdict_alone_when_the_owning_disk_is_unreachable(): void
+    public function an_existing_verdict_does_not_allow_an_unrecorded_unreachable_file_to_be_graded(): void
     {
         config(['filesystems.disks.detached_volume' => [
             'driver' => 'local',
@@ -263,6 +381,8 @@ class AssessSermonVideoQualityTest extends TestCase
         $service = $this->createMock(SermonVideoQualityAssessmentService::class);
         $service->expects($this->never())->method('assessAndRetainLocalPath');
 
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('recorded_video_output_missing');
         (new AssessSermonVideoQuality(sermonId: $sermon->id))->handle(
             $service,
             $this->createStub(FrameExtractionService::class),
@@ -270,10 +390,6 @@ class AssessSermonVideoQualityTest extends TestCase
             new MediaDiskReachability,
         );
 
-        $sermon->refresh();
-
-        $this->assertSame(SermonVideoQualityStatus::Approved, $sermon->video_quality_status);
-        $this->assertNull($sermon->video_quality_reason);
     }
 
     #[Test]
@@ -291,6 +407,8 @@ class AssessSermonVideoQualityTest extends TestCase
             'video_quality_reason' => null,
         ]);
 
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('recorded_video_output_missing');
         (new AssessSermonVideoQuality(sermonId: $sermon->id))->handle(
             $this->createStub(SermonVideoQualityAssessmentService::class),
             $this->createStub(FrameExtractionService::class),
@@ -298,15 +416,10 @@ class AssessSermonVideoQualityTest extends TestCase
             new MediaDiskReachability,
         );
 
-        $sermon->refresh();
-
-        $this->assertSame(SermonVideoQualityStatus::Unassessed, $sermon->video_quality_status);
-        $this->assertNull($sermon->video_quality_reason);
-        $this->assertNull($sermon->video_quality_assessed_at);
     }
 
     #[Test]
-    public function a_settled_verdict_survives_a_video_file_that_can_no_longer_be_read(): void
+    public function a_settled_verdict_does_not_mask_a_recorded_file_that_can_no_longer_be_read(): void
     {
         $sermon = Sermon::factory()->create([
             'video_file_path' => 'sermons/842/video.mp4',
@@ -316,11 +429,14 @@ class AssessSermonVideoQualityTest extends TestCase
         ]);
 
         $service = $this->createMock(SermonVideoQualityAssessmentService::class);
+        $this->recordAssessmentOutput($sermon);
         $service->method('assessAndRetainLocalPath')->willReturn([
             'result' => SermonVideoQualityAssessmentResult::failed('missing_video_file'),
             'localVideoPath' => null,
         ]);
 
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('recorded_video_file_missing');
         (new AssessSermonVideoQuality(sermonId: $sermon->id))->handle(
             $service,
             $this->createStub(FrameExtractionService::class),
@@ -328,10 +444,6 @@ class AssessSermonVideoQualityTest extends TestCase
             new MediaDiskReachability,
         );
 
-        $sermon->refresh();
-
-        $this->assertSame(SermonVideoQualityStatus::Approved, $sermon->video_quality_status);
-        $this->assertNull($sermon->video_quality_reason);
     }
 
     #[Test]
@@ -344,11 +456,14 @@ class AssessSermonVideoQualityTest extends TestCase
         ]);
 
         $service = $this->createMock(SermonVideoQualityAssessmentService::class);
+        $this->recordAssessmentOutput($sermon);
         $service->method('assessAndRetainLocalPath')->willReturn([
             'result' => SermonVideoQualityAssessmentResult::failed('missing_video_file'),
             'localVideoPath' => null,
         ]);
 
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('recorded_video_file_missing');
         (new AssessSermonVideoQuality(sermonId: $sermon->id))->handle(
             $service,
             $this->createStub(FrameExtractionService::class),
@@ -356,10 +471,16 @@ class AssessSermonVideoQualityTest extends TestCase
             new MediaDiskReachability,
         );
 
-        $sermon->refresh();
+    }
 
-        $this->assertSame(SermonVideoQualityStatus::Unassessed, $sermon->video_quality_status);
-        $this->assertSame('missing_video_file', $sermon->video_quality_reason);
+    private function recordAssessmentOutput(Sermon $sermon, ?MediaProcessingLog $run = null): void
+    {
+        $run ??= MediaProcessingLog::factory()->livestream()->processing()->create(['sermon_id' => $sermon->id]);
+        $sermon->update(['livestream_processing_id' => $run->processing_id]);
+        $disk = $sermon->assetDisk();
+        Storage::disk($disk)->put($sermon->video_file_path, 'recorded test video');
+        $outputs = app(RecordedVideoOutput::class);
+        $outputs->record($run, 'sermon', $disk, $sermon->video_file_path, $outputs->provenance($run));
     }
 
     private function approvedResult(): SermonVideoQualityAssessmentResult

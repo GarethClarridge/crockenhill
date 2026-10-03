@@ -1860,3 +1860,38 @@ one reserved assessment, plus seven pending thumbnail-chain continuations. The o
 `receipt.json` now records `stopped_quality_reads_prior_quarantine_file`. Do not restart
 these workers or resume this queued round on changed code without a separately recorded
 recovery; no payload was retired or database status changed to conceal the interruption.
+
+**Exact-file assessment and stitch-vote repair — 2026-10-03 (operator-authorised).**
+The stopped round at `09c5bce3b` is retained as evidence under
+`storage/app/private/canary10-provenance-rerun-20261003/`; its seven old-file verdicts
+remain invalid evidence for those new cuts. The authorised replacement round is recorded
+under `storage/app/private/canary10-exact-file-rerun-20261003/`.
+
+Storage now records each fresh sermon or section video as `media_outputs`, with disk,
+path, byte count and SHA-256 bound to the run, dispatch round, ensemble projection,
+ordered selected spans and media-processing signature. Assessment verifies that identity
+before and after grading and writes the exact graded identity beside its verdict. Missing
+records/files and changed size, hash or provenance refuse assessment with a specific
+reason; neither replacement markers nor a prior sermon copy select the file. The real
+store → assess regression includes the marker-consuming metadata integration and proves
+that the fresh staging bytes are graded while a stale quarantine copy exists. Identity
+mismatch and producer regressions were also run red before their repairs. Provenance
+normalises object keys while preserving span order; a reversed-span regression caught and
+corrected list sorting during this repair.
+
+Fix A keeps `structure_sermon_interruption_merged` only when more than half of a composed
+section's supporting drafts carried it. The real 1050 slots 1 and 3 (two of four) no longer
+retain it; three of four do. All other flags retain the union rule, including content holds.
+The detection prompt and the three recorded operator confirmations are unchanged. Their
+six passage decisions remain in
+`storage/scratch/stitched-sermon-listening-20261003/saved/rulings/`, with the prior
+`confirm-stitches-receipt.json` preserved in this round. MediaProcessingVersion remains 6:
+these repairs bind assessment evidence and change review voting, without changing the
+paired sound/picture cutter recipe.
+
+Focused checks pass (129 tests, 489 assertions), PHPStan reports zero errors and Pint
+passes. The full parallel gate passes: 9,193 tests / 94,493 assertions, with 163 PHPUnit
+notices and no failure (7m 45.818s). Every gate ran with all workers stopped. Exact recovery
+is prepared but not executed: 15 pending and one reserved payload match the preserved
+bytes, reserved score and exact sixteen-run membership. No payload, file, hold, answer or
+operator confirmation has been removed or changed during this preparation.

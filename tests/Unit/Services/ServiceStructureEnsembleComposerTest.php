@@ -10,8 +10,10 @@ use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Enums\TalkType;
+use App\Services\ChurchService\Structure\OutputEdgeReview;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleComposer;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\ChurchService\Structure\TalkEdgeChecks;
 use App\Services\ChurchService\Structure\ValidationResult;
 use App\Services\Song\SongTitleResolver;
 use PHPUnit\Framework\Attributes\Test;
@@ -35,11 +37,11 @@ class ServiceStructureEnsembleComposerTest extends TestCase
     #[Test]
     public function a_talk_end_question_does_not_block_a_neighbour_touching_only_its_start(): void
     {
-        $question = ['check' => \App\Services\ChurchService\Structure\TalkEdgeChecks::CHECK,
+        $question = ['check' => TalkEdgeChecks::CHECK,
             'type' => 'short_talk', 'edges' => ['end'], 'start_time' => 100.0, 'end_time' => 200.0];
-        $this->assertFalse(\App\Services\ChurchService\Structure\OutputEdgeReview::touches($question, [['start_time' => 0.0, 'end_time' => 100.0]]));
-        $this->assertTrue(\App\Services\ChurchService\Structure\OutputEdgeReview::touches($question, [['start_time' => 100.0, 'end_time' => 200.0]]));
-        $this->assertTrue(\App\Services\ChurchService\Structure\OutputEdgeReview::touches($question, [['start_time' => 200.0, 'end_time' => 500.0]]));
+        $this->assertFalse(OutputEdgeReview::touches($question, [['start_time' => 0.0, 'end_time' => 100.0]]));
+        $this->assertTrue(OutputEdgeReview::touches($question, [['start_time' => 100.0, 'end_time' => 200.0]]));
+        $this->assertTrue(OutputEdgeReview::touches($question, [['start_time' => 200.0, 'end_time' => 500.0]]));
     }
 
     #[Test]
@@ -768,6 +770,35 @@ class ServiceStructureEnsembleComposerTest extends TestCase
     private function song(int $start, int $end, string $title): ServiceStructureSection
     {
         return new ServiceStructureSection(ServiceSectionType::Song, null, (float) $start, (float) $end, 0.9, null, $title, null);
+    }
+
+    /** Run 1050: slots 1 and 3 split quoted Scripture; slots 0 and 2 keep one sermon, 79–837 s. */
+    #[Test]
+    public function a_two_of_four_stitch_flag_does_not_hold_the_composed_sermon_but_other_flags_stay(): void
+    {
+        $sermon = $this->section(ServiceSectionType::Sermon, 79, 837);
+        $stitch = ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED;
+        $sections = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($this->structure($sermon)),
+            1 => $this->vote($this->structure($sermon->withReviewFlags([$stitch, 'content_defect_hold']))),
+            2 => $this->vote($this->structure($sermon)),
+            3 => $this->vote($this->structure($sermon->withReviewFlags([$stitch]))),
+        ])->structure->sectionsOfType(ServiceSectionType::Sermon);
+
+        $this->assertNotContains($stitch, $sections[0]->reviewFlags);
+        $this->assertContains('content_defect_hold', $sections[0]->reviewFlags);
+    }
+
+    #[Test]
+    public function a_three_of_four_stitch_flag_keeps_the_composed_sermon_held(): void
+    {
+        $sermon = $this->section(ServiceSectionType::Sermon, 238, 1710);
+        $stitch = ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED;
+        $votes = array_map(fn (int $slot): ValidationResult => $this->vote($this->structure($slot < 3 ? $sermon->withReviewFlags([$stitch]) : $sermon)), range(0, 3));
+
+        $sections = app(ServiceStructureEnsembleComposer::class)->compose($votes)->structure->sectionsOfType(ServiceSectionType::Sermon);
+
+        $this->assertContains($stitch, $sections[0]->reviewFlags);
     }
 
     private function vote(ServiceStructure $structure): ValidationResult

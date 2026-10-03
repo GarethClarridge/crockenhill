@@ -8,6 +8,7 @@ use App\Enums\SermonSourceType;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
+use App\Services\Media\RecordedVideoOutput;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Log;
@@ -99,9 +100,14 @@ class SermonMetadataIntegrationService
 
         $processing = MediaProcessingLog::query()->where('processing_id', $processingId)->first();
         $isReExtraction = $processing instanceof MediaProcessingLog && $processing->isReExtraction();
+        $outputs = app(RecordedVideoOutput::class);
+        $provenance = $processing instanceof MediaProcessingLog ? $outputs->provenance($processing) : null;
 
         // Simple organization by sermon ID
         $finalVideoPath = $this->organizeVideoFile($videoPath, $sermonId, $sourceFileSize, $isReExtraction);
+        if ($processing instanceof MediaProcessingLog && $provenance !== null) {
+            $outputs->record($processing, 'sermon', (string) config('media-processing.storage.sermon_disk', 'public'), $finalVideoPath, $provenance);
+        }
 
         /**
          * The request is spent here, but a historic re-cut still has to pass

@@ -4,27 +4,28 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Console\Commands\DemoteHeldPublicationsCommand;
 use App\Actions\HoldSectionForContentReview;
-use App\Enums\ProcessingStatus;
-use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Console\Commands\DemoteHeldPublicationsCommand;
 use App\Contracts\SectionPublicationHandler;
 use App\Data\HistoricStagingContext;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\MediaType;
+use App\Enums\ProcessingStatus;
 use App\Enums\ProcessingStep;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
+use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
-use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
 use App\Services\ChurchService\CueSafeExtractionPlan;
-use App\Exceptions\OutputEdgeTimingsMissing;
+use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\HistoricMedia\HistoricProcessingThroughput;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Media\ExtractedMediaDurationProbe;
+use App\Services\Media\RecordedVideoOutput;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\ProcessingRunOrchestrator;
 use App\Services\Processing\StorageAdapterHelper;
@@ -37,8 +38,8 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Prepare each of a run's sections for publication review.
@@ -443,6 +444,8 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         }
 
         try {
+            $outputs = app(RecordedVideoOutput::class);
+            $provenance = $outputs->provenance($this->processingLog->fresh() ?? $this->processingLog);
             $cutPlan = app(CueSafeExtractionPlan::class)->forSection($section);
             $segment = (object) $cutPlan['segments'][0];
 
@@ -460,6 +463,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
 
             Storage::disk($this->candidateDisk())->put($videoStoragePath, $videoReadStream);
             fclose($videoReadStream);
+            $outputs->record($this->processingLog, 'section_'.$section->id, $this->candidateDisk(), $videoStoragePath, $provenance);
 
             $section->extracted_video_path = $videoStoragePath;
 

@@ -9,7 +9,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Processing\SermonProcessingLogger;
 use App\Services\Sermon\SermonCreationService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -17,7 +17,7 @@ use Tests\TestCase;
 
 class CreateSermonRecordTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     #[Test]
     public function it_has_correct_retry_configuration(): void
@@ -190,6 +190,7 @@ class CreateSermonRecordTest extends TestCase
         // The storeVideoForSermon() method tries to actually move the file.
         // We need to fake storage so the file "exists".
         Storage::fake('local');
+        Storage::fake('public');
         Storage::disk('local')
             ->put('temp/video-processing/extracted-sermon.mp4', 'fake video content');
 
@@ -201,6 +202,9 @@ class CreateSermonRecordTest extends TestCase
         // derived from the extracted video (not the original upload).
         $this->assertNotNull($log->video_file_path);
         $this->assertStringContainsString('sermons/', $log->video_file_path);
+        $output = data_get($log->processing_metadata?->toArray(), 'media_outputs.sermon');
+        $this->assertSame('public', $output['disk'] ?? null);
+        $this->assertSame(hash('sha256', 'fake video content'), $output['sha256'] ?? null);
         $this->assertSame($createdSermon->id, $log->sermon_id);
     }
 

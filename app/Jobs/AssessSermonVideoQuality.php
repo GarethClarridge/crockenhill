@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Data\SermonVideoQualityAssessmentResult;
-use App\Enums\SermonVideoQualityStatus;
+use App\Exceptions\RecordedVideoOutputMismatch;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Media\MediaDiskReachability;
+use App\Services\Media\RecordedVideoOutput;
 use App\Services\Media\Video\FrameExtractionService;
 use App\Services\Media\Video\SermonVideoQualityAssessmentService;
 use App\Services\Sermon\SermonExposurePolicy;
@@ -92,63 +93,41 @@ class AssessSermonVideoQuality extends ProcessingJob implements ShouldBeUnique, 
             return;
         }
 
-        $disk = $processingLog?->isReExtraction()
-            ? (string) config('media-processing.storage.sermon_disk', 'public')
-            : $sermon->assetDisk();
-
-        /**
-         * An unreachable disk answers every read exactly as a deleted file
-         * would, so assessing across one manufactures `missing_video_file`
-         * verdicts for assets that are present and fine. Hold the existing
-         * state instead: nothing is written, and the sermon stays eligible for
-         * the same backfill once the volume is back.
-         */
-        $unreachableReason = $diskReachability->unreachableReason($disk);
-
-        if ($unreachableReason !== null) {
-            Log::warning('Sermon video quality assessment deferred: owning disk unreachable', [
-                'processing_id' => $processingLog?->processing_id,
-                'sermon_id' => $sermon->id,
-                'disk' => $disk,
-                'reason' => $unreachableReason,
-                'retained_status' => $sermon->videoQualityStatus()->value,
-            ]);
-
-            return;
-        }
-
+        $outputRun = $processingLog ?? $this->owningRun($sermon);
+        $outputs = app(RecordedVideoOutput::class);
+        $output = null;
         $localVideoPath = null;
 
         try {
+            if (! $outputRun instanceof MediaProcessingLog) {
+                throw new RecordedVideoOutputMismatch('recorded_video_output_missing');
+            }
+            $output = $outputs->verified($outputRun, 'sermon');
+            if ($diskReachability->unreachableReason($output['disk']) !== null) {
+                throw new RecordedVideoOutputMismatch('recorded_video_disk_unreachable');
+            }
             $this->logStepStart('assessing_video_quality', 'Assessing sermon video quality');
 
             ['result' => $result, 'localVideoPath' => $localVideoPath] = $assessmentService->assessAndRetainLocalPath(
                 sermon: $sermon,
-                videoPath: $sermon->video_file_path,
-                disk: $disk,
+                videoPath: $output['path'],
+                disk: $output['disk'],
             );
-
-            if ($this->wouldDiscardSettledEvidence($sermon, $result)) {
-                Log::warning('Sermon video quality assessment held: file unreadable but a settled verdict exists', [
-                    'processing_id' => $processingLog?->processing_id,
-                    'sermon_id' => $sermon->id,
-                    'disk' => $disk,
-                    'video_path' => $sermon->video_file_path,
-                    'retained_status' => $sermon->videoQualityStatus()->value,
-                ]);
-
-                $this->logStepComplete('assessing_video_quality', 'Video quality assessment held: evidence unreadable');
-
-                return;
+            if ($result->reason === 'missing_video_file') {
+                throw new RecordedVideoOutputMismatch('recorded_video_file_missing');
             }
-
-            $this->persistResult($sermon, $processingLog, $result);
+            $outputs->verified($outputRun->fresh() ?? $outputRun, 'sermon');
+            $this->persistResult($sermon, $outputRun, $result, $output);
             $this->logStepComplete('assessing_video_quality', 'Video quality assessment completed: '.$result->status->value);
 
             Log::info('Sermon video quality assessment completed', [
                 'processing_id' => $processingLog?->processing_id,
                 'sermon_id' => $sermon->id,
-                'video_path' => $sermon->video_file_path,
+                'video_path' => $output['path'],
+                'asset_disk' => $output['disk'],
+                'sha256' => $output['sha256'],
+                'size' => $output['size'],
+                'output_provenance' => $output['provenance'],
                 'verdict' => $result->status->value,
                 'reason' => $result->reason,
                 'dead_seconds' => $result->deadSeconds,
@@ -167,9 +146,20 @@ class AssessSermonVideoQuality extends ProcessingJob implements ShouldBeUnique, 
                 ]);
                 $localVideoPath = null; // GenerateThumbnail now owns cleanup
             }
+        } catch (RecordedVideoOutputMismatch $exception) {
+            $this->persistResult($sermon, $outputRun, SermonVideoQualityAssessmentResult::failed($exception->reason), null);
+            $this->logStepFailed('assessing_video_quality', $exception->reason);
+            Log::error('Sermon video quality assessment refused: recorded output invalid', [
+                'processing_id' => $outputRun?->processing_id,
+                'sermon_id' => $sermon->id,
+                'reason' => $exception->reason,
+                'recorded_output' => $output,
+            ]);
+
+            throw $exception;
         } catch (\Throwable $e) {
             $result = SermonVideoQualityAssessmentResult::failed();
-            $this->persistResult($sermon, $processingLog, $result);
+            $this->persistResult($sermon, $outputRun, $result, $output);
             $this->logStepComplete('assessing_video_quality', 'Video quality assessment failed safely');
 
             Log::warning('Sermon video quality assessment failed safely', [
@@ -222,38 +212,12 @@ class AssessSermonVideoQuality extends ProcessingJob implements ShouldBeUnique, 
         return Sermon::query()->find($processingLog->sermon_id);
     }
 
-    /**
-     * Would writing this result replace a real verdict with an access failure?
-     *
-     * `missing_video_file` says only that the file could not be read on this
-     * run. Where an earlier run *did* read it and reached a verdict, the file's
-     * later absence is a custody problem -- staging cleaned up, an asset not
-     * promoted, a volume swapped -- and the quality judgement it produced is
-     * still the best evidence anyone has about that video. Overwriting it
-     * destroys that evidence and cannot be undone by re-running: the file is
-     * exactly what is missing.
-     *
-     * So a settled verdict outranks an unreadable file. Thirteen published
-     * sermons on this machine sit in that position, their assets long cleaned
-     * up; a corpus-wide `--all` pass would otherwise demote eleven approvals to
-     * a missing-file state that describes this workstation, not the recording.
-     *
-     * A sermon that has never been assessed has nothing to lose, so it records
-     * the failure as before and stays eligible for the targeted replay.
-     */
-    private function wouldDiscardSettledEvidence(Sermon $sermon, SermonVideoQualityAssessmentResult $result): bool
-    {
-        if ($result->reason !== 'missing_video_file') {
-            return false;
-        }
-
-        return $sermon->videoQualityStatus() !== SermonVideoQualityStatus::Unassessed;
-    }
-
+    /** @param array<string, mixed>|null $output */
     private function persistResult(
         Sermon $sermon,
         ?MediaProcessingLog $processingLog,
         SermonVideoQualityAssessmentResult $result,
+        ?array $output,
     ): void {
         $sermon->forceFill([
             'video_quality_status' => $result->status,
@@ -263,10 +227,11 @@ class AssessSermonVideoQuality extends ProcessingJob implements ShouldBeUnique, 
 
         ($processingLog ?? $this->owningRun($sermon))?->putVideoQualityMetadata([
             ...$result->toArray(),
-            'asset_disk' => $processingLog?->isReExtraction()
-                ? (string) config('media-processing.storage.sermon_disk', 'public')
-                : $sermon->assetDisk(),
-            'video_path' => $sermon->video_file_path,
+            'asset_disk' => $output['disk'] ?? null,
+            'video_path' => $output['path'] ?? null,
+            'sha256' => $output['sha256'] ?? null,
+            'size' => $output['size'] ?? null,
+            'graded_output' => $output,
         ]);
     }
 
