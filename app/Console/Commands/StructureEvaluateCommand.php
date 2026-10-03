@@ -11,6 +11,7 @@ use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
+use App\Services\ChurchService\Structure\TranscriptCueBoundaries;
 use App\Services\ChurchService\Structure\ServiceStructureEvaluationTelemetry;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
@@ -407,6 +408,8 @@ class StructureEvaluateCommand extends Command
         SilenceSnapService $snapService,
         ChurchServiceTranscript $transcript,
     ): ServiceStructure {
+        $structure = app(TranscriptCueBoundaries::class)->apply($structure, $transcript);
+
         $rmsLogPath = $log?->rms_log_path;
 
         if (! is_string($rmsLogPath) || $rmsLogPath === '') {

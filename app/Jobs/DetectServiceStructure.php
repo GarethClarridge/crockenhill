@@ -19,6 +19,7 @@ use App\Models\ServiceSection;
 use App\Services\ChurchService\ChurchServiceReviewSynchronizer;
 use App\Services\ChurchService\ContentHoldRechecker;
 use App\Services\ChurchService\ServiceSectionSyncService;
+use App\Services\ChurchService\Structure\TranscriptCueBoundaries;
 use App\Services\ChurchService\Structure\CutAwareEnsembleComposer;
 use App\Services\ChurchService\Structure\EnsembleComposition;
 use App\Services\ChurchService\Structure\EnsembleReviewGate;
@@ -883,6 +884,8 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         ChurchServiceTranscript $transcript,
         AudioTimeline $audioTimeline,
     ): ServiceStructure {
+        $structure = app(TranscriptCueBoundaries::class)->apply($structure, $transcript);
+
         $rmsLogPath = $this->processingLog->rms_log_path;
 
         if (! is_string($rmsLogPath) || $rmsLogPath === '') {

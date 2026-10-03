@@ -515,7 +515,8 @@ class SongPublicationHandlerTest extends TestCase
         $section->update(['publication_status' => ServiceSectionPublicationStatus::Published, 'published_at' => now(),
             'metadata' => ['song_video_extraction' => ['media_signature' => $section->mediaSignature()]]]);
         $existing = SongVideo::factory()->create(['song_id' => $song->id, 'service_section_id' => $section->id, 'is_featured' => true]);
-        config(['media-processing.media_processing_version' => 3]);
+        $nextVersion = (int) config('media-processing.media_processing_version') + 1;
+        config(['media-processing.media_processing_version' => $nextVersion]);
         $this->audioEnhancement->shouldReceive('enhanceVideo')->once()->andReturn(null);
 
         $this->handler->publish($section->fresh());
@@ -524,7 +525,7 @@ class SongPublicationHandlerTest extends TestCase
         $this->assertTrue($existing->fresh()->is_featured);
         $this->assertSame('regenerated-content', Storage::disk('public')->get($existing->fresh()->video_file_path));
         $this->assertSame($section->mediaSignature(), $section->fresh()->metadata->raw['song_video_extraction']['media_signature']);
-        $this->assertSame(3, $section->fresh()->metadata->raw['song_video_extraction']['media_processing']['version']);
+        $this->assertSame($nextVersion, $section->fresh()->metadata->raw['song_video_extraction']['media_processing']['version']);
     }
 
     #[Test]

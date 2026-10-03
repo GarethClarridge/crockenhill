@@ -37,6 +37,7 @@ class EnsembleEvidenceVersion
             ServiceStructureDrawExecutor::class,
             ServiceStructureValidator::class,
             SilenceSnapService::class,
+            TranscriptCueBoundaries::class,
             SoundStage::class,
             ServiceStructureEnsembleComposer::class,
             ServiceStructureEnsembleRulingApplier::class,

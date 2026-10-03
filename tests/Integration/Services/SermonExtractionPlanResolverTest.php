@@ -123,7 +123,7 @@ class SermonExtractionPlanResolverTest extends TestCase
     {
         $section = ServiceSection::factory()->create();
         $before = $section->mediaSignature();
-        config(['media-processing.media_processing_version' => 3]);
+        config(['media-processing.media_processing_version' => (int) config('media-processing.media_processing_version') + 1]);
         $this->assertNotSame($before, $section->mediaSignature());
     }
 
@@ -163,12 +163,18 @@ class SermonExtractionPlanResolverTest extends TestCase
         ], 300, ChurchServiceTranscript::SOURCE_MOCK);
         Storage::disk('local')->put('temp/transcript.json', json_encode($transcript->toArray(), JSON_THROW_ON_ERROR));
         $composition = $this->resolver->compose($log);
-        $this->assertSame(['sermon_uncovered_speech'], array_column($composition['risks'], 'kind'));
-        $this->assertTrue($composition['requires_review']);
-        $this->assertStringContainsString('70.000–75.000s', $composition['risks'][0]['detail']);
+        $this->assertSame([], $composition['risks']);
+        $this->assertFalse($composition['requires_review']);
         $this->assertCount(2, $this->resolver->resolve($log)['segments']);
 
-        $this->section($log, ServiceSectionType::Prayer, 2, 60, 100);
+        $continuation = $this->section($log, ServiceSectionType::Other, 4, 215, 230);
+        $continuation->update(['metadata' => ['sermon_continuation' => ['of_section_id' => $sermon->id, 'evidence' => 'Same sermon resumes', 'source' => 'review']]]);
+        $composition = $this->resolver->compose($log);
+        $this->assertSame(['sermon_uncovered_speech'], array_column($composition['risks'], 'kind'));
+        $this->assertTrue($composition['requires_review']);
+        $this->assertStringContainsString('205.000–210.000s', $composition['risks'][0]['detail']);
+
+        $this->section($log, ServiceSectionType::Prayer, 2, 200, 215);
         $this->assertFalse($this->resolver->compose($log)['requires_review']);
         $log->serviceSections()->where('section_type', ServiceSectionType::Prayer)->delete();
 

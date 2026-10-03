@@ -109,8 +109,10 @@ The other clips (songs, readings, talks) are already cut at their section's own 
   content as its video, preferably extracted from the resulting video as today.
 - **C4. Review uncovered speech upstream.** During structure composition/validation, use the
   existing timestamped transcript and segmentation evidence to identify speech outside all
-  identified sections **strictly between consecutive sections selected for the same output**:
-  the interior gap a multi-span cut would drop. Speech before the first selected section or
+  identified sections **strictly between consecutive selected parts of the same item**:
+  for example, the sermon and an identified continuation across an interruption. Reading →
+  sermon and sermon → concluding prayer join different items; D1 deliberately excludes their
+  intervening speech, so these gaps are not composition findings. Speech before the first selected section or
   after the last is not a composition finding; the ensemble owns those outer edges through
   talk-edge checks (decision 21) and answered rulings. Raise interior findings through
   the existing structure-review mechanism and correct or explicitly resolve the section
@@ -172,7 +174,10 @@ The other clips (songs, readings, talks) are already cut at their section's own 
   remove cut-time reclassification and fallback selection as specified in C2.
 - **D3 — implementation direction:** one shared encoding path, with performance measured for
   scheduling and capacity rather than an arbitrary percentage threshold for retaining smart cuts.
-- **D4 — separate production follow-up:** already-published weekly media may be affected too.
+- **D4 — separate production follow-up:** already-published weekly clips have the same
+  section-edge defect: weekly processing uses the same floored cue display and refinement
+  path. The exact-cue fix below applies to future weekly processing too. Published weekly
+  media may also have the sync defects described above.
   A read-only source-aware audit can identify candidates for repair; a timestamp anomaly alone
   is not proof of drift. Production re-cuts/publication are a separate operational action, not
   authorised by this documentation revision and not a prerequisite for implementing the cutter.
@@ -346,3 +351,128 @@ logs `/tmp/cut-c4-{snapshot,worker-restart,saved-draw-dry}.txt` and
 `/tmp/cut-c4-worker-{ffmpeg,whisper,llm,orchestration}.txt`. No recomposition or Tier C was
 dispatched, no hold released and no composition question answered. This readiness record is
 a documentation-only commit; it does not change the snapshot's bound code revision.
+
+
+### Canary 10 follow-up rulings: exact cue edges and same-item C4 — 2026-10-03
+
+**A — operator-confirmed edge clipping.** The operator listened to nine reading ends in the
+canary sermon videos and saved eight `clipped` verdicts and one `other_speaker` verdict
+(1356). The clipped words were 949 “Spirit”, 1108 “found”, 1221 “for it”, 1304 “Amen”,
+1112 “this morning”, 1117 “today”, 1028 “while” and 936 “Amen”. Evidence:
+[edge listening artifact](https://claude.ai/artifact/JtMfn2ppNniKRUrnMfVo9Y) and
+`storage/scratch/edge-listening-20261003/saved/rulings/*.json`. These are operator listening
+findings, not a claim that a timestamp scan itself proves audible clipping.
+
+The prompt displays cue times as floored whole seconds. For example, run 949's last cue is
+2443.94–2447.26 s, displayed as `[2443-2447]`; a returned end of 2447 s cuts inside it.
+Other confirmed cue ends are 1108 2390.98, 1221 2246.92, 1304 1629.28, 1112 1850.58,
+1117 1800.64 and 1028 1752.38 s. Silence snapping did not recover the missing words.
+The supplied investigation reported about 45% of 506 edges straddling transcript cues,
+with reading/short-talk/prayer/notices ends particularly affected; the reproducible current
+before/after counts below supersede those approximate figures.
+
+**Ruling and implementation:** before silence snapping, sound refinement and talk-edge checks,
+map a returned whole-second start to the exact start of the unique cue with that floored
+start, and an end to the exact end of the unique cue with that floored end. Missing or
+ambiguous matches keep the proposal and record the match count in section notes. Fractional
+proposals retain their existing meaning. The prompt and `toPromptText()` display are unchanged.
+`TranscriptCueBoundaries` is used by saved-draw replay, fresh ensemble draws, the single-draw
+weekly/shadow path and the evaluation harness. Song music-span and sustained-sound refinement
+still run afterwards. Media processing version is **3**, because cut bounds change.
+
+**B — operator ruling: C4 checks gaps within one item.** Of the previous 53 canary findings,
+the operator classified 43 as linking speech between different items, deliberately excluded
+by D1, and ten as edge clipping addressed by A. C4 now examines only consecutive selected
+parts identified as the same sermon through the existing continuation relationship. Reading →
+sermon and sermon → concluding prayer gaps are excluded. Reading/prayer membership checks,
+content holds and operator answers are unchanged; no word lists or thresholds were added.
+
+Red → green regressions first demonstrated the 949 end (2447 → 2447.26), a floored start,
+and the erroneous reading → sermon C4 finding. Coverage also exercises every section type,
+adjacent cues without overlap, ambiguous/missing matches, fractional proposals, music intros
+and sustained-sound widening after mapping, and a sermon → continuation gap that still flags
+uncovered speech, intentionally identified intervening content and silence. Version-change
+tests now use the next configured version so future bumps retain meaningful coverage.
+
+
+**Read-only same-16 saved-draw replay:** `straddle.php` now replays the latest immutable
+four-draw bundle with the existing answers. Composition is previewed on a copied run inside
+an always-rolled-back transaction, avoiding asset cleanup on authoritative sections. No
+provider call, dispatch, section update, answer or hold release occurred. Evidence:
+`storage/app/private/cut-cue-edges-20261003/{before,after,composition-review,summary,remaining-ends}.json`.
+The scan retains its original 0.05 s cue-interior margin; this is a measurement convention,
+not a new cutting rule. Current results are **240/506 edges before, 151/508 after**:
+
+| Type | Start inside/total, before → after | End inside/total, before → after |
+|---|---|---|
+| bible_reading | 14/31 → 11/31 | 23/31 → 10/31 |
+| notices | 7/19 → 4/19 | 12/19 → 6/19 |
+| other | 14/43 → 15/43 | 24/43 → 11/43 |
+| prayer | 18/51 → 10/52 | 33/51 → 10/52 |
+| sermon | 6/16 → 4/16 | 4/16 → 3/16 |
+| short_talk | 6/20 → 7/20 | 13/20 → 6/20 |
+| song | 22/60 → 20/60 | 32/60 → 26/60 |
+| welcome | 3/13 → 3/13 | 9/13 → 5/13 |
+
+**End edges are not near zero: 150/253 → 77/254.** Exact cue mapping removes the floor
+error, but the later rules can reintroduce cue straddling. Every remaining end is retained
+with its transcript fragment, section notes and reason in `remaining-ends.json`:
+
+| Remaining reason | Ends |
+|---|---:|
+| Missing cue match; proposal kept | 19 |
+| Ambiguous cue match; proposal kept | 12 |
+| Saved operator resolution reinstates its recorded bounds | 17 |
+| Silence snap retreats inside a restored cue | 11 |
+| Snap/sound refinement advances into a different or overlapping cue | 10 |
+| Existing adjacent-overlap reconciliation changes the restored edge | 5 |
+| Silence snap moves an already-exact integer cue edge | 3 |
+
+Among the eight audibly clipped reading ends, five no longer straddle at the scan's margin:
+949 2447.25, 1028 1752.38, 1112 1850.58, 1221 2246.93 and 1304 1629.49 s. Three still do:
+936 restores 2532.16 but snaps back to 2531.95 (0.21 s inside); 1117 restores 1800.64 but
+snaps back to 1800.52 (0.12 s inside); 1108's existing ruling
+`c4f169de-5cf8-486e-8463-dc176888a7ef` reinstates 2389.99 (0.99 s inside the cue ending
+2390.98). This replay does **not** establish that the audible defect is fully repaired.
+Changing silence-snap direction or the bounds held in existing operator resolutions is not
+part of these two rulings. No new fallback or answer was invented to force the counts down.
+
+The two extra edges are a residual prayer in 964: cue restoration lengthens the draft prayer's
+end beyond an existing short-talk ruling ending at 1166 s; the ruling applier retains the
+remaining prayer fragment. Its start is 1166 s. This is a deterministic replay outcome,
+not a new draw or an authoritative section change.
+
+**Canary findings per run:** 936, 949, 964, 1025, 1028, 1050, 1108, 1112, 1117, 1221,
+1304, 1311, 1346, 1356 and 1358 each have **zero composition risks**. 1250 has **one unresolved
+reading-membership risk**. All sixteen have **zero C4 speech findings, zero open ensemble
+questions and zero hard validation failures**. The copied-run extraction preview parks three
+runs under `sermon_composition_review`: 1050 and 1356 retain `structure_sermon_interruption_merged`,
+and 1250 has both that flag and its reading-membership question. Thirteen copied-run plans
+are unblocked. This preview does not release or adjudicate any original run's content hold.
+
+**475-run census of the existing authoritative section state:** **358 unblocked, 46 parked
+for composition/selected-boundary review, 71 content-held**, with **zero resolver errors**
+and **zero unsectioned seconds added**. Compared with the preceding C4 census, parking falls
+from 225 to 46, content-held classification from 73 to 71, and unblocked plans rise from
+177 to 358. Risk-bearing runs remain **29 reading membership, six prayer membership**, and
+now **three same-item coverage risks**: 943 lacks required coverage evidence; 1073 has one
+2653–2654 s speech fragment; 1116 has one 1026–1026.73 s fragment plus its reading question.
+Counts overlap. Content-hold flags are retained: the classification change reflects existing
+bound repair authority becoming usable after the composition blocker is removed. This is
+not a dispatch or a hold release. Evidence:
+`storage/app/private/cut-rule-census-same-item-20261003/{census,summary}.json`.
+
+
+Validation: **9,147 tests / 94,271 assertions pass**, with 162 existing PHPUnit notices.
+The final changed-file suites pass (**89 tests / 223 assertions**); the broader focused run
+covered live detection, saved-draw execution, silence snap, sustained sound and the evaluation
+harness (its one version-test assertion was corrected to use the configured next version,
+then rechecked). PHPStan has **zero errors**; Pint passes, including both new files. Dusk is
+not required because there is no UI change. Logs: `/tmp/cut-cue-{red,green,focused,focused-final,full,phpstan,pint,pint-new,replay,census}.txt`.
+
+Next authorised operations are limited to committing on master, a fresh snapshot of these same
+16 runs with the existing listening routing, restarting the four historic worker lanes and
+checking that each started after the code commit, and a **saved-draw dry run only**. This
+readiness is permission to inspect readiness, not permission to dispatch. Stop before any
+recomposition dispatch, Tier C, hold release or new answer. The residual edge findings above
+remain visible for the operator's next decision.

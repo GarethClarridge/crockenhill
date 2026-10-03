@@ -278,7 +278,7 @@ return [
     |
     */
     // Bump when cutting or enhancement behaviour changes. Older assets must be regenerated.
-    'media_processing_version' => 2,
+    'media_processing_version' => 3,
 
     'video_extraction' => [
         'reencode_crf' => (int) env('VIDEO_EXTRACTION_REENCODE_CRF', 23),

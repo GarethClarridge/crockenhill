@@ -87,7 +87,7 @@ class SermonExtractionPlanResolver
             } elseif ($prayers !== []) {
                 $risks[] = ['kind' => 'sermon_prayer_membership_unresolved', 'detail' => 'Choose the concluding prayer: intervening sections or multiple prayers make membership uncertain.'];
             }
-            foreach ($this->uncoveredSpeech($log, $sections, $selected) as $cue) {
+            foreach ($this->uncoveredSpeech($log, $sections, $selected, $sermon->id) as $cue) {
                 $risks[] = ['kind' => 'sermon_uncovered_speech', 'detail' => sprintf('Speech outside identified sections at %.3f–%.3fs: %s', $cue['start'], $cue['end'], $cue['text'])];
             }
         }
@@ -304,20 +304,22 @@ class SermonExtractionPlanResolver
     }
 
     /**
-     * Use timed words corroborated as speech only in gaps between selected sections.
+     * Use timed words corroborated as speech only between identified parts of the same sermon.
      * Identified songs and other sections already cover their intentionally excluded content.
      *
      * @param  array<int, ServiceSection>  $sections
      * @param  list<ServiceSection>  $selected
      * @return list<array{start: float, end: float, text: string}>
      */
-    private function uncoveredSpeech(MediaProcessingLog $log, array $sections, array $selected): array
+    private function uncoveredSpeech(MediaProcessingLog $log, array $sections, array $selected, int $sermonId): array
     {
         usort($selected, static fn (ServiceSection $a, ServiceSection $b): int => $a->start_time <=> $b->start_time);
         $gaps = [];
         foreach ($selected as $index => $section) {
             $next = $selected[$index + 1] ?? null;
-            if ($next !== null && $section->end_time < $next->start_time) {
+            if ($next !== null && $section->end_time < $next->start_time
+                && ($section->id === $sermonId || $section->metadata?->sermonContinuation?->continues($sermonId))
+                && ($next->id === $sermonId || $next->metadata?->sermonContinuation?->continues($sermonId))) {
                 $gaps[] = [(float) $section->end_time, (float) $next->start_time];
             }
         }

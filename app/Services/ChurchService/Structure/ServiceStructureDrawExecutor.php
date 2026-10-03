@@ -94,12 +94,12 @@ class ServiceStructureDrawExecutor
 
         $context = self::contextFromSnapshot($contextPayload);
 
-        $refined = $raw;
+        $refined = app(TranscriptCueBoundaries::class)->apply($raw, $transcript);
         $rms = $input['rms_log'] ?? null;
 
         if (is_string($rms) && $rms !== '') {
             $refined = $this->soundStage->apply(
-                $this->snapService->snap($raw, $rms),
+                $this->snapService->snap($refined, $rms),
                 $rms,
                 $transcript,
                 $context->recordingOmitsSongs,
