@@ -23,6 +23,7 @@ use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
 use App\Jobs\TranscribeAudio;
 use App\Jobs\TranscribeFullService;
+use App\Jobs\TranscribeOutputEdges;
 use RuntimeException;
 
 /**
@@ -55,6 +56,7 @@ final class HistoricProcessingThroughput
             CreateSermonTranscriptFromService::class,
             TranscribeAudio::class,
             TranscribeFullService::class,
+            TranscribeOutputEdges::class,
         ],
         'llm' => [
             DetectServiceStructure::class,
@@ -98,6 +100,7 @@ final class HistoricProcessingThroughput
         'prepare_section_publication_candidates' => 'ffmpeg',
         'preparing_section_publication_candidates' => 'ffmpeg',
         'transcribe_full_service' => 'whisper',
+        'transcribe_output_edges' => 'whisper',
         'classify_service_audio' => 'ffmpeg',
         'transcribing_audio' => 'whisper',
         'transcribing' => 'whisper',

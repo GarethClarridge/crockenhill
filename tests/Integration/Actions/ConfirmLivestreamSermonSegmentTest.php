@@ -7,6 +7,7 @@ namespace Tests\Integration\Actions;
 use App\Actions\ConfirmLivestreamSermonSegment;
 use App\Enums\ProcessingStatus;
 use App\Jobs\ExtractSermon;
+use App\Jobs\TranscribeOutputEdges;
 use App\Mail\LivestreamProcessingFailed;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
@@ -82,8 +83,8 @@ class ConfirmLivestreamSermonSegmentTest extends TestCase
         $this->assertSame($segment->id, $log->manuallyConfirmedSegmentId());
         $this->assertSame($this->admin->id, $log->manualReviewMetadata()['confirmed_by_user_id']);
 
-        Queue::assertPushed(ExtractSermon::class, function (ExtractSermon $job): bool {
-            return $job->queue === config('media-processing.queues.livestream', 'livestream-processing');
+        Queue::assertPushed(TranscribeOutputEdges::class, function (TranscribeOutputEdges $job): bool {
+            return $job->queue === config('media-processing.queues.audio', 'audio-processing');
         });
     }
 

@@ -61,6 +61,28 @@ class LocalWhisperServiceTranscriptionServiceTest extends TestCase
     }
 
     #[Test]
+    public function edge_decode_returns_words_without_banking_service_artifacts(): void
+    {
+        Http::fake(function ($request) {
+            $this->assertStringContainsString('verbose_json', $request->body());
+            $this->assertStringContainsString('timestamp_granularities[]', $request->body());
+            return Http::response(['words' => [['start' => 1, 'end' => 2, 'word' => 'Amen']]]);
+        });
+        $this->assertSame([['start' => 1.0, 'end' => 2.0, 'word' => 'Amen']], $this->service->transcribeEdgeWindow($this->makeTempFile('audio')));
+
+        $this->assertDatabaseCount('media_processing_logs', 0);
+    }
+
+    #[Test]
+    public function edge_decode_accepts_no_words_and_segment_nested_words(): void
+    {
+        Http::fakeSequence()->push(['words' => []])->push(['segments' => [['words' => [['start' => 0, 'end' => 1, 'word' => 'Hello']]]]]);
+        $path = $this->makeTempFile('audio');
+        $this->assertSame([], $this->service->transcribeEdgeWindow($path));
+        $this->assertSame([['start' => 0.0, 'end' => 1.0, 'word' => 'Hello']], $this->service->transcribeEdgeWindow($path));
+    }
+
+    #[Test]
     public function it_parses_verbose_json_segments_into_cues(): void
     {
         $sourcePath = $this->makeTempFile('source video bytes');

@@ -17,6 +17,7 @@ use App\Jobs\AnalyzeSegments;
 use App\Jobs\ClassifyServiceAudio;
 use App\Jobs\DetectServiceStructure;
 use App\Jobs\ExtractSermon;
+use App\Jobs\TranscribeOutputEdges;
 use App\Jobs\GenerateRmsLog;
 use App\Jobs\TranscribeFullService;
 use App\Jobs\ValidateVideoFile;
@@ -52,6 +53,7 @@ class DetectServiceStructureTest extends TestCase
 {
     use CreatesHistoricImportOperations;
     use RefreshDatabase;
+    use \Tests\Support\BanksNoWordOutputEdges;
 
     protected function setUp(): void
     {
@@ -543,10 +545,11 @@ class DetectServiceStructureTest extends TestCase
             TranscribeFullService::class,
             ClassifyServiceAudio::class,
             DetectServiceStructure::class,
+            TranscribeOutputEdges::class,
             ExtractSermon::class,
         ], array_map(
             static fn (object $job): string => $job::class,
-            array_slice($pipeline, 0, 7),
+            array_slice($pipeline, 0, 8),
         ));
 
         $this->runJob($log);
@@ -555,6 +558,7 @@ class DetectServiceStructureTest extends TestCase
             ->where('media_processing_log_id', $log->id)
             ->where('section_type', 'sermon')
             ->firstOrFail();
+        $this->bankNoWordOutputEdges($log->refresh());
         $extractionPlan = app(SermonExtractionPlanResolver::class)->resolve($log->refresh());
 
         $this->assertEqualsWithDelta(600.0, (float) $sermonSection->start_time, 0.01);
@@ -590,6 +594,7 @@ class DetectServiceStructureTest extends TestCase
 
         $this->runJob($log);
 
+        $this->bankNoWordOutputEdges($log->refresh());
         $extractionPlan = app(SermonExtractionPlanResolver::class)->resolve($log->refresh());
 
         $this->assertEqualsWithDelta(500.0, (float) $log->sermon_start_time, 0.01);

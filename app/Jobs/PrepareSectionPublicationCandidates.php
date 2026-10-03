@@ -20,6 +20,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
 use App\Services\ChurchService\CueSafeExtractionPlan;
+use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\HistoricMedia\HistoricProcessingThroughput;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
@@ -37,6 +38,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Prepare each of a run's sections for publication review.
@@ -277,7 +279,21 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             // Extract early and run post-extraction hooks (e.g. speaker detection).
             // This must happen before status checks because afterExtraction may
             // enrich the section with data needed for approval review.
-            $this->extractCandidateMediaIfNeeded($section, $handler, $videoExtractor, $storageHelper);
+            try {
+                $this->extractCandidateMediaIfNeeded($section, $handler, $videoExtractor, $storageHelper);
+            } catch (OutputEdgeTimingsMissing $exception) {
+                $section->metadata = ServiceSectionMetadata::fromArray([
+                    ...($section->metadata?->toArray() ?? []),
+                    'publication_candidate_extraction_blocked' => ['reason' => 'edge_word_timings_missing', 'detail' => $exception->getMessage()],
+                ]);
+                $this->saveSectionIfDirty($section);
+                Log::warning('Section extraction blocked by missing edge word timings', ['section_id' => $section->id, 'reason' => $exception->getMessage()]);
+
+                continue;
+            }
+            $metadata = $section->metadata?->toArray() ?? [];
+            unset($metadata['publication_candidate_extraction_blocked']);
+            $section->metadata = ServiceSectionMetadata::fromArray($metadata);
             $handler->afterExtraction($section);
 
             if ($section->needs_manual_review) {

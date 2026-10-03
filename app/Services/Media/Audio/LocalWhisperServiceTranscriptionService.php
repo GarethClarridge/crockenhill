@@ -94,6 +94,51 @@ class LocalWhisperServiceTranscriptionService implements ServiceTranscriptionInt
         ];
     }
 
+    /**
+     * Edge-only decode: never bank a full-service raw response or change a transcript.
+     * @return list<array{start: float, end: float, word: string}>
+     */
+    public function transcribeEdgeWindow(string $audioPath): array
+    {
+        $endpoint = rtrim((string) config('media-processing.transcription.local_whisper_url'), '/')
+            .'/'.ltrim((string) config('media-processing.transcription.local_whisper_transcription_path', '/v1/audio/transcriptions'), '/');
+        $handle = fopen($audioPath, 'rb');
+        if ($handle === false) {
+            throw new TranscriptionException('Unable to open edge window audio');
+        }
+        try {
+            $response = Http::timeout((int) config('media-processing.transcription.local_whisper_timeout', 1800))
+                ->connectTimeout(30)->attach('file', $handle, basename($audioPath))
+                ->post($endpoint, $this->requestOptions(''));
+            $response->throw();
+            $payload = $response->json();
+        } finally {
+            fclose($handle);
+        }
+        if (! is_array($payload)) {
+            throw new TranscriptionException('Invalid edge window verbose_json response');
+        }
+        $rawWords = $payload['words'] ?? null;
+        if (! is_array($rawWords)) {
+            $rawWords = [];
+            foreach (is_array($payload['segments'] ?? null) ? $payload['segments'] : [] as $segment) {
+                if (is_array($segment) && is_array($segment['words'] ?? null)) {
+                    array_push($rawWords, ...$segment['words']);
+                }
+            }
+        }
+        $words = [];
+        foreach ($rawWords as $word) {
+            if (! is_array($word) || ! is_numeric($word['start'] ?? null) || ! is_numeric($word['end'] ?? null)
+                || ! is_string($word['word'] ?? null) || $word['end'] < $word['start'] || $word['start'] < 0) {
+                throw new TranscriptionException('Invalid edge window word timestamps');
+            }
+            $words[] = ['start' => (float) $word['start'], 'end' => (float) $word['end'], 'word' => $word['word']];
+        }
+
+        return $words;
+    }
+
     private function artifacts(): ServiceArtifactStorage
     {
         return $this->artifactStorage ?? app(ServiceArtifactStorage::class);

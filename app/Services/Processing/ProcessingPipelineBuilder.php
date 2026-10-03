@@ -31,6 +31,7 @@ use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
 use App\Jobs\TranscribeFullService;
+use App\Jobs\TranscribeOutputEdges;
 use App\Jobs\ValidateAudioFile;
 use App\Jobs\ValidateVideoFile;
 use App\Models\MediaProcessingLog;
@@ -101,6 +102,7 @@ class ProcessingPipelineBuilder
             new TranscribeFullService($log),
             new ClassifyServiceAudio($log),
             new DetectServiceStructure($log),
+            new TranscribeOutputEdges($log),
             new ExtractSermon($log),
             new EnhanceAudio($log),
             new CreateSermonRecord($log),
@@ -150,6 +152,7 @@ class ProcessingPipelineBuilder
             // settled, so this pass can anchor on song identity — and it is the
             // one that reports on the quality of the merge.
             new ProjectLivestreamServiceStructure($log, refining: true),
+            new TranscribeOutputEdges($log),
             new ExtractSermon($log),
             new SubmitToProcessing($log),
             new EnhanceAudio($log),
@@ -191,7 +194,7 @@ class ProcessingPipelineBuilder
         }
 
         return [
-            ...array_slice($jobs, 0, $firstMediaJob),
+            ...array_slice($jobs, 0, $firstMediaJob - 1),
             new RecordDeferredCorpusRerunMedia($log),
             ...$this->buildSermonlessServiceChainJobs($log),
         ];
@@ -256,6 +259,7 @@ class ProcessingPipelineBuilder
     public function buildLivestreamPostReviewChainJobs(MediaProcessingLog $log): array
     {
         return [
+            new TranscribeOutputEdges($log),
             new ExtractSermon($log),
             new SubmitToProcessing($log),
             new EnhanceAudio($log),
@@ -280,6 +284,7 @@ class ProcessingPipelineBuilder
     public function buildAutoTrimVideoPostReviewChainJobs(MediaProcessingLog $log): array
     {
         return [
+            new TranscribeOutputEdges($log),
             new ExtractSermon($log),
             new EnhanceAudio($log),
             new CreateSermonRecord($log),

@@ -758,3 +758,102 @@ and `/tmp/cut-shared-output-worker-{ffmpeg,whisper,llm,orchestration}{,-commit}.
 
 Stop before recomposition dispatch, Tier C, hold release or answers. Previewed widened cuts
 and readiness checks do not accept the parked outputs or repair already-published media.
+
+### Canary 10 follow-up — word pauses at output edges (operator ruling, 2026-10-03)
+
+**An output edge sits in a pause between words, never inside a word. Missing content is
+still worse than extra: when a successfully decoded window returns no words, retain the
+whole-cue widening. Missing cached evidence is a blocker, not that fallback.** This
+supersedes whole-cue widening when edge word timings are available. Source listening:
+[operator artifact](https://claude.ai/artifact/AFkNEHMZspTPuduzHx3FpG),
+`storage/scratch/widening-listening-20261003/{edges.json,saved/rulings/*.json}`.
+
+The operator accepted 11 of 14 listened canary edges and two of five available long corpus
+edges. The prayer intrusions in 936, 1346 and 949, song intrusion in 1342, and stretched
+filler cues in 1148 and 1267 show why cue granularity cannot decide these cuts. The supplied
+census found 377 widenings in 171 runs on cues longer than words × 1 second + 2 seconds,
+adding 56 minutes. Run 1028's reading start is additionally included for re-listening.
+
+**Implementation:** `TranscribeOutputEdges` is a separate job before media extraction,
+after final projection in the livestream chain. Detection-only/Tier B does not decode edge
+windows. Re-extraction and post-review chains include the step too. Historic jobs use the
+Whisper lane; ordinary jobs retain the audio transcription queue. It decodes only windows
+covering cues crossing or touching an output edge, with one second of context on either
+side, from archived full-service audio. It uses the local server's `verbose_json` word
+request and maps times back by the window offset. Every run follows this path; the 32 runs
+with old raw word timestamps receive no shortcut. Stored transcripts, draws and section
+bounds are unchanged by this refinement.
+
+Each window is a private service artifact whose identity binds run, exact window bounds,
+transcription model and the complete MediaProcessingVersion signature. Version is **6**.
+Planning reads those artifacts without making inference calls. A missing or invalid cache
+entry returns `edge_word_timings_missing`: no sermon media is extracted; a missing candidate
+window is recorded on that candidate and other candidates can continue. C4 composition
+records pending edge evidence until the separate job has populated it, then recomputes from
+the cache. No new operator answer or approval state is introduced.
+
+The planner enumerates consecutive-word pauses, including leading and trailing pauses,
+chooses the largest, retains an original edge inside it, otherwise clamps the edge to its
+nearest boundary. Equal-length ties choose the nearest pause. Separately timed punctuation
+is joined to its preceding word, retaining its end time. Overlapping word intervals cannot
+create a false pause. Cue interiors exclude the one-millisecond boundary tolerance,
+including for retained no-word widening. Word/cue text disagreement is recorded but does
+not override the timing. Existing source-bound checks and holds remain in force.
+
+Both extraction audits retain the window, selected pause, words either side, original and
+new time, signed seconds moved, no-word reason and text disagreement. The legacy
+`cue_edge_widening` audit name and absolute `seconds_added` field remain compatible; the new
+`seconds_moved` field distinguishes earlier from later edges. Spans meeting after refinement
+merge within one output; sermon audio and video continue to share that plan.
+
+**Test-first:** the eight initial cases failed on the previous whole-cue planner
+(`/tmp/cut-word-edges-red.txt`). Synthetic word windows reproduce 936, 1346, 949, 1342 and
+both long filler shapes. Additional tests cover empty windows, missing entries, model and
+version changes, sub-millisecond cue noise, disagreeing text, window-offset mapping and
+retry cache reuse. A separate red-to-green candidate test proves that a missing window
+blocks only its output and records the reason (`/tmp/cut-word-edges-output-block-red.txt`).
+Existing fallback tests now explicitly bank empty decoded windows instead of treating a
+missing artifact as an empty result. Pipeline and dispatch assertions include the new step.
+
+**Residual observed limitation:** the real server returns sung words in 1148's stretched
+"Thank you." window. Under the specified largest-pause rule, its end moves from 352.268 to
+362.250 seconds (**+9.982 seconds**), not the hoped-for <2 seconds. The synthetic filler
+regression passes, but this real listening criterion has not been met. No movement cap or
+semantic reassignment was added: the operator explicitly requires using disagreeing word
+timings. This edge remains a re-listening finding; the change does not claim operator
+acceptance of it.
+
+**Separate song-boundary detection finding:** the saved 1267 ruling says, "This is actually
+two songs, which should be separated by silence." This concerns detecting two songs and
+their intervening silence, not output-edge refinement. No song split or detection repair is
+part of this change.
+
+**Scope correction (2026-10-03):** the operator subsequently instructed, "We don't need to
+do the full corpus. Only the canary matters for now." The 475-run timing collection was
+stopped immediately. Already appended timing artifacts are retained; no corpus cuts were
+made. Final replay and listening evidence cover the same sixteen canary runs only. The
+listening list has **15 canary edges, including 1028 bible_reading start** (already one of
+those fifteen in the supplied edge file). Corpus listening subjects are deferred; the
+earlier 1148 and 1267 findings above remain observations, not accepted cuts.
+
+**Measured canary evidence:** `storage/app/private/cut-word-edges-20261003/` contains
+`replay.json`, `summary.json` and `listening-list.json`. The cache supplies **152 unique
+windows** for **127 outputs / 280 input edges** across sixteen runs. Refinement merges
+touching spans, leaving 276 planned edges. There are **zero blocked outputs, zero no-word
+fallbacks, and zero planned audited edges inside returned words**. There are 148 text
+disagreement audit entries (context and sung text are still used as instructed).
+
+Absolute movement across all 280 input edges, including unchanged edges, is: median
+effectively 0 seconds, p90 **4.920 seconds**, p95 **7.060 seconds**, maximum **27.540 seconds**.
+Signed movement ranges from -16.940 to +27.540 seconds. Summed cached window extraction and
+Whisper compute is **210.291 seconds (3 minutes 30 seconds)**; per-window median is 1.210
+seconds and p95 2.010 seconds. Windows contain 1,364.110 seconds of audio in total. This
+compute measure excludes full-source retrieval, artifact writes and repeated experimental
+decodes. Large movements and disagreements require operator listening; no acceptance is
+inferred from an edge being outside a word.
+
+**Quality gates:** focused tests pass **335 tests / 1,725 assertions**; the full parallel
+suite passes **9,178 tests / 94,404 assertions**, with 162 existing PHPUnit notices.
+PHPStan reports zero errors and Pint passes for changed and new PHP files. No browser
+behaviour changes require Dusk. Evidence logs are `/tmp/cut-word-edges-{focused-complete,
+full-pass,phpstan-pass,pint-complete,canary-final-replay,canary-final-summary,canary-listening}.txt`.

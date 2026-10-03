@@ -50,6 +50,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 {
     use CreatesHistoricImportOperations;
     use RefreshDatabase;
+    use \Tests\Support\BanksNoWordOutputEdges;
 
     protected function setUp(): void
     {
@@ -57,6 +58,82 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $probe = $this->createStub(ExtractedMediaDurationProbe::class);
         $probe->method('durationOf')->willReturn(300.0);
         $this->instance(ExtractedMediaDurationProbe::class, $probe);
+    }
+
+    #[Test]
+    public function a_missing_word_window_blocks_only_that_output_and_records_why(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        Bus::fake([AutoPublishServiceSection::class]);
+
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => [
+                'song' => SongPublicationHandler::class,
+            ],
+        ]);
+
+        $song = Song::factory()->create();
+        $item = ChurchServiceItem::factory()->create(['song_id' => $song->id]);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'source_file_path' => 'livestreams/source.mp4',
+            'status' => \App\Enums\ProcessingStatus::Failed,
+            'current_step' => 'manual_review_required',
+            'processing_metadata' => ['manual_review' => ['status' => 'required', 'reason_code' => 'sermon_section_content_held']],
+        ]);
+
+        Storage::disk('local')->put('livestreams/source.mp4', 'source-video');
+        Storage::disk('local')->put('temp/section-video.mp4', 'section-video');
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'status' => ServiceSectionStatus::Identified->value,
+            'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
+            'metadata' => ['confidence_level' => 'high'],
+            'start_time' => 113.38,
+            'end_time' => 300.0,
+        ]);
+
+        $other = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id, 'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song, 'start_time' => 400.0, 'end_time' => 500.0,
+            'needs_manual_review' => false, 'song_match_type' => ServiceSectionSongMatchType::Confirmed,
+            'metadata' => ['confidence_level' => 'high'],
+        ]);
+        $processingLog->putServiceTranscriptPath('temp/shared.json');
+        Storage::disk('local')->put('temp/shared.json', json_encode(\App\Data\ChurchServiceTranscript::fromCues([
+            ['start' => 112.62, 'end' => 114.14, 'text' => "Let's stand and sing King of Kings."],
+        ], 5000, \App\Data\ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+
+        $videoExtractor = $this->createMock(VideoExtractionService::class);
+        $videoExtractor->expects($this->once())
+            ->method('extractSegmentAsFile')
+            ->with($this->anything(), $this->callback(fn (object $segment): bool => $segment->start_time === 400.0), $this->anything())
+            ->willReturn('temp/section-video.mp4');
+        // The key assertion: audio extraction should NEVER be called for songs.
+        $videoExtractor->expects($this->never())
+            ->method('extractOptimizedAudio');
+
+        $job = new PrepareSectionPublicationCandidates($processingLog);
+        $job->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(SectionPublicationHandlerFactory::class),
+            app(ServiceSectionPublicationTransitionService::class)
+        );
+
+        $section->refresh();
+        $this->assertNull($section->extracted_video_path);
+        $this->assertSame('edge_word_timings_missing', $section->metadata->raw['publication_candidate_extraction_blocked']['reason']);
+        $this->assertNotNull($other->fresh()->extracted_video_path);
     }
 
     #[Test]
@@ -114,6 +191,8 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         Storage::disk('local')->put('temp/shared.json', json_encode(\App\Data\ChurchServiceTranscript::fromCues([
             ['start' => 112.62, 'end' => 114.14, 'text' => "Let's stand and sing King of Kings."],
         ], 5000, \App\Data\ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+
+        $this->bankNoWordOutputEdges($processingLog);
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
@@ -1165,6 +1244,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         ]));
         $processingLog->putServiceTranscriptPath($transcriptPath);
         $processingLog->forceFill(['rms_log_path' => $rmsPath])->save();
+        $this->bankNoWordOutputEdges($processingLog);
 
         $section = ServiceSection::factory()->create([
             'media_processing_log_id' => $processingLog->id,
@@ -1186,6 +1266,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $videoExtractor->expects($this->never())
             ->method('extractOptimizedAudio');
 
+        $this->bankNoWordOutputEdges($processingLog);
         (new PrepareSectionPublicationCandidates($processingLog))->handle(
             $videoExtractor,
             app(StorageAdapterHelper::class),
@@ -1523,5 +1604,6 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $processingLog->putServiceTranscriptPath($transcriptPath);
         $processingLog->forceFill(['rms_log_path' => $rmsPath])->save();
+        $this->bankNoWordOutputEdges($processingLog);
     }
 }

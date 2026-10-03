@@ -10,6 +10,7 @@ use App\Enums\ServiceSectionType;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\DetectServiceStructure;
 use App\Jobs\ExtractSermon;
+use App\Jobs\TranscribeOutputEdges;
 use App\Jobs\TranscribeFullService;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
@@ -96,9 +97,8 @@ class ReExtractSermonCommandTest extends TestCase
             ->expectsOutputToContain('Re-extraction dispatched')
             ->assertExitCode(0);
 
-        // The chain head is the extraction job: detection, transcription and the
-        // RMS log are deliberately not re-run.
-        Bus::assertDispatched(ExtractSermon::class, function (ExtractSermon $job): bool {
+        // Edge evidence precedes extraction; full-service transcription is retained.
+        Bus::assertDispatched(TranscribeOutputEdges::class, function (TranscribeOutputEdges $job): bool {
             return $job->chained !== [];
         });
         Bus::assertNotDispatched(DetectServiceStructure::class);
@@ -128,7 +128,7 @@ class ReExtractSermonCommandTest extends TestCase
             ->expectsOutputToContain('Re-extraction dispatched')
             ->assertExitCode(0);
 
-        Bus::assertDispatched(ExtractSermon::class);
+        Bus::assertDispatched(TranscribeOutputEdges::class);
     }
 
     /**
@@ -190,7 +190,7 @@ class ReExtractSermonCommandTest extends TestCase
             ->expectsOutputToContain('Re-extraction dispatched')
             ->assertExitCode(0);
 
-        Bus::assertDispatched(ExtractSermon::class);
+        Bus::assertDispatched(TranscribeOutputEdges::class);
 
         $authority = $log->fresh()->authorisedHeldSermonSpan();
         $this->assertSame($sermon->id, $authority['section_id'] ?? null);

@@ -6,6 +6,7 @@ namespace Tests\Feature\Console;
 
 use App\Enums\ProcessingStatus;
 use App\Jobs\ExtractSermon;
+use App\Jobs\TranscribeOutputEdges;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -61,7 +62,7 @@ class ProcessVideoCommandTest extends TestCase
         $this->assertSame(ProcessingStatus::Pending, $log->status);
         $this->assertSame('manual_review_confirmed', $log->current_step);
         $this->assertSame($segment->id, $log->manuallyConfirmedSegmentId());
-        Queue::assertPushed(ExtractSermon::class);
+        Queue::assertPushed(TranscribeOutputEdges::class);
         $this->assertDatabaseCount('sermons', 0);
     }
 

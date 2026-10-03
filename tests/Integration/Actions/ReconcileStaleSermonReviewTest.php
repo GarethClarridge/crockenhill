@@ -9,6 +9,7 @@ use App\Enums\ProcessingStatus;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Jobs\ExtractSermon;
+use App\Jobs\TranscribeOutputEdges;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\Processing\MediaProcessingRunTransitionService;
@@ -53,7 +54,7 @@ class ReconcileStaleSermonReviewTest extends TestCase
         // The whole point: no human segment was picked, so extraction falls
         // through to the detected sermon section's boundaries.
         $this->assertNull($log->manuallyConfirmedSegmentId());
-        Queue::assertPushed(ExtractSermon::class);
+        Queue::assertPushed(TranscribeOutputEdges::class);
     }
 
     #[Test]

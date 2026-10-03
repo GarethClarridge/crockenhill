@@ -529,6 +529,14 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
     ): ?array {
         $this->recordSermonBoundaryEvidence($extractionPlan);
 
+        if (($extractionPlan['metadata']['reason'] ?? null) === 'edge_word_timings_missing') {
+            $reason = $extractionPlan['metadata']['edge_word_timings_error'];
+            $this->markProcessingRunForManualReview($this->processingLog, 'edge_word_timings_missing', $reason);
+            $this->logStepSkipped(ChurchServiceProcessingTimeline::EXTRACT_SERMON, $reason);
+            $this->keepSectionCandidatePreparation();
+
+            return null;
+        }
         if (($extractionPlan['metadata']['reason'] ?? null) === 'sermon_section_content_held') {
             $this->parkForHeldSermon($extractionPlan['metadata']['held_sermon_section_ids'] ?? []);
 

@@ -27,6 +27,7 @@ use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
 use App\Jobs\TranscribeFullService;
+use App\Jobs\TranscribeOutputEdges;
 use App\Jobs\ValidateAudioFile;
 use App\Jobs\ValidateVideoFile;
 use App\Models\MediaProcessingLog;
@@ -263,7 +264,8 @@ class ProcessingPhaseRegistry
     public function reExtractionPlanFor(MediaProcessingLog $processingLog): ?array
     {
         $pipeline = $processingLog->processingPipelineProfile();
-        $phase = $this->phaseForProcessingLogStep($processingLog, 'extraction');
+        $phase = $this->phaseForProcessingLogStep($processingLog, 'transcribe_output_edges')
+            ?? $this->phaseForProcessingLogStep($processingLog, 'extraction');
 
         if ($phase === null || $phase['job_offset'] === null) {
             return null;
@@ -448,6 +450,7 @@ class ProcessingPhaseRegistry
             $this->phase('transcribe_full_service', TranscribeFullService::class, 'transcribe_full_service'),
             $this->phase('classify_service_audio', ClassifyServiceAudio::class, 'classify_service_audio'),
             $this->phase('detect_service_structure', DetectServiceStructure::class, 'detect_service_structure'),
+            $this->phase('transcribe_output_edges', TranscribeOutputEdges::class, 'transcribe_output_edges'),
             $this->phase('manual_review', ExtractSermon::class, 'manual_review_required'),
             $this->phase('extract_sermon', ExtractSermon::class, 'extraction', progress: 57),
             $this->phase('enhance_audio', EnhanceAudio::class, 'audio_enhancement'),
@@ -476,6 +479,7 @@ class ProcessingPhaseRegistry
             $this->phase('detect_service_structure', DetectServiceStructure::class, 'detect_service_structure', retryAction: 'dispatch_livestream_chain'),
             $this->phase('project_livestream_service_structure', ProjectLivestreamServiceStructure::class, 'project_livestream_service_structure', retryAction: 'dispatch_livestream_chain'),
             $this->phase('match_songs_from_transcript', MatchSongsFromTranscript::class, 'match_songs_from_transcript', retryAction: 'dispatch_livestream_chain'),
+            $this->phase('transcribe_output_edges', TranscribeOutputEdges::class, 'transcribe_output_edges', retryAction: 'dispatch_livestream_chain'),
             $this->phase('manual_review', ExtractSermon::class, 'manual_review_required'),
             $this->phase('extract_sermon', ExtractSermon::class, 'extraction', progress: 57, retryAction: 'dispatch_livestream_chain'),
             $this->phase('submit_to_processing', SubmitToProcessing::class, 'sermon_submitted', retryAction: 'dispatch_livestream_chain', resetScope: 'submit_to_processing', rerunStrategy: 'targeted_reset'),

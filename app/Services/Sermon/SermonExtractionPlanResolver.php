@@ -7,6 +7,7 @@ namespace App\Services\Sermon;
 use App\Actions\HoldSectionForContentReview;
 use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceSectionMetadata;
+use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
@@ -35,6 +36,7 @@ class SermonExtractionPlanResolver
         $identity = $this->inputIdentity($log, $sections);
         $sermons = array_values(array_filter($sections, static fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::Sermon));
         $risks = [];
+        $pendingEdgeEvidence = null;
         $selected = [];
         $sermon = count($sermons) === 1 ? $sermons[0] : null;
         if ($sermon === null) {
@@ -88,8 +90,12 @@ class SermonExtractionPlanResolver
             } elseif ($prayers !== []) {
                 $risks[] = ['kind' => 'sermon_prayer_membership_unresolved', 'detail' => 'Choose the concluding prayer: intervening sections or multiple prayers make membership uncertain.'];
             }
-            foreach ($this->uncoveredSpeech($log, $sections, $selected, $sermon->id) as $cue) {
-                $risks[] = ['kind' => 'sermon_uncovered_speech', 'detail' => sprintf('Speech outside identified sections at %.3f–%.3fs: %s', $cue['start'], $cue['end'], $cue['text'])];
+            try {
+                foreach ($this->uncoveredSpeech($log, $sections, $selected, $sermon->id) as $cue) {
+                    $risks[] = ['kind' => 'sermon_uncovered_speech', 'detail' => sprintf('Speech outside identified sections at %.3f–%.3fs: %s', $cue['start'], $cue['end'], $cue['text'])];
+                }
+            } catch (OutputEdgeTimingsMissing $exception) {
+                $pendingEdgeEvidence = $exception->getMessage();
             }
         }
 
@@ -111,6 +117,7 @@ class SermonExtractionPlanResolver
         }
         usort($selected, static fn (ServiceSection $a, ServiceSection $b): int => $a->start_time <=> $b->start_time);
         $composition = [
+            'edge_word_timings_pending' => $pendingEdgeEvidence,
             'input_identity' => $identity,
             'selected_section_ids' => array_map(static fn (ServiceSection $section): int => $section->id, $selected),
             'sermon_section_id' => $sermon?->id,
@@ -251,10 +258,16 @@ class SermonExtractionPlanResolver
             $spans[] = ['start_time' => $start, 'end_time' => $end];
         }
 
-        $cuePlan = app(CueSafeExtractionPlan::class)->forSpans($processingLog, $spans);
+        try {
+            $cuePlan = app(CueSafeExtractionPlan::class)->forSpans($processingLog, $spans);
+        } catch (OutputEdgeTimingsMissing $exception) {
+            return ['mode' => 'single_span', 'source' => 'service_sections', 'segments' => [],
+                'metadata' => [...$composition, 'requires_review' => true, 'reason' => 'edge_word_timings_missing',
+                    'edge_word_timings_error' => $exception->getMessage(), 'cue_edge_widening' => []]];
+        }
         $spans = $cuePlan['segments'];
         foreach ($spans as $span) {
-            if ($span['start_time'] < 0 || ($processingLog->duration !== null && $span['end_time'] > $processingLog->duration + 0.001)) {
+            if ($span['end_time'] <= $span['start_time'] || $span['start_time'] < 0 || ($processingLog->duration !== null && $span['end_time'] > $processingLog->duration + 0.001)) {
                 throw new InvalidArgumentException('Widened cut bounds are outside source');
             }
         }

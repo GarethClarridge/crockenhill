@@ -12,6 +12,7 @@ use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonTranscriptFromService;
 use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtractSermon;
+use App\Jobs\TranscribeOutputEdges;
 use App\Jobs\GenerateThumbnail;
 use App\Jobs\IdentifySpeaker;
 use App\Jobs\PrepareSectionPublicationCandidates;
@@ -94,6 +95,7 @@ class ExtractForCorpusRerunCommandTest extends TestCase
             ->assertSuccessful();
 
         Bus::assertChained([
+            TranscribeOutputEdges::class,
             ExtractSermon::class,
             SubmitToProcessing::class,
             EnhanceAudio::class,

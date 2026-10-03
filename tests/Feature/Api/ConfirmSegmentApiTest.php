@@ -8,6 +8,7 @@ use App\Actions\ConfirmLivestreamSermonSegment;
 use App\Enums\ApiTokenAbility;
 use App\Enums\ProcessingStatus;
 use App\Jobs\ExtractSermon;
+use App\Jobs\TranscribeOutputEdges;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
@@ -146,8 +147,8 @@ class ConfirmSegmentApiTest extends TestCase
         $this->assertSame(ProcessingStatus::Pending, $log->status);
         $this->assertSame('manual_review_confirmed', $log->current_step);
         $this->assertSame($segment->id, $log->manuallyConfirmedSegmentId());
-        Queue::assertPushed(ExtractSermon::class, function (ExtractSermon $job): bool {
-            return $job->queue === config('media-processing.queues.livestream', 'livestream-processing');
+        Queue::assertPushed(TranscribeOutputEdges::class, function (TranscribeOutputEdges $job): bool {
+            return $job->queue === config('media-processing.queues.audio', 'audio-processing');
         });
     }
 

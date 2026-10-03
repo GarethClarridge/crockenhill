@@ -22,6 +22,7 @@ use Tests\TestCase;
 class SermonExtractionPlanResolverTest extends TestCase
 {
     use DatabaseTransactions;
+    use \Tests\Support\BanksNoWordOutputEdges;
 
     private SermonExtractionPlanResolver $resolver;
 
@@ -46,6 +47,7 @@ class SermonExtractionPlanResolverTest extends TestCase
         ], 500, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
         foreach ([ServiceSectionType::Song, ServiceSectionType::BibleReading, ServiceSectionType::ShortTalk, ServiceSectionType::Prayer] as $index => $type) {
             $section = $this->section($log, $type, $index + 1, 100, 200);
+            $this->bankNoWordOutputEdges($log);
             $plan = app(\App\Services\ChurchService\CueSafeExtractionPlan::class)->forSection($section);
             $this->assertSame([['start_time' => 90.0, 'end_time' => 210.0]], $plan['segments']);
             $this->assertSame([10.0, 10.0], array_column($plan['cue_edge_widening'], 'seconds_added'));
@@ -65,6 +67,7 @@ class SermonExtractionPlanResolverTest extends TestCase
         Storage::disk('local')->put('temp/shared.json', json_encode(ChurchServiceTranscript::fromCues([
             ['start' => 2593.98, 'end' => 2594.38, 'text' => 'name.'],
         ], 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        $this->bankNoWordOutputEdges($log);
         $plan = $this->resolver->resolve($log->fresh());
         $this->assertSame(2593.98, $plan['segments'][0]['start_time']);
         $this->assertSame(2594.18, (float) $prayer->fresh()->end_time);
@@ -83,6 +86,7 @@ class SermonExtractionPlanResolverTest extends TestCase
         Storage::disk('local')->put('temp/shared.json', json_encode(ChurchServiceTranscript::fromCues([
             ['start' => 199.5, 'end' => 201.5, 'text' => 'One complete line.'],
         ], 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        $this->bankNoWordOutputEdges($log);
         $plan = $this->resolver->resolve($log->fresh());
         $this->assertSame([['start_time' => 100.0, 'end_time' => 300.0]], $plan['segments']);
         $this->assertSame('single_span', $plan['mode']);
@@ -224,6 +228,7 @@ class SermonExtractionPlanResolverTest extends TestCase
         $timeline = ['model' => 'test', 'model_revision' => '1', 'window_seconds' => 300, 'audio_seconds' => 300,
             'windows' => [['start' => 0, 'end' => 300, 'music' => 0, 'speech' => 0.9]]];
         Storage::disk('local')->put('temp/timeline.json', json_encode($timeline, JSON_THROW_ON_ERROR));
+        $this->bankNoWordOutputEdges($log);
         $composition = $this->resolver->compose($log);
         $this->assertSame([], $composition['risks']);
         $this->assertFalse($composition['requires_review']);
@@ -242,6 +247,7 @@ class SermonExtractionPlanResolverTest extends TestCase
             ['start' => 245, 'end' => 260, 'text' => 'Identified singing.'],
         ], 300, ChurchServiceTranscript::SOURCE_MOCK);
         Storage::disk('local')->put('temp/transcript.json', json_encode($transcript->toArray(), JSON_THROW_ON_ERROR));
+        $this->bankNoWordOutputEdges($log);
         $composition = $this->resolver->compose($log);
         $this->assertSame([], $composition['risks']);
         $this->assertFalse($composition['requires_review']);
