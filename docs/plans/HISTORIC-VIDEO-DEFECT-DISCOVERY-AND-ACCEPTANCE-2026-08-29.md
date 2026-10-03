@@ -508,6 +508,15 @@ are clean, and the frontend build and full Dusk suite pass. The selected corpus 
 fresh same-16 canary snapshot. Canary 10 remains unaccepted under the existing controls. The production
 weekly-media audit is a separate follow-up.
 
+**Section-cut canary follow-up — 2026-10-03:** after explicit approval, private service-artifact
+and detection-ruling backups were refreshed on `/Volumes/Sonnics`. All 16 saved-draw
+recompositions completed on the fixed code, with queues drained and no new failed jobs.
+Both fresh and original custody diffs report zero attention; media custody is still pending
+extraction (15 and 12 runs respectively). Fifteen runs now require composition review: 98
+uncovered-speech findings and one unresolved reading-membership finding. The private
+`cut-sections-canary10-20261002/composition-review.md` handoff links their service editors.
+No extraction or acceptance was dispatched; those findings must be resolved first.
+
 #### Batches
 
 **Tier A** starts once canary 10 passes (dispatch only after its custody diff is clean): 170 runs,

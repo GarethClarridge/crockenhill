@@ -248,12 +248,25 @@ existing bound listening routes. The saved-draw dry run reports **16 ready, 0 re
 The post-WebM-fix snapshot is `cut-sections-canary10-20261002/before-webm-fix.json` on
 `cf8a44371`, with the same membership and **16 ready, 0 refused** in its dry run. All four
 historic worker lanes were restarted after that code commit while queues were empty.
-A local database backup was captured before dispatch. Refreshing the external backups requires
-explicit approval for the private payload and `/Volumes/Sonnics` destination. Automatic approval
-review rejected that copy, including after the general instruction to continue; no canary job has
-been dispatched from this snapshot yet.
+A local database backup was captured before dispatch. After explicit operator approval on
+2026-10-03, both private external backups were refreshed with checksum comparison and no
+deletions. The same 16 saved-draw recompositions were dispatched and **all 16 completed**;
+historic queues drained and **0 new failed jobs** were recorded (479 pre-existing entries).
+The banked structure draws were reused; the normal downstream song-matching stages still ran.
+Receipt: `cut-sections-canary10-20261002/preflight-approved.json`.
 
-The census names membership/coverage questions on **15 of the 16 canary runs** (all except 1117).
+The fresh-snapshot and original-canary custody diffs each report **0 runs needing attention**.
+They report **15** and **12** runs respectively with media custody pending extraction, not final
+custody clearance. Recomposition invalidated 42 section-media pointers pending regeneration;
+no new media cuts were dispatched. Reports: `after-recompose-diff.json` and
+`original-before-diff-after-recompose.json` in the same private evidence directory.
+
+The settled recomposition confirms membership/coverage questions on **15 of the 16 canary runs**
+(all except 1117): 98 uncovered-speech findings and one unresolved reading-membership finding.
+`composition-review.json` and `composition-review.md` in the same private evidence directory
+record the selected IDs, exact findings and links to each service's composition editor.
+The ensemble batch report (`ensemble-after-recompose.json`) has **0 open ensemble questions**,
+**0 open talk-edge checks** and **0 unreplayable runs**; composition review is the remaining gate.
 These must be settled through the existing review path before Tier C can satisfy the new bar;
 no automatic gap filling or release of existing content holds is authorised. Canary acceptance,
 Tier A and published weekly-media recuts remain pending under their existing controls.

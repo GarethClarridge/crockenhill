@@ -109,8 +109,10 @@ sound/picture drift is a defect, and a cut must be the identified sections.
 records the revised design and settled sermon composition. The shared section-based cutter and
 1112 matcher fix are committed through `cf8a44371` (including the corpus-discovered WebM fix); the full suite, PHPStan, Pint, build and Dusk
 pass. The selected corpus benchmark passes (27 output assets plus the isolated known-defect span).
-Complete the fresh same-16 canary under its review and dispatch
-controls before Tier A and the batches. The detection reliability work package is complete and archived.
+The fresh same-16 saved-draw recomposition completed after approved backups on 2026-10-03,
+with no new failed jobs and no custody attention; 15 runs need composition review before extraction.
+Complete that review and canary acceptance before Tier A and the batches.
+The detection reliability work package is complete and archived.
 
 | Order | Plan | Verified status | Next independently useful slice |
 |---|---|---|---|
