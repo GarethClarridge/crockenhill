@@ -501,8 +501,10 @@ containing songs. See [Cut What Was Identified, In Sync](CUT-FROM-SECTIONS-IN-SY
 (if separate), the sermon, and a concluding prayer if before the post-sermon song. The linked
 plan now records this composition and the simplified shared cutter, focused sync regression
 tests and explicit media-processing version. Implementation is committed through `fbfd9d1cd`,
-with the 1112 matcher fix in `0098afe2c`; the full suite passes (9,138 tests), PHPStan and Pint
-are clean, and the frontend build passes. The linked plan records corpus validation and the
+with the 1112 matcher fix in `0098afe2c` and unindexed-WebM compatibility in `cf8a44371`;
+the full suite passes (9,140 tests), PHPStan and Pint
+are clean, and the frontend build and full Dusk suite pass. The selected corpus benchmark passes
+(27 output assets plus the isolated known-defect span). The linked plan records the evidence and the
 fresh same-16 canary snapshot. Canary 10 remains unaccepted under the existing controls. The production
 weekly-media audit is a separate follow-up.
 

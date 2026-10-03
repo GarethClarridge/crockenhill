@@ -1,6 +1,6 @@
 # Cut What Was Identified, In Sync
 
-**Date:** 2026-10-02 · **Status:** IMPLEMENTED on master; corpus validation and operator acceptance pending · **Blocks:** canary 10
+**Date:** 2026-10-02 · **Status:** IMPLEMENTED on master; corpus benchmark passed, canary review and operator acceptance pending · **Blocks:** canary 10
 acceptance and Tier A ([main plan §4.0](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md))
 
 ## 1. Why
@@ -205,17 +205,36 @@ The other clips (songs, readings, talks) are already cut at their section's own 
 ## 6. Implementation and validation
 
 Implementation commits: `aec30eb0e` first committed the revised plan; `0098afe2c` fixes the
-1112 nested ruling; `fbfd9d1cd` delivers C1–C4 and S1–S4. Media processing version is **2**.
+1112 nested ruling; `fbfd9d1cd` delivers C1–C4 and S1–S4. The corpus benchmark exposed an
+unindexed WebM whose container omits duration; `cf8a44371` measures its packet extent instead,
+with synthetic and real-WebM regressions. Media processing version is **2**.
 The shared cutter has one paired encode path; no smart-cut, TS join or source-audio remux path
 remains. Composition owns its review flag, so it cannot clear an upstream boundary doubt.
 Reviewed membership is bound to section/evidence identity and invalidated on section changes.
 
-Validation on the settled code: **9,138 tests / 94,233 assertions passed**, PHPStan **0 errors**,
+Validation on the settled code: **9,140 tests / 94,239 assertions passed**, PHPStan **0 errors**,
 Pint clean, and the frontend build passed. The source-aware regressions include the documented
 16 ms picture jump, MP3-to-AAC timing, legitimate source irregularities, simultaneous sound/picture
 events, shifted-but-regular audio as a negative control, and the real late `loudnorm` flush defect.
 The full Dusk browser gate passes (**61 tests / 150 assertions**), including mobile keyboard
-review. The corpus benchmark is being completed; its results belong here before canary acceptance.
+review.
+
+The private corpus benchmark passed for **27 selected output assets**, plus an isolated repeat
+of run 936's known smart-cut defect span. It covers all 24 current outputs from formerly-smart
+sources and three representative multi-span/high-bitrate/VP9 sermons. Those 24 outputs contain
+**28 current logical source spans**; this does not claim reconciliation of the investigation's
+historical count of 29. The extra isolated 936 check repeats a span already covered.
+The first attempt's WebM failure is retained alongside its successful post-fix retry.
+Evidence: `storage/app/private/cut-sections-benchmark-20261002/{manifest,report,retry-failed-report,summary}.json`.
+
+At the configured `veryfast` preset, the longest active encode plus timing check was **470.9 s**
+and maximum observed PHP peak memory was **560.4 MB**. Run 1028's 549.0 s deliberate process
+pause is retained in the raw report and excluded from active timing (its pause receipt has a
+stale asset ID; run, kind and process identify the paused sermon). Candidate encode/check totals
+per sampled run were at most **162.9 s**. These measurements leave headroom under the existing
+3,600 s extraction and 1,800 s candidate job limits and 2,048 MB memory limit; they measure the
+cut/check operation, not the entire pipeline. No timeout or memory settings were increased.
+Temporary benchmark outputs were removed; source files and published asset rows were untouched.
 
 The read-only census was replayed over **475 runs**, with **0 resolver errors**, section-exact
 selected spans and **0 unsectioned seconds added**. It parks 331 runs for composition or selected
@@ -226,8 +245,12 @@ The original census remains unchanged in `cut-rule-census-20261002/census.json`.
 The fresh same-16 canary snapshot is `cut-sections-canary10-20261002/before.json`, on `fbfd9d1cd`,
 with membership hash `0bbc51836e06a7d9e9ed7b3edd8c0e185723495670bc4f6e323da78291eb4c2e` and the
 existing bound listening routes. The saved-draw dry run reports **16 ready, 0 refused**.
+The post-WebM-fix snapshot is `cut-sections-canary10-20261002/before-webm-fix.json` on
+`cf8a44371`, with the same membership and **16 ready, 0 refused** in its dry run. All four
+historic worker lanes were restarted after that code commit while queues were empty.
 A local database backup was captured before dispatch. Refreshing the external backups requires
-explicit approval for the private payload and `/Volumes/Sonnics` destination; no canary job has
+explicit approval for the private payload and `/Volumes/Sonnics` destination. Automatic approval
+review rejected that copy, including after the general instruction to continue; no canary job has
 been dispatched from this snapshot yet.
 
 The census names membership/coverage questions on **15 of the 16 canary runs** (all except 1117).
