@@ -8,32 +8,40 @@ use App\Contracts\ServiceStructureInterface;
 use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
+use App\Enums\ProcessingStatus;
 use App\Jobs\DetectServiceStructure;
 use App\Models\ChurchService;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
 use App\Models\User;
 use App\Services\ChurchService\ServiceSectionSyncService;
+use App\Services\ChurchService\Structure\EnsembleReviewGate;
 use App\Services\ChurchService\Structure\MockServiceStructureService;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
 use App\Services\Media\Audio\ServiceArtifactStorage;
+use App\Services\Processing\ProcessingRunOrchestrator;
 use App\Services\Sermon\SermonCandidateConfidenceService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\Support\AudioTimelineFixture;
 use Tests\TestCase;
 
 class EnsembleReviewCommandsTest extends TestCase
 {
-    use \Tests\Concerns\CreatesHistoricImportOperations;
+    use CreatesHistoricImportOperations;
     use DatabaseTransactions;
 
     private string $out;
+
+    private int $operatorId;
 
     protected function setUp(): void
     {
@@ -60,7 +68,9 @@ class EnsembleReviewCommandsTest extends TestCase
     public function an_answer_banked_after_media_exists_requires_recomposition_before_tier_c(): void
     {
         $log = $this->disputedRun();
-        $log->update(['historic_import_operation_id' => $this->createHistoricImportOperation()->id, 'sermon_id' => \App\Models\Sermon::factory()->create()->id, 'status' => \App\Enums\ProcessingStatus::Completed]);
+        $projection = $log->processing_metadata?->raw['service_structure_projection'] ?? null;
+        $this->assertIsArray($projection);
+        $log->update(['historic_import_operation_id' => $this->createHistoricImportOperation()->id, 'sermon_id' => Sermon::factory()->create()->id, 'status' => ProcessingStatus::Completed]);
         $snapshot = 'ensemble-review-test-'.getmypid().'/before.json';
         File::ensureDirectoryExists(storage_path('app/private/'.dirname($snapshot)));
         $this->artisan('historic-import:rerun-snapshot', ['runs' => [$log->id], '--output' => $snapshot])->assertSuccessful();
@@ -69,17 +79,34 @@ class EnsembleReviewCommandsTest extends TestCase
         $this->artisan('structure:ensemble-export-questions', ['runs' => [$log->id], '--out' => $this->out])->assertSuccessful();
         $answers = "{$this->out}/answers.json";
         file_put_contents($answers, json_encode([['question_id' => "{$log->id}-q0", 'choice' => 'alt1']]));
-        $this->artisan('structure:ensemble-apply-answers', ['export' => $this->out, 'answers' => $answers, '--execute' => true])->assertSuccessful();
-        \Illuminate\Support\Facades\Bus::fake();
+        $this->artisan('structure:ensemble-apply-answers', ['export' => $this->out, 'answers' => $answers, '--operator' => (string) $this->operatorId, '--execute' => true])->assertSuccessful();
+        Bus::fake();
 
         $this->artisan('historic-import:rerun-extract', ['snapshot' => $snapshot, '--execute' => true])
             ->expectsOutputToContain('historic-import:rerun-recompose')
             ->assertSuccessful();
 
-        $result = app(\App\Services\Processing\ProcessingRunOrchestrator::class)->reExtract($log->fresh());
+        $result = app(ProcessingRunOrchestrator::class)->reExtract($log->fresh());
         $this->assertFalse($result->success);
         $this->assertStringContainsString('historic-import:rerun-recompose', $result->message);
-        \Illuminate\Support\Facades\Bus::assertNothingDispatched();
+        Bus::assertNothingDispatched();
+        $this->assertSame($projection, $log->fresh()->processing_metadata?->raw['service_structure_projection']);
+
+        $log->writeProcessingMetadata(static function (array $metadata): array {
+            $bank = $metadata['service_structure_ensemble'];
+            $metadata[DetectServiceStructure::RECOMPOSE_KEY] = ['attempt_id' => end($bank)['attempt_id']];
+
+            return $metadata;
+        });
+        (new DetectServiceStructure($log->fresh()))->handle(
+            app(ServiceStructureInterface::class),
+            app(SilenceSnapService::class),
+            app(ServiceStructureValidator::class),
+            app(ServiceSectionSyncService::class),
+            app(SermonCandidateConfidenceService::class),
+        );
+        $this->assertNull(app(EnsembleReviewGate::class)->projectionRefusal($log->fresh()));
+        $this->assertNotSame($projection, $log->fresh()->processing_metadata?->raw['service_structure_projection']);
         File::deleteDirectory(storage_path('app/private/'.dirname($snapshot)));
     }
 
@@ -123,15 +150,17 @@ class EnsembleReviewCommandsTest extends TestCase
             ['question_id' => "{$log->id}-m0", 'choice' => 'neither', 'note' => 'The talk ends at 6:10'],
         ]));
 
-        $this->artisan('structure:ensemble-apply-answers', ['export' => $this->out, 'answers' => $answers])
+        $this->artisan('structure:ensemble-apply-answers', ['export' => $this->out, 'answers' => $answers, '--operator' => (string) $this->operatorId])
             ->assertSuccessful();
         $this->assertSame([], $log->fresh()->processing_metadata?->raw['service_structure_ensemble_rulings'] ?? []);
 
-        $this->artisan('structure:ensemble-apply-answers', ['export' => $this->out, 'answers' => $answers, '--execute' => true])
+        $this->artisan('structure:ensemble-apply-answers', ['export' => $this->out, 'answers' => $answers, '--operator' => (string) $this->operatorId, '--execute' => true])
             ->expectsOutputToContain("{$log->id}-q0: applied (choose)")
             ->expectsOutputToContain('1 applied, 0 failed, 1 need attention.')
             ->assertFailed();
 
+        $this->assertIsArray($log->fresh()->processing_metadata?->raw['service_structure_projection'] ?? null);
+        $this->assertNull(app(EnsembleReviewGate::class)->projectionRefusal($log->fresh()));
         $rulings = $log->fresh()->processing_metadata?->raw['service_structure_ensemble_rulings'];
         $this->assertCount(1, $rulings);
         $this->assertSame('Luke 15:1-10', $rulings[0]['resolution']['sections'][0]['reading_reference']);
@@ -181,7 +210,7 @@ class EnsembleReviewCommandsTest extends TestCase
             ['question_id' => "{$quiet->id}-c0", 'choice' => 'wrong', 'note' => 'The cut starts in the prayer'],
         ]));
 
-        $this->artisan('structure:ensemble-apply-answers', ['export' => $this->out, 'answers' => $answers, '--execute' => true])
+        $this->artisan('structure:ensemble-apply-answers', ['export' => $this->out, 'answers' => $answers, '--operator' => (string) $this->operatorId, '--execute' => true])
             ->expectsOutputToContain('Sampled cuts: 1 heard, 0 right, 1 wrong')
             ->expectsOutputToContain("Run {$quiet->id}: sampled cut judged wrong")
             ->assertSuccessful();
@@ -198,7 +227,7 @@ class EnsembleReviewCommandsTest extends TestCase
         $this->artisan('structure:ensemble-export-questions', ['runs' => [$log->id], '--out' => $this->out])->assertSuccessful();
         $answers = "{$this->out}/answers.json";
         file_put_contents($answers, json_encode([['question_id' => "{$log->id}-q0", 'choice' => 'alt1', 'note' => '']]));
-        $this->artisan('structure:ensemble-apply-answers', ['export' => $this->out, 'answers' => $answers, '--execute' => true])->assertSuccessful();
+        $this->artisan('structure:ensemble-apply-answers', ['export' => $this->out, 'answers' => $answers, '--operator' => (string) $this->operatorId, '--execute' => true])->assertSuccessful();
         $reportPath = "{$this->out}/batch-report.json";
 
         $this->artisan('structure:ensemble-batch-report', ['runs' => [$log->id], '--export' => [$this->out], '--report' => $reportPath])
@@ -245,7 +274,7 @@ class EnsembleReviewCommandsTest extends TestCase
 
     private function disputedRun(): MediaProcessingLog
     {
-        User::factory()->admin()->create();
+        $this->operatorId = User::factory()->admin()->create()->id;
         $log = MediaProcessingLog::factory()->livestream()->pending()->create([
             'church_service_id' => ChurchService::factory()->create()->id,
         ]);

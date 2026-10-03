@@ -169,6 +169,11 @@ class AnswerServiceStructureEnsembleQuestion
                 'sections_synced' => $sectionsSynced,
             ];
             $metadata['service_structure_ensemble'] = $bank;
+
+            if ($sectionsSynced) {
+                $metadata['service_structure_projection'] = $this->gate->projectionProvenance($metadata);
+            }
+
             $log->forceFill(['processing_metadata' => $metadata])->save();
 
             return [...$after, 'sections_synced' => $sectionsSynced];

@@ -299,12 +299,14 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         }
 
         $classified = $result->structure->toClassifiedSections($this->processingLog, $transcript);
+        $gate = app(EnsembleReviewGate::class);
+        $projection = $gate->projectionProvenance($this->processingLog->processing_metadata?->toArray() ?? []);
 
         try {
             // The draws take minutes. Whatever changed meanwhile — a cancellation, an operator's
             // section edit, a new input — is checked under the run's row lock in the same
             // transaction as the write, so nothing can land between the check and the sync.
-            $refusal = DB::transaction(function () use ($input, $sectionRevision, $syncService, $classified): ?string {
+            $refusal = DB::transaction(function () use ($input, $sectionRevision, $syncService, $classified, $gate, $projection, $result): ?string {
                 $locked = MediaProcessingLog::query()->lockForUpdate()->findOrFail($this->processingLog->id);
 
                 if ($locked->isCancelled()) {
@@ -315,8 +317,18 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
                     return 'sections_changed';
                 }
 
+                if ($projection === null || $gate->projectionProvenance($locked->processing_metadata?->toArray() ?? []) !== $projection) {
+                    throw new \RuntimeException('Ensemble composition or rulings changed before section projection; recompose again.');
+                }
+
                 $this->assertEnsembleInputCurrent($input);
                 $syncService->sync($this->processingLog, $classified);
+                $locked->writeProcessingMetadata(static function (array $metadata) use ($projection, $result): array {
+                    $metadata['service_structure'] = $result->structure->toArray();
+                    $metadata['service_structure_projection'] = $projection;
+
+                    return $metadata;
+                });
 
                 return null;
             });
@@ -339,7 +351,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             return;
         }
 
-        $this->putStructureMetadata('service_structure', $result->structure->toArray());
+        $this->processingLog->refresh();
 
         // Holds have just followed their content; a check that exists in code now
         // re-tests the content against the transcript this detection read.

@@ -9,6 +9,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\Structure\EnsembleReviewGate;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -17,6 +18,76 @@ use Tests\TestCase;
 class EnsembleReviewGateTest extends TestCase
 {
     use DatabaseTransactions;
+
+    #[Test]
+    public function run_964s_validator_derived_micro_section_flag_does_not_refuse_a_projected_composition(): void
+    {
+        $metadata = $this->projectionMetadata();
+        $metadata['service_structure']['sections'][0]['review_flags'] = ['structure_micro_section'];
+        $log = MediaProcessingLog::factory()->livestream()->create(['processing_metadata' => $metadata]);
+
+        $this->assertNull(app(EnsembleReviewGate::class)->projectionRefusal($log));
+    }
+
+    #[Test]
+    public function matching_content_without_recorded_projection_provenance_is_refused(): void
+    {
+        $metadata = $this->projectionMetadata();
+        unset($metadata['service_structure_projection']);
+        $log = MediaProcessingLog::factory()->livestream()->create(['processing_metadata' => $metadata]);
+
+        $this->assertStringContainsString('historic-import:rerun-recompose', app(EnsembleReviewGate::class)->projectionRefusal($log) ?? '');
+    }
+
+    #[Test]
+    public function a_projected_run_reanswered_with_the_same_content_is_refused_until_reprojected(): void
+    {
+        $metadata = $this->projectionMetadata();
+        $log = MediaProcessingLog::factory()->livestream()->create(['processing_metadata' => $metadata]);
+        $gate = app(EnsembleReviewGate::class);
+        $this->assertNull($gate->projectionRefusal($log));
+
+        $metadata['service_structure_ensemble_rulings'][0]['revision'] = 2;
+        $log->forceFill(['processing_metadata' => $metadata])->save();
+        $this->assertStringContainsString('historic-import:rerun-recompose', $gate->projectionRefusal($log->fresh()) ?? '');
+
+        $metadata['service_structure_projection']['composition_rulings_sha256'] = $this->projectionHash($metadata);
+        $log->forceFill(['processing_metadata' => $metadata])->save();
+        $this->assertNull($gate->projectionRefusal($log->fresh()));
+
+        $metadata['service_structure_ensemble'][0]['attempt_id'] = 'new-attempt';
+        $log->forceFill(['processing_metadata' => $metadata])->save();
+        $this->assertNotNull($gate->projectionRefusal($log->fresh()));
+    }
+
+    /** @return array<string, mixed> */
+    private function projectionMetadata(): array
+    {
+        $structure = ['sections' => [[
+            'type' => 'prayer', 'title' => 'Prayer for Families',
+            'start_time' => 1166.0, 'end_time' => 1167.21, 'review_flags' => [],
+        ]]];
+        $metadata = [
+            'service_structure' => $structure,
+            'service_structure_ensemble' => [[
+                'attempt_id' => '964-banked-attempt',
+                'composition' => ['structure' => $structure, 'sections_synced' => true],
+            ]],
+            'service_structure_ensemble_rulings' => [['ruling_key' => 'short-talk-end', 'revision' => 1, 'resolution' => ['end_time' => 1166.0]]],
+        ];
+        $metadata['service_structure_projection'] = ['attempt_id' => '964-banked-attempt', 'composition_rulings_sha256' => $this->projectionHash($metadata)];
+
+        return $metadata;
+    }
+
+    /** @param array<string, mixed> $metadata */
+    private function projectionHash(array $metadata): string
+    {
+        return hash('sha256', json_encode(Arr::sortRecursive([
+            'composition' => $metadata['service_structure_ensemble'][0]['composition'],
+            'rulings' => $metadata['service_structure_ensemble_rulings'],
+        ]), JSON_THROW_ON_ERROR));
+    }
 
     #[Test]
     public function projection_renumbering_preserves_input_but_order_content_and_membership_changes_do_not(): void

@@ -27,19 +27,48 @@ class EnsembleReviewGate
 
         $latest = end($bank);
         $composition = is_array($latest) ? ($latest['composition'] ?? null) : null;
-        $structure = is_array($composition) ? ($composition['structure'] ?? null) : null;
-        $projected = $metadata['service_structure'] ?? null;
+        $provenance = $this->projectionProvenance($metadata);
+        $projected = $metadata['service_structure_projection'] ?? null;
 
-        if (! is_array($structure)
+        if ($provenance === null
             || ! is_array($projected)
             || ($composition['sections_synced'] ?? null) === false
-            || Arr::sortRecursive($structure) !== Arr::sortRecursive($projected)
+            || $provenance !== $projected
             || ServiceSection::query()->where('media_processing_log_id', $log->id)
                 ->whereJsonContains('metadata->review_flags', ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES)->exists()) {
             return 'Banked composition/answers are not reflected in projected sections; run historic-import:rerun-recompose before extraction.';
         }
 
         return null;
+    }
+
+    /**
+     * The bank inputs used by a section projection, before validator-derived flags.
+     * Hash the complete composition and ruling history, including a same-content re-answer.
+     *
+     * @param  array<string, mixed>  $metadata
+     * @return array{attempt_id: string, composition_rulings_sha256: string}|null
+     */
+    public function projectionProvenance(array $metadata): ?array
+    {
+        $bank = $metadata['service_structure_ensemble'] ?? null;
+        $latest = is_array($bank) && $bank !== [] ? end($bank) : null;
+        $composition = is_array($latest) ? ($latest['composition'] ?? null) : null;
+        $rulings = $metadata['service_structure_ensemble_rulings'] ?? [];
+
+        if (! is_array($latest) || ! is_string($latest['attempt_id'] ?? null)
+            || $latest['attempt_id'] === '' || ! is_array($composition)
+            || ! is_array($composition['structure'] ?? null) || ! is_array($rulings)) {
+            return null;
+        }
+
+        return [
+            'attempt_id' => $latest['attempt_id'],
+            'composition_rulings_sha256' => hash('sha256', json_encode(Arr::sortRecursive([
+                'composition' => $composition,
+                'rulings' => $rulings,
+            ]), JSON_THROW_ON_ERROR)),
+        ];
     }
 
     /** @param list<array{start_time: float, end_time: float}>|null $spans */
@@ -59,8 +88,8 @@ class EnsembleReviewGate
     }
 
     /**
-     * @param array<int, mixed> $bank
-     * @param list<array{start_time: float, end_time: float}>|null $spans
+     * @param  array<int, mixed>  $bank
+     * @param  list<array{start_time: float, end_time: float}>|null  $spans
      */
     private function bankRequiresReview(MediaProcessingLog $log, array $bank, ?array $spans): bool
     {

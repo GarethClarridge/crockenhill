@@ -1713,3 +1713,50 @@ Both Sonnics backups completed again after recomposition with `rsync -a --checks
 excluding `._*` and without `--delete` (both exit 0). The stopped receipt records these
 results, empty queues and evidence SHA-256 hashes. This stop is documentation only;
 the four-defect code commit and its passing quality gates remain unchanged.
+
+
+### Canary 10 projection-provenance ruling and repair — 2026-10-03
+
+The operator ruled that run 964's extraction refusal was a false positive: projection
+legitimately derives flags that are absent from the bank. The 1166.00–1167.21 s
+“Prayer for Families” fragment and its `structure_micro_section` flag remain unchanged;
+it is a recorded artefact, not an output. Whole-structure equality is removed.
+
+Projection now records the latest bank attempt ID and SHA-256 of the complete composition
+and ruling history in `service_structure_projection`. Detection and saved-draw recomposition
+write that provenance atomically with the sections and projected structure, under the run
+lock; changed bank inputs before projection refuse the write. Answer application records
+new provenance only when it actually synchronises sections. An answer banked after media
+exists retains the previous stamp and refuses cutting until recomposed. The extraction
+check refuses missing or mismatched provenance, explicit `sections_synced=false`, and any
+remaining `structure_ensemble_disagrees` section.
+
+Test-first regressions reproduced the validator-only flag refusal, missing-provenance
+acceptance, and same-content re-answer acceptance. Detection and immediate answer projection
+were also checked for the new stamp. The integration case banks an answer after media
+exists, proves Tier C and the general dispatch path refuse, and recomposes through
+`DetectServiceStructure` before proving the new provenance clears the guard. Focused gates:
+65 tests / 328 assertions passed, PHPStan zero errors, Pint completed; the full parallel
+suite passed 9,184 tests / 94,441 assertions (163 PHPUnit notices, no failures). Receipts will be kept in
+`storage/app/private/canary10-provenance-rerun-20261003/`, separate from the stopped attempt.
+The cutter and encoding recipe are unchanged; MediaProcessingVersion remains 6.
+
+
+**Operator confirmation received, stitched sermons, 2026-10-03.** The operator listened
+to every listed passage and ruled it part of the sermon: 1050, John 15:18–20 and
+2 Timothy 3:10–12 (275–346 s), 1 Peter 1:6–9 (387–425 s), 1 Peter 4:13–14
+(517–536 s), Acts 5:41 (580–605 s); 1250, Job 30:24–31 (3070–3122 s);
+1356, Isaiah 61:10 (2573–2605 s). Evidence:
+[operator listening page](https://claude.ai/artifact/Fmzqu1GAvjCVb99m5XD9er) and
+`storage/scratch/stitched-sermon-listening-20261003/passages.json` with six saved
+`part_of_sermon` rulings under `saved/rulings/`.
+
+The existing `ConfirmServiceSection` path was inspected before any write. The three
+sermon sections currently carry only `structure_sermon_interruption_merged`, have no
+other review flag or content hold, and have resolved identified-section membership.
+1250's separate four-part composition ruling remains on the run. Confirmation will be
+recorded against the fresh recomposed sections through that path, with a transaction
+refusing any change beyond the interruption flag and its review audit. All sixteen are
+then authorised for timing and Tier C, conditional on current provenance and the
+unchanged preflight and acceptance checks. No canary acceptance or public release is
+included in this ruling.
