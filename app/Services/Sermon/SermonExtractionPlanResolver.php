@@ -72,11 +72,12 @@ class SermonExtractionPlanResolver
 
                     continue;
                 }
-                if ($this->scriptureReferences->referencesAgree($reference, $readingReference)) {
+                if ($this->scriptureReferences->referencesAgree($reference, $readingReference)
+                    || $this->scriptureReferences->referenceContains($readingReference, $reference)) {
                     $matches[] = $reading;
                 } elseif ($this->scriptureReferences->referencesOverlap($reference, $readingReference)) {
-                    // Shares verses without nesting: a sermon reading past its passage, or one
-                    // part of a multipart reference. Plausible, so it is asked, never dropped.
+                    // Shares verses without holding the sermon's passage: a sermon reading past
+                    // it, or one part of a multipart reference. Plausible, so asked, never dropped.
                     $overlapping++;
                 }
             }

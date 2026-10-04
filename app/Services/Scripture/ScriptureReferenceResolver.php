@@ -137,6 +137,27 @@ class ScriptureReferenceResolver
     }
 
     /**
+     * Whether every passage of the inner reference lies wholly inside one passage of the outer.
+     *
+     * A reading often carries more than the sermon expounds ("Jonah 1:17, 2:1-10" read, "Jonah
+     * 2:1-10" preached), which referencesAgree() rejects because the extra passage overlaps
+     * nothing on the other side. Containment pairs the sermon with the reading it is drawn from
+     * while a sermon reading past the passage still does not. An unparseable side never contains.
+     */
+    public function referenceContains(string $outer, string $inner): bool
+    {
+        $outerSpans = $this->verseSpans($outer);
+        $innerSpans = $this->verseSpans($inner);
+
+        if ($outerSpans === [] || $innerSpans === []) {
+            return false;
+        }
+
+        return array_all($innerSpans, static fn (array $span): bool => array_any($outerSpans,
+            static fn (array $outerSpan): bool => $outerSpan[0] <= $span[0] && $outerSpan[1] >= $span[1]));
+    }
+
+    /**
      * Whether two references share any verses at all — the loosest comparison,
      * for evidence ranking rather than gating.
      *

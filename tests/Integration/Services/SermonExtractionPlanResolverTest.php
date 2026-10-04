@@ -1097,6 +1097,24 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->assertSame($preachedText->id, $plan['metadata']['bible_section_id']);
     }
 
+    /** Runs 964, 1073 and 1211: the reading carries one more passage than the sermon expounds. */
+    #[Test]
+    #[\PHPUnit\Framework\Attributes\TestWith(['Matthew 5:13-16; John 8:12-18', 'Matthew 5:13-16'])]
+    #[\PHPUnit\Framework\Attributes\TestWith(['Jonah 1:17, 2:1-10', 'Jonah 2:1-10'])]
+    #[\PHPUnit\Framework\Attributes\TestWith(['Genesis 8:13-22, 9:1-17', 'Genesis 8:22'])]
+    public function a_reading_containing_the_whole_sermon_reference_is_cut_with_it(string $readingReference, string $sermonReference): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['sermon_start_time' => 100.0, 'sermon_end_time' => 200.0]);
+        $this->reading($log, order: 1, start: 145.94, end: 195.08, reference: 'Psalm 105:1-6');
+        $reading = $this->reading($log, order: 2, start: 1683.99, end: 1818.86, reference: $readingReference);
+        $this->sermon($log, order: 3, start: 2069.1, end: 3724.18, reference: $sermonReference);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertFalse($plan['metadata']['requires_review']);
+        $this->assertSame($reading->id, $plan['metadata']['bible_section_id']);
+    }
+
     /** A sermon expounding part of the passage and reading past it: neither nests in the other. */
     #[Test]
     public function a_reading_that_only_overlaps_the_sermon_reference_requires_membership_review(): void

@@ -224,4 +224,21 @@ class ScriptureReferenceResolverTest extends TestCase
         $this->assertFalse($this->resolver->referencesOverlap('not a reference', 'John 3:16'));
         $this->assertFalse($this->resolver->referencesOverlap('', 'John 3:16'));
     }
+
+    public function test_a_reading_contains_a_sermon_it_reads_in_full_beside_another_passage(): void
+    {
+        // Runs 964, 1073 and 1211: the reading carries one more passage than the sermon expounds.
+        $this->assertTrue($this->resolver->referenceContains('Matthew 5:13-16; John 8:12-18', 'Matthew 5:13-16'));
+        $this->assertTrue($this->resolver->referenceContains('Jonah 1:17, 2:1-10', 'Jonah 2:1-10'));
+        $this->assertTrue($this->resolver->referenceContains('Genesis 8:13-22, 9:1-17', 'Genesis 8:22'));
+        $this->assertTrue($this->resolver->referenceContains('Genesis 8:13-22, 9:1-17', 'Genesis 8:20-22; 9:8-17'));
+    }
+
+    public function test_containment_rejects_a_sermon_reading_past_the_passage_or_unparseable_sides(): void
+    {
+        $this->assertFalse($this->resolver->referenceContains('Genesis 8:1-19', 'Genesis 8:15-9:17'));
+        $this->assertFalse($this->resolver->referenceContains('Genesis 8:20-22', 'Genesis 8:20-22; 9:8-17'));
+        $this->assertFalse($this->resolver->referenceContains('not a reference', 'John 3:16'));
+        $this->assertFalse($this->resolver->referenceContains('John 3', ''));
+    }
 }
