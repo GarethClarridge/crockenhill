@@ -668,6 +668,47 @@ class ServiceStructureEnsembleComposerTest extends TestCase
     }
 
     /**
+     * A 2–2 presence split whose tie-break leaves the reading out touches neither sermon edge,
+     * yet answering it can add the reading to the cut. The sermon is held, and the question
+     * counts against the sermon's output; a song elsewhere is not swept in.
+     */
+    #[Test]
+    public function an_omitted_disputed_reading_holds_the_sermon_it_could_join(): void
+    {
+        $draw = fn (bool $withReading): ServiceStructure => $this->structure(...array_values(array_filter([
+            $withReading ? $this->section(ServiceSectionType::BibleReading, 300, 500, 'Genesis 8') : null,
+            $this->song(1000, 1200, 'Amazing Grace'),
+            $this->section(ServiceSectionType::Sermon, 2000, 4000),
+        ])));
+
+        $result = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($draw(false)),
+            1 => $this->vote($draw(false)),
+            2 => $this->vote($draw(true)),
+            3 => $this->vote($draw(true)),
+        ]);
+
+        $this->assertSame([], $result->structure->sectionsOfType(ServiceSectionType::BibleReading));
+        $reading = collect($result->disputes)->firstWhere('type', 'bible_reading');
+        $this->assertIsArray($reading);
+        $this->assertContains(ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES, $result->structure->sectionsOfType(ServiceSectionType::Sermon)[0]->reviewFlags);
+        $this->assertNotContains(ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES, $result->structure->sectionsOfType(ServiceSectionType::Song)[0]->reviewFlags);
+        $this->assertTrue(OutputEdgeReview::concernsOutput($reading, [['start_time' => 2000.0, 'end_time' => 4000.0]]));
+        $this->assertFalse(OutputEdgeReview::concernsOutput($reading, [['start_time' => 100.0, 'end_time' => 250.0]]));
+    }
+
+    #[Test]
+    public function only_a_disputed_prayer_between_the_sermon_and_the_next_song_concerns_its_output(): void
+    {
+        $prayer = fn (float $start, float $end): array => ['type' => 'prayer', 'start_time' => $start, 'end_time' => $end, 'alternatives' => []];
+        $sermon = [['start_time' => 2000.0, 'end_time' => 4000.0]];
+
+        $this->assertTrue(OutputEdgeReview::concernsOutput($prayer(4100.0, 4200.0), $sermon));
+        $this->assertFalse(OutputEdgeReview::concernsOutput($prayer(1000.0, 1100.0), $sermon));
+        $this->assertFalse(OutputEdgeReview::concernsOutput($prayer(4400.0, 4500.0), $sermon, [4100.0]), 'A prayer after the closing song is not the concluding prayer.');
+    }
+
+    /**
      * The sermon's own reference outranks every other pairing evidence, so a reading within
      * reach that does not match it can never be cut. Without a sermon reference, any reading
      * within reach could be, so each is held.

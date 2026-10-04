@@ -32,6 +32,7 @@ use App\Models\User;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\Structure\MockServiceStructureService;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleReplay;
+use App\Services\ChurchService\Structure\OutputEdgeReview;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
 use App\Services\Media\Audio\AudioTimeline;
@@ -1415,14 +1416,17 @@ class DetectServiceStructureTest extends TestCase
             ->sole();
         $this->assertContains(ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES, $talk->metadata['review_flags'] ?? []);
 
+        // The talk's question never reaches the sermon; the reading-or-prayer split before it
+        // does, because answering it decides whether the sermon's reading is cut with it.
+        $disputes = $attempt['composition']['disputes'];
         $sermon = ServiceSection::query()
             ->where('media_processing_log_id', $log->id)
             ->where('section_type', 'sermon')
             ->sole();
-        $this->assertNotContains(
-            ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES,
-            $sermon->metadata['review_flags'] ?? []
-        );
+        $sermonSpan = [['start_time' => 600.0, 'end_time' => 2200.0]];
+        $this->assertSame(['bible_reading'], array_values(array_unique(array_column(array_filter($disputes,
+            static fn (array $question): bool => OutputEdgeReview::concernsOutput($question, $sermonSpan, [2210.0])), 'type'))));
+        $this->assertContains(ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES, $sermon->metadata['review_flags'] ?? []);
     }
 
     #[Test]

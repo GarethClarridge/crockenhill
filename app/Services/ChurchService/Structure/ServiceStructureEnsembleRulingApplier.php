@@ -8,7 +8,6 @@ use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceSermonAbsence;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
-use App\Enums\ServiceSectionType;
 use InvalidArgumentException;
 
 /**
@@ -224,10 +223,6 @@ class ServiceStructureEnsembleRulingApplier
             $flags = $hasUnresolved
                 ? $section->reviewFlags
                 : array_values(array_diff($section->reviewFlags, self::ensembleFlags()));
-
-            if ($hasUnresolved && $section->type === ServiceSectionType::Sermon) {
-                $flags[] = ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES;
-            }
 
             if ($degraded && ! $degradedReviewed) {
                 $flags[] = ServiceStructureValidator::FLAG_ENSEMBLE_DEGRADED;

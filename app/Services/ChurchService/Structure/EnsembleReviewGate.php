@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService\Structure;
 
+use App\Data\ServiceStructure;
 use App\Enums\ChurchServiceItemSource;
+use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
@@ -101,10 +103,12 @@ class EnsembleReviewGate
         }
 
         $composition = $latest['composition'];
+        $songStarts = array_map(static fn ($song): float => $song->startTime,
+            ServiceStructure::fromArray($composition['structure'] ?? null)->sectionsOfType(ServiceSectionType::Song));
 
         if (($composition['validation_passed'] ?? null) !== true
             || (($composition['degraded'] ?? null) !== false && ($composition['degraded_reviewed'] ?? null) !== true)
-            || array_any($composition['disputes'] ?? [], static fn (array $question): bool => ($question['check'] ?? null) !== TranscriptCueBoundaries::CHECK && ($spans === null || OutputEdgeReview::touches($question, $spans)))) {
+            || array_any($composition['disputes'] ?? [], static fn (array $question): bool => ($question['check'] ?? null) !== TranscriptCueBoundaries::CHECK && ($spans === null || OutputEdgeReview::concernsOutput($question, $spans, $songStarts)))) {
             return true;
         }
 
