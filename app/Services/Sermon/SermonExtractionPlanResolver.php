@@ -62,6 +62,7 @@ class SermonExtractionPlanResolver
             $reference = $sermon->metadata?->raw['sermon_reference'] ?? null;
             $readings = array_values(array_filter($sections, static fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::BibleReading && $section->start_time < $first->start_time));
             $matches = [];
+            $overlapping = 0;
             $unknownReading = false;
             foreach ($readings as $reading) {
                 $readingReference = $reading->metadata?->readingReference;
@@ -73,11 +74,15 @@ class SermonExtractionPlanResolver
                 }
                 if ($this->scriptureReferences->referencesAgree($reference, $readingReference)) {
                     $matches[] = $reading;
+                } elseif ($this->scriptureReferences->referencesOverlap($reference, $readingReference)) {
+                    // Shares verses without nesting: a sermon reading past its passage, or one
+                    // part of a multipart reference. Plausible, so it is asked, never dropped.
+                    $overlapping++;
                 }
             }
             if (count($matches) === 1 && ! $unknownReading) {
                 $selected[] = $matches[0];
-            } elseif (count($matches) > 1 || $unknownReading) {
+            } elseif (count($matches) > 1 || $unknownReading || ($matches === [] && $overlapping > 0)) {
                 $risks[] = ['kind' => 'sermon_reading_membership_unresolved', 'detail' => 'Choose the sermon reading: references are missing or multiple readings are plausible.'];
             }
             $following = array_values(array_filter($sections, static fn (ServiceSection $section): bool => $section->start_time >= $last->end_time && ! in_array($section, $selected, true)));

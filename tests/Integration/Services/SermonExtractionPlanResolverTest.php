@@ -1097,6 +1097,34 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->assertSame($preachedText->id, $plan['metadata']['bible_section_id']);
     }
 
+    /** A sermon expounding part of the passage and reading past it: neither nests in the other. */
+    #[Test]
+    public function a_reading_that_only_overlaps_the_sermon_reference_requires_membership_review(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['sermon_start_time' => 100.0, 'sermon_end_time' => 200.0]);
+        $this->reading($log, order: 1, start: 1949.48, end: 2198.48, reference: 'Genesis 8:1-19');
+        $this->sermon($log, order: 2, start: 2601.0, end: 4200.0, reference: 'Genesis 8:15-9:17');
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertTrue($plan['metadata']['requires_review']);
+        $this->assertSame(['sermon_reading_membership_unresolved'], array_column($plan['metadata']['risks'], 'kind'));
+    }
+
+    #[Test]
+    public function two_readings_each_carrying_part_of_a_multipart_sermon_reference_require_membership_review(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['sermon_start_time' => 100.0, 'sermon_end_time' => 200.0]);
+        $this->reading($log, order: 1, start: 900.0, end: 1100.0, reference: 'Genesis 8:20-22');
+        $this->reading($log, order: 2, start: 1200.0, end: 1400.0, reference: 'Genesis 9:8-17');
+        $this->sermon($log, order: 3, start: 1500.0, end: 3500.0, reference: 'Genesis 8:20-22; 9:8-17');
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertTrue($plan['metadata']['requires_review']);
+        $this->assertSame(['sermon_reading_membership_unresolved'], array_column($plan['metadata']['risks'], 'kind'));
+    }
+
     #[Test]
     public function a_far_reading_without_references_requires_membership_review(): void
     {
