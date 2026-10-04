@@ -553,6 +553,18 @@ restore invalid conversion names.
 
 ## 🟠 Open — needs a fix, not yet owned by a plan
 
+### O53 · [P3] Dead component `resources/views/components/admin/shell.blade.php` is completely unreferenced
+
+**What:** Unused page shell layout component (`resources/views/components/admin/shell.blade.php`).
+
+**Evidence:**
+- Project-wide grep reference searches for `admin.shell`, `x-admin.shell`, `x-admin-shell`, `admin/shell`, `admin_shell`, `admin\shell`, and `admin:shell` all return 0 matches.
+- All administrative Livewire views instead use the `layouts.admin` layout directly (via `->layout('layouts.admin', [...])`), which redundantly defines the exact same toast notifications script, `x-breadcrumbs`, `x-content-wrapper`, `x-page-header`, etc.
+
+**Risk:** Low — pure removal of a dead component file.
+
+**Recommendation:** Safe to remove.
+
 ### O11 · Footer "Listen to evening sermons" links to the unfiltered archive
 
 `resources/views/components/layout/footer.blade.php` (~line 15): the link labelled "Listen to
