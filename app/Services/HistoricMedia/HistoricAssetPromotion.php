@@ -11,6 +11,7 @@ use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Models\SongVideo;
 use App\Services\Import\HistoricSermonPublicationService;
+use App\Services\Media\RecordedVideoOutput;
 use App\Services\Sermon\SermonPromotionAssets;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -425,12 +426,25 @@ final class HistoricAssetPromotion
      */
     private function bindToQuarantine(Sermon $sermon, MediaProcessingLog $log, string $quarantine): void
     {
-        DB::transaction(function () use ($sermon, $log, $quarantine): void {
+        $videoPath = $sermon->video_file_path;
+        $outputs = app(RecordedVideoOutput::class);
+        $relocation = null;
+        if (is_string($videoPath) && $videoPath !== '') {
+            $key = $log->sermon_id === $sermon->id ? 'sermon' : 'section_'.$sermon->publishedServiceSection?->id;
+            $relocation = $outputs->prepareRelocation($log, $key, $this->staging->stagingDisk(), $quarantine, $videoPath);
+        }
+
+        DB::transaction(function () use ($sermon, $log, $quarantine, $videoPath, $outputs, $relocation): void {
             $locked = Sermon::query()->whereKey($sermon->getKey())->lockForUpdate()->first();
 
             if (! $locked instanceof Sermon) {
                 throw new RuntimeException("Sermon {$sermon->getKey()} disappeared while being promoted.");
             }
+
+            if ($locked->video_file_path !== $videoPath) {
+                throw new RuntimeException('Historic sermon video path changed before promotion binding.');
+            }
+            $outputs->commitRelocation($relocation);
 
             $updates = [
                 'asset_disk' => $quarantine,

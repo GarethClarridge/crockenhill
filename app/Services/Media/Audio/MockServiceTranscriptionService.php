@@ -37,6 +37,12 @@ class MockServiceTranscriptionService implements ServiceTranscriptionInterface
         self::$fixtureTranscript = $transcript;
     }
 
+    /** @return list<array{start: float, end: float, word: string}> */
+    public function transcribeEdgeWindow(string $audioPath): array
+    {
+        return [];
+    }
+
     public function transcribeService(string $audioOrVideoPath, string $processingId, ?string $prompt = null): ChurchServiceTranscript
     {
         $audioPath = $this->chunkingService->compressAudioForTranscription($audioOrVideoPath, $processingId);

@@ -13,6 +13,7 @@ use App\Models\HistoricImportReleaseAttempt;
 use App\Models\Sermon;
 use App\Models\SongUsageReport;
 use App\Models\SongVideo;
+use App\Services\Media\RecordedVideoOutput;
 use App\Support\CanonicalJson;
 use App\Support\Path;
 use Illuminate\Database\QueryException;
@@ -182,6 +183,21 @@ class HistoricSermonPublicationService
 
         try {
             $this->publishObjects($attempt);
+            $relocations = [];
+            foreach ($sermons as $sermon) {
+                if (! is_string($sermon->video_file_path) || $sermon->video_file_path === '') {
+                    continue;
+                }
+                $section = $sermon->publishedServiceSection;
+                $run = $section->processingLog ?? $sermon->livestreamProcessing ?? $sermon->latestProcessingLog;
+                if ($run === null) {
+                    continue;
+                }
+                $key = $run->sermon_id === $sermon->id ? 'sermon' : 'section_'.$section?->id;
+                $relocations[$sermon->id] = app(RecordedVideoOutput::class)->prepareRelocation(
+                    $run, $key, (string) $sermon->asset_disk, $targetDiskName, $sermon->video_file_path,
+                );
+            }
 
             $released = DB::transaction(fn (): array => $this->commit(
                 $operation,
@@ -192,6 +208,7 @@ class HistoricSermonPublicationService
                 $sermonPaths,
                 $quarantineDiskName,
                 $targetDiskName,
+                $relocations,
             ));
         } catch (Throwable $exception) {
             $this->compensate($attempt, $exception);
@@ -678,6 +695,7 @@ class HistoricSermonPublicationService
      * @param  list<SongVideo>  $songVideos
      * @param  list<SongUsageReport>  $songUsageReports
      * @param  array<int, list<string>>  $sermonPaths
+     * @param  array<int, array{run_id: int, key: string, output: array<string, mixed>, target_disk: string}|null>  $relocations
      * @return array{sermons: list<Sermon>, song_videos: list<SongVideo>, song_usage_reports: list<SongUsageReport>}
      */
     private function commit(
@@ -689,6 +707,7 @@ class HistoricSermonPublicationService
         array $sermonPaths,
         string $quarantineDiskName,
         string $targetDiskName,
+        array $relocations,
     ): array {
         $releasedSermons = [];
         $releasedSongVideos = [];
@@ -700,9 +719,12 @@ class HistoricSermonPublicationService
 
             if ($locked->historic_import_operation_id !== $operation->id
                 || $locked->publication_state !== SermonPublicationState::Quarantined
-                || $locked->asset_disk !== $sourceDiskName) {
+                || $locked->asset_disk !== $sourceDiskName
+                || $locked->video_file_path !== $sermon->video_file_path) {
                 throw new RuntimeException('Historic sermon release binding changed before commit.');
             }
+
+            app(RecordedVideoOutput::class)->commitRelocation($relocations[$sermon->id] ?? null);
 
             $locked->forceFill([
                 'publication_state' => SermonPublicationState::Published,

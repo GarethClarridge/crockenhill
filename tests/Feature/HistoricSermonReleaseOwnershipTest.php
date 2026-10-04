@@ -8,6 +8,7 @@ use App\Contracts\HistoricReleaseObjectStore;
 use App\Data\HistoricReleaseObject;
 use App\Enums\SermonPublicationState;
 use App\Enums\SermonService;
+use App\Exceptions\RecordedVideoOutputMismatch;
 use App\Models\HistoricImportOperation;
 use App\Models\HistoricImportReleaseAsset;
 use App\Models\HistoricImportReleaseAttempt;
@@ -16,6 +17,7 @@ use App\Models\Sermon;
 use App\Services\Import\FilesystemHistoricReleaseObjectStore;
 use App\Services\Import\HistoricImportResourceIdentity;
 use App\Services\Import\HistoricSermonPublicationService;
+use App\Services\Media\RecordedVideoOutput;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -55,6 +57,110 @@ class HistoricSermonReleaseOwnershipTest extends TestCase
         ]);
         Storage::fake('historic_quarantine');
         Storage::fake('public');
+    }
+
+    #[Test]
+    public function release_relocates_recorded_video_identity_to_the_public_copy(): void
+    {
+        [$operation, $sermon] = $this->quarantinedBatch();
+        $path = 'sermons/historic/video.mp4';
+        $sermon->update(['video_file_path' => $path]);
+        Storage::disk('historic_quarantine')->put($path, 'recorded video bytes');
+        $run = $sermon->latestProcessingLog;
+        $outputs = app(RecordedVideoOutput::class);
+        $before = $outputs->record($run, 'sermon', 'historic_quarantine', $path, $outputs->provenance($run));
+
+        app(HistoricSermonPublicationService::class)->release($operation, $sermon);
+        Storage::disk('historic_quarantine')->delete($path);
+
+        $this->assertEquals([...$before, 'disk' => 'public'], $outputs->verified($run->fresh(), 'sermon'));
+        $this->assertSame(SermonPublicationState::Published, $sermon->fresh()->publication_state);
+        app(HistoricSermonPublicationService::class)->release($operation, $sermon->fresh());
+        $this->assertEquals([...$before, 'disk' => 'public'], $outputs->verified($run->fresh(), 'sermon'));
+    }
+
+    #[Test]
+    public function release_refuses_a_video_path_changed_after_destination_verification(): void
+    {
+        [$operation, $sermon] = $this->quarantinedBatch();
+        $path = 'sermons/historic/video.mp4';
+        $sermon->update(['video_file_path' => $path]);
+        Storage::disk('historic_quarantine')->put($path, 'original video');
+        $run = $sermon->latestProcessingLog;
+        $outputs = app(RecordedVideoOutput::class);
+        $before = $outputs->record($run, 'sermon', 'historic_quarantine', $path, $outputs->provenance($run));
+        $mock = \Mockery::mock(RecordedVideoOutput::class)->makePartial();
+        $mock->shouldReceive('prepareRelocation')->once()->andReturnUsing(function ($log, $key, $source, $target, $videoPath) use ($outputs, $sermon): ?array {
+            $prepared = $outputs->prepareRelocation($log, $key, $source, $target, $videoPath);
+            Sermon::query()->whereKey($sermon->id)->update(['video_file_path' => 'sermons/replacement.mp4']);
+
+            return $prepared;
+        });
+        $this->app->instance(RecordedVideoOutput::class, $mock);
+
+        try {
+            app(HistoricSermonPublicationService::class)->release($operation, $sermon);
+            $this->fail('Release published a video path that was never verified.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('Historic sermon release binding changed before commit.', $exception->getMessage());
+        }
+
+        $this->assertSame(SermonPublicationState::Quarantined, $sermon->fresh()->publication_state);
+        $this->assertSame('historic_quarantine', $sermon->fresh()->asset_disk);
+        $this->assertEquals($before, $run->fresh()->processing_metadata->raw['media_outputs']['sermon']);
+        Storage::disk('historic_quarantine')->assertExists($path);
+        $this->assertNull(HistoricImportReleaseAttempt::query()->sole()->completed_at);
+    }
+
+    #[Test]
+    public function release_refuses_video_bytes_that_no_longer_match_the_recorded_identity(): void
+    {
+        [$operation, $sermon] = $this->quarantinedBatch();
+        $path = 'sermons/historic/video.mp4';
+        $sermon->update(['video_file_path' => $path]);
+        Storage::disk('historic_quarantine')->put($path, 'original video');
+        $run = $sermon->latestProcessingLog;
+        $outputs = app(RecordedVideoOutput::class);
+        $before = $outputs->record($run, 'sermon', 'historic_quarantine', $path, $outputs->provenance($run));
+        Storage::disk('historic_quarantine')->put($path, 'tampered video');
+
+        try {
+            app(HistoricSermonPublicationService::class)->release($operation, $sermon);
+            $this->fail('A different video was released under the recorded identity.');
+        } catch (RecordedVideoOutputMismatch $exception) {
+            $this->assertSame('recorded_video_hash_mismatch', $exception->getMessage());
+        }
+
+        $this->assertSame(SermonPublicationState::Quarantined, $sermon->fresh()->publication_state);
+        $this->assertSame('historic_quarantine', $sermon->fresh()->asset_disk);
+        $this->assertEquals($before, $run->fresh()->processing_metadata->raw['media_outputs']['sermon']);
+        Storage::disk('historic_quarantine')->assertExists($path);
+        $this->assertNull(HistoricImportReleaseAttempt::query()->sole()->completed_at);
+    }
+
+    #[Test]
+    public function a_changed_output_record_cannot_commit_an_earlier_verified_relocation(): void
+    {
+        [$operation, $sermon] = $this->quarantinedBatch();
+        $path = 'sermons/historic/video.mp4';
+        $sermon->update(['video_file_path' => $path]);
+        Storage::disk('historic_quarantine')->put($path, 'original video');
+        Storage::disk('public')->put($path, 'original video');
+        $run = $sermon->latestProcessingLog;
+        $outputs = app(RecordedVideoOutput::class);
+        $outputs->record($run, 'sermon', 'historic_quarantine', $path, $outputs->provenance($run));
+        $relocation = $outputs->prepareRelocation($run, 'sermon', 'historic_quarantine', 'public', $path);
+        Storage::disk('historic_quarantine')->put($path, 'replacement video');
+        $replacement = $outputs->record($run, 'sermon', 'historic_quarantine', $path, $outputs->provenance($run));
+
+        try {
+            $outputs->commitRelocation($relocation);
+            $this->fail('An old verification changed custody of a replacement output.');
+        } catch (RecordedVideoOutputMismatch $exception) {
+            $this->assertSame('recorded_video_custody_mismatch', $exception->getMessage());
+        }
+
+        $this->assertEquals($replacement, $outputs->verified($run->fresh(), 'sermon'));
     }
 
     #[Test]

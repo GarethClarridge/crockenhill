@@ -76,6 +76,51 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
         }
     }
 
+    /** @return list<array{start: float, end: float, word: string}> */
+    public function transcribeEdgeWindow(string $audioPath): array
+    {
+        if (empty(config('media-processing.transcription.openai_api_key'))) {
+            throw new NonRetryableTranscriptionException('OpenAI API key not configured for edge transcription');
+        }
+        if (! is_file($audioPath) || ! is_readable($audioPath)) {
+            throw new TranscriptionException('Edge window audio is not readable');
+        }
+        if (filesize($audioPath) > $this->maxUploadBytes()) {
+            throw new NonRetryableTranscriptionException('Edge window exceeds the transcription upload limit');
+        }
+        $handle = fopen($audioPath, 'rb');
+        if ($handle === false) {
+            throw new TranscriptionException('Unable to open edge window audio');
+        }
+        try {
+            $response = OpenAI::audio()->transcribe([
+                'file' => $handle,
+                'model' => (string) config('media-processing.service_structure.transcription_model', 'whisper-1'),
+                'response_format' => 'verbose_json',
+                'timestamp_granularities' => ['word'],
+                'language' => 'en',
+                'prompt' => '',
+            ]);
+            if ($response->words === [] && trim($response->text) !== '') {
+                throw new TranscriptionException('Edge transcription returned text without word timestamps');
+            }
+            $words = [];
+            foreach ($response->words as $word) {
+                if (! is_finite($word->start) || ! is_finite($word->end)
+                    || $word->start < 0 || $word->end < $word->start) {
+                    throw new TranscriptionException('Invalid edge window word timestamps');
+                }
+                $words[] = ['start' => $word->start, 'end' => $word->end, 'word' => $word->word];
+            }
+
+            return $words;
+        } catch (Exception $exception) {
+            throw new TranscriptionException('Edge transcription failed: '.$exception->getMessage(), previous: $exception);
+        } finally {
+            fclose($handle);
+        }
+    }
+
     private function artifacts(): ServiceArtifactStorage
     {
         return $this->artifactStorage ?? app(ServiceArtifactStorage::class);

@@ -398,6 +398,37 @@ class CleanupTemporaryFilesTest extends TestCase
     }
 
     #[Test]
+    public function cancelling_an_interrupted_quality_step_releases_cleanup_without_accepting_the_video(): void
+    {
+        $operation = $this->createHistoricImportOperation();
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'historic_import_operation_id' => $operation->id,
+            'processing_metadata' => ['video_quality' => ['status' => 'unassessed', 'reason' => 'interrupted']],
+        ]);
+        $transitions = app(\App\Services\Processing\SermonProcessingStepTransitions::class);
+        $started = $transitions->markAsStarted($log->processing_id, 'assessing_video_quality');
+        $reachability = app(\App\Services\Processing\HistoricWorkingCopyReachability::class);
+        $this->assertNotNull($reachability->unsettledWork($log));
+        $cancelled = $transitions->markAsCancelled($log->processing_id, 'assessing_video_quality', 'Interrupted round retired; fresh quality assessment is still required.');
+        $this->assertSame($started->id, $cancelled->id);
+        $this->assertTrue($started->started_at->equalTo($cancelled->started_at));
+        $this->assertSame(ProcessingStatus::Cancelled, $cancelled->status);
+        $this->assertNotNull($cancelled->completed_at);
+        $this->assertNull($reachability->unsettledWork($log));
+
+        config(['media-processing.processing.pause_temporary_file_cleanup' => true]);
+        Queue::fake();
+        $storage = $this->createMock(VideoStorageService::class);
+        $storage->expects($this->never())->method('cleanupTemporaryFiles');
+        (new CleanupTemporaryFiles($log))->handle($storage);
+
+        $this->assertSame(ProcessingStatus::Completed, $log->refresh()->status);
+        $this->assertSame('unassessed', $log->videoQualityMetadata()['status']);
+        $this->assertSame('interrupted', $log->videoQualityMetadata()['reason']);
+        Queue::assertNotPushed(CleanupTemporaryFiles::class);
+    }
+
+    #[Test]
     public function it_fails_the_run_rather_than_stranding_it_when_storage_failed_permanently(): void
     {
         $operation = $this->createHistoricImportOperation();

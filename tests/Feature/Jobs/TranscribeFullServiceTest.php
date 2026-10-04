@@ -368,6 +368,11 @@ class TranscribeFullServiceTest extends TestCase
         // log before it starts, so anything recorded earlier is already in hand.
         $this->app->bind(ServiceTranscriptionInterface::class, fn (): ServiceTranscriptionInterface => new class implements ServiceTranscriptionInterface
         {
+            public function transcribeEdgeWindow(string $audioPath): array
+            {
+                return [];
+            }
+
             public function transcribeService(string $audioOrVideoPath, string $processingId, ?string $prompt = null): ChurchServiceTranscript
             {
                 app(ServiceArtifactStorage::class)->putJson($processingId, 'raw', ['segments' => []]);

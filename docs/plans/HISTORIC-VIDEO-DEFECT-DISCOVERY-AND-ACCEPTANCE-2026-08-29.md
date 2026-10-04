@@ -1,5 +1,14 @@
 # Historic Video Defect Discovery and Acceptance Plan
 
+> **Safety continuation — 2026-10-04.** The operator authorised the review fixes and
+> as much of its five next steps as can proceed without input. Provider-aware edge
+> transcription and custody-preserving output relocation are implemented; 1112's
+> interrupted quality step is cancelled with its prior rows preserved. Final gates and
+> a fresh same-16 replay precede further cutting. Canary 10 remains unaccepted; Tier A,
+> the prepared next discovery-half batch and public release remain gated. Current
+> evidence and technical results are recorded at the end of
+> [Cut What Was Identified, In Sync](CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md).
+
 > **Status — 2026-10-02 (redrafted before the final canary).** Bulk processing is drained;
 > containment, content acceptance and public release remain **NO-GO**. Repairs run through §4.0's
 > corpus re-run: every eligible run is re-detected by the four-draw ensemble, its questions are

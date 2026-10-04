@@ -8,6 +8,7 @@ use App\Exceptions\RecordedVideoOutputMismatch;
 use App\Models\MediaProcessingLog;
 use App\Support\MediaProcessingVersion;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class RecordedVideoOutput
@@ -57,6 +58,58 @@ class RecordedVideoOutput
         }
 
         return $output;
+    }
+
+    /**
+     * Verify destination bytes before a database transaction. Older outputs stay unrecorded.
+     * A recompose may have changed current provenance; custody preserves the original evidence.
+     *
+     * @return array{run_id: int, key: string, output: array<string, mixed>, target_disk: string}|null
+     */
+    public function prepareRelocation(MediaProcessingLog $run, string $key, string $sourceDisk, string $targetDisk, string $path): ?array
+    {
+        $metadata = ($run->fresh() ?? $run)->processing_metadata?->toArray() ?? [];
+        if (! array_key_exists($key, $metadata['media_outputs'] ?? [])) {
+            return null;
+        }
+        $output = $metadata['media_outputs'][$key];
+        if (! is_array($output) || ($output['path'] ?? null) !== $path
+            || ! in_array($output['disk'] ?? null, [$sourceDisk, $targetDisk], true)
+            || ! is_int($output['size'] ?? null) || ! is_string($output['sha256'] ?? null)
+            || ! is_array($output['provenance'] ?? null)) {
+            throw new RecordedVideoOutputMismatch('recorded_video_custody_mismatch');
+        }
+        $identity = $this->fileIdentity($targetDisk, $path);
+        if ($identity['size'] !== $output['size']) {
+            throw new RecordedVideoOutputMismatch('recorded_video_size_mismatch');
+        }
+        if (! hash_equals($output['sha256'], $identity['sha256'])) {
+            throw new RecordedVideoOutputMismatch('recorded_video_hash_mismatch');
+        }
+
+        return ['run_id' => $run->id, 'key' => $key, 'output' => $output, 'target_disk' => $targetDisk];
+    }
+
+    /**
+     * Bind only the identity whose destination was verified; perform no storage I/O under lock.
+     *
+     * @param  array{run_id: int, key: string, output: array<string, mixed>, target_disk: string}|null  $relocation
+     */
+    public function commitRelocation(?array $relocation): void
+    {
+        if ($relocation === null) {
+            return;
+        }
+        DB::transaction(function () use ($relocation): void {
+            $locked = MediaProcessingLog::query()->whereKey($relocation['run_id'])->lockForUpdate()->firstOrFail();
+            $metadata = $locked->processing_metadata?->toArray() ?? [];
+            $current = $metadata['media_outputs'][$relocation['key']] ?? null;
+            if (! is_array($current) || $this->canonicalKeys($current) !== $this->canonicalKeys($relocation['output'])) {
+                throw new RecordedVideoOutputMismatch('recorded_video_custody_mismatch');
+            }
+            $metadata['media_outputs'][$relocation['key']] = [...$current, 'disk' => $relocation['target_disk']];
+            $locked->forceFill(['processing_metadata' => $metadata])->save();
+        });
     }
 
     /** @return array{size: int, sha256: string} */

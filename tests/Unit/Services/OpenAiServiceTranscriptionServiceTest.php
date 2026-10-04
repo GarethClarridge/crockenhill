@@ -58,6 +58,61 @@ class OpenAiServiceTranscriptionServiceTest extends TestCase
     }
 
     #[Test]
+    public function edge_transcription_requests_words_without_service_priming_or_archiving(): void
+    {
+        $audio = $this->makeTempFile('edge window');
+        Config::set('media-processing.service_structure.transcription_model', 'whisper-1');
+        OpenAI::fake([TranscriptionResponse::fake(['words' => [['start' => 0.2, 'end' => 0.8, 'word' => 'Amen']]])]);
+
+        $this->assertSame([['start' => 0.2, 'end' => 0.8, 'word' => 'Amen']], $this->service->transcribeEdgeWindow($audio));
+        OpenAI::assertSent(\OpenAI\Resources\Audio::class, fn (string $method, array $parameters): bool => $method === 'transcribe'
+            && $parameters['model'] === 'whisper-1'
+            && $parameters['timestamp_granularities'] === ['word']
+            && $parameters['response_format'] === 'verbose_json'
+            && $parameters['prompt'] === ''
+            && gettype($parameters['file']) === 'resource (closed)');
+        $this->assertFileExists($audio);
+    }
+
+    #[Test]
+    public function edge_transcription_allows_successful_silence_but_not_missing_word_evidence(): void
+    {
+        $audio = $this->makeTempFile('edge window');
+        OpenAI::fake([TranscriptionResponse::fake(['text' => '', 'words' => []], strategy: OverrideStrategy::Replace),
+            TranscriptionResponse::fake(['text' => 'Amen', 'words' => []], strategy: OverrideStrategy::Replace)]);
+        $this->assertSame([], $this->service->transcribeEdgeWindow($audio));
+        $this->expectException(TranscriptionException::class);
+        $this->expectExceptionMessage('text without word timestamps');
+        $this->service->transcribeEdgeWindow($audio);
+    }
+
+    #[Test]
+    public function edge_transcription_retains_the_provider_failure_and_closes_its_file(): void
+    {
+        $audio = $this->makeTempFile('edge window');
+        $failure = new \RuntimeException('provider unavailable');
+        OpenAI::fake([$failure]);
+        try {
+            $this->service->transcribeEdgeWindow($audio);
+            $this->fail('The failed request must not be treated as a successful empty decode.');
+        } catch (TranscriptionException $exception) {
+            $this->assertSame($failure, $exception->getPrevious());
+        }
+        OpenAI::assertSent(\OpenAI\Resources\Audio::class, fn (string $method, array $parameters): bool => gettype($parameters['file']) === 'resource (closed)');
+    }
+
+    #[Test]
+    public function mock_edge_transcription_never_calls_a_remote_provider(): void
+    {
+        \Illuminate\Support\Facades\Http::preventStrayRequests();
+        OpenAI::fake();
+        Config::set('media-processing.service_structure.transcription_service', 'mock');
+        $this->assertSame([], app(\App\Contracts\ServiceTranscriptionInterface::class)->transcribeEdgeWindow('/unused.mp3'));
+        \Illuminate\Support\Facades\Http::assertNothingSent();
+        OpenAI::assertNothingSent();
+    }
+
+    #[Test]
     public function it_transcribes_a_recording_within_the_upload_limit_in_one_pass(): void
     {
         $sourcePath = $this->makeTempFile('source video bytes');

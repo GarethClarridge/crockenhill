@@ -1462,3 +1462,49 @@ released and no answer was recorded. Fresh-file quality, including 1050's fresh 
 all final custody/AV/gap/accuracy/disk-pointer checks and the listening list remain pending.
 This is a stop before extraction, not acceptance or a final cut receipt. Stopped-evidence
 checksum backups are running; a read-only stopped-batch report will follow them.
+
+
+**Safety continuation, 2026-10-04.** The operator authorised implementing the review's
+five next steps as far as possible without further input. Claude's saved-draw round on
+`f3224174f` ended with zero open questions and unchanged 32 attempts; extraction was
+15 ready, with 1112 blocked by the interrupted prior quality step. All six idle workers
+were stopped before changing code. The original 1112 run and step rows and its exact
+delayed cleanup payload are preserved in
+`storage/app/private/canary10-safety-fixes-20261004/1112-interrupted-step-before.json`.
+Only step 9854 was cancelled through the existing tested transition. Its original start
+time and the quality verdict were preserved; normal paused cleanup must settle the run.
+This cancellation does not accept the video, and Tier C must assess it afresh.
+
+The safety fixes use the configured service-transcription provider for edge windows
+(including production OpenAI), preserving existing local cache identities and separating
+other providers' caches. Video custody now verifies destination bytes before changing
+the recorded disk, retaining the original hash, size and provenance through promotion
+and release. Recomposition may move older bytes without relabelling their provenance;
+assessment still refuses stale output. Both custody transitions guard changed records,
+and release also refuses a video path changed during verification. No schema, package,
+public-release policy or new operator gate was introduced.
+
+`draw-bank-before.json` verifies all 128 slot artifacts across 32 attempts. It explicitly
+supersedes the draft `bank-before.json`, whose checksum used a nonexistent field.
+`operator-effort.json` interprets the existing batch report: 52 saved answers and 159
+detection / 150 recomposition run-stamps over 16 familiar runs. The 25-minute estimate
+is answer-sitting time only; playback, waiting and troubleshooting are not measured.
+This is regression evidence, not generalisation evidence.
+
+`next-batch-candidates.json` prepares the prescribed 20-run discovery-half batch from
+129 eligible services with no ensemble attempts or corpus-rerun stamps. Selection is
+deterministic in era order. These are fresh to this rerun; prior tuning exposure is not
+proven absent, and they must not be described as held out. There is no dispatch: canary
+acceptance and its clean custody diff remain prerequisites.
+
+The app's host mounts stalled during startup; MySQL and Redis were stopped cleanly,
+Docker Desktop recovered, and support services restored while every worker remained
+stopped. `environment-recovery.json` records the interruption. Final code gates, worker
+restart, new code-bound snapshot and canary technical results will be recorded below.
+
+**Final code gates passed before restart.** Focused integrated regressions passed
+102 tests / 366 assertions; the additional release race suite passed 16 / 67. The
+final full parallel suite passed 9,212 tests / 94,576 assertions in 8m 02.947s, with
+163 baseline PHPUnit notices and no failures. PHPStan reports zero errors and Pint
+passes. All workers were stopped throughout these gates. Logs are named in
+`canary10-safety-fixes-20261004/code-gates.json`.

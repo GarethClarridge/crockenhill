@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
+use App\Data\SermonVideoQualityAssessmentResult;
 use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonPublicationState;
+use App\Enums\SermonVideoQualityStatus;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
+use App\Exceptions\RecordedVideoOutputMismatch;
+use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\PromoteHistoricAssets;
 use App\Jobs\StoreSermonVideo;
 use App\Models\HistoricImportNestedJob;
@@ -19,7 +23,13 @@ use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
 use App\Services\HistoricMedia\HistoricAssetPromotion;
+use App\Services\Media\MediaDiskReachability;
+use App\Services\Media\RecordedVideoOutput;
+use App\Services\Media\Video\FrameExtractionService;
+use App\Services\Media\Video\SermonVideoQualityAssessmentService;
+use App\Services\Sermon\SermonExposurePolicy;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
@@ -50,6 +60,146 @@ class HistoricAssetPromotionTest extends TestCase
         config()->set('media-processing.storage.sermon_disk', 'historic_staging');
         config()->set('media-processing.storage.transcript_disk', 'historic_staging');
         config()->set('thumbnail-generation.storage.disk', 'historic_staging');
+    }
+
+    #[Test]
+    public function promoted_video_keeps_its_recorded_identity_and_can_be_reassessed(): void
+    {
+        foreach (['historic_staging', 'historic_quarantine'] as $disk) {
+            config(["filesystems.disks.{$disk}.root" => Storage::disk($disk)->path('')]);
+        }
+        [$log, $sermon] = $this->historicRun();
+        $log->update(['sermon_id' => $sermon->id]);
+        $path = $sermon->video_file_path;
+        $this->stage($path, 'verified video bytes');
+        $outputs = app(RecordedVideoOutput::class);
+        $recorded = $outputs->record($log, 'sermon', 'historic_staging', $path, $outputs->provenance($log));
+        $assessment = $this->createMock(SermonVideoQualityAssessmentService::class);
+        $assessment->expects($this->exactly(2))->method('assessAndRetainLocalPath')
+            ->willReturnCallback(function ($sermon, $videoPath, $disk) use ($path): array {
+                $this->assertSame($path, $videoPath);
+                $this->assertSame('verified video bytes', Storage::disk($disk)->get($videoPath));
+
+                return ['result' => new SermonVideoQualityAssessmentResult(
+                    SermonVideoQualityStatus::Approved, null, 60.0, 0.0, 1.0, 0.0, 0.0,
+                ), 'localVideoPath' => null];
+            });
+        $assess = function () use ($sermon, $assessment): void {
+            (new AssessSermonVideoQuality(sermonId: $sermon->id))->handle(
+                $assessment,
+                $this->createStub(FrameExtractionService::class),
+                $this->createStub(SermonExposurePolicy::class),
+                new MediaDiskReachability,
+            );
+        };
+        $assess();
+        app(HistoricAssetPromotion::class)->promoteRun($log->fresh());
+        Storage::disk('historic_staging')->assertMissing($path);
+        $this->assertEquals([...$recorded, 'disk' => 'historic_quarantine'], $outputs->verified($log->fresh(), 'sermon'));
+        $assess();
+        $this->assertSame('historic_quarantine', $log->fresh()->videoQualityMetadata()['asset_disk']);
+        $this->assertSame($recorded['sha256'], $log->fresh()->videoQualityMetadata()['sha256']);
+        app(HistoricAssetPromotion::class)->promoteRun($log->fresh());
+        $this->assertEquals([...$recorded, 'disk' => 'historic_quarantine'], $outputs->verified($log->fresh(), 'sermon'));
+    }
+
+    #[Test]
+    public function promotion_verifies_outside_its_transaction_and_refuses_a_changed_video_path(): void
+    {
+        [$log, $sermon] = $this->historicRun();
+        $log->update(['sermon_id' => $sermon->id]);
+        $path = $sermon->video_file_path;
+        $this->stage($path, 'verified video');
+        $outputs = app(RecordedVideoOutput::class);
+        $recorded = $outputs->record($log, 'sermon', 'historic_staging', $path, $outputs->provenance($log));
+        $level = DB::transactionLevel();
+        $beforeDisk = $sermon->asset_disk;
+        $mock = Mockery::mock(RecordedVideoOutput::class);
+        $mock->shouldReceive('prepareRelocation')->once()->andReturnUsing(function ($run, $key, $source, $target, $videoPath) use ($outputs, $sermon, $level): ?array {
+            $this->assertSame($level, DB::transactionLevel(), 'Hashing must finish before promotion takes its row locks.');
+            $prepared = $outputs->prepareRelocation($run, $key, $source, $target, $videoPath);
+            $sermon->update(['video_file_path' => 'sermons/replacement.mp4']);
+
+            return $prepared;
+        });
+        $mock->shouldNotReceive('commitRelocation');
+        $this->app->instance(RecordedVideoOutput::class, $mock);
+
+        try {
+            app(HistoricAssetPromotion::class)->promoteRun($log);
+            $this->fail('Promotion bound a video path that was never verified.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('Historic sermon video path changed before promotion binding.', $exception->getMessage());
+        }
+
+        Storage::disk('historic_staging')->assertExists($path);
+        $this->assertSame($beforeDisk, $sermon->refresh()->asset_disk);
+        $this->assertEquals($recorded, $log->fresh()->processing_metadata->raw['media_outputs']['sermon']);
+    }
+
+    #[Test]
+    public function promotion_recovers_recorded_custody_when_the_staging_copy_was_already_removed(): void
+    {
+        [$log, $sermon] = $this->historicRun();
+        $log->update(['sermon_id' => $sermon->id]);
+        $path = $sermon->video_file_path;
+        $this->stage($path, 'verified video');
+        $outputs = app(RecordedVideoOutput::class);
+        $recorded = $outputs->record($log, 'sermon', 'historic_staging', $path, $outputs->provenance($log));
+        Storage::disk('historic_quarantine')->put($path, 'verified video');
+        Storage::disk('historic_staging')->delete($path);
+
+        app(HistoricAssetPromotion::class)->promoteRun($log);
+
+        $this->assertEquals([...$recorded, 'disk' => 'historic_quarantine'], $outputs->verified($log->fresh(), 'sermon'));
+        $this->assertSame('historic_quarantine', $sermon->refresh()->asset_disk);
+    }
+
+    #[Test]
+    public function promotion_refuses_corrupt_destination_before_changing_custody(): void
+    {
+        [$log, $sermon] = $this->historicRun();
+        $log->update(['sermon_id' => $sermon->id]);
+        $path = $sermon->video_file_path;
+        $this->stage($path, 'verified video');
+        $outputs = app(RecordedVideoOutput::class);
+        $recorded = $outputs->record($log, 'sermon', 'historic_staging', $path, $outputs->provenance($log));
+        Storage::disk('historic_quarantine')->put($path, 'corrupted file');
+        Storage::disk('historic_staging')->delete($path);
+        $beforeDisk = $sermon->asset_disk;
+
+        try {
+            app(HistoricAssetPromotion::class)->promoteRun($log);
+            $this->fail('Corrupt destination was accepted.');
+        } catch (RecordedVideoOutputMismatch $exception) {
+            $this->assertSame('recorded_video_hash_mismatch', $exception->getMessage());
+        }
+
+        $this->assertEquals($recorded, $log->fresh()->processing_metadata->raw['media_outputs']['sermon']);
+        $this->assertSame($beforeDisk, $sermon->refresh()->asset_disk);
+    }
+
+    #[Test]
+    public function a_recompose_round_can_promote_old_bytes_without_relabelling_their_provenance(): void
+    {
+        [$log, $sermon] = $this->historicRun();
+        $log->update(['sermon_id' => $sermon->id]);
+        $path = $sermon->video_file_path;
+        $this->stage($path, 'verified video');
+        $outputs = app(RecordedVideoOutput::class);
+        $recorded = $outputs->record($log, 'sermon', 'historic_staging', $path, $outputs->provenance($log));
+        $log->writeProcessingMetadata(static fn (array $metadata): array => [...$metadata,
+            'corpus_rerun' => [['snapshot_file_sha256' => str_repeat('a', 64), 'dispatched_at' => now()->toIso8601String()]],
+            'service_structure_projection' => ['attempt_id' => 'recomposed'],
+        ]);
+
+        app(HistoricAssetPromotion::class)->promoteRun($log);
+
+        Storage::disk('historic_staging')->assertMissing($path);
+        $this->assertEquals([...$recorded, 'disk' => 'historic_quarantine'], $log->fresh()->processing_metadata->raw['media_outputs']['sermon']);
+        $this->assertSame('historic_quarantine', $sermon->refresh()->asset_disk);
+        $this->expectExceptionMessage('recorded_video_provenance_mismatch');
+        $outputs->verified($log->fresh(), 'sermon');
     }
 
     #[Test]
@@ -88,6 +238,7 @@ class HistoricAssetPromotionTest extends TestCase
         Storage::disk('historic_staging')->assertMissing('sermons/video/pilot.mp4');
         Storage::disk('historic_staging')->assertMissing('transcripts/pilot.txt');
 
+        $this->assertArrayNotHasKey('media_outputs', $log->fresh()->processing_metadata?->toArray() ?? []);
         $this->assertSame(1, $totals['sermons']);
         $this->assertSame(2, $totals['assets_promoted']);
         $this->assertSame(0, $totals['assets_already_promoted']);

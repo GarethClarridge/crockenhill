@@ -7,7 +7,7 @@ namespace App\Services\ChurchService;
 use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Jobs\ClassifyServiceAudio;
 use App\Models\MediaProcessingLog;
-use App\Services\Media\Audio\LocalWhisperServiceTranscriptionService;
+use App\Contracts\ServiceTranscriptionInterface;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Media\Audio\ServiceAudioWindowExtractor;
 use App\Services\Processing\StorageAdapterHelper;
@@ -18,7 +18,7 @@ class PrepareOutputEdgeWordTimings
 {
     public function __construct(
         private OutputEdgeWordTimings $evidence,
-        private LocalWhisperServiceTranscriptionService $whisper,
+        private ServiceTranscriptionInterface $transcription,
         private ServiceAudioWindowExtractor $extractor,
         private ServiceArtifactStorage $artifacts,
         private StorageAdapterHelper $storage,
@@ -61,7 +61,7 @@ class PrepareOutputEdgeWordTimings
                 $started = microtime(true);
                 $clip = $this->extractor->extract($local, $window['start'], $window['end'], $log->processing_id);
                 try {
-                    $words = $this->whisper->transcribeEdgeWindow($clip);
+                    $words = $this->transcription->transcribeEdgeWindow($clip);
                 } finally {
                     $this->extractor->delete($clip);
                 }

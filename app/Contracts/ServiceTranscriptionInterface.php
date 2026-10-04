@@ -9,6 +9,14 @@ use App\Data\ChurchServiceTranscript;
 interface ServiceTranscriptionInterface
 {
     /**
+     * Decode an isolated output-edge window without changing full-service evidence.
+     * Times are relative to the window. Empty means a successful decode found no words.
+     *
+     * @return list<array{start: float, end: float, word: string}>
+     */
+    public function transcribeEdgeWindow(string $audioPath): array;
+
+    /**
      * Produce a timestamped transcript of an entire service recording.
      *
      * @param  string  $audioOrVideoPath  Absolute path to the recording (audio or video)

@@ -52,8 +52,19 @@ class OutputEdgeWordTimings
      */
     public function identity(MediaProcessingLog $log, array $window): array
     {
-        return ['processing_id' => $log->processing_id, 'start' => $window['start'], 'end' => $window['end'],
-            'model' => (string) config('media-processing.transcription.local_whisper_model', 'small'), 'media_processing' => MediaProcessingVersion::signature()];
+        $provider = (string) config('media-processing.service_structure.transcription_service', 'mock');
+        $model = match ($provider) {
+            'local' => (string) config('media-processing.transcription.local_whisper_model', 'small'),
+            'openai' => (string) config('media-processing.service_structure.transcription_model', 'whisper-1'),
+            'mock' => 'mock',
+            default => throw new RuntimeException('Unknown edge transcription provider: '.$provider),
+        };
+        $identity = ['processing_id' => $log->processing_id, 'start' => $window['start'], 'end' => $window['end'],
+            'model' => $model, 'media_processing' => MediaProcessingVersion::signature()];
+
+        // Existing edge artifacts were exclusively local. Preserve those receipts;
+        // every other provider gets its own namespace, even with the same model name.
+        return $provider === 'local' ? $identity : [...$identity, 'provider' => $provider];
     }
 
     /** @param array<string, mixed> $identity */
@@ -83,6 +94,7 @@ class OutputEdgeWordTimings
                 && ($payload['identity']['processing_id'] ?? null) === $log->processing_id
                 && (float) ($payload['identity']['start'] ?? -1) === $window['start']
                 && (float) ($payload['identity']['end'] ?? -1) === $window['end']
+                && ($payload['identity']['provider'] ?? 'local') === ($identity['provider'] ?? 'local')
                 && ($payload['identity']['model'] ?? null) === $identity['model'] && is_array($payload['words'] ?? null)) {
                 $words = [];
                 foreach ($payload['words'] as $word) {

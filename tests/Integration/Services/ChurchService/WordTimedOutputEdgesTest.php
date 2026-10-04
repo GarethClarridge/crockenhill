@@ -99,6 +99,7 @@ class WordTimedOutputEdgesTest extends TestCase
     #[Test]
     public function cache_identity_binds_the_model_and_media_processing_version(): void
     {
+        config(['media-processing.service_structure.transcription_service' => 'local']);
         $cue = ['start' => 99.0, 'end' => 101.0, 'text' => 'Amen'];
         $log = $this->log($cue);
         $this->bank($log, $cue, []);
@@ -164,6 +165,72 @@ class WordTimedOutputEdgesTest extends TestCase
         $this->assertSame('temp/edge-test.json', $log->fresh()->serviceTranscriptPath());
     }
 
+    #[Test]
+    public function preparation_uses_the_configured_openai_provider_without_local_whisper(): void
+    {
+        config(['media-processing.service_structure.transcription_service' => 'openai',
+            'media-processing.service_structure.transcription_model' => 'whisper-1',
+            'media-processing.transcription.openai_api_key' => 'test-key']);
+        \Illuminate\Support\Facades\Http::preventStrayRequests();
+        $cue = ['start' => 99.0, 'end' => 101.0, 'text' => 'Amen'];
+        $log = $this->log($cue);
+        $log->writeProcessingMetadata(fn (array $metadata): array => [...$metadata,
+            'service_artifacts' => [['kind' => 'audio', 'disk' => 'local', 'path' => 'service-audio/test.mp3']]]);
+        $audio = tempnam(sys_get_temp_dir(), 'edge-provider-');
+        file_put_contents($audio, 'edge audio');
+        $extractor = \Mockery::mock(ServiceAudioWindowExtractor::class);
+        $extractor->shouldReceive('extract')->once()->andReturn($audio);
+        $extractor->shouldReceive('delete')->once()->with($audio);
+        $this->app->instance(ServiceAudioWindowExtractor::class, $extractor);
+        $storage = \Mockery::mock(StorageAdapterHelper::class);
+        $storage->shouldReceive('downloadToTemp')->once()->andReturn('/audio.mp3');
+        $storage->shouldReceive('isS3CompatibleDisk')->once()->andReturn(false);
+        $this->app->instance(StorageAdapterHelper::class, $storage);
+        \OpenAI\Laravel\Facades\OpenAI::fake([
+            \OpenAI\Responses\Audio\TranscriptionResponse::fake(['words' => [['start' => 1.0, 'end' => 1.5, 'word' => 'Amen']]]),
+        ]);
+        try {
+            app(PrepareOutputEdgeWordTimings::class)->prepare($log->fresh(), [['start_time' => 100.0, 'end_time' => 200.0]]);
+            $payload = app(OutputEdgeWordTimings::class)->read($log->fresh(), ['start' => 98.0, 'end' => 102.0]);
+            $this->assertSame([['start' => 99.0, 'end' => 99.5, 'word' => 'Amen']], $payload['words']);
+            $this->assertSame('openai', $payload['identity']['provider']);
+            $this->assertSame('whisper-1', $payload['identity']['model']);
+            $this->assertSame('temp/edge-test.json', $log->fresh()->serviceTranscriptPath());
+            $this->assertNotContains('raw', array_column(ServiceArtifactStorage::recordedFor($log->fresh()), 'kind'));
+            \Illuminate\Support\Facades\Http::assertNothingSent();
+        } finally {
+            unlink($audio);
+        }
+    }
+
+    #[Test]
+    public function changing_provider_with_the_same_model_name_cannot_reuse_cached_words(): void
+    {
+        config(['media-processing.service_structure.transcription_service' => 'local',
+            'media-processing.transcription.local_whisper_model' => 'same-model',
+            'media-processing.service_structure.transcription_model' => 'same-model']);
+        $cue = ['start' => 99.0, 'end' => 101.0, 'text' => 'Amen'];
+        $log = $this->log($cue);
+        $this->bank($log, $cue, []);
+        config(['media-processing.service_structure.transcription_service' => 'openai']);
+        $this->expectExceptionMessage('edge_word_timings_missing');
+        app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 100.0, 'end_time' => 200.0]]);
+    }
+
+    #[Test]
+    public function legacy_local_edge_receipts_keep_their_original_cache_identity(): void
+    {
+        config(['media-processing.service_structure.transcription_service' => 'local']);
+        $cue = ['start' => 99.0, 'end' => 101.0, 'text' => 'Amen'];
+        $log = $this->log($cue);
+        $identity = ['processing_id' => $log->processing_id, 'start' => 98.0, 'end' => 102.0,
+            'model' => (string) config('media-processing.transcription.local_whisper_model', 'small'), 'media_processing' => MediaProcessingVersion::signature()];
+        $evidence = app(OutputEdgeWordTimings::class);
+        app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($identity), ['identity' => $identity, 'words' => []]);
+        $this->assertSame($identity, $evidence->identity($log, ['start' => 98.0, 'end' => 102.0]));
+        $this->assertSame([], $evidence->read($log->fresh(), ['start' => 98.0, 'end' => 102.0])['words']);
+    }
+
     private function log(array $cue): MediaProcessingLog
     {
         Storage::fake('local');
@@ -177,8 +244,7 @@ class WordTimedOutputEdgesTest extends TestCase
 
     private function bank(MediaProcessingLog $log, array $cue, array $words): void
     {
-        $identity = ['processing_id' => $log->processing_id, 'start' => max(0.0, $cue['start'] - 1), 'end' => $cue['end'] + 1,
-            'model' => (string) config('media-processing.transcription.local_whisper_model', 'small'), 'media_processing' => MediaProcessingVersion::signature()];
+        $identity = app(OutputEdgeWordTimings::class)->identity($log, ['start' => max(0.0, $cue['start'] - 1), 'end' => $cue['end'] + 1]);
         $key = hash('sha256', json_encode($identity, JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION));
         app(ServiceArtifactStorage::class)->putJson($log->processing_id, 'edge-words-'.$key, ['identity' => $identity, 'words' => $words, 'compute_seconds' => 1.0]);
     }
