@@ -1546,3 +1546,13 @@ Redis `SAVE` succeeded before the support services were stopped for shutdown.
 The goal and recurring follow-up are paused. Reconnect drives and inspect the
 mount failures before starting workers; a bare `sail up -d` would start workers
 too, so initially start only the app/database/Redis services needed for inspection.
+
+**Check out the frozen branch before starting workers (2026-10-04).** While parked,
+fixes from the post-canary-10 generalisation review (silent omission of sermon
+continuations and readings, reading disputes escaping the extraction gate, stale
+answers under unanimous output, sub-word timing fragments) are being built on
+branch `fix-silent-sermon-omissions`. They change output. Queued jobs run the code
+on disk when workers start, so run `git checkout fix-historic-video-custody` and
+confirm `git rev-parse HEAD` is this commit or a doc-only descendant before
+starting any worker. The queued Tier C round finishes on the frozen code; the fixes
+join the next freeze and canary.
