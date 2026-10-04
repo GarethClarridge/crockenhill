@@ -80,11 +80,63 @@ class WordTimedOutputEdgesTest extends TestCase
                 ['start' => 1400.75, 'end' => 1401.0, 'word' => ' to'],
                 ['start' => 1401.05, 'end' => 1401.95, 'word' => ' Genesis'],
             ], 1399.0],
-            '1267 sorry stretched over music tail' =>['start', 129.9, ['start' => 100.0, 'end' => 130.0, 'text' => "I'm sorry."], [
+            // An edge on a cue boundary keeps the whole cue: the window margin before "And" is the
+            // largest gap, but cutting there drops the reading's last verse.
+            '949 reading end keeps its last verse' => ['end', 2447.26, ['start' => 2444.9, 'end' => 2447.26, 'text' => 'And he bowed his head and gave up his spirit.'], [
+                ['start' => 2444.94, 'end' => 2445.1, 'word' => ' And'],
+                ['start' => 2445.12, 'end' => 2445.3, 'word' => ' he'],
+                ['start' => 2445.32, 'end' => 2445.6, 'word' => ' bowed'],
+                ['start' => 2445.62, 'end' => 2445.75, 'word' => ' his'],
+                ['start' => 2445.78, 'end' => 2446.0, 'word' => ' head'],
+                ['start' => 2446.05, 'end' => 2446.15, 'word' => ' and'],
+                ['start' => 2446.18, 'end' => 2446.4, 'word' => ' gave'],
+                ['start' => 2446.42, 'end' => 2446.5, 'word' => ' up'],
+                ['start' => 2446.52, 'end' => 2446.6, 'word' => ' his'],
+                ['start' => 2446.62, 'end' => 2447.3, 'word' => ' spirit.'],
+            ], 2447.3],
+            // Whisper times "During" before the cue starts; the cue still opens with it.
+            '964 sermon start keeps its first word' => ['start', 2069.1, ['start' => 2069.1, 'end' => 2075.23, 'text' => 'During the feast of tabernacles, one of the Jewish feasts,'], [
+                ['start' => 2068.25, 'end' => 2068.98, 'word' => ' During'],
+                ['start' => 2069.34, 'end' => 2069.42, 'word' => ' the'],
+                ['start' => 2069.42, 'end' => 2070.01, 'word' => ' Feast'],
+                ['start' => 2070.28, 'end' => 2070.44, 'word' => ' of'],
+                ['start' => 2070.44, 'end' => 2072.16, 'word' => ' Tabernacles,'],
+                ['start' => 2072.17, 'end' => 2072.3, 'word' => ' one'],
+                ['start' => 2072.3, 'end' => 2072.5, 'word' => ' of'],
+                ['start' => 2072.5, 'end' => 2072.86, 'word' => ' the'],
+                ['start' => 2072.86, 'end' => 2074.21, 'word' => ' Jewish'],
+                ['start' => 2074.21, 'end' => 2076.22, 'word' => ' feasts,'],
+            ], 2068.25],
+            '1267 sorry stretched over music tail' => ['start', 129.9, ['start' => 100.0, 'end' => 130.0, 'text' => "I'm sorry."], [
                 ['start' => 100.0, 'end' => 100.2, 'word' => "I'm"],
                 ['start' => 100.2, 'end' => 100.5, 'word' => 'sorry.'],
             ], 129.9],
         ];
+    }
+
+    /** Run 949: the prayer's cue runs on into the sermon, so the boundary between cues is shared. */
+    #[Test]
+    public function a_start_shared_with_the_previous_cue_keeps_the_largest_pause(): void
+    {
+        $prayer = ['start' => 2738.96, 'end' => 2744.99, 'text' => 'him in jesus name we ask amen thank you mark it is such a'];
+        $sermon = ['start' => 2744.99, 'end' => 2749.0, 'text' => 'joy to be with you'];
+        $log = $this->log($prayer);
+        Storage::disk('local')->put('temp/edge-test.json', json_encode(ChurchServiceTranscript::fromCues([$prayer, $sermon], 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        $evidence = app(OutputEdgeWordTimings::class);
+        $window = $evidence->window($evidence->cues($log), 2744.99, 5000.0);
+        $this->assertCount(2, $window['cues']);
+        app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($evidence->identity($log, $window)), ['identity' => $evidence->identity($log, $window), 'words' => [
+            ['start' => 2739.0, 'end' => 2740.1, 'word' => ' prayer'],
+            ['start' => 2740.2, 'end' => 2740.4, 'word' => ' amen'],
+            ['start' => 2741.5, 'end' => 2741.7, 'word' => ' thank'],
+            ['start' => 2741.75, 'end' => 2744.99, 'word' => ' you Mark it is such a'],
+            ['start' => 2745.0, 'end' => 2745.5, 'word' => ' joy'],
+            ['start' => 2745.55, 'end' => 2748.9, 'word' => ' to be with you'],
+        ], 'compute_seconds' => 1.0]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 2744.99, 'end_time' => 4000.0]]);
+
+        $this->assertEqualsWithDelta(2741.5, $plan['segments'][0]['start_time'], 0.001);
     }
 
     #[Test]
