@@ -106,9 +106,14 @@ class OutputEdgeWordTimings
                     $words[] = ['start' => (float) $word['start'], 'end' => (float) $word['end'], 'word' => $word['word']];
                 }
                 usort($words, static fn (array $a, array $b): int => $a['start'] <=> $b['start']);
+                // whisper.cpp tokens start a word with a space and continue one without it
+                // (" B", "ibles"): a gap between them is inside a word. Providers returning
+                // whole words never lead with a space, so only punctuation joins there.
+                $spaceMarksWords = array_any($words, static fn (array $word): bool => preg_match('/^\s/u', $word['word']) === 1);
                 $lexical = [];
                 foreach ($words as $word) {
-                    if (preg_match('/[\p{L}\p{N}]/u', $word['word']) !== 1) {
+                    if (preg_match('/[\p{L}\p{N}]/u', $word['word']) !== 1
+                        || ($spaceMarksWords && $lexical !== [] && preg_match('/^\s/u', $word['word']) !== 1)) {
                         $last = count($lexical) - 1;
                         if ($last >= 0) {
                             $lexical[$last]['word'] .= trim($word['word']);

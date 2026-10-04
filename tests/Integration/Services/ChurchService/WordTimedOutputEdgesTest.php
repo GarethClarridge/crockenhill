@@ -69,7 +69,18 @@ class WordTimedOutputEdgesTest extends TestCase
                 ['start' => 100.0, 'end' => 100.2, 'word' => 'Thank'],
                 ['start' => 100.2, 'end' => 100.5, 'word' => 'you.'],
             ], 100.5],
-            '1267 sorry stretched over music tail' => ['start', 129.9, ['start' => 100.0, 'end' => 130.0, 'text' => "I'm sorry."], [
+            // whisper.cpp marks a new word with a leading space; "ibles" continues " B".
+            '1208 sub-word gap inside Bibles is not a pause' => ['start', 1400.2, ['start' => 1399.0, 'end' => 1401.0, 'text' => 'turn your Bibles, to'], [
+                ['start' => 1398.0, 'end' => 1398.9, 'word' => ' Well'],
+                ['start' => 1399.0, 'end' => 1399.33, 'word' => ' turn'],
+                ['start' => 1399.33, 'end' => 1399.83, 'word' => ' your'],
+                ['start' => 1399.83, 'end' => 1399.95, 'word' => ' B'],
+                ['start' => 1400.42, 'end' => 1400.58, 'word' => 'ibles'],
+                ['start' => 1400.58, 'end' => 1400.7, 'word' => ','],
+                ['start' => 1400.75, 'end' => 1401.0, 'word' => ' to'],
+                ['start' => 1401.05, 'end' => 1401.95, 'word' => ' Genesis'],
+            ], 1399.0],
+            '1267 sorry stretched over music tail' =>['start', 129.9, ['start' => 100.0, 'end' => 130.0, 'text' => "I'm sorry."], [
                 ['start' => 100.0, 'end' => 100.2, 'word' => "I'm"],
                 ['start' => 100.2, 'end' => 100.5, 'word' => 'sorry.'],
             ], 129.9],
