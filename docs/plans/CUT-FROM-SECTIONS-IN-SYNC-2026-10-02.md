@@ -1508,3 +1508,41 @@ final full parallel suite passed 9,212 tests / 94,576 assertions in 8m 02.947s, 
 163 baseline PHPUnit notices and no failures. PHPStan reports zero errors and Pint
 passes. All workers were stopped throughout these gates. Logs are named in
 `canary10-safety-fixes-20261004/code-gates.json`.
+
+**Replay and operator shutdown, 2026-10-04.** Code fixes were committed as
+`3cefb067e`; all six workers restarted after that commit. Normal cleanup completed
+1112 after the stale step cancellation. The fresh same-16 snapshot and saved-draw
+recompose completed: 32 attempts and 128 slot checksums unchanged, zero open
+questions, projection refusals or stitch flags, 1250's four-part composition and
+Naomi's section intact. Extraction dry run reported 16 ready. Tier C dispatched
+those same 16 at approximately 14:23 UTC; it has not completed or been accepted.
+
+At the operator's request to close the laptop/disconnect drives, the recurring
+follow-up was paused and all six workers received a graceful stop. The final
+encoder is allowed to finish; no queued job is retired or redispatched. The
+14:56 UTC check found runs 1108 and 1112 failed at extraction because deleting
+their staging temporary videos failed. Logs also show the staging mount becoming
+unreachable and recovering. Failed-job count remained 479; that count alone does
+not mean the runs succeeded. Preserve these failures for investigation rather
+than forcing completion. Private `shutdown-before.json` preserves raw run/step
+rows and exact queue payloads with sorted-set scores; final shutdown evidence
+will be saved alongside it before disconnecting.
+
+**Resume order:** restore and verify stable external mounts first, inspect the
+shutdown receipt and the two extraction failures, then decide how to resume the
+existing queued chains. Do not dispatch `rerun-extract` again over this queued
+round. Fresh quality, recorded-output custody, containment and AV/gap checks
+remain pending, followed by listening acceptance. Run 1311 section 3954's changed
+inferred song identity retains manual review (`review-watchlist.json`); no answer
+or clearance was supplied. The prepared next 20 discovery-half runs remain
+undispatched. No public release occurred.
+
+**Workers parked at 15:02 UTC.** All six exited with code 0; the current encoder
+finished normally. `shutdown-after.json` preserves the final raw rows and queue:
+15 pending FFmpeg jobs, one pending orchestration job, no reserved or delayed
+jobs across the monitored queues. Fourteen runs remain processing and two failed
+(1108/1112); none is declared accepted. The failed-job table remains at 479.
+Redis `SAVE` succeeded before the support services were stopped for shutdown.
+The goal and recurring follow-up are paused. Reconnect drives and inspect the
+mount failures before starting workers; a bare `sail up -d` would start workers
+too, so initially start only the app/database/Redis services needed for inspection.

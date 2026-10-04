@@ -3,8 +3,11 @@
 > **Safety continuation — 2026-10-04.** The operator authorised the review fixes and
 > as much of its five next steps as can proceed without input. Provider-aware edge
 > transcription and custody-preserving output relocation are implemented; 1112's
-> interrupted quality step is cancelled with its prior rows preserved. Final gates and
-> a fresh same-16 replay precede further cutting. Canary 10 remains unaccepted; Tier A,
+> interrupted quality step was cancelled with its prior rows preserved. Code gates
+> passed (9,212 tests; PHPStan zero errors) and the fresh same-16 replay passed.
+> Tier C was dispatched, then parked for operator shutdown with extraction failures
+> on 1108/1112 and intermittent staging-mount loss requiring investigation before
+> resuming the existing queue. Canary 10 remains unaccepted; Tier A,
 > the prepared next discovery-half batch and public release remain gated. Current
 > evidence and technical results are recorded at the end of
 > [Cut What Was Identified, In Sync](CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md).
