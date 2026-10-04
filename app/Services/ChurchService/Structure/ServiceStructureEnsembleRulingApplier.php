@@ -93,10 +93,13 @@ class ServiceStructureEnsembleRulingApplier
         }
 
         $scores = [];
+        $alreadyAbsent = [];
 
         foreach ($disputes as $disputeIndex => $dispute) {
             foreach ($byKey as $key => $answers) {
                 if ($this->removedInnerIsAlreadyAbsent($answers[0], $dispute, $sections, $current)) {
+                    $alreadyAbsent[$key] = true;
+
                     continue;
                 }
 
@@ -178,40 +181,33 @@ class ServiceStructureEnsembleRulingApplier
                 throw new InvalidArgumentException('An ensemble answer has no recorded resolution.');
             }
 
-            $target = $this->targetIndex($sections, $dispute);
-
-            if (($resolution['absent'] ?? false) === true) {
-                if ($target !== null) {
-                    array_splice($sections, $target, 1);
-                }
-            } else {
-                // An answer decides the section, not the vote: a flag the drafts decide by majority
-                // comes from the composed section, never from the answered draft's own copy.
-                $replacements = array_map(
-                    static fn (ServiceStructureSection $section): ServiceStructureSection => $section->withoutReviewFlags()
-                        ->withReviewFlags(array_values(array_diff($section->reviewFlags, self::majorityFlags()))),
-                    $this->resolvedSections($resolution),
-                );
-
-                if ($target !== null) {
-                    $preservedFlags = array_values(array_diff($sections[$target]->reviewFlags, self::ensembleFlags()));
-                    $replacements = array_map(
-                        static fn (ServiceStructureSection $section): ServiceStructureSection => $section->withReviewFlags($preservedFlags),
-                        $replacements,
-                    );
-                    array_splice($sections, $target, 1);
-                }
-
-                $sections = [...$this->makeRoomFor($sections, $replacements), ...$replacements];
-            }
-
+            $sections = $this->settle($sections, $this->targetIndex($sections, $dispute), $resolution);
             $applied[] = $answer;
         }
 
         foreach ($current as $key => $answer) {
-            if (! isset($disputesByKey[$key])) {
-                $stale[] = $answer;
+            if (isset($disputesByKey[$key])) {
+                continue;
             }
+
+            if (isset($alreadyAbsent[$key])) {
+                $stale[] = $answer;
+
+                continue;
+            }
+
+            // No question to pair with: the fresh draws agreed. Agreement is still a vote, so an
+            // answer on this source that the output contradicts decides the section it names.
+            $target = $this->scopeTarget($sections, $answer);
+
+            if ($this->contradicted($sections, $target, $answer)) {
+                $sections = $this->settle($sections, $target, $answer['resolution']);
+                $applied[] = $answer;
+
+                continue;
+            }
+
+            $stale[] = $answer;
         }
 
         $hasUnresolved = $transcript === null
@@ -318,6 +314,95 @@ class ServiceStructureEnsembleRulingApplier
         }
 
         return $kept;
+    }
+
+    /**
+     * Writes the operator's settled content in place of the target section.
+     *
+     * @param  list<ServiceStructureSection>  $sections
+     * @param  array<string, mixed>  $resolution
+     * @return list<ServiceStructureSection>
+     */
+    private function settle(array $sections, ?int $target, array $resolution): array
+    {
+        if (($resolution['absent'] ?? false) === true) {
+            if ($target !== null) {
+                array_splice($sections, $target, 1);
+            }
+
+            return $sections;
+        }
+
+        // An answer decides the section, not the vote: a flag the drafts decide by majority
+        // comes from the composed section, never from the answered draft's own copy.
+        $replacements = array_map(
+            static fn (ServiceStructureSection $section): ServiceStructureSection => $section->withoutReviewFlags()
+                ->withReviewFlags(array_values(array_diff($section->reviewFlags, self::majorityFlags()))),
+            $this->resolvedSections($resolution),
+        );
+
+        if ($target !== null) {
+            $preservedFlags = array_values(array_diff($sections[$target]->reviewFlags, self::ensembleFlags()));
+            $replacements = array_map(
+                static fn (ServiceStructureSection $section): ServiceStructureSection => $section->withReviewFlags($preservedFlags),
+                $replacements,
+            );
+            array_splice($sections, $target, 1);
+        }
+
+        return [...$this->makeRoomFor($sections, $replacements), ...$replacements];
+    }
+
+    /**
+     * The section an unpaired answer is about: the closest fit of its type to its scope, by
+     * the same share of the union that pairs an answer with a question.
+     *
+     * @param  list<ServiceStructureSection>  $sections
+     * @param  array<string, mixed>  $answer
+     */
+    private function scopeTarget(array $sections, array $answer): ?int
+    {
+        $best = null;
+        $bestScore = 0.0;
+
+        foreach ($sections as $index => $section) {
+            $score = $this->matchScore($answer['scope'], [
+                'type' => $section->type->value, 'start_time' => $section->startTime, 'end_time' => $section->endTime,
+            ], null);
+
+            if ($score !== null && $score > $bestScore) {
+                $best = $index;
+                $bestScore = $score;
+            }
+        }
+
+        return $best;
+    }
+
+    /**
+     * Whether the output disagrees with what a content-deciding answer settled: the removed
+     * section is present, or a settled section is missing at its edges.
+     *
+     * @param  list<ServiceStructureSection>  $sections
+     * @param  array<string, mixed>  $answer
+     */
+    private function contradicted(array $sections, ?int $target, array $answer): bool
+    {
+        $resolution = $answer['resolution'] ?? null;
+
+        if (! in_array($answer['kind'] ?? null, ['accept', 'choose', 'remove', 'correct'], true)
+            || ! is_array($resolution) || ! is_numeric($answer['scope']['start_time'] ?? null)) {
+            return false;
+        }
+
+        if (($resolution['absent'] ?? false) === true) {
+            return $target !== null;
+        }
+
+        return array_any($this->resolvedSections($resolution), static fn (ServiceStructureSection $settled): bool => ! array_any($sections,
+            static fn (ServiceStructureSection $section): bool => $section->type === $settled->type
+                && abs($section->startTime - $settled->startTime) <= self::RULING_EDGE_TOLERANCE
+                && abs($section->endTime - $settled->endTime) <= self::RULING_EDGE_TOLERANCE));
     }
 
     /** @param  list<ServiceStructureSection>  $sections

@@ -170,6 +170,43 @@ class ServiceStructureEnsembleRulingApplierTest extends TestCase
         $this->assertCount(1, $otherType['disputes']);
     }
 
+    /**
+     * Fresh draws of the same recording can agree on what the operator ruled out. Unanimity
+     * is a four-nil vote, and an answer outranks the vote: no question is raised, so the
+     * answer must still decide the section rather than going stale.
+     */
+    #[Test]
+    public function a_saved_answer_outranks_unanimous_output_on_the_same_source(): void
+    {
+        $unanimous = [...$this->proposal(), 'disputes' => []];
+        $applier = app(ServiceStructureEnsembleRulingApplier::class);
+
+        $removed = $applier->apply($unanimous, [$this->ruling('remove', ['absent' => true])]);
+        $chosen = $applier->apply($unanimous, [$this->ruling('choose', ['sections' => [
+            $this->section(ServiceSectionType::ShortTalk, 100, 180)->toArray(),
+        ]])]);
+
+        $this->assertSame([['sermon', 250.0, 500.0]], $this->spans($removed));
+        $this->assertCount(1, $removed['applied_rulings']);
+        $this->assertSame([], $removed['stale_rulings']);
+        $this->assertSame([['short_talk', 100.0, 180.0], ['sermon', 250.0, 500.0]], $this->spans($chosen));
+        $this->assertCount(1, $chosen['applied_rulings']);
+    }
+
+    #[Test]
+    public function a_saved_answer_the_unanimous_output_already_honours_changes_nothing(): void
+    {
+        $unanimous = [...$this->proposal(), 'disputes' => []];
+
+        $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($unanimous, [
+            $this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::ShortTalk, 100, 200)->toArray()]]),
+            [...$this->ruling('remove', ['absent' => true], 'prayer-ruling'), 'scope' => ['type' => 'prayer', 'start_time' => 100.0, 'end_time' => 200.0]],
+        ]);
+
+        $this->assertSame([['short_talk', 100.0, 200.0], ['sermon', 250.0, 500.0]], $this->spans($result));
+        $this->assertCount(2, $result['stale_rulings']);
+    }
+
     #[Test]
     public function accepted_reduced_coverage_does_not_carry_to_a_new_set_of_draws(): void
     {
