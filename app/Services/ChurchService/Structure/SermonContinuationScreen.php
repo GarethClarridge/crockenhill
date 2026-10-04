@@ -87,7 +87,7 @@ final class SermonContinuationScreen
                 continue;
             }
 
-            $evidence = $this->continuationEvidence($section);
+            $evidence = $this->evidence($section);
 
             if ($evidence === null) {
                 continue;
@@ -118,7 +118,7 @@ final class SermonContinuationScreen
      * ordinary: almost every section near a sermon mentions one, and "continuation"
      * without a sermon in view describes a song's second half.
      */
-    private function continuationEvidence(ServiceSection $section): ?string
+    public function evidence(ServiceSection $section): ?string
     {
         foreach ($this->notes($section) as $note) {
             if (stripos($note, 'sermon') === false) {

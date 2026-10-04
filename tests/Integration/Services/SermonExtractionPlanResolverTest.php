@@ -1283,6 +1283,46 @@ class SermonExtractionPlanResolverTest extends TestCase
     }
 
     #[Test]
+    public function a_sermon_part_named_only_by_the_detector_notes_is_cut_without_a_screening_pass(): void
+    {
+        $log = $this->logWithSermon(1653.99, 2654.66);
+        $this->section($log, ServiceSectionType::Song, 3, 2660.0, 2890.0);
+        $continuation = $this->section($log, ServiceSectionType::Other, 4, 2894.47, 3593.70);
+        $continuation->update(['metadata' => [
+            'confidence_level' => 'high',
+            'ai_notes' => ['This is a continuation of the single sermon, separated by a congregational song.'],
+        ]]);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertFalse($plan['metadata']['requires_review']);
+        $this->assertContains($continuation->id, $plan['metadata']['selected_section_ids']);
+        $this->assertSame([$continuation->id], $plan['metadata']['continuation_section_ids']);
+
+        // A re-detected boundary keeps the part: nothing has to carry a marker across projection.
+        $continuation->update(['start_time' => 2900.0, 'duration' => 693.70]);
+        $changed = $this->resolver->resolve($log->fresh());
+
+        $this->assertContains($continuation->id, $changed['metadata']['selected_section_ids']);
+        $this->assertSame(2900.0, $changed['segments'][1]['start_time']);
+    }
+
+    #[Test]
+    public function a_song_note_mentioning_a_sermon_continuation_does_not_join_the_sermon(): void
+    {
+        $log = $this->logWithSermon(500.0, 1200.0);
+        $song = $this->section($log, ServiceSectionType::Song, 3, 1210.0, 1450.0);
+        $song->update(['metadata' => [
+            'confidence_level' => 'high',
+            'ai_notes' => ['A continuation of the hymn sung after the sermon.'],
+        ]]);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertNotContains($song->id, $plan['metadata']['selected_section_ids']);
+    }
+
+    #[Test]
     public function it_orders_three_sermon_parts_and_keeps_every_intervening_song_out(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create([

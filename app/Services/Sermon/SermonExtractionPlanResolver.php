@@ -13,6 +13,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\Media\Audio\AudioTimeline;
 use App\Services\ChurchService\CueSafeExtractionPlan;
+use App\Services\ChurchService\Structure\SermonContinuationScreen;
 use App\Services\Scripture\ScriptureReferenceResolver;
 use App\Support\SermonAutoExtractionPolicy;
 use App\Support\ServiceArtifactDisk;
@@ -22,7 +23,10 @@ use InvalidArgumentException;
 /** Composes named sections upstream; execution resolves their current bounds without fallback. */
 class SermonExtractionPlanResolver
 {
-    public function __construct(private readonly ScriptureReferenceResolver $scriptureReferences) {}
+    public function __construct(
+        private readonly ScriptureReferenceResolver $scriptureReferences,
+        private readonly SermonContinuationScreen $continuations,
+    ) {}
 
     /**
      * Recompute composition after detection or review. Keep a review decision only while
@@ -44,7 +48,7 @@ class SermonExtractionPlanResolver
         } else {
             $selected[] = $sermon;
             foreach ($sections as $section) {
-                if ($section->id !== $sermon->id && $section->metadata?->sermonContinuation?->continues($sermon->id)) {
+                if ($section->id !== $sermon->id && $this->continues($section, $sermon->id)) {
                     // An embedded continuation is already present; a partial overlap is invalid.
                     if ($section->start_time >= $sermon->start_time && $section->end_time <= $sermon->end_time) {
                         continue;
@@ -167,7 +171,7 @@ class SermonExtractionPlanResolver
         }
         foreach ($sections as $section) {
             if (! in_array($section->section_type, [ServiceSectionType::Sermon, ServiceSectionType::BibleReading, ServiceSectionType::Prayer], true)
-                && ! $section->metadata?->sermonContinuation?->continues((int) $current['sermon_section_id'])) {
+                && ! $this->continues($section, (int) $current['sermon_section_id'])) {
                 throw new InvalidArgumentException('Select only the sermon reading, sermon parts and concluding prayer.');
             }
         }
@@ -185,7 +189,7 @@ class SermonExtractionPlanResolver
             $previousEnd = $end;
         }
         $sermonParts = $sections->filter(fn (ServiceSection $section): bool => $section->id === $current['sermon_section_id']
-            || $section->metadata?->sermonContinuation?->continues((int) $current['sermon_section_id']));
+            || $this->continues($section, (int) $current['sermon_section_id']));
         $sermonStart = (float) $sermonParts->min('start_time');
         $sermonEnd = (float) $sermonParts->max('end_time');
         $songStart = $log->serviceSections()->where('section_type', ServiceSectionType::Song)
@@ -284,7 +288,7 @@ class SermonExtractionPlanResolver
                 'reason' => $held !== [] ? 'sermon_section_content_held' : ($requiresReview ? 'sermon_composition_review' : null),
                 'held_sermon_section_ids' => $held,
                 'sermon_boundary' => $composition,
-                'continuation_section_ids' => array_values(array_filter($seen, fn (int $id): bool => $byId->get($id)?->metadata?->sermonContinuation !== null)),
+                'continuation_section_ids' => array_values(array_filter($seen, fn (int $id): bool => $id !== $composition['sermon_section_id'] && $byId->get($id) instanceof ServiceSection && $this->continues($byId->get($id), (int) $composition['sermon_section_id']))),
                 'held_span_authorised_section_id' => $authority['section_id'] ?? null,
             ],
         ];
@@ -297,14 +301,40 @@ class SermonExtractionPlanResolver
         return $plan['segments'] !== [] && ($plan['metadata']['requires_review'] ?? true) === false;
     }
 
+    /**
+     * A sermon part is either recorded by a marker or named by the detector's own notes on an
+     * `other` section. Reading the notes here means no separate screening pass, and no
+     * re-projection that drops the marker, can leave a part out of the cut.
+     */
+    private function continues(ServiceSection $section, int $sermonId): bool
+    {
+        if ($section->metadata?->sermonContinuation?->continues($sermonId) === true) {
+            return true;
+        }
+
+        return $this->notedContinuation($section) !== null;
+    }
+
+    /** @return array{evidence: string, source: 'detector_notes'}|null */
+    private function notedContinuation(ServiceSection $section): ?array
+    {
+        if ($section->section_type !== ServiceSectionType::Other) {
+            return null;
+        }
+
+        $evidence = $this->continuations->evidence($section);
+
+        return $evidence === null ? null : ['evidence' => $evidence, 'source' => 'detector_notes'];
+    }
+
     /** @param array<int, ServiceSection> $sections */
     private function inputIdentity(MediaProcessingLog $log, array $sections): string
     {
         return hash('sha256', (string) json_encode([
-            'sections' => array_map(static fn (ServiceSection $section): array => [
+            'sections' => array_map(fn (ServiceSection $section): array => [
                 $section->id, $section->section_type->value, (float) $section->start_time, (float) $section->end_time,
                 $section->metadata?->readingReference, $section->metadata?->raw['sermon_reference'] ?? null,
-                $section->metadata?->sermonContinuation?->toArray(),
+                $section->metadata?->sermonContinuation?->toArray() ?? $this->notedContinuation($section),
             ], $sections),
             'duration' => $log->duration,
             'transcript' => $this->evidenceHash($log->serviceTranscriptPath()),
@@ -341,8 +371,8 @@ class SermonExtractionPlanResolver
         foreach ($selected as $index => $section) {
             $next = $selected[$index + 1] ?? null;
             if ($next !== null && $section->end_time < $next->start_time
-                && ($section->id === $sermonId || $section->metadata?->sermonContinuation?->continues($sermonId))
-                && ($next->id === $sermonId || $next->metadata?->sermonContinuation?->continues($sermonId))) {
+                && ($section->id === $sermonId || $this->continues($section, $sermonId))
+                && ($next->id === $sermonId || $this->continues($next, $sermonId))) {
                 $pair = app(CueSafeExtractionPlan::class)->forSpans($log, [
                     ['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time],
                     ['start_time' => (float) $next->start_time, 'end_time' => (float) $next->end_time],
