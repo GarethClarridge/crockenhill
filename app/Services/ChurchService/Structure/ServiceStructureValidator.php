@@ -231,11 +231,13 @@ class ServiceStructureValidator
     public const FLAG_SONG_SWALLOWS_SPEECH = 'structure_song_swallows_speech';
 
     /**
-     * Applied by {@see SongSpeechEdges} to a sermon when a trim leaves speech between it and an
-     * adjacent song: either the sermon's own opening or conclusion, which the song had
-     * swallowed, or the hymn announcement, which is rightly excluded (D1). The sound cannot
-     * tell which, so the sermon keeps its bounds and is asked about; extraction is not held
-     * (F07, operator 2026-10-05: 9 of 27 start trims follow a sermon, mostly announcements).
+     * Applied by {@see SongSpeechEdges} to a sermon when a trim leaves speech between an
+     * adjacent song and a section its media is cut from — the sermon, a reading it could take,
+     * or its concluding prayer: either that section's own words, which the song had swallowed,
+     * or an announcement, which is rightly excluded (D1). The sound cannot tell which, so
+     * bounds stay and the sermon is asked about; extraction is not held (F07, operator
+     * 2026-10-05: 9 of 27 start trims follow a sermon, mostly announcements; I2 extended it to
+     * the reading and prayer, 5 more trims follow a reading before the sermon).
      */
     public const FLAG_SERMON_ADJACENT_SPEECH_UNOWNED = 'structure_sermon_adjacent_speech_unowned';
 

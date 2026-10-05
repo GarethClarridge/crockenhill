@@ -460,7 +460,7 @@ class DetectorCatalogue
                 status: DetectorStatus::Promoted,
                 severity: DetectorSeverity::ContentLost,
                 unit: DetectorUnit::Section,
-                summary: 'A song trim left speech between the song and the sermon that no section owns: the sermon\'s opening or conclusion, or an excluded announcement. Asked about; extraction proceeds on the sermon\'s bounds.',
+                summary: 'A song trim left speech that no section owns between the song and a section the sermon is cut from (the sermon, its reading or its concluding prayer): that section\'s own words, or an excluded announcement. Asked about on the sermon; extraction proceeds on the sections\' bounds.',
                 owningClass: SongSpeechEdges::class,
             ),
             new DetectorEntry(

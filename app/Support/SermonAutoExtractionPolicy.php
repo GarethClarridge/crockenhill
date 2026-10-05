@@ -62,7 +62,8 @@ class SermonAutoExtractionPolicy
      * its cut, so it must never stop the media being extracted.
      *
      * `structure_sermon_adjacent_speech_unowned` asks whether speech a song trim left beside
-     * the sermon is its own; the sermon's identified span is still right to cut, and a
+     * the sermon, its reading or its concluding prayer is their own; the identified spans are
+     * still right to cut, and a
      * conclusion found later is a re-extraction, not a lost publication.
      *
      * `structure_talk_audio_dropout` is a dead feed inside the talk. Nothing can

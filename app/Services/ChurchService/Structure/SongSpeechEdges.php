@@ -10,6 +10,7 @@ use App\Enums\ServiceSectionType;
 use App\Exceptions\SegmentationException;
 use App\Services\Media\Audio\RmsAnalysisService;
 use App\Services\Media\Audio\SustainedSound;
+use App\Services\Scripture\ScriptureReferenceResolver;
 
 /**
  * Speech the detector left inside a song section, trimmed off its ends.
@@ -66,7 +67,10 @@ class SongSpeechEdges
 
     private const EXPOSED_SPEECH_NOTE = 'Speech at';
 
-    public function __construct(private readonly RmsAnalysisService $rmsAnalysisService) {}
+    public function __construct(
+        private readonly RmsAnalysisService $rmsAnalysisService,
+        private readonly ScriptureReferenceResolver $scriptureReferences,
+    ) {}
 
     /**
      * @param  string  $rmsLogContent  Raw contents of the rms_log_path artifact
@@ -125,9 +129,15 @@ class SongSpeechEdges
      * The interval the ownership question asks about: its only record, so the ensemble carries
      * it wherever the question goes ({@see self::isExposedSpeechNote()}).
      */
-    public static function exposedSpeechNote(float $from, float $to): string
+    public static function exposedSpeechNote(float $from, float $to, ServiceSectionType $beside = ServiceSectionType::Sermon): string
     {
-        return sprintf(self::EXPOSED_SPEECH_NOTE.' %.1f–%.1fs, trimmed off the adjacent song, belongs to no section: the sermon\'s own words or an excluded announcement?', $from, $to);
+        $owner = match ($beside) {
+            ServiceSectionType::BibleReading => 'the reading\'s',
+            ServiceSectionType::Prayer => 'the concluding prayer\'s',
+            default => 'the sermon\'s',
+        };
+
+        return sprintf(self::EXPOSED_SPEECH_NOTE.' %.1f–%.1fs, trimmed off the adjacent song, belongs to no section: %s own words or an excluded announcement?', $from, $to, $owner);
     }
 
     public static function isExposedSpeechNote(string $note): bool
@@ -136,10 +146,10 @@ class SongSpeechEdges
     }
 
     /**
-     * A trim leaves the stretch it cut off unowned. Next to the sermon that stretch is either
-     * the sermon's own opening or conclusion, swallowed by the song, or the hymn announcement,
-     * rightly excluded (D1); the sound cannot tell which, so the sermon is asked about it and
-     * neither absorbs it nor changes its bounds.
+     * A trim leaves the stretch it cut off unowned. Next to a section the sermon's media is cut
+     * from, that stretch is either its own opening or conclusion, swallowed by the song, or an
+     * announcement rightly excluded (D1); the sound cannot tell which, so the sermon is asked
+     * about it and nothing absorbs it or changes bounds.
      *
      * @param  list<ServiceStructureSection>  $before
      * @param  array<int, ServiceStructureSection>  $after  Indexed alike, one trimmed or held song at a time
@@ -147,6 +157,8 @@ class SongSpeechEdges
      */
     private function sermonsAskedAboutExposedSpeech(array $before, array $after): array
     {
+        $output = $this->sermonOutput($before);
+
         foreach ($after as $index => $song) {
             $original = $before[$index];
 
@@ -156,23 +168,74 @@ class SongSpeechEdges
 
             $exposed = [];
 
-            if ($song->startTime > $original->startTime && ($after[$index - 1] ?? null)?->type === ServiceSectionType::Sermon) {
-                $exposed[$index - 1] = [$original->startTime, $song->startTime];
+            if ($song->startTime > $original->startTime && isset($output[$index - 1])) {
+                $exposed[] = [$output[$index - 1], $before[$index - 1]->type, $original->startTime, $song->startTime];
             }
 
-            if ($song->endTime < $original->endTime && ($after[$index + 1] ?? null)?->type === ServiceSectionType::Sermon) {
-                $exposed[$index + 1] = [$song->endTime, $original->endTime];
+            if ($song->endTime < $original->endTime && isset($output[$index + 1])) {
+                $exposed[] = [$output[$index + 1], $before[$index + 1]->type, $song->endTime, $original->endTime];
             }
 
-            foreach ($exposed as $sermonIndex => [$from, $to]) {
+            foreach ($exposed as [$sermonIndex, $beside, $from, $to]) {
                 $after[$sermonIndex] = $after[$sermonIndex]->withReviewFlags(
                     [ServiceStructureValidator::FLAG_SERMON_ADJACENT_SPEECH_UNOWNED],
-                    [self::exposedSpeechNote($from, $to)],
+                    [self::exposedSpeechNote($from, $to, $beside)],
                 );
             }
         }
 
         return $after;
+    }
+
+    /**
+     * The sections the sermon's media may be cut from, each mapped to the sermon asked about it:
+     * every sermon section, the readings before the first that reading membership could cut, and
+     * the concluding prayer — the same rules {@see \App\Services\Sermon\SermonExtractionPlanResolver::compose()}
+     * selects by.
+     *
+     * @param  list<ServiceStructureSection>  $sections
+     * @return array<int, int>
+     */
+    private function sermonOutput(array $sections): array
+    {
+        $sermons = array_keys(array_filter($sections, static fn (ServiceStructureSection $section): bool => $section->type === ServiceSectionType::Sermon));
+
+        if ($sermons === []) {
+            return [];
+        }
+
+        $output = array_combine($sermons, $sermons);
+        $first = $sermons[0];
+        $last = $sermons[count($sermons) - 1];
+        $readings = [];
+
+        foreach ($sections as $index => $section) {
+            if ($section->type === ServiceSectionType::BibleReading && $section->startTime < $sections[$first]->startTime) {
+                $readings[$index] = $section->readingReference;
+            }
+        }
+
+        foreach ($this->scriptureReferences->sermonReadingMembership($sections[$first]->sermonReference, $readings)['could_be_cut'] as $reading) {
+            $output[$reading] = $first;
+        }
+
+        $beforeSong = [];
+
+        foreach (array_slice($sections, $last + 1, null, true) as $index => $section) {
+            if ($section->type === ServiceSectionType::Song) {
+                break;
+            }
+
+            $beforeSong[$index] = $section->type;
+        }
+
+        $prayers = array_keys($beforeSong, ServiceSectionType::Prayer, true);
+
+        if (count($prayers) === 1 && $prayers[0] === $last + 1) {
+            $output[$last + 1] = $last;
+        }
+
+        return $output;
     }
 
     /**
