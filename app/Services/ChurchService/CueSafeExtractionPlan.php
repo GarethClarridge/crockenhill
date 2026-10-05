@@ -193,22 +193,37 @@ class CueSafeExtractionPlan
             return null;
         }
         ksort($anchors);
-        // Words are in start order, so the first anchor opens earliest; the last closes latest
-        // unless a longer earlier word outlasts it.
-        $candidates = array_map(static fn (int $index): array => $words[$index], array_keys($anchors));
-        $anchor = $isStart ? $candidates[0] : array_reduce($candidates, static fn (?array $latest, array $word): array => $latest === null || $word['end'] > $latest['end'] ? $word : $latest);
-        $ambiguous = count($candidates) > 1 ? ['candidate_anchors' => $candidates] : [];
+        $candidates = [];
+        foreach (array_keys($anchors) as $index) {
+            $candidates[] = $words[$index];
+        }
+        // Words are in start order, so the first anchor opens earliest; the closing anchor is the
+        // one that ends latest.
+        $anchor = $candidates[0];
+        foreach ($candidates as $candidate) {
+            if (! $isStart && $candidate['end'] > $anchor['end']) {
+                $anchor = $candidate;
+            }
+        }
         // The nearest gap no word is still sounding in: a word overlapping the anchor stays whole.
         $pauses = array_filter($this->pauses($words, $window), static fn (array $pause): bool => $isStart
             ? $pause['end'] <= $anchor['start'] : $pause['start'] >= $anchor['end']);
-        if ($pauses === []) {
-            return $ambiguous === [] ? null : [...$this->pause($words, $window, $original), ...$ambiguous];
+        if ($pauses === [] && count($candidates) === 1) {
+            return null;
         }
-        $pause = $isStart ? $pauses[array_key_last($pauses)] : $pauses[array_key_first($pauses)];
+        if ($pauses === []) {
+            $decision = $this->pause($words, $window, $original);
+        } else {
+            $pause = $isStart ? $pauses[array_key_last($pauses)] : $pauses[array_key_first($pauses)];
+            $decision = ['time' => max($pause['start'], min($original, $pause['end'])),
+                'chosen_pause' => ['start' => $pause['start'], 'end' => $pause['end']],
+                'word_before' => $pause['word_before'], 'word_after' => $pause['word_after']];
+        }
+        if (count($candidates) > 1) {
+            $decision['candidate_anchors'] = $candidates;
+        }
 
-        return ['time' => max($pause['start'], min($original, $pause['end'])),
-            'chosen_pause' => ['start' => $pause['start'], 'end' => $pause['end']],
-            'word_before' => $pause['word_before'], 'word_after' => $pause['word_after'], ...$ambiguous];
+        return $decision;
     }
 
     private function normalize(string $text): string

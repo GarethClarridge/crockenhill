@@ -109,7 +109,7 @@ final class RecomposeForCorpusRerun
      */
     public static function unfinishedRecomposition(MediaProcessingLog $run, array $stamp): ?string
     {
-        $metadata = $run->processing_metadata?->raw ?? [];
+        $metadata = $run->processing_metadata->raw ?? [];
         $request = $metadata[DetectServiceStructure::RECOMPOSE_KEY] ?? null;
 
         if ($request !== null) {

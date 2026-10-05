@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace App\Support;
 
 use App\Models\MediaProcessingLog;
+use App\Services\Processing\ProcessingRunOrchestrator;
 
 final class CancellationChecker
 {
     /**
      * Returns true if the processing run identified by $processingId has been cancelled.
      *
-     * Only the run row says so ({@see \App\Services\Processing\ProcessingRunOrchestrator::cancel()} writes it). A
+     * Only the run row says so ({@see ProcessingRunOrchestrator::cancel()} writes it). A
      * cancelled step row records that one step's work was abandoned, and nothing in the
      * pipeline writes one to stop a run: an operator retiring a stopped worker's step left one
      * on run 1112, and every later round's jobs then skipped as if the run were cancelled while
