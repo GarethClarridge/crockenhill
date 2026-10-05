@@ -12,6 +12,7 @@ use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
+use App\Services\ChurchService\PublicationPlanValidator;
 use App\Services\ChurchService\Structure\SermonContinuationScreen;
 use App\Services\Media\Audio\AudioTimeline;
 use App\Services\Scripture\ScriptureReferenceResolver;
@@ -26,7 +27,7 @@ class SermonExtractionPlanResolver
     public function __construct(
         private readonly ScriptureReferenceResolver $scriptureReferences,
         private readonly SermonContinuationScreen $continuations,
-        private readonly SermonPublicationPlanValidator $validator,
+        private readonly PublicationPlanValidator $validator,
     ) {}
 
     /**

@@ -8,7 +8,7 @@ use App\Actions\HoldSectionForContentReview;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
-use App\Services\Sermon\SermonPublicationPlanValidator;
+use App\Services\ChurchService\PublicationPlanValidator;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use InvalidArgumentException;
 use PHPUnit\Framework\Attributes\Test;
@@ -16,10 +16,10 @@ use PHPUnit\Framework\Attributes\TestWith;
 use Tests\TestCase;
 
 /**
- * S6: the checks a sermon's final spans must pass after every adjustment, in one place,
+ * S6: the checks an output's final spans must pass after every adjustment, in one place,
  * before extraction may execute them.
  */
-class SermonPublicationPlanValidatorTest extends TestCase
+class PublicationPlanValidatorTest extends TestCase
 {
     use DatabaseTransactions;
 
@@ -30,7 +30,7 @@ class SermonPublicationPlanValidatorTest extends TestCase
         $reading = $this->section($log, ServiceSectionType::BibleReading, 100, 200);
         $sermon = $this->section($log, ServiceSectionType::Sermon, 220, 3200);
 
-        $violations = app(SermonPublicationPlanValidator::class)->validate($log, [$reading, $sermon], [
+        $violations = app(PublicationPlanValidator::class)->validate($log, [$reading, $sermon], [
             ['start_time' => 100.0, 'end_time' => 200.0],
             ['start_time' => 221.5, 'end_time' => 3200.0],
         ]);
@@ -46,7 +46,7 @@ class SermonPublicationPlanValidatorTest extends TestCase
         $reading = $this->section($log, ServiceSectionType::BibleReading, 100, 200);
         $sermon = $this->section($log, ServiceSectionType::Sermon, 220, 3200);
 
-        $violations = app(SermonPublicationPlanValidator::class)->validate($log, [$reading, $sermon], [
+        $violations = app(PublicationPlanValidator::class)->validate($log, [$reading, $sermon], [
             ['start_time' => 220.0, 'end_time' => 3200.0],
         ]);
 
@@ -60,7 +60,7 @@ class SermonPublicationPlanValidatorTest extends TestCase
         $sermon = $this->section($log, ServiceSectionType::Sermon, 220, 3200);
         $held = $this->section($log, ServiceSectionType::ShortTalk, 3200, 3300, [HoldSectionForContentReview::FLAG]);
 
-        $violations = app(SermonPublicationPlanValidator::class)->validate($log, [$sermon], [
+        $violations = app(PublicationPlanValidator::class)->validate($log, [$sermon], [
             ['start_time' => 220.0, 'end_time' => 3201.5],
         ]);
 
@@ -81,7 +81,7 @@ class SermonPublicationPlanValidatorTest extends TestCase
 
         $this->expectException(InvalidArgumentException::class);
 
-        app(SermonPublicationPlanValidator::class)->validate($log, [$sermon], array_map(
+        app(PublicationPlanValidator::class)->validate($log, [$sermon], array_map(
             static fn (array $span): array => ['start_time' => $span[0], 'end_time' => $span[1]],
             $spans,
         ));

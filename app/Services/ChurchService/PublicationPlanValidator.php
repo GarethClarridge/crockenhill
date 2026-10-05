@@ -2,28 +2,27 @@
 
 declare(strict_types=1);
 
-namespace App\Services\Sermon;
+namespace App\Services\ChurchService;
 
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
-use App\Services\ChurchService\CueSafeExtractionPlan;
 use InvalidArgumentException;
 
 /**
- * The checks a sermon's final spans must pass after every adjustment — membership, review,
+ * The checks an output's final spans must pass after every adjustment — membership, review,
  * cue-safe widening and merging — before extraction may execute them (S6). Kept apart from
- * how the plan is composed, so every later adjustment is judged by the same rules.
+ * how each plan is composed, so a sermon and a section candidate are judged by the same rules.
  *
  * Spans no recording could hold are refused outright: they mean a defect upstream, not a
  * question for an operator. Spans that are possible but would publish the wrong content are
  * returned as violations, which send the plan to review.
  */
-class SermonPublicationPlanValidator
+class PublicationPlanValidator
 {
     public function __construct(private readonly CueSafeExtractionPlan $cutPlans) {}
 
     /**
-     * @param  list<ServiceSection>  $selected  The sections the plan chose to publish
+     * @param  list<ServiceSection>  $selected  The sections the output publishes
      * @param  list<array{start_time: float, end_time: float}>  $spans  The final cut, after every adjustment
      * @return list<array{kind: 'selected_section_not_cut'|'crosses_held_section', section_ids: list<int>}>
      */
@@ -66,7 +65,7 @@ class SermonPublicationPlanValidator
     private function refuseImpossible(MediaProcessingLog $log, array $spans): void
     {
         if ($spans === []) {
-            throw new InvalidArgumentException('A sermon plan must cut at least one span');
+            throw new InvalidArgumentException('A publication plan must cut at least one span');
         }
 
         $previousEnd = 0.0;
