@@ -1098,6 +1098,28 @@ class DetectServiceStructureTest extends TestCase
         $this->assertSame([true, true], $talkFlags());
     }
 
+    /** F01: fresh draws agreeing on the wrong reference at the answered times raise no question. */
+    #[Test]
+    public function an_answered_reference_outranks_fresh_draws_that_agree_on_another(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        [$service, $log, $dispute, $admin] = $this->disputedReadingRun();
+        app(AnswerServiceStructureEnsembleQuestion::class)->execute($log->id, $dispute['question_id'], 'choose', $admin, slot: 1);
+        $psalm = $this->readingDisputeDraws()[0];
+
+        MockServiceStructureService::useStructureSequence($psalm, $psalm, $psalm, $psalm);
+        $this->runJob($log->fresh());
+
+        $bank = $log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble'] ?? [];
+        $latest = end($bank);
+        $this->assertCount(1, $latest['composition']['applied_rulings']);
+        $this->assertSame('Luke 15:1-10', ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->where('section_type', 'bible_reading')
+            ->firstOrFail()
+            ->metadata?->readingReference);
+    }
+
     #[Test]
     public function answering_on_a_run_with_extracted_media_banks_the_ruling_without_resyncing_sections(): void
     {

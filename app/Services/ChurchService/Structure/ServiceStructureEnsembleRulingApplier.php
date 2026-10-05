@@ -399,10 +399,14 @@ class ServiceStructureEnsembleRulingApplier
             return $target !== null;
         }
 
+        // A settled passage is content too: reading selection follows it, so the same times with
+        // another reference disagree with the answer as much as moved edges do.
         return array_any($this->resolvedSections($resolution), static fn (ServiceStructureSection $settled): bool => ! array_any($sections,
             static fn (ServiceStructureSection $section): bool => $section->type === $settled->type
                 && abs($section->startTime - $settled->startTime) <= self::RULING_EDGE_TOLERANCE
-                && abs($section->endTime - $settled->endTime) <= self::RULING_EDGE_TOLERANCE));
+                && abs($section->endTime - $settled->endTime) <= self::RULING_EDGE_TOLERANCE
+                && ($settled->readingReference === null || $section->readingReference === $settled->readingReference)
+                && ($settled->sermonReference === null || $section->sermonReference === $settled->sermonReference)));
     }
 
     /** @param  list<ServiceStructureSection>  $sections

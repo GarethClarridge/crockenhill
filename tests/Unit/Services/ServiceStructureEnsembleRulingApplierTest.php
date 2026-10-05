@@ -193,6 +193,29 @@ class ServiceStructureEnsembleRulingApplierTest extends TestCase
         $this->assertCount(1, $chosen['applied_rulings']);
     }
 
+    /** F01: identical times are not agreement when the answer settled which passage it is. */
+    #[Test]
+    public function a_saved_reference_outranks_unanimous_output_at_the_same_times(): void
+    {
+        $answered = new ServiceStructureSection(ServiceSectionType::BibleReading, null, 100, 200, 0.95, null, null, 'Luke 15:1-10');
+        $preached = new ServiceStructureSection(ServiceSectionType::Sermon, null, 250, 500, 0.95, null, null, null, 'Luke 15:11-32');
+        $unanimous = [...$this->proposalOf([
+            new ServiceStructureSection(ServiceSectionType::BibleReading, null, 100, 200, 0.95, null, null, 'Psalm 23'),
+            new ServiceStructureSection(ServiceSectionType::Sermon, null, 250, 500, 0.95, null, null, null, 'Psalm 23'),
+        ], []), 'disputes' => []];
+        $applier = app(ServiceStructureEnsembleRulingApplier::class);
+
+        $reading = $applier->apply($unanimous, [[...$this->ruling('choose', ['sections' => [$answered->toArray()]], 'reading-ruling'),
+            'scope' => ['type' => 'bible_reading', 'start_time' => 100.0, 'end_time' => 200.0]]]);
+        $sermon = $applier->apply($unanimous, [[...$this->ruling('choose', ['sections' => [$preached->toArray()]], 'sermon-ruling'),
+            'scope' => ['type' => 'sermon', 'start_time' => 250.0, 'end_time' => 500.0]]]);
+
+        $this->assertSame('Luke 15:1-10', $reading['structure']['sections'][0]['reading_reference']);
+        $this->assertCount(1, $reading['applied_rulings']);
+        $this->assertSame('Luke 15:11-32', $sermon['structure']['sections'][1]['sermon_reference']);
+        $this->assertCount(1, $sermon['applied_rulings']);
+    }
+
     #[Test]
     public function a_saved_answer_the_unanimous_output_already_honours_changes_nothing(): void
     {
