@@ -943,3 +943,109 @@ held-out provenance is actually established.
 its existing source-based review; it does not replace or retroactively alter a predeclared
 canary threshold, declare a pass, or authorise release. Any new numeric acceptance threshold
 needs its own prospective decision.
+
+## 8. One pattern for review questions — added 2026-10-05
+
+**Status:** planned, not built. Operator discussion 2026-10-05, after F11. Measure (§8.5)
+before proposing build slices; build after the next canary unless the operator says otherwise.
+
+### 8.1 Why
+
+What a review question *does* currently comes from which lists its flag is on and from the
+section type. The question itself doesn't declare it.
+- *Sermon output* (sermon, selected reading, concluding prayer — every section
+  `SermonExtractionPlanResolver` cuts from): allowlisted in
+  `SermonAutoExtractionPolicy::NON_DISQUALIFYING_REVIEW_FLAGS`, so ask-only. Anything not on the
+  list blocks extraction, so a new flag that misses the list silently becomes a hold.
+- *Short talks and songs:* any `needs_manual_review` moves the section out of publication
+  candidates (`PrepareSectionPublicationCandidates`); ask-only cannot exist there.
+- *Prayer, notices, other:* not published; a flag is only a queue entry.
+- *Answers:* ask-only questions are answered by `ConfirmServiceSection`, which clears **every**
+  flag on the section. The confirmation does not appear to survive re-detection
+  (`ServiceSectionSyncService` carries content holds and song-match reviews forward, not a
+  general confirmation), so a re-run re-asks. Holds have durable answers (composition review
+  keyed to input identity, ensemble rulings replayed, content holds carried by sync).
+- *Weekly and historic differ in pipeline semantics.* A weekly sermon is created
+  `Published` and is public with its questions open. A historic sermon is created
+  `Quarantined`, and `HistoricReleaseReviewHolds` refuses release while any sermon or short-talk
+  section has `needs_manual_review` (plus `SpanQuestioningFlags` elsewhere). That gate is a
+  review rule weekly doesn't have. It breaks the 09-25 ruling (no historic-only pipeline
+  behaviour): processing the historic corpus is not testing the weekly review semantics.
+
+### 8.2 Rulings (operator, 2026-10-05)
+
+1. **One standard pattern.** Each question declares its consequence once, and every gate reads it.
+2. **Hold vs ask, by the mistake the output could contain.** *Hold* when the output might
+   *include* something it shouldn't (I2(b)'s prayer inside a reading, a sung span inside a
+   sermon, a merged interruption): the cut waits for the answer. *Ask* when the output is right
+   but might *omit* something at its edge (F07, F11, a missing preached reading): the work is
+   done before the answer.
+3. **Nothing with an open question goes public, on either path** ("option B"). Hold and ask
+   differ only in whether the work is done before the answer.
+4. **Not by reusing quarantine.** Weekly runs on the server; historic runs locally with a
+   promotion step. The review rule is shared; custody and promotion stay path-specific tooling.
+5. **F11's note wording:** say "speech with no transcribed line" rather than "untranscribed".
+   About 10 of 62 corpus windows hold the words in an over-stretched (>15 s) cue.
+
+### 8.3 Design
+
+1. **Consequence declared once.** Each review question declares `hold` or `ask`, probably on its
+   `DetectorCatalogue` entry, which already records surface and severity. Every gate reads it:
+   sermon extraction (replacing `NON_DISQUALIFYING_REVIEW_FLAGS`), section publication
+   candidates (so ask-only exists for talks: an asked talk is still extracted and becomes a
+   candidate), and `SectionReviewFlagPolicy`. Flags the policy demotes today (cross-type
+   inversion, benediction suspect, conditional types) need an explicit place in the scheme, not
+   a third implicit list. A test pins every existing flag's current consequence, so slice 1
+   changes no behaviour.
+2. **A publication gate on the content.** One predicate, shared by both paths: "this
+   sermon/talk/song has an open question that blocks exposure". It reads the review state of
+   every section the published output is cut from. *Enforced at the read:*
+   `SermonExposurePolicy::isWholeContentPublic()` (and the song-video equivalent) also requires
+   no blocking open question. Weekly content is created as now and becomes visible when the
+   last question is answered: no file moves, no state flip. Its exposure-input list and cache
+   eviction must include the review state.
+3. **Historic promotion consumes the gate instead of defining one.** Quarantine and promotion
+   are unchanged as custody tooling. `HistoricReleaseReviewHolds` stops carrying its own rules
+   (`SpanQuestioningFlags`, "any flagged sermon or short talk") and calls the shared predicate
+   as a pre-flight: don't promote what the pipeline wouldn't expose. Run exclusions stay as
+   they are (that's an operator ruling about the recording, not a review question).
+4. **Durable answers.** Answer per question, keyed to flag + interval + evidence identity,
+   recorded like composition reviews. A re-run doesn't re-open an answered question, and
+   answering one doesn't clear another. Replaces blanket confirm for ask-only questions.
+   Under option B this matters more: an unanswered re-asked question hides content.
+
+### 8.4 Open questions (check, don't assume)
+
+- **State across promotion.** If historic answers are given locally before promotion, the
+  pre-flight covers it. Does a question raised or re-derived on the server after promotion hide a
+  historic sermon there? Under one rule it should; measure the effect.
+- **Every read surface.** Listings, sermon page, feeds, sitemap, API, the church-service page,
+  song videos, and the public caches (`SermonExposurePolicy`'s exposure-input list,
+  `SermonObserver` eviction). Find any read that bypasses `isWholeContentPublic()`.
+- **What the gate reads for a sermon output.** The sermon's own section, the selected reading
+  and the concluding prayer (from the stored composition), or the run's sections as the release
+  gate does today (macro sections run-wide)? Pick one rule and measure the difference.
+- **Production.** The read-side change is a prod deployment and goes on the
+  "before weekly resumes" list ([[weekly-processing-paused-during-historic]]).
+  Already-published weekly sermons with open flags would disappear on deploy; count them on
+  prod (local data proves nothing about prod).
+
+### 8.5 Measure first (read-only)
+
+1. Every review flag in use: current consequence on each path (sermon output, talk/song
+   candidate, historic release, weekly exposure) vs its proposed hold/ask class. List
+   disagreements.
+2. Under the design: how many local sermons/talks/song videos the gate would hide, by flag;
+   how many of those are already released.
+3. Re-ask cost: sections with a recorded confirmation whose flags a re-detection would re-raise
+   (replay against banked draws, rolled back).
+4. Read surfaces that don't go through `isWholeContentPublic()`.
+
+### 8.6 Proposed slices (after measurement)
+
+1. Consequence declared once; gates read it; pin test; no behaviour change. Ships the F11
+   wording change if not already done.
+2. Durable per-question answers.
+3. Shared publication predicate + read-side enforcement (weekly) + promotion pre-flight
+   (historic), replacing `HistoricReleaseReviewHolds`' own rules.
+4. Ask-only for talks (candidate proceeds, exposure waits).
