@@ -859,6 +859,48 @@ no `edge_unresolved` in any plan. 1250 keeps its reading-membership hold (not an
 question; the structure honours it (talk §3736 886–1596.8). Tier C dry run: 16/16 ready
 (936/1356 plan `edge_word_timings_missing`, resolved by Tier C's own edge step). Tier C not dispatched.
 
+### Completion record — canary 11 Tier C (2026-10-05, code `8665cf9c5`)
+
+Pre-checks all passed: workers booted 19:35:04 UTC (after the 19:08 commit), clean tree at
+`a311bbe36`, queues empty; 16/16 `completed` with no recompose request, `unfinishedRecomposition`
+and `projectionRefusal` null; dry run 16/16 ready (identical to 10-05's); `/mnt/historic-work`
+writable from app and workers. Dispatched 19:42:53 UTC (`tierc-codex-fixes-dispatch.txt`); all
+settled 21:57 (single FFmpeg lane, ~8 min a run). No step failed, nothing retried.
+
+- **Cut 15/16.** 13 sermons cut exactly the deferred plan. 936 and 1356 had
+  `edge_word_timings_missing`; Tier C's edge step (local) decoded one window each and they cut
+  (936: 2472.78–2532.17 + 2594.9–3789.12; 1356: 927.7–1040.29 + 1234.34–3487.96).
+- **Parked 1/16: 1250** on `sermon_composition_review` (reading membership, unanswered). Its stored
+  `sermon_extraction_plan` is the abandoned canary 10 round's (06:46 UTC), so `rerun-diff` reports
+  "plan changed"/"failed": an artefact of comparing a freshly resolved plan with a stale audit, not
+  a cut.
+- **Video quality:** 14 approved (usable 1.0). **1050 rejected `mostly_black`**: the source
+  `18-05.mkv` is black (YAVG 16 at 60/400/800 s), so the verdict is the recording's.
+- **Candidates:** 37 prepared for approval, 9 auto-published into quarantine, **0 blocked**
+  (`cut_plan_invalid` / `span_crosses_held_section` / `edge_word_timings_missing`).
+- **Promotion:** 15 runs promoted to quarantine (1250 stops at the park).
+- **Safety:** no sermon segment overlaps a held section outside its selection; no edge audit
+  carries `edge_unresolved`/`ambiguous_cue_anchor`.
+- **Diff** (`tierc-codex-fixes-diff.json`): 1 attention (1250, above). New review states repeat
+  canary 10 exactly: 1117 ×3 / 1346 ×2 `sermon_text_predates_evidence`, 936 §607
+  `transcript_repetition_suspect`, 1025 §1375. **Standing defect (not a regression):**
+  `sermon_text_predates_evidence` on 1117/1250/1346 can never clear. Their transcripts were
+  re-transcribed 09-25/26, but `service_transcript_content.hash` still holds the 09-09 repetition
+  recovery's hash, so `CreateSermonTranscriptFromService` re-slices and still finds the text owed.
+  Recompose wipes the flag; every Tier C re-raises it.
+- **Suspected edge defects for listening** (song candidates; no held section involved): 1304 §4884
+  end 3901.29 keeps "And now may the grace of the Lord Jesus Christ" and cuts before "and"
+  (mid-benediction; was 3887.33; auto-published into quarantine); 1250 §4911 end 4489.10 runs
+  13.6 s into the closing prayer (boundary 4475.48); 1108 §1897 opens between "Let's" and "pray.";
+  1221 §2718 / 1250 §3131 ends fall before what may be the last sung line. Common shape: an end
+  edge on a boundary shared with the next item's long cue, cut in a pause inside that cue.
+- **Edges vs canary 10's 174-edge inventory:** 107 unchanged, 29 moved, 30 new candidate edges.
+- Backups to Sonnics: service artifacts exit 0, detection rulings exit 0.
+- **Listening page** https://claude.ai/artifact/MpWsdoTaQJkY6578KLYsvs (`rulings`, 46 questions,
+  actual cut times; clone of the word-edge page): 7 suspect song edges, 1250 Job 29 end (1519.04,
+  not cut), 964 and 949 reading ends, F11 ×3, F07 ×12 (1025 first, then 1112), 21 other moved edges.
+  1197 is not in this canary. Records: `canary11-boundary-20261005/tierc-codex-fixes-*`.
+
 ## 7. Further bounded investigations — added 2026-10-04
 
 The user requested these additions after reviewing the gaps in the plans. They are **open
