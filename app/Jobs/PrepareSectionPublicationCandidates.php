@@ -15,11 +15,13 @@ use App\Enums\ProcessingStep;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Exceptions\OutputEdgeTimingsMissing;
+use App\Exceptions\OutputPlanInvalid;
 use App\Exceptions\OutputSpanCrossesHeldSection;
 use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
+use App\Services\ChurchService\PublicationPlanValidator;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
@@ -41,6 +43,7 @@ use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use InvalidArgumentException;
 
 /**
  * Prepare each of a run's sections for publication review.
@@ -301,6 +304,15 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
                 Log::warning('Section extraction blocked: its cut reaches held content', ['section_id' => $section->id, 'held_section_ids' => $exception->sectionIds]);
 
                 continue;
+            } catch (OutputPlanInvalid $exception) {
+                $section->metadata = ServiceSectionMetadata::fromArray([
+                    ...($section->metadata?->toArray() ?? []),
+                    'publication_candidate_extraction_blocked' => ['reason' => 'cut_plan_invalid', 'plan_violations' => $exception->violations, 'detail' => $exception->getMessage()],
+                ]);
+                $this->saveSectionIfDirty($section);
+                Log::warning('Section extraction blocked: its cut fails validation', ['section_id' => $section->id, 'detail' => $exception->getMessage()]);
+
+                continue;
             }
             $metadata = $section->metadata?->toArray() ?? [];
             unset($metadata['publication_candidate_extraction_blocked']);
@@ -425,7 +437,15 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
     ): void {
         $cutPlans = app(CueSafeExtractionPlan::class);
         if ($this->shouldReuseExtractedMedia($section, $handler)) {
-            $this->refuseHeldContent($cutPlans, $section, $section->metadata->raw['publication_candidate_extraction']['segments'] ?? []);
+            // Provenance written before cuts were recorded has no segments to judge.
+            $recorded = $section->metadata->raw['publication_candidate_extraction']['segments'] ?? null;
+            if (is_array($recorded)) {
+                // A malformed recorded edge reads as NAN, which the validator refuses.
+                $this->refuseInvalidCut($section, array_values(array_map(static fn (mixed $segment): array => [
+                    'start_time' => is_array($segment) && is_numeric($segment['start_time'] ?? null) ? (float) $segment['start_time'] : NAN,
+                    'end_time' => is_array($segment) && is_numeric($segment['end_time'] ?? null) ? (float) $segment['end_time'] : NAN,
+                ], $recorded)));
+            }
 
             return;
         }
@@ -460,7 +480,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             $outputs = app(RecordedVideoOutput::class);
             $provenance = $outputs->provenance($this->processingLog->fresh() ?? $this->processingLog);
             $cutPlan = $cutPlans->forSection($section);
-            $this->refuseHeldContent($cutPlans, $section, $cutPlan['segments']);
+            $this->refuseInvalidCut($section, $cutPlan['segments']);
             $segment = (object) $cutPlan['segments'][0];
 
             $tempVideoPath = $videoExtractor->extractSegmentAsFile(
@@ -524,16 +544,26 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
     }
 
     /**
-     * Holds are checked against section bounds; the cut's edges widen afterwards and can reach
-     * a held neighbour through a cue they share.
+     * The cut a candidate executes, judged by the rules a sermon's is (S6): holds are checked
+     * against section bounds, and the edges widen afterwards and can reach a held neighbour
+     * through a cue they share, or miss the section altogether.
      *
      * @param  list<array{start_time: float, end_time: float}>  $segments
      */
-    private function refuseHeldContent(CueSafeExtractionPlan $cutPlans, ServiceSection $section, array $segments): void
+    private function refuseInvalidCut(ServiceSection $section, array $segments): void
     {
-        $crossed = $cutPlans->heldSectionsCrossed($this->processingLog, $segments, [$section->id]);
-        if ($crossed !== []) {
-            throw new OutputSpanCrossesHeldSection($crossed);
+        try {
+            $violations = app(PublicationPlanValidator::class)->validate($this->processingLog, [$section], $segments);
+        } catch (InvalidArgumentException $exception) {
+            throw new OutputPlanInvalid([], $exception->getMessage());
+        }
+        foreach ($violations as $violation) {
+            if ($violation['kind'] === 'crosses_held_section') {
+                throw new OutputSpanCrossesHeldSection($violation['section_ids']);
+            }
+        }
+        if ($violations !== []) {
+            throw new OutputPlanInvalid($violations);
         }
     }
 

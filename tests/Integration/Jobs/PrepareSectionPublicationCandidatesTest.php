@@ -877,6 +877,63 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
     }
 
     /**
+     * S6: reused media is judged by the cut it recorded, as a fresh cut would be. A recorded
+     * cut that misses its own section blocks the candidate rather than republishing it.
+     * Provenance recorded before cuts were (no `segments`) keeps today's reuse.
+     */
+    #[Test]
+    public function reused_media_whose_recorded_cut_misses_its_section_is_blocked(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => ['short_talk' => TalkPublicationHandler::class],
+            'media-processing.speaker_identification.enabled' => false,
+        ]);
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create(['source_file_path' => 'livestreams/source.mp4']);
+        Storage::disk('local')->put('livestreams/source.mp4', 'source-video');
+        Storage::disk('public')->put('sermons/sections/kept/video.mp4', 'kept-video');
+        Storage::disk('public')->put('sermons/sections/kept/audio.mp3', 'kept-audio');
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::ShortTalk->value,
+            'status' => ServiceSectionStatus::Identified->value,
+            'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
+            'asset_disk' => 'public',
+            'extracted_video_path' => 'sermons/sections/kept/video.mp4',
+            'extracted_audio_path' => 'sermons/sections/kept/audio.mp3',
+            'start_time' => 120.0,
+            'end_time' => 420.0,
+        ]);
+        $section->metadata = ServiceSectionMetadata::fromArray([
+            'confidence_level' => 'high',
+            'publication_candidate_extraction' => [
+                'processing_id' => $processingLog->processing_id,
+                'media_signature' => $section->mediaSignature(),
+                'segments' => [['start_time' => 10.0, 'end_time' => 50.0]],
+            ],
+        ]);
+        $section->save();
+        $videoExtractor = $this->createMock(VideoExtractionService::class);
+        $videoExtractor->expects($this->never())->method('extractSegmentAsFile');
+
+        (new PrepareSectionPublicationCandidates($processingLog))->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(SectionPublicationHandlerFactory::class),
+            app(ServiceSectionPublicationTransitionService::class)
+        );
+
+        $blocked = $section->refresh()->metadata->raw['publication_candidate_extraction_blocked'] ?? null;
+        $this->assertSame('cut_plan_invalid', $blocked['reason'] ?? null);
+        $this->assertSame([['kind' => 'selected_section_not_cut', 'section_ids' => [$section->id]]], $blocked['plan_violations'] ?? null);
+    }
+
+    /**
      * A candidate is always cut to the configured candidate disk, so a section
      * still naming the disk a previous promotion moved it to describes bytes that
      * are somewhere else.
