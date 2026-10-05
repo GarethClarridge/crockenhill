@@ -877,12 +877,12 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
     }
 
     /**
-     * S6: reused media is judged by the cut it recorded, as a fresh cut would be. A recorded
-     * cut that misses its own section blocks the candidate rather than republishing it.
+     * S6/I4: reused media is judged by the cut it recorded. A recorded cut that misses its own
+     * section is never republished: it differs from the cut planned now, so it is cut again.
      * Provenance recorded before cuts were (no `segments`) keeps today's reuse.
      */
     #[Test]
-    public function reused_media_whose_recorded_cut_misses_its_section_is_blocked(): void
+    public function reused_media_whose_recorded_cut_misses_its_section_is_cut_again(): void
     {
         Storage::fake('local');
         Storage::fake('public');
@@ -918,8 +918,15 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             ],
         ]);
         $section->save();
+        $this->bankNoWordOutputEdges($processingLog);
+        Storage::disk('local')->put('temp/section-video.mp4', 'fresh-section-video');
         $videoExtractor = $this->createMock(VideoExtractionService::class);
-        $videoExtractor->expects($this->never())->method('extractSegmentAsFile');
+        $videoExtractor->expects($this->once())->method('extractSegmentAsFile')->willReturn('temp/section-video.mp4');
+        $videoExtractor->method('extractOptimizedAudio')->willReturn([
+            'audio_path' => 'temp/section-audio.mp3', 'full_path' => Storage::disk('local')->path('temp/section-audio.mp3'),
+            'original_size' => 1024, 'final_size' => 1024, 'compression_applied' => false, 'compression_ratio' => 1.0, 'valid_for_transcription' => true,
+        ]);
+        Storage::disk('local')->put('temp/section-audio.mp3', 'fresh-section-audio');
 
         (new PrepareSectionPublicationCandidates($processingLog))->handle(
             $videoExtractor,
@@ -928,9 +935,80 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             app(ServiceSectionPublicationTransitionService::class)
         );
 
-        $blocked = $section->refresh()->metadata->raw['publication_candidate_extraction_blocked'] ?? null;
-        $this->assertSame('cut_plan_invalid', $blocked['reason'] ?? null);
-        $this->assertSame([['kind' => 'selected_section_not_cut', 'section_ids' => [$section->id]]], $blocked['plan_violations'] ?? null);
+        $section->refresh();
+        $this->assertArrayNotHasKey('publication_candidate_extraction_blocked', $section->metadata->raw);
+        $this->assertEquals([['start_time' => 120.0, 'end_time' => 420.0]], $section->metadata->raw['publication_candidate_extraction']['segments']);
+    }
+
+    /**
+     * I4: reuse was keyed on the section's bounds and a hand-bumped media version, but the cut
+     * also follows the transcript, edge words and cutting rules; 5 of canary 10's 20 candidates
+     * would be reused 2-6 s off the cut planned now. Media is reused only for the cut it holds.
+     */
+    #[Test]
+    public function reused_media_cut_differently_from_the_plan_now_is_cut_again(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => ['short_talk' => TalkPublicationHandler::class],
+            'media-processing.speaker_identification.enabled' => false,
+        ]);
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create(['source_file_path' => 'livestreams/source.mp4']);
+        Storage::disk('local')->put('livestreams/source.mp4', 'source-video');
+        Storage::disk('public')->put('sermons/sections/kept/video.mp4', 'kept-video');
+        Storage::disk('public')->put('sermons/sections/kept/audio.mp3', 'kept-audio');
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::ShortTalk->value,
+            'status' => ServiceSectionStatus::Identified->value,
+            'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
+            'asset_disk' => 'public',
+            'extracted_video_path' => 'sermons/sections/kept/video.mp4',
+            'extracted_audio_path' => 'sermons/sections/kept/audio.mp3',
+            'start_time' => 120.0,
+            'end_time' => 420.0,
+        ]);
+        $section->metadata = ServiceSectionMetadata::fromArray([
+            'confidence_level' => 'high',
+            'publication_candidate_extraction' => [
+                'processing_id' => $processingLog->processing_id,
+                'media_signature' => $section->mediaSignature(),
+                'segments' => [['start_time' => 117.5, 'end_time' => 420.0]],
+            ],
+        ]);
+        $section->save();
+        $this->bankNoWordOutputEdges($processingLog);
+        $expectedAudioPath = 'section-publications/'.$section->id.'-0123456789abcdef/'.$processingLog->processing_id.'_section_'.$section->id.'.mp3';
+        Storage::disk('local')->put($expectedAudioPath, 'fresh-section-audio');
+        Storage::disk('local')->put('temp/section-video.mp4', 'fresh-section-video');
+        $videoExtractor = $this->createMock(VideoExtractionService::class);
+        $videoExtractor->expects($this->once())
+            ->method('extractSegmentAsFile')
+            ->with($this->anything(), $this->callback(fn (object $segment): bool => $segment->start_time === 120.0), $this->anything())
+            ->willReturn('temp/section-video.mp4');
+        $videoExtractor->method('extractOptimizedAudio')->willReturn([
+            'audio_path' => $expectedAudioPath,
+            'full_path' => Storage::disk('local')->path($expectedAudioPath),
+            'original_size' => 1024,
+            'final_size' => 1024,
+            'compression_applied' => false,
+            'compression_ratio' => 1.0,
+            'valid_for_transcription' => true,
+        ]);
+
+        (new PrepareSectionPublicationCandidates($processingLog))->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(SectionPublicationHandlerFactory::class),
+            app(ServiceSectionPublicationTransitionService::class)
+        );
+
+        $this->assertEquals([['start_time' => 120.0, 'end_time' => 420.0]], $section->refresh()->metadata->raw['publication_candidate_extraction']['segments']);
     }
 
     /**

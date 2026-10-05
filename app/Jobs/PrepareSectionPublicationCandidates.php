@@ -439,15 +439,21 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         if ($this->shouldReuseExtractedMedia($section, $handler)) {
             // Provenance written before cuts were recorded has no segments to judge.
             $recorded = $section->metadata->raw['publication_candidate_extraction']['segments'] ?? null;
-            if (is_array($recorded)) {
-                // A malformed recorded edge reads as NAN, which the validator refuses.
-                $this->refuseInvalidCut($section, array_values(array_map(static fn (mixed $segment): array => [
-                    'start_time' => is_array($segment) && is_numeric($segment['start_time'] ?? null) ? (float) $segment['start_time'] : NAN,
-                    'end_time' => is_array($segment) && is_numeric($segment['end_time'] ?? null) ? (float) $segment['end_time'] : NAN,
-                ], $recorded)));
+            if (! is_array($recorded)) {
+                return;
             }
+            // A malformed recorded edge reads as NAN, which the validator refuses.
+            $recorded = array_values(array_map(static fn (mixed $segment): array => [
+                'start_time' => is_array($segment) && is_numeric($segment['start_time'] ?? null) ? (float) $segment['start_time'] : NAN,
+                'end_time' => is_array($segment) && is_numeric($segment['end_time'] ?? null) ? (float) $segment['end_time'] : NAN,
+            ], $recorded));
+            // The bounds and media version match, but the cut also follows the transcript,
+            // edge words and cutting rules (I4): media is reused only for the cut it holds.
+            if ($this->sameCut($recorded, $cutPlans->forSection($section)['segments'])) {
+                $this->refuseInvalidCut($section, $recorded);
 
-            return;
+                return;
+            }
         }
 
         $sourceFilePath = $this->processingLog->source_file_path;
@@ -541,6 +547,19 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
                 $storageHelper->cleanupTempFile($localSourcePath);
             }
         }
+    }
+
+    /**
+     * @param  list<array{start_time: float, end_time: float}>  $recorded
+     * @param  list<array{start_time: float, end_time: float}>  $planned
+     */
+    private function sameCut(array $recorded, array $planned): bool
+    {
+        return count($recorded) === count($planned) && array_all(
+            $planned,
+            static fn (array $span, int $index): bool => abs($span['start_time'] - $recorded[$index]['start_time']) < 0.01
+                && abs($span['end_time'] - $recorded[$index]['end_time']) < 0.01,
+        );
     }
 
     /**
