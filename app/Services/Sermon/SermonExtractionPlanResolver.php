@@ -89,7 +89,7 @@ class SermonExtractionPlanResolver
             }
             foreach ($membership['could_be_cut'] as $index) {
                 foreach ($this->prayerHandovers($log, $readings[$index]) as $cue) {
-                    $risks[] = ['kind' => 'sermon_reading_contains_prayer_handover', 'detail' => sprintf('Reading %s hands over to prayer at %.3f–%.3fs ("%s"): is a prayer inside the reading?', $readings[$index]->metadata?->readingReference ?? '#'.$readings[$index]->id, $cue['start'], $cue['end'], trim($cue['text'], " \"'"))];
+                    $risks[] = ['kind' => 'sermon_reading_contains_prayer_handover', 'detail' => sprintf('Reading %s hands over to prayer at %.3f–%.3fs ("%s"): is a prayer inside the reading?', $readings[$index]->metadata->readingReference ?? '#'.$readings[$index]->id, $cue['start'], $cue['end'], trim($cue['text'], " \"'"))];
                 }
             }
             $following = array_values(array_filter($sections, static fn (ServiceSection $section): bool => $section->start_time >= $last->end_time && ! in_array($section, $selected, true)));
