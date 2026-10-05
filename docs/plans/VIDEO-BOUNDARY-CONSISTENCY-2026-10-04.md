@@ -833,6 +833,32 @@ pre-existing); Dusk 61.
 (1025 first); 964's reading end; **1197's reading end, 1546–1584** (the prayer inside Matthew
 2, I2(b)); **the F11 hits 949 2690–2706, 1025 610–631, 1311 1585–1604**.
 
+### Completion record — Codex review fixes before canary 11 Tier C (branch `fix-codex-review-recompose`)
+
+Built in a separate clone with its own test container; workers stopped only for the ff of local
+`master` to `8665cf9c5` (unpushed). Each fix red first. Gates: Pint, PHPStan 0, full parallel
+suite 9,302 (notices pre-existing). Dusk not run: no UI change, and Dusk swaps `.env` under
+running workers.
+
+| Item | Commit | Root cause / invariant | Red → green |
+|---|---|---|---|
+| 1112 skipped recompose | `61043b2bd` | Retiring canary 10 (10-04) left 1112's `assessing_video_quality` step `cancelled`, the only such row. `CancellationChecker` read any cancelled step as a cancelled run, so `DetectServiceStructure` returned before recomposing (request left behind). The rest of the chain checks only the run's status, so `RecordDeferredCorpusRerunMedia` recorded the round; the projection still matched the 10-03 composition, so Tier C said ready. Now only the run's status cancels a run (nothing in the app writes cancelled steps); three pinned tests flipped. | `a_step_an_earlier_round_cancelled_does_not_stop_a_recompose`: `recomposed_at` missing → present |
+| Fail closed | `b75173a6b` | `RecomposeForCorpusRerun::unfinishedRecomposition()`: outstanding request, latest attempt ≠ recomposed attempt, or composition older than the round's dispatch. Recording the round throws (the run fails visibly); Tier C refuses. | 3 Tier C + 2 recording tests reported "ready"/recorded → refused |
+| Ambiguous cue anchor | `c6aebe9a0` | A cue run heard more than once in reach is `ambiguous_cue_anchor`: the cut keeps every occurrence; `PublicationPlanValidator` raises `edge_unresolved` → sermon `sermon_edge_unresolved` (review), candidate `cut_plan_invalid` (blocked). | Opening cut 10.5 (after both); closing cut 19.6 (dropped the final "thank you") → keeps both + unresolved |
+| Approval vs sung span | `829475c31` | A composition review records `answered_risks` (kind + detail); only those are cleared. A later risk asks again; a flag that raises no risk does not. Legacy reviews answer none (only 1250's exists, already unmatched). | Identity unchanged, `requires_review` false → true |
+
+**Recompose, 10-05 ~19:21 UTC** (snapshot `canary11-boundary-20261005/snapshot-codex-fixes.json`,
+code `8665cf9c5`, routing `2fc8903c…`): 16/16 dispatched from banked draws, no draws, no media.
+Every run: request consumed, `recomposed_at` after dispatch, worker commit `8665cf9c5`, projection
+matches, `unfinishedRecomposition` null. Receipts `codex-fixes-receipts-{before,after}.json`, diff
+`codex-fixes-diff.json` (0 attention; 48 item rebinds = projected items recreated, same
+position/title). Only change: **1112** sermon §4862 gains `structure_sermon_adjacent_speech_unowned`
+(1851.3–1870.0, 3731.1–3755.0, 3717.7–3755.0), ask-only; cut unchanged. No cut changed, no new hold,
+no `edge_unresolved` in any plan. 1250 keeps its reading-membership hold (not answered).
+1112 keeps a conflicting 10-01 ruling (testimony "absent", part of one wider talk) with no open
+question; the structure honours it (talk §3736 886–1596.8). Tier C dry run: 16/16 ready
+(936/1356 plan `edge_word_timings_missing`, resolved by Tier C's own edge step). Tier C not dispatched.
+
 ## 7. Further bounded investigations — added 2026-10-04
 
 The user requested these additions after reviewing the gaps in the plans. They are **open
