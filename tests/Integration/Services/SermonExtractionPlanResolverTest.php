@@ -261,6 +261,40 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->assertNotSame($composition['input_identity'], $changed['metadata']['input_identity']);
     }
 
+    /**
+     * Run 1240's shape (F04): Job 36 is read, the congregation prays, Job 37 is read, and the
+     * sermon expounds both. Neither reading holds the whole passage, so the choice goes to
+     * review; choosing both cuts each reading on its own and never the prayer between them.
+     */
+    #[Test]
+    public function two_readings_separated_by_a_prayer_go_to_review_and_a_two_reading_selection_excludes_the_prayer(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 5000, 'sermon_start_time' => 0, 'sermon_end_time' => 4000]);
+        $job36 = $this->reading($log, 1, 1065.72, 1274.72, reference: 'Job 36');
+        $prayer = $this->section($log, ServiceSectionType::Prayer, 2, 1280.72, 1466.72);
+        $job37 = $this->reading($log, 3, 1488.72, 1700.0, reference: 'Job 37');
+        $sermon = $this->sermon($log, 4, 1720.0, 3500.0, 'Job 36-37');
+        $this->section($log, ServiceSectionType::Song, 5, 3510.0, 3700.0);
+
+        $composition = $this->resolver->compose($log);
+
+        $this->assertTrue($composition['requires_review']);
+        $this->assertSame(['sermon_reading_membership_unresolved'], array_column($composition['risks'], 'kind'));
+        $this->assertSame([$sermon->id], $composition['selected_section_ids']);
+
+        $this->resolver->reviewComposition($log, [$job36->id, $job37->id, $sermon->id], $composition['input_identity'], 1);
+        $plan = $this->resolver->resolve($log->fresh());
+
+        $this->assertFalse($plan['metadata']['requires_review']);
+        $this->assertSame([$job36->id, $job37->id, $sermon->id], $plan['metadata']['selected_section_ids']);
+        $this->assertNotContains($prayer->id, $plan['metadata']['selected_section_ids']);
+        $spans = array_map(fn (array $span): array => [$span['start_time'], $span['end_time']], $plan['segments']);
+        $this->assertSame([[1065.72, 1274.72], [1488.72, 1700.0], [1720.0, 3500.0]], $spans);
+        foreach ($spans as [$start, $end]) {
+            $this->assertTrue($end <= $prayer->start_time || $start >= $prayer->end_time, 'No span reaches into the prayer.');
+        }
+    }
+
     #[Test]
     public function selected_sections_with_overlapping_bounds_are_rejected_without_a_fallback(): void
     {
