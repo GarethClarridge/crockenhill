@@ -24,6 +24,18 @@ use InvalidArgumentException;
 /** Composes named sections upstream; execution resolves their current bounds without fallback. */
 class SermonExtractionPlanResolver
 {
+    /**
+     * "Let's pray" (1240) or "Let's bow our heads again in prayer together" (1197). A corpus
+     * scan of every "pray" cue inside a reading the sermon could take found only these two
+     * leader handovers among the reading's own words ("when you pray…", 2026-10-05).
+     */
+    private const PRAYER_HANDOVER = "/\\blet(?:'s| us) (?:pray\\b|[^.?!]*\\bin prayer\\b)/i";
+
+    /**
+     * Less of the reading than this after a handover is the reading ending into its prayer.
+     */
+    private const READING_AFTER_HANDOVER_SECONDS = 30.0;
+
     public function __construct(
         private readonly ScriptureReferenceResolver $scriptureReferences,
         private readonly SermonContinuationScreen $continuations,
@@ -74,6 +86,11 @@ class SermonExtractionPlanResolver
                 // A reading sharing verses without holding the sermon's passage is a sermon reading
                 // past it, or one part of a multipart reference: plausible, so asked, never dropped.
                 $risks[] = ['kind' => 'sermon_reading_membership_unresolved', 'detail' => 'Choose the sermon reading: references are missing or multiple readings are plausible.'];
+            }
+            foreach ($membership['could_be_cut'] as $index) {
+                foreach ($this->prayerHandovers($log, $readings[$index]) as $cue) {
+                    $risks[] = ['kind' => 'sermon_reading_contains_prayer_handover', 'detail' => sprintf('Reading %s hands over to prayer at %.3f–%.3fs ("%s"): is a prayer inside the reading?', $readings[$index]->metadata?->readingReference ?? '#'.$readings[$index]->id, $cue['start'], $cue['end'], trim($cue['text'], " \"'"))];
+                }
             }
             $following = array_values(array_filter($sections, static fn (ServiceSection $section): bool => $section->start_time >= $last->end_time && ! in_array($section, $selected, true)));
             $beforeSong = [];
@@ -148,6 +165,36 @@ class SermonExtractionPlanResolver
         }
 
         return $composition;
+    }
+
+    /**
+     * Cues in a reading the sermon could take where the leader hands over to prayer with the
+     * reading section still running after it: 1240's single "Job 36-37" reading held Job 36,
+     * "Let's pray", the prayer and Job 37, and 1197's ran 38 s into the prayer after it (I2).
+     * The words only ask; membership stays with the references. A handover in the reading's
+     * closing seconds hands over to the prayer after it.
+     *
+     * @return list<array{start: float, end: float, text: string}>
+     */
+    private function prayerHandovers(MediaProcessingLog $log, ServiceSection $reading): array
+    {
+        $path = $log->serviceTranscriptPath();
+        $raw = $path === null ? null : rescue(static fn (): ?string => Storage::disk(ServiceArtifactDisk::for($path))->get($path), null, false);
+
+        if (! is_string($raw)) {
+            return [];
+        }
+
+        $handovers = [];
+
+        foreach (ChurchServiceTranscript::fromArray(json_decode($raw, true))->cues as $cue) {
+            if ($cue['start'] >= $reading->start_time && $cue['end'] <= $reading->end_time - self::READING_AFTER_HANDOVER_SECONDS
+                && preg_match(self::PRAYER_HANDOVER, str_replace('’', "'", $cue['text'])) === 1) {
+                $handovers[] = ['start' => (float) $cue['start'], 'end' => (float) $cue['end'], 'text' => $cue['text']];
+            }
+        }
+
+        return $handovers;
     }
 
     /** @param list<int> $sectionIds */

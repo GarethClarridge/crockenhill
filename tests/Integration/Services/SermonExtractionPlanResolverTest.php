@@ -275,6 +275,7 @@ class SermonExtractionPlanResolverTest extends TestCase
         $reading = $this->reading($log, 3, 100, 200);
         $composition = $this->resolver->compose($log);
         $this->resolver->reviewComposition($log, [$reading->id, $sermon->id], $composition['input_identity'], 1);
+        $this->bankNoWordOutputEdges($log);
         $plan = $this->resolver->resolve($log->fresh());
         $this->assertSame([$reading->id, $sermon->id], $plan['metadata']['selected_section_ids']);
         $this->assertFalse($plan['metadata']['requires_review']);
@@ -317,6 +318,79 @@ class SermonExtractionPlanResolverTest extends TestCase
         foreach ($spans as [$start, $end]) {
             $this->assertTrue($end <= $prayer->start_time || $start >= $prayer->end_time, 'No span reaches into the prayer.');
         }
+    }
+
+    /**
+     * I2, run 1240's stored structure: detection merged F04's two readings, so one reading
+     * "Job 36-37" holds Job 36, the leader's "Let's pray", the prayer and Job 37. The reference
+     * selects it and nothing looks inside, so the prayer is cut into the sermon unasked. The
+     * handover asks; the words never change which sections are selected.
+     */
+    #[Test]
+    public function a_selected_reading_holding_a_prayer_handover_asks_without_changing_the_selection(): void
+    {
+        $log = $this->logWithTranscript([
+            ['start' => 1062.7, 'end' => 1068.0, 'text' => 'Job chapter 36.'],
+            ['start' => 1268.0, 'end' => 1274.7, 'text' => "We're going to pray and then we'll come back and read chapter 37."],
+            ['start' => 1274.7, 'end' => 1276.0, 'text' => "Let's pray."],
+            ['start' => 1280.0, 'end' => 1460.0, 'text' => 'Heavenly Father, we come to you.'],
+            ['start' => 1488.7, 'end' => 1495.0, 'text' => 'Job chapter 37.'],
+        ]);
+        $reading = $this->reading($log, 1, 1062.7, 1638.8, reference: 'Job 36-37');
+        $sermon = $this->sermon($log, 2, 1720.0, 3500.0, 'Job 36-37');
+        $this->section($log, ServiceSectionType::Song, 3, 3510.0, 3700.0);
+
+        $composition = $this->resolver->compose($log);
+
+        $this->assertSame(['sermon_reading_contains_prayer_handover'], array_column($composition['risks'], 'kind'));
+        $this->assertStringContainsString('1274.700', $composition['risks'][0]['detail']);
+        $this->assertTrue($composition['requires_review']);
+        $this->assertSame([$reading->id, $sermon->id], $composition['selected_section_ids']);
+
+        $this->resolver->reviewComposition($log, [$reading->id, $sermon->id], $composition['input_identity'], 1);
+        $this->bankNoWordOutputEdges($log);
+
+        $this->assertFalse($this->resolver->resolve($log->fresh())['metadata']['requires_review']);
+    }
+
+    /**
+     * Run 1197's shape: the reading section ran on through "Let's bow our heads again in prayer
+     * together" and 38 s of the prayer after Matthew 2:12.
+     */
+    #[Test]
+    public function a_reading_running_on_into_the_prayer_it_hands_over_to_asks(): void
+    {
+        $log = $this->logWithTranscript([
+            ['start' => 1540.8, 'end' => 1544.6, 'text' => 'They returned to their country by another route.'],
+            ['start' => 1546.2, 'end' => 1548.8, 'text' => "Let's bow our heads again in prayer together."],
+            ['start' => 1557.4, 'end' => 1584.3, 'text' => 'Our gracious and loving God, we thank you. Amen.'],
+        ]);
+        $this->reading($log, 1, 1432.0, 1583.85, reference: 'Matthew 2:1-12');
+        $this->section($log, ServiceSectionType::Prayer, 2, 1586.99, 1929.88);
+        $this->sermon($log, 3, 2000.0, 3500.0, 'Matthew 2:1-12');
+        $this->section($log, ServiceSectionType::Song, 4, 3510.0, 3700.0);
+
+        $this->assertSame(['sermon_reading_contains_prayer_handover'], array_column($this->resolver->compose($log)['risks'], 'kind'));
+    }
+
+    /**
+     * Handing over to the prayer that follows the reading is the ordinary shape; so is a reading
+     * the sermon does not take.
+     */
+    #[Test]
+    public function a_handover_closing_the_reading_or_inside_an_unselected_reading_asks_nothing(): void
+    {
+        $log = $this->logWithTranscript([
+            ['start' => 400.0, 'end' => 402.0, 'text' => "Let us pray."],
+            ['start' => 1630.0, 'end' => 1632.0, 'text' => "Let's pray."],
+        ]);
+        $this->reading($log, 1, 300.0, 600.0, reference: 'Psalm 23');
+        $this->reading($log, 2, 1062.7, 1638.8, reference: 'Job 36-37');
+        $this->section($log, ServiceSectionType::Prayer, 3, 1638.8, 1700.0);
+        $this->sermon($log, 4, 1720.0, 3500.0, 'Job 36-37');
+        $this->section($log, ServiceSectionType::Song, 5, 3510.0, 3700.0);
+
+        $this->assertSame([], $this->resolver->compose($log)['risks']);
     }
 
     /**
@@ -1419,6 +1493,21 @@ class SermonExtractionPlanResolverTest extends TestCase
             'type' => 'bibles',
             'title' => 'Colossians 1:15-23',
         ]);
+    }
+
+    /**
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     */
+    private function logWithTranscript(array $cues): MediaProcessingLog
+    {
+        Storage::fake('local');
+        config(['media-processing.storage.temp_disk' => 'local']);
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 5000, 'sermon_start_time' => 0, 'sermon_end_time' => 4000,
+            'processing_metadata' => ['service_transcript_path' => 'temp/transcript.json']]);
+        $transcript = ChurchServiceTranscript::fromCues($cues, 5000, ChurchServiceTranscript::SOURCE_MOCK);
+        Storage::disk('local')->put('temp/transcript.json', json_encode($transcript->toArray(), JSON_THROW_ON_ERROR));
+
+        return $log;
     }
 
     private function logWithSermon(float $start, float $end): MediaProcessingLog
