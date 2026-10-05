@@ -100,7 +100,7 @@ class UntranscribedSpeechBeforeSection
         }
 
         return ServiceStructure::fromSections(
-            $sections,
+            array_values($sections),
             $structure->notes,
             $structure->model,
             $structure->summary,
