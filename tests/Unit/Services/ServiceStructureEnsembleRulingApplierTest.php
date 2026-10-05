@@ -111,6 +111,39 @@ class ServiceStructureEnsembleRulingApplierTest extends TestCase
         }
     }
 
+    /**
+     * I3: independent answers own disjoint content, so their order cannot change the output,
+     * and answering a question again with the same content (the answer action's next
+     * revision) changes nothing. Two answers claiming one revision are a conflict by design,
+     * which the action's row lock and revision counter never write.
+     */
+    #[Test]
+    public function independent_answers_apply_alike_in_either_order_and_a_repeated_answer_changes_nothing(): void
+    {
+        $reading = $this->section(ServiceSectionType::BibleReading, 100, 200);
+        $talk = $this->section(ServiceSectionType::ShortTalk, 220, 300);
+        $proposal = [...$this->proposalOf([$reading, $talk], []), 'disputes' => [
+            ['question_id' => 'reading-question', 'type' => 'bible_reading', 'written' => true, 'start_time' => 100.0, 'end_time' => 200.0],
+            ['question_id' => 'talk-question', 'type' => 'short_talk', 'written' => true, 'start_time' => 220.0, 'end_time' => 300.0],
+        ]];
+        $answers = [
+            [...$this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::BibleReading, 95, 205)->toArray()]], 'reading-ruling'), 'scope' => ['type' => 'bible_reading', 'start_time' => 100.0, 'end_time' => 200.0]],
+            [...$this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::ShortTalk, 215, 310)->toArray()]], 'talk-ruling'), 'scope' => ['type' => 'short_talk', 'start_time' => 220.0, 'end_time' => 300.0]],
+        ];
+        $applier = app(ServiceStructureEnsembleRulingApplier::class);
+
+        $forward = $applier->apply($proposal, $answers);
+        $reversed = $applier->apply($proposal, array_reverse($answers));
+        $repeated = $applier->apply($proposal, [...$answers, [...$answers[0], 'revision' => 2]]);
+
+        $this->assertSame([['bible_reading', 95.0, 205.0], ['short_talk', 215.0, 310.0]], $this->spans($forward));
+        $this->assertSame([], $forward['disputes']);
+        $this->assertSame($forward['structure'], $reversed['structure']);
+        $this->assertSame($forward['disputes'], $reversed['disputes']);
+        $this->assertSame($forward['structure'], $repeated['structure']);
+        $this->assertSame([], $repeated['conflicting_rulings']);
+    }
+
     /** Fresh draws that raise no question still cannot let one of two overlapping answers win. */
     #[Test]
     public function overlapping_answers_against_unanimous_output_reopen_their_questions(): void

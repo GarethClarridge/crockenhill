@@ -216,6 +216,29 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->assertSame([$reading->id, $sermon->id, $prayer->id], $plan['metadata']['selected_section_ids']);
     }
 
+    /**
+     * I3: the opening song is no dependency of the sermon's plan (the reading is chosen by
+     * reference, the prayer is the one after the sermon), so moving its edge leaves the cut alone.
+     */
+    #[Test]
+    public function moving_an_unrelated_section_does_not_change_the_sermon_cut(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 5000, 'sermon_start_time' => 0, 'sermon_end_time' => 4000]);
+        $song = ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => 'song', 'start_time' => 10, 'end_time' => 60, 'needs_manual_review' => false]);
+        ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => 'bible_reading', 'start_time' => 100, 'end_time' => 200, 'needs_manual_review' => false, 'metadata' => ['reading_reference' => 'Jn 3:1-16']]);
+        ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => 'sermon', 'start_time' => 220, 'end_time' => 3200, 'needs_manual_review' => false, 'metadata' => ['sermon_reference' => 'John 3:1-16']]);
+        ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => 'prayer', 'start_time' => 3210, 'end_time' => 3250, 'needs_manual_review' => false]);
+        ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => 'song', 'start_time' => 3280, 'end_time' => 3500]);
+
+        $before = $this->resolver->resolve($log);
+        $song->update(['start_time' => 25, 'end_time' => 75, 'duration' => 50]);
+        $after = $this->resolver->resolve($log->fresh());
+
+        $this->assertFalse($after['metadata']['requires_review']);
+        $this->assertSame($before['segments'], $after['segments']);
+        $this->assertSame($before['metadata']['selected_section_ids'], $after['metadata']['selected_section_ids']);
+    }
+
     #[Test]
     public function absent_accepted_sections_never_fall_back_to_the_old_detector(): void
     {
