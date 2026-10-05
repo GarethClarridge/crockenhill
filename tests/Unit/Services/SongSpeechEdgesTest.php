@@ -6,9 +6,12 @@ namespace Tests\Unit\Services;
 
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
+use App\Enums\ServiceSectionType;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SongSpeechEdges;
 use App\Services\Media\Audio\RmsAnalysisService;
+use App\Support\SectionReviewFlagPolicy;
+use App\Support\SermonAutoExtractionPolicy;
 use Illuminate\Support\Facades\Config;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -67,6 +70,65 @@ class SongSpeechEdgesTest extends TestCase
         $this->assertEqualsWithDelta(565.0, $song->endTime, 5.0);
         $this->assertGreaterThanOrEqual(560.0, $song->endTime);
         $this->assertStringContainsString('End trimmed', implode(' ', $song->notes));
+    }
+
+    /**
+     * F07: the speech a trim leaves between the sermon and its song is either the sermon's
+     * conclusion or the hymn announcement (excluded, D1). The trim cannot tell which, so the
+     * sermon keeps its bounds and is asked about, without holding its extraction.
+     */
+    #[Test]
+    public function speech_trimmed_off_a_song_after_the_sermon_raises_an_ownership_question_on_the_sermon(): void
+    {
+        $rmsLog = $this->rmsLog([[0, 340, 'speech'], [340, 600, 'sung'], [600, 700, 'speech'], [700, 900, 'sung']]);
+        $structure = ServiceStructure::fromSections([
+            $this->section('sermon', 0.0, 300.0),
+            $this->section('song', 300.0, 600.0),
+            $this->section('song', 700.0, 900.0),
+        ]);
+
+        [$sermon, $song] = $this->service->apply($structure, $rmsLog, recordingOmitsSongs: false)->sections;
+
+        $this->assertGreaterThan(300.0, $song->startTime);
+        $this->assertSame([0.0, 300.0], [$sermon->startTime, $sermon->endTime]);
+        $this->assertSame([ServiceStructureValidator::FLAG_SERMON_ADJACENT_SPEECH_UNOWNED], $sermon->reviewFlags);
+        $this->assertStringContainsString(sprintf('300.0–%.1fs', $song->startTime), implode(' ', $sermon->notes));
+        $this->assertTrue(SectionReviewFlagPolicy::requiresManualReview(ServiceSectionType::Sermon, $sermon->reviewFlags, 'John 3:16'));
+        $this->assertTrue(SermonAutoExtractionPolicy::reviewStatePermitsAutoExtraction(true, $sermon->reviewFlags));
+    }
+
+    #[Test]
+    public function speech_trimmed_off_a_song_before_the_sermon_raises_an_ownership_question_on_the_sermon(): void
+    {
+        $rmsLog = $this->rmsLog([[0, 300, 'speech'], [300, 560, 'sung'], [560, 700, 'speech'], [700, 900, 'sung']]);
+        $structure = ServiceStructure::fromSections([
+            $this->section('song', 300.0, 600.0),
+            $this->section('sermon', 600.0, 700.0),
+            $this->section('song', 700.0, 900.0),
+        ]);
+
+        [$song, $sermon] = $this->service->apply($structure, $rmsLog, recordingOmitsSongs: false)->sections;
+
+        $this->assertLessThan(600.0, $song->endTime);
+        $this->assertSame([ServiceStructureValidator::FLAG_SERMON_ADJACENT_SPEECH_UNOWNED], $sermon->reviewFlags);
+        $this->assertStringContainsString(sprintf('%.1f–600.0s', $song->endTime), implode(' ', $sermon->notes));
+    }
+
+    #[Test]
+    public function speech_trimmed_next_to_another_item_asks_no_ownership_question(): void
+    {
+        $rmsLog = $this->rmsLog([[0, 340, 'speech'], [340, 600, 'sung'], [600, 700, 'speech'], [700, 900, 'sung']]);
+        $structure = ServiceStructure::fromSections([
+            $this->section('sermon', 0.0, 250.0),
+            $this->section('prayer', 250.0, 300.0),
+            $this->section('song', 300.0, 600.0),
+            $this->section('song', 700.0, 900.0),
+        ]);
+
+        $sections = $this->service->apply($structure, $rmsLog, recordingOmitsSongs: false)->sections;
+
+        $this->assertGreaterThan(300.0, $sections[2]->startTime);
+        $this->assertSame([], $sections[0]->reviewFlags);
     }
 
     /**

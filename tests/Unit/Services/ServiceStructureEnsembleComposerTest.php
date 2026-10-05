@@ -13,6 +13,7 @@ use App\Enums\TalkType;
 use App\Services\ChurchService\Structure\OutputEdgeReview;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleComposer;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\ChurchService\Structure\SongSpeechEdges;
 use App\Services\ChurchService\Structure\TalkEdgeChecks;
 use App\Services\ChurchService\Structure\ValidationResult;
 use App\Services\Song\SongTitleResolver;
@@ -715,6 +716,34 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         $this->assertNotContains(ServiceStructureValidator::FLAG_MISSING_PREACHED_READING, $flags(null, 1700, 'John 3:16'), 'an unnamed reading could be the preached one');
         $this->assertNotContains(ServiceStructureValidator::FLAG_MISSING_PREACHED_READING, $flags('John 3:1-21', 1950, 'John 3:16'), 'a reading that overlaps the sermon start is still before it');
         $this->assertContains(ServiceStructureValidator::FLAG_MISSING_PREACHED_READING, $flags('Isaiah 40', 1700, 'John 3:16'), 'an unrelated reading never pairs');
+    }
+
+    /**
+     * Holds are a union over the supporting draws, so the sermon asks about exposed speech when
+     * any supporter found some. The question is only answerable with the interval, which lives
+     * in that supporter's note, not the representative's.
+     */
+    #[Test]
+    public function an_exposed_speech_question_keeps_every_supporters_interval(): void
+    {
+        $question = ServiceStructureValidator::FLAG_SERMON_ADJACENT_SPEECH_UNOWNED;
+        $sermon = $this->section(ServiceSectionType::Sermon, 2000, 4000);
+        $asked = fn (float $from, float $to): ServiceStructureSection => $sermon->withReviewFlags([$question], [SongSpeechEdges::exposedSpeechNote($from, $to)]);
+        $draw = fn (ServiceStructureSection $sermon): ValidationResult => $this->vote($this->structure(
+            $this->section(ServiceSectionType::BibleReading, 1700, 1900, 'John 3'),
+            $sermon,
+        ));
+
+        $composed = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $draw($sermon->withReviewFlags([], ['The representative draw explains nothing.'])),
+            1 => $draw($asked(4000.0, 4031.5)),
+            2 => $draw($asked(4000.0, 4029.5)),
+            3 => $draw($sermon),
+        ])->structure->sectionsOfType(ServiceSectionType::Sermon)[0];
+
+        $this->assertContains($question, $composed->reviewFlags);
+        $this->assertContains(SongSpeechEdges::exposedSpeechNote(4000.0, 4031.5), $composed->notes);
+        $this->assertContains(SongSpeechEdges::exposedSpeechNote(4000.0, 4029.5), $composed->notes);
     }
 
     #[Test]

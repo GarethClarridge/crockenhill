@@ -454,6 +454,16 @@ class DetectorCatalogue
                 regressionCases: ['run 974 §988', 'run 1036 §1475'],
             ),
             new DetectorEntry(
+                id: 'structure-sermon-adjacent-speech-unowned',
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: [ServiceStructureValidator::FLAG_SERMON_ADJACENT_SPEECH_UNOWNED],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Section,
+                summary: 'A song trim left speech between the song and the sermon that no section owns: the sermon\'s opening or conclusion, or an excluded announcement. Asked about; extraction proceeds on the sermon\'s bounds.',
+                owningClass: SongSpeechEdges::class,
+            ),
+            new DetectorEntry(
                 id: 'structure-ensemble-disagrees',
                 surface: DetectorSurface::SectionReviewFlag,
                 signals: [ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES],

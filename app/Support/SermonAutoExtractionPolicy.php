@@ -61,6 +61,10 @@ class SermonAutoExtractionPolicy
      * `published_reference_contradicts_sermon` questions the sermon's metadata, not
      * its cut, so it must never stop the media being extracted.
      *
+     * `structure_sermon_adjacent_speech_unowned` asks whether speech a song trim left beside
+     * the sermon is its own; the sermon's identified span is still right to cut, and a
+     * conclusion found later is a re-extraction, not a lost publication.
+     *
      * `structure_talk_audio_dropout` is a dead feed inside the talk. Nothing can
      * restore it and the cut is not in question; the operator accepts or excludes
      * the talk with its media in hand.
@@ -71,6 +75,7 @@ class SermonAutoExtractionPolicy
         ServiceStructureValidator::FLAG_MISSING_PREACHED_READING,
         ServiceStructureValidator::FLAG_SERMON_CONTAINS_SUNG_SPAN,
         ServiceStructureValidator::FLAG_TALK_AUDIO_DROPOUT,
+        ServiceStructureValidator::FLAG_SERMON_ADJACENT_SPEECH_UNOWNED,
         'transcript_repetition_suspect',
         FlagSermonTextPredatesEvidence::FLAG,
         FlagSermonPartsNotExtracted::FLAG,

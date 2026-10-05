@@ -72,6 +72,7 @@ class SoundStageFlagRecompute
         ServiceStructureValidator::FLAG_SECTION_READS_AS_SUNG,
         ServiceStructureValidator::FLAG_SERMON_CONTAINS_SUNG_SPAN,
         ServiceStructureValidator::FLAG_SONG_SWALLOWS_SPEECH,
+        ServiceStructureValidator::FLAG_SERMON_ADJACENT_SPEECH_UNOWNED,
         ServiceStructureValidator::FLAG_TALK_AUDIO_DROPOUT,
         ServiceStructureValidator::FLAG_SONG_OVER_DEAD_FEED,
     ];

@@ -64,6 +64,8 @@ class SongSpeechEdges
 
     private const MINIMUM_REMAINING_SECONDS = 30.0;
 
+    private const EXPOSED_SPEECH_NOTE = 'Speech at';
+
     public function __construct(private readonly RmsAnalysisService $rmsAnalysisService) {}
 
     /**
@@ -106,6 +108,8 @@ class SongSpeechEdges
             return $structure;
         }
 
+        $sections = $this->sermonsAskedAboutExposedSpeech($structure->sections, $sections);
+
         return ServiceStructure::fromSections(
             array_values($sections),
             $structure->notes,
@@ -115,6 +119,60 @@ class SongSpeechEdges
             $structure->chapterMarkers,
             $structure->sermonAbsence,
         );
+    }
+
+    /**
+     * The interval the ownership question asks about: its only record, so the ensemble carries
+     * it wherever the question goes ({@see self::isExposedSpeechNote()}).
+     */
+    public static function exposedSpeechNote(float $from, float $to): string
+    {
+        return sprintf(self::EXPOSED_SPEECH_NOTE.' %.1f–%.1fs, trimmed off the adjacent song, belongs to no section: the sermon\'s own words or an excluded announcement?', $from, $to);
+    }
+
+    public static function isExposedSpeechNote(string $note): bool
+    {
+        return str_starts_with($note, self::EXPOSED_SPEECH_NOTE.' ');
+    }
+
+    /**
+     * A trim leaves the stretch it cut off unowned. Next to the sermon that stretch is either
+     * the sermon's own opening or conclusion, swallowed by the song, or the hymn announcement,
+     * rightly excluded (D1); the sound cannot tell which, so the sermon is asked about it and
+     * neither absorbs it nor changes its bounds.
+     *
+     * @param  list<ServiceStructureSection>  $before
+     * @param  list<ServiceStructureSection>  $after
+     * @return list<ServiceStructureSection>
+     */
+    private function sermonsAskedAboutExposedSpeech(array $before, array $after): array
+    {
+        foreach ($after as $index => $song) {
+            $original = $before[$index];
+
+            if ($song === $original || $song->type !== ServiceSectionType::Song) {
+                continue;
+            }
+
+            $exposed = [];
+
+            if ($song->startTime > $original->startTime && ($after[$index - 1] ?? null)?->type === ServiceSectionType::Sermon) {
+                $exposed[$index - 1] = [$original->startTime, $song->startTime];
+            }
+
+            if ($song->endTime < $original->endTime && ($after[$index + 1] ?? null)?->type === ServiceSectionType::Sermon) {
+                $exposed[$index + 1] = [$song->endTime, $original->endTime];
+            }
+
+            foreach ($exposed as $sermonIndex => [$from, $to]) {
+                $after[$sermonIndex] = $after[$sermonIndex]->withReviewFlags(
+                    [ServiceStructureValidator::FLAG_SERMON_ADJACENT_SPEECH_UNOWNED],
+                    [self::exposedSpeechNote($from, $to)],
+                );
+            }
+        }
+
+        return $after;
     }
 
     /**

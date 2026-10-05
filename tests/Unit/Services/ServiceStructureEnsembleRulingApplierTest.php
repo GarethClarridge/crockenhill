@@ -9,6 +9,7 @@ use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleRulingApplier;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\ChurchService\Structure\SongSpeechEdges;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -632,6 +633,32 @@ class ServiceStructureEnsembleRulingApplierTest extends TestCase
             ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED,
             $result['structure']['sections'][0]['review_flags'],
         );
+    }
+
+    /**
+     * The shape of 949 and 1250 in canary 10: an answered sermon keeps the composition's
+     * exposed-speech question, and so must keep the interval that makes it answerable.
+     */
+    #[Test]
+    public function a_chosen_version_keeps_the_interval_of_an_exposed_speech_question(): void
+    {
+        $note = SongSpeechEdges::exposedSpeechNote(4311.0, 4335.0);
+        $proposal = $this->proposalOf(
+            [$this->section(ServiceSectionType::Sermon, 2454, 4311)->withReviewFlags([
+                ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES,
+                ServiceStructureValidator::FLAG_SERMON_ADJACENT_SPEECH_UNOWNED,
+            ], ['The composed draft\'s own note.', $note])],
+            ['type' => 'sermon', 'written' => true, 'start_time' => 2454.0, 'end_time' => 4311.0],
+        );
+
+        $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($proposal, [[
+            ...$this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::Sermon, 2454, 4311)->toArray()]], key: 'sermon'),
+            'scope' => ['type' => 'sermon', 'start_time' => 2454.0, 'end_time' => 4311.0],
+        ]]);
+
+        $sermon = $result['structure']['sections'][0];
+        $this->assertContains(ServiceStructureValidator::FLAG_SERMON_ADJACENT_SPEECH_UNOWNED, $sermon['review_flags']);
+        $this->assertSame([$note], $sermon['notes']);
     }
 
     /**

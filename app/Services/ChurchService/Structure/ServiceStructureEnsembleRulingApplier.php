@@ -405,8 +405,13 @@ class ServiceStructureEnsembleRulingApplier
 
         if ($target !== null) {
             $preservedFlags = array_values(array_diff($sections[$target]->reviewFlags, self::ensembleFlags()));
+            // A preserved exposed-speech question is only answerable with its interval.
+            $preservedNotes = array_values(array_filter($sections[$target]->notes, SongSpeechEdges::isExposedSpeechNote(...)));
             $replacements = array_map(
-                static fn (ServiceStructureSection $section): ServiceStructureSection => $section->withReviewFlags($preservedFlags),
+                static fn (ServiceStructureSection $section): ServiceStructureSection => $section->withReviewFlags(
+                    $preservedFlags,
+                    array_values(array_diff($preservedNotes, $section->notes)),
+                ),
                 $replacements,
             );
             array_splice($sections, $target, 1);

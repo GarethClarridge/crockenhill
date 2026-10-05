@@ -252,7 +252,13 @@ class ServiceStructureEnsembleComposer
             if ($stitchVotes <= count($winner) / 2) {
                 $supporterFlags = array_values(array_diff($supporterFlags, [ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED]));
             }
-            $section = $this->withConfidence($source->withoutReviewFlags()->withReviewFlags([...$supporterFlags, ...$flags]), $winner);
+            // The exposed-speech question is answerable only with its interval, which travels in the
+            // note of whichever supporter raised it.
+            $questionNotes = array_values(array_unique(array_filter(
+                array_merge(...array_map(static fn (array $supporter): array => $supporter['section']->notes, $winner)),
+                static fn (string $note): bool => SongSpeechEdges::isExposedSpeechNote($note) && ! in_array($note, $source->notes, true),
+            )));
+            $section = $this->withConfidence($source->withoutReviewFlags()->withReviewFlags([...$supporterFlags, ...$flags], $questionNotes), $winner);
             $sections[] = $section;
             $provenance[] = [
                 'group' => $groupIndex,
