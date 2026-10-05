@@ -1145,6 +1145,37 @@ review state changes on a different row. So read-side enforcement needs the SQL 
 or a stored per-sermon/per-video "open question" fact that both forms read and that eviction
 watches.
 
+### 8.8 Rulings on the measurements (operator, 2026-10-05)
+
+The operator accepted these recommendations:
+
+1. **Sung span holds again, now, before the canary.** Built on `fix-sung-span-hold`:
+   `compose()` raises the `sermon_contains_sung_span` composition risk again, and the resolver
+   test pins it. The flag *stays* non-disqualifying at the section level. If the section check
+   held it, only a blanket Confirm could release it, and Confirm doesn't survive re-detection
+   (§8.7c). The composition review answers it, keyed to the plan's inputs. No local section and
+   no canary replay carries the flag, so local output is unchanged.
+2. **A question is judged against the output it doubts.** Text questions
+   (`transcript_repetition_suspect`, `sermon_text_predates_evidence`) hold the transcript surface
+   only: media goes public and text waits (the transcript already has its own exposure check in
+   `SermonUrlBuilder`). Label questions (reference, speaker, song identity, OoS inversion) are
+   **ask**: the cut proceeds and exposure waits. The omission flags that hold today
+   (`section_truncated_by_source`, `sermon_evidence_incomplete`, `structure_talk_interrupted`)
+   and `structure_talk_audio_dropout` become **ask**. **Hold** is kept for questions whose cut
+   might include the wrong thing: sung span, interruption merged, material risk, prayer
+   handover, swallowed speech, ensemble disagreement, content holds, type doubts on an output
+   section.
+3. **Gate read = G3:** the composition's selected sections, plus span flags (macro/micro,
+   interruption, material risk) on other sections within reach. Each question names the
+   outputs it doubts; a talk question doubts only the talk (167 historic sermons, §8.7).
+4. **No review state means nothing to hide.** The gate reads open questions. A sermon with no
+   pipeline run or sections (the 808 placeholder runs) is public as before. The historic
+   promotion pre-flight may still refuse records with no run (custody, not review). Count
+   published weekly sermons with open questions on prod before deploying.
+5. Slices 1–4 (§8.6) follow the canary. Slice 1 carries the per-output classification
+   (media / text / label) and the pin test; slice 3 adds the SQL form of the gate
+   (§8.7d).
+
 ### 8.6 Proposed slices (after measurement)
 
 1. Consequence declared once; gates read it; pin test; no behaviour change. Ships the F11
