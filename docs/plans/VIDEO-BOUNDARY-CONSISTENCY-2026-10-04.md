@@ -752,6 +752,85 @@ built yet. Branch merged to master (unpushed).
 
 Gates: Pint; PHPStan (one finding, a redundant nullsafe, fixed `ecd91c8ca`); full parallel suite 9,275 tests with two failures that pass alone (an ffmpeg loudnorm timeout under load, `RepairHistoricSermonTranscriptSpansCommandTest`), notices pre-existing; Dusk 61.
 
+### Completion record — F11 built: mark + ask (branch `boundary-f11`)
+
+Branched from master `a1ebc19c8` (unpushed). Workers stayed stopped; no provider calls,
+dispatches or transcript regeneration; stored transcripts untouched.
+
+**Where the window lives: derived, not banked.** Neither offered option works as stated.
+Transcription runs before the classifier and before detection, so it has no timeline and no
+sections. Detection's input has the timeline but still no sections. A rule that doesn't
+depend on sections ("any ≥10 s uncovered classifier speech") finds 453 stretches in 226 runs,
+5.5× the anchored measurement, and still misses 13 of its 82 hits. Anchoring on a preceding
+"singing" window instead catches 9 (the classifier's singing score is weak). The anchor has to
+be a detected section. So `UntranscribedSpeechBeforeSection` runs last in `SoundStage`, per
+draw, from transcript + timeline + the draw's sections. It was not added to the transcript's
+`unobservableWindows` list, because the two readers of that list treat a window as sound nobody
+heard (`SongPublicationBoundaryEvidenceService::gapIsUnobservable()` stops trusting a song end
+beside one), and an F11 stretch is speech the classifier did hear. The interval lives in the
+question's note on the following section. Detection's draws, the ensemble composer, the ruling
+applier, the validator and the stored structure all carry it, and a later re-decode can find it
+by the flag. Being derived, a re-decode that fills the gap clears it, and nothing goes stale.
+Flag recompute (no timeline) leaves it alone.
+
+**Rule as built** (`854cb6944`, `2018ccd6b`). For a non-song section straight after a song:
+take the first cue of ≤15 s whose midpoint is at or after the section's start. Chain back over
+cues ending within 1 s of it (993's "the last" | "part of Joshua chapter 5"). Then walk back
+over classifier windows with speech ≥0.6, stopping at the song's start, a cue of ≤15 s or a
+recorded unobservable window. A stretch of ≥10 s gets `structure_untranscribed_speech_before_section`
+with the interval in a note. Bounds don't change. The flag is non-disqualifying in
+`SermonAutoExtractionPolicy`. Departures from the §6 measurement, each measured:
+- *No singing cap.* Speech ≥0.6 with singing ≤0.2 gives the same 82 hits as speech ≥0.6
+  alone, and `AudioTimeline` doesn't carry singing (nor do banked ensemble inputs).
+- *Only the stretch abutting the first words.* The measurement summed every uncovered piece of
+  the speech run. In long runs (1217: 394 s of cues in a 463 s run) those are gaps between lines
+  the transcript holds, not the section's opening.
+- *1138/1280's shape excluded* when the song reads as speech (`SoundClass::Speech`) for ≥0.5 of
+  its length. The corpus split is clean: 1153 1.0, 1119 0.68, 1280's notices 0.52, then every
+  other hit ≤0.33. 1138 and 1217 drop out under the abutting rule.
+
+Tests, red first: 949's shape, 1025's 30 s filler cue, 993's chained opening, the
+1138/1280 negative, plus covered/windowed/short/not-after-a-song controls, the composer and
+ruling applier carrying the interval note (shared `isIntervalQuestionNote()`, F07's too), and
+SoundStage asking only when it has a timeline.
+
+**Measured read-only** (`storage/scratch/f11/corpus.php`, `summarise_built.py`; the built
+class over stored sections and current transcripts). 62 of 1,004 starts after a song (6.2%),
+58 runs. All 62 are among the original 82, and none is new:
+
+| Generation | Runs | Starts | Hits | ≥20 s | Runs with a hit |
+|---|---|---|---|---|---|
+| A region-recovered | 90 | 339 | 28 (8.3%) | 13 | 27 |
+| B repetition-recovered | 86 | 292 | 17 (5.8%) | 6 | 16 |
+| C re-transcribed (current) | 20 | 77 | 1 (1.3%) | 0 | 1 |
+| D unrecorded normalized | 88 | 296 | 16 (5.4%) | 4 | 14 |
+
+By section type: prayer 25, sermon 17, other 9, bible reading 6, short talk 4, notices 1.
+*Canary 16 replay* (`replay.php`, rolled back, master vs branch): 949 prayer 2690.0–2706.4,
+1025 prayer 615.0–630.8 and 1311 other (baptism) 1585.0–1604.1 gain the question. Nothing else
+changes: no bound, section, dispute or other flag.
+
+*Sample* (`sample.txt`, 13 windows): most read as a lost opening, with the first cue
+mid-sentence (949 "pray. Our Heavenly Father", 1219 "of the fact that you are a unique God",
+1222, 1280's prayer "To make us wise…", 1347, 1230). *Limit:* 14 of 62 windows overlap a
+>15 s cue with real vocabulary. 4 are loops or lyrics; in about 10 (1011 "The Apostle Peter was
+a very confident…", 1240, 1263 "turn with me please to Hebrews chapter 2", 1345 "let's join in
+prayer") the words exist in an over-stretched cue (~0.5 words/s, so no word-rate gate separates
+them) before the section starts. The question still applies, since the section starts after
+them, but "untranscribed" overstates those.
+
+Open for the operator: (1) the note's wording for over-long real cues; (2) on a short talk the
+question sets `needs_manual_review`, which moves the talk's publication candidate to
+not-applicable until reviewed (4 corpus hits, none in the canary). Sermon extraction is not held.
+
+Gates: Pint; PHPStan (one list-shape finding, fixed); full parallel suite 9,287 passed (notices
+pre-existing); Dusk 61.
+
+**Listening queue for the next canary** (supersedes the lists above): 1250's Job 29 end
+(1519.04); the edges moved by the 10-04 cue-boundary rule; the F07 exposed-speech intervals
+(1025 first); 964's reading end; **1197's reading end, 1546–1584** (the prayer inside Matthew
+2, I2(b)); **the F11 hits 949 2690–2706, 1025 610–631, 1311 1585–1604**.
+
 ## 7. Further bounded investigations — added 2026-10-04
 
 The user requested these additions after reviewing the gaps in the plans. They are **open
