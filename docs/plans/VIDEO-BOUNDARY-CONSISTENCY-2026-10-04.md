@@ -744,8 +744,11 @@ branch): 2 change, selection unchanged in both, canary 16 none:
   at 1546.2, then the prayer to "Amen" at 1584.3; the prayer section starts at 1586.99, so the
   reading's end swallowed 38 s of the prayer. New case, not yet listened to.
 
-*Choice to confirm:* (b) holds extraction (composition review) where F07 only asks. Chosen
-because the span itself is in doubt here, F07's exposed speech is outside the cut.
+*Operator, 10-05:* (b) keeps holding extraction (composition review), unlike F07's ask-only,
+because the span itself is in doubt. **F11 ruled: mark + ask** — record the stretch as an
+unobservable window so detection and composition see it, raise a non-blocking question with
+the interval on the following section, and treat it as a target for a later re-decode. Not
+built yet. Branch merged to master (unpushed).
 
 Gates: Pint; PHPStan (one finding, a redundant nullsafe, fixed `ecd91c8ca`); full parallel suite 9,275 tests with two failures that pass alone (an ffmpeg loudnorm timeout under load, `RepairHistoricSermonTranscriptSpansCommandTest`), notices pre-existing; Dusk 61.
 
