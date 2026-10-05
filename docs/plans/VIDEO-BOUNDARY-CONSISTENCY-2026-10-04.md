@@ -607,6 +607,55 @@ looked at:**
   every observation is a candidate for listening, not a verdict. Discovery/retrospective
   evaluation; four services establish no corpus rate.
 
+**I5 — results (sample drawn by the predeclared rule after `195b656db`).** Runs 1177
+(2024-03-17), 1180 (2024-02-25), 993 (2026-07-12), 1310 (2021-08-15). Exposure: 1177 none
+recorded; 1180 song §2381 demoted and one edge checked in earlier censuses; 993 one mixed
+section sampled in a listening census; 1310 sections held in an earlier round and its source
+ends mid-sermon. Reviewed: every sermon-output and talk edge (reading start/end, sermon
+start/end, talk start/end), 1180's long `other`, and the classifier where the transcript was
+silent. Not reviewed: song clip interiors. Outputs reviewed: 4 sermon outputs (8 spans), 3
+talks. None of the sampled clips has a recorded cut (I4's legacy gap), so section bounds stand
+in for clip cuts. Every item below is a listening candidate, not a verdict.
+
+*Missing content* (4 observations in 3 of 4 services; all unflagged except where noted):
+1. **1180 sermon opening, 1965–1991.** Classifier speech 0.56–0.92 from 1965; no cue and no
+   unobservable window until "Chapter 2, Colossians…" at 1991.0, where the sermon starts.
+   The blind window 1811–1963 stops just short. The sermon carries no review flag.
+2. **993 sermon opening, ≈2105–2117.** Classifier speech 0.85–0.95 from 2105; no cue until
+   2117.1, which opens mid-sentence ("the last part of Joshua chapter 5"). The 12 s sit inside
+   song §1187.
+3. **1310 talk opening, ≈390–413.** Classifier speech 0.63–0.89 under one 29 s "love you."
+   lyric cue (384.2–413.2); the talk starts mid-sentence at 412.8 ("…decide what he wants").
+   The 22 s sit inside song §3935.
+4. **1180 §2374 "other", 693–1109:** a ≈7-minute talk to non-Christians (forgiveness, the
+   Apostles' Creed, the church), unpublished and unasked as `other`.
+5. (Known) 1310's recording ends mid-sentence at 3282; the sermon is held.
+
+*Unwanted content / mid-utterance cuts:* 1177 sermon end includes the hymn announcement after
+the closing "Amen" (4083.1–4089.8) and ends mid-announcement; 993 talk ends 1.1 s into "Let's
+stand and sing again"; 1310 talk ends 3.5 s into "So let's stand and sing it through
+together", mid-utterance. 1310's sermon starts ≈14 s before its first speech (music/quiet).
+
+*Clipped words (candidates):* 1177 talk end 1675.9 inside "What comfort, what joy it is."
+(to 1677.3); 993 reading end 1469.0 before "…word of God." ends (1469.4); 1180 sermon end
+3802.0 where its "Amen" starts; 1310 reading end 1616.8 where the reader's "Amen" starts;
+1177 reading end 1804.0 where the next utterance starts.
+
+*Incorrect joins:* none observed; each sermon output joins reading and sermon around the
+excluded song/prayer by design.
+
+**Shared error, proposed as F11 (not built):** speech straight after singing is lost before
+detection. ASR leaves it untranscribed or folds it into a long lyric or filler cue; the
+following section starts at the first real text; nothing marks it. Every voter sees the same
+transcript, so agreement cannot catch it (I5's premise). Existing rules miss it: 993's 12 s
+tail is under `SongSpeechEdges`' 20 s floor, and 1180's speech lies in a gap no section owns.
+The classifier timeline (`audio_timeline_path`) already holds the evidence. Smallest check: a
+section start following a song, where the timeline reads sustained speech before the first
+cue, raises an ownership/blind-window question; the decode itself may also deserve a targeted
+retry (I1's mechanism). Measure across the corpus before choosing; needs an operator ruling.
+
+Four services establish no rate. The sample was not replaced after its results were seen.
+
 Still open: a non-blocking account of unowned adjacent speech and unobservable windows in the
 publication plan. Deferred: no consumer reads it yet, F07's flag already reaches review, and
 I1's windows now reach detection directly.
