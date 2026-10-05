@@ -188,6 +188,54 @@ class ScriptureReferenceResolver
     }
 
     /**
+     * How a reading stands to the sermon's passage when choosing the sermon's reading:
+     * `match` when they agree or the reading holds the whole passage, `partial` when they only
+     * share verses, `unrelated` when they share none, and `unknown` when either side is
+     * missing or does not parse.
+     */
+    public function readingRelation(?string $sermonReference, ?string $readingReference): string
+    {
+        if ($sermonReference === null || $readingReference === null
+            || $this->normalizeAll($sermonReference) === null || $this->normalizeAll($readingReference) === null) {
+            return 'unknown';
+        }
+
+        if ($this->referencesAgree($sermonReference, $readingReference) || $this->referenceContains($readingReference, $sermonReference)) {
+            return 'match';
+        }
+
+        return $this->referencesOverlap($sermonReference, $readingReference) ? 'partial' : 'unrelated';
+    }
+
+    /**
+     * Which of the readings before a sermon its media takes. The one matching reading is cut
+     * when every reading's relation is known. Several matches, an unknown reference, or only a
+     * partial overlap leave the choice to review, among the readings that could be the one:
+     * every reading but the unrelated. Ensemble composition holds exactly the readings this
+     * can cut to their edges, so both stages share one rule.
+     *
+     * @template TKey of array-key
+     *
+     * @param  array<TKey, string|null>  $readingReferences
+     * @return array{selected: TKey|null, review: bool, could_be_cut: list<TKey>}
+     */
+    public function sermonReadingMembership(?string $sermonReference, array $readingReferences): array
+    {
+        $relations = array_map(fn (?string $reading): string => $this->readingRelation($sermonReference, $reading), $readingReferences);
+        $matches = array_keys($relations, 'match', true);
+        $unknown = in_array('unknown', $relations, true);
+
+        if (count($matches) === 1 && ! $unknown) {
+            return ['selected' => $matches[0], 'review' => false, 'could_be_cut' => $matches];
+        }
+
+        $review = count($matches) > 1 || $unknown || in_array('partial', $relations, true);
+
+        return ['selected' => null, 'review' => $review,
+            'could_be_cut' => $review ? array_keys(array_filter($relations, static fn (string $relation): bool => $relation !== 'unrelated')) : []];
+    }
+
+    /**
      * Whether one reference's overall span [min from, max to] contains the
      * other's. The same reading split at different points still nests; two
      * references that each read past their shared verses (a crossing overlap)

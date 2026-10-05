@@ -61,29 +61,15 @@ class SermonExtractionPlanResolver
             $last = $selected[count($selected) - 1];
             $reference = $sermon->metadata?->raw['sermon_reference'] ?? null;
             $readings = array_values(array_filter($sections, static fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::BibleReading && $section->start_time < $first->start_time));
-            $matches = [];
-            $overlapping = 0;
-            $unknownReading = false;
-            foreach ($readings as $reading) {
-                $readingReference = $reading->metadata?->readingReference;
-                if (! is_string($reference) || $this->scriptureReferences->normalizeAll($reference) === null
-                    || $readingReference === null || $this->scriptureReferences->normalizeAll($readingReference) === null) {
-                    $unknownReading = true;
-
-                    continue;
-                }
-                if ($this->scriptureReferences->referencesAgree($reference, $readingReference)
-                    || $this->scriptureReferences->referenceContains($readingReference, $reference)) {
-                    $matches[] = $reading;
-                } elseif ($this->scriptureReferences->referencesOverlap($reference, $readingReference)) {
-                    // Shares verses without holding the sermon's passage: a sermon reading past
-                    // it, or one part of a multipart reference. Plausible, so asked, never dropped.
-                    $overlapping++;
-                }
-            }
-            if (count($matches) === 1 && ! $unknownReading) {
-                $selected[] = $matches[0];
-            } elseif (count($matches) > 1 || $unknownReading || ($matches === [] && $overlapping > 0)) {
+            $membership = $this->scriptureReferences->sermonReadingMembership(
+                is_string($reference) ? $reference : null,
+                array_map(static fn (ServiceSection $reading): ?string => $reading->metadata?->readingReference, $readings),
+            );
+            if ($membership['selected'] !== null) {
+                $selected[] = $readings[$membership['selected']];
+            } elseif ($membership['review']) {
+                // A reading sharing verses without holding the sermon's passage is a sermon reading
+                // past it, or one part of a multipart reference: plausible, so asked, never dropped.
                 $risks[] = ['kind' => 'sermon_reading_membership_unresolved', 'detail' => 'Choose the sermon reading: references are missing or multiple readings are plausible.'];
             }
             $following = array_values(array_filter($sections, static fn (ServiceSection $section): bool => $section->start_time >= $last->end_time && ! in_array($section, $selected, true)));

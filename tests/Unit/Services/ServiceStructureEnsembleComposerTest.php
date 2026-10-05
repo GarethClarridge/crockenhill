@@ -68,6 +68,51 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         $this->assertSame(['sermon'], array_column($differentPairing->disputes, 'type'));
     }
 
+    /**
+     * F08: John 8:12-25 holds the whole reading John 8:12-20, so extraction pairs them; John
+     * 8:18-30 only crosses it, so extraction asks. The two references overlap each other and
+     * every counterpart, but they do not cut the same reading.
+     */
+    #[Test]
+    public function sermon_references_that_change_reading_membership_disagree(): void
+    {
+        $draw = fn (string $sermonReference): ServiceStructure => $this->structure(
+            $this->section(ServiceSectionType::BibleReading, 1314, 1394, 'John 8:12-20'),
+            new ServiceStructureSection(ServiceSectionType::Sermon, null, 1690.0, 3500.0, 0.9, null, null, null, $sermonReference),
+        );
+
+        $result = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($draw('John 8:12-25')),
+            1 => $this->vote($draw('John 8:12-25')),
+            2 => $this->vote($draw('John 8:18-30')),
+            3 => $this->vote($draw('John 8:18-30')),
+        ]);
+
+        $this->assertSame(['sermon'], array_column($result->disputes, 'type'));
+    }
+
+    /**
+     * F02: extraction pairs a matching reading however long before the sermon it ends, so the
+     * composer holds that reading to its edges too; a reading's lost verse is a question.
+     */
+    #[Test]
+    public function a_matching_reading_long_before_the_sermon_is_held_to_its_edges(): void
+    {
+        $draw = fn (int $readingEnd): ServiceStructure => $this->structure(
+            $this->section(ServiceSectionType::BibleReading, 100, $readingEnd, 'John 3'),
+            new ServiceStructureSection(ServiceSectionType::Sermon, null, 2000.0, 4000.0, 0.9, null, null, null, 'John 3:16'),
+        );
+
+        $result = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($draw(300)),
+            1 => $this->vote($draw(300)),
+            2 => $this->vote($draw(270)),
+            3 => $this->vote($draw(270)),
+        ]);
+
+        $this->assertContains('bible_reading', array_column($result->disputes, 'type'));
+    }
+
     /** The shape of runs 964, 1304 and 1356 in canary 9; 1311 and 1304 ruled an untitled song both ways. */
     #[Test]
     public function unbound_titles_naming_one_catalogued_song_are_one_song(): void
@@ -615,13 +660,17 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         $this->assertContains('song', array_column($presence->disputes, 'type'));
     }
 
+    /**
+     * The sermon's reference rules Isaiah 40 out, as extraction would, however near it is. A
+     * sermon with no reference sends every earlier reading to review, so each is held.
+     */
     #[Test]
     public function a_reading_the_sermon_cannot_pair_matches_on_overlap_but_the_preached_reading_is_held_to_both_edges(): void
     {
         $draw = fn (int $earlyReadingStart, int $preachedReadingEnd): ServiceStructure => $this->structure(
             $this->section(ServiceSectionType::BibleReading, $earlyReadingStart, 500, 'Isaiah 40'),
             $this->section(ServiceSectionType::BibleReading, 1800, $preachedReadingEnd, 'John 3'),
-            $this->section(ServiceSectionType::Sermon, 2000, 4000),
+            new ServiceStructureSection(ServiceSectionType::Sermon, null, 2000.0, 4000.0, 0.9, null, null, null, 'John 3:16'),
         );
 
         $earlyOnly = app(ServiceStructureEnsembleComposer::class)->compose([

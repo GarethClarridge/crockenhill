@@ -569,7 +569,7 @@ class ServiceStructureEnsembleComposer
                 }
 
                 $limits[] = $limit;
-                $heldReadings += $this->pairableReadings($slot, $draw->structure->sections, $sermon, $extension);
+                $heldReadings += $this->pairableReadings($slot, $draw->structure->sections, $sermon);
             }
         }
 
@@ -585,33 +585,28 @@ class ServiceStructureEnsembleComposer
     }
 
     /**
-     * The readings `SermonExtractionPlanResolver` could cut into this sermon's media: those that
-     * end before it starts and within the pairing gap. The resolver ranks a reading matching the
-     * sermon's own reference above all other evidence, so when one within reach matches, only
-     * matching readings can win; otherwise any reading within reach could.
+     * The readings `SermonExtractionPlanResolver` could cut into this sermon's media: any reading
+     * that starts before it, however far, by the resolver's own membership rule. When the
+     * sermon's reference rules out every reading, a voter may have named the preached reading
+     * wrongly, so each is held: correcting that reference would put it in the cut.
      *
      * @param  list<ServiceStructureSection>  $sections
      * @return array<string, true>
      */
-    private function pairableReadings(int $slot, array $sections, ServiceStructureSection $sermon, float $maxPairingGap): array
+    private function pairableReadings(int $slot, array $sections, ServiceStructureSection $sermon): array
     {
-        $withinReach = [];
+        $readings = [];
 
         foreach ($sections as $index => $reading) {
-            $gap = $sermon->startTime - $reading->endTime;
-
-            if ($reading->type === ServiceSectionType::BibleReading && $gap >= 0.0 && $gap <= $maxPairingGap) {
-                $withinReach["{$slot}:{$index}"] = $reading;
+            if ($reading->type === ServiceSectionType::BibleReading && $reading->startTime < $sermon->startTime) {
+                $readings["{$slot}:{$index}"] = $reading->readingReference;
             }
         }
 
-        $matching = $sermon->sermonReference === null ? [] : array_filter(
-            $withinReach,
-            fn (ServiceStructureSection $reading): bool => $reading->readingReference !== null
-                && $this->scriptureReferences->referencesOverlap($reading->readingReference, $sermon->sermonReference),
-        );
+        $membership = $this->scriptureReferences->sermonReadingMembership($sermon->sermonReference, $readings);
+        $couldBeCut = $membership['selected'] !== null || $membership['review'] ? $membership['could_be_cut'] : array_keys($readings);
 
-        return array_fill_keys(array_keys($matching !== [] ? $matching : $withinReach), true);
+        return array_fill_keys($couldBeCut, true);
     }
 
     /**
@@ -865,8 +860,10 @@ class ServiceStructureEnsembleComposer
             $other = $member['section'];
 
             if ($this->signature($section) !== $this->signature($other)
-                || ! $this->referencesAgree($section->readingReference, $other->readingReference, $context['sermon_references'])
-                || ! $this->referencesAgree($section->sermonReference, $other->sermonReference, $context['reading_references'])) {
+                || ! $this->referencesAgree($section->readingReference, $other->readingReference,
+                    fn (string $reading, string $sermon): string => $this->scriptureReferences->readingRelation($sermon, $reading), $context['sermon_references'])
+                || ! $this->referencesAgree($section->sermonReference, $other->sermonReference,
+                    $this->scriptureReferences->readingRelation(...), $context['reading_references'])) {
                 return false;
             }
         }
@@ -914,11 +911,14 @@ class ServiceStructureEnsembleComposer
      * Two citations of one passage at different granularity agree ("Psalm 95" and "Psalm 95:1-7";
      * ruled 2026-10-01) unless they would pair the sermon with different readings: a reading
      * reference is checked against every voter's sermon reference, and a sermon reference
-     * against every voter's reading reference. A missing reference agrees only with another.
+     * against every voter's reading reference, by the relation extraction itself uses. Sharing
+     * verses is not enough: a passage the reading holds is cut with it, one it only overlaps
+     * is asked about. A missing reference agrees only with another.
      *
+     * @param  \Closure(string, string): string  $relation  The membership relation of a reference to a counterpart
      * @param  list<string>  $counterparts
      */
-    private function referencesAgree(?string $a, ?string $b, array $counterparts): bool
+    private function referencesAgree(?string $a, ?string $b, \Closure $relation, array $counterparts): bool
     {
         if ($a === null || $b === null) {
             return $a === $b;
@@ -933,7 +933,7 @@ class ServiceStructureEnsembleComposer
         }
 
         foreach ($counterparts as $counterpart) {
-            if ($this->scriptureReferences->referencesOverlap($a, $counterpart) !== $this->scriptureReferences->referencesOverlap($b, $counterpart)) {
+            if ($relation($a, $counterpart) !== $relation($b, $counterpart)) {
                 return false;
             }
         }
