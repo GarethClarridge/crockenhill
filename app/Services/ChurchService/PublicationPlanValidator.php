@@ -24,9 +24,10 @@ class PublicationPlanValidator
     /**
      * @param  list<ServiceSection>  $selected  The sections the output publishes
      * @param  list<array{start_time: float, end_time: float}>  $spans  The final cut, after every adjustment
-     * @return list<array{kind: 'selected_section_not_cut'|'crosses_held_section', section_ids: list<int>}>
+     * @param  list<array<string, mixed>>  $edges  The cut's `cue_edge_widening` audit, one span per selected section
+     * @return list<array{kind: 'selected_section_not_cut'|'crosses_held_section'|'edge_unresolved', section_ids: list<int>}>
      */
-    public function validate(MediaProcessingLog $log, array $selected, array $spans): array
+    public function validate(MediaProcessingLog $log, array $selected, array $spans, array $edges = []): array
     {
         $this->refuseImpossible($log, $spans);
 
@@ -56,6 +57,17 @@ class PublicationPlanValidator
 
         if ($crossed !== []) {
             $violations[] = ['kind' => 'crosses_held_section', 'section_ids' => $crossed];
+        }
+
+        // An edge the words could not place keeps every occurrence of its cue, which may carry
+        // in words that are not this output's (F03); it is asked, not cut.
+        $unresolved = array_values(array_unique(array_filter(array_map(
+            static fn (array $edge): ?int => ($selected[$edge['span_index']] ?? null)?->id,
+            CueSafeExtractionPlan::unresolvedEdges($edges),
+        ))));
+
+        if ($unresolved !== []) {
+            $violations[] = ['kind' => 'edge_unresolved', 'section_ids' => $unresolved];
         }
 
         return $violations;

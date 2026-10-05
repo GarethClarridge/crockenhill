@@ -137,20 +137,73 @@ class WordTimedOutputEdgesTest extends TestCase
                 ['start' => 19.7, 'end' => 20.4, 'word' => ' and'],
                 ['start' => 20.5, 'end' => 20.8, 'word' => ' then'],
             ], 20.4],
-            // The opening phrase is heard twice within reach: no occurrence is chosen by distance,
-            // so the largest pause decides as for any edge off a lone cue boundary.
-            'ambiguous opening phrase falls back to the largest pause' => ['start', 10.0, ['start' => 10.0, 'end' => 11.0, 'text' => 'thank you'], [
-                ['start' => 9.5, 'end' => 9.7, 'word' => ' thank'],
-                ['start' => 9.7, 'end' => 9.9, 'word' => ' you'],
-                ['start' => 10.1, 'end' => 10.3, 'word' => ' thank'],
-                ['start' => 10.3, 'end' => 10.5, 'word' => ' you'],
-                ['start' => 11.6, 'end' => 11.9, 'word' => ' so'],
-            ], 10.5],
             '1267 sorry stretched over music tail' => ['start', 129.9, ['start' => 100.0, 'end' => 130.0, 'text' => "I'm sorry."], [
                 ['start' => 100.0, 'end' => 100.2, 'word' => "I'm"],
                 ['start' => 100.2, 'end' => 100.5, 'word' => 'sorry.'],
             ], 129.9],
         ];
+    }
+
+    /**
+     * The cue's opening phrase is heard twice within reach, so the words cannot say which one the
+     * cue opens with (F03). The largest pause cut after both, dropping the cue's own words; the
+     * edge must instead stay unresolved for review, and the cut must keep every occurrence it
+     * might be.
+     */
+    #[Test]
+    public function an_ambiguous_opening_phrase_is_unresolved_and_the_cut_keeps_every_occurrence(): void
+    {
+        $cue = ['start' => 10.0, 'end' => 11.0, 'text' => 'thank you'];
+        $log = $this->log($cue);
+        $this->bank($log, $cue, [
+            ['start' => 9.5, 'end' => 9.7, 'word' => ' thank'],
+            ['start' => 9.7, 'end' => 9.9, 'word' => ' you'],
+            ['start' => 10.1, 'end' => 10.3, 'word' => ' thank'],
+            ['start' => 10.3, 'end' => 10.5, 'word' => ' you'],
+            ['start' => 11.6, 'end' => 11.9, 'word' => ' so'],
+        ]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 10.0, 'end_time' => 5000.0]]);
+
+        $this->assertLessThanOrEqual(9.5, $plan['segments'][0]['start_time']);
+        $this->assertSame(CueSafeExtractionPlan::AMBIGUOUS_CUE_ANCHOR, $plan['cue_edge_widening'][0]['reason']);
+        $this->assertSame([['span_index' => 0, 'edge' => 'start', 'original_time' => 10.0]], CueSafeExtractionPlan::unresolvedEdges($plan['cue_edge_widening']));
+    }
+
+    #[Test]
+    public function an_ambiguous_closing_phrase_is_unresolved_and_the_cut_keeps_every_occurrence(): void
+    {
+        $cue = ['start' => 18.0, 'end' => 20.0, 'text' => 'thank you'];
+        $log = $this->log($cue);
+        $this->bank($log, $cue, [
+            ['start' => 18.0, 'end' => 18.3, 'word' => ' thank'],
+            ['start' => 18.3, 'end' => 18.6, 'word' => ' you'],
+            ['start' => 19.6, 'end' => 19.8, 'word' => ' thank'],
+            ['start' => 19.8, 'end' => 20.4, 'word' => ' you'],
+        ]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 5.0, 'end_time' => 20.0]]);
+
+        $this->assertGreaterThanOrEqual(20.4, $plan['segments'][0]['end_time']);
+        $this->assertSame([['span_index' => 0, 'edge' => 'end', 'original_time' => 20.0]], CueSafeExtractionPlan::unresolvedEdges($plan['cue_edge_widening']));
+    }
+
+    #[Test]
+    public function a_resolved_edge_is_not_reported_unresolved(): void
+    {
+        $cue = ['start' => 10.0, 'end' => 12.0, 'text' => 'the word of the Lord'];
+        $log = $this->log($cue);
+        $this->bank($log, $cue, [
+            ['start' => 9.2, 'end' => 9.35, 'word' => ' the'],
+            ['start' => 9.4, 'end' => 9.7, 'word' => ' word'],
+            ['start' => 9.75, 'end' => 9.95, 'word' => ' of'],
+            ['start' => 10.1, 'end' => 10.2, 'word' => ' the'],
+            ['start' => 10.25, 'end' => 10.8, 'word' => ' Lord'],
+        ]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 10.0, 'end_time' => 5000.0]]);
+
+        $this->assertSame([], CueSafeExtractionPlan::unresolvedEdges($plan['cue_edge_widening']));
     }
 
     /** Run 949: the prayer's cue runs on into the sermon, so the boundary between cues is shared. */

@@ -202,6 +202,68 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $this->assertNotNull($other->fresh()->extracted_video_path);
     }
 
+    /** F03: a candidate whose opening cue is heard twice cannot be cut safely, so it is blocked. */
+    #[Test]
+    public function an_ambiguous_candidate_edge_blocks_only_that_output_and_records_why(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        Bus::fake([AutoPublishServiceSection::class]);
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => ['song' => SongPublicationHandler::class],
+        ]);
+        $item = ChurchServiceItem::factory()->create(['song_id' => Song::factory()->create()->id]);
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create(['source_file_path' => 'livestreams/source.mp4']);
+        Storage::disk('local')->put('livestreams/source.mp4', 'source-video');
+        $song = fn (float $start, float $end): ServiceSection => ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id, 'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song, 'status' => ServiceSectionStatus::Identified,
+            'start_time' => $start, 'end_time' => $end, 'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed, 'metadata' => ['confidence_level' => 'high'],
+        ]);
+        $section = $song(100.0, 300.0);
+        $other = $song(600.0, 700.0);
+        $processingLog->putServiceTranscriptPath('temp/shared.json');
+        Storage::disk('local')->put('temp/shared.json', json_encode(ChurchServiceTranscript::fromCues([
+            ['start' => 100.0, 'end' => 101.0, 'text' => 'thank you'],
+        ], 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        $this->bankNoWordOutputEdges($processingLog);
+        $this->bankOutputEdgeWords($processingLog, 100.0, [
+            ['start' => 99.5, 'end' => 99.7, 'word' => ' thank'],
+            ['start' => 99.7, 'end' => 99.9, 'word' => ' you'],
+            ['start' => 100.1, 'end' => 100.3, 'word' => ' thank'],
+            ['start' => 100.3, 'end' => 100.5, 'word' => ' you'],
+        ]);
+        $videoExtractor = $this->createMock(VideoExtractionService::class);
+        $videoExtractor->expects($this->once())
+            ->method('extractSegmentAsFile')
+            ->with($this->anything(), $this->callback(fn (object $segment): bool => $segment->start_time === 600.0), $this->anything())
+            ->willReturnCallback(function (): string {
+                Storage::disk('local')->put('temp/section-video.mp4', 'section-video');
+
+                return 'temp/section-video.mp4';
+            });
+
+        (new PrepareSectionPublicationCandidates($processingLog))->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(SectionPublicationHandlerFactory::class),
+            app(ServiceSectionPublicationTransitionService::class)
+        );
+
+        $section->refresh();
+        $blocked = $section->metadata->raw['publication_candidate_extraction_blocked'] ?? [];
+        $this->assertNull($section->extracted_video_path);
+        $this->assertSame('cut_plan_invalid', $blocked['reason'] ?? null);
+        $this->assertSame([['kind' => 'edge_unresolved', 'section_ids' => [$section->id]]], $blocked['plan_violations'] ?? null);
+        Bus::assertNotDispatched(AutoPublishServiceSection::class, fn ($job): bool => $job->serviceSectionId === $section->id);
+        $this->assertNotNull($other->fresh()->extracted_video_path);
+    }
+
     #[Test]
     public function run_1221s_song_cut_includes_the_shared_welcome_cue_and_records_the_widening(): void
     {

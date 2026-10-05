@@ -20,6 +20,12 @@ class CueSafeExtractionPlan
     /** Words of the cue's opening or closing run that must be heard in order to anchor the cut. */
     private const ANCHOR_RUN = 3;
 
+    /**
+     * The audit reason for an edge on a cue boundary whose opening or closing run is heard more
+     * than once within reach: the words cannot say which occurrence the cue starts or ends with.
+     */
+    public const AMBIGUOUS_CUE_ANCHOR = 'ambiguous_cue_anchor';
+
     /** @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>} */
     public function forSection(ServiceSection $section): array
     {
@@ -50,7 +56,7 @@ class CueSafeExtractionPlan
                             'time' => $decision['time'], 'seconds_added' => abs($decision['time'] - $original),
                             'seconds_moved' => $decision['time'] - $original, 'window' => $window,
                             'cue' => $window['cues'][0], 'cues' => $window['cues'],
-                            ...$decision, 'reason' => 'word_pause',
+                            ...$decision, 'reason' => isset($decision['candidate_anchors']) ? self::AMBIGUOUS_CUE_ANCHOR : 'word_pause',
                             'text_disagreement' => $this->disagrees($words, $window['cues'])];
 
                         continue;
@@ -95,6 +101,22 @@ class CueSafeExtractionPlan
     }
 
     /**
+     * The edges a plan could not place: an ambiguous cue anchor. Their cut keeps every occurrence
+     * the cue might start or end with, so nothing of the cue is dropped, but whether the extra
+     * words belong to this output is a question; a consumer must not execute the plan unasked.
+     *
+     * @param  list<array<string, mixed>>  $audit  a plan's `cue_edge_widening`
+     * @return list<array{span_index: int, edge: string, original_time: float}>
+     */
+    public static function unresolvedEdges(array $audit): array
+    {
+        return array_values(array_map(
+            static fn (array $entry): array => ['span_index' => (int) $entry['span_index'], 'edge' => (string) $entry['edge'], 'original_time' => (float) $entry['original_time']],
+            array_filter($audit, static fn (array $entry): bool => ($entry['reason'] ?? null) === self::AMBIGUOUS_CUE_ANCHOR),
+        ));
+    }
+
+    /**
      * Held sections a final cut reaches into, other than the sections it is cutting. Holds are
      * checked against section bounds before edges widen into words and cues; a widened edge can
      * then carry held content into the output through a cue it shares with the held section.
@@ -120,12 +142,16 @@ class CueSafeExtractionPlan
      * cue can be the largest gap, and cutting there drops the whole cue (949's last verse), while
      * a word timed before its cue starts (964's "During") is lost to a smaller gap inside the
      * sentence. The cue's edge is found by its opening or closing run of words near the boundary,
-     * so a repeated "the" nearer the boundary cannot stand in for it; when no run matches, or it
-     * matches more than once, null hands the edge back to the largest pause.
+     * so a repeated "the" nearer the boundary cannot stand in for it; when no run matches, null
+     * hands the edge back to the largest pause.
+     *
+     * A run heard more than once within reach is ambiguous (F03). Choosing an occurrence, or the
+     * largest pause, can cut after the cue's own words; so the cut goes outside the outermost
+     * occurrence, keeping every one, and `candidate_anchors` marks the edge unresolved for review.
      *
      * @param  list<array{start: float, end: float, word: string}>  $words
      * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>}  $window
-     * @return array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null}|null
+     * @return array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, candidate_anchors?: list<array{start: float, end: float, word: string}>}|null
      */
     private function cueBoundaryPause(array $words, array $window, float $original, string $edge): ?array
     {
@@ -163,21 +189,26 @@ class CueSafeExtractionPlan
                 $anchors[$index] = true;
             }
         }
-        if (count($anchors) !== 1) {
+        if ($anchors === []) {
             return null;
         }
-        $anchor = $words[array_key_first($anchors)];
+        ksort($anchors);
+        // Words are in start order, so the first anchor opens earliest; the last closes latest
+        // unless a longer earlier word outlasts it.
+        $candidates = array_map(static fn (int $index): array => $words[$index], array_keys($anchors));
+        $anchor = $isStart ? $candidates[0] : array_reduce($candidates, static fn (?array $latest, array $word): array => $latest === null || $word['end'] > $latest['end'] ? $word : $latest);
+        $ambiguous = count($candidates) > 1 ? ['candidate_anchors' => $candidates] : [];
         // The nearest gap no word is still sounding in: a word overlapping the anchor stays whole.
         $pauses = array_filter($this->pauses($words, $window), static fn (array $pause): bool => $isStart
             ? $pause['end'] <= $anchor['start'] : $pause['start'] >= $anchor['end']);
         if ($pauses === []) {
-            return null;
+            return $ambiguous === [] ? null : [...$this->pause($words, $window, $original), ...$ambiguous];
         }
         $pause = $isStart ? $pauses[array_key_last($pauses)] : $pauses[array_key_first($pauses)];
 
         return ['time' => max($pause['start'], min($original, $pause['end'])),
             'chosen_pause' => ['start' => $pause['start'], 'end' => $pause['end']],
-            'word_before' => $pause['word_before'], 'word_after' => $pause['word_after']];
+            'word_before' => $pause['word_before'], 'word_after' => $pause['word_after'], ...$ambiguous];
     }
 
     private function normalize(string $text): string

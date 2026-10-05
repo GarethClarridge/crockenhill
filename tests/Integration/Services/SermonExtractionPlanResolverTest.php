@@ -133,6 +133,32 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->assertSame([$talk->id], $plan['metadata']['crossed_held_section_ids']);
     }
 
+    /**
+     * The sermon's opening cue is heard twice within reach of its start, so no cut can be shown to
+     * keep its own words: the plan goes to review rather than cutting after both (F03).
+     */
+    #[Test]
+    public function an_ambiguous_sermon_edge_holds_the_plan_for_review(): void
+    {
+        Storage::fake('local');
+        $log = $this->logWithSermon(100, 200);
+        $sermon = $log->serviceSections()->sole();
+        $this->shareCueAcross($log, 100.0, 101.0, 'thank you');
+        $this->bankOutputEdgeWords($log, 100.0, [
+            ['start' => 99.5, 'end' => 99.7, 'word' => ' thank'],
+            ['start' => 99.7, 'end' => 99.9, 'word' => ' you'],
+            ['start' => 100.1, 'end' => 100.3, 'word' => ' thank'],
+            ['start' => 100.3, 'end' => 100.5, 'word' => ' you'],
+        ]);
+
+        $plan = $this->resolver->resolve($log->fresh());
+
+        $this->assertTrue($plan['metadata']['requires_review']);
+        $this->assertSame('sermon_edge_unresolved', $plan['metadata']['reason']);
+        $this->assertSame([['kind' => 'edge_unresolved', 'section_ids' => [$sermon->id]]], $plan['metadata']['plan_violations']);
+        $this->assertLessThanOrEqual(99.5, $plan['segments'][0]['start_time']);
+    }
+
     #[Test]
     public function a_cut_widened_into_an_unheld_neighbour_is_not_held(): void
     {
@@ -156,11 +182,11 @@ class SermonExtractionPlanResolverTest extends TestCase
     }
 
     /** One cue across the edge, without words: the no-word rule widens the cut to the whole cue. */
-    private function shareCueAcross(MediaProcessingLog $log, float $start, float $end): void
+    private function shareCueAcross(MediaProcessingLog $log, float $start, float $end, string $text = 'One complete line.'): void
     {
         $log->putServiceTranscriptPath('temp/shared.json');
         Storage::disk('local')->put('temp/shared.json', json_encode(ChurchServiceTranscript::fromCues([
-            ['start' => $start, 'end' => $end, 'text' => 'One complete line.'],
+            ['start' => $start, 'end' => $end, 'text' => $text],
         ], 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
         $this->bankNoWordOutputEdges($log);
     }

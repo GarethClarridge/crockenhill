@@ -449,8 +449,9 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             ], $recorded));
             // The bounds and media version match, but the cut also follows the transcript,
             // edge words and cutting rules (I4): media is reused only for the cut it holds.
-            if ($this->sameCut($recorded, $cutPlans->forSection($section)['segments'])) {
-                $this->refuseInvalidCut($section, $recorded);
+            $planned = $cutPlans->forSection($section);
+            if ($this->sameCut($recorded, $planned['segments'])) {
+                $this->refuseInvalidCut($section, $recorded, $planned['cue_edge_widening']);
 
                 return;
             }
@@ -486,7 +487,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             $outputs = app(RecordedVideoOutput::class);
             $provenance = $outputs->provenance($this->processingLog->fresh() ?? $this->processingLog);
             $cutPlan = $cutPlans->forSection($section);
-            $this->refuseInvalidCut($section, $cutPlan['segments']);
+            $this->refuseInvalidCut($section, $cutPlan['segments'], $cutPlan['cue_edge_widening']);
             $segment = (object) $cutPlan['segments'][0];
 
             $tempVideoPath = $videoExtractor->extractSegmentAsFile(
@@ -568,11 +569,12 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
      * through a cue they share, or miss the section altogether.
      *
      * @param  list<array{start_time: float, end_time: float}>  $segments
+     * @param  list<array<string, mixed>>  $edges  the planned cut's `cue_edge_widening` audit
      */
-    private function refuseInvalidCut(ServiceSection $section, array $segments): void
+    private function refuseInvalidCut(ServiceSection $section, array $segments, array $edges): void
     {
         try {
-            $violations = app(PublicationPlanValidator::class)->validate($this->processingLog, [$section], $segments);
+            $violations = app(PublicationPlanValidator::class)->validate($this->processingLog, [$section], $segments, $edges);
         } catch (InvalidArgumentException $exception) {
             throw new OutputPlanInvalid([], $exception->getMessage());
         }

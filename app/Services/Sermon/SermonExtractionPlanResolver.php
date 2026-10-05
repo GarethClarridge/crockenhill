@@ -318,7 +318,7 @@ class SermonExtractionPlanResolver
         }
         $spans = $cuePlan['segments'];
         // Only a plan whose final spans pass every check may be executed (S6).
-        $violations = $spans === [] ? [] : $this->validator->validate($processingLog, $selectedSections, $spans);
+        $violations = $spans === [] ? [] : $this->validator->validate($processingLog, $selectedSections, $spans, $cuePlan['cue_edge_widening']);
         $violated = static fn (string $kind): array => array_merge([], ...array_column(
             array_filter($violations, static fn (array $violation): bool => $violation['kind'] === $kind),
             'section_ids',
@@ -338,6 +338,7 @@ class SermonExtractionPlanResolver
                 'reason' => match (true) {
                     $held !== [] => 'sermon_section_content_held',
                     $crossed !== [] => 'sermon_span_crosses_held_section',
+                    $violated('edge_unresolved') !== [] => 'sermon_edge_unresolved',
                     $violations !== [] => 'sermon_plan_invalid',
                     $requiresReview => 'sermon_composition_review',
                     default => null,
