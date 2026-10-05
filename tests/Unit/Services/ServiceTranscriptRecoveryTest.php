@@ -14,6 +14,7 @@ use App\Services\Media\Audio\ServiceTranscriptRecovery;
 use App\Services\Media\Audio\SupersededTranscriptFallback;
 use Mockery;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\TestWith;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -302,6 +303,59 @@ class ServiceTranscriptRecoveryTest extends TestCase
     }
 
     /**
+     * I1 (operator ruling 2026-10-05): a sound span the retry decoded to nothing, or could not
+     * decode while its siblings were, is not "nothing was said". The original cues there are
+     * deleted with the rest of the window, so the span is banked unobservable; spans the RMS
+     * measured silent stay unmarked.
+     */
+    #[Test]
+    #[TestWith([false], 'decoded to nothing')]
+    #[TestWith([true], 'could not be decoded')]
+    public function a_sound_span_the_retry_leaves_uncovered_is_marked_unobservable(bool $extractionFails): void
+    {
+        $spans = [];
+        $extractor = Mockery::mock(ServiceAudioWindowExtractor::class);
+        $extractor->shouldReceive('extract')->twice()->andReturnUsing(function (string $source, float $start, float $end) use (&$spans, $extractionFails): string {
+            $spans[] = [$start, $end];
+            if ($extractionFails && count($spans) === 1) {
+                throw new RuntimeException('ffmpeg failed');
+            }
+
+            return '/clip-'.count($spans).'.mp3';
+        });
+        $extractor->shouldReceive('delete');
+
+        $transcription = Mockery::mock(ServiceTranscriptionInterface::class);
+        $transcription->shouldReceive('transcribeService')->andReturnUsing(fn (string $clip): ChurchServiceTranscript => $clip === '/clip-1.mp3'
+            ? ChurchServiceTranscript::fromCues([], 34.0, ChurchServiceTranscript::SOURCE_LOCAL_WHISPER)
+            : ChurchServiceTranscript::fromCues([
+                ['start' => 2.0, 'end' => 18.0, 'text' => 'This tells the story of a woman living in France.'],
+            ], 21.0, ChurchServiceTranscript::SOURCE_LOCAL_WHISPER));
+
+        $recovered = (new ServiceTranscriptRecovery(
+            new ServiceTranscriptPathologyDetector,
+            $extractor,
+            $transcription,
+            new RmsAnalysisService,
+            new PathologicalWindowSoundSpans,
+            new SupersededTranscriptFallback(new ServiceTranscriptPathologyDetector),
+        ))->recover(
+            $this->transcriptLoopingBetween(1355.0, 1595.0),
+            '/recording.mp4',
+            'run-1',
+            $this->rmsLogWithSpeechSpans([[1400.0, 1430.0], [1576.0, 1595.0]], 1355.0),
+        );
+
+        $this->assertCount(2, $spans);
+        $this->assertContains('This tells the story of a woman living in France.', array_column($recovered->cues, 'text'));
+        $this->assertEqualsCanonicalizing([[
+            'start' => $spans[0][0],
+            'end' => $spans[0][1],
+            'reason' => 'retranscription_failed',
+        ]], $recovered->unobservableWindows);
+    }
+
+    /**
      * When the window really is silent there is nothing to decode, and paying a
      * provider to confirm it is waste. It is recorded as a property of the
      * recording rather than as a retry that failed — the acceptance accounting
@@ -528,6 +582,25 @@ class ServiceTranscriptRecoveryTest extends TestCase
             $level = $at >= $speechFrom && $at <= $speechTo ? '-26.500000' : '-inf';
             $lines[] = sprintf('frame:0    pts:0       pts_time:%.3f', $at);
             $lines[] = 'lavfi.astats.Overall.RMS_level='.$level;
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * Digital silence from 30 s before the window, with speech across each of $spans.
+     *
+     * @param  list<array{0: float, 1: float}>  $spans
+     */
+    private function rmsLogWithSpeechSpans(array $spans, float $windowStart): string
+    {
+        $lines = [];
+        $until = max(array_column($spans, 1)) + 10.0;
+
+        for ($at = $windowStart - 30.0; $at <= $until; $at += 1.0) {
+            $speaking = array_any($spans, static fn (array $span): bool => $at >= $span[0] && $at <= $span[1]);
+            $lines[] = sprintf('frame:0    pts:0       pts_time:%.3f', $at);
+            $lines[] = 'lavfi.astats.Overall.RMS_level='.($speaking ? '-26.500000' : '-inf');
         }
 
         return implode("\n", $lines);

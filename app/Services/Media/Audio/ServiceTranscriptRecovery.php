@@ -202,6 +202,15 @@ class ServiceTranscriptRecovery
                 ];
             }
 
+            // Spans the retry itself could not observe, on the recording clock.
+            foreach ($retry->unobservableWindows as $blind) {
+                $unobservableWindows[] = [
+                    'start' => $blind['start'] + $window['start'],
+                    'end' => $blind['end'] + $window['start'],
+                    'reason' => $blind['reason'],
+                ];
+            }
+
             $recovered = $retry->cues;
 
             foreach ($residue as $pathological) {
@@ -261,6 +270,7 @@ class ServiceTranscriptRecovery
         }
 
         $cues = [];
+        $uncovered = [];
         $attempted = false;
 
         foreach ($spans as $position => $span) {
@@ -281,12 +291,20 @@ class ServiceTranscriptRecovery
                     : sprintf('%d-%d', $index + 1, $position + 1),
             );
 
+            $offset = $span['start'] - $window['start'];
+
+            // Sound this pass did not turn into words: not "nothing was said". The window's
+            // original cues go once any span decodes, so the span is banked unobservable
+            // (I1, operator ruling 2026-10-05); measured silence never reaches here.
+            if ($retry === null || $retry->isEmpty()) {
+                $uncovered[] = ['start' => $offset, 'end' => $span['end'] - $window['start'], 'reason' => 'retranscription_failed'];
+            }
+
             if ($retry === null) {
                 continue;
             }
 
             $attempted = true;
-            $offset = $span['start'] - $window['start'];
 
             foreach ($retry->cues as $cue) {
                 $cues[] = [
@@ -304,7 +322,8 @@ class ServiceTranscriptRecovery
 
         usort($cues, static fn (array $a, array $b): int => $a['start'] <=> $b['start']);
 
-        return ChurchServiceTranscript::fromCues($cues, $window['end'] - $window['start'], $source);
+        // Wholly uncovered, the retry is empty and recoverUsing() banks the whole window.
+        return ChurchServiceTranscript::fromCues($cues, $window['end'] - $window['start'], $source, $cues === [] ? [] : $uncovered);
     }
 
     /**
