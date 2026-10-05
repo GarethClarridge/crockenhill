@@ -15,7 +15,10 @@ use App\Services\Media\Audio\ServiceAudioWindowExtractor;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Support\MediaProcessingVersion;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use OpenAI\Laravel\Facades\OpenAI;
+use OpenAI\Responses\Audio\TranscriptionResponse;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -107,6 +110,42 @@ class WordTimedOutputEdgesTest extends TestCase
                 ['start' => 2072.86, 'end' => 2074.21, 'word' => ' Jewish'],
                 ['start' => 2074.21, 'end' => 2076.22, 'word' => ' feasts,'],
             ], 2068.25],
+            // The later "the" is nearer the boundary; only the cue's opening run of words finds its start.
+            'repeated opening word anchors on the opening phrase' => ['start', 10.0, ['start' => 10.0, 'end' => 12.0, 'text' => 'the word of the Lord'], [
+                ['start' => 9.2, 'end' => 9.35, 'word' => ' the'],
+                ['start' => 9.4, 'end' => 9.7, 'word' => ' word'],
+                ['start' => 9.75, 'end' => 9.95, 'word' => ' of'],
+                ['start' => 10.1, 'end' => 10.2, 'word' => ' the'],
+                ['start' => 10.25, 'end' => 10.8, 'word' => ' Lord'],
+            ], 9.2],
+            'repeated closing word anchors on the closing phrase' => ['end', 102.0, ['start' => 100.0, 'end' => 102.0, 'text' => 'glory unto him'], [
+                ['start' => 100.5, 'end' => 100.95, 'word' => ' glory'],
+                ['start' => 101.0, 'end' => 101.3, 'word' => ' unto'],
+                ['start' => 101.35, 'end' => 101.6, 'word' => ' him'],
+                ['start' => 101.7, 'end' => 101.95, 'word' => ' praise'],
+                ['start' => 102.0, 'end' => 102.2, 'word' => ' him'],
+            ], 101.7],
+            // "amen" is still sounding when the cue's first word starts: no gap there to cut in.
+            'start anchor overlapped by a sounding word cuts before it' => ['start', 10.0, ['start' => 10.0, 'end' => 12.0, 'text' => 'the Lord'], [
+                ['start' => 9.8, 'end' => 10.5, 'word' => ' amen'],
+                ['start' => 10.0, 'end' => 10.3, 'word' => ' the'],
+                ['start' => 10.35, 'end' => 10.8, 'word' => ' Lord'],
+            ], 9.8],
+            'end anchor overlapped by a sounding word cuts after it' => ['end', 20.0, ['start' => 18.5, 'end' => 20.0, 'text' => 'his spirit'], [
+                ['start' => 19.0, 'end' => 19.3, 'word' => ' his'],
+                ['start' => 19.35, 'end' => 19.9, 'word' => ' spirit'],
+                ['start' => 19.7, 'end' => 20.4, 'word' => ' and'],
+                ['start' => 20.5, 'end' => 20.8, 'word' => ' then'],
+            ], 20.4],
+            // The opening phrase is heard twice within reach: no occurrence is chosen by distance,
+            // so the largest pause decides as for any edge off a lone cue boundary.
+            'ambiguous opening phrase falls back to the largest pause' => ['start', 10.0, ['start' => 10.0, 'end' => 11.0, 'text' => 'thank you'], [
+                ['start' => 9.5, 'end' => 9.7, 'word' => ' thank'],
+                ['start' => 9.7, 'end' => 9.9, 'word' => ' you'],
+                ['start' => 10.1, 'end' => 10.3, 'word' => ' thank'],
+                ['start' => 10.3, 'end' => 10.5, 'word' => ' you'],
+                ['start' => 11.6, 'end' => 11.9, 'word' => ' so'],
+            ], 10.5],
             '1267 sorry stretched over music tail' => ['start', 129.9, ['start' => 100.0, 'end' => 130.0, 'text' => "I'm sorry."], [
                 ['start' => 100.0, 'end' => 100.2, 'word' => "I'm"],
                 ['start' => 100.2, 'end' => 100.5, 'word' => 'sorry.'],
@@ -234,7 +273,7 @@ class WordTimedOutputEdgesTest extends TestCase
         config(['media-processing.service_structure.transcription_service' => 'openai',
             'media-processing.service_structure.transcription_model' => 'whisper-1',
             'media-processing.transcription.openai_api_key' => 'test-key']);
-        \Illuminate\Support\Facades\Http::preventStrayRequests();
+        Http::preventStrayRequests();
         $cue = ['start' => 99.0, 'end' => 101.0, 'text' => 'Amen'];
         $log = $this->log($cue);
         $log->writeProcessingMetadata(fn (array $metadata): array => [...$metadata,
@@ -249,8 +288,8 @@ class WordTimedOutputEdgesTest extends TestCase
         $storage->shouldReceive('downloadToTemp')->once()->andReturn('/audio.mp3');
         $storage->shouldReceive('isS3CompatibleDisk')->once()->andReturn(false);
         $this->app->instance(StorageAdapterHelper::class, $storage);
-        \OpenAI\Laravel\Facades\OpenAI::fake([
-            \OpenAI\Responses\Audio\TranscriptionResponse::fake(['words' => [['start' => 1.0, 'end' => 1.5, 'word' => 'Amen']]]),
+        OpenAI::fake([
+            TranscriptionResponse::fake(['words' => [['start' => 1.0, 'end' => 1.5, 'word' => 'Amen']]]),
         ]);
         try {
             app(PrepareOutputEdgeWordTimings::class)->prepare($log->fresh(), [['start_time' => 100.0, 'end_time' => 200.0]]);
@@ -260,7 +299,7 @@ class WordTimedOutputEdgesTest extends TestCase
             $this->assertSame('whisper-1', $payload['identity']['model']);
             $this->assertSame('temp/edge-test.json', $log->fresh()->serviceTranscriptPath());
             $this->assertNotContains('raw', array_column(ServiceArtifactStorage::recordedFor($log->fresh()), 'kind'));
-            \Illuminate\Support\Facades\Http::assertNothingSent();
+            Http::assertNothingSent();
         } finally {
             unlink($audio);
         }

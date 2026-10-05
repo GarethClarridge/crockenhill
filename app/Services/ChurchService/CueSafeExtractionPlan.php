@@ -16,6 +16,9 @@ class CueSafeExtractionPlan
     /** Seconds from the cue boundary within which its edge word must be heard to anchor the cut. */
     private const ANCHOR_REACH = 2.0;
 
+    /** Words of the cue's opening or closing run that must be heard in order to anchor the cut. */
+    private const ANCHOR_RUN = 3;
+
     /** @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>} */
     public function forSection(ServiceSection $section): array
     {
@@ -89,14 +92,16 @@ class CueSafeExtractionPlan
 
         return ['segments' => $merged, 'cue_edge_widening' => $audit];
     }
+
     /**
      * An edge on a cue boundary already decided the cue is in the output, so the cut goes in the
      * pause just outside that cue's own words: before its first word at a start, after its last
      * word at an end. The largest-pause rule cannot see this side: the window margin beyond the
      * cue can be the largest gap, and cutting there drops the whole cue (949's last verse), while
      * a word timed before its cue starts (964's "During") is lost to a smaller gap inside the
-     * sentence. The cue's edge word is found by its text near the boundary; when none matches,
-     * null hands the edge back to the largest pause.
+     * sentence. The cue's edge is found by its opening or closing run of words near the boundary,
+     * so a repeated "the" nearer the boundary cannot stand in for it; when no run matches, or it
+     * matches more than once, null hands the edge back to the largest pause.
      *
      * @param  list<array{start: float, end: float, word: string}>  $words
      * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>}  $window
@@ -114,37 +119,45 @@ class CueSafeExtractionPlan
         if (abs(($isStart ? $cue['start'] : $cue['end']) - $original) > self::CUE_BOUNDARY_TOLERANCE) {
             return null;
         }
-        $tokens = explode(' ', $this->normalize($cue['text']));
-        if ($tokens === ['']) {
+        $cueTokens = explode(' ', $this->normalize($cue['text']));
+        if ($cueTokens === ['']) {
             return null;
         }
+        $run = $isStart ? array_slice($cueTokens, 0, self::ANCHOR_RUN) : array_slice($cueTokens, -self::ANCHOR_RUN);
         usort($words, static fn (array $a, array $b): int => $a['start'] <=> $b['start']);
-        $edgeToken = $isStart ? $tokens[0] : $tokens[count($tokens) - 1];
-        $anchor = null;
+        $tokens = [];
         foreach ($words as $index => $word) {
-            $wordTokens = explode(' ', $this->normalize($word['word']));
-            $token = $isStart ? $wordTokens[0] : $wordTokens[count($wordTokens) - 1];
-            $distance = abs(($isStart ? $word['start'] : $word['end']) - $original);
-            if ($token === $edgeToken && $distance <= self::ANCHOR_REACH && ($anchor === null || $distance < $anchor['distance'])) {
-                $anchor = ['index' => $index, 'distance' => $distance];
+            foreach (explode(' ', $this->normalize($word['word'])) as $token) {
+                if ($token !== '') {
+                    $tokens[] = ['token' => $token, 'word' => $index];
+                }
             }
         }
-        if ($anchor === null) {
+        $anchors = [];
+        for ($at = 0; $at + count($run) <= count($tokens); $at++) {
+            if (array_column(array_slice($tokens, $at, count($run)), 'token') !== $run) {
+                continue;
+            }
+            $index = $tokens[$isStart ? $at : $at + count($run) - 1]['word'];
+            if (abs(($isStart ? $words[$index]['start'] : $words[$index]['end']) - $original) <= self::ANCHOR_REACH) {
+                $anchors[$index] = true;
+            }
+        }
+        if (count($anchors) !== 1) {
             return null;
         }
-        $word = $words[$anchor['index']];
-        if ($isStart) {
-            $before = $words[$anchor['index'] - 1] ?? null;
-            $from = min($before['end'] ?? $window['start'], $word['start']);
-
-            return ['time' => max($from, min($original, $word['start'])), 'chosen_pause' => ['start' => $from, 'end' => $word['start']],
-                'word_before' => $before, 'word_after' => $word];
+        $anchor = $words[array_key_first($anchors)];
+        // The nearest gap no word is still sounding in: a word overlapping the anchor stays whole.
+        $pauses = array_filter($this->pauses($words, $window), static fn (array $pause): bool => $isStart
+            ? $pause['end'] <= $anchor['start'] : $pause['start'] >= $anchor['end']);
+        if ($pauses === []) {
+            return null;
         }
-        $after = $words[$anchor['index'] + 1] ?? null;
-        $to = max($after['start'] ?? $window['end'], $word['end']);
+        $pause = $isStart ? $pauses[array_key_last($pauses)] : $pauses[array_key_first($pauses)];
 
-        return ['time' => max($word['end'], min($original, $to)), 'chosen_pause' => ['start' => $word['end'], 'end' => $to],
-            'word_before' => $word, 'word_after' => $after];
+        return ['time' => max($pause['start'], min($original, $pause['end'])),
+            'chosen_pause' => ['start' => $pause['start'], 'end' => $pause['end']],
+            'word_before' => $pause['word_before'], 'word_after' => $pause['word_after']];
     }
 
     private function normalize(string $text): string
@@ -153,10 +166,36 @@ class CueSafeExtractionPlan
     }
 
     /** @param list<array{start: float, end: float, word: string}> $words
-     * @param array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>} $window
+     * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>}  $window
      * @return array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null}
      */
     private function pause(array $words, array $window, float $original): array
+    {
+        $pauses = $this->pauses($words, $window);
+        if ($pauses === []) {
+            throw new \RuntimeException('edge_word_timings_invalid: no pause adjacent to edge cues');
+        }
+        usort($pauses, static function (array $a, array $b) use ($original): int {
+            $size = $b['length'] <=> $a['length'];
+
+            return $size ?: abs(max($a['start'], min($original, $a['end'])) - $original) <=> abs(max($b['start'], min($original, $b['end'])) - $original);
+        });
+        $pause = $pauses[0];
+
+        return ['time' => max($pause['start'], min($original, $pause['end'])),
+            'chosen_pause' => ['start' => $pause['start'], 'end' => $pause['end']],
+            'word_before' => $pause['word_before'], 'word_after' => $pause['word_after']];
+    }
+
+    /**
+     * Gaps in the window that no word is sounding in, in time order. The frontier is the latest
+     * end of every word so far, so a gap after a short word inside a longer one is not a pause.
+     *
+     * @param  list<array{start: float, end: float, word: string}>  $words
+     * @param  array{start: float, end: float}  $window
+     * @return list<array{start: float, end: float, length: float, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null}>
+     */
+    private function pauses(array $words, array $window): array
     {
         usort($words, static fn (array $a, array $b): int => $a['start'] <=> $b['start']);
         $pauses = [];
@@ -172,22 +211,12 @@ class CueSafeExtractionPlan
                 $left = $right;
             }
         }
-        if ($pauses === []) {
-            throw new \RuntimeException('edge_word_timings_invalid: no pause adjacent to edge cues');
-        }
-        usort($pauses, static function (array $a, array $b) use ($original): int {
-            $size = $b['length'] <=> $a['length'];
-            return $size ?: abs(max($a['start'], min($original, $a['end'])) - $original) <=> abs(max($b['start'], min($original, $b['end'])) - $original);
-        });
-        $pause = $pauses[0];
 
-        return ['time' => max($pause['start'], min($original, $pause['end'])),
-            'chosen_pause' => ['start' => $pause['start'], 'end' => $pause['end']],
-            'word_before' => $pause['word_before'], 'word_after' => $pause['word_after']];
+        return $pauses;
     }
 
     /** @param list<array{start: float, end: float, word: string}> $words
-     * @param list<array{start: float, end: float, text: string}> $cues
+     * @param  list<array{start: float, end: float, text: string}>  $cues
      */
     private function disagrees(array $words, array $cues): bool
     {
@@ -198,10 +227,10 @@ class CueSafeExtractionPlan
                     return true;
                 }
             }
+
             return false;
         });
 
         return $normalize(implode(' ', array_column($inCue, 'word'))) !== $normalize(implode(' ', array_column($cues, 'text')));
     }
-
 }
