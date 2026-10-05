@@ -142,8 +142,8 @@ class SongSpeechEdges
      * neither absorbs it nor changes its bounds.
      *
      * @param  list<ServiceStructureSection>  $before
-     * @param  list<ServiceStructureSection>  $after
-     * @return list<ServiceStructureSection>
+     * @param  array<int, ServiceStructureSection>  $after  Indexed alike, one trimmed or held song at a time
+     * @return array<int, ServiceStructureSection>
      */
     private function sermonsAskedAboutExposedSpeech(array $before, array $after): array
     {
