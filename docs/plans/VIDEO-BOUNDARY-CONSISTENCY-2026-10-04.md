@@ -663,6 +663,92 @@ I1's windows now reach detection directly.
 Listening at the next canary: 1250's Job 29 end (1519.04), the edges moved by the 10-04
 cue-boundary rule, the seven exposed-speech intervals above (1025 first), and 964's reading end.
 
+### Completion record — F11 measured, I2 proposals built (branch `boundary-f11-i2`)
+
+Branched from master `123cf2886` (unpushed). Workers stayed stopped; no provider calls,
+dispatches or transcript regeneration. Docker Desktop's file sharing hung mid-session (a fresh
+container could not list a project directory); Docker was restarted and only the non-worker
+containers started (`docker start`); all six workers stayed `Exited`.
+
+**F11 — measured read-only (scripts and outputs in `storage/scratch/f11/`).** For every section
+that follows a song: the first transcribed cue (≤15 s) at or after the section's start; the
+contiguous run of classifier windows before it reading speech (speech ≥ 0.6, singing ≤ 0.2,
+clipped to the song's start); and how much of that run no cue of ≤15 s or unobservable window
+covers ("lost"). A hit is ≥10 s lost. The method finds all three I5 cases (1180 21 s, 993 12 s,
+1310 23 s). *Generation:* transcripts carry no stamp and the transcription fingerprint is
+identical across runs, so generation is the transcript file a run points at: A
+`-region-recovered` (09-08), B `-repetition-recovered` (09-09), C `.normalized` recorded
+09-17..09-26 (the re-transcriptions, current decoder), D `.normalized` with no artifact record
+(older). Canary 16 spans all four.
+
+| Generation | Runs | Starts after a song | Hits ≥10 s | ≥20 s | Runs with a hit |
+|---|---|---|---|---|---|
+| A region-recovered | 90 | 336 | 37 (11.0%) | 19 | 31 |
+| B repetition-recovered | 86 | 291 | 24 (8.2%) | 9 | 22 |
+| C re-transcribed (current) | 20 | 76 | 3 (3.9%) | 0 | 3 |
+| D unrecorded normalized | 87 | 293 | 18 (6.1%) | 5 | 16 |
+| All | 283 | 996 | 82 (8.2%) | 33 | 72 |
+| Canary 16 (14 with songs) | 14 | 54 | 3 (5.6%) | 0 | 3 |
+
+Hits by the section that follows: prayer 33, sermon 20, other 12, reading 9, children's talk 5,
+notices 3. *Same-run comparison:* the 13 runs whose current transcript is a re-decode and
+which still hold an older stage file: 2 hits in 52 starts on the current decode, 5 on the
+older recovered stages of the same runs. Re-decoding reduces F11, it does not remove it.
+*Bias:* sections were detected on each run's current transcript, which favours the current
+file. Rows across generations are different runs, not a controlled comparison.
+
+Transcript context (`storage/scratch/f11/context.txt`; supporting evidence, not listening):
+- **949 (C, canary)** prayer 2706.4: "Alleluia" ends 2685; 2690–2706 speech 0.66–0.83, no cue;
+  the prayer's first cue opens mid-sentence "pray. Our Heavenly Father…".
+- **1025 (B, canary)** prayer 630.8: 600.8–630.8 is one 30 s "Thank you." filler cue over
+  speech 0.54–0.79 from 610.
+- **1311 (A, canary)** baptism 1604: 1585–1604 speech 0.75–0.87, no cue, before "Do you confess
+  your faith?".
+- 1253 (D): "Let's come to the Lord in prayer" and "Lord, let's pray" as two 30 s looping cues
+  (521.8–581.8). 1080 (A): the prayer's opening sits under four "How great Thou art" cues
+  (634.6–700.6, speech 0.68–0.87). 1119 (B): 86 s of sermon under three ". . ." cues
+  (1180–1270). 1342 (B), 1240 (B), 1135 (A): openings under 30 s "Thank you." cues. 928 (D):
+  36 s with no cue before "I could preach on it…". 948, 1258 (C): 10–12 s partial gaps.
+- *A different defect in the same net:* 1138 (A) and 1280 (A) hit because the "song" section
+  before them is speech throughout (296 s and 147 s): a mislabelled song, not a lost lead-in.
+
+**I2 (a) — built** (`f321dd9d2`). *Measured first,* local DB stored structures: 28 trimmed
+songs (27 start trims); 9 beside the sermon (F07), 5 straight after a reading before the
+sermon (964, 1060, 1112, 1258, 1343; membership decides which count), none beside a
+concluding prayer. `SongSpeechEdges` now asks `structure_sermon_adjacent_speech_unowned` on the
+sermon when a trim exposes speech beside any section its media may be cut from: every sermon
+section, a reading `sermonReadingMembership()` could cut, or the concluding prayer (the sole
+prayer straight after the sermon, before the next song — `compose()`'s rule). The note names
+the neighbour ("the reading's own words or an excluded announcement?"); still not held. The
+old "next to another item" test used sermon → prayer → song, which is now the concluding-prayer
+case; its fixture moved to notices and the prayer became a positive test. *Canary replay*
+(`ServiceStructureEnsembleReplay`, rolled back, master vs branch): 5 sermons gain a reading-side
+interval — 1025 (1756.8–1775.0), 1112 (1851.3–1870.0), 1117 (1803.2–1865.0), 1250
+(1527.7–1570.0), 1304 (1638.3–1660.0) — all already carrying F07's question, so no new question;
+no bound, section or dispute changed. Every interval reads as a hymn announcement after "This is
+the word of the Lord" (1250's is the leader's reflection on Job leading into the song).
+
+**I2 (b) — built** (`86430a442`). `compose()` adds the risk
+`sermon_reading_contains_prayer_handover` when a reading the sermon could take (the selected
+one, or the candidates under membership review) holds a "let's/let us pray" or "let's/let us
+… in prayer" cue with ≥30 s of the reading section after it. It sends the composition to review
+(as `sermon_reading_membership_unresolved` does), which holds extraction until the operator
+answers; **the selection never changes on transcript text**. The operator's answer is the
+existing composition review. *Recall check:* every cue containing "pray" inside such readings
+corpus-wide (127): the rest are the readings' own words ("when you pray…", Matthew 6,
+Philippians 4); the first rule ("let's pray" only) missed 1197, so the phrase was widened
+red-first. *Measured* (`compose()` on all 475 runs with a sermon, rolled back, master vs
+branch): 2 change, selection unchanged in both, canary 16 none:
+- **1240** Job 36–37: "Let's pray." at 1281.7 (I2's case).
+- **1197** Matthew 2:1-12 (1432.0–1583.85): "Let's bow our heads again in prayer together."
+  at 1546.2, then the prayer to "Amen" at 1584.3; the prayer section starts at 1586.99, so the
+  reading's end swallowed 38 s of the prayer. New case, not yet listened to.
+
+*Choice to confirm:* (b) holds extraction (composition review) where F07 only asks. Chosen
+because the span itself is in doubt here, F07's exposed speech is outside the cut.
+
+Gates: Pint; PHPStan (one finding, a redundant nullsafe, fixed `ecd91c8ca`); full parallel suite 9,275 tests with two failures that pass alone (an ffmpeg loudnorm timeout under load, `RepairHistoricSermonTranscriptSpansCommandTest`), notices pre-existing; Dusk 61.
+
 ## 7. Further bounded investigations — added 2026-10-04
 
 The user requested these additions after reviewing the gaps in the plans. They are **open
