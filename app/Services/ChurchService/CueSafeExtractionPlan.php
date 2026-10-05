@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService;
 
+use App\Actions\HoldSectionForContentReview;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 
@@ -91,6 +92,25 @@ class CueSafeExtractionPlan
         }
 
         return ['segments' => $merged, 'cue_edge_widening' => $audit];
+    }
+
+    /**
+     * Held sections a final cut reaches into, other than the sections it is cutting. Holds are
+     * checked against section bounds before edges widen into words and cues; a widened edge can
+     * then carry held content into the output through a cue it shares with the held section.
+     *
+     * @param  list<array{start_time: float, end_time: float}>  $segments
+     * @param  list<int>  $cutSectionIds
+     * @return list<int>
+     */
+    public function heldSectionsCrossed(MediaProcessingLog $log, array $segments, array $cutSectionIds): array
+    {
+        return $log->serviceSections()->orderBy('start_time')->orderBy('id')->get()
+            ->filter(static fn (ServiceSection $section): bool => ! in_array($section->id, $cutSectionIds, true)
+                && HoldSectionForContentReview::isHeld($section->metadata->reviewFlags ?? [])
+                && array_any($segments, static fn (array $segment): bool => $segment['start_time'] < (float) $section->end_time - 0.001
+                    && $segment['end_time'] > (float) $section->start_time + 0.001))
+            ->pluck('id')->values()->all();
     }
 
     /**

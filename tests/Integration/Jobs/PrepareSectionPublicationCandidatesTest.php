@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Jobs;
 
+use App\Actions\HoldSectionForContentReview;
 use App\Contracts\SpeakerIdentificationInterface;
 use App\Data\ChurchServiceTranscript;
 use App\Data\HistoricStagingContext;
@@ -138,6 +139,66 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $section->refresh();
         $this->assertNull($section->extracted_video_path);
         $this->assertSame('edge_word_timings_missing', $section->metadata->raw['publication_candidate_extraction_blocked']['reason']);
+        $this->assertNotNull($other->fresh()->extracted_video_path);
+    }
+
+    /** F09: a song's cut widened through a shared cue must not carry a held talk into publishable media. */
+    #[Test]
+    public function a_cut_widened_into_a_held_section_blocks_only_that_output_and_records_why(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        Bus::fake([AutoPublishServiceSection::class]);
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => ['song' => SongPublicationHandler::class],
+        ]);
+        $item = ChurchServiceItem::factory()->create(['song_id' => Song::factory()->create()->id]);
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create(['source_file_path' => 'livestreams/source.mp4']);
+        Storage::disk('local')->put('livestreams/source.mp4', 'source-video');
+        $song = fn (float $start, float $end): ServiceSection => ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id, 'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song, 'status' => ServiceSectionStatus::Identified,
+            'start_time' => $start, 'end_time' => $end, 'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed, 'metadata' => ['confidence_level' => 'high'],
+        ]);
+        $section = $song(100.0, 300.0);
+        $talk = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id, 'section_type' => ServiceSectionType::ShortTalk,
+            'start_time' => 300.0, 'end_time' => 400.0, 'needs_manual_review' => true,
+            'metadata' => ['review_flags' => [HoldSectionForContentReview::FLAG]],
+        ]);
+        $other = $song(600.0, 700.0);
+        $processingLog->putServiceTranscriptPath('temp/shared.json');
+        Storage::disk('local')->put('temp/shared.json', json_encode(ChurchServiceTranscript::fromCues([
+            ['start' => 299.5, 'end' => 301.0, 'text' => 'Amen. Now a word for the children.'],
+        ], 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        $this->bankNoWordOutputEdges($processingLog);
+        $videoExtractor = $this->createMock(VideoExtractionService::class);
+        $videoExtractor->expects($this->once())
+            ->method('extractSegmentAsFile')
+            ->with($this->anything(), $this->callback(fn (object $segment): bool => $segment->start_time === 600.0), $this->anything())
+            ->willReturnCallback(function (): string {
+                Storage::disk('local')->put('temp/section-video.mp4', 'section-video');
+
+                return 'temp/section-video.mp4';
+            });
+
+        (new PrepareSectionPublicationCandidates($processingLog))->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(SectionPublicationHandlerFactory::class),
+            app(ServiceSectionPublicationTransitionService::class)
+        );
+
+        $section->refresh();
+        $this->assertNull($section->extracted_video_path);
+        $this->assertSame('span_crosses_held_section', $section->metadata->raw['publication_candidate_extraction_blocked']['reason']);
+        $this->assertSame([$talk->id], $section->metadata->raw['publication_candidate_extraction_blocked']['crossed_held_section_ids']);
+        Bus::assertNotDispatched(AutoPublishServiceSection::class, fn ($job): bool => $job->serviceSectionId === $section->id);
         $this->assertNotNull($other->fresh()->extracted_video_path);
     }
 

@@ -7,13 +7,13 @@ namespace App\Services\Sermon;
 use App\Actions\HoldSectionForContentReview;
 use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceSectionMetadata;
-use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Enums\ServiceSectionType;
+use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
-use App\Services\Media\Audio\AudioTimeline;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\Structure\SermonContinuationScreen;
+use App\Services\Media\Audio\AudioTimeline;
 use App\Services\Scripture\ScriptureReferenceResolver;
 use App\Support\SermonAutoExtractionPolicy;
 use App\Support\ServiceArtifactDisk;
@@ -281,6 +281,10 @@ class SermonExtractionPlanResolver
                 throw new InvalidArgumentException('Widened cut bounds are outside source');
             }
         }
+        // Selected sections answer for their own holds above; a widened edge must not carry
+        // another section's held content in, whatever authority the selected sections have.
+        $crossed = app(CueSafeExtractionPlan::class)->heldSectionsCrossed($processingLog, $spans, $seen);
+        $requiresReview = $requiresReview || $crossed !== [];
 
         return [
             'mode' => count($spans) > 1 ? 'concat_spans' : 'single_span',
@@ -291,8 +295,14 @@ class SermonExtractionPlanResolver
                 'cue_edge_widening' => $cuePlan['cue_edge_widening'],
                 'strategy' => 'identified_sections',
                 'requires_review' => $requiresReview,
-                'reason' => $held !== [] ? 'sermon_section_content_held' : ($requiresReview ? 'sermon_composition_review' : null),
+                'reason' => match (true) {
+                    $held !== [] => 'sermon_section_content_held',
+                    $crossed !== [] => 'sermon_span_crosses_held_section',
+                    $requiresReview => 'sermon_composition_review',
+                    default => null,
+                },
                 'held_sermon_section_ids' => $held,
+                'crossed_held_section_ids' => $crossed,
                 'sermon_boundary' => $composition,
                 'continuation_section_ids' => array_values(array_filter($seen, fn (int $id): bool => $id !== $composition['sermon_section_id'] && $byId->get($id) instanceof ServiceSection && $this->continues($byId->get($id), (int) $composition['sermon_section_id']))),
                 'held_span_authorised_section_id' => $authority['section_id'] ?? null,

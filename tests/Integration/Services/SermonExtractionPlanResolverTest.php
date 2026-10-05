@@ -6,23 +6,28 @@ namespace Tests\Integration\Services;
 
 use App\Actions\HoldSectionForContentReview;
 use App\Data\ChurchServiceTranscript;
+use App\Data\ServiceStructure;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\ChurchService\Structure\TranscriptCueBoundaries;
 use App\Services\Sermon\SermonExtractionPlanResolver;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\TestWith;
+use Tests\Support\BanksNoWordOutputEdges;
 use Tests\TestCase;
 
 class SermonExtractionPlanResolverTest extends TestCase
 {
+    use BanksNoWordOutputEdges;
     use DatabaseTransactions;
-    use \Tests\Support\BanksNoWordOutputEdges;
 
     private SermonExtractionPlanResolver $resolver;
 
@@ -48,7 +53,7 @@ class SermonExtractionPlanResolverTest extends TestCase
         foreach ([ServiceSectionType::Song, ServiceSectionType::BibleReading, ServiceSectionType::ShortTalk, ServiceSectionType::Prayer] as $index => $type) {
             $section = $this->section($log, $type, $index + 1, 100, 200);
             $this->bankNoWordOutputEdges($log);
-            $plan = app(\App\Services\ChurchService\CueSafeExtractionPlan::class)->forSection($section);
+            $plan = app(CueSafeExtractionPlan::class)->forSection($section);
             $this->assertSame([['start_time' => 90.0, 'end_time' => 210.0]], $plan['segments']);
             $this->assertSame([10.0, 10.0], array_column($plan['cue_edge_widening'], 'seconds_added'));
             $this->assertCount(2, $plan['cue_edge_widening'][0]['cues']);
@@ -94,18 +99,83 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->assertFalse($plan['metadata']['requires_review']);
     }
 
+    /** F09: the held talk was checked against the sermon's section bounds, not its widened cut. */
+    #[Test]
+    public function a_cut_widened_into_a_held_neighbour_is_held_for_review(): void
+    {
+        Storage::fake('local');
+        $log = $this->logWithSermon(100, 200);
+        $talk = $this->heldNeighbour($log, 200, 300);
+        $this->shareCueAcross($log, 199.5, 201.5);
+
+        $plan = $this->resolver->resolve($log->fresh());
+
+        $this->assertSame([['start_time' => 100.0, 'end_time' => 201.5]], $plan['segments']);
+        $this->assertTrue($plan['metadata']['requires_review']);
+        $this->assertSame('sermon_span_crosses_held_section', $plan['metadata']['reason']);
+        $this->assertSame([$talk->id], $plan['metadata']['crossed_held_section_ids']);
+    }
+
+    #[Test]
+    public function an_authorised_repair_widened_into_another_held_item_is_held_for_review(): void
+    {
+        Storage::fake('local');
+        [$log, $sermon] = $this->runWithHeldSermon();
+        $log->authoriseHeldSermonSpan($sermon);
+        $talk = $this->heldNeighbour($log, 3740, 3800);
+        $this->shareCueAcross($log, 3739.0, 3741.0);
+
+        $plan = $this->resolver->resolve($log->fresh());
+
+        $this->assertSame($sermon->id, $plan['metadata']['held_span_authorised_section_id']);
+        $this->assertTrue($plan['metadata']['requires_review']);
+        $this->assertSame([$talk->id], $plan['metadata']['crossed_held_section_ids']);
+    }
+
+    #[Test]
+    public function a_cut_widened_into_an_unheld_neighbour_is_not_held(): void
+    {
+        Storage::fake('local');
+        $log = $this->logWithSermon(100, 200);
+        $this->section($log, ServiceSectionType::ShortTalk, 3, 200, 300);
+        $this->shareCueAcross($log, 199.5, 201.5);
+
+        $plan = $this->resolver->resolve($log->fresh());
+
+        $this->assertSame([], $plan['metadata']['crossed_held_section_ids']);
+        $this->assertNotSame('sermon_span_crosses_held_section', $plan['metadata']['reason']);
+    }
+
+    private function heldNeighbour(MediaProcessingLog $log, float $start, float $end): ServiceSection
+    {
+        $talk = $this->section($log, ServiceSectionType::ShortTalk, 3, $start, $end);
+        $talk->update(['metadata' => ['confidence_level' => 'high', 'review_flags' => [HoldSectionForContentReview::FLAG]]]);
+
+        return $talk;
+    }
+
+    /** One cue across the edge, without words: the no-word rule widens the cut to the whole cue. */
+    private function shareCueAcross(MediaProcessingLog $log, float $start, float $end): void
+    {
+        $log->putServiceTranscriptPath('temp/shared.json');
+        Storage::disk('local')->put('temp/shared.json', json_encode(ChurchServiceTranscript::fromCues([
+            ['start' => $start, 'end' => $end, 'text' => 'One complete line.'],
+        ], 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        $this->bankNoWordOutputEdges($log);
+    }
+
     #[Test]
     public function a_shared_cue_between_two_songs_does_not_ask_questions_or_park_the_sermon(): void
     {
         $transcript = ChurchServiceTranscript::fromCues([
             ['start' => 199.5, 'end' => 200.5, 'text' => 'Singing across the join.'],
         ], 5000, ChurchServiceTranscript::SOURCE_MOCK);
-        $structure = \App\Data\ServiceStructure::fromArray(['sections' => [
+        $structure = ServiceStructure::fromArray(['sections' => [
             ['type' => 'song', 'start_time' => 100, 'end_time' => 200, 'confidence' => 0.9],
             ['type' => 'song', 'start_time' => 200, 'end_time' => 300, 'confidence' => 0.9],
             ['type' => 'sermon', 'start_time' => 400, 'end_time' => 1200, 'confidence' => 0.9],
         ]]);
-        $final = app(\App\Services\ChurchService\Structure\TranscriptCueBoundaries::class)->finish($structure, $transcript);
+        $final = app(TranscriptCueBoundaries::class)->finish($structure, $transcript);
         $log = $this->logWithSermon(400, 1200);
         $sermon = $log->serviceSections()->sole();
         $flags = $final['structure']->sections[2]->reviewFlags;
@@ -1099,9 +1169,9 @@ class SermonExtractionPlanResolverTest extends TestCase
 
     /** Runs 964, 1073 and 1211: the reading carries one more passage than the sermon expounds. */
     #[Test]
-    #[\PHPUnit\Framework\Attributes\TestWith(['Matthew 5:13-16; John 8:12-18', 'Matthew 5:13-16'])]
-    #[\PHPUnit\Framework\Attributes\TestWith(['Jonah 1:17, 2:1-10', 'Jonah 2:1-10'])]
-    #[\PHPUnit\Framework\Attributes\TestWith(['Genesis 8:13-22, 9:1-17', 'Genesis 8:22'])]
+    #[TestWith(['Matthew 5:13-16; John 8:12-18', 'Matthew 5:13-16'])]
+    #[TestWith(['Jonah 1:17, 2:1-10', 'Jonah 2:1-10'])]
+    #[TestWith(['Genesis 8:13-22, 9:1-17', 'Genesis 8:22'])]
     public function a_reading_containing_the_whole_sermon_reference_is_cut_with_it(string $readingReference, string $sermonReference): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create(['sermon_start_time' => 100.0, 'sermon_end_time' => 200.0]);

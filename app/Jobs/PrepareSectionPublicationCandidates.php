@@ -15,6 +15,7 @@ use App\Enums\ProcessingStep;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Exceptions\OutputEdgeTimingsMissing;
+use App\Exceptions\OutputSpanCrossesHeldSection;
 use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
@@ -291,6 +292,15 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
                 Log::warning('Section extraction blocked by missing edge word timings', ['section_id' => $section->id, 'reason' => $exception->getMessage()]);
 
                 continue;
+            } catch (OutputSpanCrossesHeldSection $exception) {
+                $section->metadata = ServiceSectionMetadata::fromArray([
+                    ...($section->metadata?->toArray() ?? []),
+                    'publication_candidate_extraction_blocked' => ['reason' => 'span_crosses_held_section', 'crossed_held_section_ids' => $exception->sectionIds],
+                ]);
+                $this->saveSectionIfDirty($section);
+                Log::warning('Section extraction blocked: its cut reaches held content', ['section_id' => $section->id, 'held_section_ids' => $exception->sectionIds]);
+
+                continue;
             }
             $metadata = $section->metadata?->toArray() ?? [];
             unset($metadata['publication_candidate_extraction_blocked']);
@@ -413,7 +423,10 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         VideoExtractionService $videoExtractor,
         StorageAdapterHelper $storageHelper
     ): void {
+        $cutPlans = app(CueSafeExtractionPlan::class);
         if ($this->shouldReuseExtractedMedia($section, $handler)) {
+            $this->refuseHeldContent($cutPlans, $section, $section->metadata->raw['publication_candidate_extraction']['segments'] ?? []);
+
             return;
         }
 
@@ -446,7 +459,8 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         try {
             $outputs = app(RecordedVideoOutput::class);
             $provenance = $outputs->provenance($this->processingLog->fresh() ?? $this->processingLog);
-            $cutPlan = app(CueSafeExtractionPlan::class)->forSection($section);
+            $cutPlan = $cutPlans->forSection($section);
+            $this->refuseHeldContent($cutPlans, $section, $cutPlan['segments']);
             $segment = (object) $cutPlan['segments'][0];
 
             $tempVideoPath = $videoExtractor->extractSegmentAsFile(
@@ -506,6 +520,20 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             if ($isS3TempDisk) {
                 $storageHelper->cleanupTempFile($localSourcePath);
             }
+        }
+    }
+
+    /**
+     * Holds are checked against section bounds; the cut's edges widen afterwards and can reach
+     * a held neighbour through a cue they share.
+     *
+     * @param  list<array{start_time: float, end_time: float}>  $segments
+     */
+    private function refuseHeldContent(CueSafeExtractionPlan $cutPlans, ServiceSection $section, array $segments): void
+    {
+        $crossed = $cutPlans->heldSectionsCrossed($this->processingLog, $segments, [$section->id]);
+        if ($crossed !== []) {
+            throw new OutputSpanCrossesHeldSection($crossed);
         }
     }
 
