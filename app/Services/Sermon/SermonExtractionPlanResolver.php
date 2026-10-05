@@ -26,6 +26,7 @@ class SermonExtractionPlanResolver
     public function __construct(
         private readonly ScriptureReferenceResolver $scriptureReferences,
         private readonly SermonContinuationScreen $continuations,
+        private readonly SermonPublicationPlanValidator $validator,
     ) {}
 
     /**
@@ -214,13 +215,11 @@ class SermonExtractionPlanResolver
      */
     public function resolve(MediaProcessingLog $processingLog, ?array $heldSpanAuthority = null): array
     {
+        // Composed afresh, never read back: a stored composition keeps its identity when the
+        // membership rules change (964 kept a cut without its reading). Only the operator's
+        // review is reused, and compose() keeps that by identity.
+        $composition = $this->compose($processingLog);
         $sections = $processingLog->serviceSections()->orderBy('start_time')->orderBy('id')->get()->values()->all();
-        $composition = $processingLog->processing_metadata?->raw['sermon_composition'] ?? null;
-        // Bootstrap old runs deterministically; detection and review normally compose first.
-        if (! is_array($composition) || ($composition['input_identity'] ?? null) !== $this->inputIdentity($processingLog, $sections)) {
-            $composition = $this->compose($processingLog);
-            $sections = $processingLog->serviceSections()->orderBy('start_time')->orderBy('id')->get()->values()->all();
-        }
         $byId = collect($sections)->keyBy('id');
         $spans = [];
         $held = [];
@@ -263,15 +262,18 @@ class SermonExtractionPlanResolver
                     'edge_word_timings_error' => $exception->getMessage(), 'cue_edge_widening' => []]];
         }
         $spans = $cuePlan['segments'];
-        foreach ($spans as $span) {
-            if ($span['end_time'] <= $span['start_time'] || $span['start_time'] < 0 || ($processingLog->duration !== null && $span['end_time'] > $processingLog->duration + 0.001)) {
-                throw new InvalidArgumentException('Widened cut bounds are outside source');
-            }
-        }
-        // Selected sections answer for their own holds above; a widened edge must not carry
-        // another section's held content in, whatever authority the selected sections have.
-        $crossed = app(CueSafeExtractionPlan::class)->heldSectionsCrossed($processingLog, $spans, $seen);
-        $requiresReview = $requiresReview || $crossed !== [];
+        // Only a plan whose final spans pass every check may be executed (S6).
+        $violations = $spans === [] ? [] : $this->validator->validate(
+            $processingLog,
+            array_map(static fn (int $id): ServiceSection => $byId->get($id), $seen),
+            $spans,
+        );
+        $violated = static fn (string $kind): array => array_merge([], ...array_column(
+            array_filter($violations, static fn (array $violation): bool => $violation['kind'] === $kind),
+            'section_ids',
+        ));
+        $crossed = $violated('crosses_held_section');
+        $requiresReview = $requiresReview || $violations !== [];
 
         return [
             'mode' => count($spans) > 1 ? 'concat_spans' : 'single_span',
@@ -285,11 +287,13 @@ class SermonExtractionPlanResolver
                 'reason' => match (true) {
                     $held !== [] => 'sermon_section_content_held',
                     $crossed !== [] => 'sermon_span_crosses_held_section',
+                    $violations !== [] => 'sermon_plan_invalid',
                     $requiresReview => 'sermon_composition_review',
                     default => null,
                 },
                 'held_sermon_section_ids' => $held,
                 'crossed_held_section_ids' => $crossed,
+                'plan_violations' => $violations,
                 'sermon_boundary' => $composition,
                 'continuation_section_ids' => array_values(array_filter($seen, fn (int $id): bool => $id !== $composition['sermon_section_id'] && $byId->get($id) instanceof ServiceSection && $this->continues($byId->get($id), (int) $composition['sermon_section_id']))),
                 'held_span_authorised_section_id' => $authority['section_id'] ?? null,

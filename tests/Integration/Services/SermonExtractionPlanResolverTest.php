@@ -114,6 +114,7 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->assertTrue($plan['metadata']['requires_review']);
         $this->assertSame('sermon_span_crosses_held_section', $plan['metadata']['reason']);
         $this->assertSame([$talk->id], $plan['metadata']['crossed_held_section_ids']);
+        $this->assertSame([['kind' => 'crosses_held_section', 'section_ids' => [$talk->id]]], $plan['metadata']['plan_violations']);
     }
 
     #[Test]
@@ -346,6 +347,30 @@ class SermonExtractionPlanResolverTest extends TestCase
         $asked = $this->resolver->resolve($log->fresh());
 
         $this->assertTrue($asked['metadata']['requires_review']);
+    }
+
+    /**
+     * S6, run 964: a composition stored under an earlier membership rule kept its identity
+     * when the rule changed, so its cut left out the reading the current rule includes. The
+     * plan is composed afresh when it is resolved; only the operator's review is kept.
+     */
+    #[Test]
+    public function a_composition_stored_under_an_earlier_rule_is_not_served(): void
+    {
+        $log = $this->logWithSermon(2069.1, 3724.18);
+        $sermon = $log->serviceSections()->sole();
+        $sermon->update(['metadata' => ['confidence_level' => 'high', 'sermon_reference' => 'Matthew 5:13-16']]);
+        $reading = $this->reading($log, 1, 1683.99, 1818.86, reference: 'Matthew 5:13-16; John 8:12-18');
+        $this->resolver->compose($log);
+        $log->writeProcessingMetadata(static function (array $metadata) use ($sermon): array {
+            $metadata['sermon_composition'] = [...$metadata['sermon_composition'], 'selected_section_ids' => [$sermon->id], 'bible_section_id' => null];
+
+            return $metadata;
+        });
+
+        $plan = $this->resolver->resolve($log->fresh());
+
+        $this->assertSame([$reading->id, $sermon->id], $plan['metadata']['selected_section_ids']);
     }
 
     #[Test]
