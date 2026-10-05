@@ -130,8 +130,11 @@ class ServiceStructureEnsembleReplay
                 ServiceStructureDrawExecutor::contextFromSnapshot($contextPayload),
             );
 
+        // The validator's structure carries the review flags only the corrected whole can earn
+        // (a talk the answers put on both sides of a reading); detection projects that one too.
         return [
             ...$corrected,
+            'structure' => $validated?->structure->toArray() ?? $corrected['structure'],
             'refused' => $composition->refused,
             'valid_votes' => $composition->validVotes,
             'validation_passed' => $validated?->passed() ?? false,

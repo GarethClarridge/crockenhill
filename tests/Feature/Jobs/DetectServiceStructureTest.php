@@ -17,9 +17,9 @@ use App\Jobs\AnalyzeSegments;
 use App\Jobs\ClassifyServiceAudio;
 use App\Jobs\DetectServiceStructure;
 use App\Jobs\ExtractSermon;
-use App\Jobs\TranscribeOutputEdges;
 use App\Jobs\GenerateRmsLog;
 use App\Jobs\TranscribeFullService;
+use App\Jobs\TranscribeOutputEdges;
 use App\Jobs\ValidateVideoFile;
 use App\Livewire\Admin\ChurchServices\ShowChurchService;
 use App\Mail\ManualReviewRequired;
@@ -31,8 +31,8 @@ use App\Models\ServiceSection;
 use App\Models\User;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\Structure\MockServiceStructureService;
-use App\Services\ChurchService\Structure\ServiceStructureEnsembleReplay;
 use App\Services\ChurchService\Structure\OutputEdgeReview;
+use App\Services\ChurchService\Structure\ServiceStructureEnsembleReplay;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
 use App\Services\Media\Audio\AudioTimeline;
@@ -48,13 +48,14 @@ use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\Support\AudioTimelineFixture;
+use Tests\Support\BanksNoWordOutputEdges;
 use Tests\TestCase;
 
 class DetectServiceStructureTest extends TestCase
 {
+    use BanksNoWordOutputEdges;
     use CreatesHistoricImportOperations;
     use RefreshDatabase;
-    use \Tests\Support\BanksNoWordOutputEdges;
 
     protected function setUp(): void
     {
@@ -1045,6 +1046,56 @@ class DetectServiceStructureTest extends TestCase
             ->where('section_type', 'bible_reading')
             ->firstOrFail()
             ->metadata?->readingReference);
+    }
+
+    /** F05: the answer path projected the corrected structure before the validator annotated it. */
+    #[Test]
+    public function an_answer_keeps_the_review_flags_validation_puts_on_the_projected_sections(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        $service = ChurchService::factory()->create();
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create(['church_service_id' => $service->id]);
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+        // Two 2–2 splits around a unanimous reading. No draw hears a talk on both sides of it, so
+        // no draw's own validation flags an interruption; the answers below assemble one.
+        $talkFirst = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('short_talk', 125.0, 415.0),
+            $this->referencedSection('bible_reading', 420.0, 590.0, readingReference: 'Psalm 23'),
+            $this->section('song', 595.0, 700.0),
+            $this->referencedSection('sermon', 710.0, 2200.0, sermonReference: 'Luke 15:1-10'),
+            $this->section('song', 2210.0, 2400.0),
+        ], model: 'mock');
+        $talkAfter = ServiceStructure::fromSections([
+            $this->section('welcome', 0.0, 120.0),
+            $this->section('prayer', 125.0, 415.0),
+            $this->referencedSection('bible_reading', 420.0, 590.0, readingReference: 'Psalm 23'),
+            $this->section('short_talk', 595.0, 700.0),
+            $this->referencedSection('sermon', 710.0, 2200.0, sermonReference: 'Luke 15:1-10'),
+            $this->section('song', 2210.0, 2400.0),
+        ], model: 'mock');
+        MockServiceStructureService::useStructureSequence($talkFirst, $talkAfter, $talkFirst, $talkAfter);
+        $this->runJob($log);
+        $talkFlags = fn (): array => ServiceSection::query()->where('media_processing_log_id', $log->id)
+            ->where('section_type', 'short_talk')->orderBy('start_time')->get()
+            ->map(fn (ServiceSection $talk): bool => in_array(ServiceStructureValidator::FLAG_TALK_INTERRUPTED, $talk->metadata->reviewFlags ?? [], true))->all();
+        $this->assertSame([false], $talkFlags());
+        $disputes = $log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble'][0]['composition']['disputes'] ?? [];
+        $this->assertNotSame([], $disputes);
+        $admin = User::factory()->admin()->create();
+
+        foreach ($disputes as $dispute) {
+            // Keep both talks; the song at 595s is what slot 1 heard as the talk.
+            $result = $dispute['type'] === 'song'
+                ? app(AnswerServiceStructureEnsembleQuestion::class)->execute($log->id, $dispute['question_id'], 'remove', $admin)
+                : app(AnswerServiceStructureEnsembleQuestion::class)->execute($log->id, $dispute['question_id'], 'choose', $admin, slot: $dispute['supporting_slots'][0]);
+            $this->assertTrue($result['sections_synced']);
+        }
+
+        $this->assertSame(['short_talk', 'bible_reading', 'short_talk'], ServiceSection::query()->where('media_processing_log_id', $log->id)
+            ->whereBetween('start_time', [125.0, 700.0])->orderBy('start_time')->get()->map(fn (ServiceSection $section): string => $section->section_type->value)->all());
+        $this->assertSame([true, true], $talkFlags());
     }
 
     #[Test]
