@@ -499,9 +499,42 @@ sorted by date, earliest/median/latest of the five: 2021-01-17 (run 1340), 2022-
   again. Smallest counterexample: `a_reviewed_selection_survives_recomposition_but_not_changed_section_bounds`
   with the edited section swapped for an unrelated opening song. Natural home: S6.
 
-Remaining: S6 (design proposed to the operator 10-05, not built), I2, I4, I5, the I1 fixture
-decision above. Listening at the next canary: 1250's Job 29 end (1519.04), the edges moved by
-the 10-04 cue-boundary rule, and the seven exposed-speech intervals above (1025 first).
+Remaining after this session: S6 (approved by the operator 10-05 — see below), I2, I4, I5,
+the I1 fixture decision above.
+
+### Completion record — S6, sermon plans (branch `s6-publication-plan`)
+
+Operator approved the sermon-first design on 10-05; this session's branch was merged to master
+first (`02369f97f`, unpushed). Each step started red. Gates on the final commit: Pint, PHPStan,
+full suite (9,265 tests, notices pre-existing), Dusk (61).
+
+| Step | Commit | Invariant |
+|---|---|---|
+| Dependency-scoped identity | `a1fa5255c` | A composition, and the operator's review of it, is bound to the sermon parts, the readings before them, and every section from the first of those to the first song after the sermon (that song included), plus the coverage evidence. Without exactly one sermon, every section counts. Fixes I3's counterexample. |
+| One validator | `67d78a941` | `SermonPublicationPlanValidator` refuses impossible final spans (empty, reversed, overlapping, unordered, past the source) and reports `selected_section_not_cut` and `crosses_held_section` (F09). Coverage is "reaches", not "contains": the word-pause rule may legitimately move an edge inward. |
+| Only fresh, validated plans | `f0a2dfce7` | `resolve()` composes every time instead of reading back a stored composition with a matching identity, reuses only the operator's review, and runs the final spans through the validator; violations go to review and are recorded as `plan_violations`. |
+
+**Defect found while measuring:** a stored composition keeps its identity when the membership
+rules change, so `resolve()` kept serving 964's 10-04 composition (sermon only) after the
+10-05 rule (F02/F08) began matching its reading by containment ("Matthew 5:13-16; John
+8:12-18" for a sermon on Matthew 5:13-16). Canary 10 cut 964's sermon without that reading.
+
+Canary 16 (read-only: `resolve()` in rolled-back transactions, master's resolver against the
+branch): two plans change, no violations, no errors.
+- **964** now cuts its reading 1683.99–1817.82 before the sermon. It starts at the leader's
+  hand-over ("I'm going to ask Ralph now… Matthew chapter 5, 13 to 16"); the end falls in the
+  pause before "So this is the word of the Lord" (1817.82–1819.52), because the section's own
+  end (1818.86) splits that phrase. Listen to the end at the next canary.
+- **1250** asks its reading-membership question again once: its reviewed selection
+  [3128, 73104, 4910, 73105] was keyed under the full-run identity, the only stored review in
+  the database. It was not re-keyed: that would rewrite a stored operator decision.
+
+Not in this step: section publication candidates (`PrepareSectionPublicationCandidates`
+still checks its own spans), and a non-blocking account of unowned adjacent speech or
+unobservable windows in the plan (no consumer yet; F07's flag already reaches review).
+
+Listening at the next canary: 1250's Job 29 end (1519.04), the edges moved by the 10-04
+cue-boundary rule, the seven exposed-speech intervals above (1025 first), and 964's reading end.
 
 ## 7. Further bounded investigations — added 2026-10-04
 
