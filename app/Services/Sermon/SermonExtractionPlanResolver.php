@@ -227,6 +227,7 @@ class SermonExtractionPlanResolver
         $authority = $heldSpanAuthority ?? $processingLog->authorisedHeldSermonSpan();
         $previousEnd = 0.0;
         $seen = [];
+        $selectedSections = [];
         foreach ($composition['selected_section_ids'] ?? [] as $id) {
             $section = is_int($id) ? $byId->get($id) : null;
             if (! $section instanceof ServiceSection || in_array($id, $seen, true)) {
@@ -239,6 +240,7 @@ class SermonExtractionPlanResolver
                 throw new InvalidArgumentException('Invalid selected section bounds: unordered, overlapping or outside source');
             }
             $seen[] = $id;
+            $selectedSections[] = $section;
             $previousEnd = $end;
             $flags = $section->metadata->reviewFlags ?? [];
             $isHeld = HoldSectionForContentReview::isHeld($flags);
@@ -263,11 +265,7 @@ class SermonExtractionPlanResolver
         }
         $spans = $cuePlan['segments'];
         // Only a plan whose final spans pass every check may be executed (S6).
-        $violations = $spans === [] ? [] : $this->validator->validate(
-            $processingLog,
-            array_map(static fn (int $id): ServiceSection => $byId->get($id), $seen),
-            $spans,
-        );
+        $violations = $spans === [] ? [] : $this->validator->validate($processingLog, $selectedSections, $spans);
         $violated = static fn (string $kind): array => array_merge([], ...array_column(
             array_filter($violations, static fn (array $violation): bool => $violation['kind'] === $kind),
             'section_ids',
@@ -375,8 +373,8 @@ class SermonExtractionPlanResolver
         }
 
         $parts = array_values(array_filter($sections, fn (ServiceSection $section): bool => $section->id === $sermons[0]->id || $this->continues($section, $sermons[0]->id)));
-        $partsStart = min(array_map(static fn (ServiceSection $section): float => (float) $section->start_time, $parts));
-        $partsEnd = max(array_map(static fn (ServiceSection $section): float => (float) $section->end_time, $parts));
+        $partsStart = min((float) $sermons[0]->start_time, ...array_map(static fn (ServiceSection $section): float => (float) $section->start_time, $parts));
+        $partsEnd = max((float) $sermons[0]->end_time, ...array_map(static fn (ServiceSection $section): float => (float) $section->end_time, $parts));
         $from = min([$partsStart, ...array_map(
             static fn (ServiceSection $reading): float => (float) $reading->start_time,
             array_filter($sections, static fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::BibleReading && $section->start_time < $partsStart),
