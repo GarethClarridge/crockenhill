@@ -1,5 +1,31 @@
 # Historic Video Defect Discovery and Acceptance Plan
 
+> **Planning reconciliation — 2026-10-04, after the read-only boundary review.**
+> [Video boundary consistency](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md) owns ten newly
+> recorded findings/cases and their proposed regression-first code slices. Static defects,
+> synthetic counterexamples and listening candidates are distinguished there; these are not
+> ten demonstrated bad recordings. F01/F05/F06 concern answers reaching projected output;
+> F02/F08 concern reading equivalence; F03/F09/F10 concern final cuts; F04/F07 supply
+> multipart-reading and exposed-speech cases. Track their reproduction/disposition when
+> assessing the next code freeze; do not infer their closure from zero questions or technical
+> media checks. No new acceptance threshold or operator policy is adopted by this note.
+>
+> The queued canary remains parked on its existing frozen-code contract. Finishing that round
+> does not validate fixes on `fix-silent-sermon-omissions` or the proposed consistency work.
+> “Final canary” below is the earlier schedule, not evidence that no further validation is
+> necessary after output-changing fixes. The familiar sixteen are regression cases; the
+> prepared twenty discovery candidates have unproven prior exposure and are not held out.
+> Existing batch/release gates and the frozen-branch resume instructions remain authoritative.
+
+> **Further investigation scope — 2026-10-04:** the consistency plan's
+> [I1–I5](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md#7-further-bounded-investigations--added-2026-10-04)
+> cover pre-detection transcript loss, speech ownership, replay stability, artifact invalidation
+> and shared errors in apparently clean/unanimous output. These are bounded hypotheses, not
+> additional confirmed defects. Prioritise I1/I3 for further research; I2/I5 supplement existing
+> source-based acceptance evidence. Record checked extent, exposure and omissions separately
+> from agreement/question counts. Every repair slice must name its restored invariant and
+> prove downstream preservation. No operational authorisation or numeric acceptance bar changes.
+
 > **Safety continuation — 2026-10-04.** The operator authorised the review fixes and
 > as much of its five next steps as can proceed without input. Provider-aware edge
 > transcription and custody-preserving output relocation are implemented; 1112's
@@ -327,6 +353,14 @@ Measured read-only before building; full suite, PHPStan and Pint after.
    the diff then reads the release as `hold_cleared`, a change, not a failure.
 
 #### Canary 10, the final canary
+
+**Historical dispatch sequence; not current resume instructions (clarified 2026-10-04).**
+The steps below record the authorised original round. Do not repeat these dispatches over
+the parked queue. Use the latest shutdown/frozen-branch record at the end of
+[Cut What Was Identified, In Sync](CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md).
+Validation of output-changing fixes belongs to the next freeze/canary, with the open
+[consistency findings](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md#2-finding-register)
+explicitly accounted for; this note does not authorise that operation.
 
 **Scope:** the 16 batch-1 runs (canary 9's set: 936, 949, 964, 1025, 1028, 1050, 1108, 1112, 1117,
 1221, 1250, 1304, 1311, 1346, 1356, 1358), so every path the batches use runs once on the frozen
@@ -1647,7 +1681,7 @@ check against the 09-17 speech-edge trim) deserve a closer look before being bui
 | Gate | State | Required evidence to turn green |
 |---|---|---|
 | Processing | GO | Definitive passes drained; the three former failures have recorded terminal dispositions in §4.5 (19 September). This is dated execution evidence, not a new live census. |
-| Queued repair readiness | **CONDITIONAL GO for canary 10 only (2026-10-02)** | Canary 9's detection passed and its custody fault is fixed (`1210d534e`); the recompose round, code revision and review tooling are committed through `e42c8e338` (§4.0). The operator authorised canary 10 on 2026-10-02; snapshot, worker restart, the §4.0 preflight and external backups completed before all 16 runs were dispatched. Five runs await six review answers; recompose and Tier C remain. Batches wait for its predeclared bar. Actual-server range, repaired-output, song-clip and cache checks remain release evidence. |
+| Queued repair readiness | **PARKED — shutdown record 2026-10-04; not a fresh live census** | Tier C was dispatched and then stopped: 15 pending FFmpeg jobs, one pending orchestration job; 1108/1112 failed extraction amid staging-mount problems. Preserve those payloads and investigate stable mounts/failures before deciding how to resume the existing chains on `fix-historic-video-custody` at the frozen revision or a doc-only descendant. Do not redispatch the round. See the cut-from-sections plan's final shutdown/resume record. Canary acceptance and later batches remain pending; output-changing fixes use the next freeze/canary. |
 | Containment | **NO-GO** | The six disputed sermons and their seven song videos were held on 2026-09-16 and the sections those holds left published were demoted the same hour (§4.4), so the identity gate-clear gap is closed and published-while-held is zero again. Remaining: the current-policy and unassessable residue. Containment is not adoption — the three pairs are still undecided, and the holds are what make deferring them safe. |
 | Content acceptance | **NO-GO** | The strengthened stopping rule (carried items, "Rulings and stopping rule") passes: scoped coverage and limitations, omission reconciliation, independent source evidence, content handoffs, controlled variations/interruption tests, tail and whole-output reviews. Every §4.3a class has a tested response or recorded decision; detector errors and review burden are evaluated against predeclared criteria using H9/H10's retrospective, source-adjudicated evidence, with measured units and limitations explicit. There is no reserved historic set; insufficient evidence is not a pass, and H10b disagreement counts are not complete recall. The fresh release-membership sample includes repaired/held runs and meets its separate predeclared limits. Evidence is bound to current artifacts; operator rulings are recorded. |
 | Public release | **NO-GO** | Phase 9 convergence, QA and actual-server browser checks pass, then the operator signs an exact era-sized batch. Actual-destination delivery checks are scheduled within the authorised release's rollback window and must pass to close observation. |

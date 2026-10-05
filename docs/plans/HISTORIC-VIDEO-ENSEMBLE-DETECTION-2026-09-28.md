@@ -1,5 +1,19 @@
 # Ensemble structure detection
 
+> **Implementation gaps recorded 2026-10-04:** the design and operator decisions below remain
+> authoritative, but “built” does not mean all their invariants hold in `8a5929681`.
+> [Video boundary consistency](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md) records F01
+> (reference-only answers lost), F05 (validator annotations discarded on answer projection),
+> F06 (accepted answers trimming one another), F02 (900-second pairing-window drift) and F08
+> (overlap equivalence versus containment-based selection). Its S1/S3 slices own the proposed
+> regressions/corrections; do not duplicate a delivery sequence here. Earlier evaluation results
+> retain their measured scope and are not proof against these newly identified cases.
+> Further research is scoped by the consistency plan's
+> [I1/I3/I5](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md#7-further-bounded-investigations--added-2026-10-04):
+> completeness of the input all voters share, stable/local replay behaviour, and source-based
+> checks of unanimous output. Identical answers to incomplete input are not independent content
+> evidence. Use isolated stability tests and saved artifacts; no fresh model evaluation is implied.
+
 **Status — 2026-10-02: BUILT, evaluated and canaried; this is the design authority and the register
 of operator decisions on what the ensemble compares.** Built from `92040d273` (2026-09-29), evaluated
 over 232 paid draws (§6 evaluation, 2026-09-30) and run as canary 9 (2026-09-30: detection passed,
@@ -111,6 +125,10 @@ processing and gets no special path.
     - **A. Overlapping references are one passage** ("Psalm 95" = "Psalm 95:1-7", "Philippians
       3:4-9" = "3:4b-9") unless they would pair the sermon with different readings: a reading
       reference is checked against every voter's sermon reference and vice versa.
+      **Implementation caveat, 2026-10-04:** F08 shows that overlap-only comparison no longer
+      proves this exception is respected: the extraction resolver distinguishes containment
+      from partial overlap. The decision is unchanged; its implementation needs regression proof
+      against the resolver's actual membership and review outcomes.
     - **B. An unbound song is the catalogue song its title names** when `SongTitleResolver`
       matches it deterministically (not fuzzy or hymnbook-absent): "Jesus Saves" = "We Have
       Heard a Joyful Sound". Untitled versus titled stays a question (1311 and 1304 were ruled
@@ -389,6 +407,12 @@ do not grow another scratch driver, historic-only pipeline or general-purpose ru
 
 Before scaling reprocessing, complete **answer → correction → deterministic replay → verification**.
 Banking an answer or suppressing a question alone does not complete a repair.
+
+**Open verification, 2026-10-04:** F01/F05/F06 in the consistency plan show that reference
+corrections, derived review flags and mutually compatible applied answers are not yet preserved
+through every path. Verify the final projected structure and dependent media plan, not merely
+the `applied_rulings` list or `validation_passed` boolean. This clarifies the existing durable-
+constraint requirement; it does not turn the new architecture proposal into an operator ruling.
 
 | Ruling kind | Example | Authority |
 |---|---|---|

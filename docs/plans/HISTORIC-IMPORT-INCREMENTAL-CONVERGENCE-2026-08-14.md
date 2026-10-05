@@ -1,5 +1,18 @@
 # Historic Import: Incremental Convergence Plan
 
+> **Video handover update — 2026-10-04:** the definitive processing history below does not
+> describe the current repair queue. Canary 10's Tier C round is parked after operator shutdown;
+> two extraction failures and staging-mount instability require investigation. The latest
+> payload-preserving resume/frozen-branch instructions are at the end of
+> [Cut What Was Identified, In Sync](CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md), and the
+> [focused video plan](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md) owns
+> acceptance. The new [boundary consistency workstream](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md)
+> records static findings, listening cases and proposed code slices, not an approved processing
+> round. Those findings must be accounted for in future video readiness claims; they are not
+> evidence that every historical output is defective. Existing containment, exact-membership
+> release and IC8 ownership remain unchanged. No source reacquisition or restart of completed
+> Email/OpenLP work is implied.
+
 > **Status (2026-08-14): plan of record for the whole historic-import programme.** This plan
 > supersedes the executable content of the three prior authorities, now archived:
 > [final import readiness](../archived-plans/HISTORIC-ARCHIVE-FINAL-IMPORT-READINESS-2026-08-07.md)

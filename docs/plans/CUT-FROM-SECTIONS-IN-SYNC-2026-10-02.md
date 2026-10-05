@@ -3,6 +3,21 @@
 **Date:** 2026-10-02 · **Status:** IMPLEMENTED on master; corpus benchmark passed, canary review and operator acceptance pending · **Blocks:** canary 10
 acceptance and Tier A ([main plan §4.0](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md))
 
+> **Correctness follow-up — 2026-10-04:** implementation and technical timing benchmarks do
+> not close content-boundary correctness. The open
+> [video boundary consistency plan](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md) records final-span
+> hold leakage (F09), repeated-token/overlapping-word cases (F03/F10), reference/membership drift
+> (F02/F08), answer/projection defects (F01/F05/F06), and source cases F04/F07. Its slices own
+> proposed code work; this plan retains the settled cut/composition policy and operational record.
+> A technical output that matches its plan can still implement the wrong content selection.
+> No operational authority, queued payload or prior operator ruling changes with this note.
+> The consistency plan's
+> [I2/I3/I4](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md#7-further-bounded-investigations--added-2026-10-04)
+> additionally scope speech-ownership accounting, stability of successive boundary transformations,
+> and whether cached video/audio/excerpts/candidates still implement the current decision.
+> These are bounded investigations, not confirmed new faults. Each implemented correction must
+> prove its invariant survives refinement, projection, reuse and final extraction as applicable.
+
 ## 1. Why
 
 Canary 10's cuts met the predeclared bar as written. The operator then ruled on two findings:
@@ -119,6 +134,21 @@ The other clips (songs, readings, talks) are already cut at their section's own 
   coverage before cutting the affected output. Gap duration alone is not evidence of speech;
   silence and intentionally excluded, identified songs or other sections do not trigger this
   check. Do not add another detector or fill gaps inside the cutter.
+
+**C2/C4 implementation limits identified 2026-10-04 (not new operator decisions):**
+
+- C2's input checks precede later word/cue adjustment. F09 requires checking whether the final
+  spans still respect content holds and repair authority; correct nominal section membership
+  does not establish that property. F03/F10 concern whether the adjusted edge is genuinely safe.
+- C4's statement that outer edges are owned by ensemble checks is not proof of complete
+  coverage. `TalkEdgeChecks` targets short talks, and song trimming can expose speech beyond
+  a sermon's final selected part without assigning it (F07). The proposed remedy is a specific
+  upstream ownership question for such newly exposed speech, not automatic gap absorption or
+  a reversal of D1's intentionally excluded reading/sermon/prayer gaps. Reproduce and distinguish
+  those cases before changing behaviour; record a policy decision if the correction needs one.
+- Shared membership/final-plan contracts in the consistency plan are an incremental design
+  proposal. C3's existing representation and prohibition on parallel persisted composition
+  systems remain in force; a new schema or second workflow is not implied.
 
 ### Sync
 
@@ -1556,3 +1586,12 @@ on disk when workers start, so run `git checkout fix-historic-video-custody` and
 confirm `git rev-parse HEAD` is this commit or a doc-only descendant before
 starting any worker. The queued Tier C round finishes on the frozen code; the fixes
 join the next freeze and canary.
+
+**Tier C round abandoned, 2026-10-05.** The operator abandoned the parked canary 10 Tier C
+round: the next canary runs on the boundary-consistency fixes anyway. The frozen-branch
+instruction above no longer applies. A Docker Desktop restart had started all six workers on
+`8a5929681`; they advanced 1117, 1221 and 1250 before `docker stop` (the FFmpeg worker was
+killed mid-encode of 1250). The 15 remaining queued Tier C jobs were saved to
+`storage/app/private/canary10-safety-fixes-20261004/tier-c-abandoned-queue.json` and removed
+from Redis. Both fix branches were merged to `master` (`a9980a23a`). The 14 canary runs remain
+`processing` and 1108/1112 `failed`; none is accepted. Nothing was published.

@@ -19,6 +19,19 @@ touched `.env` or production data. It is a running list, not a complete audit.
 
 ## How to use this index
 
+**2026-10-05:** F01–F03, F05, F06 and F08–F10 of the boundary-consistency plan are built and merged;
+see its §6 completion record. The canary 10 Tier C round was abandoned and its queue removed.
+
+**2026-10-04 correctness handover:** [Video boundary consistency](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md)
+records ten findings/cases from the read-only pipeline investigation against `8a5929681`,
+proposed regression-first slices, and an incremental publication-plan design. It does not
+supersede historic/cut policy or authorise worker starts, queued-payload changes, provider calls
+or operator rulings. Read its baseline and stopped-operation constraints before picking it up.
+Its [five bounded follow-up investigations](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md#7-further-bounded-investigations--added-2026-10-04)
+are hypotheses, separate from the ten findings/cases. Start further research with transcript
+completeness (I1) and replay stability (I3); S1/S2 remain the first proposed implementation slices.
+Every slice must state its invariant and demonstrate downstream preservation.
+
 - The historic import has **one** plan. Its §2 decision record, §3 safety model and §4 finding
   dispositions are binding; the archived predecessors hold finding/decision evidence only.
   Wherever an older document says "G9" or "G9/WP10", read the new plan's **historic
@@ -97,26 +110,27 @@ None of these lanes blocks the public product sequence except where a plan expli
 
 ## Active plans
 
-The historic video's immediate next work is **canary 10, the final canary** of the corpus re-run,
-in the [historic defect plan's §4.0](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md)
-(redrafted 2026-10-02; it belongs to H0). The four-draw
-[ensemble structure detection](HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md) is built and passed
-canary 9 on detection; its custody fault is fixed. The recompose round, code-revision freeze and
-review tooling are committed through `e42c8e338` (2026-10-02), with all quality gates passing.
-Canary 10 ran on 2026-10-02 and met its predeclared bar. The operator did not accept it: any
-sound/picture drift is a defect, and a cut must be the identified sections.
-[Cut What Was Identified, In Sync](CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md) traces the causes
-records the revised design and settled sermon composition. The shared section-based cutter and
-1112 matcher fix are committed through `cf8a44371` (including the corpus-discovered WebM fix); the full suite, PHPStan, Pint, build and Dusk
-pass. The selected corpus benchmark passes (27 output assets plus the isolated known-defect span).
-The fresh same-16 saved-draw recomposition completed after approved backups on 2026-10-03,
-with no new failed jobs and no custody attention; 15 runs need composition review before extraction.
-Complete that review and canary acceptance before Tier A and the batches.
-The detection reliability work package is complete and archived.
+**Historic video — reconciled from the recorded 2026-10-04 shutdown, not a new live census:**
+canary 10 remains unaccepted. Its latest Tier C round was dispatched and parked with 15 pending
+FFmpeg jobs and one pending orchestration job; runs 1108/1112 failed extraction amid staging-mount
+problems. Read the final shutdown and frozen-branch instructions in
+[Cut What Was Identified, In Sync](CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md) before resuming
+existing chains. Do not repeat the original dispatch sequence or consume those jobs on the
+output-changing fixes branch. Technical quality, custody and listening acceptance remain pending.
+
+The [focused video plan](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md) owns
+execution and acceptance; the [ensemble plan](HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md)
+retains its design/operator decisions. [Boundary consistency](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md)
+owns the new regression-first code slices and proposed incremental design. Finishing the frozen
+round does not validate later fixes: those join the next freeze/canary. The familiar sixteen
+provide regression evidence; the prepared twenty discovery candidates are not proven held out
+and remain undispatched. “Final canary” in older records is the earlier schedule, not acceptance.
+The detection reliability work package remains complete and archived; no model-evaluation restart
+or new provider calls are authorised by this documentation reconciliation.
 
 | Order | Plan | Verified status | Next independently useful slice |
 |---|---|---|---|
-| H0 | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | **Plan of record; video status reconciled 2026-09-20.** Definitive processing is drained; exact missing holds and identity containment are applied; the repair canary and macro-song reruns exposed and closed their pipeline blockers. The disposable retranscription command is implemented and all three approved runs passed real dry-run source-integrity preflight; nothing was dispatched. Queued bounded repair remains conditionally GO after an immediate worker/queue preflight. Content acceptance and release remain NO-GO; all audited outputs remain quarantined. | Finish the focused plan's independent interior/source review and current-policy residue; then execute 1343/1258/980 one at a time with source-speech and dependent structure/song/analysis verification between runs, before dependency-grouped repairs or final acceptance. |
+| H0 | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | **Programme authority; video handover reconciled 2026-10-04.** Latest canary Tier C round parked; mount failures and two failed extractions remain. Content acceptance/public release remain NO-GO. See the recorded shutdown, not older repair-readiness rows, for resume state. | Preserve the queue and investigate the recorded shutdown/mount failures under the frozen-code contract. For separately authorised code work, start boundary-consistency S1/S2 regressions; later fixes require the next freeze/canary. Neither path is authorised to dispatch by this index. |
 | M0 | [Architectural maintainability delivery](ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md) | Not started; immediate safety lane and post-G9 permanent-core lane are explicitly separated | Record D1-D4; AM2 timing and AM3 log-rotation tests can start independently |
 | H1 | [Sentry error tracking](SENTRY-ERROR-TRACKING.md) | Optional; not installed; dependency approval required | If approved, install/configure errors-only capture; sequence caught terminal processing reporting after architecture AM8 |
 | M1 | [Code-quality remediation](CODE-QUALITY-REMEDIATION-2026-07-19.md) | WP2.1/WP6.1 done; other items open; level 8 | WP2's small fail-closed/config/signature fixes plus the computed-call structural guard |

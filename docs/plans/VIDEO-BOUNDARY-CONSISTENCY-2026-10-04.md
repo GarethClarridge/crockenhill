@@ -1,0 +1,539 @@
+# Video boundary consistency: findings and implementation handover
+
+> **Status — 2026-10-05:** F01, F02, F03, F05, F06, F08, F09 and F10 implemented
+> regression-first and merged to `master` (`a9980a23a`, unpushed). See the §6 completion
+> record. Open: F04, F07 (S5), S6 and investigations I1–I5. The canary 10 Tier C round was
+> abandoned and its queued jobs removed; the next canary runs on these fixes.
+
+> **Status — 2026-10-04:** planning only. Ten findings/cases collected in a bounded,
+> read-only investigation of detection → composition → operator answers → section
+> projection → extraction. No fixes or regression tests were implemented or executed.
+> The user requested this document for a fresh session; that does not authorise processing
+> runs, provider calls, worker starts, operator rulings, or publication.
+>
+> **Supersession and ownership:** this document consolidates this conversation's findings
+> and proposed code work. It supersedes no operational decision or existing plan.
+> [Cut from sections](CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md) retains the cut-policy and
+> stopped-canary history; [historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md)
+> retains import, release and production authority. This is a bounded correctness workstream,
+> not a second historic-import execution plan or approval for a wholesale rewrite.
+
+## 1. Start here in a fresh session
+
+1. Read `AGENTS.md` and the latest shutdown/frozen-branch instructions at the end of the
+   cut-from-sections plan, including its **2026-10-04 frozen-branch warning**.
+2. Keep workers stopped and preserve queued payloads. Do not drain, retry, replace, retire,
+   dispatch or consume them. Do not make provider calls, change operator answers, or run
+   application replay commands merely because their names suggest a preview: some write
+   metadata or sections. Documentation is the only change authorised by the handover request.
+3. Establish the code baseline without switching the shared processing checkout:
+   investigation target was **`8a5929681b2b00a0a3cd35e69895368ff2061aef`** on
+   **`fix-silent-sermon-omissions`**. The actual checkout was **`fix-historic-video-custody`**,
+   HEAD **`b708fc4c1b35864b3f33ee55f35d98a7cb68e4c4`**, clean before this documentation change.
+   An initial conversational statement that the checkout was ahead of the target was corrected:
+   it does **not** contain all target-branch fixes. Target-specific files were read with
+   `git show 8a5929681:path`. Recheck branch divergence and current fixes before implementation.
+4. Pick one small slice below after the user requests implementation. Read applicable skills;
+   prove each reported defect with a failing regression before correcting it. Do not modify
+   the frozen processing branch to run these fixes against preserved jobs.
+5. Report each meaningful finding/result promptly. The user explicitly prefers bounded work
+   and incremental reports to an exhaustive, usage-heavy investigation.
+
+### Evidence limits
+
+- “Confirmed code defect/gap” below means supported by static control-flow inspection or a
+  concrete algorithmic counterexample. It does **not** mean an executed failing test or a
+  demonstrated defective published recording. Reproduction is still required.
+- Saved transcripts were inspected; recordings were not listened to. Transcript timestamps
+  are source-relative seconds, not listening-confirmed word boundaries.
+- Discovery candidates are **not proven held out**. No accuracy/generalisation claim follows
+  from these examples, nor should they later be advertised as independent validation.
+- No tests, Artisan replay, provider calls, edits to application code, dispatches, worker starts,
+  queue changes or operator rulings occurred during the investigation. Documentation was
+  subsequently requested. Worker/queue state was not independently re-audited in this pass;
+  the session left it untouched.
+- File/line references below describe the investigated revision. Locate methods afresh rather
+  than assuming line numbers in the current checkout match.
+
+## 2. Finding register
+
+All entries are open. Suggested corrections are proposals, not new operator policy.
+
+### F01 — Saved reference corrections can lose authority
+
+**Classification:** confirmed code defect; no affected recording established.
+
+**Location:** `app/Services/ChurchService/Structure/ServiceStructureEnsembleRulingApplier.php`,
+`apply()` lines 188–210 and `contradicted()` lines 389–405.
+
+When fresh draws agree and no question pairs with a saved answer, `contradicted()` compares
+only section type/start/end. An operator-corrected `reading_reference` or `sermon_reference`
+can be contradicted at identical times without triggering restoration; the answer becomes
+stale. Section projection can therefore carry the wrong reference into reading selection.
+
+**Consequence:** loss of a settled content decision; a reading can be omitted, selected wrongly,
+or unnecessarily parked even though the operator already corrected its identity.
+
+**Smallest regression:** saved reference correction plus a fresh unanimous section with identical
+times and the wrong reference. Assert the settled reference survives replay and reaches the
+projected section. Cover reading and sermon references.
+
+**Correction:** compare output-relevant identity fields as well as timing. Define exactly what
+the answer settled; do not treat every incidental metadata difference as a contradiction.
+
+### F02 — The ensemble's 900-second reading window disagrees with extraction
+
+**Classification:** confirmed cross-stage mismatch; no affected recording established.
+
+**Location:** `ServiceStructureEnsembleComposer.php`, `pairableReadings()` lines 596–614,
+`compatible()` lines 496–499; `app/Services/Sermon/SermonExtractionPlanResolver.php`,
+`compose()` lines 62–85. Composer is under `app/Services/ChurchService/Structure/`.
+
+Composition excludes readings more than `max_pairing_gap_seconds` (configured 900 seconds)
+before the sermon from the extraction-sensitive reading set. Such readings need only
+substantially overlap to be grouped as the same item. Extraction can select a matching
+reading anywhere before the sermon, without that time limit.
+
+**Consequence:** materially different voter boundaries can be treated as agreement for a
+reading that will actually be cut; omitted verses need not generate a boundary question.
+
+**Smallest regression:** one matching reading more than 900 seconds earlier, with voter end
+times differing enough to lose a verse. Assert the extraction-relevant disagreement survives.
+
+**Correction:** use the actual extraction eligibility rule upstream. Do not simply restore an
+arbitrary time limit to extraction and thereby introduce a new omission.
+
+### F03 — Single-token anchoring can choose the wrong repeated word
+
+**Classification:** confirmed algorithmic counterexample; recording impact unverified.
+
+**Location:** `app/Services/ChurchService/CueSafeExtractionPlan.php`,
+`cueBoundaryPause()` lines 122–129, introduced/extended by the target fix.
+
+The anchor uses only the first/last normalised token of the cue and chooses the closest
+matching occurrence within two seconds. Timing drift can make a later occurrence of “the”
+closer than the cue's actual first word.
+
+**Consequence:** a cut intended to preserve the whole cue can discard its opening words, or
+retain the wrong closing occurrence.
+
+**Smallest regression:** cue starts at 10s; its first “the” is at 9.2s and a later “the” at
+10.1s. Assert the opening phrase survives. Add the analogous repeated end-token case.
+
+**Correction:** align contextual token sequences; ambiguous alignment should remain unresolved
+rather than silently choosing a repeated occurrence. Preserve the already-fixed lone-cue cases.
+
+### F04 — Two readings separated by prayer: concrete listening/regression case
+
+**Classification:** observed transcript structure, not a proven extraction defect.
+
+**Service:** discovery run **1240**, **2023-02-12 morning**. Saved transcript:
+`storage/app/private/service-artifacts/service-transcripts/2023-02-12/morning-012e82b3-6d52-4f95-a154-646cb351a25b.normalized-region-recovered.json`.
+
+- About **1065.72–1092.72s (17:46–18:13):** introduction to two chapters, starting Job 36.
+- **1274.72–1280.72s:** “We're going to pray and then we'll come back and read chapter 37.”
+- **1466.72–1487.72s:** repeated “To bring peace”, potentially an ASR loop.
+- **1488.72s (24:48.72):** Job 37 begins.
+- Later sermon text explicitly discusses both chapters.
+
+**Relevant code:** `SermonExtractionPlanResolver::compose()` lines 63–87 and
+`reviewComposition()` lines 197–207.
+
+**Risk/consequence:** merging the two readings into one span can include the intervening
+prayer; selecting only one loses part of the preached reading. The current resolver parks
+multiple partial matches, which is protective: do not report this as an existing silent omission.
+
+**Smallest regression:** Job 36 reading → prayer → Job 37 reading → sermon on both chapters.
+Assert review is required, and an explicit two-reading selection produces disjoint spans
+excluding the intervening prayer. Listen to establish the true prayer ending before using
+this service as boundary truth; make no operator ruling from transcript text alone.
+
+### F05 — Answer replay discards validator annotations before projection
+
+**Classification:** confirmed code defect; no affected recording established.
+
+**Location:** `app/Services/ChurchService/Structure/ServiceStructureEnsembleReplay.php`
+lines 124–138; `app/Actions/ServiceReview/AnswerServiceStructureEnsembleQuestion.php`
+lines 138–143; `ServiceStructureValidator::annotateSoftFlags()` around lines 1043–1047.
+
+Replay validates the corrected structure but returns the unannotated `$corrected['structure']`
+instead of `$validated->structure`. The answer action projects that version. Normal detection
+consumes the validator result, so the paths differ.
+
+**Consequence:** newly introduced talk fragments or talk → prayer/reading → talk structures
+can lose the review flags intended to catch incomplete or incorrectly separated items.
+
+**Smallest regression:** a correction splits one section into talk → prayer → talk. Assert
+both replay output and persisted sections retain `structure_talk_interrupted`. A newly created
+sub-minute talk is another focused case for `structure_talk_fragment`.
+
+**Correction:** propagate the annotated validated structure, retaining hard-failure behaviour
+and consistent provenance. Ensure tests cover the answer-to-projection path, not only validation.
+
+### F06 — Saved answers can truncate one another while both remain “applied”
+
+**Classification:** confirmed control-flow gap; no affected recording established.
+
+**Location:** `ServiceStructureEnsembleRulingApplier::apply()` lines 184–185,
+`makeRoomFor()` lines 281–313, `settle()` line 353.
+
+`makeRoomFor()` trims all overlapping neighbours, including sections already installed by
+another saved answer. There is no final verification that each applied resolution still holds.
+Existing conflict checks about competing answer/question matches do not cover this case.
+
+**Consequence:** reading accepted at **100–200s**, then a separately accepted talk at
+**180–300s**, can leave reading **100–180s** while both answers are recorded as applied.
+Content ownership becomes processing-order dependent rather than an explicit operator decision.
+
+**Smallest regression:** two distinct scoped answers with overlapping replacement spans;
+assert an unresolved conflict and extraction hold. Reverse answer/question order to ensure
+neither order silently chooses ownership.
+
+**Correction:** distinguish detector-owned neighbours from operator-settled content; reconcile
+conflicts explicitly and verify all applied resolutions against the final structure. Preserve
+legitimate trimming of unreviewed detector neighbours.
+
+### F07 — Song-edge repair can strand a sermon conclusion
+
+**Classification:** confirmed missing safeguard; concrete candidate requires listening and
+comparison with its actual saved section/extraction plan before claiming an observed omission.
+
+**Location:** `app/Services/ChurchService/Structure/SongSpeechEdges.php`, `trimmed()`
+lines 188–217; `SermonExtractionPlanResolver::uncoveredSpeech()` lines 373–385;
+`ServiceStructureValidator::checkCoverage()` lines 726–744.
+
+Song repair removes spoken material from song edges but neither assigns the exposed speech
+elsewhere nor asks who owns it. Sermon coverage checks gaps between identified sermon parts,
+not speech after the final part. Global coverage can still pass the configured 0.7 floor.
+
+**Consequence:** when detection ends the sermon early and puts its conclusion into a song,
+sound refinement can improve the song clip while leaving the sermon incomplete.
+
+**Candidate:** discovery run **1219**, **2023-07-16 morning**. Artifacts:
+`storage/app/private/service-artifacts/service-transcripts/2023-07-16/morning-4e18d5fe-8b57-4608-961f-63c62a34f4b5.normalized-region-recovered.json`
+and the same stem's `.classes.json`.
+
+- **3799.90–3822.90s (63:19.90–63:42.90):** hymn words inside the concluding address.
+- **3824.90–3836.90s:** returns to “I am the way…” and “Our trust must be in him.”
+- **3836.90s onward:** hymn announcement; transcript also contains suspicious repetitions.
+- Classifier windows strongly support speech through the quotation/conclusion, switching
+  toward music around **3870s (64:30)**. Classification is supporting evidence, not listening truth.
+
+**Smallest regression:** early song boundary swallowing a sermon conclusion, followed by
+sound trimming. Require an ownership question for the exposed speech adjacent to the sermon.
+Do not automatically absorb it: hymn announcements are legitimate excluded speech too.
+
+### F08 — Reference equivalence uses overlap; extraction uses containment
+
+**Classification:** confirmed cross-stage inconsistency, distinct from F02's time window.
+
+**Location:** `ServiceStructureEnsembleComposer::referencesAgree()` lines 921–941;
+`SermonExtractionPlanResolver::compose()` lines 62–87.
+
+Composition treats references as equivalent if they overlap each other and overlap the same
+counterpart passages. Extraction treats full containment differently from partial overlap.
+For reading **John 8:12–20**, sermon references **John 8:12** and **John 8:12–30** can therefore
+count as agreement, while only the first automatically selects the reading.
+
+**Consequence:** choice of representative controls whether uncertainty is surfaced; upstream
+“unanimity” does not imply the same output membership or review requirement.
+
+**Concrete scope example, not observed vote disagreement:** discovery run **1223**,
+**2023-06-18 morning**, transcript
+`storage/app/private/service-artifacts/service-transcripts/2023-06-18/morning-12878414-ce0a-4744-8f59-fdbba9f5d201.normalized.json`.
+Reading John 8:12–20 is around **1314.44–1394.28s**; at **1691.30–1718.92s** the preacher
+identifies verse 12 as the sermon focus. No saved conflicting votes were established for this run.
+
+**Smallest regression/correction:** the synthetic reference variants above must remain distinct
+when they change membership/review. Compare outcomes through the shared membership evaluator,
+rather than adding another independent approximation of its rules.
+
+### F09 — Final boundary movement can cross a previously checked content hold
+
+**Classification:** confirmed missing final-span guard; no actual disclosure established.
+
+**Location:** `SermonExtractionPlanResolver::resolve()` lines 257–281;
+`CueSafeExtractionPlan::forSpans()` lines 34–83; `app/Jobs/ExtractSermon.php` extraction guards.
+
+Holds and exact-span repair authority are checked against selected section bounds before
+word/cue adjustment. The adjusted/merged spans are then checked only for valid source bounds,
+not overlap with held neighbours. Authority matching the original bounds also does not by
+itself constrain the adjusted media span.
+
+**Consequence:** an allowed selected section can import held content from an excluded neighbour
+through boundary widening. Section membership is not a sufficient final media safety check.
+
+**Smallest regression:** unheld sermon ending at **200s**, held neighbour starting at **200s**,
+shared cue/evidence that widens the final end beyond **200s**. Assert extraction is held.
+Also cover a specifically authorised repair whose adjusted span crosses into another held item.
+
+**Correction:** check final spans against all held intervals and the applicable authority after
+adjustment/merging. Audit the section-candidate path too: `PrepareSectionPublicationCandidates`
+calls `CueSafeExtractionPlan::forSection()` around line 449. Do not solve by silently cutting
+through a word to remain within the old section bounds; an unsatisfiable boundary needs review.
+
+### F10 — Cue anchoring can report a pause where word intervals overlap
+
+**Classification:** confirmed algorithmic counterexample; no overlapping cached example found
+in the small word-artifact sample inspected.
+
+**Location:** `CueSafeExtractionPlan::cueBoundaryPause()` lines 135–146, compared with
+`pause()` lines 159–173; word-evidence validation is in `OutputEdgeWordTimings::read()`.
+
+The general pause finder tracks the occupied frontier of overlapping words. The newer anchor
+path considers only the adjacent word and uses `min`/`max` to manufacture a non-negative gap.
+Preceding word **9.8–10.5s**, anchor **10.0–10.3s**, original start **10.0s** yields a reported
+pause at **10.0s**, inside the preceding word.
+
+**Consequence:** a supposedly word-safe cut can contain a clipped preceding word or cut through
+overlapping speech. F03 is different: it chooses the wrong lexical occurrence even when word
+intervals do not overlap.
+
+**Smallest regression/correction:** overlapping intervals at both start and end anchors. Require
+a genuinely unoccupied boundary or unresolved-edge review. Reuse one occupied-interval model
+for both anchoring and general pause selection. Relevant existing suite:
+`tests/Integration/Services/ChurchService/WordTimedOutputEdgesTest.php`.
+
+## 3. Architectural direction discussed with the user
+
+The user noted that boundary rules accumulated in response to real videos and may not be
+consistently designed. The proposed response preserves that knowledge rather than deleting
+guards or substituting a larger model. This direction was discussed, not authorised for wholesale
+implementation or adopted as a replacement for existing operator policy.
+
+### Separate three decisions
+
+1. **What happened in the service?** Detect content blocks and evidence without forcing the
+   publication model onto detection. Permit multiple preaching blocks and uncertain relationships.
+   “One published sermon” should not force a block into `other` or cause a premature merge.
+2. **What belongs in each output?** An explicit ordered membership plan can include multiple
+   readings, interrupted sermon parts, and selected prayers while excluding intervening items.
+   Continuation/reading relationships should be structured proposals. Free-text notes explain;
+   regex matches on those notes should not be the long-term source of extraction authority.
+3. **Where can it safely be cut?** Choose supported boundaries within allowed intervals. Pauses,
+   word alignment and whole cues are techniques constrained by membership, not authorities that
+   can silently replace it. Conflicting evidence or overlapping speech can make a safe cut impossible.
+
+### Shared contracts and final checks
+
+- One membership evaluator serves ensemble comparison, composition, review and extraction.
+  Proposal equivalence includes membership and review outcomes, not merely timestamp overlap.
+- Operator answers have explicit scope: identity, membership, relationship or boundary. Accepting
+  a reference does not implicitly settle its timing. Decisions are bound to relevant source/evidence,
+  with explicit supersession and conflict handling.
+- Preserve supporting/dissenting detections, transcript and sound evidence, and boundary provenance.
+  Do not collapse uncertainty into a confidence score or silently discard it during projection.
+- A final, immutable media plan is validated after all adjustments: required content included;
+  excluded/held content respected; operator answers still satisfied; nearby unassigned speech
+  accounted for; supported, ordered, source-bounded cuts.
+- FFmpeg executes that plan unchanged. Technical media checks establish that output matches the
+  plan; they cannot establish that the plan selected the right spoken content.
+- Introduce these contracts incrementally around existing sections/metadata first. Do not assume
+  new tables, a parallel persisted composition system, or dependencies are necessary.
+
+## 4. Proposed delivery slices
+
+These are implementation candidates for a fresh authorised session, not permission to resume
+the stopped operation. Each slice is independently reviewable; avoid a wholesale rewrite.
+
+| Slice | Findings | Observable outcome | Minimum acceptance |
+|---|---|---|---|
+| S1: Preserve settled decisions through replay | F01, F05, F06 | The operator's accepted content is not silently changed, and new warnings reach projected sections | Red→green replay/answer-to-projection tests; contradictory resolutions hold; deterministic behaviour under ordering changes |
+| S2: Guard final media spans | F09 | Content excluded by a hold cannot leak through a later edge adjustment | Selected/unselected neighbouring holds and explicit repair-authority tests after widening/merging; inspect both sermon and section candidate consumers |
+| S3: Align reading membership rules | F02, F08; fixture F04 | Reading selection and ensemble disagreement use the same semantics | Distant matching reading; containment versus overlap; multipart reading with intervening prayer; correct review outcomes |
+| S4: Unify safe boundary selection | F03, F10 | Repeated words and overlapping timing evidence cannot produce a falsely safe cut | Start/end cases, ambiguous alignment, no-word/missing-cache behaviour, existing lone/shared-cue regressions preserved |
+| S5: Preserve ownership when sound repairs expose speech | F07 | Fixing a song does not silently discard a sermon conclusion | Exposed sermon-adjacent speech produces a reviewable ownership question; ordinary announcement not automatically absorbed |
+| S6: Consolidate publication plan contracts | Cross-cutting | Final validated plan is the sole input to extraction | First consumers are sermon resolution and section candidate preparation; existing rules become proposals constrained by the same invariants |
+
+S1 and S2 are the suggested first priorities. Prefer small fixes proving the invariants before
+extracting shared abstractions. S6 should consolidate demonstrated needs, not delay those fixes.
+For further investigation, start with I1 (transcript completeness) and I3 (replay stability)
+below; that research priority does not displace S1/S2's implementation priority.
+No change should erase an existing corpus-derived safety rule merely because it looks irregular.
+If a correction changes operator policy rather than faithfully implementing it, identify that
+decision explicitly before applying it to real services.
+
+## 5. Validation and evidence handling
+
+- **Completion criterion for every implementation slice:** name the invariant restored, identify
+  the downstream stages that could violate it, and demonstrate that it survives those stages.
+  A helper returning the expected value is insufficient when projection, refinement, reuse or
+  extraction can subsequently change the result. Record the evidence in §6.
+- Follow repository test-first, Sail, PHPStan, Pint and appropriate full-suite requirements when
+  implementation is authorised. Tests must use isolated fixtures, fake providers and queues;
+  never use the preserved operational payloads or real provider calls as test infrastructure.
+- Extend the canonical suites, not legacy duplicate suites on the do-not-invest list. No one-off
+  tinker/replay scripts where a feature or unit regression provides the same proof.
+- Test the complete decision path where necessary: saved answer → validated structure → projected
+  section metadata → selected content → final media spans. Helper-only tests cannot establish
+  that a later stage preserved the decision.
+- Keep synthetic counterexamples distinct from listening-confirmed source cases. For real cases,
+  record what was heard, the accepted content membership and boundary tolerance before declaring
+  a regression truth. Listening and rulings remain separate acts.
+- Preserve rejected approaches and historical rules through existing evidence/tests, not duplicated
+  production paths. Add metamorphic tests where useful: answer order cannot change ownership;
+  an irrelevant section cannot alter reading selection; a boundary refinement cannot cross a hold.
+- Saved candidate membership is in
+  `storage/app/private/canary10-safety-fixes-20261004/next-batch-candidates.json`.
+  Those candidates have unknown evaluation exposure. Keep them as discovery/development cases;
+  establish independent held-out provenance separately before making generalisation claims.
+- Other transcripts sampled without a specific new defect established: 2023-01-01, 2023-01-29,
+  2023-03-26, 2023-05-14, 2023-05-21 and 2023-05-28 morning. Do not imply this was a corpus audit.
+
+## 6. Completion record for the next session
+
+For each F-number, record: reproduced/not reproduced; exact regression; correction commit;
+the restored invariant and downstream preservation proof; focused and required quality results;
+observed recording impact if established; and remaining
+listening/policy questions. Mark an entry resolved only after the relevant downstream path is
+verified. Synthetic proof alone does not prove a historical service was harmed or repaired.
+
+For each I-number below, record the selected sample/fixtures and why they were selected,
+evidence inspected, supported conclusion, limitations, and any resulting F-number or policy
+question. “No issue found in this bounded check” is a valid result; do not silently expand into
+a corpus audit. Do not count an investigation hypothesis as a confirmed defect.
+
+### Completion record — 2026-10-05
+
+All entries below were reproduced by a regression that failed before the correction; that
+proof is synthetic. Downstream effect was measured by read-only recomputation over the
+canary 10 runs (the only runs with banked ensembles), using saved draws, answers and edge
+word caches; no provider calls, writes or dispatches. Gates on the final commit: full suite
+(9,246 tests), PHPStan, Pint, Dusk (61).
+
+| F | Commit | Invariant restored | Downstream proof | Canary impact |
+|---|---|---|---|---|
+| F03, F10 | `ed7476790` | A cue-boundary cut anchors on the cue's opening/closing three-word run, never a nearer repeated word; it lands only in a gap no word is sounding in (one occupied-frontier model shared with the largest-pause rule). An ambiguous run hands the edge to the largest pause. | `WordTimedOutputEdgesTest` through `forSpans` | All 44 word-pause edges identical to `8a5929681` |
+| F05 | `dbd66118f` | Replay returns the validator's annotated structure; the answer action projects it. | Answer → projected sections in `DetectServiceStructureTest` | — |
+| F01 | `24325d42f` | An answer's settled reading/sermon reference is part of what unanimous output must honour. | Applier unit test + fresh-draw re-detection → projected `readingReference` | — |
+| F09 | `6636494ff` | Final spans are checked against every held section the cut does not itself select, after widening/merging; authority does not excuse crossing another hold. Sermon plan → review (`sermon_span_crosses_held_section`); section candidate → blocked (`span_crosses_held_section`), including reused media. | Resolver and `PrepareSectionPublicationCandidates` tests; `ExtractSermon` parks on any `requires_review` | No canary sermon plan crosses a hold |
+| F06 | `5bf6dd20c` | Answers whose settled sections overlap (beyond snap tolerance, other than the same section twice) apply in neither order; both are conflicting and their questions stay open. An unpaired answer reopens its own question keyed to its ruling, so a fresh answer revises it. | Applier tests in both orders, unpaired case, revision resolving the conflict | No change (1112's existing conflict is unchanged) |
+| F02, F08 | `519511837` | One membership rule (`ScriptureReferenceResolver::sermonReadingMembership`) for extraction's reading choice and the composer's held readings; no time window; references compare by membership relation. When no reading matches, every earlier reading is still held (a voter may misname the preached reading). | Composer and resolver suites; `competing_reading_references…` feature test | Only 1250: Job 29 held, ends at the majority 1519.04 not the tie-break 1527; its last verse ends at 1519.04 and 1519–1527 is silence in the transcript (not listened) |
+
+Corrections to this plan's text: F08's John 8:12 / 8:12–30 example is not a case —
+`referencesAgree` accepts 8:12–30 against the reading 8:12–20 by containment, so both
+references cut the reading. The regression uses a crossing reference (8:18–30). F05 only
+loses flags that the answered whole earns and no single draw did; each draw's own flags
+travel with its sections.
+
+Remaining: F04 (fixture plus listening), F07/S5, S6, I1–I5. `flagMissingPreachedReading`
+still uses the 900-second window and plain overlap rather than the shared membership rule.
+Listening: relisten 1250's Job 29 end at the next canary.
+
+The investigation's main conclusion is that later boundary mutations are not consistently
+checked against earlier membership, hold and operator decisions. The smallest useful design
+improvement is shared decision semantics plus validation of the final spans—not another layer
+of independent service-specific thresholds.
+
+## 7. Further bounded investigations — added 2026-10-04
+
+The user requested these additions after reviewing the gaps in the plans. They are **open
+hypotheses and research tasks**, not newly confirmed defects or authorisation to execute them
+against the parked operation. Start with I1 and I3. Use saved evidence/code inspection first;
+run future tests only in isolated fixtures with fake providers/queues when implementation or
+testing is authorised. Listening does not itself make an operator ruling. No provider calls,
+workers, queued-payload changes, dispatches or publication are authorised by these additions.
+
+### I1 — Content lost before detection
+
+**Question:** does every source speech interval reach detector input, or retain an explicit
+uncertainty marker when it cannot? Four agreeing detectors cannot recover missing input.
+
+**Trace:** source timeline → transcription chunks and joins → repetition/region recovery →
+normalised transcript → detector prompt. Inspect missing chunk tails, chunk-relative/source-
+relative offsets, and suppression of genuine repeated speech as well as hallucinated repetition.
+
+**Bound:** select three services with saved recovery artifacts or chunk joins. Record the
+selection before comparing intermediate text. Inspect existing artifacts; identify precise
+disagreement windows for listening rather than retranscribing. If required intermediates are
+missing, record the evidence limitation; do not regenerate them or substitute confidence claims.
+
+**Deliverable:** for each selected join/recovery window, show what speech evidence survived,
+what was removed, why, and whether uncertainty reaches detection/review. If a defect is found,
+propose the smallest fixture proving it. A supported negative result is limited to those windows.
+
+**First consumer:** detection-input validation and its existing recovery/review mechanisms.
+
+### I2 — Account for included, excluded and unresolved speech
+
+**Question:** can the final plan explain content ownership, including speech hidden inside a
+wrongly labelled song, prayer or `other` section? Complete timestamp coverage is not proof of
+correct semantic ownership.
+
+**Bound:** choose two services, preferably reusing the split-reading and spoken-hymn discovery
+cases F04/F07 where evidence permits. Map source speech to (a) an output's selected content,
+(b) intentionally excluded content with its reason/authority, or (c) unresolved content. Check
+inside labelled sections as well as unsectioned gaps. Do not assume ASR absence means silence.
+
+**Deliverable:** a compact interval/accounting view and a list of exclusions that existing
+evidence cannot justify. Determine whether current artifacts can support this account before
+proposing new detection. This is an investigative method, not a new requirement to review every
+ordinary spoken interval manually or to absorb intentional gaps contrary to D1.
+
+**First consumer:** S5's ownership questions and S6's final-plan validation.
+
+### I3 — Replay stability and locality
+
+**Question:** do composed decisions reach a stable result, and can unrelated changes move a cut?
+Deterministic execution of the same original inputs does not prove idempotence of transformed
+output or independence of genuinely unrelated decisions.
+
+**Bound:** inspect the existing canonical suites and add a small isolated fixture set when
+testing is authorised. Keep source/evidence/rule versions fixed. Test:
+
+- Repeating supported composition/projection/revalidation paths does not progressively move
+  boundaries or alter membership; compare semantic output, excluding expected audit timestamps.
+- Reapplying the same saved answer does not alter content or duplicate effects.
+- Reordering independent answers, with immutable identities unchanged, does not alter ownership.
+- Changing a section outside the output's actual dependencies does not move its cut or change
+  reading selection. State why it is independent; a relevant song/reading is not a valid control.
+
+Do not feed a composed structure into a raw-detector interface merely to manufacture a failure;
+exercise actual supported replay/refinement paths and their handoff types.
+
+**Deliverable:** invariant tests or a documented existing proof for each property; smallest
+counterexample for any failure. No saved operational replay or new provider draws are needed.
+
+**First consumer:** S1/S3/S4 and the existing ensemble replay/section projection paths.
+
+### I4 — Cache and derived-output invalidation
+
+**Question:** does a reused artifact still represent the current content decision, not merely
+valid bytes from the same source or cutter version?
+
+**Bound:** trace one multipart sermon and one standalone talk through reuse predicates and
+saved receipts. Inspect how changes to selected membership, references, operator answers and
+word evidence propagate to video, audio, transcript excerpts and publication candidates.
+Do not regenerate media. Check whether each change actually alters an artifact's semantics;
+irrelevant metadata changes should not require needless encoding.
+
+**Deliverable:** a dependency-to-artifact table showing reuse allowed/invalidated and the
+identity/hash/version that establishes it. Identify missing dependency bindings with a minimal
+isolated regression. Correct custody hashes prove bytes survived, not that they implement the
+current decision; conversely an unchanged effective plan may legitimately reuse its media.
+
+**First consumer:** existing media signatures, recorded-output provenance and candidate reuse,
+feeding S6. Do not introduce a parallel cache/provenance system.
+
+### I5 — Shared errors in apparently clean, unanimous output
+
+**Question:** can evaluation detect content every voter omitted or misassigned, including when
+no question was raised? Agreement and low question counts are not omission-recall measures.
+
+**Bound:** before looking at outputs, predeclare a small source-based sample (initially four
+services), selection method, exposure history and review dimensions. Include unanimous,
+apparently clean output rather than selecting only known failures. Use existing artifacts and
+targeted source review; record evidence gaps rather than buying new draws. Fix the sample before
+review and do not replace difficult cases after seeing their results.
+
+**Deliverable:** separate observations for missing content, unwanted content, incorrect joins
+and clipped words, with source-relative windows, checked extent and uncertainty. Source review
+must be independent of merely accepting the detector's boundaries; it does not require a second
+human. Report denominators and limits; four services cannot establish corpus accuracy. Prior
+exposure that is unknown stays unknown. Call this discovery/retrospective evaluation unless
+held-out provenance is actually established.
+
+**First consumer:** the focused historic-video plan's acceptance evidence. This task supplements
+its existing source-based review; it does not replace or retroactively alter a predeclared
+canary threshold, declare a pass, or authorise release. Any new numeric acceptance threshold
+needs its own prospective decision.
