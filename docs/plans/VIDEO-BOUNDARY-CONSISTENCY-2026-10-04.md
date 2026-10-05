@@ -826,6 +826,8 @@ not-applicable until reviewed (4 corpus hits, none in the canary). Sermon extrac
 Gates: Pint; PHPStan (one list-shape finding, fixed); full parallel suite 9,287 passed (notices
 pre-existing); Dusk 61.
 
+**10-05 follow-up (`8b29c48d9`):** note wording ruled and built: "Speech with no transcribed line at …s, before this section's first transcribed words: the section's opening, or the end of something else?" Red test first. No note with the earlier wording was ever stored (DB text columns and stored JSON checked), so `isNote()` matches only the new prefix. The flag id is unchanged.
+
 **Listening queue for the next canary** (supersedes the lists above): 1250's Job 29 end
 (1519.04); the edges moved by the 10-04 cue-boundary rule; the F07 exposed-speech intervals
 (1025 first); 964's reading end; **1197's reading end, 1546–1584** (the prayer inside Matthew
@@ -1040,6 +1042,108 @@ section type. The question itself doesn't declare it.
 3. Re-ask cost: sections with a recorded confirmation whose flags a re-detection would re-raise
    (replay against banked draws, rolled back).
 4. Read surfaces that don't go through `isWholeContentPublic()`.
+
+### 8.7 Measured 2026-10-05 (read-only; branch `review-pattern-measure`)
+
+Scripts and outputs in `storage/scratch/review-pattern/`: `consequences.php` (each flag through the
+real policies), `gate.php` (the §8.3 gate over local sermons, talks and song videos; fresh
+compositions inside a rolled-back transaction, since `compose()` writes), `replay.php` +
+`reask.py` (banked draws through the current code, rolled back), `flag-inventory.tsv`,
+`gate-summary.txt`. Nothing was written to runs, sections or media.
+
+**(a) Current consequence vs the inclusion/omission rule.** `SectionReviewFlagPolicy` raises a
+question for every flag on every type, except `structure_oos_cross_type_inversion` and
+`structure_benediction_suspect` (never), and low-confidence/micro/macro/OoS-mismatch on
+welcome, notices, prayer and other. Sermon output: the 12 flags on `NON_DISQUALIFYING_REVIEW_FLAGS`
+are ask, everything else holds. Talk and song candidates: any question holds (the media is cut
+first, then the candidate goes not-applicable); `structure_ensemble_disagrees` and a content hold
+stop it before the cut. Historic release: any question on any sermon or short-talk section of the
+run holds the sermon; elsewhere only the four `SpanQuestioningFlags`. Weekly: a sermon is public
+on creation, so ask = public with the question open. Disagreements:
+
+1. **Defect: `structure_sermon_contains_sung_span` holds nothing.** The rule (and §8.2's own
+   example) says hold. Until `fbfd9d1cd` (10-02, the cut-from-sections rewrite) the resolver
+   turned the flag into a `sermon_contains_sung_span` composition risk. That rewrite dropped it,
+   and `SungSpanInsideSermon`'s docblock still says the planner holds. A sermon with an
+   unclaimed hymn inside (885/949's case) now auto-extracts, and on weekly it publishes. No local
+   section carries the flag today, so nothing is exposed by it.
+2. **Text questions on a right cut.** `transcript_repetition_suspect` and
+   `sermon_text_predates_evidence` say the *text* includes words nobody said (inclusion), while
+   the media is right. Today they're ask, because holding blocks the regeneration that repairs
+   them. The rule needs to say which output it judges. Under option B they hide 67 and 30 sermons.
+3. **Label questions fit neither class.** `published_reference_contradicts_sermon`,
+   `structure_oos_same_type_inversion`, `talk_speaker_review`, `unmatched_song_section`, the song
+   identity flags: the sound is right and the label may be wrong. Today: ask on the sermon output,
+   hold on candidates.
+4. **Omission flags that hold today:** `section_truncated_by_source` (the recording stopped
+   early), `sermon_evidence_incomplete` (text blind), `structure_talk_interrupted` (talk ending
+   cut off). By the rule these are ask.
+5. **`structure_talk_audio_dropout`** is neither inclusion nor omission at an edge (a dead feed
+   inside). Today it's ask on the sermon output and hold on a talk.
+6. **Ask can't exist on talks.** F11 on a short talk (4 corpus hits) holds the candidate (§8.1).
+7. **The concluding prayer's own doubts are never asked.** Low-confidence, micro and macro flags
+   are demoted on prayer, although a prayer is cut into the sermon. On the selected reading they
+   hold.
+8. **Release doesn't read the reading or the prayer.** F11 on a concluding prayer (25 corpus hits
+   on prayers) or a reading question releases with the question open: 3 historic sermons
+   (1154 and 1244 low-confidence reading, 1203 same-type inversion) are gated by their own output
+   but not by release.
+9. **Release reads other outputs' questions.** 13 historic sermons are held only because of a
+   children's talk in the same run (`talk_speaker_review` ×5, low-confidence ×3, repetition ×3,
+   micro, interrupted).
+10. **Song publication review** (`song_publication_review` reasons, its own surface) is already
+    shaped as ask: the clip is cut, then approval waits. Trailing content and spoken framing are
+    inclusion, so hold by the rule; opening/closing missing is omission. No local song has
+    reasons outstanding.
+
+**(b) What the gate would hide locally.** 1,265 sermons with runs (443 historic, all quarantined;
+822 non-historic, all published). 808 of the 822 hang off placeholder runs with **no sections**
+(created 2026-05-04 21:05–21:16, a legacy backfill): the gate needs an explicit rule for content
+with no review state. Of the 14 with sections, the composition gate hides 6, all published (3
+because a fresh composition now asks which reading, 3 for `transcript_repetition_suspect`), and the
+run-wide gate hides 7. Historic: composition gate 157, release today 178, none released. Of the
+157, 50 are hidden only by ask-class flags (repetition 25, text predates 24, missing reading 6,
+same-type inversion 3, parts not extracted 2): option B's addition. By flag (composition gate):
+content hold 77, repetition 67, text predates 30, missing reading 25, reading membership 21,
+material risk 6, low confidence 6, same-type inversion 6. Short talks: 218 sections, 53 open (21
+pending approval, 32 not applicable); no talk is published from a section locally (the 3 published
+children's talks have none). Song videos: 491, 180 with an open section (89 with no recorded flag,
+79 content holds, 7 macro); none of the 36 published has an open section. *Production is
+unmeasured* (local proves nothing about prod; §8.4).
+
+**§8.4 What the gate reads for a sermon output** (historic, 443): G1, the sections the composition
+selects (reading + sermon 346, sermon alone 85, + prayer 8): **157**. G2, release today (any
+sermon/talk question run-wide, span flags within reach): **178**. G3, G1 plus run-wide span flags
+on other sections (the 1040/1198 macro-song case), without talk questions: **167**. G2 − G1 = 24:
+13 talk questions, 10 macro/micro songs, 1 from an older run of the same sermon. G1 − G2 = 3 (the
+reading questions above).
+
+**(c) Re-ask cost.** No section locally has ever been confirmed (`manual_review.confirmed_at`
+on 0 of 4,733; answers have gone through ensemble rulings, 13 runs, and composition review, 1).
+So the cost isn't observable here; the mechanism is. *Claim checked, half right* (throwaway
+integration test, `ConfirmationAcrossSyncTest.php.txt`): on an **unchanged** section, sync
+**keeps** `manual_review.confirmed_at` (metadata is merged) but takes `needs_manual_review` and
+`review_flags` from the new detection, so the question reopens with the confirmation still
+recorded. Only the dashboard's low-confidence path reads it. On a **moved** section the record is
+dropped. Replaying the 16 canary banks on current code re-raises every stored detection flag on
+the 240 sections that still match (`oos_cross_type_inversion` 18/18, micro 17/17,
+low-confidence 15/15, …) and adds 10 new ask questions (F07 ×7, F11 ×3). Content holds come back
+through sync, song identity through matching. So every Confirm answer is re-asked by any
+re-detection.
+
+**(d) Reads that bypass `isWholeContentPublic()`.** The PHP predicate guards single-record pages
+and assets (sermon page, assets, URL builder, legacy redirects, canonical URL, sitemap tags,
+thumbnails). Every listing uses an SQL twin: `SermonBuilder::publiclyReleased()` (API, the
+`SermonRepository` listings that also feed the podcast feeds, `whereVisibleInSitemap()`, route
+canaries), and raw `where publication_state = published` in `SermonRepository` (l.298),
+`PreacherListCache`, `PublicServiceContentEligibility` (the church-service page). Song videos have
+only `SongVideo::publiclyReleased()` plus a PHP check in `PublicChurchServiceArchiveService`.
+`SongUsageReport::publiclyReleased()` exposes which song was sung, a label that song-identity
+questions doubt. `Preacher::latestSermon()` has no publication filter (unused today). Cache
+eviction (`SermonObserver`) fires only on the sermon's own `EXPOSURE_ATTRIBUTES`; a section's
+review state changes on a different row. So read-side enforcement needs the SQL form as well,
+or a stored per-sermon/per-video "open question" fact that both forms read and that eviction
+watches.
 
 ### 8.6 Proposed slices (after measurement)
 
