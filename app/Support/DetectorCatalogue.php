@@ -32,6 +32,7 @@ use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SongSpeechEdges;
 use App\Services\ChurchService\Structure\SungSpanInsideSermon;
 use App\Services\ChurchService\Structure\SustainedSoundSongSections;
+use App\Services\ChurchService\Structure\UntranscribedSpeechBeforeSection;
 use App\Services\DetectorEvaluation\SongBoundaryEvidenceSignals;
 use App\Services\Media\Audio\ServiceTranscriptRepetitionScreen;
 use App\Services\Media\Video\SermonVideoQualityAssessmentService;
@@ -462,6 +463,16 @@ class DetectorCatalogue
                 unit: DetectorUnit::Section,
                 summary: 'A song trim left speech that no section owns between the song and a section the sermon is cut from (the sermon, its reading or its concluding prayer): that section\'s own words, or an excluded announcement. Asked about on the sermon; extraction proceeds on the sections\' bounds.',
                 owningClass: SongSpeechEdges::class,
+            ),
+            new DetectorEntry(
+                id: 'structure-untranscribed-speech-before-section',
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: [ServiceStructureValidator::FLAG_UNTRANSCRIBED_SPEECH_BEFORE_SECTION],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Section,
+                summary: 'The classifier hears speech between a song and the next section\'s first transcribed words that the transcript has no words for: the section\'s lost opening, or the end of something else. Asked about with the interval; bounds and extraction unchanged.',
+                owningClass: UntranscribedSpeechBeforeSection::class,
             ),
             new DetectorEntry(
                 id: 'structure-ensemble-disagrees',

@@ -66,6 +66,10 @@ class SermonAutoExtractionPolicy
      * still right to cut, and a
      * conclusion found later is a re-extraction, not a lost publication.
      *
+     * `structure_untranscribed_speech_before_section` asks whether speech the transcript lost
+     * before the sermon's first words is its opening; the span cut is the one detected, and an
+     * opening found later is a re-extraction (F11).
+     *
      * `structure_talk_audio_dropout` is a dead feed inside the talk. Nothing can
      * restore it and the cut is not in question; the operator accepts or excludes
      * the talk with its media in hand.
@@ -77,6 +81,7 @@ class SermonAutoExtractionPolicy
         ServiceStructureValidator::FLAG_SERMON_CONTAINS_SUNG_SPAN,
         ServiceStructureValidator::FLAG_TALK_AUDIO_DROPOUT,
         ServiceStructureValidator::FLAG_SERMON_ADJACENT_SPEECH_UNOWNED,
+        ServiceStructureValidator::FLAG_UNTRANSCRIBED_SPEECH_BEFORE_SECTION,
         'transcript_repetition_suspect',
         FlagSermonTextPredatesEvidence::FLAG,
         FlagSermonPartsNotExtracted::FLAG,

@@ -10,6 +10,7 @@ use App\Enums\ServiceSectionType;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleRulingApplier;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SongSpeechEdges;
+use App\Services\ChurchService\Structure\UntranscribedSpeechBeforeSection;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -692,6 +693,31 @@ class ServiceStructureEnsembleRulingApplierTest extends TestCase
         $sermon = $result['structure']['sections'][0];
         $this->assertContains(ServiceStructureValidator::FLAG_SERMON_ADJACENT_SPEECH_UNOWNED, $sermon['review_flags']);
         $this->assertSame([$note], $sermon['notes']);
+    }
+
+    /**
+     * An answered prayer keeps the composition's untranscribed-speech question and its interval.
+     */
+    #[Test]
+    public function a_chosen_version_keeps_the_interval_of_an_untranscribed_speech_question(): void
+    {
+        $note = UntranscribedSpeechBeforeSection::note(2690.0, 2706.4);
+        $proposal = $this->proposalOf(
+            [$this->section(ServiceSectionType::Prayer, 2706.4, 2800)->withReviewFlags([
+                ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES,
+                ServiceStructureValidator::FLAG_UNTRANSCRIBED_SPEECH_BEFORE_SECTION,
+            ], ['The composed draft\'s own note.', $note])],
+            ['type' => 'prayer', 'written' => true, 'start_time' => 2706.4, 'end_time' => 2800.0],
+        );
+
+        $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($proposal, [[
+            ...$this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::Prayer, 2706.4, 2800)->toArray()]], key: 'prayer'),
+            'scope' => ['type' => 'prayer', 'start_time' => 2706.4, 'end_time' => 2800.0],
+        ]]);
+
+        $prayer = $result['structure']['sections'][0];
+        $this->assertContains(ServiceStructureValidator::FLAG_UNTRANSCRIBED_SPEECH_BEFORE_SECTION, $prayer['review_flags']);
+        $this->assertSame([$note], $prayer['notes']);
     }
 
     /**

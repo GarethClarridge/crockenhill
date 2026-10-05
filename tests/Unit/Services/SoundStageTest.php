@@ -85,6 +85,25 @@ class SoundStageTest extends TestCase
     }
 
     /**
+     * F11 runs in the stage, after the spoken-edge trim has settled the song's end, and only with
+     * a timeline: re-deriving flags from banked structure has none and leaves the question alone.
+     */
+    #[Test]
+    public function untranscribed_speech_after_a_song_is_asked_about_only_with_a_timeline(): void
+    {
+        $sections = [$this->section('song', 2400.0, 2690.0), $this->section('prayer', 2706.4, 2800.0)];
+        $sound = [[0, 2400, 'speech'], [2400, 2690, 'sung'], [2690, 2800, 'speech']];
+        $timeline = [[2400, 2690, 0.9, 0.1], [2690, 2800, 0.05, 0.8]];
+        $cues = [['start' => 2706.4, 'end' => 2711.9, 'text' => 'pray. Our Heavenly Father,']];
+
+        $asked = $this->apply($sections, $sound, $timeline, 2800.0, $cues)[1];
+        $recomputed = $this->apply($sections, $sound, $timeline, 2800.0, $cues, withTimeline: false)[1];
+
+        $this->assertContains(ServiceStructureValidator::FLAG_UNTRANSCRIBED_SPEECH_BEFORE_SECTION, $asked->reviewFlags);
+        $this->assertNotContains(ServiceStructureValidator::FLAG_UNTRANSCRIBED_SPEECH_BEFORE_SECTION, $recomputed->reviewFlags);
+    }
+
+    /**
      * @param  list<ServiceStructureSection>  $sections
      */
     private function songAt(array $sections, float $start): ServiceStructureSection
@@ -102,16 +121,17 @@ class SoundStageTest extends TestCase
      * @param  list<ServiceStructureSection>  $sections
      * @param  list<array{0: float|int, 1: float|int, 2: 'speech'|'sung'|'faint'|'dead'}>  $sound
      * @param  list<array{0: float|int, 1: float|int, 2: float, 3: float}>  $timeline
+     * @param  list<array{start: float, end: float, text: string}>  $cues
      * @return list<ServiceStructureSection>
      */
-    private function apply(array $sections, array $sound, array $timeline, float $audioSeconds): array
+    private function apply(array $sections, array $sound, array $timeline, float $audioSeconds, array $cues = [['start' => 0.0, 'end' => 30.0, 'text' => 'Good morning.']], bool $withTimeline = true): array
     {
         return app(SoundStage::class)->apply(
             ServiceStructure::fromSections($sections),
             $this->rmsLog($sound, $audioSeconds),
-            ChurchServiceTranscript::fromCues([['start' => 0.0, 'end' => 30.0, 'text' => 'Good morning.']], $audioSeconds, ChurchServiceTranscript::SOURCE_MOCK),
+            ChurchServiceTranscript::fromCues($cues, $audioSeconds, ChurchServiceTranscript::SOURCE_MOCK),
             false,
-            AudioTimeline::fromJson(AudioTimelineFixture::json($timeline, $audioSeconds)),
+            $withTimeline ? AudioTimeline::fromJson(AudioTimelineFixture::json($timeline, $audioSeconds)) : null,
         )->sections;
     }
 

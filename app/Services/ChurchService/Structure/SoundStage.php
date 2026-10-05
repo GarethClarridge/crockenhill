@@ -17,8 +17,9 @@ use App\Services\Media\Audio\AudioTimeline;
  *    its dropouts become the barriers the song rules may not cross;
  *  - song widening and proposals, from sustained sound and from the audio timeline;
  *  - the spoken-edge trim, after widening, so a song that grew is judged at its new edges;
- *  - the mistyped-sung and sung-inside-sermon passes last, so a section still typed as
- *    something else is one no song claimed.
+ *  - the mistyped-sung and sung-inside-sermon passes, so a section still typed as something
+ *    else is one no song claimed;
+ *  - untranscribed speech before a section last, once every song's end is settled.
  */
 final readonly class SoundStage
 {
@@ -28,6 +29,7 @@ final readonly class SoundStage
         private SongSpeechEdges $speechEdges,
         private MistypedSungSections $mistypedSung,
         private SungSpanInsideSermon $sungSpanInsideSermon,
+        private UntranscribedSpeechBeforeSection $untranscribedSpeech,
     ) {}
 
     /**
@@ -54,6 +56,8 @@ final readonly class SoundStage
         $structure = $this->speechEdges->apply($structure, $rmsLogContent, $recordingOmitsSongs);
         $structure = $this->mistypedSung->apply($structure, $rmsLogContent, $transcript);
 
-        return $this->sungSpanInsideSermon->apply($structure, $rmsLogContent, $transcript);
+        $structure = $this->sungSpanInsideSermon->apply($structure, $rmsLogContent, $transcript);
+
+        return $this->untranscribedSpeech->apply($structure, $transcript, $audioTimeline);
     }
 }

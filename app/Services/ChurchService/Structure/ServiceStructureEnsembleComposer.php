@@ -74,6 +74,16 @@ class ServiceStructureEnsembleComposer
     ) {}
 
     /**
+     * A note holding the interval a speech question asks about (F07's exposed speech, F11's
+     * untranscribed speech): the question cannot be answered without it, so it travels with the
+     * question through composition and answers.
+     */
+    public static function isIntervalQuestionNote(string $note): bool
+    {
+        return SongSpeechEdges::isExposedSpeechNote($note) || UntranscribedSpeechBeforeSection::isNote($note);
+    }
+
+    /**
      * @param  array<int, ValidationResult>  $draws  Immutable slot number => validated draw
      * @param  ChurchServiceTranscript|null  $transcript  What was said, for rules that read it
      *                                                    (a reading's introduction); without it they do not apply
@@ -252,11 +262,11 @@ class ServiceStructureEnsembleComposer
             if ($stitchVotes <= count($winner) / 2) {
                 $supporterFlags = array_values(array_diff($supporterFlags, [ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED]));
             }
-            // The exposed-speech question is answerable only with its interval, which travels in the
-            // note of whichever supporter raised it.
+            // A speech question is answerable only with its interval, which travels in the note of
+            // whichever supporter raised it.
             $questionNotes = array_values(array_unique(array_filter(
                 array_merge(...array_map(static fn (array $supporter): array => $supporter['section']->notes, $winner)),
-                static fn (string $note): bool => SongSpeechEdges::isExposedSpeechNote($note) && ! in_array($note, $source->notes, true),
+                static fn (string $note): bool => self::isIntervalQuestionNote($note) && ! in_array($note, $source->notes, true),
             )));
             $section = $this->withConfidence($source->withoutReviewFlags()->withReviewFlags([...$supporterFlags, ...$flags], $questionNotes), $winner);
             $sections[] = $section;

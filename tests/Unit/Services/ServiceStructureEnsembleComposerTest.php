@@ -15,6 +15,7 @@ use App\Services\ChurchService\Structure\ServiceStructureEnsembleComposer;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SongSpeechEdges;
 use App\Services\ChurchService\Structure\TalkEdgeChecks;
+use App\Services\ChurchService\Structure\UntranscribedSpeechBeforeSection;
 use App\Services\ChurchService\Structure\ValidationResult;
 use App\Services\Song\SongTitleResolver;
 use PHPUnit\Framework\Attributes\Test;
@@ -744,6 +745,33 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         $this->assertContains($question, $composed->reviewFlags);
         $this->assertContains(SongSpeechEdges::exposedSpeechNote(4000.0, 4031.5), $composed->notes);
         $this->assertContains(SongSpeechEdges::exposedSpeechNote(4000.0, 4029.5), $composed->notes);
+    }
+
+    /**
+     * F11's question travels like F07's: the union of holds raises it, and the interval that
+     * makes it answerable lives in the note of whichever supporter found it.
+     */
+    #[Test]
+    public function an_untranscribed_speech_question_keeps_every_supporters_interval(): void
+    {
+        $question = ServiceStructureValidator::FLAG_UNTRANSCRIBED_SPEECH_BEFORE_SECTION;
+        $prayer = $this->section(ServiceSectionType::Prayer, 2706, 2800);
+        $asked = fn (float $from): ServiceStructureSection => $prayer->withReviewFlags([$question], [UntranscribedSpeechBeforeSection::note($from, 2706.0)]);
+        $draw = fn (ServiceStructureSection $prayer): ValidationResult => $this->vote($this->structure(
+            $this->section(ServiceSectionType::Song, 2400, 2690),
+            $prayer,
+        ));
+
+        $composed = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $draw($prayer->withReviewFlags([], ['The representative draw explains nothing.'])),
+            1 => $draw($asked(2690.0)),
+            2 => $draw($asked(2695.0)),
+            3 => $draw($prayer),
+        ])->structure->sectionsOfType(ServiceSectionType::Prayer)[0];
+
+        $this->assertContains($question, $composed->reviewFlags);
+        $this->assertContains(UntranscribedSpeechBeforeSection::note(2690.0, 2706.0), $composed->notes);
+        $this->assertContains(UntranscribedSpeechBeforeSection::note(2695.0, 2706.0), $composed->notes);
     }
 
     #[Test]

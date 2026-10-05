@@ -242,6 +242,14 @@ class ServiceStructureValidator
     public const FLAG_SERMON_ADJACENT_SPEECH_UNOWNED = 'structure_sermon_adjacent_speech_unowned';
 
     /**
+     * Applied by {@see UntranscribedSpeechBeforeSection} to a section after a song when the
+     * classifier hears speech before its first cue that the transcript holds no words for: its
+     * own opening, lost to the decode, or the tail of something else. Asked about with the
+     * interval in a note; bounds unchanged and extraction not held (F11, operator 2026-10-05).
+     */
+    public const FLAG_UNTRANSCRIBED_SPEECH_BEFORE_SECTION = 'structure_untranscribed_speech_before_section';
+
+    /**
      * Applied by DetectServiceStructure when a validated structure has a
      * sermon but no bible_reading section near it, and a feedback-guided
      * retry could not recover one — the reading is likely embedded in
