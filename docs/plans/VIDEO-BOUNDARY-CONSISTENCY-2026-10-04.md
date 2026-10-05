@@ -529,9 +529,20 @@ branch): two plans change, no violations, no errors.
   [3128, 73104, 4910, 73105] was keyed under the full-run identity, the only stored review in
   the database. It was not re-keyed: that would rewrite a stored operator decision.
 
-Not in this step: section publication candidates (`PrepareSectionPublicationCandidates`
-still checks its own spans), and a non-blocking account of unowned adjacent speech or
-unobservable windows in the plan (no consumer yet; F07's flag already reaches review).
+### Completion record — S6 section candidates and the I1 ruling (branch `s6-section-candidates`)
+
+S6 sermon plans merged to master (`382de9633`, unpushed). Gates on the final commit: Pint,
+PHPStan, full suite (9,268 tests, notices pre-existing), Dusk (61).
+
+| Item | Commit | Result |
+|---|---|---|
+| Validator moved | `ff69b026b` | `PublicationPlanValidator` now lives in `App\Services\ChurchService`, beside `CueSafeExtractionPlan`; no behaviour change. |
+| Section candidates | `9247fa8aa` | Fresh cuts, and reused media's recorded cuts, pass the validator. Crossing a hold keeps `span_crosses_held_section`; an impossible cut, or one that misses its own section, blocks that candidate as `cut_plan_invalid` (with `plan_violations`) without stopping the others. Canary 16: 20 candidate sections, all with recorded cuts, no violations either way. **Gap:** 1,243 of 1,263 local candidates have provenance from before cuts were recorded (no `segments`); they keep today's reuse unjudged. Judging them means re-cutting — I4's question. |
+| I1 ruling | `26029de5c` | Operator, 10-05: **mark uncovered sound**. `retranscribe()` records a sound span that decoded to nothing, or could not be decoded while its siblings were, as a window-relative `retranscription_failed` window; `recoverUsing()` places the retry's windows on the recording clock (the superseded-transcript fallback can then carry earlier text in). Measured silence stays unmarked. Future transcription passes only; no recovery retries are banked locally, so frequency is unmeasured. 1340's own shape (sound only at the window's tail, silence elsewhere) correctly stays unmarked under this rule. |
+
+Still open: a non-blocking account of unowned adjacent speech and unobservable windows in the
+publication plan. Deferred: no consumer reads it yet, F07's flag already reaches review, and
+I1's windows now reach detection directly.
 
 Listening at the next canary: 1250's Job 29 end (1519.04), the edges moved by the 10-04
 cue-boundary rule, the seven exposed-speech intervals above (1025 first), and 964's reading end.
