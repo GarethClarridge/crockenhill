@@ -425,6 +425,84 @@ checked against earlier membership, hold and operator decisions. The smallest us
 improvement is shared decision semantics plus validation of the final spans—not another layer
 of independent service-specific thresholds.
 
+### Completion record — 2026-10-05, second session (branch `fix-boundary-consistency-2`)
+
+Same method: red test first, read-only recomputation of the canary 16 (saved draws and
+answers through `ServiceStructureEnsembleReplay`, which re-refines every slot from its raw
+draw, so the sound stage is re-run), old code against new. Gates on `2e07b458e`: Pint,
+PHPStan, full suite (9,255 tests; the PHPUnit notices are pre-existing, none from the suites
+touched), Dusk (61). Workers stayed stopped; no provider calls, dispatches or writes.
+
+| Item | Commit | Result | Canary impact |
+|---|---|---|---|
+| `flagMissingPreachedReading` | `e9259209c` | Fires exactly when `sermonReadingMembership()` could cut no reading: no 900 s window; a matching, partially overlapping or unnamed reading pairs. | None: no section, flag or question changed. 1311 keeps its flag under both rules (Acts 8:26-39 vs readings Psalm 96 and Acts 16:25–40); it is demoted because the sermon names its passage. |
+| F04 | `f395e643f` | Fixture in run 1240's shape (Job 36 → prayer → Job 37 → sermon "Job 36-37"). **Passes on existing code**: the choice goes to review (`sermon_reading_membership_unresolved`), and the explicit three-section selection cuts each reading and the sermon as disjoint spans excluding the prayer. Not a defect. | — |
+| F07 / S5 | `0d226587e` | When `SongSpeechEdges` trims a song next to the sermon (start trim after it, end trim before it), the sermon gets `structure_sermon_adjacent_speech_unowned` with the interval in a note. Bounds unchanged, nothing absorbed (D1), **extraction not held** (operator, 10-05). Ensemble flags are a union but notes came from the representative draw, and an answered section kept preserved flags but not their notes; both now carry the interval. | 7 of 16 sermons gain the question: 949 (4602.4–4620.0), 1025 (3953.5–3985.0), 1028 (4098.9–4115.0), 1112 (3717.7/3731.1–3755.0), 1117 (3980.6–4015.0), 1250 (4313.9–4335.0), 1304 (3683.6–3700.0). No edge, section or dispute changed. Transcript text reads as hymn announcements after the closing "Amen" in all seven; 1025's 3953–3980 ("he is our only hope and Saviour… strength to serve him hour by hour") is the one worth a listen. Not a ruling. |
+| I3 | `2ba70ce6f` | See below. | — |
+
+Frequency measured before building F07: 27 songs in the local DB carry a start trim, 9 of
+them straight after a sermon (1025, 1028, 1060, 1112, 1250, 1258, 1274, 1303, 1340); one song
+carries an end trim, not before a sermon. Candidate run 1219 does not show the defect in its
+saved structure: the sermon ends at 3838 where the announcement starts (3836.9), so a trim
+there exposes only the announcement. It still needs a listen before it is treated as truth.
+
+**I1 — content lost before detection.** Selection, fixed before comparing text: stems with
+all four transcript stages (`raw`, `normalized`, `-repetition-recovered`, `-region-recovered`)
+sorted by date, earliest/median/latest of the five: 2021-01-17 (run 1340), 2022-12-04 (1250),
+2026-04-05 (1009).
+
+- *Limitation:* the stage files are not one chain. All three runs were re-transcribed after
+  their recovery passes (1340 and 1009 on 09-17, 1250 by the 09-25 corpus re-run), so `raw`
+  and `normalized` are a later decode than the two `-recovered` files. 1250's stamps show its
+  repetition stage was derived from its region stage, not the reverse. Comparing across them
+  measures decode differences, not stage loss, and was discarded. The current pipeline's
+  intermediate between pathology recovery and the stored transcript is not banked separately.
+- *1250 (current chain):* raw → normalized is cue-for-cue identical (1,142), and the
+  detector input in the banked ensemble is exactly those cues. No loss.
+- *1009:* raw → normalized: 951 = 951; one 0-length raw segment dropped. No loss.
+- *1340 — finding:* the pathology detector flags 1355.08–1595.06 in the raw decode (eight
+  30-second "Thank you." cues). The current transcript has one cue in that window (1582.3,
+  "Montgomery Boyce tells the story…") and **no unobservable window**: 1355–1582 (about 227 s)
+  carries neither text nor a marker. The previous generation had banked 1348–1588
+  `retranscription_failed`. Mechanism, from code: `ServiceTranscriptRecovery::recoverUsing()`
+  deletes every original cue in a window once its retry is non-empty, then places only the
+  retry's cues and its looping residue. The part of the window the retry left uncovered becomes
+  indistinguishable from "decoded, nothing said". The classifier (supporting, not listening)
+  reads 1360–1505 as near silence and 1520–1565 as weak music, so no speech is shown lost
+  here; the loss is of the uncertainty marker. The 09-17 retry for this window is not banked
+  locally or on Sonnics/Staging, so the retry's exact coverage is unconfirmed.
+- *Smallest fixture proposed (not built):* `recoverUsing()` with one detected window
+  [100, 400] and a retry whose only cue sits at [280, 290] window-relative. Assert the
+  uncovered remainder is either marked unobservable or proven silent by the RMS spans the
+  retry decoded. Building it needs a policy decision: should a retry's uncovered *sound* span
+  be marked `retranscription_failed`?
+
+**I3 — replay stability and locality.**
+
+- *Progressive drift:* not possible on the supported paths. Replay always restarts from the
+  saved raw draws; the only automated writer of section times is detection's projection, and
+  extraction (`SermonExtractionPlanResolver`, `CueSafeExtractionPlan`, candidates) computes
+  widened spans per call without writing them back. `DetectServiceStructure`'s read of stored
+  sections is a report-only diff. Existing proof: `test_projecting_the_same_run_twice_is_idempotent`,
+  `ServiceSectionSyncServiceTest::it_updates_existing_rows_and_replaces_removed_rows_idempotently`.
+- *Same answer again:* answering the same question again with the same content (the answer
+  action's next revision) changes nothing (new test). Two answers claiming the *same* revision
+  conflict by design (`count($latest) !== 1`) and reopen their questions; the answer action
+  cannot write one (row lock, max revision + 1), and none of the 54 stored answers do.
+- *Order:* independent answers give identical structure and disputes in either order (new
+  test); overlapping ones conflict in either order (F06, existing).
+- *Locality — counterexample:* moving an unrelated section leaves the automatic sermon cut
+  and selection unchanged (new test). But a **reviewed** sermon composition is bound to
+  `inputIdentity()`, which hashes every section in the run (id, type, times, references), so
+  moving any unrelated section, such as the first hymn's edge, invalidates the operator's
+  selection and sends it back to review. Nothing is cut wrongly; an operator decision is asked
+  again. Smallest counterexample: `a_reviewed_selection_survives_recomposition_but_not_changed_section_bounds`
+  with the edited section swapped for an unrelated opening song. Natural home: S6.
+
+Remaining: S6 (design proposed to the operator 10-05, not built), I2, I4, I5, the I1 fixture
+decision above. Listening at the next canary: 1250's Job 29 end (1519.04), the edges moved by
+the 10-04 cue-boundary rule, and the seven exposed-speech intervals above (1025 first).
+
 ## 7. Further bounded investigations — added 2026-10-04
 
 The user requested these additions after reviewing the gaps in the plans. They are **open
