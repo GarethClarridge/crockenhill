@@ -691,6 +691,32 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         $this->assertContains('bible_reading', array_column($preached->disputes, 'type'));
     }
 
+    /**
+     * A sermon misses its preached reading exactly when extraction's membership rule could cut
+     * no reading into it: distance does not matter, a reading sharing verses or with no
+     * reference could still be the preached one, and only an unrelated reading leaves it bare.
+     */
+    #[Test]
+    public function a_missing_preached_reading_follows_extractions_membership_rule(): void
+    {
+        $flags = function (?string $readingReference, int $readingStart, ?string $sermonReference): array {
+            $draw = $this->structure(
+                $this->section(ServiceSectionType::BibleReading, $readingStart, $readingStart + 200, $readingReference),
+                new ServiceStructureSection(ServiceSectionType::Sermon, null, 2000.0, 4000.0, 0.9, null, null, null, $sermonReference),
+            );
+
+            $composed = app(ServiceStructureEnsembleComposer::class)->compose(array_fill(0, 4, $this->vote($draw)));
+
+            return $composed->structure->sectionsOfType(ServiceSectionType::Sermon)[0]->reviewFlags;
+        };
+
+        $this->assertNotContains(ServiceStructureValidator::FLAG_MISSING_PREACHED_READING, $flags('John 3', 300, 'John 3:16'), 'a matching reading pairs however early');
+        $this->assertNotContains(ServiceStructureValidator::FLAG_MISSING_PREACHED_READING, $flags('Psalm 23', 300, null), 'an unnamed sermon pairs with any earlier reading');
+        $this->assertNotContains(ServiceStructureValidator::FLAG_MISSING_PREACHED_READING, $flags(null, 1700, 'John 3:16'), 'an unnamed reading could be the preached one');
+        $this->assertNotContains(ServiceStructureValidator::FLAG_MISSING_PREACHED_READING, $flags('John 3:1-21', 1950, 'John 3:16'), 'a reading that overlaps the sermon start is still before it');
+        $this->assertContains(ServiceStructureValidator::FLAG_MISSING_PREACHED_READING, $flags('Isaiah 40', 1700, 'John 3:16'), 'an unrelated reading never pairs');
+    }
+
     #[Test]
     public function an_unpaired_reading_reference_or_presence_disagreement_is_still_a_question(): void
     {

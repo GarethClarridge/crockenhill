@@ -1014,36 +1014,27 @@ class ServiceStructureEnsembleComposer
     }
 
     /**
+     * Flags each sermon extraction could cut no reading into, by the resolver's own membership
+     * rule: a reading that matches, shares verses or has no reference could be the preached
+     * one, however far before the sermon it starts; only unrelated readings leave it bare.
+     *
      * @param  list<ServiceStructureSection>  $sections
      * @return list<ServiceStructureSection>
      */
     private function flagMissingPreachedReading(array $sections): array
     {
-        $window = (float) config('media-processing.section_extraction.enhanced_sermon.max_pairing_gap_seconds', 900);
-
         foreach ($sections as $index => $sermon) {
             if ($sermon->type !== ServiceSectionType::Sermon) {
                 continue;
             }
 
-            $paired = false;
+            $readings = array_map(
+                static fn (ServiceStructureSection $reading): ?string => $reading->readingReference,
+                array_filter($sections, static fn (ServiceStructureSection $reading): bool => $reading->type === ServiceSectionType::BibleReading
+                    && $reading->startTime < $sermon->startTime),
+            );
 
-            foreach ($sections as $reading) {
-                if ($reading->type !== ServiceSectionType::BibleReading
-                    || $reading->endTime > $sermon->startTime
-                    || $sermon->startTime - $reading->endTime > $window) {
-                    continue;
-                }
-
-                if ($sermon->sermonReference === null || ($reading->readingReference !== null
-                    && $this->scriptureReferences->referencesOverlap($reading->readingReference, $sermon->sermonReference))) {
-                    $paired = true;
-
-                    break;
-                }
-            }
-
-            if (! $paired) {
+            if ($this->scriptureReferences->sermonReadingMembership($sermon->sermonReference, $readings)['could_be_cut'] === []) {
                 $sections[$index] = $sermon->withReviewFlags([ServiceStructureValidator::FLAG_MISSING_PREACHED_READING]);
             }
         }
