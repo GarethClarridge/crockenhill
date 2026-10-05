@@ -105,12 +105,12 @@ class CueSafeExtractionPlan
      */
     public function heldSectionsCrossed(MediaProcessingLog $log, array $segments, array $cutSectionIds): array
     {
-        return $log->serviceSections()->orderBy('start_time')->orderBy('id')->get()
+        return array_values($log->serviceSections()->orderBy('start_time')->orderBy('id')->get()
             ->filter(static fn (ServiceSection $section): bool => ! in_array($section->id, $cutSectionIds, true)
                 && HoldSectionForContentReview::isHeld($section->metadata->reviewFlags ?? [])
                 && array_any($segments, static fn (array $segment): bool => $segment['start_time'] < (float) $section->end_time - 0.001
                     && $segment['end_time'] > (float) $section->start_time + 0.001))
-            ->pluck('id')->values()->all();
+            ->map(static fn (ServiceSection $section): int => $section->id)->all());
     }
 
     /**

@@ -65,8 +65,9 @@ class SermonExtractionPlanResolver
                 is_string($reference) ? $reference : null,
                 array_map(static fn (ServiceSection $reading): ?string => $reading->metadata?->readingReference, $readings),
             );
-            if ($membership['selected'] !== null) {
-                $selected[] = $readings[$membership['selected']];
+            $selectedReading = $membership['selected'] === null ? null : ($readings[$membership['selected']] ?? null);
+            if ($selectedReading instanceof ServiceSection) {
+                $selected[] = $selectedReading;
             } elseif ($membership['review']) {
                 // A reading sharing verses without holding the sermon's passage is a sermon reading
                 // past it, or one part of a multipart reference: plausible, so asked, never dropped.
