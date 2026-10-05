@@ -10,6 +10,7 @@ use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Services\Media\Audio\RmsAnalysisService;
 use App\Services\Media\Audio\SustainedSound;
+use App\Services\Sermon\SermonExtractionPlanResolver;
 use App\Support\SermonAutoExtractionPolicy;
 
 /**
@@ -26,9 +27,11 @@ use App\Support\SermonAutoExtractionPolicy;
  * {@see self::MAXIMUM_WORDS_PER_MINUTE} leaves two — run 949's hymn and run 1014 §1300's
  * "Thank you ×4" ASR artefact, both genuine — and the count is stable from <20 to <60 wpm.
  *
- * The flag is registered as non-disqualifying in {@see SermonAutoExtractionPolicy},
- * as a material boundary risk is: the inclusive span still extracts, and the extraction planner
- * turns the flag into a boundary risk that holds the sermon for review.
+ * The flag is non-disqualifying in {@see SermonAutoExtractionPolicy}, so the section check
+ * alone would let the cut through: the hold is the `sermon_contains_sung_span` composition risk
+ * {@see SermonExtractionPlanResolver::compose()} raises, which the operator answers with a
+ * composition review keyed to the plan's inputs. The 10-02 cut-from-sections rewrite dropped
+ * that risk once and nothing failed; the resolver test pins it.
  */
 class SungSpanInsideSermon
 {

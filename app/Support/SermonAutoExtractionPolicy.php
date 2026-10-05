@@ -58,6 +58,10 @@ class SermonAutoExtractionPolicy
      * accepted sections. Blocking that regeneration would prevent their repair.
      * Content holds and material boundary risks remain separate gates.
      *
+     * `structure_sermon_contains_sung_span` is listed so the section check doesn't hold it: the
+     * hold is the composition risk the plan resolver raises, answered by a composition review
+     * that survives re-detection, where clearing the section's flags would not.
+     *
      * `published_reference_contradicts_sermon` questions the sermon's metadata, not
      * its cut, so it must never stop the media being extracted.
      *

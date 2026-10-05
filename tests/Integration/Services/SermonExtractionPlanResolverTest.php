@@ -576,12 +576,13 @@ class SermonExtractionPlanResolverTest extends TestCase
     }
 
     /**
-     * Sermon 885: run 949's closing hymn sits inside sermon §723 itself. The flag holds the
-     * sermon for review, so it must be registered as non-disqualifying or the held sermon drops
-     * to the coarse baseline cut, which contains the hymn just the same and says nothing.
+     * Sermon 885: run 949's closing hymn sits inside sermon §723 itself. The cut would include
+     * the hymn, so the composition holds it until an operator answers (the 10-02 rewrite dropped
+     * this risk and the sermon cut itself). The bounds stay the identified ones, and the answer
+     * is the composition review, which survives re-detection while the plan's inputs are unchanged.
      */
     #[Test]
-    public function a_sermon_holding_a_sung_span_keeps_its_identified_bounds(): void
+    public function a_sermon_holding_a_sung_span_is_held_until_its_composition_is_reviewed(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create([
             'duration' => 5000.0,
@@ -606,7 +607,12 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->assertSame('service_sections', $plan['source']);
         $this->assertSame($sermon->id, $plan['metadata']['sermon_section_id']);
         $this->assertSame(4827.0, $plan['segments'][0]['end_time']);
+        $this->assertSame(['sermon_contains_sung_span'], array_column($plan['metadata']['risks'], 'kind'));
+        $this->assertTrue($plan['metadata']['requires_review']);
 
+        $this->resolver->reviewComposition($log, [$sermon->id], $plan['metadata']['input_identity'], 1);
+
+        $this->assertFalse($this->resolver->resolve($log->fresh())['metadata']['requires_review']);
     }
 
     /**

@@ -14,6 +14,7 @@ use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\PublicationPlanValidator;
 use App\Services\ChurchService\Structure\SermonContinuationScreen;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\Media\Audio\AudioTimeline;
 use App\Services\Scripture\ScriptureReferenceResolver;
 use App\Support\SermonAutoExtractionPolicy;
@@ -61,6 +62,10 @@ class SermonExtractionPlanResolver
             $risks[] = ['kind' => 'sermon_membership_unresolved', 'detail' => 'Identify one sermon section before extraction.'];
         } else {
             $selected[] = $sermon;
+            if (in_array(ServiceStructureValidator::FLAG_SERMON_CONTAINS_SUNG_SPAN, $sermon->metadata->reviewFlags ?? [], true)) {
+                // The cut would carry singing no song section claims (885: run 949's closing hymn).
+                $risks[] = ['kind' => 'sermon_contains_sung_span', 'detail' => 'The sermon section holds sustained singing that no song section claims, so the published sermon media would contain it.'];
+            }
             foreach ($sections as $section) {
                 if ($section->id !== $sermon->id && $this->continues($section, $sermon->id)) {
                     // An embedded continuation is already present; a partial overlap is invalid.
