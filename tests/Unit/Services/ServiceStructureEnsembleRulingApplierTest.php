@@ -80,6 +80,82 @@ class ServiceStructureEnsembleRulingApplierTest extends TestCase
         $this->assertCount(2, $result['conflicting_rulings']);
     }
 
+    /**
+     * F06: each answer made room for itself by trimming its neighbours, including content
+     * another answer had settled, and both were then recorded as applied. Neither answer
+     * order may decide which operator decision owns the overlap.
+     */
+    #[Test]
+    public function answers_whose_settled_content_overlaps_remain_unresolved_in_either_order(): void
+    {
+        $reading = $this->section(ServiceSectionType::BibleReading, 100, 200);
+        $talk = $this->section(ServiceSectionType::ShortTalk, 220, 300);
+        $proposal = [...$this->proposalOf([$reading, $talk], []), 'disputes' => [
+            ['question_id' => 'reading-question', 'type' => 'bible_reading', 'written' => true, 'start_time' => 100.0, 'end_time' => 200.0],
+            ['question_id' => 'talk-question', 'type' => 'short_talk', 'written' => true, 'start_time' => 220.0, 'end_time' => 300.0],
+        ]];
+        $answers = [
+            [...$this->ruling('choose', ['sections' => [$reading->toArray()]], 'reading-ruling'), 'scope' => ['type' => 'bible_reading', 'start_time' => 100.0, 'end_time' => 200.0]],
+            [...$this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::ShortTalk, 180, 300)->toArray()]], 'talk-ruling'), 'scope' => ['type' => 'short_talk', 'start_time' => 220.0, 'end_time' => 300.0]],
+        ];
+        $applier = app(ServiceStructureEnsembleRulingApplier::class);
+
+        foreach ([$answers, array_reverse($answers)] as $ordered) {
+            $result = $applier->apply($proposal, $ordered);
+
+            $this->assertSame([], $result['applied_rulings']);
+            $this->assertCount(2, $result['conflicting_rulings']);
+            $this->assertCount(2, $result['disputes']);
+            $this->assertSame([['bible_reading', 100.0, 200.0], ['short_talk', 220.0, 300.0]], $this->spans($result));
+        }
+    }
+
+    /** Fresh draws that raise no question still cannot let one of two overlapping answers win. */
+    #[Test]
+    public function overlapping_answers_against_unanimous_output_reopen_their_questions(): void
+    {
+        $unanimous = [...$this->proposal(), 'disputes' => []];
+        $answers = [
+            [...$this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::ShortTalk, 100, 280)->toArray()]]), 'question' => ['question_id' => 'talk-question', 'type' => 'short_talk', 'start_time' => 100.0, 'end_time' => 200.0]],
+            [...$this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::Sermon, 240, 500)->toArray()]], 'sermon-ruling'),
+                'scope' => ['type' => 'sermon', 'start_time' => 250.0, 'end_time' => 500.0], 'question' => ['question_id' => 'sermon-question', 'type' => 'sermon', 'start_time' => 250.0, 'end_time' => 500.0]],
+        ];
+
+        $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($unanimous, $answers);
+
+        $this->assertSame([], $result['applied_rulings']);
+        $this->assertCount(2, $result['conflicting_rulings']);
+        $this->assertSame(['talk-question', 'sermon-question'], array_column($result['disputes'], 'question_id'));
+        $this->assertSame(['talk-ruling', 'sermon-ruling'], array_column($result['disputes'], 'ruling_key'));
+
+        $revised = app(ServiceStructureEnsembleRulingApplier::class)->apply($unanimous, [...$answers,
+            [...$answers[1], 'revision' => 2, 'resolution' => ['sections' => [$this->section(ServiceSectionType::Sermon, 280, 500)->toArray()]]]]);
+
+        $this->assertSame([], $revised['conflicting_rulings']);
+        $this->assertSame([['short_talk', 100.0, 280.0], ['sermon', 280.0, 500.0]], $this->spans($revised));
+        $this->assertSame([['short_talk', 100.0, 200.0], ['sermon', 250.0, 500.0]], $this->spans($result));
+    }
+
+    /** Settled sections that only touch, within snap noise, are not competing for content. */
+    #[Test]
+    public function answers_whose_settled_content_only_touches_both_apply(): void
+    {
+        $reading = $this->section(ServiceSectionType::BibleReading, 100, 200);
+        $proposal = [...$this->proposalOf([$reading, $this->section(ServiceSectionType::ShortTalk, 220, 300)], []), 'disputes' => [
+            ['question_id' => 'reading-question', 'type' => 'bible_reading', 'written' => true, 'start_time' => 100.0, 'end_time' => 200.0],
+            ['question_id' => 'talk-question', 'type' => 'short_talk', 'written' => true, 'start_time' => 220.0, 'end_time' => 300.0],
+        ]];
+
+        $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($proposal, [
+            [...$this->ruling('choose', ['sections' => [$reading->toArray()]], 'reading-ruling'), 'scope' => ['type' => 'bible_reading', 'start_time' => 100.0, 'end_time' => 200.0]],
+            [...$this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::ShortTalk, 200.5, 300)->toArray()]], 'talk-ruling'), 'scope' => ['type' => 'short_talk', 'start_time' => 220.0, 'end_time' => 300.0]],
+        ]);
+
+        $this->assertSame([], $result['conflicting_rulings']);
+        $this->assertCount(2, $result['applied_rulings']);
+        $this->assertSame([['bible_reading', 100.0, 200.0], ['short_talk', 200.5, 300.0]], $this->spans($result));
+    }
+
     #[Test]
     public function two_answers_over_one_question_resolve_nothing(): void
     {

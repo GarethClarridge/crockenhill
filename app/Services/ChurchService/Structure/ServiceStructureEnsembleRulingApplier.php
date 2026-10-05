@@ -121,6 +121,22 @@ class ServiceStructureEnsembleRulingApplier
         }
 
         $keyByDispute = array_flip($pairs);
+        $reopened = [];
+
+        foreach ($this->overlappingClaims($current, $alreadyAbsent) as $key) {
+            $conflicting[] = $current[$key];
+
+            // An answer with no question to pair with reopens its own, keyed so a fresh answer
+            // revises it rather than adding a third claim.
+            if (! isset($disputesByKey[$key])) {
+                $reopened[] = [
+                    ...(is_array($current[$key]['question'] ?? null) ? $current[$key]['question'] : ['question_id' => $rulingKeyByUnit[$key], ...$current[$key]['scope']]),
+                    'ruling_key' => $rulingKeyByUnit[$key],
+                ];
+            }
+
+            unset($current[$key]);
+        }
 
         foreach ($disputes as $disputeIndex => $dispute) {
             $key = $keyByDispute[$disputeIndex] ?? null;
@@ -209,6 +225,11 @@ class ServiceStructureEnsembleRulingApplier
 
             $stale[] = $answer;
         }
+
+        array_push($remaining, ...array_map(
+            static fn (array $question): array => [...$question, 'conflicting_rulings' => true],
+            $reopened,
+        ));
 
         $hasUnresolved = $transcript === null
             ? $remaining !== []
@@ -314,6 +335,47 @@ class ServiceStructureEnsembleRulingApplier
         }
 
         return $kept;
+    }
+
+    /**
+     * Answers whose settled content claims the same time differently. Each answer makes room
+     * for itself by trimming its neighbours, so applying both would let whichever came second
+     * cut into the other while both were recorded as applied: ownership of the overlap would
+     * follow answer order, not an operator decision. Neither applies; the questions stay open.
+     * The same section settled twice is agreement, and contact within a snap is noise.
+     *
+     * @param  array<string, array<string, mixed>>  $current
+     * @param  array<string, true>  $alreadyAbsent
+     * @return list<string>
+     */
+    private function overlappingClaims(array $current, array $alreadyAbsent): array
+    {
+        $claims = [];
+
+        foreach ($current as $key => $answer) {
+            if (! isset($alreadyAbsent[$key]) && in_array($answer['kind'] ?? null, ['accept', 'choose', 'correct'], true)
+                && is_array($answer['resolution']['sections'] ?? null)) {
+                $claims[$key] = $this->resolvedSections($answer['resolution']);
+            }
+        }
+
+        $overlapping = [];
+
+        foreach ($claims as $key => $sections) {
+            foreach ($claims as $otherKey => $otherSections) {
+                if ($key !== $otherKey && array_any($sections, fn (ServiceStructureSection $section): bool => array_any($otherSections,
+                    static fn (ServiceStructureSection $other): bool => min($section->endTime, $other->endTime) - max($section->startTime, $other->startTime) > self::RULING_EDGE_TOLERANCE
+                        && ! ($section->type === $other->type
+                            && abs($section->startTime - $other->startTime) <= self::RULING_EDGE_TOLERANCE
+                            && abs($section->endTime - $other->endTime) <= self::RULING_EDGE_TOLERANCE)))) {
+                    $overlapping[] = $key;
+
+                    break;
+                }
+            }
+        }
+
+        return $overlapping;
     }
 
     /**
