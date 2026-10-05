@@ -7,6 +7,7 @@ namespace Tests\Integration\Jobs;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
+use App\Jobs\DetectServiceStructure;
 use App\Jobs\RecordDeferredCorpusRerunMedia;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
@@ -86,6 +87,70 @@ class RecordDeferredCorpusRerunMediaTest extends TestCase
             $run->processing_metadata?->toArray()['sermon_extraction_plan']['segments'],
         );
         self::assertTrue($run->hasDeferredCorpusRerunMedia());
+    }
+
+    /**
+     * Run 1112, canary 11: the round's recompose never ran, but this job recorded the round as
+     * finished from the sections the previous composition had projected.
+     */
+    #[Test]
+    public function it_refuses_to_record_a_recompose_round_whose_request_is_still_outstanding(): void
+    {
+        $run = $this->recomposeRoundRun(recomposedAt: '2026-09-24T18:00:00+00:00', requestOutstanding: true);
+
+        try {
+            dispatch_sync(new RecordDeferredCorpusRerunMedia($run));
+            self::fail('A round whose recompose never ran must not be recorded.');
+        } catch (\RuntimeException $exception) {
+            self::assertStringContainsString('recompose request', $exception->getMessage());
+        }
+
+        self::assertArrayNotHasKey('media_recorded_at', $run->fresh()?->corpusRerunStamps()[0] ?? []);
+    }
+
+    #[Test]
+    public function it_refuses_to_record_a_recompose_round_whose_composition_predates_it(): void
+    {
+        $run = $this->recomposeRoundRun(recomposedAt: '2026-09-24T18:00:00+00:00', requestOutstanding: false);
+
+        try {
+            dispatch_sync(new RecordDeferredCorpusRerunMedia($run));
+            self::fail('A round whose composition predates it must not be recorded.');
+        } catch (\RuntimeException $exception) {
+            self::assertStringContainsString('before this round was dispatched', $exception->getMessage());
+        }
+
+        self::assertArrayNotHasKey('media_recorded_at', $run->fresh()?->corpusRerunStamps()[0] ?? []);
+    }
+
+    #[Test]
+    public function it_records_a_recompose_round_whose_composition_is_fresh(): void
+    {
+        $run = $this->recomposeRoundRun(recomposedAt: '2026-09-24T19:05:00+00:00', requestOutstanding: false);
+
+        dispatch_sync(new RecordDeferredCorpusRerunMedia($run));
+
+        self::assertNotNull($run->fresh()?->corpusRerunStamps()[0]['media_recorded_at'] ?? null);
+    }
+
+    private function recomposeRoundRun(string $recomposedAt, bool $requestOutstanding): MediaProcessingLog
+    {
+        $run = $this->roundRun();
+        $run->writeProcessingMetadata(static function (array $metadata) use ($recomposedAt, $requestOutstanding): array {
+            $metadata['corpus_rerun'][0] += ['detection' => 'recompose', 'recomposed_attempt_id' => 'attempt-1'];
+            $metadata['service_structure_ensemble'] = [[
+                'attempt_id' => 'attempt-1',
+                'composition' => ['structure' => ['sections' => []], 'disputes' => [], 'recomposed_at' => $recomposedAt],
+            ]];
+
+            if ($requestOutstanding) {
+                $metadata[DetectServiceStructure::RECOMPOSE_KEY] = ['attempt_id' => 'attempt-1', 'requested_at' => '2026-09-24T19:00:00+00:00'];
+            }
+
+            return $metadata;
+        });
+
+        return $run->refresh();
     }
 
     private function roundRun(): MediaProcessingLog

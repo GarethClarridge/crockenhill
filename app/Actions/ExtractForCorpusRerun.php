@@ -27,8 +27,10 @@ use Throwable;
  * Only a round on the running commit qualifies, so media is never cut from a structure an
  * earlier commit detected, and only one whose worker booted on that commit, because the
  * dispatching command's commit says nothing about the code a stale worker ran; a round that has not finished recording is refused, as is a run
- * already extracted. The staged source must still be the recorded one, because the cut
- * reads the recording against timings that describe the original.
+ * already extracted, and so is a recompose round whose recomposition never ran or was not
+ * projected ({@see RecomposeForCorpusRerun::unfinishedRecomposition()}). The staged source must
+ * still be the recorded one, because the cut reads the recording against timings that describe
+ * the original.
  *
  * Delete once the corpus re-run's batches are accepted, alongside its other instruments.
  */
@@ -117,6 +119,12 @@ final class ExtractForCorpusRerun
 
         if (($latest['media_recorded_at'] ?? null) === null || $run->status !== ProcessingStatus::Completed) {
             return sprintf('detection round has not finished (run is %s)', $run->status->value);
+        }
+
+        $unfinished = RecomposeForCorpusRerun::unfinishedRecomposition($run, $latest);
+
+        if ($unfinished !== null) {
+            return $unfinished.'; recompose the run again (historic-import:rerun-recompose)';
         }
 
         if (! $snapshot->workersRanItsCode($latest)) {

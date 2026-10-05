@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Actions\RecomposeForCorpusRerun;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
@@ -69,6 +70,14 @@ class RecordDeferredCorpusRerunMedia implements ShouldQueue
 
         if (! $run instanceof MediaProcessingLog || $run->isCancelled()) {
             return;
+        }
+
+        $stamps = $run->corpusRerunStamps();
+        $unfinished = RecomposeForCorpusRerun::unfinishedRecomposition($run, $stamps === [] ? [] : $stamps[count($stamps) - 1]);
+
+        // Fails the chain, so the run is not left looking like a finished round.
+        if ($unfinished !== null) {
+            throw new \RuntimeException('Refusing to record a corpus re-run round that was not recomposed: '.$unfinished);
         }
 
         $songsHeld = 0;

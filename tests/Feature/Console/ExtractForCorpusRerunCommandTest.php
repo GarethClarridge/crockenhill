@@ -10,6 +10,7 @@ use App\Jobs\AssessSermonVideoQuality;
 use App\Jobs\AwaitHistoricSermonVideoStorage;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonTranscriptFromService;
+use App\Jobs\DetectServiceStructure;
 use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtractSermon;
 use App\Jobs\TranscribeOutputEdges;
@@ -21,6 +22,7 @@ use App\Jobs\PromoteHistoricAssets;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Models\MediaProcessingLog;
+use App\Services\ChurchService\Structure\EnsembleReviewGate;
 use App\Services\HistoricMedia\HistoricRerunState;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Support\CodeRevision;
@@ -225,6 +227,63 @@ class ExtractForCorpusRerunCommandTest extends TestCase
     }
 
     /**
+     * Run 1112, canary 11: its recompose never ran, yet the round's later jobs recorded it, and
+     * its projection still matched the composition it already had. A requested recomposition
+     * must have actually happened, and been projected, before the round's media is cut.
+     */
+    #[Test]
+    public function it_refuses_a_recompose_round_whose_request_is_still_outstanding(): void
+    {
+        Bus::fake();
+        $run = $this->recomposedRun(recomposedAt: '2026-09-24T18:00:00+00:00', requestOutstanding: true);
+
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('recompose request')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+        self::assertTrue($run->fresh()?->hasDeferredCorpusRerunMedia());
+    }
+
+    #[Test]
+    public function it_refuses_a_recompose_round_whose_composition_predates_the_round(): void
+    {
+        Bus::fake();
+        $run = $this->recomposedRun(recomposedAt: '2026-09-24T18:00:00+00:00', requestOutstanding: false);
+
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('before this round was dispatched')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+        self::assertTrue($run->fresh()?->hasDeferredCorpusRerunMedia());
+    }
+
+    #[Test]
+    public function it_refuses_a_recompose_round_whose_latest_attempt_is_not_the_one_recomposed(): void
+    {
+        Bus::fake();
+        $this->recomposedRun(recomposedAt: '2026-09-24T19:05:00+00:00', requestOutstanding: false, recomposedAttemptId: 'attempt-0');
+
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('not the attempt this round recomposed')
+            ->assertSuccessful();
+
+        Bus::assertNothingDispatched();
+    }
+
+    #[Test]
+    public function it_cuts_a_recompose_round_whose_recomposition_was_projected(): void
+    {
+        Bus::fake();
+        $this->recomposedRun(recomposedAt: '2026-09-24T19:05:00+00:00', requestOutstanding: false);
+
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath()])
+            ->expectsOutputToContain('ready for extraction')
+            ->assertSuccessful();
+    }
+
+    /**
      * A Tier A round wrote new text but detected nothing; cutting now would cut the sections the
      * old text was detected on.
      */
@@ -369,6 +428,31 @@ class ExtractForCorpusRerunCommandTest extends TestCase
             ...($recorded ? ['media_recorded_at' => '2026-09-24T19:30:00+00:00', 'worker_commit' => $commit] : []),
             ...$overrides,
         ]);
+    }
+
+    /**
+     * A recompose round on the running commit, finished and recorded, whose banked attempt was
+     * composed at `$recomposedAt` and whose sections were projected from that composition.
+     */
+    private function recomposedRun(string $recomposedAt, bool $requestOutstanding, string $recomposedAttemptId = 'attempt-1'): MediaProcessingLog
+    {
+        $run = $this->completedRun();
+        $run->writeProcessingMetadata(static function (array $metadata) use ($recomposedAt, $requestOutstanding): array {
+            $metadata['service_structure_ensemble'] = [[
+                'attempt_id' => 'attempt-1',
+                'composition' => ['structure' => ['sections' => []], 'disputes' => [], 'recomposed_at' => $recomposedAt],
+            ]];
+            $metadata['service_structure_projection'] = app(EnsembleReviewGate::class)->projectionProvenance($metadata);
+
+            if ($requestOutstanding) {
+                $metadata[DetectServiceStructure::RECOMPOSE_KEY] = ['attempt_id' => 'attempt-1', 'requested_at' => '2026-09-24T19:00:00+00:00'];
+            }
+
+            return $metadata;
+        });
+        $this->roundedStamp($run, overrides: ['detection' => 'recompose', 'recomposed_attempt_id' => $recomposedAttemptId]);
+
+        return $run->refresh();
     }
 
     /**

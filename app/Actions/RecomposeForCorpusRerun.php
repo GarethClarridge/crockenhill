@@ -12,6 +12,7 @@ use App\Services\HistoricMedia\CorpusRerunGuard;
 use App\Services\HistoricMedia\HistoricRerunSnapshot;
 use App\Services\HistoricMedia\TranscriptLossHolds;
 use App\Services\Processing\ProcessingRunOrchestrator;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -94,6 +95,54 @@ final class RecomposeForCorpusRerun
         ]);
 
         return ['outcome' => 'dispatched', 'reason' => 'dispatched: banked draws recomposed, media deferred'];
+    }
+
+    /**
+     * Why a round has not really been recomposed, or null when it has (or asked for no
+     * recomposition). A request still waiting means the detection job never settled it; a
+     * composition older than the round, or of another attempt, is the previous round's. Either
+     * way the run's sections are not the recomposition this round dispatched, though the round's
+     * later jobs may have run on and the projection still match the composition it has (run 1112,
+     * canary 11). Read before a round is recorded and before its media is cut.
+     *
+     * @param  array<string, mixed>  $stamp  the round's corpus re-run stamp
+     */
+    public static function unfinishedRecomposition(MediaProcessingLog $run, array $stamp): ?string
+    {
+        $metadata = $run->processing_metadata?->raw ?? [];
+        $request = $metadata[DetectServiceStructure::RECOMPOSE_KEY] ?? null;
+
+        if ($request !== null) {
+            $requestedAt = is_array($request) && is_string($request['requested_at'] ?? null) ? $request['requested_at'] : 'an unrecorded time';
+
+            return sprintf('recompose request of %s is still outstanding: the detection job never recomposed this round', $requestedAt);
+        }
+
+        if (($stamp['detection'] ?? null) !== self::DETECTION_RECOMPOSE) {
+            return null;
+        }
+
+        $bank = $metadata['service_structure_ensemble'] ?? null;
+        $latest = is_array($bank) && $bank !== [] ? end($bank) : null;
+        $attemptId = is_array($latest) ? ($latest['attempt_id'] ?? null) : null;
+
+        if ($attemptId === null || $attemptId !== ($stamp['recomposed_attempt_id'] ?? null)) {
+            return 'the latest banked attempt is not the attempt this round recomposed';
+        }
+
+        $recomposedAt = $latest['composition']['recomposed_at'] ?? null;
+        $dispatchedAt = $stamp['dispatched_at'] ?? null;
+
+        if (! is_string($recomposedAt) || ! is_string($dispatchedAt)
+            || Carbon::parse($recomposedAt)->lessThan(Carbon::parse($dispatchedAt))) {
+            return sprintf(
+                'the latest composition was recorded at %s, before this round was dispatched at %s',
+                is_string($recomposedAt) ? $recomposedAt : 'an unrecorded time',
+                is_string($dispatchedAt) ? $dispatchedAt : 'an unrecorded time',
+            );
+        }
+
+        return null;
     }
 
     private function refusal(MediaProcessingLog $run, HistoricRerunSnapshot $snapshot): ?string
