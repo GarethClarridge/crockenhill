@@ -318,6 +318,36 @@ class SermonExtractionPlanResolverTest extends TestCase
         }
     }
 
+    /**
+     * S6 (I3's counterexample): a reviewed composition is bound to what the sermon's plan
+     * depends on — its parts, the readings before it, everything from the first of those to
+     * the song after it — so editing the opening song keeps the operator's selection, while
+     * moving the prayer the plan could select still asks again.
+     */
+    #[Test]
+    public function a_reviewed_selection_survives_an_edit_outside_the_plans_dependencies(): void
+    {
+        $log = $this->logWithSermon(500.0, 1200.0);
+        $sermon = $log->serviceSections()->sole();
+        $opening = $this->section($log, ServiceSectionType::Song, 0, 10, 60);
+        $reading = $this->reading($log, 3, 100, 200);
+        $prayer = $this->section($log, ServiceSectionType::Prayer, 4, 1210, 1250);
+        $this->section($log, ServiceSectionType::Song, 5, 1300, 1500);
+        $composition = $this->resolver->compose($log);
+        $this->resolver->reviewComposition($log, [$reading->id, $sermon->id, $prayer->id], $composition['input_identity'], 1);
+
+        $opening->update(['start_time' => 20, 'end_time' => 75, 'duration' => 55]);
+        $kept = $this->resolver->resolve($log->fresh());
+
+        $this->assertFalse($kept['metadata']['requires_review']);
+        $this->assertSame([$reading->id, $sermon->id, $prayer->id], $kept['metadata']['selected_section_ids']);
+
+        $prayer->update(['start_time' => 1215, 'duration' => 35]);
+        $asked = $this->resolver->resolve($log->fresh());
+
+        $this->assertTrue($asked['metadata']['requires_review']);
+    }
+
     #[Test]
     public function selected_sections_with_overlapping_bounds_are_rejected_without_a_fallback(): void
     {

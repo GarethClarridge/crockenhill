@@ -330,7 +330,13 @@ class SermonExtractionPlanResolver
         return $evidence === null ? null : ['evidence' => $evidence, 'source' => 'detector_notes'];
     }
 
-    /** @param array<int, ServiceSection> $sections */
+    /**
+     * What a composition, and the operator's review of it, is bound to: the sections the plan
+     * depends on ({@see self::planDependencies()}) and the coverage evidence, not every section
+     * in the run, so an edit elsewhere keeps a reviewed selection.
+     *
+     * @param  array<int, ServiceSection>  $sections
+     */
     private function inputIdentity(MediaProcessingLog $log, array $sections): string
     {
         return hash('sha256', (string) json_encode([
@@ -338,11 +344,44 @@ class SermonExtractionPlanResolver
                 $section->id, $section->section_type->value, (float) $section->start_time, (float) $section->end_time,
                 $section->metadata?->readingReference, $section->metadata?->raw['sermon_reference'] ?? null,
                 $section->metadata?->sermonContinuation?->toArray() ?? $this->notedContinuation($section),
-            ], $sections),
+            ], $this->planDependencies($sections)),
             'duration' => $log->duration,
             'transcript' => $this->evidenceHash($log->serviceTranscriptPath()),
             'audio_timeline' => $this->evidenceHash($log->audio_timeline_path),
         ]));
+    }
+
+    /**
+     * The sections {@see self::compose()} reads: every sermon part, every reading before the
+     * sermon (membership has no window), and every section from the first of those to the first
+     * song after the sermon, that song included — the prayer the plan may select and anything
+     * a cut could widen into. A section moving into or out of that stretch changes the set.
+     * Without exactly one sermon the plan cannot be scoped, so every section counts.
+     *
+     * @param  array<int, ServiceSection>  $sections
+     * @return list<ServiceSection>
+     */
+    private function planDependencies(array $sections): array
+    {
+        $sections = array_values($sections);
+        $sermons = array_values(array_filter($sections, static fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::Sermon));
+
+        if (count($sermons) !== 1) {
+            return $sections;
+        }
+
+        $parts = array_values(array_filter($sections, fn (ServiceSection $section): bool => $section->id === $sermons[0]->id || $this->continues($section, $sermons[0]->id)));
+        $partsStart = min(array_map(static fn (ServiceSection $section): float => (float) $section->start_time, $parts));
+        $partsEnd = max(array_map(static fn (ServiceSection $section): float => (float) $section->end_time, $parts));
+        $from = min([$partsStart, ...array_map(
+            static fn (ServiceSection $reading): float => (float) $reading->start_time,
+            array_filter($sections, static fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::BibleReading && $section->start_time < $partsStart),
+        )]);
+        $songs = array_filter($sections, static fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::Song && $section->start_time >= $partsEnd);
+        $until = $songs === [] ? INF : min(array_map(static fn (ServiceSection $song): float => (float) $song->start_time, $songs));
+
+        return array_values(array_filter($sections, static fn (ServiceSection $section): bool => in_array($section, $parts, true)
+            || ((float) $section->start_time <= $until && (float) $section->end_time > $from)));
     }
 
     private function evidenceHash(?string $path): ?string
