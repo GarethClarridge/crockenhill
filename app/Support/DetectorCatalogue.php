@@ -471,7 +471,7 @@ class DetectorCatalogue
                 status: DetectorStatus::Promoted,
                 severity: DetectorSeverity::ContentLost,
                 unit: DetectorUnit::Section,
-                summary: 'The classifier hears speech between a song and the next section\'s first transcribed words that the transcript has no words for: the section\'s lost opening, or the end of something else. Asked about with the interval; bounds and extraction unchanged.',
+                summary: 'The classifier hears speech between a song and the next section\'s first transcribed words that the transcript has no line for (no words, or words inside one over-long cue): the section\'s lost opening, or the end of something else. Asked about with the interval; bounds and extraction unchanged.',
                 owningClass: UntranscribedSpeechBeforeSection::class,
             ),
             new DetectorEntry(

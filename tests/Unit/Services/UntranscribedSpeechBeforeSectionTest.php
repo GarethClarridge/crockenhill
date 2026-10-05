@@ -177,6 +177,24 @@ class UntranscribedSpeechBeforeSectionTest extends TestCase
     /**
      * Ask, don't block: the section is reviewed, but a sermon asked about it still extracts.
      */
+    /**
+     * About 10 of the 62 corpus windows hold real words in one over-stretched cue (1263's
+     * "turn with me please to Hebrews chapter 2"), so the note must not claim the speech went
+     * untranscribed (operator 2026-10-05).
+     */
+    #[Test]
+    public function the_note_says_the_speech_has_no_transcribed_line(): void
+    {
+        $note = UntranscribedSpeechBeforeSection::note(2690.0, 2706.4);
+
+        $this->assertSame(
+            'Speech with no transcribed line at 2690.0–2706.4s, before this section\'s first transcribed words: the section\'s opening, or the end of something else?',
+            $note,
+        );
+        $this->assertTrue(UntranscribedSpeechBeforeSection::isNote($note));
+        $this->assertFalse(UntranscribedSpeechBeforeSection::isNote('Speech exposed at 2690.0–2706.4s'));
+    }
+
     #[Test]
     public function the_question_sends_the_section_to_review_without_holding_a_sermon(): void
     {

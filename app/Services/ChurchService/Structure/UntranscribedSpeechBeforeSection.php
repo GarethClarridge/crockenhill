@@ -13,7 +13,8 @@ use App\Services\ChurchService\SectionPublication\SongPublicationBoundaryEvidenc
 use App\Services\Media\Audio\AudioTimeline;
 
 /**
- * Speech the classifier hears after a song that the transcript holds no words for (F11).
+ * Speech the classifier hears after a song that the transcript holds no line for (F11): no
+ * words at all, or words smeared across one cue too long to be a line.
  *
  * Whisper often loses the first sentence after a hymn: run 949's prayer opens "pray. Our
  * Heavenly Father…" with 16 s of speech and no cue before it; 1025's sits under one 30 s
@@ -62,7 +63,12 @@ class UntranscribedSpeechBeforeSection
      */
     private const MAXIMUM_SONG_SPEECH_SHARE = 0.5;
 
-    private const NOTE_PREFIX = 'Untranscribed speech at';
+    /**
+     * "No transcribed line", not "untranscribed": about 10 of the 62 corpus windows hold real
+     * words in one over-stretched cue (operator 2026-10-05). No note with an earlier wording was
+     * ever stored.
+     */
+    private const NOTE_PREFIX = 'Speech with no transcribed line at';
 
     /**
      * @param  AudioTimeline|null  $timeline  Null when re-deriving flags from banked structure,
@@ -116,7 +122,7 @@ class UntranscribedSpeechBeforeSection
      */
     public static function note(float $from, float $to): string
     {
-        return sprintf(self::NOTE_PREFIX.' %.1f–%.1fs before this section\'s first transcribed words: its opening, lost to the transcript, or the end of something else?', $from, $to);
+        return sprintf(self::NOTE_PREFIX.' %.1f–%.1fs, before this section\'s first transcribed words: the section\'s opening, or the end of something else?', $from, $to);
     }
 
     public static function isNote(string $note): bool
