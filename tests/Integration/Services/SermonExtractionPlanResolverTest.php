@@ -313,6 +313,54 @@ class SermonExtractionPlanResolverTest extends TestCase
     }
 
     /**
+     * An approval answers the risks it was shown. A sung span found later, with no section bound,
+     * transcript or timeline changed, is a new question: the input identity does not cover the
+     * flag, so the old approval must not silently authorise a cut that carries a hymn.
+     */
+    #[Test]
+    public function an_approval_does_not_answer_a_sung_span_raised_after_it(): void
+    {
+        $log = $this->logWithSermon(500.0, 1200.0);
+        $sermon = $log->serviceSections()->sole();
+        $reading = $this->reading($log, 3, 100, 200);
+        $composition = $this->resolver->compose($log);
+        $this->assertSame(['sermon_reading_membership_unresolved'], array_column($composition['risks'], 'kind'));
+        $this->resolver->reviewComposition($log, [$reading->id, $sermon->id], $composition['input_identity'], 1);
+        $this->bankNoWordOutputEdges($log);
+        $this->assertFalse($this->resolver->resolve($log->fresh())['metadata']['requires_review']);
+
+        $sermon->refresh();
+        $sermon->update(['metadata' => [...$sermon->metadata->toArray(), 'review_flags' => [ServiceStructureValidator::FLAG_SERMON_CONTAINS_SUNG_SPAN]]]);
+        $plan = $this->resolver->resolve($log->fresh());
+
+        $this->assertSame($composition['input_identity'], $plan['metadata']['input_identity']);
+        $this->assertTrue($plan['metadata']['requires_review']);
+        $this->assertSame(['sermon_contains_sung_span'], array_column($plan['metadata']['risks'], 'kind'));
+        $this->assertSame([$reading->id, $sermon->id], $plan['metadata']['selected_section_ids'], 'The answered reading choice still stands.');
+
+        $this->resolver->reviewComposition($log->fresh(), [$reading->id, $sermon->id], $plan['metadata']['input_identity'], 1);
+
+        $this->assertFalse($this->resolver->resolve($log->fresh())['metadata']['requires_review']);
+    }
+
+    /** A flag that raises no composition risk leaves the approval standing. */
+    #[Test]
+    public function an_unrelated_flag_does_not_reopen_an_approval(): void
+    {
+        $log = $this->logWithSermon(500.0, 1200.0);
+        $sermon = $log->serviceSections()->sole();
+        $reading = $this->reading($log, 3, 100, 200);
+        $composition = $this->resolver->compose($log);
+        $this->resolver->reviewComposition($log, [$reading->id, $sermon->id], $composition['input_identity'], 1);
+        $this->bankNoWordOutputEdges($log);
+
+        $sermon->refresh();
+        $sermon->update(['metadata' => [...$sermon->metadata->toArray(), 'review_flags' => [ServiceStructureValidator::FLAG_LOW_CONFIDENCE]]]);
+
+        $this->assertFalse($this->resolver->compose($log->fresh())['requires_review']);
+    }
+
+    /**
      * Run 1240's shape (F04): Job 36 is read, the congregation prays, Job 37 is read, and the
      * sermon expounds both. Neither reading holds the whole passage, so the choice goes to
      * review; choosing both cuts each reading on its own and never the prayer between them.

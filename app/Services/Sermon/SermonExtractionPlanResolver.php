@@ -121,6 +121,7 @@ class SermonExtractionPlanResolver
         }
 
         $review = $log->processing_metadata?->raw['sermon_composition_review'] ?? null;
+        $answered = [];
         if (is_array($review) && ($review['input_identity'] ?? null) === $identity && is_array($review['selected_section_ids'] ?? null)) {
             $byId = collect($sections)->keyBy('id');
             $selected = [];
@@ -134,7 +135,12 @@ class SermonExtractionPlanResolver
             if ($sermon !== null && ! in_array($sermon, $selected, true)) {
                 throw new InvalidArgumentException('Sermon composition must include the identified sermon');
             }
-            $risks = [];
+            // The review answers the risks it was shown, not the input identity alone: a flag
+            // such as a sung span is not part of that identity, so a risk raised after the review
+            // is a new question (a review recorded before risks were kept answers none).
+            $shown = array_map(self::riskKey(...), array_filter(is_array($review['answered_risks'] ?? null) ? $review['answered_risks'] : [], is_array(...)));
+            $answered = array_values(array_filter($risks, static fn (array $risk): bool => in_array(self::riskKey($risk), $shown, true)));
+            $risks = array_values(array_filter($risks, static fn (array $risk): bool => ! in_array(self::riskKey($risk), $shown, true)));
         }
         usort($selected, static fn (ServiceSection $a, ServiceSection $b): int => $a->start_time <=> $b->start_time);
         $composition = [
@@ -146,6 +152,7 @@ class SermonExtractionPlanResolver
             'trailing_section_ids' => array_values(array_map(fn (ServiceSection $section): int => $section->id, array_filter($selected, fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::Prayer))),
             'requires_review' => $risks !== [],
             'risks' => $risks,
+            'answered_risks' => $answered,
             'method' => 'identified_sections',
             'decision' => $risks === [] ? 'section_exact' : 'review',
         ];
@@ -170,6 +177,20 @@ class SermonExtractionPlanResolver
         }
 
         return $composition;
+    }
+
+    /**
+     * What a review answered about a risk: its kind and the detail it was shown, which names the
+     * reading, interval or text in doubt. The same kind about something else is a new question.
+     *
+     * @param  array<mixed>  $risk
+     */
+    private static function riskKey(array $risk): string
+    {
+        $kind = $risk['kind'] ?? null;
+        $detail = $risk['detail'] ?? null;
+
+        return (is_string($kind) ? $kind : '').'|'.(is_string($detail) ? $detail : '');
     }
 
     /**
@@ -248,10 +269,12 @@ class SermonExtractionPlanResolver
                 throw new InvalidArgumentException('Select the reading before the sermon and the concluding prayer before the post-sermon song.');
             }
         }
-        $log->writeProcessingMetadata(static function (array $metadata) use ($sectionIds, $inputIdentity, $userId): array {
+        $answeredRisks = [...$current['answered_risks'], ...$current['risks']];
+        $log->writeProcessingMetadata(static function (array $metadata) use ($sectionIds, $inputIdentity, $userId, $answeredRisks): array {
             $metadata['sermon_composition_review'] = [
                 'selected_section_ids' => $sectionIds,
                 'input_identity' => $inputIdentity,
+                'answered_risks' => $answeredRisks,
                 'coverage_resolved' => true,
                 'reviewed_by_user_id' => $userId,
                 'reviewed_at' => now()->toIso8601String(),
