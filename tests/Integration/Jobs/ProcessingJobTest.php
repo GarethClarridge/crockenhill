@@ -57,7 +57,7 @@ class ProcessingJobTest extends TestCase
     }
 
     #[Test]
-    public function processing_job_is_cancelled_when_a_processing_step_is_cancelled(): void
+    public function a_cancelled_step_does_not_cancel_a_run_the_run_row_says_is_active(): void
     {
         $log = MediaProcessingLog::factory()->create([
             'status' => ProcessingStatus::Processing,
@@ -76,7 +76,7 @@ class ProcessingJobTest extends TestCase
         };
         $job->setProcessingId($log->processing_id);
 
-        $this->assertTrue($job->checkCancelled());
+        $this->assertFalse($job->checkCancelled());
     }
 
     #[Test]

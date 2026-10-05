@@ -27,6 +27,7 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
+use App\Models\SermonProcessingStep;
 use App\Models\ServiceSection;
 use App\Models\User;
 use App\Services\ChurchService\ServiceSectionSyncService;
@@ -1250,6 +1251,37 @@ class DetectServiceStructureTest extends TestCase
         }
 
         $this->assertCount(1, $log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble'] ?? []);
+    }
+
+    /**
+     * Run 1112, canary 11: retiring canary 10's round recorded its stopped quality step as
+     * cancelled. The run itself was never cancelled, yet that row made the recompose skip as if
+     * it were, while the round's downstream jobs ran on and recorded it as finished.
+     */
+    #[Test]
+    public function a_step_an_earlier_round_cancelled_does_not_stop_a_recompose(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        [$service, $log, $dispute, $admin] = $this->disputedReadingRun();
+        app(AnswerServiceStructureEnsembleQuestion::class)->execute($log->id, $dispute['question_id'], 'choose', $admin, slot: 1);
+        SermonProcessingStep::factory()->cancelled()->create([
+            'processing_id' => $log->processing_id,
+            'step' => 'assessing_video_quality',
+            'message' => 'Interrupted prior corpus round retired; old quality worker was stopped.',
+        ]);
+        $attemptId = $log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble'][0]['attempt_id'];
+        $this->requestRecompose($log, $attemptId);
+
+        $this->runJob($log->fresh());
+
+        $metadata = $log->fresh()?->processing_metadata?->toArray() ?? [];
+        $this->assertArrayHasKey('recomposed_at', $metadata['service_structure_ensemble'][0]['composition']);
+        $this->assertArrayNotHasKey(DetectServiceStructure::RECOMPOSE_KEY, $metadata);
+        $this->assertSame('Luke 15:1-10', ServiceSection::query()
+            ->where('media_processing_log_id', $log->id)
+            ->where('section_type', 'bible_reading')
+            ->firstOrFail()
+            ->metadata?->readingReference);
     }
 
     private function requestRecompose(MediaProcessingLog $log, string $attemptId): void

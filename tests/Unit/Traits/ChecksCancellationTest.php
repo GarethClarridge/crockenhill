@@ -97,8 +97,11 @@ class ChecksCancellationTest extends TestCase
         $this->assertTrue($this->subject->processingLog->isCancelled());
     }
 
+    /**
+     * Run 1112: only the run row cancels a run; a stale cancelled step must not stop a job.
+     */
     #[Test]
-    public function it_returns_true_when_a_processing_step_is_cancelled_and_log_is_active(): void
+    public function it_returns_false_when_only_a_processing_step_is_cancelled_and_log_is_active(): void
     {
         $log = MediaProcessingLog::factory()->create([
             'status' => ProcessingStatus::Processing,
@@ -110,8 +113,8 @@ class ChecksCancellationTest extends TestCase
 
         $this->subject->processingLog = $log;
 
-        Log::shouldReceive('info')->once();
+        Log::shouldReceive('info')->never();
 
-        $this->assertTrue($this->subject->checkAbortIfCancelled('TestJob'));
+        $this->assertFalse($this->subject->checkAbortIfCancelled('TestJob'));
     }
 }

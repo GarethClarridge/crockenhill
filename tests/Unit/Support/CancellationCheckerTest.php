@@ -36,8 +36,12 @@ class CancellationCheckerTest extends TestCase
         $this->assertTrue(CancellationChecker::isCancelled($log->processing_id));
     }
 
+    /**
+     * Run 1112: a step an earlier round's retirement marked cancelled outlived that round and
+     * silently stopped the next one. Only the run row cancels a run.
+     */
     #[Test]
-    public function it_detects_step_level_cancellation_even_when_log_is_not_cancelled(): void
+    public function a_cancelled_step_alone_does_not_cancel_the_run(): void
     {
         $log = MediaProcessingLog::factory()->create([
             'status' => ProcessingStatus::Processing,
@@ -47,7 +51,7 @@ class CancellationCheckerTest extends TestCase
             'processing_id' => $log->processing_id,
         ]);
 
-        $this->assertTrue(CancellationChecker::isCancelled($log->processing_id));
+        $this->assertFalse(CancellationChecker::isCancelled($log->processing_id));
     }
 
     #[Test]
