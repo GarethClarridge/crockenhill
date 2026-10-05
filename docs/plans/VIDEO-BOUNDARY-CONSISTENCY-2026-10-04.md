@@ -540,6 +540,73 @@ PHPStan, full suite (9,268 tests, notices pre-existing), Dusk (61).
 | Section candidates | `9247fa8aa` | Fresh cuts, and reused media's recorded cuts, pass the validator. Crossing a hold keeps `span_crosses_held_section`; an impossible cut, or one that misses its own section, blocks that candidate as `cut_plan_invalid` (with `plan_violations`) without stopping the others. Canary 16: 20 candidate sections, all with recorded cuts, no violations either way. **Gap:** 1,243 of 1,263 local candidates have provenance from before cuts were recorded (no `segments`); they keep today's reuse unjudged. Judging them means re-cutting — I4's question. |
 | I1 ruling | `26029de5c` | Operator, 10-05: **mark uncovered sound**. `retranscribe()` records a sound span that decoded to nothing, or could not be decoded while its siblings were, as a window-relative `retranscription_failed` window; `recoverUsing()` places the retry's windows on the recording clock (the superseded-transcript fallback can then carry earlier text in). Measured silence stays unmarked. Future transcription passes only; no recovery retries are banked locally, so frequency is unmeasured. 1340's own shape (sound only at the window's tail, silence elsewhere) correctly stays unmarked under this rule. |
 
+### Completion record — I4, I2 and I5 (branch `boundary-investigations`)
+
+S6 candidates and the I1 fix merged to master (`27bc8b8a7`, unpushed).
+
+**I4 — cache and derived-output invalidation.** Traced the multipart sermon 1250 and the
+canary's section candidates (songs; the canary holds no talk candidate, so the talk path was
+read from code and its tests).
+
+| Artifact | Reused when | Bound to | Verdict |
+|---|---|---|---|
+| Sermon video | Never reused: every valid plan is cut again; the store step replaces the stored video when spans (±tolerance), duration or `MediaProcessingVersion` differ (`authoriseReplacementIfCutChanged`) | Final spans | Correct: membership, answers and word evidence all reach the spans |
+| Sermon audio | Never reused; re-extracted with the video | Final spans | Correct |
+| Sermon text | Re-sliced by `CreateSermonTranscriptFromService`, which every pipeline shape runs straight after `ExtractSermon` | Stamp records the service transcript's content hash only (`sermonDerivationIsOwed`) | **Latent gap:** the stamp cannot tell that spans changed; harmless while the pipeline always re-slices after a cut. No fix. |
+| Candidate video/audio | `processing_id` + `mediaSignature()` = type, start, end, `MediaProcessingVersion` | Section bounds and a hand-bumped version, **not** the cut (which also follows transcript cues, edge words and cutting rules) | **Defect, observed:** all 20 canary candidates matched their signatures, but 5 would be reused 2–6 s off the cut planned now (1028 §1395 start −2.12, §1398 end +6.22, §1400 start −2.12; 1108 §1901 start −3.54; 1112 §3734 start −2.54), consistent with the 10-05 cue-boundary rule changing cuts without a version bump. **Fixed** `3ff5b7947`: media with a recorded cut is reused only when it equals the cut planned now, otherwise cut again. Legacy provenance with no recorded cut (1,243 of 1,263 locally) keeps today's reuse. |
+| Candidate approval facts | Speaker, talk type, song identity | Not media | Correct to reuse (existing test) |
+
+**I2 — included, excluded and unresolved speech.** Runs 1240 (F04) and 1219 (F07): every
+transcript cue assigned by midpoint to the sermon output (`compose()` in a rolled-back
+transaction), a section's own output (song, short talk), an excluded section, or no section;
+plus classifier speech-dominant windows (speech ≥ 0.6, singing ≤ 0.2) inside
+song/prayer/other. *Limitation:* neither run has banked edge-word timings, so the account is
+by section membership, not final cut; classifier and transcript are evidence, not listening.
+
+| Run | Sermon output | Own outputs | Excluded | Unresolved |
+|---|---|---|---|---|
+| 1240 | 2,242 s of cues | songs 445, talk 176 | reading 155, prayer 112, notices 14 | 103 (mostly 30 s "Thank you." filler over music before 120 s and 558–620) |
+| 1219 | 1,497 | songs 562, talk 331 | prayer 655, notices 81, other 7 | 1 |
+
+Inclusions and exclusions the existing evidence cannot justify:
+1. **1240: a prayer inside the sermon output, unasked.** The stored structure has one reading
+   §2986 "Job 36–37" (1062.7–1638.8) holding Job 36, "We're going to pray and then we'll
+   come back and read chapter 37… Let's pray" (1274.7), the prayer, a 10× "To bring peace"
+   loop (1467.7–1487.7, unmarked after repetition recovery) and Job 37 (1488.7). The sermon
+   plan selects §2986 with no risk. F04's fixture assumed two reading sections; detection
+   merged them, and nothing downstream looks inside a selected section. Listen 1274–1489.
+2. **1219 §2698 "prayer" (1247–1772)** opens with ≈4 minutes of a Christian Institute
+   missionary item before the prayer; excluded only by its label. Whether such an item is a
+   publishable short talk is an operator question.
+3. **1219 §2699 song (1772–2037)** opens with the leader's follow-up (literature, "be
+   informed", ≈1773–1800+) and ends with the reading's introduction ("Can I invite you to turn
+   with me to John chapter 14?", 2023.4–2037.9), inside the song just before the reading the
+   sermon output starts with. Decision 16 includes an introduction that names the book. A
+   start/end trim would leave it unowned, and F07 asks only beside the *sermon* section, not
+   beside a reading the sermon output includes.
+
+Proposals, not built: (a) extend F07's question to speech exposed beside *any* section of the
+sermon output (measure first); (b) a detection or plan check for a selected reading that
+contains a spoken "let's pray" handover (needs a ruling on evidence: transcript text alone
+must not decide membership). The artifacts do support this account at section level; a
+cut-level account needs banked edge words.
+
+**I5 — shared errors in apparently clean output. Predeclared 2026-10-05, before any output was
+looked at:**
+- *Population:* runs with a stored service transcript and a sermon section, excluding the
+  canary 16, the discovery runs 1219/1240, and the I1 runs 1009/1340: 440 runs.
+- *Selection:* the four runs with the lowest SHA-256 of `processing_id`. Outcome-blind,
+  reproducible, and no replacement after seeing results.
+- *Exposure history:* recorded per run from memory/plans once selected; unknown stays unknown.
+- *Review dimensions,* per output (sermon output, published song/talk sections): missing
+  content, unwanted content, incorrect joins, clipped words; each with source-relative window,
+  checked extent and uncertainty.
+- *Method:* transcript and classifier evidence read across each output's edges (±120 s),
+  every gap between outputs, and every internal join, located from the transcript first and
+  only then compared with the plan's bounds. No listening (none available to this session):
+  every observation is a candidate for listening, not a verdict. Discovery/retrospective
+  evaluation; four services establish no corpus rate.
+
 Still open: a non-blocking account of unowned adjacent speech and unobservable windows in the
 publication plan. Deferred: no consumer reads it yet, F07's flag already reaches review, and
 I1's windows now reach detection directly.
