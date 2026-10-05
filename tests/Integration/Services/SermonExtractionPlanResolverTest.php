@@ -381,7 +381,7 @@ class SermonExtractionPlanResolverTest extends TestCase
     public function a_handover_closing_the_reading_or_inside_an_unselected_reading_asks_nothing(): void
     {
         $log = $this->logWithTranscript([
-            ['start' => 400.0, 'end' => 402.0, 'text' => "Let us pray."],
+            ['start' => 400.0, 'end' => 402.0, 'text' => 'Let us pray.'],
             ['start' => 1630.0, 'end' => 1632.0, 'text' => "Let's pray."],
         ]);
         $this->reading($log, 1, 300.0, 600.0, reference: 'Psalm 23');

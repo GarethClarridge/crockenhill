@@ -11,6 +11,7 @@ use App\Exceptions\SegmentationException;
 use App\Services\Media\Audio\RmsAnalysisService;
 use App\Services\Media\Audio\SustainedSound;
 use App\Services\Scripture\ScriptureReferenceResolver;
+use App\Services\Sermon\SermonExtractionPlanResolver;
 
 /**
  * Speech the detector left inside a song section, trimmed off its ends.
@@ -190,7 +191,7 @@ class SongSpeechEdges
     /**
      * The sections the sermon's media may be cut from, each mapped to the sermon asked about it:
      * every sermon section, the readings before the first that reading membership could cut, and
-     * the concluding prayer — the same rules {@see \App\Services\Sermon\SermonExtractionPlanResolver::compose()}
+     * the concluding prayer — the same rules {@see SermonExtractionPlanResolver::compose()}
      * selects by.
      *
      * @param  list<ServiceStructureSection>  $sections
