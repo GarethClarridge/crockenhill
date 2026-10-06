@@ -226,17 +226,20 @@ class CueSafeExtractionPlan
         $heard = $window !== null ? $evidence->read($log, $window)['words'] : [];
         $speech = $this->speechAfterSong($cues, $end, $levels);
         $onset = null;
+        $until = $end + self::SONG_END_REACH;
 
         if ($speech !== null) {
             $speechWindow = $evidence->window($cues, $speech['start'], $log->duration);
             $speechWords = $speechWindow !== null ? $evidence->read($log, $speechWindow)['words'] : [];
             $heard = [...$heard, ...$speechWords];
+            // Without words the speech cannot be placed inside cues that overlap it, so only
+            // silence before the cue can end the song early; otherwise whole cues decide, as for speech.
             $onset = $speechWords === [] || $speechWindow === null
-                ? ['time' => $speech['start'], 'chosen_pause' => null, 'word_before' => null, 'word_after' => null]
+                ? null
                 : $this->pauseBeforeSpeech($speechWords, $speechWindow, $speech['start'], min($end, $speech['start']) - self::SONG_END_PAUSE_REACH);
+            $until = $onset['time'] ?? $speech['start'];
         }
 
-        $until = $onset['time'] ?? $end + self::SONG_END_REACH;
         $lastSound = $end;
 
         foreach ($heard as $word) {
@@ -276,7 +279,7 @@ class CueSafeExtractionPlan
                 static fn (array $pause): bool => $pause['word_after'] !== null && $pause['end'] >= $floor));
 
             if ($eligible === []) {
-                return ['time' => $speechStart, 'chosen_pause' => null, 'word_before' => null, 'word_after' => null];
+                return null;
             }
 
             usort($eligible, static fn (array $a, array $b): int => ($b['length'] <=> $a['length']) ?: ($a['start'] <=> $b['start']));
