@@ -149,8 +149,13 @@ class SongSpeechEdges
     /**
      * A trim leaves the stretch it cut off unowned. Next to a section the sermon's media is cut
      * from, that stretch is either its own opening or conclusion, swallowed by the song, or an
-     * announcement rightly excluded (D1); the sound cannot tell which, so the sermon is asked
-     * about it and nothing absorbs it or changes bounds.
+     * announcement rightly excluded (D1).
+     *
+     * After the sermon or its concluding prayer, the section before the song takes the stretch up
+     * to where the singing starts: canary 11's listening (operator, 2026-10-06) heard the end of the
+     * closing prayer or its "Amen" there in 4 of 6 services, and the hymn announcement may go
+     * either way. Everywhere else the sound cannot tell which, so the sermon is asked about it and
+     * nothing absorbs it or changes bounds.
      *
      * @param  list<ServiceStructureSection>  $before
      * @param  array<int, ServiceStructureSection>  $after  Indexed alike, one trimmed or held song at a time
@@ -170,7 +175,16 @@ class SongSpeechEdges
             $exposed = [];
 
             if ($song->startTime > $original->startTime && isset($output[$index - 1])) {
-                $exposed[] = [$output[$index - 1], $before[$index - 1]->type, $original->startTime, $song->startTime];
+                $previous = $after[$index - 1];
+
+                if (in_array($previous->type, [ServiceSectionType::Sermon, ServiceSectionType::Prayer], true)) {
+                    $after[$index - 1] = $previous->withTimes($previous->startTime, $song->startTime, [sprintf(
+                        'End extended to %.1fs: the speech trimmed off the song after it is this section\'s conclusion or the hymn announcement.',
+                        $song->startTime,
+                    )]);
+                } else {
+                    $exposed[] = [$output[$index - 1], $before[$index - 1]->type, $original->startTime, $song->startTime];
+                }
             }
 
             if ($song->endTime < $original->endTime && isset($output[$index + 1])) {

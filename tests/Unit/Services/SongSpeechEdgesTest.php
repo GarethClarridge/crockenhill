@@ -75,12 +75,13 @@ class SongSpeechEdgesTest extends TestCase
     }
 
     /**
-     * F07: the speech a trim leaves between the sermon and its song is either the sermon's
-     * conclusion or the hymn announcement (excluded, D1). The trim cannot tell which, so the
-     * sermon keeps its bounds and is asked about, without holding its extraction.
+     * Canary 11 listening (operator, 2026-10-06): speech a trim leaves between the sermon and the
+     * song after it held the end of the closing prayer or its "Amen" in 4 of 6 services, and the
+     * rest was the hymn announcement, which may go either way. Leaving it unowned silently drops
+     * the sermon's last words, so the sermon takes it, up to where the singing starts, unasked.
      */
     #[Test]
-    public function speech_trimmed_off_a_song_after_the_sermon_raises_an_ownership_question_on_the_sermon(): void
+    public function speech_trimmed_off_a_song_after_the_sermon_joins_the_sermon(): void
     {
         $rmsLog = $this->rmsLog([[0, 340, 'speech'], [340, 600, 'sung'], [600, 700, 'speech'], [700, 900, 'sung']]);
         $structure = ServiceStructure::fromSections([
@@ -92,11 +93,10 @@ class SongSpeechEdgesTest extends TestCase
         [$sermon, $song] = $this->service->apply($structure, $rmsLog, recordingOmitsSongs: false)->sections;
 
         $this->assertGreaterThan(300.0, $song->startTime);
-        $this->assertSame([0.0, 300.0], [$sermon->startTime, $sermon->endTime]);
-        $this->assertSame([ServiceStructureValidator::FLAG_SERMON_ADJACENT_SPEECH_UNOWNED], $sermon->reviewFlags);
-        $this->assertStringContainsString(sprintf('300.0–%.1fs', $song->startTime), implode(' ', $sermon->notes));
-        $this->assertTrue(SectionReviewFlagPolicy::requiresManualReview(ServiceSectionType::Sermon, $sermon->reviewFlags, 'John 3:16'));
-        $this->assertTrue(SermonAutoExtractionPolicy::reviewStatePermitsAutoExtraction(true, $sermon->reviewFlags));
+        $this->assertSame([0.0, $song->startTime], [$sermon->startTime, $sermon->endTime]);
+        $this->assertSame([], $sermon->reviewFlags);
+        $this->assertStringContainsString(sprintf('End extended to %.1fs', $song->startTime), implode(' ', $sermon->notes));
+        $this->assertSame([], array_filter($sermon->notes, SongSpeechEdges::isExposedSpeechNote(...)));
     }
 
     #[Test]
@@ -140,9 +140,12 @@ class SongSpeechEdgesTest extends TestCase
         $this->assertContains(SongSpeechEdges::exposedSpeechNote(300.0, $song->startTime, ServiceSectionType::BibleReading), $sermon->notes);
     }
 
-    /** The concluding prayer is cut with the sermon too ({@see SermonExtractionPlanResolver::compose()}). */
+    /**
+     * The concluding prayer is cut with the sermon too ({@see SermonExtractionPlanResolver::compose()}),
+     * and its "Amen" is what the canary 11 services lost.
+     */
     #[Test]
-    public function speech_trimmed_off_a_song_after_the_concluding_prayer_raises_an_ownership_question_on_the_sermon(): void
+    public function speech_trimmed_off_a_song_after_the_concluding_prayer_joins_the_prayer(): void
     {
         $rmsLog = $this->rmsLog([[0, 340, 'speech'], [340, 600, 'sung'], [600, 700, 'speech'], [700, 900, 'sung']]);
         $structure = ServiceStructure::fromSections([
@@ -155,9 +158,31 @@ class SongSpeechEdgesTest extends TestCase
         [$sermon, $prayer, $song] = $this->service->apply($structure, $rmsLog, recordingOmitsSongs: false)->sections;
 
         $this->assertGreaterThan(300.0, $song->startTime);
+        $this->assertSame([250.0, $song->startTime], [$prayer->startTime, $prayer->endTime]);
         $this->assertSame([], $prayer->reviewFlags);
-        $this->assertSame([ServiceStructureValidator::FLAG_SERMON_ADJACENT_SPEECH_UNOWNED], $sermon->reviewFlags);
-        $this->assertContains(SongSpeechEdges::exposedSpeechNote(300.0, $song->startTime, ServiceSectionType::Prayer), $sermon->notes);
+        $this->assertSame([], $sermon->reviewFlags);
+    }
+
+    /**
+     * Beside a reading the same stretch was the announcement every time (6 of 6 in canary 11),
+     * and a song after the sermon whose own start is the sermon's opening was never ruled on:
+     * both still ask.
+     */
+    #[Test]
+    public function speech_trimmed_off_a_song_after_a_section_outside_the_sermon_itself_still_asks(): void
+    {
+        $rmsLog = $this->rmsLog([[0, 340, 'speech'], [340, 600, 'sung'], [600, 700, 'speech'], [700, 900, 'sung']]);
+        $structure = ServiceStructure::fromSections([
+            $this->section('bible_reading', 0.0, 300.0, readingReference: 'John 3:1-21'),
+            $this->section('song', 300.0, 600.0),
+            $this->section('sermon', 600.0, 700.0, sermonReference: 'John 3:16'),
+            $this->section('song', 700.0, 900.0),
+        ]);
+
+        [$reading, $song] = $this->service->apply($structure, $rmsLog, recordingOmitsSongs: false)->sections;
+
+        $this->assertSame([0.0, 300.0], [$reading->startTime, $reading->endTime]);
+        $this->assertGreaterThan(300.0, $song->startTime);
     }
 
     /** A reading the sermon output cannot take — another reading holds its passage — is not its business. */
