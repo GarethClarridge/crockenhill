@@ -34,6 +34,7 @@ use App\Services\ChurchService\Structure\ValidationContext;
 use App\Services\ChurchService\Structure\ValidationResult;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Media\Audio\AudioTimeline;
+use App\Services\Media\Audio\UntranscribedSpeechRecovery;
 use App\Services\Processing\MediaProcessingIdentityResolver;
 use App\Services\Processing\ProcessingNotificationRouter;
 use App\Services\Sermon\SermonCandidateConfidenceService;
@@ -151,6 +152,13 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         }
 
         $this->logStepStart(ChurchServiceProcessingTimeline::DETECT_SERVICE_STRUCTURE);
+
+        // A draw reads the transcript, so speech it has no line for is decoded first. A recompose
+        // draws nothing, and its banked draws must keep the text they were drawn on.
+        if ($this->reconcile || $this->recomposeRequest() === null) {
+            app(UntranscribedSpeechRecovery::class)->recover($this->processingLog);
+            $this->processingLog->refresh();
+        }
 
         if ($mode === ServiceStructureMode::Shadow) {
             $this->runShadow($detector, $snapService, $validator);

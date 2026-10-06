@@ -37,6 +37,7 @@ use App\Services\ChurchService\Structure\ServiceStructureEnsembleReplay;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
 use App\Services\Media\Audio\AudioTimeline;
+use App\Services\Media\Audio\UntranscribedSpeechRecovery;
 use App\Services\Processing\ProcessingPipelineBuilder;
 use App\Services\Sermon\SermonCandidateConfidenceService;
 use App\Services\Sermon\SermonExtractionPlanResolver;
@@ -46,6 +47,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
+use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\Support\AudioTimelineFixture;
@@ -1146,6 +1148,45 @@ class DetectServiceStructureTest extends TestCase
         $this->assertCount(1, $log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble_rulings'] ?? []);
 
         Storage::disk($sermon->extractedAssetDisk())->delete('sections/extracted-sermon.m4a');
+    }
+
+    /**
+     * Speech the transcript has no line for is decoded again before a fresh draw, so detection
+     * reads its words ({@see UntranscribedSpeechRecovery}; operator, 2026-10-06).
+     */
+    #[Test]
+    public function a_fresh_draw_first_recovers_untranscribed_speech(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->storeTranscript($log);
+        $this->coveringSegments($log);
+        MockServiceStructureService::useStructure($this->validStructure());
+        $this->mock(UntranscribedSpeechRecovery::class, function (MockInterface $mock) use ($log): void {
+            $mock->shouldReceive('recover')->once()->withArgs(static fn (MediaProcessingLog $run): bool => $run->is($log))
+                ->andReturn(['stretches' => 0, 'recovered' => 0]);
+        });
+
+        $this->runJob($log);
+
+        $this->assertNotSame(ProcessingStatus::Failed, $log->refresh()->status);
+    }
+
+    /** A recompose makes no draw: its banked draws must keep reading the text they were drawn on. */
+    #[Test]
+    public function a_recompose_does_not_recover_untranscribed_speech(): void
+    {
+        Config::set('media-processing.service_structure.mode', 'primary');
+        [, $log, $dispute, $admin] = $this->disputedReadingRun();
+        app(AnswerServiceStructureEnsembleQuestion::class)->execute($log->id, $dispute['question_id'], 'choose', $admin, slot: 1);
+        $this->requestRecompose($log, $log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble'][0]['attempt_id']);
+        $this->mock(UntranscribedSpeechRecovery::class, function (MockInterface $mock): void {
+            $mock->shouldNotReceive('recover');
+        });
+
+        $this->runJob($log->fresh());
+
+        $this->assertArrayNotHasKey(DetectServiceStructure::RECOMPOSE_KEY, $log->fresh()?->processing_metadata?->toArray() ?? []);
     }
 
     #[Test]
