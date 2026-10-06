@@ -901,6 +901,35 @@ settled 21:57 (single FFmpeg lane, ~8 min a run). No step failed, nothing retrie
   not cut), 964 and 949 reading ends, F11 ×3, F07 ×12 (1025 first, then 1112), 21 other moved edges.
   1197 is not in this canary. Records: `canary11-boundary-20261005/tierc-codex-fixes-*`.
 
+**Listening rulings (operator, 2026-10-06; 46/46, `canary11-boundary-20261005/listening-rulings/`).**
+Edges 23/31 right. Every reading end is right (1250 Job 29 at 1519.04, 964, 949), and so are all
+five sermon starts/ends except 1117's. The failures fall into four groups:
+
+1. *Song ends cut too early* (4 of 5 song ends): 1250 §4911 and §3131, 1221 §2718 and 1028 §1398
+   lose the last line and/or the musical outro. The 1250 §4911 cut did **not** run into the prayer,
+   as the Tier C record suspected: the cue boundary was early and the true end is ~6 s later.
+   **Ruling:** end a song at silence or when someone starts talking, not at the last word (a sung
+   last word is held).
+2. *Edges that split a sentence*: 1304 §4884 (part of the benediction), 1117 sermon start ("it's
+   quite a short one" belongs to the previous sentence), 1108 §1901 (half a sentence of the spoken
+   intro), 1117 §1962 end (clips the last word). **Ruling:** include the whole sentence or none of
+   it. Songs needn't carry their spoken introduction (fine if they do); the benediction ideally
+   not at all, else all of it.
+3. *Sermons lose the end of the closing prayer* (F07 after the sermon, 4 of 6 mixed): 949 and 1028
+   lose its last two lines; 1117, 1250 and 1304 lose the "Amen" ("Hear our prayer. Amen").
+   The rest of each interval is the song announcement: "could be in or out". 1025 and 1112 are
+   announcement only. **Silent omission at the sermon's end.**
+4. *F11 stretches belong to the section after them*: 949 opening (the prayer's introduction plus
+   its first line), 1311 opening, 1025 mixed (end of a song comment, "let's join together in
+   prayer", then the prayer's start).
+
+F07 after a reading: 6/6 rightly left out (1025, 1112, 1117, 1250, 1304; 1250's 1527.7–1570.0).
+
+**Canary 11 verdict:** it fails listening on song ends, sentence integrity and sermon-end omission.
+Sermon/reading cut logic otherwise held. Groups 1–3 are mechanisms, not instances; F07/F11 were
+"ask" rulings, and the answers show which side the speech belongs to (post-sermon → sermon,
+post-reading → excluded; F11 → following section). Fixes need the operator's go-ahead.
+
 ## 7. Further bounded investigations — added 2026-10-04
 
 The user requested these additions after reviewing the gaps in the plans. They are **open
