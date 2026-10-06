@@ -1010,6 +1010,16 @@ Tier C (13 runs) 11:34–13:30 UTC: all cut, 0 failures, 0 candidates blocked. 1
 - Open: "include in both" fallback NOT built; recovery under long filler cues; B's speech-inside-section
   limit; C skipping internal joins and wordless edges; punctuation-only cues as speech.
 
+**949/1311 questions (operator 2026-10-06):** 1311-q0 Version A (testimony ends 19:09); 949-q2 either;
+949-q0 recorded "either" on confirmation (it did not save; the q1 note says so). 949-q1 "neither" with a
+note that the reading is part of the sermon. Recorded first as Version A, which overlapped q0, so F06
+applied neither; re-recorded as "leave it out" (one sermon from 44:50 that contains the reading). Files:
+`question-answers.json`, `answers-q1-reanswer.json`. Both recomposed (0 disputes), Tier C 17:13 UTC.
+1311 cut (single span unchanged, approved, 7 candidates). **949 parked**: its plan is valid (John 19
+reading + sermon 2690.1–4620.0, no violations), but the sermon carries `structure_sermon_interruption_merged`,
+which blocks auto-extraction until a review on the service screen. The operator's answer settles it,
+but nothing links the answer to the flag. Listening page v2 adds 21 edges for 949/1311 (53 in all).
+
 ## 7. Further bounded investigations — added 2026-10-04
 
 The user requested these additions after reviewing the gaps in the plans. They are **open
@@ -1352,6 +1362,17 @@ The operator accepted these recommendations:
 5. Slices 1–4 (§8.6) follow the canary. Slice 1 carries the per-output classification
    (media / text / label) and the pin test; slice 3 adds the SQL form of the gate
    (§8.7d).
+
+### 8.9 Principles from canary 12 (operator, 2026-10-06)
+
+1. **A title variant is not a question.** "Man of Sorrows" vs "The Man of Sorrows" must not hold up
+   extracting a song. Normalise draws' titles against the catalogue before composing, and raise no
+   dispute when the versions name the same catalogue song.
+2. **One question per clip.** 949 asked "where does the sermon start?" and "is there a reading at
+   48:51?" over one stretch; the answers could be (and were) inconsistent, and F06 applied neither.
+   "It's really one question: is the intro and reading part of the sermon or not?" Merge disputes
+   whose spans overlap into one question with coherent whole-stretch options. An answered question
+   should also settle the review flags that ask the same thing (949's `structure_sermon_interruption_merged`).
 
 ### 8.6 Proposed slices (after measurement)
 
