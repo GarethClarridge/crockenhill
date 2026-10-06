@@ -1020,6 +1020,31 @@ reading + sermon 2690.1–4620.0, no violations), but the sermon carries `struct
 which blocks auto-extraction until a review on the service screen. The operator's answer settles it,
 but nothing links the answer to the flag. Listening page v2 adds 21 edges for 949/1311 (53 in all).
 
+**Canary 12 listening (operator, 2026-10-06; 53/53, `canary12-listening-fixes-20261006/listening-rulings/`).**
+41 right, 12 wrong. Right: every song start, 18/28 song ends (all four that ran short in canary 11),
+C's move (1117 talk end), 1025's recovered sermon start, 18/21 of 949/1311's re-detected edges, and
+1112's extended sermon end. Wrong:
+- **Song ends run into the next item (10/28):** "includes half a spoken line / the first line of the
+  benediction / the next spoken item", "no song in the clip".
+  - *B3:* the next item starts **inside** the song section. Benedictions (1028 §1400, 1108 §4948,
+    1311 §4972), "Thank you, Aled" (1108 §1896), a prayer line (964 §4965). B only looks for speech
+    cues starting ≥ end−0.5 s.
+  - *B2:* 30 s hallucinated cues ("Thank you.", "The End") hide speech (1025 §1373, 1304 §3870,
+    1311 §4877). They count as coverage and as speech, and recovery skips under them (1025 615–631).
+  - *B1, a bug:* with no anchored opening words, `pauseBeforeSpeech` takes the **largest** eligible
+    pause, which can sit inside the speech (1311 §4875 after "…questions to you", 1028 §1392). It
+    should take the pause before the speech's first word.
+- **Sermon ends extended by A (2/3 wrong):** 1028 clips half of "nine"; 1304 ends mid hymn quotation
+  and clips a word. A extends to the song's trimmed start (sustained onset minus margin), which can
+  fall mid-word or mid-sentence. The extended end needs word-pause and sentence placement.
+- Noted: 1346 §4375 ends after "let's pray once again", a whole sentence over the outro (fine either way).
+
+**Next session (operator: fix in a new session):** build B1, B2, B3 and A-placement red first, with
+these cases as tests. Also: the "include in both" fallback; one question per clip, with an answered
+question clearing its matching flag (949 parked on `structure_sermon_interruption_merged`); title
+normalisation against the catalogue (§8.9); C not asking at internal joins; punctuation-only cues not
+counting as speech. Then canary 13 with listening. 1250 is still out (parked on its membership question).
+
 ## 7. Further bounded investigations — added 2026-10-04
 
 The user requested these additions after reviewing the gaps in the plans. They are **open
