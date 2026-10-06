@@ -930,6 +930,31 @@ Sermon/reading cut logic otherwise held. Groups 1–3 are mechanisms, not instan
 "ask" rulings, and the answers show which side the speech belongs to (post-sermon → sermon,
 post-reading → excluded; F11 → following section). Fixes need the operator's go-ahead.
 
+**Operator 2026-10-06:** readings 1–3 agreed. Reading 4 is not established on three answers.
+Re-decode the F11 stretches; where they still have no words, include them in both neighbours.
+
+**Built (clone `crockenhill-c11-fixes`, branch `c11-listening-fixes`, NOT merged; each red first;
+suite 9,311, PHPStan 0, Pint):**
+- A `015db3ab1`: speech a song-start trim leaves after the sermon or its concluding prayer joins
+  that section (end extended to the song's start), with no question. Readings and the sermon's
+  opening still ask.
+- B `fe2b7c58e`, `4e7fcff06`: a song's end runs to the first second below the run's threshold
+  (no word sounding), or to the pause before the next speech, whichever is first. The next speech
+  is the first cue ≥ end−0.5 s that is not ≥80 % silent; the pause may reach 1 s into the section.
+  Without words, or with no eligible pause, it falls back to the old cut. `TranscribeOutputEdges`
+  decodes the next-speech window. Read-only replay over canary 11: every ruled song end comes out as
+  ruled (1028 → 1937.54 silence; 1221 → 243.79; 1250 §3131 → 1734.80; §4911 → 4495.86;
+  1304 §4884 → 3896.82, no benediction; 1311 unchanged 2373.17). Of 23 replayable ends: median
+  +3.1 s, one earlier than −0.5 s (1304 §4884), largest +17.1 s (1108 §1896, to "Well, the
+  Heidelberg Catechism…"). 30 await the edge step's decode.
+- C (whole sentences) **not built**: the three remaining cases already cut at whisper's sentence
+  boundaries ("…morning reading. | It's quite a short one. | Luke chapter 16."; 1108's "We look
+  into God's word together." with the preceding words missing). Punctuation would fix none.
+- F11 re-decode measured (`storage/scratch/f11-redecode/`, local whisper, nothing stored): 57/62
+  stretches return words. Most read as the next item's opening ("let's pray…", "have your Bibles
+  open at…"); some are mixed (1025, 1342 "…we pray. Amen. For the benefit of…"); 5 return only a
+  word or two ("Thank you", "Amen", "Luke", "We").
+
 ## 7. Further bounded investigations — added 2026-10-04
 
 The user requested these additions after reviewing the gaps in the plans. They are **open
