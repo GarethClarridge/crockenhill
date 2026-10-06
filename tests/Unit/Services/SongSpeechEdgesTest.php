@@ -12,8 +12,6 @@ use App\Services\ChurchService\Structure\SongSpeechEdges;
 use App\Services\Media\Audio\RmsAnalysisService;
 use App\Services\Scripture\ScriptureReferenceResolver;
 use App\Services\Sermon\SermonExtractionPlanResolver;
-use App\Support\SectionReviewFlagPolicy;
-use App\Support\SermonAutoExtractionPolicy;
 use Illuminate\Support\Facades\Config;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;

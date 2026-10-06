@@ -9,6 +9,7 @@ use App\Enums\ServiceSectionType;
 use App\Jobs\TranscribeOutputEdges;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\PrepareOutputEdgeWordTimings;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
@@ -22,7 +23,7 @@ class TranscribeOutputEdgesTest extends TestCase
     use DatabaseTransactions;
 
     /**
-     * A song ends where the next speech starts ({@see \App\Services\ChurchService\CueSafeExtractionPlan::forSection()}),
+     * A song ends where the next speech starts ({@see CueSafeExtractionPlan::forSection()}),
      * and the cut there needs that speech's word timings, though it is no section's edge.
      */
     #[Test]

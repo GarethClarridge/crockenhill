@@ -349,7 +349,7 @@ class CueSafeExtractionPlan
                 return null;
             }
 
-            if ($sample['time'] - $runStart >= self::SONG_END_SILENCE_SECONDS - 0.0001) {
+            if (self::SONG_END_SILENCE_SECONDS - 0.0001 <= $sample['time'] - $runStart) {
                 return $runStart + self::SONG_END_SILENCE_TAIL;
             }
         }
