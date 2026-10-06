@@ -977,6 +977,39 @@ the normal logic?" Yes: put the words into the transcript before detection.
   let's have our morning reading.") "is fine", so whole-sentence inclusion is an acceptable fix
   there and both directions count as right.
 
+### Completion record — canary 12 (2026-10-06, code `8b991a29f`: A+B+recovery+C)
+
+C built and merged (`8b991a29f`, local, unpushed): `SpokenEdgeSentenceCheck`. The edge step asks the
+structure model twice per cut between two spoken items and banks the answers (`edge-sentence-*`).
+The planner moves a cut only when both answers name the same words beside it. Song edges are
+excluded, and an edge never asked keeps its cut. Suite 9,323, PHPStan 0.
+
+Snapshot `canary12-listening-fixes-20261006/snapshot.json` (code `8b991a29f`, routing `2fc8903c…`).
+Rounds 11:22–11:32 UTC: 12 recomposed, 949/1025/1311 re-detected, 0 failures. **1250 refused** ("run is
+failed": its canary 11 manual-review park); left out pending the operator. Recovery: 949 2690–2706.4
+(53 words), 1311 1585–1604.1 (50) spliced in, F11 gone. 1025 recovered 1955.6–1980.0, but **not**
+615–631, which a 30 s filler cue covers (recovery treats any cue as coverage). The new draws raise
+ensemble questions: 949 ×3 (sermon start 44:50 vs 49:42, Hebrews 9 reading, song title), 1311 ×1
+(Naomi's testimony end). Tier C refuses both until they are answered and recomposed. Question page
+https://claude.ai/artifact/LwDceRSUhphN3KJqjnVR8f.
+
+Tier C (13 runs) 11:34–13:30 UTC: all cut, 0 failures, 0 candidates blocked. 1050 video rejected
+`mostly_black` (source). Backups exit 0.
+- **A:** sermon ends extended on 1028 (→4115.78), 1112 (→3755.0) and 1304 (→3702.48). Not on 1117 or 1025:
+  the stretch there is a detected `other` section ("Introduction to the Final Hymn"), so it is owned.
+  1117's "Amen" sits at its start, which is a detection boundary A cannot reach.
+- **B:** all 37 song ends placed by the rule (24 speech, 13 silence); every ruled song end as ruled.
+  Limit: **1028 §1400** ends inside the Romans 15:13 benediction, because the benediction starts
+  inside the song section and B only looks for speech from the section end on. Cues of punctuation
+  only (". . . .", ".") count as speech.
+- **C:** 29 edges asked (58 calls); 4 agreed moves. Applied: 1117 §1962 talk end → 1718.7 (keeps "It's
+  quite a short one."). 1050's two moves are an internal join of one sermon (no output change;
+  asking there is waste). C cannot see an edge with no decoded words (1117 sermon end 3980.15).
+- 1025's sermon now starts at 1953.6 (re-detected with recovered words), between "Do" and "please".
+- **Listening page** https://claude.ai/artifact/H2mgm8ijRQV6FwuzCUdUYw: 32 edges changed since canary 11.
+- Open: "include in both" fallback NOT built; recovery under long filler cues; B's speech-inside-section
+  limit; C skipping internal joins and wordless edges; punctuation-only cues as speech.
+
 ## 7. Further bounded investigations — added 2026-10-04
 
 The user requested these additions after reviewing the gaps in the plans. They are **open
