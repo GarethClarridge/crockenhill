@@ -955,6 +955,25 @@ suite 9,311, PHPStan 0, Pint):**
   open at…"); some are mixed (1025, 1342 "…we pray. Amen. For the benefit of…"); 5 return only a
   word or two ("Thank you", "Amen", "Luke", "We").
 
+**Operator 2026-10-06 (later):** merge A+B (done, `e731de22d`). C: "you can tell the sentences are
+joined by meaning, so presumably an LLM can." Re-transcription: "Shouldn't we just process it using
+the normal logic?" Yes: put the words into the transcript before detection.
+
+- **Recovery built and merged (`ceeb2cdb9`, local, unpushed; workers on it from 10:50 UTC).**
+  `UntranscribedSpeechRecovery` runs at the start of `DetectServiceStructure` before any fresh
+  draw (never a recompose). Runs of classifier speech ≥0.6 that no cue or unobservable window
+  touches, ≥10 s, are decoded on the local whisper. The words are spliced in as cues, the
+  transcript is stored as `normalized-speech-recovered` and repointed, and the content hash is
+  recorded. Loops and empty decodes change nothing; the F11 flag remains as the backstop. Suite
+  9,316, PHPStan 0. Existing runs gain it only when re-detected.
+- **LLM edge check, read-only eval** (`storage/scratch/c11-llm-edges/`, gpt-5.6-luna, 24 judged
+  non-song-end edges, two prompt variants, ~30k tokens). Speech↔speech edges: both 1117 edges
+  flagged in both runs; one harmless false move (1356 "…by faith. Let's ‖ sing again"). For 1117
+  it chose to start the reading at "Speaking of which, let's have our morning reading", not at
+  "Luke 16" as ruled. Song edges are unreliable: misheard lyrics read as split speech (1108 §1897
+  "Let's ‖ pray." is sung "Bless the Lord"); 3 harmful false moves across runs, and 1108 §1901
+  caught in one run only. Results vary between the prompt variants.
+
 ## 7. Further bounded investigations — added 2026-10-04
 
 The user requested these additions after reviewing the gaps in the plans. They are **open
