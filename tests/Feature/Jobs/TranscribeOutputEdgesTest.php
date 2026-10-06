@@ -11,6 +11,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\PrepareOutputEdgeWordTimings;
+use App\Services\ChurchService\SpokenEdgeSentenceCheck;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
@@ -51,5 +52,37 @@ class TranscribeOutputEdgesTest extends TestCase
         });
 
         app()->call([new TranscribeOutputEdges($log), 'handle']);
+    }
+
+    /** The sentence check reads the word timings, so it is asked once they are decoded. */
+    #[Test]
+    public function it_asks_the_sentence_check_after_decoding_the_words(): void
+    {
+        Storage::fake('local');
+        config(['media-processing.storage.service_artifact_disk' => 'local']);
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create(['duration' => 5000]);
+        $log->putServiceTranscriptPath('temp/edges.json');
+        Storage::disk('local')->put('temp/edges.json', json_encode(ChurchServiceTranscript::fromCues([
+            ['start' => 10.0, 'end' => 20.0, 'text' => 'Words.'],
+        ], 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        $order = [];
+        $this->mock(PrepareOutputEdgeWordTimings::class, function (MockInterface $mock) use (&$order): void {
+            $mock->shouldReceive('prepare')->once()->andReturnUsing(function () use (&$order): array {
+                $order[] = 'words';
+
+                return ['windows' => 0, 'decoded' => 0, 'compute_seconds' => 0.0];
+            });
+        });
+        $this->mock(SpokenEdgeSentenceCheck::class, function (MockInterface $mock) use (&$order): void {
+            $mock->shouldReceive('prepare')->once()->andReturnUsing(function () use (&$order): array {
+                $order[] = 'sentences';
+
+                return ['edges' => 0, 'asked' => 0, 'agreed_moves' => 0];
+            });
+        });
+
+        app()->call([new TranscribeOutputEdges($log), 'handle']);
+
+        $this->assertSame(['words', 'sentences'], $order);
     }
 }

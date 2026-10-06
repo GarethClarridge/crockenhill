@@ -6,6 +6,7 @@ namespace App\Services\ChurchService;
 
 use App\Actions\HoldSectionForContentReview;
 use App\Enums\ServiceSectionType;
+use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Exceptions\SegmentationException;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
@@ -121,12 +122,18 @@ class CueSafeExtractionPlan
                     $words = $payload['words'];
                     if ($words !== []) {
                         $decision = $this->cueBoundaryPause($words, $window, $original, $edge) ?? $this->pause($words, $window, $original);
+                        $reason = isset($decision['candidate_anchors']) ? self::AMBIGUOUS_CUE_ANCHOR : 'word_pause';
+                        $sentenceCheck = null;
+                        if ($reason === 'word_pause') {
+                            [$decision, $sentenceCheck] = $this->sentenceChecked($log, $cues, $words, $window, $original, $edge, $decision);
+                            $reason = $sentenceCheck['moved'] ?? false ? 'sentence_check' : $reason;
+                        }
                         $span[$key] = $decision['time'];
                         $audit[] = ['span_index' => $index, 'edge' => $edge, 'original_time' => $original,
                             'time' => $decision['time'], 'seconds_added' => abs($decision['time'] - $original),
                             'seconds_moved' => $decision['time'] - $original, 'window' => $window,
                             'cue' => $window['cues'][0], 'cues' => $window['cues'],
-                            ...$decision, 'reason' => isset($decision['candidate_anchors']) ? self::AMBIGUOUS_CUE_ANCHOR : 'word_pause',
+                            ...$decision, 'reason' => $reason, 'sentence_check' => $sentenceCheck,
                             'text_disagreement' => $this->disagrees($words, $window['cues'])];
 
                         continue;
@@ -168,6 +175,175 @@ class CueSafeExtractionPlan
         }
 
         return ['segments' => $merged, 'cue_edge_widening' => $audit];
+    }
+
+    /**
+     * Where the word pause puts an edge, before any sentence check: the cut
+     * {@see SpokenEdgeSentenceCheck::prepare()} asks about. Null when the edge has no decoded
+     * words or its cue anchor is ambiguous, which the check leaves alone.
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @return array{time: float, window: array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>}, words: list<array{start: float, end: float, word: string}>}|null
+     */
+    public function wordPauseEdge(MediaProcessingLog $log, array $cues, float $original, string $edge): ?array
+    {
+        $evidence = app(OutputEdgeWordTimings::class);
+        $window = $evidence->window($cues, $original, $log->duration);
+
+        if ($window === null) {
+            return null;
+        }
+
+        try {
+            $words = $evidence->read($log, $window)['words'];
+        } catch (OutputEdgeTimingsMissing) {
+            return null;
+        }
+
+        if ($words === []) {
+            return null;
+        }
+
+        $decision = $this->cueBoundaryPause($words, $window, $original, $edge) ?? $this->pause($words, $window, $original);
+
+        return isset($decision['candidate_anchors']) ? null : ['time' => $decision['time'], 'window' => $window, 'words' => $words];
+    }
+
+    /**
+     * The transcript between two times as timed tokens: the decoded words inside the window, and
+     * outside it each cue's words spread evenly over the cue. A cue running into the window keeps
+     * only the words the window's decode does not already hold.
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  list<array{start: float, end: float, word: string}>  $words
+     * @param  array{start: float, end: float}  $window
+     * @return list<array{start: float, end: float, word: string}>
+     */
+    public static function tokens(array $cues, array $words, array $window, float $from, float $to): array
+    {
+        $inWindow = array_values(array_filter($words, static fn (array $word): bool => ($word['start'] + $word['end']) / 2 >= $window['start']
+            && ($word['start'] + $word['end']) / 2 <= $window['end']));
+        $tokens = array_map(static fn (array $word): array => ['start' => $word['start'], 'end' => $word['end'], 'word' => trim($word['word'])], $inWindow);
+
+        foreach ($cues as $cue) {
+            if ($cue['end'] <= $from || $cue['start'] >= $to || ($cue['start'] >= $window['start'] && $cue['end'] <= $window['end'])) {
+                continue;
+            }
+
+            $parts = preg_split('/\s+/', trim($cue['text'])) ?: [];
+            $count = count($parts);
+
+            if ($count === 0) {
+                continue;
+            }
+
+            $decoded = count(array_filter($inWindow, static fn (array $word): bool => $word['start'] < $cue['end'] && $word['end'] > $cue['start']));
+            $step = ($cue['end'] - $cue['start']) / $count;
+            // A cue running into the window from before keeps its opening words; one running out
+            // of it keeps its closing words. A cue spanning the whole window keeps both.
+            $keep = $cue['start'] < $window['start'] && $cue['end'] > $window['end']
+                ? range(0, $count - 1)
+                : ($cue['start'] < $window['start'] ? range(0, max(-1, $count - $decoded - 1)) : range(min($count, $decoded), $count - 1));
+
+            foreach ($keep as $position) {
+                if ($position < 0 || $position >= $count) {
+                    continue;
+                }
+
+                $start = $cue['start'] + $position * $step;
+                $end = $start + $step;
+
+                if ($cue['start'] < $window['start'] && $cue['end'] > $window['end'] && $start < $window['end'] && $end > $window['start']) {
+                    continue;
+                }
+
+                $tokens[] = ['start' => $start, 'end' => $end, 'word' => $parts[$position]];
+            }
+        }
+
+        usort($tokens, static fn (array $a, array $b): int => $a['start'] <=> $b['start']);
+
+        return array_values(array_filter($tokens, static fn (array $token): bool => $token['end'] > $from && $token['start'] < $to));
+    }
+
+    /**
+     * The word-pause cut, moved where both banked answers agree it splits a thought between two
+     * spoken items ({@see SpokenEdgeSentenceCheck}). The move takes the named words across the cut
+     * whole, to the gap beside the last of them; words that are not the ones beside the cut, or a
+     * gap a word is still sounding in, move nothing.
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  list<array{start: float, end: float, word: string}>  $words
+     * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>}  $window
+     * @param  array<string, mixed>  $decision
+     * @return array{0: array<string, mixed>, 1: array<string, mixed>|null}
+     */
+    private function sentenceChecked(MediaProcessingLog $log, array $cues, array $words, array $window, float $original, string $edge, array $decision): array
+    {
+        $check = app(SpokenEdgeSentenceCheck::class);
+
+        if ($check->spokenSides($log, $original) === null) {
+            return [$decision, null];
+        }
+
+        $answer = $check->read($log, $check->identity($log, $window, $original, $edge, $decision['time']));
+
+        if ($answer === null) {
+            return [$decision, ['asked' => false]];
+        }
+
+        $audit = ['asked' => true, ...$answer, 'moved' => false];
+
+        if (! $answer['agreed'] || ! in_array($answer['decision'], ['extend', 'shrink'], true)) {
+            return [$decision, $audit];
+        }
+
+        $normalize = static fn (string $text): string => trim((string) preg_replace('/[^a-z0-9]+/', ' ', strtolower($text)));
+        $moving = $normalize((string) $answer['words_to_move']);
+        $cut = $decision['time'];
+        $tokens = self::tokens($cues, $words, $window, $cut - 40.0, $cut + 40.0);
+        $before = array_values(array_filter($tokens, static fn (array $token): bool => ($token['start'] + $token['end']) / 2 < $cut));
+        $after = array_values(array_filter($tokens, static fn (array $token): bool => ($token['start'] + $token['end']) / 2 >= $cut));
+        // Which side the words cross from: the output's own side when it drops them, the other
+        // when it takes them in.
+        $fromBefore = ($edge === 'start') === ($answer['decision'] === 'extend');
+        $side = $fromBefore ? $before : $after;
+        $count = 0;
+
+        // The run beside the cut whose words, read in order, are the words named: grown one word
+        // at a time, since a transcript word and an answer word need not split alike ("let's").
+        for ($length = 1; $moving !== '' && $length <= count($side); $length++) {
+            $run = $fromBefore ? array_slice($side, -$length) : array_slice($side, 0, $length);
+            $text = $normalize(implode(' ', array_column($run, 'word')));
+
+            if ($text === $moving) {
+                $count = $length;
+
+                break;
+            }
+
+            if (strlen($text) > strlen($moving)) {
+                break;
+            }
+        }
+
+        if ($count === 0) {
+            return [$decision, $audit];
+        }
+
+        $run = $fromBefore ? array_slice($side, -$count) : array_slice($side, 0, $count);
+
+        $previous = $fromBefore ? ($before[count($before) - $count - 1] ?? null) : $run[$count - 1];
+        $next = $fromBefore ? $run[0] : ($after[$count] ?? null);
+
+        if ($previous === null || $next === null || $previous['end'] > $next['start'] + 0.001) {
+            return [$decision, $audit];
+        }
+
+        $time = ($previous['end'] + $next['start']) / 2;
+
+        return [['time' => $time, 'chosen_pause' => ['start' => $previous['end'], 'end' => $next['start']],
+            'word_before' => $previous, 'word_after' => $next], [...$audit, 'moved' => true, 'word_pause_time' => $cut]];
     }
 
     /**

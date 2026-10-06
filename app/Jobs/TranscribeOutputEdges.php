@@ -8,6 +8,7 @@ use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\PrepareOutputEdgeWordTimings;
+use App\Services\ChurchService\SpokenEdgeSentenceCheck;
 use App\Services\Sermon\SermonExtractionPlanResolver;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -44,7 +45,7 @@ class TranscribeOutputEdges extends ProcessingJob implements ShouldQueue
         return [(new WithoutOverlapping('output-edge-words-'.$this->processingLog->id))->releaseAfter(30)->expireAfter($this->timeout + 120)];
     }
 
-    public function handle(PrepareOutputEdgeWordTimings $prepare, SermonExtractionPlanResolver $resolver, CueSafeExtractionPlan $cutPlans): void
+    public function handle(PrepareOutputEdgeWordTimings $prepare, SermonExtractionPlanResolver $resolver, CueSafeExtractionPlan $cutPlans, SpokenEdgeSentenceCheck $sentenceCheck): void
     {
         if ($this->refreshAndCheckCancellation($this->processingLog, $this->job ?? null, $this->attempts())) {
             return;
@@ -66,6 +67,9 @@ class TranscribeOutputEdges extends ProcessingJob implements ShouldQueue
             }
         }
         $summary = $prepare->prepare($this->processingLog->fresh() ?? throw new \RuntimeException('Processing run disappeared'), $spans);
+        $this->processingLog->refresh();
+        // Asked of the cuts the decoded words place, so only once they are decoded.
+        $summary['sentence_check'] = $sentenceCheck->prepare($this->processingLog);
         $this->processingLog->refresh();
         $resolver->compose($this->processingLog);
         $this->logStepComplete('transcribe_output_edges', json_encode($summary, JSON_THROW_ON_ERROR));
