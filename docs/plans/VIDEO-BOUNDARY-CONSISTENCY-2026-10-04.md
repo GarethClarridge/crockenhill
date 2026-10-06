@@ -973,6 +973,9 @@ the normal logic?" Yes: put the words into the transcript before detection.
   "Luke 16" as ruled. Song edges are unreliable: misheard lyrics read as split speech (1108 §1897
   "Let's ‖ pray." is sung "Bless the Lord"); 3 harmful false moves across runs, and 1108 §1901
   caught in one run only. Results vary between the prompt variants.
+  **Operator 2026-10-06:** the model's 1117 direction (start the reading at "Speaking of which,
+  let's have our morning reading.") "is fine", so whole-sentence inclusion is an acceptable fix
+  there and both directions count as right.
 
 ## 7. Further bounded investigations — added 2026-10-04
 
