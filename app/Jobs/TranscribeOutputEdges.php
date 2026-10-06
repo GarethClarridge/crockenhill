@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
+use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\PrepareOutputEdgeWordTimings;
 use App\Services\Sermon\SermonExtractionPlanResolver;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -42,7 +44,7 @@ class TranscribeOutputEdges extends ProcessingJob implements ShouldQueue
         return [(new WithoutOverlapping('output-edge-words-'.$this->processingLog->id))->releaseAfter(30)->expireAfter($this->timeout + 120)];
     }
 
-    public function handle(PrepareOutputEdgeWordTimings $prepare, SermonExtractionPlanResolver $resolver): void
+    public function handle(PrepareOutputEdgeWordTimings $prepare, SermonExtractionPlanResolver $resolver, CueSafeExtractionPlan $cutPlans): void
     {
         if ($this->refreshAndCheckCancellation($this->processingLog, $this->job ?? null, $this->attempts())) {
             return;
@@ -56,6 +58,11 @@ class TranscribeOutputEdges extends ProcessingJob implements ShouldQueue
             if (in_array($section->id, $composition['selected_section_ids'], true)
                 || in_array($section->section_type->value, ['song', 'bible_reading', 'short_talk'], true)) {
                 $spans[] = ['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time];
+            }
+            if ($section->section_type === ServiceSectionType::Song) {
+                foreach ($cutPlans->songEndSpeechEdges($this->processingLog, [['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time]]) as $edge) {
+                    $spans[] = ['start_time' => $edge, 'end_time' => $edge];
+                }
             }
         }
         $summary = $prepare->prepare($this->processingLog->fresh() ?? throw new \RuntimeException('Processing run disappeared'), $spans);

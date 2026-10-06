@@ -5,8 +5,14 @@ declare(strict_types=1);
 namespace App\Services\ChurchService;
 
 use App\Actions\HoldSectionForContentReview;
+use App\Enums\ServiceSectionType;
+use App\Exceptions\SegmentationException;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\Structure\SongSpeechEdges;
+use App\Services\Media\Audio\RmsAnalysisService;
+use App\Support\ServiceArtifactDisk;
+use Illuminate\Support\Facades\Storage;
 
 /** Put output edges in measured word pauses; no-word windows retain whole-cue widening. */
 class CueSafeExtractionPlan
@@ -26,26 +32,90 @@ class CueSafeExtractionPlan
      */
     public const AMBIGUOUS_CUE_ANCHOR = 'ambiguous_cue_anchor';
 
+    /**
+     * How far past a song's end its outro may run before the rule gives up and the word pause
+     * places the edge as for speech.
+     */
+    private const SONG_END_REACH = 30.0;
+
+    /** A cue starting this close before a song's end can be the speech that ends it (1304's benediction). */
+    private const SONG_END_LEAD = 0.5;
+
+    /** Seconds of a song's own singing before its end that the pause ending it may reach back into. */
+    private const SONG_END_PAUSE_REACH = 1.0;
+
+    /** A cue mostly below the run's threshold is whisper hearing words in silence (1028's "Thank you."). */
+    private const SILENT_CUE_SHARE = 0.8;
+
+    /** Seconds below the threshold that count as the silence a song ends at. */
+    private const SONG_END_SILENCE_SECONDS = 1.0;
+
+    /** Seconds of the silence kept after the last sound, so the fade is not clipped. */
+    private const SONG_END_SILENCE_TAIL = 0.3;
+
     /** @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>} */
     public function forSection(ServiceSection $section): array
     {
-        return $this->forSpans($section->processingLog, [['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time]]);
+        return $this->forSpans(
+            $section->processingLog,
+            [['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time]],
+            songEnds: $section->section_type === ServiceSectionType::Song,
+        );
+    }
+
+    /**
+     * Where the speech that ends each span would start, were the span a song: the edges whose word
+     * timings {@see self::forSection()} reads for a song's end, beyond the span's own.
+     *
+     * @param  list<array{start_time: float, end_time: float}>  $spans
+     * @return list<float>
+     */
+    public function songEndSpeechEdges(MediaProcessingLog $log, array $spans): array
+    {
+        $cues = app(OutputEdgeWordTimings::class)->cues($log);
+        $levels = $this->levels($log);
+        $edges = [];
+
+        foreach ($spans as $span) {
+            $cue = $this->speechAfterSong($cues, (float) $span['end_time'], $levels);
+
+            if ($cue !== null) {
+                $edges[] = $cue['start'];
+            }
+        }
+
+        return $edges;
     }
 
     /**
      * @param  list<array{start_time: float, end_time: float}>  $spans
+     * @param  bool  $songEnds  Each span is a song: its end runs on to silence or the next speech
      * @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>}
      */
-    public function forSpans(MediaProcessingLog $log, array $spans): array
+    public function forSpans(MediaProcessingLog $log, array $spans, bool $songEnds = false): array
     {
         $evidence = app(OutputEdgeWordTimings::class);
         $cues = $evidence->cues($log);
+        $levels = $songEnds ? $this->levels($log) : null;
         $audit = [];
         foreach ($spans as $index => &$span) {
             foreach (['start' => 'start_time', 'end' => 'end_time'] as $edge => $key) {
                 $original = $span[$key];
                 $time = $original;
                 $window = $evidence->window($cues, $original, $log->duration);
+                if ($songEnds && $edge === 'end') {
+                    $decision = $this->songEnd($log, $cues, $window, $original, $levels);
+                    if ($decision !== null) {
+                        $span[$key] = $decision['time'];
+                        $audit[] = ['span_index' => $index, 'edge' => $edge, 'original_time' => $original,
+                            'time' => $decision['time'], 'seconds_added' => abs($decision['time'] - $original),
+                            'seconds_moved' => $decision['time'] - $original, 'window' => $window,
+                            'cue' => $window['cues'][0] ?? null, 'cues' => $window['cues'] ?? [],
+                            ...$decision, 'text_disagreement' => false];
+
+                        continue;
+                    }
+                }
                 if ($window !== null) {
                     $payload = $evidence->read($log, $window);
                     $words = $payload['words'];
@@ -133,6 +203,197 @@ class CueSafeExtractionPlan
                 && array_any($segments, static fn (array $segment): bool => $segment['start_time'] < (float) $section->end_time - 0.001
                     && $segment['end_time'] > (float) $section->start_time + 0.001))
             ->map(static fn (ServiceSection $section): int => $section->id)->all());
+    }
+
+    /**
+     * A song ends when someone starts talking or at silence, whichever comes first (operator,
+     * 2026-10-06), not at its last word: a sung last word is held, and the outro has no words at
+     * all. The speech is the first cue at or just before the end that is not whisper hearing words
+     * in silence, and the cut goes in the pause just before its first word. That pause may reach a
+     * second back into the section, for speech that starts as the singing stops, but no further:
+     * the largest pause near the old edge sat before 1250 §3131's last sung line. Silence is the
+     * run's level below its threshold for a second where no word is sounding. Neither within reach
+     * leaves the edge to the word pause, as for speech.
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>}|null  $window  The window around the song's end
+     * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}|null  $levels
+     * @return array{time: float, chosen_pause: array{start: float, end: float}|null, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, reason: string, speech_cue: array{start: float, end: float, text: string}|null}|null
+     */
+    private function songEnd(MediaProcessingLog $log, array $cues, ?array $window, float $end, ?array $levels): ?array
+    {
+        $evidence = app(OutputEdgeWordTimings::class);
+        $heard = $window !== null ? $evidence->read($log, $window)['words'] : [];
+        $speech = $this->speechAfterSong($cues, $end, $levels);
+        $onset = null;
+
+        if ($speech !== null) {
+            $speechWindow = $evidence->window($cues, $speech['start'], $log->duration);
+            $speechWords = $speechWindow !== null ? $evidence->read($log, $speechWindow)['words'] : [];
+            $heard = [...$heard, ...$speechWords];
+            $onset = $speechWords === [] || $speechWindow === null
+                ? ['time' => $speech['start'], 'chosen_pause' => null, 'word_before' => null, 'word_after' => null]
+                : $this->pauseBeforeSpeech($speechWords, $speechWindow, $speech['start'], min($end, $speech['start']) - self::SONG_END_PAUSE_REACH);
+        }
+
+        $until = $onset['time'] ?? $end + self::SONG_END_REACH;
+        $lastSound = $end;
+
+        foreach ($heard as $word) {
+            if ($word['start'] < $until) {
+                $lastSound = max($lastSound, $word['end']);
+            }
+        }
+
+        $silence = $levels !== null ? $this->silenceOnset($levels, $lastSound, $until) : null;
+
+        if ($silence !== null) {
+            return ['time' => $silence, 'chosen_pause' => null, 'word_before' => null, 'word_after' => null,
+                'reason' => 'song_end_silence', 'speech_cue' => $speech];
+        }
+
+        return $onset === null ? null : [...$onset, 'reason' => 'song_end_speech', 'speech_cue' => $speech];
+    }
+
+    /**
+     * The pause the speech after a song starts out of: the one before its cue's opening words when
+     * they are heard, otherwise the largest pause before a word that ends no earlier than the floor.
+     * The cut sits just inside its end, so the outro runs right up to the first word.
+     *
+     * @param  list<array{start: float, end: float, word: string}>  $words
+     * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>}  $window
+     * @return array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null}|null
+     */
+    private function pauseBeforeSpeech(array $words, array $window, float $speechStart, float $floor): ?array
+    {
+        $anchored = $this->cueBoundaryPause($words, $window, $speechStart, 'start');
+
+        if ($anchored !== null && ! isset($anchored['candidate_anchors']) && $anchored['chosen_pause']['end'] >= $floor) {
+            $pause = ['start' => $anchored['chosen_pause']['start'], 'end' => $anchored['chosen_pause']['end'],
+                'word_before' => $anchored['word_before'], 'word_after' => $anchored['word_after']];
+        } else {
+            $eligible = array_values(array_filter($this->pauses($words, $window),
+                static fn (array $pause): bool => $pause['word_after'] !== null && $pause['end'] >= $floor));
+
+            if ($eligible === []) {
+                return ['time' => $speechStart, 'chosen_pause' => null, 'word_before' => null, 'word_after' => null];
+            }
+
+            usort($eligible, static fn (array $a, array $b): int => ($b['length'] <=> $a['length']) ?: ($a['start'] <=> $b['start']));
+            $pause = $eligible[0];
+        }
+
+        return ['time' => $pause['end'] - min(0.1, ($pause['end'] - $pause['start']) / 2),
+            'chosen_pause' => ['start' => $pause['start'], 'end' => $pause['end']],
+            'word_before' => $pause['word_before'], 'word_after' => $pause['word_after']];
+    }
+
+    /**
+     * The first cue at or just before a song's end that is not whisper hearing words in silence.
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}|null  $levels
+     * @return array{start: float, end: float, text: string}|null
+     */
+    private function speechAfterSong(array $cues, float $end, ?array $levels): ?array
+    {
+        $after = array_values(array_filter($cues, static fn (array $cue): bool => $cue['start'] >= $end - self::SONG_END_LEAD
+            && $cue['start'] <= $end + self::SONG_END_REACH));
+        usort($after, static fn (array $a, array $b): int => $a['start'] <=> $b['start']);
+
+        foreach ($after as $cue) {
+            if ($levels === null) {
+                return $cue;
+            }
+
+            $inside = array_filter($levels['samples'], static fn (array $sample): bool => $sample['time'] >= $cue['start'] && $sample['time'] < $cue['end']);
+            $silent = array_filter($inside, static fn (array $sample): bool => $sample['rms'] < $levels['threshold']);
+
+            if ($inside === [] || count($silent) / count($inside) < self::SILENT_CUE_SHARE) {
+                return $cue;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Where the first second of silence after the last sound starts, plus a short tail, or null.
+     *
+     * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}  $levels
+     */
+    private function silenceOnset(array $levels, float $from, float $until): ?float
+    {
+        $runStart = null;
+
+        foreach ($levels['samples'] as $sample) {
+            if ($sample['time'] < $from) {
+                continue;
+            }
+
+            if ($sample['rms'] >= $levels['threshold']) {
+                if ($runStart !== null && $runStart >= $until) {
+                    return null;
+                }
+                $runStart = null;
+
+                continue;
+            }
+
+            $runStart ??= $sample['time'];
+
+            if ($runStart >= $until) {
+                return null;
+            }
+
+            if ($sample['time'] - $runStart >= self::SONG_END_SILENCE_SECONDS - 0.0001) {
+                return $runStart + self::SONG_END_SILENCE_TAIL;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The run's sound levels and the threshold its silence is measured against, as
+     * {@see SongSpeechEdges} reads them, or null when the run has no level log.
+     *
+     * @return array{samples: list<array{time: float, rms: float}>, threshold: float}|null
+     */
+    private function levels(MediaProcessingLog $log): ?array
+    {
+        $path = $log->rms_log_path;
+
+        if (! is_string($path) || $path === '') {
+            return null;
+        }
+
+        try {
+            $content = Storage::disk(ServiceArtifactDisk::for($path))->get($path);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if (! is_string($content) || $content === '') {
+            return null;
+        }
+
+        $rms = app(RmsAnalysisService::class);
+        $samples = $rms->extractRmsData($content);
+
+        if ($samples === []) {
+            return null;
+        }
+
+        try {
+            $threshold = (float) $rms->determineThreshold($content)['threshold'];
+        } catch (SegmentationException) {
+            $threshold = $rms->getRmsThreshold();
+        }
+
+        usort($samples, static fn (array $a, array $b): int => $a['time'] <=> $b['time']);
+
+        return ['samples' => $samples, 'threshold' => $threshold];
     }
 
     /**
