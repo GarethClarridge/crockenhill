@@ -33,7 +33,7 @@ class TranscribeOutputEdgesTest extends TestCase
         Config::set('media-processing.segmentation.rms_threshold', -45.0);
         Storage::fake('local');
         config(['media-processing.storage.service_artifact_disk' => 'local']);
-        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 5000, 'rms_log_path' => 'service-transcripts/edges.rms.log']);
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create(['duration' => 5000, 'rms_log_path' => 'service-transcripts/edges.rms.log']);
         $log->putServiceTranscriptPath('temp/edges.json');
         Storage::disk('local')->put('temp/edges.json', json_encode(ChurchServiceTranscript::fromCues([
             ['start' => 1317.84, 'end' => 1322.40, 'text' => 'Do you please sit down?'],
