@@ -89,8 +89,13 @@ class EnsembleReviewGateTest extends TestCase
         ]), JSON_THROW_ON_ERROR));
     }
 
+    /**
+     * Canary 13 (1012, 1286, 1292): a run's own projection reorders the order of service into the
+     * order the recording follows, after its ensemble bundle is banked. Order is not evidence the
+     * bundle depends on (operator, 2026-10-07): the same items with the same content stay current.
+     */
     #[Test]
-    public function projection_renumbering_preserves_input_but_order_content_and_membership_changes_do_not(): void
+    public function projection_renumbering_and_reordering_preserve_input_but_content_and_membership_changes_do_not(): void
     {
         Config::set('media-processing.storage.service_artifact_disk', 'local');
         Storage::fake('local');
@@ -133,7 +138,7 @@ class EnsembleReviewGateTest extends TestCase
         $this->assertTrue($gate->inputIsCurrent($log, $evidence));
 
         $first->update(['position' => 13]);
-        $this->assertFalse($gate->inputIsCurrent($log, $evidence));
+        $this->assertTrue($gate->inputIsCurrent($log, $evidence), 'the reading moved after the second item');
         $first->update(['position' => 11, 'title' => 'A different passage']);
         $this->assertFalse($gate->inputIsCurrent($log, $evidence));
         $first->update(['title' => 'Acts 17:22-31']);

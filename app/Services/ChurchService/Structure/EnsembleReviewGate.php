@@ -243,8 +243,9 @@ class EnsembleReviewGate
     }
 
     /**
-     * Projection inserts detected items and renumbers canonical positions. The input stays
-     * current when the source items have the same identities, content and relative order.
+     * Projection inserts detected items, renumbers canonical positions and reorders them into the
+     * order the recording follows, after the bundle is banked. The input stays current when the
+     * source items have the same identities and content, in any order (operator, 2026-10-07).
      *
      * @param  list<array{id: int, position: int, type: string, title: ?string, song_id: ?int}>  $current
      */
@@ -254,20 +255,23 @@ class EnsembleReviewGate
             return false;
         }
 
-        foreach ($banked as $index => $item) {
-            if (! is_array($item) || ! is_int($item['position'] ?? null)) {
+        $currentById = array_column($current, null, 'id');
+
+        foreach ($banked as $item) {
+            if (! is_array($item) || ! is_int($item['position'] ?? null) || ! is_int($item['id'] ?? null)
+                || ! isset($currentById[$item['id']])) {
                 return false;
             }
 
-            $currentItem = $current[$index];
-            unset($item['position'], $currentItem['position']);
+            $currentItem = $currentById[$item['id']];
+            unset($item['position'], $currentItem['position'], $currentById[$item['id']]);
 
             if ($item !== $currentItem) {
                 return false;
             }
         }
 
-        return true;
+        return $currentById === [];
     }
 
     /** @return list<array{id: int, position: int, type: string, title: ?string, song_id: ?int}> */
