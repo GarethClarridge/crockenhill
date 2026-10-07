@@ -35,6 +35,9 @@ class EnsembleReviewExport
     /** The items a sermon is merged across ({@see SilenceSnapService}). */
     private const INTERRUPTION_TYPES = ['bible_reading', 'prayer'];
 
+    /** The spoken items whose edge dispute can be decided by an item inside the disputed stretch. */
+    private const STRETCH_OWNER_TYPES = ['sermon', 'short_talk'];
+
     /** Seconds two versions' edges may differ by and still be the same edge. */
     private const STRETCH_TOLERANCE = 2.0;
 
@@ -64,7 +67,7 @@ class EnsembleReviewExport
 
         foreach ($disputes as $index => $dispute) {
             foreach ($disputes as $innerIndex => $inner) {
-                if (! isset($grouped[$index]) && ! isset($grouped[$innerIndex]) && $this->settlesSermonStretch($dispute, $inner)) {
+                if (! isset($grouped[$index]) && ! isset($grouped[$innerIndex]) && $this->settlesStretch($dispute, $inner)) {
                     $grouped[$index] = $innerIndex;
                     $grouped[$innerIndex] = $index;
                     $items[] = $this->groupedItem($log, $dispute, $inner, "{$log->id}-q".count($items), $cues, $heading);
@@ -197,19 +200,20 @@ class EnsembleReviewExport
     }
 
     /**
-     * Whether a sermon question and a reading or prayer question settle one decision: the drafts
-     * split two ways over where the sermon starts (or ends), and the item is exactly what lies in
-     * the stretch between, present in the drafts that start the sermon after it and absent in
-     * those that run the sermon through it. 949 in canary 12 asked both and was answered
-     * inconsistently (operator, 2026-10-06: "It's really one question"). Overlap alone is not
-     * enough: an item the same drafts do not split over is its own question.
+     * Whether a sermon or talk question and a reading or prayer question settle one decision: the
+     * drafts split two ways over where the sermon (or talk) starts or ends, and the item is
+     * exactly what lies in the stretch between, present in the drafts that stop short of it and
+     * absent in those that run through it. 949 in canary 12 asked both and was answered
+     * inconsistently (operator, 2026-10-06: "It's really one question"); 964 in canary 13 did the
+     * same over a children's talk. Overlap alone is not enough: an item the same drafts do not
+     * split over is its own question.
      *
-     * @param  array<string, mixed>  $sermon
+     * @param  array<string, mixed>  $owner
      * @param  array<string, mixed>  $inner
      */
-    private function settlesSermonStretch(array $sermon, array $inner): bool
+    private function settlesStretch(array $owner, array $inner): bool
     {
-        $stretch = $this->sermonStretch($sermon);
+        $stretch = $this->disputedStretch($owner);
 
         if ($stretch === null || ! in_array($inner['type'] ?? null, self::INTERRUPTION_TYPES, true)
             || ! is_numeric($inner['start_time'] ?? null) || ! is_numeric($inner['end_time'] ?? null)
@@ -227,17 +231,17 @@ class EnsembleReviewExport
     }
 
     /**
-     * The stretch a two-way sermon question is about: between the two versions' differing start
-     * (or end), with the drafts that include it in the sermon and those that leave it out.
+     * The stretch a two-way sermon or talk question is about: between the two versions' differing
+     * start (or end), with the drafts that include it in the item and those that leave it out.
      *
-     * @param  array<string, mixed>  $sermon
+     * @param  array<string, mixed>  $owner
      * @return array{from: float, to: float, including: int, excluding: int, including_slots: list<int>, excluding_slots: list<int>}|null
      */
-    private function sermonStretch(array $sermon): ?array
+    private function disputedStretch(array $owner): ?array
     {
-        $alternatives = array_values(array_filter($sermon['alternatives'] ?? [], 'is_array'));
+        $alternatives = array_values(array_filter($owner['alternatives'] ?? [], 'is_array'));
 
-        if (($sermon['type'] ?? null) !== 'sermon' || count($alternatives) !== 2 || ($sermon['absent_slots'] ?? []) !== []) {
+        if (! in_array($owner['type'] ?? null, self::STRETCH_OWNER_TYPES, true) || count($alternatives) !== 2 || ($owner['absent_slots'] ?? []) !== []) {
             return null;
         }
 
@@ -281,8 +285,9 @@ class EnsembleReviewExport
      */
     private function groupedItem(MediaProcessingLog $log, array $sermon, array $inner, string $id, array $cues, string $heading): array
     {
-        $stretch = $this->sermonStretch($sermon);
+        $stretch = $this->disputedStretch($sermon);
         assert($stretch !== null);
+        $owner = $this->noun((string) $sermon['type']);
         $alternatives = array_values(array_filter($sermon['alternatives'], 'is_array'));
         $innerAlternatives = array_values(array_filter($inner['alternatives'], 'is_array'));
         $total = $this->voterCount($sermon, $alternatives);
@@ -308,8 +313,9 @@ class EnsembleReviewExport
             $section = $alternatives[$index]['section'];
             $options[$index] = ["alt{$index}", sprintf('Version %s (%d of %d drafts): %s', self::LETTERS[$index], count($alternatives[$index]['slots']), $total,
                 $index === $stretch['including']
-                    ? sprintf('yes — one sermon %s–%s, with %s inside it', $this->clock((float) $section['start_time']), $this->clock((float) $section['end_time']), $item)
-                    : sprintf('no — %s on its own, then the sermon %s–%s', $item, $this->clock((float) $section['start_time']), $this->clock((float) $section['end_time'])))];
+                    ? sprintf('yes — one %s %s–%s, with %s inside it', $owner, $this->clock((float) $section['start_time']), $this->clock((float) $section['end_time']), $item)
+                    : sprintf((float) $inner['start_time'] < (float) $section['start_time'] ? 'no — %1$s on its own, then the %2$s %3$s–%4$s' : 'no — the %2$s %3$s–%4$s, then %1$s on its own',
+                        $item, $owner, $this->clock((float) $section['start_time']), $this->clock((float) $section['end_time'])))];
         }
 
         ksort($options);
@@ -332,10 +338,10 @@ class EnsembleReviewExport
             'run' => $log->id,
             'decided' => false,
             'question_id' => (string) $sermon['question_id'],
-            'type' => 'sermon',
-            'title' => sprintf('Sermon and %s at %s–%s (%s)', $this->noun((string) $inner['type']), $this->clock($stretch['from']), $this->clock($stretch['to']), $heading),
-            'context' => sprintf('The drafts disagree about one stretch: whether %s and the speech around it are part of the sermon.', $item),
-            'question' => sprintf('Is the stretch %s–%s part of the sermon?', $this->clock($stretch['from']), $this->clock($stretch['to'])),
+            'type' => (string) $sermon['type'],
+            'title' => sprintf('%s and %s at %s–%s (%s)', ucfirst($owner), $this->noun((string) $inner['type']), $this->clock($stretch['from']), $this->clock($stretch['to']), $heading),
+            'context' => sprintf('The drafts disagree about one stretch: whether %s and the speech around it are part of the %s.', $item, $owner),
+            'question' => sprintf('Is the stretch %s–%s part of the %s?', $this->clock($stretch['from']), $this->clock($stretch['to']), $owner),
             'options' => $options,
             'answers' => $answers,
             'clips' => $this->clips([[(float) $including['section']['start_time'], (float) $including['section']['end_time']], [(float) $excluding['section']['start_time'], (float) $excluding['section']['end_time']]], $cues),
