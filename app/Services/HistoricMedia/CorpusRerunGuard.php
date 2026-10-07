@@ -192,15 +192,17 @@ final class CorpusRerunGuard
     }
 
     /**
-     * A run a corpus re-run round held for the ensemble's questions. Re-detecting it is the
-     * round's own work (canary 10 re-ran canary 9's held runs); its earlier bundles stay banked,
-     * so the questions survive. A hold from routine processing is not the round's to override.
+     * A run a corpus re-run round held for a question the next round re-derives: the ensemble's
+     * questions (canary 10 re-ran canary 9's held runs; the earlier bundles stay banked, so the
+     * questions survive) or the sermon's composition (run 1250, parked by canary 11's extraction;
+     * composition is recomputed under current rules, and a risk that remains parks it again). A
+     * hold from routine processing is not the round's to override.
      */
     private function heldForEnsembleReviewByARound(MediaProcessingLog $run): bool
     {
         return $run->status === ProcessingStatus::Failed
             && $run->corpusRerunStamps() !== []
-            && data_get($run->processing_metadata?->toArray() ?? [], 'manual_review.reason_code') === 'service_structure_ensemble_review';
+            && in_array(data_get($run->processing_metadata?->toArray() ?? [], 'manual_review.reason_code'), ['service_structure_ensemble_review', 'sermon_composition_review'], true);
     }
 
     /**

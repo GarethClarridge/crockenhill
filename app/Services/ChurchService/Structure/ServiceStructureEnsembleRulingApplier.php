@@ -8,6 +8,7 @@ use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceSermonAbsence;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
+use App\Enums\ServiceSectionType;
 use InvalidArgumentException;
 
 /**
@@ -199,6 +200,11 @@ class ServiceStructureEnsembleRulingApplier
 
             $sections = $this->settle($sections, $this->targetIndex($sections, $dispute), $resolution);
             $applied[] = $answer;
+
+            if ($kind === 'accept' && ($dispute['written'] ?? false) !== true && is_string($type)
+                && is_numeric($dispute['start_time'] ?? null) && is_numeric($dispute['end_time'] ?? null)) {
+                $sections = $this->settleInterruption($sections, $type, (float) $dispute['start_time'], (float) $dispute['end_time']);
+            }
         }
 
         foreach ($current as $key => $answer) {
@@ -283,6 +289,53 @@ class ServiceStructureEnsembleRulingApplier
             'conflicting_rulings' => array_values(array_unique($conflicting, SORT_REGULAR)),
             'before_rulings' => $proposal['structure'],
         ];
+    }
+
+    /**
+     * The note a sermon carries once an answer has settled the interruption it was merged across.
+     */
+    public static function interruptionSettledNote(string $type, float $start, float $end): string
+    {
+        return sprintf('Interruption settled by the operator: the %s at %.1f–%.1fs is part of this sermon.', str_replace('_', ' ', $type), $start, $end);
+    }
+
+    /**
+     * An answer leaving out an item the drafts disagreed on, inside a sermon merged across it,
+     * says that merge was right (949, canary 12: "is the intro and reading part of the sermon or
+     * not?"). It settles the one interruption the merge recorded there; the sermon's interruption
+     * flag goes only once every interruption it recorded is settled, so an answer about one
+     * reading never clears the doubt about another. A merge that recorded none settles nothing.
+     *
+     * @param  list<ServiceStructureSection>  $sections
+     * @return list<ServiceStructureSection>
+     */
+    private function settleInterruption(array $sections, string $type, float $start, float $end): array
+    {
+        foreach ($sections as $index => $section) {
+            if ($section->type !== ServiceSectionType::Sermon
+                || ! in_array(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $section->reviewFlags, true)) {
+                continue;
+            }
+
+            $occurrences = SilenceSnapService::mergedInterruptions($section->notes);
+            // The answer must be about the occurrence itself, covering most of it, not a moment
+            // inside it (Codex review); and mostly about it, not a stretch it is a part of.
+            $answered = array_values(array_filter($occurrences, static fn (array $occurrence): bool => $occurrence[0] === $type
+                && min($occurrence[2], $end) - max($occurrence[1], $start) >= self::SPAN_MATCH_OVERLAP * max($occurrence[2] - $occurrence[1], $end - $start)));
+
+            if (count($answered) !== 1) {
+                continue;
+            }
+
+            $settledNote = self::interruptionSettledNote($type, $answered[0][1], $answered[0][2]);
+            $notes = array_values(array_unique([...$section->notes, $settledNote]));
+            $unsettled = array_filter($occurrences, static fn (array $occurrence): bool => ! SilenceSnapService::isSettled($occurrence, $notes));
+            $flags = $unsettled === [] ? array_values(array_diff($section->reviewFlags, [ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED])) : $section->reviewFlags;
+
+            $sections[$index] = $section->withoutReviewFlags()->withReviewFlags($flags, array_values(array_diff([$settledNote], $section->notes)));
+        }
+
+        return $sections;
     }
 
     /**

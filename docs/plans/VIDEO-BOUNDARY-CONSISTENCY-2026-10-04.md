@@ -1,5 +1,22 @@
 # Video boundary consistency: findings and implementation handover
 
+> **Current handover — 2026-10-07, before canary 13:** the two Codex review findings and the
+> general reading-membership and embedded-reading rules are built (uncommitted). Start with the
+> "general rules before canary 13" completion record and the expanded canary 13 proposal at the
+> end of §6, then the Codex correction pass after them. Nothing has been dispatched. 949 is
+> unresolved without its saved answers (sermon-start dispute); 1250 composes by rules alone.
+
+> **Current handover — 2026-10-06, after canary 12:** listening found 41/53 edges right and
+> 12 wrong. The next implementation session must follow **§6.1 below**, including its work
+> order and canary 13 acceptance checks. The operator requested that the Codex review
+> recommendations be incorporated into this plan. They are planned work, not completed fixes.
+> Review baseline: clean local `master` at `c906c8865` (unpushed per handover). Workers idle
+> on fix code and queues empty were reported by Claude, not independently verified in this
+> review. 949 awaits service-review confirmation; 1250 remains parked on reading membership.
+> The dated statuses and frozen-checkout instructions below record earlier sessions; establish
+> current state from the latest handover before acting. This documentation update neither
+> changes operational authority nor supplies missing operator answers.
+
 > **Status — 2026-10-05:** F01, F02, F03, F05, F06, F08, F09 and F10 implemented
 > regression-first and merged to `master` (`a9980a23a`, unpushed). See the §6 completion
 > record. Open: F04, F07 (S5), S6 and investigations I1–I5. The canary 10 Tier C round was
@@ -19,6 +36,11 @@
 > not a second historic-import execution plan or approval for a wholesale rewrite.
 
 ## 1. Start here in a fresh session
+
+**For the post-canary-12 session, start with §6.1.** Steps 1–5 below are the original
+2026-10-04 investigation handover, retained as history; their checkout and queue snapshot is
+not the current baseline. Recheck current code and operational state without switching or
+consuming work in the shared processing checkout.
 
 1. Read `AGENTS.md` and the latest shutdown/frozen-branch instructions at the end of the
    cut-from-sections plan, including its **2026-10-04 frozen-branch warning**.
@@ -1039,11 +1061,384 @@ C's move (1117 talk end), 1025's recovered sermon start, 18/21 of 949/1311's re-
   fall mid-word or mid-sentence. The extended end needs word-pause and sentence placement.
 - Noted: 1346 §4375 ends after "let's pray once again", a whole sentence over the outro (fine either way).
 
-**Next session (operator: fix in a new session):** build B1, B2, B3 and A-placement red first, with
-these cases as tests. Also: the "include in both" fallback; one question per clip, with an answered
-question clearing its matching flag (949 parked on `structure_sermon_interruption_merged`); title
-normalisation against the catalogue (§8.9); C not asking at internal joins; punctuation-only cues not
-counting as speech. Then canary 13 with listening. 1250 is still out (parked on its membership question).
+**Next session (operator: fix in a new session):** follow §6.1's revised implementation order
+and acceptance checks. This replaces the earlier flat work list, retaining B1/B2/B3, A-placement,
+the unresolved-interval fallback, questions/flags, catalogue identity and C optimisation.
+1250 is still out (parked on its membership question).
+
+### 6.1 Reviewed implementation plan before canary 13 — 2026-10-06
+
+**Basis and scope.** Codex reviewed the plan, sampled saved canary 12 listening rulings and
+statically traced the relevant code at `c906c8865`. No reproducing tests or processing runs
+were executed during that review. The operator subsequently requested that these recommendations
+become the implementation handover. Use the existing services and regression suites; do not
+turn this bounded work into the wider §8 review-system redesign. Preserve the accepted edges
+while fixing the twelve failures. Canary examples are regression evidence, not a held-out
+accuracy benchmark.
+
+**Implementation order:** evidence filtering/recovery (B2 and punctuation) → B1/B3 → A placement
+→ unresolved-interval fallback → questions/flags, catalogue identity and C optimisation →
+canary 13. Prove each reported defect red first, then fix it and retain the test. Use saved
+fixtures and fake providers for deterministic tests; satisfy the repository quality gates,
+including Dusk if question/review interactions change.
+
+1. **B2: share the definition of usable transcript evidence.** Recovery coverage and boundary
+   placement must agree about which cues provide evidence. Punctuation-only cues provide neither
+   speech nor coverage. A cue is not invented merely because it lasts 30 seconds or says
+   "Thank you"/"The End": use supporting evidence to identify suspect cues, and preserve genuine
+   long speech and genuine short utterances. Re-decode the suspect interval and reconcile or
+   replace its coverage instead of appending duplicate words beneath the old cue. Preserve raw
+   evidence and record what was replaced. Cover 1025 §1373 and 615–631, 1304 §3870 and 1311 §4877,
+   failed/empty recovery, genuine cues, and repeated recovery with no duplicated text. If recovery
+   fails, uncertainty must remain visible; the suspect cue must not silently regain authority.
+2. **B1: anchor the gap to the first supported spoken word.** `pauseBeforeSpeech()` currently
+   falls back to the largest eligible pause. Replacing that with the earliest pause alone is
+   insufficient: it could be a gap between sung words. Select the gap immediately before the
+   identified speech onset. If the onset cannot be established, retain an explicit unresolved
+   outcome rather than treating an arbitrary pause as a successful repair. Reproduce 1311 §4875
+   and 1028 §1392, including missing/ambiguous anchors and later pauses longer than the opening gap.
+3. **B3: find speech inside the song using evidence that distinguishes speech from singing.**
+   Widening the cue search alone is insufficient: non-silent words can be lyrics. Cover speech
+   well before the nominal end, benedictions over an outro (1028 §1400, 1108 §4948, 1311 §4972),
+   "Thank you, Aled" (1108 §1896) and the prayer line (964 §4965). Counterexamples must preserve
+   genuine final sung lines, sustained last words and instrumental outros, including lyrics
+   misheard as speech. Keep the four short song endings repaired since canary 11 as regressions.
+4. **A: explicitly support sentence placement beside a song.** The current
+   `SpokenEdgeSentenceCheck::spokenSides()` excludes every song-adjacent edge, so simply invoking
+   the existing checker cannot implement this fix. Evaluate the spoken conclusion/quotation up
+   to the transition into singing; place the final cut in a verified word gap with the complete
+   sentence/thought wholly in or out. Do not indiscriminately enable lyric-based sentence checks.
+   Reproduce 1028's clipped "nine" and 1304's partial hymn quotation: preserve the full quotation
+   or exclude it coherently, never keep most of it. Protect 1112's accepted extended end. Retain
+   an explicit regression for 1117's missing "Amen", currently owned by the following `other`
+   section and unreachable by A; resolve that ownership/placement case rather than assuming an
+   extension to the trimmed song start covers it.
+5. **Implement "include in both" as a bounded extraction fallback.** After recovery fails,
+   include the specific unresolved interval in the two neighbouring outputs as previously ruled.
+   Do not make overlapping section ownership the default representation. Test that the interval
+   survives in both relevant outputs, occurs only once within a composed sermon, and does not
+   bypass unrelated content holds. Keep the interval, failed recovery and fallback visible in
+   the audit. Re-run final-span validation after expansion and merging.
+6. **Group questions by the decision they settle.** Overlapping time spans identify candidates
+   for grouping, not proof that two questions are the same. Independent questions in the same
+   clip remain distinct. For 949, provide coherent whole-stretch alternatives for whether the
+   introduction and reading belong to the sermon. Link the saved answer to the exact matching
+   interruption question/flag, preserving unrelated flags. Test answer application, projection
+   and recomposition together: the answer must not create conflicting bounds, clear unrelated
+   doubts, or resurrect the settled question. Keep this correction bounded; §8's full redesign
+   is not a prerequisite. Do not invent a confirmation for 949 or a membership answer for 1250.
+7. **Repair the existing catalogue identity path.** `ServiceStructureEnsembleComposer::songIdentity()`
+   already resolves deterministic catalogue matches before comparing normalised title text.
+   First reproduce "Man of Sorrows" versus "The Man of Sorrows" through that path with catalogue
+   fixtures, then fix the actual failing step instead of adding another normaliser. Versions
+   identifying the same catalogue song must not dispute; ambiguous matches between distinct
+   songs must remain unresolved. Preserve existing order-of-service identity behaviour.
+8. **C: ask only about boundaries present in the relevant output.** Skip an internal join only
+   when it is internal to that particular composed output. The same section boundary may still
+   be an exposed edge of a separately extracted clip. Test both cases, preserve 1117's accepted
+   talk-end move, and verify unchanged evidence reuses the appropriate answer. An edge without
+   decoded words is not proof that its sentence boundary is correct.
+
+**Canary 13 acceptance and execution checklist**
+
+- Before dispatch, list each run and whether it needs fresh detection or only recomposition.
+  `UntranscribedSpeechRecovery` runs before fresh detection, not during recomposition: affected
+  runs must exercise the new recovery path before detection assigns the recovered words.
+- Record code, configuration/model/prompt and evidence versions used. Verify workers execute
+  that code when the run is authorised. Check that changed evidence invalidates dependent
+  sentence decisions and plans, and that changed cuts produce updated media rather than reused
+  files from an earlier cut. This is a verification requirement, not a claim that every cache
+  currently has a defect.
+- Maintain a case matrix covering all twelve wrong edges, the 41 accepted canary 12 edges,
+  the four repaired canary 11 song endings, and the unresolved cases above. Give each case its
+  expected content outcome (including any already accepted either-way ruling), not an exact
+  timestamp inferred solely from a transcript. Add mechanism counterexamples so tests do not
+  merely encode these service IDs.
+- Verify the resulting extraction plans and actual media boundaries for both sermons and
+  section candidates. No clipped words, partial thoughts, lost final song lines or unintended
+  next-item speech in the affected cases; existing held-content checks still apply after all
+  adjustments. Successful processing and agreement with a plan alone do not pass listening.
+- Listen to every changed edge, including changes outside the original twelve, and retain
+  previously accepted examples as controls. Confirm unchanged accepted cases still refer to
+  the same cut/evidence/media; report regressions separately from fixes. Preserve the operator's
+  tolerance for a complete optional introduction/announcement where already ruled either way.
+- Report planned, processed, listened, parked and excluded runs separately. 949's confirmation
+  and 1250's reading-membership question remain explicit until actually settled; exclusion is
+  not a pass. Keep 1050's known source-black video limitation separate from boundary correctness.
+- Record the listening outcome and remaining failures before proposing the next round. Do not
+  declare canary 13 accepted merely because the twelve targeted cuts moved or no jobs failed.
+
+### Completion record — §6.1 built (2026-10-06, uncommitted on local `master` after `c906c8865`)
+
+All eight items built red-first in the existing services; suite 9,364 green, PHPStan 0, Pint.
+Dusk not run (no app UI changed; the review page is a static export). Nothing dispatched, no
+provider calls, no worker/queue or operator-answer changes. Read-only replay of every canary
+song end and sermon cut against the canary 12 state: 36 unchanged, 27 moved, 13 need words the
+edge step has not decoded yet (new windows). Harness and outputs: `storage/scratch/harness*.{php,json}`.
+
+- **B2** `TranscriptCueEvidence`: a cue with no letters/digits, or over 15 s at under one word a
+  second (all 1,877 such corpus cues), is no evidence of where speech is. Shared by recovery
+  coverage, the F11 marker and song-end placement. Recovery decodes under such cues and replaces
+  one when the decode says its words or reached all speech beneath it; attempts record
+  `suspect_cues`/`replaced_cues`; failed decodes leave the cue (still non-evidence).
+- **B1/B3** song end: the classifier timeline says where singing stops for good; smeared words
+  (>1.5 s) are not sound; the onset is the speech cue's heard opening (near its start first) or two
+  speaking-pace words the classifier hears as speech. Silence first, then the gap before an
+  established onset, else `song_end_onset_unresolved` (counts as an unresolved edge: the candidate
+  is blocked with `cut_plan_invalid`). All ten wrong song ends move before the next item; 4 of them
+  (1304 §3870, 1311 §4875/§4877/§4972) and 8 unlistened ends are unresolved.
+- **A**: the sermon output's final end beside a song takes the spoken lines that start before the
+  song (1304's quotation + "Let's stand and sing"), with a 0.3 s tail after a snapped word end
+  (1028 "nine"); readings excluded; 1112 unchanged. A wordless edge in a ≤1 s gap between two
+  cues now gets a decode window and the nearest pause (1117's "Amen").
+- **Include in both**: an F11 interval still recorded after recovery widens the final cut of
+  every output whose sections border it, after edge placement and before validation; audit reason
+  `unresolved_interval_in_both` with the interval and recovery attempts.
+- **Questions**: a sermon start/end question and the reading/prayer question it decides are
+  exported as one whole-stretch question; each choice applies both answers. An `accept` that
+  leaves out a reading/prayer inside a sermon merged across that type clears only
+  `structure_sermon_interruption_merged` (replay of 949's saved answers: flag cleared, 0 open).
+- **Catalogue identity**: `Song::matchKeyVariants()` adds the title without a leading "The".
+- **C**: asks only about outer edges of the sermon output and of separately cut clips; reports
+  `unchecked` spoken output edges without words.
+
+Accepted canary 12 song ends that moved (listen as controls): 1025 §1379, 1117 §1957, 1346 §4366,
+1346 §4375, 1311 §3956, 1311 §4931.
+
+**Correction pass after Codex review (same day, still uncommitted; suite 9,375, PHPStan 0):**
+- A: past the song's recorded start, an unfinished line (no closing . ! ?) continues through the
+  next line within 1 s where the classifier hears speech; otherwise `spoken_end_thought_unresolved`
+  (an unresolved edge), never a silent cut.
+- Interruptions: the sermon merge now records each absorbed item (`Interruption merged into the
+  sermon: <type> at a–bs.`, regenerated on recomposition); an answer settles only the occurrence it
+  overlaps and the flag goes when all are settled. **949's merged sermon absorbed two readings
+  (2931.2–2981.6, 3110.0–3172.9); only the first was answered, so 949 stays flagged.** The earlier
+  claim that it would unpark was wrong.
+- Cue rule: >15 s at <1 word/s is only suspicion; the timeline must corroborate it (≥20 % music,
+  no speech, or <0.3 words per second of heard speech). Slow speech and readings with pauses stand.
+- Include in both now requires a failed recovery attempt over the interval; a stale marker no
+  longer undoes 1025 §1373's repair.
+- Song-end speech words must sit in a speech-only window, or a mixed one followed by speech only
+  (fast singing over music is not speech).
+- `historic-import:unresolved-edge-excerpts` (read-only) lists refused edges as
+  `missing_edge_evidence` (Tier C's edge step decodes them) or `needs_operator`, with source-audio
+  excerpts. Pre-canary run: 11 need the operator, 12 the edge step
+  (`storage/scratch/unresolved-edges-pre-canary13/`).
+
+**Second correction pass (Codex, same day; suite 9,380, PHPStan 0):**
+- A no longer takes a full stop as a finished thought: it continues through each next line the
+  classifier hears as speech, and is complete only when the next line starts in music (or none
+  follows); unknown kind, or a mid-phrase line into music, is `spoken_end_thought_unresolved`.
+  Replay: 1221's sermon now takes the whole hymn announcement; 1108's reaches "How deep the
+  Father's love for us," and will be unresolved (next line's kind unknown) once decoded.
+- An answer settles an interruption only when the overlap covers half of the longer of the two
+  (no fragment answers).
+- Answer path: `historic-import:unresolved-edge-answers {export} {answers} --operator= [--execute]`
+  records `right` / `cut_at` / `defer` per excerpt into `unresolved_edge_answers`, checked against a
+  fresh plan; the planner applies an answer only to the edge evidence it was given on
+  (`operator_answered_edge`, old reason kept). Proven end to end in
+  `ExportUnresolvedEdgeExcerptsCommandTest`.
+
+### Completion record — general rules before canary 13 (2026-10-07, uncommitted on local `master` after `c906c8865`)
+
+Requested by the operator: no composition overrides or per-service answers; the canary tests what
+processing decides on its own. Every item was reproduced red first. Nothing was dispatched,
+no provider was called, and workers, queues, operator answers and publication were not touched.
+1250's composition was checked inside a rolled-back transaction; every other check was read-only.
+
+**1. Review findings (Codex, by inspection), fixed**
+- *Answers bound to evidence and output.* `CueSafeExtractionPlan::edgeAnswerKey()` now adds an
+  output identity (the spans the output is planned from, and whether it is a song clip or a
+  sermon end) and an evidence fingerprint. The fingerprint covers transcript lines, the edge's
+  decoded words, the words at the speech after a song, classifier windows and levels, all within
+  30 s of the edge. The answer command stores the exact key it asked on, and the planner applies
+  an answer only on that key. `EdgeAnswerBindingTest`: changed transcript or re-decoded words at
+  unchanged timestamps reopen the question; an answer for one output cannot clear the same edge
+  in another; unchanged evidence reuses its answer; a moved cut stays unanswered. The old command
+  regression that only edited the saved timestamp now changes the transcript instead.
+- *The sentence check follows the cuts extraction makes.* `SpokenEdgeSentenceCheck::outputEdges()`
+  plans the sermon output with `forSpans()` and treats a join as internal only where the planned
+  spans merge. Exposure is matched by edge kind as well as time: a clip ending at an instant is
+  no cut at the sermon part starting there. Regressions: a sermon ending at 1100 s and a prayer
+  starting at 1101 s asks both edges; a merged join asks nothing; a short-talk clip ending inside
+  the sermon output asks only its own end.
+- *Found while doing this:*
+  - Clips are the sections with a publication handler (songs, short talks). Readings are not
+    clips, so a reading joined inside the sermon output is no longer asked about. The 1117 tests
+    now place the reading at the sermon output's start, as at 1117.
+  - The excerpt export now lists short-talk clips as well as songs.
+  - Banked sentence answers carried over to re-transcribed text with the same timings. Their
+    identity now includes a hash of the prompt the model read (`identityFor()`). As a
+    consequence, every canary-12 sentence answer is re-asked in canary 13.
+
+**2. Reading membership (1250), one shared rule**
+`ScriptureReferenceResolver::sermonReadingMembership()` (shared by composition, the ensemble's
+held readings and song-edge ownership) now selects several readings when they are the passage
+read in parts. Each must lie within the passage without holding all of it, no verse may be read
+twice, and together they must read every verse (`readingsCoverPassage()`; chapter breaks are
+adjacent, via the parser's verse counts). `selected` is now a list. Composition never selects a
+reading that overlaps a selected sermon part (asked instead), so no audio is cut twice. A reading
+wholly inside the sermon is part of its span already.
+- 1250, current rows (rolled back): `[3128 Job 29, 73104 Job 30, 4910 Job 31, 73105 sermon]`,
+  **no risks**. Song 3131, its introduction 3130 and prayer 3132 stay out.
+- Tests: covering set (Job 29-31, a multipart reference), a single sufficient reading, an
+  unrelated earlier reading, and seven uncovered or competing shapes (missing chapter, shared
+  verses, duplicate, whole beside part, part reading past the passage, missing reading or sermon
+  reference) stay in review.
+- Two older tests encoded the overturned premise and now assert automatic selection: F04/1240's
+  Job 36 + Job 37 for "Job 36-37", and a multipart Genesis 8–9 reference. One part of a
+  multipart reference alone still asks.
+
+**3. Embedded readings (949), settled by evidence at the merge**
+- *Why both 949 readings belong:* both are passages the preacher reads inside his own sermon.
+  He names each just before reading it ("I want to start with Hebrews chapter 9, starting with
+  verse 11, which says," / "one that stands out to me from Numbers 21… verse 4 says,") and
+  carries straight on afterwards. Neither is the passage preached (John 19), so reference
+  matching alone could not show this.
+- *The rule* (`SilenceSnapService`, which replay re-runs, so recomposition exercises it): a
+  reading the merge absorbs is settled as part of the sermon when either:
+  - its passage lies within the preached one (1250's one-draw "Job 30:24-31" re-read); or
+  - the sermon's own speech names its book and chapter within the ruled 60 s introduction span
+    before it, or in its opening line (`ScriptureReferenceResolver::namesPassage()`; the book
+    is matched as capitalised, because "numbers", "job" and "acts" are ordinary words).
+
+  Each item is settled on its own. The flag goes only when every item is settled, by evidence or
+  by an operator's answer (`SilenceSnapService::isSettled()`, shared with the ruling applier).
+  Prayers, readings without a reference, unnamed readings, and passages named only before the
+  sermon began stay questions.
+- *Read-only replay of 949's banked draws:* both readings are settled by evidence and
+  `structure_sermon_interruption_merged` is gone, with no answer used. **Still unresolved
+  automatically:** the four draws disagree about where the sermon starts (2690.1 s vs 2981 s;
+  two draws call 2706–2738 and 2890–2916 prayers and start the sermon after Hebrews 9). That
+  question (`structure_ensemble_disagrees`, disputes over the sermon and over the 2931–2982
+  reading) is settled only by the saved q0/q1 answers. Missing: no general rule chooses between
+  draws on where a sermon starts. The evidence that would (the title announcement at 2916 and the
+  preacher naming Hebrews 9 before it) is not read by the ensemble's dispute logic. **949
+  therefore counts as operator-assisted in canary 13**, not as an automatic success.
+
+**4. Verification.** Focused: `EdgeAnswerBindingTest` (5), `ExportUnresolvedEdgeExcerptsCommandTest`
+(4), `SpokenEdgeSentenceCheckTest` (12), `ScriptureReferenceResolverTest` (44),
+`SermonExtractionPlanResolverTest` (83), `SilenceSnapServiceTest` (19),
+`ServiceStructureEnsembleRulingApplierTest`. Full suite 9,410 green (an earlier run hit the known
+church-service factory date flake in `HoldSectionForContentReviewTest`, green alone and on re-run);
+PHPStan 0; Pint. Dusk not run: no browser UI changed. The canary-12 repairs (B1–B3, A, recovery,
+include-in-both, catalogue identity, whole-thought handling) keep their regression suites, all green.
+
+### Correction pass after Codex review of the general rules (2026-10-07, uncommitted)
+
+Codex ran 167 focused tests and reproduced two counterexamples to the embedded-reading rule
+(kept as `storage/scratch/Canary13ReviewTest.php`; both are now regressions in
+`SilenceSnapServiceTest`, and Codex's file passes unchanged). Each was red before its fix.
+- *A later line approved an earlier reading.* The "opening line" was the first cue after the
+  reading began, with no bound, so a 150–200 s reading was settled by a line at 350 s. The
+  introduction is now only the lines starting in the 60 s span up to and including the line
+  starting with the reading. A passage named further in, or no line there, leaves it unresolved.
+- *Different sermons merged without review.* Settlement read only the first part's passage, so
+  John 19, a John 19 reading and a Romans 8 part became one accepted sermon. The merge now
+  settles nothing unless every sermon part names a passage and they all agree
+  (`continuousPassage()`). A conflicting or missing reference keeps the flag.
+- 949's banked draws, replayed read-only under the tighter rule, still settle both readings (the
+  naming sits in each introduction or opening line).
+
+Also from this pass:
+- *Rules-only results are now recorded.* A composition records `selection_source`: `rules`, or
+  `operator_review` when a review of the same inputs chose its sections. 1250 carries an older
+  operator review (2026-10-03) choosing the same four sections, keyed to other inputs. Its
+  current composition (rolled back) reports `rules`, no risks.
+- *1250's readiness.* Recompose refused 1250 in canary 12 ("run is failed, not completed"):
+  `CorpusRerunGuard` admitted only failed runs that a round parked for the ensemble's questions.
+  It now also admits a run a round parked for composition review, because recomposition
+  re-derives that question and extraction parks the run again if a risk remains. A park from
+  routine processing is still refused. Tests: `RecomposeForCorpusRerunCommandTest` (round park
+  admitted; routine park refused).
+- *Dry runs need a frozen snapshot.* Against the canary-12 snapshot, every command refuses
+  first on the code mismatch ("take a new snapshot on the frozen code"). So the per-run dry runs
+  wait for the commit and new snapshot; the 1250 path above was proven by test, not dry run.
+- Full suite 9,415 green; PHPStan 0; Pint.
+
+### Canary 13 proposal — expanded, NOT dispatched (2026-10-07)
+
+**Identity to freeze before dispatch.** Code: commit this working tree (currently `c906c8865` plus
+35 uncommitted paths), then snapshot on that commit and restart the workers on it. Configuration:
+`media_processing_version` 6 (signature `6223cd04…`), re-encode `veryfast`/CRF 23, structure
+`gpt-5.6-luna`, ensemble `[gpt-5.6-luna ×2, gpt-6-luna ×2]` at medium effort, rule version
+`ensemble-v1-er1`, edge and recovery transcription local `large-v3-turbo`, sentence prompt v1,
+classifier on the host GPU service. The ensemble's `code_hashes` fingerprint changes with this
+work. Fresh draws bind to it; recomposition replays banked draws under the new rules (it is gated
+on evidence, not code).
+
+**Groups and routes** (the commands' dry runs decide refusals; this is the expected route):
+
+| Group | Runs | Route | Why |
+|---|---|---|---|
+| Examined: recovery | 964, 1025, 1311, 1346 | Fresh detection (`rerun-redetect`), then Tier C | Speech recovery runs only before detection (964 2180–2211, 1025 100–110 and 615–631, 1311 1705–1716, 1346 1465–1475) |
+| Examined: rules | 949, 1250 | Recompose, then Tier C | Merge settlement and membership run in replay and composition. 1250 is `failed`, parked for composition review by canary 11's round; the guard now admits that park (correction pass) |
+| Examined: controls | 936, 1028, 1050, 1108, 1112, 1117, 1221, 1304, 1356, 1358 | Recompose, then Tier C | No input changed; new edge windows and re-asked sentence checks |
+| Unused | 1362, 1292, 1286, 1282, 1273, 961, 1200, 1137, 1110, 1105, 1086, 1012, 953 | Fresh detection (Tier B, the full re-run's route), then Tier C | Generalisation |
+
+*How the unused services were picked:* from the frozen 437-run corpus, excluding every canary
+member and every run named in plans or memory (187 eligible). The pick used source facts only
+(date, service, order-of-service readings and songs) with seed 20261007, before any processing
+result was read. It gives 3 multi-reading orders of service (1286, 1273, 961), 2 song-heavy
+(1200, 1012), 2 with no order of service (1362, 1282), and ordinary services covering every year
+2020–2026, 4 of them evenings. Speakers could not be stratified: no independent preacher record
+exists for 2020–2026, so speaker variety, recording quality, spoken hymn quotations and speech
+over music are measured after processing, not selected for. Files: `storage/scratch/canary13-*`.
+
+**Invalidation, confirmed.** Changed evidence reopens edge answers (`EdgeAnswerBindingTest`) and
+sentence answers (`a_banked_answer_does_not_survive_a_change_to_the_text_it_judged`). Plans are
+composed afresh and never read back (`SermonExtractionPlanResolver::resolve()`). Changed cuts
+regenerate media: sermons through `ExtractSermon`'s replacement check
+(`ExtractSermonTest::a_re_cut_that_moves_the_span_without_changing_its_length_marks_the_run_for_replacement`),
+section clips only when the recorded segments equal a fresh plan
+(`PrepareSectionPublicationCandidatesTest::reused_media_cut_differently_from_the_plan_now_is_cut_again`).
+
+**Case matrix** (`storage/app/private/canary13-proposal-20261007/case-matrix.json`, 70 cases):
+- 12 canary-12 failures, each with its expected content outcome.
+- 41 accepted canary-12 edges as controls, including the repaired canary-11 song ends 1028 §1398
+  and 1221 §2718.
+- 1250 §4911 and §3131, the other two repaired canary-11 song ends, not heard since 1250 parked.
+- The 1250 and 949 sermon outputs.
+- The 13 unused services (every output).
+
+**Unassisted result first.** Each run's result is recorded under the rules before saved answers
+apply: the ensemble replayed without rulings, and the composition's `selection_source`. That
+result is what counts. 949, unassisted: **unresolved** (two disputes on the sermon start,
+`structure_ensemble_disagrees`), though its embedded readings settle. Its output with the saved
+answers is a separate regression control. 1250, unassisted: no disputes, composition by `rules`.
+
+**Reporting.** For each case: automatically correct / wrong / unresolved (refused edge or open
+question) / operator-assisted (any saved answer used: 949's q0–q2, 1311's q0; existing
+`unresolved_edge_answers`: none). Kept separately from planned / processed / listened / parked /
+excluded counts. Operator-assisted results are regression controls, never evidence of automatic
+success. 1050's source-black video stays separate from boundary correctness.
+
+**Provider calls this needs (to authorise).** Canary 12, for comparison: 12 structure draws,
+74 sentence-check calls, 14 sermon analyses, 54 lyric OCR calls. Canary 13 expects about:
+- 68 structure draws (17 fresh detections × 4);
+- about 130–200 sentence-check calls (every spoken edge re-asked twice);
+- sermon analyses for each completed sermon (~29);
+- lyric OCR in proportion to songs.
+
+Listening load: about 120 edges (53 previous, 2 from 1250's song ends, plus roughly 4–5 per new
+service).
+
+**Pre-dispatch checklist.**
+1. Commit; snapshot (`historic-import:rerun-snapshot`) on the commit.
+2. Restart workers and check `ps` ELAPSED.
+3. Dry-run `rerun-redetect`, `rerun-recompose` and `rerun-extract` for each group. Confirm no
+   unexpected refusals, especially 1250 and the unused runs (banked draws, Tier A routing,
+   source availability).
+4. Back up detection rulings and service artifacts.
+5. Then the operator authorises dispatch.
+
+**Blockers and open items.**
+- 949's sermon-start dispute has no general rule (above); it is operator-assisted.
+- 1250's park is admitted by the guard (tested). Whether its extraction then completes is
+  confirmed only by the dry runs on the new snapshot and by the round itself.
+- Each fresh detection may raise new ensemble questions, which would make those runs unresolved
+  rather than automatic.
+- The staging drive must be attached for re-detection and extraction (source availability).
 
 ## 7. Further bounded investigations — added 2026-10-04
 
@@ -1392,12 +1787,15 @@ The operator accepted these recommendations:
 
 1. **A title variant is not a question.** "Man of Sorrows" vs "The Man of Sorrows" must not hold up
    extracting a song. Normalise draws' titles against the catalogue before composing, and raise no
-   dispute when the versions name the same catalogue song.
+   dispute when the versions name the same catalogue song. The composer already has a catalogue
+   identity path: reproduce and repair its gap, preserving ambiguous matches (§6.1 item 7).
 2. **One question per clip.** 949 asked "where does the sermon start?" and "is there a reading at
    48:51?" over one stretch; the answers could be (and were) inconsistent, and F06 applied neither.
    "It's really one question: is the intro and reading part of the sermon or not?" Merge disputes
-   whose spans overlap into one question with coherent whole-stretch options. An answered question
-   should also settle the review flags that ask the same thing (949's `structure_sermon_interruption_merged`).
+   whose spans overlap and settle the same decision into one question with coherent whole-stretch
+   options; temporal overlap alone must not merge independent questions. An answered question
+   should also settle the review flags that ask the same thing (949's `structure_sermon_interruption_merged`),
+   while preserving unrelated flags and surviving recomposition (§6.1 item 6).
 
 ### 8.6 Proposed slices (after measurement)
 

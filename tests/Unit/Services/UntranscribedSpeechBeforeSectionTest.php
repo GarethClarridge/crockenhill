@@ -71,6 +71,45 @@ class UntranscribedSpeechBeforeSectionTest extends TestCase
         $this->assertSame([UntranscribedSpeechBeforeSection::note(610.0, 630.8)], $this->questionNotes($prayer));
     }
 
+    /** A slow speaker's long line, heard as speech throughout, is a line: nothing is asked. */
+    #[Test]
+    public function a_slow_genuine_line_is_not_taken_for_filler(): void
+    {
+        $prayer = $this->apply(
+            [$this->section('song', 400.0, 610.0), $this->section('prayer', 610.5, 700.0)],
+            [
+                ['start' => 590.0, 'end' => 600.8, 'text' => 'Amen.'],
+                ['start' => 610.5, 'end' => 627.0, 'text' => 'Lord, we come to you this morning, quietly, and with thanks for all.'],
+                ['start' => 627.5, 'end' => 636.0, 'text' => 'the Lord be with you all.'],
+            ],
+            [[400, 610, 0.9, 0.1], [610, 700, 0.05, 0.8]],
+            700.0,
+        )[1];
+
+        $this->assertSame([], $this->questionNotes($prayer));
+    }
+
+    /**
+     * Canary 12 (B2): a cue of punctuation alone holds no words, so it is no line, whatever its
+     * length; recovery treats it the same way.
+     */
+    #[Test]
+    public function speech_under_a_punctuation_only_cue_is_asked_about(): void
+    {
+        $prayer = $this->apply(
+            [$this->section('song', 400.0, 610.0), $this->section('prayer', 630.8, 700.0)],
+            [
+                ['start' => 590.0, 'end' => 600.8, 'text' => 'Amen.'],
+                ['start' => 612.0, 'end' => 624.0, 'text' => '. . . .'],
+                ['start' => 630.8, 'end' => 636.0, 'text' => 'the Lord be with you all.'],
+            ],
+            [[400, 610, 0.9, 0.1], [610, 700, 0.05, 0.8]],
+            700.0,
+        )[1];
+
+        $this->assertSame([UntranscribedSpeechBeforeSection::note(610.0, 630.8)], $this->questionNotes($prayer));
+    }
+
     /**
      * 993 (I5): the sermon's first cue is a fragment ("the last") ending where the section's first
      * full cue starts. The two are one utterance, so the stretch ends before the fragment.

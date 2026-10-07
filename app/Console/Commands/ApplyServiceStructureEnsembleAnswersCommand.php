@@ -40,7 +40,7 @@ class ApplyServiceStructureEnsembleAnswersCommand extends Command
             throw new RuntimeException('The export has no answer map.');
         }
 
-        $plan = array_map(fn (array $answer): array => $this->planned($answer, $map), $this->answers());
+        $plan = array_merge(...array_map(fn (array $answer): array => $this->expanded($this->planned($answer, $map), $answer, $map), $this->answers()));
         usort($plan, static fn (array $a, array $b): int => strnatcmp($a['id'], $b['id']));
 
         $this->table(['Answer', 'Run', 'Kind', 'Status'], array_map(
@@ -96,6 +96,36 @@ class ApplyServiceStructureEnsembleAnswersCommand extends Command
         $this->info(sprintf('%d applied, %d failed, %d need attention.', count($ready) - $failed, $failed, $blocked));
 
         return $failed === 0 && $blocked === 0 ? self::SUCCESS : self::FAILURE;
+    }
+
+    /**
+     * A grouped question's answer is the pair of answers it stands for, one per question it
+     * settles, each recorded as if answered on its own.
+     *
+     * @param  array{id: string, run: int|null, kind: string|null, status: string, question_id: string, slot: int|null, sections: list<array<string, mixed>>, explanation: string}  $row
+     * @param  array<string, mixed>  $answer
+     * @param  array<string, mixed>  $map
+     * @return list<array{id: string, run: int|null, kind: string|null, status: string, question_id: string, slot: int|null, sections: list<array<string, mixed>>, explanation: string}>
+     */
+    private function expanded(array $row, array $answer, array $map): array
+    {
+        $parts = $map[$row['id']]['answers'][(string) ($answer['choice'] ?? '')]['parts'] ?? null;
+
+        if ($row['kind'] !== 'combined' || ! is_array($parts)) {
+            return [$row];
+        }
+
+        $sections = array_values(array_filter($answer['sections'] ?? [], 'is_array'));
+
+        return array_map(static fn (array $part, int $index): array => [
+            ...$row,
+            'id' => $row['id'].'.'.($index + 1),
+            'kind' => (string) $part['kind'],
+            'question_id' => (string) $part['question_id'],
+            'slot' => isset($part['slot']) ? (int) $part['slot'] : null,
+            'sections' => $part['kind'] === 'correct' ? $sections : [],
+            'status' => $part['kind'] === 'correct' && $sections === [] ? 'needs corrected sections from the note' : 'ready',
+        ], array_values($parts), array_keys(array_values($parts)));
     }
 
     /**

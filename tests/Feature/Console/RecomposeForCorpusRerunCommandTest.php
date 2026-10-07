@@ -149,6 +149,48 @@ class RecomposeForCorpusRerunCommandTest extends TestCase
         self::assertSame('attempt-older-commit', $run->fresh()?->corpusRerunStamps()[1]['recomposed_attempt_id'] ?? null);
     }
 
+    /**
+     * Run 1250: an earlier round's extraction parked it for composition review, a question the
+     * composition re-derives under current rules. Recomposing it is the next round's own work: if
+     * the question remains, extraction parks it again.
+     */
+    #[Test]
+    public function a_run_an_earlier_round_parked_for_composition_review_can_be_recomposed(): void
+    {
+        $run = $this->parkedForCompositionReview(byARound: true);
+
+        $this->artisan('historic-import:rerun-recompose', ['snapshot' => $this->snapshotPath(), 'runs' => [$run->id]])
+            ->expectsOutputToContain('ready to recompose banked draws attempt-1')
+            ->assertSuccessful();
+    }
+
+    /** The same park from routine processing is not a round's to override. */
+    #[Test]
+    public function a_run_routine_processing_parked_for_composition_review_is_refused(): void
+    {
+        $run = $this->parkedForCompositionReview(byARound: false);
+
+        $this->artisan('historic-import:rerun-recompose', ['snapshot' => $this->snapshotPath(), 'runs' => [$run->id]])
+            ->expectsOutputToContain('run is failed, not completed')
+            ->assertSuccessful();
+    }
+
+    private function parkedForCompositionReview(bool $byARound): MediaProcessingLog
+    {
+        $run = $this->completedRun();
+        $metadata = $run->processing_metadata?->toArray() ?? [];
+        $metadata['service_structure_ensemble'] = [['attempt_id' => 'attempt-1']];
+        $metadata['manual_review'] = ['status' => 'required', 'reason_code' => 'sermon_composition_review'];
+        if ($byARound) {
+            $metadata[RedetectForCorpusRerun::STAMP_KEY] = [['grounds' => 'corpus_rerun', 'git_commit' => 'an-earlier-commit',
+                'snapshot_file_sha256' => 'an-earlier-snapshot', 'media' => 'deferred', 'dispatched_at' => '2026-10-05T10:00:00+00:00']];
+        }
+        $run->forceFill(['status' => ProcessingStatus::Failed, 'current_step' => 'manual_review_required', 'processing_metadata' => $metadata])->save();
+        $this->snapshot([$run->id]);
+
+        return $run;
+    }
+
     #[Test]
     public function it_refuses_a_run_whose_banked_input_no_longer_matches(): void
     {

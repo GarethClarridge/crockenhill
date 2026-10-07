@@ -84,12 +84,17 @@ class SermonExtractionPlanResolver
                 is_string($reference) ? $reference : null,
                 array_map(static fn (ServiceSection $reading): ?string => $reading->metadata?->readingReference, $readings),
             );
-            $selectedReading = $membership['selected'] === null ? null : ($readings[$membership['selected']] ?? null);
-            if ($selectedReading instanceof ServiceSection) {
-                $selected[] = $selectedReading;
-            } elseif ($membership['review']) {
+            // A reading running into a selected part is already partly in the cut: taking it as a
+            // span of its own would cut its overlap twice, so whether it belongs is asked.
+            $overlapsSelected = static fn (ServiceSection $reading): bool => array_any($selected, static fn (ServiceSection $part): bool => $reading->end_time > $part->start_time + 0.001 && $reading->start_time < $part->end_time - 0.001);
+            $selectedReadings = array_map(static fn (int $index): ServiceSection => $readings[$index], $membership['selected']);
+            if ($selectedReadings !== [] && ! array_any($selectedReadings, $overlapsSelected)) {
+                // One reading holding the passage, or several reading it in parts (1250).
+                array_push($selected, ...$selectedReadings);
+            } elseif ($membership['review'] || $selectedReadings !== []) {
                 // A reading sharing verses without holding the sermon's passage is a sermon reading
-                // past it, or one part of a multipart reference: plausible, so asked, never dropped.
+                // past it, or one part of a reference no set of readings covers: plausible, so
+                // asked, never dropped.
                 $risks[] = ['kind' => 'sermon_reading_membership_unresolved', 'detail' => 'Choose the sermon reading: references are missing or multiple readings are plausible.'];
             }
             foreach ($membership['could_be_cut'] as $index) {
@@ -122,7 +127,11 @@ class SermonExtractionPlanResolver
 
         $review = $log->processing_metadata?->raw['sermon_composition_review'] ?? null;
         $answered = [];
+        // Whether the sections were chosen by the rules or by an operator's review of these inputs:
+        // only the first is evidence that the rules compose this sermon unaided.
+        $selectionSource = 'rules';
         if (is_array($review) && ($review['input_identity'] ?? null) === $identity && is_array($review['selected_section_ids'] ?? null)) {
+            $selectionSource = 'operator_review';
             $byId = collect($sections)->keyBy('id');
             $selected = [];
             foreach ($review['selected_section_ids'] as $id) {
@@ -147,6 +156,7 @@ class SermonExtractionPlanResolver
             'edge_word_timings_pending' => $pendingEdgeEvidence,
             'input_identity' => $identity,
             'selected_section_ids' => array_map(static fn (ServiceSection $section): int => $section->id, $selected),
+            'selection_source' => $selectionSource,
             'sermon_section_id' => $sermon?->id,
             'bible_section_id' => collect($selected)->first(fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::BibleReading)?->id,
             'trailing_section_ids' => array_values(array_map(fn (ServiceSection $section): int => $section->id, array_filter($selected, fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::Prayer))),
@@ -333,7 +343,7 @@ class SermonExtractionPlanResolver
         }
 
         try {
-            $cuePlan = app(CueSafeExtractionPlan::class)->forSpans($processingLog, $spans);
+            $cuePlan = app(CueSafeExtractionPlan::class)->forSpans($processingLog, $spans, sermonEnd: true);
         } catch (OutputEdgeTimingsMissing $exception) {
             return ['mode' => 'single_span', 'source' => 'service_sections', 'segments' => [],
                 'metadata' => [...$composition, 'requires_review' => true, 'reason' => 'edge_word_timings_missing',

@@ -293,6 +293,27 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->assertSame(['sermon_reading_membership_unresolved', 'sermon_prayer_membership_unresolved'], array_column($plan['metadata']['risks'], 'kind'));
     }
 
+    /**
+     * A rules-only evaluation must tell a composition the rules made from one an operator's
+     * review supplied (Codex review, 2026-10-07: 1250 carries an older review choosing the same
+     * readings). The composition records which; a review keyed to other inputs supplies nothing.
+     */
+    #[Test]
+    public function a_composition_records_whether_the_rules_or_an_operator_review_chose_its_sections(): void
+    {
+        $log = $this->logWithSermon(500.0, 1200.0);
+        $sermon = $log->serviceSections()->sole();
+        $reading = $this->reading($log, 3, 100, 200);
+        $composition = $this->resolver->compose($log);
+        $this->assertSame('rules', $composition['selection_source']);
+
+        $this->resolver->reviewComposition($log, [$reading->id, $sermon->id], $composition['input_identity'], 1);
+        $this->assertSame('operator_review', $this->resolver->compose($log->fresh())['selection_source']);
+
+        $reading->update(['end_time' => 210, 'duration' => 110]);
+        $this->assertSame('rules', $this->resolver->compose($log->fresh())['selection_source']);
+    }
+
     #[Test]
     public function a_reviewed_selection_survives_recomposition_but_not_changed_section_bounds(): void
     {
@@ -362,11 +383,12 @@ class SermonExtractionPlanResolverTest extends TestCase
 
     /**
      * Run 1240's shape (F04): Job 36 is read, the congregation prays, Job 37 is read, and the
-     * sermon expounds both. Neither reading holds the whole passage, so the choice goes to
-     * review; choosing both cuts each reading on its own and never the prayer between them.
+     * sermon expounds both. Neither reading holds the whole passage, but together they read all
+     * of it (operator's 1250 ruling, 2026-10-07): both are the sermon's, each cut on its own,
+     * never the prayer between them.
      */
     #[Test]
-    public function two_readings_separated_by_a_prayer_go_to_review_and_a_two_reading_selection_excludes_the_prayer(): void
+    public function two_readings_separated_by_a_prayer_that_together_cover_the_passage_are_both_cut_without_the_prayer(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 5000, 'sermon_start_time' => 0, 'sermon_end_time' => 4000]);
         $job36 = $this->reading($log, 1, 1065.72, 1274.72, reference: 'Job 36');
@@ -377,21 +399,79 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $composition = $this->resolver->compose($log);
 
-        $this->assertTrue($composition['requires_review']);
-        $this->assertSame(['sermon_reading_membership_unresolved'], array_column($composition['risks'], 'kind'));
-        $this->assertSame([$sermon->id], $composition['selected_section_ids']);
+        $this->assertSame([], $composition['risks']);
+        $this->assertSame([$job36->id, $job37->id, $sermon->id], $composition['selected_section_ids']);
 
-        $this->resolver->reviewComposition($log, [$job36->id, $job37->id, $sermon->id], $composition['input_identity'], 1);
+        $this->bankNoWordOutputEdges($log);
         $plan = $this->resolver->resolve($log->fresh());
 
         $this->assertFalse($plan['metadata']['requires_review']);
-        $this->assertSame([$job36->id, $job37->id, $sermon->id], $plan['metadata']['selected_section_ids']);
         $this->assertNotContains($prayer->id, $plan['metadata']['selected_section_ids']);
         $spans = array_map(fn (array $span): array => [$span['start_time'], $span['end_time']], $plan['segments']);
         $this->assertSame([[1065.72, 1274.72], [1488.72, 1700.0], [1720.0, 3500.0]], $spans);
         foreach ($spans as [$start, $end]) {
             $this->assertTrue($end <= $prayer->start_time || $start >= $prayer->end_time, 'No span reaches into the prayer.');
         }
+    }
+
+    /**
+     * Run 1250 (operator, 2026-10-07): Job 29, a song, Job 30, a prayer, Job 31, then the sermon
+     * on "Job 29-31". The output is the three readings in order and the whole sermon; the song,
+     * its introduction and the prayer stay out. An unrelated call to worship is not asked about.
+     */
+    #[Test]
+    public function readings_covering_the_preached_passage_around_a_song_and_a_prayer_are_all_cut_with_the_sermon(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 5000, 'sermon_start_time' => 0, 'sermon_end_time' => 4400]);
+        $this->reading($log, 1, 300.0, 360.0, reference: 'Psalm 95:1-7');
+        $job29 = $this->reading($log, 2, 1348.6, 1519.0, reference: 'Job 29:1-25');
+        $introduction = $this->section($log, ServiceSectionType::Other, 3, 1527.7, 1565.5);
+        $song = $this->section($log, ServiceSectionType::Song, 4, 1565.5, 1734.7);
+        $job30 = $this->reading($log, 5, 1735.7, 1958.8, reference: 'Job 30:1-31');
+        $prayer = $this->section($log, ServiceSectionType::Prayer, 6, 1964.6, 2142.4);
+        $job31 = $this->reading($log, 7, 2182.6, 2448.5, reference: 'Job 31:1-40');
+        $sermon = $this->sermon($log, 8, 2454.1, 4310.4, 'Job 29-31');
+        $this->section($log, ServiceSectionType::Song, 9, 4332.4, 4475.5);
+
+        $composition = $this->resolver->compose($log);
+
+        $this->assertSame([], $composition['risks']);
+        $this->assertSame([$job29->id, $job30->id, $job31->id, $sermon->id], $composition['selected_section_ids']);
+        $this->assertSame($job29->id, $composition['bible_section_id']);
+
+        $this->bankNoWordOutputEdges($log);
+        $plan = $this->resolver->resolve($log->fresh());
+
+        $this->assertSame('concat_spans', $plan['mode']);
+        $this->assertSame([[1348.6, 1519.0], [1735.7, 1958.8], [2182.6, 2448.5], [2454.1, 4310.4]],
+            array_map(fn (array $span): array => [$span['start_time'], $span['end_time']], $plan['segments']));
+        foreach ([$introduction, $song, $prayer] as $excluded) {
+            $this->assertNotContains($excluded->id, $plan['metadata']['selected_section_ids']);
+        }
+    }
+
+    /**
+     * A reading running into the sermon is already partly in its cut: selecting it would cut the
+     * overlap twice. It is asked about, never cut a second time; one wholly inside the sermon (a
+     * passage the preacher re-reads) is part of the sermon's own span and not a candidate.
+     */
+    #[Test]
+    public function readings_already_inside_the_sermon_span_are_not_cut_again(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 5000, 'sermon_start_time' => 0, 'sermon_end_time' => 4400]);
+        $job29 = $this->reading($log, 1, 1348.6, 1519.0, reference: 'Job 29:1-25');
+        $job30 = $this->reading($log, 2, 1735.7, 1958.8, reference: 'Job 30:1-31');
+        $job31 = $this->reading($log, 3, 2182.6, 2448.5, reference: 'Job 31:1-40');
+        $sermon = $this->sermon($log, 4, 2454.1, 4310.4, 'Job 29-31');
+        $this->reading($log, 5, 3070.4, 3122.8, reference: 'Job 30:24-31');
+
+        $this->assertSame([$job29->id, $job30->id, $job31->id, $sermon->id], $this->resolver->compose($log)['selected_section_ids']);
+
+        $job31->update(['end_time' => 2500.0, 'duration' => 2500.0 - 2182.6]);
+        $straddling = $this->resolver->compose($log->fresh());
+
+        $this->assertSame([$sermon->id], $straddling['selected_section_ids']);
+        $this->assertSame(['sermon_reading_membership_unresolved'], array_column($straddling['risks'], 'kind'));
     }
 
     /**
@@ -1465,13 +1545,28 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->assertSame(['sermon_reading_membership_unresolved'], array_column($plan['metadata']['risks'], 'kind'));
     }
 
+    /** Two readings, each one part of a multipart sermon reference, read all of it: both are cut. */
     #[Test]
-    public function two_readings_each_carrying_part_of_a_multipart_sermon_reference_require_membership_review(): void
+    public function two_readings_each_carrying_part_of_a_multipart_sermon_reference_are_both_cut(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['sermon_start_time' => 100.0, 'sermon_end_time' => 200.0]);
+        $first = $this->reading($log, order: 1, start: 900.0, end: 1100.0, reference: 'Genesis 8:20-22');
+        $second = $this->reading($log, order: 2, start: 1200.0, end: 1400.0, reference: 'Genesis 9:8-17');
+        $sermon = $this->sermon($log, order: 3, start: 1500.0, end: 3500.0, reference: 'Genesis 8:20-22; 9:8-17');
+
+        $composition = $this->resolver->compose($log);
+
+        $this->assertSame([], $composition['risks']);
+        $this->assertSame([$first->id, $second->id, $sermon->id], $composition['selected_section_ids']);
+    }
+
+    /** One part of a multipart reference alone does not read the passage: still asked. */
+    #[Test]
+    public function one_reading_carrying_one_part_of_a_multipart_sermon_reference_requires_membership_review(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create(['sermon_start_time' => 100.0, 'sermon_end_time' => 200.0]);
         $this->reading($log, order: 1, start: 900.0, end: 1100.0, reference: 'Genesis 8:20-22');
-        $this->reading($log, order: 2, start: 1200.0, end: 1400.0, reference: 'Genesis 9:8-17');
-        $this->sermon($log, order: 3, start: 1500.0, end: 3500.0, reference: 'Genesis 8:20-22; 9:8-17');
+        $this->sermon($log, order: 2, start: 1500.0, end: 3500.0, reference: 'Genesis 8:20-22; 9:8-17');
 
         $plan = $this->resolver->resolve($log);
 

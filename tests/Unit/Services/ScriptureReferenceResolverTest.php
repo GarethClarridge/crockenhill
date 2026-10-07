@@ -241,4 +241,92 @@ class ScriptureReferenceResolverTest extends TestCase
         $this->assertFalse($this->resolver->referenceContains('not a reference', 'John 3:16'));
         $this->assertFalse($this->resolver->referenceContains('John 3', ''));
     }
+
+    /**
+     * Run 1250 (operator, 2026-10-07): Job 29, 30 and 31 were read, with a song and a prayer
+     * between them, and the sermon expounded "Job 29-31". The readings together are the preached
+     * passage, so all three are the sermon's, in their order.
+     */
+    public function test_several_readings_that_together_cover_the_passage_are_all_selected(): void
+    {
+        $membership = $this->resolver->sermonReadingMembership('Job 29-31', ['Job 29:1-25', 'Job 30:1-31', 'Job 31:1-40']);
+
+        $this->assertSame(['selected' => [0, 1, 2], 'review' => false, 'could_be_cut' => [0, 1, 2]], $membership);
+    }
+
+    /** The same rule for a multipart reference: each reading is one of its parts. */
+    public function test_readings_covering_a_multipart_reference_part_by_part_are_all_selected(): void
+    {
+        $membership = $this->resolver->sermonReadingMembership('Genesis 8:20-22; 9:8-17', ['Genesis 8:20-22', 'Genesis 9:8-17']);
+
+        $this->assertSame([0, 1], $membership['selected']);
+        $this->assertFalse($membership['review']);
+    }
+
+    /** An earlier unrelated reading (a call to worship) is neither selected nor a doubt. */
+    public function test_an_unrelated_earlier_reading_stays_out_of_a_covering_set(): void
+    {
+        $membership = $this->resolver->sermonReadingMembership('Job 29-31', ['Psalm 95:1-7', 'Job 29', 'Job 30', 'Job 31']);
+
+        $this->assertSame([1, 2, 3], $membership['selected']);
+        $this->assertFalse($membership['review']);
+    }
+
+    /** One reading holding the passage is still the sermon's alone (run 949's John 19). */
+    public function test_a_single_sufficient_reading_is_selected_alone(): void
+    {
+        $this->assertSame(['selected' => [1], 'review' => false, 'could_be_cut' => [1]],
+            $this->resolver->sermonReadingMembership('John 19', ['Psalm 95:1-7', 'John 19:15-30']));
+        $this->assertSame([1], $this->resolver->sermonReadingMembership('Job 29:1-10', ['Psalm 23', 'Job 29'])['selected']);
+    }
+
+    /**
+     * Readings that do not add up to the passage stay a question: a chapter not read, two that
+     * share verses, the same passage twice, a whole reading beside a part, a part reading past
+     * the passage, or a reading or sermon without a reference.
+     *
+     * @param  list<string|null>  $readings
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('uncoveredOrCompetingReadings')]
+    public function test_readings_that_do_not_cover_the_passage_exactly_go_to_review(?string $sermon, array $readings): void
+    {
+        $membership = $this->resolver->sermonReadingMembership($sermon, $readings);
+
+        $this->assertSame([], $membership['selected']);
+        $this->assertTrue($membership['review']);
+    }
+
+    /** @return array<string, array{0: string|null, 1: list<string|null>}> */
+    public static function uncoveredOrCompetingReadings(): array
+    {
+        return [
+            'a chapter not read' => ['Job 29-31', ['Job 29', 'Job 31']],
+            'two parts sharing verses' => ['Job 29-31', ['Job 29:1-30:10', 'Job 30:1-31:40']],
+            'the same part twice' => ['Job 29-31', ['Job 29', 'Job 30', 'Job 30:1-31', 'Job 31']],
+            'a whole reading beside a part' => ['Job 29-31', ['Job 29-31', 'Job 30']],
+            'a part reading past the passage' => ['Job 29-31', ['Job 29', 'Job 30', 'Job 31-32']],
+            'a reading without a reference' => ['Job 29-31', ['Job 29', null, 'Job 30', 'Job 31']],
+            'a sermon without a reference' => [null, ['Job 29', 'Job 30', 'Job 31']],
+        ];
+    }
+
+    /** How a speaker introduces a passage: its book and chapter, however phrased. */
+    public function test_spoken_words_name_a_passage_by_book_and_chapter(): void
+    {
+        $this->assertTrue($this->resolver->namesPassage('But as we begin, I want to start with Hebrews chapter 9,', 'Hebrews 9:11-14'));
+        $this->assertTrue($this->resolver->namesPassage("There's one that stands out to me from Numbers 21.", 'Numbers 21:4-9'));
+        $this->assertTrue($this->resolver->namesPassage('turn with me to First John 3', '1 John 3:1-10'));
+        $this->assertTrue($this->resolver->namesPassage('Psalm 23, a psalm of David.', 'Psalm 23'));
+        $this->assertTrue($this->resolver->namesPassage('we read Job 30 to 31', 'Job 29-31'));
+    }
+
+    /** Verses alone, a book alone, another chapter, or an unparseable reference name nothing. */
+    public function test_verses_or_a_book_alone_name_no_passage(): void
+    {
+        $this->assertFalse($this->resolver->namesPassage('I do want to read verses 24 to 31 to you.', 'Job 30:24-31'));
+        $this->assertFalse($this->resolver->namesPassage('the letter to the Hebrews is about Christ', 'Hebrews 9:11-14'));
+        $this->assertFalse($this->resolver->namesPassage('Hebrews chapter 10', 'Hebrews 9:11-14'));
+        $this->assertFalse($this->resolver->namesPassage('the numbers 21 and 22 were drawn', 'Numbers 21:4-9'), 'not a book name in lower case without context');
+        $this->assertFalse($this->resolver->namesPassage('Hebrews 9', 'not a reference'));
+    }
 }

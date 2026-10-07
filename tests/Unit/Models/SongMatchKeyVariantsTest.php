@@ -151,6 +151,18 @@ class SongMatchKeyVariantsTest extends TestCase
                 'input' => 'O Jesus I Have Promised@F9',
                 'expected' => ['o jesus i have promised', 'oh jesus i have promised'],
             ],
+            'title with a leading "The" (949, canary 12)' => [
+                'input' => 'The Man of Sorrows',
+                'expected' => ['the man of sorrows', 'man of sorrows'],
+            ],
+            'title with "The" but not as a word' => [
+                'input' => 'Therefore the Redeemed',
+                'expected' => ['therefore the redeemed'],
+            ],
+            '"The" alone keeps its only key' => [
+                'input' => 'The',
+                'expected' => ['the'],
+            ],
         ];
     }
 }

@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Services\ChurchService;
 
 use App\Enums\ServiceSectionType;
+use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Support\MediaProcessingVersion;
 use App\Support\OpenAiChatPayload;
@@ -52,42 +54,54 @@ Answer in JSON: {"decision": "keep" | "extend" | "shrink", "words_to_move": "<th
 TXT;
 
     /**
-     * Ask about every boundary between two spoken items whose cut has no banked answer.
+     * Ask about every boundary between two spoken items that is an edge of an output, whose cut
+     * has no banked answer. A join inside the sermon's output is cut nowhere (canary 12: 1050's
+     * two moves changed nothing), unless a clip extracted on its own starts or ends there
+     * ({@see self::outputEdges()}).
+     * `unchecked` counts output edges between spoken items with no decoded words: their sentence
+     * boundary is not known to be right, only not asked.
      *
-     * @return array{edges: int, asked: int, agreed_moves: int}
+     * @param  list<int>  $sermonSectionIds  The sermon output's sections, as composed for this run
+     * @return array{edges: int, asked: int, agreed_moves: int, unchecked: int}
      */
-    public function prepare(MediaProcessingLog $log): array
+    public function prepare(MediaProcessingLog $log, array $sermonSectionIds = []): array
     {
         $plans = app(CueSafeExtractionPlan::class);
         $evidence = app(OutputEdgeWordTimings::class);
         $cues = $evidence->cues($log);
-        $summary = ['edges' => 0, 'asked' => 0, 'agreed_moves' => 0];
+        $summary = ['edges' => 0, 'asked' => 0, 'agreed_moves' => 0, 'unchecked' => 0];
         $edges = [];
+        $sections = $log->serviceSections()->orderBy('start_time')->get();
 
-        foreach ($log->serviceSections()->orderBy('start_time')->get() as $section) {
+        foreach ($sections as $section) {
             $edges[sprintf('start@%.3f', (float) $section->start_time)] = ['start', (float) $section->start_time];
             $edges[sprintf('end@%.3f', (float) $section->end_time)] = ['end', (float) $section->end_time];
         }
 
+        $exposed = $this->outputEdges($log, array_values($sections->all()), $sermonSectionIds);
+
         foreach ($edges as [$edge, $original]) {
-            if ($this->spokenSides($log, $original) === null) {
+            if ($this->spokenSides($log, $original) === null
+                || ! array_any($exposed, static fn (array $cut): bool => $cut[0] === $edge && abs($cut[1] - $original) < 0.001)) {
                 continue;
             }
 
             $placed = $plans->wordPauseEdge($log, $cues, $original, $edge);
 
             if ($placed === null) {
+                $summary['unchecked']++;
+
                 continue;
             }
 
             $summary['edges']++;
-            $identity = $this->identity($log, $placed['window'], $original, $edge, $placed['time']);
+            $prompt = $this->prompt($log, $cues, $placed['words'], $placed['window'], $placed['time'], $edge);
+            $identity = $this->identity($log, $placed['window'], $original, $edge, $placed['time'], $prompt);
 
             if ($this->read($log, $identity) !== null) {
                 continue;
             }
 
-            $prompt = $this->prompt($log, $cues, $placed['words'], $placed['window'], $placed['time'], $edge);
             $calls = [$this->ask($log, $prompt), $this->ask($log, $prompt)];
             $record = ['identity' => $identity, 'prompt' => $prompt, 'calls' => $calls, ...$this->agreement($calls)];
             app(ServiceArtifactStorage::class)->putJson($log->processing_id, $this->kind($identity), $record);
@@ -97,6 +111,67 @@ TXT;
         }
 
         return $summary;
+    }
+
+    /**
+     * The times an output is cut at: both edges of each section cut as a clip of its own (one with
+     * a publication handler: songs, short talks), and the edges of the sermon output's parts that
+     * extraction cuts. Parts join only where the planned spans touch or overlap, as extraction
+     * merges them ({@see CueSafeExtractionPlan::forSpans()}): a second's gap the plan keeps is
+     * two cuts (Codex review, 2026-10-07). Without the edge words to plan, every part's edges are
+     * taken as cut. Each cut is an output's start or end: a clip ending where the sermon output
+     * runs on is no cut at the sermon part's start.
+     *
+     * @param  list<ServiceSection>  $sections
+     * @param  list<int>  $sermonSectionIds
+     * @return list<array{0: 'start'|'end', 1: float}>
+     */
+    private function outputEdges(MediaProcessingLog $log, array $sections, array $sermonSectionIds): array
+    {
+        $handlers = app(SectionPublicationHandlerFactory::class);
+        $edges = [];
+        $parts = [];
+
+        foreach ($sections as $section) {
+            [$start, $end] = [(float) $section->start_time, (float) $section->end_time];
+
+            if ($handlers->forSection($section) !== null) {
+                array_push($edges, ['start', $start], ['end', $end]);
+            }
+
+            if (in_array($section->id, $sermonSectionIds, true)) {
+                $parts[] = ['start_time' => $start, 'end_time' => $end];
+            }
+        }
+
+        if ($parts === []) {
+            return $edges;
+        }
+
+        try {
+            $segments = app(CueSafeExtractionPlan::class)->forSpans($log, $parts, sermonEnd: true)['segments'];
+        } catch (OutputEdgeTimingsMissing) {
+            $segments = $parts;
+        }
+
+        // Each part is cut within the planned segment holding its middle.
+        $segmentOf = static fn (array $part): ?int => array_key_first(array_filter($segments, static fn (array $segment): bool => $segment['start_time'] <= ($part['start_time'] + $part['end_time']) / 2
+            && $segment['end_time'] >= ($part['start_time'] + $part['end_time']) / 2));
+
+        foreach ($parts as $index => $part) {
+            $previous = $parts[$index - 1] ?? null;
+            $next = $parts[$index + 1] ?? null;
+
+            if ($previous === null || $segmentOf($previous) === null || $segmentOf($previous) !== $segmentOf($part)) {
+                $edges[] = ['start', $part['start_time']];
+            }
+
+            if ($next === null || $segmentOf($next) === null || $segmentOf($next) !== $segmentOf($part)) {
+                $edges[] = ['end', $part['end_time']];
+            }
+        }
+
+        return $edges;
     }
 
     /**
@@ -132,10 +207,14 @@ TXT;
     }
 
     /**
+     * What a banked answer was given on: the cut, the model and prompt, and the transcript the
+     * model read. A line re-transcribed at the same times is a new question (Codex review,
+     * 2026-10-07): the answer judged other words.
+     *
      * @param  array{start: float, end: float}  $window
      * @return array<string, mixed>
      */
-    public function identity(MediaProcessingLog $log, array $window, float $original, string $edge, float $cut): array
+    public function identity(MediaProcessingLog $log, array $window, float $original, string $edge, float $cut, string $prompt): array
     {
         return [
             'processing_id' => $log->processing_id,
@@ -145,8 +224,23 @@ TXT;
             'cut' => round($cut, 3),
             'model' => (string) config('media-processing.service_structure.model'),
             'prompt_version' => self::PROMPT_VERSION,
+            'transcript' => hash('sha256', $prompt),
             'media_processing' => MediaProcessingVersion::signature(),
         ];
+    }
+
+    /**
+     * The identity of the answer the planner may read for a word-pause cut: as
+     * {@see self::prepare()} banked it, from the same transcript.
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  list<array{start: float, end: float, word: string}>  $words
+     * @param  array{start: float, end: float}  $window
+     * @return array<string, mixed>
+     */
+    public function identityFor(MediaProcessingLog $log, array $cues, array $words, array $window, float $original, string $edge, float $cut): array
+    {
+        return $this->identity($log, $window, $original, $edge, $cut, $this->prompt($log, $cues, $words, $window, $cut, $edge));
     }
 
     /**

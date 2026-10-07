@@ -32,6 +32,10 @@ class ServiceStructureEnsembleComposerTest extends TestCase
             ['id' => 991, 'canonical_key' => 'we have heard a joyful sound', 'title' => 'We Have Heard A Joyful Sound', 'alternate_title' => 'Jesus Saves'],
             ['id' => 1, 'canonical_key' => 'amazing grace', 'title' => 'Amazing Grace'],
             ['id' => 2, 'canonical_key' => 'be thou my vision', 'title' => 'Be Thou My Vision'],
+            ['id' => 622, 'canonical_key' => 'man of sorrows 433', 'title' => 'Man Of Sorrows #433', 'praise_number' => '433', 'alternate_title' => '#433 Man of Sorrows'],
+            ['id' => 623, 'canonical_key' => 'man of sorrows lamb of god', 'title' => 'Man of sorrows, Lamb of God'],
+            ['id' => 701, 'canonical_key' => 'king of kings', 'title' => 'King Of Kings'],
+            ['id' => 702, 'canonical_key' => 'the king of kings', 'title' => 'The King Of Kings'],
         ]));
     }
 
@@ -134,6 +138,30 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         $this->assertSame(['song'], array_column($composer->compose($votes('Amazing Grace', 'Be Thou My Vision'))->disputes, 'type'));
         $this->assertSame(['song'], array_column($composer->compose($votes('Everlasting God', 'Strength Will Rise'))->disputes, 'type'));
         $this->assertSame(['song'], array_column($composer->compose($votes('Amazing Grace', null))->disputes, 'type'));
+    }
+
+    /**
+     * Canary 12, 949 (operator, 2026-10-06: "a title variant is not a question"): "Man of Sorrows"
+     * resolved to the catalogue song and "The Man of Sorrows" did not, so the draws disputed.
+     * A leading article names the same song; titles naming two catalogue songs still dispute.
+     */
+    #[Test]
+    public function a_leading_article_does_not_make_a_title_another_song(): void
+    {
+        $votes = function (?string $first, ?string $second): array {
+            $draw = fn (?string $title): ServiceStructure => $this->structure(
+                new ServiceStructureSection(ServiceSectionType::Song, null, 100.0, 200.0, 0.9, null, $title, null),
+                $this->section(ServiceSectionType::Sermon, 1000, 3000),
+            );
+
+            return [0 => $this->vote($draw($first)), 1 => $this->vote($draw($first)), 2 => $this->vote($draw($second)), 3 => $this->vote($draw($second))];
+        };
+        $composer = app(ServiceStructureEnsembleComposer::class);
+
+        $this->assertSame([], $composer->compose($votes('Man of Sorrows', 'The Man of Sorrows'))->disputes);
+        $this->assertSame(['song'], array_column($composer->compose($votes('The Man of Sorrows', 'Man of sorrows, Lamb of God'))->disputes, 'type'));
+        $this->assertSame(['song'], array_column($composer->compose($votes('King of Kings', 'The King of Kings'))->disputes, 'type'),
+            'two catalogue songs that differ by the article stay two songs');
     }
 
     /** The shape of run 936 in canary 9: the operator confirms a talk's type in its own review. */

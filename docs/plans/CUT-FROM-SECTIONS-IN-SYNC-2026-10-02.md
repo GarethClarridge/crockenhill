@@ -1,5 +1,10 @@
 # Cut What Was Identified, In Sync
 
+> **Current implementation handover — 2026-10-06:** canary 12 listening and the reviewed work
+> order before canary 13 are in the [boundary consistency plan, §6.1](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md#61-reviewed-implementation-plan-before-canary-13--2026-10-06).
+> Follow that checklist for the next boundary-fix session. This plan's earlier canary/checkout
+> snapshots remain historical records; its settled cut policy and operational ownership remain.
+
 **Date:** 2026-10-02 · **Status:** IMPLEMENTED on master; corpus benchmark passed, canary review and operator acceptance pending · **Blocks:** canary 10
 acceptance and Tier A ([main plan §4.0](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md))
 

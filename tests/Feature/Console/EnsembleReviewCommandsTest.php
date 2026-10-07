@@ -17,6 +17,8 @@ use App\Models\Sermon;
 use App\Models\User;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\Structure\EnsembleReviewGate;
+use App\Enums\ServiceSectionType;
+use App\Services\ChurchService\Structure\EnsembleReviewExport;
 use App\Services\ChurchService\Structure\MockServiceStructureService;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
@@ -166,6 +168,56 @@ class EnsembleReviewCommandsTest extends TestCase
         $this->assertSame('Luke 15:1-10', $rulings[0]['resolution']['sections'][0]['reading_reference']);
     }
 
+    /**
+     * Canary 12, 949 (operator, 2026-10-06): "It's really one question: is the intro and reading
+     * part of the sermon or not?" The sermon's start and the reading's presence were asked apart
+     * over one stretch; answered "either" and "Version A" they overlapped, and neither applied
+     * (F06). They are asked once, with whole-stretch versions, and one answer settles both.
+     */
+    #[Test]
+    public function a_reading_and_the_sermon_start_it_decides_are_asked_as_one_question(): void
+    {
+        $log = $this->interruptedSermonRun();
+
+        $this->artisan('structure:ensemble-export-questions', ['runs' => [$log->id], '--out' => $this->out])->assertSuccessful();
+
+        $map = json_decode((string) file_get_contents("{$this->out}/answers-map.json"), true)['items'];
+        $this->assertSame(["{$log->id}-q0"], array_keys($map));
+        $question = $map["{$log->id}-q0"];
+        $this->assertSame('sermon', $question['type']);
+        $this->assertCount(2, $question['answers']['alt0']['parts']);
+        $parts = static fn (string $choice): array => array_map(static fn (array $part): array => [$part['kind'], $part['slot']], $question['answers'][$choice]['parts']);
+        $this->assertSame([['choose', 0], ['accept', null]], $parts('alt0'), 'one sermon from the introduction, with the reading inside it');
+        $this->assertSame([['choose', 2], ['choose', 2]], $parts('alt1'), 'the reading on its own, the sermon after it');
+        $this->assertSame($parts('alt0'), $parts('either'), 'either keeps the composed version whole');
+        $this->assertSame([['correct', null], ['defer', null]], $parts('neither'));
+        $this->assertSame([['defer', null], ['defer', null]], $parts('defer'));
+        $page = (string) file_get_contents("{$this->out}/index.html");
+        $this->assertStringContainsString('part of the sermon', $page);
+    }
+
+    #[Test]
+    public function one_answer_to_the_grouped_question_settles_the_stretch_coherently(): void
+    {
+        $log = $this->interruptedSermonRun();
+        $this->artisan('structure:ensemble-export-questions', ['runs' => [$log->id], '--out' => $this->out])->assertSuccessful();
+        $answers = "{$this->out}/answers.json";
+        file_put_contents($answers, json_encode([
+            ['question_id' => "{$log->id}-q0", 'choice' => 'alt0', 'choice_label' => 'Yes', 'note' => 'The reading is part of the sermon.'],
+        ]));
+
+        $this->artisan('structure:ensemble-apply-answers', ['export' => $this->out, 'answers' => $answers, '--operator' => (string) $this->operatorId, '--execute' => true])
+            ->expectsOutputToContain('2 applied, 0 failed, 0 need attention.')
+            ->assertSuccessful();
+
+        $sections = $log->fresh()->serviceSections()->orderBy('start_time')->get();
+        $this->assertSame([], $sections->where('section_type', ServiceSectionType::BibleReading)->values()->all());
+        $sermon = $sections->firstWhere('section_type', ServiceSectionType::Sermon);
+        $this->assertEqualsWithDelta(420.0, (float) $sermon->start_time, 1.0);
+        $replayed = app(EnsembleReviewExport::class)->items($log->fresh());
+        $this->assertSame([], array_values(array_filter($replayed, static fn (array $item): bool => ! $item['decided'])), 'nothing reopened');
+    }
+
     #[Test]
     public function a_talk_edge_every_draft_agrees_on_is_asked_as_confirm_or_correct(): void
     {
@@ -260,6 +312,43 @@ class EnsembleReviewCommandsTest extends TestCase
             $this->section(['type' => 'song', 'start_time' => 2210.0, 'end_time' => 2400.0]),
         ])), model: 'mock');
         MockServiceStructureService::useStructureSequence($draw, $draw, $draw, $draw);
+
+        (new DetectServiceStructure($log))->handle(
+            app(ServiceStructureInterface::class),
+            app(SilenceSnapService::class),
+            app(ServiceStructureValidator::class),
+            app(ServiceSectionSyncService::class),
+            app(SermonCandidateConfidenceService::class),
+        );
+
+        return $log->fresh();
+    }
+
+    /**
+     * 949's shape in canary 12: two drafts run the sermon from the leader's introduction through a
+     * reading; two have the reading on its own and the sermon after it.
+     */
+    private function interruptedSermonRun(): MediaProcessingLog
+    {
+        $this->operatorId = User::factory()->admin()->create()->id;
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'church_service_id' => ChurchService::factory()->create()->id,
+        ]);
+        $this->storeInputs($log);
+        $merged = ServiceStructure::fromSections([
+            $this->section(['type' => 'welcome', 'start_time' => 0.0, 'end_time' => 120.0]),
+            $this->section(['type' => 'short_talk', 'start_time' => 130.0, 'end_time' => 400.0]),
+            $this->section(['type' => 'sermon', 'start_time' => 420.0, 'end_time' => 2200.0, 'sermon_reference' => 'Luke 15:1-10']),
+            $this->section(['type' => 'song', 'start_time' => 2210.0, 'end_time' => 2400.0]),
+        ], model: 'mock');
+        $separate = ServiceStructure::fromSections([
+            $this->section(['type' => 'welcome', 'start_time' => 0.0, 'end_time' => 120.0]),
+            $this->section(['type' => 'short_talk', 'start_time' => 130.0, 'end_time' => 400.0]),
+            $this->section(['type' => 'bible_reading', 'start_time' => 420.0, 'end_time' => 590.0, 'reading_reference' => 'Luke 15:1-10']),
+            $this->section(['type' => 'sermon', 'start_time' => 600.0, 'end_time' => 2200.0, 'sermon_reference' => 'Luke 15:1-10']),
+            $this->section(['type' => 'song', 'start_time' => 2210.0, 'end_time' => 2400.0]),
+        ], model: 'mock');
+        MockServiceStructureService::useStructureSequence($merged, $merged, $separate, $separate);
 
         (new DetectServiceStructure($log))->handle(
             app(ServiceStructureInterface::class),

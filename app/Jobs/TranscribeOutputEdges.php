@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\PrepareOutputEdgeWordTimings;
 use App\Services\ChurchService\SpokenEdgeSentenceCheck;
@@ -66,10 +67,15 @@ class TranscribeOutputEdges extends ProcessingJob implements ShouldQueue
                 }
             }
         }
+        $sermonSpans = array_values($this->processingLog->serviceSections()->whereIn('id', $composition['selected_section_ids'])->orderBy('start_time')->get()
+            ->map(static fn (ServiceSection $section): array => ['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time])->all());
+        foreach ($cutPlans->spokenEndsBesideSongs($this->processingLog, $sermonSpans) as $edge) {
+            $spans[] = ['start_time' => $edge, 'end_time' => $edge];
+        }
         $summary = $prepare->prepare($this->processingLog->fresh() ?? throw new \RuntimeException('Processing run disappeared'), $spans);
         $this->processingLog->refresh();
         // Asked of the cuts the decoded words place, so only once they are decoded.
-        $summary['sentence_check'] = $sentenceCheck->prepare($this->processingLog);
+        $summary['sentence_check'] = $sentenceCheck->prepare($this->processingLog, $composition['selected_section_ids']);
         $this->processingLog->refresh();
         $resolver->compose($this->processingLog);
         $this->logStepComplete('transcribe_output_edges', json_encode($summary, JSON_THROW_ON_ERROR));

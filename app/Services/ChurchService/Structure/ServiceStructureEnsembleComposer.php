@@ -59,7 +59,7 @@ class ServiceStructureEnsembleComposer
      * The longest leader's introduction two reading starts may differ by and still be one
      * reading (ruled 2026-09-30): "Peter will come and do his readings", "Luke chapter 16".
      */
-    private const READING_INTRODUCTION_SECONDS = 60.0;
+    public const READING_INTRODUCTION_SECONDS = 60.0;
 
     /** Spoken forms of a numbered book's prefix. */
     private const SPOKEN_BOOK_NUMBERS = ['1' => 'first', '2' => 'second', '3' => 'third'];
@@ -620,7 +620,7 @@ class ServiceStructureEnsembleComposer
         }
 
         $membership = $this->scriptureReferences->sermonReadingMembership($sermon->sermonReference, $readings);
-        $couldBeCut = $membership['selected'] !== null || $membership['review'] ? $membership['could_be_cut'] : array_keys($readings);
+        $couldBeCut = $membership['selected'] !== [] || $membership['review'] ? $membership['could_be_cut'] : array_keys($readings);
 
         return array_fill_keys($couldBeCut, true);
     }

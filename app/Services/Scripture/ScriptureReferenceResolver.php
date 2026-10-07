@@ -6,6 +6,7 @@ namespace App\Services\Scripture;
 
 use TechWilk\BibleVerseParser\BiblePassage;
 use TechWilk\BibleVerseParser\BiblePassageParser;
+use TechWilk\BibleVerseParser\BibleReference;
 
 class ScriptureReferenceResolver
 {
@@ -209,15 +210,19 @@ class ScriptureReferenceResolver
 
     /**
      * Which of the readings before a sermon its media takes. The one matching reading is cut
-     * when every reading's relation is known. Several matches, an unknown reference, or only a
-     * partial overlap leave the choice to review, among the readings that could be the one:
-     * every reading but the unrelated. Ensemble composition holds exactly the readings this
+     * when every reading's relation is known. Several readings are cut together when they are
+     * the preached passage read in parts (run 1250, operator 2026-10-07: Job 29, 30 and 31 read
+     * around a song and a prayer, "Job 29-31" preached): each lies within the passage without
+     * holding it, no two share a verse, and together they read every verse of it
+     * ({@see self::readingsCoverPassage()}). Several matches otherwise, an unknown reference, or
+     * only a partial overlap leave the choice to review, among the readings that could be the
+     * one: every reading but the unrelated. Ensemble composition holds exactly the readings this
      * can cut to their edges, so both stages share one rule.
      *
      * @template TKey of array-key
      *
      * @param  array<TKey, string|null>  $readingReferences
-     * @return array{selected: TKey|null, review: bool, could_be_cut: list<TKey>}
+     * @return array{selected: list<TKey>, review: bool, could_be_cut: list<TKey>}
      */
     public function sermonReadingMembership(?string $sermonReference, array $readingReferences): array
     {
@@ -226,13 +231,116 @@ class ScriptureReferenceResolver
         $unknown = in_array('unknown', $relations, true);
 
         if (count($matches) === 1 && ! $unknown) {
-            return ['selected' => $matches[0], 'review' => false, 'could_be_cut' => $matches];
+            return ['selected' => $matches, 'review' => false, 'could_be_cut' => $matches];
+        }
+
+        $related = array_keys(array_filter($relations, static fn (string $relation): bool => $relation !== 'unrelated'));
+
+        if (! $unknown && $sermonReference !== null
+            && $this->readingsCoverPassage($sermonReference, array_map(static fn (int|string $key): string => (string) $readingReferences[$key], $related))) {
+            return ['selected' => $related, 'review' => false, 'could_be_cut' => $related];
         }
 
         $review = count($matches) > 1 || $unknown || in_array('partial', $relations, true);
 
-        return ['selected' => null, 'review' => $review,
-            'could_be_cut' => $review ? array_keys(array_filter($relations, static fn (string $relation): bool => $relation !== 'unrelated')) : []];
+        return ['selected' => [], 'review' => $review, 'could_be_cut' => $review ? $related : []];
+    }
+
+    /**
+     * Whether spoken words name a passage of the reference: its book and one of its chapters, as
+     * a speaker introduces a reading ("Hebrews chapter 9", "Numbers 21", "First John 3"). Verses
+     * alone, or a book without its chapter, name no passage. The book is matched as transcribed,
+     * capitalised: several are ordinary words ("numbers", "job", "acts").
+     */
+    public function namesPassage(string $text, string $reference): bool
+    {
+        foreach ($this->parse($reference) as $passage) {
+            $book = $passage->from()->book();
+            $names = [];
+
+            foreach (array_unique([$book->name(), $book->singularName()]) as $name) {
+                $names[] = preg_quote($name, '/');
+
+                if (preg_match('/^([123]) (.+)$/', $name, $numbered) === 1) {
+                    $names[] = '(?i:'.['1' => 'first', '2' => 'second', '3' => 'third'][$numbered[1]].') '.preg_quote($numbered[2], '/');
+                }
+            }
+
+            $chapters = $passage->from()->book()->number() === $passage->to()->book()->number()
+                ? range($passage->from()->chapter(), $passage->to()->chapter())
+                : [$passage->from()->chapter()];
+
+            if (preg_match('/\b(?:'.implode('|', $names).')\b[\s,]+(?:(?i:chapter)\s+)?(?:'.implode('|', $chapters).')\b/u', $text) === 1) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether readings are a passage read in parts: at least two, each lying within the passage
+     * without holding all of it, no verse read twice, and every verse of the passage read. A
+     * chapter break is no gap: Job 29:25 runs on to 30:1.
+     *
+     * @param  list<string>  $readings
+     */
+    public function readingsCoverPassage(string $passage, array $readings): bool
+    {
+        if (count($readings) < 2 || $this->verseOrdinals($passage) === []) {
+            return false;
+        }
+
+        $parts = [];
+
+        foreach ($readings as $reading) {
+            if (! $this->referenceContains($passage, $reading) || $this->referenceContains($reading, $passage)) {
+                return false;
+            }
+
+            array_push($parts, ...$this->verseOrdinals($reading));
+        }
+
+        usort($parts, static fn (array $a, array $b): int => $a[0] <=> $b[0]);
+
+        foreach ($parts as $index => [$from]) {
+            if ($index > 0 && $from <= $parts[$index - 1][1]) {
+                return false;
+            }
+        }
+
+        return array_all($this->verseOrdinals($passage), static function (array $span) use ($parts): bool {
+            $reached = $span[0] - 1;
+
+            foreach ($parts as [$from, $to]) {
+                if ($from <= $reached + 1 && $to > $reached) {
+                    $reached = $to;
+                }
+            }
+
+            return $reached >= $span[1];
+        });
+    }
+
+    /**
+     * Each passage as an inclusive span of verses counted through its book, so the last verse of
+     * one chapter and the first of the next are consecutive.
+     *
+     * @return list<array{0: int, 1: int}>
+     */
+    private function verseOrdinals(string $reference): array
+    {
+        $ordinal = static function (BibleReference $verse): int {
+            $before = 0;
+
+            for ($chapter = 1; $chapter < $verse->chapter(); $chapter++) {
+                $before += $verse->book()->versesInChapter($chapter);
+            }
+
+            return $verse->book()->number() * 100_000 + $before + $verse->verse();
+        };
+
+        return array_values(array_map(static fn (BiblePassage $passage): array => [$ordinal($passage->from()), $ordinal($passage->to())], $this->parse($reference)));
     }
 
     /**

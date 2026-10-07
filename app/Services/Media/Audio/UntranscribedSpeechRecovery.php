@@ -10,6 +10,7 @@ use App\Data\SuspectTranscriptBlock;
 use App\Jobs\ClassifyServiceAudio;
 use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\Structure\UntranscribedSpeechBeforeSection;
+use App\Services\ChurchService\TranscriptCueEvidence;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Support\ServiceArtifactDisk;
 use Illuminate\Support\Facades\Log;
@@ -26,9 +27,13 @@ use Illuminate\Support\Facades\Storage;
  * Re-decoding the corpus's 62 such stretches on the local whisper returned words for 57, so the
  * stretch is decoded and spliced in as ordinary cues, and detection assigns it like any speech.
  *
- * Only where no cue at all covers the stretch: a long cue over it may hold its words badly timed,
- * and decoding under it would say them twice. A decode that hears nothing, or loops, changes
- * nothing, so {@see UntranscribedSpeechBeforeSection} still marks the stretch afterwards.
+ * Only where no cue that is evidence of speech covers the stretch ({@see TranscriptCueEvidence}):
+ * canary 12 found 1025's 615–631 under a 30 s "Thank you." that had counted as coverage. A long
+ * cue's text may still be real words badly timed, so a decode beneath it replaces it only when
+ * the decode says its words, or reached every stretch of speech beneath it; otherwise it stays,
+ * and stays no evidence. The run records the cues each attempt found suspect and replaced.
+ * A decode that hears nothing, or loops, changes nothing, so
+ * {@see UntranscribedSpeechBeforeSection} still marks the stretch afterwards.
  */
 class UntranscribedSpeechRecovery
 {
@@ -83,6 +88,7 @@ class UntranscribedSpeechRecovery
             return ['stretches' => 0, 'recovered' => 0];
         }
         $stretches = $this->stretches($transcript, $timeline);
+        $suspect = array_values(array_filter($transcript->cues, static fn (array $cue): bool => ! TranscriptCueEvidence::isEvidence($cue, $timeline)));
 
         if ($stretches === []) {
             return ['stretches' => 0, 'recovered' => 0];
@@ -97,6 +103,8 @@ class UntranscribedSpeechRecovery
         $isDownloaded = $this->storage->isS3CompatibleDisk(Storage::disk($audio['disk']));
         $local = $this->storage->downloadToTemp($audio['path'], $audio['disk'], 'local', 'temp/untranscribed-speech');
         $recoveredCues = [];
+        $recoveredWords = [];
+        $decoded = [];
         $attempts = [];
 
         try {
@@ -104,14 +112,28 @@ class UntranscribedSpeechRecovery
                 $words = $this->decode($log, $local, $start, $end, $transcript->duration);
                 $cues = $this->cues($words);
                 $recoveredCues = [...$recoveredCues, ...$cues];
+
+                if ($cues !== []) {
+                    $recoveredWords = [...$recoveredWords, ...$words];
+                    $decoded[] = [$start, $end];
+                }
+
                 $attempts[] = ['start' => $start, 'end' => $end, 'words' => $cues === [] ? 0 : count($words),
-                    'cues' => count($cues), 'recorded_at' => now()->toIso8601String()];
+                    'cues' => count($cues), 'recorded_at' => now()->toIso8601String(),
+                    'suspect_cues' => array_values(array_filter($suspect, static fn (array $cue): bool => $cue['start'] < $end && $cue['end'] > $start))];
             }
         } finally {
             if ($isDownloaded) {
                 $this->storage->cleanupTempFile($local);
             }
         }
+
+        $replaced = array_values(array_filter($suspect, fn (array $cue): bool => $this->isReplaced($cue, $recoveredWords, $decoded, $timeline)));
+
+        foreach ($attempts as &$attempt) {
+            $attempt['replaced_cues'] = array_values(array_filter($replaced, static fn (array $cue): bool => $cue['start'] < $attempt['end'] && $cue['end'] > $attempt['start']));
+        }
+        unset($attempt);
 
         $log->writeProcessingMetadata(static function (array $metadata) use ($attempts): array {
             $metadata[self::METADATA_KEY] = $attempts;
@@ -123,7 +145,8 @@ class UntranscribedSpeechRecovery
             return ['stretches' => count($stretches), 'recovered' => 0];
         }
 
-        $recovered = ChurchServiceTranscript::fromCues([...$transcript->cues, ...$recoveredCues], $transcript->duration, $transcript->source, $transcript->unobservableWindows);
+        $kept = array_values(array_filter($transcript->cues, static fn (array $cue): bool => ! in_array($cue, $replaced, true)));
+        $recovered = ChurchServiceTranscript::fromCues([...$kept, ...$recoveredCues], $transcript->duration, $transcript->source, $transcript->unobservableWindows);
         $path = $this->artifacts->putJson($log->processing_id, self::ARTIFACT_KIND, $recovered->toArray());
         $blocks = app(ServiceTranscriptRepetitionScreen::class)->screen($recovered);
         $log->refresh();
@@ -134,13 +157,65 @@ class UntranscribedSpeechRecovery
     }
 
     /**
-     * Runs of speech windows no cue or recorded unobservable window touches, at least the floor long.
+     * A cue that is no evidence of speech gives way to the decode beneath it when the decode says
+     * its words, or when every stretch of speech beneath it was decoded to words: a cue of
+     * punctuation, or "Thank you." stretched over a hymn's outro. Speech beneath it the decode
+     * did not reach may be where its words are, so it stays.
+     *
+     * @param  array{start: float, end: float, text: string}  $cue
+     * @param  list<array{start: float, end: float, word: string}>  $words  Every recovered word
+     * @param  list<array{0: float, 1: float}>  $decoded  The stretches that recovered words
+     */
+    private function isReplaced(array $cue, array $words, array $decoded, AudioTimeline $timeline): bool
+    {
+        $beneath = array_values(array_filter($words, static fn (array $word): bool => $word['start'] < $cue['end'] + self::DECODE_MARGIN_SECONDS
+            && $word['end'] > $cue['start'] - self::DECODE_MARGIN_SECONDS));
+
+        if ($beneath === []) {
+            return false;
+        }
+
+        $heard = TranscriptCueEvidence::tokens(implode(' ', array_column($beneath, 'word')));
+        $position = 0;
+
+        foreach (TranscriptCueEvidence::tokens($cue['text']) as $token) {
+            $found = array_search($token, array_slice($heard, $position), true);
+
+            if ($found === false) {
+                $position = -1;
+
+                break;
+            }
+
+            $position += $found + 1;
+        }
+
+        if ($position >= 0) {
+            return true;
+        }
+
+        foreach ($timeline->windows as $window) {
+            $from = max($window['start'], $cue['start']);
+            $to = min($window['end'], $cue['end']);
+
+            if ($window['speech'] >= self::MINIMUM_SPEECH_SCORE && $to > $from
+                && ! array_any($decoded, static fn (array $stretch): bool => $stretch[0] <= $from + 0.01 && $stretch[1] >= $to - 0.01)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Runs of speech windows no evidence cue or recorded unobservable window touches, at least the
+     * floor long.
      *
      * @return list<array{0: float, 1: float}>
      */
     private function stretches(ChurchServiceTranscript $transcript, AudioTimeline $timeline): array
     {
-        $covered = [...array_map(static fn (array $cue): array => [$cue['start'], $cue['end']], $transcript->cues),
+        $covered = [...array_map(static fn (array $cue): array => [$cue['start'], $cue['end']], array_filter($transcript->cues, static fn (array $cue): bool => TranscriptCueEvidence::isEvidence($cue, $timeline))),
             ...array_map(static fn (array $window): array => [$window['start'], $window['end']], $transcript->unobservableWindows)];
         $runs = [];
 

@@ -65,8 +65,8 @@ class UntranscribedSpeechRecoveryTest extends TestCase
     public function covered_speech_short_gaps_and_music_are_left_alone(): void
     {
         $log = $this->serviceRun([
-            ['start' => 0.0, 'end' => 100.0, 'text' => 'Covered.'],
-            ['start' => 105.0, 'end' => 200.0, 'text' => 'Also covered.'],
+            ...array_map(static fn (int $i): array => ['start' => $i * 10.0, 'end' => $i * 10.0 + 9.5, 'text' => 'Covered by a line of ordinary speech at an ordinary pace.'], range(0, 9)),
+            ...array_map(static fn (int $i): array => ['start' => 105.0 + $i * 10.0, 'end' => 105.0 + $i * 10.0 + 9.5, 'text' => 'Also covered by a line of ordinary speech at a pace.'], range(0, 9)),
         ], speech: [[0, 200]], music: [[200, 300]]);
         $path = $log->serviceTranscriptPath();
         $this->decodes([]);
@@ -91,6 +91,189 @@ class UntranscribedSpeechRecoveryTest extends TestCase
         $log->refresh();
         $this->assertSame($path, $log->serviceTranscriptPath());
         $this->assertSame([0, 0], array_column($log->processing_metadata->raw['untranscribed_speech_recovery'], 'words'));
+    }
+
+    /**
+     * Canary 12, 1025 615–631: a 30 s "Thank you." cue lay over "…Let's join together in prayer,
+     * shall we? Let's pray.", so recovery took the stretch as covered and the song end ran through
+     * it. A cue whose words could not fill a tenth of its span is no evidence of where speech is.
+     * The decode replaces it, and the run records what was replaced.
+     */
+    #[Test]
+    public function speech_under_a_long_filler_cue_is_decoded_and_replaces_it(): void
+    {
+        $filler = ['start' => 100.8, 'end' => 130.78, 'text' => 'Thank you.'];
+        $log = $this->serviceRun([
+            ['start' => 0.0, 'end' => 9.0, 'text' => 'Earlier words, spoken at an ordinary pace for a line.'],
+            $filler,
+            ['start' => 130.8, 'end' => 137.0, 'text' => 'Father, we do come to you this morning, very conscious,'],
+        ], speech: [[115, 135]], music: [[95, 110]]);
+        $this->decodes([[114.0, 131.8, [
+            ['start' => 1.5, 'end' => 1.9, 'word' => ' Well,'],
+            ['start' => 1.9, 'end' => 2.2, 'word' => ' he'],
+            ['start' => 2.2, 'end' => 2.8, 'word' => ' rescues'],
+            ['start' => 2.8, 'end' => 3.0, 'word' => ' us.'],
+            ['start' => 9.0, 'end' => 9.3, 'word' => ' Let\'s'],
+            ['start' => 9.3, 'end' => 9.8, 'word' => ' pray.'],
+        ]]]);
+
+        $this->assertSame(['stretches' => 1, 'recovered' => 1], app(UntranscribedSpeechRecovery::class)->recover($log));
+
+        $log->refresh();
+        $cues = $this->transcript($log)->cues;
+        $this->assertNotContains($filler, $cues);
+        $this->assertContains(['start' => 115.5, 'end' => 117.0, 'text' => 'Well, he rescues us.'], $cues);
+        $this->assertContains(['start' => 123.0, 'end' => 123.8, 'text' => 'Let\'s pray.'], $cues);
+        $attempt = $log->processing_metadata->raw['untranscribed_speech_recovery'][0];
+        $this->assertEquals([$filler], $attempt['replaced_cues']);
+    }
+
+    /** A dense long line and a short "Thank you." are where their words are; nothing under them is decoded. */
+    #[Test]
+    public function genuine_long_speech_and_genuine_short_utterances_still_cover_their_stretch(): void
+    {
+        $long = ['start' => 100.0, 'end' => 117.0, 'text' => implode(' ', array_fill(0, 40, 'word'))];
+        $log = $this->serviceRun([
+            $long,
+            ['start' => 117.5, 'end' => 118.4, 'text' => 'Thank you.'],
+            ['start' => 118.5, 'end' => 128.0, 'text' => implode(' ', array_fill(0, 25, 'more'))],
+        ], speech: [[100, 128]]);
+        $path = $log->serviceTranscriptPath();
+        $this->decodes([]);
+
+        $this->assertSame(['stretches' => 0, 'recovered' => 0], app(UntranscribedSpeechRecovery::class)->recover($log));
+        $this->assertSame($path, $log->fresh()->serviceTranscriptPath());
+    }
+
+    /**
+     * Codex review: length and density only raise suspicion. A slow speaker's long line, and a
+     * reading with pauses, are heard as speech throughout with words enough for it: they cover
+     * their stretch, and nothing under them is decoded.
+     */
+    #[Test]
+    public function slow_genuine_speech_and_a_reading_with_pauses_still_cover_their_stretch(): void
+    {
+        $slow = ['start' => 100.0, 'end' => 116.0, 'text' => 'We pray for those who are grieving this week, Lord, and for all.'];
+        $reading = ['start' => 120.0, 'end' => 140.0, 'text' => 'In the beginning was the Word, and the Word was with God, and the Word was God.'];
+        $log = $this->serviceRun([$slow, $reading], speech: [[100, 130], [135, 140]]);
+        $path = $log->serviceTranscriptPath();
+        $this->decodes([]);
+
+        $this->assertSame(['stretches' => 0, 'recovered' => 0], app(UntranscribedSpeechRecovery::class)->recover($log));
+        $this->assertSame($path, $log->fresh()->serviceTranscriptPath());
+    }
+
+    /** A "Thank you." stretched over 30 s of speech says too little for what is heard: it is suspect. */
+    #[Test]
+    public function a_long_filler_cue_over_speech_alone_is_still_decoded_under(): void
+    {
+        $filler = ['start' => 100.0, 'end' => 130.0, 'text' => 'Thank you.'];
+        $log = $this->serviceRun([
+            ['start' => 0.0, 'end' => 9.0, 'text' => 'Earlier words, spoken at an ordinary pace for a line.'],
+            $filler,
+        ], speech: [[100, 130]]);
+        $this->decodes([[99.0, 131.0, [
+            ['start' => 2.0, 'end' => 2.4, 'word' => ' Let\'s'],
+            ['start' => 2.4, 'end' => 2.9, 'word' => ' pray.'],
+        ]]]);
+
+        $this->assertSame(['stretches' => 1, 'recovered' => 1], app(UntranscribedSpeechRecovery::class)->recover($log));
+    }
+
+    /** Canary 12: cues of punctuation alone (". . . .") are neither speech nor coverage. */
+    #[Test]
+    public function a_punctuation_only_cue_does_not_cover_speech(): void
+    {
+        $log = $this->serviceRun([
+            ['start' => 0.0, 'end' => 9.0, 'text' => 'Earlier words, spoken at an ordinary pace for a line.'],
+            ['start' => 100.0, 'end' => 112.0, 'text' => '. . . .'],
+        ], speech: [[100, 115]]);
+        $this->decodes([[99.0, 116.0, [
+            ['start' => 2.0, 'end' => 2.4, 'word' => ' Let\'s'],
+            ['start' => 2.4, 'end' => 2.9, 'word' => ' pray.'],
+        ]]]);
+
+        $this->assertSame(['stretches' => 1, 'recovered' => 1], app(UntranscribedSpeechRecovery::class)->recover($log));
+        $this->assertContains(['start' => 101.0, 'end' => 101.9, 'text' => 'Let\'s pray.'], $this->transcript($log->fresh())->cues);
+    }
+
+    /**
+     * A long cue's own words heard in the decode are said once: the decode's timing replaces the
+     * cue's, and decoding again finds the stretch covered (no duplicated text).
+     */
+    #[Test]
+    public function a_long_cue_whose_words_are_heard_is_replaced_once_and_recovery_is_repeatable(): void
+    {
+        $smeared = ['start' => 100.0, 'end' => 129.0, 'text' => 'May the God of hope fill you.'];
+        $log = $this->serviceRun([
+            ['start' => 0.0, 'end' => 9.0, 'text' => 'Earlier words, spoken at an ordinary pace for a line.'],
+            $smeared,
+        ], speech: [[115, 130]], music: [[100, 115]]);
+        $this->decodes([[114.0, 131.0, [
+            ['start' => 10.0, 'end' => 10.2, 'word' => ' May'],
+            ['start' => 10.2, 'end' => 10.4, 'word' => ' the'],
+            ['start' => 10.4, 'end' => 10.7, 'word' => ' God'],
+            ['start' => 10.7, 'end' => 10.9, 'word' => ' of'],
+            ['start' => 10.9, 'end' => 11.3, 'word' => ' hope'],
+            ['start' => 11.3, 'end' => 11.5, 'word' => ' fill'],
+            ['start' => 11.5, 'end' => 11.8, 'word' => ' you.'],
+        ]]]);
+        $recovery = app(UntranscribedSpeechRecovery::class);
+
+        $this->assertSame(['stretches' => 1, 'recovered' => 1], $recovery->recover($log));
+        $log->refresh();
+        $once = $this->transcript($log)->cues;
+        $this->assertSame([['start' => 124.0, 'end' => 125.8, 'text' => 'May the God of hope fill you.']], array_values(array_filter($once, static fn (array $cue): bool => $cue['start'] >= 99.0)));
+
+        $this->assertSame(['stretches' => 0, 'recovered' => 0], $recovery->recover($log));
+        $this->assertSame($once, $this->transcript($log->fresh())->cues);
+    }
+
+    /**
+     * A failed decode leaves the long cue where it was, and its uncertainty on the run: it does
+     * not count as coverage again, so the next detection still marks the stretch (F11).
+     */
+    #[Test]
+    public function a_failed_decode_under_a_long_cue_keeps_it_visible_as_suspect(): void
+    {
+        $filler = ['start' => 100.8, 'end' => 130.78, 'text' => 'Thank you.'];
+        $log = $this->serviceRun([
+            ['start' => 0.0, 'end' => 9.0, 'text' => 'Earlier words, spoken at an ordinary pace for a line.'],
+            $filler,
+        ], speech: [[115, 135]]);
+        $path = $log->serviceTranscriptPath();
+        $this->decodes([[114.0, 136.0, []]]);
+
+        $this->assertSame(['stretches' => 1, 'recovered' => 0], app(UntranscribedSpeechRecovery::class)->recover($log));
+        $log->refresh();
+        $this->assertSame($path, $log->serviceTranscriptPath());
+        $attempt = $log->processing_metadata->raw['untranscribed_speech_recovery'][0];
+        $this->assertSame(0, $attempt['words']);
+        $this->assertEquals([$filler], $attempt['suspect_cues']);
+        $this->assertSame([], $attempt['replaced_cues']);
+    }
+
+    /**
+     * Speech under a long cue that the decode did not reach may be where the cue's own words are:
+     * the cue stays unless its words were heard.
+     */
+    #[Test]
+    public function a_long_cue_with_undecoded_speech_beneath_it_is_kept(): void
+    {
+        $long = ['start' => 100.0, 'end' => 140.0, 'text' => 'Thank you, Aled.'];
+        $log = $this->serviceRun([
+            ['start' => 0.0, 'end' => 9.0, 'text' => 'Earlier words, spoken at an ordinary pace for a line.'],
+            $long,
+        ], speech: [[100, 105], [115, 130]]);
+        $this->decodes([[114.0, 131.0, [
+            ['start' => 2.0, 'end' => 2.4, 'word' => ' Something'],
+            ['start' => 2.4, 'end' => 2.9, 'word' => ' else.'],
+        ]]]);
+
+        $this->assertSame(['stretches' => 1, 'recovered' => 1], app(UntranscribedSpeechRecovery::class)->recover($log));
+        $log->refresh();
+        $this->assertContains($long, $this->transcript($log)->cues);
+        $this->assertSame([], $log->processing_metadata->raw['untranscribed_speech_recovery'][0]['replaced_cues']);
     }
 
     /**

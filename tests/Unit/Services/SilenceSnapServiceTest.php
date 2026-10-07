@@ -138,6 +138,158 @@ class SilenceSnapServiceTest extends TestCase
         );
     }
 
+    /**
+     * Each item the merge absorbs is recorded with its own span, so an answer about one reading
+     * can settle that reading and not another (canary 12 review, 2026-10-06).
+     */
+    #[Test]
+    public function the_merge_records_each_interruption_it_absorbs(): void
+    {
+        $rmsLog = $this->rmsLog([[0.0, -20.0], [4000.0, -20.0]]);
+        $structure = ServiceStructure::fromSections([
+            $this->section('sermon', 1000.0, 1400.0),
+            $this->section('bible_reading', 1405.0, 1500.0),
+            $this->section('sermon', 1505.0, 1800.0),
+            $this->section('bible_reading', 1805.0, 1900.0),
+            $this->section('sermon', 1905.0, 2400.0),
+        ]);
+
+        $merged = $this->service->snap($structure, $rmsLog)->sections[0];
+
+        $this->assertSame(
+            [['bible_reading', 1405.0, 1500.0], ['bible_reading', 1805.0, 1900.0]],
+            SilenceSnapService::mergedInterruptions($merged->notes),
+        );
+    }
+
+    /**
+     * Run 949 (operator, 2026-10-07: "if the first reading is included then the second must be").
+     * The preacher reads both passages himself, inside his sermon: he names each just before it
+     * ("I want to start with Hebrews chapter 9", "one that stands out to me from Numbers 21") and
+     * carries straight on after it. Neither is the passage he preaches, but his own speech calls
+     * for both, so each is part of the sermon and nothing is left to ask.
+     */
+    #[Test]
+    public function readings_the_sermon_itself_introduces_are_settled_as_part_of_it(): void
+    {
+        $merged = $this->service->snap($this->embeddedReadings(), $this->rmsLog([[0.0, -20.0], [5000.0, -20.0]]), $this->embeddedReadingsTranscript())->sections[0];
+
+        $this->assertSame('sermon', $merged->type->value);
+        $this->assertNotContains(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $merged->reviewFlags);
+        $this->assertCount(2, SilenceSnapService::mergedInterruptions($merged->notes));
+        foreach (SilenceSnapService::mergedInterruptions($merged->notes) as $occurrence) {
+            $this->assertTrue(SilenceSnapService::isSettled($occurrence, $merged->notes));
+        }
+    }
+
+    /** Only the readings the evidence ties to the sermon are settled: an unnamed one is still asked. */
+    #[Test]
+    public function a_reading_the_sermon_does_not_introduce_keeps_the_merge_in_question(): void
+    {
+        $cues = array_values(array_filter($this->embeddedReadingsTranscript()->cues, static fn (array $cue): bool => ! str_contains($cue['text'], 'Numbers 21')));
+        $merged = $this->service->snap($this->embeddedReadings(), $this->rmsLog([[0.0, -20.0], [5000.0, -20.0]]),
+            ChurchServiceTranscript::fromCues($cues, 5000, ChurchServiceTranscript::SOURCE_MOCK))->sections[0];
+
+        $this->assertContains(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $merged->reviewFlags);
+        [$hebrews, $numbers] = SilenceSnapService::mergedInterruptions($merged->notes);
+        $this->assertTrue(SilenceSnapService::isSettled($hebrews, $merged->notes));
+        $this->assertFalse(SilenceSnapService::isSettled($numbers, $merged->notes));
+    }
+
+    /**
+     * Run 1250's re-read (one draw): "I do want to read verses 24 to 31 to you", Job 30:24-31 inside
+     * a sermon on Job 29-31. The passage is the one preached, so it is the sermon's own reading.
+     */
+    #[Test]
+    public function a_reading_within_the_preached_passage_is_settled_as_part_of_the_sermon(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('sermon', 2454.0, 3070.0, sermon: 'Job 29-31'),
+            $this->section('bible_reading', 3070.0, 3122.0, reading: 'Job 30:24-31'),
+            $this->section('sermon', 3124.0, 4311.0, sermon: 'Job 29-31'),
+        ]);
+
+        $merged = $this->service->snap($structure, $this->rmsLog([[0.0, -20.0], [5000.0, -20.0]]))->sections[0];
+
+        $this->assertNotContains(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $merged->reviewFlags);
+    }
+
+    /**
+     * What stays a question: a prayer between two sermon parts, a reading with no reference, and
+     * a passage named only before the sermon began (the leader's, not the preacher's).
+     */
+    #[Test]
+    public function interruptions_without_evidence_tying_them_to_the_sermon_stay_in_question(): void
+    {
+        $rms = $this->rmsLog([[0.0, -20.0], [5000.0, -20.0]]);
+        $prayer = $this->service->snap(ServiceStructure::fromSections([
+            $this->section('sermon', 1000.0, 1800.0, sermon: 'John 19'),
+            $this->section('prayer', 1805.0, 1900.0),
+            $this->section('sermon', 1905.0, 2400.0, sermon: 'John 19'),
+        ]), $rms)->sections[0];
+        $unreferenced = $this->service->snap(ServiceStructure::fromSections([
+            $this->section('sermon', 1000.0, 1800.0, sermon: 'John 19'),
+            $this->section('bible_reading', 1805.0, 1900.0),
+            $this->section('sermon', 1905.0, 2400.0, sermon: 'John 19'),
+        ]), $rms, ChurchServiceTranscript::fromCues([['start' => 1790.0, 'end' => 1804.0, 'text' => 'Hebrews chapter 9 says,']], 5000, ChurchServiceTranscript::SOURCE_MOCK))->sections[0];
+        $namedBefore = $this->service->snap(ServiceStructure::fromSections([
+            $this->section('bible_reading', 900.0, 990.0, reading: 'John 19:1-16'),
+            $this->section('sermon', 1000.0, 1010.0, sermon: 'John 19'),
+            $this->section('bible_reading', 1015.0, 1100.0, reading: 'Hebrews 9:11-14'),
+            $this->section('sermon', 1105.0, 2400.0, sermon: 'John 19'),
+        ]), $rms, ChurchServiceTranscript::fromCues([['start' => 980.0, 'end' => 985.0, 'text' => 'Later we will hear Hebrews 9.']], 5000, ChurchServiceTranscript::SOURCE_MOCK))->sections[1];
+
+        foreach ([$prayer, $unreferenced, $namedBefore] as $merged) {
+            $this->assertContains(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $merged->reviewFlags);
+        }
+    }
+
+    /**
+     * Codex review, 2026-10-07: the passage must be named where the reading is introduced, before
+     * it or as it opens. A line minutes later naming it says nothing about who called for it, and
+     * no line at the reading's opening leaves the question open.
+     */
+    #[Test]
+    public function an_unrelated_later_reference_does_not_settle_an_earlier_reading(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('sermon', 100, 150, sermon: 'John 19'),
+            $this->section('bible_reading', 150, 200, reading: 'Hebrews 9:11-14'),
+            $this->section('sermon', 200, 400, sermon: 'John 19'),
+        ]);
+        $later = ChurchServiceTranscript::fromCues([['start' => 350.0, 'end' => 355.0, 'text' => 'Later, compare Hebrews 9 with this passage.']], 500, ChurchServiceTranscript::SOURCE_MOCK);
+        $insideAfterItsOpening = ChurchServiceTranscript::fromCues([
+            ['start' => 150.0, 'end' => 153.0, 'text' => 'But when Christ appeared as a high priest'],
+            ['start' => 180.0, 'end' => 183.0, 'text' => 'as Hebrews 9 says'],
+        ], 500, ChurchServiceTranscript::SOURCE_MOCK);
+
+        foreach ([$later, $insideAfterItsOpening] as $transcript) {
+            $merged = $this->service->snap($structure, '', $transcript)->sections[0];
+            $this->assertContains(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $merged->reviewFlags);
+        }
+    }
+
+    /**
+     * Codex review, 2026-10-07: a reading between two sermon parts that preach different passages
+     * does not show one sermon resumed. Continuity needs every part to name the same passage; a
+     * conflicting or missing part keeps the merge in review.
+     */
+    #[Test]
+    public function sermon_parts_that_do_not_name_one_passage_keep_a_reading_merge_in_review(): void
+    {
+        foreach (['Romans 8', null] as $resumed) {
+            $structure = ServiceStructure::fromSections([
+                $this->section('sermon', 100, 150, sermon: 'John 19'),
+                $this->section('bible_reading', 150, 200, reading: 'John 19:15-30'),
+                $this->section('sermon', 200, 400, sermon: $resumed),
+            ]);
+
+            $merged = $this->service->snap($structure, '')->sections[0];
+
+            $this->assertContains(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $merged->reviewFlags, 'resumed as '.($resumed ?? 'no reference'));
+        }
+    }
+
     #[Test]
     public function it_merges_sermon_fragments_split_by_a_mid_sermon_prayer(): void
     {
@@ -343,13 +495,46 @@ class SilenceSnapServiceTest extends TestCase
         $this->assertSame([100.4, 110.8], [$result->sections[0]->startTime, $result->sections[0]->endTime]);
     }
 
-    private function section(string $type, float $start, float $end): ServiceStructureSection
+    /** Run 949's merged sermon, as one draw detected it. */
+    private function embeddedReadings(): ServiceStructure
+    {
+        return ServiceStructure::fromSections([
+            $this->section('sermon', 2690.0, 2932.0, sermon: 'John 19'),
+            $this->section('bible_reading', 2933.0, 2981.0, reading: 'Hebrews 9:11-14'),
+            $this->section('sermon', 2981.0, 3110.0, sermon: 'John 19'),
+            $this->section('bible_reading', 3111.0, 3172.0, reading: 'Numbers 21:4-9'),
+            $this->section('sermon', 3173.0, 4599.0, sermon: 'John 19'),
+        ]);
+    }
+
+    private function embeddedReadingsTranscript(): ChurchServiceTranscript
+    {
+        return ChurchServiceTranscript::fromCues([
+            ['start' => 2925.5, 'end' => 2929.2, 'text' => 'And we are going to be looking at different sections from'],
+            ['start' => 2929.2, 'end' => 2930.5, 'text' => 'John 19.'],
+            ['start' => 2931.2, 'end' => 2934.4, 'text' => 'But as we begin, I want to start with Hebrews chapter 9,'],
+            ['start' => 2934.4, 'end' => 2937.4, 'text' => 'starting with verse 11, which says,'],
+            ['start' => 2979.5, 'end' => 2981.5, 'text' => 'to serve the living God.'],
+            ['start' => 2981.9, 'end' => 2985.1, 'text' => 'Nearly, just over 2,000 years ago,'],
+            ['start' => 3091.0, 'end' => 3095.1, 'text' => 'And yet the crucifixion of Christ fulfilled so many Old'],
+            ['start' => 3098.5, 'end' => 3101.9, 'text' => "There's one that stands out to me from Numbers 21."],
+            ['start' => 3102.7, 'end' => 3108.7, 'text' => 'This is, we zoom in on the people of Israel wandering in'],
+            ['start' => 3108.7, 'end' => 3109.5, 'text' => 'the desert.'],
+            ['start' => 3110.0, 'end' => 3111.8, 'text' => 'And Numbers 21 verse 4 says,'],
+            ['start' => 3166.6, 'end' => 3171.4, 'text' => 'And if a serpent bit anyone, he would look at the bronze'],
+            ['start' => 3173.8, 'end' => 3181.2, 'text' => 'John references this situation, this event in his own'],
+        ], 5000, ChurchServiceTranscript::SOURCE_MOCK);
+    }
+
+    private function section(string $type, float $start, float $end, ?string $reading = null, ?string $sermon = null): ServiceStructureSection
     {
         $section = ServiceStructureSection::fromArray([
             'type' => $type,
             'start_time' => $start,
             'end_time' => $end,
             'confidence' => 0.9,
+            'reading_reference' => $reading,
+            'sermon_reference' => $sermon,
         ]);
 
         assert($section instanceof ServiceStructureSection);

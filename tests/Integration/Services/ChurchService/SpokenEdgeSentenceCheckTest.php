@@ -57,13 +57,36 @@ class SpokenEdgeSentenceCheckTest extends TestCase
         [$talk, $reading] = $this->handover(ServiceSectionType::BibleReading);
         $this->answers(['extend', "Speaking of which, let's have our morning reading."], ['extend', "Speaking of which, let's have our morning reading."]);
 
-        $summary = app(SpokenEdgeSentenceCheck::class)->prepare($reading->processingLog->fresh());
+        $summary = app(SpokenEdgeSentenceCheck::class)->prepare($reading->processingLog->fresh(), [$reading->id]);
         $plan = app(CueSafeExtractionPlan::class)->forSection($reading->fresh());
 
-        // Both edges of the handover (the talk's end, the reading's start) got the same answers.
+        // Both edges of the handover (the talk clip's end, the sermon output's start at the
+        // reading, as at 1117) got the same answers.
         $this->assertSame(2, $summary['agreed_moves']);
         $this->assertLessThanOrEqual(1715.50, $plan['segments'][0]['start_time']);
         $this->assertSame('sentence_check', $plan['cue_edge_widening'][0]['reason']);
+    }
+
+    /**
+     * An answer is about the transcript the model read. The same cut with a line re-transcribed
+     * at the same times is a new question: the banked move is not made on text nobody judged.
+     */
+    #[Test]
+    public function a_banked_answer_does_not_survive_a_change_to_the_text_it_judged(): void
+    {
+        [, $reading] = $this->handover(ServiceSectionType::BibleReading);
+        $this->answers(['extend', "Speaking of which, let's have our morning reading."], ['extend', "Speaking of which, let's have our morning reading."]);
+        app(SpokenEdgeSentenceCheck::class)->prepare($reading->processingLog->fresh(), [$reading->id]);
+        $this->assertSame('sentence_check', app(CueSafeExtractionPlan::class)->forSection($reading->fresh())['cue_edge_widening'][0]['reason']);
+
+        $transcript = json_decode((string) Storage::disk('local')->get('temp/handover.json'), true);
+        $cues = ChurchServiceTranscript::fromArray($transcript)->cues;
+        $cues[1]['text'] = "But keep loving God's word.";
+        Storage::disk('local')->put('temp/handover.json', json_encode(ChurchServiceTranscript::fromCues($cues, 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        $plan = app(CueSafeExtractionPlan::class)->forSection($reading->fresh());
+
+        $this->assertSame('word_pause', $plan['cue_edge_widening'][0]['reason']);
+        $this->assertSame(['asked' => false], $plan['cue_edge_widening'][0]['sentence_check']);
     }
 
     #[Test]
@@ -72,7 +95,7 @@ class SpokenEdgeSentenceCheckTest extends TestCase
         [, $reading] = $this->handover(ServiceSectionType::BibleReading);
         $this->answers(['extend', "Speaking of which, let's have our morning reading."], ['shrink', "It's quite a short one."]);
 
-        app(SpokenEdgeSentenceCheck::class)->prepare($reading->processingLog->fresh());
+        app(SpokenEdgeSentenceCheck::class)->prepare($reading->processingLog->fresh(), [$reading->id]);
         $plan = app(CueSafeExtractionPlan::class)->forSection($reading->fresh());
 
         $this->assertEqualsWithDelta(1717.75, $plan['segments'][0]['start_time'], 0.06);
@@ -87,7 +110,7 @@ class SpokenEdgeSentenceCheckTest extends TestCase
         [, $reading] = $this->handover(ServiceSectionType::BibleReading);
         $this->answers(['shrink', 'Matthew chapter 5.'], ['shrink', 'Matthew chapter 5.']);
 
-        app(SpokenEdgeSentenceCheck::class)->prepare($reading->processingLog->fresh());
+        app(SpokenEdgeSentenceCheck::class)->prepare($reading->processingLog->fresh(), [$reading->id]);
         $plan = app(CueSafeExtractionPlan::class)->forSection($reading->fresh());
 
         $this->assertEqualsWithDelta(1717.75, $plan['segments'][0]['start_time'], 0.06);
@@ -130,7 +153,132 @@ class SpokenEdgeSentenceCheckTest extends TestCase
     }
 
     /** @return array{0: ServiceSection, 1: ServiceSection} */
-    private function handover(ServiceSectionType $next): array
+    /**
+     * Canary 12, 1050: both agreed moves were at the join of one sermon's two parts, where its
+     * output has no cut. A join inside the sermon's output is not asked about.
+     */
+    #[Test]
+    public function a_join_inside_the_sermon_output_is_not_asked_about(): void
+    {
+        [$first, $second] = $this->handover(ServiceSectionType::Sermon, ServiceSectionType::Sermon, join: [1717.75, 1717.75]);
+        OpenAI::fake([]);
+
+        $summary = app(SpokenEdgeSentenceCheck::class)->prepare($first->processingLog->fresh(), [$first->id, $second->id]);
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($first->processingLog->fresh(), [
+            ['start_time' => 1532.22, 'end_time' => 1717.75], ['start_time' => 1717.75, 'end_time' => 1810.0],
+        ], sermonEnd: true);
+
+        $this->assertCount(1, $plan['segments'], 'extraction joins the parts');
+        $this->assertSame(['edges' => 0, 'asked' => 0, 'agreed_moves' => 0, 'unchecked' => 0], $summary);
+        OpenAI::assertNothingSent();
+    }
+
+    /**
+     * The same boundary inside the sermon's output can still be where a separately extracted clip
+     * ends: a short talk the sermon output takes in is also cut as its own clip, and its end is
+     * asked about.
+     */
+    #[Test]
+    public function a_join_inside_the_sermon_is_asked_about_where_a_separate_clip_ends(): void
+    {
+        [$talk, $sermon] = $this->handover(ServiceSectionType::Sermon, ServiceSectionType::ShortTalk, join: [1717.75, 1717.75]);
+        $this->answers(['keep', ''], ['keep', '']);
+
+        $summary = app(SpokenEdgeSentenceCheck::class)->prepare($talk->processingLog->fresh(), [$talk->id, $sermon->id]);
+
+        $this->assertSame(1, $summary['edges']);
+        $this->assertSame(1, $summary['asked']);
+    }
+
+    /**
+     * A reading is not cut into a clip of its own (only sections with a publication handler are),
+     * so its join with the sermon inside the sermon's output is cut nowhere.
+     */
+    #[Test]
+    public function a_reading_joined_inside_the_sermon_output_is_not_asked_about(): void
+    {
+        [$sermon, $reading] = $this->handover(ServiceSectionType::BibleReading, ServiceSectionType::Sermon, join: [1717.75, 1717.75]);
+        OpenAI::fake([]);
+
+        $summary = app(SpokenEdgeSentenceCheck::class)->prepare($sermon->processingLog->fresh(), [$sermon->id, $reading->id]);
+
+        $this->assertSame(0, $summary['edges']);
+        OpenAI::assertNothingSent();
+    }
+
+    /**
+     * Codex review, 2026-10-07: extraction merges only spans that touch or overlap once their
+     * edges are placed, so a sermon ending at 1100 s and a selected prayer starting at 1101 s are
+     * cut as two spans, and both edges are cut in the output. Treating parts within two seconds
+     * as joined skipped them.
+     */
+    #[Test]
+    public function both_edges_of_a_gap_the_sermon_output_keeps_are_asked_about(): void
+    {
+        [$sermon, $prayer] = $this->gap();
+        $this->answers(['keep', ''], ['keep', ''], ['keep', ''], ['keep', '']);
+
+        $summary = app(SpokenEdgeSentenceCheck::class)->prepare($sermon->processingLog->fresh(), [$sermon->id, $prayer->id]);
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($sermon->processingLog->fresh(), [
+            ['start_time' => 1000.0, 'end_time' => 1100.0], ['start_time' => 1101.0, 'end_time' => 1110.0],
+        ], sermonEnd: true);
+
+        $this->assertCount(2, $plan['segments'], 'extraction keeps the gap');
+        $this->assertSame(2, $summary['edges']);
+        $this->assertSame(2, $summary['asked']);
+    }
+
+    /** An edge between two items neither of which is cut into any output is not asked about. */
+    #[Test]
+    public function an_edge_in_no_output_is_not_asked_about(): void
+    {
+        [$notices] = $this->handover(ServiceSectionType::Prayer, ServiceSectionType::Notices);
+        OpenAI::fake([]);
+
+        $summary = app(SpokenEdgeSentenceCheck::class)->prepare($notices->processingLog->fresh());
+
+        $this->assertSame(0, $summary['edges']);
+        OpenAI::assertNothingSent();
+    }
+
+    /**
+     * A sermon ending on a line at 1100 s and a prayer opening on its own line at 1101 s, with a
+     * second of silence between.
+     *
+     * @return array{0: ServiceSection, 1: ServiceSection}
+     */
+    private function gap(): array
+    {
+        Storage::fake('local');
+        config(['media-processing.storage.service_artifact_disk' => 'local']);
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create(['duration' => 5000]);
+        $log->putServiceTranscriptPath('temp/gap.json');
+        $cues = [
+            ['start' => 1097.0, 'end' => 1100.0, 'text' => 'And so we close.'],
+            ['start' => 1101.0, 'end' => 1103.0, 'text' => 'Let us pray.'],
+        ];
+        Storage::disk('local')->put('temp/gap.json', json_encode(ChurchServiceTranscript::fromCues($cues, 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        $sermon = ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => ServiceSectionType::Sermon, 'start_time' => 1000.0, 'end_time' => 1100.0]);
+        $prayer = ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => ServiceSectionType::Prayer, 'start_time' => 1101.0, 'end_time' => 1110.0]);
+        $words = [
+            ['start' => 1097.1, 'end' => 1097.5, 'word' => ' And'], ['start' => 1097.5, 'end' => 1098.0, 'word' => ' so'],
+            ['start' => 1098.0, 'end' => 1098.6, 'word' => ' we'], ['start' => 1098.6, 'end' => 1099.6, 'word' => ' close.'],
+            ['start' => 1101.1, 'end' => 1101.5, 'word' => ' Let'], ['start' => 1101.5, 'end' => 1101.9, 'word' => ' us'],
+            ['start' => 1101.9, 'end' => 1102.6, 'word' => ' pray.'],
+        ];
+        $evidence = app(OutputEdgeWordTimings::class);
+        foreach ([1100.0, 1101.0] as $edge) {
+            $window = $evidence->window($evidence->cues($log->fresh()), $edge, 5000.0);
+            app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($evidence->identity($log, $window)), [
+                'identity' => $evidence->identity($log, $window), 'words' => $words, 'compute_seconds' => 1.0,
+            ]);
+        }
+
+        return [$sermon->fresh(), $prayer->fresh()];
+    }
+
+    /** @param array{0: float, 1: float} $join Where the first item ends and the next starts */
+    private function handover(ServiceSectionType $next, ServiceSectionType $first = ServiceSectionType::ShortTalk, array $join = [1717.70, 1717.78]): array
     {
         Storage::fake('local');
         config(['media-processing.storage.service_artifact_disk' => 'local']);
@@ -145,10 +293,10 @@ class SpokenEdgeSentenceCheckTest extends TestCase
             ['start' => 1800.00, 'end' => 1810.00, 'text' => 'This is the word of the Lord.'],
         ];
         Storage::disk('local')->put('temp/handover.json', json_encode(ChurchServiceTranscript::fromCues($cues, 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
-        $talk = ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => ServiceSectionType::ShortTalk, 'start_time' => 1532.22, 'end_time' => 1717.70]);
-        $reading = ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => $next, 'start_time' => 1717.78, 'end_time' => 1810.0]);
+        $talk = ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => $first, 'start_time' => 1532.22, 'end_time' => $join[0]]);
+        $reading = ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => $next, 'start_time' => $join[1], 'end_time' => 1810.0]);
         $evidence = app(OutputEdgeWordTimings::class);
-        foreach ([1717.70, 1717.78, 1532.22, 1810.0] as $edge) {
+        foreach ([...$join, 1532.22, 1810.0] as $edge) {
             $window = $evidence->window($evidence->cues($log->fresh()), $edge, 5000.0);
             if ($window !== null) {
                 app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($evidence->identity($log, $window)), [

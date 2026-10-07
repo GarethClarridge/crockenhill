@@ -10,6 +10,7 @@ use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Enums\SoundClass;
 use App\Services\ChurchService\SectionPublication\SongPublicationBoundaryEvidenceService;
+use App\Services\ChurchService\TranscriptCueEvidence;
 use App\Services\Media\Audio\AudioTimeline;
 
 /**
@@ -21,8 +22,8 @@ use App\Services\Media\Audio\AudioTimeline;
  * "Thank you." filler cue. Measured read-only on 2026-10-05 over 996 section starts after a
  * song: 8.2% hit, and re-decoding reduces it without removing it.
  *
- * The stretch is the speech, unbroken by any cue of {@see self::LONGEST_TRANSCRIBED_CUE_SECONDS}
- * or less or a recorded unobservable window, that runs up to the section's first transcribed
+ * The stretch is the speech, unbroken by any cue that is evidence of speech ({@see TranscriptCueEvidence},
+ * as recovery reads coverage) or a recorded unobservable window, that runs up to the section's first transcribed
  * words. Only what abuts those words: a gap further back between lines the transcript does hold
  * is not the section's opening.
  *
@@ -41,12 +42,6 @@ class UntranscribedSpeechBeforeSection
      * measurement did, changed none of its 82 hits, and the timeline does not carry singing.
      */
     private const MINIMUM_SPEECH_SCORE = 0.6;
-
-    /**
-     * Whisper's filler cues ("Thank you.", ". . .", a looped line) run its full 30 s window; a
-     * real line is far shorter.
-     */
-    private const LONGEST_TRANSCRIBED_CUE_SECONDS = 15.0;
 
     private const MINIMUM_STRETCH_SECONDS = 10.0;
 
@@ -131,6 +126,20 @@ class UntranscribedSpeechBeforeSection
     }
 
     /**
+     * The interval a note records, as {@see self::note()} writes it.
+     *
+     * @return array{0: float, 1: float}|null
+     */
+    public static function interval(string $note): ?array
+    {
+        if (! self::isNote($note) || preg_match('/^'.preg_quote(self::NOTE_PREFIX, '/').' (\d+(?:\.\d+)?)–(\d+(?:\.\d+)?)s/u', $note, $match) !== 1) {
+            return null;
+        }
+
+        return [(float) $match[1], (float) $match[2]];
+    }
+
+    /**
      * @return array{0: float, 1: float}|null
      */
     private function stretchBefore(
@@ -141,7 +150,7 @@ class UntranscribedSpeechBeforeSection
     ): ?array {
         $lines = array_values(array_filter(
             $transcript->cues,
-            static fn (array $cue): bool => $cue['end'] - $cue['start'] <= self::LONGEST_TRANSCRIBED_CUE_SECONDS,
+            static fn (array $cue): bool => TranscriptCueEvidence::isEvidence($cue, $timeline),
         ));
         $first = null;
 

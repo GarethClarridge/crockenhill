@@ -32,10 +32,16 @@ class EnsembleReviewExport
 
     private const LETTERS = 'ABCDEFGH';
 
+    /** The items a sermon is merged across ({@see SilenceSnapService}). */
+    private const INTERRUPTION_TYPES = ['bible_reading', 'prayer'];
+
+    /** Seconds two versions' edges may differ by and still be the same edge. */
+    private const STRETCH_TOLERANCE = 2.0;
+
     public function __construct(private readonly ServiceStructureEnsembleReplay $replay) {}
 
     /**
-     * @return list<array{id: string, run: int, decided: bool, question_id: string, type: string, title: string, context: string, question: string, options: list<array{0: string, 1: string}>, answers: array<string, array{kind: string, slot: int|null}>, clips: list<array{start: float, end: float, label: string, cues: list<array{t: float, x: string}>}>}>
+     * @return list<array{id: string, run: int, decided: bool, question_id: string, type: string, title: string, context: string, question: string, options: list<array{0: string, 1: string}>, answers: array<string, array{kind: string, slot: int|null, parts?: list<array{question_id: string, kind: string, slot: int|null}>}>, clips: list<array{start: float, end: float, label: string, cues: list<array{t: float, x: string}>}>}>
      */
     public function items(MediaProcessingLog $log): array
     {
@@ -53,8 +59,23 @@ class EnsembleReviewExport
         $heading = $this->serviceHeading($log);
         $items = [];
 
-        foreach (array_values($replayed['disputes']) as $index => $dispute) {
-            $items[] = $this->item($log, $dispute, "{$log->id}-q{$index}", false, $cues, $heading);
+        $disputes = array_values($replayed['disputes']);
+        $grouped = [];
+
+        foreach ($disputes as $index => $dispute) {
+            foreach ($disputes as $innerIndex => $inner) {
+                if (! isset($grouped[$index]) && ! isset($grouped[$innerIndex]) && $this->settlesSermonStretch($dispute, $inner)) {
+                    $grouped[$index] = $innerIndex;
+                    $grouped[$innerIndex] = $index;
+                    $items[] = $this->groupedItem($log, $dispute, $inner, "{$log->id}-q".count($items), $cues, $heading);
+                }
+            }
+        }
+
+        foreach ($disputes as $index => $dispute) {
+            if (! isset($grouped[$index])) {
+                $items[] = $this->item($log, $dispute, "{$log->id}-q".count($items), false, $cues, $heading);
+            }
         }
 
         foreach (array_values($replayed['majority_decisions'] ?? []) as $index => $decision) {
@@ -172,6 +193,152 @@ class EnsembleReviewExport
             'options' => $options,
             'answers' => $answers,
             'clips' => $spans === [] ? [] : $this->clips($spans, $cues),
+        ];
+    }
+
+    /**
+     * Whether a sermon question and a reading or prayer question settle one decision: the drafts
+     * split two ways over where the sermon starts (or ends), and the item is exactly what lies in
+     * the stretch between, present in the drafts that start the sermon after it and absent in
+     * those that run the sermon through it. 949 in canary 12 asked both and was answered
+     * inconsistently (operator, 2026-10-06: "It's really one question"). Overlap alone is not
+     * enough: an item the same drafts do not split over is its own question.
+     *
+     * @param  array<string, mixed>  $sermon
+     * @param  array<string, mixed>  $inner
+     */
+    private function settlesSermonStretch(array $sermon, array $inner): bool
+    {
+        $stretch = $this->sermonStretch($sermon);
+
+        if ($stretch === null || ! in_array($inner['type'] ?? null, self::INTERRUPTION_TYPES, true)
+            || ! is_numeric($inner['start_time'] ?? null) || ! is_numeric($inner['end_time'] ?? null)
+            || (float) $inner['start_time'] < $stretch['from'] - self::STRETCH_TOLERANCE
+            || (float) $inner['end_time'] > $stretch['to'] + self::STRETCH_TOLERANCE) {
+            return false;
+        }
+
+        $present = array_merge(...array_map(static fn (array $alternative): array => $alternative['slots'], array_values(array_filter($inner['alternatives'] ?? [], 'is_array'))));
+        $absent = $inner['absent_slots'] ?? [];
+        sort($present);
+        sort($absent);
+
+        return $present === $stretch['excluding_slots'] && $absent === $stretch['including_slots'];
+    }
+
+    /**
+     * The stretch a two-way sermon question is about: between the two versions' differing start
+     * (or end), with the drafts that include it in the sermon and those that leave it out.
+     *
+     * @param  array<string, mixed>  $sermon
+     * @return array{from: float, to: float, including: int, excluding: int, including_slots: list<int>, excluding_slots: list<int>}|null
+     */
+    private function sermonStretch(array $sermon): ?array
+    {
+        $alternatives = array_values(array_filter($sermon['alternatives'] ?? [], 'is_array'));
+
+        if (($sermon['type'] ?? null) !== 'sermon' || count($alternatives) !== 2 || ($sermon['absent_slots'] ?? []) !== []) {
+            return null;
+        }
+
+        [$a, $b] = array_map(static fn (array $alternative): array => [(float) $alternative['section']['start_time'], (float) $alternative['section']['end_time']], $alternatives);
+        $startsDiffer = abs($a[0] - $b[0]) > self::STRETCH_TOLERANCE;
+        $endsDiffer = abs($a[1] - $b[1]) > self::STRETCH_TOLERANCE;
+
+        if ($startsDiffer === $endsDiffer) {
+            return null;
+        }
+
+        // The version reaching further over the stretch includes it.
+        $including = $startsDiffer ? ($a[0] < $b[0] ? 0 : 1) : ($a[1] > $b[1] ? 0 : 1);
+        $edge = $startsDiffer ? 0 : 1;
+        $slots = static function (array $alternative): array {
+            $slots = array_map(intval(...), (array) $alternative['slots']);
+            sort($slots);
+
+            return $slots;
+        };
+
+        return [
+            'from' => min($a[$edge], $b[$edge]),
+            'to' => max($a[$edge], $b[$edge]),
+            'including' => $including,
+            'excluding' => 1 - $including,
+            'including_slots' => $slots($alternatives[$including]),
+            'excluding_slots' => $slots($alternatives[1 - $including]),
+        ];
+    }
+
+    /**
+     * One question for a sermon question and the item it decides, offered as whole-stretch
+     * versions; each answer is the pair of answers the apply command records, so the two can
+     * never be answered inconsistently.
+     *
+     * @param  array<string, mixed>  $sermon
+     * @param  array<string, mixed>  $inner
+     * @param  list<array<string, mixed>>  $cues
+     * @return array{id: string, run: int, decided: bool, question_id: string, type: string, title: string, context: string, question: string, options: list<array{0: string, 1: string}>, answers: array<string, array{kind: string, slot: int|null, parts?: list<array{question_id: string, kind: string, slot: int|null}>}>, clips: list<array{start: float, end: float, label: string, cues: list<array{t: float, x: string}>}>}
+     */
+    private function groupedItem(MediaProcessingLog $log, array $sermon, array $inner, string $id, array $cues, string $heading): array
+    {
+        $stretch = $this->sermonStretch($sermon);
+        assert($stretch !== null);
+        $alternatives = array_values(array_filter($sermon['alternatives'], 'is_array'));
+        $innerAlternatives = array_values(array_filter($inner['alternatives'], 'is_array'));
+        $total = $this->voterCount($sermon, $alternatives);
+        $innerSection = $innerAlternatives[0]['section'];
+        $item = sprintf('%s%s, %s–%s', $this->withArticle($this->noun((string) $inner['type'])),
+            isset($innerSection['reading_reference']) ? ' “'.$innerSection['reading_reference'].'”' : '',
+            $this->clock((float) $inner['start_time']), $this->clock((float) $inner['end_time']));
+        $including = $alternatives[$stretch['including']];
+        $excluding = $alternatives[$stretch['excluding']];
+        $innerChosen = array_values(array_filter($innerAlternatives, static fn (array $alternative): bool => in_array($excluding['slots'][0], $alternative['slots'], true)))[0] ?? $innerAlternatives[0];
+        $part = static fn (array $dispute, string $kind, ?int $slot): array => ['question_id' => (string) $dispute['question_id'], 'kind' => $kind, 'slot' => $slot];
+        $leaveOut = ($inner['written'] ?? false) === true ? 'remove' : 'accept';
+        $answers = [
+            "alt{$stretch['including']}" => ['kind' => 'combined', 'slot' => null, 'parts' => [
+                $part($sermon, 'choose', (int) $including['slots'][0]), $part($inner, $leaveOut, null)]],
+            "alt{$stretch['excluding']}" => ['kind' => 'combined', 'slot' => null, 'parts' => [
+                $part($sermon, 'choose', (int) $excluding['slots'][0]), $part($inner, 'choose', (int) $innerChosen['slots'][0])]],
+        ];
+        ksort($answers);
+        $options = [];
+
+        foreach ([$stretch['including'], $stretch['excluding']] as $index) {
+            $section = $alternatives[$index]['section'];
+            $options[$index] = ["alt{$index}", sprintf('Version %s (%d of %d drafts): %s', self::LETTERS[$index], count($alternatives[$index]['slots']), $total,
+                $index === $stretch['including']
+                    ? sprintf('yes — one sermon %s–%s, with %s inside it', $this->clock((float) $section['start_time']), $this->clock((float) $section['end_time']), $item)
+                    : sprintf('no — %s on its own, then the sermon %s–%s', $item, $this->clock((float) $section['start_time']), $this->clock((float) $section['end_time'])))];
+        }
+
+        ksort($options);
+        $options = array_values($options);
+        // "Either" keeps the version the composition already holds, whole: never half of each.
+        $composed = array_search($sermon['supporting_slots'] ?? null, array_column($alternatives, 'slots'), true);
+
+        if (is_int($composed)) {
+            $options[] = ['either', 'Either version is fine'];
+            $answers['either'] = $answers["alt{$composed}"];
+        }
+
+        $options[] = ['neither', 'None of these is right (say what is in the note)'];
+        $answers['neither'] = ['kind' => 'combined', 'slot' => null, 'parts' => [$part($sermon, 'correct', null), $part($inner, 'defer', null)]];
+        $options[] = ['defer', 'Can’t tell'];
+        $answers['defer'] = ['kind' => 'combined', 'slot' => null, 'parts' => [$part($sermon, 'defer', null), $part($inner, 'defer', null)]];
+
+        return [
+            'id' => $id,
+            'run' => $log->id,
+            'decided' => false,
+            'question_id' => (string) $sermon['question_id'],
+            'type' => 'sermon',
+            'title' => sprintf('Sermon and %s at %s–%s (%s)', $this->noun((string) $inner['type']), $this->clock($stretch['from']), $this->clock($stretch['to']), $heading),
+            'context' => sprintf('The drafts disagree about one stretch: whether %s and the speech around it are part of the sermon.', $item),
+            'question' => sprintf('Is the stretch %s–%s part of the sermon?', $this->clock($stretch['from']), $this->clock($stretch['to'])),
+            'options' => $options,
+            'answers' => $answers,
+            'clips' => $this->clips([[(float) $including['section']['start_time'], (float) $including['section']['end_time']], [(float) $excluding['section']['start_time'], (float) $excluding['section']['end_time']]], $cues),
         ];
     }
 

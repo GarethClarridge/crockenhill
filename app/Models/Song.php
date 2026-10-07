@@ -307,11 +307,14 @@ class Song extends Model
 
     /**
      * Canonical match keys for a title, including a leading "O"/"Oh" variant so a hymn catalogued
-     * as "O Jesus I Have Promised" still matches a transcript of "Oh Jesus I Have Promised" (F9).
+     * as "O Jesus I Have Promised" still matches a transcript of "Oh Jesus I Have Promised" (F9),
+     * and the title without a leading "The": canary 12's draws named 949's hymn "Man of Sorrows"
+     * and "The Man of Sorrows", and only the first resolved (operator, 2026-10-06: a title
+     * variant is not a question).
      *
      * The stored {@see self::$canonical_key} is uniquely indexed and left untouched; these
-     * variants are only used when comparing, which keeps two genuinely distinct "O…"/"Oh…" songs
-     * able to coexist.
+     * variants are only used when comparing, and the title as written is always tried first, so
+     * two genuinely distinct "O…"/"Oh…" or "The…" songs keep their own titles.
      *
      * @return array<int, string>
      */
@@ -329,6 +332,10 @@ class Song extends Model
             $variants[] = 'o '.substr($key, 3);
         } elseif (str_starts_with($key, 'o ')) {
             $variants[] = 'oh '.substr($key, 2);
+        }
+
+        if (str_starts_with($key, 'the ') && strlen($key) > 4) {
+            $variants[] = substr($key, 4);
         }
 
         return array_values(array_unique($variants));

@@ -32,14 +32,34 @@ class OutputEdgeWordTimings
     }
 
     /**
+     * Seconds either side of an edge within which the lines around it make it an edge inside
+     * speech: 1117's sermon cut sat 0.15 s after "Amen." and 0.43 s before the next line, touched
+     * no cue, and so was never decoded or checked (canary 11 heard the "Amen" lost).
+     */
+    private const GAP_REACH = 1.0;
+
+    /**
+     * The audio around an edge: the cues touching it, or, for an edge in a short gap between two
+     * lines, both lines; a margin of a second either side. Null for an edge in a longer silence,
+     * which whole cues place.
+     *
      * @param  list<array{start: float, end: float, text: string}>  $cues
-     * @return array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>}|null
+     * @return array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>, between?: true}|null
      */
     public function window(array $cues, float $edge, ?float $duration): ?array
     {
         $touching = array_values(array_filter($cues, static fn (array $cue): bool => $cue['start'] <= $edge + 0.001 && $cue['end'] >= $edge - 0.001));
         if ($touching === []) {
-            return null;
+            $before = array_filter($cues, static fn (array $cue): bool => $cue['end'] < $edge && $cue['end'] >= $edge - self::GAP_REACH);
+            $after = array_filter($cues, static fn (array $cue): bool => $cue['start'] > $edge && $cue['start'] <= $edge + self::GAP_REACH);
+            if ($before === [] || $after === []) {
+                return null;
+            }
+            usort($before, static fn (array $a, array $b): int => $b['end'] <=> $a['end']);
+            usort($after, static fn (array $a, array $b): int => $a['start'] <=> $b['start']);
+            [$previous, $next] = [$before[0], $after[0]];
+
+            return ['start' => max(0.0, $previous['start'] - 1), 'end' => min($duration ?? INF, $next['end'] + 1), 'cues' => [$previous, $next], 'between' => true];
         }
         $start = min(array_column($touching, 'start'));
         $end = max(array_column($touching, 'end'));

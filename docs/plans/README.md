@@ -19,6 +19,14 @@ touched `.env` or production data. It is a running list, not a complete audit.
 
 ## How to use this index
 
+**2026-10-06 current boundary-fix handover:** canary 12 listening found 41/53 edges right and
+12 wrong. Start the next session at [boundary consistency §6.1](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md#61-reviewed-implementation-plan-before-canary-13--2026-10-06):
+evidence filtering/recovery → B1/B3 → A placement → unresolved-interval fallback →
+questions/flags, catalogue identity and C optimisation → canary 13 with regression and listening
+checks. That reviewed checklist replaces the earlier slice ordering for this work. 949 awaits
+confirmation and 1250 remains parked on reading membership; neither is silently counted as a pass.
+Earlier dated entries below are history, not current checkout or queue state.
+
 **2026-10-05:** F01–F03, F05, F06 and F08–F10 of the boundary-consistency plan are built and merged;
 see its §6 completion record. The canary 10 Tier C round was abandoned and its queue removed.
 
@@ -29,7 +37,8 @@ supersede historic/cut policy or authorise worker starts, queued-payload changes
 or operator rulings. Read its baseline and stopped-operation constraints before picking it up.
 Its [five bounded follow-up investigations](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md#7-further-bounded-investigations--added-2026-10-04)
 are hypotheses, separate from the ten findings/cases. Start further research with transcript
-completeness (I1) and replay stability (I3); S1/S2 remain the first proposed implementation slices.
+completeness (I1) and replay stability (I3); S1/S2 were the first proposed implementation slices
+at that date (the current implementation order is §6.1, linked above).
 Every slice must state its invariant and demonstrate downstream preservation.
 
 - The historic import has **one** plan. Its §2 decision record, §3 safety model and §4 finding

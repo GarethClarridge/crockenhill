@@ -9,8 +9,10 @@ use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleRulingApplier;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\ChurchService\Structure\SilenceSnapService;
 use App\Services\ChurchService\Structure\SongSpeechEdges;
 use App\Services\ChurchService\Structure\UntranscribedSpeechBeforeSection;
+use App\Support\SermonAutoExtractionPolicy;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -746,6 +748,179 @@ class ServiceStructureEnsembleRulingApplierTest extends TestCase
             static fn (array $section): array => [$section['type'], $section['start_time'], $section['end_time']],
             $result['structure']['sections'],
         );
+    }
+
+    /**
+     * Canary 12, 949 (operator, 2026-10-06): "It's really one question: is the intro and reading
+     * part of the sermon or not?" Answered "leave it out" — the reading is part of the sermon —
+     * yet the sermon kept `structure_sermon_interruption_merged`, which asks the same thing, and
+     * stayed parked. The answer settles that flag, and only that flag, on that sermon, and keeps
+     * settling it when the answers are applied again on recomposition.
+     */
+    #[Test]
+    public function leaving_out_a_reading_the_sermon_absorbed_settles_its_interruption_flag(): void
+    {
+        $proposal = $this->interruptedSermon();
+        $answer = $this->readingAnswer('accept', ['absent' => true]);
+        $applier = app(ServiceStructureEnsembleRulingApplier::class);
+
+        $result = $applier->apply($proposal, [$answer]);
+        $sermon = $this->sermonOf($result);
+
+        $this->assertNotContains(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $sermon['review_flags']);
+        $this->assertContains('unrelated_review', $sermon['review_flags']);
+        $this->assertContains(ServiceStructureEnsembleRulingApplier::interruptionSettledNote('bible_reading', 2931.0, 2982.0), $sermon['notes']);
+        $this->assertSame([], $result['disputes']);
+        $this->assertSame([[ 'song', 2459.81, 2690.0], ['sermon', 2690.1, 4620.0]], $this->spans($result), 'no bounds change');
+        $this->assertTrue(SermonAutoExtractionPolicy::reviewStatePermitsAutoExtraction(false, array_values(array_diff($sermon['review_flags'], ['unrelated_review']))));
+
+        $again = $applier->apply($proposal, [$answer]);
+        $this->assertSame($result['structure'], $again['structure'], 'recomposition applies the same answer the same way');
+    }
+
+    /** Choosing the separate reading does not say the merge was right: the flag stays. */
+    #[Test]
+    public function choosing_a_separate_reading_leaves_the_interruption_flag(): void
+    {
+        $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($this->interruptedSermon(), [$this->readingAnswer('choose', [
+            'sections' => [$this->section(ServiceSectionType::BibleReading, 2931.0, 2982.0)->toArray()],
+        ])]);
+
+        $sermons = array_values(array_filter($result['structure']['sections'], static fn (array $section): bool => $section['type'] === 'sermon'));
+        $this->assertTrue(array_any($sermons, static fn (array $section): bool => in_array(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $section['review_flags'], true)));
+    }
+
+    /** A note naming another interruption, or a reading outside the sermon, settles nothing here. */
+    #[Test]
+    public function an_answer_about_a_different_interruption_leaves_the_flag(): void
+    {
+        $applier = app(ServiceStructureEnsembleRulingApplier::class);
+
+        $prayer = $applier->apply($this->interruptedSermon('prayer'), [$this->readingAnswer('accept', ['absent' => true])]);
+        $outside = $applier->apply($this->interruptedSermon(readingAt: [1000.0, 1050.0]), [$this->readingAnswer('accept', ['absent' => true], [1000.0, 1050.0])]);
+
+        $this->assertContains(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $this->sermonOf($prayer)['review_flags']);
+        $this->assertContains(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $this->sermonOf($outside)['review_flags']);
+    }
+
+    /**
+     * Codex review of the §6.1 build: a sermon merged across two readings, one answered, kept the
+     * other's doubt only by accident of matching. The answer settles its own occurrence; the flag
+     * goes when every recorded occurrence is settled, and stays where the merge recorded none.
+     */
+    #[Test]
+    public function answering_one_of_two_interruptions_leaves_the_flag_for_the_other(): void
+    {
+        $applier = app(ServiceStructureEnsembleRulingApplier::class);
+        $two = [['bible_reading', 2931.0, 2982.0], ['bible_reading', 3500.0, 3560.0]];
+
+        $one = $applier->apply($this->interruptedSermon(occurrences: $two), [$this->readingAnswer('accept', ['absent' => true])]);
+        $legacy = $applier->apply($this->interruptedSermon(occurrences: []), [$this->readingAnswer('accept', ['absent' => true])]);
+
+        $this->assertContains(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $this->sermonOf($one)['review_flags']);
+        $this->assertContains(ServiceStructureEnsembleRulingApplier::interruptionSettledNote('bible_reading', 2931.0, 2982.0), $this->sermonOf($one)['notes']);
+        $this->assertContains(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $this->sermonOf($legacy)['review_flags'], 'nothing recorded, nothing settled');
+    }
+
+    /**
+     * Codex review: an answer about a moment inside a long reading is not an answer about the
+     * reading. It settles an occurrence only by covering most of it.
+     */
+    #[Test]
+    public function an_answer_about_a_fragment_of_an_interruption_does_not_settle_it(): void
+    {
+        $proposal = $this->interruptedSermon(readingAt: [2950.0, 2951.0], occurrences: [['bible_reading', 2931.0, 2991.0]]);
+
+        $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($proposal, [$this->readingAnswer('accept', ['absent' => true], [2950.0, 2951.0])]);
+
+        $this->assertContains(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $this->sermonOf($result)['review_flags']);
+        $this->assertNotContains(ServiceStructureEnsembleRulingApplier::interruptionSettledNote('bible_reading', 2931.0, 2991.0), $this->sermonOf($result)['notes']);
+    }
+
+    #[Test]
+    public function answering_every_interruption_settles_the_flag(): void
+    {
+        $proposal = $this->interruptedSermon(occurrences: [['bible_reading', 2931.0, 2982.0], ['bible_reading', 3500.0, 3560.0]]);
+        $proposal['disputes'][] = ['question_id' => 'second-question', 'type' => 'bible_reading', 'written' => false, 'start_time' => 3500.0, 'end_time' => 3560.0, 'absent_slots' => [0, 1]];
+        $second = [...$this->readingAnswer('accept', ['absent' => true], [3500.0, 3560.0]), 'ruling_key' => 'second-ruling'];
+
+        $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($proposal, [$this->readingAnswer('accept', ['absent' => true]), $second]);
+
+        $this->assertNotContains(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $this->sermonOf($result)['review_flags']);
+    }
+
+    /**
+     * One absorbed reading settled by evidence at the merge and the other by an answer: each is
+     * settled, so the flag goes. The evidence for one never settles the other unasked.
+     */
+    #[Test]
+    public function an_answer_and_evidence_together_settle_every_interruption(): void
+    {
+        $proposal = $this->interruptedSermon(occurrences: [['bible_reading', 2931.0, 2982.0], ['bible_reading', 3500.0, 3560.0]]);
+        $structure = ServiceStructure::fromArray($proposal['structure']);
+        $sermon = $structure->sections[1];
+        $evidenced = $sermon->withReviewFlags([], [SilenceSnapService::settledByEvidenceNote('bible_reading', 3500.0, 3560.0, 'the sermon names Numbers 21:4-9 before reading it')]);
+        $proposal['structure'] = ServiceStructure::fromSections([$structure->sections[0], $evidenced])->toArray();
+        $applier = app(ServiceStructureEnsembleRulingApplier::class);
+
+        $this->assertContains(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $this->sermonOf($applier->apply($proposal, []))['review_flags'], 'the other reading is still in question');
+        $this->assertNotContains(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $this->sermonOf($applier->apply($proposal, [$this->readingAnswer('accept', ['absent' => true])]))['review_flags']);
+    }
+
+    /**
+     * @param  array{0: float, 1: float}  $readingAt
+     * @param  list<array{0: string, 1: float, 2: float}>|null  $occurrences  The interruptions the merge recorded
+     * @return array<string, mixed>
+     */
+    private function interruptedSermon(string $interruption = 'bible_reading', array $readingAt = [2931.0, 2982.0], ?array $occurrences = null): array
+    {
+        $song = $this->section(ServiceSectionType::Song, 2459.81, 2690.0);
+        $sermon = $this->section(ServiceSectionType::Sermon, 2690.1, 4620.0)
+            ->withReviewFlags([ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, 'unrelated_review'], [
+                "Sermon interrupted by {$interruption} and resumed; merged 4 following sections into one sermon (2690.1s-4599.2s).",
+                ...array_map(static fn (array $occurrence): string => SilenceSnapService::interruptionNote(...$occurrence), $occurrences ?? [[$interruption, 2931.0, 2982.0]]),
+            ]);
+
+        return [
+            'source_hash' => 'source-a',
+            'attempt_id' => 'attempt-1',
+            'structure' => ServiceStructure::fromSections([$song, $sermon])->toArray(),
+            'disputes' => [[
+                'question_id' => 'reading-question',
+                'type' => 'bible_reading',
+                'written' => false,
+                'start_time' => $readingAt[0],
+                'end_time' => $readingAt[1],
+                'absent_slots' => [2, 3],
+            ]],
+            'degraded' => false,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $resolution
+     * @param  array{0: float, 1: float}  $span
+     * @return array<string, mixed>
+     */
+    private function readingAnswer(string $kind, array $resolution, array $span = [2931.0, 2982.0]): array
+    {
+        return [
+            'ruling_key' => 'reading-ruling',
+            'revision' => 1,
+            'source_hash' => 'source-a',
+            'scope' => ['type' => 'bible_reading', 'start_time' => $span[0], 'end_time' => $span[1]],
+            'kind' => $kind,
+            'resolution' => $resolution,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $result
+     * @return array<string, mixed>
+     */
+    private function sermonOf(array $result): array
+    {
+        return collect($result['structure']['sections'])->firstWhere('type', 'sermon');
     }
 
     /**
