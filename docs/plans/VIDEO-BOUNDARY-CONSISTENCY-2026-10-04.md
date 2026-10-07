@@ -1440,6 +1440,35 @@ service).
   rather than automatic.
 - The staging drive must be attached for re-detection and extraction (source availability).
 
+### Completion record — canary 13 run (2026-10-07, code `db7cff5a2`; exporter `08a7c817f`)
+
+Operator authorised dispatch. Snapshot `canary13-20261007/snapshot.json` (29 runs, routing `2fc8903c…`).
+The guard routed six unused services to Tier A, not fresh detection (1012, 1200, 1286, 1292, 1362: listening
+rated the new decode better; 1282: transcript-loss hold), as the full re-run would. They were re-snapshotted
+after Tier A (`snapshot-tierb.json`) and re-detected. Rounds 13:55–14:37 UTC, 0 failures; Tier C 14:44–16:47 UTC.
+Logs, dry runs and backups: `storage/app/private/canary13-20261007/`.
+
+- **Cut (14):** 936, 949, 1028, 1050, 1086, 1105, 1112, 1117, 1137, 1221, 1250, 1304, 1356, 1358. 1250 cut by
+  rules for the first time since canary 11. 949's cut uses its saved answers, so it is operator-assisted.
+- **Held on ensemble questions (8 questions, 8 runs):** 961, 964, 1025, 1200, 1282, 1292, 1311, 1346. Four
+  of these are talk-edge checks (1200, 1282, 1292, 1346). 1311's 10-06 answer is re-asked because its
+  evidence changed. Page https://claude.ai/artifact/TQhQQq4zUPEYAtyQCP3vPm.
+- **964 grouping (`08a7c817f`):** "where does the talk end?" and "is there a reading?" were asked
+  separately over one stretch. The exporter now groups a short talk's disputed edge with the item inside
+  it, as for a sermon. The change is exporter-only; the workers were not restarted.
+- **Parked by Tier C (7):**
+  - Refused edges: 1108 (song §1895 end, song §1897 end, sermon end 4125.58), 1273 (song §3415 end,
+    sermon end 4050.26), 1362 (sermon end 3214.9). 1108's extended sermon end runs past "Let's stand to
+    sing" into the sung "How deep the Father's love". Excerpts: `storage/scratch/canary13-unresolved-edges`.
+  - Merge flag `structure_sermon_interruption_merged`: 953 (also `structure_low_confidence` and
+    `structure_missing_preached_reading`) and 1110. Same class as 949 in canary 12.
+  - **Defect, 1012 and 1286:** each run's own end-of-pipeline order-of-service sync renumbers the items
+    (14:33–14:35 UTC, every canary service). It does this after the ensemble bundle is saved.
+    `EnsembleReviewGate::oosItemsMatch` compares the items in order, so where the recording's order differs
+    from the printed order, the run invalidates its own evidence and parks on `service_structure_ensemble_review`.
+    This affects routine processing as well.
+- Not yet listened.
+
 ## 7. Further bounded investigations — added 2026-10-04
 
 The user requested these additions after reviewing the gaps in the plans. They are **open
