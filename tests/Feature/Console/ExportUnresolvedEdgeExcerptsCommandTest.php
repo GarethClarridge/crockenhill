@@ -62,8 +62,8 @@ class ExportUnresolvedEdgeExcerptsCommandTest extends TestCase
 
         $entries = json_decode((string) file_get_contents("{$this->out}/excerpts.json"), true);
         $decision = collect($entries)->firstWhere('kind', 'needs_operator');
-        $this->assertSame(CueSafeExtractionPlan::SONG_END_UNRESOLVED, $decision['reason']);
-        $this->assertSame('end', $decision['edge']);
+        $this->assertSame(CueSafeExtractionPlan::AMBIGUOUS_CUE_ANCHOR, $decision['reason']);
+        $this->assertSame('start', $decision['edge']);
         $this->assertSame('missing_edge_evidence', collect($entries)->firstWhere('kind', 'missing_edge_evidence')['kind']);
         Process::assertRan(fn ($process): bool => in_array("{$this->out}/{$decision['clips'][1]['src']}", $process->command, true)
             && in_array((string) ($decision['time'] - 6.0), $process->command, true));
@@ -83,13 +83,13 @@ class ExportUnresolvedEdgeExcerptsCommandTest extends TestCase
         $this->artisan('historic-import:unresolved-edge-excerpts', ['runs' => [$log->id], '--out' => $this->out])->assertSuccessful();
         $entries = json_decode((string) file_get_contents("{$this->out}/excerpts.json"), true);
         $decision = collect($entries)->firstWhere('kind', 'needs_operator');
-        $song = ServiceSection::query()->where('media_processing_log_id', $log->id)->orderBy('start_time')->firstOrFail();
+        $talk = ServiceSection::query()->where('media_processing_log_id', $log->id)->orderBy('start_time')->firstOrFail();
         $plans = app(CueSafeExtractionPlan::class);
         $validator = app(PublicationPlanValidator::class);
-        $blocked = $plans->forSection($song);
-        $this->assertSame('edge_unresolved', $validator->validate($log, [$song], $blocked['segments'], $blocked['cue_edge_widening'])[0]['kind']);
+        $blocked = $plans->forSection($talk);
+        $this->assertSame('edge_unresolved', $validator->validate($log, [$talk], $blocked['segments'], $blocked['cue_edge_widening'])[0]['kind']);
         $answers = "{$this->out}/answers.json";
-        file_put_contents($answers, json_encode([['id' => $decision['id'], 'choice' => 'cut_at', 'time' => 4146.3, 'note' => 'The benediction starts at 4146.6.']]));
+        file_put_contents($answers, json_encode([['id' => $decision['id'], 'choice' => 'cut_at', 'time' => 4139.4, 'note' => 'The talk opens with the first thank you.']]));
 
         $this->artisan('historic-import:unresolved-edge-answers', ['export' => $this->out, 'answers' => $answers, '--operator' => (string) $operator->id])
             ->expectsOutputToContain('1 ready')
@@ -99,11 +99,11 @@ class ExportUnresolvedEdgeExcerptsCommandTest extends TestCase
             ->expectsOutputToContain('1 applied')
             ->assertSuccessful();
 
-        $planned = $plans->forSection($song->fresh());
-        $this->assertSame(4146.3, $planned['segments'][0]['end_time']);
-        $this->assertSame([], $validator->validate($log->fresh(), [$song], $planned['segments'], $planned['cue_edge_widening']));
+        $planned = $plans->forSection($talk->fresh());
+        $this->assertSame(4139.4, $planned['segments'][0]['start_time']);
+        $this->assertSame([], $validator->validate($log->fresh(), [$talk], $planned['segments'], $planned['cue_edge_widening']));
         $audit = collect($planned['cue_edge_widening'])->firstWhere('reason', CueSafeExtractionPlan::OPERATOR_ANSWERED_EDGE);
-        $this->assertSame(CueSafeExtractionPlan::SONG_END_UNRESOLVED, $audit['unresolved_reason']);
+        $this->assertSame(CueSafeExtractionPlan::AMBIGUOUS_CUE_ANCHOR, $audit['unresolved_reason']);
         $this->assertSame($operator->id, $audit['answer']['operator_id']);
 
         $this->artisan('historic-import:unresolved-edge-excerpts', ['runs' => [$log->id], '--out' => $this->out.'-after'])
@@ -111,13 +111,13 @@ class ExportUnresolvedEdgeExcerptsCommandTest extends TestCase
             ->assertSuccessful();
         File::deleteDirectory($this->out.'-after');
 
-        // The line before the song's end re-transcribed at the same times: the cut and its
-        // timestamps are unchanged, but the operator did not hear this evidence, so the block returns.
+        // The talk's second line re-transcribed at the same times: the cut and its timestamps are
+        // unchanged, but the operator did not hear this evidence, so the block returns.
         $cues = $this->cues();
-        $cues[0]['text'] = 'Here in the death of Christ I live.';
+        $cues[1]['text'] = 'Here in the death of Christ I live.';
         Storage::disk('local')->put('temp/edges.json', json_encode(ChurchServiceTranscript::fromCues($cues, 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
-        $stale = $plans->forSection($song->fresh());
-        $this->assertSame([['span_index' => 0, 'edge' => 'end', 'original_time' => 4145.64]], CueSafeExtractionPlan::unresolvedEdges($stale['cue_edge_widening']));
+        $stale = $plans->forSection($talk->fresh());
+        $this->assertSame([['span_index' => 0, 'edge' => 'start', 'original_time' => 4140.0]], CueSafeExtractionPlan::unresolvedEdges($stale['cue_edge_widening']));
         $this->assertSame($decision['time'], round($stale['cue_edge_widening'][0]['time'], 2), 'the proposed cut did not move');
     }
 
@@ -162,21 +162,25 @@ class ExportUnresolvedEdgeExcerptsCommandTest extends TestCase
     private function cues(): array
     {
         return [
-            ['start' => 4140.0, 'end' => 4145.64, 'text' => 'Here in the power of Christ I stand.'],
-            ['start' => 4172.84, 'end' => 4177.34, 'text' => 'To the only God, our Saviour, be glory, majesty, power and'],
+            ['start' => 4140.0, 'end' => 4141.0, 'text' => 'thank you'],
+            ['start' => 4141.0, 'end' => 4170.0, 'text' => 'Here in the power of Christ I stand.'],
             ['start' => 4590.0, 'end' => 4600.0, 'text' => 'And sing the final verse.'],
         ];
     }
 
-    /** The output identity of the run's first song's clip, as its plan records it. */
+    /** The output identity of the run's talk, as its plan records it. */
     private function plannedOutput(MediaProcessingLog $log): string
     {
-        $song = ServiceSection::query()->where('media_processing_log_id', $log->id)->orderBy('start_time')->firstOrFail();
+        $talk = ServiceSection::query()->where('media_processing_log_id', $log->id)->orderBy('start_time')->firstOrFail();
 
-        return (string) collect(app(CueSafeExtractionPlan::class)->forSection($song)['cue_edge_widening'])->firstWhere('output', '!=', null)['output'];
+        return (string) collect(app(CueSafeExtractionPlan::class)->forSection($talk)['cue_edge_widening'])->firstWhere('output', '!=', null)['output'];
     }
 
-    /** 1311 §4972's shape, plus a second song whose end words were never decoded. */
+    /**
+     * A talk whose opening "thank you" is heard twice within reach (F03), so its start is refused,
+     * plus a song whose end words were never decoded. Song ends at speech fade since 2026-10-07,
+     * so a song end is no longer the refused edge here.
+     */
     private function run1311(): MediaProcessingLog
     {
         $cues = $this->cues();
@@ -198,11 +202,16 @@ class ExportUnresolvedEdgeExcerptsCommandTest extends TestCase
 
             return $metadata;
         });
-        ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => ServiceSectionType::Song, 'start_time' => 3944.07, 'end_time' => 4145.64]);
+        ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => ServiceSectionType::ShortTalk, 'start_time' => 4140.0, 'end_time' => 4170.0]);
         ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => ServiceSectionType::Song, 'start_time' => 4400.0, 'end_time' => 4600.0]);
         $log = $log->fresh();
         $evidence = app(OutputEdgeWordTimings::class);
-        foreach ([[4145.64, [['start' => 4144.4, 'end' => 4145.5, 'word' => ' stand.']]], [4172.84, [['start' => 4171.98, 'end' => 4172.54, 'word' => ' joy.'], ['start' => 4172.89, 'end' => 4173.31, 'word' => ' To']]]] as [$edge, $words]) {
+        $opening = [
+            ['start' => 4139.5, 'end' => 4139.7, 'word' => ' thank'], ['start' => 4139.7, 'end' => 4139.9, 'word' => ' you'],
+            ['start' => 4140.1, 'end' => 4140.3, 'word' => ' thank'], ['start' => 4140.3, 'end' => 4140.5, 'word' => ' you'],
+            ['start' => 4141.6, 'end' => 4141.9, 'word' => ' so'],
+        ];
+        foreach ([[4140.0, $opening], [4170.0, [['start' => 4168.0, 'end' => 4169.5, 'word' => ' stand.']]]] as [$edge, $words]) {
             $window = $evidence->window($evidence->cues($log), $edge, 5000.0);
             app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($evidence->identity($log, $window)), [
                 'identity' => $evidence->identity($log, $window), 'words' => $words, 'compute_seconds' => 1.0,

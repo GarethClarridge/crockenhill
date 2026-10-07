@@ -60,6 +60,15 @@ class CueSafeExtractionPlan
     private const SONG_END_SILENCE_TAIL = 0.3;
 
     /**
+     * The shortest and longest fade of a song's sound into the speech after it (operator,
+     * 2026-10-07): the fade spans the gap from the last sung sound, within these bounds, and ends
+     * at the cut. A longer outro plays on until its last seconds.
+     */
+    private const SONG_END_FADE_MIN = 1.5;
+
+    private const SONG_END_FADE_MAX = 4.0;
+
+    /**
      * How far before a song's end its singing may stop and speech start inside the section: the
      * window around the end reaches back over the cues touching it (1028 §1400's benediction
      * started 29 s before it, 1108 §1896's "Thank you, Aled" 15 s).
@@ -93,12 +102,20 @@ class CueSafeExtractionPlan
     private const SONG_END_QUIET_SECONDS = 0.25;
 
     /**
-     * The audit reason for a song end whose speech onset the evidence cannot establish (canary 12,
-     * B1): its opening words are not heard, or only the classifier says where the speech starts.
-     * The cut sits at the first quiet after the singing, or before the speech's cue; whether that
-     * is right is a question, so a consumer must not execute the plan unasked.
+     * The audit reason for a song end with nothing to say where speech after it starts: no heard
+     * word, cue or classifier window before the reach. Whether the cut is right is a question, so
+     * a consumer must not execute the plan unasked.
      */
     public const SONG_END_UNRESOLVED = 'song_end_onset_unresolved';
+
+    /**
+     * The audit reason for a song end at speech whose onset the evidence cannot establish (canary
+     * 12, B1): its opening words are not heard, or only the cue or the classifier says where the
+     * speech starts. Canary 13 refused 23 of 92 song ends this way. Its sound fades out instead
+     * (operator, 2026-10-07): any unidentified words at the cut fade with the song, which sounds
+     * deliberate, so the cut is no longer a question.
+     */
+    public const SONG_END_FADE = 'song_end_fade';
 
     /**
      * The audit reason for a cut widened over speech recovery left without words (F11): it goes
@@ -121,7 +138,7 @@ class CueSafeExtractionPlan
     /** Seconds within which a section's bound borders an unresolved interval. */
     private const INTERVAL_REACH = 0.5;
 
-    /** @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>} */
+    /** @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>, audio_fade_out: float|null} */
     public function forSection(ServiceSection $section): array
     {
         return $this->forSpans(
@@ -161,7 +178,7 @@ class CueSafeExtractionPlan
      * @param  list<array{start_time: float, end_time: float}>  $spans
      * @param  bool  $songEnds  Each span is a song: its end runs on to silence or the next speech
      * @param  bool  $sermonEnd  The last span ends a sermon output: beside a song it takes the spoken stretch before the singing (A)
-     * @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>}
+     * @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>, audio_fade_out: float|null}
      */
     public function forSpans(MediaProcessingLog $log, array $spans, bool $songEnds = false, bool $sermonEnd = false): array
     {
@@ -256,6 +273,7 @@ class CueSafeExtractionPlan
         $audit = $this->withAnswerIdentity($log, $sectionSpans, $songEnds, $sermonEnd, $cues, $levels, $timeline, $audit);
         $spans = $this->withAnsweredEdges($log, $spans, $audit);
         $spans = $this->withUnresolvedIntervals($log, $sectionSpans, $spans, $audit);
+        $lastSpan = $last;
         $merged = [];
         foreach ($spans as $span) {
             $last = count($merged) - 1;
@@ -267,7 +285,10 @@ class CueSafeExtractionPlan
             $merged[] = $span;
         }
 
-        return ['segments' => $merged, 'cue_edge_widening' => $audit];
+        $fade = array_values(array_filter($audit, static fn (array $entry): bool => ($entry['span_index'] ?? null) === $lastSpan
+            && $entry['edge'] === 'end' && isset($entry['fade_out'])))[0]['fade_out'] ?? null;
+
+        return ['segments' => $merged, 'cue_edge_widening' => $audit, 'audio_fade_out' => $songEnds ? $fade : null];
     }
 
     /**
@@ -914,9 +935,11 @@ class CueSafeExtractionPlan
             if ($onset['established'] && abs($onset['word']['start'] - $until) < 0.001) {
                 $pause = $onset['pause'];
 
-                return ['time' => $pause['end'] - min(0.1, ($pause['end'] - $pause['start']) / 2), 'chosen_pause' => $pause,
+                $time = $pause['end'] - min(0.1, ($pause['end'] - $pause['start']) / 2);
+
+                return ['time' => $time, 'chosen_pause' => $pause,
                     'word_before' => $onset['word_before'], 'word_after' => $this->plain($onset['word']),
-                    'reason' => 'song_end_speech', 'speech_cue' => $speech];
+                    'reason' => 'song_end_speech', 'speech_cue' => $speech, 'fade_out' => $this->fadeOut($time, $lastSound)];
             }
         }
 
@@ -934,10 +957,20 @@ class CueSafeExtractionPlan
         $quiet = $levels !== null && ! $textBound ? $this->firstQuiet($levels, $lastSound, $until) : null;
         $gap = $quiet ?? $this->lastGap($words, min($lastSound, $floor), $until);
 
-        return ['time' => $gap !== null ? ($quiet !== null ? $gap['start'] + min(self::SONG_END_SILENCE_TAIL, ($gap['end'] - $gap['start']) / 2) : $gap['end'] - min(0.1, ($gap['end'] - $gap['start']) / 2))
-            : max(min($lastSound, $until), $until - 0.1),
-            'chosen_pause' => $gap, 'word_before' => null, 'word_after' => null,
-            'reason' => self::SONG_END_UNRESOLVED, 'speech_cue' => $speech, 'onset_bound' => $until];
+        $time = $gap !== null ? ($quiet !== null ? $gap['start'] + min(self::SONG_END_SILENCE_TAIL, ($gap['end'] - $gap['start']) / 2) : $gap['end'] - min(0.1, ($gap['end'] - $gap['start']) / 2))
+            : max(min($lastSound, $until), $until - 0.1);
+        // Only the reach bounds the search: nothing says where the speech starts.
+        $unidentified = abs($until - ($end + self::SONG_END_REACH)) < 0.001;
+
+        return ['time' => $time, 'chosen_pause' => $gap, 'word_before' => null, 'word_after' => null,
+            'reason' => $unidentified ? self::SONG_END_UNRESOLVED : self::SONG_END_FADE, 'speech_cue' => $speech, 'onset_bound' => $until,
+            ...($unidentified ? [] : ['fade_out' => $this->fadeOut($time, $lastSound)])];
+    }
+
+    /** The fade of a song's sound ending at its cut: the gap from the last sung sound, bounded. */
+    private function fadeOut(float $cut, float $lastSound): float
+    {
+        return round(min(self::SONG_END_FADE_MAX, max(self::SONG_END_FADE_MIN, $cut - $lastSound)), 3);
     }
 
     /**

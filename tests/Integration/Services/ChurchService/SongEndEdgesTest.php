@@ -69,6 +69,9 @@ class SongEndEdgesTest extends TestCase
         $this->assertEqualsWithDelta(4495.9, $plan['segments'][0]['end_time'], 0.1);
         $this->assertLessThanOrEqual(4495.96, $plan['segments'][0]['end_time']);
         $this->assertSame('song_end_speech', $plan['cue_edge_widening'][array_key_last($plan['cue_edge_widening'])]['reason']);
+        // Operator, 2026-10-07: every song end at speech fades its sound over the gap from the
+        // last sung sound, 1.5–4 s. The outro here is longer: only its last 4 s fade.
+        $this->assertEqualsWithDelta(4.0, $plan['audio_fade_out'], 0.001);
     }
 
     /** 1028 §1398: the held "me" fades to digital silence; whisper hears "Thank you." over it. */
@@ -90,6 +93,7 @@ class SongEndEdgesTest extends TestCase
         $this->assertGreaterThanOrEqual(1937.5, $plan['segments'][0]['end_time']);
         $this->assertLessThanOrEqual(1938.5, $plan['segments'][0]['end_time']);
         $this->assertSame('song_end_silence', $plan['cue_edge_widening'][array_key_last($plan['cue_edge_widening'])]['reason']);
+        $this->assertNull($plan['audio_fade_out'], 'a song that ends in silence is cut cleanly');
     }
 
     /**
@@ -342,7 +346,7 @@ class SongEndEdgesTest extends TestCase
      * established: the cut goes in the first quiet after the singing, and the edge is unresolved.
      */
     #[Test]
-    public function speech_with_no_words_after_the_singing_leaves_the_song_end_unresolved_at_the_first_quiet(): void
+    public function speech_with_no_words_after_the_singing_fades_the_song_out_at_the_first_quiet(): void
     {
         $sung = ['start' => 4140.0, 'end' => 4145.64, 'text' => 'Here in the power of Christ I stand.'];
         $next = ['start' => 4172.84, 'end' => 4177.34, 'text' => 'To the only God, our Saviour, be glory, majesty, power and'];
@@ -366,8 +370,9 @@ class SongEndEdgesTest extends TestCase
 
         $this->assertGreaterThanOrEqual(4145.64, $plan['segments'][0]['end_time']);
         $this->assertLessThanOrEqual(4146.6, $plan['segments'][0]['end_time']);
-        $this->assertSame(CueSafeExtractionPlan::SONG_END_UNRESOLVED, $this->endEdge($plan)['reason']);
-        $this->assertCount(1, CueSafeExtractionPlan::unresolvedEdges($plan['cue_edge_widening']));
+        $this->assertSame(CueSafeExtractionPlan::SONG_END_FADE, $this->endEdge($plan)['reason']);
+        $this->assertSame([], CueSafeExtractionPlan::unresolvedEdges($plan['cue_edge_widening']), 'a fade makes the edge deliberate: nothing to ask');
+        $this->assertEqualsWithDelta(1.5, $plan['audio_fade_out'], 0.001, 'the gap is shorter than the minimum fade');
     }
 
     /**
@@ -410,7 +415,7 @@ class SongEndEdgesTest extends TestCase
      * the edge is unresolved rather than repaired.
      */
     #[Test]
-    public function a_song_end_whose_speech_opening_is_not_heard_is_unresolved_and_stays_before_the_cue(): void
+    public function a_song_end_whose_speech_opening_is_not_heard_stays_before_the_cue_and_fades(): void
     {
         $sung = ['start' => 1574.10, 'end' => 1576.10, 'text' => 'Hallelujah.'];
         $talk = ['start' => 1584.13, 'end' => 1593.26, 'text' => "And Naomi I'm going to put the same questions to you Do you believe in God the Father I do"];
@@ -430,7 +435,11 @@ class SongEndEdgesTest extends TestCase
 
         $this->assertLessThanOrEqual(1584.13, $plan['segments'][0]['end_time']);
         $this->assertGreaterThanOrEqual(1577.09, $plan['segments'][0]['end_time']);
-        $this->assertSame(CueSafeExtractionPlan::SONG_END_UNRESOLVED, $this->endEdge($plan)['reason']);
+        $this->assertSame(CueSafeExtractionPlan::SONG_END_FADE, $this->endEdge($plan)['reason']);
+        $fade = $plan['audio_fade_out'];
+        $this->assertGreaterThanOrEqual(1.5, $fade);
+        $this->assertLessThanOrEqual(4.0, $fade);
+        $this->assertGreaterThanOrEqual(1577.09, $plan['segments'][0]['end_time'] - $fade - 0.001, 'the fade starts after the last sung sound');
     }
 
     /**

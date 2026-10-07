@@ -450,7 +450,9 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             // The bounds and media version match, but the cut also follows the transcript,
             // edge words and cutting rules (I4): media is reused only for the cut it holds.
             $planned = $cutPlans->forSection($section);
-            if ($this->sameCut($recorded, $planned['segments'])) {
+            $recordedFade = $section->metadata->raw['publication_candidate_extraction']['audio_fade_out'] ?? null;
+            if ($this->sameCut($recorded, $planned['segments'])
+                && (is_numeric($recordedFade) ? (float) $recordedFade : null) === $planned['audio_fade_out']) {
                 $this->refuseInvalidCut($section, $recorded, $planned['cue_edge_widening']);
 
                 return;
@@ -493,7 +495,8 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             $tempVideoPath = $videoExtractor->extractSegmentAsFile(
                 $localSourcePath,
                 $segment,
-                $this->processingLog->processing_id.'_section_'.$section->id.'.mp4'
+                $this->processingLog->processing_id.'_section_'.$section->id.'.mp4',
+                $cutPlan['audio_fade_out'],
             );
 
             $videoStoragePath = $this->candidateVideoPath($section);

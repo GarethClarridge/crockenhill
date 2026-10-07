@@ -499,6 +499,39 @@ PHP;
 
     }
 
+    /** Operator, 2026-10-07: a song clip ending at speech fades its sound, not its picture. */
+    #[Test]
+    public function a_fade_out_fades_the_sound_over_the_end_of_the_cut_only(): void
+    {
+        $argvLog = $this->stubFfmpegAndFfprobe(2_600_000);
+
+        $this->service->extractSegmentAsFile('/tmp/input.mp4', (object) ['start_time' => 900.0, 'end_time' => 1200.0], audioFadeOut: 2.5);
+
+        $argv = file_get_contents($argvLog);
+        $this->assertStringContainsString('atrim=duration=300,asetpts=PTS-STARTPTS,afade=t=out:st=297.5:d=2.5', $argv);
+        $this->assertStringNotContainsString(',fade=', $argv);
+    }
+
+    #[Test]
+    public function a_fade_out_never_starts_before_the_cut(): void
+    {
+        $argvLog = $this->stubFfmpegAndFfprobe(2_600_000);
+
+        $this->service->extractSegmentAsFile('/tmp/input.mp4', (object) ['start_time' => 900.0, 'end_time' => 901.0], audioFadeOut: 4.0);
+
+        $this->assertStringContainsString('afade=t=out:st=0:d=1', file_get_contents($argvLog));
+    }
+
+    #[Test]
+    public function a_cut_without_a_fade_has_no_fade_filter(): void
+    {
+        $argvLog = $this->stubFfmpegAndFfprobe(2_600_000);
+
+        $this->service->extractSegmentAsFile('/tmp/input.mp4', (object) ['start_time' => 900.0, 'end_time' => 1200.0]);
+
+        $this->assertStringNotContainsString('afade', file_get_contents($argvLog));
+    }
+
     #[Test]
     public function repeated_extractions_probe_each_source_once(): void
     {

@@ -50,12 +50,13 @@ class VideoExtractionService
         return $this->extractSegmentAsFile($inputPath, $segment, $options['output_filename'] ?? null);
     }
 
-    public function extractSegmentAsFile(string $inputPath, object $segment, ?string $outputFilename = null): string
+    /** @param  float|null  $audioFadeOut  Seconds over which the sound fades out at the end of the cut */
+    public function extractSegmentAsFile(string $inputPath, object $segment, ?string $outputFilename = null, ?float $audioFadeOut = null): string
     {
         return $this->extractConcatenatedSegmentAsFile($inputPath, [[
             'start_time' => (float) ($segment->startTime ?? $segment->start_time ?? 0),
             'end_time' => (float) ($segment->endTime ?? $segment->end_time ?? 0),
-        ]], $outputFilename);
+        ]], $outputFilename, $audioFadeOut);
     }
 
     /**
@@ -63,8 +64,9 @@ class VideoExtractionService
      * Bump MediaProcessingVersion when changing cutting or enhancement behaviour.
      *
      * @param  list<array{start_time: float, end_time: float}>  $segments
+     * @param  float|null  $audioFadeOut  Seconds over which the last span's sound fades out (a song ending at speech)
      */
-    public function extractConcatenatedSegmentAsFile(string $inputPath, array $segments, ?string $outputFilename = null): string
+    public function extractConcatenatedSegmentAsFile(string $inputPath, array $segments, ?string $outputFilename = null, ?float $audioFadeOut = null): string
     {
         $checker = $this->timingChecker;
         $checker->validateSpans($inputPath, $segments);
@@ -82,7 +84,14 @@ class VideoExtractionService
             $duration = $span['end_time'] - $span['start_time'];
             array_push($inputs, '-ss', $this->seconds($span['start_time']), '-t', $this->seconds($duration), '-i', escapeshellarg($inputPath));
             $filters[] = "[{$index}:v:0]trim=duration=".$this->seconds($duration).",setpts=PTS-STARTPTS[v{$index}]";
-            $filters[] = "[{$index}:a:0]atrim=duration=".$this->seconds($duration).",asetpts=PTS-STARTPTS[a{$index}]";
+            $fade = '';
+
+            if ($audioFadeOut !== null && $audioFadeOut > 0 && $index === array_key_last($segments)) {
+                $length = min($audioFadeOut, $duration);
+                $fade = ',afade=t=out:st='.$this->seconds($duration - $length).':d='.$this->seconds($length);
+            }
+
+            $filters[] = "[{$index}:a:0]atrim=duration=".$this->seconds($duration).",asetpts=PTS-STARTPTS{$fade}[a{$index}]";
             $pairs .= "[v{$index}][a{$index}]";
         }
 
