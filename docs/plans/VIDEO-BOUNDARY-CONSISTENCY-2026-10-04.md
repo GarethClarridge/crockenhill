@@ -1485,7 +1485,7 @@ rulings `storage/app/private/canary13-20261007/listening-rulings/`).** 161 right
 - **A song start lands inside another song (3):** 1311 "I Will Sing Of The Lamb" is a **regression**: right
   at 25:14.1 in canary 12, now 25:43.2. The *section* starts at 1544.08; the edge step moved it only −0.84 s.
   It sits between two 30 s hallucinated "Thank you." cues (1514.1–1574.1), and it is one of three sections with this
-  title (1405.3, 1544.1, 1656.1). The change happened before the edge step; the 1311 ensemble answer (`1311-q0`) was about the talk, not this song. 1012 "O God Beyond All
+  title (1405.3, 1544.1, 1656.1). The three sections predate canary 13; the regression is equal-support overlap trimming (§6.2 class 8); the 1311 ensemble answer (`1311-q0`) was about the talk, not this song. 1012 "O God Beyond All
   Praising" is a section at 0–200 s, but the recording opens inside a different song (identity, not edge).
   1273 "All Heaven Declares": the section start 563.64 was right (after the announcement). The edge step
   moved it **−17.2 s** to 546.4, the start of a 5.7 s smeared "Let's", the start of the announcement cue.
@@ -1507,36 +1507,50 @@ rulings `storage/app/private/canary13-20261007/listening-rulings/`).** 161 right
 Recorded decisions per failing edge: `storage/scratch/canary13-listening/outputs.json` (`widening` entries,
 code `deaa5d43e`); transcript excerpts `storage/scratch/canary13-listening/wide.php`.
 
-### 6.2 Plan before canary 14 — 2026-10-08 (for Codex review; NOT built)
+### 6.2 Plan before canary 14 — 2026-10-08 (revised after Codex review; NOT built)
 
-**Scope.** The 9 wrong edges and 4 unjudged edges from canary 13 listening. Preserve the 161 edges ruled
-right. Red first: each case becomes a failing test from saved evidence (cues, word timings, levels,
-timeline) before any fix. Canary examples are regression evidence, not a benchmark.
+**Basis.** First draft reviewed by Codex the same day: `storage/scratch/codex-review-2026-10-08-canary14-plan-findings.md`
+(static trace of saved decisions, edge-word artifacts, ensemble draws and snapshots; no tests or runs). Claude
+spot-checked three findings against saved data: the 15.0 s `LONGEST_LINE_SECONDS` threshold (1117's 14.97 s cue is
+not suspect); 1292's "." ending 1506.0000000000002 against its 1506 decode window; 1311 at 1514.1 in `snapshot.json`
+and 1544.08 in `snapshot-answered.json`. The first draft's class 1, 3, 6 and 7 diagnoses were wrong or incomplete;
+this version replaces them.
 
-**Step 0 — measure each class across all 24 completed runs before fixing it** (read-only, from
-`outputs.json`). First counts: song starts moved > 2 s earlier by the edge step: 3 (1273 All Heaven
-Declares −17.2 s on a 5.7 s "Let's"; 1273 God Of My Life −3.3 s; 1311 I Will Sing Of The Lamb −30.6 s on a
-14.6 s "The", its third section). Song ends moved > 10 s later by `song_end_fade`: 3 (1221 +21.8, 1282 My Jesus
-+17.5, 1282 Good News Of God Above +20.7 — the last was ruled right). A fix must explain both the wrong and
-the right members of each class.
+**Scope and controls.** 9 wrong and 4 deferred listening items. Red first, from saved evidence, with each test
+passing through `OutputEdgeWordTimings::read()` where word timings matter (punctuation merging and float values
+must survive). Count thresholds are not defect classifiers: each class has accepted members (below), and a fix
+must keep them. Deferred items stay deferred until re-heard.
 
-| # | Mechanism (from the recorded decision) | Cases | Proposed fix |
-|---|---|---|---|
-| 1 | A song **start** edge moves earlier through a smeared word: `word_pause` takes a "word" longer than any spoken word as the anchor and keeps the speech cue whole | 1273 (−17.2 s), 1311 third section (1656.08 → 1625.5) | A song start never widens back across a speech cue's opening; a heard word longer than `LONGEST_HEARD_WORD` (1.5 s) cannot anchor any edge. |
-| 2 | Singing after a song is accepted as its speech: `speechAfterSong` checks the timeline's speech share only for cues starting **inside** the section; after it, only the silent-share test applies | 1282 My Jesus ("In happy living", next song) | Apply the classifier test to every candidate cue; a cue starting in a music window is not speech. Check 1282 Good News (ruled right) against the same rule. |
-| 3 | A timing-suspect cue (too long for its words, `TranscriptCueEvidence::isTimingSuspect`) supplies where speech starts or ends | 1221 (+21.8 s, the bound fell to the next decode window, 4205), 1012 sermon start (opens on ≥ 8 s of near-silence, −69 dB, inside a 16.5 s cue), 961 sermon end ("Amen." over quiet extends +11 s beside the song) | Every consumer of a cue's start/end (song-end bound, spoken start, `spokenThrough`) uses heard words or the classifier for a timing-suspect cue, never its timestamps. Where neither places it, the edge is unresolved, not extended. |
-| 4 | The minimum fade covers sung sound: `fadeOut` = clamp(cut − lastSound, 1.5, 4.0), so a cut right after the last sung word fades it | 1117 (cut 713.62 = speech-cue start, fade 1.5 s) | **Operator decision.** (a) fade only over the available gap, even < 1.5 s (recommended); (b) no fade there; (c) keep 1.5 s. Also check whether 1117's speech cue (15 s for 11 words) is timing-suspect — then class 3 moves the cut and 4 may not arise. |
-| 5 | `silenceOnset` takes the first silence after the last sung word; a dip inside the instrumental outro qualifies | 1028 (553.4; speech 559.1) | The end silence must run unbroken to the speech onset (or to the reach), consistent with 1112 §3739 (a second of quiet before a final chord is not the end). |
-| 6 | A spoken edge between reading and sermon moves 3–4.5 s **back** from the reading's cue end to a mid-sentence pause; the sentence check does not catch it | 1286 ("and \| preach", original 1485.86 → 1482.87), 1292 (original 1505.0 → 1500.44, drops "The man who was…") | Trace `cueBoundaryPause`/`pause`/`sentenceChecked` on both; expected: the edge stays at the sentence end the cue gives unless the words say otherwise. |
-| 7 | The section is wrong before any edge step | 1311 (canary 12 cut the song from 1514.1; canary 13 has **three** sections titled I Will Sing Of The Lamb: 1405.3–1475.0, 1544.1–1593.3, 1656.1–1695.0), 1012 (wrong song at 0:00) | Investigate first: diff 1311's canary 12 and 13 structure/section history to find the step that split and moved it (candidates: SilenceSnapService changes in `db7cff5a2`, song open/close check, fresh detection). 1012: how a song mid-way at recording start gets the next song's identity. |
+**Step 0 — frozen inventory before coding.** Join every completed output in `outputs.json` (24 runs, 122 outputs,
+230 edge decisions) to the 174 rulings: section/span/edge, cut, fade, reason, membership. Include previous-canary
+controls (1112 §3739 at 1984.26). After each fix, re-plan from the same frozen evidence and diff: changed times,
+changed fades, changed reasons, new refusals, changed membership. That diff — not the listening set — decides
+what canary 14 re-extracts and asks.
 
-**Unjudged (4):** 961 song end (clip has sound; probably didn't play), 961 sermon end and 1012 sermon start
-(covered by class 3), 1250 O Come O Come start (section 1129.68, first transcript line is "…captive Israel",
-so the first sung line may be clipped). Re-ask with wider clips.
+| # | Mechanism (traced) | Cases | Fix direction | Accepted controls |
+|---|---|---|---|---|
+| 1 | **Largest-pause fallback picks a window margin before a smeared word** (`pause()`, C:1544–1559). 1273 §3416: two touching cues bypass `cueBoundaryPause` (C:1467); margin before a 5.69 s "Let's" → 563.64→546.4. 1311 §4876: one cue *ending* at the start fails the proximity check (C:1471); margin before a 14.59 s "The" → 1656.08→1625.5. | 1273 §3416 (wrong); 1311 §4876 (unasked) | A pause must be **beside the original edge on the owning side**, not the largest anywhere in the window. A word too long to be speech is **unknown timing**, never silence — do not drop it from the list (that creates a large false pause). Keep `wordPauseEdge` (preparation, C:663–683) and `forSpans` (execution, C:223–224) consistent. | 24 earlier-moving song starts; 13 judged right (incl. 1273 §3421, −3.31 s on a 0.13 s "Before"). 1112 §3734 has a 1.73 s sung "Jesus": no blanket long-word rejection. |
+| 2 | **Same fallback, reading ends.** 1286: end 1485.86 touches two cues → no anchoring → largest pause 1482.65–1482.87 ("and \| preach"). 1292: anchor "40 years old" found, but "." ends 1506.0000000000002 > window 1506, `pauses()` compares without tolerance (C:1577–1579) → no terminal gap → fallback takes the leading margin 1500.12–1500.44, dropping the verse. `sentence_check` null for both: `spokenSides()` needs a spoken neighbour within 2 s (SpokenEdgeSentenceCheck:190–216); next sections are 19 s / 7 s away. | 1286, 1292 joins (wrong) | Same as class 1 + float tolerance at window edges + explicit "decode ends on a word" handling (no gap ≠ permission to take the opposite margin). Decide whether exposed reading ends with no near neighbour get the sentence check. Assert the whole reading survives, not just that a number moved. | 1286 §3582 spoken end moved back, right (`144`). All 148 `word_pause` entries are in scope if the shared fallback changes. |
+| 3 | **Singing after a song accepted as its speech.** `speechAfterSong` checks speech share only for cues inside the section (C:1062–1067). 1282 §3527 accepts the next song's "In happy living" (window music 0.87, speech 0.006). | 1282 §3527 (wrong) | Reject the cue's **unsupported onset**, not the cue: keep its text for word alignment (later genuine speech under an early timestamp). Specify the song-to-song path (no speech exists between two songs); assert `songEnd()`'s fallback (C:949–950) result explicitly. | A literal "starts in music" veto would reject 30 recorded candidates, all but 2 of the judged ones ruled right (Codex §2 table); 1250 §4911 and 1282 §3535 rely on words from suspect cues. |
+| 4 | **Coarse classifier window end treated as the speech onset.** 1221 §2730: the 20 s cue is already excluded by `isEvidence` (C:910); the bound 4205 is the *end* of the first speech window (`singingStops`, C:1027–1032); the decode is degenerate ("And" 4176.17–4204.44, rest at 4204.73). | 1221 §2730 (wrong) | When only a 5 s classifier window locates speech and the words cannot resolve it, the onset is the window **start** at most, or the edge is unresolved — define which. | 1282 §3535 Good News (right at 3759.9) has the same fallback shape: freeze its output as a control. |
+| 5 | **Unsupported evidence over quiet** (deferred, not failures). 961 sermon end: 1 s "Amen." 10 s after the last words (window speech 0.10) extends 3925.74→3936.8 via `spokenThrough` (C:364,374). 1012 sermon start: the 16.46 s cue is *not* suspect (8.88 speech s); the decode puts a 1.45 s "Good" at the window's left margin, where the classifier hears no speech until 1625. | 961, 1012 sermon (deferred) | Investigate separately: positive local speech support for a short cue that extends an edge across a gap; a quality policy for decoded words in windows the classifier calls quiet. Re-ask both with wider clips before deciding. | — |
+| 6 | **Minimum fade over sung sound.** `fadeOut` clamps to ≥ 1.5 s (C:971–974). 1117 §1959: cut 713.62, cue 14.97 s (not suspect), 710–715 is music, speech first classified 725–730. The cut itself may be early. | 1117 §1959 (wrong) | First check the cut preserves the last word; then the operator's fade decision on that concrete result. `lastSound` is inferred from decoded sung words (C:918–924), not audible music. A changed fade re-extracts (`PrepareSectionPublicationCandidates.php:453–455`). | 23 ends at the 1.5 s minimum, 22 ruled right. |
+| 7 | **First silence, not terminal silence.** `silenceOnset` returns on the first second of quiet without checking for later sound before the bound (C:1354–1379); `firstQuiet` (C:1249–1277) can do the same on the fade path. | 1028 §1392 (wrong) | Terminal silence in both paths, with threshold noise handled, and no requirement for silence through speech that has already started because the bound is late. | 31 `song_end_silence` entries, 20 judged right; 1112 §3739 final chord; keep `singingStops().inside` and the floor. |
+| 8 | **1311: equal-support overlap trimming (not a new split).** Three "I Will Sing…" sections exist in all four canary 12 draws and in `snapshot.json` (1405.33, 1514.1, 1626.1). Canary 13 draws split 2:2 on the baptisms' ends; `representative()` breaks the tie by slot (`ServiceStructureEnsembleComposer.php:969–977`), choosing the longer baptisms; `resolveFillerOverlaps()` trims the later song on equal support (`:436–451`) → 1544.08 / 1656.08. `TranscriptCueBoundaries` (`:68–119`) trusts suspect cue bounds upstream. | 1311 §4874 (wrong) | Confirm from persisted `provenance[].trimmed_for_overlap` when the DB is up. Fixture with the old 3:1 and new 2:2 distributions; overlap between talk and unanimously detected music should not trim the music. Do not merge repeated titles (baptisms interrupt the song). | Every other composition in the frozen inventory. |
+| 9 | **1012: two songs merged by majority.** Slot 0 has God of Glory 0–85 (item 4958), welcome, O God Beyond All Praising 90–200 (4959); slots 1–3 label 0–200 as 4959. The minority loses (`Composer.php:195–221`); `SongLyricIdentityCheck::assess()` (`:73–145`) reports consistent when no competitor wins its margin. | 1012 §1288 (wrong) | Whole-span lyric identity must notice a second song's lyrics inside a section. Do not install slot 0's reading as a ruling; the transition needs operator evidence. | — |
 
-**Then canary 14:** the affected runs (1012, 1028, 1117, 1221, 1273, 1282, 1286, 1292, 1311) plus any others
-step 0 finds, and 961/1250 for the re-asks; listen to changed edges only. Still parked: 953, 1110, 964,
-1346, 1108 (the 1108 promotion collision is an open question in the canary 13 Codex brief).
+**Unresolved semantics.** Any new "unresolved" outcome needs answer identity, answer application and extraction
+refusal (C:467, 537, 837 enumerate recognised reasons). Keeping the original time is not automatically safe.
+
+**Order.** Step 0 → classes 1–2 (shared fallback) → 3–4 (evidence precedence) → 7 → 6 (fade decision on the
+re-planned 1117 cut) → 8–9 (composition, fixtures from banked draws) → 5 investigations. Tests use fake providers
+and queues; no paid calls.
+
+**Canary 14.** Determined by the step 0 diff across all 24 completed runs, not just the 11 named; at least add
+949, 1025, 1112, 1200, 1304, 1356, 1358, 1362 to the comparison. Listening covers changed times, changed fades,
+changed membership and new refusals, plus the four re-asks with wider clips. 1311 and 1012 need content
+listening, not only edge clips; 1250 `045`'s re-ask should cover the neighbouring song's identity too. Still
+parked: 953, 1110, 964, 1346, 1108 (the 1108 promotion collision is in the canary 13 Codex brief).
 
 ## 7. Further bounded investigations — added 2026-10-04
 
