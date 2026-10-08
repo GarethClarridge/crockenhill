@@ -1628,6 +1628,67 @@ sermon end (sentence check re-asked); 1358 reasons only. Suite 9,432 green, PHPS
 cut the affected runs and listen to every changed edge, the four re-asks with wider clips, and 1311/1012
 as content (1012 will now hold for review on its contradicted binding).
 
+### Completion record — canary 14 run and listening (2026-10-08)
+
+Snapshot `canary14-20261008/snapshot.json` (12 runs at `f937471a9`: 1012 1028 1050 1112 1117 1221 1250 1273 1282
+1286 1292 1311). Recompose 16:31–16:37 UTC, Tier C 16:38–18:29 UTC, all completed. 1311 then exposed a new defect
+(its section back at 1626.1, the cut jumped 29 s inward past smeared "The"/"End"): fixed in `836d3f488` (an edge
+never moves inward past a word smeared beyond `ANCHOR_REACH`; with no placeable pause it stays at detection),
+re-cut alone (`snapshot-1311.json`). Page https://claude.ai/artifact/SuxdJ8Nwbomn334fwm4BNk, 22 items;
+rulings `storage/app/private/canary14-20261008/listening-rulings/`.
+
+**21/22 right**, including all five canary 13 failures (1117, 1221, 1273, 1282 §3527, 1311 §4874), the four
+previously-right edges the fixes moved, both sermon joins, all four wider re-asks (961 ×2, 1012 sermon start,
+1250 O Come start) and both content checks (1012: two songs, as described; 1311: sections match).
+**Wrong (1):** 1282 §3526 "Jesus the Saviour" end — "This is the introduction to two songs, not the end of a
+song" (a section identity/content problem, not the cut; open).
+**Also heard:** 1292's sermon join — the reading is far quieter than the sermon (see §6.3).
+**Open from the run:** 1012 §1288 now titled "God Of Glory" via OCR with the second song in
+`additional_song_matches`, clip not re-cut, still held (canary 13 framing reason); OoS item 10187 "I Will Sing
+of the Lamb" has no catalogue song while its "Of" siblings do (title normalisation, §8.9).
+
+### 6.3 Audio processing plan — 2026-10-08 (operator: plan only, NOT built)
+
+**Trigger.** Canary 14, 1292: the reading part of the sermon video plays at −47.4 LUFS against the sermon's
+−26.9 (20.5 LU). Operator ruling: **normalise each part separately, every sermon part to −16 LUFS** (option a;
+not "match parts to the sermon"), and consider other audio processing at the same time.
+
+**What exists today (traced 10-08):**
+- **Sermon videos: no audio processing.** `VideoExtractionService::extractConcatenatedSegmentAsFile` trims and
+  joins the parts; only `afade` (song ends) is applied. Sermons play at source level: −18.8 to −35.5 LUFS across
+  the canary services (~17 LU between services).
+- **Part spread in multi-part sermons** (canaries 13–14, sermon part = first 10 min): 1292 20.5 LU, 1250 10.3,
+  936 6.4, 1012 5.9, 1200 5.3, 949 5.2; the other 13 are 0.1–3.6 LU.
+- **Song clips:** normalised only at publication (`SongPublicationHandler` → `AudioEnhancementService::enhanceVideo`):
+  `afftdn=nr=10:nf=-25`, `dynaudnorm`, two-pass `loudnorm` to −16 LUFS / TP −1.5 / LRA 11, skipped when within
+  2 LU. Quarantine candidates — what listening pages play — are not normalised, so listening does not hear
+  the published sound.
+- **Talk clips** (`TalkPublicationHandler`): no enhancement.
+- **Sermon MP3** (public sermon page, API and podcast feed): `extractOptimizedAudio` with the *transcription*
+  settings — 48 kbps, 16 kHz, mono (`audio_extraction.transcription_optimized`). Nothing above 8 kHz reaches
+  listeners or podcast apps.
+- **Service audio for transcription** (`EnhanceAudio` job): its own pass; out of scope here.
+
+**Planned change (ruled):** in the sermon encode, run each part's audio through the existing enhancement chain
+(measure each part with `-ss/-t`, then noise reduction → `dynaudnorm` → linear two-pass `loudnorm` to −16 LUFS)
+*before* `concat`, so a quiet reading cannot be averaged away by a long sermon. Applies to every sermon output,
+single-part included. Bump `MediaProcessingVersion` (sermons always re-encode, so no extra re-encoding).
+Cost: one audio-only measuring pass per part. Risk to check by ear: 1292's reading gets ~+31 dB and its room
+noise with it — compare with and without `afftdn` on that part before choosing.
+
+**Other processing to decide at the same time (questions, not rulings):**
+1. **Talks** — apply the same per-part chain to short-talk clips? They are speech, like sermons.
+2. **Songs** — normalise at cut time rather than only at publication, so quarantine (and listening) hears what
+   publishes; and check order: publication `dynaudnorm` runs *after* the cut's `afade`, so it can partly undo the
+   fade (it raises quiet passages). Also question `dynaudnorm` on music at all (it flattens dynamics).
+3. **Sermon MP3 quality** — the public file uses transcription settings (16 kHz mono 48 kbps). A listening
+   setting (e.g. 44.1 kHz mono, 64–96 kbps) would be a separate profile from transcription's.
+4. **Joins** — a few-millisecond fade at each concat join to rule out clicks (none heard so far; measure first).
+5. **Speech EQ** — a gentle high-pass (~80 Hz) for hum/rumble on speech parts; measure on the quiet readings.
+
+**Before building:** measure on the six high-spread sermons and three typical ones (before/after LUFS per part,
+true peak, noise floor), then a short listening page of before/after excerpts — 1292's reading first.
+
 ## 7. Further bounded investigations — added 2026-10-04
 
 The user requested these additions after reviewing the gaps in the plans. They are **open
