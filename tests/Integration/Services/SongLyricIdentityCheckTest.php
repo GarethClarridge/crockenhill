@@ -73,6 +73,27 @@ class SongLyricIdentityCheckTest extends TestCase
         $this->assertSame(SongLyricIdentityCheck::CONSISTENT, $result['verdict']);
     }
 
+    /**
+     * Canary 13, 1012 §1288: the recording opens on "God Of Glory", then a welcome, then the bound
+     * "O God Beyond All Praising". Over the whole section the bound song holds its own; split at the
+     * pause between them, the first song clearly contradicts it (6 word pairs to 0).
+     */
+    #[Test]
+    public function a_second_song_inside_the_section_contradicts_the_binding(): void
+    {
+        $transcript = ChurchServiceTranscript::fromCues([
+            ['start' => 110.0, 'end' => 170.0, 'text' => self::AMAZING_GRACE],
+            ['start' => 200.0, 'end' => 290.0, 'text' => self::BE_THOU_MY_VISION],
+        ], 600.0, ChurchServiceTranscript::SOURCE_LOCAL_WHISPER);
+
+        $result = (new SongLyricIdentityCheck)->assess($transcript, 100.0, 300.0, $this->boundSong->id);
+
+        $this->assertSame(SongLyricIdentityCheck::CONTRADICTED, $result['verdict']);
+        $this->assertSame($this->rivalSong->id, $result['rival_song_id']);
+        $this->assertSame([100.0, 185.0], $result['contradicted_part']);
+        $this->assertFalse(SongLyricIdentityCheck::confirms($result));
+    }
+
     #[Test]
     public function it_ignores_the_announcement_and_the_section_tail(): void
     {

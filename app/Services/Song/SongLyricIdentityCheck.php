@@ -63,10 +63,72 @@ final class SongLyricIdentityCheck
      *     rival_title: string|null,
      *     rival_score: array{coverage: float, word_pairs: int}|null,
      *     leading_song_id: int|null,
-     *     leading_score: array{coverage: float, word_pairs: int}|null
+     *     leading_score: array{coverage: float, word_pairs: int}|null,
+     *     contradicted_part?: array{0: float, 1: float}
      * }
      */
     public function assess(ChurchServiceTranscript $transcript, float $start, float $end, int $boundSongId): array
+    {
+        $whole = $this->assessSpan($transcript, $start, $end, $boundSongId);
+
+        if ($whole['verdict'] !== self::CONSISTENT) {
+            return $whole;
+        }
+
+        // Two songs in one section can each hold their own across the whole span: 1012 §1288 opened
+        // on "God Of Glory" before the bound song (canary 13). Split at the longest pause between
+        // its lines, a part another song clearly wins contradicts the binding. Measured 2026-10-08
+        // over the local corpus: 1 of 25 sections with enough words in both parts, the known 1012.
+        $cues = array_values(array_filter($transcript->cues, static fn (array $cue): bool => $cue['start'] >= $start && $cue['end'] <= $end));
+        $split = null;
+        $longest = 0.0;
+
+        for ($index = 1; $index < count($cues); $index++) {
+            $gap = $cues[$index]['start'] - $cues[$index - 1]['end'];
+
+            if ($gap > $longest) {
+                [$longest, $split] = [$gap, ($cues[$index - 1]['end'] + $cues[$index]['start']) / 2];
+            }
+        }
+
+        if ($split === null) {
+            return $whole;
+        }
+
+        $parts = [[$start, $split], [$split, $end]];
+        $assessed = array_map(fn (array $part): array => $this->assessSpan($transcript, $part[0], $part[1], $boundSongId), $parts);
+        $verdicts = array_column($assessed, 'verdict');
+
+        if (in_array(self::INSUFFICIENT_WORDS, $verdicts, true) || count(array_keys($verdicts, self::CONTRADICTED, true)) !== 1) {
+            return $whole;
+        }
+
+        $part = array_search(self::CONTRADICTED, $verdicts, true);
+
+        return [
+            ...$whole,
+            'verdict' => self::CONTRADICTED,
+            'rival_song_id' => $assessed[$part]['rival_song_id'],
+            'rival_title' => $assessed[$part]['rival_title'],
+            'rival_score' => $assessed[$part]['rival_score'],
+            'contradicted_part' => $parts[$part],
+        ];
+    }
+
+    /**
+     * @return array{
+     *     verdict: self::CONTRADICTED|self::CONSISTENT|self::INSUFFICIENT_WORDS,
+     *     words: int,
+     *     bound_song_id: int,
+     *     bound_score: array{coverage: float, word_pairs: int},
+     *     rival_song_id: int|null,
+     *     rival_title: string|null,
+     *     rival_score: array{coverage: float, word_pairs: int}|null,
+     *     leading_song_id: int|null,
+     *     leading_score: array{coverage: float, word_pairs: int}|null
+     * }
+     */
+    private function assessSpan(ChurchServiceTranscript $transcript, float $start, float $end, int $boundSongId): array
     {
         $words = self::contentWords($this->sungText($transcript, $start, $end));
         $distinct = array_fill_keys($words, true);
