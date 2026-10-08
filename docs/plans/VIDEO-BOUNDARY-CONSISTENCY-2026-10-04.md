@@ -1582,6 +1582,52 @@ previously ruled right, to re-hear in canary 14 — 1282 §3526 end 843.70→844
 answer was asked about the old prepared cut, so the edge step will ask again. 1358: reasons only (a join).
 Suite 9,427 green, PHPStan 0, Pint clean.
 
+### Completion record — §6.2 classes 3–9 (2026-10-08, local `master` after `c82379492`)
+
+Each fix is red first from saved evidence and screened by replay against every canary 13 output; rejected
+versions are recorded because each broke edges the operator had ruled right.
+
+- **Classes 3–4, song ends (`6e091e61a`).** A song followed by another song ends by the next song's start
+  (1282 §3527: 957.47 → 939.90; 1250 §3127 0.6 s earlier, still before "O come"). Where only the classifier
+  bounds the speech, its first window of speech **alone** after the section bounds the song at that window's
+  start (1221 §2730: 4204.90 → 4199.90). *Rejected:* "a cue the classifier hears no speech in is sung" (1273
+  §3415's announcement is spoken over music and was rejected); window start as a bound everywhere (moved 11
+  right-ruled ends 1–5 s earlier).
+- **Class 6, 1117 (`4c63f5390`).** The cut itself was early, not the fade: the 15 s announcement cue opens
+  in music alone, 12 s before it is heard. A cue start is a speech bound only where the classifier hears speech
+  in its window or the next; a silence the music comes back after (classifier window of music alone) is inside
+  the outro. 1117 §1959: 713.62 → 720.00 (after the outro, before speech ~724.7), no fade over the last word;
+  1028 §1395 (same shape, ruled right at 1117.66 with a fade) → 1120.49 at its hard mute, to re-hear.
+  *Rejected:* searching for silence only after the last music window (5 s windows skipped real ends: 1362
+  §4702 +15 s). The fade decision is no longer needed for 1117; the other 22 minimum fades were ruled right.
+- **Class 7, 1028 §1392 — no code change.** The source drops from −25 dB to digital zero at 553.1 s inside the
+  outro and stays silent to the speech at 559: the outro was never recorded. All 31 silence-based song ends
+  were scanned: in none does music resume after the chosen silence. Hard mutes are common (9/31) and loud
+  mutes are ruled right elsewhere (1025 §1374 at −21 dB).
+- **Class 8, 1311 (`c1d4dffe0`).** Traced through the draw refinement: `SilenceSnapService` → `snapEdge`
+  extended a baptism drawn to 1520 to the end of the 30 s "Thank you." over the next song (1544.08), and
+  composition then trimmed the song. `snapEdge` now ignores a timing-suspect line straddling a **spoken**
+  section's edge (the snap now receives the classifier timeline); a song keeps such a line as its own.
+  Ensemble replay of all 29 canary runs: 1311 back to its canary 12 shape (songs from 1514.1 and 1626.1);
+  otherwise only pre-service/welcome starts in 1025 and 949 move (not outputs). *Rejected:* filler gives way
+  to a song on equal support (moved 949's song start over its spoken announcement); ignoring every suspect
+  line (14 runs changed, song ends up to 35 s). `EnsembleEvidenceVersion` hashes these classes, so canary
+  runs need a recompose round (no new draws).
+- **Class 9, 1012 (`049eb007c`).** `SongLyricIdentityCheck::assess` splits a consistent section at its longest
+  pause between lines; if exactly one part is contradicted by another song, the section is contradicted
+  (`contradicted_part`), raising the existing review flag and blocking `confirms()`. Measured across the 97
+  bound song sections locally: exactly one verdict changes, 1012 §1288 (0–105 s is "God Of Glory").
+- **Class 5 (961/1012 sermon edges) — deferred**, as planned: re-ask with wider clips.
+
+**Final replay against canary 13 (cut planner only; composition changes for 1311/1012 come via recompose):**
+14 outputs change — fixed 1117, 1221, 1273, 1282 §3527, 1286 sermon, 1292 sermon; unasked 1311 §4876, 1112
+§4909 (−0.3 s); previously ruled right, to re-hear: 1028 §1395, 1250 §3127, 1282 §3526, 1286 §3582; 1050
+sermon end (sentence check re-asked); 1358 reasons only. Suite 9,432 green, PHPStan 0, Pint clean.
+
+**Before canary 14:** restart the workers (they run old code); recompose (evidence version changed); then
+cut the affected runs and listen to every changed edge, the four re-asks with wider clips, and 1311/1012
+as content (1012 will now hold for review on its contradicted binding).
+
 ## 7. Further bounded investigations — added 2026-10-04
 
 The user requested these additions after reviewing the gaps in the plans. They are **open
