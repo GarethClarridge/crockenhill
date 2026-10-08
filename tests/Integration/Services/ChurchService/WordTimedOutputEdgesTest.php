@@ -231,6 +231,172 @@ class WordTimedOutputEdgesTest extends TestCase
         $this->assertEqualsWithDelta(2741.5, $plan['segments'][0]['start_time'], 0.001);
     }
 
+    /**
+     * Canary 13 listening: the largest pause was a mid-sentence gap before an end on a line that
+     * closes its sentence (1286 "and | preach"), or the window margin before a smeared word, 17 s
+     * into the item before (1273's 5.7 s "Let's"; 30 s for 1311's 15 s "The" under a hallucinated
+     * "Thank you."). 949's shared start still takes the largest pause (its own test).
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  list<array{start: float, end: float, word: string}>  $words
+     */
+    #[Test]
+    #[DataProvider('canary13MisplacedEdges')]
+    public function an_edge_keeps_a_closing_sentence_and_ignores_gaps_beside_smeared_words(string $edge, float $original, array $cues, array $words, float $expected): void
+    {
+        $log = $this->logWithCues($cues);
+        $this->bankWindow($log, $original, $words);
+        $span = ['start_time' => $edge === 'start' ? $original : 10.0, 'end_time' => $edge === 'end' ? $original : 4900.0];
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [$span]);
+
+        $this->assertEqualsWithDelta($expected, $plan['segments'][0][$edge.'_time'], 0.001);
+        $this->assertEqualsWithDelta($expected, app(CueSafeExtractionPlan::class)
+            ->wordPauseEdge($log->fresh(), app(OutputEdgeWordTimings::class)->cues($log), $original, $edge)['time'], 0.001);
+    }
+
+    public static function canary13MisplacedEdges(): array
+    {
+        return [
+            '1286 reading end before the next announcement' => ['end', 1485.86, [
+                ['start' => 1481.36, 'end' => 1485.86, 'text' => 'and Mark will come and preach on those verses soon.'],
+                ['start' => 1485.86, 'end' => 1487.76, 'text' => "We're going to sing two songs now,"],
+            ], [
+                ['start' => 1481.48, 'end' => 1481.66, 'word' => ' and'],
+                ['start' => 1481.76, 'end' => 1481.96, 'word' => ' Mark'],
+                ['start' => 1481.97, 'end' => 1482.25, 'word' => ' will'],
+                ['start' => 1482.25, 'end' => 1482.53, 'word' => ' come'],
+                ['start' => 1482.53, 'end' => 1482.65, 'word' => ' and'],
+                ['start' => 1482.87, 'end' => 1483.54, 'word' => ' preach'],
+                ['start' => 1483.54, 'end' => 1483.67, 'word' => ' on'],
+                ['start' => 1483.76, 'end' => 1484.01, 'word' => ' those'],
+                ['start' => 1484.01, 'end' => 1484.44, 'word' => ' verses'],
+                ['start' => 1484.44, 'end' => 1485.88, 'word' => ' soon.'],
+                ['start' => 1485.88, 'end' => 1488.75, 'word' => " We're"],
+                ['start' => 1488.75, 'end' => 1488.75, 'word' => ' going'],
+                ['start' => 1488.75, 'end' => 1488.75, 'word' => ' to'],
+            ], 1485.88],
+            '1273 song start after its announcement' => ['start', 563.64, [
+                ['start' => 547.26, 'end' => 563.64, 'text' => "Let's remain standing as we sing quietly through together."],
+                ['start' => 563.64, 'end' => 564.74, 'text' => 'verse 477,'],
+            ], [
+                ['start' => 546.4, 'end' => 552.09, 'word' => " Let's"],
+                ['start' => 552.09, 'end' => 559.13, 'word' => ' remain'],
+                ['start' => 559.13, 'end' => 559.7, 'word' => ' standing'],
+                ['start' => 559.7, 'end' => 560.22, 'word' => ' as'],
+                ['start' => 560.22, 'end' => 560.74, 'word' => ' we'],
+                ['start' => 560.74, 'end' => 561.78, 'word' => ' sing'],
+                ['start' => 561.78, 'end' => 562.37, 'word' => ' quietly'],
+                ['start' => 562.37, 'end' => 562.96, 'word' => ' through'],
+                ['start' => 562.96, 'end' => 563.64, 'word' => ' together'],
+                ['start' => 563.64, 'end' => 564.74, 'word' => ' 477'],
+                ['start' => 564.74, 'end' => 564.87, 'word' => ' or'],
+                ['start' => 564.87, 'end' => 565.4, 'word' => ' heavenly'],
+                ['start' => 565.4, 'end' => 565.73, 'word' => ' clear.'],
+            ], 563.64],
+            '1311 song start after a hallucinated line' => ['start', 1656.08, [
+                ['start' => 1626.1, 'end' => 1656.08, 'text' => 'Thank you.'],
+            ], [
+                ['start' => 1625.5, 'end' => 1640.09, 'word' => ' The'],
+                ['start' => 1640.09, 'end' => 1655.08, 'word' => ' End'],
+                ['start' => 1655.27, 'end' => 1657.08, 'word' => ' Oh,'],
+                ['start' => 1657.08, 'end' => 1657.08, 'word' => ' God.'],
+            ], 1655.27],
+        ];
+    }
+
+    /**
+     * 1050's reading ends where its sermon starts. Placing both edges ended the reading after
+     * "do good." and started the sermon after "…the apostle Peter.", dropping the sermon's first
+     * sentence once the parts no longer overlapped: parts that meet are one stretch, not a cut.
+     */
+    #[Test]
+    public function parts_that_meet_are_not_cut_between(): void
+    {
+        $cues = [
+            ['start' => 76.94, 'end' => 79.0, 'text' => 'do good.'],
+            ['start' => 79.0, 'end' => 85.15, 'text' => 'This letter, this epistle was written by the apostle Peter'],
+        ];
+        $log = $this->logWithCues($cues);
+        $this->bankWindow($log, 79.0, [
+            ['start' => 76.09, 'end' => 76.3, 'word' => ' to'],
+            ['start' => 76.96, 'end' => 77.38, 'word' => ' do'],
+            ['start' => 77.38, 'end' => 78.54, 'word' => ' good.'],
+            ['start' => 79.42, 'end' => 79.42, 'word' => ' This'],
+            ['start' => 79.57, 'end' => 80.4, 'word' => ' letter,'],
+            ['start' => 80.44, 'end' => 80.77, 'word' => ' this'],
+            ['start' => 80.77, 'end' => 81.16, 'word' => ' epistle'],
+            ['start' => 81.7, 'end' => 81.84, 'word' => ' was'],
+            ['start' => 81.84, 'end' => 82.07, 'word' => ' written'],
+            ['start' => 83.16, 'end' => 83.16, 'word' => ' by'],
+            ['start' => 83.27, 'end' => 83.76, 'word' => ' the'],
+            ['start' => 83.9, 'end' => 84.45, 'word' => ' Apostle'],
+            ['start' => 84.45, 'end' => 85.02, 'word' => ' Peter.'],
+        ]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [
+            ['start_time' => 10.0, 'end_time' => 79.0], ['start_time' => 79.0, 'end_time' => 4900.0],
+        ]);
+
+        $this->assertEqualsWithDelta([['start_time' => 10.0, 'end_time' => 4900.0]], $plan['segments'], 0.001);
+    }
+
+    /**
+     * 1105's sermon ends on "Amen." heard twice within reach of the edge: a closing sentence that
+     * cannot be placed once keeps the largest pause it had (ruled right), not an unresolved edge.
+     */
+    #[Test]
+    public function a_closing_sentence_heard_twice_keeps_the_largest_pause(): void
+    {
+        $cues = [
+            ['start' => 1398.0, 'end' => 1399.0, 'text' => 'Amen.'],
+            ['start' => 1399.0, 'end' => 1400.0, 'text' => 'Shall we sing again?'],
+        ];
+        $log = $this->logWithCues($cues);
+        $this->bankWindow($log, 1399.0, [
+            ['start' => 1397.14, 'end' => 1397.47, 'word' => ' Amen.'],
+            ['start' => 1398.92, 'end' => 1399.32, 'word' => ' Amen.'],
+            ['start' => 1399.55, 'end' => 1399.55, 'word' => ' Shall'],
+            ['start' => 1399.58, 'end' => 1399.64, 'word' => ' we'],
+            ['start' => 1399.64, 'end' => 1399.82, 'word' => ' sing'],
+            ['start' => 1399.82, 'end' => 1400.21, 'word' => ' again?'],
+        ]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 1300.0, 'end_time' => 1399.0]]);
+
+        $this->assertEqualsWithDelta(1398.92, $plan['segments'][0]['end_time'], 0.001);
+        $this->assertSame([], CueSafeExtractionPlan::unresolvedEdges($plan['cue_edge_widening']));
+    }
+
+    /**
+     * 1292's reading ends on "old." decoded to 1506.0000000000002 in a window ending at 1506: no
+     * gap after its last word, so the cut fell back to the window margin before "The man who…",
+     * dropping the reading's last verse.
+     */
+    #[Test]
+    public function a_decode_ending_on_the_closing_word_keeps_it(): void
+    {
+        $cue = ['start' => 1501.12, 'end' => 1505.0, 'text' => 'The man who was miraculously healed was over 40 years old.'];
+        $log = $this->logWithCues([$cue]);
+        $this->bankWindow($log, 1505.0, [
+            ['start' => 1500.44, 'end' => 1500.44, 'word' => ' The'],
+            ['start' => 1500.59, 'end' => 1500.76, 'word' => ' man'],
+            ['start' => 1500.76, 'end' => 1501.08, 'word' => ' who'],
+            ['start' => 1501.09, 'end' => 1501.38, 'word' => ' was'],
+            ['start' => 1501.48, 'end' => 1502.69, 'word' => ' miraculously'],
+            ['start' => 1502.69, 'end' => 1503.33, 'word' => ' healed'],
+            ['start' => 1503.34, 'end' => 1503.67, 'word' => ' was'],
+            ['start' => 1503.67, 'end' => 1504.09, 'word' => ' over'],
+            ['start' => 1504.18, 'end' => 1504.75, 'word' => ' 40'],
+            ['start' => 1504.75, 'end' => 1505.27, 'word' => ' years'],
+            ['start' => 1505.27, 'end' => 1506.0000000000002, 'word' => ' old.'],
+        ]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 1290.0, 'end_time' => 1505.0]]);
+
+        $this->assertGreaterThanOrEqual(1505.99, $plan['segments'][0]['end_time']);
+    }
+
     #[Test]
     public function absent_cache_blocks_instead_of_using_whole_cues(): void
     {
@@ -395,6 +561,23 @@ class WordTimedOutputEdgesTest extends TestCase
         Storage::disk('local')->put('temp/edge-test.json', json_encode(ChurchServiceTranscript::fromCues([$cue], 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
 
         return $log;
+    }
+
+    /** @param list<array{start: float, end: float, text: string}> $cues */
+    private function logWithCues(array $cues): MediaProcessingLog
+    {
+        $log = $this->log($cues[0]);
+        Storage::disk('local')->put('temp/edge-test.json', json_encode(ChurchServiceTranscript::fromCues($cues, 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+
+        return $log;
+    }
+
+    /** @param list<array{start: float, end: float, word: string}> $words */
+    private function bankWindow(MediaProcessingLog $log, float $edge, array $words): void
+    {
+        $evidence = app(OutputEdgeWordTimings::class);
+        $identity = $evidence->identity($log, $evidence->window($evidence->cues($log), $edge, 5000.0));
+        app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($identity), ['identity' => $identity, 'words' => $words, 'compute_seconds' => 1.0]);
     }
 
     private function bank(MediaProcessingLog $log, array $cue, array $words): void

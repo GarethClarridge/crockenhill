@@ -1552,6 +1552,36 @@ changed membership and new refusals, plus the four re-asks with wider clips. 131
 listening, not only edge clips; 1250 `045`'s re-ask should cover the neighbouring song's identity too. Still
 parked: 953, 1110, 964, 1346, 1108 (the 1108 promotion collision is in the canary 13 Codex brief).
 
+### Completion record — §6.2 step 0 and classes 1–2 (2026-10-08, uncommitted at writing)
+
+**Step 0 harness** (`storage/scratch/canary14-step0/`): `replay.php` re-plans every canary 13 output (24 runs, 122
+outputs) from saved evidence with the current code, inside a rolled-back transaction; the edge-word reader never
+decodes, so a missing window is reported, not fetched. `compare.py <a> <b>` diffs times, fades, reasons and segment
+counts, joined to the rulings. Replaying `30269e013` reproduced all 122 recorded outputs exactly (0 changes), so the
+harness is trusted. `inventory.json`: 230 edge decisions (133 ruled right, 12 other, 85 unasked).
+
+**Classes 1–2 built** (`CueSafeExtractionPlan`; tests in `WordTimedOutputEdgesTest`, red first from saved words):
+- An **end** on a line that closes a sentence (`. ! ?`) keeps that sentence and none of the next line, even where
+  two lines share the edge (1286). If its closing words are heard twice, it keeps the old largest pause (1105).
+- A cut is never placed **against a word smeared beyond `ANCHOR_REACH`** (2 s) on the output's side (1273's 5.7 s
+  "Let's", 1311 §4876's 15 s "The"); a gap whose cut sits at its other side is kept (1311 §135568).
+- With no gap of `OBSERVED_GAP` (0.1 s), the largest is noise: the pause nearest the original wins (1273).
+- Float tolerance where pauses are found and compared with the anchor (1292's "old." at 1506.0000000000002).
+- Parts of an output that meet (end = next start) are one stretch, not a cut (1050: placing both edges dropped
+  "This letter, this epistle was written by the apostle Peter").
+- Preparation (`wordPauseEdge`) and execution share one placement (`wordPause`), including between-line windows.
+
+**First attempts rejected by the replay:** a sentence rule for every edge moved 16 other outputs (song starts
+cut *before* their spoken announcement, which the operator ruled right after it); excluding every gap beside a
+smeared word moved 1311 §135568 mid-sentence. Both were narrowed.
+
+**Replay diff after the fix (8 outputs):** fixed — 1273 §3416 start 546.40→563.64, 1286 sermon join
+1482.87→1485.88, 1292 sermon join 1500.44→1506.00, 1311 §4876 start 1625.50→1655.27 (unasked). Changed and
+previously ruled right, to re-hear in canary 14 — 1282 §3526 end 843.70→844.62 (keeps "sounds."), 1286 §3582 end
+995.37→996.98 (keeps "…and sing our next song." whole). 1050 sermon end 837.52→837.44: its saved sentence-check
+answer was asked about the old prepared cut, so the edge step will ask again. 1358: reasons only (a join).
+Suite 9,427 green, PHPStan 0, Pint clean.
+
 ## 7. Further bounded investigations — added 2026-10-04
 
 The user requested these additions after reviewing the gaps in the plans. They are **open

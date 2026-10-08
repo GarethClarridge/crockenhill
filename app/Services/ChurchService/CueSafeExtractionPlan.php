@@ -193,6 +193,13 @@ class CueSafeExtractionPlan
         foreach ($spans as $index => &$span) {
             foreach (['start' => 'start_time', 'end' => 'end_time'] as $edge => $key) {
                 $original = $span[$key];
+                // Two parts that meet are one stretch of the output: no cut is made between them
+                // (1050's reading ends where its sermon starts; placing both edges dropped the
+                // sermon's first sentence).
+                $neighbour = $edge === 'end' ? ($sectionSpans[$index + 1]['start_time'] ?? null) : ($sectionSpans[$index - 1]['end_time'] ?? null);
+                if ($neighbour !== null && abs($neighbour - $original) < 0.001) {
+                    continue;
+                }
                 $extendedFrom = null;
                 $besideSong = false;
                 $thoughtComplete = true;
@@ -222,8 +229,7 @@ class CueSafeExtractionPlan
                     $payload = $evidence->read($log, $window);
                     $words = $payload['words'];
                     if ($words !== []) {
-                        $decision = $this->cueBoundaryPause($words, $window, $original, $edge)
-                            ?? (isset($window['between']) ? $this->nearestPause($words, $window, $original) : $this->pause($words, $window, $original));
+                        $decision = $this->wordPause($words, $window, $original, $edge);
                         if ($besideSong) {
                             $decision = $this->withTail($decision);
                         }
@@ -417,12 +423,12 @@ class CueSafeExtractionPlan
      * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>}  $window
      * @return array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null}
      */
-    private function nearestPause(array $words, array $window, float $original): array
+    private function nearestPause(array $words, array $window, float $original, string $edge): array
     {
         $inside = array_values(array_filter($this->pauses($words, $window), static fn (array $pause): bool => $pause['word_before'] !== null && $pause['word_after'] !== null));
 
         if ($inside === []) {
-            return $this->pause($words, $window, $original);
+            return $this->pause($words, $window, $original, $edge);
         }
 
         usort($inside, static fn (array $a, array $b): int => abs(max($a['start'], min($original, $a['end'])) - $original) <=> abs(max($b['start'], min($original, $b['end'])) - $original));
@@ -679,7 +685,7 @@ class CueSafeExtractionPlan
             return null;
         }
 
-        $decision = $this->cueBoundaryPause($words, $window, $original, $edge) ?? $this->pause($words, $window, $original);
+        $decision = $this->wordPause($words, $window, $original, $edge);
 
         return isset($decision['candidate_anchors']) ? null : ['time' => $decision['time'], 'window' => $window, 'words' => $words];
     }
@@ -1464,10 +1470,15 @@ class CueSafeExtractionPlan
         $isStart = $edge === 'start';
         // A cue touching the edge from the other side shares the boundary: its words may belong
         // to this output too (949's "thank you Mark"), so only the largest pause can place it.
-        if (count($window['cues']) !== 1) {
+        // An end on a line that closes a sentence keeps that sentence and none of the next line:
+        // the largest pause there sat mid-sentence (1286's "and | preach", canary 13 listening).
+        $closing = array_values(array_filter($window['cues'], fn (array $cue): bool => ! $isStart
+            && abs($cue['end'] - $original) <= self::CUE_BOUNDARY_TOLERANCE && $this->endsSentence($cue['text'])));
+        if (count($window['cues']) !== 1 && count($closing) !== 1) {
             return null;
         }
-        $cue = $window['cues'][0];
+        $shared = count($window['cues']) !== 1;
+        $cue = $closing[0] ?? $window['cues'][0];
         if (abs(($isStart ? $cue['start'] : $cue['end']) - $original) > self::CUE_BOUNDARY_TOLERANCE) {
             return null;
         }
@@ -1513,12 +1524,14 @@ class CueSafeExtractionPlan
         }
         // The nearest gap no word is still sounding in: a word overlapping the anchor stays whole.
         $pauses = array_filter($this->pauses($words, $window), static fn (array $pause): bool => $isStart
-            ? $pause['end'] <= $anchor['start'] : $pause['start'] >= $anchor['end']);
-        if ($pauses === [] && count($candidates) === 1) {
+            ? $pause['end'] <= $anchor['start'] + 0.001 : $pause['start'] >= $anchor['end'] - 0.001);
+        // A closing sentence heard twice is no better placed than before; the largest pause keeps
+        // it (1105's "Amen. Amen.", ruled right).
+        if (($pauses === [] && count($candidates) === 1) || ($shared && count($candidates) > 1)) {
             return null;
         }
         if ($pauses === []) {
-            $decision = $this->pause($words, $window, $original);
+            $decision = $this->pause($words, $window, $original, $edge);
         } else {
             $pause = $isStart ? $pauses[array_key_last($pauses)] : $pauses[array_key_first($pauses)];
             $decision = ['time' => max($pause['start'], min($original, $pause['end'])),
@@ -1532,6 +1545,26 @@ class CueSafeExtractionPlan
         return $decision;
     }
 
+    /**
+     * Where the edge's words are placed: the cue's own anchor, else the pause nearest an edge
+     * between two lines, else the largest pause. One placement for the plan and for the cut the
+     * sentence check is asked about (Codex review, 2026-10-08: the two differed between lines).
+     *
+     * @param  list<array{start: float, end: float, word: string}>  $words
+     * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>, between?: true}  $window
+     * @return array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, candidate_anchors?: list<array{start: float, end: float, word: string}>}
+     */
+    private function wordPause(array $words, array $window, float $original, string $edge): array
+    {
+        return $this->cueBoundaryPause($words, $window, $original, $edge)
+            ?? (isset($window['between']) ? $this->nearestPause($words, $window, $original, $edge) : $this->pause($words, $window, $original, $edge));
+    }
+
+    private function endsSentence(string $text): bool
+    {
+        return preg_match('/[.!?][\'"’”)]*$/u', trim($text)) === 1;
+    }
+
     private function normalize(string $text): string
     {
         return trim((string) preg_replace('/[^a-z0-9]+/', ' ', strtolower($text)));
@@ -1541,17 +1574,29 @@ class CueSafeExtractionPlan
      * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>}  $window
      * @return array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null}
      */
-    private function pause(array $words, array $window, float $original): array
+    private function pause(array $words, array $window, float $original, string $edge): array
     {
         $pauses = $this->pauses($words, $window);
         if ($pauses === []) {
             throw new \RuntimeException('edge_word_timings_invalid: no pause adjacent to edge cues');
         }
-        usort($pauses, static function (array $a, array $b) use ($original): int {
-            $size = $b['length'] <=> $a['length'];
+        // A word smeared beyond the anchor's reach was not said where the decode puts it, so a
+        // cut against it is not where the output starts or ends: the window margin before a 5.7 s
+        // "Let's" moved 1273's song start 17 s into the song before (canary 13 listening).
+        $placed = array_values(array_filter($pauses, static function (array $pause) use ($edge, $original): bool {
+            $time = max($pause['start'], min($original, $pause['end']));
+            [$word, $against] = $edge === 'start' ? [$pause['word_after'], $pause['end']] : [$pause['word_before'], $pause['start']];
 
-            return $size ?: abs(max($a['start'], min($original, $a['end'])) - $original) <=> abs(max($b['start'], min($original, $b['end'])) - $original);
-        });
+            return $word === null || abs($time - $against) > 0.001 || $word['end'] - $word['start'] <= self::ANCHOR_REACH;
+        }));
+        $pauses = $placed !== [] ? $placed : $pauses;
+        $distance = static fn (array $pause): float => abs(max($pause['start'], min($original, $pause['end'])) - $original);
+        usort($pauses, static fn (array $a, array $b): int => ($b['length'] <=> $a['length']) ?: $distance($a) <=> $distance($b));
+        // With no gap long enough to be observed, the largest is noise: the edge stays nearest
+        // where it was (1273's contiguous words after its smeared opening).
+        if ($pauses[0]['length'] < self::OBSERVED_GAP - 0.001) {
+            usort($pauses, static fn (array $a, array $b): int => $distance($a) <=> $distance($b));
+        }
         $pause = $pauses[0];
 
         return ['time' => max($pause['start'], min($original, $pause['end'])),
@@ -1575,8 +1620,10 @@ class CueSafeExtractionPlan
         $frontier = $window['start'];
         foreach ([...$words, null] as $right) {
             $end = $right['start'] ?? $window['end'];
-            if ($end >= $frontier) {
-                $pauses[] = ['start' => $frontier, 'end' => $end, 'length' => $end - $frontier, 'word_before' => $left, 'word_after' => $right];
+            // A decode can end its last word a float's width past the window (1292's "old." at
+            // 1506.0000000000002 in a window to 1506): that is no word sounding beyond it.
+            if ($end >= $frontier - 0.001) {
+                $pauses[] = ['start' => min($frontier, $end), 'end' => $end, 'length' => max(0.0, $end - $frontier), 'word_before' => $left, 'word_after' => $right];
             }
             if ($right !== null && $right['end'] >= $frontier) {
                 $frontier = $right['end'];
