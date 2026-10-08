@@ -1657,13 +1657,29 @@ class CueSafeExtractionPlan
         // A word smeared beyond the anchor's reach was not said where the decode puts it, so a
         // cut against it is not where the output starts or ends: the window margin before a 5.7 s
         // "Let's" moved 1273's song start 17 s into the song before (canary 13 listening).
-        $placed = array_values(array_filter($pauses, static function (array $pause) use ($edge, $original): bool {
+        // Nor does a cut move inward past one, dropping what may be the output's own words: its
+        // timing is unknown, not silence (1311 §4876's start jumped 29 s past a smeared "The" and
+        // "End"; canary 14). With no pause left, the edge stays where detection put it.
+        $smeared = array_values(array_filter($words, static fn (array $word): bool => $word['end'] - $word['start'] > self::ANCHOR_REACH));
+        $placed = array_values(array_filter($pauses, static function (array $pause) use ($edge, $original, $smeared): bool {
             $time = max($pause['start'], min($original, $pause['end']));
             [$word, $against] = $edge === 'start' ? [$pause['word_after'], $pause['end']] : [$pause['word_before'], $pause['start']];
 
-            return $word === null || abs($time - $against) > 0.001 || $word['end'] - $word['start'] <= self::ANCHOR_REACH;
+            if ($word !== null && abs($time - $against) <= 0.001 && $word['end'] - $word['start'] > self::ANCHOR_REACH) {
+                return false;
+            }
+
+            $inward = $edge === 'start' ? $time > $original + 0.001 : $time < $original - 0.001;
+            [$from, $to] = [min($time, $original), max($time, $original)];
+
+            return ! $inward || ! array_any($smeared, static fn (array $word): bool => $word['start'] >= $from - 0.001 && $word['end'] <= $to + 0.001);
         }));
-        $pauses = $placed !== [] ? $placed : $pauses;
+
+        if ($placed === []) {
+            return ['time' => $original, 'chosen_pause' => ['start' => $original, 'end' => $original], 'word_before' => null, 'word_after' => null];
+        }
+
+        $pauses = $placed;
         $distance = static fn (array $pause): float => abs(max($pause['start'], min($original, $pause['end'])) - $original);
         usort($pauses, static fn (array $a, array $b): int => ($b['length'] <=> $a['length']) ?: $distance($a) <=> $distance($b));
         // With no gap long enough to be observed, the largest is noise: the edge stays nearest

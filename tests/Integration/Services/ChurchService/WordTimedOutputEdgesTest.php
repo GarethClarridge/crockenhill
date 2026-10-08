@@ -302,6 +302,17 @@ class WordTimedOutputEdgesTest extends TestCase
                 ['start' => 1655.27, 'end' => 1657.08, 'word' => ' Oh,'],
                 ['start' => 1657.08, 'end' => 1657.08, 'word' => ' God.'],
             ], 1655.27],
+            // Canary 14: with its section start back at 1626.1 the cut jumped 29 s later, past the
+            // smeared "The" and "End" to the gap before "Oh,". Words of unknown timing are not a
+            // gap to skip: with no placeable pause the edge stays where detection put it.
+            '1311 song start on a hallucinated line keeps its detected start' => ['start', 1626.1, [
+                ['start' => 1626.1, 'end' => 1656.08, 'text' => 'Thank you.'],
+            ], [
+                ['start' => 1625.5, 'end' => 1640.09, 'word' => ' The'],
+                ['start' => 1640.09, 'end' => 1655.08, 'word' => ' End'],
+                ['start' => 1655.27, 'end' => 1657.08, 'word' => ' Oh,'],
+                ['start' => 1657.08, 'end' => 1657.08, 'word' => ' God.'],
+            ], 1626.1],
         ];
     }
 
