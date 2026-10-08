@@ -195,7 +195,6 @@ class SongEndEdgesTest extends TestCase
         $this->assertSame([1324.58], app(CueSafeExtractionPlan::class)->songEndSpeechEdges($section->processingLog, [['start_time' => 1200.0, 'end_time' => 1322.40]]));
     }
 
-
     /**
      * Canary 12, 1028 §1400: the benediction's cue is stretched back 25 s over the last verse, so
      * the speech "after" the song started at "fill you", half a line in. The classifier hears the
@@ -605,6 +604,37 @@ class SongEndEdgesTest extends TestCase
 
         $this->assertLessThanOrEqual(4200.0, $plan['segments'][0]['end_time']);
         $this->assertGreaterThanOrEqual(4195.0, $plan['segments'][0]['end_time']);
+    }
+
+    /**
+     * Canary 13, 1117 §1959: the announcement's 15 s cue opens at 713.62, in a window of music
+     * alone; its words are heard from 725 ("Well" smeared over 17 s). The cut sat at the cue's start
+     * and the 1.5 s fade took the last sung word. The song runs through its outro (music to 720)
+     * and ends in the quiet before the speech, fading after its last sung sound.
+     */
+    #[Test]
+    public function a_cue_starting_in_music_alone_does_not_place_the_speech_after_a_song(): void
+    {
+        $sung = ['start' => 708.66, 'end' => 713.62, 'text' => 'Shirev ayo kamotan'];
+        $talk = ['start' => 713.62, 'end' => 728.59, 'text' => "Well, in a moment we're going to have just a short five-"];
+        $section = $this->song(569.32, 713.62, [$sung, $talk],
+            [[690, 713.6, -37.0], [713.6, 715.4, -50.0], [715.4, 720.0, -42.0], [720.0, 724.8, -52.0], [724.8, 735, -22.0]],
+            timeline: [[690, 715, 0.677, 0.012], [715, 720, 0.639, 0.288], [720, 725, 0.012, 0.018], [725, 735, 0.009, 0.779]]);
+        $this->bank($section, 713.62, [
+            ['start' => 707.80, 'end' => 725.22, 'word' => ' Well'],
+            ['start' => 725.22, 'end' => 725.31, 'word' => ' in'],
+            ['start' => 725.31, 'end' => 725.35, 'word' => ' a'],
+            ['start' => 725.35, 'end' => 725.65, 'word' => ' moment'],
+            ['start' => 725.65, 'end' => 725.90, 'word' => " we're"],
+            ['start' => 725.90, 'end' => 726.02, 'word' => ' going'],
+        ]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $end = $plan['segments'][0]['end_time'];
+        $this->assertGreaterThanOrEqual(720.0, $end);
+        $this->assertLessThanOrEqual(724.8, $end);
+        $this->assertGreaterThanOrEqual(713.62, $end - ($plan['audio_fade_out'] ?? 0.0) - 0.001, 'the fade starts after the last sung sound');
     }
 
     /** @param array{cue_edge_widening: list<array<string, mixed>>} $plan

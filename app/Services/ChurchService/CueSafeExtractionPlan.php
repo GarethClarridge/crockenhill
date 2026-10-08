@@ -14,9 +14,9 @@ use App\Models\ServiceSection;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SongSpeechEdges;
 use App\Services\ChurchService\Structure\UntranscribedSpeechBeforeSection;
-use App\Services\Media\Audio\UntranscribedSpeechRecovery;
 use App\Services\Media\Audio\AudioTimeline;
 use App\Services\Media\Audio\RmsAnalysisService;
+use App\Services\Media\Audio\UntranscribedSpeechRecovery;
 use App\Support\ServiceArtifactDisk;
 use Illuminate\Support\Facades\Storage;
 
@@ -913,7 +913,10 @@ class CueSafeExtractionPlan
         $onsets = array_values(array_filter($onsets, static fn (array $onset): bool => $onset['word']['end'] - $onset['word']['start'] <= self::ANCHOR_REACH));
         $bounds = [$end + self::SONG_END_REACH, ...array_map(static fn (array $onset): float => $onset['word']['start'], $onsets)];
 
-        if ($speech !== null && TranscriptCueEvidence::isEvidence($speech, $timeline)) {
+        // A cue opening where the classifier hears no speech is not where speech starts: 1117
+        // §1959's announcement cue opens in music alone at 713.62, twelve seconds before it is
+        // heard, and the cut there faded out the last sung word (canary 13).
+        if ($speech !== null && TranscriptCueEvidence::isEvidence($speech, $timeline) && $this->speechHeardFrom($timeline, $speech['start'])) {
             $bounds[] = $speech['start'];
         }
 
@@ -939,7 +942,9 @@ class CueSafeExtractionPlan
             }
         }
 
-        $silence = $levels !== null ? $this->silenceOnset($levels, $lastSound, $until) : null;
+        // A silence the music comes back after is inside the outro, not its end: 1117 §1959 dipped
+        // for 1.8 s after its last sung word and played on to 720 (canary 13).
+        $silence = $levels !== null ? $this->beforeMusicResumes(fn (float $from): ?float => $this->silenceOnset($levels, $from, $until), $levels, $timeline, $lastSound, $until) : null;
 
         if ($silence !== null) {
             return ['time' => $silence, 'chosen_pause' => null, 'word_before' => null, 'word_after' => null,
@@ -977,7 +982,7 @@ class CueSafeExtractionPlan
         if (! $textBound && $singing !== null && ! $singing['inside'] && $singing['speech_alone_from'] !== null && abs($until - $singing['speech_by']) < 0.001) {
             $until = max($lastSound, $singing['speech_alone_from']);
         }
-        $quiet = $levels !== null && ! $textBound ? $this->firstQuiet($levels, $lastSound, $until) : null;
+        $quiet = $levels !== null && ! $textBound ? $this->beforeMusicResumes(fn (float $from): ?array => $this->firstQuiet($levels, $from, $until), $levels, $timeline, $lastSound, $until) : null;
         $gap = $quiet ?? $this->lastGap($words, min($lastSound, $floor), $until);
 
         $time = $gap !== null ? ($quiet !== null ? $gap['start'] + min(self::SONG_END_SILENCE_TAIL, ($gap['end'] - $gap['start']) / 2) : $gap['end'] - min(0.1, ($gap['end'] - $gap['start']) / 2))
@@ -1218,6 +1223,56 @@ class CueSafeExtractionPlan
             SoundClass::Mixed => $window < $timeline->windowCount() - 1 && $timeline->classOf($window + 1) === SoundClass::Speech,
             default => false,
         };
+    }
+
+    /**
+     * The first silence or quiet a finder returns from a time on that the music does not come back
+     * after before the bound: sound returning in a window the classifier hears as music alone
+     * means the song played on, so the search starts again there.
+     *
+     * @template T of float|array{start: float, end: float}
+     *
+     * @param  \Closure(float): (T|null)  $find
+     * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}  $levels
+     * @return T|null
+     */
+    private function beforeMusicResumes(\Closure $find, array $levels, ?AudioTimeline $timeline, float $from, float $until): float|array|null
+    {
+        while (($found = $find($from)) !== null) {
+            $at = is_array($found) ? $found['start'] : $found;
+            $back = null;
+
+            foreach ($levels['samples'] as $sample) {
+                if ($sample['time'] > $at && $sample['time'] < $until && $sample['rms'] >= $levels['threshold']) {
+                    $back = $sample['time'];
+
+                    break;
+                }
+            }
+
+            $window = $back !== null ? $timeline?->windowAt($back) : null;
+
+            if ($back === null || $timeline === null || $window === null || $timeline->classOf($window) !== SoundClass::Music) {
+                return $found;
+            }
+
+            $from = $back;
+        }
+
+        return null;
+    }
+
+    /** Whether the classifier hears speech in the window a time falls in or the one after it. */
+    private function speechHeardFrom(?AudioTimeline $timeline, float $time): bool
+    {
+        $window = $timeline?->windowAt($time);
+
+        if ($timeline === null || $window === null) {
+            return true;
+        }
+
+        return $timeline->windows[$window]['speech'] >= AudioTimeline::SPEECH_CUTOFF
+            || ($window + 1 < $timeline->windowCount() && $timeline->windows[$window + 1]['speech'] >= AudioTimeline::SPEECH_CUTOFF);
     }
 
     /**
