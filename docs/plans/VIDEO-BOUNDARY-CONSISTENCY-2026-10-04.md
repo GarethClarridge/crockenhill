@@ -1467,7 +1467,45 @@ Logs, dry runs and backups: `storage/app/private/canary13-20261007/`.
     `EnsembleReviewGate::oosItemsMatch` compares the items in order, so where the recording's order differs
     from the printed order, the run invalidates its own evidence and parks on `service_structure_ensemble_review`.
     This affects routine processing as well.
-- Not yet listened.
+
+**Later on 10-07.** The 8 ensemble questions and 6 refused edges were answered and applied. `784cd7a81`:
+the gate matches order-of-service items in any order (1012, 1286 and 1292 had invalidated themselves).
+`deaa5d43e`: a song that runs into speech now ends with a 1.5–4 s fade of its sound, not a refused cut
+(23 of 92 song ends were refused before; the operator ruled for a general fade over per-edge answers).
+Round 3 (`snapshot-fade.json`, code `deaa5d43e`): recompose all, Tier C 19:28–23:08 UTC. 24 completed
+(44 faded song ends, 31 clean). Parked: 953 and 1110 (merge flags); 964 (the sermon end would extend
+21.7 s and the thought is unresolved); 1346 (reading low-confidence after fresh detection). **Defect, 1108:**
+failed at recompose promotion. Its re-cut §4948 on staging collides with the canary 12 copy at the same
+quarantine path, and nothing authorises replacing it (class: a run parked after its clip was re-cut).
+Open question in the Codex brief `storage/scratch/codex-review-2026-10-07-canary13.md`.
+
+**Canary 13 listening (operator, 2026-10-08; 174 items, page https://claude.ai/artifact/HYZkDSyQWR6ihh9bBnPfu5;
+rulings `storage/app/private/canary13-20261007/listening-rulings/`).** 161 right, up from 41/53 in canary 12.
+8 of the 9 canary 12 failures are fixed. The 13 others:
+- **A song start lands inside another song (3):** 1311 §"I Will Sing Of The Lamb" is a **regression**: right
+  at 25:14.1 in canary 12, now 25:43.2, between two 30 s hallucinated "Thank you." cues (1514.1–1574.1)
+  that count as speech inside the song. 1012 "O God Beyond All Praising" opens at 0:04.7 inside a different
+  song (the recording starts mid-song). 1273 "All Heaven Declares" opens at 9:06.4 inside the song before
+  it; its announcement is one 16 s cue (547.3–563.6).
+- **A song end at "where speech is first identified" when the "speech" is not speech (3):** 1282 "My Jesus
+  My Saviour" fades into the next song (no speech between the two songs; the next song's singing at 958.4
+  reads as speech). 1221 "The King Of Love" includes the benediction's first line (one 20 s cue,
+  4183.1–4203.7, so speech is found late). 1117 "Cast Your Burden" fades out its last sung word (a garbled
+  lyric cue, "Shirev ayo kamotan"; the next cue 713.6–728.6 is speech).
+- **Outro cut at the first quiet (1):** 1028 "All My Days" ends at 553.4, a dip inside the instrumental
+  outro; speech starts at 559.1. The end should be the last silence before the speech, not the first after
+  the lyrics (canary 12 ran too far, to 563.0).
+- **Sermon joins (2):** 1286 cuts mid-cue, "and Mark will come and…" (1481.4–1485.9); 1292 drops the
+  reading's last verse, "The man who was miraculously healed was over 40 years old" (1501.1).
+- **Can't tell (4):** 961 sermon end (3936.8) and 1012 sermon start (1616.4) are near-silent in the recording
+  (−53 / −69 dB mean). 1012 opens on a 16 s cue that swallows the silence. 961 "Who Can Cheer" end has
+  sound (−30 dB mean) but heard nothing, so the clip may not have played. 1250 "O Come, O Come" start: unclear.
+- 1250's sermon join carries "a couple of seconds of music", ruled broadly fine.
+
+**Next session:** fix red first, using these cases as tests. Six of the nine real errors trust a cue as speech
+when it is hallucinated, sung or over-long, so fix that at its source. Then the outro rule and the two
+joins. Then canary 14 on the failed runs, with wider clips for the four that couldn't be judged. Still
+parked: 953, 1110, 964, 1346, 1108.
 
 ## 7. Further bounded investigations — added 2026-10-04
 
