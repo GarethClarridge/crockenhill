@@ -921,6 +921,15 @@ class CueSafeExtractionPlan
             $bounds[] = $singing['speech_by'];
         }
 
+        // A song followed by another song with no speech between them ends by the next one's
+        // start: with the next song's singing no longer taken for speech, 1250 §3127 ran on into
+        // "O come, O come, Emmanuel" (canary 13).
+        $nextSong = $this->songAfter($this->songStarts($log), $end);
+
+        if ($nextSong !== null) {
+            $bounds[] = max($end, $nextSong);
+        }
+
         $until = min($bounds);
         $lastSound = $from;
 
@@ -960,6 +969,14 @@ class CueSafeExtractionPlan
         // can be a breath between sung lines.
         $textBound = $speech !== null && (abs($until - $speech['start']) < 0.001 || array_any($onsets,
             static fn (array $onset): bool => abs($onset['word']['start'] - $until) < 0.001 && ($onset['source'] ?? null) === 'opening'));
+        // Where only the classifier bounds the speech, and its first window of speech holds speech
+        // alone after the section, the speaking was under way at that window's start: 1221 §2730's
+        // benediction was kept to 4205, the end of a window of speech alone from 4200 (canary 13).
+        // Silence and a heard onset above still use the window's end: speech alone can open on a
+        // pause. A window starting inside the section is the song's own run-on (1311 §4971).
+        if (! $textBound && $singing !== null && ! $singing['inside'] && $singing['speech_alone_from'] !== null && abs($until - $singing['speech_by']) < 0.001) {
+            $until = max($lastSound, $singing['speech_alone_from']);
+        }
         $quiet = $levels !== null && ! $textBound ? $this->firstQuiet($levels, $lastSound, $until) : null;
         $gap = $quiet ?? $this->lastGap($words, min($lastSound, $floor), $until);
 
@@ -984,11 +1001,12 @@ class CueSafeExtractionPlan
      * last window holding music before the first window of speech alone, when no window of music
      * alone follows that speech up to the song's end. Null without a timeline, or when no speech
      * follows the singing within reach. `speech_by` is the end of the first window holding speech
-     * after the singing: no onset can lie later. `inside` says that window starts before the
+     * after the singing: no onset can lie later. `speech_alone_from` is that window's start when it
+     * holds speech alone. `inside` says that window starts before the
      * song's end: only then may silence inside the section end the song, since a second of quiet
      * before a final chord is not its end (1112 §3739, ruled right at 1984.26).
      *
-     * @return array{from: float, speech_by: float, inside: bool}|null
+     * @return array{from: float, speech_by: float, speech_alone_from: float|null, inside: bool}|null
      */
     private function singingStops(?AudioTimeline $timeline, float $end): ?array
     {
@@ -1037,6 +1055,7 @@ class CueSafeExtractionPlan
             }
 
             return ['from' => $timeline->windows[$music]['start'], 'speech_by' => $timeline->windows[$first]['end'],
+                'speech_alone_from' => $timeline->classOf($first) === SoundClass::Speech ? $timeline->windows[$first]['start'] : null,
                 'inside' => $timeline->windows[$first]['start'] < $end];
         }
 
@@ -1052,7 +1071,7 @@ class CueSafeExtractionPlan
      *
      * @param  list<array{start: float, end: float, text: string}>  $cues
      * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}|null  $levels
-     * @param  array{from: float, speech_by: float, inside: bool}|null  $singing
+     * @param  array{from: float, speech_by: float, speech_alone_from: float|null, inside: bool}|null  $singing
      * @return array{start: float, end: float, text: string}|null
      */
     private function speechAfterSong(array $cues, float $end, ?array $levels, ?AudioTimeline $timeline = null, ?array $singing = null): ?array

@@ -552,6 +552,61 @@ class SongEndEdgesTest extends TestCase
         $this->assertLessThanOrEqual(2002.1, $plan['segments'][0]['end_time']);
     }
 
+    /**
+     * Canary 13, 1282 §3527: two songs back to back. The next song's first line ("In happy
+     * living") was taken for the speech after the first, so the end ran 17.5 s on and faded into
+     * the next song. The next song's section starts at 940: this one ends by then.
+     */
+    #[Test]
+    public function a_song_ends_by_the_start_of_the_next_song(): void
+    {
+        $last = ['start' => 928.44, 'end' => 930.12, 'text' => 'In you.'];
+        $next = ['start' => 958.44, 'end' => 963.28, 'text' => 'In happy living'];
+        $section = $this->song(844.68, 939.998, [$last, $next],
+            [[900, 936.5, self::LOUD], [936.5, 942.0, -44.0], [942.0, 975, self::LOUD]],
+            timeline: [[900, 935, ...self::MUSIC], [935, 940, 0.377, 0.004], [940, 975, ...self::MUSIC]]);
+        ServiceSection::factory()->create(['media_processing_log_id' => $section->media_processing_log_id,
+            'section_type' => ServiceSectionType::Song, 'start_time' => 940.0, 'end_time' => 1160.01]);
+        $this->bank($section, 958.44, [
+            ['start' => 957.57, 'end' => 958.78, 'word' => ' Jesus'],
+            ['start' => 958.78, 'end' => 960.12, 'word' => ' comes'],
+            ['start' => 960.12, 'end' => 960.65, 'word' => ' in'],
+            ['start' => 960.65, 'end' => 963.07, 'word' => ' happiness'],
+            ['start' => 963.08, 'end' => 964.27, 'word' => ' today.'],
+        ]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $this->assertLessThanOrEqual(940.0, $plan['segments'][0]['end_time']);
+    }
+
+    /**
+     * Canary 13, 1221 §2730: the benediction's 20 s cue is not where it starts, and its decode is
+     * one smeared "And". The classifier hears music to 4200 and speech alone from 4200: speech is
+     * already under way at the start of that window, so the song ends by then, not at its end
+     * (4205), which kept "And now may the God of peace".
+     */
+    #[Test]
+    public function a_window_of_speech_alone_bounds_the_song_at_its_start(): void
+    {
+        $sung = ['start' => 4177.04, 'end' => 4183.14, 'text' => "Let's talk to all the length of his glory,"];
+        $benediction = ['start' => 4183.14, 'end' => 4203.74, 'text' => 'And now may the God of peace, who through the blood of the'];
+        $section = $this->song(4032.86, 4183.14, [$sung, $benediction],
+            [[4100, 4196.0, self::LOUD], [4196.0, 4200.5, -40.0], [4200.5, 4215, -25.0]],
+            timeline: [[4100, 4200, ...self::MUSIC], [4200, 4215, 0.009, 0.792]]);
+        $this->bank($section, 4183.14, [
+            ['start' => 4176.17, 'end' => 4204.44, 'word' => ' And'],
+            ['start' => 4204.73, 'end' => 4204.73, 'word' => ' now'],
+            ['start' => 4204.73, 'end' => 4204.73, 'word' => ' may'],
+            ['start' => 4204.73, 'end' => 4204.73, 'word' => ' the'],
+        ]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $this->assertLessThanOrEqual(4200.0, $plan['segments'][0]['end_time']);
+        $this->assertGreaterThanOrEqual(4195.0, $plan['segments'][0]['end_time']);
+    }
+
     /** @param array{cue_edge_widening: list<array<string, mixed>>} $plan
      * @return array<string, mixed>
      */
