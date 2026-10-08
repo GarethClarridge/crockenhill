@@ -1482,11 +1482,13 @@ Open question in the Codex brief `storage/scratch/codex-review-2026-10-07-canary
 **Canary 13 listening (operator, 2026-10-08; 174 items, page https://claude.ai/artifact/HYZkDSyQWR6ihh9bBnPfu5;
 rulings `storage/app/private/canary13-20261007/listening-rulings/`).** 161 right, up from 41/53 in canary 12.
 8 of the 9 canary 12 failures are fixed. The 13 others:
-- **A song start lands inside another song (3):** 1311 §"I Will Sing Of The Lamb" is a **regression**: right
-  at 25:14.1 in canary 12, now 25:43.2, between two 30 s hallucinated "Thank you." cues (1514.1–1574.1)
-  that count as speech inside the song. 1012 "O God Beyond All Praising" opens at 0:04.7 inside a different
-  song (the recording starts mid-song). 1273 "All Heaven Declares" opens at 9:06.4 inside the song before
-  it; its announcement is one 16 s cue (547.3–563.6).
+- **A song start lands inside another song (3):** 1311 "I Will Sing Of The Lamb" is a **regression**: right
+  at 25:14.1 in canary 12, now 25:43.2. The *section* starts at 1544.08; the edge step moved it only −0.84 s.
+  It sits between two 30 s hallucinated "Thank you." cues (1514.1–1574.1), and it is one of three sections with this
+  title (1405.3, 1544.1, 1656.1). The change happened before the edge step; the 1311 ensemble answer (`1311-q0`) was about the talk, not this song. 1012 "O God Beyond All
+  Praising" is a section at 0–200 s, but the recording opens inside a different song (identity, not edge).
+  1273 "All Heaven Declares": the section start 563.64 was right (after the announcement). The edge step
+  moved it **−17.2 s** to 546.4, the start of a 5.7 s smeared "Let's", the start of the announcement cue.
 - **A song end at "where speech is first identified" when the "speech" is not speech (3):** 1282 "My Jesus
   My Saviour" fades into the next song (no speech between the two songs; the next song's singing at 958.4
   reads as speech). 1221 "The King Of Love" includes the benediction's first line (one 20 s cue,
@@ -1502,10 +1504,39 @@ rulings `storage/app/private/canary13-20261007/listening-rulings/`).** 161 right
   sound (−30 dB mean) but heard nothing, so the clip may not have played. 1250 "O Come, O Come" start: unclear.
 - 1250's sermon join carries "a couple of seconds of music", ruled broadly fine.
 
-**Next session:** fix red first, using these cases as tests. Six of the nine real errors trust a cue as speech
-when it is hallucinated, sung or over-long, so fix that at its source. Then the outro rule and the two
-joins. Then canary 14 on the failed runs, with wider clips for the four that couldn't be judged. Still
-parked: 953, 1110, 964, 1346, 1108.
+Recorded decisions per failing edge: `storage/scratch/canary13-listening/outputs.json` (`widening` entries,
+code `deaa5d43e`); transcript excerpts `storage/scratch/canary13-listening/wide.php`.
+
+### 6.2 Plan before canary 14 — 2026-10-08 (for Codex review; NOT built)
+
+**Scope.** The 9 wrong edges and 4 unjudged edges from canary 13 listening. Preserve the 161 edges ruled
+right. Red first: each case becomes a failing test from saved evidence (cues, word timings, levels,
+timeline) before any fix. Canary examples are regression evidence, not a benchmark.
+
+**Step 0 — measure each class across all 24 completed runs before fixing it** (read-only, from
+`outputs.json`). First counts: song starts moved > 2 s earlier by the edge step: 3 (1273 All Heaven
+Declares −17.2 s on a 5.7 s "Let's"; 1273 God Of My Life −3.3 s; 1311 I Will Sing Of The Lamb −30.6 s on a
+14.6 s "The", its third section). Song ends moved > 10 s later by `song_end_fade`: 3 (1221 +21.8, 1282 My Jesus
++17.5, 1282 Good News Of God Above +20.7 — the last was ruled right). A fix must explain both the wrong and
+the right members of each class.
+
+| # | Mechanism (from the recorded decision) | Cases | Proposed fix |
+|---|---|---|---|
+| 1 | A song **start** edge moves earlier through a smeared word: `word_pause` takes a "word" longer than any spoken word as the anchor and keeps the speech cue whole | 1273 (−17.2 s), 1311 third section (1656.08 → 1625.5) | A song start never widens back across a speech cue's opening; a heard word longer than `LONGEST_HEARD_WORD` (1.5 s) cannot anchor any edge. |
+| 2 | Singing after a song is accepted as its speech: `speechAfterSong` checks the timeline's speech share only for cues starting **inside** the section; after it, only the silent-share test applies | 1282 My Jesus ("In happy living", next song) | Apply the classifier test to every candidate cue; a cue starting in a music window is not speech. Check 1282 Good News (ruled right) against the same rule. |
+| 3 | A timing-suspect cue (too long for its words, `TranscriptCueEvidence::isTimingSuspect`) supplies where speech starts or ends | 1221 (+21.8 s, the bound fell to the next decode window, 4205), 1012 sermon start (opens on ≥ 8 s of near-silence, −69 dB, inside a 16.5 s cue), 961 sermon end ("Amen." over quiet extends +11 s beside the song) | Every consumer of a cue's start/end (song-end bound, spoken start, `spokenThrough`) uses heard words or the classifier for a timing-suspect cue, never its timestamps. Where neither places it, the edge is unresolved, not extended. |
+| 4 | The minimum fade covers sung sound: `fadeOut` = clamp(cut − lastSound, 1.5, 4.0), so a cut right after the last sung word fades it | 1117 (cut 713.62 = speech-cue start, fade 1.5 s) | **Operator decision.** (a) fade only over the available gap, even < 1.5 s (recommended); (b) no fade there; (c) keep 1.5 s. Also check whether 1117's speech cue (15 s for 11 words) is timing-suspect — then class 3 moves the cut and 4 may not arise. |
+| 5 | `silenceOnset` takes the first silence after the last sung word; a dip inside the instrumental outro qualifies | 1028 (553.4; speech 559.1) | The end silence must run unbroken to the speech onset (or to the reach), consistent with 1112 §3739 (a second of quiet before a final chord is not the end). |
+| 6 | A spoken edge between reading and sermon moves 3–4.5 s **back** from the reading's cue end to a mid-sentence pause; the sentence check does not catch it | 1286 ("and \| preach", original 1485.86 → 1482.87), 1292 (original 1505.0 → 1500.44, drops "The man who was…") | Trace `cueBoundaryPause`/`pause`/`sentenceChecked` on both; expected: the edge stays at the sentence end the cue gives unless the words say otherwise. |
+| 7 | The section is wrong before any edge step | 1311 (canary 12 cut the song from 1514.1; canary 13 has **three** sections titled I Will Sing Of The Lamb: 1405.3–1475.0, 1544.1–1593.3, 1656.1–1695.0), 1012 (wrong song at 0:00) | Investigate first: diff 1311's canary 12 and 13 structure/section history to find the step that split and moved it (candidates: SilenceSnapService changes in `db7cff5a2`, song open/close check, fresh detection). 1012: how a song mid-way at recording start gets the next song's identity. |
+
+**Unjudged (4):** 961 song end (clip has sound; probably didn't play), 961 sermon end and 1012 sermon start
+(covered by class 3), 1250 O Come O Come start (section 1129.68, first transcript line is "…captive Israel",
+so the first sung line may be clipped). Re-ask with wider clips.
+
+**Then canary 14:** the affected runs (1012, 1028, 1117, 1221, 1273, 1282, 1286, 1292, 1311) plus any others
+step 0 finds, and 961/1250 for the re-asks; listen to changed edges only. Still parked: 953, 1110, 964,
+1346, 1108 (the 1108 promotion collision is an open question in the canary 13 Codex brief).
 
 ## 7. Further bounded investigations — added 2026-10-04
 
