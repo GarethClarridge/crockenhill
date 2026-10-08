@@ -906,7 +906,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
         $rmsLogContent = (string) Storage::disk($artifactDisk)->get($rmsLogPath);
 
         $structure = app(SoundStage::class)->apply(
-            $snapService->snap($structure, $rmsLogContent, $transcript),
+            $snapService->snap($structure, $rmsLogContent, $transcript, $audioTimeline),
             $rmsLogContent,
             $transcript,
             ValidationContext::recordingOmitsSongs($this->processingLog->processing_metadata),

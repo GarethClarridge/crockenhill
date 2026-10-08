@@ -424,12 +424,13 @@ class StructureEvaluateCommand extends Command
 
         $rmsLogContent = (string) Storage::disk($rmsDisk)->get($rmsLogPath);
 
+        $timeline = $this->audioTimeline($log);
         $structure = app(SoundStage::class)->apply(
-            $snapService->snap($structure, $rmsLogContent, $transcript),
+            $snapService->snap($structure, $rmsLogContent, $transcript, $timeline),
             $rmsLogContent,
             $transcript,
             ValidationContext::recordingOmitsSongs($log->processing_metadata),
-            $this->audioTimeline($log),
+            $timeline,
         );
 
         return app(TranscriptCueBoundaries::class)->finish($structure, $transcript)['structure'];

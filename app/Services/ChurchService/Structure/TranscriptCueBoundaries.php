@@ -7,6 +7,9 @@ namespace App\Services\ChurchService\Structure;
 use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
+use App\Enums\ServiceSectionType;
+use App\Services\ChurchService\TranscriptCueEvidence;
+use App\Services\Media\Audio\AudioTimeline;
 
 /** Restores displayed cue times and enforces speech-safe edges after all composition steps. */
 class TranscriptCueBoundaries
@@ -64,11 +67,17 @@ class TranscriptCueBoundaries
         return ['structure' => $this->withSections($structure, $sections), 'questions' => []];
     }
 
-    /** Clamp a silence proposal to the speech-free interval surrounding this edge. */
-    public function snapEdge(ServiceStructureSection $section, float $proposal, string $edge, ChurchServiceTranscript $transcript): float
+    /**
+     * Clamp a silence proposal to the speech-free interval surrounding this edge. A line too long
+     * for its words over music, running across a spoken item's edge, is the music's, not speech the
+     * edge must keep whole: 1311's baptism snapped on to the end of a 30 s "Thank you." written
+     * over the song after it (canary 13). A song keeps such a line: it is the song's own.
+     */
+    public function snapEdge(ServiceStructureSection $section, float $proposal, string $edge, ChurchServiceTranscript $transcript, ?AudioTimeline $timeline = null): float
     {
-        $contained = array_values(array_filter($transcript->cues, static fn (array $cue): bool => $cue['start'] < $section->endTime && $cue['end'] > $section->startTime));
         $time = $edge === 'end' ? $section->endTime : $section->startTime;
+        $contained = array_values(array_filter($transcript->cues, static fn (array $cue): bool => $cue['start'] < $section->endTime && $cue['end'] > $section->startTime
+            && ! ($section->type !== ServiceSectionType::Song && $cue['start'] < $time && $cue['end'] > $time && TranscriptCueEvidence::isTimingSuspect($cue, $timeline))));
         $boundary = $contained === [] ? $time : ($edge === 'end' ? max(array_column($contained, 'end')) : min(array_column($contained, 'start')));
         $proposal = $edge === 'end' ? max($boundary, $proposal) : min($boundary, $proposal);
         foreach ($transcript->cues as $cue) {

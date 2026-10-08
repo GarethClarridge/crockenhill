@@ -9,6 +9,7 @@ use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Exceptions\SegmentationException;
+use App\Services\Media\Audio\AudioTimeline;
 use App\Services\Media\Audio\RmsAnalysisService;
 use App\Services\Scripture\ScriptureReferenceResolver;
 use App\Services\Sermon\SermonExtractionPlanResolver;
@@ -147,13 +148,12 @@ class SilenceSnapService
         return $scripture->namesPassage($introduction, $reading) ? sprintf('the sermon names %s before reading it', $reading) : null;
     }
 
-
     /**
      * Snap every section boundary to the nearest in-range silence.
      *
      * @param  string  $rmsLogContent  Raw contents of the rms_log_path artifact
      */
-    public function snap(ServiceStructure $structure, string $rmsLogContent, ?ChurchServiceTranscript $transcript = null): ServiceStructure
+    public function snap(ServiceStructure $structure, string $rmsLogContent, ?ChurchServiceTranscript $transcript = null, ?AudioTimeline $timeline = null): ServiceStructure
     {
         if ($structure->isEmpty()) {
             return $structure;
@@ -190,8 +190,8 @@ class SilenceSnapService
 
             if ($transcript !== null) {
                 $boundaries = app(TranscriptCueBoundaries::class);
-                $newStart = $newStart === null ? null : $boundaries->snapEdge($section, $newStart, 'start', $transcript);
-                $newEnd = $newEnd === null ? null : $boundaries->snapEdge($section, $newEnd, 'end', $transcript);
+                $newStart = $newStart === null ? null : $boundaries->snapEdge($section, $newStart, 'start', $transcript, $timeline);
+                $newEnd = $newEnd === null ? null : $boundaries->snapEdge($section, $newEnd, 'end', $transcript, $timeline);
             }
 
             $notes = [];

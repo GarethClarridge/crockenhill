@@ -99,7 +99,7 @@ class ServiceStructureDrawExecutor
 
         if (is_string($rms) && $rms !== '') {
             $refined = $this->soundStage->apply(
-                $this->snapService->snap($refined, $rms, $transcript),
+                $this->snapService->snap($refined, $rms, $transcript, $timeline),
                 $rms,
                 $transcript,
                 $context->recordingOmitsSongs,

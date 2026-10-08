@@ -9,9 +9,11 @@ use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
+use App\Services\Media\Audio\AudioTimeline;
 use App\Services\Media\Audio\RmsAnalysisService;
 use Illuminate\Support\Facades\Config;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Support\AudioTimelineFixture;
 use Tests\TestCase;
 
 class SilenceSnapServiceTest extends TestCase
@@ -493,6 +495,27 @@ class SilenceSnapServiceTest extends TestCase
         $structure = ServiceStructure::fromSections([$this->section('prayer', 100.4, 110.8)]);
         $result = $this->service->snap($structure, $this->rmsLog([[0.0, -20.0], [100.8, -60.0], [113.0, -60.0], [3000.0, -20.0]]), $transcript);
         $this->assertSame([100.4, 110.8], [$result->sections[0]->startTime, $result->sections[0]->endTime]);
+    }
+
+    /**
+     * Run 1311 in the canary 13 draws: a baptism drawn to 1520 snapped on to 1544.08, the end of a
+     * 30 s "Thank you." whisper wrote over the song that follows. A line too long for its words in
+     * music is not speech the snap must keep whole; the baptism ends with its last spoken line.
+     */
+    #[Test]
+    public function a_hallucinated_line_over_music_does_not_carry_a_section_end_with_it(): void
+    {
+        $transcript = ChurchServiceTranscript::fromCues([
+            ['start' => 1507.54, 'end' => 1512.16, 'text' => 'I baptise you in the name of the Father and of the Son and'],
+            ['start' => 1512.16, 'end' => 1514.10, 'text' => 'of the Holy Spirit.'],
+            ['start' => 1514.10, 'end' => 1544.08, 'text' => 'Thank you.'],
+        ], 3000, ChurchServiceTranscript::SOURCE_MOCK);
+        $timeline = AudioTimeline::fromArray(AudioTimelineFixture::payload([[1475, 1515, 0.02, 0.8], [1515, 1600, 0.8, 0.02]], 3000.0));
+        $structure = ServiceStructure::fromSections([$this->section('other', 1476.38, 1520.0)]);
+
+        $result = $this->service->snap($structure, $this->rmsLog([[0.0, -20.0], [1544.2, -60.0], [1545.5, -20.0], [3000.0, -20.0]]), $transcript, $timeline);
+
+        $this->assertLessThanOrEqual(1520.0, $result->sections[0]->endTime);
     }
 
     /** Run 949's merged sermon, as one draw detected it. */
