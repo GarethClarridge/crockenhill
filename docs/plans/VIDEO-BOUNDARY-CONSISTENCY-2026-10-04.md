@@ -1875,6 +1875,50 @@ over strong ("less noise but too muddy"). Levelling: no difference twice, slight
 gentle side because strong's failure, muddy speech, is worse than gentle's residual hiss). At −30, 1250 p2 (−29.4) is
 strong and 1250 p1/p3, 1200 p1 and 949 gentle.
 
+#### 6.3.6 Pre-canary-15 hardening (2026-10-09, after Codex's readiness review)
+
+Codex reproduced three publication gaps the suite missed (`storage/scratch/canary15-review/`); all three are fixed:
+
+1. **Per-recording settings and re-cuts reach publication.** Every candidate cut now carries a `candidate_id`;
+   `song_video_extraction` records the one it promoted. A published song is current only when published from the
+   candidate the section holds now (`SongPublicationHandler::isPublishedFromCurrentCandidate`), so any re-cut — new
+   bounds, edges, processing *or* the recording's own overrides — republishes; before, only a changed media
+   signature did, and a re-cut under new overrides left the old sound public. `PublicationCandidate::staleReason`
+   refuses to publish a song **or talk** candidate with no record, an older processing version, or audio settings
+   other than the run's current effective settings (loose equality: JSON can store −16.0 as −16). Candidate reuse
+   uses the same settings check.
+2. **Untreated songs are held.** `SongPublicationReviewPolicy` reads the candidate's audio report:
+   `song_sound_untreated` (a part left as recorded) and `song_loudness_missed` are review reasons (catalogued).
+3. **A loudness miss holds the output instead of failing the job.** `SectionAudioTreatment::verify` names each
+   missed target and keeps the measurement; the report lists `loudness_misses` and the files are kept. Sermons gain
+   `sermon_audio_loudness_missed` (`FlagSermonAudioLoudnessMissed`, catalogued, extraction-derived like the
+   untreated hold); songs route to review; talks always need approval. A published song whose re-cut has a sound
+   doubt keeps its published clip (`refreshPublished`) and records the reason. Hard failures stay hard: an encoded
+   file FFmpeg cannot read, encode failures and timing damage. The ±1 LU tolerance is unchanged.
+
+Suite 9,464 green (163 PHPUnit notices, as before), PHPStan 0, Pint clean, Dusk 61/61.
+
+**Content cases from canary 14:**
+- **1282 §3526** (486.6–844.0, pending short talk; no printed OoS, title "Jesus the Saviour" from the drafts): a
+  Mother's Day all-age talk on Mary with slides, ending on its announcement of the two songs. **Ruled (operator,
+  2026-10-09): children's talk; the end stays where it is** (keeps "…How Sweet the Name of Jesus Sounds.";
+  "Let's stand and sing" stays with §3527). Not to be re-asked. Type and speaker are set in the review panel at
+  approval (speaker unknown; speaker ID is off).
+- **1012 §1288:** the canary 14 content ruling ("Two songs, as described") was applied 2026-10-09 as answers to
+  run 1012's two majority decisions (`structure:ensemble-apply-answers`, `storage/scratch/canary15-prep/ensemble-1012/`):
+  m0 → God of Glory 0:00–1:25 (item 4958), m1 → O God Beyond All Praising 1:30–3:20 (item 4959). Read-only replay:
+  God of Glory 0–85, O God Beyond All Praising 88.9–200. Takes effect at canary 15's recompose and re-cut; listen to
+  both songs.
+- **Item 10187** is linked to song 444 ("I Will Sing Of The Lamb #427"): the open note above is stale; no fix needed.
+
+**Still to do before canary 15 (Codex's sequence):** a small full-length audio preflight with the actual `veryfast`
+preset, timing the longest service against the candidate job's 30-minute timeout; check the near-threshold speech parts
+and other strong-denoise picks on complete parts from original sources (the −30 line is provisional); listen to
+complete songs (quiet openings, louder passages, fades) under the music profile; then freeze settings. Canary 15 is an
+acceptance run: reviewed audio = published audio, joins and complete songs pass listening, audio failures remain held,
+every wrong or unresolved content case has a disposition, and operator-assisted results are counted apart from
+automatic ones. Speaker identification stays off for this canary.
+
 ## 7. Further bounded investigations — added 2026-10-04
 
 The user requested these additions after reviewing the gaps in the plans. They are **open
