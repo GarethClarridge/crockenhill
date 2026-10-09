@@ -15,7 +15,7 @@ class MediaProcessingVersion
         return is_array($stored) && Arr::sortRecursive($stored) === Arr::sortRecursive(self::signature());
     }
 
-    /** @return array{version: int, video: array<string, mixed>, enhancement: array<string, mixed>} */
+    /** @return array{version: int, video: array<string, mixed>, enhancement: array<string, mixed>, audio_treatment: array<string, mixed>} */
     public static function signature(): array
     {
         return [
@@ -26,6 +26,7 @@ class MediaProcessingVersion
                 'preset' => (string) config('media-processing.video_extraction.reencode_preset', 'faster'),
             ],
             'enhancement' => (array) json_decode(json_encode(config('media-processing.audio_enhancement', []), JSON_THROW_ON_ERROR), true, flags: JSON_THROW_ON_ERROR),
+            'audio_treatment' => (array) json_decode(json_encode(config('media-processing.audio_treatment', []), JSON_THROW_ON_ERROR), true, flags: JSON_THROW_ON_ERROR),
         ];
     }
 }

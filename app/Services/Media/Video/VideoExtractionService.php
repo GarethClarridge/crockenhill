@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace App\Services\Media\Video;
 
+use App\Enums\AudioProfile;
 use App\Exceptions\VideoProcessingException;
+use App\Services\HistoricMedia\HistoricStagingUrlGuard;
 use App\Services\Media\Audio\AudioCompressionService;
+use App\Services\Media\Audio\AudioTreatmentSettings;
+use App\Services\Media\Audio\PartLoudness;
+use App\Services\Media\Audio\SectionAudioTreatment;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Traits\RequiresFfmpeg;
 use FFMpeg\Coordinate\TimeCode;
@@ -28,11 +33,14 @@ class VideoExtractionService
 
     private SourceAwareMediaTimingChecker $timingChecker;
 
+    private SectionAudioTreatment $audioTreatment;
+
     public function __construct(
         private readonly AudioCompressionService $audioCompressor,
         private readonly StorageAdapterHelper $storageHelper
     ) {
         $this->timingChecker = app(SourceAwareMediaTimingChecker::class);
+        $this->audioTreatment = app(SectionAudioTreatment::class);
         $this->ffmpeg = $storageHelper->createFFMpeg();
 
         $this->tempDisk = config('media-processing.storage.temp_disk', 'local');
@@ -60,20 +68,53 @@ class VideoExtractionService
     }
 
     /**
-     * Encode each span's picture and sound together, then concatenate paired streams.
-     * Bump MediaProcessingVersion when changing cutting or enhancement behaviour.
+     * An untreated cut: the sound as recorded. Production cuts name their profile
+     * through {@see extractMedia()}.
      *
      * @param  list<array{start_time: float, end_time: float}>  $segments
      * @param  float|null  $audioFadeOut  Seconds over which the last span's sound fades out (a song ending at speech)
      */
     public function extractConcatenatedSegmentAsFile(string $inputPath, array $segments, ?string $outputFilename = null, ?float $audioFadeOut = null): string
     {
+        return $this->extractMedia($inputPath, $segments, null, $outputFilename, $audioFadeOut)->videoPath;
+    }
+
+    /**
+     * Encode each span's picture and sound together, then concatenate paired streams.
+     *
+     * With a profile every part's sound is measured and normalised on its own before
+     * the join (§6.3), a song's fade is applied after that so no gain can undo it, and
+     * the encoded parts are measured again. A public MP3, when asked for, is split
+     * from the same treated sound in the same run: never transcoded from the AAC.
+     * Bump MediaProcessingVersion when changing cutting or treatment behaviour.
+     *
+     * @param  list<array{start_time: float, end_time: float}>  $segments
+     * @param  AudioProfile|null  $profile  null leaves the sound as recorded
+     * @param  float|null  $audioFadeOut  Seconds over which the last span's sound fades out (a song ending at speech)
+     * @param  array<string, mixed>  $treatmentOverrides  this run's overrides of the profile's settings
+     *
+     * @throws VideoProcessingException
+     */
+    public function extractMedia(
+        string $inputPath,
+        array $segments,
+        ?AudioProfile $profile,
+        ?string $outputFilename = null,
+        ?float $audioFadeOut = null,
+        array $treatmentOverrides = [],
+        bool $withPublicAudio = false,
+    ): ExtractedMedia {
         $checker = $this->timingChecker;
         $checker->validateSpans($inputPath, $segments);
         $disk = Storage::disk($this->tempDisk);
         $relativePath = 'temp/'.($outputFilename ?? Str::uuid().'.mp4');
+        $audioRelativePath = $withPublicAudio ? preg_replace('/\.mp4$/', '', $relativePath).'.mp3' : null;
         $outputPath = $disk->path($relativePath);
         $disk->makeDirectory(dirname($relativePath));
+        $settings = $profile !== null ? AudioTreatmentSettings::for($profile, $treatmentOverrides) : null;
+        $parts = $settings !== null
+            ? array_map(fn (array $span): PartLoudness => $this->audioTreatment->measure($inputPath, $span['start_time'], $span['end_time'] - $span['start_time'], $settings), $segments)
+            : [];
         $filters = [];
         $inputs = [];
         $pairs = '';
@@ -91,14 +132,19 @@ class VideoExtractionService
                 $fade = ',afade=t=out:st='.$this->seconds($duration - $length).':d='.$this->seconds($length);
             }
 
-            $filters[] = "[{$index}:a:0]atrim=duration=".$this->seconds($duration).",asetpts=PTS-STARTPTS{$fade}[a{$index}]";
+            $sound = $settings !== null
+                ? $this->audioTreatment->partFilter($duration, $settings, $parts[$index])
+                : 'atrim=duration='.$this->seconds($duration).',asetpts=PTS-STARTPTS';
+            $filters[] = "[{$index}:a:0]{$sound}{$fade}[a{$index}]";
             $pairs .= "[v{$index}][a{$index}]";
         }
 
-        $filters[] = $pairs.'concat=n='.count($segments).':v=1:a=1[v][a]';
+        // Speech is the same sound in both channels: the MP3 takes one, where summing them would add 3 dB.
+        $filters[] = $pairs.'concat=n='.count($segments).':v=1:a=1[v]'.($audioRelativePath === null ? '[a]'
+            : '[joined];[joined]asplit=2[a][public]'.($settings?->isMono() ? ';[public]pan=mono|c0=c0[mp3]' : ';[public]anull[mp3]'));
 
         try {
-            $this->runFfmpeg([
+            $output = $this->runFfmpeg([
                 escapeshellarg((string) config('media-processing.ffmpeg.ffmpeg_path')),
                 ...$inputs,
                 '-filter_complex', escapeshellarg(implode(';', $filters)),
@@ -107,15 +153,93 @@ class VideoExtractionService
                 '-pix_fmt', 'yuv420p', '-fps_mode', 'vfr',
                 '-c:a', 'aac', '-ar', '48000', '-b:a', '128k',
                 '-movflags', '+faststart', '-y', escapeshellarg($outputPath),
+                ...($audioRelativePath !== null ? $this->publicAudioArguments($disk->path($audioRelativePath), $settings) : []),
             ], 'paired section encode');
             $report = $checker->check($inputPath, $outputPath, $segments);
             Log::info('Section media passed source-aware timing checks', ['output_path' => $outputPath, 'timing_check' => $report]);
 
-            return $relativePath;
+            return new ExtractedMedia(
+                $relativePath,
+                $audioRelativePath,
+                $settings !== null ? $this->audioReport($settings, $parts, $output, $outputPath, $audioRelativePath !== null ? $disk->path($audioRelativePath) : null) : null,
+            );
         } catch (\Throwable $exception) {
-            $disk->delete($relativePath);
+            $disk->delete(array_filter([$relativePath, $audioRelativePath]));
             throw $exception;
         }
+    }
+
+    /**
+     * What was done to each part's sound, and how the encoded files measured.
+     *
+     * @param  list<PartLoudness>  $parts
+     * @return array<string, mixed>
+     *
+     * @throws VideoProcessingException When a treated part missed its target in either file
+     */
+    private function audioReport(AudioTreatmentSettings $settings, array $parts, string $encodeOutput, string $videoPath, ?string $audioPath): array
+    {
+        $modes = $this->audioTreatment->modesFromEncode($encodeOutput, $parts);
+        $video = $this->audioTreatment->verify($videoPath, $parts, $settings);
+        $audio = $audioPath !== null ? $this->audioTreatment->verify($audioPath, $parts, $settings, monoFile: $settings->isMono()) : [];
+
+        return [
+            'settings' => $settings->toArray(),
+            'parts' => array_map(static fn (PartLoudness $part, int $index): array => [
+                ...$part->toArray(),
+                'mode' => $modes[$index],
+                'expected_mode' => $part->expectedMode($settings),
+                'video' => $video[$index],
+                'public_audio' => $audio[$index] ?? null,
+            ], $parts, array_keys($parts)),
+        ];
+    }
+
+    /**
+     * Move a cut's public MP3 from the temp disk to where sermon or talk audio lives.
+     *
+     * @return array{audio_path: string, full_path: string, size: int}
+     */
+    public function storePublicAudio(string $tempRelativePath, string $filename, ?string $permanentDisk = null, ?string $audioPath = null): array
+    {
+        $disk = $permanentDisk ?? $this->permanentDisk;
+        $placement = $this->storageHelper->getProcessingOutputPath($filename, $audioPath ?? $this->audioPath, $disk, $this->tempDisk, 'temp/audio_extraction');
+        $local = Storage::disk($this->tempDisk)->path($tempRelativePath);
+        $size = is_file($local) ? (int) filesize($local) : 0;
+
+        if ($size === 0) {
+            throw new VideoProcessingException("The cut's public MP3 is missing or empty: {$tempRelativePath}");
+        }
+
+        if ($placement['use_temp_processing']) {
+            $this->storageHelper->uploadWithRetry($local, $placement['permanent_path'], $disk);
+            $this->cleanupTemporaryFile($local);
+            HistoricStagingUrlGuard::assertAllowed($disk);
+
+            return ['audio_path' => $placement['permanent_path'], 'full_path' => Storage::disk($disk)->url($placement['permanent_path']), 'size' => $size];
+        }
+
+        if (! rename($local, $placement['processing_path'])) {
+            throw new VideoProcessingException("Could not move the cut's public MP3 to {$placement['permanent_path']}");
+        }
+
+        return ['audio_path' => $placement['permanent_path'], 'full_path' => $placement['processing_path'], 'size' => $size];
+    }
+
+    /**
+     * The public MP3: speech in one channel, at a listening (not transcription) quality.
+     *
+     * @return list<string>
+     */
+    private function publicAudioArguments(string $path, ?AudioTreatmentSettings $settings): array
+    {
+        return [
+            '-map', '[mp3]',
+            '-c:a', 'libmp3lame',
+            '-ar', (string) (int) config('media-processing.audio_treatment.public_mp3.sample_rate', 48000),
+            '-b:a', ((int) config('media-processing.audio_treatment.public_mp3.bitrate_kbps', 96)).'k',
+            '-y', escapeshellarg($path),
+        ];
     }
 
     /**
@@ -215,10 +339,11 @@ class VideoExtractionService
 
     /**
      * @param  list<string>  $arguments  Already shell-escaped where needed
+     * @return string FFmpeg's console output
      *
      * @throws VideoProcessingException
      */
-    private function runFfmpeg(array $arguments, string $step): void
+    private function runFfmpeg(array $arguments, string $step): string
     {
         $output = [];
         exec(implode(' ', $arguments).' 2>&1', $output, $returnCode);
@@ -226,6 +351,8 @@ class VideoExtractionService
         if ($returnCode !== 0) {
             throw new VideoProcessingException("FFmpeg {$step} failed: ".implode("\n", $output));
         }
+
+        return implode("\n", $output);
     }
 
     /**

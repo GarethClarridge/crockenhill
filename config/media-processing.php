@@ -278,7 +278,8 @@ return [
     |
     */
     // Bump when cutting or enhancement behaviour changes. Older assets must be regenerated.
-    'media_processing_version' => 6,
+    // 7: per-part speech/music treatment in the cut, public MP3 from the same sound (§6.3).
+    'media_processing_version' => 7,
 
     'video_extraction' => [
         'reencode_crf' => (int) env('VIDEO_EXTRACTION_REENCODE_CRF', 23),
@@ -308,6 +309,66 @@ return [
         // Skip the encode pass when measured loudness is already within this many LUFS of the target.
         'skip_if_within_tolerance' => env('AUDIO_ENHANCEMENT_SKIP_IF_WITHIN_TOLERANCE', true),
         'skip_tolerance_lufs' => (float) env('AUDIO_ENHANCEMENT_SKIP_TOLERANCE_LUFS', 2.0),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Audio Treatment of cut media (VIDEO-BOUNDARY-CONSISTENCY §6.3)
+    |--------------------------------------------------------------------------
+    |
+    | Applied in the cut itself, part by part, so quarantine candidates sound as
+    | they will publish. `audio_enhancement` above is the transcription chain and
+    | is not used here. Every optional treatment is an FFmpeg option string or
+    | null (off); listening chooses them. A run can override any key per profile
+    | through `processing_metadata.audio_treatment_overrides.{speech|music}`.
+    | Bump media_processing_version whenever this block's behaviour changes.
+    |
+    */
+    'audio_treatment' => [
+        'speech' => [
+            'target_lufs' => -16.0,
+            'true_peak' => -1.5,
+            'lra' => 11.0,
+            'high_pass_hz' => null,
+            'hum_hz' => null,
+            'denoise' => null,
+            'de_ess' => null,
+            'dynamics' => null,
+            'max_gain_db' => 40.0,
+            // Denoise chosen per part from how loud its pauses sit below its speech (dB, 10th-percentile
+            // 100 ms windows minus integrated loudness), first match wins; `denoise` set, or "off", replaces it.
+            // Operator listening 2026-10-08/09, 10 parts, round 2 blind: strong chosen at −27 and −29.7, gentle at
+            // −30.5 ("strong too muddy") and from −33.4 to −38.5, none on gated parts (strong "bad" there).
+            // Strong costs more when wrong than gentle does, so the line sits on the gentle side of the gap.
+            'denoise_by_pause' => [
+                ['above' => -30.0, 'denoise' => 'nr=10:nf=-25'],
+                ['above' => -60.0, 'denoise' => 'nr=12:nf=-50:tn=1'],
+            ],
+        ],
+        'music' => [
+            'target_lufs' => -16.0,
+            'true_peak' => -1.5,
+            'lra' => 20.0,
+            'high_pass_hz' => null,
+            'hum_hz' => null,
+            'denoise' => null,
+            'de_ess' => null,
+            'dynamics' => null,
+            'max_gain_db' => 30.0,
+            'denoise_by_pause' => [],
+        ],
+        // Each part of the encoded output must land this close to its target.
+        'loudness_tolerance_lu' => 1.0,
+        'true_peak_tolerance_db' => 1.0,
+        // Below these a part's loudness cannot be measured; it is left untreated and flagged.
+        'minimum_measurable_seconds' => 3.0,
+        'silence_lufs' => -70.0,
+        // The public MP3 (sermon page, podcast, short talks): made from the same treated sound as the video.
+        // 48 kbps judged as good as 64 and 96 on treated speech (operator listening, 2026-10-08).
+        'public_mp3' => [
+            'bitrate_kbps' => 48,
+            'sample_rate' => 48000,
+        ],
     ],
 
     /*

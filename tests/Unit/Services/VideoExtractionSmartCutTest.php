@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Enums\AudioProfile;
 use App\Exceptions\VideoProcessingException;
 use App\Services\Media\Audio\AudioCompressionService;
-use App\Services\Media\Audio\AudioEnhancementService;
 use App\Services\Media\Video\SourceAwareMediaTimingChecker;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
@@ -218,57 +218,49 @@ class VideoExtractionSmartCutTest extends TestCase
     }
 
     #[Test]
-    public function paired_spans_and_enhancement_preserve_simultaneous_events_through_the_last_seconds(): void
+    public function paired_spans_and_treated_sound_preserve_simultaneous_events_through_the_last_seconds(): void
     {
         $source = $this->eventSource();
-        $path = $this->service->extractConcatenatedSegmentAsFile($source, [
+        $segments = [
             ['start_time' => 0.13, 'end_time' => 8.337],
             ['start_time' => 12.17, 'end_time' => 20.037],
-        ]);
-        $output = Storage::disk('local')->path($path);
-        $this->assertEventsTogether($output);
+        ];
+        $this->assertEventsTogether(Storage::disk('local')->path($this->service->extractConcatenatedSegmentAsFile($source, $segments)));
 
-        Config::set('media-processing.audio_enhancement.enabled', true);
-        Config::set('media-processing.audio_enhancement.skip_tolerance_lufs', 0);
-        $enhanced = app(AudioEnhancementService::class)->enhanceVideo($output, 'paired-events-'.getmypid());
-        $this->assertNotNull($enhanced);
-        try {
-            $this->assertEventsTogether($enhanced);
-        } finally {
-            unlink($enhanced);
+        foreach (AudioProfile::cases() as $profile) {
+            $treated = $this->service->extractMedia($source, $segments, $profile);
+            $this->assertEventsTogether(Storage::disk('local')->path($treated->videoPath));
         }
     }
 
+    /**
+     * `loudnorm`'s lookahead flush skipped timestamps at the end of a long stream and
+     * left a late audio hole; the treatment rebuilds them from the emitted samples.
+     */
     #[Test]
-    public function loudnorm_flush_damage_is_reproduced_and_the_fixed_enhancement_keeps_the_final_events(): void
+    public function loudnorm_flush_damage_is_reproduced_and_the_treated_cut_keeps_the_final_events(): void
     {
         $source = $this->source('loudnorm-tail-events.mp4', [
             '-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-c:a', 'aac',
         ], 'color=black:size=160x120:rate=25:duration=192.049,geq=lum=if(between(mod(T\\,1)\\,0.48\\,0.60)\\,235\\,16)',
             'aevalsrc=if(between(mod(t\\,1)\\,0.48\\,0.60)\\,0.6*sin(2*PI*1000*t)\\,0):s=48000:d=192.049');
-        config(['media-processing.audio_enhancement.enabled' => true, 'media-processing.audio_enhancement.skip_tolerance_lufs' => 0]);
-        $enhancement = app(AudioEnhancementService::class);
-        $chain = $enhancement->buildFilterChain($source, 'loudnorm-tail');
-        $this->assertNotNull($chain);
         $legacy = $this->sourceDirectory.'/loudnorm-tail-legacy.mp4';
-        $legacyChain = str_replace(',asetpts=N/SR/TB', '', $chain);
-        (new Process(['/usr/bin/ffmpeg', '-v', 'error', '-y', '-i', $source, '-af', $legacyChain,
+        (new Process(['/usr/bin/ffmpeg', '-v', 'error', '-y', '-i', $source, '-af', 'loudnorm=I=-16:TP=-1.5:LRA=11',
             '-c:v', 'copy', '-c:a', 'aac', '-ar', '48000', '-b:a', '128k', $legacy]))->setTimeout(120)->mustRun();
         $checker = app(SourceAwareMediaTimingChecker::class);
         try {
             $checker->check($source, $legacy, [['start_time' => 0.0, 'end_time' => $checker->duration($source)]]);
-            $this->fail('The pre-fix loudnorm chain must reproduce its late audio hole.');
+            $this->fail('A loudnorm chain without rebuilt timestamps must reproduce its late audio hole.');
         } catch (VideoProcessingException $exception) {
             $this->assertStringContainsString('introduced audio discontinuity', $exception->getMessage());
         }
-        $fixed = $enhancement->enhanceVideo($source, 'loudnorm-tail-fixed-'.getmypid());
-        $this->assertNotNull($fixed);
-        try {
-            $this->assertEventsTogether($fixed);
-            $this->assertGreaterThan(180, count($this->eventOffsets($fixed)));
-        } finally {
-            unlink($fixed);
-        }
+
+        $treated = Storage::disk('local')->path(
+            $this->service->extractMedia($source, [['start_time' => 0.0, 'end_time' => $checker->duration($source)]], AudioProfile::Music)->videoPath,
+        );
+
+        $this->assertEventsTogether($treated);
+        $this->assertGreaterThan(180, count($this->eventOffsets($treated)));
     }
 
     #[Test]
