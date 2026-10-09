@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Services\Media\Audio;
 
-use App\Exceptions\VideoProcessingException;
-use App\Services\Media\Video\SourceAwareMediaTimingChecker;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\Process\Process;
 
 /**
- * Service for automated audio enhancement using FFmpeg.
+ * Service for automated audio enhancement using FFmpeg, for transcription.
+ *
+ * Published media is treated in the cut instead ({@see SectionAudioTreatment}).
  *
  * Provides a pipeline for noise reduction, dynamic range compression, and
  * two-pass loudness normalization (EBU R128) tailored for church recordings.
@@ -264,142 +264,6 @@ class AudioEnhancementService
                 'FFmpeg enhancement failed: '.$process->getErrorOutput()
             );
         }
-    }
-
-    /**
-     * Enhance the audio track of an MP4 video file using FFmpeg filters.
-     *
-     * The video stream is copied unchanged (`-c:v copy`) to avoid expensive and
-     * quality-degrading re-encoding; only the audio stream is enhanced and
-     * re-encoded to AAC for MP4 compatibility. Reuses the same filter chain and
-     * configuration toggles as {@see enhance()}.
-     *
-     * @param  string  $inputPath  Absolute path to the source MP4 video file
-     * @param  string  $processingId  Processing ID for log correlation and output naming
-     * @return string|null Path to the enhanced MP4 file, or null if failed or disabled
-     *
-     * @throws \Throwable For unexpected system failures or re-thrown enhancement errors
-     */
-    public function enhanceVideo(string $inputPath, string $processingId): ?string
-    {
-        if (! config('media-processing.audio_enhancement.enabled', true)) {
-            return null;
-        }
-
-        if (! file_exists($inputPath)) {
-            Log::warning('AudioEnhancementService: video input file not found: '.$this->sanitizeForLog($inputPath), $this->sanitizeArrayForLog([
-                'processing_id' => $processingId,
-            ]));
-
-            return null;
-        }
-
-        try {
-            $outputPath = storage_path('app/temp/'.$processingId.'_enhanced.mp4');
-            $this->ensureTempDirectoryExists($outputPath);
-
-            $filterChain = $this->buildFilterChain($inputPath, $processingId);
-
-            if ($filterChain === null) {
-                return null;
-            }
-
-            $ffmpegPath = (string) config('media-processing.ffmpeg.ffmpeg_path', '/usr/bin/ffmpeg');
-
-            $this->runVideoEnhancement($ffmpegPath, $inputPath, $filterChain, $outputPath, $processingId);
-            $checker = app(SourceAwareMediaTimingChecker::class);
-            $report = $checker->check($inputPath, $outputPath, [['start_time' => 0.0, 'end_time' => $checker->duration($inputPath)]]);
-            Log::info('Enhanced media passed source-aware timing checks', ['processing_id' => $processingId, 'timing_check' => $report]);
-
-            Log::info('AudioEnhancementService: video enhancement complete', $this->sanitizeArrayForLog([
-                'processing_id' => $processingId,
-                'output_path' => $outputPath,
-            ]));
-
-            return $outputPath;
-        } catch (VideoProcessingException $exception) {
-            if (isset($outputPath) && is_file($outputPath)) {
-                unlink($outputPath);
-            }
-            throw $exception;
-        } catch (\Throwable $e) {
-            Log::warning('AudioEnhancementService: video enhancement failed, continuing with original', $this->sanitizeArrayForLog([
-                'processing_id' => $processingId,
-                'error' => $e->getMessage(),
-                'trace' => $this->sanitizeStackTrace($e->getTraceAsString()),
-            ]));
-
-            return null;
-        }
-    }
-
-    /**
-     * @throws \RuntimeException If the FFmpeg process fails
-     */
-    private function runVideoEnhancement(string $ffmpegPath, string $inputPath, string $filterChain, string $outputPath, string $processingId): void
-    {
-        $command = [
-            $ffmpegPath,
-            '-y',
-            '-i', $inputPath,
-            '-af', $filterChain,
-            '-c:v', 'copy',
-            '-c:a', 'aac',
-            ...$this->sourceAudioFormatArguments($inputPath),
-            $outputPath,
-        ];
-
-        Log::info('AudioEnhancementService: running video enhancement pass', $this->sanitizeArrayForLog([
-            'processing_id' => $processingId,
-            'filter_chain' => $filterChain,
-        ]));
-
-        $process = new Process($command);
-        $process->setTimeout(600);
-        $process->run();
-
-        if (! $process->isSuccessful()) {
-            throw new \RuntimeException(
-                'FFmpeg video enhancement failed: '.$process->getErrorOutput()
-            );
-        }
-    }
-
-    /**
-     * Encoder arguments that keep the source's audio format.
-     *
-     * `loudnorm` resamples to 192 kHz internally, so without `-ar` the AAC
-     * encoder settled on 96 kHz: 245 of 464 historic song clips were upsampled
-     * that way and cut to a fixed 128 kbps. The source's sample rate is kept,
-     * and its bitrate when that is above 128 kbps. An unprobeable source keeps
-     * the encoder's own choice of sample rate.
-     *
-     * @return list<string>
-     */
-    private function sourceAudioFormatArguments(string $inputPath): array
-    {
-        $probe = new Process([
-            (string) config('media-processing.ffmpeg.ffprobe_path', '/usr/bin/ffprobe'),
-            '-v', 'error',
-            '-select_streams', 'a:0',
-            '-show_entries', 'stream=sample_rate,bit_rate',
-            '-of', 'json',
-            $inputPath,
-        ]);
-        $probe->setTimeout(60);
-        $probe->run();
-
-        /** @var array{streams?: list<array{sample_rate?: string, bit_rate?: string}>}|null $probed */
-        $probed = $probe->isSuccessful() ? json_decode($probe->getOutput(), true) : null;
-        $stream = $probed['streams'][0] ?? [];
-
-        $sampleRate = (int) ($stream['sample_rate'] ?? 0);
-        $bitRate = max(128_000, (int) ($stream['bit_rate'] ?? 0));
-
-        return [
-            ...($sampleRate > 0 ? ['-ar', (string) $sampleRate] : []),
-            '-b:a', (string) $bitRate,
-        ];
     }
 
     private function ensureTempDirectoryExists(string $outputPath): void

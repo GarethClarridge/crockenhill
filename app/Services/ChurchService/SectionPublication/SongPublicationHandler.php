@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService\SectionPublication;
 
+use App\Enums\AudioProfile;
 use App\Contracts\SectionPublicationHandler;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionPublicationStatus;
@@ -11,7 +12,6 @@ use App\Models\ChurchServiceItem;
 use App\Models\ServiceSection;
 use App\Models\SongVideo;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
-use App\Services\Media\Audio\AudioEnhancementService;
 use App\Services\Media\ExtractedMediaDurationProbe;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Song\SongVideoService;
@@ -21,12 +21,11 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Handler for enhancing and publishing song segments extracted from livestreams.
+ * Handler for publishing song segments extracted from livestreams.
  *
- * This handler manages the "livestream-to-song" pipeline, which includes downloading
- * extracted video clips, applying audio enhancement (normalization) if possible,
- * and promoting the final video asset to the public sermon disk where it is
- * linked to a canonical Song model.
+ * The candidate clip is cut with the music profile's sound (§6.3), so publishing
+ * promotes it unchanged to the public sermon disk, where it is linked to a
+ * canonical Song model.
  */
 class SongPublicationHandler implements SectionPublicationHandler
 {
@@ -35,14 +34,12 @@ class SongPublicationHandler implements SectionPublicationHandler
     /**
      * @param  SongVideoService  $songVideoService  Service for managing song video records
      * @param  ServiceSectionPublicationTransitionService  $publicationTransitions  Service for managing section state transitions
-     * @param  AudioEnhancementService  $audioEnhancement  Service for normalizing audio in video files
      * @param  StorageAdapterHelper  $storageHelper  Service for cross-disk storage operations
      * @param  SongPublicationReviewPolicy  $reviewPolicy  Names the doubts that stop a clip publishing itself
      */
     public function __construct(
         private readonly SongVideoService $songVideoService,
         private readonly ServiceSectionPublicationTransitionService $publicationTransitions,
-        private readonly AudioEnhancementService $audioEnhancement,
         private readonly StorageAdapterHelper $storageHelper,
         private readonly SongPublicationReviewPolicy $reviewPolicy,
         private readonly ExtractedMediaDurationProbe $durationProbe,
@@ -54,6 +51,11 @@ class SongPublicationHandler implements SectionPublicationHandler
     public function requiresAudioExtraction(): bool
     {
         return false;
+    }
+
+    public function audioProfile(): AudioProfile
+    {
+        return AudioProfile::Music;
     }
 
     /**
@@ -150,11 +152,10 @@ class SongPublicationHandler implements SectionPublicationHandler
     }
 
     /**
-     * Publish a song section by enhancing its audio and promoting the asset.
+     * Publish a song section by promoting its candidate clip.
      *
-     * Downloads the extracted video to local temp storage, applies normalization
-     * via the AudioEnhancementService, and promotes the final MP4 to the public
-     * sermon disk before creating the SongVideo record.
+     * Measures the clip's length, promotes the MP4 to the public sermon disk
+     * and creates the SongVideo record.
      *
      * @param  ServiceSection  $section  The section to publish
      *
@@ -188,9 +189,14 @@ class SongPublicationHandler implements SectionPublicationHandler
             throw new \RuntimeException('Section has no linked song for publication');
         }
 
+        // The candidate already carries the published sound (§6.3): treating it again here
+        // undid song fades and was what listening never heard. One cut before that does not.
+        $candidate = $section->metadata?->raw['publication_candidate_extraction'] ?? [];
+        if (! MediaProcessingVersion::matches(is_array($candidate) ? ($candidate['media_processing'] ?? null) : null)) {
+            throw new \RuntimeException('Song candidate was cut under older media processing; prepare the candidate again before publishing');
+        }
+
         $localTempDownload = null;
-        $enhancedTempPath = null;
-        $clipSeconds = null;
 
         try {
             $sourceDiskName = $section->extractedAssetDisk();
@@ -198,7 +204,7 @@ class SongPublicationHandler implements SectionPublicationHandler
                 $videoPath,
                 $sourceDiskName,
                 'local',
-                'temp/song-enhancement'
+                'temp/song-publication'
             );
 
             // Only track the download temp file if the disk is remote (downloadToTemp created it).
@@ -206,19 +212,11 @@ class SongPublicationHandler implements SectionPublicationHandler
                 $localTempDownload = $localInputPath;
             }
 
-            $enhancedTempPath = $this->audioEnhancement->enhanceVideo($localInputPath, 'song-'.$section->id);
-            $clipSeconds = $this->measuredClipSeconds($enhancedTempPath ?? $localInputPath, $section);
-
-            $promotedPath = $enhancedTempPath !== null
-                ? $this->promoteLocalFileAsVideo($section, $enhancedTempPath)
-                : $this->promoteExtractedVideo($section, $videoPath);
+            $clipSeconds = $this->measuredClipSeconds($localInputPath, $section);
+            $promotedPath = $this->promoteExtractedVideo($section, $videoPath);
         } finally {
             if ($localTempDownload !== null && file_exists($localTempDownload)) {
                 @unlink($localTempDownload);
-            }
-
-            if ($enhancedTempPath !== null && file_exists($enhancedTempPath)) {
-                @unlink($enhancedTempPath);
             }
         }
 
@@ -320,43 +318,6 @@ class SongPublicationHandler implements SectionPublicationHandler
 
         if ($sourceDisk !== $targetDisk || $sourcePath !== $targetPath) {
             Storage::disk($sourceDisk)->delete($sourcePath);
-        }
-
-        return $targetPath;
-    }
-
-    /**
-     * Promote a locally-enhanced video file (absolute path) to the sermon disk.
-     *
-     * Used when enhancement produces a temp file that must be streamed to storage
-     * rather than copied between storage disks.
-     */
-    private function promoteLocalFileAsVideo(ServiceSection $section, string $localFilePath): string
-    {
-        /** @var ChurchServiceItem $item validated in publish() */
-        $item = $section->churchServiceItem;
-        $targetPath = 'sermons/songs/'.$item->song_id.'/'.$section->id.'.mp4';
-        $targetDisk = $this->sermonDisk();
-
-        $fileStream = fopen($localFilePath, 'r');
-        if (! is_resource($fileStream)) {
-            throw new \RuntimeException('Unable to read enhanced song video for publication');
-        }
-
-        try {
-            $written = Storage::disk($targetDisk)->put($targetPath, $fileStream);
-        } finally {
-            fclose($fileStream);
-        }
-
-        if ($written !== true || ! Storage::disk($targetDisk)->exists($targetPath)) {
-            throw new \RuntimeException('Unable to publish enhanced song video to the sermon disk');
-        }
-
-        // Remove the original extracted clip from the source disk now that the enhanced version is promoted.
-        $sourcePath = $section->extracted_video_path;
-        if (is_string($sourcePath) && $sourcePath !== '') {
-            Storage::disk($section->extractedAssetDisk())->delete($sourcePath);
         }
 
         return $targetPath;

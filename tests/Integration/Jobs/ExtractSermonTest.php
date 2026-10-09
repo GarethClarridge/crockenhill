@@ -5,18 +5,24 @@ declare(strict_types=1);
 namespace Tests\Integration\Jobs;
 
 use App\Actions\FlagSermonAudioLengthMismatch;
+use App\Actions\FlagSermonAudioPartUntreated;
 use App\Actions\HoldSectionForContentReview;
+use App\Enums\AudioProfile;
 use App\Enums\ServiceSectionType;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\ExtractSermon;
+use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\PromoteHistoricAssets;
+use App\Jobs\SubmitToProcessing;
 use App\Mail\ManualReviewRequired;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\Media\Audio\PartLoudness;
 use App\Services\Media\ExtractedMediaDurationProbe;
+use App\Services\Media\Video\ExtractedMedia;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Media\Video\VideoStorageService;
 use App\Services\Processing\StorageAdapterHelper;
@@ -55,7 +61,7 @@ class ExtractSermonTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->create(['status' => 'cancelled']);
 
         $mockExtractor = $this->createMock(VideoExtractionService::class);
-        $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
+        $mockExtractor->expects($this->never())->method('extractMedia');
 
         $mockStorage = $this->createStub(VideoStorageService::class);
 
@@ -78,7 +84,7 @@ class ExtractSermonTest extends TestCase
         $mockStorage = $this->createStub(VideoStorageService::class);
 
         Mail::fake();
-        $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
+        $mockExtractor->expects($this->never())->method('extractMedia');
 
         $job = new ExtractSermon($log);
 
@@ -125,16 +131,16 @@ class ExtractSermonTest extends TestCase
 
         $mockExtractor = $this->createMock(VideoExtractionService::class);
         $mockExtractor->expects($this->once())
-            ->method('extractSegmentAsFile')
-            ->willReturn('extracted/sermon-video.mp4');
+            ->method('extractMedia')
+            ->willReturn($this->extracted('extracted/sermon-video.mp4'));
 
         $mockExtractor->expects($this->once())
-            ->method('extractOptimizedAudio')
+            ->method('storePublicAudio')
             ->willReturn([
                 'audio_path' => 'extracted/sermon-audio.mp3',
                 'full_path' => $extractedAudioFile,
                 'original_size' => 10485760,
-                'final_size' => 5242880,
+                'final_size' => 5242880, 'size' => 5242880,
                 'compression_applied' => true,
                 'compression_ratio' => 0.5,
                 'valid_for_transcription' => true,
@@ -158,8 +164,8 @@ class ExtractSermonTest extends TestCase
         $this->assertEquals('extracted/sermon-video.mp4', $log->video_file_path);
         $this->assertEquals('extracted/sermon-audio.mp3', $log->audio_file_path);
         $this->assertNotNull($log->processing_metadata);
-        $this->assertArrayHasKey('audio_compression', $log->processing_metadata);
-        $this->assertTrue($log->processing_metadata['audio_compression']['compression_applied']);
+        $this->assertArrayHasKey('public_audio', $log->processing_metadata);
+        $this->assertEquals(5.0, $log->processing_metadata['public_audio']['size_mb']);
         $this->assertEqualsWithDelta(
             1800.0,
             (float) data_get($log->processing_metadata?->toArray(), 'trim.final_duration'),
@@ -233,34 +239,28 @@ class ExtractSermonTest extends TestCase
 
         $mockExtractor = $this->createMock(VideoExtractionService::class);
         $mockExtractor->expects($this->once())
-            ->method('extractSegmentAsFile')
+            ->method('extractMedia')
             ->with(
                 $this->anything(),
-                $this->callback(function ($segment): bool {
-                    return $segment instanceof \App\Data\LivestreamSegment
-                        && $segment->startTime === 420.0
-                        && $segment->endTime === 1980.0;
-                }),
-                $this->anything()
+                $this->callback(fn (array $segments): bool => $segments === [['start_time' => 420.0, 'end_time' => 1980.0]]),
+                AudioProfile::Speech
             )
-            ->willReturn('extracted/classified-preferred-video.mp4');
+            ->willReturn($this->extracted('extracted/classified-preferred-video.mp4'));
 
         // A single span is cut once, as video; the MP3 is that video's whole audio
         // track, never a second independent cut from the source.
         $mockExtractor->expects($this->once())
-            ->method('extractOptimizedAudio')
+            ->method('storePublicAudio')
             ->with(
-                Storage::disk('local')->path('extracted/classified-preferred-video.mp4'),
-                $this->callback(fn ($segment): bool => $segment instanceof \App\Data\LivestreamSegment
-                    && $segment->startTime === 0.0
-                    && $segment->endTime === 1800.0),
-                $this->anything()
+                // The MP3 is split from the same treated sound in the same encode, never cut again.
+                'temp/sermon.mp3',
+                $this->anything(),
             )
             ->willReturn([
                 'audio_path' => 'extracted/classified-preferred.mp3',
                 'full_path' => $extractedAudioFile,
                 'original_size' => 10485760,
-                'final_size' => 5242880,
+                'final_size' => 5242880, 'size' => 5242880,
                 'compression_applied' => true,
                 'compression_ratio' => 0.5,
                 'valid_for_transcription' => true,
@@ -324,9 +324,9 @@ class ExtractSermonTest extends TestCase
         ]);
 
         $extractor = $this->createMock(VideoExtractionService::class);
-        $extractor->expects($this->never())->method('extractSegmentAsFile');
-        $extractor->expects($this->never())->method('extractConcatenatedSegmentAsFile');
-        $extractor->expects($this->never())->method('extractOptimizedAudio');
+        $extractor->expects($this->never())->method('extractMedia');
+        $extractor->expects($this->never())->method('extractMedia');
+        $extractor->expects($this->never())->method('storePublicAudio');
         Mail::fake();
         $this->runJob(new ExtractSermon($log), $extractor, $this->createStub(VideoStorageService::class));
         $log->refresh();
@@ -379,25 +379,21 @@ class ExtractSermonTest extends TestCase
 
         $mockExtractor = $this->createMock(VideoExtractionService::class);
         $mockExtractor->expects($this->once())
-            ->method('extractSegmentAsFile')
+            ->method('extractMedia')
             ->with(
                 $this->anything(),
-                $this->callback(function ($segment): bool {
-                    return $segment instanceof \App\Data\LivestreamSegment
-                        && $segment->startTime === 600.0
-                        && $segment->endTime === 1800.0;
-                }),
-                $this->anything()
+                $this->callback(fn (array $segments): bool => $segments === [['start_time' => 600.0, 'end_time' => 1800.0]]),
+                AudioProfile::Speech
             )
-            ->willReturn('extracted/classified-disabled-video.mp4');
+            ->willReturn($this->extracted('extracted/classified-disabled-video.mp4'));
 
         $mockExtractor->expects($this->once())
-            ->method('extractOptimizedAudio')
+            ->method('storePublicAudio')
             ->willReturn([
                 'audio_path' => 'extracted/classified-disabled.mp3',
                 'full_path' => $extractedAudioFile,
                 'original_size' => 10485760,
-                'final_size' => 5242880,
+                'final_size' => 5242880, 'size' => 5242880,
                 'compression_applied' => true,
                 'compression_ratio' => 0.5,
                 'valid_for_transcription' => true,
@@ -487,35 +483,33 @@ class ExtractSermonTest extends TestCase
         ]);
 
         $mockExtractor = $this->createMock(VideoExtractionService::class);
+        // Both parts go to one encode, each normalised as speech on its own.
         $mockExtractor->expects($this->once())
-            ->method('extractConcatenatedSegmentAsFile')
-            ->willReturn('temp/concat-sermon.mp4');
+            ->method('extractMedia')
+            ->with(
+                $this->anything(),
+                $this->callback(fn (array $segments): bool => count($segments) === 2
+                    && $segments[0]['start_time'] === 120.0 && $segments[1]['start_time'] === 900.0),
+                AudioProfile::Speech,
+            )
+            ->willReturn($this->extracted('temp/concat-sermon.mp4'));
 
         $mockExtractor->expects($this->once())
-            ->method('extractOptimizedAudio')
+            ->method('storePublicAudio')
             ->with(
-                // The MP3 is the final video's whole audio track: the stream-copied
-                // join runs longer or shorter than the plan, and cutting it to the
-                // planned 1380 s lost the closing words of 12 historic sermons.
-                $concatVideo,
-                $this->callback(function ($segment): bool {
-                    return $segment instanceof \App\Data\LivestreamSegment
-                        && $segment->startTime === 0.0
-                        && $segment->endTime === 1325.25;
-                }),
-                $this->anything()
+                // The MP3 is split from the same treated sound in the same encode, never cut again.
+                'temp/sermon.mp3',
+                $this->anything(),
             )
             ->willReturn([
                 'audio_path' => 'extracted/classified-concat.mp3',
                 'full_path' => $extractedAudioFile,
                 'original_size' => 10485760,
-                'final_size' => 5242880,
+                'final_size' => 5242880, 'size' => 5242880,
                 'compression_applied' => true,
                 'compression_ratio' => 0.5,
                 'valid_for_transcription' => true,
             ]);
-
-        $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
 
         $mockStorage = $this->createStub(VideoStorageService::class);
 
@@ -596,9 +590,9 @@ class ExtractSermonTest extends TestCase
         ]);
 
         $extractor = $this->createMock(VideoExtractionService::class);
-        $extractor->expects($this->never())->method('extractSegmentAsFile');
-        $extractor->expects($this->never())->method('extractConcatenatedSegmentAsFile');
-        $extractor->expects($this->never())->method('extractOptimizedAudio');
+        $extractor->expects($this->never())->method('extractMedia');
+        $extractor->expects($this->never())->method('extractMedia');
+        $extractor->expects($this->never())->method('storePublicAudio');
         Mail::fake();
         $this->runJob(new ExtractSermon($log), $extractor, $this->createStub(VideoStorageService::class));
         $log->refresh();
@@ -638,7 +632,7 @@ class ExtractSermonTest extends TestCase
         ]);
 
         $mockExtractor = $this->createMock(VideoExtractionService::class);
-        $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
+        $mockExtractor->expects($this->never())->method('extractMedia');
         $mockStorage = $this->createStub(VideoStorageService::class);
 
         Mail::fake();
@@ -721,9 +715,9 @@ class ExtractSermonTest extends TestCase
         ]);
 
         $extractor = $this->createMock(VideoExtractionService::class);
-        $extractor->expects($this->never())->method('extractSegmentAsFile');
-        $extractor->expects($this->never())->method('extractConcatenatedSegmentAsFile');
-        $extractor->expects($this->never())->method('extractOptimizedAudio');
+        $extractor->expects($this->never())->method('extractMedia');
+        $extractor->expects($this->never())->method('extractMedia');
+        $extractor->expects($this->never())->method('storePublicAudio');
         Mail::fake();
         $this->runJob(new ExtractSermon($log), $extractor, $this->createStub(VideoStorageService::class));
         $log->refresh();
@@ -831,9 +825,9 @@ class ExtractSermonTest extends TestCase
         ]);
 
         $extractor = $this->createMock(VideoExtractionService::class);
-        $extractor->expects($this->never())->method('extractSegmentAsFile');
-        $extractor->expects($this->never())->method('extractConcatenatedSegmentAsFile');
-        $extractor->expects($this->never())->method('extractOptimizedAudio');
+        $extractor->expects($this->never())->method('extractMedia');
+        $extractor->expects($this->never())->method('extractMedia');
+        $extractor->expects($this->never())->method('storePublicAudio');
         Mail::fake();
         $this->runJob(new ExtractSermon($log), $extractor, $this->createStub(VideoStorageService::class));
         $log->refresh();
@@ -875,8 +869,8 @@ class ExtractSermonTest extends TestCase
         ]);
 
         $mockExtractor = $this->createMock(VideoExtractionService::class);
-        $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
-        $mockExtractor->expects($this->never())->method('extractOptimizedAudio');
+        $mockExtractor->expects($this->never())->method('extractMedia');
+        $mockExtractor->expects($this->never())->method('storePublicAudio');
 
         $mockStorage = $this->createStub(VideoStorageService::class);
 
@@ -945,16 +939,16 @@ class ExtractSermonTest extends TestCase
         ]);
 
         $mockExtractor = $this->createMock(VideoExtractionService::class);
-        $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
-        $mockExtractor->expects($this->never())->method('extractConcatenatedSegmentAsFile');
-        $mockExtractor->expects($this->never())->method('extractOptimizedAudio');
+        $mockExtractor->expects($this->never())->method('extractMedia');
+        $mockExtractor->expects($this->never())->method('extractMedia');
+        $mockExtractor->expects($this->never())->method('storePublicAudio');
 
         Mail::fake();
         Log::shouldReceive('warning')->zeroOrMoreTimes();
         Log::shouldReceive('info')->zeroOrMoreTimes();
 
         $job = new ExtractSermon($log);
-        $job->chain([new \App\Jobs\SubmitToProcessing($log), new \App\Jobs\PrepareSectionPublicationCandidates($log)]);
+        $job->chain([new SubmitToProcessing($log), new PrepareSectionPublicationCandidates($log)]);
         $candidateJob = $job->chained[1];
         $this->runJob($job, $mockExtractor, $this->createStub(VideoStorageService::class));
         $this->assertSame([$candidateJob], $job->chained, 'Only unrelated section preparation continues; no sermon jobs or cleanup.');
@@ -986,8 +980,8 @@ class ExtractSermonTest extends TestCase
         ]);
 
         $extractor = $this->createMock(VideoExtractionService::class);
-        $extractor->expects($this->never())->method('extractSegmentAsFile');
-        $extractor->expects($this->never())->method('extractConcatenatedSegmentAsFile');
+        $extractor->expects($this->never())->method('extractMedia');
+        $extractor->expects($this->never())->method('extractMedia');
         Mail::fake();
 
         $this->runJob(new ExtractSermon($log), $extractor, $this->createStub(VideoStorageService::class));
@@ -1025,8 +1019,8 @@ class ExtractSermonTest extends TestCase
         ]);
 
         $mockExtractor = $this->createMock(VideoExtractionService::class);
-        $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
-        $mockExtractor->expects($this->never())->method('extractOptimizedAudio');
+        $mockExtractor->expects($this->never())->method('extractMedia');
+        $mockExtractor->expects($this->never())->method('storePublicAudio');
 
         $mockStorage = $this->createStub(VideoStorageService::class);
 
@@ -1074,8 +1068,8 @@ class ExtractSermonTest extends TestCase
         ]);
 
         $mockExtractor = $this->createMock(VideoExtractionService::class);
-        $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
-        $mockExtractor->expects($this->never())->method('extractOptimizedAudio');
+        $mockExtractor->expects($this->never())->method('extractMedia');
+        $mockExtractor->expects($this->never())->method('storePublicAudio');
 
         $mockStorage = $this->createStub(VideoStorageService::class);
 
@@ -1123,7 +1117,7 @@ class ExtractSermonTest extends TestCase
 
         $mockExtractor = $this->createMock(VideoExtractionService::class);
         $mockExtractor->expects($this->once())
-            ->method('extractSegmentAsFile')
+            ->method('extractMedia')
             ->willThrowException(new \Exception('FFmpeg segfault'));
 
         $mockStorage = $this->createStub(VideoStorageService::class);
@@ -1177,16 +1171,16 @@ class ExtractSermonTest extends TestCase
 
         $mockExtractor = $this->createMock(VideoExtractionService::class);
         $mockExtractor->expects($this->once())
-            ->method('extractSegmentAsFile')
-            ->willReturn('extracted/sermon-video.mp4');
+            ->method('extractMedia')
+            ->willReturn($this->extracted('extracted/sermon-video.mp4'));
 
         $mockExtractor->expects($this->once())
-            ->method('extractOptimizedAudio')
+            ->method('storePublicAudio')
             ->willReturn([
                 'audio_path' => 'extracted/ghost-audio.mp3',
                 'full_path' => '/nonexistent/path/ghost-audio.mp3',
                 'original_size' => 10485760,
-                'final_size' => 5242880,
+                'final_size' => 5242880, 'size' => 5242880,
                 'compression_applied' => false,
                 'compression_ratio' => 1.0,
                 'valid_for_transcription' => true,
@@ -1246,11 +1240,11 @@ class ExtractSermonTest extends TestCase
 
         $mockExtractor = $this->createMock(VideoExtractionService::class);
         $mockExtractor->expects($this->once())
-            ->method('extractSegmentAsFile')
-            ->willReturn('extracted/zero-duration-video.mp4');
+            ->method('extractMedia')
+            ->willReturn($this->extracted('extracted/zero-duration-video.mp4'));
         // The MP3 is made from the measured video, so an empty video is refused
         // before any audio is cut from it.
-        $mockExtractor->expects($this->never())->method('extractOptimizedAudio');
+        $mockExtractor->expects($this->never())->method('storePublicAudio');
 
         $mockStorage = $this->createStub(VideoStorageService::class);
 
@@ -1325,8 +1319,8 @@ class ExtractSermonTest extends TestCase
         ]);
 
         $mockExtractor = $this->createMock(VideoExtractionService::class);
-        $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
-        $mockExtractor->expects($this->never())->method('extractConcatenatedSegmentAsFile');
+        $mockExtractor->expects($this->never())->method('extractMedia');
+        $mockExtractor->expects($this->never())->method('extractMedia');
 
         $this->runJob(new ExtractSermon($log), $mockExtractor, $this->createStub(VideoStorageService::class));
 
@@ -1635,12 +1629,12 @@ class ExtractSermonTest extends TestCase
     private function extractorStubbedTo(string $extractedAudioFile): VideoExtractionService
     {
         $extractor = $this->createStub(VideoExtractionService::class);
-        $extractor->method('extractSegmentAsFile')->willReturn('extracted/sermon-video.mp4');
-        $extractor->method('extractOptimizedAudio')->willReturn([
+        $extractor->method('extractMedia')->willReturn($this->extracted('extracted/sermon-video.mp4'));
+        $extractor->method('storePublicAudio')->willReturn([
             'audio_path' => 'extracted/sermon-audio.mp3',
             'full_path' => $extractedAudioFile,
             'original_size' => 10485760,
-            'final_size' => 5242880,
+            'final_size' => 5242880, 'size' => 5242880,
             'compression_applied' => false,
             'compression_ratio' => 1.0,
             'valid_for_transcription' => true,
@@ -1654,6 +1648,51 @@ class ExtractSermonTest extends TestCase
      * their videos kept them. An MP3 that is not its video's whole audio track is
      * held, whatever produced it.
      */
+    #[Test]
+    public function a_re_cut_from_the_same_spans_with_new_audio_overrides_replaces_the_stored_video(): void
+    {
+        config(['media-processing.storage.temp_disk' => 'local']);
+        config(['filesystems.disks.local.driver' => 'local']);
+
+        [$videoFile, $extractedAudioFile] = $this->stageExtractionFiles();
+
+        $sermon = Sermon::factory()->create([
+            'video_file_path' => 'sermons/1305/video.mp4',
+        ]);
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'sermon_id' => $sermon->id,
+            'sermon_start_time' => 360.0,
+            'sermon_end_time' => 2160.0,
+            'source_file_path' => 'livestreams/test-video.mp4',
+        ]);
+
+        $log->recordStoredSermonVideo(1800.0, [['start_time' => 360.0, 'end_time' => 2160.0]]);
+        // The operator turns on hum removal for this recording after the video was stored.
+        $this->artisan('media:audio-treatment', ['run' => $log->id, 'profile' => 'speech', '--set' => ['hum_hz=50']])->assertSuccessful();
+
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon,
+            'start_time' => $log->sermon_start_time,
+            'end_time' => $log->sermon_end_time,
+            'duration' => $log->sermon_end_time - $log->sermon_start_time,
+            'needs_manual_review' => false,
+        ]);
+
+        $this->runJob(
+            new ExtractSermon($log->fresh()),
+            $this->extractorStubbedTo($extractedAudioFile),
+            $this->createStub(VideoStorageService::class),
+            $this->probeWithDuration(1800.0, Storage::disk('local')->path('extracted/sermon-video.mp4')),
+        );
+
+        $this->assertTrue($log->fresh()->isReExtraction());
+
+        @unlink($videoFile);
+        @unlink($extractedAudioFile);
+    }
+
     #[Test]
     public function it_holds_the_sermon_when_its_mp3_is_shorter_than_its_video(): void
     {
@@ -1690,12 +1729,12 @@ class ExtractSermonTest extends TestCase
         ]);
 
         $extractor = $this->createStub(VideoExtractionService::class);
-        $extractor->method('extractSegmentAsFile')->willReturn('extracted/audio-length-video.mp4');
-        $extractor->method('extractOptimizedAudio')->willReturn([
+        $extractor->method('extractMedia')->willReturn($this->extracted('extracted/audio-length-video.mp4'));
+        $extractor->method('storePublicAudio')->willReturn([
             'audio_path' => 'extracted/audio-length.mp3',
             'full_path' => $extractedAudioFile,
             'original_size' => 1024,
-            'final_size' => 1024,
+            'final_size' => 1024, 'size' => 1024,
             'compression_applied' => false,
             'compression_ratio' => 1.0,
             'valid_for_transcription' => true,
@@ -1722,6 +1761,79 @@ class ExtractSermonTest extends TestCase
         $this->assertSame('extraction_complete', $log->current_step);
         $this->assertEqualsWithDelta(1548.0, $log->processing_metadata['trim']['audio_duration'] ?? null, 0.01);
         $this->assertContains(FlagSermonAudioLengthMismatch::FLAG, $section->metadata?->toArray()['review_flags'] ?? []);
+        $this->assertTrue($section->needs_manual_review);
+    }
+
+    #[Test]
+    public function it_records_the_audio_treatment_and_holds_a_sermon_with_a_part_left_untreated(): void
+    {
+        $sourceDirectory = storage_path('app/livestreams');
+        if (! is_dir($sourceDirectory)) {
+            mkdir($sourceDirectory, 0755, true);
+        }
+        file_put_contents($sourceDirectory.'/untreated-part.mp4', str_repeat("\x00", 1024));
+
+        $extractedDirectory = storage_path('app/extracted');
+        if (! is_dir($extractedDirectory)) {
+            mkdir($extractedDirectory, 0755, true);
+        }
+        $extractedAudioFile = $extractedDirectory.'/untreated-part.mp3';
+        file_put_contents($extractedAudioFile, str_repeat("\xFF\xFB", 512));
+
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'sermon_start_time' => null,
+            'sermon_end_time' => null,
+            'source_file_path' => 'livestreams/untreated-part.mp4',
+        ]);
+
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => 'sermon',
+            'start_time' => 420.0,
+            'end_time' => 1980.0,
+            'duration' => 1560.0,
+            'needs_manual_review' => false,
+            'metadata' => [
+                'confidence_level' => 'high',
+                'classification_mode' => 'openlp_aligned',
+            ],
+        ]);
+
+        $extractor = $this->createStub(VideoExtractionService::class);
+        $extractor->method('extractMedia')->willReturn(new ExtractedMedia('extracted/untreated-part-video.mp4', 'temp/sermon.mp3', ['settings' => ['profile' => 'speech'], 'parts' => [['untreated_reason' => PartLoudness::Silent]]]));
+        $extractor->method('storePublicAudio')->willReturn([
+            'audio_path' => 'extracted/untreated-part.mp3',
+            'full_path' => $extractedAudioFile,
+            'original_size' => 1024,
+            'final_size' => 1024, 'size' => 1024,
+            'compression_applied' => false,
+            'compression_ratio' => 1.0,
+            'valid_for_transcription' => true,
+        ]);
+
+        $videoLength = $this->createStub(Format::class);
+        $videoLength->method('get')->willReturn(1560.0);
+        $audioLength = $this->createStub(Format::class);
+        $audioLength->method('get')->willReturn(1560.0);
+
+        $ffprobe = $this->createStub(FFProbe::class);
+        $ffprobe->method('format')->willReturnCallback(
+            fn (string $path): Format => str_ends_with($path, '.mp3') ? $audioLength : $videoLength,
+        );
+
+        Log::shouldReceive('info')->zeroOrMoreTimes();
+        Log::shouldReceive('warning')->zeroOrMoreTimes();
+
+        $this->runJob(new ExtractSermon($log), $extractor, $this->createStub(VideoStorageService::class), $ffprobe);
+
+        $log->refresh();
+        $section->refresh();
+
+        $this->assertSame('extraction_complete', $log->current_step);
+        $this->assertSame(PartLoudness::Silent, $log->processing_metadata['audio_treatment']['parts'][0]['untreated_reason'] ?? null);
+        $flags = $section->metadata?->toArray()['review_flags'] ?? [];
+        $this->assertContains(FlagSermonAudioPartUntreated::FLAG, $flags);
+        $this->assertNotContains(FlagSermonAudioLengthMismatch::FLAG, $flags);
         $this->assertTrue($section->needs_manual_review);
     }
 
@@ -1763,5 +1875,11 @@ class ExtractSermonTest extends TestCase
             ->willReturn($format);
 
         return $ffprobe;
+    }
+
+    /** What a speech extraction hands back: the video, its own MP3, and a report with every part treated. */
+    private function extracted(string $videoPath): ExtractedMedia
+    {
+        return new ExtractedMedia($videoPath, 'temp/sermon.mp3', ['parts' => []]);
     }
 }

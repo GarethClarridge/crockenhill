@@ -10,6 +10,7 @@ use App\Data\ChurchServiceTranscript;
 use App\Data\HistoricStagingContext;
 use App\Data\ServiceSectionMetadata;
 use App\Data\SpeakerMatchResult;
+use App\Enums\AudioProfile;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonPublicationState;
 use App\Enums\ServiceSectionPublicationStatus;
@@ -36,11 +37,14 @@ use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\Import\HistoricReleaseReviewHolds;
+use App\Services\Media\Audio\AudioTreatmentSettings;
 use App\Services\Media\ExtractedMediaDurationProbe;
+use App\Services\Media\Video\ExtractedMedia;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Support\ChurchServiceProcessingTimeline;
 use App\Support\MediaAssetPath;
+use App\Support\MediaProcessingVersion;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
@@ -121,12 +125,12 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
-            ->method('extractSegmentAsFile')
-            ->with($this->anything(), $this->callback(fn (object $segment): bool => $segment->start_time === 400.0), $this->anything())
-            ->willReturn('temp/section-video.mp4');
+            ->method('extractMedia')
+            ->with($this->anything(), $this->callback(fn (array $segments): bool => $segments[0]['start_time'] === 400.0), $this->anything(), $this->anything())
+            ->willReturn(new ExtractedMedia('temp/section-video.mp4', 'temp/section-audio.mp3'));
         // The key assertion: audio extraction should NEVER be called for songs.
         $videoExtractor->expects($this->never())
-            ->method('extractOptimizedAudio');
+            ->method('storePublicAudio');
 
         $job = new PrepareSectionPublicationCandidates($processingLog);
         $job->handle(
@@ -179,12 +183,12 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $this->bankNoWordOutputEdges($processingLog);
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
-            ->method('extractSegmentAsFile')
-            ->with($this->anything(), $this->callback(fn (object $segment): bool => $segment->start_time === 600.0), $this->anything())
-            ->willReturnCallback(function (): string {
+            ->method('extractMedia')
+            ->with($this->anything(), $this->callback(fn (array $segments): bool => $segments[0]['start_time'] === 600.0), $this->anything(), $this->anything())
+            ->willReturnCallback(function (): ExtractedMedia {
                 Storage::disk('local')->put('temp/section-video.mp4', 'section-video');
 
-                return 'temp/section-video.mp4';
+                return new ExtractedMedia('temp/section-video.mp4', 'temp/section-audio.mp3');
             });
 
         (new PrepareSectionPublicationCandidates($processingLog))->handle(
@@ -240,12 +244,12 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         ]);
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
-            ->method('extractSegmentAsFile')
-            ->with($this->anything(), $this->callback(fn (object $segment): bool => $segment->start_time === 600.0), $this->anything())
-            ->willReturnCallback(function (): string {
+            ->method('extractMedia')
+            ->with($this->anything(), $this->callback(fn (array $segments): bool => $segments[0]['start_time'] === 600.0), $this->anything(), $this->anything())
+            ->willReturnCallback(function (): ExtractedMedia {
                 Storage::disk('local')->put('temp/section-video.mp4', 'section-video');
 
-                return 'temp/section-video.mp4';
+                return new ExtractedMedia('temp/section-video.mp4', 'temp/section-audio.mp3');
             });
 
         (new PrepareSectionPublicationCandidates($processingLog))->handle(
@@ -325,16 +329,16 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->exactly(2))
-            ->method('extractSegmentAsFile')
-            ->with($this->anything(), $this->callback(fn (object $segment): bool => in_array($segment->start_time, [112.62, 400.0], true)), $this->anything())
-            ->willReturnCallback(function (): string {
+            ->method('extractMedia')
+            ->with($this->anything(), $this->callback(fn (array $segments): bool => in_array($segments[0]['start_time'], [112.62, 400.0], true)), $this->anything(), $this->anything())
+            ->willReturnCallback(function (): ExtractedMedia {
                 Storage::disk('local')->put('temp/section-video.mp4', 'section-video');
 
-                return 'temp/section-video.mp4';
+                return new ExtractedMedia('temp/section-video.mp4', 'temp/section-audio.mp3');
             });
         // The key assertion: audio extraction should NEVER be called for songs.
         $videoExtractor->expects($this->never())
-            ->method('extractOptimizedAudio');
+            ->method('storePublicAudio');
 
         $job = new PrepareSectionPublicationCandidates($processingLog);
         $job->handle(
@@ -433,10 +437,10 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
-            ->method('extractSegmentAsFile')
-            ->willReturn('temp/section-video.mp4');
+            ->method('extractMedia')
+            ->willReturn(new ExtractedMedia('temp/section-video.mp4', 'temp/section-audio.mp3'));
         $videoExtractor->expects($this->once())
-            ->method('extractOptimizedAudio')
+            ->method('storePublicAudio')
             ->willReturn([
                 'audio_path' => $expectedAudioPath,
                 'full_path' => Storage::disk('local')->path($expectedAudioPath),
@@ -493,7 +497,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         ]);
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
-        $videoExtractor->expects($this->never())->method('extractSegmentAsFile');
+        $videoExtractor->expects($this->never())->method('extractMedia');
 
         $job = new PrepareSectionPublicationCandidates($processingLog);
         $job->handle(
@@ -530,7 +534,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         ]);
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
-        $videoExtractor->expects($this->never())->method('extractSegmentAsFile');
+        $videoExtractor->expects($this->never())->method('extractMedia');
 
         $job = new PrepareSectionPublicationCandidates($processingLog);
         $job->handle(
@@ -598,10 +602,10 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
-            ->method('extractSegmentAsFile')
-            ->willReturn('temp/section-video.mp4');
+            ->method('extractMedia')
+            ->willReturn(new ExtractedMedia('temp/section-video.mp4', 'temp/section-audio.mp3'));
         $videoExtractor->expects($this->once())
-            ->method('extractOptimizedAudio')
+            ->method('storePublicAudio')
             ->willReturn([
                 'audio_path' => $expectedAudioPath,
                 'full_path' => Storage::disk('local')->path($expectedAudioPath),
@@ -688,10 +692,10 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
-            ->method('extractSegmentAsFile')
-            ->willReturn('temp/section-video.mp4');
+            ->method('extractMedia')
+            ->willReturn(new ExtractedMedia('temp/section-video.mp4', 'temp/section-audio.mp3'));
         $videoExtractor->expects($this->once())
-            ->method('extractOptimizedAudio')
+            ->method('storePublicAudio')
             ->willReturn([
                 'audio_path' => $expectedAudioPath,
                 'full_path' => Storage::disk('local')->path($expectedAudioPath),
@@ -731,8 +735,8 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->cancelled()->create();
 
         $mockExtractor = $this->createMock(VideoExtractionService::class);
-        $mockExtractor->expects($this->never())->method('extractSegmentAsFile');
-        $mockExtractor->expects($this->never())->method('extractOptimizedAudio');
+        $mockExtractor->expects($this->never())->method('extractMedia');
+        $mockExtractor->expects($this->never())->method('storePublicAudio');
 
         Log::shouldReceive('info')->zeroOrMoreTimes();
 
@@ -780,7 +784,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $job = new PrepareSectionPublicationCandidates($processingLog, true);
         $videoExtractor = $this->createMock(VideoExtractionService::class);
-        $videoExtractor->expects($this->never())->method('extractSegmentAsFile');
+        $videoExtractor->expects($this->never())->method('extractMedia');
 
         $job->handle(
             $videoExtractor,
@@ -844,10 +848,10 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
-            ->method('extractSegmentAsFile')
-            ->willReturn('temp/section-video.mp4');
+            ->method('extractMedia')
+            ->willReturn(new ExtractedMedia('temp/section-video.mp4', 'temp/section-audio.mp3'));
         $videoExtractor->expects($this->once())
-            ->method('extractOptimizedAudio')
+            ->method('storePublicAudio')
             ->willReturn([
                 'audio_path' => $expectedAudioPath,
                 'full_path' => Storage::disk('local')->path($expectedAudioPath),
@@ -918,6 +922,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'publication_candidate_extraction' => [
                 'processing_id' => $processingLog->processing_id,
                 'media_signature' => $section->mediaSignature(),
+                ...$this->cutUnderCurrentProcessing(),
             ],
             'talk_speaker' => ['reviewed' => ['preacher_id' => null, 'preacher_name' => 'Jane Doe', 'source' => 'manual']],
             'talk_type' => ['proposed' => 'childrens_talk', 'reviewed' => ['value' => 'testimony', 'user_id' => 1, 'at' => now()->toIso8601String()]],
@@ -925,8 +930,8 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $section->save();
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
-        $videoExtractor->expects($this->never())->method('extractSegmentAsFile');
-        $videoExtractor->expects($this->never())->method('extractOptimizedAudio');
+        $videoExtractor->expects($this->never())->method('extractMedia');
+        $videoExtractor->expects($this->never())->method('storePublicAudio');
 
         (new PrepareSectionPublicationCandidates($processingLog))->handle(
             $videoExtractor,
@@ -936,6 +941,92 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         );
 
         $this->assertSame('sermons/sections/kept/video.mp4', $section->refresh()->extracted_video_path);
+    }
+
+    /**
+     * §6.3: a candidate carries the sound that publishes, so one cut under other
+     * processing or other audio settings is cut again rather than reused.
+     *
+     * @param  array<string, mixed>  $overrides  the run's speech overrides the candidate was cut with
+     * @return array{media_processing: array<string, mixed>, audio_treatment: array{settings: array<string, mixed>}}
+     */
+    private function cutUnderCurrentProcessing(array $overrides = []): array
+    {
+        return [
+            'media_processing' => MediaProcessingVersion::signature(),
+            'audio_treatment' => ['settings' => AudioTreatmentSettings::for(AudioProfile::Speech, $overrides)->toArray()],
+        ];
+    }
+
+    #[Test]
+    public function reused_media_cut_under_older_processing_is_cut_again(): void
+    {
+        $this->assertReusedTalkIsCutAgain(['media_processing' => [...MediaProcessingVersion::signature(), 'version' => 6]]);
+    }
+
+    #[Test]
+    public function reused_media_cut_with_other_audio_settings_is_cut_again(): void
+    {
+        $this->assertReusedTalkIsCutAgain($this->cutUnderCurrentProcessing(['hum_hz' => 50]));
+    }
+
+    /** @param  array<string, mixed>  $provenance  how the kept candidate was cut */
+    private function assertReusedTalkIsCutAgain(array $provenance): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => ['short_talk' => TalkPublicationHandler::class],
+            'media-processing.speaker_identification.enabled' => false,
+        ]);
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create(['source_file_path' => 'livestreams/source.mp4']);
+        Storage::disk('local')->put('livestreams/source.mp4', 'source-video');
+        Storage::disk('public')->put('sermons/sections/kept/video.mp4', 'kept-video');
+        Storage::disk('public')->put('sermons/sections/kept/audio.mp3', 'kept-audio');
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::ShortTalk->value,
+            'status' => ServiceSectionStatus::Identified->value,
+            'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
+            'asset_disk' => 'public',
+            'extracted_video_path' => 'sermons/sections/kept/video.mp4',
+            'extracted_audio_path' => 'sermons/sections/kept/audio.mp3',
+            'start_time' => 120.0,
+            'end_time' => 420.0,
+        ]);
+        $section->metadata = ServiceSectionMetadata::fromArray([
+            'confidence_level' => 'high',
+            'publication_candidate_extraction' => [
+                'processing_id' => $processingLog->processing_id,
+                'media_signature' => $section->mediaSignature(),
+                ...$provenance,
+            ],
+            'talk_speaker' => ['reviewed' => ['preacher_id' => null, 'preacher_name' => 'Jane Doe', 'source' => 'manual']],
+            'talk_type' => ['proposed' => 'childrens_talk', 'reviewed' => ['value' => 'testimony', 'user_id' => 1, 'at' => now()->toIso8601String()]],
+        ]);
+        $section->save();
+        $this->bankNoWordOutputEdges($processingLog);
+        Storage::disk('local')->put('temp/section-video.mp4', 'fresh-section-video');
+        $videoExtractor = $this->createMock(VideoExtractionService::class);
+        $videoExtractor->expects($this->once())->method('extractMedia')
+            ->with($this->anything(), $this->anything(), AudioProfile::Speech)
+            ->willReturn(new ExtractedMedia('temp/section-video.mp4', 'temp/section-audio.mp3', ['settings' => []]));
+        $videoExtractor->expects($this->once())->method('storePublicAudio')->willReturn([
+            'audio_path' => 'sermons/sections/fresh/audio.mp3', 'full_path' => '', 'size' => 1024,
+        ]);
+
+        (new PrepareSectionPublicationCandidates($processingLog))->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(SectionPublicationHandlerFactory::class),
+            app(ServiceSectionPublicationTransitionService::class)
+        );
+
+        $this->assertSame('sermons/sections/fresh/audio.mp3', $section->refresh()->extracted_audio_path);
     }
 
     /**
@@ -976,6 +1067,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'publication_candidate_extraction' => [
                 'processing_id' => $processingLog->processing_id,
                 'media_signature' => $section->mediaSignature(),
+                ...$this->cutUnderCurrentProcessing(),
                 'segments' => [['start_time' => 10.0, 'end_time' => 50.0]],
             ],
         ]);
@@ -983,8 +1075,8 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $this->bankNoWordOutputEdges($processingLog);
         Storage::disk('local')->put('temp/section-video.mp4', 'fresh-section-video');
         $videoExtractor = $this->createMock(VideoExtractionService::class);
-        $videoExtractor->expects($this->once())->method('extractSegmentAsFile')->willReturn('temp/section-video.mp4');
-        $videoExtractor->method('extractOptimizedAudio')->willReturn([
+        $videoExtractor->expects($this->once())->method('extractMedia')->willReturn(new ExtractedMedia('temp/section-video.mp4', 'temp/section-audio.mp3'));
+        $videoExtractor->method('storePublicAudio')->willReturn([
             'audio_path' => 'temp/section-audio.mp3', 'full_path' => Storage::disk('local')->path('temp/section-audio.mp3'),
             'original_size' => 1024, 'final_size' => 1024, 'compression_applied' => false, 'compression_ratio' => 1.0, 'valid_for_transcription' => true,
         ]);
@@ -1040,6 +1132,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'publication_candidate_extraction' => [
                 'processing_id' => $processingLog->processing_id,
                 'media_signature' => $section->mediaSignature(),
+                ...$this->cutUnderCurrentProcessing(),
                 'segments' => [['start_time' => 117.5, 'end_time' => 420.0]],
             ],
         ]);
@@ -1050,10 +1143,10 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         Storage::disk('local')->put('temp/section-video.mp4', 'fresh-section-video');
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
-            ->method('extractSegmentAsFile')
-            ->with($this->anything(), $this->callback(fn (object $segment): bool => $segment->start_time === 120.0), $this->anything())
-            ->willReturn('temp/section-video.mp4');
-        $videoExtractor->method('extractOptimizedAudio')->willReturn([
+            ->method('extractMedia')
+            ->with($this->anything(), $this->callback(fn (array $segments): bool => $segments[0]['start_time'] === 120.0), $this->anything(), $this->anything())
+            ->willReturn(new ExtractedMedia('temp/section-video.mp4', 'temp/section-audio.mp3'));
+        $videoExtractor->method('storePublicAudio')->willReturn([
             'audio_path' => $expectedAudioPath,
             'full_path' => Storage::disk('local')->path($expectedAudioPath),
             'original_size' => 1024,
@@ -1072,7 +1165,6 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $this->assertEquals([['start_time' => 120.0, 'end_time' => 420.0]], $section->refresh()->metadata->raw['publication_candidate_extraction']['segments']);
     }
-
 
     /**
      * Operator, 2026-10-07: a song clip's sound fades into the speech after it. The fade is part of
@@ -1111,6 +1203,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'publication_candidate_extraction' => [
                 'processing_id' => $processingLog->processing_id,
                 'media_signature' => $section->mediaSignature(),
+                ...$this->cutUnderCurrentProcessing(),
                 'segments' => [['start_time' => 120.0, 'end_time' => 420.0]],
                 'audio_fade_out' => 2.0,
             ],
@@ -1122,10 +1215,10 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         Storage::disk('local')->put('temp/section-video.mp4', 'fresh-section-video');
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
-            ->method('extractSegmentAsFile')
-            ->with($this->anything(), $this->callback(fn (object $segment): bool => $segment->start_time === 120.0), $this->anything(), null)
-            ->willReturn('temp/section-video.mp4');
-        $videoExtractor->method('extractOptimizedAudio')->willReturn([
+            ->method('extractMedia')
+            ->with($this->anything(), $this->callback(fn (array $segments): bool => $segments[0]['start_time'] === 120.0), $this->anything(), $this->anything(), null)
+            ->willReturn(new ExtractedMedia('temp/section-video.mp4', 'temp/section-audio.mp3'));
+        $videoExtractor->method('storePublicAudio')->willReturn([
             'audio_path' => $expectedAudioPath,
             'full_path' => Storage::disk('local')->path($expectedAudioPath),
             'original_size' => 1024,
@@ -1201,8 +1294,8 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         Storage::disk('local')->put($expectedAudioPath, 'fresh-section-audio');
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
-        $videoExtractor->method('extractSegmentAsFile')->willReturn('temp/section-video.mp4');
-        $videoExtractor->method('extractOptimizedAudio')->willReturn([
+        $videoExtractor->method('extractMedia')->willReturn(new ExtractedMedia('temp/section-video.mp4', 'temp/section-audio.mp3'));
+        $videoExtractor->method('storePublicAudio')->willReturn([
             'audio_path' => $expectedAudioPath,
             'full_path' => Storage::disk('local')->path($expectedAudioPath),
             'original_size' => 1024,
@@ -1345,19 +1438,20 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $capturedSegment = null;
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
-            ->method('extractSegmentAsFile')
-            ->willReturnCallback(function (string $inputPath, object $segment, ?string $outputFilename) use (&$capturedSegment): string {
+            ->method('extractMedia')
+            ->willReturnCallback(function (string $inputPath, array $segments) use (&$capturedSegment): ExtractedMedia {
+                $segment = (object) $segments[0];
                 $capturedSegment = [
                     'start_time' => $segment->start_time,
                     'end_time' => $segment->end_time,
                 ];
                 Storage::disk('local')->put('temp/reviewed-child.mp4', 'recut-video');
 
-                return 'temp/reviewed-child.mp4';
+                return new ExtractedMedia('temp/reviewed-child.mp4', 'temp/section-audio.mp3', $this->cutUnderCurrentProcessing()['audio_treatment']);
             });
         $videoExtractor->expects($this->once())
-            ->method('extractOptimizedAudio')
-            ->willReturnCallback(function (string $inputPath, object $segment, string $filename, string $disk, string $directory): array {
+            ->method('storePublicAudio')
+            ->willReturnCallback(function (string $tempPath, string $filename, string $disk, string $directory): array {
                 $audioPath = $directory.'/'.$filename;
                 Storage::disk($disk)->put($audioPath, 'recut-audio');
 
@@ -1450,10 +1544,10 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
-            ->method('extractSegmentAsFile')
-            ->willReturn('temp/section-video.mp4');
+            ->method('extractMedia')
+            ->willReturn(new ExtractedMedia('temp/section-video.mp4', 'temp/section-audio.mp3'));
         $videoExtractor->expects($this->never())
-            ->method('extractOptimizedAudio');
+            ->method('storePublicAudio');
 
         $job = new PrepareSectionPublicationCandidates($processingLog);
         $job->handle(
@@ -1524,10 +1618,10 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
-            ->method('extractSegmentAsFile')
-            ->willReturn('temp/section-video.mp4');
+            ->method('extractMedia')
+            ->willReturn(new ExtractedMedia('temp/section-video.mp4', 'temp/section-audio.mp3'));
         $videoExtractor->expects($this->never())
-            ->method('extractOptimizedAudio');
+            ->method('storePublicAudio');
 
         $job = new PrepareSectionPublicationCandidates($processingLog);
         $job->handle(
@@ -1619,10 +1713,10 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
-            ->method('extractSegmentAsFile')
-            ->willReturn('temp/section-video.mp4');
+            ->method('extractMedia')
+            ->willReturn(new ExtractedMedia('temp/section-video.mp4', 'temp/section-audio.mp3'));
         $videoExtractor->expects($this->never())
-            ->method('extractOptimizedAudio');
+            ->method('storePublicAudio');
 
         $this->bankNoWordOutputEdges($processingLog);
         (new PrepareSectionPublicationCandidates($processingLog))->handle(
@@ -1705,10 +1799,10 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
-            ->method('extractSegmentAsFile')
-            ->willReturn('temp/section-video.mp4');
+            ->method('extractMedia')
+            ->willReturn(new ExtractedMedia('temp/section-video.mp4', 'temp/section-audio.mp3'));
         $videoExtractor->expects($this->never())
-            ->method('extractOptimizedAudio');
+            ->method('storePublicAudio');
 
         (new PrepareSectionPublicationCandidates($processingLog))->handle(
             $videoExtractor,
@@ -1762,7 +1856,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         ]);
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
-        $videoExtractor->expects($this->never())->method('extractSegmentAsFile');
+        $videoExtractor->expects($this->never())->method('extractMedia');
 
         $job = new PrepareSectionPublicationCandidates($processingLog);
         $job->handle(
@@ -1819,11 +1913,11 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
-            ->method('extractSegmentAsFile')
-            ->willReturn('temp/section-video.mp4');
+            ->method('extractMedia')
+            ->willReturn(new ExtractedMedia('temp/section-video.mp4', 'temp/section-audio.mp3'));
         // The key assertion: audio extraction should NEVER be called for songs.
         $videoExtractor->expects($this->never())
-            ->method('extractOptimizedAudio');
+            ->method('storePublicAudio');
 
         $job = new PrepareSectionPublicationCandidates($processingLog);
         $job->handle(
@@ -1879,12 +1973,11 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $videoExtractor = $this->createMock(VideoExtractionService::class);
         $videoExtractor->expects($this->once())
-            ->method('extractSegmentAsFile')
-            ->willReturn('temp/section-video.mp4');
+            ->method('extractMedia')
+            ->willReturn(new ExtractedMedia('temp/section-video.mp4', 'temp/section-audio.mp3'));
         $videoExtractor->expects($this->once())
-            ->method('extractOptimizedAudio')
+            ->method('storePublicAudio')
             ->with(
-                $this->anything(),
                 $this->anything(),
                 $this->anything(),
                 'public',

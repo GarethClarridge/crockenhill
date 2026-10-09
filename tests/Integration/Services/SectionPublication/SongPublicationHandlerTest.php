@@ -16,16 +16,15 @@ use App\Models\SongVideo;
 use App\Services\ChurchService\SectionPublication\SongPublicationHandler;
 use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
-use App\Services\Media\Audio\AudioEnhancementService;
 use App\Services\Media\ExtractedMediaDurationProbe;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Song\SongVideoService;
+use App\Support\MediaProcessingVersion;
 use FFMpeg\FFProbe;
 use FFMpeg\FFProbe\DataMapping\Format;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -34,9 +33,6 @@ class SongPublicationHandlerTest extends TestCase
     use RefreshDatabase;
 
     private SongPublicationHandler $handler;
-
-    /** @var AudioEnhancementService&MockInterface */
-    private AudioEnhancementService $audioEnhancement;
 
     protected function setUp(): void
     {
@@ -47,8 +43,6 @@ class SongPublicationHandlerTest extends TestCase
             'media-processing.storage.temp_disk' => 'local',
             'media-processing.storage.transcript_disk' => 'local',
         ]);
-        $this->audioEnhancement = $this->mock(AudioEnhancementService::class);
-
         $this->handler = $this->handlerMeasuringClips();
     }
 
@@ -70,7 +64,6 @@ class SongPublicationHandlerTest extends TestCase
         return new SongPublicationHandler(
             app(SongVideoService::class),
             app(ServiceSectionPublicationTransitionService::class),
-            $this->audioEnhancement,
             app(StorageAdapterHelper::class),
             app(SongPublicationReviewPolicy::class),
             new ExtractedMediaDurationProbe(app(StorageAdapterHelper::class), $ffprobe),
@@ -104,8 +97,19 @@ class SongPublicationHandlerTest extends TestCase
             'end_time' => 240.0,
         ]);
         $this->storeCleanBoundaryArtifacts($section);
+        $this->markCutUnderCurrentProcessing($section);
 
         return $section->fresh();
+    }
+
+    /** The candidate carries the sound that publishes only when it was cut under the current processing (§6.3). */
+    private function markCutUnderCurrentProcessing(ServiceSection $section): void
+    {
+        $section->refresh();
+        $section->update(['metadata' => [
+            ...($section->metadata?->toArray() ?? []),
+            'publication_candidate_extraction' => ['media_processing' => MediaProcessingVersion::signature()],
+        ]]);
     }
 
     #[Test]
@@ -421,9 +425,6 @@ class SongPublicationHandlerTest extends TestCase
         Storage::fake('public');
         config(['media-processing.storage.sermon_disk' => 'public']);
 
-        // Enhancement disabled (returns null) → fallback to original clip promotion.
-        $this->audioEnhancement->shouldReceive('enhanceVideo')->andReturn(null);
-
         $song = Song::factory()->create();
         $videoPath = 'section-publications/99-abcdef0123456789/video.mp4';
         Storage::disk('public')->put($videoPath, 'extracted-video-content');
@@ -454,7 +455,6 @@ class SongPublicationHandlerTest extends TestCase
     {
         Storage::fake('public');
         config(['media-processing.storage.sermon_disk' => 'public']);
-        $this->audioEnhancement->shouldReceive('enhanceVideo')->andReturn(null);
 
         $song = Song::factory()->create();
         $videoPath = 'section-publications/99-abcdef0123456789/video.mp4';
@@ -517,7 +517,8 @@ class SongPublicationHandlerTest extends TestCase
         $existing = SongVideo::factory()->create(['song_id' => $song->id, 'service_section_id' => $section->id, 'is_featured' => true]);
         $nextVersion = (int) config('media-processing.media_processing_version') + 1;
         config(['media-processing.media_processing_version' => $nextVersion]);
-        $this->audioEnhancement->shouldReceive('enhanceVideo')->once()->andReturn(null);
+        // Candidate preparation re-cuts it under the new processing before publication runs.
+        $this->markCutUnderCurrentProcessing($section);
 
         $this->handler->publish($section->fresh());
 
@@ -608,23 +609,17 @@ class SongPublicationHandlerTest extends TestCase
         $processingLog->forceFill(['rms_log_path' => $rmsPath])->save();
     }
 
-    // ---- Enhancement integration tests ----
+    // ---- The candidate's sound is the published sound (§6.3) ----
 
     #[Test]
-    public function publish_promotes_enhanced_video_when_enhancement_succeeds(): void
+    public function publish_promotes_the_candidate_unchanged_and_removes_it_from_the_candidate_disk(): void
     {
         Storage::fake('public');
         config(['media-processing.storage.sermon_disk' => 'public']);
 
         $song = Song::factory()->create();
         $videoPath = 'section-publications/1-abcdef0123456789/video.mp4';
-        Storage::disk('public')->put($videoPath, 'original-video-content');
-
-        // Create a real temp file as the "enhanced" output so promoteLocalFileAsVideo can stream it.
-        $enhancedTempPath = tempnam(sys_get_temp_dir(), 'enhanced_').'.mp4';
-        file_put_contents($enhancedTempPath, 'enhanced-video-content');
-
-        $this->audioEnhancement->shouldReceive('enhanceVideo')->andReturn($enhancedTempPath);
+        Storage::disk('public')->put($videoPath, 'candidate-video-content');
 
         $section = $this->makePublishableSection($song, $videoPath);
 
@@ -633,44 +628,38 @@ class SongPublicationHandlerTest extends TestCase
         $section->refresh();
         $expectedPath = 'sermons/songs/'.$song->id.'/'.$section->id.'.mp4';
         $this->assertEquals($expectedPath, $section->extracted_video_path);
-
-        // The published content should be the enhanced video, not the original.
-        Storage::disk('public')->assertExists($expectedPath);
-        $this->assertEquals('enhanced-video-content', Storage::disk('public')->get($expectedPath));
-
-        // The original extracted clip should be removed from the source disk.
+        $this->assertEquals('candidate-video-content', Storage::disk('public')->get($expectedPath));
         Storage::disk('public')->assertMissing($videoPath);
-
-        // Temp file should have been cleaned up by the finally block.
-        $this->assertFileDoesNotExist($enhancedTempPath);
     }
 
     #[Test]
-    public function publish_promotes_original_clip_when_enhancement_returns_null(): void
+    public function publish_refuses_a_candidate_cut_under_older_processing(): void
     {
         Storage::fake('public');
         config(['media-processing.storage.sermon_disk' => 'public']);
 
         $song = Song::factory()->create();
         $videoPath = 'section-publications/2-abcdef0123456789/video.mp4';
-        Storage::disk('public')->put($videoPath, 'original-video-content');
-
-        $this->audioEnhancement->shouldReceive('enhanceVideo')->andReturn(null);
-
+        Storage::disk('public')->put($videoPath, 'untreated-video-content');
         $section = $this->makePublishableSection($song, $videoPath);
+        $section->update(['metadata' => [
+            ...($section->metadata?->toArray() ?? []),
+            'publication_candidate_extraction' => ['media_processing' => [...MediaProcessingVersion::signature(), 'version' => 6]],
+        ]]);
 
-        $this->handler->publish($section);
+        try {
+            $this->handler->publish($section->fresh());
+            $this->fail('A candidate cut before the sound was treated must not publish.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('older media processing', $exception->getMessage());
+        }
 
-        $section->refresh();
-        $expectedPath = 'sermons/songs/'.$song->id.'/'.$section->id.'.mp4';
-        $this->assertEquals($expectedPath, $section->extracted_video_path);
-
-        Storage::disk('public')->assertExists($expectedPath);
-        $this->assertEquals('original-video-content', Storage::disk('public')->get($expectedPath));
+        $this->assertSame(0, SongVideo::query()->where('service_section_id', $section->id)->count());
+        Storage::disk('public')->assertExists($videoPath);
     }
 
     #[Test]
-    public function publish_cleans_up_enhanced_temp_file_after_promotion(): void
+    public function publish_refuses_a_candidate_with_no_record_of_its_processing(): void
     {
         Storage::fake('public');
         config(['media-processing.storage.sermon_disk' => 'public']);
@@ -678,42 +667,31 @@ class SongPublicationHandlerTest extends TestCase
         $song = Song::factory()->create();
         $videoPath = 'section-publications/3-abcdef0123456789/video.mp4';
         Storage::disk('public')->put($videoPath, 'video-content');
-
-        $enhancedTempPath = tempnam(sys_get_temp_dir(), 'cleanup_test_').'.mp4';
-        file_put_contents($enhancedTempPath, 'enhanced-content');
-
-        $this->audioEnhancement->shouldReceive('enhanceVideo')->andReturn($enhancedTempPath);
-
         $section = $this->makePublishableSection($song, $videoPath);
+        $metadata = $section->metadata?->toArray() ?? [];
+        unset($metadata['publication_candidate_extraction']);
+        $section->update(['metadata' => $metadata]);
 
-        $this->handler->publish($section);
+        $this->expectException(\RuntimeException::class);
 
-        // The finally block must have deleted the enhanced temp file.
-        $this->assertFileDoesNotExist($enhancedTempPath);
+        $this->handler->publish($section->fresh());
     }
 
     #[Test]
-    public function publish_is_unchanged_when_audio_enhancement_is_disabled(): void
+    public function the_transcription_enhancement_settings_do_not_touch_publication(): void
     {
         Storage::fake('public');
-        config(['media-processing.storage.sermon_disk' => 'public']);
-
-        // Simulate enhancement being disabled by having it return null.
-        $this->audioEnhancement->shouldReceive('enhanceVideo')->andReturn(null);
+        config(['media-processing.storage.sermon_disk' => 'public', 'media-processing.audio_enhancement.enabled' => false]);
 
         $song = Song::factory()->create();
         $videoPath = 'section-publications/4-abcdef0123456789/video.mp4';
         Storage::disk('public')->put($videoPath, 'video-content');
-
         $section = $this->makePublishableSection($song, $videoPath);
 
         $this->handler->publish($section);
 
         $section->refresh();
         $this->assertEquals(ServiceSectionPublicationStatus::Published, $section->publication_status);
-        $this->assertNotNull($section->published_at);
-
-        $songVideo = SongVideo::query()->where('service_section_id', $section->id)->first();
-        $this->assertNotNull($songVideo);
+        $this->assertSame('video-content', Storage::disk('public')->get($section->extracted_video_path));
     }
 }

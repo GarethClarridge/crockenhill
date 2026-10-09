@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Services\Media\Audio\AudioTreatmentSettings;
+use App\Enums\AudioProfile;
 use App\Actions\RedetectForCorpusRerun;
 use App\Actions\RedetectStructureOnRecoveredEvidence;
 use App\Actions\RetranscribeForCorpusRerun;
@@ -578,11 +580,15 @@ class MediaProcessingLog extends Model
      */
     public function recordStoredSermonVideo(float $observedDuration, ?array $segments = null): void
     {
-        $this->writeProcessingMetadata(static function (array $metadata) use ($observedDuration, $segments): array {
+        $audioOverrides = AudioTreatmentSettings::overridesFor($this, AudioProfile::Speech);
+
+        $this->writeProcessingMetadata(static function (array $metadata) use ($observedDuration, $segments, $audioOverrides): array {
             $metadata['stored_video'] = [
                 'observed_duration' => $observedDuration,
                 'stored_at' => now()->toISOString(),
                 'media_processing' => MediaProcessingVersion::signature(),
+                // This recording's own treatment (§6.3.3): changing it changes the sound as much as a version bump.
+                'audio_overrides' => $audioOverrides,
             ];
 
             if ($segments !== null) {

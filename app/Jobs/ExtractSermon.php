@@ -5,16 +5,17 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Actions\FlagSermonAudioLengthMismatch;
-use App\Data\LivestreamSegment;
+use App\Actions\FlagSermonAudioPartUntreated;
 use App\Data\ServiceSectionMetadata;
 use App\Data\ServiceSermonAbsence;
 use App\Data\ServiceStructure;
-use App\Enums\LivestreamSegmentClassification;
+use App\Enums\AudioProfile;
 use App\Mail\ManualReviewRequired;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\Structure\EnsembleReviewGate;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\Media\Audio\AudioTreatmentSettings;
 use App\Services\Media\ExtractedMediaDurationProbe;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Media\Video\VideoStorageService;
@@ -161,38 +162,31 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
             }
 
             try {
-                if ($extractionPlan['mode'] === 'concat_spans') {
-                    $sermonVideoPath = $videoExtractor->extractConcatenatedSegmentAsFile(
-                        $videoPath,
-                        $extractionPlan['segments'],
-                        $this->processingLog->processing_id.'_sermon.mp4'
-                    );
-                } else {
-                    $sermonVideoPath = $videoExtractor->extractSegmentAsFile(
-                        $videoPath,
-                        $this->createSermonSegment(
-                            (float) $firstSegment['start_time'],
-                            (float) $firstSegment['end_time']
-                        ),
-                        $this->processingLog->processing_id.'_sermon.mp4'
-                    );
-                }
+                /**
+                 * One encode makes both files: every part's sound normalised on its own
+                 * (a quiet reading must not stay 20 LU under the sermon it joins), and
+                 * the MP3 split from that same treated sound, never transcoded from the
+                 * AAC. It is the video's whole audio track by construction: the MP3 used
+                 * to be cut again, and 12 historic sermons lost their closing words.
+                 */
+                $media = $videoExtractor->extractMedia(
+                    $videoPath,
+                    $extractionPlan['mode'] === 'concat_spans'
+                        ? $extractionPlan['segments']
+                        : [['start_time' => (float) $firstSegment['start_time'], 'end_time' => (float) $firstSegment['end_time']]],
+                    AudioProfile::Speech,
+                    $this->processingLog->processing_id.'_sermon.mp4',
+                    treatmentOverrides: AudioTreatmentSettings::overridesFor($this->processingLog, AudioProfile::Speech),
+                    withPublicAudio: true,
+                );
+                $sermonVideoPath = $media->videoPath;
 
                 $sermonVideoAbsolutePath = Storage::disk($tempDisk)->path($sermonVideoPath);
                 $observedDuration = $durationProbe->durationOf($sermonVideoAbsolutePath);
 
-                /**
-                 * The MP3 is the final video's whole audio track, in both modes.
-                 * It used to be cut again: from the stream-copied join to the
-                 * planned length for a concat plan, and independently from the
-                 * source for a single span. The copied video runs past the plan
-                 * from its keyframe, so either cut could drop the closing words,
-                 * and 12 historic sermons lost them.
-                 */
-                $audioExtractionResult = $videoExtractor->extractOptimizedAudio(
-                    $sermonVideoAbsolutePath,
-                    $this->createSermonSegment(0.0, $observedDuration),
-                    $this->processingLog->processing_id.'_sermon.mp3'
+                $audioExtractionResult = $videoExtractor->storePublicAudio(
+                    (string) $media->audioPath,
+                    $this->processingLog->processing_id.'_sermon.mp3',
                 );
 
                 $sermonAudioPath = $audioExtractionResult['audio_path'];
@@ -221,6 +215,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
 
             $audioDuration = $this->measuredAudioDuration($durationProbe, $audioFullPath);
             (new FlagSermonAudioLengthMismatch)($this->processingLog, $observedDuration, $audioDuration);
+            (new FlagSermonAudioPartUntreated)($this->processingLog, $media);
 
             /**
              * Read before the update: the trim block about to be overwritten is
@@ -251,13 +246,12 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                             'strategy' => $extractionPlan['metadata']['strategy'] ?? null,
                             'mode' => $extractionPlan['mode'],
                         ],
-                        'audio_compression' => [
-                            'original_size_mb' => round($audioExtractionResult['original_size'] / 1024 / 1024, 1),
-                            'final_size_mb' => round($audioExtractionResult['final_size'] / 1024 / 1024, 1),
-                            'compression_applied' => $audioExtractionResult['compression_applied'],
-                            'compression_ratio' => round($audioExtractionResult['compression_ratio'], 2),
-                            'valid_for_transcription' => $audioExtractionResult['valid_for_transcription'],
+                        'public_audio' => [
+                            'size_mb' => round($audioExtractionResult['size'] / 1024 / 1024, 1),
+                            'sample_rate' => (int) config('media-processing.audio_treatment.public_mp3.sample_rate'),
+                            'bitrate_kbps' => (int) config('media-processing.audio_treatment.public_mp3.bitrate_kbps'),
                         ],
+                        'audio_treatment' => $media->audio,
                     ]
                 ),
             ]);
@@ -269,25 +263,14 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                 $extractionPlan['segments'],
             );
 
-            if (! $audioExtractionResult['valid_for_transcription']) {
-                Log::warning('Audio file still too large after compression', [
-                    'processing_id' => $this->processingLog->processing_id,
-                    'final_size_mb' => round($audioExtractionResult['final_size'] / 1024 / 1024, 1),
-                    'compression_ratio' => round($audioExtractionResult['compression_ratio'], 2),
-                ]);
-            }
-
             Log::info('Sermon extraction completed', [
                 'processing_id' => $this->processingLog->processing_id,
                 'video_path' => $sermonVideoPath,
                 'audio_path' => $sermonAudioPath,
                 'observed_duration' => $observedDuration,
                 'audio_full_path' => $audioExtractionResult['full_path'],
-                'compression_applied' => $audioExtractionResult['compression_applied'],
-                'original_audio_size_mb' => round($audioExtractionResult['original_size'] / 1024 / 1024, 1),
-                'final_audio_size_mb' => round($audioExtractionResult['final_size'] / 1024 / 1024, 1),
-                'compression_ratio' => $audioExtractionResult['compression_ratio'],
-                'valid_for_transcription' => $audioExtractionResult['valid_for_transcription'],
+                'audio_size_mb' => round($audioExtractionResult['size'] / 1024 / 1024, 1),
+                'untreated_audio_parts' => $media->untreatedParts(),
                 'file_exists_check' => $audioFileExists,
             ]);
 
@@ -355,7 +338,9 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
             && $observedDuration !== null
             && abs($observedDuration - $supersededDuration) > self::StoredVideoToleranceSeconds;
 
-        $versionChanged = ! MediaProcessingVersion::matches(data_get($this->processingLog->processing_metadata?->toArray(), 'stored_video.media_processing'));
+        $storedVideo = data_get($this->processingLog->processing_metadata?->toArray(), 'stored_video');
+        $versionChanged = ! MediaProcessingVersion::matches($storedVideo['media_processing'] ?? null)
+            || ($storedVideo['audio_overrides'] ?? []) != AudioTreatmentSettings::overridesFor($this->processingLog, AudioProfile::Speech);
 
         if (! $spansChanged && ! $durationChanged && ! $versionChanged) {
             return;
@@ -436,20 +421,6 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
         app(ProcessingRunOrchestrator::class)->concludeWithoutSermon($this->processingLog);
 
         return true;
-    }
-
-    private function createSermonSegment(float $startTime, float $endTime): LivestreamSegment
-    {
-        return new LivestreamSegment(
-            startTime: $startTime,
-            endTime: $endTime,
-            duration: $endTime - $startTime,
-            classification: LivestreamSegmentClassification::Speech->value,
-            avgRms: 0.0, // Not needed for extraction
-            peakRms: 0.0, // Not needed for extraction
-            isSermonCandidate: true,
-            segmentOrder: 0
-        );
     }
 
     protected function onJobFailure(\Throwable $exception): void

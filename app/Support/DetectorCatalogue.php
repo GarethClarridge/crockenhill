@@ -8,6 +8,7 @@ use App\Actions\FlagIncompleteSermonEvidence;
 use App\Actions\FlagPublishedReferenceContradictsSermon;
 use App\Actions\FlagSectionTruncatedBySource;
 use App\Actions\FlagSermonAudioLengthMismatch;
+use App\Actions\FlagSermonAudioPartUntreated;
 use App\Actions\FlagSermonPartsNotExtracted;
 use App\Actions\FlagSermonTextPredatesEvidence;
 use App\Actions\FlagSuspectTranscriptRepetition;
@@ -618,6 +619,16 @@ class DetectorCatalogue
                 owningClass: FlagSermonAudioLengthMismatch::class,
             ),
             new DetectorEntry(
+                id: 'sermon-audio-part-untreated',
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: [FlagSermonAudioPartUntreated::FLAG],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::TechnicalQuality,
+                unit: DetectorUnit::Sermon,
+                summary: 'A sermon part was left at its recorded loudness because it was silent, too short to measure or needed more gain than allowed, so it may not match the parts around it.',
+                owningClass: FlagSermonAudioPartUntreated::class,
+            ),
+            new DetectorEntry(
                 id: 'sermon-parts-not-extracted',
                 surface: DetectorSurface::SectionReviewFlag,
                 signals: [FlagSermonPartsNotExtracted::FLAG],
@@ -1151,7 +1162,7 @@ class DetectorCatalogue
                 unit: DetectorUnit::Section,
                 summary: 'Song clip audio was upsampled to 96 kHz and re-encoded at 128 kbps, degrading 245 clips for no gain.',
                 regressionCases: ['245 of 464 clips'],
-                decision: 'Fixed at source: the source sample rate and bitrate are preserved through `enhanceVideo`. The stored clips are not repaired by the fix, and their post-publication comparison and regeneration remain owed.',
+                decision: 'Fixed at source: the source sample rate and bitrate were preserved through `enhanceVideo`, and since §6.3 songs are treated in the cut at 48 kHz and published without re-encoding. The stored clips are not repaired by the fix, and their post-publication comparison and regeneration remain owed.',
             ),
             new DetectorEntry(
                 id: 'song-section-without-a-song',

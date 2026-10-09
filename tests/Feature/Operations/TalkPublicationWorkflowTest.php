@@ -8,6 +8,7 @@ use App\Actions\Publication\ApproveSectionForPublication;
 use App\Actions\ServiceReview\SaveServiceSection;
 use App\Contracts\SpeakerIdentificationInterface;
 use App\Data\SpeakerMatchResult;
+use App\Enums\AudioProfile;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionStatus;
@@ -25,6 +26,7 @@ use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFacto
 use App\Services\ChurchService\SectionPublication\TalkPublicationHandler;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\Media\ExtractedMediaDurationProbe;
+use App\Services\Media\Video\ExtractedMedia;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Sermon\SermonExposurePolicy;
@@ -211,16 +213,17 @@ class TalkPublicationWorkflowTest extends TestCase
     {
         $videoExtractor = $this->createStub(VideoExtractionService::class);
 
-        $videoExtractor->method('extractSegmentAsFile')
-            ->willReturnCallback(function (string $inputPath, object $segment, ?string $outputFilename): string {
+        $videoExtractor->method('extractMedia')
+            ->willReturnCallback(function (string $inputPath, array $segments, ?AudioProfile $profile, ?string $outputFilename): ExtractedMedia {
                 $path = 'temp/'.($outputFilename ?? 'section.mp4');
                 Storage::disk('local')->put($path, 'section-video');
+                Storage::disk('local')->put('temp/section.mp3', 'section-audio');
 
-                return $path;
+                return new ExtractedMedia($path, 'temp/section.mp3');
             });
 
-        $videoExtractor->method('extractOptimizedAudio')
-            ->willReturnCallback(function (string $inputPath, object $segment, string $filename, string $disk, string $directory): array {
+        $videoExtractor->method('storePublicAudio')
+            ->willReturnCallback(function (string $tempPath, string $filename, string $disk, string $directory): array {
                 // Honour the disk the job asks for: candidate audio must land on
                 // the same disk as the candidate video, which is the sermon disk.
                 $audioPath = $directory.'/'.$filename;

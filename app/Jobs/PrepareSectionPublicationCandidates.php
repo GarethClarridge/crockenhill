@@ -27,7 +27,7 @@ use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\HistoricMedia\HistoricProcessingThroughput;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
-use App\Services\Media\ExtractedMediaDurationProbe;
+use App\Services\Media\Audio\AudioTreatmentSettings;
 use App\Services\Media\RecordedVideoOutput;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\ProcessingRunOrchestrator;
@@ -492,12 +492,19 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             $this->refuseInvalidCut($section, $cutPlan['segments'], $cutPlan['cue_edge_widening']);
             $segment = (object) $cutPlan['segments'][0];
 
-            $tempVideoPath = $videoExtractor->extractSegmentAsFile(
+            // Candidates carry the sound that will publish (§6.3): listening hears it, and
+            // publication promotes the file without treating it again.
+            $media = $videoExtractor->extractMedia(
                 $localSourcePath,
-                $segment,
+                [['start_time' => (float) $segment->start_time, 'end_time' => (float) $segment->end_time]],
+                $handler->audioProfile(),
                 $this->processingLog->processing_id.'_section_'.$section->id.'.mp4',
                 $cutPlan['audio_fade_out'],
+                AudioTreatmentSettings::overridesFor($this->processingLog, $handler->audioProfile()),
+                withPublicAudio: $handler->requiresAudioExtraction(),
             );
+            $tempVideoPath = $media->videoPath;
+            $tempAudioPath = $media->audioPath;
 
             $videoStoragePath = $this->candidateVideoPath($section);
             $videoReadStream = Storage::disk($tempDisk)->readStream($tempVideoPath);
@@ -512,15 +519,16 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             $section->extracted_video_path = $videoStoragePath;
 
             if ($handler->requiresAudioExtraction()) {
-                $audioResult = $videoExtractor->extractOptimizedAudio(
-                    Storage::disk($tempDisk)->path($tempVideoPath),
-                    (object) ['start_time' => 0.0, 'end_time' => app(ExtractedMediaDurationProbe::class)->durationOf(Storage::disk($tempDisk)->path($tempVideoPath))],
+                if ($tempAudioPath === null) {
+                    throw new \RuntimeException('Section extraction produced no public audio');
+                }
+                $section->extracted_audio_path = $videoExtractor->storePublicAudio(
+                    $tempAudioPath,
                     $this->processingLog->processing_id.'_section_'.$section->id.'.mp3',
                     $this->candidateDisk(),
-                    $this->candidateAudioDirectory($section)
-                );
-
-                $section->extracted_audio_path = $audioResult['audio_path'];
+                    $this->candidateAudioDirectory($section),
+                )['audio_path'];
+                $tempAudioPath = null;
             }
 
             // The candidate was written to the *candidate* disk, so the row has to
@@ -539,6 +547,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
                         'processing_id' => $this->processingLog->processing_id,
                         'media_signature' => $section->mediaSignature(),
                         'media_processing' => MediaProcessingVersion::signature(),
+                        'audio_treatment' => $media->audio,
                         'extracted_at' => now()->toIso8601String(),
                     ],
                 ]
@@ -546,6 +555,9 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         } finally {
             if (isset($tempVideoPath)) {
                 Storage::disk($tempDisk)->delete($tempVideoPath);
+            }
+            if (isset($tempAudioPath)) {
+                Storage::disk($tempDisk)->delete($tempAudioPath);
             }
             if ($isS3TempDisk) {
                 $storageHelper->cleanupTempFile($localSourcePath);
@@ -638,8 +650,15 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             return false;
         }
 
+        // A candidate cut under other processing or other audio settings does not sound as
+        // publication would: publication no longer treats it again, so it is re-cut.
         return ($provenance['processing_id'] ?? null) === $this->processingLog->processing_id
-            && ($provenance['media_signature'] ?? null) === $section->mediaSignature();
+            && ($provenance['media_signature'] ?? null) === $section->mediaSignature()
+            && MediaProcessingVersion::matches($provenance['media_processing'] ?? null)
+            && ($provenance['audio_treatment']['settings'] ?? null) == AudioTreatmentSettings::for(
+                $handler->audioProfile(),
+                AudioTreatmentSettings::overridesFor($this->processingLog, $handler->audioProfile()),
+            )->toArray();
     }
 
     protected function onJobFailure(\Throwable $exception): void

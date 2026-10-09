@@ -6,6 +6,7 @@ namespace App\Support;
 
 use App\Actions\FlagPublishedReferenceContradictsSermon;
 use App\Actions\FlagSermonAudioLengthMismatch;
+use App\Actions\FlagSermonAudioPartUntreated;
 use App\Actions\FlagSermonPartsNotExtracted;
 use App\Actions\FlagSermonTextPredatesEvidence;
 use App\Actions\HoldSectionForContentReview;
@@ -90,6 +91,7 @@ class SermonAutoExtractionPolicy
         FlagSermonTextPredatesEvidence::FLAG,
         FlagSermonPartsNotExtracted::FLAG,
         FlagSermonAudioLengthMismatch::FLAG,
+        FlagSermonAudioPartUntreated::FLAG,
         FlagPublishedReferenceContradictsSermon::FLAG,
     ];
 

@@ -15,6 +15,7 @@ use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
+use App\Support\MediaProcessingVersion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -54,6 +55,12 @@ class AutoPublishServiceSectionTest extends TestCase
             'extracted_audio_path' => null,
             'extracted_at' => now(),
             'duration' => 200.0,
+            // The candidate carries the published sound only when cut under the current processing (§6.3).
+            'metadata' => [
+                'confidence_level' => 'high',
+                'classification_mode' => 'openlp_aligned',
+                'publication_candidate_extraction' => ['media_processing' => MediaProcessingVersion::signature()],
+            ],
         ]);
 
         (new AutoPublishServiceSection($section->id))->handle(
@@ -170,6 +177,12 @@ class AutoPublishServiceSectionTest extends TestCase
             'extracted_audio_path' => null,
             'extracted_at' => now(),
             'duration' => 200.0,
+            // The candidate carries the published sound only when cut under the current processing (§6.3).
+            'metadata' => [
+                'confidence_level' => 'high',
+                'classification_mode' => 'openlp_aligned',
+                'publication_candidate_extraction' => ['media_processing' => MediaProcessingVersion::signature()],
+            ],
             'needs_manual_review' => false,
         ]);
 

@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace App\Contracts;
 
+use App\Enums\AudioProfile;
 use App\Models\ServiceSection;
 
 interface SectionPublicationHandler
 {
     /** Whether extracted media should include audio (sermons: yes, songs: no). */
     public function requiresAudioExtraction(): bool;
+
+    /** How the cut's sound is treated (§6.3): talks are speech, songs are music. */
+    public function audioProfile(): AudioProfile;
 
     /**
      * Whether previously extracted media can be reused for this section.

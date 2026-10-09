@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService\SectionPublication;
 
+use App\Enums\AudioProfile;
 use App\Contracts\SectionPublicationHandler;
 use App\Data\SermonCreationOptions;
 use App\Data\ServiceSectionMetadata;
@@ -55,6 +56,11 @@ class TalkPublicationHandler implements SectionPublicationHandler
     public function requiresAudioExtraction(): bool
     {
         return true;
+    }
+
+    public function audioProfile(): AudioProfile
+    {
+        return AudioProfile::Speech;
     }
 
     /**
