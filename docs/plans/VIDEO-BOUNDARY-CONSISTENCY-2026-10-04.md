@@ -1919,6 +1919,42 @@ acceptance run: reviewed audio = published audio, joins and complete songs pass 
 every wrong or unresolved content case has a disposition, and operator-assisted results are counted apart from
 automatic ones. Speaker identification stays off for this canary.
 
+#### 6.3.7 Canary 15 scope and acceptance criteria (2026-10-09, fixed before the run)
+
+**Code frozen at `e378b2efb`** (processing version 8). Codex's second readiness review found three more problems, all
+fixed with regression tests: a re-cut published song with any review doubt (not only a sound doubt) now keeps its
+published clip; historic promotion no longer points a section at the published song's path while the section holds a
+held replacement candidate (it gave the replacement the old bytes under its own identity and report); and the music
+plain-gain rule (`7ffa0cb7d`) changes the encoded output, which the configuration-only signature cannot see, so the
+version moved 7 → 8. Policy changes since the audio listening rounds: the public MP3 is held only above **+1.0 dBTP**
+(`public_mp3.true_peak_ceiling_db`; the video keeps ceiling + 1.0 dB) and music uses plain gain where `loudnorm`
+cannot land its target. Operator rulings on the final outputs: ten complete songs "right" (before the plain-gain rule);
+136468 and 825 before/after "no real difference"; the MP3 ceiling change itself has **no listening ruling**, so every
+MP3 that peaks above 0 dBTP in canary 15 is heard (below).
+
+**Scope: 29 runs.** Kept (17, recompose from banked draws): 936 949 953 961 964 1012 1025 1110 1200 1221 1250 1273 1282
+1292 1304 1346 1356. Unseen (12, seeded draw 20261010 from the 401 reachable single-part runs never in a canary, one
+stratum per id block; `storage/scratch/canary15-prep/unseen-sample.json`): 956 967 1005 1036 1047 1138 1149 1153 1223
+1224 1300 1364, of which 967 1036 1223 1364 route to Tier A re-transcription (a third of the draw, close to the
+corpus's share). **1108 is excluded:** a true failure (a crashed promotion), not a review hold; every re-run route
+refuses it, and retrying its failed job only promotes assets without restoring its status. It needs a failed-run
+recovery route, which is its own piece of work; its collision fix has a regression test.
+
+**Outcomes are reported in four columns, never summed:** (1) automatically correct, (2) held for a known reason
+(successful containment, not a successful output), (3) operator-assisted (answers applied), (4) unexpected.
+
+**Stopping conditions** (any one stops the run and blocks the full pass until fixed; none becomes "a measured rate"):
+published content that is wrong on listening; a hold that does not hold (a section published or promoted despite a
+review reason or an audio miss); reviewed files that differ from published files (candidate identity or bytes);
+an audio verification failure that is not contained as a hold; speaker identification running (it must stay off);
+lost or overwritten media with no copy.
+
+**Listening:** every unseen sermon start and end, and every multipart join (all runs, kept and unseen); song starts and
+ends sampled together as pairs across services, with short talks included; complete songs for dynamics, chosen by
+measurement from the new outputs so that each of `gain`, `dynamic` and `linear` modes, a quiet opening, a wide range
+and a loud song is heard; every part the denoise picks differently from `denoise-predictions.json`; every MP3 above
+0 dBTP. Holds with a known reason need no listening.
+
 ## 7. Further bounded investigations — added 2026-10-04
 
 The user requested these additions after reviewing the gaps in the plans. They are **open
