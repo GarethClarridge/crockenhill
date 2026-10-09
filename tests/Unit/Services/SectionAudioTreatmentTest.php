@@ -219,6 +219,36 @@ class SectionAudioTreatmentTest extends TestCase
         ];
     }
 
+    /**
+     * loudnorm's first pass can read a part differently from the standard meter the verifier uses
+     * (canary 15 preflight, song 825: −17.91 against −19.8 LUFS), and its linear mode refuses a gain that
+     * puts the peak a hair over the ceiling, then overshoots dynamically. Music is then given the gain the
+     * standard meter asks for, when the peak stays inside ceiling + tolerance and the range fits.
+     *
+     * @param  array{input_i: float, input_tp: float, input_lra: float}  $loudnorm
+     */
+    #[Test]
+    #[DataProvider('plainGainCases')]
+    public function music_is_given_a_plain_gain_where_loudnorm_cannot_land(array $loudnorm, float $standardLufs, ?float $expected): void
+    {
+        $measured = [...$loudnorm, 'input_thresh' => -30.0, 'target_offset' => 0.0];
+        $gain = SectionAudioTreatment::plainGain($measured, $standardLufs, AudioTreatmentSettings::for(AudioProfile::Music), 1.0);
+
+        $expected === null ? $this->assertNull($gain) : $this->assertEqualsWithDelta($expected, $gain, 0.01);
+    }
+
+    /** @return array<string, array{array<string, float>, float, float|null}> */
+    public static function plainGainCases(): array
+    {
+        return [
+            'song 825: meters disagree by 1.9 dB, the standard one needs +3.8 and its peak lands at −1.41' => [['input_i' => -17.91, 'input_tp' => -5.21, 'input_lra' => 15.8], -19.8, 3.8],
+            'meters agree and linear is eligible: loudnorm does it' => [['input_i' => -20.0, 'input_tp' => -8.0, 'input_lra' => 6.0], -20.02, null],
+            'meters agree, peak a hair over the ceiling: plain gain lands what dynamic would overshoot' => [['input_i' => -20.0, 'input_tp' => -5.2, 'input_lra' => 6.0], -20.0, 4.0],
+            'the peak would pass the tolerance: loudnorm limits it' => [['input_i' => -26.0, 'input_tp' => -8.8, 'input_lra' => 19.6], -25.94, null],
+            'the range is wider than the profile allows: loudnorm' => [['input_i' => -20.0, 'input_tp' => -9.0, 'input_lra' => 21.0], -21.0, null],
+        ];
+    }
+
     #[Test]
     public function verification_refuses_a_file_it_cannot_read(): void
     {

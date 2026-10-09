@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Media\Audio;
 
+use App\Enums\AudioProfile;
 use App\Exceptions\VideoProcessingException;
 use Symfony\Component\Process\Process;
 
@@ -33,15 +34,18 @@ class SectionAudioTreatment
             // Left as recorded: only the channel mix, so every part joins in one format.
             $filters = [...$filters, ...($settings->isMono() ? ['aformat=channel_layouts=mono'] : [])];
         } else {
-            $filters = [...$filters, ...$settings->withDenoise($loudness->denoise)->preprocessing($loudness->workingGainDb), sprintf(
-                '%s:measured_I=%.2f:measured_TP=%.2f:measured_LRA=%.2f:measured_thresh=%.2f:offset=%.2f:linear=true:print_format=json',
-                $this->loudnorm($settings),
-                $measured['input_i'],
-                $measured['input_tp'],
-                $measured['input_lra'],
-                $measured['input_thresh'],
-                $measured['target_offset'],
-            )];
+            $normalisation = $loudness->plainGainDb !== null
+                ? 'volume='.sprintf('%.2F', $loudness->plainGainDb).'dB'
+                : sprintf(
+                    '%s:measured_I=%.2f:measured_TP=%.2f:measured_LRA=%.2f:measured_thresh=%.2f:offset=%.2f:linear=true:print_format=json',
+                    $this->loudnorm($settings),
+                    $measured['input_i'],
+                    $measured['input_tp'],
+                    $measured['input_lra'],
+                    $measured['input_thresh'],
+                    $measured['target_offset'],
+                );
+            $filters = [...$filters, ...$settings->withDenoise($loudness->denoise)->preprocessing($loudness->workingGainDb), $normalisation];
         }
 
         // loudnorm works at 192 kHz and its lookahead flush can skip timestamps; rebuild them from the samples.
@@ -87,9 +91,72 @@ class SectionAudioTreatment
         $measured = $this->firstPass($input, $start, $duration, $settings, $settings->preprocessing($workingGain));
         $reason = $this->unusableReason($measured, $settings);
 
-        return $reason === null
-            ? new PartLoudness($duration, $measured, workingGainDb: $workingGain, raw: $raw, denoise: $settings->denoise, pauseRelative: $pauseRelative)
-            : PartLoudness::untreated($duration, $reason, $raw);
+        if ($measured === null || $reason !== null) {
+            return PartLoudness::untreated($duration, $reason ?? PartLoudness::Silent, $raw);
+        }
+
+        // Music only: speech has always landed through loudnorm, and its measurements are not in doubt.
+        $plainGain = $settings->profile === AudioProfile::Music
+            ? self::plainGain($measured, $this->standardLoudness($input, $start, $duration, $settings, $settings->preprocessing($workingGain)), $settings, (float) config('media-processing.audio_treatment.true_peak_tolerance_db', 1.0))
+            : null;
+
+        return new PartLoudness($duration, $measured, workingGainDb: $workingGain, raw: $raw, denoise: $settings->denoise, pauseRelative: $pauseRelative, plainGainDb: $plainGain);
+    }
+
+    /**
+     * The gain (dB) to give a part instead of `loudnorm`, or null to leave it to `loudnorm`.
+     *
+     * `loudnorm`'s first pass can read a part differently from the standard meter that verifies the output,
+     * and its linear mode refuses a gain that puts the peak a hair over the ceiling, then overshoots
+     * dynamically (canary 15 preflight, song 825: it read −17.91 against −19.8 LUFS, and dynamic mode landed
+     * −12.9). When the standard meter's gain keeps the peak inside ceiling + tolerance and the range fits, and
+     * `loudnorm` would not land it itself, that gain is applied directly.
+     *
+     * @param  array{input_i: float, input_tp: float, input_lra: float, input_thresh: float, target_offset: float}  $measured  `loudnorm`'s first pass
+     * @param  float|null  $standardLufs  the part's integrated loudness by the standard (EBU R128) meter
+     */
+    public static function plainGain(array $measured, ?float $standardLufs, AudioTreatmentSettings $settings, float $peakTolerance): ?float
+    {
+        if ($standardLufs === null || ! is_finite($standardLufs)) {
+            return null;
+        }
+
+        $gain = $settings->targetLufs - $standardLufs;
+        $peakAfter = $measured['input_tp'] + $gain;
+
+        if (abs($gain) > $settings->maxGainDb || $measured['input_lra'] > $settings->lra || $peakAfter > $settings->truePeak + $peakTolerance) {
+            return null;
+        }
+
+        $loudnormLands = abs($standardLufs - $measured['input_i']) <= 0.3 && $peakAfter <= $settings->truePeak;
+
+        return $loudnormLands ? null : $gain;
+    }
+
+    /**
+     * The part's integrated loudness by the standard meter, through the same trim and filters the encode applies.
+     *
+     * @param  list<string>  $preprocessing
+     */
+    private function standardLoudness(string $input, float $start, float $duration, AudioTreatmentSettings $settings, array $preprocessing): ?float
+    {
+        $process = new Process([
+            (string) config('media-processing.ffmpeg.ffmpeg_path', '/usr/bin/ffmpeg'),
+            '-hide_banner', '-nostats',
+            '-ss', $this->seconds($start), '-t', $this->seconds($duration), '-i', $input,
+            '-map', '0:a:0',
+            '-af', implode(',', [$this->trim($duration), ...$preprocessing, 'ebur128'.($settings->isMono() ? '=dualmono=true' : '')]),
+            '-f', 'null', '-',
+        ]);
+        $process->setTimeout(1800);
+        $process->run();
+        $stderr = $process->getErrorOutput();
+
+        if (! $process->isSuccessful() || ! preg_match('/I:\s+(-?[\d.]+) LUFS/', substr($stderr, (int) strrpos($stderr, 'Summary:')), $match)) {
+            return null;
+        }
+
+        return (float) $match[1];
     }
 
     /**
@@ -146,6 +213,9 @@ class SectionAudioTreatment
 
         return array_map(function (PartLoudness $part) use (&$reports): ?string {
             $measured = $part->measured;
+            if ($part->plainGainDb !== null) {
+                return 'gain';
+            }
             if ($measured === null || $reports === []) {
                 return null;
             }

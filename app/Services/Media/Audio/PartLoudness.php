@@ -24,6 +24,7 @@ final readonly class PartLoudness
      * @param  array{input_i: float, input_tp: float, input_lra: float, input_thresh: float, target_offset: float}|null  $raw  the diagnostic pass before level-dependent treatment, when one ran
      * @param  string|null  $denoise  the denoise this part was given (afftdn options), chosen or configured
      * @param  float|null  $pauseRelative  its pause level relative to its loudness, when that chose the denoise
+     * @param  float|null  $plainGainDb  the gain (dB) it is given instead of `loudnorm`, where the standard meter asks for one `loudnorm` cannot land
      */
     public function __construct(
         public float $duration,
@@ -33,6 +34,7 @@ final readonly class PartLoudness
         public ?array $raw = null,
         public ?string $denoise = null,
         public ?float $pauseRelative = null,
+        public ?float $plainGainDb = null,
     ) {}
 
     /** @param  array{input_i: float, input_tp: float, input_lra: float, input_thresh: float, target_offset: float}|null  $raw */
@@ -57,6 +59,10 @@ final readonly class PartLoudness
             return null;
         }
 
+        if ($this->plainGainDb !== null) {
+            return 'gain';
+        }
+
         $gain = $settings->targetLufs - $this->measured['input_i'];
 
         return $this->measured['input_tp'] + $gain <= $settings->truePeak && $this->measured['input_lra'] <= $settings->lra
@@ -74,6 +80,7 @@ final readonly class PartLoudness
             'raw' => $this->raw,
             'pause_relative' => $this->pauseRelative === null ? null : round($this->pauseRelative, 1),
             'denoise' => $this->denoise,
+            'plain_gain_db' => $this->plainGainDb === null ? null : round($this->plainGainDb, 2),
             'measured' => $this->measured,
         ];
     }
