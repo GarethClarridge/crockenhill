@@ -57,4 +57,17 @@ final class PublicationCandidate
 
         return is_string($id) && $id !== '' ? $id : null;
     }
+
+    /**
+     * Whether the section holds a candidate that is not the cut its published song came from: a replacement
+     * waiting for review while the earlier clip stays public. The section's media then belongs to the
+     * replacement, not to the published song.
+     */
+    public static function isUnpublishedReplacement(ServiceSection $section): bool
+    {
+        $candidateId = self::id($section);
+        $publishedId = $section->metadata?->raw['song_video_extraction']['candidate_id'] ?? null;
+
+        return $candidateId !== null && is_string($publishedId) && $publishedId !== '' && $publishedId !== $candidateId;
+    }
 }

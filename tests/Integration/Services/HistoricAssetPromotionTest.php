@@ -460,6 +460,40 @@ class HistoricAssetPromotionTest extends TestCase
     }
 
     #[Test]
+    public function held_replacement_keeps_its_own_bytes_and_identity_during_historic_promotion(): void
+    {
+        [$log] = $this->historicRun();
+        $songVideo = $this->songVideoForRun($log);
+        $section = ServiceSection::findOrFail($songVideo->service_section_id);
+        $candidatePath = 'sections/new-held-candidate.mp4';
+        $section->update([
+            'asset_disk' => 'historic_staging',
+            'extracted_video_path' => $candidatePath,
+            'extracted_at' => now(),
+            'publication_status' => ServiceSectionPublicationStatus::Published,
+            'published_at' => now(),
+            'metadata' => [
+                'publication_candidate_extraction' => [
+                    'candidate_id' => 'new-held-cut',
+                    'audio_treatment' => ['loudness_misses' => ['off target']],
+                ],
+                'song_video_extraction' => ['candidate_id' => 'old-published-cut'],
+                'song_publication_review' => ['reasons' => [['kind' => 'song_loudness_missed', 'detail' => 'off target']]],
+            ],
+        ]);
+        $songVideo->update(['asset_disk' => 'historic_quarantine', 'publication_state' => SermonPublicationState::Quarantined, 'historic_import_operation_id' => $log->historic_import_operation_id]);
+        Storage::disk('historic_quarantine')->put($songVideo->video_file_path, 'old canonical song');
+        Storage::disk('historic_staging')->put($candidatePath, 'new off-target candidate');
+
+        app(HistoricAssetPromotion::class)->promoteSongVideos($log);
+
+        $section->refresh();
+        $this->assertSame('new-held-cut', $section->metadata->raw['publication_candidate_extraction']['candidate_id']);
+        $this->assertSame($candidatePath, $section->extracted_video_path, 'Historic promotion must not replace the held candidate path with old published bytes while retaining the new candidate identity.');
+        $this->assertSame('new off-target candidate', Storage::disk($section->asset_disk)->get($section->extracted_video_path));
+    }
+
+    #[Test]
     public function it_fails_when_a_verified_working_copy_cannot_be_deleted(): void
     {
         [$log, $sermon] = $this->historicRun();

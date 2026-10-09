@@ -264,8 +264,9 @@ class SongPublicationHandler implements SectionPublicationHandler
      * Bring a published song up to date with a re-cut candidate.
      *
      * Its sound replaces what is public only when nothing about it needs hearing
-     * first: a re-cut left untreated or off target keeps the published clip, and
-     * the doubt is recorded on the section for review.
+     * first. A re-cut that is untreated, off target, too short to be a whole song,
+     * or in any other way doubtful keeps the published clip, and the doubt is
+     * recorded on the section for review.
      */
     public function refreshPublished(ServiceSection $section): void
     {
@@ -273,16 +274,10 @@ class SongPublicationHandler implements SectionPublicationHandler
             return;
         }
 
-        $this->requiresApproval($section);
-        $soundDoubts = array_values(array_filter(
-            $section->metadata?->raw['song_publication_review']['reasons'] ?? [],
-            static fn (mixed $reason): bool => is_array($reason) && in_array($reason['kind'] ?? null, SongPublicationReviewPolicy::SOUND_REASON_KINDS, true),
-        ));
-
-        if ($soundDoubts !== []) {
-            Log::warning('Keeping a published song clip: its re-cut sound needs review first', $this->sanitizeArrayForLog([
+        if ($this->requiresApproval($section)) {
+            Log::warning('Keeping a published song clip: its re-cut needs review first', $this->sanitizeArrayForLog([
                 'service_section_id' => $section->id,
-                'reasons' => array_column($soundDoubts, 'kind'),
+                'reasons' => array_column($section->metadata?->raw['song_publication_review']['reasons'] ?? [], 'kind'),
             ]));
 
             return;

@@ -279,7 +279,8 @@ return [
     */
     // Bump when cutting or enhancement behaviour changes. Older assets must be regenerated.
     // 7: per-part speech/music treatment in the cut, public MP3 from the same sound (§6.3).
-    'media_processing_version' => 7,
+    // 8: music is given a plain gain where loudnorm cannot land its target (SectionAudioTreatment::plainGain).
+    'media_processing_version' => 8,
 
     'video_extraction' => [
         'reencode_crf' => (int) env('VIDEO_EXTRACTION_REENCODE_CRF', 23),

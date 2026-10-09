@@ -851,4 +851,22 @@ class SongPublicationHandlerTest extends TestCase
         Storage::disk('public')->assertExists('sections/missed.mp4');
         $this->assertSame([SongPublicationReviewPolicy::LOUDNESS_MISSED], array_column($recut->metadata->raw['song_publication_review']['reasons'], 'kind'));
     }
+
+    #[Test]
+    public function review_refresh_does_not_replace_a_song_with_new_content_doubts(): void
+    {
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+        $section = $this->makePublishableSection(Song::factory()->create(), 'sections/old.mp4');
+        $section->forceFill(['start_time' => 600.0, 'end_time' => 840.0, 'duration' => 240.0])->save();
+        Storage::disk('public')->put('sections/old.mp4', 'accepted-song');
+        $this->handler->publish($section->fresh());
+        Storage::disk('public')->put('sections/new.mp4', 'short-fragment');
+        $section->refresh()->forceFill(['end_time' => 640.0, 'duration' => 40.0])->save();
+        $recut = $this->recut($section, 'sections/new.mp4', $this->candidate());
+        $this->assertTrue($this->handler->requiresApproval($recut));
+        $this->handler->refreshPublished($recut);
+        $video = SongVideo::query()->where('service_section_id', $section->id)->sole();
+        $this->assertSame('accepted-song', Storage::disk('public')->get($video->video_file_path));
+    }
 }

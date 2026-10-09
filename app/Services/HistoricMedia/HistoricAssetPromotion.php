@@ -13,6 +13,7 @@ use App\Models\SongVideo;
 use App\Services\Import\HistoricSermonPublicationService;
 use App\Services\Media\RecordedVideoOutput;
 use App\Services\Sermon\SermonPromotionAssets;
+use App\Support\PublicationCandidate;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Filesystem\FilesystemAdapter;
@@ -497,13 +498,21 @@ final class HistoricAssetPromotion
     {
         return ServiceSection::query()
             ->where('media_processing_log_id', $log->id)
-            ->where('publication_status', ServiceSectionPublicationStatus::PendingApproval->value)
+            ->whereIn('publication_status', [
+                ServiceSectionPublicationStatus::PendingApproval->value,
+                ServiceSectionPublicationStatus::Published->value,
+            ])
             ->where(function (Builder $query): void {
                 $query->whereNotNull('extracted_video_path')
                     ->orWhereNotNull('extracted_audio_path');
             })
             ->orderBy('id')
-            ->get();
+            ->get()
+            // A published section is here only for a replacement held for review: its published song
+            // promotes through its own record.
+            ->filter(static fn (ServiceSection $section): bool => $section->publication_status === ServiceSectionPublicationStatus::PendingApproval
+                || PublicationCandidate::isUnpublishedReplacement($section))
+            ->values();
     }
 
     /**
@@ -740,7 +749,8 @@ final class HistoricAssetPromotion
 
             $section = ServiceSection::query()->whereKey($locked->service_section_id)->lockForUpdate()->first();
 
-            if ($section instanceof ServiceSection) {
+            // A held replacement owns the section's media; the published song keeps its own record.
+            if ($section instanceof ServiceSection && ! PublicationCandidate::isUnpublishedReplacement($section)) {
                 if (filled($section->asset_disk) && ! in_array($section->asset_disk, [$staging, $quarantine], true)) {
                     throw new RuntimeException("Service section {$section->getKey()} is already owned by disk {$section->asset_disk}.");
                 }
