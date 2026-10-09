@@ -1647,11 +1647,17 @@ song" (a section identity/content problem, not the cut; open).
 `additional_song_matches`, clip not re-cut, still held (canary 13 framing reason); OoS item 10187 "I Will Sing
 of the Lamb" has no catalogue song while its "Of" siblings do (title normalisation, §8.9).
 
-### 6.3 Audio processing plan — 2026-10-08 (operator: plan only, NOT built)
+### 6.3 Audio processing plan — 2026-10-08 (reviewed and expanded; plan only, NOT built)
 
 **Trigger.** Canary 14, 1292: the reading part of the sermon video plays at −47.4 LUFS against the sermon's
 −26.9 (20.5 LU). Operator ruling: **normalise each part separately, every sermon part to −16 LUFS** (option a;
 not "match parts to the sermon"), and consider other audio processing at the same time.
+
+**Review scope and evidence.** Codex checked the current code and saved canary 14 rulings: 21/22 accepted;
+1282 §3526 remains a section identity problem. No independent listening or loudness measurement was performed
+in that review. The measurements below are the existing survey, not newly verified results. This update
+records the subsequent operator agreement on shared speech/music profiles and the additional improvements;
+it does not authorise implementation, re-extraction, publication or changes to the transcription pipeline.
 
 **What exists today (traced 10-08):**
 - **Sermon videos: no audio processing.** `VideoExtractionService::extractConcatenatedSegmentAsFile` trims and
@@ -1660,34 +1666,214 @@ not "match parts to the sermon"), and consider other audio processing at the sam
 - **Part spread in multi-part sermons** (canaries 13–14, sermon part = first 10 min): 1292 20.5 LU, 1250 10.3,
   936 6.4, 1012 5.9, 1200 5.3, 949 5.2; the other 13 are 0.1–3.6 LU.
 - **Song clips:** normalised only at publication (`SongPublicationHandler` → `AudioEnhancementService::enhanceVideo`):
-  `afftdn=nr=10:nf=-25`, `dynaudnorm`, two-pass `loudnorm` to −16 LUFS / TP −1.5 / LRA 11, skipped when within
-  2 LU. Quarantine candidates — what listening pages play — are not normalised, so listening does not hear
-  the published sound.
+  `afftdn=nr=10:nf=-25`, `dynaudnorm`, then `loudnorm` configured for −16 LUFS / TP −1.5 / LRA 11. Within
+  2 LU, only loudness correction is skipped: the preceding filters still run. The two-pass measurement is
+  also inconsistent with those preceding filters (details below). Quarantine candidates — what listening
+  pages play — are not normalised, so listening does not hear the published sound.
 - **Talk clips** (`TalkPublicationHandler`): no enhancement.
-- **Sermon MP3** (public sermon page, API and podcast feed): `extractOptimizedAudio` with the *transcription*
-  settings — 48 kbps, 16 kHz, mono (`audio_extraction.transcription_optimized`). Nothing above 8 kHz reaches
-  listeners or podcast apps.
+- **Video-derived sermon MP3** (public sermon page, API and podcast feed): `extractOptimizedAudio` uses the
+  *transcription* profile's 48 kbps mono setting, its 25 MB size limit and its 32 kbps fallback. **Correction
+  to the original finding:** although configuration contains `sample_rate => 16000`,
+  `TranscriptionAudioProfile::optimized()`/`fallback()` do not return it and `AudioCompressionService`
+  does not apply it. The claimed 16 kHz output and consequent 8 kHz cutoff are therefore unverified; probe
+  actual files before claiming either. This finding does not establish the format of every historic or
+  audio-upload sermon. `ExtractSermon` currently makes the MP3 from the already AAC-encoded sermon video,
+  adding another lossy generation.
 - **Service audio for transcription** (`EnhanceAudio` job): its own pass; out of scope here.
 
-**Planned change (ruled):** in the sermon encode, run each part's audio through the existing enhancement chain
-(measure each part with `-ss/-t`, then noise reduction → `dynaudnorm` → linear two-pass `loudnorm` to −16 LUFS)
-*before* `concat`, so a quiet reading cannot be averaged away by a long sermon. Applies to every sermon output,
-single-part included. Bump `MediaProcessingVersion` (sermons always re-encode, so no extra re-encoding).
-Cost: one audio-only measuring pass per part. Risk to check by ear: 1292's reading gets ~+31 dB and its room
-noise with it — compare with and without `afftdn` on that part before choosing.
+#### 6.3.1 Agreed direction: shared cutting, two audio profiles
 
-**Other processing to decide at the same time (questions, not rulings):**
-1. **Talks** — apply the same per-part chain to short-talk clips? They are speech, like sermons.
-2. **Songs** — normalise at cut time rather than only at publication, so quarantine (and listening) hears what
-   publishes; and check order: publication `dynaudnorm` runs *after* the cut's `afade`, so it can partly undo the
-   fade (it raises quiet passages). Also question `dynaudnorm` on music at all (it flattens dynamics).
-3. **Sermon MP3 quality** — the public file uses transcription settings (16 kHz mono 48 kbps). A listening
-   setting (e.g. 44.1 kHz mono, 64–96 kbps) would be a separate profile from transcription's.
-4. **Joins** — a few-millisecond fade at each concat join to rule out clicks (none heard so far; measure first).
-5. **Speech EQ** — a gentle high-pass (~80 Hz) for hum/rumble on speech parts; measure on the quiet readings.
+- **One shared cutter, encoder orchestration and validation path.** Shared cutting is desirable.
+  `extractSegmentAsFile` delegates to `extractConcatenatedSegmentAsFile` for songs and talks too, so the
+  caller must identify the content/profile explicitly; do not apply a sermon chain unconditionally there.
+- **Speech profile:** sermons, included readings and short talks. Normalise each selected part separately
+  before joining, including single-part outputs. Retain the ruled −16 LUFS target for sermon parts; use the
+  shared speech profile for talks, with final settings validated by listening. Whole-file normalisation alone
+  does not ensure that a quiet reading and a louder sermon match.
+- **Music profile:** preserve genuine stereo and musical dynamics. Compare loudness correction alone with
+  the existing chain before retaining automatic denoising or `dynaudnorm` for music. Music-specific loudness,
+  dynamics and treatment settings remain to be selected; do not inherit them accidentally from speech.
+- **Review the published sound:** process candidates before listening, then promote those processed assets
+  without a second enhancement pass at publication. Apply intentional song-ending fades after dynamic
+  processing so subsequent gain adjustment cannot undo them. Verify the final faded output.
+- **Separate listening and transcription outputs:** provide a dedicated public MP3 profile without the
+  transcription size cap or low-bitrate fallback. Sample rate and bitrate remain listening-test choices
+  (the earlier 44.1 kHz mono / 64–96 kbps suggestion is a candidate, not a ruling). Generate video AAC and
+  public MP3 directly from the same full-quality processed audio, via a shared filter graph or a lossless
+  intermediate; avoid AAC-to-MP3 transcoding. Preserve the same selected content and joins in both formats.
+- Bump `MediaProcessingVersion` when implementing processing changes and bind reuse to the effective
+  profile/settings through existing provenance mechanisms. Existing published files are not repaired merely
+  by changing configuration; any regeneration or replacement remains a separately scoped operation.
 
-**Before building:** measure on the six high-spread sermons and three typical ones (before/after LUFS per part,
-true peak, noise floor), then a short listening page of before/after excerpts — 1292's reading first.
+#### 6.3.2 Findings that must be resolved before reusing the existing chain
+
+1. **Measure the signal actually being normalised.** `AudioEnhancementService::measureLoudness()` measures
+   raw input, but `buildFilterChain()` then applies `afftdn` and `dynaudnorm` before using those statistics.
+   Both passes must use identical selected spans, channel handling and preceding treatments. A raw-source
+   measurement is useful for diagnosis, but cannot substitute for the processed first-pass measurement.
+2. **Do not copy the tolerance shortcut.** The current within-2-LU branch omits `loudnorm` while retaining
+   filters that can change the level. Define an output tolerance and verify the encoded result; do not
+   assume that an input within tolerance remains there after processing.
+3. **Linear mode is conditional.** `linear=true` can fall back to dynamic mode when peak or loudness-range
+   constraints cannot be met. Record the actual mode and check its audible result rather than promise
+   purely linear gain. Keep an explicit output sample rate rather than inheriting an internal resampling rate.
+4. **Invalid measurements must remain invalid.** Measurement currently does not check FFmpeg process success,
+   and `parseLoudnormJson()` converts nonnumeric values to zero. Check successful completion and finite,
+   meaningful statistics; define handling for silence and unmeasurable/very short parts. Do not fabricate
+   valid-looking values. The existing single-pass/original-file fallbacks must not silently claim a
+   successfully normalised output: define a visible failure/review outcome or verify any chosen fallback.
+5. **Protect the corrected cuts and timing.** Preserve selected spans, paired picture/sound and existing
+   source-aware timing checks. Account for filter buffering and timestamp rebuilding in the shared pipeline;
+   audio improvements must not move words, shorten parts, introduce gaps or disturb synchronisation.
+
+These findings are grounded in `app/Services/Media/Audio/AudioEnhancementService.php`,
+`TranscriptionAudioProfile.php`, `AudioCompressionService.php`,
+`app/Services/Media/Video/VideoExtractionService.php`, `app/Jobs/ExtractSermon.php`,
+`PrepareSectionPublicationCandidates.php` and the song/talk publication handlers. FFmpeg documents
+[loudnorm's mode constraints and mono measurement](https://ffmpeg.org/ffmpeg-filters.html#loudnorm) and
+[dynaudnorm's gain, threshold and channel controls](https://ffmpeg.org/ffmpeg-filters.html#dynaudnorm).
+
+#### 6.3.3 Agreed additions and conditional treatments
+
+- **Quiet speech and pauses:** tune denoising against representative recordings rather than blindly copying
+  `afftdn=nr=10:nf=-25`. Bound dynamic gain and use suitable thresholds to avoid raising near-silence and room
+  noise between sentences. Avoid hard gating that removes quiet words. For 1292, the nominal gain from
+  −47.4 to −16 is about 31 dB; the intelligibility and noise consequences require listening.
+- **Deliberate channel handling:** inspect for genuine stereo, duplicated mono, weak/noisy channels and
+  cancellation on downmix. Choose the speech mix before loudness measurement; preserve stereo for music.
+  Account consistently for mono played through two speakers (including assessing `dual_mono`) when matching
+  podcast and video loudness. Do not select or discard a channel solely because it is louder.
+- **Hum removal — included as an optional treatment:** assess persistent mains hum and harmonics, including
+  50 Hz and 100 Hz; use narrow filters only where supported by the recording. Configure per recording within
+  either profile. Do not indiscriminately remove musical energy at those frequencies.
+- **De-essing — included as an optional treatment:** gentle treatment for harsh speech sibilance; separately
+  configurable for music to avoid dulling singing or cymbals. Strength is recording-dependent. Include both
+  hum removal and de-essing before final loudness normalisation and in its measurement pass. Their exact order
+  relative to other treatments is to be validated, not assumed from this list.
+- **Speech compression:** compare gentle compression with `dynaudnorm` if within-part speech remains uneven;
+  do not automatically stack both. Preserve natural emphasis and judge noise pumping by ear.
+- **Speech high-pass:** assess a gentle filter around 80 Hz for demonstrated rumble; it is not a substitute
+  for identifying tonal hum and is not a blanket music setting.
+- **Clicks and joins:** use repair only for actual clicks. Consider very short join fades only if measurement
+  or listening establishes a need; none were reported in canary 14. Preserve word audibility and picture/sound
+  timing, and do not introduce an overlapping crossfade that changes duration without addressing both streams.
+
+The operator agreed to the additional improvements and specifically requested that hum removal and
+de-essing be available when needed. This is agreement on capability, not on enabling every filter by default
+or on untested thresholds, strengths, automatic detection rules or a new operator UI.
+
+#### 6.3.4 Measurement, listening and implementation acceptance
+
+**Before implementation:** retain the six high-spread sermons (1292, 1250, 936, 1012, 1200, 949) and select
+three typical ones before comparison. Measure complete selected parts, not only the initial survey's first
+ten minutes of sermon. Add a representative humming recording, a sibilant speaker and music examples with
+quiet passages and intentional fades; these may overlap the sermon sample where appropriate. If no suitable
+example exists, record that evidence gap rather than declare the optional treatment validated.
+
+Use source and candidate measurements for per-part integrated loudness, true peak, loudness range, channel
+format and noise floor (with identified nonspeech windows). Probe actual current MP3 sample rates/bitrates.
+Distinguish raw diagnostic measurements, the processed normalisation first pass and final-file verification.
+Processing cost includes a measuring pass per part, the selected treatments and verification; the original
+"one measuring pass" estimate is not a complete cost estimate for this expanded scope.
+
+Build a short before/after listening comparison starting with 1292's reading: loudness-only, loudness plus
+denoising, and the full proposed speech chain. Match playback loudness when judging treatment quality so
+"louder" is not mistaken for "clearer"; also listen to actual final reading/sermon joins to judge consistency.
+Compare hum removal and de-essing on/off on the affected examples, including speech intelligibility,
+sibilance, noise between sentences, musical dynamics and fades. Finalise settings from these results.
+
+**When implementation is authorised:** add reproducing tests for the existing measurement/tolerance defects,
+then test profile selection, identical first/second-pass preprocessing, silence/invalid measurements,
+publication without double processing and the separate listening/transcription outputs. Include real FFmpeg
+fixtures for the processing outcome and timing, not only assertions about command strings. Follow the repo's
+normal quality gates.
+
+Verify the **encoded AAC and MP3 outputs**, not just filter statistics: per-part loudness (including parts
+within the joined result), true peak after lossy encoding, correct sample rate/channel layout, duration,
+complete opening/closing words and synchronisation. Retain −1.5 dBTP as the existing starting ceiling to test;
+set explicit acceptable loudness/peak tolerances before accepting the experiment. Flag silence, invalid
+measurements and failed output checks visibly. Recheck the clean canary joins after processing changes.
+
+#### 6.3.5 Completion record — §6.3 built (2026-10-08, uncommitted on local `master` after `a7d3c28a9`)
+
+**Built, with defaults = the ruled change only** (every speech part to −16 LUFS on its own; every optional treatment
+off until listening rules). `MediaProcessingVersion` 6 → 7; the signature now includes `audio_treatment`.
+- `VideoExtractionService::extractMedia()` is the one production cutter: callers name an `AudioProfile`
+  (`ExtractSermon` speech; candidates take `SectionPublicationHandler::audioProfile()`: songs music, short talks speech).
+  Each part is measured by `SectionAudioTreatment::measure()` through exactly the trim and filters the encode applies
+  (`AudioTreatmentSettings::preprocessing()` is the single source; level-dependent treatments run after a working
+  gain to −23 LUFS from a separate raw pass), then normalised (two-pass `loudnorm`, `dual_mono` for speech) before
+  `concat`. A song's fade runs after normalisation. The old string-returning cut methods remain as explicit
+  untreated cuts (smart-cut timing tests).
+- Speech is mixed to one channel; the video gets it on both channels at full level (`pan`, because FFmpeg's own
+  upmix lowered each by 3 dB: caught by verification). The public MP3 is split (`asplit`) from the same treated
+  sound in the same encode: one channel of the identical pair (summing them added 3 dB), 96 kbps / 44.1 kHz
+  (config `audio_treatment.public_mp3`, a listening choice). No transcription size cap or fallback; nothing
+  transcribes the livestream sermon MP3 (sermon transcripts come from the service transcript). `IdentifySpeaker`
+  does read it: watch speaker matching on the next canary.
+- Every treated part of the encoded AAC and MP3 is re-measured (`verify()`): ±1.0 LU of target and true peak ≤
+  ceiling +1.0 dB, else `VideoProcessingException`. Invalid measurements stay invalid (process failure, `-inf`,
+  non-numeric → part untreated, never zeros). Silent (≤ −70 LUFS), too-short (< 3 s) or too-quiet (gain > max)
+  parts are left as recorded and reported; for sermons that raises the non-disqualifying hold
+  `sermon_audio_part_untreated` (`FlagSermonAudioPartUntreated`, catalogued, S4).
+- The report (`settings`, per part: raw/processed first pass, working gain, actual `loudnorm` mode read from the
+  encode and matched to its part by measured input, expected mode, video/MP3 verification) is stored in
+  `processing_metadata.audio_treatment` (sermon; `public_audio` replaces `audio_compression`) and
+  `publication_candidate_extraction.audio_treatment` (sections).
+- Songs: `SongPublicationHandler` no longer calls `enhanceVideo`; it promotes the candidate unchanged and refuses
+  one not cut under the current `MediaProcessingVersion`. Candidate reuse now also requires the current signature
+  and the same effective audio settings.
+- Per-recording treatment: `sail artisan media:audio-treatment {run} {speech|music} --set=hum_hz=50
+  --set="de_ess=i=0.5:m=0.5:f=0.5" [--unset=key] [--clear]` writes `processing_metadata.audio_treatment_overrides`;
+  the stored sermon video records the overrides it was cut with and a change authorises its replacement.
+- Not changed: `AudioEnhancementService::enhance()` / `EnhanceAudio` (transcription; its raw-measurement and
+  tolerance-skip defects remain there, out of scope); `HistoricSermonAudioRegeneration` still makes MP3s with the
+  transcription profile from the AAC video (separate repair tool, not used by the pipeline).
+  `AudioEnhancementService::enhanceVideo()` is now unused by app code (deletion would remove its tests: operator).
+
+**Evidence (read-only).** Staged sources are gone after Tier C, so the survey measured the stored sermon videos
+part by part (`storage/scratch/audio-6.3/measure.php` → `measure.json`; 953/1110 videos unreachable). Current public
+MP3s probe as mono 48 kbps at 48 or 44.1 kHz (Codex's correction confirmed: not 16 kHz). All sources are
+effectively mono (L−R ≥ 28 dB below L+R; no cancellation risk). Many sources are gated (5th-percentile 100 ms
+windows at digital silence). Hum: 1025 part 1 has a 50 Hz line +15 dB over neighbours, 949/936 +5–8 dB.
+Sibilance: 1012 sermon, 1025 brightest. Rumble: 961. Real 1292 through the production path (stored video, parts at
+their offsets, loudness only): reading −44.5 LUFS (dual mono) and sermon −23.7 → both −16.0 in the AAC, −16.4 in
+the MP3, true peak −1.4/−1.2, both `dynamic` (peaks; the sermon's LRA 14 also exceeds 11); timing check passed;
+317 s at `ultrafast`. Expected and actual mode agreed on all 23 real runs. A quiet song opening also goes dynamic
+under the music profile.
+
+**Listening page:** https://claude.ai/artifact/FpyYPEGAoBZ2fGX8P1XEAN (11 items, `rulings`, build
+`storage/scratch/audio-6.3/page`; clips cut by production `extractMedia()` via `real/run.php`, loudness-matched
+within 0.3 LU, speed default 1×): the 1292 join today vs built; four speech chains (A loudness only, B + today's
+afftdn, C high-pass + noise-tracking afftdn + bounded dynaudnorm, D same with a compressor) on 1292's reading, a
+typical sermon (936) and a quiet talk (1028); hum on/off (1025, 949), de-esser (1012), high-pass (961); music
+loudness-only vs today's chain (1221 "The King Of Love" start and faded end); MP3 48/64/96 kbps.
+**Next:** operator listens → set the chosen defaults in `audio_treatment` (each a version-signature change) →
+canary with the speech/music changes (check verification failures, untreated holds, speaker ID, joins).
+
+**Round 1 rulings (operator, 2026-10-08; `storage/app/private/audio-6.3-20261008/listening-rulings/`):** 1292 join levels
+match but the raised reading is too noisy; speech chain: 1292 reading B (strong afftdn), 936 sermon C ("B sounds quite
+muffled"), 1028 talk A (none); hum ×2, de-esser, high-pass: no real difference (stay off, per-recording capability kept);
+music A (loudness only) at start and fade; MP3 48 kbps fine → `public_mp3` set to 48 kbps / 48 kHz.
+**Follow-up built (operator chose "noise-adaptive, then verify"; deleted `enhanceVideo()` with its tests on request):**
+the three picks follow one measurement, the level of the gaps between words relative to the part's loudness
+(`SectionAudioTreatment::pauseLevel()`, 10th-percentile 100 ms RMS minus integrated): 1292 reading −27 → strong, 936
+−37 → gentle, 1028 gated (−89) → none. `audio_treatment.speech.denoise_by_pause` = strong above −32, gentle above −60,
+else none; per-recording `denoise` (or `off`) replaces it; the chosen denoise and pause level are in each part's report.
+Levelling stays off. Across the 37 canary parts measured (runs to 1273; 1282–1362 not yet): only runs 1012–1112 are
+gated (≤ −87); the others sit −27 to −42.6, several near −32 (936 p1 −29.7, 949 −30.2/−30.5, 1200 p1 −30.5, 1250 p1–p3
+−29.4 to −31.4, 964 p1 −33.4); `real/pauses.txt`. (An earlier note here said every run from 1012 on was gated: wrong.)
+**Round 2 page:** https://claude.ai/artifact/GJ29eNrd8TQH2dNTk6seEy (10 items, blind shuffled versions; key in
+`storage/scratch/audio-6.3/round2/key.json`): none/gentle/strong on 936 p1, 949 p2, 964 p1, 961 p2, 964 p2, 1292 p2,
+1050 (gated); levelling with/without on 936 p1, 961 p2, 1292 p2. Next: score against the rule, adjust thresholds, canary.
+
+**Round 2 rulings (operator, 2026-10-09, blind; `storage/app/private/audio-6.3-20261008/round2-rulings/`):** the rule's
+pick matched 6/7: strong at 936 p1 (−29.7); gentle at 964 p1 (−33.4), 961 p2, 964 p2, 1292 p2 (−38.2/−38.5; none
+"indistinguishable" on 1292 p2); none on gated 1050 (gentle indistinguishable, strong "bad"). Miss: 949 p2 (−30.5) gentle
+over strong ("less noise but too muddy"). Levelling: no difference twice, slightly better once (1292 p2) → stays off.
+**Strong threshold moved −32 → −30** (fits all ten speech rulings; the 936/949 gap is only 0.8 dB, and the line sits on the
+gentle side because strong's failure, muddy speech, is worse than gentle's residual hiss). At −30, 1250 p2 (−29.4) is
+strong and 1250 p1/p3, 1200 p1 and 949 gentle.
 
 ## 7. Further bounded investigations — added 2026-10-04
 
