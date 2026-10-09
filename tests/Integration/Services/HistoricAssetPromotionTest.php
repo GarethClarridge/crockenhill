@@ -430,6 +430,35 @@ class HistoricAssetPromotionTest extends TestCase
         $this->assertFalse($log->fresh()?->permitsPromotionVideoReplacement());
     }
 
+    /**
+     * A candidate's directory is stable for its section on purpose: a re-cut overwrites the previous
+     * candidate. A run can re-cut its candidates and park before promotion with no sermon re-cut, so
+     * nothing carries sermon replacement authority; the section's own new cut must still replace its
+     * superseded quarantine copy (run 1108, canary 13).
+     */
+    #[Test]
+    public function a_recut_section_candidate_replaces_its_superseded_copy_without_sermon_authority(): void
+    {
+        [$log] = $this->historicRun();
+        $this->stage('sermons/video/pilot.mp4', 'sermon bytes');
+        Storage::disk('historic_quarantine')->put('sermons/video/pilot.mp4', 'sermon bytes');
+        $path = 'section-publications/77-abc/video.mp4';
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
+            'asset_disk' => 'historic_quarantine',
+            'extracted_video_path' => $path,
+        ]);
+        Storage::disk('historic_quarantine')->put($path, 'the canary 12 cut');
+        Storage::disk('historic_staging')->put($path, 'the canary 13 re-cut');
+
+        app(HistoricAssetPromotion::class)->promoteRun($log->fresh());
+
+        $this->assertSame('the canary 13 re-cut', Storage::disk('historic_quarantine')->get($path));
+        Storage::disk('historic_staging')->assertMissing($path);
+    }
+
     #[Test]
     public function it_fails_when_a_verified_working_copy_cannot_be_deleted(): void
     {

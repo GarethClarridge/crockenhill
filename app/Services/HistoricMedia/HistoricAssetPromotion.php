@@ -129,7 +129,7 @@ final class HistoricAssetPromotion
         }
 
         foreach ($this->heldSectionCandidatesForRun($log) as $section) {
-            $result = $this->promoteHeldSectionCandidate($section, $log, $replacementAuthorised);
+            $result = $this->promoteHeldSectionCandidate($section, $log);
 
             $totals['held_section_candidates']++;
             $totals['assets_promoted'] += $result['assets_promoted'];
@@ -517,7 +517,6 @@ final class HistoricAssetPromotion
     private function promoteHeldSectionCandidate(
         ServiceSection $section,
         MediaProcessingLog $log,
-        bool $replacementAuthorised = false,
     ): array {
         $quarantineName = $this->transfer->targetDiskName();
         $staging = Storage::disk($this->staging->stagingDisk());
@@ -571,8 +570,14 @@ final class HistoricAssetPromotion
             );
         }
 
+        /**
+         * A candidate's directory is stable for its section so that a re-cut overwrites the previous
+         * candidate; the working copy found here is therefore the section's newest cut, whatever the
+         * run did to its sermon. Sermon replacement authority is not needed, and a run that re-cut
+         * its candidates and parked before promotion (1108) would never have had it.
+         */
         if ($pending !== []) {
-            $this->transfer->copyPipelineAssetsToDestinations($pending, $destinations, $replacementAuthorised);
+            $this->transfer->copyPipelineAssetsToDestinations($pending, $destinations, true);
         }
 
         $this->bindSectionCandidateToQuarantine($section, $quarantineName, $stagingName);
