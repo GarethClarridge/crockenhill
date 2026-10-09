@@ -368,6 +368,9 @@ return [
         'public_mp3' => [
             'bitrate_kbps' => 48,
             'sample_rate' => 48000,
+            // A lossy encode overshoots its input at a transient (canary 15 preflight: video −1.1, MP3 +0.3 dBTP at
+            // 48 kbps). The MP3 is held only above this; the video keeps the treatment ceiling plus its tolerance.
+            'true_peak_ceiling_db' => 1.0,
         ],
     ],
 

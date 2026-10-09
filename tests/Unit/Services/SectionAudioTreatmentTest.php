@@ -14,6 +14,7 @@ use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
@@ -182,6 +183,40 @@ class SectionAudioTreatmentTest extends TestCase
 
         $this->assertMatchesRegularExpression('/^integrated -\d+(\.\d)? LUFS, target -16\.0 ±1\.0$/', $results[0]['misses'][0]);
         $this->assertLessThan(-30.0, $results[0]['integrated'], 'The measurement is kept for the reviewer.');
+    }
+
+    /**
+     * A lossy encode overshoots its input at a transient: canary 15 preflight measured +2.3 dB at 48 kbps
+     * (run 1250 part 2: video −1.1, MP3 +0.3 dBTP). A file that is lossy by design is checked against its own
+     * ceiling; the video's stays at the treatment ceiling plus its tolerance.
+     */
+    #[Test]
+    #[DataProvider('truePeaks')]
+    public function a_lossy_file_is_checked_against_its_own_peak_ceiling(float $peak, bool $lossy, bool $missed): void
+    {
+        $settings = AudioTreatmentSettings::for(AudioProfile::Speech);
+        $path = "{$this->sourceDirectory}/peak-{$peak}.wav";
+        $process = new Process(['/usr/bin/ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=6',
+            // lavfi's sine peaks at 0.125 (−18.06 dBFS); float samples can exceed full scale.
+            '-af', sprintf('volume=%FdB', $peak + 18.0618), '-c:a', 'pcm_f32le', $path]);
+        $process->mustRun();
+        $part = new PartLoudness(6.0, ['input_i' => -20.0, 'input_tp' => -5.0, 'input_lra' => 3.0, 'input_thresh' => -30.0, 'target_offset' => 0.0]);
+
+        $result = app(SectionAudioTreatment::class)->verify($path, [$part], $settings, monoFile: true, peakCeiling: $lossy ? 1.0 : null);
+
+        $peakMisses = array_values(array_filter($result[0]['misses'], static fn (string $miss): bool => str_starts_with($miss, 'true peak')));
+        $this->assertSame($missed, $peakMisses !== [], json_encode($result[0]));
+    }
+
+    /** @return array<string, array{float, bool, bool}> */
+    public static function truePeaks(): array
+    {
+        return [
+            'video at −0.2 dBTP misses the −0.5 limit' => [-0.2, false, true],
+            'video at −0.8 dBTP is inside it' => [-0.8, false, false],
+            'MP3 at +0.5 dBTP is inside its +1.0 ceiling' => [0.5, true, false],
+            'MP3 at +1.6 dBTP misses it' => [1.6, true, true],
+        ];
     }
 
     #[Test]

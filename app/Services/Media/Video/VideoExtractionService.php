@@ -184,7 +184,7 @@ class VideoExtractionService
     {
         $modes = $this->audioTreatment->modesFromEncode($encodeOutput, $parts);
         $video = $this->audioTreatment->verify($videoPath, $parts, $settings);
-        $audio = $audioPath !== null ? $this->audioTreatment->verify($audioPath, $parts, $settings, monoFile: $settings->isMono()) : [];
+        $audio = $audioPath !== null ? $this->audioTreatment->verify($audioPath, $parts, $settings, monoFile: $settings->isMono(), peakCeiling: (float) config('media-processing.audio_treatment.public_mp3.true_peak_ceiling_db', 1.0)) : [];
 
         $misses = [];
         foreach ($parts as $index => $part) {

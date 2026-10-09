@@ -169,14 +169,17 @@ class SectionAudioTreatment
      * (§6.3 review). Only a file FFmpeg cannot read at all is refused.
      *
      * @param  list<PartLoudness>  $parts
+     * @param  float|null  $peakCeiling  The highest true peak (dBTP) a file may reach; null for the treatment ceiling plus its tolerance.
+     *                                   A lossy file passes its own: the encoder overshoots its input at a transient.
      * @return list<array{integrated: float|null, true_peak: float|null, misses: list<string>}|null> per part; null where untreated
      *
      * @throws VideoProcessingException When the encoded file cannot be read
      */
-    public function verify(string $encoded, array $parts, AudioTreatmentSettings $settings, bool $monoFile = false): array
+    public function verify(string $encoded, array $parts, AudioTreatmentSettings $settings, bool $monoFile = false, ?float $peakCeiling = null): array
     {
         $tolerance = (float) config('media-processing.audio_treatment.loudness_tolerance_lu', 1.0);
         $peakTolerance = (float) config('media-processing.audio_treatment.true_peak_tolerance_db', 1.0);
+        $peakLimit = $peakCeiling ?? $settings->truePeak + $peakTolerance;
         $results = [];
         $offset = 0.0;
 
@@ -197,8 +200,8 @@ class SectionAudioTreatment
                 $misses[] = sprintf('integrated %s LUFS, target %.1f ±%.1f', $measured['integrated'] ?? 'unmeasurable', $settings->targetLufs, $tolerance);
             }
 
-            if ($measured['true_peak'] === null || $measured['true_peak'] > $settings->truePeak + $peakTolerance) {
-                $misses[] = sprintf('true peak %s dBTP, ceiling %.1f +%.1f', $measured['true_peak'] ?? 'unmeasurable', $settings->truePeak, $peakTolerance);
+            if ($measured['true_peak'] === null || $measured['true_peak'] > $peakLimit) {
+                $misses[] = sprintf('true peak %s dBTP, limit %.1f', $measured['true_peak'] ?? 'unmeasurable', $peakLimit);
             }
 
             $results[] = [...$measured, 'misses' => $misses];
