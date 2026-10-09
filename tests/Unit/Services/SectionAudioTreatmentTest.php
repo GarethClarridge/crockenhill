@@ -169,7 +169,7 @@ class SectionAudioTreatmentTest extends TestCase
     }
 
     #[Test]
-    public function verification_refuses_a_part_that_missed_its_target(): void
+    public function verification_names_each_target_a_part_missed(): void
     {
         $settings = AudioTreatmentSettings::for(AudioProfile::Speech);
         $untouched = $this->service->extractMedia($this->recording(), [self::READING, self::SERMON], null);
@@ -178,10 +178,37 @@ class SectionAudioTreatmentTest extends TestCase
             new PartLoudness(23.0, ['input_i' => -27.0, 'input_tp' => -10.0, 'input_lra' => 3.0, 'input_thresh' => -37.0, 'target_offset' => 0.0]),
         ];
 
-        $this->expectException(VideoProcessingException::class);
-        $this->expectExceptionMessageMatches('/part 1 integrated -\d+(\.\d)? LUFS, target -16\.0/');
+        $results = app(SectionAudioTreatment::class)->verify(Storage::disk('local')->path($untouched->videoPath), $claimed, $settings);
 
-        app(SectionAudioTreatment::class)->verify(Storage::disk('local')->path($untouched->videoPath), $claimed, $settings);
+        $this->assertMatchesRegularExpression('/^integrated -\d+(\.\d)? LUFS, target -16\.0 ±1\.0$/', $results[0]['misses'][0]);
+        $this->assertLessThan(-30.0, $results[0]['integrated'], 'The measurement is kept for the reviewer.');
+    }
+
+    #[Test]
+    public function verification_refuses_a_file_it_cannot_read(): void
+    {
+        $settings = AudioTreatmentSettings::for(AudioProfile::Speech);
+        $part = new PartLoudness(5.0, ['input_i' => -20.0, 'input_tp' => -5.0, 'input_lra' => 3.0, 'input_thresh' => -30.0, 'target_offset' => 0.0]);
+        Storage::disk('local')->put('temp/not-media.mp4', 'not media');
+
+        $this->expectException(VideoProcessingException::class);
+
+        app(SectionAudioTreatment::class)->verify(Storage::disk('local')->path('temp/not-media.mp4'), [$part], $settings);
+    }
+
+    #[Test]
+    public function a_cut_that_misses_its_target_keeps_its_files_and_reports_the_miss(): void
+    {
+        // A tolerance nothing can meet: every treated part misses.
+        Config::set('media-processing.audio_treatment.loudness_tolerance_lu', -1.0);
+
+        $media = $this->service->extractMedia($this->recording(), [self::READING, self::SERMON], AudioProfile::Speech, withPublicAudio: true);
+
+        Storage::disk('local')->assertExists($media->videoPath);
+        Storage::disk('local')->assertExists((string) $media->audioPath);
+        $this->assertCount(4, $media->loudnessMisses(), 'Two parts, each in the video and the MP3.');
+        $this->assertStringStartsWith('part 1 video integrated', $media->loudnessMisses()[0]);
+        $this->assertEqualsWithDelta(-16.0, $media->audio['parts'][1]['video']['integrated'], 1.0);
     }
 
     #[Test]

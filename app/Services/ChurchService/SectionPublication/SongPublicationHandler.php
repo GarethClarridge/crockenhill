@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService\SectionPublication;
 
-use App\Enums\AudioProfile;
 use App\Contracts\SectionPublicationHandler;
 use App\Data\ServiceSectionMetadata;
+use App\Enums\AudioProfile;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\ChurchServiceItem;
 use App\Models\ServiceSection;
@@ -16,6 +16,7 @@ use App\Services\Media\ExtractedMediaDurationProbe;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Song\SongVideoService;
 use App\Support\MediaProcessingVersion;
+use App\Support\PublicationCandidate;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -164,9 +165,8 @@ class SongPublicationHandler implements SectionPublicationHandler
      */
     public function publish(ServiceSection $section): void
     {
-        // Idempotent: skip if a SongVideo already exists for this section.
-        if (SongVideo::query()->where('service_section_id', $section->id)->exists()
-            && ($section->metadata?->raw['song_video_extraction']['media_signature'] ?? null) === $section->mediaSignature()) {
+        // Idempotent: skip when this section's song video was published from this very candidate.
+        if (SongVideo::query()->where('service_section_id', $section->id)->exists() && $this->isPublishedFromCurrentCandidate($section)) {
             Log::info('SongPublicationHandler: SongVideo already exists for section, skipping', $this->sanitizeArrayForLog([
                 'service_section_id' => $section->id,
             ]));
@@ -190,10 +190,11 @@ class SongPublicationHandler implements SectionPublicationHandler
         }
 
         // The candidate already carries the published sound (§6.3): treating it again here
-        // undid song fades and was what listening never heard. One cut before that does not.
-        $candidate = $section->metadata?->raw['publication_candidate_extraction'] ?? [];
-        if (! MediaProcessingVersion::matches(is_array($candidate) ? ($candidate['media_processing'] ?? null) : null)) {
-            throw new \RuntimeException('Song candidate was cut under older media processing; prepare the candidate again before publishing');
+        // undid song fades and was what listening never heard. One cut under other processing,
+        // or before the recording's own audio settings changed, does not.
+        $staleReason = PublicationCandidate::staleReason($section, $this->audioProfile());
+        if ($staleReason !== null) {
+            throw new \RuntimeException('Song candidate '.$staleReason.'; prepare the candidate again before publishing');
         }
 
         $localTempDownload = null;
@@ -223,6 +224,7 @@ class SongPublicationHandler implements SectionPublicationHandler
         $section->extracted_video_path = $promotedPath;
         $metadata = $section->metadata?->toArray() ?? [];
         $metadata['song_video_extraction'] = [
+            'candidate_id' => PublicationCandidate::id($section),
             'media_signature' => $section->mediaSignature(),
             'media_processing' => MediaProcessingVersion::signature(),
             'generated_at' => now()->toIso8601String(),
@@ -239,6 +241,54 @@ class SongPublicationHandler implements SectionPublicationHandler
         $section->published_at = now();
         $section->unpublished_expires_at = null;
         $section->save();
+    }
+
+    /**
+     * Whether the published song video was promoted from the candidate the section
+     * holds now. A re-cut — new bounds, edges, processing or the recording's own
+     * audio settings — gives the candidate a new identity, so the published clip
+     * is stale until it is promoted.
+     */
+    public function isPublishedFromCurrentCandidate(ServiceSection $section): bool
+    {
+        $published = $section->metadata?->raw['song_video_extraction'] ?? null;
+        $candidateId = PublicationCandidate::id($section);
+
+        return is_array($published)
+            && ($published['media_signature'] ?? null) === $section->mediaSignature()
+            && $candidateId !== null
+            && ($published['candidate_id'] ?? null) === $candidateId;
+    }
+
+    /**
+     * Bring a published song up to date with a re-cut candidate.
+     *
+     * Its sound replaces what is public only when nothing about it needs hearing
+     * first: a re-cut left untreated or off target keeps the published clip, and
+     * the doubt is recorded on the section for review.
+     */
+    public function refreshPublished(ServiceSection $section): void
+    {
+        if ($this->isPublishedFromCurrentCandidate($section)) {
+            return;
+        }
+
+        $this->requiresApproval($section);
+        $soundDoubts = array_values(array_filter(
+            $section->metadata?->raw['song_publication_review']['reasons'] ?? [],
+            static fn (mixed $reason): bool => is_array($reason) && in_array($reason['kind'] ?? null, SongPublicationReviewPolicy::SOUND_REASON_KINDS, true),
+        ));
+
+        if ($soundDoubts !== []) {
+            Log::warning('Keeping a published song clip: its re-cut sound needs review first', $this->sanitizeArrayForLog([
+                'service_section_id' => $section->id,
+                'reasons' => array_column($soundDoubts, 'kind'),
+            ]));
+
+            return;
+        }
+
+        $this->publish($section);
     }
 
     /**

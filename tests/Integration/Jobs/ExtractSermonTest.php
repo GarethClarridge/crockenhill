@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Jobs;
 
 use App\Actions\FlagSermonAudioLengthMismatch;
+use App\Actions\FlagSermonAudioLoudnessMissed;
 use App\Actions\FlagSermonAudioPartUntreated;
 use App\Actions\HoldSectionForContentReview;
 use App\Enums\AudioProfile;
@@ -35,6 +36,7 @@ use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
@@ -1764,8 +1766,12 @@ class ExtractSermonTest extends TestCase
         $this->assertTrue($section->needs_manual_review);
     }
 
+    /**
+     * @param  array<string, mixed>  $report  what the cut's audio treatment reported
+     */
     #[Test]
-    public function it_records_the_audio_treatment_and_holds_a_sermon_with_a_part_left_untreated(): void
+    #[DataProvider('soundNeedingHearing')]
+    public function it_records_the_audio_treatment_and_holds_a_sermon_whose_sound_needs_hearing(array $report, string $flag): void
     {
         $sourceDirectory = storage_path('app/livestreams');
         if (! is_dir($sourceDirectory)) {
@@ -1800,7 +1806,7 @@ class ExtractSermonTest extends TestCase
         ]);
 
         $extractor = $this->createStub(VideoExtractionService::class);
-        $extractor->method('extractMedia')->willReturn(new ExtractedMedia('extracted/untreated-part-video.mp4', 'temp/sermon.mp3', ['settings' => ['profile' => 'speech'], 'parts' => [['untreated_reason' => PartLoudness::Silent]]]));
+        $extractor->method('extractMedia')->willReturn(new ExtractedMedia('extracted/untreated-part-video.mp4', 'temp/sermon.mp3', ['settings' => ['profile' => 'speech'], ...$report]));
         $extractor->method('storePublicAudio')->willReturn([
             'audio_path' => 'extracted/untreated-part.mp3',
             'full_path' => $extractedAudioFile,
@@ -1830,11 +1836,24 @@ class ExtractSermonTest extends TestCase
         $section->refresh();
 
         $this->assertSame('extraction_complete', $log->current_step);
-        $this->assertSame(PartLoudness::Silent, $log->processing_metadata['audio_treatment']['parts'][0]['untreated_reason'] ?? null);
+        $this->assertEquals($report['parts'], $log->processing_metadata['audio_treatment']['parts'] ?? null, 'The measurements are kept for the reviewer.');
+        $this->assertSame('extracted/untreated-part.mp3', $log->audio_file_path);
         $flags = $section->metadata?->toArray()['review_flags'] ?? [];
-        $this->assertContains(FlagSermonAudioPartUntreated::FLAG, $flags);
+        $this->assertSame([$flag], array_values(array_intersect($flags, [FlagSermonAudioPartUntreated::FLAG, FlagSermonAudioLoudnessMissed::FLAG])));
         $this->assertNotContains(FlagSermonAudioLengthMismatch::FLAG, $flags);
         $this->assertTrue($section->needs_manual_review);
+    }
+
+    /** @return array<string, array{0: array<string, mixed>, 1: string}> */
+    public static function soundNeedingHearing(): array
+    {
+        return [
+            'a part left untreated' => [['parts' => [['untreated_reason' => PartLoudness::Silent]], 'loudness_misses' => []], FlagSermonAudioPartUntreated::FLAG],
+            'a part off target' => [
+                ['parts' => [['untreated_reason' => null, 'video' => ['integrated' => -18.4, 'true_peak' => -3.0, 'misses' => ['integrated -18.4 LUFS, target -16.0 ±1.0']]]], 'loudness_misses' => ['part 1 video integrated -18.4 LUFS, target -16.0 ±1.0']],
+                FlagSermonAudioLoudnessMissed::FLAG,
+            ],
+        ];
     }
 
     private function runJob(

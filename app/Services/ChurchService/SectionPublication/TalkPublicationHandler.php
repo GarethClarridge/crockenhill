@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService\SectionPublication;
 
-use App\Enums\AudioProfile;
 use App\Contracts\SectionPublicationHandler;
 use App\Data\SermonCreationOptions;
 use App\Data\ServiceSectionMetadata;
+use App\Enums\AudioProfile;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
@@ -16,6 +16,7 @@ use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\Preacher\TalkSpeakerService;
 use App\Services\Processing\MediaProcessingIdentityResolver;
 use App\Services\Sermon\SermonCreationService;
+use App\Support\PublicationCandidate;
 use App\Support\ServiceSectionConfidence;
 use App\Traits\SanitizesLogData;
 use Illuminate\Support\Facades\Log;
@@ -170,6 +171,13 @@ class TalkPublicationHandler implements SectionPublicationHandler
 
         if (! $section->hasResolvedTalkType()) {
             throw new \RuntimeException('Short talk type must be reviewed before publication');
+        }
+
+        // The candidate is what publishes (§6.3): one cut under other processing, or before
+        // the recording's own audio settings changed, is not what the reviewer meant to release.
+        $staleReason = PublicationCandidate::staleReason($section, $this->audioProfile());
+        if ($staleReason !== null) {
+            throw new \RuntimeException('Talk candidate '.$staleReason.'; prepare the candidate again before publishing');
         }
 
         $section->extracted_video_path = $this->promoteExtractedAsset(

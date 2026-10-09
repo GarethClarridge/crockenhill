@@ -172,10 +172,13 @@ class VideoExtractionService
     /**
      * What was done to each part's sound, and how the encoded files measured.
      *
+     * A part that missed its target in either file keeps its measurements here and
+     * is named in `loudness_misses`; the caller holds the output rather than failing.
+     *
      * @param  list<PartLoudness>  $parts
      * @return array<string, mixed>
      *
-     * @throws VideoProcessingException When a treated part missed its target in either file
+     * @throws VideoProcessingException When an encoded file cannot be read
      */
     private function audioReport(AudioTreatmentSettings $settings, array $parts, string $encodeOutput, string $videoPath, ?string $audioPath): array
     {
@@ -183,8 +186,22 @@ class VideoExtractionService
         $video = $this->audioTreatment->verify($videoPath, $parts, $settings);
         $audio = $audioPath !== null ? $this->audioTreatment->verify($audioPath, $parts, $settings, monoFile: $settings->isMono()) : [];
 
+        $misses = [];
+        foreach ($parts as $index => $part) {
+            foreach (['video' => $video[$index] ?? null, 'public audio' => $audio[$index] ?? null] as $file => $measured) {
+                foreach ($measured['misses'] ?? [] as $miss) {
+                    $misses[] = sprintf('part %d %s %s', $index + 1, $file, $miss);
+                }
+            }
+        }
+
+        if ($misses !== []) {
+            Log::warning('Treated sound missed its loudness target; the output is held for review', ['video_path' => $videoPath, 'misses' => $misses]);
+        }
+
         return [
             'settings' => $settings->toArray(),
+            'loudness_misses' => $misses,
             'parts' => array_map(static fn (PartLoudness $part, int $index): array => [
                 ...$part->toArray(),
                 'mode' => $modes[$index],

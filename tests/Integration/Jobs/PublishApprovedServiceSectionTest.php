@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Jobs;
 
+use App\Enums\AudioProfile;
 use App\Enums\PreacherSource;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
@@ -20,6 +21,7 @@ use App\Services\Sermon\SermonCreationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Support\PublicationCandidateFixture;
 use Tests\TestCase;
 
 class PublishApprovedServiceSectionTest extends TestCase
@@ -57,6 +59,7 @@ class PublishApprovedServiceSectionTest extends TestCase
             'title' => "Children's Talk",
         ]);
         $section->metadata = array_merge($section->metadata?->toArray() ?? [], [
+            'publication_candidate_extraction' => PublicationCandidateFixture::current(AudioProfile::Speech),
             'publication' => [
                 'approved_signature' => $section->classificationSignature(),
                 'approved_at' => now()->toIso8601String(),
@@ -164,6 +167,7 @@ class PublishApprovedServiceSectionTest extends TestCase
             'metadata' => [
                 'confidence_level' => 'high',
                 'classification_mode' => 'openlp_aligned',
+                'publication_candidate_extraction' => PublicationCandidateFixture::current(AudioProfile::Speech),
                 'publication' => [
                     'approved_signature' => 'outdated-signature',
                     'approved_at' => now()->subMinute()->toIso8601String(),
@@ -264,6 +268,7 @@ class PublishApprovedServiceSectionTest extends TestCase
             ],
         ]);
         $section->metadata = array_merge($section->metadata?->toArray() ?? [], [
+            'publication_candidate_extraction' => PublicationCandidateFixture::current(AudioProfile::Speech),
             'publication' => [
                 'approved_signature' => $section->classificationSignature(),
                 'approved_at' => now()->toIso8601String(),
@@ -325,6 +330,7 @@ class PublishApprovedServiceSectionTest extends TestCase
             ],
         ]);
         $section->metadata = array_merge($section->metadata?->toArray() ?? [], [
+            'publication_candidate_extraction' => PublicationCandidateFixture::current(AudioProfile::Speech),
             'publication' => [
                 'approved_signature' => $section->classificationSignature(),
                 'approved_at' => now()->toIso8601String(),

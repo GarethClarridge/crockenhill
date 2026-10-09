@@ -15,7 +15,7 @@ use Symfony\Component\Process\Process;
  * reading at −47 LUFS joined to a sermon at −27 is still 20 LU quieter after any
  * whole-file normalisation. The first pass measures exactly the samples and
  * preceding filters the encode will normalise; the encoded result is measured
- * again, part by part, and refused if it missed the target.
+ * again, part by part, and any target it missed is reported for review.
  */
 class SectionAudioTreatment
 {
@@ -162,22 +162,25 @@ class SectionAudioTreatment
     }
 
     /**
-     * Measure every treated part of the encoded file and refuse one that missed.
+     * Measure every treated part of the encoded file and name each target it missed.
+     *
+     * A miss is a quality doubt about one output, not damage: the files and their
+     * measurements are kept, and the caller holds what it would have published
+     * (§6.3 review). Only a file FFmpeg cannot read at all is refused.
      *
      * @param  list<PartLoudness>  $parts
-     * @return list<array{integrated: float|null, true_peak: float|null}|null> per part; null where untreated
+     * @return list<array{integrated: float|null, true_peak: float|null, misses: list<string>}|null> per part; null where untreated
      *
-     * @throws VideoProcessingException
+     * @throws VideoProcessingException When the encoded file cannot be read
      */
     public function verify(string $encoded, array $parts, AudioTreatmentSettings $settings, bool $monoFile = false): array
     {
         $tolerance = (float) config('media-processing.audio_treatment.loudness_tolerance_lu', 1.0);
         $peakTolerance = (float) config('media-processing.audio_treatment.true_peak_tolerance_db', 1.0);
         $results = [];
-        $failures = [];
         $offset = 0.0;
 
-        foreach ($parts as $index => $part) {
+        foreach ($parts as $part) {
             $start = $offset;
             $offset += $part->duration;
 
@@ -188,19 +191,17 @@ class SectionAudioTreatment
             }
 
             $measured = $this->ebur128($encoded, $start, $part->duration, $monoFile);
-            $results[] = $measured;
+            $misses = [];
 
             if ($measured['integrated'] === null || abs($measured['integrated'] - $settings->targetLufs) > $tolerance) {
-                $failures[] = sprintf('part %d integrated %s LUFS, target %.1f ±%.1f', $index + 1, $measured['integrated'] ?? 'unmeasurable', $settings->targetLufs, $tolerance);
+                $misses[] = sprintf('integrated %s LUFS, target %.1f ±%.1f', $measured['integrated'] ?? 'unmeasurable', $settings->targetLufs, $tolerance);
             }
 
             if ($measured['true_peak'] === null || $measured['true_peak'] > $settings->truePeak + $peakTolerance) {
-                $failures[] = sprintf('part %d true peak %s dBTP, ceiling %.1f +%.1f', $index + 1, $measured['true_peak'] ?? 'unmeasurable', $settings->truePeak, $peakTolerance);
+                $misses[] = sprintf('true peak %s dBTP, ceiling %.1f +%.1f', $measured['true_peak'] ?? 'unmeasurable', $settings->truePeak, $peakTolerance);
             }
-        }
 
-        if ($failures !== []) {
-            throw new VideoProcessingException('Treated sound missed its loudness target in '.basename($encoded).': '.implode('; ', $failures));
+            $results[] = [...$measured, 'misses' => $misses];
         }
 
         return $results;
@@ -263,7 +264,11 @@ class SectionAudioTreatment
         return null;
     }
 
-    /** @return array{integrated: float|null, true_peak: float|null} */
+    /**
+     * @return array{integrated: float|null, true_peak: float|null}
+     *
+     * @throws VideoProcessingException When FFmpeg cannot read the file
+     */
     private function ebur128(string $path, float $start, float $duration, bool $dualMono): array
     {
         $process = new Process([
@@ -277,11 +282,17 @@ class SectionAudioTreatment
         $process->setTimeout(1800);
         $process->run();
         $stderr = $process->getErrorOutput();
-        $summary = substr($stderr, (int) strrpos($stderr, 'Summary:'));
-        $integrated = preg_match('/I:\s+(-?[\d.]+) LUFS/', $summary, $i) ? (float) $i[1] : null;
-        $peak = preg_match('/Peak:\s+(-?[\d.]+) dBFS/', $summary, $p) ? (float) $p[1] : null;
 
-        return ['integrated' => $process->isSuccessful() ? $integrated : null, 'true_peak' => $process->isSuccessful() ? $peak : null];
+        if (! $process->isSuccessful()) {
+            throw new VideoProcessingException('FFmpeg could not measure the treated sound of '.basename($path).' at '.$this->seconds($start).' s: '.substr($stderr, -500));
+        }
+
+        $summary = substr($stderr, (int) strrpos($stderr, 'Summary:'));
+
+        return [
+            'integrated' => preg_match('/I:\s+(-?[\d.]+) LUFS/', $summary, $i) ? (float) $i[1] : null,
+            'true_peak' => preg_match('/Peak:\s+(-?[\d.]+) dBFS/', $summary, $p) ? (float) $p[1] : null,
+        ];
     }
 
     /** Mono speech is played on two speakers, so it is measured as such (EBU R128 dual mono). */

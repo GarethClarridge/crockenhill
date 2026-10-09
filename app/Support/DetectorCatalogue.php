@@ -8,6 +8,7 @@ use App\Actions\FlagIncompleteSermonEvidence;
 use App\Actions\FlagPublishedReferenceContradictsSermon;
 use App\Actions\FlagSectionTruncatedBySource;
 use App\Actions\FlagSermonAudioLengthMismatch;
+use App\Actions\FlagSermonAudioLoudnessMissed;
 use App\Actions\FlagSermonAudioPartUntreated;
 use App\Actions\FlagSermonPartsNotExtracted;
 use App\Actions\FlagSermonTextPredatesEvidence;
@@ -629,6 +630,16 @@ class DetectorCatalogue
                 owningClass: FlagSermonAudioPartUntreated::class,
             ),
             new DetectorEntry(
+                id: 'sermon-audio-loudness-missed',
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: [FlagSermonAudioLoudnessMissed::FLAG],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::TechnicalQuality,
+                unit: DetectorUnit::Sermon,
+                summary: 'A treated sermon part measured outside its loudness or peak target after the encode, so it may sound louder or quieter than the parts around it.',
+                owningClass: FlagSermonAudioLoudnessMissed::class,
+            ),
+            new DetectorEntry(
                 id: 'sermon-parts-not-extracted',
                 surface: DetectorSurface::SectionReviewFlag,
                 signals: [FlagSermonPartsNotExtracted::FLAG],
@@ -745,6 +756,26 @@ class DetectorCatalogue
                 summary: 'One clip contains more than one song and the section is assigned to a single identity.',
                 owningClass: SongPublicationReviewPolicy::class,
                 regressionCases: ['§3869 run 1304 SongVideo 371', '§1276 video 172'],
+            ),
+            new DetectorEntry(
+                id: 'song-sound-untreated',
+                surface: DetectorSurface::SongPublicationReview,
+                signals: ['song_sound_untreated'],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::TechnicalQuality,
+                unit: DetectorUnit::Section,
+                summary: 'The song clip was left at its recorded loudness because it was silent, too short to measure or needed more gain than allowed.',
+                owningClass: SongPublicationReviewPolicy::class,
+            ),
+            new DetectorEntry(
+                id: 'song-loudness-missed',
+                surface: DetectorSurface::SongPublicationReview,
+                signals: ['song_loudness_missed'],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::TechnicalQuality,
+                unit: DetectorUnit::Section,
+                summary: 'The treated song clip measured outside its loudness or peak target after the encode.',
+                owningClass: SongPublicationReviewPolicy::class,
             ),
             new DetectorEntry(
                 id: 'song-short-clip',

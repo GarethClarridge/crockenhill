@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Jobs;
 
+use App\Enums\AudioProfile;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
@@ -15,10 +16,10 @@ use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
-use App\Support\MediaProcessingVersion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Support\PublicationCandidateFixture;
 use Tests\TestCase;
 
 class AutoPublishServiceSectionTest extends TestCase
@@ -59,7 +60,7 @@ class AutoPublishServiceSectionTest extends TestCase
             'metadata' => [
                 'confidence_level' => 'high',
                 'classification_mode' => 'openlp_aligned',
-                'publication_candidate_extraction' => ['media_processing' => MediaProcessingVersion::signature()],
+                'publication_candidate_extraction' => PublicationCandidateFixture::current(AudioProfile::Music),
             ],
         ]);
 
@@ -181,7 +182,7 @@ class AutoPublishServiceSectionTest extends TestCase
             'metadata' => [
                 'confidence_level' => 'high',
                 'classification_mode' => 'openlp_aligned',
-                'publication_candidate_extraction' => ['media_processing' => MediaProcessingVersion::signature()],
+                'publication_candidate_extraction' => PublicationCandidateFixture::current(AudioProfile::Music),
             ],
             'needs_manual_review' => false,
         ]);

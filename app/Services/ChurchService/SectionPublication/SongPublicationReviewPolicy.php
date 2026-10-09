@@ -50,6 +50,13 @@ class SongPublicationReviewPolicy
      */
     private const SWALLOWING_MINIMUM_SECONDS = 360.0;
 
+    public const string SOUND_UNTREATED = 'song_sound_untreated';
+
+    public const string LOUDNESS_MISSED = 'song_loudness_missed';
+
+    /** Reasons about the clip's sound rather than its content (§6.3). */
+    public const array SOUND_REASON_KINDS = [self::SOUND_UNTREATED, self::LOUDNESS_MISSED];
+
     public function __construct(
         private readonly SongPublicationBoundaryEvidenceService $boundaryEvidence,
     ) {}
@@ -156,6 +163,49 @@ class SongPublicationReviewPolicy
                     'The recording is graded %s and no other source corroborates this item.',
                     $grade->value,
                 ),
+            ];
+        }
+
+        return [...$reasons, ...$this->soundReviewReasons($section)];
+    }
+
+    /**
+     * Doubts the candidate's own audio report names (§6.3). The clip publishes
+     * unchanged, so a part left at its recorded loudness, or one that measured off
+     * target after the encode, is heard by a person before it goes out.
+     *
+     * @return list<array{kind: string, detail: string}>
+     */
+    private function soundReviewReasons(ServiceSection $section): array
+    {
+        $report = $section->metadata?->raw['publication_candidate_extraction']['audio_treatment'] ?? null;
+
+        if (! is_array($report)) {
+            return [];
+        }
+
+        $reasons = [];
+        $untreated = array_values(array_filter(array_map(
+            static fn (mixed $part): mixed => is_array($part) ? ($part['untreated_reason'] ?? null) : null,
+            is_array($report['parts'] ?? null) ? $report['parts'] : [],
+        ), 'is_string'));
+
+        if ($untreated !== []) {
+            $reasons[] = [
+                'kind' => self::SOUND_UNTREATED,
+                'detail' => sprintf(
+                    'The clip\'s sound was left as recorded (%s), so it was not brought to the loudness every other song plays at.',
+                    implode(', ', array_unique($untreated)),
+                ),
+            ];
+        }
+
+        $misses = array_values(array_filter(is_array($report['loudness_misses'] ?? null) ? $report['loudness_misses'] : [], 'is_string'));
+
+        if ($misses !== []) {
+            $reasons[] = [
+                'kind' => self::LOUDNESS_MISSED,
+                'detail' => 'The treated clip measured off target: '.implode('; ', $misses).'.',
             ];
         }
 

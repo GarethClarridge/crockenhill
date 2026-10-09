@@ -35,6 +35,7 @@ use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Support\PublicationCandidateFixture;
 use Tests\TestCase;
 
 /**
@@ -219,7 +220,7 @@ class TalkPublicationWorkflowTest extends TestCase
                 Storage::disk('local')->put($path, 'section-video');
                 Storage::disk('local')->put('temp/section.mp3', 'section-audio');
 
-                return new ExtractedMedia($path, 'temp/section.mp3');
+                return new ExtractedMedia($path, 'temp/section.mp3', PublicationCandidateFixture::audioReport($profile ?? AudioProfile::Speech));
             });
 
         $videoExtractor->method('storePublicAudio')

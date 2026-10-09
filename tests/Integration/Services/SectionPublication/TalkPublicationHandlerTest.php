@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Services\SectionPublication;
 
 use App\Data\ServiceSectionMetadata;
+use App\Enums\AudioProfile;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
@@ -24,6 +25,7 @@ use Illuminate\Support\Facades\Storage;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Support\PublicationCandidateFixture;
 use Tests\TestCase;
 
 class TalkPublicationHandlerTest extends TestCase
@@ -244,6 +246,7 @@ class TalkPublicationHandlerTest extends TestCase
 
         $signature = $section->classificationSignature();
         $section->metadata = ServiceSectionMetadata::fromArray([
+            'publication_candidate_extraction' => PublicationCandidateFixture::current(AudioProfile::Speech),
             'publication' => ['approved_signature' => $signature],
         ]);
         $section->save();
@@ -277,6 +280,44 @@ class TalkPublicationHandlerTest extends TestCase
         // Assets should be promoted
         Storage::disk('public')->assertExists($section->extracted_video_path);
         Storage::disk('public')->assertExists($section->extracted_audio_path);
+    }
+
+    #[Test]
+    public function publish_refuses_a_candidate_cut_before_the_recordings_audio_settings_changed(): void
+    {
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+        $videoPath = 'section-publications/1-abcdef0123456789/video.mp4';
+        $audioPath = 'section-publications/1-abcdef0123456789/audio.mp3';
+        Storage::disk('public')->put($videoPath, 'video-content');
+        Storage::disk('public')->put($audioPath, 'audio-content');
+        $processingLog = MediaProcessingLog::factory()->audio()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'extracted_video_path' => $videoPath,
+            'extracted_audio_path' => $audioPath,
+            'publication_status' => ServiceSectionPublicationStatus::Approved->value,
+        ]);
+        $section->metadata = ServiceSectionMetadata::fromArray([
+            'publication_candidate_extraction' => PublicationCandidateFixture::current(AudioProfile::Speech),
+            'publication' => ['approved_signature' => $section->classificationSignature()],
+        ]);
+        $section->save();
+        $processingLog->writeProcessingMetadata(static fn (array $metadata): array => [...$metadata, 'audio_treatment_overrides' => ['speech' => ['hum_hz' => 50]]]);
+        $this->identityResolver->shouldReceive('resolve')->andReturn(['date' => now()->toDateString(), 'service' => SermonService::Morning]);
+        $this->publicationTransitions->shouldNotReceive('transition');
+        $this->sermonCreationService->shouldNotReceive('createSermon');
+
+        try {
+            $this->handler->publish($section->fresh());
+            $this->fail('A talk cut with the old settings must not publish.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('other audio settings', $exception->getMessage());
+        }
+
+        Storage::disk('public')->assertExists($videoPath);
+        Storage::disk('public')->assertExists($audioPath);
     }
 
     #[Test]
@@ -417,6 +458,7 @@ class TalkPublicationHandlerTest extends TestCase
         ]);
 
         $section->metadata = ServiceSectionMetadata::fromArray([
+            'publication_candidate_extraction' => PublicationCandidateFixture::current(AudioProfile::Speech),
             'publication' => ['approved_signature' => $section->classificationSignature()],
         ]);
         $section->save();
@@ -451,6 +493,7 @@ class TalkPublicationHandlerTest extends TestCase
         ]);
 
         $section->metadata = ServiceSectionMetadata::fromArray([
+            'publication_candidate_extraction' => PublicationCandidateFixture::current(AudioProfile::Speech),
             'publication' => ['approved_signature' => $section->classificationSignature()],
             'talk_speaker' => null, // Unresolved
         ]);
@@ -483,6 +526,7 @@ class TalkPublicationHandlerTest extends TestCase
         ]);
 
         $section->metadata = ServiceSectionMetadata::fromArray([
+            'publication_candidate_extraction' => PublicationCandidateFixture::current(AudioProfile::Speech),
             'publication' => ['approved_signature' => $section->classificationSignature()],
         ]);
         $section->save();

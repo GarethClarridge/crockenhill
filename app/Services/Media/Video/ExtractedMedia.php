@@ -24,4 +24,14 @@ final readonly class ExtractedMedia
     {
         return count(array_filter($this->audio['parts'] ?? [], static fn (array $part): bool => ($part['untreated_reason'] ?? null) !== null));
     }
+
+    /**
+     * Each loudness or peak target a treated part missed in the video or the MP3.
+     *
+     * @return list<string>
+     */
+    public function loudnessMisses(): array
+    {
+        return array_values(array_filter($this->audio['loudness_misses'] ?? [], 'is_string'));
+    }
 }

@@ -23,6 +23,7 @@ use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\PublicationPlanValidator;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
+use App\Services\ChurchService\SectionPublication\SongPublicationHandler;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\HistoricMedia\HistoricProcessingThroughput;
@@ -35,6 +36,7 @@ use App\Services\Processing\StorageAdapterHelper;
 use App\Support\ChurchServiceProcessingTimeline;
 use App\Support\MediaAssetPath;
 use App\Support\MediaProcessingVersion;
+use App\Support\PublicationCandidate;
 use App\Traits\DetectsStorageType;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -43,6 +45,7 @@ use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 /**
@@ -343,9 +346,8 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             }
 
             if ($section->publication_status === ServiceSectionPublicationStatus::Published) {
-                if ($section->section_type === ServiceSectionType::Song
-                    && ($section->metadata?->raw['song_video_extraction']['media_signature'] ?? null) !== $section->mediaSignature()) {
-                    $handler->publish($section);
+                if ($handler instanceof SongPublicationHandler) {
+                    $handler->refreshPublished($section);
                 }
                 $this->saveSectionIfDirty($section);
 
@@ -544,6 +546,8 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
                 [
                     'publication_candidate_extraction' => [
                         ...$cutPlan,
+                        // Publication records which cut it promoted, so a later re-cut is never mistaken for it.
+                        'candidate_id' => (string) Str::uuid(),
                         'processing_id' => $this->processingLog->processing_id,
                         'media_signature' => $section->mediaSignature(),
                         'media_processing' => MediaProcessingVersion::signature(),
@@ -655,10 +659,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         return ($provenance['processing_id'] ?? null) === $this->processingLog->processing_id
             && ($provenance['media_signature'] ?? null) === $section->mediaSignature()
             && MediaProcessingVersion::matches($provenance['media_processing'] ?? null)
-            && ($provenance['audio_treatment']['settings'] ?? null) == AudioTreatmentSettings::for(
-                $handler->audioProfile(),
-                AudioTreatmentSettings::overridesFor($this->processingLog, $handler->audioProfile()),
-            )->toArray();
+            && PublicationCandidate::settingsMatch($provenance['audio_treatment']['settings'] ?? null, $this->processingLog, $handler->audioProfile());
     }
 
     protected function onJobFailure(\Throwable $exception): void

@@ -32,6 +32,7 @@ use App\Models\SongVideo;
 use App\Models\SpeakerProfile;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
 use App\Services\ChurchService\SectionPublication\SongPublicationHandler;
+use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
 use App\Services\ChurchService\SectionPublication\TalkPublicationHandler;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
@@ -51,9 +52,11 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\Support\BanksNoWordOutputEdges;
+use Tests\Support\PublicationCandidateFixture;
 use Tests\TestCase;
 
 class PrepareSectionPublicationCandidatesTest extends TestCase
@@ -1569,6 +1572,125 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             // Verify it was dispatched for the correct section.
             return $job->serviceSectionId === $section->id;
         });
+    }
+
+    /**
+     * §6.3: a song publishes its candidate unchanged, so a clip left at its recorded
+     * loudness, or one that measured off target, reaches a person instead.
+     *
+     * @param  array<string, mixed>  $report
+     */
+    #[Test]
+    #[DataProvider('soundDoubts')]
+    public function a_song_whose_sound_needs_hearing_is_routed_to_review(array $report, string $kind): void
+    {
+        Bus::fake([AutoPublishServiceSection::class]);
+        [$processingLog, $section] = $this->songAwaitingCandidate();
+        $videoExtractor = $this->createMock(VideoExtractionService::class);
+        $videoExtractor->expects($this->once())->method('extractMedia')
+            ->willReturn(new ExtractedMedia('temp/section-video.mp4', null, PublicationCandidateFixture::audioReport(AudioProfile::Music, report: $report)));
+
+        $this->prepare($processingLog, $videoExtractor);
+
+        $section->refresh();
+        $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->publication_status);
+        $this->assertSame([$kind], array_column($section->metadata->raw['song_publication_review']['reasons'], 'kind'));
+        Storage::disk('public')->assertExists($section->extracted_video_path);
+        Bus::assertNotDispatched(AutoPublishServiceSection::class);
+    }
+
+    /** @return array<string, array{0: array<string, mixed>, 1: string}> */
+    public static function soundDoubts(): array
+    {
+        return [
+            'left untreated' => [['parts' => [['untreated_reason' => 'too_quiet', 'measured' => null]]], SongPublicationReviewPolicy::SOUND_UNTREATED],
+            'missed its target' => [['loudness_misses' => ['part 1 video integrated -18.4 LUFS, target -16.0 ±1.0']], SongPublicationReviewPolicy::LOUDNESS_MISSED],
+        ];
+    }
+
+    #[Test]
+    public function a_published_song_recut_under_a_new_recording_override_publishes_the_new_sound(): void
+    {
+        [$processingLog, $section] = $this->songAwaitingCandidate();
+        $publishedPath = 'sermons/songs/'.$section->churchServiceItem->song_id.'/'.$section->id.'.mp4';
+        Storage::disk('public')->put($publishedPath, 'old-sound');
+        $candidate = PublicationCandidateFixture::current(AudioProfile::Music);
+        $section->update([
+            'publication_status' => ServiceSectionPublicationStatus::Published,
+            'published_at' => now(),
+            'asset_disk' => 'public',
+            'extracted_video_path' => $publishedPath,
+            'extracted_at' => now(),
+            'metadata' => [
+                ...$section->metadata->toArray(),
+                'publication_candidate_extraction' => [...$candidate, 'processing_id' => $processingLog->processing_id, 'media_signature' => $section->mediaSignature()],
+                'song_video_extraction' => ['media_signature' => $section->mediaSignature(), 'candidate_id' => $candidate['candidate_id']],
+            ],
+        ]);
+        $songVideo = SongVideo::factory()->create(['song_id' => $section->churchServiceItem->song_id, 'service_section_id' => $section->id, 'video_file_path' => $publishedPath, 'asset_disk' => 'public']);
+        $processingLog->writeProcessingMetadata(static fn (array $metadata): array => [...$metadata, 'audio_treatment_overrides' => ['music' => ['target_lufs' => -18.0]]]);
+        Storage::disk('local')->put('temp/section-video.mp4', 'new-sound');
+        $videoExtractor = $this->createMock(VideoExtractionService::class);
+        $videoExtractor->expects($this->once())->method('extractMedia')
+            ->willReturn(new ExtractedMedia('temp/section-video.mp4', null, PublicationCandidateFixture::audioReport(AudioProfile::Music, ['target_lufs' => -18.0])));
+
+        $this->prepare($processingLog, $videoExtractor);
+
+        $this->assertSame('new-sound', Storage::disk('public')->get($songVideo->fresh()->video_file_path));
+        $this->assertSame(
+            $section->fresh()->metadata->raw['publication_candidate_extraction']['candidate_id'],
+            $section->fresh()->metadata->raw['song_video_extraction']['candidate_id'],
+        );
+    }
+
+    /**
+     * A confirmed whole song on a run whose source is staged, its clean boundary banked.
+     *
+     * @return array{0: MediaProcessingLog, 1: ServiceSection}
+     */
+    private function songAwaitingCandidate(): array
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => ['song' => SongPublicationHandler::class],
+        ]);
+        $churchService = ChurchService::factory()->create();
+        $item = ChurchServiceItem::factory()->create(['church_service_id' => $churchService->id, 'song_id' => Song::factory()->create()->id]);
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'source_file_path' => 'livestreams/source.mp4',
+            'church_service_id' => $churchService->id,
+        ]);
+        Storage::disk('local')->put('livestreams/source.mp4', 'source-video');
+        Storage::disk('local')->put('temp/section-video.mp4', 'section-video');
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'status' => ServiceSectionStatus::Identified->value,
+            'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
+            'metadata' => ['confidence_level' => 'high'],
+            'start_time' => 60.0,
+            'end_time' => 300.0,
+        ]);
+        $this->storeCleanSongBoundaryArtifacts($section);
+
+        return [$processingLog, $section->fresh()];
+    }
+
+    private function prepare(MediaProcessingLog $processingLog, VideoExtractionService $videoExtractor): void
+    {
+        (new PrepareSectionPublicationCandidates($processingLog))->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(SectionPublicationHandlerFactory::class),
+            app(ServiceSectionPublicationTransitionService::class)
+        );
     }
 
     #[Test]

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Actions\FlagSermonAudioLengthMismatch;
+use App\Actions\FlagSermonAudioLoudnessMissed;
 use App\Actions\FlagSermonAudioPartUntreated;
 use App\Data\ServiceSectionMetadata;
 use App\Data\ServiceSermonAbsence;
@@ -216,6 +217,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
             $audioDuration = $this->measuredAudioDuration($durationProbe, $audioFullPath);
             (new FlagSermonAudioLengthMismatch)($this->processingLog, $observedDuration, $audioDuration);
             (new FlagSermonAudioPartUntreated)($this->processingLog, $media);
+            (new FlagSermonAudioLoudnessMissed)($this->processingLog, $media);
 
             /**
              * Read before the update: the trim block about to be overwritten is
@@ -271,6 +273,7 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
                 'audio_full_path' => $audioExtractionResult['full_path'],
                 'audio_size_mb' => round($audioExtractionResult['size'] / 1024 / 1024, 1),
                 'untreated_audio_parts' => $media->untreatedParts(),
+                'loudness_misses' => $media->loudnessMisses(),
                 'file_exists_check' => $audioFileExists,
             ]);
 

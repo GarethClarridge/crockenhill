@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services\SectionPublication;
 
+use App\Enums\AudioProfile;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
@@ -26,6 +27,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Support\PublicationCandidateFixture;
 use Tests\TestCase;
 
 class SongPublicationHandlerTest extends TestCase
@@ -108,8 +110,30 @@ class SongPublicationHandlerTest extends TestCase
         $section->refresh();
         $section->update(['metadata' => [
             ...($section->metadata?->toArray() ?? []),
-            'publication_candidate_extraction' => ['media_processing' => MediaProcessingVersion::signature()],
+            'publication_candidate_extraction' => $this->candidate(),
         ]]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     * @param  array<string, mixed>  $report
+     * @return array<string, mixed>
+     */
+    private function candidate(array $overrides = [], array $report = []): array
+    {
+        return PublicationCandidateFixture::current(AudioProfile::Music, $overrides, $report);
+    }
+
+    /** @param  array<string, mixed>  $candidate */
+    private function recut(ServiceSection $section, string $videoPath, array $candidate): ServiceSection
+    {
+        $section->refresh();
+        $section->update(['extracted_video_path' => $videoPath, 'metadata' => [
+            ...($section->metadata?->toArray() ?? []),
+            'publication_candidate_extraction' => $candidate,
+        ]]);
+
+        return $section->fresh();
     }
 
     #[Test]
@@ -494,7 +518,11 @@ class SongPublicationHandlerTest extends TestCase
             'service_section_id' => $section->id,
         ]);
 
-        $section->update(['metadata' => ['song_video_extraction' => ['media_signature' => $section->mediaSignature()]]]);
+        $candidate = $this->candidate();
+        $section->update(['metadata' => [
+            'publication_candidate_extraction' => $candidate,
+            'song_video_extraction' => ['media_signature' => $section->mediaSignature(), 'candidate_id' => $candidate['candidate_id']],
+        ]]);
         $this->handler->publish($section);
 
         Log::shouldHaveReceived('info')
@@ -693,5 +721,134 @@ class SongPublicationHandlerTest extends TestCase
         $section->refresh();
         $this->assertEquals(ServiceSectionPublicationStatus::Published, $section->publication_status);
         $this->assertSame('video-content', Storage::disk('public')->get($section->extracted_video_path));
+    }
+
+    // ---- Publication follows the candidate the section holds now ----
+
+    #[Test]
+    public function a_recut_under_a_new_recording_override_replaces_the_published_sound(): void
+    {
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+        $song = Song::factory()->create();
+        $section = $this->makePublishableSection($song, 'sections/old.mp4');
+        Storage::disk('public')->put('sections/old.mp4', 'old-sound');
+        $this->handler->publish($section);
+        $published = SongVideo::query()->where('service_section_id', $section->id)->firstOrFail();
+
+        $section->processingLog->writeProcessingMetadata(static fn (array $metadata): array => [...$metadata, 'audio_treatment_overrides' => ['music' => ['target_lufs' => -18.0]]]);
+        Storage::disk('public')->put('sections/new.mp4', 'new-sound');
+        $recut = $this->recut($section, 'sections/new.mp4', $this->candidate(['target_lufs' => -18.0]));
+
+        $this->assertFalse($this->handler->isPublishedFromCurrentCandidate($recut));
+        $this->handler->publish($recut);
+
+        $this->assertSame('new-sound', Storage::disk('public')->get($published->fresh()->video_file_path));
+        $this->assertTrue($this->handler->isPublishedFromCurrentCandidate($section->fresh()));
+    }
+
+    #[Test]
+    public function a_recut_with_unchanged_bounds_and_settings_still_replaces_the_published_clip(): void
+    {
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+        $song = Song::factory()->create();
+        $section = $this->makePublishableSection($song, 'sections/first.mp4');
+        Storage::disk('public')->put('sections/first.mp4', 'first-cut');
+        $this->handler->publish($section);
+        Storage::disk('public')->put('sections/second.mp4', 'edges-moved');
+
+        $this->handler->refreshPublished($this->recut($section, 'sections/second.mp4', $this->candidate()));
+
+        $published = SongVideo::query()->where('service_section_id', $section->id)->sole();
+        $this->assertSame('edges-moved', Storage::disk('public')->get($published->video_file_path));
+    }
+
+    #[Test]
+    public function a_candidate_cut_before_the_recording_override_changed_is_refused(): void
+    {
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+        $song = Song::factory()->create();
+        $section = $this->makePublishableSection($song, 'sections/pending.mp4');
+        Storage::disk('public')->put('sections/pending.mp4', 'old-sound');
+        $section->processingLog->writeProcessingMetadata(static fn (array $metadata): array => [...$metadata, 'audio_treatment_overrides' => ['music' => ['target_lufs' => -18.0]]]);
+
+        try {
+            $this->handler->publish($section->fresh());
+            $this->fail('A candidate cut with the old settings must not publish.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('other audio settings', $exception->getMessage());
+        }
+
+        $this->assertSame(0, SongVideo::query()->where('service_section_id', $section->id)->count());
+        Storage::disk('public')->assertExists('sections/pending.mp4');
+    }
+
+    #[Test]
+    public function settings_stored_as_json_integers_still_match(): void
+    {
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+        $song = Song::factory()->create();
+        $section = $this->makePublishableSection($song, 'sections/json.mp4');
+        Storage::disk('public')->put('sections/json.mp4', 'video-content');
+        $candidate = $this->candidate();
+        $candidate['audio_treatment']['settings']['target_lufs'] = -16;
+
+        $this->handler->publish($this->recut($section, 'sections/json.mp4', $candidate));
+
+        $this->assertSame(1, SongVideo::query()->where('service_section_id', $section->id)->count());
+    }
+
+    #[Test]
+    public function an_untreated_song_requires_approval(): void
+    {
+        $section = $this->makePublishableSection(Song::factory()->create(), 'sections/whole-song.mp4');
+        $section = $this->recut($section, 'sections/whole-song.mp4', $this->candidate(report: [
+            'parts' => [['untreated_reason' => 'too_quiet', 'measured' => null]],
+        ]));
+        $section->forceFill(['start_time' => 600.0, 'end_time' => 840.0, 'duration' => 240.0])->save();
+
+        $this->assertTrue($this->handler->requiresApproval($section));
+        $this->assertSame([SongPublicationReviewPolicy::SOUND_UNTREATED], array_column($section->metadata->raw['song_publication_review']['reasons'], 'kind'));
+    }
+
+    #[Test]
+    public function a_song_that_missed_its_loudness_target_requires_approval(): void
+    {
+        $section = $this->makePublishableSection(Song::factory()->create(), 'sections/whole-song.mp4');
+        $section = $this->recut($section, 'sections/whole-song.mp4', $this->candidate(report: [
+            'loudness_misses' => ['part 1 video integrated -18.2 LUFS, target -16.0 ±1.0'],
+        ]));
+        $section->forceFill(['start_time' => 600.0, 'end_time' => 840.0, 'duration' => 240.0])->save();
+
+        $this->assertTrue($this->handler->requiresApproval($section));
+        $reason = $section->metadata->raw['song_publication_review']['reasons'][0];
+        $this->assertSame(SongPublicationReviewPolicy::LOUDNESS_MISSED, $reason['kind']);
+        $this->assertStringContainsString('-18.2 LUFS', $reason['detail']);
+    }
+
+    #[Test]
+    public function a_published_song_keeps_its_clip_when_the_recut_sound_needs_review(): void
+    {
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+        $song = Song::factory()->create();
+        $section = $this->makePublishableSection($song, 'sections/good.mp4');
+        $section->forceFill(['start_time' => 600.0, 'end_time' => 840.0, 'duration' => 240.0])->save();
+        Storage::disk('public')->put('sections/good.mp4', 'good-sound');
+        $this->handler->publish($section->fresh());
+        Storage::disk('public')->put('sections/missed.mp4', 'off-target-sound');
+
+        $recut = $this->recut($section, 'sections/missed.mp4', $this->candidate(report: [
+            'loudness_misses' => ['part 1 video integrated -19.0 LUFS, target -16.0 ±1.0'],
+        ]));
+        $this->handler->refreshPublished($recut);
+
+        $published = SongVideo::query()->where('service_section_id', $section->id)->sole();
+        $this->assertSame('good-sound', Storage::disk('public')->get($published->video_file_path));
+        Storage::disk('public')->assertExists('sections/missed.mp4');
+        $this->assertSame([SongPublicationReviewPolicy::LOUDNESS_MISSED], array_column($recut->metadata->raw['song_publication_review']['reasons'], 'kind'));
     }
 }
