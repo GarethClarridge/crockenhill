@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Media\Audio;
 
 use App\Exceptions\TranscriptionException;
+use App\Services\Media\PacketCountedMediaDuration;
 use App\Services\Processing\SermonProcessingLogger;
 use Exception;
 use FFMpeg\Coordinate\TimeCode;
@@ -27,7 +28,8 @@ class AudioChunkingService
     private const DERIVED_AUDIO_SHORTFALL_SECONDS = 2.0;
 
     public function __construct(
-        private readonly SermonProcessingLogger $logger
+        private readonly SermonProcessingLogger $logger,
+        private readonly PacketCountedMediaDuration $packetCountedDuration = new PacketCountedMediaDuration,
     ) {}
 
     /**
@@ -432,6 +434,9 @@ class AudioChunkingService
     /**
      * The container's own duration, which video sources carry where their audio stream may not.
      *
+     * A WebM pulled down as a YouTube backup declares none at all (full pass 2026-10-10, run 929),
+     * so its video packets are counted instead, as curation measures those recordings.
+     *
      * @throws TranscriptionException
      */
     private function containerDuration(string $filePath): float
@@ -445,11 +450,12 @@ class AudioChunkingService
             throw new TranscriptionException('Failed to read duration: '.$e->getMessage(), 0, $e);
         }
 
-        if (! is_numeric($duration)) {
-            throw new TranscriptionException("Failed to read duration of {$filePath}");
+        if (is_numeric($duration)) {
+            return (float) $duration;
         }
 
-        return (float) $duration;
+        return $this->packetCountedDuration->seconds($filePath)
+            ?? throw new TranscriptionException("Failed to read duration of {$filePath}");
     }
 
     /**

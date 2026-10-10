@@ -275,7 +275,8 @@ class ServiceStructureEnsembleRunner
         $disk = Storage::disk(ServiceArtifactDisk::name());
 
         foreach ($evidence['slots'] as $slot) {
-            $raw = $disk->get($slot['path']);
+            // A child killed at the deadline banks nothing, and the durable disk throws on a missing file.
+            $raw = $disk->exists($slot['path']) ? $disk->get($slot['path']) : null;
             $outcome = is_string($raw) ? json_decode($raw, true) : null;
 
             if (! is_array($outcome) || ($outcome['input_hash'] ?? null) !== $evidence['input_hash']

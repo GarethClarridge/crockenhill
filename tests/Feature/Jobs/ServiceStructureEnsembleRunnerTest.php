@@ -180,6 +180,62 @@ class ServiceStructureEnsembleRunnerTest extends TestCase
     }
 
     /**
+     * Full pass 2026-10-10, run 930: a draw killed at the deadline banks nothing, and the durable
+     * artifact disk throws on a missing file rather than answering null, so the lost draw failed
+     * the whole detection instead of being retried.
+     */
+    #[Test]
+    public function a_draw_that_banked_nothing_is_retried_on_a_disk_that_throws_on_missing_files(): void
+    {
+        Config::set('media-processing.service_structure.detector', 'openai');
+        Config::set('media-processing.storage.service_artifact_disk', 'service_artifacts');
+        $this->assertTrue((bool) config('filesystems.disks.service_artifacts.throw'));
+        $diskName = ServiceArtifactDisk::name();
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $transcript = ChurchServiceTranscript::fromCues([
+            ['start' => 0.0, 'end' => 100.0, 'text' => 'Welcome and Bible reading.'],
+            ['start' => 100.0, 'end' => 500.0, 'text' => 'Turn with me to John.'],
+        ], 500.0, ChurchServiceTranscript::SOURCE_MOCK);
+        $input = [
+            'processing_id' => $log->processing_id,
+            'transcript' => $transcript->toArray(),
+            'audio_timeline' => AudioTimelineFixture::payload([], 500.0),
+            'oos_items' => [],
+            'validation_context' => ServiceStructureDrawExecutor::contextSnapshot(ValidationContext::for($transcript)),
+            'rms_log' => null,
+        ];
+        $runner = new class(app(ServiceStructureDrawExecutor::class), app(HistoricStagingContextRegistry::class)) extends ServiceStructureEnsembleRunner
+        {
+            protected function subprocessCommand(array $slot, array $evidence, ?string $encodedContext): array
+            {
+                if ($slot['slot'] === 0 && ! str_contains($slot['path'], '.retry')) {
+                    return [PHP_BINARY, '-r', 'exit(9);'];
+                }
+
+                return parent::subprocessCommand($slot, $evidence, $encodedContext);
+            }
+        };
+
+        try {
+            $result = $runner->run($log, $input);
+
+            $this->assertSame('interrupted', $result['evidence']['slots'][0]['first_attempt']['status']);
+            $this->assertStringEndsWith('.slot-0.retry-1.json', $result['evidence']['slots'][0]['path']);
+            $this->assertTrue(Storage::disk($diskName)->exists($result['evidence']['slots'][0]['first_attempt']['path']));
+        } finally {
+            $disk = Storage::disk($diskName);
+
+            foreach ($log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble'] ?? [] as $evidence) {
+                $paths = [$evidence['input_path'], ...array_column($evidence['slots'], 'path'), ...array_column(array_column($evidence['slots'], 'first_attempt'), 'path')];
+
+                foreach (array_filter($paths, static fn (mixed $path): bool => is_string($path) && $path !== '' && $disk->exists($path)) as $path) {
+                    $disk->delete($path);
+                }
+            }
+        }
+    }
+
+    /**
      * A retry that answers but fails validation is still an answer: replay revalidates invalid
      * first-attempt draws after a deterministic rule fix, so it must be able to revalidate this one.
      */

@@ -380,6 +380,55 @@ class AudioChunkingServiceTest extends TestCase
         }
     }
 
+    /**
+     * Full pass 2026-10-10, run 929: a WebM pulled down as a YouTube backup declares no duration
+     * anywhere in its header, and the coverage check refused the whole source (15 of 152 Tier A
+     * runs). A WebM written to a pipe cannot seek back to record its duration, as such a capture.
+     */
+    #[Test]
+    public function compression_measures_a_source_whose_header_declares_no_duration(): void
+    {
+        $ffmpegBinary = $this->resolveBinary('ffmpeg');
+        $ffprobeBinary = $this->resolveBinary('ffprobe');
+
+        if ($ffmpegBinary === null || $ffprobeBinary === null) {
+            $this->markTestSkipped('ffmpeg and ffprobe are required for compression coverage.');
+        }
+
+        Config::set('media-processing.ffmpeg.ffmpeg_path', $ffmpegBinary);
+        Config::set('media-processing.ffmpeg.ffprobe_path', $ffprobeBinary);
+
+        $tempDir = storage_path('app/testing/audio-chunking');
+
+        if (! is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+
+        $sourcePath = $tempDir.'/undeclared-duration.webm';
+        $compressedPath = null;
+
+        try {
+            $this->runProcess(Process::fromShellCommandline(sprintf(
+                '%s -y -f lavfi -i testsrc=duration=20:size=64x64:rate=10 -f lavfi -i sine=frequency=440:duration=20 -c:v libvpx -b:v 50k -c:a libopus -f webm pipe:1 > %s',
+                escapeshellarg($ffmpegBinary),
+                escapeshellarg($sourcePath),
+            )));
+            $probe = new Process([$ffprobeBinary, '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', $sourcePath]);
+            $probe->mustRun();
+            $this->assertSame('N/A', trim($probe->getOutput()));
+
+            $compressedPath = $this->service->compressAudioForTranscription($sourcePath, 'undeclared-duration');
+
+            $this->assertEqualsWithDelta(20.0, $this->service->getAudioDuration($compressedPath), 1.0);
+        } finally {
+            @unlink($sourcePath);
+
+            if ($compressedPath !== null) {
+                @unlink($compressedPath);
+            }
+        }
+    }
+
     #[Test]
     public function compression_keeps_audio_that_covers_its_source(): void
     {
