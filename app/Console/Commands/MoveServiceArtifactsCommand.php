@@ -205,10 +205,11 @@ class MoveServiceArtifactsCommand extends Command
     /**
      * Point each structure-ensemble bundle at the target once every file of it is recorded there.
      *
-     * The bundle's input and slot files carry the disk they were written to inside their
-     * hashed bytes, so they are never rewritten; the manifest keeps that disk as `origin_disk`
-     * for the replay's integrity check and names the disk the files are read from now. A bundle
-     * with any file left behind keeps its old disk, so it is never half on each.
+     * The bundle's input and slot files (a retried slot's first attempt among them) carry the
+     * disk they were written to inside their hashed bytes, so they are never rewritten; the
+     * manifest keeps that disk as `origin_disk` for the replay's integrity check and names the
+     * disk the files are read from now. A bundle with any file left behind keeps its old disk,
+     * so it is never half on each.
      *
      * @param  array<string, mixed>  $metadata
      * @param  array<int, mixed>  $entries
@@ -235,7 +236,12 @@ class MoveServiceArtifactsCommand extends Command
                 continue;
             }
 
-            $paths = [$bundle['input_path'] ?? null, ...array_column($bundle['slots'] ?? [], 'path')];
+            $slots = $bundle['slots'] ?? [];
+            $paths = [
+                $bundle['input_path'] ?? null,
+                ...array_column($slots, 'path'),
+                ...array_column(array_column($slots, 'first_attempt'), 'path'),
+            ];
 
             foreach ($paths as $path) {
                 if (! is_string($path) || ! isset($onTarget[$path])) {

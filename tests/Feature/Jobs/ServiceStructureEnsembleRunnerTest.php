@@ -161,6 +161,7 @@ class ServiceStructureEnsembleRunnerTest extends TestCase
             $this->assertSame('interrupted', $result['evidence']['slots'][0]['first_attempt']['status']);
             $this->assertTrue(Storage::disk($diskName)->exists($result['evidence']['slots'][0]['first_attempt']['path']));
             $this->assertFalse(app(ServiceStructureEnsembleReplay::class)->replay($result['evidence'])['degraded']);
+            $this->assertContains($result['evidence']['slots'][0]['path'], $this->ensembleArtifactPaths($log));
         } finally {
             foreach ($log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble'] ?? [] as $evidence) {
                 Storage::disk($diskName)->delete($evidence['input_path']);
@@ -171,6 +172,14 @@ class ServiceStructureEnsembleRunnerTest extends TestCase
                 }
             }
         }
+    }
+
+    /** @return list<string> */
+    private function ensembleArtifactPaths(MediaProcessingLog $log): array
+    {
+        $artifacts = $log->fresh()?->processing_metadata?->toArray()['service_artifacts'] ?? [];
+
+        return array_column(array_filter($artifacts, static fn (array $artifact): bool => $artifact['kind'] === ServiceStructureEnsembleRunner::ARTIFACT_KIND), 'path');
     }
 
     #[Test]
@@ -238,6 +247,7 @@ class ServiceStructureEnsembleRunnerTest extends TestCase
 
                 foreach ($evidence['slots'] as $slot) {
                     Storage::disk($diskName)->delete($slot['path']);
+                    Storage::disk($diskName)->delete($slot['first_attempt']['path'] ?? '');
                 }
             }
         }

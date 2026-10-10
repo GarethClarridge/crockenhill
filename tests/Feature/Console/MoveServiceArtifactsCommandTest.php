@@ -4,18 +4,24 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
+use App\Contracts\ServiceStructureInterface;
 use App\Data\ChurchServiceTranscript;
 use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\Structure\ServiceStructureDrawExecutor;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleReplay;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleRunner;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\ChurchService\Structure\SilenceSnapService;
+use App\Services\ChurchService\Structure\SoundStage;
 use App\Services\ChurchService\Structure\ValidationContext;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\Support\AudioTimelineFixture;
 use Tests\TestCase;
@@ -140,6 +146,43 @@ class MoveServiceArtifactsCommandTest extends TestCase
     }
 
     /**
+     * A slot drawn twice is one bundle of five slot files: the retry the slot points at and the
+     * lost first attempt it keeps on record. Moving it moves both, or the bundle stays where it was.
+     */
+    #[Test]
+    public function a_retried_ensemble_bundle_moves_with_both_attempts_or_not_at_all(): void
+    {
+        config(['media-processing.service_structure.detector' => 'mock']);
+
+        foreach (['complete', 'first attempt missing'] as $case) {
+            config(['media-processing.storage.service_artifact_disk' => 'historic_staging']);
+            $run = MediaProcessingLog::factory()->livestream()->completed()->create();
+            $banked = $this->bankWithFirstDrawLost($run);
+            $slot = $banked['evidence']['slots'][0];
+
+            if ($case === 'first attempt missing') {
+                Storage::disk('historic_staging')->delete($slot['first_attempt']['path']);
+            }
+
+            config(['media-processing.storage.service_artifact_disk' => 'service_artifacts']);
+            $command = $this->artisan('media:move-service-artifacts', ['--apply' => true]);
+            $case === 'complete' ? $command->assertSuccessful() : $command->assertFailed();
+            $command->run();
+
+            $evidence = $run->fresh()?->processing_metadata?->toArray()['service_structure_ensemble'][0] ?? [];
+
+            if ($case === 'complete') {
+                $this->assertTrue(Storage::disk('service_artifacts')->exists($slot['path']), $case);
+                $this->assertTrue(Storage::disk('service_artifacts')->exists($slot['first_attempt']['path']), $case);
+                $this->assertSame('service_artifacts', $evidence['artifact_disk'], $case);
+                $this->assertFalse(app(ServiceStructureEnsembleReplay::class)->replay($evidence)['degraded'], $case);
+            } else {
+                $this->assertSame('historic_staging', $evidence['artifact_disk'], $case);
+            }
+        }
+    }
+
+    /**
      * A historic run wrote its artifacts inside its staging context, under the batch root; the
      * copy must read exactly the file the run reads, not a same-named file at the disk's top.
      */
@@ -226,6 +269,38 @@ class MoveServiceArtifactsCommandTest extends TestCase
      * A routine run: artifacts at the staging disk's top level, the transcript path recorded
      * only as a path field and the RMS and audio recorded as artifacts.
      */
+    /** @return array{draws: array<int, mixed>, slots: list<array<string, mixed>>, evidence: array<string, mixed>} */
+    private function bankWithFirstDrawLost(MediaProcessingLog $run): array
+    {
+        $transcript = ChurchServiceTranscript::fromCues([
+            ['start' => 0.0, 'end' => 500.0, 'text' => 'Turn with me to John.'],
+        ], 500.0, ChurchServiceTranscript::SOURCE_MOCK);
+        $executor = new class(app(ServiceStructureInterface::class), app(SilenceSnapService::class), app(SoundStage::class), app(ServiceStructureValidator::class)) extends ServiceStructureDrawExecutor
+        {
+            private bool $lost = false;
+
+            public function execute(array $input, string $model): array
+            {
+                if (! $this->lost) {
+                    $this->lost = true;
+
+                    throw new RuntimeException('cURL error 52: Empty reply from server');
+                }
+
+                return parent::execute($input, $model);
+            }
+        };
+
+        return (new ServiceStructureEnsembleRunner($executor, app(HistoricStagingContextRegistry::class)))->run($run, [
+            'processing_id' => $run->processing_id,
+            'transcript' => $transcript->toArray(),
+            'audio_timeline' => AudioTimelineFixture::payload([], 500.0),
+            'oos_items' => [],
+            'validation_context' => ServiceStructureDrawExecutor::contextSnapshot(ValidationContext::for($transcript)),
+            'rms_log' => null,
+        ]);
+    }
+
     private function routineRun(): MediaProcessingLog
     {
         $files = [

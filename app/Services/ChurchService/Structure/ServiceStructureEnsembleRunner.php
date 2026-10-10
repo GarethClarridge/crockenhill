@@ -78,7 +78,7 @@ class ServiceStructureEnsembleRunner
         $this->appendEvidence($log, $evidence);
 
         $outcomes = $this->execute($input, $evidence);
-        [$outcomes, $evidence] = $this->retryFailedSlots($input, $evidence, $outcomes);
+        [$outcomes, $evidence] = $this->retryFailedSlots($log, $input, $evidence, $outcomes);
 
         $draws = [];
         $slots = [];
@@ -138,15 +138,16 @@ class ServiceStructureEnsembleRunner
      * A draw lost to the provider or the process (canary 15: run 1005 lost all four to a transient
      * cURL error) is no opinion at all, and three voters split two to one where four decide three to
      * one. An `invalid` draw is an opinion and is never drawn again: regenerating one until it
-     * passed rewrote unrelated content in canary 8 (run 949). The retry is banked in its own file;
-     * the slot then points at it, and the first attempt stays on record as `first_attempt`.
+     * passed rewrote unrelated content in canary 8 (run 949). The retry is banked in its own file,
+     * listed with the run's artifacts before it is drawn; the slot then points at it, and the first
+     * attempt stays on record as `first_attempt`.
      *
      * @param  array<string, mixed>  $input
      * @param  array<string, mixed>  $evidence
      * @param  array<int, array<string, mixed>>  $outcomes
      * @return array{0: array<int, array<string, mixed>>, 1: array<string, mixed>}
      */
-    private function retryFailedSlots(array $input, array $evidence, array $outcomes): array
+    private function retryFailedSlots(MediaProcessingLog $log, array $input, array $evidence, array $outcomes): array
     {
         $failed = array_values(array_filter(
             $evidence['slots'],
@@ -161,6 +162,7 @@ class ServiceStructureEnsembleRunner
             ...$slot,
             'path' => preg_replace('/\.json$/', '.retry-1.json', $slot['path']),
         ], $failed);
+        $this->registerArtifacts($log, $evidence, array_column($retries, 'path'));
         $retryOutcomes = $this->execute($input, [...$evidence, 'slots' => $retries]);
 
         foreach ($retries as $retry) {
@@ -329,12 +331,24 @@ class ServiceStructureEnsembleRunner
             $bank = is_array($metadata['service_structure_ensemble'] ?? null) ? $metadata['service_structure_ensemble'] : [];
             $bank[] = $evidence;
             $metadata['service_structure_ensemble'] = $bank;
-            $artifacts = is_array($metadata['service_artifacts'] ?? null) ? $metadata['service_artifacts'] : [];
-            $paths = [$evidence['input_path']];
+            $fresh->forceFill(['processing_metadata' => $metadata])->save();
+        });
 
-            foreach ($evidence['slots'] as $slot) {
-                $paths[] = $slot['path'];
-            }
+        $this->registerArtifacts($log, $evidence, [$evidence['input_path'], ...array_column($evidence['slots'], 'path')]);
+    }
+
+    /**
+     * List evidence files in the run's service artifacts, so moving the run's artifacts moves the whole bundle.
+     *
+     * @param  array<string, mixed>  $evidence
+     * @param  list<string>  $paths
+     */
+    private function registerArtifacts(MediaProcessingLog $log, array $evidence, array $paths): void
+    {
+        DB::transaction(function () use ($log, $evidence, $paths): void {
+            $fresh = MediaProcessingLog::query()->lockForUpdate()->findOrFail($log->id);
+            $metadata = $fresh->processing_metadata?->toArray() ?? [];
+            $artifacts = is_array($metadata['service_artifacts'] ?? null) ? $metadata['service_artifacts'] : [];
 
             foreach ($paths as $path) {
                 $artifacts[] = [
