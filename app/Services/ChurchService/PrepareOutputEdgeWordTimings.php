@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService;
 
+use App\Contracts\ServiceTranscriptionInterface;
 use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Jobs\ClassifyServiceAudio;
 use App\Models\MediaProcessingLog;
-use App\Contracts\ServiceTranscriptionInterface;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Media\Audio\ServiceAudioWindowExtractor;
 use App\Services\Processing\StorageAdapterHelper;

@@ -22,7 +22,7 @@ final readonly class AudioTreatmentSettings
 
     /**
      * @param  list<array{above: float, denoise: string}>  $denoiseByPause  noise-adaptive denoise, used when `$denoise` is null:
-     *                                                                       the first rule whose `above` the part's pause level exceeds
+     *                                                                      the first rule whose `above` the part's pause level exceeds
      */
     public function __construct(
         public AudioProfile $profile,

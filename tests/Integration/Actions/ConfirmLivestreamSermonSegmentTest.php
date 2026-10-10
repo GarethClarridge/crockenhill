@@ -6,7 +6,6 @@ namespace Tests\Integration\Actions;
 
 use App\Actions\ConfirmLivestreamSermonSegment;
 use App\Enums\ProcessingStatus;
-use App\Jobs\ExtractSermon;
 use App\Jobs\TranscribeOutputEdges;
 use App\Mail\LivestreamProcessingFailed;
 use App\Models\LivestreamSegment;

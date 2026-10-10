@@ -65,7 +65,7 @@ final readonly class PartLoudness
 
         $gain = $settings->targetLufs - $this->measured['input_i'];
 
-        return $this->measured['input_tp'] + $gain <= $settings->truePeak && $this->measured['input_lra'] <= $settings->lra
+        return $settings->truePeak >= $this->measured['input_tp'] + $gain && $this->measured['input_lra'] <= $settings->lra
             ? 'linear'
             : 'dynamic';
     }

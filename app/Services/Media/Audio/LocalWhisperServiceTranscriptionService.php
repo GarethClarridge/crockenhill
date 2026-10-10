@@ -96,6 +96,7 @@ class LocalWhisperServiceTranscriptionService implements ServiceTranscriptionInt
 
     /**
      * Edge-only decode: never bank a full-service raw response or change a transcript.
+     *
      * @return list<array{start: float, end: float, word: string}>
      */
     public function transcribeEdgeWindow(string $audioPath): array

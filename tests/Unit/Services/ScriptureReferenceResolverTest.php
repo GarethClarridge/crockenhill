@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Services\Scripture\ScriptureReferenceResolver;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use TechWilk\BibleVerseParser\BiblePassageParser;
 
@@ -287,7 +288,7 @@ class ScriptureReferenceResolverTest extends TestCase
      *
      * @param  list<string|null>  $readings
      */
-    #[\PHPUnit\Framework\Attributes\DataProvider('uncoveredOrCompetingReadings')]
+    #[DataProvider('uncoveredOrCompetingReadings')]
     public function test_readings_that_do_not_cover_the_passage_exactly_go_to_review(?string $sermon, array $readings): void
     {
         $membership = $this->resolver->sermonReadingMembership($sermon, $readings);

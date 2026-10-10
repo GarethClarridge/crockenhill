@@ -7,7 +7,6 @@ namespace Tests\Feature\Api;
 use App\Actions\ConfirmLivestreamSermonSegment;
 use App\Enums\ApiTokenAbility;
 use App\Enums\ProcessingStatus;
-use App\Jobs\ExtractSermon;
 use App\Jobs\TranscribeOutputEdges;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;

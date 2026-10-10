@@ -6,8 +6,8 @@ namespace App\Jobs;
 
 use App\Actions\FlagSermonAudioLengthMismatch;
 use App\Actions\FlagSermonAudioLoudnessMissed;
-use App\Actions\FlagSermonAudioSpeechNearNoise;
 use App\Actions\FlagSermonAudioPartUntreated;
+use App\Actions\FlagSermonAudioSpeechNearNoise;
 use App\Data\ServiceSectionMetadata;
 use App\Data\ServiceSermonAbsence;
 use App\Data\ServiceStructure;

@@ -771,7 +771,7 @@ class ServiceStructureEnsembleRulingApplierTest extends TestCase
         $this->assertContains('unrelated_review', $sermon['review_flags']);
         $this->assertContains(ServiceStructureEnsembleRulingApplier::interruptionSettledNote('bible_reading', 2931.0, 2982.0), $sermon['notes']);
         $this->assertSame([], $result['disputes']);
-        $this->assertSame([[ 'song', 2459.81, 2690.0], ['sermon', 2690.1, 4620.0]], $this->spans($result), 'no bounds change');
+        $this->assertSame([['song', 2459.81, 2690.0], ['sermon', 2690.1, 4620.0]], $this->spans($result), 'no bounds change');
         $this->assertTrue(SermonAutoExtractionPolicy::reviewStatePermitsAutoExtraction(false, array_values(array_diff($sermon['review_flags'], ['unrelated_review']))));
 
         $again = $applier->apply($proposal, [$answer]);

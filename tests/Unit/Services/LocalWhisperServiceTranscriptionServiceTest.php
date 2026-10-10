@@ -66,6 +66,7 @@ class LocalWhisperServiceTranscriptionServiceTest extends TestCase
         Http::fake(function ($request) {
             $this->assertStringContainsString('verbose_json', $request->body());
             $this->assertStringContainsString('timestamp_granularities[]', $request->body());
+
             return Http::response(['words' => [['start' => 1, 'end' => 2, 'word' => 'Amen']]]);
         });
         $this->assertSame([['start' => 1.0, 'end' => 2.0, 'word' => 'Amen']], $this->service->transcribeEdgeWindow($this->makeTempFile('audio')));

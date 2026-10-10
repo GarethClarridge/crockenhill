@@ -8,7 +8,6 @@ use App\Actions\ReconcileStaleSermonReview;
 use App\Enums\ProcessingStatus;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
-use App\Jobs\ExtractSermon;
 use App\Jobs\TranscribeOutputEdges;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;

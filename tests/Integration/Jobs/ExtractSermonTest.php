@@ -6,8 +6,8 @@ namespace Tests\Integration\Jobs;
 
 use App\Actions\FlagSermonAudioLengthMismatch;
 use App\Actions\FlagSermonAudioLoudnessMissed;
-use App\Actions\FlagSermonAudioSpeechNearNoise;
 use App\Actions\FlagSermonAudioPartUntreated;
+use App\Actions\FlagSermonAudioSpeechNearNoise;
 use App\Actions\HoldSectionForContentReview;
 use App\Enums\AudioProfile;
 use App\Enums\ServiceSectionType;

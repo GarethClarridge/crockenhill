@@ -13,6 +13,8 @@ use App\Models\MediaProcessingLog;
 use App\Models\SermonProcessingStep;
 use App\Models\ServiceSection;
 use App\Services\Media\Video\VideoStorageService;
+use App\Services\Processing\HistoricWorkingCopyReachability;
+use App\Services\Processing\SermonProcessingStepTransitions;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
@@ -405,9 +407,9 @@ class CleanupTemporaryFilesTest extends TestCase
             'historic_import_operation_id' => $operation->id,
             'processing_metadata' => ['video_quality' => ['status' => 'unassessed', 'reason' => 'interrupted']],
         ]);
-        $transitions = app(\App\Services\Processing\SermonProcessingStepTransitions::class);
+        $transitions = app(SermonProcessingStepTransitions::class);
         $started = $transitions->markAsStarted($log->processing_id, 'assessing_video_quality');
-        $reachability = app(\App\Services\Processing\HistoricWorkingCopyReachability::class);
+        $reachability = app(HistoricWorkingCopyReachability::class);
         $this->assertNotNull($reachability->unsettledWork($log));
         $cancelled = $transitions->markAsCancelled($log->processing_id, 'assessing_video_quality', 'Interrupted round retired; fresh quality assessment is still required.');
         $this->assertSame($started->id, $cancelled->id);

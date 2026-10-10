@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature\Console;
 
 use App\Enums\ProcessingStatus;
-use App\Jobs\ExtractSermon;
 use App\Jobs\TranscribeOutputEdges;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Services;
 
+use App\Contracts\ServiceTranscriptionInterface;
 use App\Data\ChurchServiceTranscript;
 use App\Exceptions\NonRetryableTranscriptionException;
 use App\Exceptions\TranscriptionException;
@@ -11,8 +12,10 @@ use App\Services\Media\Audio\AudioChunkingService;
 use App\Services\Media\Audio\OpenAiServiceTranscriptionService;
 use App\Services\Processing\SermonProcessingLogger;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Http;
 use Mockery;
 use OpenAI\Laravel\Facades\OpenAI;
+use OpenAI\Resources\Audio;
 use OpenAI\Responses\Audio\TranscriptionResponse;
 use OpenAI\Testing\Enums\OverrideStrategy;
 use PHPUnit\Framework\Attributes\Test;
@@ -65,7 +68,7 @@ class OpenAiServiceTranscriptionServiceTest extends TestCase
         OpenAI::fake([TranscriptionResponse::fake(['words' => [['start' => 0.2, 'end' => 0.8, 'word' => 'Amen']]])]);
 
         $this->assertSame([['start' => 0.2, 'end' => 0.8, 'word' => 'Amen']], $this->service->transcribeEdgeWindow($audio));
-        OpenAI::assertSent(\OpenAI\Resources\Audio::class, fn (string $method, array $parameters): bool => $method === 'transcribe'
+        OpenAI::assertSent(Audio::class, fn (string $method, array $parameters): bool => $method === 'transcribe'
             && $parameters['model'] === 'whisper-1'
             && $parameters['timestamp_granularities'] === ['word']
             && $parameters['response_format'] === 'verbose_json'
@@ -98,17 +101,17 @@ class OpenAiServiceTranscriptionServiceTest extends TestCase
         } catch (TranscriptionException $exception) {
             $this->assertSame($failure, $exception->getPrevious());
         }
-        OpenAI::assertSent(\OpenAI\Resources\Audio::class, fn (string $method, array $parameters): bool => gettype($parameters['file']) === 'resource (closed)');
+        OpenAI::assertSent(Audio::class, fn (string $method, array $parameters): bool => gettype($parameters['file']) === 'resource (closed)');
     }
 
     #[Test]
     public function mock_edge_transcription_never_calls_a_remote_provider(): void
     {
-        \Illuminate\Support\Facades\Http::preventStrayRequests();
+        Http::preventStrayRequests();
         OpenAI::fake();
         Config::set('media-processing.service_structure.transcription_service', 'mock');
-        $this->assertSame([], app(\App\Contracts\ServiceTranscriptionInterface::class)->transcribeEdgeWindow('/unused.mp3'));
-        \Illuminate\Support\Facades\Http::assertNothingSent();
+        $this->assertSame([], app(ServiceTranscriptionInterface::class)->transcribeEdgeWindow('/unused.mp3'));
+        Http::assertNothingSent();
         OpenAI::assertNothingSent();
     }
 
