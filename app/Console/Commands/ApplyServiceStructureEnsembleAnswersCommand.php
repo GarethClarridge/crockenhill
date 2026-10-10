@@ -17,8 +17,9 @@ use Throwable;
  * no label is interpreted here. "None of these is right" needs the corrected sections written
  * into the answer (from the operator's note) before it can apply; without them it is reported
  * and left open, never guessed. A run's answers are applied together and validated once, so
- * one may depend on another; if they fail, none of that run's is applied. Lists the plan unless
- * --execute is given.
+ * one may depend on another; if they fail, none of that run's is applied. An answer applied
+ * from the page before is skipped, so a page can be applied again as more of it is answered.
+ * Lists the plan unless --execute is given.
  *
  * A sampled cut check is a measurement, not a question about the structure: its answer is
  * written to `sample-results.json` beside the export for the batch report and never applied.
@@ -83,7 +84,9 @@ class ApplyServiceStructureEnsembleAnswersCommand extends Command
                 $openByRun[$run] = count($result['disputes'] ?? []);
 
                 foreach ($rows as $row) {
-                    $this->line("{$row['id']}: applied ({$row['kind']})");
+                    $this->line(in_array($row['question_id'], $result['already_applied'] ?? [], true)
+                        ? "{$row['id']}: already applied ({$row['kind']})"
+                        : "{$row['id']}: applied ({$row['kind']})");
                 }
             } catch (Throwable $exception) {
                 $failed += count($rows);

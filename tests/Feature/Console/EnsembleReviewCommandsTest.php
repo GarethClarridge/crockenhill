@@ -321,6 +321,64 @@ class EnsembleReviewCommandsTest extends TestCase
         $this->assertSame([], $log->fresh()->processing_metadata?->raw['service_structure_ensemble_rulings'] ?? []);
     }
 
+    /**
+     * A page is saved as it is answered, so its answers can be applied, then applied again with
+     * more of them: an answer already recorded unchanged is skipped, and the rest still go in.
+     */
+    #[Test]
+    public function answers_applied_from_a_page_already_do_not_block_the_page_s_later_answers(): void
+    {
+        $log = $this->disputedRun();
+        $this->artisan('structure:ensemble-export-questions', ['runs' => [$log->id], '--out' => $this->out])->assertSuccessful();
+        $answers = "{$this->out}/answers.json";
+        $first = ['question_id' => "{$log->id}-q0", 'choice' => 'alt1', 'choice_label' => 'Version B', 'note' => ''];
+        file_put_contents($answers, json_encode([$first]));
+        $this->artisan('structure:ensemble-apply-answers', ['export' => $this->out, 'answers' => $answers, '--operator' => (string) $this->operatorId, '--execute' => true])
+            ->assertSuccessful();
+
+        file_put_contents($answers, json_encode([
+            $first,
+            ['question_id' => "{$log->id}-m0", 'choice' => 'alt0', 'choice_label' => 'Version A', 'note' => ''],
+        ]));
+
+        $this->artisan('structure:ensemble-apply-answers', ['export' => $this->out, 'answers' => $answers, '--operator' => (string) $this->operatorId, '--execute' => true])
+            ->expectsOutputToContain("{$log->id}-q0: already applied (choose)")
+            ->expectsOutputToContain("{$log->id}-m0: applied (choose)")
+            ->expectsOutputToContain('2 applied, 0 failed, 0 need attention.')
+            ->assertSuccessful();
+
+        $rulings = $log->fresh()->processing_metadata?->raw['service_structure_ensemble_rulings'];
+        $this->assertSame(['choose', 'choose'], array_column($rulings, 'kind'));
+        $this->assertSame([1, 1], array_column($rulings, 'revision'), 'the repeat is not recorded again');
+    }
+
+    /**
+     * An answer that differs from the one recorded is a change of mind, not a repeat: it is
+     * refused by name and nothing from that run's batch is recorded.
+     */
+    #[Test]
+    public function a_changed_answer_to_an_answered_question_is_refused_by_name(): void
+    {
+        $log = $this->disputedRun();
+        $this->artisan('structure:ensemble-export-questions', ['runs' => [$log->id], '--out' => $this->out])->assertSuccessful();
+        $answers = "{$this->out}/answers.json";
+        file_put_contents($answers, json_encode([['question_id' => "{$log->id}-q0", 'choice' => 'alt1', 'choice_label' => 'Version B', 'note' => '']]));
+        $this->artisan('structure:ensemble-apply-answers', ['export' => $this->out, 'answers' => $answers, '--operator' => (string) $this->operatorId, '--execute' => true])
+            ->assertSuccessful();
+
+        file_put_contents($answers, json_encode([
+            ['question_id' => "{$log->id}-q0", 'choice' => 'alt0', 'choice_label' => 'Version A', 'note' => ''],
+            ['question_id' => "{$log->id}-m0", 'choice' => 'alt0', 'choice_label' => 'Version A', 'note' => ''],
+        ]));
+
+        $this->artisan('structure:ensemble-apply-answers', ['export' => $this->out, 'answers' => $answers, '--operator' => (string) $this->operatorId, '--execute' => true])
+            ->expectsOutputToContain('already answered differently')
+            ->expectsOutputToContain('0 applied, 2 failed, 0 need attention.')
+            ->assertFailed();
+
+        $this->assertCount(1, $log->fresh()->processing_metadata?->raw['service_structure_ensemble_rulings']);
+    }
+
     /** Operator ruling 2026-10-10: a talk edge every draft agrees on is no longer asked. */
     #[Test]
     public function a_talk_edge_every_draft_agrees_on_is_not_asked(): void

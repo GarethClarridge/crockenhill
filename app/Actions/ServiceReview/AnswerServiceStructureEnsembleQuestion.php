@@ -65,7 +65,9 @@ class AnswerServiceStructureEnsembleQuestion
      *
      * Each answer is to a question as it stood before any of them, and they stand or fall
      * together: one answer can depend on another (1005: no answer validated until the sermon's
-     * was in), and a refusal records none of them.
+     * was in), and a refusal records none of them. A page is saved as it is answered and may be
+     * applied more than once, so an answer already recorded unchanged is skipped; a different
+     * answer to an answered question is refused by name, never taken as a revision.
      *
      * @param  list<array{question_id: string, kind: string, slot?: int|null, sections?: list<array<string, mixed>>, explanation?: string|null}>  $answers
      * @return array<string, mixed>
@@ -118,6 +120,8 @@ class AnswerServiceStructureEnsembleQuestion
 
             $before = $this->replay->replay($evidence, $rulings, $log);
             $open = [...$before['disputes'], ...$before['majority_decisions']];
+            $alreadyApplied = [];
+            $newAnswers = [];
 
             foreach ($answers as $answer) {
                 $questionId = $answer['question_id'];
@@ -125,8 +129,22 @@ class AnswerServiceStructureEnsembleQuestion
                 $question = array_values(array_filter($open, static fn (array $dispute): bool => ($dispute['question_id'] ?? null) === $questionId))[0] ?? null;
 
                 if (! is_array($question)) {
-                    throw new InvalidArgumentException('This ensemble question is no longer open.');
+                    $recorded = $this->latestRuling($rulings, $questionId);
+
+                    if ($recorded === null) {
+                        throw new InvalidArgumentException('This ensemble question is no longer open.');
+                    }
+
+                    if (! $this->sameAnswer($recorded, $answer)) {
+                        throw new InvalidArgumentException("Question {$questionId} was already answered differently ({$recorded['kind']}); the recorded answer is unchanged.");
+                    }
+
+                    $alreadyApplied[] = $questionId;
+
+                    continue;
                 }
+
+                $newAnswers[] = $answer;
 
                 $rulingKey = is_string($question['ruling_key'] ?? null) ? $question['ruling_key'] : (string) Str::uuid();
                 $revisions = array_map(
@@ -151,7 +169,11 @@ class AnswerServiceStructureEnsembleQuestion
                 ];
             }
 
-            $settles = array_diff(array_column($answers, 'kind'), ['defer']) !== [];
+            if ($newAnswers === []) {
+                return [...$before, 'sections_synced' => false, 'already_applied' => $alreadyApplied];
+            }
+
+            $settles = array_diff(array_column($newAnswers, 'kind'), ['defer']) !== [];
             $after = $this->replay->replay($evidence, $rulings, $log);
 
             if ($settles && $after['validation_passed'] !== true) {
@@ -202,7 +224,7 @@ class AnswerServiceStructureEnsembleQuestion
 
             $log->forceFill(['processing_metadata' => $metadata])->save();
 
-            return [...$after, 'sections_synced' => $sectionsSynced];
+            return [...$after, 'sections_synced' => $sectionsSynced, 'already_applied' => $alreadyApplied];
         });
     }
 
@@ -230,6 +252,56 @@ class AnswerServiceStructureEnsembleQuestion
                 : ['absent' => true],
             default => throw new InvalidArgumentException('Unsupported ensemble answer.'),
         };
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rulings
+     * @return array<string, mixed>|null
+     */
+    private function latestRuling(array $rulings, string $questionId): ?array
+    {
+        $recorded = array_values(array_filter($rulings, static fn (array $ruling): bool => ($ruling['question_id'] ?? null) === $questionId));
+        usort($recorded, static fn (array $a, array $b): int => (int) ($a['revision'] ?? 0) <=> (int) ($b['revision'] ?? 0));
+
+        return $recorded === [] ? null : end($recorded);
+    }
+
+    /**
+     * Whether an answer repeats the recorded one: the same kind settling the same content.
+     *
+     * @param  array<string, mixed>  $recorded
+     * @param  array{question_id: string, kind: string, slot?: int|null, sections?: list<array<string, mixed>>, explanation?: string|null}  $answer
+     */
+    private function sameAnswer(array $recorded, array $answer): bool
+    {
+        if (($recorded['kind'] ?? null) !== $answer['kind']) {
+            return false;
+        }
+
+        return match ($answer['kind']) {
+            'choose' => is_array($recorded['question'] ?? null)
+                && $this->chosenSlotMatches($recorded, $answer['slot'] ?? null),
+            'correct' => $this->sameContent($recorded['resolution']['sections'] ?? null, $answer['sections'] ?? []),
+            default => true,
+        };
+    }
+
+    /** @param  array<string, mixed>  $recorded */
+    private function chosenSlotMatches(array $recorded, ?int $slot): bool
+    {
+        try {
+            return $this->sameContent($recorded['resolution']['sections'] ?? null, [$this->settled($this->chosenAlternative($recorded['question'], $slot))]);
+        } catch (InvalidArgumentException) {
+            return false;
+        }
+    }
+
+    /** Recorded content has been through JSON, so 400.0 reads back as 400 and keys may reorder. */
+    private function sameContent(mixed $recorded, mixed $answered): bool
+    {
+        $normalise = static fn (mixed $value): mixed => json_decode(json_encode($value, JSON_THROW_ON_ERROR), true, flags: JSON_THROW_ON_ERROR);
+
+        return $normalise($recorded) == $normalise($answered);
     }
 
     /** @param  array<string, mixed>  $question */
