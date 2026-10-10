@@ -9,6 +9,7 @@ use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Enums\ProcessingStatus;
+use App\Enums\ServiceSectionType;
 use App\Jobs\DetectServiceStructure;
 use App\Models\ChurchService;
 use App\Models\LivestreamSegment;
@@ -16,9 +17,8 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Services\ChurchService\ServiceSectionSyncService;
-use App\Services\ChurchService\Structure\EnsembleReviewGate;
-use App\Enums\ServiceSectionType;
 use App\Services\ChurchService\Structure\EnsembleReviewExport;
+use App\Services\ChurchService\Structure\EnsembleReviewGate;
 use App\Services\ChurchService\Structure\MockServiceStructureService;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
@@ -264,19 +264,17 @@ class EnsembleReviewCommandsTest extends TestCase
         $this->assertSame([], array_values(array_filter($replayed, static fn (array $item): bool => ! $item['decided'])), 'nothing reopened');
     }
 
+    /** Operator ruling 2026-10-10: a talk edge every draft agrees on is no longer asked. */
     #[Test]
-    public function a_talk_edge_every_draft_agrees_on_is_asked_as_confirm_or_correct(): void
+    public function a_talk_edge_every_draft_agrees_on_is_not_asked(): void
     {
         $log = $this->agreedRun(talkEnd: 400.0, prayer: true, neighbourType: 'notices');
 
         $this->artisan('structure:ensemble-export-questions', ['runs' => [$log->id], '--out' => $this->out])
             ->assertSuccessful();
 
-        $check = json_decode((string) file_get_contents("{$this->out}/answers-map.json"), true)['items']["{$log->id}-q0"];
-        $this->assertSame('short_talk', $check['type']);
-        $this->assertSame(['alt0', 'neither', 'defer'], array_keys($check['answers']));
-        $this->assertSame('choose', $check['answers']['alt0']['kind']);
-        $this->assertStringContainsString('Does the talk end in the right place?', (string) file_get_contents("{$this->out}/index.html"));
+        $items = json_decode((string) file_get_contents("{$this->out}/answers-map.json"), true)['items'];
+        $this->assertSame([], array_values(array_filter($items, static fn (array $item): bool => ! $item['decided'])));
     }
 
     /**
@@ -438,6 +436,46 @@ class EnsembleReviewCommandsTest extends TestCase
         );
 
         return $log->fresh();
+    }
+
+    /**
+     * Canary 15, 1364: an item some drafts left out could be its own item or part of the next,
+     * and either was fine, but the page offered only keep or remove.
+     */
+    #[Test]
+    public function a_question_about_whether_an_item_is_there_offers_either(): void
+    {
+        $this->operatorId = User::factory()->admin()->create()->id;
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'church_service_id' => ChurchService::factory()->create()->id,
+        ]);
+        $this->storeInputs($log);
+        $draw = fn (bool $withSong): ServiceStructure => ServiceStructure::fromSections(array_values(array_filter([
+            $this->section(['type' => 'welcome', 'start_time' => 0.0, 'end_time' => 120.0]),
+            $this->section(['type' => 'short_talk', 'start_time' => 130.0, 'end_time' => 400.0]),
+            $withSong ? $this->section(['type' => 'song', 'start_time' => 401.0, 'end_time' => 418.0]) : null,
+            $this->section(['type' => 'bible_reading', 'start_time' => 420.0, 'end_time' => 590.0, 'reading_reference' => 'Luke 15:1-10']),
+            $this->section(['type' => 'sermon', 'start_time' => 600.0, 'end_time' => 2200.0, 'sermon_reference' => 'Luke 15:1-10']),
+            $this->section(['type' => 'song', 'start_time' => 2210.0, 'end_time' => 2400.0]),
+        ])), model: 'mock');
+        MockServiceStructureService::useStructureSequence($draw(true), $draw(true), $draw(false), $draw(false));
+        (new DetectServiceStructure($log))->handle(
+            app(ServiceStructureInterface::class),
+            app(SilenceSnapService::class),
+            app(ServiceStructureValidator::class),
+            app(ServiceSectionSyncService::class),
+            app(SermonCandidateConfidenceService::class),
+        );
+
+        $this->artisan('structure:ensemble-export-questions', ['runs' => [$log->id], '--out' => $this->out])
+            ->assertSuccessful();
+
+        $items = json_decode((string) file_get_contents("{$this->out}/answers-map.json"), true)['items'];
+        $presence = collect($items)->first(fn (array $item): bool => $item['type'] === 'song' && ! $item['decided']);
+
+        $this->assertNotNull($presence);
+        $this->assertArrayHasKey('none', $presence['answers']);
+        $this->assertSame(['kind' => 'accept', 'slot' => null], $presence['answers']['either'] ?? null);
     }
 
     private function disputedRun(): MediaProcessingLog

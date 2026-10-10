@@ -11,91 +11,56 @@ use App\Enums\ServiceSectionType;
 use App\Services\ChurchService\Structure\CutAwareEnsembleComposer;
 use App\Services\ChurchService\Structure\EnsembleComposition;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleRulingApplier;
-use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\ChurchService\Structure\TalkEdgeChecks;
 use App\Services\ChurchService\Structure\ValidationResult;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
- * Agreement cannot see an error every draft shares. Where it hides most is a talk edge that
- * touches the speech next to it (plan DR6, ruled 2026-09-28: every such edge is asked).
+ * Talk edges every draft agreed on were asked from 2026-09-28 (plan DR6) because agreement cannot see
+ * an error every draft shares. All fifteen answered by canary 15 confirmed the talk, and the operator
+ * ruled on 2026-10-10 that they are no longer asked. Checks already stored on a run still apply.
  */
 class TalkEdgeChecksTest extends TestCase
 {
     #[Test]
-    public function a_unanimous_talk_touching_a_reading_is_asked_about_its_end(): void
+    public function a_unanimous_talk_touching_other_speech_is_not_asked(): void
+    {
+        foreach ([ServiceSectionType::BibleReading, ServiceSectionType::Prayer, ServiceSectionType::Other, ServiceSectionType::Notices] as $neighbour) {
+            $this->assertSame([], $this->checks($this->compose($this->draws(talkEnd: 900.0, prayerStart: 900.0, neighbour: $neighbour))), $neighbour->value);
+        }
+    }
+
+    /** A talk the drafts disagree about is still asked, by its own question. */
+    #[Test]
+    public function a_talk_the_drafts_disagree_about_is_still_asked(): void
+    {
+        $draws = $this->draws(talkEnd: 900.0, prayerStart: 900.0, neighbour: ServiceSectionType::BibleReading);
+        $draws[2] = $this->draw(talkEnd: 960.0, prayerStart: 960.0, neighbour: ServiceSectionType::BibleReading);
+        $draws[3] = $this->draw(talkEnd: 960.0, prayerStart: 960.0, neighbour: ServiceSectionType::BibleReading);
+
+        $this->assertContains('short_talk', array_column($this->compose($draws)->disputes, 'type'));
+    }
+
+    /** A check banked before the ruling is still answered and applied like any question. */
+    #[Test]
+    public function a_stored_check_is_still_settled_by_its_answer(): void
     {
         $composition = $this->compose($this->draws(talkEnd: 900.0, prayerStart: 900.0, neighbour: ServiceSectionType::BibleReading));
-        $checks = $this->checks($composition);
-
-        $this->assertCount(1, $checks);
-        $this->assertSame(['end'], $checks[0]['edges']);
-        $this->assertSame([['edge' => 'end', 'type' => 'bible_reading', 'title' => 'Prayer']], $checks[0]['neighbours']);
-        $this->assertSame(600.0, $checks[0]['start_time']);
-        $this->assertSame([0, 1, 2, 3], $checks[0]['alternatives'][0]['slots']);
-        $this->assertTrue($composition->requiresReview());
         $talk = $composition->structure->sectionsOfType(ServiceSectionType::ShortTalk)[0];
-        $this->assertContains(ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES, $talk->reviewFlags);
-    }
-
-    #[Test]
-    public function a_talk_ending_into_a_prayer_is_not_asked(): void
-    {
-        $composition = $this->compose($this->draws(talkEnd: 900.0, prayerStart: 900.0));
-
-        $this->assertSame([], $this->checks($composition));
-        $talk = $composition->structure->sectionsOfType(ServiceSectionType::ShortTalk)[0];
-        $this->assertNotContains(ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES, $talk->reviewFlags);
-    }
-
-    #[Test]
-    public function prayer_before_a_talk_still_checks_its_start(): void
-    {
-        $draw = new ValidationResult(ServiceStructure::fromSections([
-            new ServiceStructureSection(ServiceSectionType::Prayer, 'Prayer', 500.0, 600.0, 0.95, null, null, null),
-            new ServiceStructureSection(ServiceSectionType::ShortTalk, 'Mission update', 600.0, 900.0, 0.95, null, null, null),
-            new ServiceStructureSection(ServiceSectionType::Prayer, 'Closing prayer', 900.0, 1000.0, 0.95, null, null, null),
-            new ServiceStructureSection(ServiceSectionType::Sermon, 'Sermon', 1200.0, 2150.0, 0.95, null, null, null),
-        ]));
-        $checks = $this->checks($this->compose(array_fill(0, 4, $draw)));
-
-        $this->assertCount(1, $checks);
-        $this->assertSame(['start'], $checks[0]['edges']);
-    }
-
-    /** A pause of three seconds or more is a boundary the recording itself marks. */
-    #[Test]
-    public function a_talk_with_a_pause_before_the_next_speech_is_not_asked(): void
-    {
-        $this->assertSame([], $this->checks($this->compose($this->draws(talkEnd: 900.0, prayerStart: 903.0))));
-    }
-
-    /** Music next to a talk is a boundary the sound stage places; it is not speech. */
-    #[Test]
-    public function a_talk_ending_at_a_song_is_not_asked(): void
-    {
-        $this->assertSame([], $this->checks($this->compose($this->draws(talkEnd: 900.0, prayerStart: 900.0, neighbour: ServiceSectionType::Song))));
-    }
-
-    /** A talk the drafts already disagree about is asked once, by its own question. */
-    #[Test]
-    public function a_talk_already_in_question_is_not_asked_again(): void
-    {
-        $draws = $this->draws(talkEnd: 900.0, prayerStart: 900.0);
-        $draws[2] = $this->draw(talkEnd: 960.0, prayerStart: 960.0);
-        $draws[3] = $this->draw(talkEnd: 960.0, prayerStart: 960.0);
-        $composition = $this->compose($draws);
-
-        $this->assertSame([], $this->checks($composition));
-        $this->assertContains('short_talk', array_column($composition->disputes, 'type'));
-    }
-
-    /** Confirming the edge settles the check, and it stays settled on every later replay. */
-    #[Test]
-    public function an_answer_settles_the_check_and_carries_to_the_next_composition(): void
-    {
-        $composition = $this->compose($this->draws(talkEnd: 900.0, prayerStart: 900.0, neighbour: ServiceSectionType::BibleReading));
-        $check = $this->checks($composition)[0];
+        $check = [
+            'type' => 'short_talk',
+            'check' => TalkEdgeChecks::CHECK,
+            'edges' => ['end'],
+            'neighbours' => [['edge' => 'end', 'type' => 'bible_reading', 'title' => 'Prayer']],
+            'start_time' => $talk->startTime,
+            'end_time' => $talk->endTime,
+            'written' => true,
+            'supporting_slots' => [0, 1, 2, 3],
+            'absent_slots' => [],
+            'alternatives' => [['slots' => [0, 1, 2, 3], 'section' => $talk->toArray()]],
+            'question_id' => 'stored-check',
+        ];
         $ruling = [
             'ruling_key' => 'edge-1',
             'question_id' => $check['question_id'],
@@ -109,15 +74,12 @@ class TalkEdgeChecksTest extends TestCase
         $after = app(ServiceStructureEnsembleRulingApplier::class)->apply([
             'source_hash' => 'source',
             'structure' => $composition->structure->toArray(),
-            'disputes' => $composition->disputes,
+            'disputes' => [...$composition->disputes, $check],
             'majority_decisions' => $composition->majorityDecisions,
         ], [$ruling]);
 
         $this->assertSame([], $after['disputes']);
-        $this->assertCount(1, $after['applied_rulings']);
-        $talk = ServiceStructure::fromArray($after['structure'])->sectionsOfType(ServiceSectionType::ShortTalk)[0];
-        $this->assertSame(880.0, $talk->endTime);
-        $this->assertNotContains(ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES, $talk->reviewFlags);
+        $this->assertSame(880.0, ServiceStructure::fromArray($after['structure'])->sectionsOfType(ServiceSectionType::ShortTalk)[0]->endTime);
     }
 
     /** @param  array<int, ValidationResult>  $draws */

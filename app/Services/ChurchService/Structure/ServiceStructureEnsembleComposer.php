@@ -38,6 +38,20 @@ class ServiceStructureEnsembleComposer
     /** Share of the shorter span two claims must overlap to be the same song or the same filler. */
     private const SAME_SPAN_OVERLAP = 0.5;
 
+    /** The longest stretch before a song that is read as its introduction (largest seen: 22 s). */
+    private const SONG_INTRODUCTION_SECONDS = 30.0;
+
+    /** How far a neighbour may run into a disputed stretch at its edges before it is content inside it. */
+    private const EDGE_OVERLAP_SECONDS = 5.0;
+
+    /** Content an introduction stretch must not hold: what the sermon cut keeps, or prefers to (decision 18). */
+    private const NOT_INTRODUCTION_TYPES = [
+        ServiceSectionType::Sermon,
+        ServiceSectionType::Prayer,
+        ServiceSectionType::BibleReading,
+        ServiceSectionType::ShortTalk,
+    ];
+
     /**
      * Votes that decide a claim without a question (ruled 2026-10-01). Where the truth was ruled,
      * a three-to-one vote was never wrong about a talk or sermon: 26 canary-9 answers and 31 splits
@@ -168,8 +182,11 @@ class ServiceStructureEnsembleComposer
         $records = [];
         $provenance = [];
         $degraded = $validVotes < 4;
+        // Three agreeing drafts are still a majority, and the coverage question gave nothing to
+        // judge (ruled 2026-10-10): only two valid votes are asked about and held.
+        $degradedHeld = $validVotes < 3;
 
-        if ($degraded) {
+        if ($degradedHeld) {
             $disputes[] = [
                 'type' => 'degraded_coverage',
                 'written' => false,
@@ -249,7 +266,7 @@ class ServiceStructureEnsembleComposer
                 $flags[] = ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES;
             }
 
-            if ($degraded) {
+            if ($degradedHeld) {
                 $flags[] = ServiceStructureValidator::FLAG_ENSEMBLE_DEGRADED;
             }
 
@@ -325,7 +342,7 @@ class ServiceStructureEnsembleComposer
             $absence ? reset($absenceVotes)->structure->sermonAbsence : null,
         );
 
-        return new EnsembleComposition(OutputEdgeReview::apply($structure, $disputes), $disputes, $provenance, $degraded, false, $validVotes, majorityDecisions: $majorityDecisions);
+        return new EnsembleComposition(OutputEdgeReview::apply($structure, $disputes), $disputes, $provenance, $degraded, false, $validVotes, degradedReviewed: $degraded && ! $degradedHeld, majorityDecisions: $majorityDecisions);
     }
 
     /**
@@ -491,13 +508,18 @@ class ServiceStructureEnsembleComposer
 
         /**
          * A song is the same song wherever most of it overlaps; only the start of the song that
-         * ends the sermon is a cut (ruled 2026-09-29). Identity is compared as a claim field.
+         * ends the sermon is a cut (ruled 2026-09-29). Its introduction, spoken or instrumental,
+         * may be in the song or out of it (ruled 2026-10-10), so starts that differ only by one
+         * agree. Identity is compared as a claim field.
          */
         if ($a->type === ServiceSectionType::Song) {
             $bothEndSermon = isset($context['ending_songs'][$this->claimKey($claimA)], $context['ending_songs'][$this->claimKey($claimB)]);
+            $earlier = min($a->startTime, $b->startTime);
+            $later = max($a->startTime, $b->startTime);
 
             return $this->overlapShare($a, $b) >= self::SAME_SPAN_OVERLAP
-                && (! $bothEndSermon || abs($a->startTime - $b->startTime) <= 15.0);
+                && (! $bothEndSermon || $later - $earlier <= 15.0
+                    || ($later - $earlier <= self::SONG_INTRODUCTION_SECONDS && $this->onlyIntroductionBetween($earlier, $later, $draws)));
         }
 
         if (in_array($a->type, self::FILLER_TYPES, true) && ! ($claimA['cut_relevant'] && $claimB['cut_relevant'])) {
@@ -533,7 +555,64 @@ class ServiceStructureEnsembleComposer
             $startAgrees = $this->preSermonPrayer($a->startTime, $b->startTime, $draws);
         }
 
-        return $startAgrees && abs($a->endTime - $b->endTime) <= $tolerance;
+        $endAgrees = abs($a->endTime - $b->endTime) <= $tolerance
+            || ($a->type === ServiceSectionType::ShortTalk
+                && $this->onlyClosingPrayerBetween(min($a->endTime, $b->endTime), max($a->endTime, $b->endTime), $draws));
+
+        return $startAgrees && $endAgrees;
+    }
+
+    /**
+     * Whether what lies between two ends of a talk is its closing prayer and nothing else: some voter
+     * calls it prayer, and no voter puts anything but prayer or the talk itself there. A talk may keep
+     * or lose its closing prayer (ruled 2026-10-02), so those ends agree (ruled 2026-10-10).
+     *
+     * @param  array<int,ValidationResult>  $draws
+     */
+    private function onlyClosingPrayerBetween(float $from, float $to, array $draws): bool
+    {
+        $prayer = false;
+
+        foreach ($draws as $draw) {
+            foreach ($draw->structure->sections as $section) {
+                $inside = min($section->endTime, $to) - max($section->startTime, $from);
+
+                if ($inside <= self::EDGE_OVERLAP_SECONDS || $section->type === ServiceSectionType::ShortTalk) {
+                    continue;
+                }
+
+                if ($section->type !== ServiceSectionType::Prayer) {
+                    return false;
+                }
+
+                $prayer = true;
+            }
+        }
+
+        return $prayer;
+    }
+
+    /**
+     * Whether no voter puts sermon, prayer, reading or talk between two starts of the song ending
+     * the sermon, so what lies between is that song's introduction: an announcement, an `other`
+     * stretch, music or nothing. In canary 15's six such questions every voter ended its sermon
+     * where the others did, and the stretch was only ever the song's introduction.
+     *
+     * @param  array<int,ValidationResult>  $draws
+     */
+    private function onlyIntroductionBetween(float $from, float $to, array $draws): bool
+    {
+        foreach ($draws as $draw) {
+            foreach ($draw->structure->sections as $section) {
+                $inside = min($section->endTime, $to) - max($section->startTime, $from);
+
+                if (in_array($section->type, self::NOT_INTRODUCTION_TYPES, true) && $inside > self::EDGE_OVERLAP_SECONDS) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     /**

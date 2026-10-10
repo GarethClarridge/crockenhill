@@ -1641,8 +1641,9 @@ class DetectServiceStructureTest extends TestCase
         );
     }
 
+    /** Three surviving draws are still a majority: not held as degraded (ruled 2026-10-10). */
     #[Test]
-    public function talk_from_three_surviving_draws_is_flagged_as_degraded(): void
+    public function talk_from_three_surviving_draws_is_not_held_as_degraded(): void
     {
         Config::set('media-processing.service_structure.mode', 'primary');
 
@@ -1668,7 +1669,7 @@ class DetectServiceStructureTest extends TestCase
             ->where('media_processing_log_id', $log->id)
             ->where('section_type', 'short_talk')
             ->sole();
-        $this->assertContains(ServiceStructureValidator::FLAG_ENSEMBLE_DEGRADED, $talk->metadata['review_flags'] ?? []);
+        $this->assertNotContains(ServiceStructureValidator::FLAG_ENSEMBLE_DEGRADED, $talk->metadata['review_flags'] ?? []);
         $this->assertArrayNotHasKey('service_structure_retry', $log->processing_metadata?->toArray() ?? []);
     }
 
@@ -1705,12 +1706,12 @@ class DetectServiceStructureTest extends TestCase
             ->where('media_processing_log_id', $log->id)
             ->where('section_type', 'prayer')
             ->sole();
-        $this->assertContains(ServiceStructureValidator::FLAG_ENSEMBLE_DEGRADED, $prayer->metadata['review_flags'] ?? []);
+        $this->assertNotContains(ServiceStructureValidator::FLAG_ENSEMBLE_DEGRADED, $prayer->metadata['review_flags'] ?? []);
         $this->assertSame(0, ServiceSection::query()->where('media_processing_log_id', $log->id)->where('section_type', 'short_talk')->count());
     }
 
     #[Test]
-    public function stable_talk_from_surviving_draws_still_carries_degraded_flag(): void
+    public function stable_talk_from_three_surviving_draws_carries_no_degraded_flag(): void
     {
         Config::set('media-processing.service_structure.mode', 'primary');
 
@@ -1747,7 +1748,7 @@ class DetectServiceStructureTest extends TestCase
                 $section->metadata['review_flags'] ?? [],
                 true,
             ));
-        $this->assertGreaterThan(0, $flagged->count());
+        $this->assertSame(0, $flagged->count());
         $this->assertArrayNotHasKey('service_structure_retry', $log->processing_metadata?->toArray() ?? []);
     }
 

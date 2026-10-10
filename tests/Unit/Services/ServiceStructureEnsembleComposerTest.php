@@ -269,6 +269,23 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         $this->assertContains(ServiceStructureValidator::FLAG_ENSEMBLE_DEGRADED, $result->structure->sections[0]->reviewFlags);
     }
 
+    /**
+     * Operator ruling 2026-10-10: the coverage question gave nothing to judge, and three agreeing
+     * drafts are still a majority, so three valid votes are recorded as degraded but not asked.
+     */
+    #[Test]
+    public function three_valid_votes_are_degraded_but_not_asked_or_held(): void
+    {
+        $vote = $this->vote($this->structure($this->section(ServiceSectionType::Sermon, 100, 500)));
+        $result = app(ServiceStructureEnsembleComposer::class)->compose([0 => $vote, 1 => $vote, 2 => $vote]);
+
+        $this->assertTrue($result->degraded);
+        $this->assertTrue($result->degradedReviewed);
+        $this->assertFalse($result->requiresReview());
+        $this->assertNotContains('degraded_coverage', array_column($result->disputes, 'type'));
+        $this->assertNotContains(ServiceStructureValidator::FLAG_ENSEMBLE_DEGRADED, $result->structure->sections[0]->reviewFlags);
+    }
+
     #[Test]
     public function fewer_than_two_valid_votes_refuse_composition(): void
     {
@@ -663,6 +680,109 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         $this->assertSame([], $midServiceOnly->disputes);
         $this->assertSame(300.0, $midServiceOnly->structure->sectionsOfType(ServiceSectionType::Song)[0]->startTime);
         $this->assertContains('song', array_column($closing->disputes, 'type'));
+    }
+
+    /**
+     * Operator ruling 2026-10-10 (extending 2026-09-25 and 2026-10-06): a song's spoken or
+     * instrumental introduction may be in the song or out of it. Every intro question before the
+     * song ending the sermon (1346, 964, 1117, 1311, 1224; 9–22 s apart) was answered "either".
+     */
+    #[Test]
+    public function the_song_ending_the_sermon_may_start_with_or_without_its_introduction(): void
+    {
+        $withAnnouncement = fn (): ServiceStructure => $this->structure(
+            $this->section(ServiceSectionType::Sermon, 1000, 3190),
+            $this->section(ServiceSectionType::Other, 3190, 3212),
+            $this->song(3212, 3500, 'In Christ Alone'),
+        );
+        $songFromTheEnd = fn (): ServiceStructure => $this->structure(
+            $this->section(ServiceSectionType::Sermon, 1000, 3190),
+            $this->song(3190, 3500, 'In Christ Alone'),
+        );
+
+        $composition = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($withAnnouncement()),
+            1 => $this->vote($withAnnouncement()),
+            2 => $this->vote($songFromTheEnd()),
+            3 => $this->vote($songFromTheEnd()),
+        ]);
+
+        $this->assertNotContains('song', array_column($composition->disputes, 'type'));
+    }
+
+    /** Decision 18 prefers the closing prayer in the sermon, so a prayer in the stretch is still asked. */
+    #[Test]
+    public function a_closing_prayer_between_the_song_starts_is_still_a_question(): void
+    {
+        $withPrayer = fn (): ServiceStructure => $this->structure(
+            $this->section(ServiceSectionType::Sermon, 1000, 3190),
+            $this->section(ServiceSectionType::Prayer, 3190, 3212),
+            $this->song(3212, 3500, 'In Christ Alone'),
+        );
+        $songFromTheEnd = fn (): ServiceStructure => $this->structure(
+            $this->section(ServiceSectionType::Sermon, 1000, 3190),
+            $this->song(3190, 3500, 'In Christ Alone'),
+        );
+
+        $composition = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($withPrayer()),
+            1 => $this->vote($withPrayer()),
+            2 => $this->vote($songFromTheEnd()),
+            3 => $this->vote($songFromTheEnd()),
+        ]);
+
+        $this->assertContains('song', array_column($composition->disputes, 'type'));
+    }
+
+    /**
+     * Operator ruling 2026-10-02: a talk may keep or lose its closing prayer. Talk ends that differ
+     * only by a prayer were answered "either" (936, 1224 in canary 15); ruled not asked 2026-10-10.
+     */
+    #[Test]
+    public function talk_ends_that_differ_only_by_its_closing_prayer_are_not_a_question(): void
+    {
+        $withPrayer = fn (): ServiceStructure => $this->structure(
+            $this->section(ServiceSectionType::ShortTalk, 600, 900),
+            $this->section(ServiceSectionType::Prayer, 900, 1050),
+            $this->section(ServiceSectionType::Sermon, 1200, 2150),
+        );
+        $talkThroughPrayer = fn (): ServiceStructure => $this->structure(
+            $this->section(ServiceSectionType::ShortTalk, 600, 1050),
+            $this->section(ServiceSectionType::Sermon, 1200, 2150),
+        );
+
+        $composition = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($withPrayer()),
+            1 => $this->vote($withPrayer()),
+            2 => $this->vote($talkThroughPrayer()),
+            3 => $this->vote($talkThroughPrayer()),
+        ]);
+
+        $this->assertNotContains('short_talk', array_column($composition->disputes, 'type'));
+    }
+
+    /** A reading between the ends is content the talk would take or lose: 964 was answered by choosing. */
+    #[Test]
+    public function talk_ends_that_differ_by_a_reading_are_still_a_question(): void
+    {
+        $withReading = fn (): ServiceStructure => $this->structure(
+            $this->section(ServiceSectionType::ShortTalk, 600, 900),
+            $this->section(ServiceSectionType::BibleReading, 900, 1050, 'Deuteronomy 6:1-9'),
+            $this->section(ServiceSectionType::Sermon, 1200, 2150),
+        );
+        $talkThroughReading = fn (): ServiceStructure => $this->structure(
+            $this->section(ServiceSectionType::ShortTalk, 600, 1050),
+            $this->section(ServiceSectionType::Sermon, 1200, 2150),
+        );
+
+        $composition = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($withReading()),
+            1 => $this->vote($withReading()),
+            2 => $this->vote($talkThroughReading()),
+            3 => $this->vote($talkThroughReading()),
+        ]);
+
+        $this->assertContains('short_talk', array_column($composition->disputes, 'type'));
     }
 
     #[Test]

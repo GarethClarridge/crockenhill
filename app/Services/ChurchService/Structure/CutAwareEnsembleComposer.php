@@ -9,8 +9,7 @@ use App\Models\MediaProcessingLog;
 use App\Services\Sermon\SermonCutProbe;
 
 /**
- * Composes an ensemble, drops the filler questions whose answer cannot change the cut, and asks
- * about the talk edges agreement cannot check ({@see TalkEdgeChecks}).
+ * Composes an ensemble and drops the filler questions whose answer cannot change the cut.
  *
  * A disagreement over a welcome, prayer or `other` span is asked only when the sermon's cut
  * differs between its versions (ruled 2026-09-30, extending decision 12). Rather than predict
@@ -27,7 +26,6 @@ class CutAwareEnsembleComposer
     public function __construct(
         private readonly ServiceStructureEnsembleComposer $composer,
         private readonly SermonCutProbe $cutProbe,
-        private readonly TalkEdgeChecks $talkEdgeChecks,
     ) {}
 
     /**
@@ -35,7 +33,7 @@ class CutAwareEnsembleComposer
      */
     public function compose(array $draws, ?ChurchServiceTranscript $transcript, ?MediaProcessingLog $log): EnsembleComposition
     {
-        $composition = $this->talkEdgeChecks->apply($this->composeCutAware($draws, $transcript, $log), $draws);
+        $composition = $this->composeCutAware($draws, $transcript, $log);
         if ($transcript === null || $composition->refused) {
             return $composition;
         }

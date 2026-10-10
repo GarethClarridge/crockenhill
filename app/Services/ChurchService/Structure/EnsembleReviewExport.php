@@ -439,8 +439,9 @@ class EnsembleReviewExport
             $answers['none'] = ['kind' => $written ? 'remove' : 'accept', 'slot' => null];
         }
 
-        if (count($alternatives) > 1 && $written) {
-            $options[] = ['either', 'Either version is fine'];
+        // Two versions, or one version some drafts left out: accepting what was written settles both.
+        if ($written && (count($alternatives) > 1 || ($dispute['absent_slots'] ?? []) !== [])) {
+            $options[] = ['either', count($alternatives) > 1 ? 'Either version is fine' : 'Either is fine: with it or without it'];
             $answers['either'] = ['kind' => 'accept', 'slot' => null];
         }
 
