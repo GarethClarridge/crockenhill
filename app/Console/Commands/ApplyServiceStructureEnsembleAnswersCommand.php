@@ -16,7 +16,9 @@ use Throwable;
  * Each saved choice is mapped through the export's answer map to the answer it stands for, so
  * no label is interpreted here. "None of these is right" needs the corrected sections written
  * into the answer (from the operator's note) before it can apply; without them it is reported
- * and left open, never guessed. Lists the plan unless --execute is given.
+ * and left open, never guessed. A run's answers are applied together and validated once, so
+ * one may depend on another; if they fail, none of that run's is applied. Lists the plan unless
+ * --execute is given.
  *
  * A sampled cut check is a measurement, not a question about the structure: its answer is
  * written to `sample-results.json` beside the export for the batch report and never applied.
@@ -67,24 +69,25 @@ class ApplyServiceStructureEnsembleAnswersCommand extends Command
         $failed = 0;
         $openByRun = [];
 
-        foreach ($ready as $row) {
+        foreach ($this->byRun($ready) as $run => $rows) {
             assert($operator instanceof User);
 
             try {
-                $result = $answerQuestion->execute(
-                    (int) $row['run'],
-                    (string) $row['question_id'],
-                    (string) $row['kind'],
-                    $operator,
-                    $row['slot'],
-                    $row['sections'],
-                    $row['explanation'],
-                );
-                $openByRun[$row['run']] = count($result['disputes'] ?? []);
-                $this->line("{$row['id']}: applied ({$row['kind']})");
+                $result = $answerQuestion->executeAll($run, array_map(static fn (array $row): array => [
+                    'question_id' => (string) $row['question_id'],
+                    'kind' => (string) $row['kind'],
+                    'slot' => $row['slot'],
+                    'sections' => $row['sections'],
+                    'explanation' => $row['explanation'],
+                ], $rows), $operator);
+                $openByRun[$run] = count($result['disputes'] ?? []);
+
+                foreach ($rows as $row) {
+                    $this->line("{$row['id']}: applied ({$row['kind']})");
+                }
             } catch (Throwable $exception) {
-                $failed++;
-                $this->error("{$row['id']}: {$exception->getMessage()}");
+                $failed += count($rows);
+                $this->error(implode(', ', array_column($rows, 'id')).": none applied, {$exception->getMessage()}");
             }
         }
 
@@ -96,6 +99,23 @@ class ApplyServiceStructureEnsembleAnswersCommand extends Command
         $this->info(sprintf('%d applied, %d failed, %d need attention.', count($ready) - $failed, $failed, $blocked));
 
         return $failed === 0 && $blocked === 0 ? self::SUCCESS : self::FAILURE;
+    }
+
+    /**
+     * A run's answers go in together, so one can depend on another; they fail together too.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return array<int, list<array<string, mixed>>>
+     */
+    private function byRun(array $rows): array
+    {
+        $byRun = [];
+
+        foreach ($rows as $row) {
+            $byRun[(int) $row['run']][] = $row;
+        }
+
+        return $byRun;
     }
 
     /**

@@ -264,6 +264,63 @@ class EnsembleReviewCommandsTest extends TestCase
         $this->assertSame([], array_values(array_filter($replayed, static fn (array $item): bool => ! $item['decided'])), 'nothing reopened');
     }
 
+    /**
+     * Repair pass, 1005 (2026-10-10): the drafts cut the sermon four ways, so none was written and
+     * no answer could pass validation on its own, the reading's included, until the sermon's
+     * was in. The answers saved for a run are recorded together and validated once.
+     */
+    #[Test]
+    public function a_run_s_answers_are_applied_together_so_one_can_depend_on_another(): void
+    {
+        $log = $this->sermonCutFourWaysRun();
+        $this->artisan('structure:ensemble-export-questions', ['runs' => [$log->id], '--out' => $this->out])->assertSuccessful();
+        $map = json_decode((string) file_get_contents("{$this->out}/answers-map.json"), true)['items'];
+        $types = array_map(static fn (array $item): string => $item['type'], $map);
+        $this->assertSame(['bible_reading', 'sermon', 'bible_reading'], array_values($types));
+        // The operator's 1005 ruling: one sermon from the early start to the late end, both readings inside it.
+        $answers = "{$this->out}/answers.json";
+        file_put_contents($answers, json_encode(array_map(
+            static fn (string $id, string $type): array => ['question_id' => $id, 'choice' => $type === 'sermon' ? 'alt0' : 'none', 'choice_label' => '', 'note' => ''],
+            array_keys($types),
+            $types,
+        )));
+
+        $this->artisan('structure:ensemble-apply-answers', ['export' => $this->out, 'answers' => $answers, '--operator' => (string) $this->operatorId, '--execute' => true])
+            ->expectsOutputToContain('3 applied, 0 failed, 0 need attention.')
+            ->assertSuccessful();
+
+        $this->assertCount(3, $log->fresh()->processing_metadata?->raw['service_structure_ensemble_rulings'] ?? []);
+        $sermons = $log->fresh()->serviceSections()->where('section_type', ServiceSectionType::Sermon)->get();
+        $this->assertCount(1, $sermons);
+        $this->assertEqualsWithDelta(600.0, (float) $sermons[0]->start_time, 1.0);
+        $this->assertEqualsWithDelta(2200.0, (float) $sermons[0]->end_time, 1.0);
+        $this->assertCount(0, $log->fresh()->serviceSections()->where('section_type', ServiceSectionType::BibleReading)->get());
+    }
+
+    /**
+     * A run's answers stand or fall together: one that cannot apply records none of them, so the
+     * run is never left half answered.
+     */
+    #[Test]
+    public function a_run_s_answers_are_refused_together_when_they_do_not_validate_together(): void
+    {
+        $log = $this->sermonCutFourWaysRun();
+        $this->artisan('structure:ensemble-export-questions', ['runs' => [$log->id], '--out' => $this->out])->assertSuccessful();
+        $map = json_decode((string) file_get_contents("{$this->out}/answers-map.json"), true)['items'];
+        $readings = array_keys(array_filter($map, static fn (array $item): bool => $item['type'] === 'bible_reading'));
+        $answers = "{$this->out}/answers.json";
+        file_put_contents($answers, json_encode(array_map(
+            static fn (string $id): array => ['question_id' => $id, 'choice' => 'none', 'choice_label' => '', 'note' => ''],
+            $readings,
+        )));
+
+        $this->artisan('structure:ensemble-apply-answers', ['export' => $this->out, 'answers' => $answers, '--operator' => (string) $this->operatorId, '--execute' => true])
+            ->expectsOutputToContain('0 applied, 2 failed, 0 need attention.')
+            ->assertFailed();
+
+        $this->assertSame([], $log->fresh()->processing_metadata?->raw['service_structure_ensemble_rulings'] ?? []);
+    }
+
     /** Operator ruling 2026-10-10: a talk edge every draft agrees on is no longer asked. */
     #[Test]
     public function a_talk_edge_every_draft_agrees_on_is_not_asked(): void
@@ -500,6 +557,42 @@ class EnsembleReviewCommandsTest extends TestCase
             $draw('Psalm 23', 400.0),
             $draw('Luke 15:1-10', 400.0),
             $draw('Luke 15:1-10', 330.0),
+        );
+
+        (new DetectServiceStructure($log))->handle(
+            app(ServiceStructureInterface::class),
+            app(SilenceSnapService::class),
+            app(ServiceStructureValidator::class),
+            app(ServiceSectionSyncService::class),
+            app(SermonCandidateConfidenceService::class),
+        );
+
+        return $log->fresh();
+    }
+
+    private function sermonCutFourWaysRun(): MediaProcessingLog
+    {
+        $this->operatorId = User::factory()->admin()->create()->id;
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'church_service_id' => ChurchService::factory()->create()->id,
+        ]);
+        $this->storeInputs($log);
+
+        // Two sermon starts by two ends, one draft each, as in 1005: the drafts starting late read
+        // a psalm first, and the drafts ending early read a passage after.
+        $draw = fn (bool $lateStart, bool $earlyEnd): ServiceStructure => ServiceStructure::fromSections(array_values(array_filter([
+            $this->section(['type' => 'welcome', 'start_time' => 0.0, 'end_time' => 120.0]),
+            $this->section(['type' => 'short_talk', 'start_time' => 130.0, 'end_time' => 400.0]),
+            $lateStart ? $this->section(['type' => 'bible_reading', 'start_time' => 700.0, 'end_time' => 880.0, 'reading_reference' => 'Psalm 87']) : null,
+            $this->section(['type' => 'sermon', 'start_time' => $lateStart ? 900.0 : 600.0, 'end_time' => $earlyEnd ? 2000.0 : 2200.0, 'sermon_reference' => 'Psalm 87']),
+            $earlyEnd ? $this->section(['type' => 'bible_reading', 'start_time' => 2020.0, 'end_time' => 2080.0, 'reading_reference' => 'Revelation 22:1-5']) : null,
+            $this->section(['type' => 'song', 'start_time' => 2210.0, 'end_time' => 2400.0]),
+        ])), model: 'mock');
+        MockServiceStructureService::useStructureSequence(
+            $draw(false, false),
+            $draw(true, false),
+            $draw(true, true),
+            $draw(false, true),
         );
 
         (new DetectServiceStructure($log))->handle(

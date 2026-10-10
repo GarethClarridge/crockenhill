@@ -51,19 +51,46 @@ class AnswerServiceStructureEnsembleQuestion
         array $sections = [],
         ?string $explanation = null,
     ): array {
+        return $this->executeAll($processingLogId, [[
+            'question_id' => $questionId,
+            'kind' => $kind,
+            'slot' => $slot,
+            'sections' => $sections,
+            'explanation' => $explanation,
+        ]], $operator);
+    }
+
+    /**
+     * Records several answers to one run's questions together and validates the result once.
+     *
+     * Each answer is to a question as it stood before any of them, and they stand or fall
+     * together: one answer can depend on another (1005: no answer validated until the sermon's
+     * was in), and a refusal records none of them.
+     *
+     * @param  list<array{question_id: string, kind: string, slot?: int|null, sections?: list<array<string, mixed>>, explanation?: string|null}>  $answers
+     * @return array<string, mixed>
+     */
+    public function executeAll(int $processingLogId, array $answers, User $operator): array
+    {
         if (! $operator->canAccessAdmin()) {
             throw new InvalidArgumentException('Only an administrator may answer an ensemble question.');
         }
 
-        if (! in_array($kind, ['accept', 'choose', 'remove', 'correct', 'absent', 'defer'], true)) {
-            throw new InvalidArgumentException('Unsupported ensemble answer.');
+        if ($answers === []) {
+            throw new InvalidArgumentException('At least one answer is required.');
         }
 
-        if ($questionId === '') {
-            throw new InvalidArgumentException('A question identifier is required.');
+        foreach ($answers as $answer) {
+            if (! in_array($answer['kind'], ['accept', 'choose', 'remove', 'correct', 'absent', 'defer'], true)) {
+                throw new InvalidArgumentException('Unsupported ensemble answer.');
+            }
+
+            if ($answer['question_id'] === '') {
+                throw new InvalidArgumentException('A question identifier is required.');
+            }
         }
 
-        return DB::transaction(function () use ($processingLogId, $questionId, $kind, $operator, $slot, $sections, $explanation): array {
+        return DB::transaction(function () use ($processingLogId, $answers, $operator): array {
             $log = MediaProcessingLog::query()->lockForUpdate()->findOrFail($processingLogId);
             $metadata = $log->processing_metadata?->toArray() ?? [];
             $bank = $metadata['service_structure_ensemble'] ?? null;
@@ -90,52 +117,51 @@ class AnswerServiceStructureEnsembleQuestion
             }
 
             $before = $this->replay->replay($evidence, $rulings, $log);
-            $question = null;
+            $open = [...$before['disputes'], ...$before['majority_decisions']];
 
-            foreach ([...$before['disputes'], ...$before['majority_decisions']] as $dispute) {
-                if (($dispute['question_id'] ?? null) === $questionId) {
-                    $question = $dispute;
+            foreach ($answers as $answer) {
+                $questionId = $answer['question_id'];
+                $kind = $answer['kind'];
+                $question = array_values(array_filter($open, static fn (array $dispute): bool => ($dispute['question_id'] ?? null) === $questionId))[0] ?? null;
 
-                    break;
+                if (! is_array($question)) {
+                    throw new InvalidArgumentException('This ensemble question is no longer open.');
                 }
+
+                $rulingKey = is_string($question['ruling_key'] ?? null) ? $question['ruling_key'] : (string) Str::uuid();
+                $revisions = array_map(
+                    static fn (array $ruling): int => (int) ($ruling['revision'] ?? 0),
+                    array_filter($rulings, static fn (array $ruling): bool => ($ruling['ruling_key'] ?? null) === $rulingKey),
+                );
+                $rulings[] = [
+                    'ruling_key' => $rulingKey,
+                    'question_id' => $questionId,
+                    'source_hash' => $before['source_hash'],
+                    'scope' => ServiceStructureEnsembleRulingApplier::scopeFor(
+                        $question,
+                        is_string($before['attempt_id'] ?? null) ? $before['attempt_id'] : null,
+                    ),
+                    'question' => $question,
+                    'kind' => $kind,
+                    'resolution' => $this->resolution($kind, $question, $before, $answer['slot'] ?? null, $answer['sections'] ?? []),
+                    'explanation' => $answer['explanation'] ?? null,
+                    'operator_id' => $operator->getKey(),
+                    'revision' => ($revisions === [] ? 0 : max($revisions)) + 1,
+                    'answered_at' => now()->toIso8601String(),
+                ];
             }
 
-            if (! is_array($question)) {
-                throw new InvalidArgumentException('This ensemble question is no longer open.');
-            }
-
-            $rulingKey = is_string($question['ruling_key'] ?? null) ? $question['ruling_key'] : (string) Str::uuid();
-            $revisions = array_map(
-                static fn (array $ruling): int => (int) ($ruling['revision'] ?? 0),
-                array_filter($rulings, static fn (array $ruling): bool => ($ruling['ruling_key'] ?? null) === $rulingKey),
-            );
-            $ruling = [
-                'ruling_key' => $rulingKey,
-                'question_id' => $questionId,
-                'source_hash' => $before['source_hash'],
-                'scope' => ServiceStructureEnsembleRulingApplier::scopeFor(
-                    $question,
-                    is_string($before['attempt_id'] ?? null) ? $before['attempt_id'] : null,
-                ),
-                'question' => $question,
-                'kind' => $kind,
-                'resolution' => $this->resolution($kind, $question, $before, $slot, $sections),
-                'explanation' => $explanation,
-                'operator_id' => $operator->getKey(),
-                'revision' => ($revisions === [] ? 0 : max($revisions)) + 1,
-                'answered_at' => now()->toIso8601String(),
-            ];
-            $rulings[] = $ruling;
+            $settles = array_diff(array_column($answers, 'kind'), ['defer']) !== [];
             $after = $this->replay->replay($evidence, $rulings, $log);
 
-            if ($kind !== 'defer' && $after['validation_passed'] !== true) {
+            if ($settles && $after['validation_passed'] !== true) {
                 throw new InvalidArgumentException('The correction does not pass structural validation: '.implode(', ', $after['failure_codes']));
             }
 
             $sectionsSynced = false;
             $extractionPlan = $evidence['composition']['extraction_plan'] ?? null;
 
-            if ($kind !== 'defer' && ! $this->hasExtractedMedia($log)) {
+            if ($settles && ! $this->hasExtractedMedia($log)) {
                 $snapshot = $this->replay->snapshot($evidence);
                 $transcript = ChurchServiceTranscript::fromArray($snapshot['transcript'] ?? null);
                 $structure = ServiceStructure::fromArray($after['structure']);
