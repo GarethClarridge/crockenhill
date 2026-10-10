@@ -6,6 +6,7 @@ namespace Tests\Integration\Jobs;
 
 use App\Actions\FlagSermonAudioLengthMismatch;
 use App\Actions\FlagSermonAudioLoudnessMissed;
+use App\Actions\FlagSermonAudioSpeechNearNoise;
 use App\Actions\FlagSermonAudioPartUntreated;
 use App\Actions\HoldSectionForContentReview;
 use App\Enums\AudioProfile;
@@ -1839,7 +1840,7 @@ class ExtractSermonTest extends TestCase
         $this->assertEquals($report['parts'], $log->processing_metadata['audio_treatment']['parts'] ?? null, 'The measurements are kept for the reviewer.');
         $this->assertSame('extracted/untreated-part.mp3', $log->audio_file_path);
         $flags = $section->metadata?->toArray()['review_flags'] ?? [];
-        $this->assertSame([$flag], array_values(array_intersect($flags, [FlagSermonAudioPartUntreated::FLAG, FlagSermonAudioLoudnessMissed::FLAG])));
+        $this->assertSame([$flag], array_values(array_intersect($flags, [FlagSermonAudioPartUntreated::FLAG, FlagSermonAudioLoudnessMissed::FLAG, FlagSermonAudioSpeechNearNoise::FLAG])));
         $this->assertNotContains(FlagSermonAudioLengthMismatch::FLAG, $flags);
         $this->assertTrue($section->needs_manual_review);
     }
@@ -1852,6 +1853,10 @@ class ExtractSermonTest extends TestCase
             'a part off target' => [
                 ['parts' => [['untreated_reason' => null, 'video' => ['integrated' => -18.4, 'true_peak' => -3.0, 'misses' => ['integrated -18.4 LUFS, target -16.0 ±1.0']]]], 'loudness_misses' => ['part 1 video integrated -18.4 LUFS, target -16.0 ±1.0']],
                 FlagSermonAudioLoudnessMissed::FLAG,
+            ],
+            'a part whose speech is close to the room noise' => [
+                ['parts' => [['untreated_reason' => null, 'pause_relative' => -12.9], ['untreated_reason' => null, 'pause_relative' => -37.0]], 'loudness_misses' => []],
+                FlagSermonAudioSpeechNearNoise::FLAG,
             ],
         ];
     }

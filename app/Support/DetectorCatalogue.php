@@ -9,6 +9,7 @@ use App\Actions\FlagPublishedReferenceContradictsSermon;
 use App\Actions\FlagSectionTruncatedBySource;
 use App\Actions\FlagSermonAudioLengthMismatch;
 use App\Actions\FlagSermonAudioLoudnessMissed;
+use App\Actions\FlagSermonAudioSpeechNearNoise;
 use App\Actions\FlagSermonAudioPartUntreated;
 use App\Actions\FlagSermonPartsNotExtracted;
 use App\Actions\FlagSermonTextPredatesEvidence;
@@ -638,6 +639,16 @@ class DetectorCatalogue
                 unit: DetectorUnit::Sermon,
                 summary: 'A treated sermon part measured outside its loudness or peak target after the encode, so it may sound louder or quieter than the parts around it.',
                 owningClass: FlagSermonAudioLoudnessMissed::class,
+            ),
+            new DetectorEntry(
+                id: 'sermon-audio-speech-near-noise',
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: [FlagSermonAudioSpeechNearNoise::FLAG],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::TechnicalQuality,
+                unit: DetectorUnit::Sermon,
+                summary: 'Speech in a sermon part stands less than 20 dB above the room noise between its words, so raising it to the target loudness raises the room with it; the operator decides whether to keep it.',
+                owningClass: FlagSermonAudioSpeechNearNoise::class,
             ),
             new DetectorEntry(
                 id: 'sermon-parts-not-extracted',

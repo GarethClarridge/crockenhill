@@ -7,6 +7,7 @@ namespace App\Support;
 use App\Actions\FlagPublishedReferenceContradictsSermon;
 use App\Actions\FlagSermonAudioLengthMismatch;
 use App\Actions\FlagSermonAudioLoudnessMissed;
+use App\Actions\FlagSermonAudioSpeechNearNoise;
 use App\Actions\FlagSermonAudioPartUntreated;
 use App\Actions\FlagSermonPartsNotExtracted;
 use App\Actions\FlagSermonTextPredatesEvidence;
@@ -94,6 +95,7 @@ class SermonAutoExtractionPolicy
         FlagSermonAudioLengthMismatch::FLAG,
         FlagSermonAudioPartUntreated::FLAG,
         FlagSermonAudioLoudnessMissed::FLAG,
+        FlagSermonAudioSpeechNearNoise::FLAG,
         FlagPublishedReferenceContradictsSermon::FLAG,
     ];
 

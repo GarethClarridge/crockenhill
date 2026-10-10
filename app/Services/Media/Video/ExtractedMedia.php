@@ -34,4 +34,24 @@ final readonly class ExtractedMedia
     {
         return array_values(array_filter($this->audio['loudness_misses'] ?? [], 'is_string'));
     }
+
+    /**
+     * Each part whose speech stands less than `$marginDb` above the quietest stretch between its words.
+     *
+     * @return list<string>
+     */
+    public function speechNearNoise(float $marginDb): array
+    {
+        $parts = [];
+
+        foreach ($this->audio['parts'] ?? [] as $index => $part) {
+            $pause = is_array($part) ? ($part['pause_relative'] ?? null) : null;
+
+            if (is_numeric($pause) && -(float) $pause < $marginDb) {
+                $parts[] = sprintf('part %d speech %.1f dB above its pauses', $index + 1, -(float) $pause);
+            }
+        }
+
+        return $parts;
+    }
 }
