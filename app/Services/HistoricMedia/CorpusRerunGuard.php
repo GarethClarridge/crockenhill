@@ -24,10 +24,11 @@ use App\Support\RepositoryCommit;
  *   again by its batch and an interrupted batch resumes without repeating work. A transcription
  *   round (Tier A) is the exception: it detected nothing, so its run goes on to a detection
  *   round, and Tier A itself refuses a second transcription on the commit;
- * - the run is completed and not excluded (the eligible membership). One failed run is let back
- *   in: one a round parked because its detection left a content hold with nowhere to land
- *   (canary 4, 1304 §3872), once the operator has released every hold it named. The park asks
- *   for exactly that before re-running, and the round's reset clears it;
+ * - the run is completed and not excluded (the eligible membership). Failed runs a round caused
+ *   are let back in: one parked because its detection left a content hold with nowhere to land
+ *   (canary 4, 1304 §3872), once the operator has released every hold it named; one held for
+ *   ensemble or composition review; and one failed because fewer than two draws validated
+ *   (canary 15, 967 and 1005), which a new round draws again;
  * - the run has a readable audio timeline, which detection refuses to run without;
  * - the run has not changed since the snapshot, so the diff reads the re-run's change alone.
  *   A finished transcription round dispatched against this snapshot may have changed the text
@@ -74,7 +75,9 @@ final class CorpusRerunGuard
             }
         }
 
-        if ($run->status !== ProcessingStatus::Completed && ! $this->heldForEnsembleReviewByARound($run)) {
+        if ($run->status !== ProcessingStatus::Completed
+            && ! $this->heldForEnsembleReviewByARound($run)
+            && ! $this->failedForWantOfDrawsByARound($run)) {
             $stillHeld = $this->unplacedHoldsStillLive($run);
 
             if ($stillHeld === null) {
@@ -203,6 +206,26 @@ final class CorpusRerunGuard
         return $run->status === ProcessingStatus::Failed
             && $run->corpusRerunStamps() !== []
             && in_array(data_get($run->processing_metadata?->toArray() ?? [], 'manual_review.reason_code'), ['service_structure_ensemble_review', 'sermon_composition_review'], true);
+    }
+
+    /**
+     * Whether a round's detection failed the run because fewer than two of its draws validated.
+     *
+     * That is lost evidence, not a judgement on the structure: a transient provider error took
+     * every draw of 1005 in canary 15, and a transcript cut short by a detaching drive left 967's
+     * draws nothing valid to describe. A re-run draws again. A structure that drew and failed
+     * validation for its content stays out, as does a failure from routine processing.
+     */
+    private function failedForWantOfDrawsByARound(MediaProcessingLog $run): bool
+    {
+        $metadata = $run->processing_metadata?->toArray() ?? [];
+        $attempts = data_get($metadata, 'service_structure_ensemble', []);
+        $latest = is_array($attempts) && $attempts !== [] ? end($attempts) : null;
+
+        return $run->status === ProcessingStatus::Failed
+            && $run->corpusRerunStamps() !== []
+            && data_get($metadata, 'manual_review.reason_code') === 'llm_structure_validation_failed'
+            && in_array('insufficient_ensemble_votes', (array) data_get($latest, 'composition.failure_codes', []), true);
     }
 
     /**

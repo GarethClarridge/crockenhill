@@ -426,6 +426,48 @@ class RedetectForCorpusRerunCommandTest extends TestCase
             ->assertSuccessful();
     }
 
+    /**
+     * Canary 15: 1005 lost all four draws to a transient API error and 967 to a truncated
+     * transcript; both were failed for want of two validated draws and no round could take
+     * them back.
+     */
+    #[Test]
+    public function it_admits_a_run_a_round_failed_for_want_of_validated_draws(): void
+    {
+        Bus::fake();
+        $run = $this->failedForWantOfDraws();
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('dispatched from structure detection')
+            ->assertSuccessful();
+
+        self::assertCount(2, $run->fresh()?->corpusRerunStamps() ?? []);
+    }
+
+    /** A structure that validated badly is a review, not a lost draw: it stays out. */
+    #[Test]
+    public function it_refuses_a_run_failed_for_a_structure_that_did_not_validate(): void
+    {
+        $run = $this->failedForWantOfDraws(failureCode: 'sermon_missing');
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+            ->expectsOutputToContain('run is failed, not completed')
+            ->assertSuccessful();
+    }
+
+    #[Test]
+    public function it_refuses_a_run_failed_for_want_of_draws_by_something_other_than_a_rerun(): void
+    {
+        $run = $this->failedForWantOfDraws(stamped: false);
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+            ->expectsOutputToContain('run is failed, not completed')
+            ->assertSuccessful();
+    }
+
     #[Test]
     public function it_refuses_an_excluded_run(): void
     {
@@ -546,6 +588,22 @@ class RedetectForCorpusRerunCommandTest extends TestCase
 
         if ($stamped) {
             $metadata[RedetectForCorpusRerun::STAMP_KEY] = [['grounds' => 'corpus_rerun', 'git_commit' => str_repeat('e', 40), 'media' => 'deferred', 'dispatched_at' => '2026-09-30T19:12:05+00:00']];
+        }
+
+        $run->forceFill(['processing_metadata' => $metadata])->save();
+
+        return $run->fresh() ?? $run;
+    }
+
+    private function failedForWantOfDraws(bool $stamped = true, string $failureCode = 'insufficient_ensemble_votes'): MediaProcessingLog
+    {
+        $run = $this->completedRun(['status' => ProcessingStatus::Failed, 'current_step' => 'manual_review_required']);
+        $metadata = $run->processing_metadata?->toArray() ?? [];
+        $metadata['manual_review'] = ['status' => 'required', 'reason_code' => 'llm_structure_validation_failed'];
+        $metadata['service_structure_ensemble'] = [['attempt_id' => 'a', 'composition' => ['failure_codes' => [$failureCode]]]];
+
+        if ($stamped) {
+            $metadata[RedetectForCorpusRerun::STAMP_KEY] = [['grounds' => 'corpus_rerun', 'git_commit' => str_repeat('e', 40), 'media' => 'deferred', 'dispatched_at' => '2026-10-09T19:28:43+00:00']];
         }
 
         $run->forceFill(['processing_metadata' => $metadata])->save();
