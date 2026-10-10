@@ -214,6 +214,24 @@ class WatchHistoricRerunCommandTest extends TestCase
     }
 
     #[Test]
+    public function a_listening_verdict_stops_the_pass_through_the_same_door(): void
+    {
+        // Wrong on listening is a stopping condition only the operator can raise; the /loop
+        // session passes it here so it pauses the same queues and leaves the same record.
+        $run = $this->processingRun();
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-watch', ['snapshot' => $this->path('before.json'), '--stop' => 'listening: 936-sermon-start clips_word'])
+            ->expectsOutputToContain('936-sermon-start clips_word')
+            ->assertFailed();
+
+        self::assertSame(['listening: 936-sermon-start clips_word'], $this->file('watch-stop.json')['stops']);
+        foreach (app(HistoricRerunWatch::class)->queues() as $queue) {
+            self::assertTrue(Queue::isPaused(config('queue.default'), $queue), "{$queue} was not paused");
+        }
+    }
+
+    #[Test]
     public function too_little_internal_space_stops_the_pass(): void
     {
         $run = $this->processingRun();

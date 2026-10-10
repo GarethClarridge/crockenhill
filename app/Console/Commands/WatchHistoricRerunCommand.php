@@ -18,7 +18,8 @@ use RuntimeException;
  * Runs without Claude: start it beside the workers and it looks every `--interval` seconds.
  * Each look overwrites `watch-status.json` beside the snapshot, which is what progress reports
  * read. On a stop it pauses the queues, writes `watch-stop.json` and exits non-zero; resume
- * with `queue:continue` once the cause is fixed. `watch-state.json` keeps when the watch began,
+ * with `queue:continue` once the cause is fixed. `--stop` raises a stop no machine can see — wrong on
+ * listening — through the same door. `watch-state.json` keeps when the watch began,
  * so a restarted watch does not forget the failed jobs and missing files it has already seen.
  *
  * Delete once the corpus re-run's batches are accepted, alongside its other instruments.
@@ -29,7 +30,8 @@ class WatchHistoricRerunCommand extends Command
         {snapshot : The before-state written by historic-import:rerun-snapshot}
         {--interval=300 : Seconds between looks}
         {--once : Look once and exit}
-        {--min-free-gb=10 : Stop when the internal disk holding service artifacts has less free than this}';
+        {--min-free-gb=10 : Stop when the internal disk holding service artifacts has less free than this}
+        {--stop= : Stop the pass now for this reason (a listening verdict), as a stopping condition would}';
 
     protected $description = 'Watch a corpus re-run and pause every worker queue on a stopping condition';
 
@@ -48,10 +50,16 @@ class WatchHistoricRerunCommand extends Command
         $minimumFree = (float) $this->option('min-free-gb');
         $directory = dirname($snapshotPath);
         $state = $this->state($watch, $snapshot, $directory.'/watch-state.json');
+        $raised = $this->option('stop');
 
         while (true) {
-            $result = $watch->check($snapshot, $state, $minimumFree);
-            $this->write($directory.'/watch-status.json', $result);
+            $result = is_string($raised) && $raised !== ''
+                ? ['stops' => [$raised], 'warnings' => [], 'progress' => ['checked_at' => now()->toIso8601String()]]
+                : $watch->check($snapshot, $state, $minimumFree);
+
+            if (! is_string($raised) || $raised === '') {
+                $this->write($directory.'/watch-status.json', $result);
+            }
 
             if ($result['stops'] !== []) {
                 $paused = $watch->pauseWorkers();
