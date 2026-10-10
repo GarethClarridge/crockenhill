@@ -1,9 +1,9 @@
 # Video boundary consistency: findings and implementation handover
 
-> **Current handover — 2026-10-10, full pass ready to dispatch:** frozen on `87b1f6eda` (pushed, deployed),
+> **Current handover — 2026-10-10, full pass ready to dispatch:** frozen on `441b14ed6` (watcher, listening feed),
 > verified backup taken, preflight done, routing measured. **§6.3.9 is the one current execution record**;
 > it supersedes the canary-10 gates in the historic plan's §4.0. Ruled: dispatch everything (no
-> batches), dispute bar stays 2.0. Next session: build the watcher, then follow §6.3.9's dispatch steps.
+> batches), dispute bar stays 2.0. Next session: follow §6.3.9's dispatch steps.
 
 > **Current handover — 2026-10-10, after canary 15 and its repair pass:** canary 15 met one
 > stopping condition (three published song clips deleted with no copy). The fix round, seven
@@ -2030,9 +2030,11 @@ historic plan's §4.0 ("Built for the final canary", "Canary 10, the final canar
 1"). §4.0's standing decisions 1–8 and its route table still apply except where this section differs.
 Nothing here authorises a dispatch; the dispatch needs the operator's go in the session that runs it.
 
-**Frozen code:** `87b1f6eda` (pushed and deployed 2026-10-10; `6827a20ab`'s behaviour plus the
-review-tool commits and a Pint-only commit). Suite 9,502, PHPStan 0. Any later code commit moves the
-freeze: new snapshot, worker restart (standing decision 7).
+**Frozen code:** `441b14ed6` (2026-10-10 evening): `87b1f6eda` plus `928322ade` (a song or talk
+publication is refused *before* its files move — see the 1223 note under Preflight), `9284cc6e1` (the
+watcher) and `441b14ed6` (`--stop`). Suite 9,517, PHPStan 0. Any later code commit moves the freeze:
+new snapshot, worker restart (standing decision 7). The draft snapshot below binds `87b1f6eda`, so the
+dispatch session re-takes it.
 
 **Effective settings (`.env`, not code):** `VIDEO_EXTRACTION_REENCODE_PRESET=veryfast`;
 `HISTORIC_MEDIA_WORKERS_FFMPEG=1`; `MEDIA_PAUSE_TEMP_FILE_CLEANUP=true`;
@@ -2067,18 +2069,50 @@ The dispatch session, in order:
 
 1. Preflight (below) on the freeze; start the workers on it; check `ps` elapsed.
 2. Re-take the snapshot over the same 438 (the draft is valid only if no run has changed).
-3. Start the watcher (to build in that session, before dispatching: a script that runs without
-   Claude and stops the workers on any machine-checkable condition below — diff attention (a lost
-   hold, anything public), published media missing or overwritten, new failed jobs, lost draws
-   above 10%, speaker identification running, a staging/temp/quarantine probe failing, internal
-   free space under 10 GB).
+3. Start the watcher, which runs without Claude, in the background inside the app container:
+   `nohup php artisan historic-import:rerun-watch <snapshot> > storage/logs/rerun-watch.log 2>&1 &`
+   (via `vendor/bin/sail exec -d laravel.test …`). Every 5 minutes (10 s a look over 438 runs) it
+   checks: anything public, a live hold gone, extracted media lost, a run superseded, a published or
+   quarantined file missing that was there when the watch began (staging files under their run's
+   batch root), any failed job since it began, lost draws above 10% once 10 ensembles have run,
+   speaker identification enabled or queued, a historic disk probe failing, internal free space
+   under 10 GB. On a stop it pauses all ten worker queues (`Queue::pause`: each worker finishes its
+   job and takes no other; nothing queued is lost), writes `watch-stop.json` beside the snapshot and
+   exits. Each look writes `watch-status.json` (stage counts, failed jobs, draws, free space). Held
+   runs are progress, not stops. Resume with `queue:continue redis:<queue>` for each queue, then
+   restart the watcher (it keeps its start time in `watch-state.json`).
 4. Dispatch all of: Tier A 152 (Whisper worker; about 3–4 min a run → 8–10 h), Tier B 244, recompose
    37 (no paid calls). Tier A runs go to Tier B as each finishes (resnapshot, as in canary 15).
 5. Tier C for every run that clears with no open question, as it clears. Runs with questions hold
    themselves; answers come from one question page (or a few as they accumulate), then recompose
    and Tier C.
-6. Each morning (or review round): listening page of what has been cut, question page, diff,
-   backup (service-artifacts rsync, database dump, `detection-rulings` archive), batch report.
+6. A `/loop` session (every 20 min) runs the listening feed and posts progress (below). Each
+   morning or review round: question page, diff, backup (service-artifacts rsync, database dump,
+   `detection-rulings` archive), batch report.
+
+**Listening feed (operator, 2026-10-10)** — `storage/scratch/full-pass-listening/`, tested end to
+end on 12 runs (41 items, 65 clips, `test-20261010/`). A seeded sample of each run as it is cut, on
+one artifact page republished as it grows (the rulings live in its database and survive):
+
+| What | Rate |
+|---|---|
+| Detection — is this the sermon / “title” / a talk? (25 s from the middle, with transcript) | sermon 1 in 12 runs; one song in 1 run in 8; every 2nd talk |
+| Edges — opens, ends, every sermon join (the cut plus 12 s of the recording around it) | sermon 1 run in 6; the sampled song; the sampled talks |
+| Noise reduction: every part with a pause level within 3 dB of −30 or −60 | all |
+| Missed segments: the longest stretch no section covers (≥ 45 s), else the longest “other” | 1 run in 8 |
+
+Expected about 500 items over the pass (363 on today's corpus, where few songs are cut yet). Not
+listened: MP3 peaks above 0 dBTP (canary 15: 9/9 clean, operator 10-10).
+
+Each `/loop` tick: (1) `vendor/bin/sail php storage/scratch/full-pass-listening/inventory.php <snapshot>`
+(cut runs not yet sampled) → `python3 …/feed.py` → `vendor/bin/sail php …/cues.php` →
+`vendor/bin/sail exec -T laravel.test bash storage/scratch/full-pass-listening/clips.sh` →
+`python3 …/build.py` → publish `index.html` with `clips/` to the same artifact; (2) read the page's
+rulings (`ArtifactData`): any answer other than right or can't tell →
+`historic-import:rerun-watch <snapshot> --stop="listening: <item> <answer>"`; (3) post a short
+progress update to the operator: the watcher's stage counts (not started / transcribed / detected /
+cut / processing / held), failed jobs, lost draws, free space, listening items added and answered,
+and any stop with its reason.
 
 **A rule adopted mid-pass** (decision 8): Tier C pauses until every uncut run is recomposed onto the
 new revision; cut runs are replayed and only those whose cut changes are cut again.
@@ -2106,8 +2140,15 @@ seven table checksums equal), `app-private` (no service artifacts), `public-serv
 from Sonnics). After each review round: the service-artifacts rsync plus a new database dump and
 `detection-rulings` archive.
 
-**Preflight 2026-10-10 (repeat before every dispatch):** queues empty on all nine queues; failed jobs
-483 (3 new on 10-10 12:34, 1223's composition-review stop); workers stopped — start them on the
+**Preflight 2026-10-10 (repeat before every dispatch):** queues empty on all ten queues; failed jobs
+483. *Correction:* the 3 new on 10-10 12:34 were not 1223's composition-review stop but a custody
+defect, fixed in `928322ade`: the repair recompose queued `AutoPublishServiceSection` for three songs
+(2751, 2754, 145978) that had since gone to `pending_approval`; the song handler moved each candidate
+to `sermons/songs/…` and only then met the transition refusal, so the bytes sit at
+`historic-batches/9351fa4e…/sermons/songs/{421,525,611}/…mp4` while the rows name the candidate path.
+Nothing was public or lost; 1223 is held for composition review and its re-cut writes fresh
+candidates (repair through the pipeline, not by hand). The talk handler had the same order, also
+fixed. Workers stopped — start them on the
 freeze and check `ps` elapsed; staging, temp and quarantine mounts read/write probed; free:
 Staging 465 GiB, internal 26 GiB, Sonnics 343 GiB. Space need: canary 15 and the repair pass wrote
 14.5 GiB for about 30 cut runs (≈0.5 GiB a run, old media kept) → ≈240 GiB for the pass, which fits;
