@@ -1,5 +1,13 @@
 # Historic Video Defect Discovery and Acceptance Plan
 
+> **Status — 2026-10-10, after canary 15 and its repair pass:** canary 15 (29 runs, 12 a seeded
+> unseen draw) met one stopping condition, published song clips deleted with no copy; it is fixed,
+> along with the other findings, and a repair pass listened 7/7 right. Operator rulings the same
+> day stopped the structure questions whose answers never changed an output (12 → 3 on canary 15).
+> An offline old/new replay of 41 banked runs found no sermon cut changed, so **no canary 16**; the
+> next step is to freeze and plan the full pass. Record:
+> [VIDEO-BOUNDARY-CONSISTENCY §6.3.8](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md).
+
 > **Planning reconciliation — 2026-10-04, after the read-only boundary review.**
 > [Video boundary consistency](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md) owns ten newly
 > recorded findings/cases and their proposed regression-first code slices. Static defects,

@@ -1,5 +1,12 @@
 # Video boundary consistency: findings and implementation handover
 
+> **Current handover — 2026-10-10, after canary 15 and its repair pass:** canary 15 met one
+> stopping condition (three published song clips deleted with no copy). The fix round, seven
+> operator rulings that stop questions whose answers never changed an output, and a repair pass
+> are done and committed on local `master` (`7c90cfa10`…`6827a20ab`, unpushed). The repair pass
+> listened 7/7 right. **No canary 16** (offline cut comparison, §6.3.8). Next: freeze and plan
+> the full historic pass. Start with §6.3.8.
+
 > **Current handover — 2026-10-07, before canary 13:** the two Codex review findings and the
 > general reading-membership and embedded-reading rules are built (uncommitted). Start with the
 > "general rules before canary 13" completion record and the expanded canary 13 proposal at the
@@ -1954,6 +1961,62 @@ ends sampled together as pairs across services, with short talks included; compl
 measurement from the new outputs so that each of `gain`, `dynamic` and `linear` modes, a quiet opening, a wide range
 and a loud song is heard; every part the denoise picks differently from `denoise-predictions.json`; every MP3 above
 0 dBTP. Holds with a known reason need no listening.
+
+#### 6.3.8 Canary 15 outcome, fix round and repair pass (2026-10-10)
+
+**Run** (2026-10-09 18:47 → 2026-10-10 06:32 UTC, 29 runs on `e378b2efb`): completed 18,
+held for a known reason 9, operator-assisted 7 unseen runs, unexpected: 967 (transcript made from
+1,991 s of a 4,712 s recording), 1005 (all four draws lost to a transient cURL error), 1224
+(completed with no fresh output), the deletions below, and 1138's reading. **Listening:** 75/78
+right; three "can't tell", all run 1138.
+
+**Stopping condition met — lost media with no copy.** Re-detection removed 22 song sections and
+`SongPublicationHandler::onSectionRemoved` deleted each published clip and row; 1556 (1047), 2750
+(1223) and 4546 (1364) had no copy on Staging or Sonnics. Sync's own `cleanupExtractedAssets` also
+deleted published files (a published section's asset paths are the published copy), which for a
+talk would leave its Sermon public with no media; none happened in canary 15.
+
+**Fixes (all regression-first, committed):**
+
+| Commit | Change |
+|---|---|
+| `7c90cfa10` | A removed section's SongVideo is quarantined, never deleted; sync skips sections holding published media; a re-publication sets the state to published. |
+| `30fec9ced` | Compression and chunks more than 2 s shorter than the source's container duration fail the step (967: the source was read while Staging detached). |
+| `2961fd8ed` | A draw lost to the provider or process is drawn once more; an `invalid` draw is never redrawn (canary 8, 949). |
+| `3c73adb38` | A round-failed run with `insufficient_ensemble_votes` may be re-run. |
+| `17aa66efe` | A sermon part whose speech stands < 20 dB above its pauses is held (`sermon_audio_speech_near_noise`); 1138's reading was 12.9 dB, 1292's accepted reading 26.8 dB, all others ≥ 29.5 dB. Ruled: hold, never drop. |
+| `9b770ae06`, `e483ada6b` | A validation failure caused by open questions (still open, or since answered into a valid structure) is held for review, so answering and recomposing works (1005). |
+| `a27f2ed10` | Tier A grounds include a transcript made from audio > 60 s shorter than the recording (census: only 967 of 454). |
+
+**Rulings that stop questions (operator, 2026-10-10; `e360ceaa3`, `67495af0f`, `6827a20ab`):**
+talk-edge checks are no longer generated (15/15 confirmed); talk ends differing only by a closing
+prayer agree; the song ending the sermon may start with or without its introduction (≤ 30 s, no
+sermon/prayer/reading/talk between); presence questions offer "either"; degraded coverage is
+recorded but never asked or held; a song clip's spoken introduction is kept and never held, at any
+length (12-clip seeded sample, 24–230 s: none held anything that should not be in the clip; the
+detector is recorded as decided-not-to-detect). Not built, on evidence: an "identical output"
+suppression (no stored song/talk question had identical outputs) and a blank-title rule (a lone
+draft's title was wrong in 2 of 3 — 1311, 1112). Canary 15's 12 questions would now be 3.
+
+**No canary 16.** Replaying 41 banked runs old/new × with/without answers: with answers 38/41
+identical (1108/1117 talk edge < 1 s; 1224 degraded question gone); without answers only
+questions disappear and each removed output matches the recorded answer; **no sermon cut
+changed.** Scripts: `storage/scratch/canary15-denoise/compare-cuts.php`, `cuts-*.json`.
+
+**Repair pass** (workers on `6827a20ab`; snapshots `storage/app/private/repair-20261010{,b,c,d}`):
+1224, 1036, 1223, 1149 recomposed and cut; 1005 answered (one-piece sermon 31:57–1:00:15, ruled in
+session after a derived answer that would have dropped the opening was caught) and cut; 967
+re-transcribed in full (4,713/4,713 s), answered and cut. **Listening 7/7 right.** Held for the
+operator: 1223 `sermon_composition_review`; looped-transcript song holds (1224, 1036, 1149, 1364);
+967 public MP3 true peak 1.2 dBTP; span checks 1047/1300/1364. 1047 "We Come O Christ To You" and
+1364 "O For A Thousand Tongues" still have no public clip until those are resolved.
+
+**Known tool defects, not fixed:** `structure:ensemble-apply-answers` validates each answer alone,
+so answers that only make sense together are refused (1005's sermon start and end); the export
+labels a 1-1-1-1 split "settled by majority". The first will recur in the full pass.
+
+**Next:** freeze on `6827a20ab` or later; push decision (22 commits ahead); fix the two tool
+defects; plan the full pass (routing, batch size, order, §6.3.7 stopping conditions).
 
 ## 7. Further bounded investigations — added 2026-10-04
 
