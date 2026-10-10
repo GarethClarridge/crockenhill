@@ -13,6 +13,7 @@ use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\HistoricMedia\ListeningRouting;
 use App\Services\HistoricMedia\StagedSourceVerification;
 use App\Services\HistoricMedia\TranscriptLossHolds;
+use App\Services\Media\Audio\AudioChunkingService;
 use App\Services\Processing\MediaProcessingRunTransitionService;
 use App\Services\Processing\ProcessingRunOrchestrator;
 use Illuminate\Support\Facades\DB;
@@ -27,10 +28,11 @@ use Throwable;
  * stored text is known to be wrong where its audio is not gains nothing from that, so Tier A
  * starts it again from full-service transcription and lets detection follow. It carries the
  * batch's guards ({@see CorpusRerunGuard}), the shared re-detection guards (not retired or
- * superseded, source present) and a hash-verified staged source, plus its own grounds, either
- * of two: a live transcript-loss hold on the text the run holds now ({@see TranscriptLossHolds}),
- * or an H10b listening route of `new_better` on that same text, frozen in the snapshot
- * ({@see ListeningRouting}).
+ * superseded, source present) and a hash-verified staged source, plus its own grounds, any
+ * of three: a live transcript-loss hold on the text the run holds now ({@see TranscriptLossHolds}),
+ * an H10b listening route of `new_better` on that same text, frozen in the snapshot
+ * ({@see ListeningRouting}), or a transcript made from audio shorter than the recording
+ * ({@see self::truncatedTranscript()}).
  *
  * The dispatch is the one {@see RetranscribeHistoricVideoRun} proved on 980, 1258, 1343 and
  * 1287: supersede any recovery replay stamp, reopen at `transcribe_full_service` and start the
@@ -50,6 +52,9 @@ final class RetranscribeForCorpusRerun
 
     /** A transcription round's stamp: the round wrote new text and detected nothing. */
     public const DETECTION_NONE = 'none';
+
+    /** How much shorter than the recording the audio a transcript was made from may be. */
+    private const TRUNCATION_SECONDS = 60.0;
 
     public function __construct(
         private readonly CorpusRerunGuard $guard,
@@ -73,9 +78,13 @@ final class RetranscribeForCorpusRerun
 
         $holds = $this->transcriptLoss->on($run);
         $listening = $snapshot->listeningRoutesToRetranscription($run);
-        $grounds = $holds === []
-            ? 'listening rated the new decode better'
-            : sprintf('%d transcript-loss hold%s', count($holds), count($holds) === 1 ? '' : 's');
+        $truncated = $this->truncatedTranscript($run);
+        $grounds = match (true) {
+            $holds !== [] => sprintf('%d transcript-loss hold%s', count($holds), count($holds) === 1 ? '' : 's'),
+            $listening => 'listening rated the new decode better',
+            $truncated !== null => sprintf('transcript made from %.0f of %.0f s of the recording', $truncated['transcribed'], $truncated['recording']),
+            default => throw new \LogicException('A run that passed the grounds check has no grounds.'),
+        };
 
         if (! $execute) {
             return ['outcome' => 'ready', 'reason' => "ready for re-transcription ({$grounds})"];
@@ -109,6 +118,31 @@ final class RetranscribeForCorpusRerun
         ]);
 
         return ['outcome' => 'dispatched', 'reason' => "dispatched from full-service transcription ({$grounds}); detection deferred to a Tier B round"];
+    }
+
+    /**
+     * The audio a stored transcript was made from and the recording's length, when the first fell
+     * more than a minute short of the second.
+     *
+     * Canary 15, run 967: the source was compressed while the staging drive detached, and the
+     * transcript was made from 1,991 s of a 4,712 s recording. No hold could name that, so no
+     * route could take the run back to transcription. Compression now refuses short audio
+     * ({@see AudioChunkingService}); this reaches transcripts made before it.
+     *
+     * @return array{transcribed: float, recording: float}|null
+     */
+    private function truncatedTranscript(MediaProcessingLog $run): ?array
+    {
+        $recording = data_get($run->processing_metadata?->toArray() ?? [], 'format_details.duration');
+        $contents = $run->storedServiceTranscriptContents();
+        $transcribed = is_string($contents) ? data_get(json_decode($contents, true), 'duration') : null;
+
+        if (! is_numeric($recording) || ! is_numeric($transcribed)
+            || (float) $recording - (float) $transcribed <= self::TRUNCATION_SECONDS) {
+            return null;
+        }
+
+        return ['transcribed' => (float) $transcribed, 'recording' => (float) $recording];
     }
 
     /**
@@ -164,7 +198,7 @@ final class RetranscribeForCorpusRerun
             return 'run is not a livestream pipeline';
         }
 
-        if ($this->transcriptLoss->on($run) === [] && ! $snapshot->listeningRoutesToRetranscription($run)) {
+        if ($this->transcriptLoss->on($run) === [] && ! $snapshot->listeningRoutesToRetranscription($run) && $this->truncatedTranscript($run) === null) {
             return 'run has no live transcript-loss hold and no new_better listening route on its current transcript, so there are no grounds to re-transcribe it';
         }
 

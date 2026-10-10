@@ -410,6 +410,31 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
     }
 
     /**
+     * Canary 15, run 967: the source was compressed while the staging drive detached, and the
+     * transcript was made from 1,991 s of a 4,712 s recording. No hold could name that, so no route
+     * could take the run back to transcription.
+     */
+    #[Test]
+    public function it_accepts_a_run_whose_transcript_was_made_from_less_than_the_recording(): void
+    {
+        Bus::fake();
+        $run = $this->runWithTranscriptOf(1991.6, recordingSeconds: 4712.7);
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath()])
+            ->expectsOutputToContain('ready for re-transcription (transcript made from 1992 of 4713 s of the recording)')
+            ->assertSuccessful();
+    }
+
+    #[Test]
+    public function a_transcript_made_from_the_whole_recording_is_no_grounds(): void
+    {
+        $run = $this->runWithTranscriptOf(4700.0, recordingSeconds: 4712.7);
+
+        $this->assertRefused($run, 'no live transcript-loss hold');
+    }
+
+    /**
      * Tier A is for text known to be wrong where the audio is not. A hold on a boundary, the
      * source or a song's identity is not changed by transcribing again.
      */
@@ -570,6 +595,18 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         ]);
 
         return $run;
+    }
+
+    private function runWithTranscriptOf(float $transcribedSeconds, float $recordingSeconds): MediaProcessingLog
+    {
+        $run = $this->completedRun(metadata: ['format_details' => ['duration' => $recordingSeconds]]);
+        $path = "temp/service_transcript_{$run->processing_id}.json";
+        Storage::disk('local')->put($path, (string) json_encode(ChurchServiceTranscript::fromCues([
+            ['start' => 600.0, 'end' => 1900.0, 'text' => 'Please turn with me to our passage.'],
+        ], $transcribedSeconds, ChurchServiceTranscript::SOURCE_MOCK)));
+        $run->putServiceTranscriptPath($path);
+
+        return $run->fresh() ?? $run;
     }
 
     /**
