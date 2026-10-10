@@ -216,6 +216,34 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         $this->assertIsString($result->majorityDecisions[0]['question_id']);
     }
 
+    /**
+     * Run 1005 in the canary-15 repair pass: four drafts each cut the sermon differently, so each
+     * stood alone and each looked outvoted three to one by the drafts "without" it. Joined, no
+     * version has a majority and no draft is left without a sermon, so it is a question.
+     */
+    #[Test]
+    public function four_different_cuts_of_one_sermon_are_a_question_not_a_majority_for_none(): void
+    {
+        $draw = fn (int $start, int $end): ServiceStructure => $this->structure(
+            $this->section(ServiceSectionType::Prayer, 0, 100),
+            $this->section(ServiceSectionType::Sermon, $start, $end, 'Psalm 87'),
+        );
+
+        $result = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($draw(1917, 3615)),
+            1 => $this->vote($draw(2175, 3544)),
+            2 => $this->vote($draw(2175, 3613)),
+            3 => $this->vote($draw(1917, 3545)),
+        ]);
+
+        $this->assertNotContains('sermon', array_column($result->majorityDecisions, 'type'));
+        $sermonQuestions = array_values(array_filter($result->disputes, static fn (array $dispute): bool => $dispute['type'] === 'sermon'));
+        $this->assertCount(1, $sermonQuestions);
+        $this->assertCount(4, $sermonQuestions[0]['alternatives']);
+        $this->assertSame([], $sermonQuestions[0]['absent_slots']);
+        $this->assertTrue($result->requiresReview());
+    }
+
     #[Test]
     public function one_voter_cannot_write_an_unflagged_talk(): void
     {

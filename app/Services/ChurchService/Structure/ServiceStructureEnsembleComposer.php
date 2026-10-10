@@ -804,6 +804,10 @@ class ServiceStructureEnsembleComposer
      * It stays anchored to the written group, so an answer replaces the section it asks about.
      * Two written groups are left apart, since each is its own section.
      *
+     * The joined dispute is settled only by a majority of the joined vote: each lone version of a
+     * sermon cut four ways looks outvoted by the three drafts "without" it, but joined, every
+     * draft has a sermon and no version has three (run 1005).
+     *
      * @param  list<array<string, mixed>>  $disputes
      * @param  list<int>  $slots
      * @return list<array<string, mixed>>
@@ -836,12 +840,16 @@ class ServiceStructureEnsembleComposer
 
                 [$anchor, $other] = $b['written'] && ! $a['written'] ? [$b, $a] : [$a, $b];
                 $covered = [...$groupSlots($anchor), ...$groupSlots($other)];
+                $absentSlots = array_values(array_diff($slots, $covered));
+                $alternatives = [...$anchor['alternatives'], ...$other['alternatives']];
+                $largest = max([0, ...array_map(static fn (array $alternative): int => count($alternative['slots']), $alternatives)]);
                 $disputes[$i] = [
                     ...$anchor,
-                    'decided' => ($anchor['decided'] ?? false) && ($other['decided'] ?? false),
+                    'decided' => ($anchor['decided'] ?? false) && ($other['decided'] ?? false)
+                        && max($largest, count($absentSlots)) >= self::MAJORITY_VOTES,
                     'groups' => [...($anchor['groups'] ?? [$anchor['group']]), ...($other['groups'] ?? [$other['group']])],
-                    'absent_slots' => array_values(array_diff($slots, $covered)),
-                    'alternatives' => [...$anchor['alternatives'], ...$other['alternatives']],
+                    'absent_slots' => $absentSlots,
+                    'alternatives' => $alternatives,
                 ];
                 array_splice($disputes, $j, 1);
                 $j = $i;
