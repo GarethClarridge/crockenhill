@@ -139,8 +139,9 @@ class ServiceStructureEnsembleRunner
      * cURL error) is no opinion at all, and three voters split two to one where four decide three to
      * one. An `invalid` draw is an opinion and is never drawn again: regenerating one until it
      * passed rewrote unrelated content in canary 8 (run 949). The retry is banked in its own file,
-     * listed with the run's artifacts before it is drawn; the slot then points at it, and the first
-     * attempt stays on record as `first_attempt`.
+     * listed with the run's artifacts before it is drawn, and the slot then points at it whatever it
+     * answered, so replay can revalidate a retry that failed validation exactly as it does a first
+     * draw; the first attempt stays on record as `first_attempt`.
      *
      * @param  array<string, mixed>  $input
      * @param  array<string, mixed>  $evidence
@@ -167,11 +168,6 @@ class ServiceStructureEnsembleRunner
 
         foreach ($retries as $retry) {
             $number = $retry['slot'];
-
-            if (($retryOutcomes[$number]['status'] ?? null) !== 'valid') {
-                continue;
-            }
-
             $evidence['slots'][$number] = [
                 ...$retry,
                 'first_attempt' => [

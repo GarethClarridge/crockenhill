@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Jobs;
 
+use App\Contracts\ServiceStructureInterface;
 use App\Data\ChurchServiceTranscript;
 use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\Structure\ServiceStructureDrawExecutor;
@@ -11,7 +12,11 @@ use App\Services\ChurchService\Structure\ServiceStructureEnsembleComposer;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleInput;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleReplay;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleRunner;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\ChurchService\Structure\SilenceSnapService;
+use App\Services\ChurchService\Structure\SoundStage;
 use App\Services\ChurchService\Structure\ValidationContext;
+use App\Services\ChurchService\Structure\ValidationResult;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Support\ServiceArtifactDisk;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -162,6 +167,74 @@ class ServiceStructureEnsembleRunnerTest extends TestCase
             $this->assertTrue(Storage::disk($diskName)->exists($result['evidence']['slots'][0]['first_attempt']['path']));
             $this->assertFalse(app(ServiceStructureEnsembleReplay::class)->replay($result['evidence'])['degraded']);
             $this->assertContains($result['evidence']['slots'][0]['path'], $this->ensembleArtifactPaths($log));
+        } finally {
+            foreach ($log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble'] ?? [] as $evidence) {
+                Storage::disk($diskName)->delete($evidence['input_path']);
+
+                foreach ($evidence['slots'] as $slot) {
+                    Storage::disk($diskName)->delete($slot['path']);
+                    Storage::disk($diskName)->delete($slot['first_attempt']['path'] ?? '');
+                }
+            }
+        }
+    }
+
+    /**
+     * A retry that answers but fails validation is still an answer: replay revalidates invalid
+     * first-attempt draws after a deterministic rule fix, so it must be able to revalidate this one.
+     */
+    #[Test]
+    public function a_retried_draw_that_fails_validation_is_kept_with_its_first_attempt(): void
+    {
+        Config::set('media-processing.service_structure.detector', 'mock');
+        $diskName = ServiceArtifactDisk::name();
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $transcript = ChurchServiceTranscript::fromCues([
+            ['start' => 0.0, 'end' => 100.0, 'text' => 'Welcome and Bible reading.'],
+            ['start' => 100.0, 'end' => 500.0, 'text' => 'Turn with me to John.'],
+        ], 500.0, ChurchServiceTranscript::SOURCE_MOCK);
+        $input = [
+            'processing_id' => $log->processing_id,
+            'transcript' => $transcript->toArray(),
+            'audio_timeline' => AudioTimelineFixture::payload([], 500.0),
+            'oos_items' => [],
+            'validation_context' => ServiceStructureDrawExecutor::contextSnapshot(ValidationContext::for($transcript)),
+            'rms_log' => null,
+        ];
+        $executor = new class(app(ServiceStructureInterface::class), app(SilenceSnapService::class), app(SoundStage::class), app(ServiceStructureValidator::class)) extends ServiceStructureDrawExecutor
+        {
+            private int $calls = 0;
+
+            public function execute(array $input, string $model): array
+            {
+                $this->calls++;
+
+                if ($this->calls === 1) {
+                    throw new RuntimeException('cURL error 52: Empty reply from server');
+                }
+
+                $draw = parent::execute($input, $model);
+
+                if ($this->calls === 5) {
+                    $draw['validation'] = new ValidationResult($draw['validation']->structure, [['code' => 'zero_length_section', 'message' => 'Rule since fixed.']]);
+                }
+
+                return $draw;
+            }
+        };
+        $runner = new ServiceStructureEnsembleRunner($executor, app(HistoricStagingContextRegistry::class));
+
+        try {
+            $result = $runner->run($log, $input);
+            $slot = $result['evidence']['slots'][0];
+
+            $this->assertStringEndsWith('.slot-0.retry-1.json', $slot['path']);
+            $this->assertSame('unavailable', $slot['first_attempt']['status']);
+            $this->assertSame(['invalid', 'valid', 'valid', 'valid'], array_column($result['slots'], 'status'));
+            $this->assertCount(4, $result['draws']);
+            $this->assertContains($slot['path'], $this->ensembleArtifactPaths($log));
+            $this->assertContains($slot['first_attempt']['path'], $this->ensembleArtifactPaths($log));
+            $this->assertFalse(app(ServiceStructureEnsembleReplay::class)->replay($result['evidence'])['degraded']);
         } finally {
             foreach ($log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble'] ?? [] as $evidence) {
                 Storage::disk($diskName)->delete($evidence['input_path']);
