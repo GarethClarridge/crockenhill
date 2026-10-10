@@ -338,6 +338,85 @@ class AudioChunkingServiceTest extends TestCase
         $this->service->createAudioChunks('/nonexistent/audio.mp3', 'proc-123', 600.0);
     }
 
+    /**
+     * Canary 15, run 967: the staging drive detached while its source was compressed, FFmpeg
+     * wrote 1,991 s of a 4,712 s recording without an error, and the transcript silently lost
+     * the rest. A source whose header promises more audio than it holds reproduces that read.
+     */
+    #[Test]
+    public function compression_refuses_audio_shorter_than_its_source(): void
+    {
+        $ffmpegBinary = $this->resolveBinary('ffmpeg');
+        $ffprobeBinary = $this->resolveBinary('ffprobe');
+
+        if ($ffmpegBinary === null || $ffprobeBinary === null) {
+            $this->markTestSkipped('ffmpeg and ffprobe are required for compression coverage.');
+        }
+
+        Config::set('media-processing.ffmpeg.ffmpeg_path', $ffmpegBinary);
+        Config::set('media-processing.ffmpeg.ffprobe_path', $ffprobeBinary);
+
+        $tempDir = storage_path('app/testing/audio-chunking');
+
+        if (! is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+
+        // A Matroska header records the whole duration, as the livestream sources' do.
+        $sourcePath = $tempDir.'/truncated-source.mkv';
+
+        try {
+            $this->runProcess(new Process([$ffmpegBinary, '-y', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=60', '-c:a', 'pcm_s16le', $sourcePath]));
+            $handle = fopen($sourcePath, 'r+');
+            ftruncate($handle, intdiv((int) filesize($sourcePath), 2));
+            fclose($handle);
+
+            $this->expectException(TranscriptionException::class);
+            $this->expectExceptionMessage('shorter than its source');
+
+            $this->service->compressAudioForTranscription($sourcePath, 'truncated-source');
+        } finally {
+            @unlink($sourcePath);
+        }
+    }
+
+    #[Test]
+    public function compression_keeps_audio_that_covers_its_source(): void
+    {
+        $ffmpegBinary = $this->resolveBinary('ffmpeg');
+        $ffprobeBinary = $this->resolveBinary('ffprobe');
+
+        if ($ffmpegBinary === null || $ffprobeBinary === null) {
+            $this->markTestSkipped('ffmpeg and ffprobe are required for compression coverage.');
+        }
+
+        Config::set('media-processing.ffmpeg.ffmpeg_path', $ffmpegBinary);
+        Config::set('media-processing.ffmpeg.ffprobe_path', $ffprobeBinary);
+
+        $tempDir = storage_path('app/testing/audio-chunking');
+
+        if (! is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+
+        $sourcePath = $tempDir.'/whole-source.mkv';
+        $compressedPath = null;
+
+        try {
+            $this->runProcess(new Process([$ffmpegBinary, '-y', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=60', '-c:a', 'pcm_s16le', $sourcePath]));
+
+            $compressedPath = $this->service->compressAudioForTranscription($sourcePath, 'whole-source');
+
+            $this->assertEqualsWithDelta(60.0, $this->service->getAudioDuration($compressedPath), 1.0);
+        } finally {
+            @unlink($sourcePath);
+
+            if ($compressedPath !== null) {
+                @unlink($compressedPath);
+            }
+        }
+    }
+
     #[Test]
     public function it_creates_chunks_for_an_mp3_with_attached_artwork(): void
     {

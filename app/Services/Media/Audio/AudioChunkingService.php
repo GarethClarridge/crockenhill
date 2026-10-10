@@ -9,6 +9,7 @@ use App\Services\Processing\SermonProcessingLogger;
 use Exception;
 use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\FFMpeg;
+use FFMpeg\FFProbe;
 use FFMpeg\Format\Audio\Mp3;
 use FFMpeg\Media\Audio;
 use Illuminate\Support\Facades\Log;
@@ -21,6 +22,9 @@ class AudioChunkingService
     private const CHUNK_OVERLAP_SECONDS = 15;
 
     private const MIN_DURATION_FOR_CHUNKING = 420; // 7 minutes
+
+    /** How much shorter than asked a derived file may be before its source read is suspect. */
+    private const DERIVED_AUDIO_SHORTFALL_SECONDS = 2.0;
 
     public function __construct(
         private readonly SermonProcessingLogger $logger
@@ -132,6 +136,7 @@ class AudioChunkingService
                     TimeCode::fromSeconds($actualDuration)
                 );
                 $audio->save($format, $chunkPath);
+                $this->assertCoversSource($chunkPath, $actualDuration, "Chunk {$chunkIndex}");
 
                 $chunks[] = $chunkPath;
 
@@ -365,6 +370,8 @@ class AudioChunkingService
                 throw new TranscriptionException('Compressed audio file was not created or is empty');
             }
 
+            $this->assertCoversSource($compressedPath, $this->containerDuration($inputPath), 'Compressed audio');
+
             $compressedSize = filesize($compressedPath);
             $this->logger->logFileOperation(
                 $processingId,
@@ -393,6 +400,56 @@ class AudioChunkingService
 
             throw new TranscriptionException("Failed to compress audio for transcription: {$e->getMessage()}", 0, $e);
         }
+    }
+
+    /**
+     * Refuse audio derived from a source that ended early.
+     *
+     * FFmpeg stops without an error when its input stops yielding data, as a source on a
+     * detaching drive does, so a short file is the only sign (canary 15, run 967: 1,991 s
+     * of 4,712 s transcribed). The file is removed so nothing downstream reads it.
+     *
+     * @throws TranscriptionException
+     */
+    private function assertCoversSource(string $derivedPath, float $expectedSeconds, string $what): void
+    {
+        $actualSeconds = $this->containerDuration($derivedPath);
+
+        if ($actualSeconds >= $expectedSeconds - self::DERIVED_AUDIO_SHORTFALL_SECONDS) {
+            return;
+        }
+
+        @unlink($derivedPath);
+
+        throw new TranscriptionException(sprintf(
+            '%s is %.1f s, shorter than its source (%.1f s); the source read ended early',
+            $what,
+            $actualSeconds,
+            $expectedSeconds,
+        ));
+    }
+
+    /**
+     * The container's own duration, which video sources carry where their audio stream may not.
+     *
+     * @throws TranscriptionException
+     */
+    private function containerDuration(string $filePath): float
+    {
+        try {
+            $duration = FFProbe::create([
+                'ffprobe.binaries' => config('media-processing.ffmpeg.ffprobe_path'),
+                'timeout' => 60,
+            ])->format($filePath)->get('duration');
+        } catch (Exception $e) {
+            throw new TranscriptionException('Failed to read duration: '.$e->getMessage(), 0, $e);
+        }
+
+        if (! is_numeric($duration)) {
+            throw new TranscriptionException("Failed to read duration of {$filePath}");
+        }
+
+        return (float) $duration;
     }
 
     /**
