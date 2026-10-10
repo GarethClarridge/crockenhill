@@ -70,7 +70,10 @@ final class HistoricRerunWatch
     }
 
     /**
-     * @param  array{started_at: string, missing_at_start: list<string>}  $state
+     * A stop the operator has acknowledged in `watch-state.json` (a lasting state they have looked at
+     * and can redo, which would otherwise stop every look) is reported as a warning instead.
+     *
+     * @param  array{started_at: string, missing_at_start: list<string>, acknowledged?: list<string>}  $state
      * @return array{stops: list<string>, warnings: list<string>, progress: array<string, mixed>}
      */
     public function check(HistoricRerunSnapshot $snapshot, array $state, float $minimumFreeGigabytes): array
@@ -120,8 +123,14 @@ final class HistoricRerunWatch
             $stops[] = sprintf('internal disk has %.1f GB free (stop below %.1f)', $freeGigabytes, $minimumFreeGigabytes);
         }
 
+        $acknowledged = $state['acknowledged'] ?? [];
+
+        foreach (array_intersect($stops, $acknowledged) as $stop) {
+            $warnings[] = 'acknowledged stop: '.$stop;
+        }
+
         return [
-            'stops' => $stops,
+            'stops' => array_values(array_diff($stops, $acknowledged)),
             'warnings' => $warnings,
             'progress' => [
                 'checked_at' => now()->toIso8601String(),

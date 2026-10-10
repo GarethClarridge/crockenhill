@@ -131,6 +131,47 @@ class WatchHistoricRerunCommandTest extends TestCase
         $this->watch()->expectsOutputToContain('job failed on historic-orchestration')->assertFailed();
     }
 
+    /**
+     * Full pass 2026-10-10: a stop that is a lasting state (run 1002 superseded by a failed weekly
+     * run) recurs on every look, so resuming after it only pauses the pass again five minutes later.
+     * The operator can acknowledge that exact stop; it is then a warning, and any other stop still
+     * pauses the pass.
+     */
+    #[Test]
+    public function an_acknowledged_stop_is_a_warning_and_any_other_stop_still_pauses(): void
+    {
+        $run = $this->processingRun();
+        $this->snapshot([$run->id]);
+        $this->watch()->assertSuccessful();
+
+        $this->travel(1)->minutes();
+        $this->failedJob(now());
+        $this->watch()->assertFailed();
+
+        $stop = $this->file('watch-stop.json')['stops'][0];
+        $state = $this->file('watch-state.json');
+        File::put($this->absolute('watch-state.json'), json_encode([...$state, 'acknowledged' => [$stop]]));
+        File::delete($this->absolute('watch-stop.json'));
+        foreach (app(HistoricRerunWatch::class)->queues() as $queue) {
+            Queue::resume(config('queue.default'), $queue);
+        }
+
+        $this->watch()->assertSuccessful();
+        self::assertContains('acknowledged stop: '.$stop, $this->file('watch-status.json')['warnings']);
+        $this->assertNothingPaused();
+
+        $this->travel(1)->minutes();
+        DB::table('failed_jobs')->insert([
+            'uuid' => (string) Str::uuid(),
+            'connection' => 'redis',
+            'queue' => 'historic-ffmpeg',
+            'payload' => json_encode(['displayName' => 'App\\Jobs\\ExtractSermon']),
+            'exception' => "RuntimeException: another\n#0 trace",
+            'failed_at' => now(),
+        ]);
+        $this->watch()->expectsOutputToContain('job failed on historic-ffmpeg')->assertFailed();
+    }
+
     #[Test]
     public function a_published_file_that_goes_missing_stops_the_pass_but_one_missing_at_the_start_does_not(): void
     {

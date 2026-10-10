@@ -101,10 +101,18 @@ final class HistoricRerunState
         ];
     }
 
+    /**
+     * A dispatched cut still queued or running, or one that parked the run for review (run 964,
+     * sermon composition), which cuts nothing until the review is answered.
+     */
     private function extractionRunning(MediaProcessingLog $run): bool
     {
-        return ($run->latestCorpusRerunDetection()['media'] ?? null) === ExtractForCorpusRerun::MEDIA_EXTRACTED
-            && in_array($run->status, [ProcessingStatus::Pending, ProcessingStatus::Processing], true);
+        if (($run->latestCorpusRerunDetection()['media'] ?? null) !== ExtractForCorpusRerun::MEDIA_EXTRACTED) {
+            return false;
+        }
+
+        return in_array($run->status, [ProcessingStatus::Pending, ProcessingStatus::Processing], true)
+            || ($run->status === ProcessingStatus::Failed && data_get($run->processing_metadata?->toArray(), 'manual_review.status') === 'required');
     }
 
     /**

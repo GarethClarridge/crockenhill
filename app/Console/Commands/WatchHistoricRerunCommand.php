@@ -95,14 +95,18 @@ class WatchHistoricRerunCommand extends Command
     }
 
     /**
-     * @return array{started_at: string, missing_at_start: list<string>}
+     * @return array{started_at: string, missing_at_start: list<string>, acknowledged?: list<string>}
      */
     private function state(HistoricRerunWatch $watch, HistoricRerunSnapshot $snapshot, string $path): array
     {
         $stored = is_file($path) ? json_decode((string) file_get_contents($path), true) : null;
 
         if (is_array($stored) && ($stored['membership_sha256'] ?? null) === $snapshot->membershipSha256) {
-            return ['started_at' => (string) $stored['started_at'], 'missing_at_start' => array_values((array) $stored['missing_at_start'])];
+            return [
+                'started_at' => (string) $stored['started_at'],
+                'missing_at_start' => array_values((array) $stored['missing_at_start']),
+                'acknowledged' => array_values(array_filter((array) ($stored['acknowledged'] ?? []), 'is_string')),
+            ];
         }
 
         $state = $watch->begin($snapshot);
