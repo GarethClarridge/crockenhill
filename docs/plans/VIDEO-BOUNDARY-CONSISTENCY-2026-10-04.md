@@ -1,9 +1,9 @@
 # Video boundary consistency: findings and implementation handover
 
-> **Current handover — 2026-10-10, full pass ready to plan-check:** frozen on `87b1f6eda` (pushed, deployed),
+> **Current handover — 2026-10-10, full pass ready to dispatch:** frozen on `87b1f6eda` (pushed, deployed),
 > verified backup taken, preflight done, routing measured. **§6.3.9 is the one current execution record**;
-> it supersedes the canary-10 gates in the historic plan's §4.0. Next: operator confirms the dispute bar,
-> then go for Tier A and batch 1.
+> it supersedes the canary-10 gates in the historic plan's §4.0. Ruled: dispatch everything (no
+> batches), dispute bar stays 2.0. Next session: build the watcher, then follow §6.3.9's dispatch steps.
 
 > **Current handover — 2026-10-10, after canary 15 and its repair pass:** canary 15 met one
 > stopping condition (three published song clips deleted with no copy). The fix round, seven
@@ -2028,7 +2028,7 @@ defects; plan the full pass (routing, batch size, order, §6.3.7 stopping condit
 This section supersedes, for the full pass, the canary-10 gates, counts and dispatch receipts in the
 historic plan's §4.0 ("Built for the final canary", "Canary 10, the final canary", "Open before batch
 1"). §4.0's standing decisions 1–8 and its route table still apply except where this section differs.
-Nothing here authorises a dispatch; each batch needs the operator's go.
+Nothing here authorises a dispatch; the dispatch needs the operator's go in the session that runs it.
 
 **Frozen code:** `87b1f6eda` (pushed and deployed 2026-10-10; `6827a20ab`'s behaviour plus the
 review-tool commits and a Pint-only commit). Suite 9,502, PHPStan 0. Any later code commit moves the
@@ -2056,34 +2056,54 @@ snapshot.json`, membership `5e649062…`, routing `listening-20260924/routing-bo
 | Recompose banked draws, no new draw (canary members, decision 8) | 37 |
 | Refused: failed, not completed — operator panel first | 5: 1047, 1300, 1364 (span checks), 1262 (span check), 1143 (09-28 detection failure, multiple 20-minute blocks) |
 
-**Order:** Tier A's 152 first on the Whisper worker (6–13 h); it can run beside Tier B batches.
-The 37 banked runs recompose as one batch (no paid calls). Tier B in batches of about 40 in era
-order, batch 1 being 20 runs from the workbook's discovery half (2023–2026), as adopted 2026-10-02.
-Each batch: snapshot → Tier B → export → answers → recompose → held-transcript releases →
-Tier C → diff → backup → batch report.
+**Shape: dispatch everything, no batches (operator, 2026-10-10).** This replaces the 2026-10-02
+batch shape (about 40 runs a batch, batch 1 = 20 discovery-half runs). Reason: a defect found on
+listening costs only Mac time to repair (replay, re-cut what changed: about 7 min and 0.5 GiB a
+run), and the operator listens to whatever has completed either way, so batch gates add waiting
+and save nothing. Irreversible harm is guarded instead by `7c90cfa10` (removed sections are
+quarantined, never deleted), the verified backup, and a watcher that stops the workers.
 
-**Stopping conditions (any one stops before the next batch):** published content wrong on listening;
-a hold that does not hold, or anything becoming public; reviewed files differing from published
-files; an audio verification failure not contained as a hold; speaker identification running; lost
-or overwritten media with no copy; a sampled cut wrong with no question on it (investigate; two in a
-batch stop); a sampled majority overruled (investigate; two in a batch stop); more than three new
-talks under 60 s confirmed false; more than 10% of a batch's ensembles losing a draw after the
-one retry; unresolved composer disputes before answers above 2.0 a run. *Operator to confirm:* the
-2.0 bar was set on canary 10's raw rate, before the 10-10 rulings removed most questions; a lower
-bar (canary 15 would now ask 3 questions over 12 unseen runs) would catch drift sooner.
+The dispatch session, in order:
+
+1. Preflight (below) on the freeze; start the workers on it; check `ps` elapsed.
+2. Re-take the snapshot over the same 438 (the draft is valid only if no run has changed).
+3. Start the watcher (to build in that session, before dispatching: a script that runs without
+   Claude and stops the workers on any machine-checkable condition below — diff attention (a lost
+   hold, anything public), published media missing or overwritten, new failed jobs, lost draws
+   above 10%, speaker identification running, a staging/temp/quarantine probe failing, internal
+   free space under 10 GB).
+4. Dispatch all of: Tier A 152 (Whisper worker; about 3–4 min a run → 8–10 h), Tier B 244, recompose
+   37 (no paid calls). Tier A runs go to Tier B as each finishes (resnapshot, as in canary 15).
+5. Tier C for every run that clears with no open question, as it clears. Runs with questions hold
+   themselves; answers come from one question page (or a few as they accumulate), then recompose
+   and Tier C.
+6. Each morning (or review round): listening page of what has been cut, question page, diff,
+   backup (service-artifacts rsync, database dump, `detection-rulings` archive), batch report.
+
+**A rule adopted mid-pass** (decision 8): Tier C pauses until every uncut run is recomposed onto the
+new revision; cut runs are replayed and only those whose cut changes are cut again.
+
+**Stopping conditions (any one stops the workers until fixed):** published content wrong on
+listening; a hold that does not hold, or anything becoming public; reviewed files differing from
+published files; an audio verification failure not contained as a hold; speaker identification
+running; lost or overwritten media with no copy; a sampled cut wrong with no question on it
+(investigate; two in one review round stop); a sampled majority overruled (investigate; two in one
+review round stop); more than three new talks under 60 s confirmed false in one review round; more
+than 10% of ensembles losing a draw after the one retry; unresolved composer disputes before
+answers above **2.0 a run** (operator kept the bar, 2026-10-10).
 
 **Known defect that will recur:** `structure:ensemble-apply-answers` validates each answer alone,
 so interdependent answers are refused (workaround: answer a section's version first). The export
 labels a 1-1-1-1 split "settled by majority".
 
-**Backup before batch 1 (done 2026-10-10, verified):** `/Volumes/Sonnics/_pre-full-pass-backup-
+**Backup before the pass (done 2026-10-10, verified):** `/Volumes/Sonnics/_pre-full-pass-backup-
 20261010/`: database dump (restored into a throwaway database: 61 tables, 67,852 rows identical,
 seven table checksums equal), `app-private` (no service artifacts), `public-service-transcripts`,
 `scratch` and `.env`, as archives (Sonnics is exFAT with 512 KiB blocks, so 46k small files cost
 26 GB loose). Archive entry counts match the live trees; 406 extracted files and every one of the
 331 draw files in `_service-artifacts-backup/` compare byte-identical. Hashes:
 `storage/scratch/full-pass-prep/backup-sha256.txt`. Media is not backed up (09-13 ruling: re-derivable
-from Sonnics). After each batch: the service-artifacts rsync plus a new database dump and
+from Sonnics). After each review round: the service-artifacts rsync plus a new database dump and
 `detection-rulings` archive.
 
 **Preflight 2026-10-10 (repeat before every dispatch):** queues empty on all nine queues; failed jobs
