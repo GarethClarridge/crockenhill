@@ -203,9 +203,33 @@ final class CorpusRerunGuard
      */
     private function heldForEnsembleReviewByARound(MediaProcessingLog $run): bool
     {
-        return $run->status === ProcessingStatus::Failed
-            && $run->corpusRerunStamps() !== []
-            && in_array(data_get($run->processing_metadata?->toArray() ?? [], 'manual_review.reason_code'), ['service_structure_ensemble_review', 'sermon_composition_review'], true);
+        if ($run->status !== ProcessingStatus::Failed || $run->corpusRerunStamps() === []) {
+            return false;
+        }
+
+        $metadata = $run->processing_metadata?->toArray() ?? [];
+        $reason = data_get($metadata, 'manual_review.reason_code');
+
+        return in_array($reason, ['service_structure_ensemble_review', 'sermon_composition_review'], true)
+            || ($reason === 'llm_structure_validation_failed' && $this->failedWithQuestionsOpen($metadata));
+    }
+
+    /**
+     * Whether the latest composition still had questions when it failed validation, so the failure is theirs.
+     *
+     * A disputed section is not written until it is answered: in the canary 15 repair pass run
+     * 1005's sermon went unwritten while its edges were questions, and the structure failed coverage.
+     * Answering the questions and recomposing is how such a run moves on; with none open, a failed
+     * validation is a wrong structure and stays out.
+     *
+     * @param  array<string, mixed>  $metadata
+     */
+    private function failedWithQuestionsOpen(array $metadata): bool
+    {
+        $attempts = data_get($metadata, 'service_structure_ensemble', []);
+        $latest = is_array($attempts) && $attempts !== [] ? end($attempts) : null;
+
+        return (array) data_get($latest, 'composition.disputes', []) !== [];
     }
 
     /**

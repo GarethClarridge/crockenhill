@@ -175,12 +175,38 @@ class RecomposeForCorpusRerunCommandTest extends TestCase
             ->assertSuccessful();
     }
 
-    private function parkedForCompositionReview(bool $byARound): MediaProcessingLog
+    /**
+     * Canary 15's repair pass, run 1005: four valid draws disagreed on the sermon, so it went
+     * unwritten while its edges were questions, and the structure failed coverage. That failure is
+     * the open questions', so answering them and recomposing is how the run moves on.
+     */
+    #[Test]
+    public function a_run_a_round_failed_on_validation_while_questions_were_open_can_be_recomposed(): void
+    {
+        $run = $this->parkedForCompositionReview(byARound: true, reason: 'llm_structure_validation_failed', openQuestions: true);
+
+        $this->artisan('historic-import:rerun-recompose', ['snapshot' => $this->snapshotPath(), 'runs' => [$run->id]])
+            ->expectsOutputToContain('ready to recompose banked draws attempt-1')
+            ->assertSuccessful();
+    }
+
+    /** With nothing left to answer, a failed validation is a wrong structure, not a pending one. */
+    #[Test]
+    public function a_run_a_round_failed_on_validation_with_no_open_questions_is_refused(): void
+    {
+        $run = $this->parkedForCompositionReview(byARound: true, reason: 'llm_structure_validation_failed', openQuestions: false);
+
+        $this->artisan('historic-import:rerun-recompose', ['snapshot' => $this->snapshotPath(), 'runs' => [$run->id]])
+            ->expectsOutputToContain('run is failed, not completed')
+            ->assertSuccessful();
+    }
+
+    private function parkedForCompositionReview(bool $byARound, string $reason = 'sermon_composition_review', bool $openQuestions = false): MediaProcessingLog
     {
         $run = $this->completedRun();
         $metadata = $run->processing_metadata?->toArray() ?? [];
-        $metadata['service_structure_ensemble'] = [['attempt_id' => 'attempt-1']];
-        $metadata['manual_review'] = ['status' => 'required', 'reason_code' => 'sermon_composition_review'];
+        $metadata['service_structure_ensemble'] = [['attempt_id' => 'attempt-1', 'composition' => ['disputes' => $openQuestions ? [['type' => 'sermon', 'question_id' => 'q']] : []]]];
+        $metadata['manual_review'] = ['status' => 'required', 'reason_code' => $reason];
         if ($byARound) {
             $metadata[RedetectForCorpusRerun::STAMP_KEY] = [['grounds' => 'corpus_rerun', 'git_commit' => 'an-earlier-commit',
                 'snapshot_file_sha256' => 'an-earlier-snapshot', 'media' => 'deferred', 'dispatched_at' => '2026-10-05T10:00:00+00:00']];
