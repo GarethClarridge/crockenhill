@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
-use App\Enums\ContentHoldCheck;
 use App\Data\HistoricStagingContext;
+use App\Enums\ContentHoldCheck;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ScripturePassage;
@@ -19,6 +19,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Testing\PendingCommand;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -242,7 +244,7 @@ class WatchHistoricRerunCommandTest extends TestCase
             ->assertFailed();
     }
 
-    private function watch(): \Illuminate\Testing\PendingCommand
+    private function watch(): PendingCommand
     {
         return $this->artisan('historic-import:rerun-watch', ['snapshot' => $this->path('before.json'), '--once' => true, '--min-free-gb' => 0]);
     }
@@ -257,7 +259,7 @@ class WatchHistoricRerunCommandTest extends TestCase
     private function failedJob(\DateTimeInterface $at): void
     {
         DB::table('failed_jobs')->insert([
-            'uuid' => (string) \Illuminate\Support\Str::uuid(),
+            'uuid' => (string) Str::uuid(),
             'connection' => 'redis',
             'queue' => 'historic-orchestration',
             'payload' => json_encode(['displayName' => 'App\\Jobs\\AutoPublishServiceSection']),
