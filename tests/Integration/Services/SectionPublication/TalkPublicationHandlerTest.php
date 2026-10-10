@@ -52,6 +52,7 @@ class TalkPublicationHandlerTest extends TestCase
         $this->sermonCreationService = Mockery::mock(SermonCreationService::class);
         $this->identityResolver = Mockery::mock(MediaProcessingIdentityResolver::class);
         $this->publicationTransitions = Mockery::mock(ServiceSectionPublicationTransitionService::class);
+        $this->publicationTransitions->shouldReceive('canTransition')->byDefault()->andReturnTrue();
         $this->shortTalkBoundaryEvidence = Mockery::mock(ShortTalkBoundaryEvidenceService::class);
 
         $this->handler = new TalkPublicationHandler(
@@ -318,6 +319,47 @@ class TalkPublicationHandlerTest extends TestCase
 
         Storage::disk('public')->assertExists($videoPath);
         Storage::disk('public')->assertExists($audioPath);
+    }
+
+    #[Test]
+    public function publish_refuses_a_section_that_may_not_become_published_before_moving_its_files(): void
+    {
+        // The song handler moved run 1223's candidates and then met the refusal (2026-10-10);
+        // this handler had the same order.
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+        $videoPath = 'section-publications/2-abcdef0123456789/video.mp4';
+        $audioPath = 'section-publications/2-abcdef0123456789/audio.mp3';
+        Storage::disk('public')->put($videoPath, 'video-content');
+        Storage::disk('public')->put($audioPath, 'audio-content');
+        $processingLog = MediaProcessingLog::factory()->audio()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'extracted_video_path' => $videoPath,
+            'extracted_audio_path' => $audioPath,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval->value,
+        ]);
+        $section->metadata = ServiceSectionMetadata::fromArray([
+            'publication_candidate_extraction' => PublicationCandidateFixture::current(AudioProfile::Speech),
+            'publication' => ['approved_signature' => $section->classificationSignature()],
+        ]);
+        $section->save();
+        $this->identityResolver->shouldReceive('resolve')->andReturn(['date' => now()->toDateString(), 'service' => SermonService::Morning]);
+        $this->publicationTransitions->shouldReceive('canTransition')->andReturnFalse();
+        $this->publicationTransitions->shouldNotReceive('transition');
+        $this->sermonCreationService->shouldNotReceive('createSermon');
+
+        try {
+            $this->handler->publish($section->fresh());
+            $this->fail('A pending_approval talk was published.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('may not become published', $exception->getMessage());
+        }
+
+        Storage::disk('public')->assertExists($videoPath);
+        Storage::disk('public')->assertExists($audioPath);
+        $this->assertSame($videoPath, $section->fresh()->extracted_video_path);
     }
 
     #[Test]

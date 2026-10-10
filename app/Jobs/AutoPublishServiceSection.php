@@ -152,12 +152,12 @@ class AutoPublishServiceSection implements ShouldQueue
      * it: the guard withheld a section that publishes correctly today.
      *
      * Nothing is lost by leaving it out. A section that came to require approval
-     * during preparation was transitioned to `pending_approval`, and
-     * {@see ServiceSectionPublicationTransitionService}
-     * already refuses `pending_approval` to `published`. The states this guard
-     * has to cover are the ones that table permits — `not_applicable` and
-     * `approved` — and for those the hold is the durable expression of "a
-     * reviewer must look".
+     * during preparation was transitioned to `pending_approval`, which
+     * {@see ServiceSectionPublicationTransitionService} refuses to `published`. That
+     * refusal is asked here, before the handler runs, as a pure read: left to the
+     * handler it once came after the candidate had moved (1223, 2026-10-10). For the
+     * states the table permits — `not_applicable` and `approved` — the hold is the
+     * durable expression of "a reviewer must look".
      */
     private function reasonToWithhold(ServiceSection $section, SectionPublicationHandler $handler): ?string
     {
@@ -169,6 +169,12 @@ class AutoPublishServiceSection implements ShouldQueue
 
         if ($section->needs_manual_review) {
             return 'the section has been held for manual review';
+        }
+
+        // A state the transition table will refuse, such as `pending_approval` reached after
+        // the job was queued (1223, 2026-10-10), is a lapsed answer, not a failed job.
+        if (! app(ServiceSectionPublicationTransitionService::class)->canTransition($section, ServiceSectionPublicationStatus::Published)) {
+            return sprintf('the section may not become published from %s', $section->publication_status->value);
         }
 
         if (! $handler->isEligible($section)) {

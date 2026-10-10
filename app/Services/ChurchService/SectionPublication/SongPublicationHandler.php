@@ -175,6 +175,17 @@ class SongPublicationHandler implements SectionPublicationHandler
             return;
         }
 
+        // Asked before any byte moves: a refusal after the move left run 1223's three
+        // candidates at the song path while their rows still named the old one (2026-10-10).
+        if ($section->publication_status !== ServiceSectionPublicationStatus::Published
+            && ! $this->publicationTransitions->canTransition($section, ServiceSectionPublicationStatus::Published)) {
+            throw new \RuntimeException(sprintf(
+                'Song section %d may not become published from %s',
+                $section->id,
+                $section->publication_status->value,
+            ));
+        }
+
         $videoPath = $section->extracted_video_path;
 
         if (! is_string($videoPath) || $videoPath === '') {

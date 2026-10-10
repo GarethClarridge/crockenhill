@@ -129,6 +129,16 @@ class TalkPublicationHandler implements SectionPublicationHandler
     {
         $processingLog = $section->processingLog;
 
+        // Asked before any byte moves, as for songs: a refusal after the move strands the
+        // files at the published paths while the row still names the candidates (2026-10-10).
+        if (! $this->publicationTransitions->canTransition($section, ServiceSectionPublicationStatus::Published)) {
+            throw new \RuntimeException(sprintf(
+                'Section %d may not become published from %s',
+                $section->id,
+                $section->publication_status->value,
+            ));
+        }
+
         $videoPath = $section->extracted_video_path;
         $audioPath = $section->extracted_audio_path;
 

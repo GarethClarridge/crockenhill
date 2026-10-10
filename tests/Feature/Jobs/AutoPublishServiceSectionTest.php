@@ -132,6 +132,27 @@ class AutoPublishServiceSectionTest extends TestCase
     }
 
     #[Test]
+    public function it_withholds_a_section_that_came_to_require_approval_and_leaves_its_candidate_in_place(): void
+    {
+        // Repair pass 2026-10-10, run 1223: preparation queued the job, the section then
+        // went to `pending_approval`, and the handler moved each candidate to the song path
+        // before the transition table refused. Three failed jobs, three rows naming a file
+        // that was no longer there.
+        [$section] = $this->publishableSongSection();
+        $section->forceFill(['publication_status' => ServiceSectionPublicationStatus::PendingApproval->value])->save();
+
+        (new AutoPublishServiceSection($section->id))->handle(
+            app(SectionPublicationHandlerFactory::class)
+        );
+
+        $section->refresh();
+        $this->assertEquals(ServiceSectionPublicationStatus::PendingApproval, $section->publication_status);
+        $this->assertSame('section-publications/guard/video.mp4', $section->extracted_video_path);
+        Storage::disk('public')->assertExists('section-publications/guard/video.mp4');
+        $this->assertNull(SongVideo::query()->where('service_section_id', $section->id)->first());
+    }
+
+    #[Test]
     public function it_still_publishes_a_section_that_is_genuinely_unchanged(): void
     {
         // The guard must not become a refusal to publish anything: these are the

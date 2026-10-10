@@ -446,6 +446,34 @@ class SongPublicationHandlerTest extends TestCase
     }
 
     #[Test]
+    public function it_refuses_a_section_that_may_not_become_published_before_moving_its_candidate(): void
+    {
+        // Repair pass 2026-10-10, run 1223: the refusal came after the move, so the
+        // candidate sat at the song path and the row still named the old one.
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $song = Song::factory()->create();
+        $videoPath = 'section-publications/98-abcdef0123456789/video.mp4';
+        Storage::disk('public')->put($videoPath, 'extracted-video-content');
+
+        $section = $this->makePublishableSection($song, $videoPath);
+        $section->forceFill(['publication_status' => ServiceSectionPublicationStatus::PendingApproval->value])->save();
+
+        try {
+            $this->handler->publish($section->fresh());
+            $this->fail('A pending_approval section was published.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('may not become published', $exception->getMessage());
+        }
+
+        Storage::disk('public')->assertExists($videoPath);
+        Storage::disk('public')->assertMissing('sermons/songs/'.$song->id.'/'.$section->id.'.mp4');
+        $this->assertSame($videoPath, $section->fresh()->extracted_video_path);
+        $this->assertNull(SongVideo::query()->where('service_section_id', $section->id)->first());
+    }
+
+    #[Test]
     public function it_publishes_a_song_section_and_creates_song_video(): void
     {
         Storage::fake('public');
