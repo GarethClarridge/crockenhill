@@ -215,12 +215,14 @@ final class CorpusRerunGuard
     }
 
     /**
-     * Whether the latest composition still had questions when it failed validation, so the failure is theirs.
+     * Whether a failed validation belongs to the run's questions: they are still open, or answering
+     * them has since made the structure valid.
      *
      * A disputed section is not written until it is answered: in the canary 15 repair pass run
      * 1005's sermon went unwritten while its edges were questions, and the structure failed coverage.
-     * Answering the questions and recomposing is how such a run moves on; with none open, a failed
-     * validation is a wrong structure and stays out.
+     * Applying the answers records a composition with none open, so that the run can still be
+     * recomposed is read from the answers having made it valid. With no questions and no answers
+     * that fixed it, a failed validation is a wrong structure and stays out.
      *
      * @param  array<string, mixed>  $metadata
      */
@@ -229,7 +231,9 @@ final class CorpusRerunGuard
         $attempts = data_get($metadata, 'service_structure_ensemble', []);
         $latest = is_array($attempts) && $attempts !== [] ? end($attempts) : null;
 
-        return (array) data_get($latest, 'composition.disputes', []) !== [];
+        return (array) data_get($latest, 'composition.disputes', []) !== []
+            || (data_get($latest, 'composition.validation_passed') === true
+                && (array) data_get($latest, 'composition.applied_rulings', []) !== []);
     }
 
     /**

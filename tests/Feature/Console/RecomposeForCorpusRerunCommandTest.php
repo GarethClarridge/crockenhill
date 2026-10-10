@@ -190,6 +190,17 @@ class RecomposeForCorpusRerunCommandTest extends TestCase
             ->assertSuccessful();
     }
 
+    /** Answering the questions records a composition with none open; the run must still be recomposable. */
+    #[Test]
+    public function a_run_whose_questions_were_answered_into_a_valid_structure_can_be_recomposed(): void
+    {
+        $run = $this->parkedForCompositionReview(byARound: true, reason: 'llm_structure_validation_failed', openQuestions: false, answeredValid: true);
+
+        $this->artisan('historic-import:rerun-recompose', ['snapshot' => $this->snapshotPath(), 'runs' => [$run->id]])
+            ->expectsOutputToContain('ready to recompose banked draws attempt-1')
+            ->assertSuccessful();
+    }
+
     /** With nothing left to answer, a failed validation is a wrong structure, not a pending one. */
     #[Test]
     public function a_run_a_round_failed_on_validation_with_no_open_questions_is_refused(): void
@@ -201,11 +212,15 @@ class RecomposeForCorpusRerunCommandTest extends TestCase
             ->assertSuccessful();
     }
 
-    private function parkedForCompositionReview(bool $byARound, string $reason = 'sermon_composition_review', bool $openQuestions = false): MediaProcessingLog
+    private function parkedForCompositionReview(bool $byARound, string $reason = 'sermon_composition_review', bool $openQuestions = false, bool $answeredValid = false): MediaProcessingLog
     {
         $run = $this->completedRun();
         $metadata = $run->processing_metadata?->toArray() ?? [];
-        $metadata['service_structure_ensemble'] = [['attempt_id' => 'attempt-1', 'composition' => ['disputes' => $openQuestions ? [['type' => 'sermon', 'question_id' => 'q']] : []]]];
+        $metadata['service_structure_ensemble'] = [['attempt_id' => 'attempt-1', 'composition' => [
+            'disputes' => $openQuestions ? [['type' => 'sermon', 'question_id' => 'q']] : [],
+            'validation_passed' => $answeredValid,
+            'applied_rulings' => $answeredValid ? [['ruling_key' => 'k']] : [],
+        ]]];
         $metadata['manual_review'] = ['status' => 'required', 'reason_code' => $reason];
         if ($byARound) {
             $metadata[RedetectForCorpusRerun::STAMP_KEY] = [['grounds' => 'corpus_rerun', 'git_commit' => 'an-earlier-commit',
