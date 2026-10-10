@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Console;
 
 use App\Enums\ContentHoldCheck;
+use App\Enums\ProcessingStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ScripturePassage;
@@ -245,6 +246,49 @@ class HistoricRerunDiffCommandTest extends TestCase
 
         self::assertSame([], $result['attention']);
         self::assertContains('Song 100.0–300.0 → Song 100.0–300.0 lost its extracted media', array_map(static fn (string $item): string => str_replace('§'.$section->id.' song', 'Song', $item), $result['pending']));
+    }
+
+    /**
+     * Full pass 2026-10-10: once Tier C is dispatched the latest stamp no longer defers media, but
+     * the clips a recompose discarded are only re-cut when the run's queued cut reaches the one
+     * ffmpeg worker, hours later. Until that cut finishes they are still pending, not lost.
+     */
+    #[Test]
+    public function an_extraction_still_running_leaves_media_custody_pending(): void
+    {
+        $run = $this->processingRun();
+        $section = $this->section($run, ServiceSectionType::Song, 100, 300);
+        $section->update(['extracted_video_path' => 'sections/1.mp4', 'extracted_at' => now()]);
+        $this->snapshot([$run->id]);
+
+        $section->update(['extracted_video_path' => null, 'extracted_at' => null]);
+        $this->deferMedia($run);
+        $run->amendLatestCorpusRerunStamp(['media' => 'extracted', 'extraction_dispatched_at' => '2026-09-24T20:00:00+00:00']);
+        $run->update(['status' => ProcessingStatus::Pending]);
+
+        $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json'), '--output' => $this->path('diff.json')]);
+
+        $result = $this->report()['runs'][(string) $run->id];
+
+        self::assertNotContains(true, array_map(static fn (string $item): bool => str_contains($item, 'lost its extracted media'), $result['attention']));
+        self::assertContains(true, array_map(static fn (string $item): bool => str_contains($item, 'lost its extracted media'), $result['pending']));
+    }
+
+    #[Test]
+    public function a_finished_extraction_that_left_a_section_without_media_needs_attention(): void
+    {
+        $run = $this->processingRun();
+        $section = $this->section($run, ServiceSectionType::Song, 100, 300);
+        $section->update(['extracted_video_path' => 'sections/1.mp4', 'extracted_at' => now()]);
+        $this->snapshot([$run->id]);
+
+        $section->update(['extracted_video_path' => null, 'extracted_at' => null]);
+        $this->deferMedia($run);
+        $run->amendLatestCorpusRerunStamp(['media' => 'extracted', 'extraction_dispatched_at' => '2026-09-24T20:00:00+00:00']);
+
+        $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json'), '--output' => $this->path('diff.json')]);
+
+        self::assertContains(true, array_map(static fn (string $item): bool => str_contains($item, 'lost its extracted media'), $this->report()['runs'][(string) $run->id]['attention']));
     }
 
     /**

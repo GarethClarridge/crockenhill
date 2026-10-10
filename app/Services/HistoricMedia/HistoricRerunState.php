@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\HistoricMedia;
 
+use App\Actions\ExtractForCorpusRerun;
 use App\Actions\HoldSectionForContentReview;
+use App\Enums\ProcessingStatus;
 use App\Jobs\RecordDeferredCorpusRerunMedia;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -70,12 +72,16 @@ final class HistoricRerunState
      * media (plan §4.0), the plan the round recorded for extraction to cut: the run's own fields
      * still describe the media that exists, which the round did not replace.
      *
+     * A round whose extraction is dispatched still defers its media until that cut finishes: on the
+     * one ffmpeg worker a queued cut can wait hours, and the clips it will replace are already gone
+     * (full pass 2026-10-10, where the watcher stopped on 30 such clips minutes after dispatch).
+     *
      * @param  array<string, mixed>  $metadata
      * @return array{media_deferred: bool, sermon_span: array{start: float, end: float}|null, extraction_plan: array<string, mixed>|null}
      */
     private function sermonPlan(MediaProcessingLog $run, array $metadata): array
     {
-        if (! $run->hasDeferredCorpusRerunMedia()) {
+        if (! $run->hasDeferredCorpusRerunMedia() && ! $this->extractionRunning($run)) {
             return [
                 'media_deferred' => false,
                 'sermon_span' => $this->span($run->sermon_start_time, $run->sermon_end_time),
@@ -93,6 +99,12 @@ final class HistoricRerunState
                 : $this->span($segments[0]['start_time'] ?? null, $segments[count($segments) - 1]['end_time'] ?? null),
             'extraction_plan' => $this->extractionPlan($plan),
         ];
+    }
+
+    private function extractionRunning(MediaProcessingLog $run): bool
+    {
+        return ($run->latestCorpusRerunDetection()['media'] ?? null) === ExtractForCorpusRerun::MEDIA_EXTRACTED
+            && in_array($run->status, [ProcessingStatus::Pending, ProcessingStatus::Processing], true);
     }
 
     /**
