@@ -7,6 +7,7 @@ namespace App\Services\ChurchService\SectionPublication;
 use App\Contracts\SectionPublicationHandler;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\AudioProfile;
+use App\Enums\SermonPublicationState;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\ChurchServiceItem;
 use App\Models\ServiceSection;
@@ -306,7 +307,11 @@ class SongPublicationHandler implements SectionPublicationHandler
     }
 
     /**
-     * Handle removal of a section by deleting its associated SongVideo and file.
+     * Take a removed section's SongVideo out of public view, keeping its row and file.
+     *
+     * Re-detection removes sections whose clip may be the only copy, and a replacement may still
+     * be waiting on review, so removal is demotion, never deletion (canary 15 lost three clips).
+     * The row outlives the section: its foreign key nulls on delete.
      *
      * @param  ServiceSection  $section  The removed section
      */
@@ -320,16 +325,18 @@ class SongPublicationHandler implements SectionPublicationHandler
             return;
         }
 
-        $disk = filled($songVideo->asset_disk)
-            ? (string) $songVideo->asset_disk
-            : $this->sermonDisk();
+        $wasPublished = $songVideo->publication_state === SermonPublicationState::Published;
 
-        Storage::disk($disk)->delete($songVideo->video_file_path);
-        $songVideo->delete();
+        if ($wasPublished) {
+            $songVideo->publication_state = SermonPublicationState::Quarantined;
+            $songVideo->save();
+        }
 
-        Log::info('SongPublicationHandler: cleaned up SongVideo for removed section', $this->sanitizeArrayForLog([
+        Log::warning('SongPublicationHandler: quarantined SongVideo for removed section', $this->sanitizeArrayForLog([
             'service_section_id' => $section->id,
             'song_video_id' => $songVideo->id,
+            'was_published' => $wasPublished,
+            'video_file_path' => $songVideo->video_file_path,
         ]));
     }
 

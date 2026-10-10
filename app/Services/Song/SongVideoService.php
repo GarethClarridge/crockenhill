@@ -166,6 +166,7 @@ class SongVideoService
             'video_file_path' => $videoPath,
             'duration' => $clipSeconds ?? $section->duration,
             'recorded_date' => $churchService?->date,
+            'publication_state' => SermonPublicationState::Published,
         ];
 
         if ($processingLog->historic_import_operation_id !== null) {

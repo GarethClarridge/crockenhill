@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Services\SectionPublication;
 
 use App\Enums\AudioProfile;
+use App\Enums\SermonPublicationState;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
@@ -17,6 +18,7 @@ use App\Models\SongVideo;
 use App\Services\ChurchService\SectionPublication\SongPublicationHandler;
 use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
+use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\Media\ExtractedMediaDurationProbe;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Song\SongVideoService;
@@ -558,7 +560,7 @@ class SongPublicationHandlerTest extends TestCase
     }
 
     #[Test]
-    public function on_section_removed_cleans_up_song_video(): void
+    public function on_section_removed_quarantines_the_song_video_and_keeps_its_file(): void
     {
         Storage::fake('public');
         config(['media-processing.storage.sermon_disk' => 'public']);
@@ -575,16 +577,48 @@ class SongPublicationHandlerTest extends TestCase
         $songVideo = SongVideo::factory()->create([
             'service_section_id' => $section->id,
             'video_file_path' => $videoPath,
+            'publication_state' => SermonPublicationState::Published,
         ]);
 
         $this->handler->onSectionRemoved($section);
 
-        $this->assertDatabaseMissing('song_videos', ['id' => $songVideo->id]);
-        Storage::disk('public')->assertMissing($videoPath);
+        $this->assertSame(SermonPublicationState::Quarantined, $songVideo->fresh()->publication_state);
+        Storage::disk('public')->assertExists($videoPath);
 
-        Log::shouldHaveReceived('info')
+        Log::shouldHaveReceived('warning')
             ->once()
-            ->withArgs(fn (string $message) => str_contains($message, 'cleaned up SongVideo'));
+            ->withArgs(fn (string $message) => str_contains($message, 'quarantined SongVideo'));
+    }
+
+    #[Test]
+    public function removing_a_published_song_section_through_sync_keeps_its_clip(): void
+    {
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $videoPath = 'sermons/songs/1/43.mp4';
+        Storage::disk('public')->put($videoPath, 'video-content');
+
+        // Publication points the section's own asset at the published file.
+        $section = ServiceSection::factory()->create([
+            'section_type' => ServiceSectionType::Song->value,
+            'publication_status' => ServiceSectionPublicationStatus::Published->value,
+            'extracted_video_path' => $videoPath,
+            'asset_disk' => 'public',
+        ]);
+
+        $songVideo = SongVideo::factory()->create([
+            'service_section_id' => $section->id,
+            'video_file_path' => $videoPath,
+            'publication_state' => SermonPublicationState::Published,
+        ]);
+
+        app(ServiceSectionSyncService::class)->removeSection($section);
+
+        $this->assertModelMissing($section);
+        $this->assertNull($songVideo->fresh()->service_section_id);
+        $this->assertSame(SermonPublicationState::Quarantined, $songVideo->fresh()->publication_state);
+        Storage::disk('public')->assertExists($videoPath);
     }
 
     #[Test]

@@ -153,7 +153,7 @@ class ServiceSectionSyncServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_supersedes_published_link_and_resets_publishable_rows_when_signature_changes(): void
+    public function it_supersedes_published_link_keeping_its_media_and_resets_publishable_rows_when_signature_changes(): void
     {
         Storage::fake('public');
         Storage::fake('local');
@@ -209,9 +209,10 @@ class ServiceSectionSyncServiceTest extends TestCase
         $this->assertNull($section->unpublished_expires_at);
         $this->assertArrayHasKey('superseded', $metadata);
         $this->assertTrue((bool) ($metadata['publishable_type_after_supersede'] ?? false));
+        // The sermon outlives the link and plays from these files, so they stay.
         $this->assertDatabaseHas('sermons', ['id' => $publishedSermon->id]);
-        Storage::disk('public')->assertMissing('sermons/sections/'.$churchServiceItem->id.'/video.mp4');
-        Storage::disk('public')->assertMissing('sermons/audio/section-'.$churchServiceItem->id.'.mp3');
+        Storage::disk('public')->assertExists('sermons/sections/'.$churchServiceItem->id.'/video.mp4');
+        Storage::disk('public')->assertExists('sermons/audio/section-'.$churchServiceItem->id.'.mp3');
     }
 
     /**
@@ -392,7 +393,7 @@ class ServiceSectionSyncServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_removes_stale_rows_after_detaching_published_links(): void
+    public function it_removes_stale_rows_after_detaching_published_links_keeping_their_media(): void
     {
         Storage::fake('public');
         Storage::fake('local');
@@ -439,9 +440,10 @@ class ServiceSectionSyncServiceTest extends TestCase
         ]);
 
         $this->assertDatabaseMissing('service_sections', ['id' => $stalePublished->id]);
+        // The sermon outlives the row and plays from these files, so they stay.
         $this->assertDatabaseHas('sermons', ['id' => $publishedSermon->id]);
-        Storage::disk('public')->assertMissing('sermons/sections/'.$itemTwo->id.'/video.mp4');
-        Storage::disk('public')->assertMissing('sermons/audio/section-'.$itemTwo->id.'.mp3');
+        Storage::disk('public')->assertExists('sermons/sections/'.$itemTwo->id.'/video.mp4');
+        Storage::disk('public')->assertExists('sermons/audio/section-'.$itemTwo->id.'.mp3');
     }
 
     #[Test]

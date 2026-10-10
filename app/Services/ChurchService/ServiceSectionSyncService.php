@@ -9,6 +9,7 @@ use App\Enums\ServiceSectionPublicationStatus;
 use App\Exceptions\UnplacedContentHoldException;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Models\SongVideo;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
 use App\Services\Sermon\SermonExtractionPlanResolver;
 use App\Support\ServiceSectionConfidence;
@@ -677,10 +678,27 @@ class ServiceSectionSyncService
         return array_values(array_filter(is_array($holds) ? $holds : [], 'is_array'));
     }
 
+    /**
+     * Delete a removed section's working copies, never media it published.
+     *
+     * Publication points the section's own asset paths at the published files, so a published
+     * section's "extracted" asset is the public copy; its handler demotes it instead.
+     */
     private function cleanupExtractedAssets(ServiceSection $section): void
     {
+        if ($this->holdsPublishedMedia($section)) {
+            return;
+        }
+
         $this->deleteResolvedPath($section, $section->extracted_video_path);
         $this->deleteResolvedPath($section, $section->extracted_audio_path);
+    }
+
+    private function holdsPublishedMedia(ServiceSection $section): bool
+    {
+        return $section->publication_status === ServiceSectionPublicationStatus::Published
+            || $section->published_sermon_id !== null
+            || SongVideo::query()->where('service_section_id', $section->id)->exists();
     }
 
     private function deleteResolvedPath(ServiceSection $section, ?string $path): void

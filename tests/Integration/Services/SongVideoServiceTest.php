@@ -255,6 +255,32 @@ class SongVideoServiceTest extends TestCase
         $this->assertSame(238.37, $video->duration);
     }
 
+    /**
+     * A superseded section keeps its row, so its demoted clip's row is the one a later
+     * publication of the same section updates; that publication must make it public again.
+     */
+    #[Test]
+    public function republishing_a_section_whose_clip_was_demoted_makes_it_public_again(): void
+    {
+        $song = Song::factory()->create();
+        $item = ChurchServiceItem::factory()->create(['song_id' => $song->id]);
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song->value,
+        ]);
+        SongVideo::factory()->create([
+            'service_section_id' => $section->id,
+            'song_id' => $song->id,
+            'publication_state' => SermonPublicationState::Quarantined,
+        ]);
+
+        $video = $this->service->createFromExtraction($section, 'sermons/songs/'.$song->id.'/'.$section->id.'.mp4');
+
+        $this->assertSame(SermonPublicationState::Published, $video->fresh()->publication_state);
+    }
+
     #[Test]
     public function historic_extraction_creates_a_private_operation_bound_video(): void
     {
