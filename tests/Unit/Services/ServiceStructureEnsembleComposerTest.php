@@ -258,15 +258,21 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         $this->assertCount(1, $result->structure->chapterMarkers);
     }
 
+    /**
+     * Operator ruling 2026-10-10 (967): with two valid drafts every disagreement is already its own
+     * question, so the coverage question asked nothing; two agreeing votes are recorded, not held.
+     */
     #[Test]
-    public function two_valid_votes_are_degraded_even_when_they_agree(): void
+    public function two_valid_votes_are_degraded_but_not_asked_or_held(): void
     {
         $vote = $this->vote($this->structure($this->section(ServiceSectionType::Sermon, 100, 500)));
         $result = app(ServiceStructureEnsembleComposer::class)->compose([0 => $vote, 1 => $vote]);
 
         $this->assertTrue($result->degraded);
-        $this->assertTrue($result->requiresReview());
-        $this->assertContains(ServiceStructureValidator::FLAG_ENSEMBLE_DEGRADED, $result->structure->sections[0]->reviewFlags);
+        $this->assertTrue($result->degradedReviewed);
+        $this->assertFalse($result->requiresReview());
+        $this->assertNotContains('degraded_coverage', array_column($result->disputes, 'type'));
+        $this->assertNotContains(ServiceStructureValidator::FLAG_ENSEMBLE_DEGRADED, $result->structure->sections[0]->reviewFlags);
     }
 
     /**

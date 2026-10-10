@@ -181,19 +181,10 @@ class ServiceStructureEnsembleComposer
         $disputes = $alignmentConflicts;
         $records = [];
         $provenance = [];
+        // Fewer than four valid draws is recorded, never asked or held (ruled 2026-10-10): every
+        // disagreement among the drafts that did validate is its own question, so the coverage
+        // question only ever asked the operator to judge an answer it could not show them.
         $degraded = $validVotes < 4;
-        // Three agreeing drafts are still a majority, and the coverage question gave nothing to
-        // judge (ruled 2026-10-10): only two valid votes are asked about and held.
-        $degradedHeld = $validVotes < 3;
-
-        if ($degradedHeld) {
-            $disputes[] = [
-                'type' => 'degraded_coverage',
-                'written' => false,
-                'valid_slots' => array_keys($eligible),
-                'missing_slots' => array_values(array_diff([0, 1, 2, 3], array_keys($eligible))),
-            ];
-        }
 
         foreach ($groups as $groupIndex => $group) {
             $variants = [];
@@ -264,10 +255,6 @@ class ServiceStructureEnsembleComposer
 
             if ($flagged) {
                 $flags[] = ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES;
-            }
-
-            if ($degradedHeld) {
-                $flags[] = ServiceStructureValidator::FLAG_ENSEMBLE_DEGRADED;
             }
 
             // Holds remain a union; the stitch warning describes the supporting majority's structure.
@@ -342,7 +329,7 @@ class ServiceStructureEnsembleComposer
             $absence ? reset($absenceVotes)->structure->sermonAbsence : null,
         );
 
-        return new EnsembleComposition(OutputEdgeReview::apply($structure, $disputes), $disputes, $provenance, $degraded, false, $validVotes, degradedReviewed: $degraded && ! $degradedHeld, majorityDecisions: $majorityDecisions);
+        return new EnsembleComposition(OutputEdgeReview::apply($structure, $disputes), $disputes, $provenance, $degraded, false, $validVotes, degradedReviewed: $degraded, majorityDecisions: $majorityDecisions);
     }
 
     /**
