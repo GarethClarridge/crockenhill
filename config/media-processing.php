@@ -654,10 +654,6 @@ return [
         'require_high_confidence' => env('SERVICE_SECTION_PUBLISH_REQUIRE_HIGH_CONFIDENCE', true),
         'retain_unpublished_hours' => (int) env('SERVICE_SECTION_RETAIN_UNPUBLISHED_HOURS', 48),
         'song_boundary' => [
-            // A gap beyond this point is too far into the candidate to trust as
-            // a harmless framing pause. It is still kept in the inclusive clip
-            // and sent to review; no pre-bulk recut is attempted.
-            'max_spoken_framing_seconds' => (float) env('SERVICE_SECTION_SONG_MAX_SPOKEN_FRAMING_SECONDS', 30),
             // Below this, the "framing" is too short to be anyone introducing anything:
             // a trailing "Amen" caught at the candidate edge, or the leader's last few
             // words running into the first sung line. Measured over the thirteen clips

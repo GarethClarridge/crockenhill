@@ -680,36 +680,23 @@ final class SongPublicationBoundaryEvidenceService
             ];
         }
 
-        $maximum = (float) config(
-            'media-processing.section_publishing.song_boundary.max_spoken_framing_seconds',
-            30,
-        );
-        $exceedsMaximum = $maximum > 0.0 && $gapOffset > $maximum;
-        $kind = $exceedsMaximum
-            ? 'song_boundary_spoken_framing_exceeds_limit'
-            : 'song_boundary_spoken_framing';
-        $detail = $exceedsMaximum
-            ? sprintf(
-                'Timed transcript and RMS evidence place the first audio-backed wordless gap %.1fs into the candidate, beyond the %.1fs framing limit; the inclusive clip is held for review.',
-                $gapOffset,
-                $maximum,
-            )
-            : sprintf(
-                'Timed transcript and RMS evidence show spoken framing followed by an audio-backed wordless gap %.1fs into the candidate; the inclusive clip is held for review.',
-                $gapOffset,
-            );
-
+        // A spoken introduction may be in the song clip or out of it (ruled 2026-10-10), at any
+        // length: of twelve held clips sampled across 24–230 s of opening, none held anything that
+        // should not be there. Late gaps were an introduction then song the transcript missed.
         return [
-            'risk' => true,
+            'risk' => false,
             'evidence' => [
                 ...$baseEvidence,
-                'decision' => 'review',
+                'decision' => 'keep_inclusive',
+                'basis' => 'spoken_introduction',
                 'gap_offset_seconds' => $gapOffset,
-                'maximum_spoken_framing_seconds' => $maximum,
             ],
             'reason' => [
-                'kind' => $kind,
-                'detail' => $detail,
+                'kind' => 'song_boundary_spoken_introduction',
+                'detail' => sprintf(
+                    'Speech opens the candidate and the first audio-backed wordless gap begins %.1fs in; a spoken introduction may be in the clip, so the inclusive clip is not held.',
+                    $gapOffset,
+                ),
             ],
         ];
     }

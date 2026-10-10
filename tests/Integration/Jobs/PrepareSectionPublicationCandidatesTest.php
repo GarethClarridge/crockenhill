@@ -1765,8 +1765,9 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         Bus::assertNotDispatched(AutoPublishServiceSection::class);
     }
 
+    /** Operator ruling 2026-10-10: a spoken introduction may be in the song clip, so it is not held. */
     #[Test]
-    public function it_routes_a_song_with_corroborated_boundary_risk_to_review(): void
+    public function it_releases_a_song_that_opens_with_its_spoken_introduction(): void
     {
         Storage::fake('local');
         Storage::fake('public');
@@ -1850,18 +1851,15 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $section->refresh();
 
-        $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->publication_status);
+        $this->assertNotSame(ServiceSectionPublicationStatus::PendingApproval, $section->publication_status);
+        $this->assertArrayNotHasKey('song_publication_review', $section->metadata->toArray());
         $this->assertSame(
-            ['song_boundary_spoken_framing'],
-            array_column($section->metadata->toArray()['song_publication_review']['reasons'], 'kind'),
-        );
-        $this->assertSame(
-            'retain_inclusive_candidate',
-            $section->metadata->toArray()['song_publication_boundary']['action'],
+            'spoken_introduction',
+            $section->metadata->toArray()['song_publication_boundary']['start_evidence']['basis'],
         );
         $this->assertSame(60.0, (float) $section->start_time);
         $this->assertSame(300.0, (float) $section->end_time);
-        Bus::assertNotDispatched(AutoPublishServiceSection::class);
+        Bus::assertDispatched(AutoPublishServiceSection::class, fn (AutoPublishServiceSection $job): bool => $job->serviceSectionId === $section->id);
     }
 
     #[Test]

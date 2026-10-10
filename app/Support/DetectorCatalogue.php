@@ -853,10 +853,11 @@ class DetectorCatalogue
      * measured rather than grepped.** `SongPublicationBoundaryEvidenceService`
      * builds a `reason` for every boundary observation it makes, but the caller
      * appends one to `risks` only when that observation carries
-     * `'risk' => true`. Four kinds a source search finds —
+     * `'risk' => true`. Five kinds a source search finds —
      * `song_boundary_unobservable_gap`, `song_boundary_looped_gap`,
-     * `song_boundary_without_rms_corroboration` and
-     * `song_boundary_spoken_framing_below_floor` — are returned on
+     * `song_boundary_without_rms_corroboration`,
+     * `song_boundary_spoken_framing_below_floor` and, since spoken introductions
+     * were ruled acceptable on 2026-10-10, `song_boundary_spoken_introduction` — are returned on
      * `'risk' => false` paths, so they are recorded as *evidence* for a decision
      * to keep the clip and never emitted as findings. Cataloguing them would
      * have invented four detectors that cannot fire, and the harness would have
@@ -929,23 +930,13 @@ class DetectorCatalogue
             ),
             new DetectorEntry(
                 id: 'song-boundary-spoken-framing',
-                surface: DetectorSurface::SongBoundaryEvidence,
-                signals: ['song_boundary_spoken_framing'],
-                status: DetectorStatus::Promoted,
+                surface: null,
+                signals: [],
+                status: DetectorStatus::DecidedNotToDetect,
                 severity: DetectorSeverity::ContentLost,
                 unit: DetectorUnit::Section,
-                summary: 'Speech precedes the singing inside the clip, so the cut opens on the item before the song rather than on the song.',
-                owningClass: SongPublicationBoundaryEvidenceService::class,
-            ),
-            new DetectorEntry(
-                id: 'song-boundary-spoken-framing-exceeds-limit',
-                surface: DetectorSurface::SongBoundaryEvidence,
-                signals: ['song_boundary_spoken_framing_exceeds_limit'],
-                status: DetectorStatus::Promoted,
-                severity: DetectorSeverity::PublishedWrongContent,
-                unit: DetectorUnit::Section,
-                summary: 'So much speech precedes the singing that the clip is more of the preceding item than of the song it is published as.',
-                owningClass: SongPublicationBoundaryEvidenceService::class,
+                summary: 'Speech precedes the singing inside the clip, so the cut opens on a spoken introduction rather than on the song.',
+                decision: 'Ruled 2026-10-10: a spoken introduction may be in the song clip or out of it, at any length. Of twelve held clips sampled across 24–230 s of opening (seed 20261010), none held anything that should not be in the clip: five were introductions, two the song itself, five an introduction of 10–50 s then song the transcript gap fell inside (runs 1317, 1218, 1345 among them). Spoken tails stay with song-boundary-trailing-content.',
             ),
             new DetectorEntry(
                 id: 'song-boundary-trailing-content',

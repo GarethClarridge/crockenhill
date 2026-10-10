@@ -253,8 +253,14 @@ class SongPublicationReviewPolicyTest extends TestCase
         $this->assertSame(300.0, (float) $section->end_time);
     }
 
+    /**
+     * Operator ruling 2026-10-10: a spoken introduction may be in the song clip or out of it. In a
+     * seeded sample of twelve held clips (24–230 s of opening before the first gap) none held
+     * anything that should not be in the clip: five were introductions, two the song itself, and
+     * five a short introduction then song the transcript gap fell inside.
+     */
     #[Test]
-    public function it_holds_a_song_when_transcript_and_rms_corroborate_spoken_framing(): void
+    public function it_keeps_a_song_with_its_spoken_introduction_without_holding_it(): void
     {
         $section = $this->section('full', ['livestream'], metadata: [], start: 100.0, end: 300.0);
         $this->storeBoundaryArtifacts(
@@ -273,45 +279,38 @@ class SongPublicationReviewPolicyTest extends TestCase
 
         $assessment = $this->policy->assess($section);
 
-        $this->assertSame(
-            ['song_boundary_spoken_framing'],
-            array_column($assessment['reasons'], 'kind'),
-        );
-        $this->assertSame('review', $assessment['boundary_evidence']['decision']);
-        $this->assertSame('review', $assessment['boundary_evidence']['start_evidence']['decision']);
-        $this->assertSame('timed_transcript_wordless_gap', $assessment['boundary_evidence']['start_evidence']['basis']);
+        $this->assertSame([], $assessment['reasons']);
+        $this->assertSame('release_eligible', $assessment['boundary_evidence']['decision']);
+        $this->assertSame('keep_inclusive', $assessment['boundary_evidence']['start_evidence']['decision']);
+        $this->assertSame('spoken_introduction', $assessment['boundary_evidence']['start_evidence']['basis']);
         $this->assertSame(100.0, (float) $section->start_time);
         $this->assertSame(300.0, (float) $section->end_time);
     }
 
+    /** 1317's opening ran 230 s before its first gap: 13 s of introduction, then the song itself. */
     #[Test]
-    public function it_routes_a_wordless_gap_beyond_the_configured_limit_without_recutting(): void
+    public function a_long_opening_before_the_first_gap_is_not_held(): void
     {
-        config(['media-processing.section_publishing.song_boundary.max_spoken_framing_seconds' => 5]);
-
-        $section = $this->section('full', ['livestream'], metadata: [], start: 100.0, end: 300.0);
+        $section = $this->section('full', ['livestream'], metadata: [], start: 100.0, end: 600.0);
         $this->storeBoundaryArtifacts(
             $section,
             [
-                ['start' => 100.0, 'end' => 112.0, 'text' => 'Please stand as we sing.'],
-                ['start' => 120.0, 'end' => 220.0, 'text' => 'We will sing now.'],
+                ['start' => 100.0, 'end' => 330.0, 'text' => 'All people that on earth do dwell, sing to the Lord with cheerful voice.'],
+                ['start' => 340.0, 'end' => 560.0, 'text' => 'The Lord ye know is God indeed.'],
             ],
             [
-                ['time' => 112.0, 'rms' => -20.0],
-                ['time' => 116.0, 'rms' => -20.0],
-                ['time' => 120.0, 'rms' => -20.0],
+                ['time' => 330.0, 'rms' => -20.0],
+                ['time' => 335.0, 'rms' => -20.0],
+                ['time' => 340.0, 'rms' => -20.0],
             ],
         );
 
         $assessment = $this->policy->assess($section);
 
-        $this->assertSame(
-            ['song_boundary_spoken_framing_exceeds_limit'],
-            array_column($assessment['reasons'], 'kind'),
-        );
-        $this->assertSame('retain_inclusive_candidate', $assessment['boundary_evidence']['action']);
-        $this->assertSame(100.0, (float) $section->start_time);
-        $this->assertSame(300.0, (float) $section->end_time);
+        $this->assertSame([], $assessment['reasons']);
+        $this->assertSame('spoken_introduction', $assessment['boundary_evidence']['start_evidence']['basis']);
+        $this->assertEqualsWithDelta(230.0, $assessment['boundary_evidence']['start_evidence']['gap_offset_seconds'], 0.001);
+        $this->assertSame(600.0, (float) $section->end_time);
     }
 
     /**
@@ -354,7 +353,7 @@ class SongPublicationReviewPolicyTest extends TestCase
     }
 
     #[Test]
-    public function it_still_holds_a_song_when_the_spoken_framing_reaches_the_floor(): void
+    public function framing_at_the_floor_is_recorded_as_an_introduction(): void
     {
         config(['media-processing.section_publishing.song_boundary.min_spoken_framing_seconds' => 3]);
 
@@ -374,19 +373,12 @@ class SongPublicationReviewPolicyTest extends TestCase
 
         $assessment = $this->policy->assess($section);
 
-        $this->assertSame(
-            ['song_boundary_spoken_framing'],
-            array_column($assessment['reasons'], 'kind'),
-        );
-        $this->assertSame('review', $assessment['boundary_evidence']['decision']);
-        $this->assertSame(
-            'timed_transcript_wordless_gap',
-            $assessment['boundary_evidence']['start_evidence']['basis'],
-        );
+        $this->assertSame([], $assessment['reasons']);
+        $this->assertSame('spoken_introduction', $assessment['boundary_evidence']['start_evidence']['basis']);
     }
 
     #[Test]
-    public function it_can_disable_the_spoken_framing_floor_entirely(): void
+    public function without_a_floor_even_an_amen_is_recorded_as_an_introduction(): void
     {
         config(['media-processing.section_publishing.song_boundary.min_spoken_framing_seconds' => 0]);
 
@@ -406,11 +398,8 @@ class SongPublicationReviewPolicyTest extends TestCase
 
         $assessment = $this->policy->assess($section);
 
-        $this->assertSame(
-            ['song_boundary_spoken_framing'],
-            array_column($assessment['reasons'], 'kind'),
-        );
-        $this->assertSame('review', $assessment['boundary_evidence']['decision']);
+        $this->assertSame([], $assessment['reasons']);
+        $this->assertSame('spoken_introduction', $assessment['boundary_evidence']['start_evidence']['basis']);
     }
 
     #[Test]
@@ -776,14 +765,11 @@ class SongPublicationReviewPolicyTest extends TestCase
      * fixture never raised a framing risk at all, which would prove nothing.
      */
     #[Test]
-    public function it_holds_a_clip_whose_opening_gap_follows_spoken_framing(): void
+    public function it_reads_a_clip_whose_opening_gap_follows_spoken_framing_as_an_introduction(): void
     {
         $section = $this->framedSection();
 
-        $this->assertContains(
-            'song_boundary_spoken_framing',
-            array_column($this->policy->reviewReasons($section), 'kind'),
-        );
+        $this->assertSame('spoken_introduction', $this->policy->assess($section)['boundary_evidence']['start_evidence']['basis']);
     }
 
     /**
