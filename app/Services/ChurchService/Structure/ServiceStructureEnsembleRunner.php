@@ -21,6 +21,9 @@ class ServiceStructureEnsembleRunner
     /** The kind recorded on each evidence file in the run's service artifact list. */
     public const ARTIFACT_KIND = 'service_structure_ensemble';
 
+    /** Outcomes where the slot gave no answer, as opposed to an answer that failed validation. */
+    private const LOST_DRAW_STATUSES = ['unavailable', 'interrupted'];
+
     public function __construct(
         private readonly ServiceStructureDrawExecutor $executor,
         private readonly HistoricStagingContextRegistry $stagingRegistry,
@@ -74,9 +77,8 @@ class ServiceStructureEnsembleRunner
 
         $this->appendEvidence($log, $evidence);
 
-        $outcomes = config('media-processing.service_structure.detector') === 'mock'
-            ? $this->runInline($input, $evidence)
-            : $this->runSubprocesses($evidence);
+        $outcomes = $this->execute($input, $evidence);
+        [$outcomes, $evidence] = $this->retryFailedSlots($input, $evidence, $outcomes);
 
         $draws = [];
         $slots = [];
@@ -116,6 +118,69 @@ class ServiceStructureEnsembleRunner
         $this->replaceEvidence($log, $evidence);
 
         return ['draws' => $draws, 'slots' => $slots, 'evidence' => $evidence];
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     * @param  array<string, mixed>  $evidence
+     * @return array<int, array<string, mixed>>
+     */
+    private function execute(array $input, array $evidence): array
+    {
+        return config('media-processing.service_structure.detector') === 'mock'
+            ? $this->runInline($input, $evidence)
+            : $this->runSubprocesses($evidence);
+    }
+
+    /**
+     * Draw each slot that never answered once more, with the same model and input, before anything is composed.
+     *
+     * A draw lost to the provider or the process (canary 15: run 1005 lost all four to a transient
+     * cURL error) is no opinion at all, and three voters split two to one where four decide three to
+     * one. An `invalid` draw is an opinion and is never drawn again: regenerating one until it
+     * passed rewrote unrelated content in canary 8 (run 949). The retry is banked in its own file;
+     * the slot then points at it, and the first attempt stays on record as `first_attempt`.
+     *
+     * @param  array<string, mixed>  $input
+     * @param  array<string, mixed>  $evidence
+     * @param  array<int, array<string, mixed>>  $outcomes
+     * @return array{0: array<int, array<string, mixed>>, 1: array<string, mixed>}
+     */
+    private function retryFailedSlots(array $input, array $evidence, array $outcomes): array
+    {
+        $failed = array_values(array_filter(
+            $evidence['slots'],
+            static fn (array $slot): bool => in_array($outcomes[$slot['slot']]['status'] ?? null, self::LOST_DRAW_STATUSES, true),
+        ));
+
+        if ($failed === []) {
+            return [$outcomes, $evidence];
+        }
+
+        $retries = array_map(static fn (array $slot): array => [
+            ...$slot,
+            'path' => preg_replace('/\.json$/', '.retry-1.json', $slot['path']),
+        ], $failed);
+        $retryOutcomes = $this->execute($input, [...$evidence, 'slots' => $retries]);
+
+        foreach ($retries as $retry) {
+            $number = $retry['slot'];
+
+            if (($retryOutcomes[$number]['status'] ?? null) !== 'valid') {
+                continue;
+            }
+
+            $evidence['slots'][$number] = [
+                ...$retry,
+                'first_attempt' => [
+                    'path' => $evidence['slots'][$number]['path'],
+                    'status' => $outcomes[$number]['status'] ?? 'unknown',
+                ],
+            ];
+            $outcomes[$number] = $retryOutcomes[$number];
+        }
+
+        return [$outcomes, $evidence];
     }
 
     /**

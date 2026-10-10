@@ -119,6 +119,60 @@ class ServiceStructureEnsembleRunnerTest extends TestCase
         $this->assertSame($none + ['rms_log' => null], ServiceStructureEnsembleInput::hydrate(ServiceStructureEnsembleInput::forStorage($none + ['rms_log' => null])));
     }
 
+    /**
+     * A draw that never answered leaves three voters, and three split two to one where four decide
+     * three to one; canary 15's run 1005 lost all four to a transient provider error.
+     */
+    #[Test]
+    public function a_lost_draw_is_retried_once_and_its_first_attempt_is_kept(): void
+    {
+        Config::set('media-processing.service_structure.detector', 'openai');
+        $diskName = ServiceArtifactDisk::name();
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $transcript = ChurchServiceTranscript::fromCues([
+            ['start' => 0.0, 'end' => 100.0, 'text' => 'Welcome and Bible reading.'],
+            ['start' => 100.0, 'end' => 500.0, 'text' => 'Turn with me to John.'],
+        ], 500.0, ChurchServiceTranscript::SOURCE_MOCK);
+        $input = [
+            'processing_id' => $log->processing_id,
+            'transcript' => $transcript->toArray(),
+            'audio_timeline' => AudioTimelineFixture::payload([], 500.0),
+            'oos_items' => [],
+            'validation_context' => ServiceStructureDrawExecutor::contextSnapshot(ValidationContext::for($transcript)),
+            'rms_log' => null,
+        ];
+        $runner = new class(app(ServiceStructureDrawExecutor::class), app(HistoricStagingContextRegistry::class)) extends ServiceStructureEnsembleRunner
+        {
+            protected function subprocessCommand(array $slot, array $evidence, ?string $encodedContext): array
+            {
+                if ($slot['slot'] === 0 && ! str_contains($slot['path'], '.retry')) {
+                    return [PHP_BINARY, '-r', 'exit(9);'];
+                }
+
+                return parent::subprocessCommand($slot, $evidence, $encodedContext);
+            }
+        };
+
+        try {
+            $result = $runner->run($log, $input);
+
+            $this->assertCount(4, $result['draws']);
+            $this->assertSame(['valid', 'valid', 'valid', 'valid'], array_column($result['slots'], 'status'));
+            $this->assertSame('interrupted', $result['evidence']['slots'][0]['first_attempt']['status']);
+            $this->assertTrue(Storage::disk($diskName)->exists($result['evidence']['slots'][0]['first_attempt']['path']));
+            $this->assertFalse(app(ServiceStructureEnsembleReplay::class)->replay($result['evidence'])['degraded']);
+        } finally {
+            foreach ($log->fresh()?->processing_metadata?->toArray()['service_structure_ensemble'] ?? [] as $evidence) {
+                Storage::disk($diskName)->delete($evidence['input_path']);
+
+                foreach ($evidence['slots'] as $slot) {
+                    Storage::disk($diskName)->delete($slot['path']);
+                    Storage::disk($diskName)->delete($slot['first_attempt']['path'] ?? '');
+                }
+            }
+        }
+    }
+
     #[Test]
     public function a_real_timed_out_or_abrupt_child_keeps_three_sibling_votes_and_attempt_history(): void
     {
