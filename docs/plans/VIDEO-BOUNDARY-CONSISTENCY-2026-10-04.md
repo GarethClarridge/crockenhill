@@ -1,9 +1,10 @@
 # Video boundary consistency: findings and implementation handover
 
-> **Current handover — 2026-10-10, full pass ready to dispatch:** frozen on `441b14ed6` (watcher, listening feed),
-> verified backup taken, preflight done, routing measured. **§6.3.9 is the one current execution record**;
-> it supersedes the canary-10 gates in the historic plan's §4.0. Ruled: dispatch everything (no
-> batches), dispute bar stays 2.0. Next session: follow §6.3.9's dispatch steps.
+> **Current handover — 2026-10-10, full pass ready to launch:** frozen on `441b14ed6`, verified backup,
+> routing measured, watcher and listening feed built; Codex's readiness review found no blocker.
+> **§6.3.9 is the one current execution record** (it supersedes the historic plan's §4.0 canary-10
+> gates). Ruled: dispatch everything, no batches; dispute bar 2.0. Next session: §6.3.9's launch
+> checklist, from a live preflight. Nothing is running.
 
 > **Current handover — 2026-10-10, after canary 15 and its repair pass:** canary 15 met one
 > stopping condition (three published song clips deleted with no copy). The fix round, seven
@@ -2016,7 +2017,7 @@ operator: 1223 `sermon_composition_review`; looped-transcript song holds (1224, 
 967 public MP3 true peak 1.2 dBTP; span checks 1047/1300/1364. 1047 "We Come O Christ To You" and
 1364 "O For A Thousand Tongues" still have no public clip until those are resolved.
 
-**Known tool defects, not fixed:** `structure:ensemble-apply-answers` validates each answer alone,
+**Known tool defects, not fixed** *(both since fixed: `4a3c038f2`, `1f6946498`; see §6.3.9)*: `structure:ensemble-apply-answers` validates each answer alone,
 so answers that only make sense together are refused (1005's sermon start and end); the export
 labels a 1-1-1-1 split "settled by majority". The first will recur in the full pass.
 
@@ -2025,16 +2026,17 @@ defects; plan the full pass (routing, batch size, order, §6.3.7 stopping condit
 
 #### 6.3.9 Full-pass execution record (2026-10-10) — the one current instruction set
 
-This section supersedes, for the full pass, the canary-10 gates, counts and dispatch receipts in the
-historic plan's §4.0 ("Built for the final canary", "Canary 10, the final canary", "Open before batch
-1"). §4.0's standing decisions 1–8 and its route table still apply except where this section differs.
-Nothing here authorises a dispatch; the dispatch needs the operator's go in the session that runs it.
+This section supersedes, for the full pass, the canary-10 gates, counts, batch shape and "Open before
+batch 1" in the historic plan's §4.0. §4.0's standing decisions 1–8 and its route table still apply
+except where this section differs. Nothing here authorises a dispatch; the operator's go comes in the
+session that runs it. Codex's readiness review (2026-10-10): ready to launch on this sequence, no
+further canary or first-batch gate; recorded exceptions stay held and public release stays separate.
 
-**Frozen code:** `441b14ed6` (2026-10-10 evening): `87b1f6eda` plus `928322ade` (a song or talk
-publication is refused *before* its files move — see the 1223 note under Preflight), `9284cc6e1` (the
-watcher) and `441b14ed6` (`--stop`). Suite 9,517, PHPStan 0. Any later code commit moves the freeze:
-new snapshot, worker restart (standing decision 7). The draft snapshot below binds `87b1f6eda`, so the
-dispatch session re-takes it.
+**Frozen code:** `441b14ed6` — `87b1f6eda` plus `928322ade` (a song or talk publication is refused
+before its files move; see 1223 below), `9284cc6e1` (the watcher) and `441b14ed6` (its `--stop`).
+Pushed (`16a547b12` adds only Pint on a test). Suite 9,517, PHPStan 0; Dusk not run (the session's
+permission classifier refused it; no UI changed). Any later code commit moves the freeze: new
+snapshot, worker restart (standing decision 7).
 
 **Effective settings (`.env`, not code):** `VIDEO_EXTRACTION_REENCODE_PRESET=veryfast`;
 `HISTORIC_MEDIA_WORKERS_FFMPEG=1`; `MEDIA_PAUSE_TEMP_FILE_CLEANUP=true`;
@@ -2042,13 +2044,13 @@ dispatch session re-takes it.
 `SERVICE_STRUCTURE_DETECTOR=openai`, model `gpt-5.6-luna`, effort `medium`;
 `TRANSCRIPTION_SERVICE_TYPE=local` (host whisper.cpp `large-v3-turbo`); `MAIL_HOST=mailpit`.
 
-**Membership (census 2026-10-10, `storage/scratch/full-pass-prep/membership.php`):** 445 historic
-runs not superseded; 6 excluded; 439 others. 1108 is left out (crashed promotion, needs a
-failed-run route). Draft snapshot of the other 438: `storage/app/private/full-pass-draft-20261010/
-snapshot.json`, membership `5e649062…`, routing `listening-20260924/routing-bound.json`
-(`2fc8903c…`). The draft binds `87b1f6eda`; re-take it if the freeze moves or any run changes.
+**Membership (census 2026-10-10, `storage/scratch/full-pass-prep/membership.php`):** 445 historic runs
+not superseded; 6 excluded; 439 others, of which 1108 is left out (crashed promotion; needs a
+failed-run route). The 438: `storage/scratch/full-pass-prep/candidates-438.txt`. Routing file
+`listening-20260924/routing-bound.json` (sha256 `2fc8903c7e239847a9a12ab449535e1b8398c588bfb88488c3bc47e230819f16`).
 
-**Routing (each tier's dry answer per run: `storage/scratch/full-pass-prep/routing.json`):**
+**Routing (each tier's dry answer per run, on a draft snapshot at `87b1f6eda`:
+`storage/scratch/full-pass-prep/routing.json`; lists `runs-{tier-a,tier-b,recompose,refused}.txt`):**
 
 | Route | Runs |
 |---|---|
@@ -2056,63 +2058,73 @@ snapshot.json`, membership `5e649062…`, routing `listening-20260924/routing-bo
 | Tier A, then Tier B: transcript-loss hold(s) | 59 |
 | Tier B only (new draws) | 244 |
 | Recompose banked draws, no new draw (canary members, decision 8) | 37 |
-| Refused: failed, not completed — operator panel first | 5: 1047, 1300, 1364 (span checks), 1262 (span check), 1143 (09-28 detection failure, multiple 20-minute blocks) |
+| Refused: failed, not completed — operator panel first | 5: 1047, 1300, 1364, 1262 (span checks), 1143 (09-28 detection failure, multiple 20-minute blocks) |
 
-**Shape: dispatch everything, no batches (operator, 2026-10-10).** This replaces the 2026-10-02
-batch shape (about 40 runs a batch, batch 1 = 20 discovery-half runs). Reason: a defect found on
-listening costs only Mac time to repair (replay, re-cut what changed: about 7 min and 0.5 GiB a
-run), and the operator listens to whatever has completed either way, so batch gates add waiting
-and save nothing. Irreversible harm is guarded instead by `7c90cfa10` (removed sections are
-quarantined, never deleted), the verified backup, and a watcher that stops the workers.
+Each dispatch command takes the whole snapshot when no runs are named and refuses the runs that
+belong to another route, so no run list is passed; `--max` must exceed 438.
 
-The dispatch session, in order:
+**Shape: dispatch everything, no batches (operator, 2026-10-10).** A defect found on listening costs
+only Mac time to repair (replay, re-cut what changed: about 7 min and 0.5 GiB a run), and the operator
+listens to whatever has completed either way. Irreversible harm is guarded by `7c90cfa10` (removed
+sections are quarantined, never deleted), `928322ade`, the verified backup and the watcher.
 
-1. Preflight (below) on the freeze; start the workers on it; check `ps` elapsed.
-2. Re-take the snapshot over the same 438 (the draft is valid only if no run has changed).
-3. Start the watcher, which runs without Claude, in the background inside the app container:
-   `nohup php artisan historic-import:rerun-watch <snapshot> > storage/logs/rerun-watch.log 2>&1 &`
-   (via `vendor/bin/sail exec -d laravel.test …`). Every 5 minutes (10 s a look over 438 runs) it
-   checks: anything public, a live hold gone, extracted media lost, a run superseded, a published or
-   quarantined file missing that was there when the watch began (staging files under their run's
-   batch root), any failed job since it began, lost draws above 10% once 10 ensembles have run,
-   speaker identification enabled or queued, a historic disk probe failing, internal free space
-   under 10 GB. On a stop it pauses all ten worker queues (`Queue::pause`: each worker finishes its
-   job and takes no other; nothing queued is lost), writes `watch-stop.json` beside the snapshot and
-   exits. Each look writes `watch-status.json` (stage counts, failed jobs, draws, free space). Held
-   runs are progress, not stops. Resume with `queue:continue redis:<queue>` for each queue, then
-   restart the watcher (it keeps its start time in `watch-state.json`).
-4. Dispatch all of: Tier A 152 (Whisper worker; about 3–4 min a run → 8–10 h), Tier B 244, recompose
-   37 (no paid calls). Tier A runs go to Tier B as each finishes (resnapshot, as in canary 15).
-5. Tier C for every run that clears with no open question, as it clears. Runs with questions hold
-   themselves; answers come from one question page (or a few as they accumulate), then recompose
-   and Tier C.
-6. A `/loop` session (every 20 min) runs the listening feed and posts progress (below). Each
-   morning or review round: question page, diff, backup (service-artifacts rsync, database dump,
-   `detection-rulings` archive), batch report.
+**Launch checklist (fresh session, in order; `S=full-pass-20261011/snapshot.json`, any new private dir):**
 
-**Listening feed (operator, 2026-10-10)** — `storage/scratch/full-pass-listening/`, tested end to
-end on 12 runs (41 items, 65 clips, `test-20261010/`). A seeded sample of each run as it is cut, on
-one artifact page republished as it grows (the rulings live in its database and survive):
+1. Preflight, live (the record below is not evidence for the day): queues empty and not paused,
+   failed jobs counted, Staging/temp/quarantine read-write, free space (Staging, internal ≥ 10 GB,
+   Sonnics), the Staging drive's port and link speed, speaker identification `false`, `git status`
+   clean on the freeze.
+2. Restart the worker containers on the freeze; check each worker's `ps` elapsed time.
+3. `mkdir storage/app/private/full-pass-20261011`, then
+   `historic-import:rerun-snapshot --runs-file=storage/scratch/full-pass-prep/candidates-438.txt
+   --output=$S --routing=listening-20260924/routing-bound.json --routing-sha256=2fc8903c…` (full hash above).
+4. Start the watcher in the app container and confirm its first look:
+   `vendor/bin/sail exec -d laravel.test sh -c 'php artisan historic-import:rerun-watch full-pass-20261011/snapshot.json > storage/logs/rerun-watch.log 2>&1'`;
+   `watch-status.json` appears beside the snapshot within seconds.
+5. Start the `/loop` (every 20 min, below). Its first tick with items creates the listening page
+   (artifact with the `db` capability, as the canary pages; `build.py` clones the last working one).
+6. Dispatch, each as a dry run first, then `--execute`:
+   `historic-import:rerun-retranscribe $S --max=500` (152), `historic-import:rerun-recompose $S --max=500` (37),
+   `historic-import:rerun-redetect $S --max=500` (244). Tier A runs go to Tier B once transcribed:
+   re-run `rerun-redetect $S --max=500` as they finish (the guard admits a finished transcription
+   round on the same snapshot).
+7. Tier C as runs clear: `historic-import:rerun-extract $S --max=500` (dry run, then `--execute`) on
+   each tick; runs with open questions hold themselves until answered (one question page, or a few as
+   they accumulate) and recomposed.
+
+**The watcher** (`historic-import:rerun-watch`, runs without Claude, looks every 5 min, 10 s a look over
+438 runs) stops on: anything public, a live hold gone, extracted media lost, a run superseded, a
+published or quarantined file missing that was there when the watch began (staging files under their
+run's batch root), any failed job since it began, lost draws above 10% once 10 ensembles have run,
+speaker identification enabled or queued, a historic disk probe failing, internal free space under
+10 GB. A stop pauses all ten worker queues (`Queue::pause`: each worker finishes its job and takes no
+other; nothing queued is lost), writes `watch-stop.json` and exits. Held runs are progress, not stops.
+`--stop="listening: <item> <answer>"` raises a listening verdict through the same door. Each look
+writes `watch-status.json`; `watch-state.json` keeps its start, so a restarted watcher remembers.
+Resume: fix the cause, `queue:continue redis:<queue>` for each queue in `watch-stop.json`, restart it.
+
+**Listening feed (operator, 2026-10-10)** — `storage/scratch/full-pass-listening/`, tested end to end on
+12 runs (41 items, 65 clips, kept in `test-20261010/`). A seeded sample of each run as it is cut, on one
+artifact page republished as it grows (rulings live in its database and survive a republish):
 
 | What | Rate |
 |---|---|
-| Detection — is this the sermon / “title” / a talk? (25 s from the middle, with transcript) | sermon 1 in 12 runs; one song in 1 run in 8; every 2nd talk |
+| Detection — is this the sermon / “title” / a talk? (25 s from the middle, with transcript) | sermon 1 run in 12; one song in 1 run in 8; every 2nd talk |
 | Edges — opens, ends, every sermon join (the cut plus 12 s of the recording around it) | sermon 1 run in 6; the sampled song; the sampled talks |
 | Noise reduction: every part with a pause level within 3 dB of −30 or −60 | all |
 | Missed segments: the longest stretch no section covers (≥ 45 s), else the longest “other” | 1 run in 8 |
 
-Expected about 500 items over the pass (363 on today's corpus, where few songs are cut yet). Not
-listened: MP3 peaks above 0 dBTP (canary 15: 9/9 clean, operator 10-10).
+About 500 items expected (363 on today's corpus, where few songs are cut yet). Not listened: MP3
+peaks above 0 dBTP (canary 15: 9/9 clean).
 
-Each `/loop` tick: (1) `vendor/bin/sail php storage/scratch/full-pass-listening/inventory.php <snapshot>`
-(cut runs not yet sampled) → `python3 …/feed.py` → `vendor/bin/sail php …/cues.php` →
-`vendor/bin/sail exec -T laravel.test bash storage/scratch/full-pass-listening/clips.sh` →
-`python3 …/build.py` → publish `index.html` with `clips/` to the same artifact; (2) read the page's
-rulings (`ArtifactData`): any answer other than right or can't tell →
-`historic-import:rerun-watch <snapshot> --stop="listening: <item> <answer>"`; (3) post a short
-progress update to the operator: the watcher's stage counts (not started / transcribed / detected /
-cut / processing / held), failed jobs, lost draws, free space, listening items added and answered,
-and any stop with its reason.
+**Each `/loop` tick (20 min):** (1) `vendor/bin/sail php storage/scratch/full-pass-listening/inventory.php $S`
+→ `python3 …/feed.py` → `vendor/bin/sail php …/cues.php` →
+`vendor/bin/sail exec -T laravel.test bash storage/scratch/full-pass-listening/clips.sh` → `python3 …/build.py`
+→ publish `index.html` with `clips/` to the same artifact; (2) read the page's rulings: any answer other
+than right or can't tell → `historic-import:rerun-watch $S --stop="listening: <item> <answer>"`;
+(3) dispatch what is ready (step 6's redetect for finished Tier A runs, step 7's extract); (4) post a
+short progress update: the watcher's stage counts, failed jobs, lost draws, free space, listening items
+added and answered, any stop and its reason.
 
 **A rule adopted mid-pass** (decision 8): Tier C pauses until every uncut run is recomposed onto the
 new revision; cut runs are replayed and only those whose cut changes are cut again.
@@ -2126,36 +2138,36 @@ review round stop); more than three new talks under 60 s confirmed false in one 
 than 10% of ensembles losing a draw after the one retry; unresolved composer disputes before
 answers above **2.0 a run** (operator kept the bar, 2026-10-10).
 
-**Known defect that will recur:** `structure:ensemble-apply-answers` validates each answer alone,
-so interdependent answers are refused (workaround: answer a section's version first). The export
-labels a 1-1-1-1 split "settled by majority".
+**Review tools:** the two answer-tool defects recorded in §6.3.8 are fixed: `4a3c038f2` applies a
+run's answers together (so interdependent answers land), `dccc60542` skips an identical answer
+already applied, and `1f6946498` settles a joined edge split only by a majority of the joined vote
+(no more 1-1-1-1 splits labelled "settled by majority").
 
-**Backup before the pass (done 2026-10-10, verified):** `/Volumes/Sonnics/_pre-full-pass-backup-
-20261010/`: database dump (restored into a throwaway database: 61 tables, 67,852 rows identical,
-seven table checksums equal), `app-private` (no service artifacts), `public-service-transcripts`,
-`scratch` and `.env`, as archives (Sonnics is exFAT with 512 KiB blocks, so 46k small files cost
-26 GB loose). Archive entry counts match the live trees; 406 extracted files and every one of the
-331 draw files in `_service-artifacts-backup/` compare byte-identical. Hashes:
+**Backup (done 2026-10-10, verified):** `/Volumes/Sonnics/_pre-full-pass-backup-20261010/`: database
+dump (restored into a throwaway database: 61 tables, 67,852 rows identical, seven table checksums
+equal), `app-private` (no service artifacts), `public-service-transcripts`, `scratch` and `.env`, as
+archives (Sonnics is exFAT with 512 KiB blocks: 46k small files cost 26 GB loose). Archive entry
+counts match the live trees; 406 extracted files and all 331 draw files in
+`_service-artifacts-backup/` compare byte-identical. Hashes:
 `storage/scratch/full-pass-prep/backup-sha256.txt`. Media is not backed up (09-13 ruling: re-derivable
-from Sonnics). After each review round: the service-artifacts rsync plus a new database dump and
+from Sonnics). After each review round: the service-artifacts rsync, a new database dump and a
 `detection-rulings` archive.
 
-**Preflight 2026-10-10 (repeat before every dispatch):** queues empty on all ten queues; failed jobs
-483. *Correction:* the 3 new on 10-10 12:34 were not 1223's composition-review stop but a custody
-defect, fixed in `928322ade`: the repair recompose queued `AutoPublishServiceSection` for three songs
+**Preflight record (2026-10-10, not evidence for launch day):** queues empty on all ten; failed jobs
+483; workers stopped; staging, temp and quarantine read/write; free Staging 465 GiB, internal 26 GiB,
+Sonnics 343 GiB. Space need ≈ 0.5 GiB a cut run (canary 15 and repair: 14.5 GiB for about 30) →
+≈ 240 GiB; service artifacts ≈ 23 MB a run → ≈ 10 GB internal. Speaker identification `false`; mail
+to Mailpit; backup and health webhooks empty. Staging detached on 10-09; the duration guard catches
+truncated reads, not the cause. The watcher's one look on 10-10 found no stop (6 warnings: sermons
+908–915 without a linked passage, known).
+
+**1223 (correction, 2026-10-10):** the 3 failed jobs at 12:34 were a custody defect, not the
+composition-review stop: the repair recompose queued `AutoPublishServiceSection` for three songs
 (2751, 2754, 145978) that had since gone to `pending_approval`; the song handler moved each candidate
 to `sermons/songs/…` and only then met the transition refusal, so the bytes sit at
 `historic-batches/9351fa4e…/sermons/songs/{421,525,611}/…mp4` while the rows name the candidate path.
-Nothing was public or lost; 1223 is held for composition review and its re-cut writes fresh
-candidates (repair through the pipeline, not by hand). The talk handler had the same order, also
-fixed. Workers stopped — start them on the
-freeze and check `ps` elapsed; staging, temp and quarantine mounts read/write probed; free:
-Staging 465 GiB, internal 26 GiB, Sonnics 343 GiB. Space need: canary 15 and the repair pass wrote
-14.5 GiB for about 30 cut runs (≈0.5 GiB a run, old media kept) → ≈240 GiB for the pass, which fits;
-service artifacts ≈23 MB a run → ≈10 GB internal, leaving ≈16 GB — stop if internal falls below
-10 GB. Speaker identification config `false`. Notifications contained: mail goes to Mailpit; backup
-and health webhooks are empty. Staging detached on 10-09; the duration guard catches truncated
-reads, not the cause — note the drive's port and link speed at each preflight.
+Nothing public or lost. Fixed for songs and talks in `928322ade`. 1223 stays held for composition
+review; its re-cut writes fresh candidates (repair through the pipeline, not by hand).
 
 ## 7. Further bounded investigations — added 2026-10-04
 
