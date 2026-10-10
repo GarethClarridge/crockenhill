@@ -1,5 +1,10 @@
 # Video boundary consistency: findings and implementation handover
 
+> **Current handover — 2026-10-10, full pass ready to plan-check:** frozen on `87b1f6eda` (pushed, deployed),
+> verified backup taken, preflight done, routing measured. **§6.3.9 is the one current execution record**;
+> it supersedes the canary-10 gates in the historic plan's §4.0. Next: operator confirms the dispute bar,
+> then go for Tier A and batch 1.
+
 > **Current handover — 2026-10-10, after canary 15 and its repair pass:** canary 15 met one
 > stopping condition (three published song clips deleted with no copy). The fix round, seven
 > operator rulings that stop questions whose answers never changed an output, and a repair pass
@@ -2017,6 +2022,79 @@ labels a 1-1-1-1 split "settled by majority". The first will recur in the full p
 
 **Next:** freeze on `6827a20ab` or later; push decision (22 commits ahead); fix the two tool
 defects; plan the full pass (routing, batch size, order, §6.3.7 stopping conditions).
+
+#### 6.3.9 Full-pass execution record (2026-10-10) — the one current instruction set
+
+This section supersedes, for the full pass, the canary-10 gates, counts and dispatch receipts in the
+historic plan's §4.0 ("Built for the final canary", "Canary 10, the final canary", "Open before batch
+1"). §4.0's standing decisions 1–8 and its route table still apply except where this section differs.
+Nothing here authorises a dispatch; each batch needs the operator's go.
+
+**Frozen code:** `87b1f6eda` (pushed and deployed 2026-10-10; `6827a20ab`'s behaviour plus the
+review-tool commits and a Pint-only commit). Suite 9,502, PHPStan 0. Any later code commit moves the
+freeze: new snapshot, worker restart (standing decision 7).
+
+**Effective settings (`.env`, not code):** `VIDEO_EXTRACTION_REENCODE_PRESET=veryfast`;
+`HISTORIC_MEDIA_WORKERS_FFMPEG=1`; `MEDIA_PAUSE_TEMP_FILE_CLEANUP=true`;
+`SERVICE_ARTIFACT_DISK=service_artifacts`; `SPEAKER_IDENTIFICATION_ENABLED=false`;
+`SERVICE_STRUCTURE_DETECTOR=openai`, model `gpt-5.6-luna`, effort `medium`;
+`TRANSCRIPTION_SERVICE_TYPE=local` (host whisper.cpp `large-v3-turbo`); `MAIL_HOST=mailpit`.
+
+**Membership (census 2026-10-10, `storage/scratch/full-pass-prep/membership.php`):** 445 historic
+runs not superseded; 6 excluded; 439 others. 1108 is left out (crashed promotion, needs a
+failed-run route). Draft snapshot of the other 438: `storage/app/private/full-pass-draft-20261010/
+snapshot.json`, membership `5e649062…`, routing `listening-20260924/routing-bound.json`
+(`2fc8903c…`). The draft binds `87b1f6eda`; re-take it if the freeze moves or any run changes.
+
+**Routing (each tier's dry answer per run: `storage/scratch/full-pass-prep/routing.json`):**
+
+| Route | Runs |
+|---|---|
+| Tier A, then Tier B: listening rated the new decode better | 93 |
+| Tier A, then Tier B: transcript-loss hold(s) | 59 |
+| Tier B only (new draws) | 244 |
+| Recompose banked draws, no new draw (canary members, decision 8) | 37 |
+| Refused: failed, not completed — operator panel first | 5: 1047, 1300, 1364 (span checks), 1262 (span check), 1143 (09-28 detection failure, multiple 20-minute blocks) |
+
+**Order:** Tier A's 152 first on the Whisper worker (6–13 h); it can run beside Tier B batches.
+The 37 banked runs recompose as one batch (no paid calls). Tier B in batches of about 40 in era
+order, batch 1 being 20 runs from the workbook's discovery half (2023–2026), as adopted 2026-10-02.
+Each batch: snapshot → Tier B → export → answers → recompose → held-transcript releases →
+Tier C → diff → backup → batch report.
+
+**Stopping conditions (any one stops before the next batch):** published content wrong on listening;
+a hold that does not hold, or anything becoming public; reviewed files differing from published
+files; an audio verification failure not contained as a hold; speaker identification running; lost
+or overwritten media with no copy; a sampled cut wrong with no question on it (investigate; two in a
+batch stop); a sampled majority overruled (investigate; two in a batch stop); more than three new
+talks under 60 s confirmed false; more than 10% of a batch's ensembles losing a draw after the
+one retry; unresolved composer disputes before answers above 2.0 a run. *Operator to confirm:* the
+2.0 bar was set on canary 10's raw rate, before the 10-10 rulings removed most questions; a lower
+bar (canary 15 would now ask 3 questions over 12 unseen runs) would catch drift sooner.
+
+**Known defect that will recur:** `structure:ensemble-apply-answers` validates each answer alone,
+so interdependent answers are refused (workaround: answer a section's version first). The export
+labels a 1-1-1-1 split "settled by majority".
+
+**Backup before batch 1 (done 2026-10-10, verified):** `/Volumes/Sonnics/_pre-full-pass-backup-
+20261010/`: database dump (restored into a throwaway database: 61 tables, 67,852 rows identical,
+seven table checksums equal), `app-private` (no service artifacts), `public-service-transcripts`,
+`scratch` and `.env`, as archives (Sonnics is exFAT with 512 KiB blocks, so 46k small files cost
+26 GB loose). Archive entry counts match the live trees; 406 extracted files and every one of the
+331 draw files in `_service-artifacts-backup/` compare byte-identical. Hashes:
+`storage/scratch/full-pass-prep/backup-sha256.txt`. Media is not backed up (09-13 ruling: re-derivable
+from Sonnics). After each batch: the service-artifacts rsync plus a new database dump and
+`detection-rulings` archive.
+
+**Preflight 2026-10-10 (repeat before every dispatch):** queues empty on all nine queues; failed jobs
+483 (3 new on 10-10 12:34, 1223's composition-review stop); workers stopped — start them on the
+freeze and check `ps` elapsed; staging, temp and quarantine mounts read/write probed; free:
+Staging 465 GiB, internal 26 GiB, Sonnics 343 GiB. Space need: canary 15 and the repair pass wrote
+14.5 GiB for about 30 cut runs (≈0.5 GiB a run, old media kept) → ≈240 GiB for the pass, which fits;
+service artifacts ≈23 MB a run → ≈10 GB internal, leaving ≈16 GB — stop if internal falls below
+10 GB. Speaker identification config `false`. Notifications contained: mail goes to Mailpit; backup
+and health webhooks are empty. Staging detached on 10-09; the duration guard catches truncated
+reads, not the cause — note the drive's port and link speed at each preflight.
 
 ## 7. Further bounded investigations — added 2026-10-04
 

@@ -1,5 +1,10 @@
 # Historic Video Defect Discovery and Acceptance Plan
 
+> **Status — 2026-10-10, full pass:** the current execution record (freeze, settings, membership,
+> routing, order, stopping conditions, backup, preflight) is
+> [VIDEO-BOUNDARY-CONSISTENCY §6.3.9](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md). Where §4.0 below
+> differs from it (canary-10 gates, counts, "Open before batch 1"), §6.3.9 wins.
+
 > **Status — 2026-10-10, after canary 15 and its repair pass:** canary 15 (29 runs, 12 a seeded
 > unseen draw) met one stopping condition, published song clips deleted with no copy; it is fixed,
 > along with the other findings, and a repair pass listened 7/7 right. Operator rulings the same
