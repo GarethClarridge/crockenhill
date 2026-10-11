@@ -417,6 +417,13 @@ class EnsembleReviewExport
                 }
             }
 
+            // Otherwise identical versions read alike (full pass 2026-10-11, runs 958 and 974).
+            if (in_array('oos_item_id', $differences, true)) {
+                $label .= ($section['oos_item_id'] ?? null) === null
+                    ? ' · not linked to the order of service'
+                    : ' · linked to the order of service';
+            }
+
             // The written group's winning version is the one its supporting drafts proposed.
             if ($supporting === $alternative['slots']) {
                 $label .= match (true) {

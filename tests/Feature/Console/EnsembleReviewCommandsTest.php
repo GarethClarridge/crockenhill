@@ -12,6 +12,7 @@ use App\Enums\ProcessingStatus;
 use App\Enums\ServiceSectionType;
 use App\Jobs\DetectServiceStructure;
 use App\Models\ChurchService;
+use App\Models\ChurchServiceItem;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -591,6 +592,43 @@ class EnsembleReviewCommandsTest extends TestCase
         $this->assertNotNull($presence);
         $this->assertArrayHasKey('none', $presence['answers']);
         $this->assertSame(['kind' => 'accept', 'slot' => null], $presence['answers']['either'] ?? null);
+    }
+
+    /**
+     * Full pass 2026-10-11, runs 958 and 974: two versions differed only in their order-of-service
+     * link, and their labels read identically, so the operator could not see what they chose.
+     */
+    #[Test]
+    public function versions_that_differ_in_their_order_of_service_link_say_so(): void
+    {
+        $this->operatorId = User::factory()->admin()->create()->id;
+        $service = ChurchService::factory()->create();
+        $item = ChurchServiceItem::factory()->create(['church_service_id' => $service->id]);
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create(['church_service_id' => $service->id]);
+        $this->storeInputs($log);
+        $draw = fn (?int $link): ServiceStructure => ServiceStructure::fromSections([
+            $this->section(['type' => 'welcome', 'start_time' => 0.0, 'end_time' => 120.0]),
+            $this->section(['type' => 'short_talk', 'start_time' => 130.0, 'end_time' => 400.0]),
+            $this->section(['type' => 'bible_reading', 'start_time' => 420.0, 'end_time' => 590.0, 'reading_reference' => 'Luke 15:1-10']),
+            $this->section(['type' => 'sermon', 'start_time' => 600.0, 'end_time' => 2200.0, 'sermon_reference' => 'Luke 15:1-10']),
+            $this->section(['type' => 'song', 'start_time' => 2210.0, 'end_time' => 2400.0, 'title' => 'Praise My Soul', 'song_title' => 'Praise My Soul', 'oos_item_id' => $link]),
+        ], model: 'mock');
+        MockServiceStructureService::useStructureSequence($draw($item->id), $draw($item->id), $draw(null), $draw(null));
+        (new DetectServiceStructure($log))->handle(
+            app(ServiceStructureInterface::class),
+            app(SilenceSnapService::class),
+            app(ServiceStructureValidator::class),
+            app(ServiceSectionSyncService::class),
+            app(SermonCandidateConfidenceService::class),
+        );
+
+        $song = collect(app(EnsembleReviewExport::class)->items($log->fresh()))->first(fn (array $item): bool => $item['type'] === 'song' && ! $item['decided']);
+
+        $this->assertNotNull($song);
+        $labels = array_column(array_filter($song['options'], fn (array $option): bool => str_starts_with($option[0], 'alt')), 1);
+        $this->assertCount(2, array_unique($labels));
+        $this->assertContains(true, array_map(fn (string $label): bool => str_contains($label, 'linked to the order of service'), $labels));
+        $this->assertContains(true, array_map(fn (string $label): bool => str_contains($label, 'not linked to the order of service'), $labels));
     }
 
     private function disputedRun(): MediaProcessingLog

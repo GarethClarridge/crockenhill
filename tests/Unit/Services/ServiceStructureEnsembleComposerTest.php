@@ -601,6 +601,45 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         $this->assertContains('song', array_column($boundAndUnbound->disputes, 'type'));
     }
 
+    /**
+     * Full pass 2026-10-11, runs 958, 974 and 1210: two voters linked the same sermon (or reading)
+     * to its order-of-service item and two left it unlinked, and the operator was asked to choose
+     * between versions that read identically. Only a song's link is its identity; for anything
+     * else a link agrees with no link and is kept, and two different links still disagree.
+     */
+    #[Test]
+    public function an_order_of_service_link_on_a_sermon_is_kept_without_a_question(): void
+    {
+        $sermon = fn (?int $item): ServiceStructure => $this->structure(
+            new ServiceStructureSection(ServiceSectionType::Sermon, 'Is It Futile to Serve God?', 50.0, 1994.0, 0.9, $item, null, null),
+        );
+
+        $linkedAndUnlinked = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($sermon(3718)),
+            1 => $this->vote($sermon(3718)),
+            2 => $this->vote($sermon(null)),
+            3 => $this->vote($sermon(null)),
+        ]);
+        $unlinkedFirst = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($sermon(null)),
+            1 => $this->vote($sermon(null)),
+            2 => $this->vote($sermon(3718)),
+            3 => $this->vote($sermon(null)),
+        ]);
+        $differentItems = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($sermon(3718)),
+            1 => $this->vote($sermon(3718)),
+            2 => $this->vote($sermon(3719)),
+            3 => $this->vote($sermon(3719)),
+        ]);
+
+        $this->assertSame([], $linkedAndUnlinked->disputes);
+        $this->assertSame(3718, $linkedAndUnlinked->structure->sectionsOfType(ServiceSectionType::Sermon)[0]->oosItemId);
+        $this->assertSame([], $unlinkedFirst->disputes);
+        $this->assertSame(3718, $unlinkedFirst->structure->sectionsOfType(ServiceSectionType::Sermon)[0]->oosItemId);
+        $this->assertContains('sermon', array_column($differentItems->disputes, 'type'));
+    }
+
     #[Test]
     public function no_sermon_is_clean_only_when_each_voter_explicitly_asserts_absence(): void
     {

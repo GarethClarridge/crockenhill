@@ -213,7 +213,7 @@ class ServiceStructureEnsembleComposer
 
             $winner = $variantList[0];
             $winningVotes = count($winner);
-            $representative = $this->representative($winner);
+            $representative = $this->withSupportedLink($this->representative($winner), $winner);
 
             if ($representative['section']->type === ServiceSectionType::BibleReading) {
                 $representative = $this->readingIntroductionChoice($winner, $representative, $transcript);
@@ -950,6 +950,7 @@ class ServiceStructureEnsembleComposer
             $other = $member['section'];
 
             if ($this->signature($section) !== $this->signature($other)
+                || ($section->oosItemId !== null && $other->oosItemId !== null && $section->oosItemId !== $other->oosItemId)
                 || ! $this->referencesAgree($section->readingReference, $other->readingReference,
                     fn (string $reading, string $sermon): string => $this->scriptureReferences->readingRelation($sermon, $reading), $context['sermon_references'])
                 || ! $this->referencesAgree($section->sermonReference, $other->sermonReference,
@@ -966,14 +967,20 @@ class ServiceStructureEnsembleComposer
      * same item agree however they spell its title (ruled 2026-09-30); an unbound song is the
      * catalogue song its title names. A short talk's proposed type is not compared: only the
      * type an operator confirms in talk type review is ever published (ruled 2026-10-01).
+     *
+     * Only a song's link to an order-of-service item is its identity. Anything else agrees whether
+     * a voter linked it or not (full pass 2026-10-11: runs 958, 974 and 1210 asked the operator to
+     * choose between identical sermons and readings); two different links still disagree
+     * ({@see self::sameClaim()}).
      */
     private function signature(ServiceStructureSection $section): string
     {
-        $boundSong = $section->type === ServiceSectionType::Song && $section->oosItemId !== null;
+        $isSong = $section->type === ServiceSectionType::Song;
+        $boundSong = $isSong && $section->oosItemId !== null;
 
         return json_encode([
             $section->type->value,
-            $section->oosItemId,
+            $isSong ? $section->oosItemId : null,
             $section->songTitle === null || $boundSong ? null : $this->songIdentity($section->songTitle),
         ], JSON_THROW_ON_ERROR);
     }
@@ -1040,6 +1047,32 @@ class ServiceStructureEnsembleComposer
      * @param  list<array{slot:int,index:int,section:ServiceStructureSection}>  $claims
      * @return array{slot:int,index:int,section:ServiceStructureSection}
      */
+    /**
+     * The representative, linked to the order-of-service item a supporter linked it to when it was
+     * left unlinked itself: the link is the one thing the agreeing claims may differ on that the
+     * composed section should not lose.
+     *
+     * @param  array{slot:int,index:int,section:ServiceStructureSection}  $representative
+     * @param  non-empty-list<array{slot:int,index:int,section:ServiceStructureSection}>  $supporters
+     * @return array{slot:int,index:int,section:ServiceStructureSection}
+     */
+    private function withSupportedLink(array $representative, array $supporters): array
+    {
+        if ($representative['section']->oosItemId !== null) {
+            return $representative;
+        }
+
+        foreach ($supporters as $supporter) {
+            if ($supporter['section']->oosItemId !== null) {
+                $linked = ServiceStructureSection::fromArray([...$representative['section']->toArray(), 'oos_item_id' => $supporter['section']->oosItemId]);
+
+                return $linked === null ? $representative : [...$representative, 'section' => $linked];
+            }
+        }
+
+        return $representative;
+    }
+
     private function representative(array $claims): array
     {
         usort($claims, function (array $a, array $b) use ($claims): int {

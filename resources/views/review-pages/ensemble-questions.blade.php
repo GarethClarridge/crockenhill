@@ -55,6 +55,12 @@
   .q-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; align-items: baseline; }
   .chip { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--sunk); color: var(--muted); }
   .chip.done { background: var(--good-soft); color: var(--good); }
+  /* An answered question folds to its heading and the answer (operator, 2026-10-11); tap the heading to reopen it. */
+  .answer-line { display: none; margin: 0; color: var(--muted); font-size: 14px; }
+  section.q.answered .answer-line { display: block; }
+  section.q.answered .q-head { cursor: pointer; }
+  section.q.answered:not(.open) { padding: 12px 20px; gap: 6px; }
+  section.q.answered:not(.open) > :not(.q-head):not(.answer-line) { display: none; }
   .context { margin: 0; color: var(--muted); max-width: 70ch; }
   .ask { margin: 0; font-weight: 700; }
   .media { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: start; }
@@ -171,6 +177,9 @@ function renderProgress() {
     chip.textContent = rulings[q.id] ? "Ruled" : (q.decided ? "Majority stands" : "Not ruled");
     chip.className = "chip" + (rulings[q.id] ? " done" : "");
     const saved = rulings[q.id];
+    const section = document.getElementById(q.id);
+    section.classList.toggle("answered", Boolean(saved));
+    document.getElementById("ans-" + q.id).textContent = saved ? "Answered: " + saved.choice_label + (saved.note ? " — " + saved.note : "") + " · tap the heading to change it" : "";
     const label = savedLabels[q.id];
     if (saved && !label.dataset.busy) {
       label.className = "saved ok";
@@ -264,6 +273,7 @@ function buildQuestion(q, index) {
       await db.doc("rulings/" + q.id).set(body);
       delete saved.dataset.busy;
       rulings[q.id] = body;
+      document.getElementById(q.id).classList.remove("open");
       renderProgress();
     } catch (error) {
       delete saved.dataset.busy;
@@ -275,9 +285,10 @@ function buildQuestion(q, index) {
   });
 
   return el("section", { class: "q", id: q.id },
-    el("div", { class: "q-head" },
+    el("div", { class: "q-head", onclick: () => { const s = document.getElementById(q.id); if (s.classList.contains("answered")) s.classList.toggle("open"); } },
       el("div", {}, el("div", { class: "eyebrow" }, q.decided ? `Settled by majority · run ${q.run}` : `${index + 1} of ${QUESTIONS.length} · run ${q.run}`), el("h2", {}, q.title)),
       el("span", { class: "chip", id: "chip-" + q.id }, "Not ruled")),
+    el("p", { class: "answer-line", id: "ans-" + q.id }),
     el("p", { class: "context" }, q.context),
     ...clipBlocks,
     form);
