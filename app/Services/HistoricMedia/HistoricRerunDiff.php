@@ -204,6 +204,8 @@ final class HistoricRerunDiff
                     $awaitingReview[] = sprintf('%s lost its extracted media (re-cut once its review is answered)', $label);
                 } elseif ($this->demotedToInferred($old, $new)) {
                     $awaitingReview[] = sprintf('%s lost its extracted media (song match demoted to inferred — clip withheld)', $label);
+                } elseif ($this->retypedAwayFromPublication($old, $new)) {
+                    $awaitingReview[] = sprintf('%s lost its extracted media (retyped to %s, which is never published; its old copy was never published)', $label, $new['type']);
                 } else {
                     $mediaCustody[] = sprintf('%s lost its extracted media', $label);
                 }
@@ -223,7 +225,7 @@ final class HistoricRerunDiff
                 }
             }
 
-            if ($this->inReview($old) && ! $this->inReview($new) && ! $this->demotedToInferred($old, $new)) {
+            if ($this->inReview($old) && ! $this->inReview($new) && ! $this->demotedToInferred($old, $new) && ! $this->retypedAwayFromPublication($old, $new)) {
                 $mediaCustody[] = sprintf('%s left review (now %s)', $label, $new['publication_status']);
             }
 
@@ -239,6 +241,25 @@ final class HistoricRerunDiff
         }
 
         return [$changes, $attention, $mediaCustody, $awaitingReview];
+    }
+
+    /**
+     * A section the re-run retyped to something never published (a song span that was the
+     * leader's spoken introduction: runs 992 and 1079), whose old copy was never published
+     * either. Its unpublished working copy goes by design; a published one is still a loss.
+     *
+     * @param  array<string, mixed>  $old
+     * @param  array<string, mixed>  $new
+     */
+    private function retypedAwayFromPublication(array $old, array $new): bool
+    {
+        $wasPublished = ($old['publication_status'] ?? null) === 'published'
+            || ($old['published_sermon_state'] ?? null) === self::PUBLIC
+            || array_filter($old['song_videos'] ?? [], static fn (array $video): bool => $video['publication_state'] === self::PUBLIC) !== [];
+
+        return ($old['type'] ?? null) !== ($new['type'] ?? null)
+            && ($new['publication_status'] ?? null) === 'not_applicable'
+            && ! $wasPublished;
     }
 
     /**

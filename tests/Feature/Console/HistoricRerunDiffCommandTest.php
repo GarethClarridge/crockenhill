@@ -385,6 +385,62 @@ class HistoricRerunDiffCommandTest extends TestCase
         self::assertContains(true, array_map(static fn (string $item): bool => str_contains($item, 'lost its extracted media'), $this->report()['runs'][(string) $run->id]['attention']));
     }
 
+    /**
+     * A song the re-run found to be something never published (the leader's spoken introduction,
+     * runs 992 and 1079) loses its unpublished working copy by design: pending, not a custody loss.
+     */
+    #[Test]
+    public function a_never_published_song_retyped_to_an_unpublished_type_that_lost_its_clip_is_pending(): void
+    {
+        $run = $this->processingRun();
+        $section = $this->section($run, ServiceSectionType::Song, 100, 150);
+        $section->update(['extracted_video_path' => 'sections/1.mp4', 'extracted_at' => now(), 'publication_status' => ServiceSectionPublicationStatus::PendingApproval]);
+        $this->snapshot([$run->id]);
+
+        $section->update([
+            'section_type' => ServiceSectionType::Other,
+            'title' => 'Introduction to concluding song',
+            'extracted_video_path' => null,
+            'extracted_at' => null,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable,
+        ]);
+        $this->deferMedia($run);
+        $run->amendLatestCorpusRerunStamp(['media' => 'extracted', 'extraction_dispatched_at' => '2026-09-24T20:00:00+00:00']);
+
+        $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json'), '--output' => $this->path('diff.json')]);
+
+        $result = $this->report()['runs'][(string) $run->id];
+
+        self::assertSame([], $result['attention']);
+        self::assertContains(true, array_map(static fn (string $item): bool => str_contains($item, 'retyped to other, which is never published'), $result['pending']));
+    }
+
+    /**
+     * Only a never-published copy is excused: a published section retyped away still loses media.
+     */
+    #[Test]
+    public function a_published_song_retyped_to_an_unpublished_type_that_lost_its_clip_still_needs_attention(): void
+    {
+        $run = $this->processingRun();
+        $section = $this->section($run, ServiceSectionType::Song, 100, 150);
+        $section->update(['extracted_video_path' => 'sections/1.mp4', 'extracted_at' => now()]);
+        SongVideo::factory()->quarantined()->create(['service_section_id' => $section->id, 'publication_state' => 'published']);
+        $this->snapshot([$run->id]);
+
+        $section->update([
+            'section_type' => ServiceSectionType::Other,
+            'extracted_video_path' => null,
+            'extracted_at' => null,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable,
+        ]);
+        $this->deferMedia($run);
+        $run->amendLatestCorpusRerunStamp(['media' => 'extracted', 'extraction_dispatched_at' => '2026-09-24T20:00:00+00:00']);
+
+        $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json'), '--output' => $this->path('diff.json')]);
+
+        self::assertContains(true, array_map(static fn (string $item): bool => str_contains($item, 'lost its extracted media'), $this->report()['runs'][(string) $run->id]['attention']));
+    }
+
     #[Test]
     public function a_finished_extraction_that_left_a_section_without_media_needs_attention(): void
     {
