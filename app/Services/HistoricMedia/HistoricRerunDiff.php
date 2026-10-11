@@ -99,7 +99,7 @@ final class HistoricRerunDiff
             $attention[] = sprintf('sermon %d names %s but no passage is linked', $sermon['id'], $sermon['reference']);
         }
 
-        [$sectionChanges, $sectionAttention, $mediaCustody] = $this->sectionChanges(
+        [$sectionChanges, $sectionAttention, $mediaCustody, $awaitingReview] = $this->sectionChanges(
             $this->sections($before),
             $this->sections($after),
         );
@@ -109,7 +109,7 @@ final class HistoricRerunDiff
         return [
             'changes' => [...$changes, ...$sectionChanges, ...$holdChanges],
             'attention' => [...$attention, ...$sectionAttention, ...($mediaDeferred ? [] : $mediaCustody), ...$holdAttention],
-            'pending' => [...$pending, ...($mediaDeferred ? $mediaCustody : [])],
+            'pending' => [...$pending, ...($mediaDeferred ? $mediaCustody : []), ...$awaitingReview],
         ];
     }
 
@@ -142,14 +142,15 @@ final class HistoricRerunDiff
     /**
      * @param  list<array<string, mixed>>  $before
      * @param  list<array<string, mixed>>  $after
-     * @return array{0: list<array<string, mixed>>, 1: list<string>, 2: list<string>} changes,
-     *                                                                                attention, and the media custody a detection round defers
+     * @return array{0: list<array<string, mixed>>, 1: list<string>, 2: list<string>, 3: list<string>} changes,
+     *                                                                                attention, the media custody a detection round defers, and clips awaiting a review
      */
     private function sectionChanges(array $before, array $after): array
     {
         $changes = [];
         $attention = [];
         $mediaCustody = [];
+        $awaitingReview = [];
         [$pairs, $removed, $added] = $this->pair($before, $after);
 
         foreach ($removed as $section) {
@@ -196,7 +197,14 @@ final class HistoricRerunDiff
 
             if ($oldMedia !== null && $newMedia === null) {
                 $changes[] = ['kind' => 'section_media_lost', 'section' => $label];
-                $mediaCustody[] = sprintf('%s lost its extracted media', $label);
+
+                // A song or talk under review is kept out of publication candidates until it is
+                // answered, so its clip is re-cut then (full pass 2026-10-11, run 968's talk).
+                if (($new['needs_manual_review'] ?? false) === true) {
+                    $awaitingReview[] = sprintf('%s lost its extracted media (re-cut once its review is answered)', $label);
+                } else {
+                    $mediaCustody[] = sprintf('%s lost its extracted media', $label);
+                }
             } elseif ($oldMedia !== $newMedia || ($old['media']['extracted_at'] ?? null) !== ($new['media']['extracted_at'] ?? null)) {
                 $changes[] = ['kind' => 'section_media_recut', 'section' => $label];
             }
@@ -228,7 +236,7 @@ final class HistoricRerunDiff
             }
         }
 
-        return [$changes, $attention, $mediaCustody];
+        return [$changes, $attention, $mediaCustody, $awaitingReview];
     }
 
     /**
