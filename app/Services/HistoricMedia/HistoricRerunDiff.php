@@ -143,7 +143,7 @@ final class HistoricRerunDiff
      * @param  list<array<string, mixed>>  $before
      * @param  list<array<string, mixed>>  $after
      * @return array{0: list<array<string, mixed>>, 1: list<string>, 2: list<string>, 3: list<string>} changes,
-     *                                                                                attention, the media custody a detection round defers, and clips awaiting a review
+     *                                                                                                 attention, the media custody a detection round defers, and clips awaiting a review
      */
     private function sectionChanges(array $before, array $after): array
     {
