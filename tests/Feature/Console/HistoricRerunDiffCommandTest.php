@@ -6,6 +6,8 @@ namespace Tests\Feature\Console;
 
 use App\Enums\ContentHoldCheck;
 use App\Enums\ProcessingStatus;
+use App\Enums\ServiceSectionPublicationStatus;
+use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ScripturePassage;
@@ -325,6 +327,62 @@ class HistoricRerunDiffCommandTest extends TestCase
 
         self::assertNotContains(true, array_map(static fn (string $item): bool => str_contains($item, 'lost its extracted media'), $result['attention']));
         self::assertContains(true, array_map(static fn (string $item): bool => str_contains($item, 're-cut once its review is answered'), $result['pending']));
+    }
+
+    /**
+     * A song the re-run's matching demoted from confirmed to inferred is never published, so its
+     * cut drops the clip by design: a counted finding for the follow-up round, not a custody loss
+     * (full pass 2026-10-11, run 1311's "I Will Sing of the Lamb"; 62 songs).
+     */
+    #[Test]
+    public function a_song_demoted_to_an_inferred_match_that_lost_its_clip_is_pending(): void
+    {
+        $run = $this->processingRun();
+        $section = $this->section($run, ServiceSectionType::Song, 100, 300);
+        $section->update([
+            'extracted_video_path' => 'sections/1.mp4',
+            'extracted_at' => now(),
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed,
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval,
+        ]);
+        $this->snapshot([$run->id]);
+
+        $section->update([
+            'extracted_video_path' => null,
+            'extracted_at' => null,
+            'song_match_type' => ServiceSectionSongMatchType::Inferred,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable,
+        ]);
+        $this->deferMedia($run);
+        $run->amendLatestCorpusRerunStamp(['media' => 'extracted', 'extraction_dispatched_at' => '2026-09-24T20:00:00+00:00']);
+
+        $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json'), '--output' => $this->path('diff.json')]);
+
+        $result = $this->report()['runs'][(string) $run->id];
+
+        self::assertSame([], $result['attention']);
+        self::assertContains(true, array_map(static fn (string $item): bool => str_contains($item, 'song match demoted to inferred'), $result['pending']));
+    }
+
+    /**
+     * Only the demotion is excused: a confirmed song that keeps its match and loses its clip is
+     * still a custody loss.
+     */
+    #[Test]
+    public function a_confirmed_song_that_lost_its_clip_still_needs_attention(): void
+    {
+        $run = $this->processingRun();
+        $section = $this->section($run, ServiceSectionType::Song, 100, 300);
+        $section->update(['extracted_video_path' => 'sections/1.mp4', 'extracted_at' => now(), 'song_match_type' => ServiceSectionSongMatchType::Confirmed]);
+        $this->snapshot([$run->id]);
+
+        $section->update(['extracted_video_path' => null, 'extracted_at' => null]);
+        $this->deferMedia($run);
+        $run->amendLatestCorpusRerunStamp(['media' => 'extracted', 'extraction_dispatched_at' => '2026-09-24T20:00:00+00:00']);
+
+        $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json'), '--output' => $this->path('diff.json')]);
+
+        self::assertContains(true, array_map(static fn (string $item): bool => str_contains($item, 'lost its extracted media'), $this->report()['runs'][(string) $run->id]['attention']));
     }
 
     #[Test]

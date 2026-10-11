@@ -202,6 +202,8 @@ final class HistoricRerunDiff
                 // answered, so its clip is re-cut then (full pass 2026-10-11, run 968's talk).
                 if (($new['needs_manual_review'] ?? false) === true) {
                     $awaitingReview[] = sprintf('%s lost its extracted media (re-cut once its review is answered)', $label);
+                } elseif ($this->demotedToInferred($old, $new)) {
+                    $awaitingReview[] = sprintf('%s lost its extracted media (song match demoted to inferred — clip withheld)', $label);
                 } else {
                     $mediaCustody[] = sprintf('%s lost its extracted media', $label);
                 }
@@ -221,7 +223,7 @@ final class HistoricRerunDiff
                 }
             }
 
-            if ($this->inReview($old) && ! $this->inReview($new)) {
+            if ($this->inReview($old) && ! $this->inReview($new) && ! $this->demotedToInferred($old, $new)) {
                 $mediaCustody[] = sprintf('%s left review (now %s)', $label, $new['publication_status']);
             }
 
@@ -237,6 +239,21 @@ final class HistoricRerunDiff
         }
 
         return [$changes, $attention, $mediaCustody, $awaitingReview];
+    }
+
+    /**
+     * A song the re-run's matching demoted from a confirmed to an inferred match. Inferred songs
+     * are never published, so the cut withholds the clip by design: the loss is the demotion's,
+     * counted for the follow-up round, not a custody failure (full pass 2026-10-11, 62 songs).
+     *
+     * @param  array<string, mixed>  $old
+     * @param  array<string, mixed>  $new
+     */
+    private function demotedToInferred(array $old, array $new): bool
+    {
+        return ($new['type'] ?? null) === 'song'
+            && ($old['song_match_type'] ?? null) === 'confirmed'
+            && ($new['song_match_type'] ?? null) === 'inferred';
     }
 
     /**
