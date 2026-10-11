@@ -1044,10 +1044,6 @@ class ServiceStructureEnsembleComposer
     }
 
     /**
-     * @param  list<array{slot:int,index:int,section:ServiceStructureSection}>  $claims
-     * @return array{slot:int,index:int,section:ServiceStructureSection}
-     */
-    /**
      * The representative, linked to the order-of-service item a supporter linked it to when it was
      * left unlinked itself: the link is the one thing the agreeing claims may differ on that the
      * composed section should not lose.
@@ -1073,6 +1069,10 @@ class ServiceStructureEnsembleComposer
         return $representative;
     }
 
+    /**
+     * @param  list<array{slot:int,index:int,section:ServiceStructureSection}>  $claims
+     * @return array{slot:int,index:int,section:ServiceStructureSection}
+     */
     private function representative(array $claims): array
     {
         usort($claims, function (array $a, array $b) use ($claims): int {
