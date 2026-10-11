@@ -44,9 +44,9 @@
   .eyebrow { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 700; }
   header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 12px 24px; }
   header p { margin: 6px 0 0; color: var(--muted); max-width: 62ch; }
-  .progress { display: flex; align-items: center; gap: 10px; font-variant-numeric: tabular-nums; color: var(--muted); }
-  .pips { display: flex; gap: 4px; }
-  .pip { width: 22px; height: 6px; border-radius: 3px; background: var(--line); }
+  .progress { display: flex; align-items: center; gap: 10px; font-variant-numeric: tabular-nums; color: var(--muted); flex: 1 1 260px; min-width: 0; max-width: 100%; }
+  .pips { display: flex; flex-wrap: wrap; gap: 3px 2px; flex: 1 1 auto; min-width: 0; }
+  .pip { flex: 1 0 6px; max-width: 22px; height: 6px; border-radius: 3px; background: var(--line); }
   .pip.done { background: var(--good); }
   .status { font-size: 13px; color: var(--muted); }
   .status.warn { color: var(--mark); }
