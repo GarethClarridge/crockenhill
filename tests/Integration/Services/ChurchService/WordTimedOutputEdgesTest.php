@@ -21,6 +21,7 @@ use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Responses\Audio\TranscriptionResponse;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Support\AudioTimelineFixture;
 use Tests\TestCase;
 
 class WordTimedOutputEdgesTest extends TestCase
@@ -494,6 +495,42 @@ class WordTimedOutputEdgesTest extends TestCase
                 ['start' => 852.6, 'end' => 854.1, 'word' => " We'll"],
                 ['start' => 854.1, 'end' => 854.8, 'word' => ' sing'],
             ], 852.45],
+        ];
+    }
+
+    /**
+     * A decode smeared over the edge says nothing about where the words were said: 932's "We" ran
+     * 20 s across the sermon's start and its later words collapsed to one instant, and 1237's
+     * "busy" ran 6 s across it. The start moved inward to the pause after them and dropped the
+     * sermon's first sentence (operator listening, 2026-10-11).
+     */
+    #[Test]
+    #[DataProvider('smearedStarts')]
+    public function a_start_smeared_over_stays_where_the_classifier_hears_speech(array $timeline, float $expected): void
+    {
+        $cues = [
+            ['start' => 414.68, 'end' => 415.68, 'text' => 'Amen.'],
+            ['start' => 415.68, 'end' => 433.82, 'text' => 'We live on the outskirts of a very large city.'],
+        ];
+        $log = $this->logWithCues($cues);
+        $log->update(['audio_timeline_path' => 'service-transcripts/edge-test.classes.json']);
+        Storage::disk('local')->put('service-transcripts/edge-test.classes.json', AudioTimelineFixture::json($timeline, 5000.0));
+        $this->bankWindow($log, 415.68, [
+            ['start' => 414.35, 'end' => 434.81, 'word' => ' We'],
+            ['start' => 434.81, 'end' => 434.81, 'word' => ' live'],
+            ['start' => 434.81, 'end' => 434.81, 'word' => ' on'],
+        ]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 415.68, 'end_time' => 2000.0]]);
+
+        $this->assertEqualsWithDelta($expected, $plan['segments'][0]['start_time'], 0.001);
+    }
+
+    public static function smearedStarts(): array
+    {
+        return [
+            '932 speech at the start keeps it' => [[[400, 410, 0.7, 0.1], [410, 440, 0.2, 0.45]], 415.68],
+            'a song outro at the start lets the move stand' => [[[400, 430, 0.8, 0.1], [430, 440, 0.1, 0.8]], 434.81],
         ];
     }
 

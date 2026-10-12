@@ -237,6 +237,9 @@ class CueSafeExtractionPlan
                     $words = $payload['words'];
                     if ($words !== []) {
                         $decision = $this->wordPause($words, $window, $original, $edge);
+                        if ($edge === 'start') {
+                            $decision = $this->keptAtHeardStart($log, $words, $original, $decision);
+                        }
                         if ($besideSong) {
                             $decision = $this->withTail($decision);
                         }
@@ -446,6 +449,36 @@ class CueSafeExtractionPlan
         $tail = min(self::SPOKEN_END_TAIL, max(0.0, ((float) $pause['end'] - $from) / 2));
 
         return [...$decision, 'time' => max((float) $decision['time'], $from + $tail)];
+    }
+
+    /**
+     * A start moved inward off a decode smeared across it stays where detection put it when the
+     * classifier hears speech there: the smear gives no word timing, so the pause after it may
+     * drop the output's first sentence (932's 20 s "We", 1237's 6 s "busy"; operator listening,
+     * 2026-10-11). Where the classifier hears music, the move may be dropping a song's outro, and
+     * it stands.
+     *
+     * @param  list<array{start: float, end: float, word: string}>  $words
+     * @param  array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, candidate_anchors?: list<array{start: float, end: float, word: string}>}  $decision
+     * @return array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, candidate_anchors?: list<array{start: float, end: float, word: string}>}
+     */
+    private function keptAtHeardStart(MediaProcessingLog $log, array $words, float $original, array $decision): array
+    {
+        if ($decision['time'] <= $original + self::CUE_BOUNDARY_TOLERANCE
+            || ! array_any($words, static fn (array $word): bool => $word['end'] - $word['start'] > self::ANCHOR_REACH && $word['start'] < $original - 0.001 && $word['end'] > $original + 0.001)) {
+            return $decision;
+        }
+
+        $timeline = $this->timeline($log);
+        $window = $timeline?->windowAt($original);
+
+        // Speech above music, not confidently speech alone: 932's sermon opened in a window the
+        // classifier heard as mixed.
+        if ($timeline === null || $window === null || $timeline->windows[$window]['speech'] <= $timeline->windows[$window]['music']) {
+            return $decision;
+        }
+
+        return ['time' => $original, 'chosen_pause' => ['start' => $original, 'end' => $original], 'word_before' => null, 'word_after' => null];
     }
 
     /**
