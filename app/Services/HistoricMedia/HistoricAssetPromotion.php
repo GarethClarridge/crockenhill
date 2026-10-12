@@ -749,8 +749,8 @@ final class HistoricAssetPromotion
 
             $section = ServiceSection::query()->whereKey($locked->service_section_id)->lockForUpdate()->first();
 
-            // A held replacement owns the section's media; the published song keeps its own record.
-            if ($section instanceof ServiceSection && ! PublicationCandidate::isUnpublishedReplacement($section)) {
+            // A section's own newer cut owns its media; the song keeps its own record.
+            if ($section instanceof ServiceSection && ! PublicationCandidate::holdsCutOtherThan($section, (string) $locked->video_file_path)) {
                 if (filled($section->asset_disk) && ! in_array($section->asset_disk, [$staging, $quarantine], true)) {
                     throw new RuntimeException("Service section {$section->getKey()} is already owned by disk {$section->asset_disk}.");
                 }

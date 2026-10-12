@@ -70,4 +70,19 @@ final class PublicationCandidate
 
         return $candidateId !== null && is_string($publishedId) && $publishedId !== '' && $publishedId !== $candidateId;
     }
+
+    /**
+     * Whether the section holds a cut of its own that a song video's file is not: a candidate not
+     * recorded as the one the song published, in another file. Song videos cut before songs recorded
+     * their cut (2026-09) have no record; a section re-cut since, as a talk or a song, holds the newer
+     * cut, and the old song file must not take its place (1180 §2375 published a September song as a talk).
+     */
+    public static function holdsCutOtherThan(ServiceSection $section, string $songVideoPath): bool
+    {
+        $candidateId = self::id($section);
+        $publishedId = $section->metadata?->raw['song_video_extraction']['candidate_id'] ?? null;
+
+        return $candidateId !== null && $publishedId !== $candidateId
+            && filled($section->extracted_video_path) && $section->extracted_video_path !== $songVideoPath;
+    }
 }

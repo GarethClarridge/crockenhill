@@ -32,6 +32,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use RuntimeException;
 use Tests\Concerns\CreatesHistoricImportOperations;
@@ -491,6 +492,65 @@ class HistoricAssetPromotionTest extends TestCase
         $this->assertSame('new-held-cut', $section->metadata->raw['publication_candidate_extraction']['candidate_id']);
         $this->assertSame($candidatePath, $section->extracted_video_path, 'Historic promotion must not replace the held candidate path with old published bytes while retaining the new candidate identity.');
         $this->assertSame('new off-target candidate', Storage::disk($section->asset_disk)->get($section->extracted_video_path));
+    }
+
+    /**
+     * A song video cut before songs recorded which cut they hold (2026-09) has no record to compare
+     * with. Its section, re-cut as a talk or song in the full pass, kept the old clip's path and
+     * published the September song as the talk (1180 §2375, 1129 §2060: 32 sections, 2026-10-12).
+     */
+    #[Test]
+    #[DataProvider('recutSectionTypes')]
+    public function a_legacy_song_video_does_not_replace_a_section_recut_since(ServiceSectionType $type): void
+    {
+        [$log] = $this->historicRun();
+        $songVideo = $this->songVideoForRun($log);
+        $section = ServiceSection::findOrFail($songVideo->service_section_id);
+        $candidatePath = 'section-publications/'.$section->id.'-recut/video.mp4';
+        $section->update([
+            'section_type' => $type,
+            'asset_disk' => 'historic_staging',
+            'extracted_video_path' => $candidatePath,
+            'extracted_at' => now(),
+            'publication_status' => ServiceSectionPublicationStatus::PendingApproval,
+            'metadata' => ['publication_candidate_extraction' => ['candidate_id' => 'full-pass-cut']],
+        ]);
+        $songVideo->update(['asset_disk' => 'historic_quarantine', 'publication_state' => SermonPublicationState::Quarantined, 'historic_import_operation_id' => $log->historic_import_operation_id]);
+        Storage::disk('historic_quarantine')->put($songVideo->video_file_path, 'september song clip');
+        Storage::disk('historic_staging')->put($candidatePath, 'full-pass cut');
+
+        app(HistoricAssetPromotion::class)->promoteSongVideos($log);
+
+        $section->refresh();
+        $this->assertSame($candidatePath, $section->extracted_video_path);
+        $this->assertSame('full-pass cut', Storage::disk($section->asset_disk)->get($section->extracted_video_path));
+    }
+
+    public static function recutSectionTypes(): array
+    {
+        return ['retyped as a talk' => [ServiceSectionType::ShortTalk], 're-cut as a song' => [ServiceSectionType::Song]];
+    }
+
+    /** The cut a legacy song video was made from is the same file: the section follows it to quarantine. */
+    #[Test]
+    public function a_section_holding_its_song_videos_own_file_follows_it_to_quarantine(): void
+    {
+        [$log] = $this->historicRun();
+        $songVideo = $this->songVideoForRun($log);
+        $section = ServiceSection::findOrFail($songVideo->service_section_id);
+        $section->update([
+            'asset_disk' => 'historic_staging',
+            'extracted_video_path' => $songVideo->video_file_path,
+            'metadata' => ['publication_candidate_extraction' => ['candidate_id' => 'september-cut']],
+        ]);
+        $songVideo->update(['asset_disk' => 'historic_quarantine', 'publication_state' => SermonPublicationState::Quarantined, 'historic_import_operation_id' => $log->historic_import_operation_id]);
+        Storage::disk('historic_quarantine')->put($songVideo->video_file_path, 'september song clip');
+
+        app(HistoricAssetPromotion::class)->promoteSongVideos($log);
+
+        $section->refresh();
+        $this->assertSame('historic_quarantine', $section->asset_disk);
+        $this->assertSame($songVideo->video_file_path, $section->extracted_video_path);
     }
 
     #[Test]
