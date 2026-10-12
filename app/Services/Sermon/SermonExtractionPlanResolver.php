@@ -37,6 +37,12 @@ class SermonExtractionPlanResolver
      */
     private const READING_AFTER_HANDOVER_SECONDS = 30.0;
 
+    /** The longest gap between parts, holding no other section, that plays straight through (amended D1). */
+    private const SILENT_GAP_SECONDS = 15.0;
+
+    /** How far past the recording's end a section may run and be cut to that end. */
+    private const SOURCE_END_OVERRUN_SECONDS = 1.0;
+
     public function __construct(
         private readonly ScriptureReferenceResolver $scriptureReferences,
         private readonly SermonContinuationScreen $continuations,
@@ -78,6 +84,13 @@ class SermonExtractionPlanResolver
             usort($selected, static fn (ServiceSection $a, ServiceSection $b): int => $a->start_time <=> $b->start_time);
             $first = $selected[0];
             $last = $selected[count($selected) - 1];
+            // Amended D1 (operator, 2026-10-11): the prayer directly before the sermon is part of
+            // it, whatever comes before that prayer (936's song between reading and prayer).
+            $preceding = array_values(array_filter($sections, static fn (ServiceSection $section): bool => $section->start_time < $first->start_time && ! in_array($section, $selected, true)));
+            $prayerBefore = $preceding === [] ? null : $preceding[count($preceding) - 1];
+            if ($prayerBefore?->section_type === ServiceSectionType::Prayer && $prayerBefore->end_time <= $first->start_time + 0.001) {
+                $selected[] = $prayerBefore;
+            }
             $reference = $sermon->metadata?->raw['sermon_reference'] ?? null;
             $readings = array_values(array_filter($sections, static fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::BibleReading && $section->start_time < $first->start_time));
             $membership = $this->scriptureReferences->sermonReadingMembership(
@@ -159,7 +172,8 @@ class SermonExtractionPlanResolver
             'selection_source' => $selectionSource,
             'sermon_section_id' => $sermon?->id,
             'bible_section_id' => collect($selected)->first(fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::BibleReading)?->id,
-            'trailing_section_ids' => array_values(array_map(fn (ServiceSection $section): int => $section->id, array_filter($selected, fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::Prayer))),
+            'trailing_section_ids' => array_values(array_map(fn (ServiceSection $section): int => $section->id, array_filter($selected, fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::Prayer
+                && $sermon !== null && $section->start_time >= $sermon->end_time))),
             'requires_review' => $risks !== [],
             'risks' => $risks,
             'answered_risks' => $answered,
@@ -187,6 +201,37 @@ class SermonExtractionPlanResolver
         }
 
         return $composition;
+    }
+
+    /**
+     * Consecutive parts with a gap of at most {@see self::SILENT_GAP_SECONDS} that no other section
+     * claims play straight through as one span (amended D1, operator 2026-10-11): a cut over a
+     * pause of a few seconds is a visible jump for nothing (992's 5.2 s, 995's 1.8 s).
+     *
+     * @param  list<array{start_time: float, end_time: float}>  $spans
+     * @param  array<int, ServiceSection>  $sections
+     * @param  list<ServiceSection>  $selected
+     * @return list<array{start_time: float, end_time: float}>
+     */
+    private function throughSilentGaps(array $spans, array $sections, array $selected): array
+    {
+        $joined = [];
+
+        foreach ($spans as $span) {
+            $previous = $joined === [] ? null : $joined[count($joined) - 1];
+            $claimed = $previous !== null && array_any($sections, static fn (ServiceSection $section): bool => ! in_array($section, $selected, true)
+                && $section->start_time < $span['start_time'] && $section->end_time > $previous['end_time']);
+
+            if ($previous !== null && self::SILENT_GAP_SECONDS + 0.001 >= $span['start_time'] - $previous['end_time'] && ! $claimed) {
+                $joined[count($joined) - 1]['end_time'] = $span['end_time'];
+
+                continue;
+            }
+
+            $joined[] = $span;
+        }
+
+        return $joined;
     }
 
     /**
@@ -321,6 +366,10 @@ class SermonExtractionPlanResolver
             }
             $start = (float) $section->start_time;
             $end = (float) $section->end_time;
+            // A section ending a fraction past the recording ends with it (1136, 1219 failed their cut).
+            if ($processingLog->duration !== null && $end > $processingLog->duration && $end <= $processingLog->duration + self::SOURCE_END_OVERRUN_SECONDS) {
+                $end = (float) $processingLog->duration;
+            }
             if (! is_finite($start) || ! is_finite($end) || $start < $previousEnd || $end <= $start
                 || ($processingLog->duration !== null && $end > $processingLog->duration + 0.001)) {
                 throw new InvalidArgumentException('Invalid selected section bounds: unordered, overlapping or outside source');
@@ -341,6 +390,7 @@ class SermonExtractionPlanResolver
             }
             $spans[] = ['start_time' => $start, 'end_time' => $end];
         }
+        $spans = $this->throughSilentGaps($spans, $sections, $selectedSections);
 
         try {
             $cuePlan = app(CueSafeExtractionPlan::class)->forSpans($processingLog, $spans, sermonEnd: true);

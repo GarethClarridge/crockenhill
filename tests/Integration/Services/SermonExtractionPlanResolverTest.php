@@ -19,6 +19,8 @@ use App\Services\ChurchService\Structure\TranscriptCueBoundaries;
 use App\Services\Sermon\SermonExtractionPlanResolver;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
+use InvalidArgumentException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Support\BanksNoWordOutputEdges;
@@ -74,9 +76,11 @@ class SermonExtractionPlanResolverTest extends TestCase
         ], 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
         $this->bankNoWordOutputEdges($log);
         $plan = $this->resolver->resolve($log->fresh());
-        $this->assertSame(2593.98, $plan['segments'][0]['start_time']);
+        // Amended D1 (2026-10-11): the prayer directly before the sermon is cut with it, so the
+        // shared "name." cue sits inside one stretch and the prayer's bounds stay as detected.
+        $this->assertContains($prayer->id, $plan['metadata']['selected_section_ids']);
+        $this->assertSame([['start_time' => 2500.0, 'end_time' => 3789.12]], $plan['segments']);
         $this->assertSame(2594.18, (float) $prayer->fresh()->end_time);
-        $this->assertEqualsWithDelta(0.20, $plan['metadata']['cue_edge_widening'][0]['seconds_added'], 0.0001);
     }
 
     #[Test]
@@ -95,7 +99,8 @@ class SermonExtractionPlanResolverTest extends TestCase
         $plan = $this->resolver->resolve($log->fresh());
         $this->assertSame([['start_time' => 100.0, 'end_time' => 300.0]], $plan['segments']);
         $this->assertSame('single_span', $plan['mode']);
-        $this->assertCount(2, $plan['metadata']['cue_edge_widening']);
+        // A 1 s gap holding no section plays straight through (amended D1): no edge is placed inside it.
+        $this->assertSame([], array_filter($plan['metadata']['cue_edge_widening'], static fn (array $entry): bool => $entry['span_index'] > 0));
         $this->assertFalse($plan['metadata']['requires_review']);
     }
 
@@ -239,7 +244,8 @@ class SermonExtractionPlanResolverTest extends TestCase
         $plan = $this->resolver->resolve($log);
 
         $this->assertSame('service_sections', $plan['source']);
-        $this->assertSame([[100.0, 200.0], [220.0, 3200.0], [3210.0, 3250.0]], array_map(fn (array $span): array => [$span['start_time'], $span['end_time']], $plan['segments']));
+        // The 10 s before the prayer holds no section and plays through (amended D1); the 20 s after the reading does not.
+        $this->assertSame([[100.0, 200.0], [220.0, 3250.0]], array_map(fn (array $span): array => [$span['start_time'], $span['end_time']], $plan['segments']));
         $this->assertSame([$reading->id, $sermon->id, $prayer->id], $plan['metadata']['selected_section_ids']);
     }
 
@@ -443,7 +449,8 @@ class SermonExtractionPlanResolverTest extends TestCase
         $plan = $this->resolver->resolve($log->fresh());
 
         $this->assertSame('concat_spans', $plan['mode']);
-        $this->assertSame([[1348.6, 1519.0], [1735.7, 1958.8], [2182.6, 2448.5], [2454.1, 4310.4]],
+        // Job 31 runs 5.6 s before the sermon with nothing between: one stretch (amended D1).
+        $this->assertSame([[1348.6, 1519.0], [1735.7, 1958.8], [2182.6, 4310.4]],
             array_map(fn (array $span): array => [$span['start_time'], $span['end_time']], $plan['segments']));
         foreach ([$introduction, $song, $prayer] as $excluded) {
             $this->assertNotContains($excluded->id, $plan['metadata']['selected_section_ids']);
@@ -607,7 +614,7 @@ class SermonExtractionPlanResolverTest extends TestCase
         $log = $this->logWithSermon(500.0, 1200.0);
         $sermon = $log->serviceSections()->sole();
         $this->section($log, ServiceSectionType::Other, 3, 1100, 1400)->update(['metadata' => ['sermon_continuation' => ['of_section_id' => $sermon->id, 'evidence' => 'Same sermon continues', 'source' => 'review']]]);
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('overlapping');
         $this->resolver->resolve($log);
     }
@@ -687,7 +694,7 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->section($log, ServiceSectionType::Song, 3, 220, 250);
         $prayer = $this->section($log, ServiceSectionType::Prayer, 4, 260, 270);
         $composition = $this->resolver->compose($log);
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('before the post-sermon song');
         $this->resolver->reviewComposition($log, [$sermon->id, $prayer->id], $composition['input_identity'], 1);
     }
@@ -991,13 +998,95 @@ class SermonExtractionPlanResolverTest extends TestCase
         config(['media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60]);
 
         $log = $this->logWithSermon(630.0, 2100.0);
-        $prayer = $this->section($log, ServiceSectionType::Prayer, 3, 2110.0, 2260.0);
+        $prayer = $this->section($log, ServiceSectionType::Prayer, 3, 2120.0, 2260.0);
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertSame([['start_time' => 630.0, 'end_time' => 2100.0], ['start_time' => 2110.0, 'end_time' => 2260.0]], $plan['segments']);
+        $this->assertSame([['start_time' => 630.0, 'end_time' => 2100.0], ['start_time' => 2120.0, 'end_time' => 2260.0]], $plan['segments']);
         $this->assertSame([$prayer->id], $plan['metadata']['trailing_section_ids']);
 
+    }
+
+    /**
+     * Amended D1 (operator, 2026-10-11): the prayer directly before the sermon is part of its media,
+     * even with a song between the reading and the prayer (936); 1067's "Let's pray… speak into our
+     * minds" was cut out.
+     */
+    #[Test]
+    public function the_prayer_directly_before_the_sermon_is_cut_with_it(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create();
+        $this->reading($log, 1, 300.0, 600.0, reference: 'John 3:1-16');
+        $this->section($log, ServiceSectionType::Song, 2, 610.0, 800.0);
+        $prayer = $this->section($log, ServiceSectionType::Prayer, 3, 805.0, 900.0);
+        $this->sermon($log, 4, 930.0, 2100.0, 'John 3:1-16');
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertContains($prayer->id, $plan['metadata']['selected_section_ids']);
+        $this->assertSame([['start_time' => 300.0, 'end_time' => 600.0], ['start_time' => 805.0, 'end_time' => 900.0], ['start_time' => 930.0, 'end_time' => 2100.0]], $plan['segments']);
+    }
+
+    #[Test]
+    public function a_prayer_with_another_item_before_the_sermon_is_not_cut_with_it(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create();
+        $prayer = $this->section($log, ServiceSectionType::Prayer, 1, 805.0, 900.0);
+        $this->section($log, ServiceSectionType::Notices, 2, 900.0, 960.0);
+        $this->sermon($log, 3, 990.0, 2100.0);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertNotContains($prayer->id, $plan['metadata']['selected_section_ids']);
+    }
+
+    /** Amended D1: a gap between parts holding no other section, up to 15 s, plays straight through (992's 5.2 s jump). */
+    #[Test]
+    #[DataProvider('silentGaps')]
+    public function a_short_gap_holding_no_section_plays_straight_through(float $sermonStart, bool $between, array $expected): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create();
+        $this->reading($log, 1, 300.0, 600.0, reference: 'John 3:1-16');
+        if ($between) {
+            $this->section($log, ServiceSectionType::Other, 2, 601.0, 603.0);
+        }
+        $this->sermon($log, 3, $sermonStart, 2100.0, 'John 3:1-16');
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame($expected, $plan['segments']);
+    }
+
+    public static function silentGaps(): array
+    {
+        return [
+            '5 s of nothing' => [605.0, false, [['start_time' => 300.0, 'end_time' => 2100.0]]],
+            'exactly 15 s' => [615.0, false, [['start_time' => 300.0, 'end_time' => 2100.0]]],
+            '16 s is a cut' => [616.0, false, [['start_time' => 300.0, 'end_time' => 600.0], ['start_time' => 616.0, 'end_time' => 2100.0]]],
+            'a section in the gap is a cut' => [605.0, true, [['start_time' => 300.0, 'end_time' => 600.0], ['start_time' => 605.0, 'end_time' => 2100.0]]],
+        ];
+    }
+
+    /** 1136 and 1219: a section ending a fraction of a second past the recording failed the whole cut. */
+    #[Test]
+    public function a_section_ending_just_past_the_recording_is_cut_to_its_end(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 2100.0]);
+        $this->sermon($log, 1, 930.0, 2100.6);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame([['start_time' => 930.0, 'end_time' => 2100.0]], $plan['segments']);
+    }
+
+    #[Test]
+    public function a_section_ending_well_past_the_recording_is_refused(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 2100.0]);
+        $this->sermon($log, 1, 930.0, 2102.0);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->resolver->resolve($log);
     }
 
     #[Test]
@@ -1090,7 +1179,7 @@ class SermonExtractionPlanResolverTest extends TestCase
         config(['media-processing.section_extraction.enhanced_sermon.adjacent_gap_seconds' => 60]);
 
         $log = $this->logWithSermon(630.0, 2100.0);
-        $this->section($log, ServiceSectionType::Prayer, 3, 2110.0, 2160.0);
+        $this->section($log, ServiceSectionType::Prayer, 3, 2120.0, 2160.0);
         $this->section($log, ServiceSectionType::Other, 4, 2170.0, 2220.0);
         $this->section($log, ServiceSectionType::Song, 5, 2230.0, 2400.0);
 
@@ -1220,7 +1309,7 @@ class SermonExtractionPlanResolverTest extends TestCase
         ]);
 
         $log = $this->logWithSermon(630.0, 2100.0);
-        $this->section($log, ServiceSectionType::Prayer, 3, 2110.0, 2600.0);
+        $this->section($log, ServiceSectionType::Prayer, 3, 2120.0, 2600.0);
 
         $plan = $this->resolver->resolve($log);
 
