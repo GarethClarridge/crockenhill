@@ -396,7 +396,9 @@ class CueSafeExtractionPlan
         $endsMidPhrase = static fn (?array $line): bool => $line !== null && preg_match('/[.!?]["\x{2019}\x{201D}\')]*\s*$/u', $line['text']) !== 1;
 
         while (true) {
-            $next = array_values(array_filter($cues, static fn (array $cue): bool => $cue['start'] >= $through - 0.001
+            // A next line must carry the stretch on: a looped transcript's zero-length repeats at
+            // one instant held it still, and the edge job spun until it timed out (1077, 1023).
+            $next = array_values(array_filter($cues, static fn (array $cue): bool => $cue['start'] >= $through - 0.001 && $cue['end'] > $through + 0.001
                 && $cue['start'] <= $songStart + self::SONG_END_REACH && TranscriptCueEvidence::isEvidence($cue, $timeline)))[0] ?? null;
 
             if ($next === null) {

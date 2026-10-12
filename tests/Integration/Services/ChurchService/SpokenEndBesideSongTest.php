@@ -28,6 +28,26 @@ class SpokenEndBesideSongTest extends TestCase
 {
     use DatabaseTransactions;
 
+    /**
+     * 1077 and 1023: a looped transcript repeats a line as zero-length cues at one instant. The
+     * spoken stretch stopped advancing on them and the edge job spun until it timed out.
+     */
+    #[Test]
+    public function zero_length_cues_in_the_spoken_stretch_do_not_stop_it_advancing(): void
+    {
+        $repeat = ['start' => 1935.66, 'end' => 1935.66, 'text' => 'because you died for me,'];
+        $log = $this->service([
+            ['start' => 1919.78, 'end' => 1920.08, 'text' => 'Amen.'],
+            ['start' => 1934.42, 'end' => 1935.66, 'text' => 'Because you died for me,'],
+            $repeat, $repeat, $repeat,
+            ['start' => 1935.66, 'end' => 1938.26, 'text' => 'I will remember you, my Lord,'],
+        ], [['sermon', 0.0, 1920.08], ['song', 1921.4, 1942.7]], timeline: [[1900, 1940, 0.01, 0.8]]);
+
+        $through = app(CueSafeExtractionPlan::class)->spokenEndsBesideSongs($log, [['start_time' => 0.0, 'end_time' => 1920.08]]);
+
+        $this->assertSame([1938.26], $through, 'the stretch carries on past the repeats to the last line heard as speech');
+    }
+
     /** 1028: the edge falls inside "749"; the decode ends "49" early, so the cut keeps a tail. */
     #[Test]
     public function a_sermon_end_beside_a_song_keeps_a_tail_after_its_last_word(): void
