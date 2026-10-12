@@ -74,6 +74,38 @@ class LocalWhisperServiceTranscriptionServiceTest extends TestCase
         $this->assertDatabaseCount('media_processing_logs', 0);
     }
 
+    /**
+     * whisper.cpp now and then times one word backwards or before the window: run 1010's edge job
+     * failed outright on one. The word keeps its place, filling the gap its neighbours leave, so
+     * it opens no pause a cut could fall in.
+     */
+    #[Test]
+    public function edge_decode_fills_a_malformed_word_between_its_neighbours(): void
+    {
+        Http::fake(fn () => Http::response(['words' => [
+            ['start' => 1.0, 'end' => 1.4, 'word' => ' in'],
+            ['start' => 2.2, 'end' => 1.9, 'word' => ' Jesus'],
+            ['start' => 2.5, 'end' => 2.9, 'word' => ' name.'],
+            ['start' => -0.4, 'end' => 3.4, 'word' => ' Amen.'],
+        ]]));
+
+        $this->assertSame([
+            ['start' => 1.0, 'end' => 1.4, 'word' => ' in'],
+            ['start' => 1.4, 'end' => 2.5, 'word' => ' Jesus'],
+            ['start' => 2.5, 'end' => 2.9, 'word' => ' name.'],
+            ['start' => 2.9, 'end' => 2.9, 'word' => ' Amen.'],
+        ], $this->service->transcribeEdgeWindow($this->makeTempFile('audio')));
+    }
+
+    #[Test]
+    public function edge_decode_refuses_a_word_without_timings(): void
+    {
+        Http::fake(fn () => Http::response(['words' => [['start' => 1.0, 'word' => ' Amen']]]));
+
+        $this->expectException(TranscriptionException::class);
+        $this->service->transcribeEdgeWindow($this->makeTempFile('audio'));
+    }
+
     #[Test]
     public function edge_decode_accepts_no_words_and_segment_nested_words(): void
     {

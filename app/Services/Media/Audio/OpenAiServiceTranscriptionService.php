@@ -106,14 +106,10 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
             }
             $words = [];
             foreach ($response->words as $word) {
-                if (! is_finite($word->start) || ! is_finite($word->end)
-                    || $word->start < 0 || $word->end < $word->start) {
-                    throw new TranscriptionException('Invalid edge window word timestamps');
-                }
                 $words[] = ['start' => $word->start, 'end' => $word->end, 'word' => $word->word];
             }
 
-            return $words;
+            return EdgeWindowWords::refitted($words);
         } catch (Exception $exception) {
             throw new TranscriptionException('Edge transcription failed: '.$exception->getMessage(), previous: $exception);
         } finally {

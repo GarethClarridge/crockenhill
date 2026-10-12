@@ -131,13 +131,13 @@ class LocalWhisperServiceTranscriptionService implements ServiceTranscriptionInt
         $words = [];
         foreach ($rawWords as $word) {
             if (! is_array($word) || ! is_numeric($word['start'] ?? null) || ! is_numeric($word['end'] ?? null)
-                || ! is_string($word['word'] ?? null) || $word['end'] < $word['start'] || $word['start'] < 0) {
+                || ! is_string($word['word'] ?? null)) {
                 throw new TranscriptionException('Invalid edge window word timestamps');
             }
             $words[] = ['start' => (float) $word['start'], 'end' => (float) $word['end'], 'word' => $word['word']];
         }
 
-        return $words;
+        return EdgeWindowWords::refitted($words);
     }
 
     private function artifacts(): ServiceArtifactStorage
