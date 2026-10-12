@@ -1663,8 +1663,53 @@ class CueSafeExtractionPlan
      */
     private function wordPause(array $words, array $window, float $original, string $edge): array
     {
-        return $this->cueBoundaryPause($words, $window, $original, $edge)
+        $decision = $this->cueBoundaryPause($words, $window, $original, $edge)
             ?? (isset($window['between']) ? $this->nearestPause($words, $window, $original, $edge) : $this->pause($words, $window, $original, $edge));
+
+        return $edge === 'end' && ! isset($decision['candidate_anchors']) ? $this->atSentenceEnd($words, $window, $original, $decision) : $decision;
+    }
+
+    /**
+     * An end the pause rule moved into the middle of a sentence stops instead at the sentence end
+     * it passed, the one nearest where detection put it. The largest pause moved full-pass endings
+     * inward past a closing "did?" ("Adoniram Judson | did?") or "shall we?" ("as | God's people"),
+     * ruled "sentence cut off" (operator listening, 2026-10-12). A cut before every word of the
+     * window drops them on purpose ("Thank you."), and an end is never carried past where either
+     * detection or the pause put it: a later sentence end may be the next speaker's.
+     *
+     * @param  list<array{start: float, end: float, word: string}>  $words
+     * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>}  $window
+     * @param  array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, candidate_anchors?: list<array{start: float, end: float, word: string}>}  $decision
+     * @return array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, candidate_anchors?: list<array{start: float, end: float, word: string}>}
+     */
+    private function atSentenceEnd(array $words, array $window, float $original, array $decision): array
+    {
+        $before = $decision['word_before'];
+
+        if ($before === null || $this->endsSentence($before['word'])) {
+            return $decision;
+        }
+
+        [$from, $to] = [min($original, $decision['time']) - self::CUE_BOUNDARY_TOLERANCE, max($original, $decision['time']) + self::CUE_BOUNDARY_TOLERANCE];
+        // The word detection's end falls inside is the output's to finish (1335's "did?" decoded past it).
+        foreach ($words as $word) {
+            if ($word['start'] < $original && $word['end'] > $original) {
+                $to = max($to, $word['end'] + self::CUE_BOUNDARY_TOLERANCE);
+            }
+        }
+        $distance = static fn (array $pause): float => abs(max($pause['start'], min($original, $pause['end'])) - $original);
+        $sentenceEnds = array_values(array_filter($this->pauses($words, $window), fn (array $pause): bool => $pause['word_before'] !== null
+            && $this->endsSentence($pause['word_before']['word']) && $pause['start'] >= $from && $pause['start'] <= $to));
+        usort($sentenceEnds, static fn (array $a, array $b): int => $distance($a) <=> $distance($b));
+        $pause = $sentenceEnds[0] ?? null;
+
+        if ($pause === null) {
+            return $decision;
+        }
+
+        // At the sentence's last word; the spoken-end tail then gives it room.
+        return ['time' => $pause['start'], 'chosen_pause' => ['start' => $pause['start'], 'end' => $pause['end']],
+            'word_before' => $pause['word_before'], 'word_after' => $pause['word_after']];
     }
 
     private function endsSentence(string $text): bool

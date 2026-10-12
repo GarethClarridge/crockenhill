@@ -449,6 +449,54 @@ class WordTimedOutputEdgesTest extends TestCase
         ];
     }
 
+    /**
+     * The largest pause sat mid-sentence, inward of a closing "did?" or "shall we?": both cuts were
+     * ruled "sentence cut off" (full pass, 2026-10-12). The end stops at the sentence end passed.
+     */
+    #[Test]
+    #[DataProvider('midSentenceEnds')]
+    public function an_end_moved_into_a_sentence_stops_at_the_sentence_end_it_passed(array $cue, array $words, float $expected): void
+    {
+        $log = $this->logWithCues([$cue]);
+        $this->bankWindow($log, $cue['end'], $words);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 10.0, 'end_time' => $cue['end']]]);
+
+        $this->assertEqualsWithDelta($expected, $plan['segments'][0]['end_time'], 0.001);
+    }
+
+    public static function midSentenceEnds(): array
+    {
+        return [
+            '1335 did? decoded past the detected end' => [['start' => 841.64, 'end' => 844.36, 'text' => 'in the way that Adoniram Judson did?'], [
+                ['start' => 840.5, 'end' => 841.3, 'word' => ' whatever'],
+                ['start' => 841.3, 'end' => 841.6, 'word' => ' consequences,'],
+                ['start' => 841.64, 'end' => 841.8, 'word' => ' in'],
+                ['start' => 841.8, 'end' => 841.9, 'word' => ' the'],
+                ['start' => 841.9, 'end' => 842.1, 'word' => ' way'],
+                ['start' => 842.1, 'end' => 842.26, 'word' => ' that'],
+                ['start' => 842.78, 'end' => 843.4, 'word' => ' Adonai'],
+                ['start' => 843.4, 'end' => 843.6, 'word' => ' and'],
+                ['start' => 843.6, 'end' => 844.1, 'word' => ' Judson'],
+                ['start' => 844.1, 'end' => 845.06, 'word' => ' did?'],
+            ], 845.21],
+            '948 shall we? before the next line' => [['start' => 848.72, 'end' => 853.85, 'text' => "together as God's people. So let's stand, shall we? And we"], [
+                ['start' => 847.7, 'end' => 848.7, 'word' => ' about'],
+                ['start' => 848.72, 'end' => 849.3, 'word' => ' together'],
+                ['start' => 849.3, 'end' => 849.6, 'word' => ' as'],
+                ['start' => 849.96, 'end' => 850.3, 'word' => " God's"],
+                ['start' => 850.3, 'end' => 850.8, 'word' => ' people.'],
+                ['start' => 850.85, 'end' => 851.0, 'word' => ' So'],
+                ['start' => 851.0, 'end' => 851.3, 'word' => " let's"],
+                ['start' => 851.3, 'end' => 851.7, 'word' => ' stand,'],
+                ['start' => 851.75, 'end' => 852.0, 'word' => ' shall'],
+                ['start' => 852.0, 'end' => 852.3, 'word' => ' we?'],
+                ['start' => 852.6, 'end' => 854.1, 'word' => " We'll"],
+                ['start' => 854.1, 'end' => 854.8, 'word' => ' sing'],
+            ], 852.45],
+        ];
+    }
+
     #[Test]
     public function absent_cache_blocks_instead_of_using_whole_cues(): void
     {
