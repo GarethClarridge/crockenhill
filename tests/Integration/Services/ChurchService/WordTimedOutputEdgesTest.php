@@ -71,7 +71,7 @@ class WordTimedOutputEdgesTest extends TestCase
             '1148 thank you stretched over music tail' => ['end', 100.3, ['start' => 100.0, 'end' => 130.0, 'text' => 'Thank you.'], [
                 ['start' => 100.0, 'end' => 100.2, 'word' => 'Thank'],
                 ['start' => 100.2, 'end' => 100.5, 'word' => 'you.'],
-            ], 100.5],
+            ], 100.8],
             // whisper.cpp marks a new word with a leading space; "ibles" continues " B".
             '1208 sub-word gap inside Bibles is not a pause' => ['start', 1400.2, ['start' => 1399.0, 'end' => 1401.0, 'text' => 'turn your Bibles, to'], [
                 ['start' => 1398.0, 'end' => 1398.9, 'word' => ' Well'],
@@ -96,7 +96,7 @@ class WordTimedOutputEdgesTest extends TestCase
                 ['start' => 2446.42, 'end' => 2446.5, 'word' => ' up'],
                 ['start' => 2446.52, 'end' => 2446.6, 'word' => ' his'],
                 ['start' => 2446.62, 'end' => 2447.3, 'word' => ' spirit.'],
-            ], 2447.3],
+            ], 2447.6],
             // Whisper times "During" before the cue starts; the cue still opens with it.
             '964 sermon start keeps its first word' => ['start', 2069.1, ['start' => 2069.1, 'end' => 2075.23, 'text' => 'During the feast of tabernacles, one of the Jewish feasts,'], [
                 ['start' => 2068.25, 'end' => 2068.98, 'word' => ' During'],
@@ -136,7 +136,7 @@ class WordTimedOutputEdgesTest extends TestCase
                 ['start' => 19.35, 'end' => 19.9, 'word' => ' spirit'],
                 ['start' => 19.7, 'end' => 20.4, 'word' => ' and'],
                 ['start' => 20.5, 'end' => 20.8, 'word' => ' then'],
-            ], 20.4],
+            ], 20.45],
             '1267 sorry stretched over music tail' => ['start', 129.9, ['start' => 100.0, 'end' => 130.0, 'text' => "I'm sorry."], [
                 ['start' => 100.0, 'end' => 100.2, 'word' => "I'm"],
                 ['start' => 100.2, 'end' => 100.5, 'word' => 'sorry.'],
@@ -406,6 +406,47 @@ class WordTimedOutputEdgesTest extends TestCase
         $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 1290.0, 'end_time' => 1505.0]]);
 
         $this->assertGreaterThanOrEqual(1505.99, $plan['segments'][0]['end_time']);
+    }
+
+    /**
+     * Decoded word ends run early: 21 of the full pass's 22 endings ruled "word clipped" cut
+     * within 0.1 s of the last word's decoded end ("Amen." in 975, 1160, 1298…), while every
+     * ending left 0.2–0.5 s of tail was ruled right (operator, 2026-10-12).
+     */
+    #[Test]
+    #[DataProvider('spokenEndTails')]
+    public function a_spoken_end_leaves_tail_room_after_its_last_word(array $cue, array $words, float $expected): void
+    {
+        $log = $this->logWithCues([$cue]);
+        $this->bankWindow($log, $cue['end'], $words);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 10.0, 'end_time' => $cue['end']]]);
+
+        $this->assertEqualsWithDelta($expected, $plan['segments'][0]['end_time'], 0.001);
+        $this->assertEqualsWithDelta($expected, $plan['cue_edge_widening'][0]['time'], 0.001);
+    }
+
+    public static function spokenEndTails(): array
+    {
+        return [
+            '975 Amen decoded just past its cue' => [['start' => 3193.9, 'end' => 3194.64, 'text' => 'Amen.'], [
+                ['start' => 3193.94, 'end' => 3194.66, 'word' => ' Amen.'],
+            ], 3194.96],
+            '1298 Amen decoded just inside its cue' => [['start' => 3539.9, 'end' => 3541.98, 'text' => "In Jesus' name. Amen."], [
+                ['start' => 3538.9, 'end' => 3540.2, 'word' => ' In'],
+                ['start' => 3540.2, 'end' => 3540.8, 'word' => " Jesus'"],
+                ['start' => 3540.8, 'end' => 3541.3, 'word' => ' name.'],
+                ['start' => 3541.5, 'end' => 3541.96, 'word' => ' Amen.'],
+            ], 3542.26],
+            '1124 the next word halves the tail' => [['start' => 608.5, 'end' => 611.04, 'text' => 'you step down into darkness.'], [
+                ['start' => 607.5, 'end' => 608.5, 'word' => ' you'],
+                ['start' => 608.5, 'end' => 609.0, 'word' => ' step'],
+                ['start' => 609.0, 'end' => 609.5, 'word' => ' down'],
+                ['start' => 609.5, 'end' => 610.2, 'word' => ' into'],
+                ['start' => 610.2, 'end' => 611.06, 'word' => ' darkness.'],
+                ['start' => 611.24, 'end' => 611.6, 'word' => " Let's"],
+            ], 611.15],
+        ];
     }
 
     #[Test]

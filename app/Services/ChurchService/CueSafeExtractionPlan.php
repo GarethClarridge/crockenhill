@@ -60,6 +60,13 @@ class CueSafeExtractionPlan
     private const SONG_END_SILENCE_TAIL = 0.3;
 
     /**
+     * Seconds a spoken end keeps after its last word's decoded end. Decoded word ends run early:
+     * 21 of the full pass's 22 endings ruled "word clipped" cut within 0.1 s of it, while no
+     * ending with 0.2–0.5 s of tail was (operator listening, 2026-10-12).
+     */
+    private const SPOKEN_END_TAIL = 0.3;
+
+    /**
      * The shortest and longest fade of a song's sound into the speech after it (operator,
      * 2026-10-07): the fade spans the gap from the last sung sound, within these bounds, and ends
      * at the cut. A longer outro plays on until its last seconds.
@@ -239,6 +246,10 @@ class CueSafeExtractionPlan
                             [$decision, $sentenceCheck] = $this->sentenceChecked($log, $cues, $words, $window, $original, $edge, $decision);
                             $reason = $sentenceCheck['moved'] ?? false ? 'sentence_check' : $reason;
                         }
+                        // After the sentence check, whose banked answers are bound to the cut it was asked about.
+                        if ($edge === 'end') {
+                            $decision = $this->withSpokenEndTail($decision);
+                        }
                         $span[$key] = $decision['time'];
                         $audit[] = ['span_index' => $index, 'edge' => $edge, 'original_time' => $extendedFrom ?? $original,
                             'time' => $decision['time'], 'seconds_added' => abs($decision['time'] - ($extendedFrom ?? $original)),
@@ -413,6 +424,28 @@ class CueSafeExtractionPlan
         }
 
         return [...$decision, 'time' => $pause['start'] + min(self::SONG_END_SILENCE_TAIL, ($pause['end'] - $pause['start']) / 2)];
+    }
+
+    /**
+     * A spoken end at least {@see self::SPOKEN_END_TAIL} past its last word's decoded end, never
+     * past the middle of the pause after it: the word sounds on after its decoded end.
+     *
+     * @param  array<string, mixed>  $decision
+     * @return array<string, mixed>
+     */
+    private function withSpokenEndTail(array $decision): array
+    {
+        $pause = $decision['chosen_pause'] ?? null;
+        $word = $decision['word_before'] ?? null;
+
+        if (! is_array($pause) || ! is_array($word)) {
+            return $decision;
+        }
+
+        $from = max((float) $word['end'], (float) $pause['start']);
+        $tail = min(self::SPOKEN_END_TAIL, max(0.0, ((float) $pause['end'] - $from) / 2));
+
+        return [...$decision, 'time' => max((float) $decision['time'], $from + $tail)];
     }
 
     /**
