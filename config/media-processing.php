@@ -280,7 +280,9 @@ return [
     // Bump when cutting or enhancement behaviour changes. Older assets must be regenerated.
     // 7: per-part speech/music treatment in the cut, public MP3 from the same sound (§6.3).
     // 8: music is given a plain gain where loudnorm cannot land its target (SectionAudioTreatment::plainGain).
-    'media_processing_version' => 8,
+    // 9: full-pass fixes (2026-10-12): spoken-end tail, sentence-end stop, smeared starts, starts after a
+    //    song's sound, amended D1 (prayer before the sermon, silent gaps play through), audio holes kept.
+    'media_processing_version' => 9,
 
     'video_extraction' => [
         'reencode_crf' => (int) env('VIDEO_EXTRACTION_REENCODE_CRF', 23),
