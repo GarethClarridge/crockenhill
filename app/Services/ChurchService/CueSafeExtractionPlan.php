@@ -66,6 +66,9 @@ class CueSafeExtractionPlan
      */
     private const SPOKEN_END_TAIL = 0.3;
 
+    /** Seconds before a spoken part's start within which a song's end runs straight into it. */
+    private const SONG_BEFORE_REACH = 2.0;
+
     /**
      * The shortest and longest fade of a song's sound into the speech after it (operator,
      * 2026-10-07): the fade spans the gap from the last sung sound, within these bounds, and ends
@@ -290,6 +293,9 @@ class CueSafeExtractionPlan
             }
         }
         unset($span);
+        if (! $songEnds) {
+            $spans = $this->afterSongSound($log, $cues, $sectionSpans, $spans, $audit);
+        }
         $audit = $this->withAnswerIdentity($log, $sectionSpans, $songEnds, $sermonEnd, $cues, $levels, $timeline, $audit);
         $spans = $this->withAnsweredEdges($log, $spans, $audit);
         $spans = $this->withUnresolvedIntervals($log, $sectionSpans, $spans, $audit);
@@ -449,6 +455,56 @@ class CueSafeExtractionPlan
         $tail = min(self::SPOKEN_END_TAIL, max(0.0, ((float) $pause['end'] - $from) / 2));
 
         return [...$decision, 'time' => max((float) $decision['time'], $from + $tail)];
+    }
+
+    /**
+     * A spoken part starting as a song ends starts no earlier than the song's sound does, where the
+     * song's own end rule found it stopping in silence or at speech: what plays before that is the
+     * song's outro. 1335's sermon opened on 12 s of "Rock of Ages" and 1229's on "Creator God"'s
+     * outro, both joined straight from the reading (operator listening, 2026-10-11).
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  list<array{start_time: float, end_time: float}>  $sectionSpans  The spans as detection gave them
+     * @param  list<array{start_time: float, end_time: float}>  $spans  The spans as placed
+     * @param  list<array<string, mixed>>  $audit
+     * @return list<array{start_time: float, end_time: float}>
+     */
+    private function afterSongSound(MediaProcessingLog $log, array $cues, array $sectionSpans, array $spans, array &$audit): array
+    {
+        foreach ($sectionSpans as $index => $sectionSpan) {
+            $original = (float) $sectionSpan['start_time'];
+            $song = $log->serviceSections()->where('section_type', ServiceSectionType::Song->value)
+                ->whereBetween('end_time', [$original - self::SONG_BEFORE_REACH, $original + self::CUE_BOUNDARY_TOLERANCE])
+                ->where('start_time', '<', $original)->orderByDesc('end_time')->first();
+
+            if ($song === null) {
+                continue;
+            }
+
+            $songEnd = (float) $song->end_time;
+            $window = app(OutputEdgeWordTimings::class)->window($cues, $songEnd, $log->duration);
+            $decision = $this->songEnd($log, $cues, $window, $songEnd, $this->levels($log), $this->timeline($log));
+
+            if (! in_array($decision['reason'] ?? null, ['song_end_silence', 'song_end_speech'], true)
+                || $decision['time'] <= $spans[$index]['start_time'] + self::CUE_BOUNDARY_TOLERANCE
+                || $decision['time'] >= $spans[$index]['end_time']) {
+                continue;
+            }
+
+            $placed = $spans[$index]['start_time'];
+            $spans[$index]['start_time'] = (float) $decision['time'];
+            $entry = array_key_first(array_filter($audit, static fn (array $entry): bool => $entry['span_index'] === $index && $entry['edge'] === 'start'));
+            $moved = ['time' => (float) $decision['time'], 'seconds_moved' => (float) $decision['time'] - $original,
+                'seconds_added' => abs((float) $decision['time'] - $original), 'after_song_sound' => ['section_id' => $song->id, 'reason' => $decision['reason'], 'placed_time' => $placed]];
+            if ($entry === null) {
+                $audit[] = ['span_index' => $index, 'edge' => 'start', 'original_time' => $original, 'window' => $window, 'cue' => null, 'cues' => [],
+                    'chosen_pause' => null, 'word_before' => null, 'word_after' => null, 'reason' => 'after_song_sound', 'text_disagreement' => false, ...$moved];
+            } else {
+                $audit[$entry] = [...$audit[$entry], ...$moved];
+            }
+        }
+
+        return $spans;
     }
 
     /**

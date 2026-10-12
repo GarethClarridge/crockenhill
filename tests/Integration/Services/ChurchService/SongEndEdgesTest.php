@@ -97,6 +97,33 @@ class SongEndEdgesTest extends TestCase
     }
 
     /**
+     * 1335's sermon opened on 12 s of "Rock of Ages" outro: a spoken part starting where a song's
+     * section ends starts no earlier than the song's sound stops (operator listening, 2026-10-11).
+     */
+    #[Test]
+    public function a_spoken_part_after_a_song_starts_once_the_songs_sound_stops(): void
+    {
+        $last = ['start' => 1928.14, 'end' => 1932.52, 'text' => 'all His love to die for me.'];
+        $hallucinated = ['start' => 1935.80, 'end' => 1965.78, 'text' => 'Thank you.'];
+        $song = $this->song(1753.4, 1932.52, [$last, $hallucinated], [[1750, 1937.5, self::LOUD], [1937.5, 1970, self::SILENT]]);
+        $this->bank($song, 1932.52, [
+            ['start' => 1930.46, 'end' => 1931.06, 'word' => ' to'],
+            ['start' => 1931.06, 'end' => 1931.97, 'word' => ' die'],
+            ['start' => 1931.97, 'end' => 1932.88, 'word' => ' for'],
+            ['start' => 1932.88, 'end' => 1933.51, 'word' => ' me?'],
+        ]);
+        $talk = ServiceSection::factory()->create(['media_processing_log_id' => $song->media_processing_log_id,
+            'section_type' => ServiceSectionType::ShortTalk, 'start_time' => 1932.52, 'end_time' => 2100.0]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($talk->fresh());
+
+        $this->assertGreaterThanOrEqual(1937.5, $plan['segments'][0]['start_time']);
+        $this->assertLessThanOrEqual(1938.5, $plan['segments'][0]['start_time']);
+        $start = collect($plan['cue_edge_widening'])->first(static fn (array $entry): bool => $entry['edge'] === 'start');
+        $this->assertSame($song->id, $start['after_song_sound']['section_id']);
+    }
+
+    /**
      * 1250 §3131: the largest pause near the old edge came before the last line ("in the name of
      * my Lord"), so the cut dropped it. A song end never cuts back into its own singing.
      */
