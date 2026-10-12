@@ -26,7 +26,10 @@ class SectionAudioTreatment
      */
     public function partFilter(float $duration, AudioTreatmentSettings $settings, PartLoudness $loudness): string
     {
-        $filters = [$this->trim($duration)];
+        // A hole in the source's audio stays a silence of its length: the timestamps are rebuilt
+        // from the samples below, so a hole left unfilled pulls the rest ahead of the picture
+        // (973's Matroska lost 0.116 s; the timing check refused the cut).
+        $filters = [$this->trim($duration), 'aresample=async=1:min_hard_comp=0.01:first_pts=0'];
 
         $measured = $loudness->measured;
 

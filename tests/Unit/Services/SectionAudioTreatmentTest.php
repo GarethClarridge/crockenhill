@@ -159,6 +159,19 @@ class SectionAudioTreatmentTest extends TestCase
         $this->assertSame(2, $this->probe($video)['channels']);
     }
 
+    /**
+     * 973's Matroska source lost 0.116 s of audio samples 0.4 s into a talk. Treatment rebuilt
+     * the timestamps from the samples, closing the hole and pulling the rest of the talk 0.12 s
+     * ahead of its picture: the timing check refused the cut. The hole is kept as silence.
+     */
+    #[Test]
+    public function a_hole_in_the_source_audio_stays_a_silence_of_its_length(): void
+    {
+        $media = $this->service->extractMedia($this->recordingWithAudioHole(), [['start_time' => 4.6, 'end_time' => 20.0]], AudioProfile::Speech);
+
+        $this->assertEqualsWithDelta(15.4, $this->duration(Storage::disk('local')->path($media->videoPath)), 0.05);
+    }
+
     #[Test]
     public function an_untreated_cut_leaves_the_sound_as_recorded(): void
     {
@@ -352,6 +365,32 @@ class SectionAudioTreatmentTest extends TestCase
      * A shared 46 s recording: different speech-like sounds left and right so a
      * music cut can show it kept both channels.
      */
+    /** Speech-like sound with 0.12 s of samples missing at 5 s, their timestamps kept, as Matroska stores them. */
+    private function recordingWithAudioHole(): string
+    {
+        $path = "{$this->sourceDirectory}/audio-hole.mkv";
+
+        if (is_file($path)) {
+            return $path;
+        }
+
+        $partial = $path.'.part-'.getmypid().'.mkv';
+
+        (new Process([
+            '/usr/bin/ffmpeg', '-v', 'error', '-y',
+            '-f', 'lavfi', '-i', 'color=black:size=160x120:rate=25:duration=25',
+            '-f', 'lavfi', '-i', 'aevalsrc=0.05*(0.55+0.45*sin(2*PI*3.3*t))*sin(2*PI*220*t):s=48000:d=25',
+            '-af', "aselect='not(between(t\\,5\\,5.12))'",
+            '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-g', '25',
+            '-c:a', 'aac', '-b:a', '128k',
+            $partial,
+        ]))->setTimeout(180)->mustRun();
+
+        rename($partial, $path);
+
+        return $path;
+    }
+
     private function recording(): string
     {
         $path = "{$this->sourceDirectory}/reading-knock-and-sermon.mp4";
