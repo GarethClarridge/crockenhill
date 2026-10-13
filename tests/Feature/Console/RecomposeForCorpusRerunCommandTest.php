@@ -201,6 +201,31 @@ class RecomposeForCorpusRerunCommandTest extends TestCase
             ->assertSuccessful();
     }
 
+    /**
+     * Full pass: 37 runs whose extraction parked them for their content-held sermon. The next round
+     * recomposes and extracts them again, which decodes current edges and parks them at the held
+     * sermon once more; `sermons:re-extract --held-section` then cuts them, and the hold stays.
+     */
+    #[Test]
+    public function a_run_a_round_parked_for_its_held_sermon_can_be_recomposed(): void
+    {
+        $run = $this->parkedForCompositionReview(byARound: true, reason: 'sermon_section_content_held');
+
+        $this->artisan('historic-import:rerun-recompose', ['snapshot' => $this->snapshotPath(), 'runs' => [$run->id]])
+            ->expectsOutputToContain('ready to recompose banked draws attempt-1')
+            ->assertSuccessful();
+    }
+
+    #[Test]
+    public function a_run_routine_processing_parked_for_its_held_sermon_is_refused(): void
+    {
+        $run = $this->parkedForCompositionReview(byARound: false, reason: 'sermon_section_content_held');
+
+        $this->artisan('historic-import:rerun-recompose', ['snapshot' => $this->snapshotPath(), 'runs' => [$run->id]])
+            ->expectsOutputToContain('run is failed, not completed')
+            ->assertSuccessful();
+    }
+
     /** With nothing left to answer, a failed validation is a wrong structure, not a pending one. */
     #[Test]
     public function a_run_a_round_failed_on_validation_with_no_open_questions_is_refused(): void

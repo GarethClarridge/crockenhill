@@ -27,8 +27,9 @@ use App\Support\RepositoryCommit;
  * - the run is completed and not excluded (the eligible membership). Failed runs a round caused
  *   are let back in: one parked because its detection left a content hold with nowhere to land
  *   (canary 4, 1304 §3872), once the operator has released every hold it named; one held for
- *   ensemble or composition review; and one failed because fewer than two draws validated
- *   (canary 15, 967 and 1005), which a new round draws again;
+ *   ensemble or composition review, or parked for its content-held sermon; and one failed
+ *   because fewer than two draws validated (canary 15, 967 and 1005), which a new round draws
+ *   again;
  * - the run has a readable audio timeline, which detection refuses to run without;
  * - the run has not changed since the snapshot, so the diff reads the re-run's change alone.
  *   A finished transcription round dispatched against this snapshot may have changed the text
@@ -198,8 +199,10 @@ final class CorpusRerunGuard
      * A run a corpus re-run round held for a question the next round re-derives: the ensemble's
      * questions (canary 10 re-ran canary 9's held runs; the earlier bundles stay banked, so the
      * questions survive) or the sermon's composition (run 1250, parked by canary 11's extraction;
-     * composition is recomputed under current rules, and a risk that remains parks it again). A
-     * hold from routine processing is not the round's to override.
+     * composition is recomputed under current rules, and a risk that remains parks it again), or its
+     * content-held sermon (the full pass parked 37: a new round decodes the edges and parks it at the
+     * held sermon again, and `sermons:re-extract --held-section` cuts it with the hold kept). A hold
+     * from routine processing is not the round's to override.
      */
     private function heldForEnsembleReviewByARound(MediaProcessingLog $run): bool
     {
@@ -210,7 +213,7 @@ final class CorpusRerunGuard
         $metadata = $run->processing_metadata?->toArray() ?? [];
         $reason = data_get($metadata, 'manual_review.reason_code');
 
-        return in_array($reason, ['service_structure_ensemble_review', 'sermon_composition_review'], true)
+        return in_array($reason, ['service_structure_ensemble_review', 'sermon_composition_review', 'sermon_section_content_held'], true)
             || ($reason === 'llm_structure_validation_failed' && $this->failedWithQuestionsOpen($metadata));
     }
 
