@@ -249,7 +249,7 @@ foreach ([0 => 1 / 30, 1 => 1024 / 48000] as $stream => $step) {
         $packets[] = ['stream_index' => $stream, 'pts_time' => (string) $time, 'duration_time' => (string) min($step, $duration - $time)];
     }
 }
-if (PROBE_LOG !== null) { file_put_contents(PROBE_LOG, $path."\n", FILE_APPEND); }
+if (PROBE_LOG !== null) { file_put_contents(PROBE_LOG, $path.'|'.(in_array('-show_packets', $argv, true) ? (in_array('-read_intervals', $argv, true) ? 'windowed' : 'whole') : 'header')."\n", FILE_APPEND); }
 echo json_encode(['format' => ['start_time' => '0', 'duration' => (string) $duration], 'streams' => [
     ['index' => 0, 'codec_type' => 'video', 'avg_frame_rate' => '30/1'],
     ['index' => 1, 'codec_type' => 'audio', 'sample_rate' => '48000'],
@@ -533,7 +533,7 @@ PHP;
     }
 
     #[Test]
-    public function repeated_extractions_probe_each_source_once(): void
+    public function repeated_extractions_never_scan_the_whole_source(): void
     {
         $probeLog = storage_path('framework/testing/ffprobe-calls.log');
         @unlink($probeLog);
@@ -549,10 +549,15 @@ PHP;
             );
         }
 
-        $calls = collect(file($probeLog, FILE_IGNORE_NEW_LINES) ?: [])
-            ->filter(fn (string $call): bool => $call === $source)->count();
-        $this->assertSame(1, $calls, 'The full source timing scan is shared across selected clips.');
-
+        $reads = collect(file($probeLog, FILE_IGNORE_NEW_LINES) ?: [])
+            ->filter(fn (string $call): bool => str_starts_with($call, $source.'|'))
+            ->map(fn (string $call): string => substr($call, strlen($source) + 1))
+            ->countBy();
+        // A service recording is 3-12 GB: its length comes from the header, read once, and its
+        // frames only around each clip's edges.
+        $this->assertSame(1, $reads['header'] ?? 0);
+        $this->assertSame(0, $reads['whole'] ?? 0);
+        $this->assertGreaterThanOrEqual(3, $reads['windowed'] ?? 0);
     }
 
     #[Test]
