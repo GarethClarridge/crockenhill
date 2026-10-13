@@ -112,6 +112,21 @@ class SilenceSnapService
     }
 
     /**
+     * Whether two of a merged group's sermon parts name passages that do not agree: a John 19 part
+     * and a Romans 8 part may be two sermons with a reading between (Codex review, 2026-10-07).
+     * A part naming none contradicts nothing.
+     *
+     * @param  list<ServiceStructureSection>  $group
+     */
+    private function partsNameDifferentPassages(array $group): bool
+    {
+        $scripture = app(ScriptureReferenceResolver::class);
+        $passages = array_values(array_filter(array_map(static fn (ServiceStructureSection $part): ?string => $part->type === ServiceSectionType::Sermon ? $part->sermonReference : null, $group)));
+
+        return ! array_all($passages, static fn (string $passage): bool => $scripture->referencesAgree($passages[0], $passage));
+    }
+
+    /**
      * Why a reading the merge absorbed is part of the sermon, or null when nothing shows it is
      * (run 949, operator 2026-10-07: "if the first reading is included then the second must
      * be"). Either its passage lies within the one preached (1250's preacher re-reading Job
@@ -317,7 +332,9 @@ class SilenceSnapService
 
         $occurrences = [];
         $unsettled = false;
-        $preached = $this->continuousPassage(array_slice($sections, $first, $last - $first + 1));
+        $group = array_slice($sections, $first, $last - $first + 1);
+        $preached = $this->continuousPassage($group);
+        $partsDisagree = $this->partsNameDifferentPassages($group);
 
         for ($index = $first + 1; $index <= $last; $index++) {
             $item = $sections[$index];
@@ -325,6 +342,12 @@ class SilenceSnapService
             if (in_array($item->type->value, self::SERMON_INTERRUPTION_TYPES, true)) {
                 $occurrences[] = self::interruptionNote($item->type->value, $item->startTime, $item->endTime);
                 $evidence = $preached !== null ? $this->settledByEvidence($item, $start, $preached, $transcript) : null;
+                // Operator ruling 2026-10-13 (pattern C: 953, 1110, 1159): a reading the sermon stops
+                // for and resumes after is its own. Only parts preaching different passages, which
+                // may be two sermons (Codex review, 2026-10-07), or a prayer keep the merge a question.
+                $evidence ??= $item->type === ServiceSectionType::BibleReading && ! $partsDisagree
+                    ? 'the sermon stops for it and resumes, operator ruling 2026-10-13'
+                    : null;
 
                 if ($evidence !== null) {
                     $occurrences[] = self::settledByEvidenceNote($item->type->value, $item->startTime, $item->endTime, $evidence);

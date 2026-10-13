@@ -130,7 +130,8 @@ class SilenceSnapServiceTest extends TestCase
         $this->assertCount(1, $sermons);
         $this->assertSame(1896.0, $sermons[0]->startTime);
         $this->assertSame(3055.0, $sermons[0]->endTime);
-        $this->assertContains(
+        // Operator ruling 2026-10-13 (pattern C): a reading the sermon stops for and resumes after is its own.
+        $this->assertNotContains(
             ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED,
             $sermons[0]->reviewFlags,
         );
@@ -184,18 +185,22 @@ class SilenceSnapServiceTest extends TestCase
         }
     }
 
-    /** Only the readings the evidence ties to the sermon are settled: an unnamed one is still asked. */
+    /**
+     * A reading the sermon does not introduce is still its own (operator ruling 2026-10-13,
+     * pattern C): the introduced one is settled by the evidence, the other by the ruling.
+     */
     #[Test]
-    public function a_reading_the_sermon_does_not_introduce_keeps_the_merge_in_question(): void
+    public function a_reading_the_sermon_does_not_introduce_is_settled_by_the_ruling(): void
     {
         $cues = array_values(array_filter($this->embeddedReadingsTranscript()->cues, static fn (array $cue): bool => ! str_contains($cue['text'], 'Numbers 21')));
         $merged = $this->service->snap($this->embeddedReadings(), $this->rmsLog([[0.0, -20.0], [5000.0, -20.0]]),
             ChurchServiceTranscript::fromCues($cues, 5000, ChurchServiceTranscript::SOURCE_MOCK))->sections[0];
 
-        $this->assertContains(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $merged->reviewFlags);
+        $this->assertNotContains(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $merged->reviewFlags);
         [$hebrews, $numbers] = SilenceSnapService::mergedInterruptions($merged->notes);
         $this->assertTrue(SilenceSnapService::isSettled($hebrews, $merged->notes));
-        $this->assertFalse(SilenceSnapService::isSettled($numbers, $merged->notes));
+        $this->assertTrue(SilenceSnapService::isSettled($numbers, $merged->notes));
+        $this->assertNotEmpty(array_filter($merged->notes, static fn (string $note): bool => str_contains($note, 'operator ruling 2026-10-13')));
     }
 
     /**
@@ -217,11 +222,12 @@ class SilenceSnapServiceTest extends TestCase
     }
 
     /**
-     * What stays a question: a prayer between two sermon parts, a reading with no reference, and
-     * a passage named only before the sermon began (the leader's, not the preacher's).
+     * A prayer between two sermon parts stays a question: the ruling covers the sermon's reading.
+     * An unreferenced reading, or one named only before the sermon began, is the sermon's own
+     * (operator ruling 2026-10-13, pattern C), where the parts preach one passage.
      */
     #[Test]
-    public function interruptions_without_evidence_tying_them_to_the_sermon_stay_in_question(): void
+    public function a_prayer_between_sermon_parts_stays_in_question_and_readings_do_not(): void
     {
         $rms = $this->rmsLog([[0.0, -20.0], [5000.0, -20.0]]);
         $prayer = $this->service->snap(ServiceStructure::fromSections([
@@ -241,18 +247,19 @@ class SilenceSnapServiceTest extends TestCase
             $this->section('sermon', 1105.0, 2400.0, sermon: 'John 19'),
         ]), $rms, ChurchServiceTranscript::fromCues([['start' => 980.0, 'end' => 985.0, 'text' => 'Later we will hear Hebrews 9.']], 5000, ChurchServiceTranscript::SOURCE_MOCK))->sections[1];
 
-        foreach ([$prayer, $unreferenced, $namedBefore] as $merged) {
-            $this->assertContains(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $merged->reviewFlags);
+        $this->assertContains(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $prayer->reviewFlags);
+        foreach ([$unreferenced, $namedBefore] as $merged) {
+            $this->assertNotContains(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $merged->reviewFlags);
         }
     }
 
     /**
      * Codex review, 2026-10-07: the passage must be named where the reading is introduced, before
-     * it or as it opens. A line minutes later naming it says nothing about who called for it, and
-     * no line at the reading's opening leaves the question open.
+     * it or as it opens. A line minutes later naming it is no evidence; since the operator's ruling
+     * (2026-10-13, pattern C) the reading is the sermon's own regardless, settled by the ruling.
      */
     #[Test]
-    public function an_unrelated_later_reference_does_not_settle_an_earlier_reading(): void
+    public function an_unrelated_later_reference_is_not_recorded_as_evidence(): void
     {
         $structure = ServiceStructure::fromSections([
             $this->section('sermon', 100, 150, sermon: 'John 19'),
@@ -267,28 +274,30 @@ class SilenceSnapServiceTest extends TestCase
 
         foreach ([$later, $insideAfterItsOpening] as $transcript) {
             $merged = $this->service->snap($structure, '', $transcript)->sections[0];
-            $this->assertContains(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $merged->reviewFlags);
+            $this->assertNotContains(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $merged->reviewFlags);
+            $this->assertSame([], array_values(array_filter($merged->notes, static fn (string $note): bool => str_contains($note, 'the sermon names'))));
+            $this->assertNotEmpty(array_filter($merged->notes, static fn (string $note): bool => str_contains($note, 'operator ruling 2026-10-13')));
         }
     }
 
     /**
      * Codex review, 2026-10-07: a reading between two sermon parts that preach different passages
-     * does not show one sermon resumed. Continuity needs every part to name the same passage; a
-     * conflicting or missing part keeps the merge in review.
+     * does not show one sermon resumed; they may be two sermons, and the merge stays in review.
      */
     #[Test]
-    public function sermon_parts_that_do_not_name_one_passage_keep_a_reading_merge_in_review(): void
+    public function sermon_parts_naming_different_passages_keep_a_reading_merge_in_review(): void
     {
-        foreach (['Romans 8', null] as $resumed) {
+        foreach (['Romans 8' => true, '' => false] as $resumed => $inReview) {
             $structure = ServiceStructure::fromSections([
                 $this->section('sermon', 100, 150, sermon: 'John 19'),
                 $this->section('bible_reading', 150, 200, reading: 'John 19:15-30'),
-                $this->section('sermon', 200, 400, sermon: $resumed),
+                $this->section('sermon', 200, 400, sermon: $resumed === '' ? null : $resumed),
             ]);
 
-            $merged = $this->service->snap($structure, '')->sections[0];
+            $flags = $this->service->snap($structure, '')->sections[0]->reviewFlags;
 
-            $this->assertContains(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $merged->reviewFlags, 'resumed as '.($resumed ?? 'no reference'));
+            // A part naming no passage contradicts nothing (operator ruling 2026-10-13, pattern C).
+            $this->assertSame($inReview, in_array(ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED, $flags, true), 'resumed as '.($resumed === '' ? 'no reference' : $resumed));
         }
     }
 
