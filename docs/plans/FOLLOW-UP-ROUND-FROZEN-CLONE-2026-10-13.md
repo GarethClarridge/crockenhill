@@ -352,8 +352,8 @@ not swallow earlier damage.
 | Piece | Where | Commit |
 |---|---|---|
 | Superseded runs are left out of service reconciliation (943's failure; the operator asked that the two-recordings case be impossible: it was a superseded run being re-detected) | `ChurchServiceReconciliationDispatcher`, `ReconcileServiceSections` | e15426dc2 |
-| PHPUnit on Redis 6/7 (`phpunit.xml`, forced); local Dusk on 8/9 (`.env.dusk.local`, untracked). Verified: the flushing test leaves 0/1 alone | `phpunit.xml` | (PHPUnit Redis commit) |
-| Guard admits a run a round parked for its held sermon (§5 R4) | `CorpusRerunGuard` | 2026-10-13 |
+| PHPUnit on Redis 6/7 (`phpunit.xml`, forced); local Dusk on 8/9 (`.env.dusk.local`, untracked). Verified: the flushing test leaves 0/1 alone | `phpunit.xml` | 0a67d5811 |
+| Guard admits a run a round parked for its held sermon (§5 R4) | `CorpusRerunGuard` | 89f2b25d8 |
 | `rerun-recompose`, `-redetect`, `-extract`, `-retranscribe` refuse no run IDs without `--all` | `HistoricRerunSnapshot::select()` | 4b2260d41 |
 | `historic-import:rerun-withdraw` (§4), with `QueuedRunJobs` (waiting, delayed and reserved jobs naming a run). Dry run on the pass's runs: all 105 ready (66 against the main snapshot, 38 against Tier B, 1209 after its stale flag was ignored) | `WithdrawCorpusRerunRound` | 5571521c8, 399691d54 |
 | Compose override and round tools: `round.sh` (status, pause until idle, resume refused while stopped, stop/start, watch, artisan), `queue-state.php`, autotick (explicit list less parked) | `docker-compose.round.yml`, `scripts/historic-round/` | 3ef104e44 |
