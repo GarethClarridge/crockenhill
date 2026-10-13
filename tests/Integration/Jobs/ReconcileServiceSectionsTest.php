@@ -74,6 +74,23 @@ class ReconcileServiceSectionsTest extends TestCase
         $this->assertNull($processingLog->fresh()->church_service_id);
     }
 
+    /** Run 943: superseded by run 1148 while its reconciliation waited in the queue. */
+    #[Test]
+    public function a_run_superseded_while_queued_is_left_alone(): void
+    {
+        Storage::fake('local');
+        Bus::fake([DetectServiceStructure::class]);
+
+        [$churchService, $processingLog] = $this->reconcilableRun('2026-06-23');
+        $job = new ReconcileServiceSections($processingLog, $churchService);
+        $processingLog->forceFill(['superseded_at' => now()])->save();
+
+        $job->handle(new MediaProcessingIdentityResolver);
+
+        Bus::assertNotDispatched(DetectServiceStructure::class);
+        $this->assertNull($processingLog->fresh()->church_service_id);
+    }
+
     /**
      * @return array{0: ChurchService, 1: MediaProcessingLog}
      */

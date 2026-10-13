@@ -142,4 +142,37 @@ class ChurchServiceReconciliationDispatcherTest extends TestCase
         });
         Bus::assertDispatched(ReconcileServiceSections::class, 2);
     }
+
+    /**
+     * Full pass 2026-10-11: an order-of-service answer re-detected run 943, superseded an hour
+     * earlier by run 1148 for the same service, and the superseded run failed detection.
+     */
+    #[Test]
+    public function a_superseded_run_is_not_reconciled(): void
+    {
+        Bus::fake();
+
+        $churchService = ChurchService::factory()->create([
+            'date' => '2026-03-19',
+            'service' => SermonService::Morning->value,
+        ]);
+
+        $current = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'extracted_date' => $churchService->date,
+            'extracted_service' => $churchService->service,
+        ]);
+
+        MediaProcessingLog::factory()->livestream()->completed()->create([
+            'extracted_date' => $churchService->date,
+            'extracted_service' => $churchService->service,
+            'superseded_at' => now(),
+            'superseded_by_processing_log_id' => $current->id,
+        ]);
+
+        $count = app(ChurchServiceReconciliationDispatcher::class)->dispatchForChurchService($churchService);
+
+        $this->assertSame(1, $count);
+        Bus::assertDispatched(ReconcileServiceSections::class, fn (ReconcileServiceSections $job): bool => $job->processingLog->is($current));
+        Bus::assertDispatched(ReconcileServiceSections::class, 1);
+    }
 }

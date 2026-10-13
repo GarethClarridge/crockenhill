@@ -39,7 +39,8 @@ class ReconcileServiceSections implements ShouldBeUnique, ShouldQueue
             return;
         }
 
-        if ($processingLog->processing_type !== MediaType::Livestream || ! $processingLog->isComplete()) {
+        // Superseded while queued: the service now belongs to a later run.
+        if ($processingLog->processing_type !== MediaType::Livestream || ! $processingLog->isComplete() || $processingLog->isRetired()) {
             return;
         }
 

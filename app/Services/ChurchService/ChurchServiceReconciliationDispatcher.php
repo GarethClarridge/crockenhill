@@ -23,9 +23,10 @@ class ChurchServiceReconciliationDispatcher
         $serviceDate = $churchService->date->toDateString();
         $queue = (string) config('media-processing.queues.livestream', 'livestream-processing');
 
+        // A superseded run lost its service to a later run; detecting it again only fails it (943).
         $matchingRuns = $this->identityResolver
             ->scopeMatchesIdentity(
-                MediaProcessingLog::query()->livestream()->completed(),
+                MediaProcessingLog::query()->livestream()->completed()->notSuperseded(),
                 $serviceDate,
                 $churchService->service
             )
