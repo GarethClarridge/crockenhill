@@ -1,0 +1,53 @@
+# A historic round run from its own frozen clone (docs/plans/FOLLOW-UP-ROUND-FROZEN-CLONE-2026-10-13.md).
+#
+# Used ONLY from the clone, as a separate compose project, never from the working checkout:
+#
+#     cd ../crockenhill-round
+#     MAIN_CHECKOUT=/Users/<you>/Projects/crockenhill docker compose -p crockenhill-round \
+#         -f docker-compose.yml -f docker-compose.drive.yml -f docker-compose.round.yml \
+#         up -d --no-deps --no-build --pull never \
+#         queue.worker queue.worker-video queue.worker-historic-ffmpeg queue.worker-historic-whisper \
+#         queue.worker-historic-llm queue.worker-historic-orchestration round-tools
+#
+# `.` is the clone, so the workers run its frozen code with its own .env (Redis 0/1, the
+# VideoToolbox encoder). The live storage stays the working checkout's, mounted over the clone's:
+# snapshots, watch state, logs, the local disk and the service artifacts are the ones in use.
+# `--no-deps` and the separate project name leave the working checkout's mysql, redis,
+# laravel.test and whisper alone; the workers join its `sail` network to reach them.
+
+x-round-volumes: &round-volumes
+    - '.:/var/www/html'
+    - './docker/php/php.ini:/etc/php/8.4/cli/conf.d/99-livestream.ini'
+    - '${MAIN_CHECKOUT:?set MAIN_CHECKOUT to the working checkout}/storage:/var/www/html/storage'
+    - '${CBC_SERVICE_VIDEOS_PATH:-${MAIN_CHECKOUT:?}/storage/mnt/service-videos}:/mnt/cbc-service-videos:ro'
+    - '${CBC_HISTORIC_WORK_PATH:?set CBC_HISTORIC_WORK_PATH}:/mnt/historic-work'
+
+services:
+    queue.worker:
+        volumes: *round-volumes
+    queue.worker-video:
+        volumes: *round-volumes
+    queue.worker-historic-ffmpeg:
+        volumes: *round-volumes
+    queue.worker-historic-whisper:
+        volumes: *round-volumes
+    queue.worker-historic-llm:
+        volumes: *round-volumes
+    queue.worker-historic-orchestration:
+        volumes: *round-volumes
+    # The watcher, autotick and every round command run here, on the clone's code.
+    round-tools:
+        image: 'sail-8.4/app'
+        restart: unless-stopped
+        environment:
+            WWWUSER: '${WWWUSER}'
+            LARAVEL_SAIL: 1
+        volumes: *round-volumes
+        command: ['sleep', 'infinity']
+        networks:
+            - sail
+
+networks:
+    sail:
+        external: true
+        name: crockenhill_sail
