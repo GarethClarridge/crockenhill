@@ -373,12 +373,19 @@ class CueSafeExtractionPlan
      * Where the spoken stretch before a song ends (canary 12, A): through the last line that
      * starts before the song does and runs past the edge (1304's "Onward, 'tis our Lord's
      * command. | Jesus saves. Let's stand and sing."), then on through each next line the
-     * classifier hears as speech where it starts: a song's recorded start is no boundary, and
-     * whisper's full stops are no proof a thought is over (canary 11: one handover punctuated as
-     * two sentences; Codex review). The stretch is `complete` when the next line starts in music,
-     * the singing having begun, or no line follows within reach. It is not when the next line's
-     * kind is unknown, or a line ending mid-phrase runs straight into music: a missing full stop
-     * shows an unfinished thought, though a full stop never shows a finished one.
+     * classifier hears mostly as speech: a song's recorded start is no boundary, and whisper's
+     * full stops are no proof a thought is over (canary 11: one handover punctuated as two
+     * sentences; Codex review).
+     *
+     * The stretch ends where the singing starts: at the first line heard more as music than as
+     * speech, or where no line follows within reach (operator ruling 2026-10-13, pattern A). A
+     * preacher who reads the hymn's words over its introduction, or says "Amen" and announces it,
+     * is heard as speech over music, line by line (982's "He is more than life to me…" at speech
+     * 1.00 in a mixed window), while the singing is heard as music (933's first sung "great is the
+     * gospel" at music 1.00, speech 0.54). A short line in a mostly quiet window keeps its place
+     * (1221's closing "Amen." at speech 0.33, music 0). Sixteen sermons were refused because such
+     * a line ran into the singing without a full stop; the stretch is now `complete` wherever the
+     * timeline can tell, and only a recording without one leaves it unresolved.
      *
      * @param  list<array{start: float, end: float, text: string}>  $cues
      * @return array{through: float, complete: bool}
@@ -386,16 +393,16 @@ class CueSafeExtractionPlan
     private function spokenThrough(array $cues, float $end, float $songStart, ?AudioTimeline $timeline): array
     {
         $through = $end;
-        $last = null;
 
         foreach ($cues as $cue) {
             if (TranscriptCueEvidence::isEvidence($cue, $timeline) && $cue['start'] < $songStart && $cue['end'] >= $through - 0.001) {
                 $through = max($through, $cue['end']);
-                $last = $cue;
             }
         }
 
-        $endsMidPhrase = static fn (?array $line): bool => $line !== null && preg_match('/[.!?]["\x{2019}\x{201D}\')]*\s*$/u', $line['text']) !== 1;
+        if ($timeline === null) {
+            return ['through' => $through, 'complete' => false];
+        }
 
         while (true) {
             // A next line must carry the stretch on: a looped transcript's zero-length repeats at
@@ -403,21 +410,11 @@ class CueSafeExtractionPlan
             $next = array_values(array_filter($cues, static fn (array $cue): bool => $cue['start'] >= $through - 0.001 && $cue['end'] > $through + 0.001
                 && $cue['start'] <= $songStart + self::SONG_END_REACH && TranscriptCueEvidence::isEvidence($cue, $timeline)))[0] ?? null;
 
-            if ($next === null) {
-                return ['through' => $through, 'complete' => ! $endsMidPhrase($last)];
+            if ($next === null || $timeline->musicShare($next['start'], $next['end']) > $timeline->speechShare($next['start'], $next['end'])) {
+                return ['through' => $through, 'complete' => true];
             }
 
-            $window = $timeline?->windowAt($next['start']);
-            $kind = $timeline === null || $window === null ? null : $timeline->classOf($window);
-
-            if ($timeline !== null && $window !== null && $this->heardAsSpeech($timeline, $window)) {
-                $through = $next['end'];
-                $last = $next;
-
-                continue;
-            }
-
-            return ['through' => $through, 'complete' => $kind === SoundClass::Music && ! $endsMidPhrase($last)];
+            $through = $next['end'];
         }
     }
 

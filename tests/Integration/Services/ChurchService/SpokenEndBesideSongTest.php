@@ -130,9 +130,13 @@ class SpokenEndBesideSongTest extends TestCase
         $this->assertSame([], CueSafeExtractionPlan::unresolvedEdges($plan['cue_edge_widening']));
     }
 
-    /** Where nothing shows the next line is speech, the unfinished thought is a question, not a cut. */
+    /**
+     * Operator ruling 2026-10-13 (pattern A, 16 sermons): the sermon runs to where the singing
+     * starts. A line cut off mid-phrase by the singing ("Let's stand and | sing…", heard as music)
+     * no longer leaves the end a question: the singing has begun.
+     */
     #[Test]
-    public function an_unfinished_thought_the_evidence_cannot_complete_is_unresolved(): void
+    public function a_line_running_into_the_singing_ends_the_stretch_without_a_full_stop(): void
     {
         $log = $this->service($this->unfinishedThought(), [['sermon', 1871.36, 3702.58], ['song', 3706.01, 3897.92]],
             timeline: [[3600, 3705, 0.05, 0.8], [3705, 3900, 0.8, 0.02]]);
@@ -144,8 +148,8 @@ class SpokenEndBesideSongTest extends TestCase
 
         $plan = app(CueSafeExtractionPlan::class)->forSpans($log, [['start_time' => 1871.36, 'end_time' => 3702.58]], sermonEnd: true);
 
-        $this->assertCount(1, CueSafeExtractionPlan::unresolvedEdges($plan['cue_edge_widening']));
-        $this->assertSame(CueSafeExtractionPlan::SPOKEN_END_UNRESOLVED, collect($plan['cue_edge_widening'])->last()['reason']);
+        $this->assertSame([], CueSafeExtractionPlan::unresolvedEdges($plan['cue_edge_widening']));
+        $this->assertGreaterThanOrEqual(3705.85, $plan['segments'][0]['end_time']);
     }
 
     /**
@@ -174,12 +178,33 @@ class SpokenEndBesideSongTest extends TestCase
         $this->assertSame([], CueSafeExtractionPlan::unresolvedEdges($plan['cue_edge_widening']));
     }
 
-    /** Where the classifier cannot say whether the line after a full stop is spoken, it is asked. */
+    /**
+     * A line heard as neither speech nor music is no singing: 1221's closing "Amen." sits in a
+     * mostly quiet window (speech 0.33, music 0) and stays in the sermon, as the operator ruled it.
+     */
     #[Test]
-    public function a_full_stop_followed_by_a_line_of_unknown_kind_is_unresolved(): void
+    public function a_line_heard_as_neither_speech_nor_music_does_not_end_the_stretch(): void
     {
         $log = $this->service($this->quotationAcrossTheSongStart(), [['sermon', 1871.36, 3702.58], ['song', 3702.70, 3897.92]],
             timeline: [[3690, 3700, 0.01, 0.78], [3700, 3900, 0.05, 0.05]]);
+        $this->bank($log, 3708.0, [
+            ['start' => 3706.20, 'end' => 3706.60, 'word' => " Let's"],
+            ['start' => 3706.60, 'end' => 3707.00, 'word' => ' stand'],
+            ['start' => 3707.00, 'end' => 3707.20, 'word' => ' and'],
+            ['start' => 3707.20, 'end' => 3707.80, 'word' => ' sing.'],
+        ]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log, [['start_time' => 1871.36, 'end_time' => 3702.58]], sermonEnd: true);
+
+        $this->assertGreaterThanOrEqual(3707.8, $plan['segments'][0]['end_time']);
+        $this->assertSame([], CueSafeExtractionPlan::unresolvedEdges($plan['cue_edge_widening']));
+    }
+
+    /** Without an audio timeline nothing can say where the singing starts: the end is asked. */
+    #[Test]
+    public function without_an_audio_timeline_an_end_beside_a_song_is_asked(): void
+    {
+        $log = $this->service($this->quotationAcrossTheSongStart(), [['sermon', 1871.36, 3702.58], ['song', 3702.70, 3897.92]]);
         $this->bank($log, 3702.58, [
             ['start' => 3701.70, 'end' => 3702.31, 'word' => ' command.'],
         ]);
@@ -187,6 +212,7 @@ class SpokenEndBesideSongTest extends TestCase
         $plan = app(CueSafeExtractionPlan::class)->forSpans($log, [['start_time' => 1871.36, 'end_time' => 3702.58]], sermonEnd: true);
 
         $this->assertCount(1, CueSafeExtractionPlan::unresolvedEdges($plan['cue_edge_widening']));
+        $this->assertSame(CueSafeExtractionPlan::SPOKEN_END_UNRESOLVED, collect($plan['cue_edge_widening'])->last()['reason']);
     }
 
     /** @return list<array{start: float, end: float, text: string}> */
