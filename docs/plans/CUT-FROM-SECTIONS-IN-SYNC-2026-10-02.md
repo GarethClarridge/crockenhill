@@ -209,9 +209,12 @@ The other clips (songs, readings, talks) are already cut at their section's own 
     “Let's pray… speak into our minds” was cut out; 992 and 995 jumped over 5.2 s and 1.8 s of
     silence): sermon media also takes **the prayer directly before the sermon**, even with a song
     between the reading and that prayer (936). A gap between consecutive selected parts that holds
-    **no other section, up to 15 s, plays straight through** as one span. Built in
+    **no other section, up to 15 s, plays straight through**: the earlier part runs on to where the
+    next starts, so the parts meet and nothing is cut between them, while each part keeps its own
+    sound treatment (Codex review, 2026-10-13: one joined span shared one loudness treatment and
+    undid the per-part work); parts of one sermon still join into one span. Built in
     `SermonExtractionPlanResolver` (`compose`: the section immediately before the sermon, when a
-    prayer; `throughSilentGaps`). The full pass held its 131 affected runs for the follow-up round.
+    prayer; `throughSilentGaps`) and `CueSafeExtractionPlan` (meeting spans stay separate). The full pass held its 131 affected runs for the follow-up round.
 - **D2 — review boundary:** keep existing structure/content authority and publication holds;
   remove cut-time reclassification and fallback selection as specified in C2.
 - **D3 — implementation direction:** one shared encoding path, with performance measured for

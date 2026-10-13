@@ -205,8 +205,10 @@ class SermonExtractionPlanResolver
 
     /**
      * Consecutive parts with a gap of at most {@see self::SILENT_GAP_SECONDS} that no other section
-     * claims play straight through as one span (amended D1, operator 2026-10-11): a cut over a
-     * pause of a few seconds is a visible jump for nothing (992's 5.2 s, 995's 1.8 s).
+     * claims play straight through (amended D1, operator 2026-10-11): a cut over a pause of a few
+     * seconds is a visible jump for nothing (992's 5.2 s, 995's 1.8 s). The earlier part takes the
+     * gap, so the parts meet: no cut, but each part's sound is still treated as its own. Parts of
+     * one sermon (it and its continuations) join into one span instead.
      *
      * @param  list<array{start_time: float, end_time: float}>  $spans
      * @param  array<int, ServiceSection>  $sections
@@ -215,20 +217,34 @@ class SermonExtractionPlanResolver
      */
     private function throughSilentGaps(array $spans, array $sections, array $selected): array
     {
+        $sermonIds = array_map(static fn (ServiceSection $section): int => $section->id,
+            array_filter($selected, static fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::Sermon));
+        // Parts of one sermon are one voice: they join and share their sound treatment.
+        $isSermonPart = fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::Sermon
+            || array_any($sermonIds, fn (int $id): bool => $this->continues($section, $id));
         $joined = [];
+        $parts = [];
 
-        foreach ($spans as $span) {
-            $previous = $joined === [] ? null : $joined[count($joined) - 1];
+        foreach ($spans as $index => $span) {
+            $last = array_key_last($joined);
+            $previous = $last === null ? null : $joined[$last];
             $claimed = $previous !== null && array_any($sections, static fn (ServiceSection $section): bool => ! in_array($section, $selected, true)
                 && $section->start_time < $span['start_time'] && $section->end_time > $previous['end_time']);
 
-            if ($previous !== null && self::SILENT_GAP_SECONDS + 0.001 >= $span['start_time'] - $previous['end_time'] && ! $claimed) {
-                $joined[count($joined) - 1]['end_time'] = $span['end_time'];
+            if ($last !== null && $previous !== null && self::SILENT_GAP_SECONDS + 0.001 >= $span['start_time'] - $previous['end_time'] && ! $claimed) {
+                if ($isSermonPart($parts[$last]) && $isSermonPart($selected[$index])) {
+                    $joined[$last]['end_time'] = $span['end_time'];
 
-                continue;
+                    continue;
+                }
+
+                // Different items meet: the video plays through, and each keeps its own sound
+                // treatment, which one span would share (Codex review, 2026-10-13).
+                $joined[$last]['end_time'] = $span['start_time'];
             }
 
             $joined[] = $span;
+            $parts[] = $selected[$index];
         }
 
         return $joined;

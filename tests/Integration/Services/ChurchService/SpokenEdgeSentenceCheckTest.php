@@ -168,7 +168,8 @@ class SpokenEdgeSentenceCheckTest extends TestCase
             ['start_time' => 1532.22, 'end_time' => 1717.75], ['start_time' => 1717.75, 'end_time' => 1810.0],
         ], sermonEnd: true);
 
-        $this->assertCount(1, $plan['segments'], 'extraction joins the parts');
+        $this->assertCount(2, $plan['segments']);
+        $this->assertEqualsWithDelta($plan['segments'][0]['end_time'], $plan['segments'][1]['start_time'], 0.001, 'the parts meet: nothing is cut between them');
         $this->assertSame(['edges' => 0, 'asked' => 0, 'agreed_moves' => 0, 'unchecked' => 0], $summary);
         OpenAI::assertNothingSent();
     }

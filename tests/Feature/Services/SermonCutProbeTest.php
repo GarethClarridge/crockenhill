@@ -30,10 +30,10 @@ class SermonCutProbeTest extends TestCase
 
         $cut = app(SermonCutProbe::class)->probe($log, $this->structure([]), $this->transcript());
 
-        $this->assertSame('single_span', $cut['as_written']['mode'], $cut['as_written']['error'] ?? '');
+        $this->assertSame('concat_spans', $cut['as_written']['mode'], $cut['as_written']['error'] ?? '');
         $this->assertSame('identified_sections', $cut['as_written']['strategy']);
-        // The 10 s between reading and sermon holds no section and plays through (amended D1).
-        $this->assertEquals([['start_time' => 420.0, 'end_time' => 2200.0]], $cut['as_written']['segments']);
+        // The 10 s between reading and sermon plays as the reading's; the parts meet (amended D1).
+        $this->assertEquals([['start_time' => 420.0, 'end_time' => 600.0], ['start_time' => 600.0, 'end_time' => 2200.0]], $cut['as_written']['segments']);
         $this->assertSame($logs, MediaProcessingLog::query()->count());
         $this->assertSame($sections, ServiceSection::query()->count());
         $this->assertNotNull($existing->fresh());
@@ -53,13 +53,13 @@ class SermonCutProbeTest extends TestCase
             $this->transcript(),
         );
 
-        $this->assertSame('single_span', $cut['gated']['mode'], $cut['gated']['error'] ?? '');
+        $this->assertSame('concat_spans', $cut['gated']['mode'], $cut['gated']['error'] ?? '');
         $this->assertTrue($cut['gated']['from_sections']);
         $this->assertTrue($cut['gated']['requires_review']);
         $this->assertFalse($cut['as_written']['requires_review']);
         $this->assertTrue($cut['as_written']['from_sections']);
-        // The 10 s between reading and sermon holds no section and plays through (amended D1).
-        $this->assertEquals([['start_time' => 420.0, 'end_time' => 2200.0]], $cut['as_written']['segments']);
+        // The 10 s between reading and sermon plays as the reading's; the parts meet (amended D1).
+        $this->assertEquals([['start_time' => 420.0, 'end_time' => 600.0], ['start_time' => 600.0, 'end_time' => 2200.0]], $cut['as_written']['segments']);
     }
 
     /** @param  list<string>  $sermonFlags */

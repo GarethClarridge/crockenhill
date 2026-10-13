@@ -79,7 +79,7 @@ class SermonExtractionPlanResolverTest extends TestCase
         // Amended D1 (2026-10-11): the prayer directly before the sermon is cut with it, so the
         // shared "name." cue sits inside one stretch and the prayer's bounds stay as detected.
         $this->assertContains($prayer->id, $plan['metadata']['selected_section_ids']);
-        $this->assertSame([['start_time' => 2500.0, 'end_time' => 3789.12]], $plan['segments']);
+        $this->assertSame([['start_time' => 2500.0, 'end_time' => 2594.18], ['start_time' => 2594.18, 'end_time' => 3789.12]], $plan['segments'], 'the prayer and sermon meet, each with its own sound');
         $this->assertSame(2594.18, (float) $prayer->fresh()->end_time);
     }
 
@@ -97,6 +97,7 @@ class SermonExtractionPlanResolverTest extends TestCase
         ], 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
         $this->bankNoWordOutputEdges($log);
         $plan = $this->resolver->resolve($log->fresh());
+        // Parts of one sermon join, the 1 s gap with them (amended D1), and share one treatment.
         $this->assertSame([['start_time' => 100.0, 'end_time' => 300.0]], $plan['segments']);
         $this->assertSame('single_span', $plan['mode']);
         // A 1 s gap holding no section plays straight through (amended D1): no edge is placed inside it.
@@ -245,7 +246,7 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $this->assertSame('service_sections', $plan['source']);
         // The 10 s before the prayer holds no section and plays through (amended D1); the 20 s after the reading does not.
-        $this->assertSame([[100.0, 200.0], [220.0, 3250.0]], array_map(fn (array $span): array => [$span['start_time'], $span['end_time']], $plan['segments']));
+        $this->assertSame([[100.0, 200.0], [220.0, 3210.0], [3210.0, 3250.0]], array_map(fn (array $span): array => [$span['start_time'], $span['end_time']], $plan['segments']));
         $this->assertSame([$reading->id, $sermon->id, $prayer->id], $plan['metadata']['selected_section_ids']);
     }
 
@@ -450,7 +451,7 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $this->assertSame('concat_spans', $plan['mode']);
         // Job 31 runs 5.6 s before the sermon with nothing between: one stretch (amended D1).
-        $this->assertSame([[1348.6, 1519.0], [1735.7, 1958.8], [2182.6, 4310.4]],
+        $this->assertSame([[1348.6, 1519.0], [1735.7, 1958.8], [2182.6, 2454.1], [2454.1, 4310.4]],
             array_map(fn (array $span): array => [$span['start_time'], $span['end_time']], $plan['segments']));
         foreach ([$introduction, $song, $prayer] as $excluded) {
             $this->assertNotContains($excluded->id, $plan['metadata']['selected_section_ids']);
@@ -1060,8 +1061,9 @@ class SermonExtractionPlanResolverTest extends TestCase
     public static function silentGaps(): array
     {
         return [
-            '5 s of nothing' => [605.0, false, [['start_time' => 300.0, 'end_time' => 2100.0]]],
-            'exactly 15 s' => [615.0, false, [['start_time' => 300.0, 'end_time' => 2100.0]]],
+            // The gap plays as the reading's; each part keeps its own sound treatment (Codex review, 2026-10-13).
+            '5 s of nothing' => [605.0, false, [['start_time' => 300.0, 'end_time' => 605.0], ['start_time' => 605.0, 'end_time' => 2100.0]]],
+            'exactly 15 s' => [615.0, false, [['start_time' => 300.0, 'end_time' => 615.0], ['start_time' => 615.0, 'end_time' => 2100.0]]],
             '16 s is a cut' => [616.0, false, [['start_time' => 300.0, 'end_time' => 600.0], ['start_time' => 616.0, 'end_time' => 2100.0]]],
             'a section in the gap is a cut' => [605.0, true, [['start_time' => 300.0, 'end_time' => 600.0], ['start_time' => 605.0, 'end_time' => 2100.0]]],
         ];

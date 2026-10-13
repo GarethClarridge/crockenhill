@@ -350,7 +350,8 @@ class WordTimedOutputEdgesTest extends TestCase
             ['start_time' => 10.0, 'end_time' => 79.0], ['start_time' => 79.0, 'end_time' => 4900.0],
         ]);
 
-        $this->assertEqualsWithDelta([['start_time' => 10.0, 'end_time' => 4900.0]], $plan['segments'], 0.001);
+        // Still met at 79.0, not moved: each part keeps its own sound treatment (Codex review, 2026-10-13).
+        $this->assertEqualsWithDelta([['start_time' => 10.0, 'end_time' => 79.0], ['start_time' => 79.0, 'end_time' => 4900.0]], $plan['segments'], 0.001);
     }
 
     /**

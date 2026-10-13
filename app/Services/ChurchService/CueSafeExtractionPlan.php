@@ -302,9 +302,11 @@ class CueSafeExtractionPlan
         $lastSpan = $last;
         $merged = [];
         foreach ($spans as $span) {
-            $last = count($merged) - 1;
-            if ($last >= 0 && $span['start_time'] <= $merged[$last]['end_time']) {
-                $merged[$last]['end_time'] = max($merged[$last]['end_time'], $span['end_time']);
+            $last = array_key_last($merged);
+            // Parts that only meet stay apart: the video plays through the join, while each part's
+            // sound is treated as its own (Codex review, 2026-10-13). Parts widened into each other merge.
+            if ($last !== null && $span['start_time'] < $merged[$last]['end_time'] - 0.001) {
+                $merged[$last] = ['start_time' => $merged[$last]['start_time'], 'end_time' => max($merged[$last]['end_time'], $span['end_time'])];
 
                 continue;
             }

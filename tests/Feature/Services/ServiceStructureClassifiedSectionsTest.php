@@ -184,8 +184,8 @@ class ServiceStructureClassifiedSectionsTest extends TestCase
 
         $plan = app(SermonExtractionPlanResolver::class)->resolve($log);
 
-        // Reading and sermon 10 s apart with nothing between play through as one span (amended D1).
-        $this->assertSame('single_span', $plan['mode']);
+        // Reading and sermon 10 s apart with nothing between meet: two parts, no cut (amended D1).
+        $this->assertSame('concat_spans', $plan['mode']);
         $this->assertTrue($plan['metadata']['requires_review']);
         $this->assertSame('service_sections', $plan['source']);
     }

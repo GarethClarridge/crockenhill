@@ -158,15 +158,31 @@ TXT;
         $segmentOf = static fn (array $part): ?int => array_key_first(array_filter($segments, static fn (array $segment): bool => $segment['start_time'] <= ($part['start_time'] + $part['end_time']) / 2
             && $segment['end_time'] >= ($part['start_time'] + $part['end_time']) / 2));
 
+        // Segments that meet play straight through: each keeps its own sound, but nothing is cut
+        // between them.
+        $together = static function (?int $a, ?int $b) use ($segments): bool {
+            if ($a === null || $b === null) {
+                return false;
+            }
+            [$first, $second] = [min($a, $b), max($a, $b)];
+            for ($index = $first; $index < $second; $index++) {
+                if (abs($segments[$index]['end_time'] - $segments[$index + 1]['start_time']) > 0.001) {
+                    return false;
+                }
+            }
+
+            return true;
+        };
+
         foreach ($parts as $index => $part) {
             $previous = $parts[$index - 1] ?? null;
             $next = $parts[$index + 1] ?? null;
 
-            if ($previous === null || $segmentOf($previous) === null || $segmentOf($previous) !== $segmentOf($part)) {
+            if ($previous === null || ! $together($segmentOf($previous), $segmentOf($part))) {
                 $edges[] = ['start', $part['start_time']];
             }
 
-            if ($next === null || $segmentOf($next) === null || $segmentOf($next) !== $segmentOf($part)) {
+            if ($next === null || ! $together($segmentOf($next), $segmentOf($part))) {
                 $edges[] = ['end', $part['end_time']];
             }
         }

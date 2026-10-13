@@ -75,6 +75,21 @@ class SectionAudioTreatmentTest extends TestCase
         $this->assertSame(array_column($media->audio['parts'], 'expected_mode'), array_column($media->audio['parts'], 'mode'));
     }
 
+    /**
+     * Amended D1 plays a short silent gap through: the reading runs on to where the sermon starts.
+     * Kept as two parts that meet, each is still brought to the target (Codex review, 2026-10-13).
+     */
+    #[Test]
+    public function parts_that_meet_are_each_treated_and_play_straight_through(): void
+    {
+        $media = $this->service->extractMedia($this->recording(), [['start_time' => 0.5, 'end_time' => 15.0], ['start_time' => 15.0, 'end_time' => 39.0]], AudioProfile::Speech);
+        $video = Storage::disk('local')->path($media->videoPath);
+
+        $this->assertEqualsWithDelta(38.5, $this->duration($video), 0.05);
+        $this->assertEqualsWithDelta(-16.0, $this->integrated($video, 0.0, 14.0), 1.0);
+        $this->assertEqualsWithDelta(-16.0, $this->integrated($video, 15.0, 23.0), 1.0);
+    }
+
     #[Test]
     public function the_public_mp3_is_one_channel_at_listening_quality_and_matches_the_video(): void
     {
