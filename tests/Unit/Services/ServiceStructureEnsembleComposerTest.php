@@ -603,6 +603,39 @@ class ServiceStructureEnsembleComposerTest extends TestCase
     }
 
     /**
+     * Follow-up round 2026-10-13, runs 942 and 974: a link kept because a voter made it can be the
+     * link another composed section holds (942: one draft linked the sermon introduction to the
+     * Psalm 93 reading's item; 974: drafts linked the sermon to its reading's item), and the
+     * composition then fails validation on the duplicate. The link most voters made stays; the
+     * others are dropped, and a tie drops every non-song claim.
+     */
+    #[Test]
+    public function a_kept_link_another_composed_section_holds_goes_to_the_link_most_voters_made(): void
+    {
+        $service = fn (?int $readingItem, ?int $sermonItem): ServiceStructure => $this->structure(
+            new ServiceStructureSection(ServiceSectionType::BibleReading, 'Psalm 93', 284.0, 346.0, 0.9, $readingItem, null, null),
+            new ServiceStructureSection(ServiceSectionType::Sermon, 'The hour has come', 400.0, 2000.0, 0.9, $sermonItem, null, null),
+        );
+        $items = static fn ($composition): array => array_map(static fn (ServiceStructureSection $section): ?int => $section->oosItemId, $composition->structure->sections);
+
+        $readingsLink = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($service(3972, null)),
+            1 => $this->vote($service(3972, null)),
+            2 => $this->vote($service(null, 3972)),
+            3 => $this->vote($service(null, null)),
+        ]);
+        $tied = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($service(3972, null)),
+            1 => $this->vote($service(3972, null)),
+            2 => $this->vote($service(null, 3972)),
+            3 => $this->vote($service(null, 3972)),
+        ]);
+
+        $this->assertSame([3972, null], $items($readingsLink));
+        $this->assertSame([null, null], $items($tied));
+    }
+
+    /**
      * Full pass 2026-10-11, runs 958, 974 and 1210: two voters linked the same sermon (or reading)
      * to its order-of-service item and two left it unlinked, and the operator was asked to choose
      * between versions that read identically. Only a song's link is its identity; for anything

@@ -187,6 +187,7 @@ class ServiceStructureEnsembleComposer
         }
 
         $sections = [];
+        $linkVotes = [];
         $disputes = $alignmentConflicts;
         $records = [];
         $provenance = [];
@@ -299,6 +300,7 @@ class ServiceStructureEnsembleComposer
             )));
             $section = $this->withConfidence($source->withoutReviewFlags()->withReviewFlags([...$supporterFlags, ...$flags], $questionNotes), $winner);
             $sections[] = $section;
+            $linkVotes[] = $section->oosItemId === null ? 0 : count(array_filter($winner, static fn (array $supporter): bool => $supporter['section']->oosItemId === $section->oosItemId));
             $provenance[] = [
                 'group' => $groupIndex,
                 'slot' => $representative['slot'],
@@ -307,6 +309,7 @@ class ServiceStructureEnsembleComposer
             ];
         }
 
+        $sections = $this->withOneClaimPerItem($sections, $linkVotes);
         [$sections, $provenance] = $this->resolveFillerOverlaps($sections, $provenance);
         [$questions, $majorityDecisions] = $this->separateMajorityDecisions($records, array_keys($eligible));
         $disputes = [...$disputes, ...$questions];
@@ -1187,6 +1190,56 @@ class ServiceStructureEnsembleComposer
     private function normalizedReference(string $reference): string
     {
         return $this->scriptureReferences->normalizeAll($reference) ?? $reference;
+    }
+
+    /**
+     * One composed section per order-of-service item. A link kept because a voter made it
+     * ({@see self::withSupportedLink()}) can be the one another composed section holds
+     * (follow-up round 2026-10-13: 942's sermon introduction took its Psalm 93 reading's item from
+     * one draft, 974's sermon its reading's from another), and the whole composition then fails
+     * validation on the duplicate. The link the most voters made stays; the others are dropped.
+     * On a tie every claim but a song's is dropped: a song's link is its identity, and two songs on
+     * one item are a disagreement for validation to report.
+     *
+     * @param  list<ServiceStructureSection>  $sections
+     * @param  list<int>  $linkVotes  Per section, the supporters that made its link
+     * @return list<ServiceStructureSection>
+     */
+    private function withOneClaimPerItem(array $sections, array $linkVotes): array
+    {
+        $claims = [];
+
+        foreach ($sections as $index => $section) {
+            if ($section->oosItemId !== null) {
+                $claims[$section->oosItemId][] = $index;
+            }
+        }
+
+        $dropped = [];
+
+        foreach ($claims as $indexes) {
+            if (count($indexes) < 2) {
+                continue;
+            }
+
+            $votes = array_map(static fn (int $index): int => $linkVotes[$index] ?? 0, $indexes);
+            $most = max($votes);
+            $keep = count(array_keys($votes, $most, true)) === 1 ? $indexes[array_search($most, $votes, true)] : null;
+
+            foreach ($indexes as $index) {
+                if ($index !== $keep && $sections[$index]->type !== ServiceSectionType::Song) {
+                    $dropped[$index] = true;
+                }
+            }
+        }
+
+        return array_map(
+            static fn (ServiceStructureSection $section, int $index): ServiceStructureSection => isset($dropped[$index])
+                ? ServiceStructureSection::fromArray([...$section->toArray(), 'oos_item_id' => null]) ?? $section
+                : $section,
+            $sections,
+            array_keys($sections),
+        );
     }
 
     /**
