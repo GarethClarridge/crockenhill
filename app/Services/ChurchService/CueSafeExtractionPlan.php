@@ -69,6 +69,9 @@ class CueSafeExtractionPlan
     /** Seconds before a spoken part's start within which a song's end runs straight into it. */
     private const SONG_BEFORE_REACH = 2.0;
 
+    /** Seconds a spoken end may move outward before the classifier is asked whether it moved into music. */
+    private const MUSIC_MOVE_SECONDS = 1.0;
+
     /**
      * The shortest and longest fade of a song's sound into the speech after it (operator,
      * 2026-10-07): the fade spans the gap from the last sung sound, within these bounds, and ends
@@ -242,6 +245,8 @@ class CueSafeExtractionPlan
                         $decision = $this->wordPause($words, $window, $original, $edge);
                         if ($edge === 'start') {
                             $decision = $this->keptAtHeardStart($log, $words, $original, $decision);
+                        } elseif (! $songEnds) {
+                            $decision = $this->keptOutOfMusic($log, $original, $decision);
                         }
                         if ($besideSong) {
                             $decision = $this->withTail($decision);
@@ -507,6 +512,31 @@ class CueSafeExtractionPlan
         }
 
         return $spans;
+    }
+
+    /**
+     * A spoken end the pause rule carries outward into music stays where detection put it: a
+     * 30 s "Thank you." whisper heard over 1275's next song widened the edge's window, and the
+     * largest pause after a sung "Amen." took the sermon 19 s into the song (operator listening,
+     * 2026-10-12). Moves within {@see self::MUSIC_MOVE_SECONDS}, such as the tail after the last
+     * word, stand: the classifier's windows are coarser than that.
+     *
+     * @param  array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, candidate_anchors?: list<array{start: float, end: float, word: string}>}  $decision
+     * @return array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, candidate_anchors?: list<array{start: float, end: float, word: string}>}
+     */
+    private function keptOutOfMusic(MediaProcessingLog $log, float $original, array $decision): array
+    {
+        if ($decision['time'] <= $original + self::MUSIC_MOVE_SECONDS) {
+            return $decision;
+        }
+
+        $timeline = $this->timeline($log);
+
+        if ($timeline === null || $timeline->musicShare($original, $decision['time']) < 0.5) {
+            return $decision;
+        }
+
+        return ['time' => $original, 'chosen_pause' => ['start' => $original, 'end' => $original], 'word_before' => null, 'word_after' => null];
     }
 
     /**

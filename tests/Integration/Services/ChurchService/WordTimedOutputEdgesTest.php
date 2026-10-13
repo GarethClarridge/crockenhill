@@ -526,6 +526,40 @@ class WordTimedOutputEdgesTest extends TestCase
         $this->assertEqualsWithDelta($expected, $plan['segments'][0]['start_time'], 0.001);
     }
 
+    /**
+     * 1275: a 30 s "Thank you." whisper heard over the next song widened the sermon end's window;
+     * the largest pause after a sung "Amen." took the sermon 19 s into the song.
+     */
+    #[Test]
+    #[DataProvider('endsIntoTheNextSong')]
+    public function a_spoken_end_is_not_carried_into_music(array $timeline, float $expected): void
+    {
+        $cues = [
+            ['start' => 4166.86, 'end' => 4169.44, 'text' => "Let's stand and sing and then Michael draws to a close."],
+            ['start' => 4171.0, 'end' => 4200.98, 'text' => 'Thank you.'],
+        ];
+        $log = $this->logWithCues($cues);
+        $log->update(['audio_timeline_path' => 'service-transcripts/edge-test.classes.json']);
+        Storage::disk('local')->put('service-transcripts/edge-test.classes.json', AudioTimelineFixture::json($timeline, 5000.0));
+        $this->bankWindow($log, 4180.0, [
+            ['start' => 4176.0, 'end' => 4180.0, 'word' => ' Glory'],
+            ['start' => 4180.2, 'end' => 4198.0, 'word' => ' to the Lamb'],
+            ['start' => 4198.11, 'end' => 4199.0, 'word' => ' Amen.'],
+        ]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 2146.34, 'end_time' => 4180.0]]);
+
+        $this->assertEqualsWithDelta($expected, $plan['segments'][0]['end_time'], 0.001);
+    }
+
+    public static function endsIntoTheNextSong(): array
+    {
+        return [
+            'the song is music: the end stays' => [[[4160, 4170, 0.05, 0.8], [4170, 4210, 0.8, 0.02]], 4180.0],
+            'speech goes on: the pause still places it' => [[[4160, 4210, 0.05, 0.8]], 4199.3],
+        ];
+    }
+
     public static function smearedStarts(): array
     {
         return [
