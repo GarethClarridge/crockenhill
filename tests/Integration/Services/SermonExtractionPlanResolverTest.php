@@ -1606,8 +1606,67 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->assertSame(1106.0, $plan['segments'][0]['start_time']);
     }
 
+    /**
+     * Run 936 (operator ruling 2026-10-13): Acts 17, Romans 4 and 1 Peter 4 read back to back, a
+     * notice and a prayer, then a sermon on 1 Peter. Every reading directly before the sermon is
+     * cut with it; Psalm 100, read before the talk, is not.
+     */
     #[Test]
-    public function it_still_excludes_a_held_reading_that_does_not_match_the_sermon_reference(): void
+    public function every_reading_directly_before_the_sermon_is_cut_with_it(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 4000]);
+        $this->reading($log, 1, 1040.0, 1114.0, reference: 'Psalm 100');
+        $this->section($log, ServiceSectionType::ShortTalk, 2, 1495.0, 2109.0);
+        $this->section($log, ServiceSectionType::Prayer, 3, 2109.0, 2261.0);
+        $acts = $this->reading($log, 4, 2302.0, 2430.0, reference: 'Acts 17:22-31');
+        $romans = $this->reading($log, 5, 2433.0, 2470.0, reference: 'Romans 4:4-5');
+        $peter = $this->reading($log, 6, 2473.0, 2532.0, reference: '1 Peter 4:7-11');
+        $this->section($log, ServiceSectionType::Other, 7, 2537.0, 2556.0);
+        $prayer = $this->section($log, ServiceSectionType::Prayer, 8, 2571.0, 2594.0);
+        $sermon = $this->sermon($log, 9, 2595.0, 3789.0, '1 Peter 4');
+
+        $composition = $this->resolver->compose($log);
+
+        $this->assertSame([$acts->id, $romans->id, $peter->id, $prayer->id, $sermon->id], $composition['selected_section_ids']);
+        $this->assertFalse($composition['requires_review']);
+    }
+
+    /** Readings half a minute or more before anything else that leads to the sermon are not directly before it. */
+    #[Test]
+    public function a_reading_before_unaccounted_time_is_not_directly_before_the_sermon(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 4000]);
+        $this->reading($log, 1, 1000.0, 1100.0, reference: 'Acts 17:22-31');
+        $sermon = $this->sermon($log, 2, 1200.0, 3000.0, '1 Peter 4');
+
+        $this->assertSame([$sermon->id], $this->resolver->compose($log)['selected_section_ids']);
+    }
+
+    /**
+     * A carol service's readings are its lessons, not the sermon's (operator ruling 2026-10-13: 930
+     * read five, 1196 six). In December, four readings before the sermon keep the passage match.
+     */
+    #[Test]
+    public function a_carol_services_lessons_are_not_the_sermons_readings(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 4000,
+            'church_service_id' => ChurchService::factory()->create(['date' => '2024-12-22'])->id]);
+        $this->reading($log, 1, 800.0, 900.0, reference: 'Isaiah 9:1-7');
+        $this->reading($log, 2, 905.0, 1000.0, reference: 'Luke 1:39-56');
+        $this->reading($log, 3, 1005.0, 1100.0, reference: 'Matthew 1:18-25');
+        $this->reading($log, 4, 1105.0, 1200.0, reference: 'Luke 2:1-20');
+        $sermon = $this->sermon($log, 5, 1210.0, 2000.0, 'John 1:14');
+
+        $this->assertSame([$sermon->id], $this->resolver->compose($log)['selected_section_ids']);
+    }
+
+    /**
+     * A reading directly before the sermon is the sermon's whichever passage it reads (operator
+     * ruling 2026-10-13: 936's Acts 17 and Romans 4 before a sermon on 1 Peter), and an ordering
+     * flag on it questions its OoS item, not its cut.
+     */
+    #[Test]
+    public function a_held_reading_directly_before_the_sermon_is_cut_with_it_whatever_its_passage(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create([
             'sermon_start_time' => 100.0,
@@ -1628,8 +1687,8 @@ class SermonExtractionPlanResolverTest extends TestCase
 
         $plan = $this->resolver->resolve($log);
 
-        $this->assertNull($plan['metadata']['bible_section_id'] ?? null);
-        $this->assertSame(1300.0, $plan['segments'][0]['start_time']);
+        $this->assertSame($heldReading->id, $plan['metadata']['bible_section_id']);
+        $this->assertSame(1106.0, $plan['segments'][0]['start_time']);
     }
 
     #[Test]

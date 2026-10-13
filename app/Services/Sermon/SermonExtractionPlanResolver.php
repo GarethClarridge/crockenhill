@@ -46,6 +46,15 @@ class SermonExtractionPlanResolver
     /** A first section starting within this of the recording's start is what the recording opens with. */
     private const RECORDING_OPENS_WITH_SECTION_SECONDS = 5.0;
 
+    /** The longest item between two readings that leaves them one group: a comment on the next one. */
+    private const BETWEEN_READINGS_SECONDS = 90.0;
+
+    /** Between sections walked back from the sermon, the longest stretch no section accounts for. */
+    private const UNACCOUNTED_GAP_SECONDS = 30.0;
+
+    /** A December service reading at least this many passages before its sermon reads lessons (a carol service). */
+    private const LESSONS_READINGS = 4;
+
     public function __construct(
         private readonly ScriptureReferenceResolver $scriptureReferences,
         private readonly SermonContinuationScreen $continuations,
@@ -103,7 +112,23 @@ class SermonExtractionPlanResolver
             // A reading running into a selected part is already partly in the cut: taking it as a
             // span of its own would cut its overlap twice, so whether it belongs is asked.
             $overlapsSelected = static fn (ServiceSection $reading): bool => array_any($selected, static fn (ServiceSection $part): bool => $reading->end_time > $part->start_time + 0.001 && $reading->start_time < $part->end_time - 0.001);
-            $selectedReadings = array_map(static fn (int $index): ServiceSection => $readings[$index], $membership['selected']);
+            $readingsBefore = $this->readingsDirectlyBefore($sections, $first);
+            // A group reading without a passage, with another reading further back that nothing
+            // chose, leaves which is the sermon's open (a "let us turn to…" typed as a reading).
+            $undecided = array_any($readingsBefore, static fn (ServiceSection $reading): bool => $reading->metadata?->readingReference === null)
+                && array_any($readings, static fn (ServiceSection $reading, int $index): bool => ! in_array($reading, $readingsBefore, true) && ! in_array($index, $membership['selected'], true));
+            if ($readingsBefore !== [] && ! $undecided && ! $this->isServiceOfLessons($log, $readings) && ! array_any($readingsBefore, $overlapsSelected)) {
+                // Operator ruling 2026-10-13: every reading directly before the sermon is the
+                // sermon's, whichever passage it preaches (936: Acts 17, Romans 4 and 1 Peter 4
+                // before a sermon on 1 Peter), as well as those reading its passage further back
+                // (1250's Job 29 and 30, read apart from Job 31).
+                $selectedReadings = array_values(array_filter($readings, static fn (ServiceSection $reading, int $index): bool => in_array($reading, $readingsBefore, true)
+                    || in_array($index, $membership['selected'], true), ARRAY_FILTER_USE_BOTH));
+                $membership = ['selected' => [], 'review' => false, 'could_be_cut' => array_values(array_unique([...$membership['could_be_cut'],
+                    ...array_keys(array_filter($readings, static fn (ServiceSection $reading): bool => in_array($reading, $readingsBefore, true)))]))];
+            } else {
+                $selectedReadings = array_map(static fn (int $index): ServiceSection => $readings[$index], $membership['selected']);
+            }
             if ($selectedReadings !== [] && ! array_any($selectedReadings, $overlapsSelected)) {
                 // One reading holding the passage, or several reading it in parts (1250).
                 array_push($selected, ...$selectedReadings);
@@ -357,6 +382,61 @@ class SermonExtractionPlanResolver
             return $metadata;
         });
         $this->compose($log);
+    }
+
+    /**
+     * The group of readings directly before the sermon (operator ruling 2026-10-13): reached from
+     * the sermon's first part back over the prayers and short items between them (936: a notice
+     * and the prayer before the sermon), then on through readings and the short comments between
+     * them (930's "500 years after Isaiah…"). Anything else ends it: a song, a talk, a prayer
+     * between readings, or more than half a minute no section accounts for.
+     *
+     * @param  list<ServiceSection>|array<int, ServiceSection>  $sections  The run's sections in time order
+     * @return list<ServiceSection>
+     */
+    private function readingsDirectlyBefore(array $sections, ServiceSection $first): array
+    {
+        $preceding = array_reverse(array_values(array_filter($sections, static fn (ServiceSection $section): bool => $section->end_time <= $first->start_time + 0.001)));
+        $short = static fn (ServiceSection $section): bool => $section->end_time - $section->start_time <= self::BETWEEN_READINGS_SECONDS;
+        $group = [];
+        $after = (float) $first->start_time;
+
+        foreach ($preceding as $section) {
+            // Time no section accounts for could hold anything: it ends the group.
+            if ($after - (float) $section->end_time > self::UNACCOUNTED_GAP_SECONDS) {
+                break;
+            }
+            $after = (float) $section->start_time;
+
+            if ($section->section_type === ServiceSectionType::BibleReading) {
+                $group[] = $section;
+
+                continue;
+            }
+
+            $passable = $group === []
+                ? $section->section_type === ServiceSectionType::Prayer || ($section->section_type === ServiceSectionType::Other && $short($section))
+                : $section->section_type === ServiceSectionType::Other && $short($section);
+
+            if (! $passable) {
+                break;
+            }
+        }
+
+        return array_reverse($group);
+    }
+
+    /**
+     * A carol service's readings are its lessons, not the sermon's (operator ruling 2026-10-13: 930
+     * read five, 1196 six): a December service reading at least four passages before its sermon.
+     *
+     * @param  list<ServiceSection>  $readingsBeforeTheSermon
+     */
+    private function isServiceOfLessons(MediaProcessingLog $log, array $readingsBeforeTheSermon): bool
+    {
+        $date = $log->churchService?->date;
+
+        return $date !== null && (int) $date->format('n') === 12 && count($readingsBeforeTheSermon) >= self::LESSONS_READINGS;
     }
 
     /**
