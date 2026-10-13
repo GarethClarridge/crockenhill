@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Actions\RedetectForCorpusRerun;
 use App\Models\MediaProcessingLog;
+use App\Services\ChurchService\Structure\EnsembleReviewGate;
 use App\Services\HistoricMedia\HistoricRerunSnapshot;
 use App\Support\PrivateEvidenceFile;
 use Illuminate\Console\Command;
@@ -32,19 +33,20 @@ class RedetectForCorpusRerunCommand extends Command
 {
     protected $signature = 'historic-import:rerun-redetect
         {snapshot : The batch snapshot written by historic-import:rerun-snapshot}
-        {runs?* : A subset of the snapshot\'s runs; all of them when omitted}
+        {runs?* : A subset of the snapshot\'s runs; all of them when omitted, except those whose banked draws still fit}
         {--max=10 : The most runs one invocation will dispatch}
         {--execute : Dispatch; without this option the command is a dry run}';
 
     protected $description = 'Re-detect the members of a corpus re-run batch from structure detection, deferring media';
 
-    public function handle(RedetectForCorpusRerun $redetector): int
+    public function handle(RedetectForCorpusRerun $redetector, EnsembleReviewGate $ensembleGate): int
     {
         $execute = (bool) $this->option('execute');
         $max = (int) $this->option('max');
 
         try {
             $snapshot = HistoricRerunSnapshot::fromFile(PrivateEvidenceFile::resolve($this->argument('snapshot'), 'The re-run snapshot'));
+            $named = (array) $this->argument('runs') !== [];
             $runIds = $snapshot->select((array) $this->argument('runs'));
         } catch (RuntimeException $exception) {
             $this->components->error($exception->getMessage());
@@ -75,6 +77,17 @@ class RedetectForCorpusRerunCommand extends Command
             }
 
             $run = MediaProcessingLog::find($runId);
+
+            // Left unnamed, the batch took the full pass's 37 recompose-routed runs too, throwing
+            // their banked draws away (2026-10-10). Draws that still fit are recomposed; re-detecting
+            // such a run takes naming it.
+            if (! $named && $run instanceof MediaProcessingLog && $this->banksCurrentDraws($run, $ensembleGate)) {
+                $counts['refused']++;
+                $rows[] = [$runId, 'refused', 'its banked draws still fit the run: recompose it (historic-import:rerun-recompose), or name it to re-detect'];
+
+                continue;
+            }
+
             $result = $run instanceof MediaProcessingLog
                 ? $redetector->execute($run, $snapshot, $execute)
                 : ['outcome' => 'refused', 'reason' => 'run not found'];
@@ -95,5 +108,13 @@ class RedetectForCorpusRerunCommand extends Command
         ));
 
         return self::SUCCESS;
+    }
+
+    private function banksCurrentDraws(MediaProcessingLog $run, EnsembleReviewGate $ensembleGate): bool
+    {
+        $bank = $run->processing_metadata?->raw['service_structure_ensemble'] ?? null;
+        $latest = is_array($bank) && $bank !== [] ? end($bank) : null;
+
+        return is_array($latest) && $ensembleGate->inputIsCurrent($run, $latest);
     }
 }

@@ -18,6 +18,7 @@ use App\Jobs\PromoteHistoricAssets;
 use App\Jobs\RecordDeferredCorpusRerunMedia;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\Structure\EnsembleReviewGate;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use Closure;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -80,6 +81,30 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         Bus::assertNothingDispatched();
         self::assertSame([], $run->fresh()?->corpusRerunStamps());
         self::assertSame(ProcessingStatus::Completed, $run->fresh()?->status);
+    }
+
+    /**
+     * The full pass's trap (2026-10-10): with no run list, re-detection took the 37 runs routed to
+     * recompose too, throwing their banked draws away for four new ones each. Draws that still fit
+     * their run are recomposed; re-detecting one takes naming it.
+     */
+    #[Test]
+    public function a_batch_left_unnamed_skips_runs_whose_banked_draws_still_fit(): void
+    {
+        Bus::fake();
+        $run = $this->completedRun(metadata: ['service_structure_ensemble' => [['attempt_id' => 'attempt-1']]]);
+        $this->snapshot([$run->id]);
+        $gate = Mockery::mock(EnsembleReviewGate::class)->makePartial();
+        $gate->shouldReceive('inputIsCurrent')->andReturnTrue();
+        $this->app->instance(EnsembleReviewGate::class, $gate);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+            ->expectsOutputToContain('banked draws still fit')
+            ->assertSuccessful();
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), 'runs' => [$run->id]])
+            ->expectsOutputToContain('ready for re-detection')
+            ->assertSuccessful();
     }
 
     #[Test]

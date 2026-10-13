@@ -2085,9 +2085,16 @@ sections are quarantined, never deleted), `928322ade`, the verified backup and t
    (artifact with the `db` capability, as the canary pages; `build.py` clones the last working one).
 6. Dispatch, each as a dry run first, then `--execute`:
    `historic-import:rerun-retranscribe $S --max=500` (152), `historic-import:rerun-recompose $S --max=500` (37),
-   `historic-import:rerun-redetect $S --max=500` (244). Tier A runs go to Tier B once transcribed:
-   re-run `rerun-redetect $S --max=500` as they finish (the guard admits a finished transcription
-   round on the same snapshot).
+   `historic-import:rerun-redetect $S --max=500` (244). Tier A runs go to Tier B once transcribed,
+   **on a second snapshot**: the guard does *not* admit a finished transcription round on the same
+   snapshot (corrected 2026-10-13 from the full pass: Tier A's first job writes a provisional sermon
+   span, so every Tier A run reads as changed since the snapshot). Snapshot the transcribed runs
+   (`rerun-snapshot`, no `--routing`), start a second watcher on it, and re-detect them there with
+   an explicit run list. Name runs on every `rerun-redetect`: left unnamed it now skips runs whose
+   banked draws still fit (it once took the recompose-routed runs too).
+   **Never move the code freeze mid-pass:** every dispatched round's stamp binds the code revision,
+   so a new freeze reopens them all and no tool withdraws an unstarted round. Hold fixes for the
+   follow-up round.
 7. Tier C as runs clear: `historic-import:rerun-extract $S --max=500` (dry run, then `--execute`) on
    each tick; runs with open questions hold themselves until answered (one question page, or a few as
    they accumulate) and recomposed.
