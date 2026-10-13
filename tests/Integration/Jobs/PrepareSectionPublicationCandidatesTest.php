@@ -35,6 +35,7 @@ use App\Services\ChurchService\SectionPublication\SongPublicationHandler;
 use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
 use App\Services\ChurchService\SectionPublication\TalkPublicationHandler;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
+use App\Services\ChurchService\TalkReadingPairing;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Services\Import\HistoricReleaseReviewHolds;
@@ -481,6 +482,56 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         // deploy wipes — and audio and video must land on the *same* disk.
         Storage::disk('public')->assertExists($videoPath);
         Storage::disk('local')->assertMissing($videoPath);
+    }
+
+    /** Operator ruling 2026-10-13: a talk about the reading before it is cut with that reading. */
+    #[Test]
+    public function a_talk_answered_to_go_with_its_reading_is_cut_with_it(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => ['short_talk' => TalkPublicationHandler::class],
+        ]);
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create(['source_file_path' => 'livestreams/source.mp4']);
+        Storage::disk('local')->put('livestreams/source.mp4', 'source-video');
+        Storage::disk('local')->put('temp/section-video.mp4', 'section-video');
+        $reading = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id, 'section_type' => ServiceSectionType::BibleReading->value,
+            'needs_manual_review' => false, 'start_time' => 60.0, 'end_time' => 115.0,
+        ]);
+        $talk = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id, 'section_type' => ServiceSectionType::ShortTalk->value,
+            'status' => ServiceSectionStatus::Identified->value, 'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+            'metadata' => ['confidence_level' => 'high'], 'start_time' => 120.0, 'end_time' => 420.0,
+        ]);
+        app(TalkReadingPairing::class)->record($talk, true, 'talk page');
+        $cut = null;
+        $videoExtractor = $this->createMock(VideoExtractionService::class);
+        $videoExtractor->expects($this->once())->method('extractMedia')
+            ->willReturnCallback(function (string $input, array $segments) use (&$cut): ExtractedMedia {
+                $cut = $segments;
+
+                return new ExtractedMedia('temp/section-video.mp4', 'temp/section-audio.mp3');
+            });
+        $videoExtractor->method('storePublicAudio')->willReturn(['audio_path' => 'section-publications/a.mp3', 'full_path' => '', 'original_size' => 1,
+            'final_size' => 1, 'compression_applied' => false, 'compression_ratio' => 1.0, 'valid_for_transcription' => true]);
+
+        (new PrepareSectionPublicationCandidates($processingLog))->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(SectionPublicationHandlerFactory::class),
+            app(ServiceSectionPublicationTransitionService::class),
+        );
+
+        // The reading takes the pause before the talk, so the two play straight through.
+        $this->assertSame([['start_time' => 60.0, 'end_time' => 120.0], ['start_time' => 120.0, 'end_time' => 420.0]], $cut);
+        $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $talk->fresh()->publication_status);
+        $this->assertSame($reading->id, $talk->fresh()->mediaSignaturePayload()['with_reading']['section_id'] ?? null);
     }
 
     #[Test]

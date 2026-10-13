@@ -22,6 +22,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\PublicationPlanValidator;
+use App\Services\ChurchService\TalkReadingPairing;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
 use App\Services\ChurchService\SectionPublication\SongPublicationHandler;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
@@ -492,13 +493,12 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             $provenance = $outputs->provenance($this->processingLog->fresh() ?? $this->processingLog);
             $cutPlan = $cutPlans->forSection($section);
             $this->refuseInvalidCut($section, $cutPlan['segments'], $cutPlan['cue_edge_widening']);
-            $segment = (object) $cutPlan['segments'][0];
 
             // Candidates carry the sound that will publish (§6.3): listening hears it, and
             // publication promotes the file without treating it again.
             $media = $videoExtractor->extractMedia(
                 $localSourcePath,
-                [['start_time' => (float) $segment->start_time, 'end_time' => (float) $segment->end_time]],
+                array_map(static fn (array $segment): array => ['start_time' => (float) $segment['start_time'], 'end_time' => (float) $segment['end_time']], $cutPlan['segments']),
                 $handler->audioProfile(),
                 $this->processingLog->processing_id.'_section_'.$section->id.'.mp4',
                 $cutPlan['audio_fade_out'],
@@ -593,7 +593,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
     private function refuseInvalidCut(ServiceSection $section, array $segments, array $edges): void
     {
         try {
-            $violations = app(PublicationPlanValidator::class)->validate($this->processingLog, [$section], $segments, $edges);
+            $violations = app(PublicationPlanValidator::class)->validate($this->processingLog, app(TalkReadingPairing::class)->sectionsCut($section), $segments, $edges);
         } catch (InvalidArgumentException $exception) {
             throw new OutputPlanInvalid([], $exception->getMessage());
         }

@@ -377,5 +377,9 @@ The decision page's rulings, applied:
   The answers on runs with media are banked and reach their sections when the round recomposes them.
 - **Composition reviews:** 1014 (the prayer stays out) and 1194 (Matthew 2:13–23 in). A review is keyed to its sections' identity, so re-run `storage/scratch/decisions-20261013/apply-compositions.php` if a recompose moves them. 1026 is now settled by the readings rule.
 - **Parked:** 930. Its drafts give the pre-service music and the welcome one OoS item, so no answer validates. The Luke correction also overlaps the stretch the drafts call a carol.
-- **Pending:** the talk-reading page (15 talks), https://claude.ai/artifact/2VFMAuoe1YLx4iC5LZRAyq. It needs a way to pair a talk with its reading before its answers can reach a cut.
+- **Talks after a reading (answered 13-10 on https://claude.ai/artifact/2VFMAuoe1YLx4iC5LZRAyq):** built as `TalkReadingPairing`. A short talk directly after a reading (gap ≤ 15 s) is cut with it when answered so; the answer is kept on the talk (`reading_pairing`), holds while that reading is still directly before it, survives a re-sync that moves the talk's edges, and enters the talk's media and approval signatures, so a new answer re-cuts the candidate and asks for approval again. Recorded with `service:answer-talk-reading`:
+  - with the reading: 962 §841, 1009 §1273, 1052 §1602, 1263 §3299, 1280 §4782, 1286 §3582, 1290 §3631, 1363 §4532;
+  - alone: 975, 1146, 1198, 1246, 1315, 1321;
+  - **944 not yet:** §190427 is `other` until the round's recompose applies its correction. Between its `rerun-recompose` and `rerun-extract`, run `service:answer-talk-reading --include=<944's talk> --evidence=… --execute`;
+  - **1286 joins R1** as a repair: a finished run outside the round, whose talk is now cut with Isaiah 35. None of the eight is approved or published, and no paired reading is also in its sermon's cut.
 - **For the listening round:** 1271's sermon end runs through a line the classifier hears as neither speech nor music ("sovereign"), which may be quiet singing.

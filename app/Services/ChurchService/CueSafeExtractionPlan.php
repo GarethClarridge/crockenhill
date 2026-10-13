@@ -151,12 +151,26 @@ class CueSafeExtractionPlan
     /** Seconds within which a section's bound borders an unresolved interval. */
     private const INTERVAL_REACH = 0.5;
 
-    /** @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>, audio_fade_out: float|null} */
+    /**
+     * A section's own output: the section, or a talk with the reading it is answered to go with
+     * ({@see TalkReadingPairing}), one span per section. The reading takes the pause before the
+     * talk, so the two meet and play straight through, as a sermon's silent joins do.
+     *
+     * @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>, audio_fade_out: float|null}
+     */
     public function forSection(ServiceSection $section): array
     {
+        $sections = app(TalkReadingPairing::class)->sectionsCut($section);
+        $spans = [];
+
+        foreach ($sections as $index => $part) {
+            $next = $sections[$index + 1] ?? null;
+            $spans[] = ['start_time' => (float) $part->start_time, 'end_time' => $next === null ? (float) $part->end_time : (float) $next->start_time];
+        }
+
         return $this->forSpans(
             $section->processingLog,
-            [['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time]],
+            $spans,
             songEnds: $section->section_type === ServiceSectionType::Song,
         );
     }

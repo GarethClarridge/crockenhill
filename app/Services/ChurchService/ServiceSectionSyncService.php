@@ -6,6 +6,7 @@ namespace App\Services\ChurchService;
 
 use App\Actions\HoldSectionForContentReview;
 use App\Enums\ServiceSectionPublicationStatus;
+use App\Enums\ServiceSectionType;
 use App\Exceptions\UnplacedContentHoldException;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
@@ -346,6 +347,15 @@ class ServiceSectionSyncService
 
         $isPublishableType = $this->isPublishableType($incomingPayload['section_type']);
 
+        // Whether a talk is about its reading is an answer about the talk, not its edges: a talk
+        // re-detected with moved edges keeps it ({@see TalkReadingPairing} still checks the reading).
+        $readingPairing = $existing->section_type === ServiceSectionType::ShortTalk
+            && $incomingPayload['section_type'] === ServiceSectionType::ShortTalk->value
+            && $incomingPayload['start_time'] < (float) $existing->end_time
+            && $incomingPayload['end_time'] > (float) $existing->start_time
+                ? array_intersect_key($existing->metadata?->toArray() ?? [], [TalkReadingPairing::METADATA_KEY => true])
+                : [];
+
         if ($existing->published_sermon_id !== null) {
             Log::warning('Published service section superseded by classification refresh', $this->sanitizeArrayForLog([
                 'service_section_id' => $existing->id,
@@ -364,6 +374,7 @@ class ServiceSectionSyncService
             'unpublished_expires_at' => null,
             'metadata' => array_merge(
                 $incomingPayload['metadata'],
+                $readingPairing,
                 [
                     'superseded' => $supersedeMetadata,
                     'publishable_type_after_supersede' => $isPublishableType,

@@ -20,6 +20,7 @@ use App\Models\ServiceSection;
 use App\Models\SongVideo;
 use App\Models\User;
 use App\Services\ChurchService\ServiceSectionSyncService;
+use App\Services\ChurchService\TalkReadingPairing;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -535,6 +536,32 @@ class ServiceSectionSyncServiceTest extends TestCase
 
         $this->assertSame(TalkType::PartnerUpdate, $talkType?->proposed);
         $this->assertSame(TalkType::Testimony, $talkType?->publicationTalkType());
+    }
+
+    /** Whether a talk is about its reading answers for the talk, not its edges (operator ruling 2026-10-13). */
+    #[Test]
+    public function a_talk_re_detected_with_moved_edges_keeps_its_reading_answer_and_a_new_section_does_not(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $answer = ['include' => true, 'reading_section_id' => 1, 'answered_by' => 'talk page'];
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id, 'section_type' => ServiceSectionType::ShortTalk->value, 'section_order' => 1,
+            'title' => 'Jehovah-Nissi', 'church_service_item_id' => null, 'start_time' => 60.0, 'end_time' => 180.0, 'duration' => 120.0,
+            'metadata' => [TalkReadingPairing::METADATA_KEY => $answer],
+        ]);
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id, 'section_type' => ServiceSectionType::ShortTalk->value, 'section_order' => 2,
+            'title' => 'Mary Slessor', 'church_service_item_id' => null, 'start_time' => 300.0, 'end_time' => 400.0, 'duration' => 100.0,
+            'metadata' => [TalkReadingPairing::METADATA_KEY => $answer],
+        ]);
+
+        $this->service->sync($processingLog, [
+            $this->sectionData(null, 1, ServiceSectionType::ShortTalk->value, 'Jehovah-Nissi', 62.5, 181.0, 118.5),
+            $this->sectionData(null, 2, ServiceSectionType::Prayer->value, 'Prayer', 300.0, 400.0, 100.0),
+        ]);
+
+        $this->assertEquals($answer, $this->sectionAt($processingLog, 1)->metadata->raw[TalkReadingPairing::METADATA_KEY] ?? null);
+        $this->assertArrayNotHasKey(TalkReadingPairing::METADATA_KEY, $this->sectionAt($processingLog, 2)->metadata->raw);
     }
 
     #[Test]

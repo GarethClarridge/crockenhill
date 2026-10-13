@@ -12,6 +12,7 @@ use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Enums\TalkType;
+use App\Services\ChurchService\TalkReadingPairing;
 use App\Support\MediaAssetPath;
 use App\Support\MediaProcessingVersion;
 use Database\Factories\ServiceSectionFactory;
@@ -225,6 +226,11 @@ class ServiceSection extends Model
             if ($this->publicationTalkType() instanceof TalkType) {
                 $payload['talk_type'] = $this->publicationTalkType()->value;
             }
+
+            // Present only for a talk cut with its reading, so every other talk's signature stands.
+            if (($reading = $this->pairedReadingPayload()) !== null) {
+                $payload['with_reading'] = $reading;
+            }
         }
 
         return $payload;
@@ -244,16 +250,36 @@ class ServiceSection extends Model
      * item bindings and publication facts (speaker, talk type) do not change the
      * bytes, so confirming them never makes a candidate look due for re-cutting.
      *
-     * @return array{section_type: string, start_time: float, end_time: float, media_processing: array<string, mixed>}
+     * A talk cut with its reading ({@see TalkReadingPairing}) depends on the reading's bounds too.
+     *
+     * @return array{section_type: string, start_time: float, end_time: float, media_processing: array<string, mixed>, with_reading?: array{section_id: int, start_time: float, end_time: float}}
      */
     public function mediaSignaturePayload(): array
     {
-        return [
+        $payload = [
             'section_type' => $this->section_type->value,
             'start_time' => (float) $this->start_time,
             'end_time' => (float) $this->end_time,
             'media_processing' => MediaProcessingVersion::signature(),
         ];
+
+        if (($reading = $this->pairedReadingPayload()) !== null) {
+            $payload['with_reading'] = $reading;
+        }
+
+        return $payload;
+    }
+
+    /** @return array{section_id: int, start_time: float, end_time: float}|null */
+    private function pairedReadingPayload(): ?array
+    {
+        if ($this->section_type !== ServiceSectionType::ShortTalk || ! isset($this->metadata?->raw[TalkReadingPairing::METADATA_KEY])) {
+            return null;
+        }
+
+        $reading = app(TalkReadingPairing::class)->includedReading($this);
+
+        return $reading === null ? null : ['section_id' => $reading->id, 'start_time' => (float) $reading->start_time, 'end_time' => (float) $reading->end_time];
     }
 
     public function mediaSignature(): string
