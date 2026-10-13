@@ -122,8 +122,10 @@ class VideoExtractionService
         foreach ($segments as $index => $span) {
             // An accurate input seek bounds decoding cost to the selected interval.
             // Both streams then share the same requested origin, including fractional frames.
+            // On the host the media engine decodes as well as encodes: the frames are bit-identical
+            // to software decoding, and it halves the CPU each encode takes (spike 2026-10-13).
             $duration = $span['end_time'] - $span['start_time'];
-            array_push($inputs, '-ss', $this->seconds($span['start_time']), '-t', $this->seconds($duration), '-i', $inputPath);
+            array_push($inputs, ...[...($this->encodesOnHost() ? ['-hwaccel', 'videotoolbox'] : []), '-ss', $this->seconds($span['start_time']), '-t', $this->seconds($duration), '-i', $inputPath]);
             $filters[] = "[{$index}:v:0]trim=duration=".$this->seconds($duration).",setpts=PTS-STARTPTS[v{$index}]";
             $fade = '';
 

@@ -247,7 +247,8 @@ class VideoExtractionSmartCutTest extends TestCase
         $sent = [];
         Http::fake(function (Request $request) use (&$sent) {
             $sent = $request['arguments'];
-            $arguments = $sent;
+            // This container has neither VideoToolbox decoder nor encoder: decode and encode in software.
+            $arguments = array_values(array_filter($sent, static fn (string $argument, int $index): bool => $argument !== '-hwaccel' && ($sent[$index - 1] ?? null) !== '-hwaccel', ARRAY_FILTER_USE_BOTH));
             array_splice($arguments, (int) array_search('-c:v', $arguments, true), 10, ['-c:v', 'libx264', '-preset', 'ultrafast']);
             $process = new Process(['/usr/bin/ffmpeg', ...$arguments]);
             $process->run();
@@ -267,6 +268,11 @@ class VideoExtractionSmartCutTest extends TestCase
         $this->assertSame(['-c:v', 'h264_videotoolbox', '-profile:v', 'high', '-allow_sw', '0', '-q:v', '60', '-g', '250'],
             array_slice($sent, (int) array_search('-c:v', $sent, true), 10));
         $this->assertContains($source, $sent);
+        $inputs = array_keys($sent, '-i', true);
+        $this->assertCount(2, $inputs);
+        foreach ($inputs as $input) {
+            $this->assertSame(['-hwaccel', 'videotoolbox'], array_slice($sent, $input - 6, 2), 'each input is decoded by the media engine');
+        }
     }
 
     /**
