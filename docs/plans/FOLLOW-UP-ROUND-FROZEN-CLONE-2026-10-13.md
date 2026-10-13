@@ -393,3 +393,12 @@ The decision page's rulings, applied:
   - **1286 joins R1** as a repair: a finished run outside the round, whose talk is now cut with Isaiah 35. None of the eight is approved or published, and no paired reading is also in its sermon's cut.
   - Codex review (13-10), applied: a held reading holds the talk cut with it (candidate preparation sends the talk to review, approval and publication refuse); the answer follows its talk through a re-sync that changes the order as well as the edges; the reading's opening is the talk clip's start for the sentence-boundary check.
 - **For the listening round:** 1271's sermon end runs through a line the classifier hears as neither speech nor music ("sovereign"), which may be quiet singing.
+
+## 12. Setup log (13-10)
+
+- Pushed d18b53ab7. Main's seven workers removed; main `.env` on Redis 4/5, every worker replica 0 (old file in the session scratchpad as `env.before-round`).
+- Clone `../crockenhill-round` at d18b53ab7, vendor copied, same `.env` (Redis 0/1, VideoToolbox). Its code revision differs from main's only by ten untracked `.DS_Store` files in main; every tracked file is identical, and the round records the clone's own revision.
+- Round project up: eight containers (ffmpeg ×2), Redis 0/1, encoder `h264_videotoolbox`, host ffmpeg reachable.
+- Withdrawn: 67 on the main snapshot, 38 on Tier B, none refused; 929's interrupted `transcribe_full_service` cancelled.
+- S1 `followup-round-20261013`: 301 runs (the 300 plus 1286), Tier A routes from `listening-20260924/routing-bound.json`. Watcher running; parked 930, 945, 1220, 1223, 1314. 1202 not parked: §6 pattern B covers it.
+- Stage (a), 1263: recompose clean (talk 3299 kept its Psalm 19 answer). Its first encode hung in `open()` on the Staging drive: the LaunchAgent's Python had never been granted removable-volume access (every earlier host run was on project files). The LaunchAgent is unloaded; the same server runs from the operator's session until the permission is granted, then the LaunchAgent comes back (round paused for the swap).
