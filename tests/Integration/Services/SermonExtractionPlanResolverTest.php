@@ -898,6 +898,57 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->assertSame(1200.0, $plan['segments'][0]['end_time']);
     }
 
+    /**
+     * Operator ruling 2026-10-13, pattern B: seven evening recordings hold only the sermon, from the
+     * preacher's first word to the end, and were held on low confidence for want of a reading to
+     * pair with. A sermon the recording opens with has no boundary for that doubt to question.
+     */
+    #[Test]
+    public function a_low_confidence_sermon_the_recording_opens_with_is_cut(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 1677.8]);
+        $sermon = $this->section($log, ServiceSectionType::Sermon, 1, 0.0, 1674.9);
+        $sermon->update(['needs_manual_review' => true, 'metadata' => ['review_flags' => [
+            ServiceStructureValidator::FLAG_LOW_CONFIDENCE, ServiceStructureValidator::FLAG_MISSING_PREACHED_READING,
+        ]]]);
+
+        $plan = $this->resolver->resolve($log->fresh());
+
+        $this->assertFalse($plan['metadata']['requires_review']);
+        $this->assertSame([['start_time' => 0.0, 'end_time' => 1674.9]], $plan['segments']);
+    }
+
+    /** Later in a service the same doubt questions where the sermon begins: still reviewed. */
+    #[Test]
+    public function a_low_confidence_sermon_after_other_items_is_still_reviewed(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 3000]);
+        $this->section($log, ServiceSectionType::Song, 1, 0.0, 300.0);
+        $sermon = $this->section($log, ServiceSectionType::Sermon, 2, 310.0, 2000.0);
+        $sermon->update(['needs_manual_review' => true, 'metadata' => ['review_flags' => [ServiceStructureValidator::FLAG_LOW_CONFIDENCE]]]);
+
+        $this->assertTrue($this->resolver->resolve($log->fresh())['metadata']['requires_review']);
+    }
+
+    /**
+     * Operator ruling 2026-10-13, pattern D: 1235's and 1346's readings were held on low confidence
+     * though their edges were ordinary, and both were the readings. A reading cut with its sermon
+     * is not held on it; the review that flag alone asked for goes with it.
+     */
+    #[Test]
+    public function a_low_confidence_reading_cut_with_its_sermon_does_not_hold_it(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 3000]);
+        $reading = $this->reading($log, 1, 100.0, 200.0, reference: 'John 3:1-16');
+        $reading->update(['needs_manual_review' => true, 'metadata' => [...$reading->metadata->toArray(), 'review_flags' => [ServiceStructureValidator::FLAG_LOW_CONFIDENCE]]]);
+        $this->sermon($log, 2, 210.0, 2000.0, 'John 3:1-16');
+
+        $plan = $this->resolver->resolve($log->fresh());
+
+        $this->assertFalse($plan['metadata']['requires_review']);
+        $this->assertSame([100.0, 210.0], array_column($plan['segments'], 'start_time'));
+    }
+
     #[Test]
     public function it_parks_a_boundary_question_without_substituting_detector_bounds(): void
     {

@@ -43,6 +43,9 @@ class SermonExtractionPlanResolver
     /** How far past the recording's end a section may run and be cut to that end. */
     private const SOURCE_END_OVERRUN_SECONDS = 1.0;
 
+    /** A first section starting within this of the recording's start is what the recording opens with. */
+    private const RECORDING_OPENS_WITH_SECTION_SECONDS = 5.0;
+
     public function __construct(
         private readonly ScriptureReferenceResolver $scriptureReferences,
         private readonly SermonContinuationScreen $continuations,
@@ -357,6 +360,33 @@ class SermonExtractionPlanResolver
     }
 
     /**
+     * Whether a section's review state lets its cut go ahead, low confidence aside where it cannot
+     * question the cut (operator rulings 2026-10-13): a reading the composition cuts with its
+     * sermon (pattern D: 1235 and 1346 were held on it, and both were the readings), and a sermon
+     * the recording opens with (pattern B: seven evening recordings that are only the sermon,
+     * 23–28 minutes from the preacher's first word, held for want of a reading to pair with).
+     * A review that flag alone asked for goes with it.
+     *
+     * @param  array<int, string>  $flags
+     * @param  list<ServiceSection>  $sections  The run's sections in time order
+     */
+    private function reviewStatePermitsTheCut(ServiceSection $section, array $flags, array $sections): bool
+    {
+        $opensTheRecording = $section->section_type === ServiceSectionType::Sermon
+            && ($sections[0] ?? null)?->is($section) === true
+            && (float) $section->start_time <= self::RECORDING_OPENS_WITH_SECTION_SECONDS;
+        $needsReview = (bool) $section->needs_manual_review;
+
+        if (($section->section_type === ServiceSectionType::BibleReading || $opensTheRecording)
+            && in_array(ServiceStructureValidator::FLAG_LOW_CONFIDENCE, $flags, true)) {
+            $flags = array_values(array_diff($flags, [ServiceStructureValidator::FLAG_LOW_CONFIDENCE]));
+            $needsReview = $needsReview && $flags !== [];
+        }
+
+        return SermonAutoExtractionPolicy::reviewStatePermitsAutoExtraction($needsReview, $flags);
+    }
+
+    /**
      * @param  array{section_id: int, start_time: float, end_time: float}|null  $heldSpanAuthority
      * @return array{mode: 'single_span'|'concat_spans', source: 'service_sections', segments: list<array{start_time: float, end_time: float}>, metadata: array<string, mixed>}
      */
@@ -401,7 +431,7 @@ class SermonExtractionPlanResolver
             if ($isHeld && ! $authorised) {
                 $held[] = $id;
                 $requiresReview = true;
-            } elseif ((! $authorised && ! SermonAutoExtractionPolicy::reviewStatePermitsAutoExtraction((bool) $section->needs_manual_review, $flags))) {
+            } elseif (! $authorised && ! $this->reviewStatePermitsTheCut($section, $flags, $sections)) {
                 $requiresReview = true;
             }
             $spans[] = ['start_time' => $start, 'end_time' => $end];
