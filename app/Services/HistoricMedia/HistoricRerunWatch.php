@@ -99,7 +99,7 @@ final class HistoricRerunWatch
         foreach ($failedJobs as $job) {
             $payload = json_decode((string) $job->payload, true);
             $failure = sprintf('job failed on %s: %s — %s', $job->queue, $payload['displayName'] ?? 'unknown job', strtok((string) $job->exception, "\n"));
-            $runIds = $this->runsNamedBy($payload);
+            $runIds = QueuedRunJobs::runsNamedBy($payload);
 
             // Two watches run side by side (main and Tier B); each stops for its own runs only.
             // A job whose run cannot be read still stops it.
@@ -193,23 +193,6 @@ final class HistoricRerunWatch
         }
 
         return $paused;
-    }
-
-    /**
-     * The processing runs a failed job's payload names, its chained jobs included.
-     *
-     * @param  mixed  $payload  The decoded `failed_jobs.payload`
-     * @return list<int>
-     */
-    private function runsNamedBy(mixed $payload): array
-    {
-        $command = is_array($payload) ? ($payload['data']['command'] ?? null) : null;
-
-        if (! is_string($command) || preg_match_all('/"'.preg_quote(MediaProcessingLog::class, '/').'";s:2:"id";i:(\d+);/', $command, $matches) === 0) {
-            return [];
-        }
-
-        return array_values(array_unique(array_map('intval', $matches[1])));
     }
 
     /**

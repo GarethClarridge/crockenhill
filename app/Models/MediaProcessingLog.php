@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Actions\RedetectForCorpusRerun;
 use App\Actions\RedetectStructureOnRecoveredEvidence;
 use App\Actions\RetranscribeForCorpusRerun;
+use App\Actions\WithdrawCorpusRerunRound;
 use App\Data\ChurchServiceTranscript;
 use App\Data\HistoricStagingContext;
 use App\Data\ProcessingManualReviewMetadata;
@@ -1590,7 +1591,9 @@ class MediaProcessingLog extends Model
     }
 
     /**
-     * Every corpus re-run dispatch recorded on this run, oldest first (plan §4.0).
+     * Every corpus re-run dispatch recorded on this run, oldest first (plan §4.0), passing over a
+     * re-transcription withdrawn unfinished ({@see WithdrawCorpusRerunRound}): it wrote nothing,
+     * and stays in the metadata only as history.
      *
      * @return list<array<string, mixed>>
      */
@@ -1598,7 +1601,9 @@ class MediaProcessingLog extends Model
     {
         $stamps = ($this->processing_metadata?->toArray() ?? [])[RedetectForCorpusRerun::STAMP_KEY] ?? [];
 
-        return is_array($stamps) ? array_values(array_filter($stamps, 'is_array')) : [];
+        return is_array($stamps)
+            ? array_values(array_filter($stamps, static fn (mixed $stamp): bool => is_array($stamp) && ! isset($stamp['withdrawn'])))
+            : [];
     }
 
     /**

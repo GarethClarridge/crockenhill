@@ -391,7 +391,11 @@ class WatchHistoricRerunCommandTest extends TestCase
     private function processingRun(): MediaProcessingLog
     {
         return MediaProcessingLog::factory()->livestream()->completed()->create([
-            'sermon_id' => Sermon::factory()->create(['reference' => 'John 3:16', 'scripture_passage_id' => ScripturePassage::factory()])->id,
+            // A passage of its own: the factory's few random references collide when a test makes two runs.
+            'sermon_id' => Sermon::factory()->create([
+                'reference' => 'John 3:16',
+                'scripture_passage_id' => ScripturePassage::factory()->create(['normalized_reference' => 'John 3:'.(ScripturePassage::query()->count() + 1)]),
+            ])->id,
             'sermon_start_time' => 600.0,
             'sermon_end_time' => 2400.0,
         ]);
