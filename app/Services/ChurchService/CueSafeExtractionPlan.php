@@ -242,12 +242,7 @@ class CueSafeExtractionPlan
                     $payload = $evidence->read($log, $window);
                     $words = $payload['words'];
                     if ($words !== []) {
-                        $decision = $this->wordPause($words, $window, $original, $edge);
-                        if ($edge === 'start') {
-                            $decision = $this->keptAtHeardStart($log, $words, $original, $decision);
-                        } elseif (! $songEnds) {
-                            $decision = $this->keptOutOfMusic($log, $original, $decision);
-                        }
+                        $decision = $this->placedEdge($log, $words, $window, $original, $edge, $songEnds);
                         if ($besideSong) {
                             $decision = $this->withTail($decision);
                         }
@@ -512,6 +507,26 @@ class CueSafeExtractionPlan
         }
 
         return $spans;
+    }
+
+    /**
+     * Where the words place an edge, with the guards on what they cannot show: one placement for
+     * the plan and for the cut the sentence check is asked about, or a guarded edge's answer is
+     * never found (Codex review, 2026-10-13).
+     *
+     * @param  list<array{start: float, end: float, word: string}>  $words
+     * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>, between?: true}  $window
+     * @return array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, candidate_anchors?: list<array{start: float, end: float, word: string}>}
+     */
+    private function placedEdge(MediaProcessingLog $log, array $words, array $window, float $original, string $edge, bool $songEnds): array
+    {
+        $decision = $this->wordPause($words, $window, $original, $edge);
+
+        if ($edge === 'start') {
+            return $this->keptAtHeardStart($log, $words, $original, $decision);
+        }
+
+        return $songEnds ? $decision : $this->keptOutOfMusic($log, $original, $decision);
     }
 
     /**
@@ -839,7 +854,8 @@ class CueSafeExtractionPlan
             return null;
         }
 
-        $decision = $this->wordPause($words, $window, $original, $edge);
+        // A spoken edge: the sentence check is asked about the cut the plan makes.
+        $decision = $this->placedEdge($log, $words, $window, $original, $edge, songEnds: false);
 
         return isset($decision['candidate_anchors']) ? null : ['time' => $decision['time'], 'window' => $window, 'words' => $words];
     }

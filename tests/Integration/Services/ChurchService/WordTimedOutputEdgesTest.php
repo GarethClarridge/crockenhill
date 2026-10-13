@@ -547,9 +547,14 @@ class WordTimedOutputEdgesTest extends TestCase
             ['start' => 4198.11, 'end' => 4199.0, 'word' => ' Amen.'],
         ]);
 
-        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 2146.34, 'end_time' => 4180.0]]);
+        $plans = app(CueSafeExtractionPlan::class);
+        $plan = $plans->forSpans($log->fresh(), [['start_time' => 2146.34, 'end_time' => 4180.0]]);
 
         $this->assertEqualsWithDelta($expected, $plan['segments'][0]['end_time'], 0.001);
+        // The sentence check is asked about the cut the plan makes, or its answer is never found
+        // (Codex review, 2026-10-13); the plan's tail comes after the check.
+        $asked = $plans->wordPauseEdge($log->fresh(), app(OutputEdgeWordTimings::class)->cues($log->fresh()), 4180.0, 'end');
+        $this->assertEqualsWithDelta($plan['cue_edge_widening'][0]['time'] - ($expected === 4180.0 ? 0.0 : 0.3), $asked['time'], 0.001);
     }
 
     public static function endsIntoTheNextSong(): array
