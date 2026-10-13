@@ -123,7 +123,7 @@ class VideoExtractionService
             // An accurate input seek bounds decoding cost to the selected interval.
             // Both streams then share the same requested origin, including fractional frames.
             $duration = $span['end_time'] - $span['start_time'];
-            array_push($inputs, '-ss', $this->seconds($span['start_time']), '-t', $this->seconds($duration), '-i', escapeshellarg($inputPath));
+            array_push($inputs, '-ss', $this->seconds($span['start_time']), '-t', $this->seconds($duration), '-i', $inputPath);
             $filters[] = "[{$index}:v:0]trim=duration=".$this->seconds($duration).",setpts=PTS-STARTPTS[v{$index}]";
             $fade = '';
 
@@ -145,14 +145,13 @@ class VideoExtractionService
 
         try {
             $output = $this->runFfmpeg([
-                escapeshellarg((string) config('media-processing.ffmpeg.ffmpeg_path')),
                 ...$inputs,
-                '-filter_complex', escapeshellarg(implode(';', $filters)),
+                '-filter_complex', implode(';', $filters),
                 '-map', '[v]', '-map', '[a]',
                 ...$this->videoEncoderArguments(),
                 '-pix_fmt', 'yuv420p', '-fps_mode', 'vfr',
                 '-c:a', 'aac', '-ar', '48000', '-b:a', '128k',
-                '-movflags', '+faststart', '-y', escapeshellarg($outputPath),
+                '-movflags', '+faststart', '-y', $outputPath,
                 ...($audioRelativePath !== null ? $this->publicAudioArguments($disk->path($audioRelativePath), $settings) : []),
             ], 'paired section encode');
             $report = $checker->check($inputPath, $outputPath, $segments);
@@ -255,7 +254,7 @@ class VideoExtractionService
             '-c:a', 'libmp3lame',
             '-ar', (string) (int) config('media-processing.audio_treatment.public_mp3.sample_rate', 48000),
             '-b:a', ((int) config('media-processing.audio_treatment.public_mp3.bitrate_kbps', 96)).'k',
-            '-y', escapeshellarg($path),
+            '-y', $path,
         ];
     }
 
@@ -347,6 +346,14 @@ class VideoExtractionService
     /** @return list<string> */
     private function videoEncoderArguments(): array
     {
+        if ($this->encodesOnHost()) {
+            return [
+                '-c:v', 'h264_videotoolbox', '-profile:v', 'high', '-allow_sw', '0',
+                '-q:v', (string) (int) config('media-processing.video_extraction.videotoolbox_quality'),
+                '-g', (string) (int) config('media-processing.video_extraction.videotoolbox_keyframe_interval'),
+            ];
+        }
+
         return [
             '-c:v', 'libx264',
             '-crf', (string) (int) config('media-processing.video_extraction.reencode_crf', 23),
@@ -354,16 +361,26 @@ class VideoExtractionService
         ];
     }
 
+    private function encodesOnHost(): bool
+    {
+        return config('media-processing.video_extraction.encoder') === 'h264_videotoolbox';
+    }
+
     /**
-     * @param  list<string>  $arguments  Already shell-escaped where needed
+     * @param  list<string>  $arguments  FFmpeg's arguments, unescaped, without the binary
      * @return string FFmpeg's console output
      *
      * @throws VideoProcessingException
      */
     private function runFfmpeg(array $arguments, string $step): string
     {
+        if ($this->encodesOnHost()) {
+            return app(HostFfmpeg::class)->run($arguments, $step);
+        }
+
+        $command = [(string) config('media-processing.ffmpeg.ffmpeg_path'), ...$arguments];
         $output = [];
-        exec(implode(' ', $arguments).' 2>&1', $output, $returnCode);
+        exec(implode(' ', array_map(escapeshellarg(...), $command)).' 2>&1', $output, $returnCode);
 
         if ($returnCode !== 0) {
             throw new VideoProcessingException("FFmpeg {$step} failed: ".implode("\n", $output));

@@ -51,6 +51,13 @@ abstract class TestCase extends BaseTestCase
         // response set their own Http::fake([...]), which overrides this.
         Http::preventStrayRequests();
 
+        // VIDEO_EXTRACTION_ENCODER=h264_videotoolbox with HOST_FFMPEG_URL runs the cut
+        // suites through the Mac's hardware encoder (scripts/ffmpeg_host_server.py).
+        $hostFfmpeg = config('media-processing.video_extraction.host_ffmpeg.url');
+        if (is_string($hostFfmpeg) && $hostFfmpeg !== '') {
+            Http::allowStrayRequests([rtrim($hostFfmpeg, '/').'/run']);
+        }
+
         // Clear compiled views once per process to prevent stale cached
         // class references after component refactors.
         if (! self::$viewCacheCleared) {

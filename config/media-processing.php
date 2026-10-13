@@ -294,6 +294,25 @@ return [
         // (VP9, or above the bitrate threshold), so this is the setting that
         // decides how long a bulk pass takes.
         'reencode_preset' => env('VIDEO_EXTRACTION_REENCODE_PRESET', 'faster'),
+        // libx264 (CRF and preset above) or h264_videotoolbox: the Mac's hardware
+        // encoder, which the Docker VM cannot reach, so each paired encode is sent
+        // to scripts/ffmpeg_host_server.py at `host_ffmpeg.url`. An unreachable host
+        // fails the cut rather than quietly encoding with libx264: the asset version
+        // stamp names one encoder.
+        'encoder' => env('VIDEO_EXTRACTION_ENCODER', 'libx264'),
+        // VideoToolbox's constant quality (1-100), its counterpart of CRF: a fixed bitrate
+        // starved busy 2020 footage (VMAF 73 against libx264's 87 at the same size). 60
+        // matched or beat the pass's own veryfast CRF 23 cuts on five eras of source at
+        // 1.12x their total size (docs/plans/HARDWARE-VIDEO-ENCODING-SPIKE-2026-10-11.md).
+        // Needs the native arm64 FFmpeg; the Intel build under Rosetta refuses it.
+        'videotoolbox_quality' => (int) env('VIDEO_EXTRACTION_VIDEOTOOLBOX_QUALITY', 60),
+        // libx264's default keyframe interval, so seeking in the browser behaves as before.
+        'videotoolbox_keyframe_interval' => 250,
+        'host_ffmpeg' => [
+            'url' => env('HOST_FFMPEG_URL'),
+            // Inside ExtractSermon's 3600 s job timeout, so the job reports the failure itself.
+            'timeout_seconds' => (int) env('HOST_FFMPEG_TIMEOUT_SECONDS', 3300),
+        ],
     ],
 
     /*

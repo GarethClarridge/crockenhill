@@ -10,7 +10,9 @@ use App\Services\Media\Audio\AudioCompressionService;
 use App\Services\Media\Video\SourceAwareMediaTimingChecker;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Component\Process\Process;
@@ -231,6 +233,40 @@ class VideoExtractionSmartCutTest extends TestCase
             $treated = $this->service->extractMedia($source, $segments, $profile);
             $this->assertEventsTogether(Storage::disk('local')->path($treated->videoPath));
         }
+    }
+
+    /**
+     * The host encoder receives the same encode as plain arguments. Stood in for here
+     * by this container's FFmpeg with libx264, which runs exactly what was sent.
+     */
+    #[Test]
+    public function a_host_encode_sends_runnable_arguments_and_passes_the_same_checks(): void
+    {
+        Config::set('media-processing.video_extraction.encoder', 'h264_videotoolbox');
+        Config::set('media-processing.video_extraction.host_ffmpeg.url', 'http://host.docker.internal:2024');
+        $sent = [];
+        Http::fake(function (Request $request) use (&$sent) {
+            $sent = $request['arguments'];
+            $arguments = $sent;
+            array_splice($arguments, (int) array_search('-c:v', $arguments, true), 10, ['-c:v', 'libx264', '-preset', 'ultrafast']);
+            $process = new Process(['/usr/bin/ffmpeg', ...$arguments]);
+            $process->run();
+
+            return Http::response(['exit_code' => $process->getExitCode(), 'output' => $process->getOutput().$process->getErrorOutput()]);
+        });
+        $source = $this->eventSource();
+        $segments = [
+            ['start_time' => 0.13, 'end_time' => 8.337],
+            ['start_time' => 12.17, 'end_time' => 20.037],
+        ];
+
+        $treated = $this->service->extractMedia($source, $segments, AudioProfile::Speech, withPublicAudio: true);
+
+        $this->assertEventsTogether(Storage::disk('local')->path($treated->videoPath));
+        $this->assertSame([], $treated->loudnessMisses());
+        $this->assertSame(['-c:v', 'h264_videotoolbox', '-profile:v', 'high', '-allow_sw', '0', '-q:v', '60', '-g', '250'],
+            array_slice($sent, (int) array_search('-c:v', $sent, true), 10));
+        $this->assertContains($source, $sent);
     }
 
     /**
