@@ -323,7 +323,8 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             $section->metadata = ServiceSectionMetadata::fromArray($metadata);
             $handler->afterExtraction($section);
 
-            if (HoldSectionForContentReview::isHeld($section->metadata->reviewFlags ?? [])) {
+            // A talk's output also carries the reading cut with it, and that reading's hold.
+            if (HoldSectionForContentReview::isHeld($section->metadata->reviewFlags ?? []) || app(TalkReadingPairing::class)->heldReading($section) !== null) {
                 $section->needs_manual_review = true;
                 $this->moveToNotApplicable($section, $publicationTransitions);
 

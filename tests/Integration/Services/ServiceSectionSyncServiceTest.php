@@ -564,6 +564,32 @@ class ServiceSectionSyncServiceTest extends TestCase
         $this->assertArrayNotHasKey(TalkReadingPairing::METADATA_KEY, $this->sectionAt($processingLog, 2)->metadata->raw);
     }
 
+    /** Codex review 2026-10-13: a section inserted before the talk while its edges move pairs the talk with no stored row by identity or order. */
+    #[Test]
+    public function a_talks_reading_answer_follows_it_to_a_new_order(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $answer = ['include' => true, 'reading_section_id' => 1, 'answered_by' => 'talk page'];
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id, 'section_type' => ServiceSectionType::BibleReading->value, 'section_order' => 1,
+            'title' => 'Exodus 17', 'church_service_item_id' => null, 'start_time' => 0.0, 'end_time' => 50.0, 'duration' => 50.0,
+        ]);
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id, 'section_type' => ServiceSectionType::ShortTalk->value, 'section_order' => 2,
+            'title' => 'Jehovah-Nissi', 'church_service_item_id' => null, 'start_time' => 60.0, 'end_time' => 180.0, 'duration' => 120.0,
+            'metadata' => [TalkReadingPairing::METADATA_KEY => $answer],
+        ]);
+
+        $this->service->sync($processingLog, [
+            $this->sectionData(null, 1, ServiceSectionType::BibleReading->value, 'Exodus 17', 0.0, 50.0, 50.0),
+            $this->sectionData(null, 2, ServiceSectionType::Other->value, 'Notice', 50.0, 58.0, 8.0),
+            $this->sectionData(null, 3, ServiceSectionType::ShortTalk->value, 'Jehovah-Nissi', 58.0, 181.0, 123.0),
+        ]);
+
+        $this->assertEquals($answer, $this->sectionAt($processingLog, 3)->metadata->raw[TalkReadingPairing::METADATA_KEY] ?? null);
+        $this->assertArrayNotHasKey(TalkReadingPairing::METADATA_KEY, $this->sectionAt($processingLog, 2)->metadata->raw);
+    }
+
     #[Test]
     public function a_re_detection_hands_an_unchanged_song_back_to_matching(): void
     {

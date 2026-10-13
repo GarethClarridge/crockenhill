@@ -115,7 +115,8 @@ TXT;
 
     /**
      * The times an output is cut at: both edges of each section cut as a clip of its own (one with
-     * a publication handler: songs, short talks), and the edges of the sermon output's parts that
+     * a publication handler: songs, short talks; a talk cut with its reading opens at the
+     * reading's start, {@see TalkReadingPairing}), and the edges of the sermon output's parts that
      * extraction cuts. Parts join only where the planned spans touch or overlap, as extraction
      * merges them ({@see CueSafeExtractionPlan::forSpans()}): a second's gap the plan keeps is
      * two cuts (Codex review, 2026-10-07). Without the edge words to plan, every part's edges are
@@ -129,6 +130,7 @@ TXT;
     private function outputEdges(MediaProcessingLog $log, array $sections, array $sermonSectionIds): array
     {
         $handlers = app(SectionPublicationHandlerFactory::class);
+        $pairing = app(TalkReadingPairing::class);
         $edges = [];
         $parts = [];
 
@@ -136,7 +138,9 @@ TXT;
             [$start, $end] = [(float) $section->start_time, (float) $section->end_time];
 
             if ($handlers->forSection($section) !== null) {
-                array_push($edges, ['start', $start], ['end', $end]);
+                // A talk cut with its reading opens at the reading, and plays on through the join.
+                $cut = $pairing->sectionsCut($section);
+                array_push($edges, ['start', (float) $cut[0]->start_time], ['end', $end]);
             }
 
             if (in_array($section->id, $sermonSectionIds, true)) {

@@ -154,6 +154,15 @@ It then marks the stamp `withdrawn_at`/`withdrawn_reason` (kept as history; the 
 withdrawn stamps) and sets status to `completed` with `current_step` as the pre-round
 before-state recorded. It writes nothing else. Tests cover each refusal.
 
+Codex review (13-10), applied: "sections unchanged, no new media" is now proved, not assumed.
+An extraction is refused when a section was made or cut after it was dispatched, when a song
+video was bound after it was dispatched, or when the composition inputs no longer match the
+identity the round composed from (the stamp's deferred plan, else the run's composition). Step
+rows the round started and left active, with no job behind them, are cancelled with the round
+(929's interrupted `transcribe_full_service`). Older active rows are left as the snapshot
+recorded them (1250's `analyzing` from 02:08 on 10-10). Dry run after the change: all 105 still
+ready.
+
 **1220** is cut but its cleanup was refused, because a `prepare-section-publication-candidates`
 step row was left `running`. It needs its own look (Codex: settling rows is not done by
 removing messages). Parked until then.
@@ -382,4 +391,5 @@ The decision page's rulings, applied:
   - alone: 975, 1146, 1198, 1246, 1315, 1321;
   - **944 not yet:** §190427 is `other` until the round's recompose applies its correction. Between its `rerun-recompose` and `rerun-extract`, run `service:answer-talk-reading --include=<944's talk> --evidence=… --execute`;
   - **1286 joins R1** as a repair: a finished run outside the round, whose talk is now cut with Isaiah 35. None of the eight is approved or published, and no paired reading is also in its sermon's cut.
+  - Codex review (13-10), applied: a held reading holds the talk cut with it (candidate preparation sends the talk to review, approval and publication refuse); the answer follows its talk through a re-sync that changes the order as well as the edges; the reading's opening is the talk clip's start for the sentence-boundary check.
 - **For the listening round:** 1271's sermon end runs through a line the classifier hears as neither speech nor music ("sovereign"), which may be quiet singing.

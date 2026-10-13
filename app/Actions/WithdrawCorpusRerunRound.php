@@ -6,11 +6,15 @@ namespace App\Actions;
 
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
+use App\Models\SermonProcessingStep;
+use App\Models\SongVideo;
 use App\Services\HistoricMedia\HistoricRerunSnapshot;
 use App\Services\HistoricMedia\HistoricRerunState;
 use App\Services\HistoricMedia\QueuedRunJobs;
 use App\Services\Processing\HistoricWorkingCopyReachability;
 use App\Services\Processing\MediaProcessingRunTransitionService;
+use App\Services\Sermon\SermonExtractionPlanResolver;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 
 /**
@@ -32,9 +36,11 @@ use Illuminate\Support\Carbon;
  *   over ({@see MediaProcessingLog::corpusRerunStamps()}).
  *
  * Refused while any job still names the run (waiting, delayed or reserved), while its media work
- * is unsettled, while it waits on a manual review (those have their own routes back), and for a
- * run the snapshot did not record as completed. The run then returns to `completed`. Nothing
- * else is written; the withdrawal stays on the stamp as history.
+ * is unsettled, while it waits on a manual review (those have their own routes back), for a run
+ * the snapshot did not record as completed, and for an extraction that changed the run's sections
+ * or bound media to them. Step rows the round left active, with no job behind them, are
+ * cancelled; the run then returns to `completed`. Nothing else is written; the withdrawal stays on
+ * the stamp as history.
  *
  * Delete once the corpus re-run's batches are accepted, alongside its other instruments.
  */
@@ -45,6 +51,7 @@ final class WithdrawCorpusRerunRound
         private readonly HistoricWorkingCopyReachability $workingCopies,
         private readonly HistoricRerunState $state,
         private readonly MediaProcessingRunTransitionService $transitions,
+        private readonly SermonExtractionPlanResolver $compositions,
     ) {}
 
     /**
@@ -81,9 +88,71 @@ final class WithdrawCorpusRerunRound
             $run->amendLatestCorpusRerunStamp(['withdrawn' => $withdrawal]);
         }
 
+        $cancelled = $this->cancelRoundSteps($run, $refusal['stamp'], $reason);
         $this->transitions->markAsCompleted($run->fresh() ?? $run, (string) ($snapshot->runs[$run->id]['current_step'] ?? 'completed'));
 
-        return ['outcome' => 'withdrawn', 'reason' => "withdrew its unfinished {$kind}"];
+        return ['outcome' => 'withdrawn', 'reason' => "withdrew its unfinished {$kind}".($cancelled > 0 ? " and cancelled {$cancelled} step(s) it left active" : '')];
+    }
+
+    /**
+     * What the extraction did to the run's sections, which withdrawal cannot undo (plan §4: sections
+     * unchanged since the detection round, no new media bound): a section made or cut since it was
+     * dispatched, a song video bound since, or composition inputs other than those the detection
+     * round composed from.
+     *
+     * @param  array<string, mixed>  $stamp
+     */
+    private function sectionEffectSince(MediaProcessingLog $run, Carbon $dispatchedAt, array $stamp): ?string
+    {
+        $sections = $run->serviceSections();
+
+        if ((clone $sections)->where('created_at', '>=', $dispatchedAt)->exists()) {
+            return 'a section was made after the extraction was dispatched';
+        }
+
+        if ((clone $sections)->where('extracted_at', '>=', $dispatchedAt)->exists()) {
+            return 'a section was cut after the extraction was dispatched';
+        }
+
+        if (SongVideo::query()->whereIn('service_section_id', (clone $sections)->select('id'))
+            ->where(static fn (Builder $query): Builder => $query->where('created_at', '>=', $dispatchedAt)->orWhere('updated_at', '>=', $dispatchedAt))->exists()) {
+            return 'a song video was bound after the extraction was dispatched';
+        }
+
+        $recorded = data_get($stamp, 'deferred_extraction_plan.sermon_boundary.input_identity')
+            ?? data_get($run->processing_metadata?->toArray(), 'sermon_composition.input_identity');
+
+        if (! is_string($recorded)) {
+            return 'no composition was recorded to show its sections are unchanged';
+        }
+
+        if ($this->compositions->currentInputIdentity($run) !== $recorded) {
+            return 'its sections have changed since they were composed for the extraction';
+        }
+
+        return null;
+    }
+
+    /**
+     * Step rows the round started and left active. With no job naming the run they are not
+     * running, and they would otherwise read as live work on a completed run. Rows active from
+     * before the round are left: the snapshot recorded the run completed with them.
+     *
+     * @param  array<string, mixed>  $stamp
+     */
+    private function cancelRoundSteps(MediaProcessingLog $run, array $stamp, string $reason): int
+    {
+        $dispatchedAt = $stamp['dispatched_at'] ?? null;
+
+        if (! is_string($dispatchedAt)) {
+            return 0;
+        }
+
+        return SermonProcessingStep::query()
+            ->where('processing_id', $run->processing_id)
+            ->whereIn('status', [ProcessingStatus::Pending->value, ProcessingStatus::Started->value, ProcessingStatus::Processing->value])
+            ->where('started_at', '>=', Carbon::parse($dispatchedAt))
+            ->update(['status' => ProcessingStatus::Cancelled->value, 'message' => 'Withdrawn with its round: '.$reason, 'completed_at' => now()]);
     }
 
     /**
@@ -144,10 +213,17 @@ final class WithdrawCorpusRerunRound
             return 'its latest round is not an unfinished extraction or re-transcription';
         }
 
+        $dispatchedAt = Carbon::parse($stamp['extraction_dispatched_at']);
         $storedAt = data_get($run->processing_metadata?->toArray(), 'stored_video.stored_at');
 
-        if (is_string($storedAt) && Carbon::parse($storedAt)->gte(Carbon::parse($stamp['extraction_dispatched_at']))) {
+        if (is_string($storedAt) && Carbon::parse($storedAt)->gte($dispatchedAt)) {
             return sprintf('a sermon video was stored at %s, after the extraction was dispatched', $storedAt);
+        }
+
+        $sectionEffect = $this->sectionEffectSince($run, $dispatchedAt, $stamp);
+
+        if ($sectionEffect !== null) {
+            return $sectionEffect;
         }
 
         return ['kind' => 'extraction', 'stamp' => $stamp];

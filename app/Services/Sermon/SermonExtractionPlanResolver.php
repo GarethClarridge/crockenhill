@@ -596,6 +596,15 @@ class SermonExtractionPlanResolver
     }
 
     /**
+     * The identity {@see self::compose()} would record now: what a recorded composition's
+     * `input_identity` is compared with to show its sections have not moved since.
+     */
+    public function currentInputIdentity(MediaProcessingLog $log): string
+    {
+        return $this->inputIdentity($log, $log->serviceSections()->orderBy('start_time')->orderBy('id')->get()->values()->all());
+    }
+
+    /**
      * What a composition, and the operator's review of it, is bound to: the sections the plan
      * depends on ({@see self::planDependencies()}) and the coverage evidence, not every section
      * in the run, so an edit elsewhere keeps a reviewed selection.

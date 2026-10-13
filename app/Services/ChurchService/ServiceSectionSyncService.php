@@ -111,6 +111,17 @@ class ServiceSectionSyncService
                 ])
                 ->all());
 
+            // Read before any row is rewritten, for the same reason: an answer follows its talk.
+            $talkAnswers = array_values($existingByOrder
+                ->filter(static fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::ShortTalk
+                    && is_array($section->metadata?->raw[TalkReadingPairing::METADATA_KEY] ?? null))
+                ->map(static fn (ServiceSection $section): array => [
+                    'start_time' => (float) $section->start_time,
+                    'end_time' => (float) $section->end_time,
+                    'answer' => $section->metadata?->raw[TalkReadingPairing::METADATA_KEY] ?? [],
+                ])
+                ->all());
+
             $this->refuseUnplacedContentHolds(
                 array_values(array_filter($heldContent, static fn (array $held): bool => $held['held'])),
                 $classifiedSections,
@@ -168,14 +179,14 @@ class ServiceSectionSyncService
                         $payload = $this->withoutSongBinding($payload);
                     }
 
-                    $existing->fill($this->withContentHolds($payload, $heldContent));
+                    $existing->fill($this->withTalkAnswer($this->withContentHolds($payload, $heldContent), $talkAnswers));
                     $existing->save();
 
                     continue;
                 }
 
                 ServiceSection::query()->create(array_merge(
-                    $this->withContentHolds($payload, $heldContent),
+                    $this->withTalkAnswer($this->withContentHolds($payload, $heldContent), $talkAnswers),
                     [
                         'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
                         'song_match_type' => null,
@@ -347,15 +358,6 @@ class ServiceSectionSyncService
 
         $isPublishableType = $this->isPublishableType($incomingPayload['section_type']);
 
-        // Whether a talk is about its reading is an answer about the talk, not its edges: a talk
-        // re-detected with moved edges keeps it ({@see TalkReadingPairing} still checks the reading).
-        $readingPairing = $existing->section_type === ServiceSectionType::ShortTalk
-            && $incomingPayload['section_type'] === ServiceSectionType::ShortTalk->value
-            && $incomingPayload['start_time'] < (float) $existing->end_time
-            && $incomingPayload['end_time'] > (float) $existing->start_time
-                ? array_intersect_key($existing->metadata?->toArray() ?? [], [TalkReadingPairing::METADATA_KEY => true])
-                : [];
-
         if ($existing->published_sermon_id !== null) {
             Log::warning('Published service section superseded by classification refresh', $this->sanitizeArrayForLog([
                 'service_section_id' => $existing->id,
@@ -374,7 +376,6 @@ class ServiceSectionSyncService
             'unpublished_expires_at' => null,
             'metadata' => array_merge(
                 $incomingPayload['metadata'],
-                $readingPairing,
                 [
                     'superseded' => $supersedeMetadata,
                     'publishable_type_after_supersede' => $isPublishableType,
@@ -654,6 +655,44 @@ class ServiceSectionSyncService
         return HoldSectionForContentReview::isLive($record)
             ? [...$record, 'released_at' => CarbonImmutable::now()->toIso8601String()]
             : $record;
+    }
+
+    /**
+     * Give an incoming talk the answer on whether it is cut with its reading
+     * ({@see TalkReadingPairing}) from the stored talk it overlaps most. Like a content hold,
+     * the answer follows its talk, not the row: a re-detection that moves the talk's edges
+     * while sections before it come or go leaves it on another row, or a new one.
+     *
+     * @param  array<string, mixed>  $payload
+     * @param  list<array{start_time: float, end_time: float, answer: array<string, mixed>}>  $talkAnswers
+     * @return array<string, mixed>
+     */
+    private function withTalkAnswer(array $payload, array $talkAnswers): array
+    {
+        /** @var array<string, mixed> $metadata */
+        $metadata = $payload['metadata'];
+        unset($metadata[TalkReadingPairing::METADATA_KEY]);
+
+        if ($payload['section_type'] === ServiceSectionType::ShortTalk->value) {
+            $best = null;
+            $bestOverlap = 0.0;
+
+            foreach ($talkAnswers as $talk) {
+                $overlap = min((float) $payload['end_time'], $talk['end_time']) - max((float) $payload['start_time'], $talk['start_time']);
+
+                if ($overlap > $bestOverlap) {
+                    [$best, $bestOverlap] = [$talk['answer'], $overlap];
+                }
+            }
+
+            if ($best !== null) {
+                $metadata[TalkReadingPairing::METADATA_KEY] = $best;
+            }
+        }
+
+        $payload['metadata'] = $metadata;
+
+        return $payload;
     }
 
     /**

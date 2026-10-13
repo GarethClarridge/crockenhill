@@ -13,6 +13,7 @@ use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ExtractedSectionMediaChecker;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
+use App\Services\ChurchService\TalkReadingPairing;
 use App\Services\Preacher\TalkSpeakerService;
 use App\Services\Processing\MediaProcessingIdentityResolver;
 use App\Services\Sermon\SermonCreationService;
@@ -41,6 +42,7 @@ class TalkPublicationHandler implements SectionPublicationHandler
      * @param  ServiceSectionPublicationTransitionService  $publicationTransitions  Service for managing section state transitions
      * @param  ExtractedSectionMediaChecker  $mediaChecker  Service for verifying existence of extracted assets
      * @param  ShortTalkBoundaryEvidenceService  $shortTalkBoundaryEvidence  Service for recording inclusive candidate tail evidence
+     * @param  TalkReadingPairing  $readingPairing  The reading a talk is cut with, whose hold holds the talk
      */
     public function __construct(
         private readonly TalkSpeakerService $talkSpeakerService,
@@ -49,6 +51,7 @@ class TalkPublicationHandler implements SectionPublicationHandler
         private readonly ServiceSectionPublicationTransitionService $publicationTransitions,
         private readonly ExtractedSectionMediaChecker $mediaChecker,
         private readonly ShortTalkBoundaryEvidenceService $shortTalkBoundaryEvidence,
+        private readonly TalkReadingPairing $readingPairing,
     ) {}
 
     /**
@@ -137,6 +140,10 @@ class TalkPublicationHandler implements SectionPublicationHandler
                 $section->id,
                 $section->publication_status->value,
             ));
+        }
+
+        if (($reading = $this->readingPairing->heldReading($section)) !== null) {
+            throw new \RuntimeException("The reading cut with this talk (section {$reading->id}) is held for content review");
         }
 
         $videoPath = $section->extracted_video_path;

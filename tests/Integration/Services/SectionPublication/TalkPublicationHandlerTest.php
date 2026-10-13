@@ -15,6 +15,7 @@ use App\Models\ServiceSection;
 use App\Services\ChurchService\ExtractedSectionMediaChecker;
 use App\Services\ChurchService\SectionPublication\ShortTalkBoundaryEvidenceService;
 use App\Services\ChurchService\SectionPublication\TalkPublicationHandler;
+use App\Services\ChurchService\TalkReadingPairing;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\Preacher\TalkSpeakerService;
 use App\Services\Processing\MediaProcessingIdentityResolver;
@@ -62,6 +63,7 @@ class TalkPublicationHandlerTest extends TestCase
             $this->publicationTransitions,
             app(ExtractedSectionMediaChecker::class),
             $this->shortTalkBoundaryEvidence,
+            app(TalkReadingPairing::class),
         );
     }
 

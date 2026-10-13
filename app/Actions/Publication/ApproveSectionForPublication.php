@@ -11,6 +11,7 @@ use App\Models\ServiceSection;
 use App\Services\ChurchService\ExtractedSectionMediaChecker;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\Preacher\TalkSpeakerService;
+use App\Services\ChurchService\TalkReadingPairing;
 
 class ApproveSectionForPublication
 {
@@ -79,6 +80,10 @@ class ApproveSectionForPublication
 
         if (! $section->hasResolvedTalkType()) {
             return 'Choose the talk type before approving publication.';
+        }
+
+        if (($reading = app(TalkReadingPairing::class)->heldReading($section)) !== null) {
+            return "The reading cut with this talk (section {$reading->id}) is held for content review.";
         }
 
         return null;

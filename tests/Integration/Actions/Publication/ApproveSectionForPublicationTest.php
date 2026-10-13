@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Actions\Publication;
 
+use App\Actions\HoldSectionForContentReview;
 use App\Actions\Publication\ApproveSectionForPublication;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionPublicationStatus;
@@ -12,6 +13,7 @@ use App\Jobs\PublishApprovedServiceSection;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\SectionPublication\TalkPublicationHandler;
+use App\Services\ChurchService\TalkReadingPairing;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -268,6 +270,39 @@ class ApproveSectionForPublicationTest extends TestCase
         $this->expectExceptionMessage('Section classification changed since approval; re-approve before publishing');
 
         app(TalkPublicationHandler::class)->publish($section->refresh());
+    }
+
+    /**
+     * A talk cut with its reading publishes the reading too, so the reading's content hold holds
+     * the talk, at approval and again at publication (Codex review 2026-10-13).
+     */
+    #[Test]
+    public function a_talk_cut_with_a_held_reading_is_neither_approved_nor_published(): void
+    {
+        Queue::fake();
+        $talk = $this->readyShortTalk(['reviewed' => ['value' => 'childrens_talk']]);
+        $talk->update(['start_time' => 300.0, 'end_time' => 600.0, 'duration' => 300.0]);
+        $reading = ServiceSection::factory()->create([
+            'media_processing_log_id' => $talk->media_processing_log_id, 'section_type' => ServiceSectionType::BibleReading,
+            'start_time' => 200.0, 'end_time' => 295.0, 'duration' => 95.0,
+        ]);
+        app(TalkReadingPairing::class)->record($talk, true, 'talk page');
+        $reading->update(['metadata' => ServiceSectionMetadata::fromArray(['review_flags' => [HoldSectionForContentReview::FLAG]])]);
+
+        $this->assertSame("The reading cut with this talk (section {$reading->id}) is held for content review.", $this->action->execute($talk->refresh()));
+        $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $talk->refresh()->publication_status);
+
+        $talk->update(['publication_status' => ServiceSectionPublicationStatus::Approved]);
+        try {
+            app(TalkPublicationHandler::class)->publish($talk->refresh());
+            $this->fail('A talk whose reading is held must not publish.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('is held for content review', $exception->getMessage());
+        }
+        Storage::disk('public')->assertExists('sermons/sections/7/video.mp4');
+
+        $reading->update(['metadata' => ServiceSectionMetadata::fromArray([])]);
+        $this->assertNull($this->action->approvalBlocker($talk->refresh()));
     }
 
     /**

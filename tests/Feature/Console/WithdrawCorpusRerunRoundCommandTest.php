@@ -7,9 +7,13 @@ namespace Tests\Feature\Console;
 use App\Actions\RedetectForCorpusRerun;
 use App\Actions\RetranscribeForCorpusRerun;
 use App\Enums\ProcessingStatus;
+use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\SermonProcessingStep;
+use App\Models\ServiceSection;
+use App\Models\SongVideo;
 use App\Services\HistoricMedia\QueuedRunJobs;
+use App\Services\Sermon\SermonExtractionPlanResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Testing\PendingCommand;
@@ -164,6 +168,50 @@ class WithdrawCorpusRerunRoundCommandTest extends TestCase
         self::assertSame(ProcessingStatus::Processing, $run->fresh()->status);
     }
 
+    /** Plan §4: an extraction is withdrawn only while its sections are as detection left them, with no media bound. */
+    #[Test]
+    public function a_cut_that_changed_its_sections_or_bound_media_is_refused(): void
+    {
+        $cases = [
+            'a section was cut after the extraction was dispatched' => static fn (MediaProcessingLog $run) => $run->serviceSections()->update(['extracted_at' => '2026-10-11 12:30:00']),
+            'a section was made after the extraction was dispatched' => static fn (MediaProcessingLog $run) => ServiceSection::factory()->create(['media_processing_log_id' => $run->id, 'section_type' => ServiceSectionType::Prayer, 'start_time' => 2400.0, 'end_time' => 2460.0]),
+            'a song video was bound after the extraction was dispatched' => static fn (MediaProcessingLog $run) => SongVideo::factory()->create(['service_section_id' => $run->serviceSections()->value('id')]),
+            'its sections have changed since they were composed for the extraction' => static fn (MediaProcessingLog $run) => $run->serviceSections()->update(['start_time' => 610.0, 'duration' => 1790.0]),
+            'no composition was recorded to show its sections are unchanged' => static fn (MediaProcessingLog $run) => $run->writeProcessingMetadata(static function (array $metadata): array {
+                unset($metadata['sermon_composition']);
+
+                return $metadata;
+            }),
+        ];
+
+        foreach ($cases as $refusal => $effect) {
+            File::delete(storage_path('app/private/'.$this->snapshotPath()));
+            $run = $this->pulledCut();
+            $effect($run);
+
+            $this->withdraw([$run->id])->expectsOutputToContain($refusal)->assertSuccessful();
+            self::assertSame(ProcessingStatus::Processing, $run->fresh()->status, $refusal);
+        }
+    }
+
+    /**
+     * Step rows the round left active, with no job behind them, are cancelled with it; a row
+     * active from before the round (1250's `analyzing`, 10-10 02:08) is the state the snapshot kept.
+     */
+    #[Test]
+    public function the_steps_a_withdrawn_round_left_active_are_cancelled(): void
+    {
+        $run = $this->pulledCut();
+        $roundStep = SermonProcessingStep::factory()->create(['processing_id' => $run->processing_id, 'step' => 'transcribe_full_service', 'status' => ProcessingStatus::Started, 'started_at' => '2026-10-11 10:30:00']);
+        $olderStep = SermonProcessingStep::factory()->create(['processing_id' => $run->processing_id, 'step' => 'analyzing', 'status' => ProcessingStatus::Started, 'started_at' => '2026-10-10 02:08:00']);
+
+        $this->withdraw([$run->id])->expectsOutputToContain('and cancelled 1 step(s) it left active')->assertSuccessful();
+
+        self::assertSame(ProcessingStatus::Cancelled, $roundStep->fresh()->status);
+        self::assertStringContainsString('held for the amended-D1 follow-up round', (string) $roundStep->fresh()->message);
+        self::assertSame(ProcessingStatus::Started, $olderStep->fresh()->status);
+    }
+
     #[Test]
     public function a_run_waiting_on_a_manual_review_is_refused(): void
     {
@@ -223,6 +271,12 @@ class WithdrawCorpusRerunRoundCommandTest extends TestCase
     private function pulledCut(array $attributes = [], array $stampOverrides = []): MediaProcessingLog
     {
         $run = $this->completedRun();
+        // The detection round's sections, composed before the cut was dispatched.
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id, 'section_type' => ServiceSectionType::Sermon, 'start_time' => 600.0, 'end_time' => 2400.0,
+            'created_at' => '2026-10-11 09:00:00', 'updated_at' => '2026-10-11 09:00:00',
+        ]);
+        app(SermonExtractionPlanResolver::class)->compose($run);
         $this->snapshot([$run->id]);
         $run->putCorpusRerunStamp($this->stamp([
             'media' => 'extracted',

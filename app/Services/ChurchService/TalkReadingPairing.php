@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService;
 
+use App\Actions\HoldSectionForContentReview;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
@@ -59,6 +60,17 @@ final class TalkReadingPairing
         $reading = $this->readingBefore($talk);
 
         return $reading !== null && $reading->id === ($answer['reading_section_id'] ?? null) ? $reading : null;
+    }
+
+    /**
+     * The reading cut with a talk, when it is held for content review. The reading's hold then
+     * holds the talk's output: it is published in it (Codex review 2026-10-13).
+     */
+    public function heldReading(ServiceSection $talk): ?ServiceSection
+    {
+        $reading = $this->includedReading($talk);
+
+        return $reading !== null && HoldSectionForContentReview::isHeld($reading->metadata->reviewFlags ?? []) ? $reading : null;
     }
 
     /**

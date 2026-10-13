@@ -532,6 +532,25 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $this->assertSame([['start_time' => 60.0, 'end_time' => 120.0], ['start_time' => 120.0, 'end_time' => 420.0]], $cut);
         $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $talk->fresh()->publication_status);
         $this->assertSame($reading->id, $talk->fresh()->mediaSignaturePayload()['with_reading']['section_id'] ?? null);
+
+        // The reading's content hold holds the talk's output: it is cut, and goes to review.
+        $reading->update(['metadata' => ServiceSectionMetadata::fromArray(['review_flags' => [HoldSectionForContentReview::FLAG]])]);
+        $talk->update(['extracted_at' => null, 'metadata' => ServiceSectionMetadata::fromArray([...$talk->fresh()->metadata->toArray(), 'publication_candidate_extraction' => null])]);
+        $videoExtractor = $this->createStub(VideoExtractionService::class);
+        $videoExtractor->method('extractMedia')->willReturn(new ExtractedMedia('temp/section-video.mp4', 'temp/section-audio.mp3'));
+        $videoExtractor->method('storePublicAudio')->willReturn(['audio_path' => 'section-publications/a.mp3', 'full_path' => '', 'original_size' => 1,
+            'final_size' => 1, 'compression_applied' => false, 'compression_ratio' => 1.0, 'valid_for_transcription' => true]);
+        Storage::disk('local')->put('temp/section-video.mp4', 'section-video');
+
+        (new PrepareSectionPublicationCandidates($processingLog->fresh()))->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(SectionPublicationHandlerFactory::class),
+            app(ServiceSectionPublicationTransitionService::class),
+        );
+
+        $this->assertTrue($talk->fresh()->needs_manual_review);
+        $this->assertSame(ServiceSectionPublicationStatus::NotApplicable, $talk->fresh()->publication_status);
     }
 
     #[Test]

@@ -11,6 +11,7 @@ use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\OutputEdgeWordTimings;
 use App\Services\ChurchService\SpokenEdgeSentenceCheck;
+use App\Services\ChurchService\TalkReadingPairing;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
@@ -227,6 +228,29 @@ class SpokenEdgeSentenceCheckTest extends TestCase
         $this->assertCount(2, $plan['segments'], 'extraction keeps the gap');
         $this->assertSame(2, $summary['edges']);
         $this->assertSame(2, $summary['asked']);
+    }
+
+    /**
+     * Codex review 2026-10-13: a talk cut with the reading before it opens its clip at the reading,
+     * so the reading's opening is an output edge, asked about as the talk's own would be; the join
+     * between reading and talk is cut nowhere.
+     */
+    #[Test]
+    public function a_talk_cut_with_its_reading_is_asked_about_at_the_readings_opening(): void
+    {
+        [$notices, $reading] = $this->handover(ServiceSectionType::BibleReading, ServiceSectionType::Notices, join: [1717.75, 1717.75]);
+        $talk = ServiceSection::factory()->create(['media_processing_log_id' => $notices->media_processing_log_id, 'section_type' => ServiceSectionType::ShortTalk, 'start_time' => 1812.0, 'end_time' => 1900.0]);
+        $this->answers(['keep', ''], ['keep', '']);
+        $check = app(SpokenEdgeSentenceCheck::class);
+
+        $this->assertSame(0, $check->prepare($notices->processingLog->fresh())['edges'], 'a reading alone is in no clip');
+
+        app(TalkReadingPairing::class)->record($talk, true, 'talk page');
+        $summary = $check->prepare($notices->processingLog->fresh());
+
+        $this->assertSame(1, $summary['edges']);
+        $this->assertSame(1, $summary['asked']);
+        $this->assertNotNull($reading->id);
     }
 
     /** An edge between two items neither of which is cut into any output is not asked about. */
