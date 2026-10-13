@@ -1,7 +1,8 @@
-# Follow-up round from a frozen clone, pausable — 2026-10-13 (rev 2)
+# Follow-up round from a frozen clone, pausable — 2026-10-13 (rev 3)
 
-Status: **revised after Codex's review of rev 1** (findings in §9). Not set up. Rev 2 adds
-the following:
+Status: **rev 3: everything §3–§7 needs is built (§11), for Codex's review before setup.**
+Nothing is set up: no clone, no round containers, the working checkout's workers and `.env`
+are unchanged. Rev 2 added the following after Codex's review of rev 1 (findings in §10):
 
 - distinct Redis databases for PHPUnit and Dusk;
 - a recovery route for the content-held runs;
@@ -345,3 +346,36 @@ not swallow earlier damage.
 | Shared catalogues are live inputs | §3.4: frozen for the round |
 | Wider routes from main into the round | §3.4 |
 | Membership: 138 untouched, not 219; 1202 parked; 945 not substantiated; processing runs need settling (99, not 10) | §4, §5 |
+
+## 11. Built 13-10 (rev 3), on local master
+
+| Piece | Where | Commit |
+|---|---|---|
+| Superseded runs are left out of service reconciliation (943's failure; the operator asked that the two-recordings case be impossible: it was a superseded run being re-detected) | `ChurchServiceReconciliationDispatcher`, `ReconcileServiceSections` | e15426dc2 |
+| PHPUnit on Redis 6/7 (`phpunit.xml`, forced); local Dusk on 8/9 (`.env.dusk.local`, untracked). Verified: the flushing test leaves 0/1 alone | `phpunit.xml` | (PHPUnit Redis commit) |
+| Guard admits a run a round parked for its held sermon (§5 R4) | `CorpusRerunGuard` | 2026-10-13 |
+| `rerun-recompose`, `-redetect`, `-extract`, `-retranscribe` refuse no run IDs without `--all` | `HistoricRerunSnapshot::select()` | 4b2260d41 |
+| `historic-import:rerun-withdraw` (§4), with `QueuedRunJobs` (waiting, delayed and reserved jobs naming a run). Dry run on the pass's runs: all 105 ready (66 against the main snapshot, 38 against Tier B, 1209 after its stale flag was ignored) | `WithdrawCorpusRerunRound` | 5571521c8, 399691d54 |
+| Compose override and round tools: `round.sh` (status, pause until idle, resume refused while stopped, stop/start, watch, artisan), `queue-state.php`, autotick (explicit list less parked) | `docker-compose.round.yml`, `scripts/historic-round/` | 3ef104e44 |
+| `queue.worker` and `queue.worker-video` take `QUEUE_WORKERS_DEFAULT` / `QUEUE_WORKERS_VIDEO` | `docker-compose.yml` | 3ef104e44 |
+
+The decision page's rulings, applied:
+
+- **Rules (code, tests, replay):**
+  - pattern A: a sermon beside a song ends where the singing starts (`CueSafeExtractionPlan::spokenThrough`, 6b8dc6165). Replay of the 354 ruled outputs: no edge moves;
+  - pattern B: a sermon the recording opens with (first section, ≤ 5 s in);
+  - pattern D: a reading cut with its sermon. Low confidence holds neither (6333fbafd);
+  - pattern C: a reading the sermon stops for and resumes after is its own; prayers, and parts preaching different passages, stay questions (`SilenceSnapService`, 40d5a4736). Recompose replays the merge;
+  - readings: every reading directly before the sermon, except a carol service's lessons (December, four or more readings), plus passage matches further back (7d0f7e671). Across the corpus, 11 runs gain readings and none loses one.
+- **Run answers through `AnswerServiceStructureEnsembleQuestion`:**
+  - 944: the Psalm 77 exposition is a talk after its reading. The run's sermon is a separate item, so a second sermon was refused;
+  - 1066 and 997 right as they stand;
+  - 1344 accepted (sections synced);
+  - 1281 "I bow before the God" from the start. The second song is sung from 1121.5 s, which matches the existing split;
+  - 1363 split into the reader's greeting (other, 888.9–893.8 s, out of order in the source upload) and the second speaker's talk.
+
+  The answers on runs with media are banked and reach their sections when the round recomposes them.
+- **Composition reviews:** 1014 (the prayer stays out) and 1194 (Matthew 2:13–23 in). A review is keyed to its sections' identity, so re-run `storage/scratch/decisions-20261013/apply-compositions.php` if a recompose moves them. 1026 is now settled by the readings rule.
+- **Parked:** 930. Its drafts give the pre-service music and the welcome one OoS item, so no answer validates. The Luke correction also overlaps the stretch the drafts call a carol.
+- **Pending:** the talk-reading page (15 talks), https://claude.ai/artifact/2VFMAuoe1YLx4iC5LZRAyq. It needs a way to pair a talk with its reading before its answers can reach a cut.
+- **For the listening round:** 1271's sermon end runs through a line the classifier hears as neither speech nor music ("sovereign"), which may be quiet singing.
