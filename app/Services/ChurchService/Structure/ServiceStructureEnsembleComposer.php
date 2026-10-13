@@ -266,6 +266,10 @@ class ServiceStructureEnsembleComposer
             if ($stitchVotes <= count($winner) / 2) {
                 $supporterFlags = array_values(array_diff($supporterFlags, [ServiceStructureValidator::FLAG_SERMON_INTERRUPTION_MERGED]));
             }
+            // A draft's marker flag is about that draft's own chapter markers; the composition's
+            // markers are checked when the composed structure is validated. Unioned in, one draft's
+            // misplaced marker demoted 62 confirmed songs to inferred (full pass, 2026-10-11).
+            $supporterFlags = array_values(array_diff($supporterFlags, [ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH]));
             // A speech question is answerable only with its interval, which travels in the note of
             // whichever supporter raised it.
             $questionNotes = array_values(array_unique(array_filter(

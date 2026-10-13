@@ -669,7 +669,7 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         $plain = $this->structure(new ServiceStructureSection(ServiceSectionType::Song, null, 100.0, 300.0, 0.9, null, 'Amazing Grace', null));
         $flagged = $this->structure(new ServiceStructureSection(
             ServiceSectionType::Song, null, 101.0, 301.0, 0.9, null, 'Amazing Grace', null,
-            reviewFlags: [ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH],
+            reviewFlags: [ServiceStructureValidator::FLAG_TALK_FRAGMENT],
         ));
 
         $result = app(ServiceStructureEnsembleComposer::class)->compose([
@@ -681,7 +681,7 @@ class ServiceStructureEnsembleComposerTest extends TestCase
 
         $this->assertSame([], array_values(array_filter($result->disputes, static fn (array $dispute): bool => ($dispute['type'] ?? null) === 'song')));
         $this->assertSame(100.0, $result->structure->sections[0]->startTime);
-        $this->assertContains(ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH, $result->structure->sections[0]->reviewFlags);
+        $this->assertContains(ServiceStructureValidator::FLAG_TALK_FRAGMENT, $result->structure->sections[0]->reviewFlags);
     }
 
     #[Test]
@@ -1180,6 +1180,28 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         ])->structure->sectionsOfType(ServiceSectionType::Sermon);
 
         $this->assertNotContains($stitch, $sections[0]->reviewFlags);
+        $this->assertContains('content_defect_hold', $sections[0]->reviewFlags);
+    }
+
+    /**
+     * A draft's marker flag compares the song with that draft's own chapter markers; the
+     * composition carries its own, which the validation of the composed structure checks.
+     * Unioned in, one draft's misplaced marker demoted 62 confirmed songs to inferred in the
+     * full pass ("Crown Him With Many Crowns", "Amazing Grace"…).
+     */
+    #[Test]
+    public function a_drafts_marker_flag_is_not_carried_into_the_composed_song(): void
+    {
+        $song = $this->song(250, 485, 'Only A Holy God');
+        $marker = ServiceStructureValidator::FLAG_SONG_TITLE_MARKER_MISMATCH;
+        $sections = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($this->structure($song->withReviewFlags([$marker, 'content_defect_hold']))),
+            1 => $this->vote($this->structure($song)),
+            2 => $this->vote($this->structure($song)),
+            3 => $this->vote($this->structure($song)),
+        ])->structure->sectionsOfType(ServiceSectionType::Song);
+
+        $this->assertNotContains($marker, $sections[0]->reviewFlags);
         $this->assertContains('content_defect_hold', $sections[0]->reviewFlags);
     }
 
