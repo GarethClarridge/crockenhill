@@ -569,9 +569,11 @@ class DetectServiceStructureTest extends TestCase
         $this->assertEqualsWithDelta(600.0, (float) $sermonSection->start_time, 0.01);
         $this->assertEqualsWithDelta(2200.0, (float) $sermonSection->end_time, 0.01);
         $this->assertSame('service_sections', $extractionPlan['source']);
-        $this->assertEqualsWithDelta(600.0, $extractionPlan['segments'][0]['start_time'], 0.01);
-        $this->assertTrue($extractionPlan['metadata']['requires_review']);
-        $this->assertEqualsWithDelta(2200.0, $extractionPlan['segments'][0]['end_time'], 0.01);
+        // The reading directly before the sermon is cut with it (operator ruling 2026-10-13), which
+        // settles the membership question its missing passage used to raise.
+        $this->assertEqualsWithDelta(420.0, $extractionPlan['segments'][0]['start_time'], 0.01);
+        $this->assertFalse($extractionPlan['metadata']['requires_review']);
+        $this->assertEqualsWithDelta(2200.0, $extractionPlan['segments'][array_key_last($extractionPlan['segments'])]['end_time'], 0.01);
         $this->assertSame('llm_structure', $log->processing_metadata?->toArray()['sermon_bounds']['source'] ?? null);
     }
 

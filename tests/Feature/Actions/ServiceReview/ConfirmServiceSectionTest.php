@@ -111,8 +111,15 @@ class ConfirmServiceSectionTest extends TestCase
         $log = MediaProcessingLog::factory()->livestream()->create();
         $sermon = ServiceSection::factory()->create(['media_processing_log_id' => $log->id,
             'section_type' => ServiceSectionType::Sermon, 'start_time' => 100, 'end_time' => 300, 'needs_manual_review' => false]);
+        // Neither reading names a passage, and only one is directly before the sermon: which is
+        // its reading stays a question (the 2026-10-13 rule takes the one before it only when
+        // nothing else is in doubt).
         ServiceSection::factory()->create(['media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::BibleReading, 'start_time' => 10, 'end_time' => 90]);
+            'section_type' => ServiceSectionType::BibleReading, 'start_time' => 10, 'end_time' => 40]);
+        ServiceSection::factory()->create(['media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song, 'start_time' => 45, 'end_time' => 60]);
+        ServiceSection::factory()->create(['media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::BibleReading, 'start_time' => 65, 'end_time' => 90]);
         app(SermonExtractionPlanResolver::class)->compose($log);
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('Resolve the sermon membership');
