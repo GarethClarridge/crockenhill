@@ -368,12 +368,12 @@ class SermonExtractionPlanResolver
      * A review that flag alone asked for goes with it.
      *
      * @param  array<int, string>  $flags
-     * @param  list<ServiceSection>  $sections  The run's sections in time order
+     * @param  ServiceSection|null  $firstSection  The run's first section in time
      */
-    private function reviewStatePermitsTheCut(ServiceSection $section, array $flags, array $sections): bool
+    private function reviewStatePermitsTheCut(ServiceSection $section, array $flags, ?ServiceSection $firstSection): bool
     {
         $opensTheRecording = $section->section_type === ServiceSectionType::Sermon
-            && ($sections[0] ?? null)?->is($section) === true
+            && $firstSection?->is($section) === true
             && (float) $section->start_time <= self::RECORDING_OPENS_WITH_SECTION_SECONDS;
         $needsReview = (bool) $section->needs_manual_review;
 
@@ -431,7 +431,7 @@ class SermonExtractionPlanResolver
             if ($isHeld && ! $authorised) {
                 $held[] = $id;
                 $requiresReview = true;
-            } elseif (! $authorised && ! $this->reviewStatePermitsTheCut($section, $flags, $sections)) {
+            } elseif (! $authorised && ! $this->reviewStatePermitsTheCut($section, $flags, $sections[0] ?? null)) {
                 $requiresReview = true;
             }
             $spans[] = ['start_time' => $start, 'end_time' => $end];
