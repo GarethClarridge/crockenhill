@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Actions\RedetectForCorpusRerun;
 use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\Structure\EnsembleReviewGate;
+use App\Services\HistoricMedia\CorpusRerunGuard;
 use App\Services\HistoricMedia\HistoricRerunSnapshot;
 use App\Support\PrivateEvidenceFile;
 use Illuminate\Console\Command;
@@ -39,7 +40,7 @@ class RedetectForCorpusRerunCommand extends Command
 
     protected $description = 'Re-detect the members of a corpus re-run batch from structure detection, deferring media';
 
-    public function handle(RedetectForCorpusRerun $redetector, EnsembleReviewGate $ensembleGate): int
+    public function handle(RedetectForCorpusRerun $redetector, EnsembleReviewGate $ensembleGate, CorpusRerunGuard $guard): int
     {
         $execute = (bool) $this->option('execute');
         $max = (int) $this->option('max');
@@ -84,8 +85,10 @@ class RedetectForCorpusRerunCommand extends Command
 
             // Left unnamed, the batch took the full pass's 37 recompose-routed runs too, throwing
             // their banked draws away (2026-10-10). Draws that still fit are recomposed; re-detecting
-            // such a run takes naming it.
-            if ($result['outcome'] === 'ready' && ! $named && $run instanceof MediaProcessingLog && $this->banksCurrentDraws($run, $ensembleGate)) {
+            // such a run takes naming it. A run re-transcribed on this snapshot is not recomposed,
+            // whatever text it got back, so it is never skipped (Codex review, 2026-10-13).
+            if ($result['outcome'] === 'ready' && ! $named && $run instanceof MediaProcessingLog
+                && $guard->transcriptionRoundOn($run, $snapshot) === null && $this->banksCurrentDraws($run, $ensembleGate)) {
                 $result = ['outcome' => 'refused', 'reason' => 'its banked draws still fit the run: recompose it (historic-import:rerun-recompose), or name it to re-detect'];
             } elseif ($result['outcome'] === 'ready' && $execute && $run instanceof MediaProcessingLog) {
                 $result = $redetector->execute($run, $snapshot, true);

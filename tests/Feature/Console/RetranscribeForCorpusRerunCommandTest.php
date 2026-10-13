@@ -18,6 +18,7 @@ use App\Jobs\PromoteHistoricAssets;
 use App\Jobs\RecordCorpusRerunTranscription;
 use App\Jobs\TranscribeFullService;
 use App\Models\MediaProcessingLog;
+use App\Services\ChurchService\Structure\EnsembleReviewGate;
 use App\Models\ServiceSection;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Media\Audio\ServiceTranscriptRedecoder;
@@ -164,6 +165,32 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         Bus::fake();
         $run = $this->heldRun();
         $this->storeTranscript($run, 'The Lord is my shepherd shepherd shepherd.');
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->assertSuccessful();
+        $this->finishTranscriptionRound($run, 'The Lord is my shepherd; I shall not want.');
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+            ->expectsOutputToContain('ready for re-detection')
+            ->assertSuccessful();
+    }
+
+    /**
+     * A re-transcription can write the text it replaced, leaving banked draws that still fit. An
+     * unnamed re-detection skips runs with such draws for recomposition, but recomposition refuses
+     * a run re-transcribed on its snapshot: the run must still be re-detected (Codex review, 2026-10-13).
+     */
+    #[Test]
+    public function a_run_re_transcribed_to_the_same_text_is_still_re_detected_unnamed(): void
+    {
+        Bus::fake();
+        $gate = Mockery::mock(EnsembleReviewGate::class)->makePartial();
+        $gate->shouldReceive('inputIsCurrent')->andReturnTrue();
+        $this->app->instance(EnsembleReviewGate::class, $gate);
+        $run = $this->heldRun();
+        $this->storeTranscript($run, 'The Lord is my shepherd; I shall not want.');
+        $run->writeProcessingMetadata(static fn (array $metadata): array => [...$metadata, 'service_structure_ensemble' => [['attempt_id' => 'attempt-1']]]);
         $this->snapshot([$run->id]);
 
         $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
