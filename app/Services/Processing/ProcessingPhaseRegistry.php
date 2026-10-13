@@ -453,7 +453,8 @@ class ProcessingPhaseRegistry
             $this->phase('transcribe_output_edges', TranscribeOutputEdges::class, 'transcribe_output_edges'),
             $this->phase('manual_review', ExtractSermon::class, 'manual_review_required'),
             $this->phase('extract_sermon', ExtractSermon::class, 'extraction', progress: 57),
-            $this->phase('enhance_audio', EnhanceAudio::class, 'audio_enhancement'),
+            // The chain no longer enhances audio; a run left at this step resumes at the next job.
+            $this->phase('enhance_audio', CreateSermonRecord::class, 'audio_enhancement'),
             $this->phase('create_sermon_record', CreateSermonRecord::class, 'sermon_creation', progress: 60),
             $this->phase('transcribe_audio', CreateSermonTranscriptFromService::class, 'transcribing_audio', progress: 70),
             $this->phase('analyze_transcript', ProcessTranscriptWithAI::class, 'analyzing_transcript', progress: 85),

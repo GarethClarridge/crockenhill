@@ -145,7 +145,7 @@ class ProcessingPipelineBuilderTest extends TestCase
 
         $jobs = $this->builder->buildAutoTrimVideoPipeline($log);
 
-        $this->assertCount(18, $jobs);
+        $this->assertCount(17, $jobs);
         $this->assertInstanceOf(ValidateVideoFile::class, $jobs[0]);
         $this->assertInstanceOf(GenerateRmsLog::class, $jobs[1]);
         $this->assertInstanceOf(AnalyzeSegments::class, $jobs[2]);
@@ -154,16 +154,15 @@ class ProcessingPipelineBuilderTest extends TestCase
         $this->assertInstanceOf(DetectServiceStructure::class, $jobs[5]);
         $this->assertInstanceOf(TranscribeOutputEdges::class, $jobs[6]);
         $this->assertInstanceOf(ExtractSermon::class, $jobs[7]);
-        $this->assertInstanceOf(EnhanceAudio::class, $jobs[8]);
-        $this->assertInstanceOf(CreateSermonRecord::class, $jobs[9]);
-        $this->assertInstanceOf(IdentifySpeaker::class, $jobs[10]);
-        $this->assertInstanceOf(CreateSermonTranscriptFromService::class, $jobs[11]);
-        $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[12]);
-        $this->assertInstanceOf(AssessSermonVideoQuality::class, $jobs[13]);
-        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[14]);
-        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[15]);
-        $this->assertInstanceOf(PromoteHistoricAssets::class, $jobs[16]);
-        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[17]);
+        $this->assertInstanceOf(CreateSermonRecord::class, $jobs[8]);
+        $this->assertInstanceOf(IdentifySpeaker::class, $jobs[9]);
+        $this->assertInstanceOf(CreateSermonTranscriptFromService::class, $jobs[10]);
+        $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[11]);
+        $this->assertInstanceOf(AssessSermonVideoQuality::class, $jobs[12]);
+        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[13]);
+        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[14]);
+        $this->assertInstanceOf(PromoteHistoricAssets::class, $jobs[15]);
+        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[16]);
     }
 
     // --- buildLivestreamParallelJobs() ---
@@ -188,7 +187,7 @@ class ProcessingPipelineBuilderTest extends TestCase
 
         $jobs = $this->builder->buildLivestreamChainJobs($log);
 
-        $this->assertCount(22, $jobs);
+        $this->assertCount(21, $jobs);
         $this->assertInstanceOf(AnalyzeSegments::class, $jobs[0]);
         $this->assertInstanceOf(TranscribeFullService::class, $jobs[1]);
         $this->assertInstanceOf(ClassifyServiceAudio::class, $jobs[2]);
@@ -203,16 +202,15 @@ class ProcessingPipelineBuilderTest extends TestCase
         $this->assertInstanceOf(TranscribeOutputEdges::class, $jobs[9]);
         $this->assertInstanceOf(ExtractSermon::class, $jobs[10]);
         $this->assertInstanceOf(SubmitToProcessing::class, $jobs[11]);
-        $this->assertInstanceOf(EnhanceAudio::class, $jobs[12]);
-        $this->assertInstanceOf(IdentifySpeaker::class, $jobs[13]);
-        $this->assertInstanceOf(CreateSermonTranscriptFromService::class, $jobs[14]);
-        $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[15]);
-        $this->assertInstanceOf(AssessSermonVideoQuality::class, $jobs[16]);
-        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[17]);
-        $this->assertInstanceOf(PrepareSectionPublicationCandidates::class, $jobs[18]);
-        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[19]);
-        $this->assertInstanceOf(PromoteHistoricAssets::class, $jobs[20]);
-        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[21]);
+        $this->assertInstanceOf(IdentifySpeaker::class, $jobs[12]);
+        $this->assertInstanceOf(CreateSermonTranscriptFromService::class, $jobs[13]);
+        $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[14]);
+        $this->assertInstanceOf(AssessSermonVideoQuality::class, $jobs[15]);
+        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[16]);
+        $this->assertInstanceOf(PrepareSectionPublicationCandidates::class, $jobs[17]);
+        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[18]);
+        $this->assertInstanceOf(PromoteHistoricAssets::class, $jobs[19]);
+        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[20]);
     }
 
     #[Test]
@@ -288,6 +286,32 @@ class ProcessingPipelineBuilderTest extends TestCase
         $this->assertGreaterThan($identifyPos, $transcriptPos, 'The sermon transcript must be created after IdentifySpeaker');
     }
 
+    /**
+     * Only `TranscribeAudio` reads the enhanced audio. Chains that take the sermon's transcript from
+     * the service transcript made it and deleted it unread: 1.6 min a run in the follow-up round.
+     */
+    #[Test]
+    public function only_the_chains_that_transcribe_the_sermons_own_audio_enhance_it(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $classes = static fn (array $jobs): array => array_map(get_class(...), $jobs);
+
+        foreach ([
+            $this->builder->buildLivestreamChainJobs($log),
+            $this->builder->buildLivestreamPostReviewChainJobs($log),
+            $this->builder->buildAutoTrimVideoPipeline($log),
+            $this->builder->buildAutoTrimVideoPostReviewChainJobs($log),
+        ] as $chain) {
+            $this->assertContains(CreateSermonTranscriptFromService::class, $classes($chain));
+            $this->assertNotContains(EnhanceAudio::class, $classes($chain));
+        }
+
+        foreach ([$this->builder->buildAudioPipeline($log), $this->builder->buildDirectVideoPipeline($log)] as $chain) {
+            $this->assertContains(TranscribeAudio::class, $classes($chain));
+            $this->assertContains(EnhanceAudio::class, $classes($chain));
+        }
+    }
+
     // --- buildLivestreamPostReviewChainJobs() ---
 
     #[Test]
@@ -297,20 +321,19 @@ class ProcessingPipelineBuilderTest extends TestCase
 
         $jobs = $this->builder->buildLivestreamPostReviewChainJobs($log);
 
-        $this->assertCount(13, $jobs);
+        $this->assertCount(12, $jobs);
         $this->assertInstanceOf(TranscribeOutputEdges::class, $jobs[0]);
         $this->assertInstanceOf(ExtractSermon::class, $jobs[1]);
         $this->assertInstanceOf(SubmitToProcessing::class, $jobs[2]);
-        $this->assertInstanceOf(EnhanceAudio::class, $jobs[3]);
-        $this->assertInstanceOf(IdentifySpeaker::class, $jobs[4]);
-        $this->assertInstanceOf(CreateSermonTranscriptFromService::class, $jobs[5]);
-        $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[6]);
-        $this->assertInstanceOf(AssessSermonVideoQuality::class, $jobs[7]);
-        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[8]);
-        $this->assertInstanceOf(PrepareSectionPublicationCandidates::class, $jobs[9]);
-        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[10]);
-        $this->assertInstanceOf(PromoteHistoricAssets::class, $jobs[11]);
-        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[12]);
+        $this->assertInstanceOf(IdentifySpeaker::class, $jobs[3]);
+        $this->assertInstanceOf(CreateSermonTranscriptFromService::class, $jobs[4]);
+        $this->assertInstanceOf(ProcessTranscriptWithAI::class, $jobs[5]);
+        $this->assertInstanceOf(AssessSermonVideoQuality::class, $jobs[6]);
+        $this->assertInstanceOf(GenerateThumbnail::class, $jobs[7]);
+        $this->assertInstanceOf(PrepareSectionPublicationCandidates::class, $jobs[8]);
+        $this->assertInstanceOf(SendCompletionNotification::class, $jobs[9]);
+        $this->assertInstanceOf(PromoteHistoricAssets::class, $jobs[10]);
+        $this->assertInstanceOf(CleanupTemporaryFiles::class, $jobs[11]);
     }
 
     /**

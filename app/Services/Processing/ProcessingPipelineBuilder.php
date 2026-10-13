@@ -104,7 +104,6 @@ class ProcessingPipelineBuilder
             new DetectServiceStructure($log),
             new TranscribeOutputEdges($log),
             new ExtractSermon($log),
-            new EnhanceAudio($log),
             new CreateSermonRecord($log),
             new IdentifySpeaker($log),
             new CreateSermonTranscriptFromService($log),
@@ -155,7 +154,8 @@ class ProcessingPipelineBuilder
             new TranscribeOutputEdges($log),
             new ExtractSermon($log),
             new SubmitToProcessing($log),
-            new EnhanceAudio($log),
+            // No EnhanceAudio: only TranscribeAudio reads its output, and the sermon's transcript
+            // comes from the service transcript here.
             new IdentifySpeaker($log),
             new CreateSermonTranscriptFromService($log),
             new ProcessTranscriptWithAI($log),
@@ -262,7 +262,6 @@ class ProcessingPipelineBuilder
             new TranscribeOutputEdges($log),
             new ExtractSermon($log),
             new SubmitToProcessing($log),
-            new EnhanceAudio($log),
             new IdentifySpeaker($log),
             new CreateSermonTranscriptFromService($log),
             new ProcessTranscriptWithAI($log),
@@ -286,7 +285,6 @@ class ProcessingPipelineBuilder
         return [
             new TranscribeOutputEdges($log),
             new ExtractSermon($log),
-            new EnhanceAudio($log),
             new CreateSermonRecord($log),
             new IdentifySpeaker($log),
             new CreateSermonTranscriptFromService($log),

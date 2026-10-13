@@ -11,7 +11,6 @@ use App\Jobs\AwaitHistoricSermonVideoStorage;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonTranscriptFromService;
 use App\Jobs\DetectServiceStructure;
-use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateThumbnail;
 use App\Jobs\IdentifySpeaker;
@@ -120,7 +119,6 @@ class ExtractForCorpusRerunCommandTest extends TestCase
             TranscribeOutputEdges::class,
             ExtractSermon::class,
             SubmitToProcessing::class,
-            EnhanceAudio::class,
             IdentifySpeaker::class,
             CreateSermonTranscriptFromService::class,
             ProcessTranscriptWithAI::class,

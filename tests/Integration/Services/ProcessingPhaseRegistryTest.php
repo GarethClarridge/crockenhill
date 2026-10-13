@@ -14,7 +14,6 @@ use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonRecord;
 use App\Jobs\CreateSermonTranscriptFromService;
 use App\Jobs\DetectServiceStructure;
-use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtendSongsOverOwnLyrics;
 use App\Jobs\ExtractAudioFromVideo;
 use App\Jobs\ExtractSermon;
@@ -117,7 +116,7 @@ class ProcessingPhaseRegistryTest extends TestCase
         $this->assertSame([
             'action' => 'dispatch_livestream_chain',
             'pipeline' => 'livestream',
-            'job_offset' => 14,
+            'job_offset' => 13,
             'rerun_strategy' => 'safe_to_rerun',
             'reset_scope' => 'none',
         ], $registry->retryPlanFor($processingLog));
@@ -140,7 +139,7 @@ class ProcessingPhaseRegistryTest extends TestCase
         $this->assertSame([
             'action' => 'dispatch_livestream_chain',
             'pipeline' => 'livestream',
-            'job_offset' => 18,
+            'job_offset' => 17,
             'rerun_strategy' => 'safe_to_rerun',
             'reset_scope' => 'none',
         ], $registry->retryPlanFor($processingLog));
@@ -236,15 +235,14 @@ class ProcessingPhaseRegistryTest extends TestCase
                     4 => ClassifyServiceAudio::class,
                     5 => DetectServiceStructure::class,
                     7 => ExtractSermon::class,
-                    8 => EnhanceAudio::class,
-                    9 => CreateSermonRecord::class,
-                    11 => CreateSermonTranscriptFromService::class,
-                    12 => ProcessTranscriptWithAI::class,
-                    13 => AssessSermonVideoQuality::class,
-                    14 => GenerateThumbnail::class,
-                    15 => SendCompletionNotification::class,
-                    16 => PromoteHistoricAssets::class,
-                    17 => CleanupTemporaryFiles::class,
+                    8 => CreateSermonRecord::class,
+                    10 => CreateSermonTranscriptFromService::class,
+                    11 => ProcessTranscriptWithAI::class,
+                    12 => AssessSermonVideoQuality::class,
+                    13 => GenerateThumbnail::class,
+                    14 => SendCompletionNotification::class,
+                    15 => PromoteHistoricAssets::class,
+                    16 => CleanupTemporaryFiles::class,
                 ],
             ],
             [
@@ -262,14 +260,14 @@ class ProcessingPhaseRegistryTest extends TestCase
                     8 => ProjectLivestreamServiceStructure::class,
                     10 => ExtractSermon::class,
                     11 => SubmitToProcessing::class,
-                    14 => CreateSermonTranscriptFromService::class,
-                    15 => ProcessTranscriptWithAI::class,
-                    16 => AssessSermonVideoQuality::class,
-                    17 => GenerateThumbnail::class,
-                    18 => PrepareSectionPublicationCandidates::class,
-                    19 => SendCompletionNotification::class,
-                    20 => PromoteHistoricAssets::class,
-                    21 => CleanupTemporaryFiles::class,
+                    13 => CreateSermonTranscriptFromService::class,
+                    14 => ProcessTranscriptWithAI::class,
+                    15 => AssessSermonVideoQuality::class,
+                    16 => GenerateThumbnail::class,
+                    17 => PrepareSectionPublicationCandidates::class,
+                    18 => SendCompletionNotification::class,
+                    19 => PromoteHistoricAssets::class,
+                    20 => CleanupTemporaryFiles::class,
                 ],
             ],
         ];
@@ -299,11 +297,11 @@ class ProcessingPhaseRegistryTest extends TestCase
         $plan = app(ProcessingPhaseRegistry::class)->retryPlanFor($log);
 
         $this->assertSame('dispatch_livestream_chain', $plan['action']);
-        $this->assertSame(17, $plan['job_offset']);
+        $this->assertSame(16, $plan['job_offset']);
         $this->assertSame(
             AwaitHistoricSermonVideoStorage::class,
             app(ProcessingPipelineBuilder::class)
-                ->buildLivestreamChainJobs($log)[16]::class,
+                ->buildLivestreamChainJobs($log)[15]::class,
         );
     }
 

@@ -12,7 +12,6 @@ use App\Jobs\ClassifyServiceAudio;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonTranscriptFromService;
 use App\Jobs\DetectServiceStructure;
-use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtendSongsOverOwnLyrics;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateRmsLog;
@@ -193,7 +192,6 @@ class LivestreamProcessingIntegrationTest extends TestCase
             TranscribeOutputEdges::class,
             ExtractSermon::class,
             SubmitToProcessing::class,
-            EnhanceAudio::class,
             IdentifySpeaker::class,
             CreateSermonTranscriptFromService::class,
             ProcessTranscriptWithAI::class,
