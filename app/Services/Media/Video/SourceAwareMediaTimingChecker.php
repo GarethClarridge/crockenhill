@@ -7,15 +7,30 @@ namespace App\Services\Media\Video;
 use App\Exceptions\VideoProcessingException;
 use Symfony\Component\Process\Process;
 
-/** Detect introduced timing damage; simultaneous-event tests separately prove content sync. */
+/**
+ * Detect introduced timing damage; simultaneous-event tests separately prove content sync.
+ *
+ * The source is read only where the check compares it: around each span's edges and at the
+ * source moment of each irregularity found in the output. A service recording is 3-12 GB on a
+ * USB 2.0 drive, and scanning it whole cost each cut minutes (follow-up round 2026-10-13).
+ */
 class SourceAwareMediaTimingChecker
 {
+    /** How far either side of a compared moment the source is read: well past one picture or sound frame. */
+    public const WINDOW_SECONDS = 2.0;
+
+    /** How short of its window a windowed read may start or stop before the source is scanned whole instead. */
+    private const COVERAGE_SLACK_SECONDS = 0.5;
+
     /** @var array<string, array{origin: float, duration: float, frames: array<string, list<array{time: float, duration: float}>>}> */
     private array $sources = [];
 
+    /** @var array<string, array{origin: float, duration: float}|null> */
+    private array $headers = [];
+
     public function duration(string $path): float
     {
-        return $this->probe($path)['duration'];
+        return $this->header($path)['duration'] ?? $this->probe($path)['duration'];
     }
 
     /** @param list<array{start_time: float, end_time: float}> $spans */
@@ -25,7 +40,7 @@ class SourceAwareMediaTimingChecker
             throw new VideoProcessingException('Invalid section bounds: no selected spans');
         }
 
-        $duration = $this->probe($source)['duration'];
+        $duration = $this->duration($source);
         $previousEnd = 0.0;
         foreach ($spans as $span) {
             $start = $span['start_time'];
@@ -47,13 +62,13 @@ class SourceAwareMediaTimingChecker
      */
     public function check(string $source, string $output, array $spans): array
     {
-        $input = $this->probe($source);
         $result = $this->probe($output, cache: false);
+        $input = $this->sourceAround($source, $spans, $result);
         $expected = array_sum(array_map(static fn (array $span): float => $span['end_time'] - $span['start_time'], $spans));
         $frames = 0;
         $sourceAnomalies = 0;
         foreach (['video', 'audio'] as $type) {
-            $sourceFrames = $input['frames'][$type] ?? [];
+            $sourceFrames = array_merge(...array_map(static fn (array $piece): array => $piece[$type] ?? [], $input['pieces']));
             $outputFrames = $result['frames'][$type] ?? [];
             if ($sourceFrames === [] || $outputFrames === []) {
                 throw new VideoProcessingException("Timing check: unreadable required {$type} stream");
@@ -62,7 +77,8 @@ class SourceAwareMediaTimingChecker
             $tolerance = $resolution + ($type === 'audio' ? 1024 / 48000 : 0.001);
             $first = $outputFrames[0];
             $last = $outputFrames[count($outputFrames) - 1];
-            $sourceGaps = $this->anomalies($sourceFrames, $resolution);
+            // Gaps are found within each piece read: the step from one window to the next is not in the source.
+            $sourceGaps = array_merge(...array_map(fn (array $piece): array => $this->anomalies($piece[$type] ?? [], $resolution), $input['pieces']));
             foreach ($this->anomalies($outputFrames, $this->resolution($outputFrames)) as $anomaly) {
                 if ($type === 'video' && $this->isJoinRounding($anomaly, $spans, $resolution)) {
                     continue;
@@ -97,6 +113,143 @@ class SourceAwareMediaTimingChecker
         }
 
         return ['passed' => true, 'expected_duration' => $expected, 'checked_frames' => $frames, 'source_anomalies' => $sourceAnomalies];
+    }
+
+    /**
+     * The source's frames where check() compares them, as pieces in time order: one per window read
+     * around a span edge or an output irregularity, or the whole source in one piece when it has no
+     * header duration (an unindexed WebM) or a window cannot be read in full.
+     *
+     * @param  list<array{start_time: float, end_time: float}>  $spans
+     * @param  array{origin: float, duration: float, frames: array<string, list<array{time: float, duration: float}>>}  $output
+     * @return array{duration: float, pieces: list<array<string, list<array{time: float, duration: float}>>>}
+     */
+    private function sourceAround(string $source, array $spans, array $output): array
+    {
+        $header = $this->header($source);
+
+        if ($header === null) {
+            return $this->whole($source);
+        }
+
+        $moments = array_merge(...array_map(static fn (array $span): array => [$span['start_time'], $span['end_time']], $spans));
+
+        foreach ($output['frames'] as $frames) {
+            foreach ($this->anomalies($frames, $this->resolution($frames)) as $anomaly) {
+                $moments[] = $this->sourceTime($anomaly['time'], $spans);
+            }
+        }
+
+        $pieces = [];
+
+        foreach ($this->windows($moments, $header['duration']) as [$from, $to]) {
+            // A window reaching the source's end reads to the end of the file: a final picture can sit past the header duration.
+            $piece = $this->probe($source, cache: false, interval: [$header['origin'] + $from, $to < $header['duration'] ? $header['origin'] + $to : null])['frames'];
+
+            if (! $this->covers($piece, $from, $to, $header['duration'])) {
+                return $this->whole($source);
+            }
+
+            $pieces[] = $piece;
+        }
+
+        return ['duration' => $header['duration'], 'pieces' => $pieces];
+    }
+
+    /** @return array{duration: float, pieces: list<array<string, list<array{time: float, duration: float}>>>} */
+    private function whole(string $source): array
+    {
+        $probe = $this->probe($source);
+
+        return ['duration' => $probe['duration'], 'pieces' => [$probe['frames']]];
+    }
+
+    /**
+     * Each moment widened by {@see self::WINDOW_SECONDS} and kept inside the source, overlapping windows merged.
+     *
+     * @param  list<float>  $moments
+     * @return list<array{0: float, 1: float}>
+     */
+    private function windows(array $moments, float $duration): array
+    {
+        sort($moments);
+        $windows = [];
+
+        foreach ($moments as $moment) {
+            $from = max(0.0, $moment - self::WINDOW_SECONDS);
+            $to = min($duration, $moment + self::WINDOW_SECONDS);
+            $last = count($windows) - 1;
+
+            if ($last >= 0 && $from <= $windows[$last][1]) {
+                $windows[$last][1] = max($windows[$last][1], $to);
+
+                continue;
+            }
+
+            $windows[] = [$from, $to];
+        }
+
+        return $windows;
+    }
+
+    /**
+     * Whether a windowed read holds both streams across its window. A seek lands on the picture
+     * before the window's start; a source ending early stops short of its header duration.
+     *
+     * @param  array<string, list<array{time: float, duration: float}>>  $piece
+     */
+    private function covers(array $piece, float $from, float $to, float $duration): bool
+    {
+        foreach (['video', 'audio'] as $type) {
+            $frames = $piece[$type] ?? [];
+
+            if ($frames === []) {
+                return false;
+            }
+
+            $last = $frames[count($frames) - 1];
+
+            if ($frames[0]['time'] > $from + self::COVERAGE_SLACK_SECONDS
+                || $last['time'] + $last['duration'] < min($to, $duration) - self::COVERAGE_SLACK_SECONDS) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * A file's start and duration from its container header, without reading its packets; null
+     * when the header gives no duration (an unindexed WebM).
+     *
+     * @return array{origin: float, duration: float}|null
+     */
+    private function header(string $path): ?array
+    {
+        $identity = $path.'|'.@filesize($path).'|'.@filemtime($path);
+
+        if (array_key_exists($identity, $this->headers)) {
+            return $this->headers[$identity];
+        }
+
+        $process = new Process([
+            (string) config('media-processing.ffmpeg.ffprobe_path', '/usr/bin/ffprobe'),
+            '-v', 'error', '-show_entries', 'format=start_time,duration', '-of', 'json', $path,
+        ]);
+        $process->setTimeout(120)->run();
+        /** @var array{format?: array{start_time?: string, duration?: string}}|null $data */
+        $data = json_decode($process->getOutput(), true);
+
+        if (! $process->isSuccessful() || ! is_array($data)) {
+            throw new VideoProcessingException('Timing check: source or output cannot be probed: '.$path);
+        }
+
+        $origin = (float) ($data['format']['start_time'] ?? 0);
+        $duration = is_numeric($data['format']['duration'] ?? null) ? (float) $data['format']['duration'] - max(0, $origin) : null;
+        // Bound memory across a long-lived worker, as the packet cache does.
+        $this->headers = [$identity => $duration !== null && is_finite($duration) && $duration > 0 ? ['origin' => $origin, 'duration' => $duration] : null];
+
+        return $this->headers[$identity];
     }
 
     /** @param list<array{start_time: float, end_time: float}> $spans */
@@ -167,8 +320,11 @@ class SourceAwareMediaTimingChecker
         return false;
     }
 
-    /** @return array{origin: float, duration: float, frames: array<string, list<array{time: float, duration: float}>>} */
-    private function probe(string $path, bool $cache = true): array
+    /**
+     * @param  array{0: float, 1: float|null}|null  $interval  Read only this stretch, in the file's own timestamps; no end reads to the end of the file
+     * @return array{origin: float, duration: float, frames: array<string, list<array{time: float, duration: float}>>}
+     */
+    private function probe(string $path, bool $cache = true, ?array $interval = null): array
     {
         $identity = $path.'|'.@filesize($path).'|'.@filemtime($path);
         if ($cache && isset($this->sources[$identity])) {
@@ -178,6 +334,7 @@ class SourceAwareMediaTimingChecker
             (string) config('media-processing.ffmpeg.ffprobe_path', '/usr/bin/ffprobe'),
             '-v', 'error', '-show_packets', '-show_streams', '-show_format',
             '-show_entries', 'format=start_time,duration:stream=index,codec_type,sample_rate,avg_frame_rate:packet=stream_index,pts_time,duration_time',
+            ...($interval === null ? [] : ['-read_intervals', sprintf('%.6f%%', $interval[0]).($interval[1] === null ? '' : sprintf('%.6f', $interval[1]))]),
             '-of', 'json', $path,
         ]);
         $process->setTimeout(600)->run();
