@@ -85,7 +85,7 @@ class EnsembleReviewCommandsTest extends TestCase
         $this->artisan('structure:ensemble-apply-answers', ['export' => $this->out, 'answers' => $answers, '--operator' => (string) $this->operatorId, '--execute' => true])->assertSuccessful();
         Bus::fake();
 
-        $this->artisan('historic-import:rerun-extract', ['snapshot' => $snapshot, '--execute' => true])
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $snapshot, '--all' => true, '--execute' => true])
             ->expectsOutputToContain('historic-import:rerun-recompose')
             ->assertSuccessful();
 

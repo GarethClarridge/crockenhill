@@ -77,7 +77,7 @@ class ExtractForCorpusRerunCommandTest extends TestCase
         Bus::fake();
         $run = $this->roundedRun();
 
-        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('DRY RUN')
             ->expectsOutputToContain('ready for extraction')
             ->assertSuccessful();
@@ -86,13 +86,33 @@ class ExtractForCorpusRerunCommandTest extends TestCase
         self::assertTrue($run->fresh()?->hasDeferredCorpusRerunMedia());
     }
 
+    /**
+     * A helper whose run list came out empty would otherwise dispatch the whole snapshot, the runs
+     * it parked included (follow-up round plan §5).
+     */
+    #[Test]
+    public function naming_no_runs_is_refused_unless_every_member_is_asked_for(): void
+    {
+        Bus::fake();
+        $run = $this->roundedRun();
+
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+            ->expectsOutputToContain('No runs named')
+            ->assertFailed();
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), 'runs' => [$run->id], '--all' => true, '--execute' => true])
+            ->expectsOutputToContain('not both')
+            ->assertFailed();
+
+        Bus::assertNothingDispatched();
+    }
+
     #[Test]
     public function it_cuts_a_finished_rounds_media_from_extraction(): void
     {
         Bus::fake();
         $run = $this->roundedRun();
 
-        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('dispatched from extraction')
             ->assertSuccessful();
 
@@ -128,7 +148,7 @@ class ExtractForCorpusRerunCommandTest extends TestCase
         $run = $this->roundedRun();
         $run->amendLatestCorpusRerunStamp(['media' => 'extracted', 'extraction_dispatched_at' => '2026-09-24T20:00:00+00:00']);
 
-        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('media already extracted on this commit')
             ->assertSuccessful();
 
@@ -146,7 +166,7 @@ class ExtractForCorpusRerunCommandTest extends TestCase
         $this->snapshot([$run->id]);
         $run->putCorpusRerunStamp(['git_commit' => str_repeat('0', 40), 'media' => 'deferred', 'media_recorded_at' => '2026-09-24T20:00:00+00:00']);
 
-        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('no detection round on this code')
             ->assertSuccessful();
 
@@ -163,7 +183,7 @@ class ExtractForCorpusRerunCommandTest extends TestCase
         Bus::fake();
         $run = $this->roundedRun(stampOverrides: ['worker_commit' => str_repeat('0', 40)]);
 
-        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('worker code from '.str_repeat('0', 40))
             ->assertSuccessful();
 
@@ -181,7 +201,7 @@ class ExtractForCorpusRerunCommandTest extends TestCase
         Bus::fake();
         $this->roundedRun(stampOverrides: ['worker_commit' => str_repeat('0', 40), 'worker_code_revision' => CodeRevision::current()]);
 
-        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('dispatched from extraction')
             ->assertSuccessful();
     }
@@ -192,7 +212,7 @@ class ExtractForCorpusRerunCommandTest extends TestCase
         Bus::fake();
         $this->roundedRun(stampOverrides: ['worker_code_revision' => str_repeat('0', 64)]);
 
-        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('restart the workers and re-detect')
             ->assertSuccessful();
 
@@ -205,7 +225,7 @@ class ExtractForCorpusRerunCommandTest extends TestCase
         Bus::fake();
         $this->roundedRun(stampOverrides: ['worker_commit' => null]);
 
-        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('worker code from an unrecorded commit')
             ->assertSuccessful();
 
@@ -218,7 +238,7 @@ class ExtractForCorpusRerunCommandTest extends TestCase
         Bus::fake();
         $run = $this->roundedRun(recorded: false);
 
-        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('detection round has not finished')
             ->assertSuccessful();
 
@@ -237,7 +257,7 @@ class ExtractForCorpusRerunCommandTest extends TestCase
         Bus::fake();
         $run = $this->recomposedRun(recomposedAt: '2026-09-24T18:00:00+00:00', requestOutstanding: true);
 
-        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('recompose request')
             ->assertSuccessful();
 
@@ -251,7 +271,7 @@ class ExtractForCorpusRerunCommandTest extends TestCase
         Bus::fake();
         $run = $this->recomposedRun(recomposedAt: '2026-09-24T18:00:00+00:00', requestOutstanding: false);
 
-        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('before this round was dispatched')
             ->assertSuccessful();
 
@@ -265,7 +285,7 @@ class ExtractForCorpusRerunCommandTest extends TestCase
         Bus::fake();
         $this->recomposedRun(recomposedAt: '2026-09-24T19:05:00+00:00', requestOutstanding: false, recomposedAttemptId: 'attempt-0');
 
-        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('not the attempt this round recomposed')
             ->assertSuccessful();
 
@@ -278,7 +298,7 @@ class ExtractForCorpusRerunCommandTest extends TestCase
         Bus::fake();
         $this->recomposedRun(recomposedAt: '2026-09-24T19:05:00+00:00', requestOutstanding: false);
 
-        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('ready for extraction')
             ->assertSuccessful();
     }
@@ -303,7 +323,7 @@ class ExtractForCorpusRerunCommandTest extends TestCase
             'worker_commit' => $commit,
         ]);
 
-        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('re-transcribed on this commit but not re-detected')
             ->assertSuccessful();
 
@@ -341,7 +361,7 @@ class ExtractForCorpusRerunCommandTest extends TestCase
         $run = $this->roundedRun();
         Storage::disk('local')->put((string) $run->source_file_path, 'a different encode');
 
-        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('staged source is not the recorded size')
             ->assertSuccessful();
 
@@ -357,7 +377,7 @@ class ExtractForCorpusRerunCommandTest extends TestCase
         $run = $this->roundedRun();
         $run->forceFill(['file_hash' => str_repeat('0', 64)])->save();
 
-        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('dispatched from extraction')
             ->assertSuccessful();
     }
@@ -370,7 +390,7 @@ class ExtractForCorpusRerunCommandTest extends TestCase
         $run = $this->concatenatedRun();
         $this->roundedStamp($run);
 
-        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('concatenated source has not been rebuilt')
             ->assertSuccessful();
 
@@ -393,7 +413,7 @@ class ExtractForCorpusRerunCommandTest extends TestCase
         ]);
         $this->roundedStamp($run);
 
-        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-extract', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('dispatched from extraction')
             ->assertSuccessful();
     }

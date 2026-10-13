@@ -73,7 +73,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         $run = $this->completedRun();
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('DRY RUN')
             ->expectsOutputToContain('ready for re-detection')
             ->assertSuccessful();
@@ -98,7 +98,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         $gate->shouldReceive('inputIsCurrent')->andReturnTrue();
         $this->app->instance(EnsembleReviewGate::class, $gate);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('banked draws still fit')
             ->assertSuccessful();
 
@@ -114,7 +114,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         $run = $this->completedRun();
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('dispatched from structure detection')
             ->assertSuccessful();
 
@@ -138,7 +138,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         $run = $this->completedRun();
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->assertSuccessful();
 
         Bus::assertChained([
@@ -170,7 +170,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         $commit = json_decode((string) file_get_contents(storage_path('app/private/'.$this->snapshotPath())), true)['git_commit'];
         $run->putCorpusRerunStamp(['git_commit' => $commit, 'dispatched_at' => '2026-09-24T12:00:00+00:00']);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('already re-run on this commit')
             ->assertSuccessful();
 
@@ -185,7 +185,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         $this->snapshot([$run->id]);
         $this->rewriteSnapshot(static fn (array $data): array => [...$data, 'git_commit' => str_repeat('0', 40), 'code_revision' => str_repeat('0', 64)]);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('take a new snapshot on the frozen code')
             ->assertSuccessful();
 
@@ -205,7 +205,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
             return [...$data, 'git_commit' => str_repeat('0', 40)];
         });
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('take a new snapshot on the frozen code')
             ->assertSuccessful();
 
@@ -224,7 +224,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         $this->snapshot([$run->id]);
         $this->rewriteSnapshot(static fn (array $data): array => [...$data, 'git_commit' => str_repeat('0', 40)]);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('dispatched from structure detection')
             ->assertSuccessful();
 
@@ -248,7 +248,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
 
         $section->update(['section_type' => ServiceSectionType::Other]);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('run has changed since the snapshot')
             ->assertSuccessful();
 
@@ -268,7 +268,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
 
         Storage::disk('local')->put((string) $run->audio_timeline_path, AudioTimelineFixture::json([[0, 600, 0.9, 0.1]], 2430.0));
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('run has changed since the snapshot')
             ->assertSuccessful();
 
@@ -286,7 +286,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         $payload['model_revision'] = str_repeat('9', 40);
         Storage::disk('local')->put((string) $run->audio_timeline_path, (string) json_encode($payload));
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('run has changed since the snapshot')
             ->assertSuccessful();
 
@@ -300,7 +300,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         $run = $this->completedRun(['audio_timeline_path' => null]);
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('run has no readable audio timeline')
             ->assertSuccessful();
 
@@ -314,7 +314,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         $run = $this->completedRun(['audio_timeline_path' => 'temp/never-written.classes.json']);
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('run has no readable audio timeline')
             ->assertSuccessful();
 
@@ -329,7 +329,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         $this->snapshot([$run->id]);
         $this->rewriteSnapshot(static fn (array $data): array => [...$data, 'version' => 1]);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('captured shape version 1; this code captures version 2')
             ->assertFailed();
     }
@@ -358,7 +358,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         $this->snapshot([$run->id]);
         Storage::disk('local')->put((string) $run->source_file_path, 'a different encode');
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('dispatched from structure detection')
             ->assertSuccessful();
 
@@ -371,7 +371,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         $run = $this->completedRun(['status' => ProcessingStatus::Failed, 'current_step' => 'manual_review_required']);
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('run is failed, not completed')
             ->assertSuccessful();
     }
@@ -389,7 +389,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         [$run] = $this->parkedRun(holdStillLive: false);
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('dispatched from structure detection')
             ->assertSuccessful();
 
@@ -403,7 +403,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         [$run, $section] = $this->parkedRun(holdStillLive: true);
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain("run is parked: section {$section->id}'s content hold had nowhere to land; confirm the section to release it")
             ->assertSuccessful();
     }
@@ -415,7 +415,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         [$run] = $this->parkedRun(holdStillLive: false, stamped: false);
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('run is failed, not completed')
             ->assertSuccessful();
     }
@@ -432,7 +432,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         $run = $this->heldForEnsembleReview();
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('dispatched from structure detection')
             ->assertSuccessful();
 
@@ -446,7 +446,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         $run = $this->heldForEnsembleReview(stamped: false);
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('run is failed, not completed')
             ->assertSuccessful();
     }
@@ -463,7 +463,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         $run = $this->failedForWantOfDraws();
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('dispatched from structure detection')
             ->assertSuccessful();
 
@@ -477,7 +477,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         $run = $this->failedForWantOfDraws(failureCode: 'sermon_missing');
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('run is failed, not completed')
             ->assertSuccessful();
     }
@@ -488,7 +488,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         $run = $this->failedForWantOfDraws(stamped: false);
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('run is failed, not completed')
             ->assertSuccessful();
     }
@@ -499,7 +499,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         $run = $this->completedRun(metadata: ['exclusion' => ['reason' => MediaProcessingLog::EXCLUSION_REASON_PRIVATE_OCCASION]]);
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('run is excluded')
             ->assertSuccessful();
     }
@@ -514,7 +514,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         $run = $this->completedRun(['superseded_at' => now()]);
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('retired or superseded')
             ->assertSuccessful();
     }
@@ -527,7 +527,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         $second = $this->completedRun();
         $this->snapshot([$first->id, $second->id]);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--max' => 1, '--execute' => true])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true, '--max' => 1, '--execute' => true])
             ->expectsOutputToContain('--max=1 reached')
             ->assertSuccessful();
 
@@ -535,7 +535,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         self::assertSame([], $second->fresh()?->corpusRerunStamps());
 
         // Re-running the command continues the batch: the first is refused as done.
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--max' => 1, '--execute' => true])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true, '--max' => 1, '--execute' => true])
             ->expectsOutputToContain('already re-run on this commit')
             ->assertSuccessful();
 

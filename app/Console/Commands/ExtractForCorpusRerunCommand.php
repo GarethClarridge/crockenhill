@@ -30,7 +30,8 @@ class ExtractForCorpusRerunCommand extends Command
 {
     protected $signature = 'historic-import:rerun-extract
         {snapshot : The batch snapshot the detection round was dispatched from}
-        {runs?* : A subset of the snapshot\'s runs; all of them when omitted}
+        {runs?* : A subset of the snapshot\'s runs; required unless --all}
+        {--all : Every member of the snapshot, when no runs are named}
         {--max=10 : The most runs one invocation will dispatch}
         {--execute : Dispatch; without this option the command is a dry run}';
 
@@ -43,7 +44,7 @@ class ExtractForCorpusRerunCommand extends Command
 
         try {
             $snapshot = HistoricRerunSnapshot::fromFile(PrivateEvidenceFile::resolve($this->argument('snapshot'), 'The re-run snapshot'));
-            $runIds = $snapshot->select((array) $this->argument('runs'));
+            $runIds = $snapshot->select((array) $this->argument('runs'), (bool) $this->option('all'));
         } catch (RuntimeException $exception) {
             $this->components->error($exception->getMessage());
 

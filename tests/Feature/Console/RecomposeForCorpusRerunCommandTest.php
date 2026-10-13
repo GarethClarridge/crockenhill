@@ -82,7 +82,7 @@ class RecomposeForCorpusRerunCommandTest extends TestCase
         $this->snapshot([$run->id]);
         $this->roundHeldForReview($run);
 
-        $this->artisan('historic-import:rerun-recompose', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-recompose', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('DRY RUN')
             ->expectsOutputToContain('ready to recompose banked draws attempt-1')
             ->assertSuccessful();
@@ -104,11 +104,11 @@ class RecomposeForCorpusRerunCommandTest extends TestCase
         $this->snapshot([$run->id]);
         $this->roundHeldForReview($run);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('already re-run on this commit')
             ->assertSuccessful();
 
-        $this->artisan('historic-import:rerun-recompose', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-recompose', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('banked draws recomposed')
             ->assertSuccessful();
 
@@ -142,7 +142,7 @@ class RecomposeForCorpusRerunCommandTest extends TestCase
         ]);
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-recompose', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-recompose', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('banked draws recomposed')
             ->assertSuccessful();
 
@@ -265,7 +265,7 @@ class RecomposeForCorpusRerunCommandTest extends TestCase
         $this->roundHeldForReview($run);
         $this->inputIsCurrent = false;
 
-        $this->artisan('historic-import:rerun-recompose', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-recompose', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('no longer matches the run; re-detect it')
             ->assertSuccessful();
 
@@ -278,7 +278,7 @@ class RecomposeForCorpusRerunCommandTest extends TestCase
         $run = $this->completedRun();
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-recompose', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-recompose', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('no banked ensemble draws')
             ->assertSuccessful();
     }
@@ -291,7 +291,7 @@ class RecomposeForCorpusRerunCommandTest extends TestCase
         $this->snapshot([$run->id]);
         $this->roundHeldForReview($run, media: 'extracted', status: ProcessingStatus::Completed);
 
-        $this->artisan('historic-import:rerun-recompose', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-recompose', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('already re-run on this commit')
             ->assertSuccessful();
     }
@@ -303,7 +303,7 @@ class RecomposeForCorpusRerunCommandTest extends TestCase
         $this->snapshot([$run->id]);
         $this->roundHeldForReview($run, extra: ['exclusion' => ['reason' => MediaProcessingLog::EXCLUSION_REASON_PRIVATE_OCCASION]]);
 
-        $this->artisan('historic-import:rerun-recompose', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-recompose', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('run is excluded')
             ->assertSuccessful();
     }

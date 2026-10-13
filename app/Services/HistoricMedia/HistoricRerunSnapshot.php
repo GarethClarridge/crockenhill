@@ -173,20 +173,32 @@ final readonly class HistoricRerunSnapshot
     }
 
     /**
-     * The runs a dispatch names, or every member when it names none. A batch is exactly its
-     * snapshot, so naming a run outside it is an error rather than a silent skip.
+     * The runs a dispatch names, or every member when it asks for all of them. A batch is exactly
+     * its snapshot, so naming a run outside it is an error rather than a silent skip.
+     *
+     * Naming none is refused unless `$all` says so: a helper whose run list came out empty would
+     * otherwise dispatch the whole snapshot, parked runs included (plan
+     * FOLLOW-UP-ROUND-FROZEN-CLONE-2026-10-13 §5).
      *
      * @param  array<mixed>  $requested
      * @return list<int>
      *
      * @throws RuntimeException
      */
-    public function select(array $requested): array
+    public function select(array $requested, bool $all = false): array
     {
         $requested = self::membership($requested);
 
         if ($requested === []) {
+            if (! $all) {
+                throw new RuntimeException('No runs named. Name the runs to dispatch, or pass --all for every member of the snapshot.');
+            }
+
             return $this->membership;
+        }
+
+        if ($all) {
+            throw new RuntimeException('Name runs or pass --all, not both.');
         }
 
         $outside = array_diff($requested, $this->membership);

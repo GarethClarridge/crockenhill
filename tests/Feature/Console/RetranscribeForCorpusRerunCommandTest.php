@@ -18,8 +18,8 @@ use App\Jobs\PromoteHistoricAssets;
 use App\Jobs\RecordCorpusRerunTranscription;
 use App\Jobs\TranscribeFullService;
 use App\Models\MediaProcessingLog;
-use App\Services\ChurchService\Structure\EnsembleReviewGate;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\Structure\EnsembleReviewGate;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Media\Audio\ServiceTranscriptRedecoder;
 use App\Support\RepositoryCommit;
@@ -80,7 +80,7 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         $run = $this->heldRun();
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('DRY RUN')
             ->expectsOutputToContain('ready for re-transcription (1 transcript-loss hold)')
             ->assertSuccessful();
@@ -97,7 +97,7 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         $run = $this->heldRun();
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('dispatched from full-service transcription')
             ->assertSuccessful();
 
@@ -125,7 +125,7 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         $run = $this->heldRun();
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->assertSuccessful();
 
         self::assertFalse($run->fresh()?->isReExtraction());
@@ -167,11 +167,11 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         $this->storeTranscript($run, 'The Lord is my shepherd shepherd shepherd.');
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->assertSuccessful();
         $this->finishTranscriptionRound($run, 'The Lord is my shepherd; I shall not want.');
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('ready for re-detection')
             ->assertSuccessful();
     }
@@ -193,11 +193,11 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         $run->writeProcessingMetadata(static fn (array $metadata): array => [...$metadata, 'service_structure_ensemble' => [['attempt_id' => 'attempt-1']]]);
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->assertSuccessful();
         $this->finishTranscriptionRound($run, 'The Lord is my shepherd; I shall not want.');
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('ready for re-detection')
             ->assertSuccessful();
     }
@@ -209,11 +209,11 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         $run = $this->heldRun();
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->assertSuccessful();
         $run->refresh()->update(['status' => ProcessingStatus::Completed]);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('re-transcription on this commit has not finished')
             ->assertSuccessful();
     }
@@ -228,12 +228,12 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         $run = $this->heldRun();
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->assertSuccessful();
         $this->finishTranscriptionRound($run, 'The Lord is my shepherd; I shall not want.');
         ServiceSection::query()->where('media_processing_log_id', $run->id)->update(['end_time' => 2500, 'duration' => 1900]);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('run has changed since the snapshot')
             ->assertSuccessful();
     }
@@ -245,12 +245,12 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         $run = $this->heldRun();
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->assertSuccessful();
         $this->finishTranscriptionRound($run, 'The Lord is my shepherd; I shall not want.');
         $this->storeTranscript($run, 'Some other text written since.');
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('run has changed since the snapshot')
             ->assertSuccessful();
     }
@@ -265,12 +265,12 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         $run = $this->heldRun();
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->assertSuccessful();
         $this->finishTranscriptionRound($run, 'The Lord is my shepherd; I shall not want.');
         $run->refresh()->amendLatestCorpusRerunStamp(['worker_commit' => 'an-older-commit']);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('re-transcribed by workers on an-older-commit')
             ->assertSuccessful();
     }
@@ -282,12 +282,12 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         $run = $this->heldRun();
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->assertSuccessful();
         // Identical text keeps the hold's grounds alive, so only the stamp stops a second round.
         $this->finishTranscriptionRound($run, null);
 
-        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('already re-transcribed on this commit')
             ->assertSuccessful();
     }
@@ -303,7 +303,7 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         $run = $this->heldRun();
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->assertSuccessful();
 
         $rmsJob = null;
@@ -340,7 +340,7 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         $sha256 = $this->routing([$run->id => ['new_better', $listened]]);
         $this->snapshot([$run->id], $sha256);
 
-        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('dispatched from full-service transcription (listening rated the new decode better); detection deferred to a Tier B round')
             ->assertSuccessful();
 
@@ -378,7 +378,7 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         $sha256 = $this->routing([$storedBetter->id => ['stored_better', $this->storeTranscript($storedBetter, 'Amen.')]]);
         $this->snapshot([$storedBetter->id, $unrouted->id], $sha256);
 
-        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('no new_better listening route')
             ->assertSuccessful();
 
@@ -397,7 +397,7 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         $sha256 = $this->routing([$run->id => ['new_better', $this->storeTranscript($run, 'Amen.')]]);
         $this->snapshot([$run->id], $sha256);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('listening rated the new decode better')
             ->assertSuccessful();
 
@@ -448,7 +448,7 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         $run = $this->runWithTranscriptOf(1991.6, recordingSeconds: 4712.7);
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('ready for re-transcription (transcript made from 1992 of 4713 s of the recording)')
             ->assertSuccessful();
     }
@@ -497,7 +497,7 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         $run = $this->heldRun(['found_by' => 'source_audio', 'reason' => 'Saved sermon text repeats a loop over 90 s of preaching']);
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath()])
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--all' => true])
             ->expectsOutputToContain('ready for re-transcription')
             ->assertSuccessful();
     }
@@ -521,7 +521,7 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
             'dispatched_at' => '2026-10-01T09:00:00+00:00',
         ]);
 
-        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('already re-run on this commit')
             ->assertSuccessful();
     }
@@ -538,14 +538,14 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         $run = $this->heldRun();
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('held for transcript loss')
             ->assertSuccessful();
 
         Bus::assertNothingDispatched();
         self::assertSame([], $run->fresh()?->corpusRerunStamps());
 
-        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('dispatched from full-service transcription')
             ->assertSuccessful();
     }
@@ -558,7 +558,7 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         $this->snapshot([$run->id]);
         Storage::disk('local')->put((string) $run->source_file_path, 'a different encode');
 
-        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('staged source is not the recorded size')
             ->assertSuccessful();
 
@@ -575,7 +575,7 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         $run->forceFill(['file_hash' => str_repeat('0', 64)])->save();
         $this->snapshot([$run->id]);
 
-        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain('dispatched from full-service transcription')
             ->assertSuccessful();
     }
@@ -585,7 +585,7 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
         Bus::fake();
         $this->snapshot([$run->id], $routingSha256);
 
-        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--execute' => true])
+        $this->artisan('historic-import:rerun-retranscribe', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
             ->expectsOutputToContain($reason)
             ->assertSuccessful();
 

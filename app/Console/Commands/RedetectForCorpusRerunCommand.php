@@ -34,7 +34,8 @@ class RedetectForCorpusRerunCommand extends Command
 {
     protected $signature = 'historic-import:rerun-redetect
         {snapshot : The batch snapshot written by historic-import:rerun-snapshot}
-        {runs?* : A subset of the snapshot\'s runs; all of them when omitted, except those whose banked draws still fit}
+        {runs?* : A subset of the snapshot\'s runs; required unless --all}
+        {--all : Every member of the snapshot except those whose banked draws still fit, when no runs are named}
         {--max=10 : The most runs one invocation will dispatch}
         {--execute : Dispatch; without this option the command is a dry run}';
 
@@ -48,7 +49,7 @@ class RedetectForCorpusRerunCommand extends Command
         try {
             $snapshot = HistoricRerunSnapshot::fromFile(PrivateEvidenceFile::resolve($this->argument('snapshot'), 'The re-run snapshot'));
             $named = (array) $this->argument('runs') !== [];
-            $runIds = $snapshot->select((array) $this->argument('runs'));
+            $runIds = $snapshot->select((array) $this->argument('runs'), (bool) $this->option('all'));
         } catch (RuntimeException $exception) {
             $this->components->error($exception->getMessage());
 
