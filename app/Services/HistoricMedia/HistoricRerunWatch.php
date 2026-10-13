@@ -73,7 +73,11 @@ final class HistoricRerunWatch
      * A stop the operator has acknowledged in `watch-state.json` (a lasting state they have looked at
      * and can redo, which would otherwise stop every look) is reported as a warning instead.
      *
-     * @param  array{started_at: string, missing_at_start: list<string>, acknowledged?: list<string>}  $state
+     * Runs listed under `parked` in `watch-state.json` (their jobs pulled on purpose, such as a
+     * hold list) count as parked rather than processing, so a pass that is waiting on them does
+     * not look unfinished.
+     *
+     * @param  array{started_at: string, missing_at_start: list<string>, acknowledged?: list<string>, parked?: list<int>}  $state
      * @return array{stops: list<string>, warnings: list<string>, progress: array<string, mixed>}
      */
     public function check(HistoricRerunSnapshot $snapshot, array $state, float $minimumFreeGigabytes): array
@@ -82,7 +86,7 @@ final class HistoricRerunWatch
         $stops = [];
         $warnings = [];
 
-        [$custodyStops, $custodyWarnings, $runs] = $this->custody($snapshot);
+        [$custodyStops, $custodyWarnings, $runs] = $this->custody($snapshot, $state['parked'] ?? []);
         $stops = [...$stops, ...$custodyStops];
         $warnings = [...$warnings, ...$custodyWarnings];
 
@@ -93,8 +97,17 @@ final class HistoricRerunWatch
 
         $failedJobs = DB::table('failed_jobs')->where('failed_at', '>=', $since)->orderBy('id')->get(['queue', 'payload', 'exception']);
         foreach ($failedJobs as $job) {
-            $name = json_decode((string) $job->payload, true)['displayName'] ?? 'unknown job';
-            $stops[] = sprintf('job failed on %s: %s — %s', $job->queue, $name, strtok((string) $job->exception, "\n"));
+            $payload = json_decode((string) $job->payload, true);
+            $failure = sprintf('job failed on %s: %s — %s', $job->queue, $payload['displayName'] ?? 'unknown job', strtok((string) $job->exception, "\n"));
+            $runIds = $this->runsNamedBy($payload);
+
+            // Two watches run side by side (main and Tier B); each stops for its own runs only.
+            // A job whose run cannot be read still stops it.
+            if ($runIds !== [] && array_intersect($runIds, $snapshot->membership) === []) {
+                $warnings[] = $failure.' (run '.implode(', ', $runIds).' is not in this pass)';
+            } else {
+                $stops[] = $failure;
+            }
         }
 
         $draws = $this->draws($snapshot, $since);
@@ -183,13 +196,31 @@ final class HistoricRerunWatch
     }
 
     /**
+     * The processing runs a failed job's payload names, its chained jobs included.
+     *
+     * @param  mixed  $payload  The decoded `failed_jobs.payload`
+     * @return list<int>
+     */
+    private function runsNamedBy(mixed $payload): array
+    {
+        $command = is_array($payload) ? ($payload['data']['command'] ?? null) : null;
+
+        if (! is_string($command) || preg_match_all('/"'.preg_quote(MediaProcessingLog::class, '/').'";s:2:"id";i:(\d+);/', $command, $matches) === 0) {
+            return [];
+        }
+
+        return array_values(array_unique(array_map('intval', $matches[1])));
+    }
+
+    /**
+     * @param  list<int>  $parked
      * @return array{0: list<string>, 1: list<string>, 2: array<string, int>}
      */
-    private function custody(HistoricRerunSnapshot $snapshot): array
+    private function custody(HistoricRerunSnapshot $snapshot, array $parked): array
     {
         $stops = [];
         $warnings = [];
-        $runs = ['transcribed_only' => 0, 'detected' => 0, 'cut' => 0, 'processing' => 0, 'held_or_failed' => 0, 'not_started' => 0];
+        $runs = ['transcribed_only' => 0, 'detected' => 0, 'cut' => 0, 'processing' => 0, 'parked' => 0, 'held_or_failed' => 0, 'not_started' => 0];
 
         foreach ($snapshot->membership as $runId) {
             $run = MediaProcessingLog::find($runId);
@@ -204,7 +235,8 @@ final class HistoricRerunWatch
             }
 
             if ($run instanceof MediaProcessingLog) {
-                $runs[$this->stage($run, $snapshot)]++;
+                $stage = $this->stage($run, $snapshot);
+                $runs[in_array($stage, ['processing', 'not_started'], true) && in_array($runId, $parked, true) ? 'parked' : $stage]++;
             }
         }
 

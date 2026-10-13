@@ -20,7 +20,9 @@ use RuntimeException;
  * read. On a stop it pauses the queues, writes `watch-stop.json` and exits non-zero; resume
  * with `queue:continue` once the cause is fixed. `--stop` raises a stop no machine can see — wrong on
  * listening — through the same door. `watch-state.json` keeps when the watch began,
- * so a restarted watch does not forget the failed jobs and missing files it has already seen.
+ * so a restarted watch does not forget the failed jobs and missing files it has already seen;
+ * its `acknowledged` stops are reported as warnings, and its `parked` runs (jobs pulled on
+ * purpose) are counted apart from those still processing.
  *
  * Delete once the corpus re-run's batches are accepted, alongside its other instruments.
  */
@@ -95,7 +97,7 @@ class WatchHistoricRerunCommand extends Command
     }
 
     /**
-     * @return array{started_at: string, missing_at_start: list<string>, acknowledged?: list<string>}
+     * @return array{started_at: string, missing_at_start: list<string>, acknowledged?: list<string>, parked?: list<int>}
      */
     private function state(HistoricRerunWatch $watch, HistoricRerunSnapshot $snapshot, string $path): array
     {
@@ -106,6 +108,7 @@ class WatchHistoricRerunCommand extends Command
                 'started_at' => (string) $stored['started_at'],
                 'missing_at_start' => array_values((array) $stored['missing_at_start']),
                 'acknowledged' => array_values(array_filter((array) ($stored['acknowledged'] ?? []), 'is_string')),
+                'parked' => array_values(array_filter((array) ($stored['parked'] ?? []), 'is_int')),
             ];
         }
 

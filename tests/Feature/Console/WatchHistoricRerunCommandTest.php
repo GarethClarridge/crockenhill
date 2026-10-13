@@ -7,6 +7,7 @@ namespace Tests\Feature\Console;
 use App\Data\HistoricStagingContext;
 use App\Enums\ContentHoldCheck;
 use App\Enums\ServiceSectionType;
+use App\Jobs\PromoteHistoricAssets;
 use App\Models\MediaProcessingLog;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
@@ -129,6 +130,53 @@ class WatchHistoricRerunCommandTest extends TestCase
         $this->failedJob(now());
 
         $this->watch()->expectsOutputToContain('job failed on historic-orchestration')->assertFailed();
+    }
+
+    /**
+     * Full pass 2026-10-10: the main and Tier B watches both stopped for every failed job,
+     * whichever pass its run was in, so each was resumed by moving both start times.
+     */
+    #[Test]
+    public function a_job_failing_for_a_run_outside_the_pass_is_a_warning_and_one_for_a_member_stops_it(): void
+    {
+        $member = $this->processingRun();
+        $outsider = $this->processingRun();
+        $this->snapshot([$member->id]);
+        $this->watch()->assertSuccessful();
+
+        $this->travel(1)->minutes();
+        $this->failedJob(now(), new PromoteHistoricAssets($outsider));
+        $this->watch()->assertSuccessful();
+        self::assertContains(
+            "job failed on historic-orchestration: App\\Jobs\\PromoteHistoricAssets — RuntimeException: test (run {$outsider->id} is not in this pass)",
+            $this->file('watch-status.json')['warnings'],
+        );
+        $this->assertNothingPaused();
+
+        $this->failedJob(now(), new PromoteHistoricAssets($member));
+        $this->watch()->expectsOutputToContain('job failed on historic-orchestration')->assertFailed();
+    }
+
+    /** Full pass 2026-10-10: runs whose jobs were pulled for the hold list read as processing for days. */
+    #[Test]
+    public function a_parked_run_is_counted_apart_from_those_still_processing(): void
+    {
+        $parked = $this->processingRun();
+        $processing = $this->processingRun();
+        $this->snapshot([$parked->id, $processing->id]);
+        $this->watch()->assertSuccessful();
+
+        foreach ([$parked, $processing] as $run) {
+            $run->putCorpusRerunStamp(['grounds' => 'corpus_rerun', 'git_commit' => $this->snapshotCommit(), 'code_revision' => $this->snapshotRevision(), 'dispatched_at' => now()->toIso8601String()]);
+            $run->forceFill(['status' => 'processing'])->save();
+        }
+        File::put($this->absolute('watch-state.json'), json_encode([...$this->file('watch-state.json'), 'parked' => [$parked->id]]));
+
+        $this->watch()->assertSuccessful();
+
+        $runs = $this->file('watch-status.json')['progress']['runs'];
+        self::assertSame(1, $runs['parked']);
+        self::assertSame(1, $runs['processing']);
     }
 
     /**
@@ -297,13 +345,15 @@ class WatchHistoricRerunCommandTest extends TestCase
         }
     }
 
-    private function failedJob(\DateTimeInterface $at): void
+    private function failedJob(\DateTimeInterface $at, ?object $job = null): void
     {
         DB::table('failed_jobs')->insert([
             'uuid' => (string) Str::uuid(),
             'connection' => 'redis',
             'queue' => 'historic-orchestration',
-            'payload' => json_encode(['displayName' => 'App\\Jobs\\AutoPublishServiceSection']),
+            'payload' => json_encode($job === null
+                ? ['displayName' => 'App\\Jobs\\AutoPublishServiceSection']
+                : ['displayName' => $job::class, 'data' => ['commandName' => $job::class, 'command' => serialize($job)]]),
             'exception' => "RuntimeException: test\n#0 trace",
             'failed_at' => $at,
         ]);
