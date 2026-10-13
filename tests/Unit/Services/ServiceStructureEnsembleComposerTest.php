@@ -222,7 +222,7 @@ class ServiceStructureEnsembleComposerTest extends TestCase
      * version has a majority and no draft is left without a sermon, so it is a question.
      */
     #[Test]
-    public function four_different_cuts_of_one_sermon_are_a_question_not_a_majority_for_none(): void
+    public function four_different_cuts_of_one_sermon_are_one_sermon_at_its_widest(): void
     {
         $draw = fn (int $start, int $end): ServiceStructure => $this->structure(
             $this->section(ServiceSectionType::Prayer, 0, 100),
@@ -236,12 +236,11 @@ class ServiceStructureEnsembleComposerTest extends TestCase
             3 => $this->vote($draw(1917, 3545)),
         ]);
 
-        $this->assertNotContains('sermon', array_column($result->majorityDecisions, 'type'));
-        $sermonQuestions = array_values(array_filter($result->disputes, static fn (array $dispute): bool => $dispute['type'] === 'sermon'));
-        $this->assertCount(1, $sermonQuestions);
-        $this->assertCount(4, $sermonQuestions[0]['alternatives']);
-        $this->assertSame([], $sermonQuestions[0]['absent_slots']);
-        $this->assertTrue($result->requiresReview());
+        // Ruling 5 (2026-10-11): cuts of one sermon on one passage, with nothing between their
+        // edges, are one sermon from the earliest start to the latest end; nothing is asked.
+        $this->assertSame([], $result->disputes);
+        $sermon = $result->structure->sectionsOfType(ServiceSectionType::Sermon)[0];
+        $this->assertSame([1917.0, 3615.0], [$sermon->startTime, $sermon->endTime]);
     }
 
     #[Test]
@@ -278,7 +277,8 @@ class ServiceStructureEnsembleComposerTest extends TestCase
 
         $result = app(ServiceStructureEnsembleComposer::class)->compose($votes);
 
-        $this->assertSame([104.0, 496.0], [
+        // Ruling 5: the widest edges the voters give.
+        $this->assertSame([100.0, 500.0], [
             $result->structure->sections[0]->startTime,
             $result->structure->sections[0]->endTime,
         ]);
@@ -1203,6 +1203,60 @@ class ServiceStructureEnsembleComposerTest extends TestCase
 
         $this->assertNotContains($marker, $sections[0]->reviewFlags);
         $this->assertContains('content_defect_hold', $sections[0]->reviewFlags);
+    }
+
+    /**
+     * Ruling 5 (operator, 2026-10-11): sermon versions that differ only in their edges take the
+     * earliest start and the latest end ("either is generally fine, but to be safe"). 1042's
+     * drafts ended 80 s apart on the same passage and were asked.
+     */
+    #[Test]
+    public function sermon_versions_differing_only_in_their_edges_take_the_widest(): void
+    {
+        $votes = [
+            0 => $this->vote($this->structure($this->section(ServiceSectionType::Sermon, 2195, 4060, 'Luke 24:50-53'))),
+            1 => $this->vote($this->structure($this->section(ServiceSectionType::Sermon, 2145, 4140, 'Luke 24:50-53'))),
+            2 => $this->vote($this->structure($this->section(ServiceSectionType::Sermon, 2195, 4140, 'Luke 24:50-53'))),
+            3 => $this->vote($this->structure($this->section(ServiceSectionType::Sermon, 2195, 4060, 'Luke 24:50-53'))),
+        ];
+
+        $result = app(ServiceStructureEnsembleComposer::class)->compose($votes);
+        $sermon = $result->structure->sectionsOfType(ServiceSectionType::Sermon)[0];
+
+        $this->assertSame([], $result->disputes);
+        $this->assertSame([2145.0, 4140.0], [$sermon->startTime, $sermon->endTime]);
+    }
+
+    /** The refinement: a stretch another draft calls a separate item stays that item (1027's notices). */
+    #[Test]
+    public function a_sermon_edge_does_not_widen_over_an_item_another_draft_identifies(): void
+    {
+        $sermon = fn (int $end): ServiceStructureSection => $this->section(ServiceSectionType::Sermon, 2195, $end, 'Luke 24:50-53');
+        $votes = [
+            0 => $this->vote($this->structure($sermon(4060), $this->section(ServiceSectionType::Notices, 4062, 4140))),
+            1 => $this->vote($this->structure($sermon(4140))),
+            2 => $this->vote($this->structure($sermon(4060))),
+            3 => $this->vote($this->structure($sermon(4060))),
+        ];
+
+        $result = app(ServiceStructureEnsembleComposer::class)->compose($votes);
+
+        $this->assertSame(4060.0, $result->structure->sectionsOfType(ServiceSectionType::Sermon)[0]->endTime);
+    }
+
+    #[Test]
+    public function sermon_versions_on_different_passages_are_still_asked(): void
+    {
+        $votes = [
+            0 => $this->vote($this->structure($this->section(ServiceSectionType::Sermon, 2195, 4060, 'Luke 24:50-53'))),
+            1 => $this->vote($this->structure($this->section(ServiceSectionType::Sermon, 2145, 4140, 'Job 13:20-14:22'))),
+            2 => $this->vote($this->structure($this->section(ServiceSectionType::Sermon, 2195, 4140, 'Luke 24:50-53'))),
+            3 => $this->vote($this->structure($this->section(ServiceSectionType::Sermon, 2145, 4060, 'Job 13:20-14:22'))),
+        ];
+
+        $result = app(ServiceStructureEnsembleComposer::class)->compose($votes);
+
+        $this->assertSame(['sermon'], array_column($result->disputes, 'type'));
     }
 
     #[Test]

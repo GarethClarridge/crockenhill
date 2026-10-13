@@ -220,6 +220,9 @@ class ServiceStructureEnsembleComposer
             }
 
             $source = $representative['section'];
+            if ($source->type === ServiceSectionType::Sermon) {
+                $source = $this->widestSermon($source, $winner, $eligible);
+            }
             $prayerEquivalent = $source->type === ServiceSectionType::Prayer
                 && $this->equivalentPreSermonPrayer($source, $eligible);
             $quietFiller = in_array($source->type, self::FILLER_TYPES, true)
@@ -531,6 +534,19 @@ class ServiceStructureEnsembleComposer
         if ($a->type === ServiceSectionType::BibleReading
             && abs($a->endTime - $b->endTime) <= 15.0
             && $this->introductionBetween(min($a->startTime, $b->startTime), max($a->startTime, $b->startTime), $draws, $context['transcript'] ?? null)) {
+            return true;
+        }
+
+        /**
+         * Ruling 5 (operator, 2026-10-11): versions of one sermon that differ only in their edges,
+         * with nothing any voter identifies between them, are the same sermon; the composed one
+         * takes the widest edges ({@see self::widestSermon()}). A stretch some voter calls another
+         * item is still compared by tolerance: narrowing over it would leave it in no section.
+         * The passage is compared as a claim field.
+         */
+        if ($a->type === ServiceSectionType::Sermon && $this->overlapShare($a, $b) >= self::SAME_SPAN_OVERLAP
+            && $this->unclaimedBySermonsNeighbours(min($a->startTime, $b->startTime), max($a->startTime, $b->startTime), $draws)
+            && $this->unclaimedBySermonsNeighbours(min($a->endTime, $b->endTime), max($a->endTime, $b->endTime), $draws)) {
             return true;
         }
 
@@ -895,6 +911,63 @@ class ServiceStructureEnsembleComposer
         }
 
         return $prayer;
+    }
+
+    /**
+     * The sermon its supporters agree on, from the earliest start and to the latest end any of
+     * them gives (ruling 5, operator 2026-10-11: "either is generally fine, but to be safe"),
+     * except over a stretch some voter identifies as another item, which stays that item: the
+     * version leaving it its own section wins on that side (notices, a closing prayer, a song's
+     * introduction; refinement of the same day).
+     *
+     * @param  list<array{slot:int,index:int,section:ServiceStructureSection}>  $supporters
+     * @param  array<int,ValidationResult>  $draws
+     */
+    private function widestSermon(ServiceStructureSection $sermon, array $supporters, array $draws): ServiceStructureSection
+    {
+        $starts = array_map(static fn (array $supporter): float => $supporter['section']->startTime, $supporters);
+        $ends = array_map(static fn (array $supporter): float => $supporter['section']->endTime, $supporters);
+        sort($starts);
+        rsort($ends);
+        $start = $sermon->startTime;
+        $end = $sermon->endTime;
+
+        // Outward from the representative only, so the widest edges never narrow it.
+        foreach ($starts as $candidate) {
+            if ($candidate < $start && $this->unclaimedBySermonsNeighbours($candidate, $sermon->startTime, $draws)) {
+                $start = $candidate;
+
+                break;
+            }
+        }
+
+        foreach ($ends as $candidate) {
+            if ($candidate > $end && $this->unclaimedBySermonsNeighbours($sermon->endTime, $candidate, $draws)) {
+                $end = $candidate;
+
+                break;
+            }
+        }
+
+        return $start === $sermon->startTime && $end === $sermon->endTime ? $sermon : $sermon->withTimes($start, $end);
+    }
+
+    /**
+     * Whether no voter puts anything but a sermon between two times.
+     *
+     * @param  array<int,ValidationResult>  $draws
+     */
+    private function unclaimedBySermonsNeighbours(float $from, float $to, array $draws): bool
+    {
+        foreach ($draws as $draw) {
+            foreach ($draw->structure->sections as $section) {
+                if ($section->type !== ServiceSectionType::Sermon && min($section->endTime, $to) - max($section->startTime, $from) > self::EDGE_OVERLAP_SECONDS) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     /** @param  array<int,ValidationResult>  $draws */
