@@ -174,6 +174,19 @@ class WithdrawCorpusRerunRoundCommandTest extends TestCase
         self::assertSame(ProcessingStatus::Failed, $run->fresh()->status);
     }
 
+    /** Run 1209: its review flag dates from 09-17, before the run completed and the pass began. */
+    #[Test]
+    public function a_review_flag_older_than_the_round_does_not_hold_it(): void
+    {
+        $run = $this->completedRun();
+        $this->snapshot([$run->id]);
+        $run->putCorpusRerunStamp($this->stamp(['detection' => RetranscribeForCorpusRerun::DETECTION_NONE]));
+        $run->writeProcessingMetadata(static fn (array $metadata): array => [...$metadata, 'manual_review' => ['status' => 'required', 'reason_code' => 'multiple_qualifying_speech_blocks']]);
+        $run->forceFill(['status' => ProcessingStatus::Processing, 'current_step' => 'segmenting'])->save();
+
+        $this->withdraw([$run->id])->expectsOutputToContain('withdrew its unfinished re-transcription')->assertSuccessful();
+    }
+
     #[Test]
     public function a_round_dispatched_against_another_snapshot_is_refused(): void
     {

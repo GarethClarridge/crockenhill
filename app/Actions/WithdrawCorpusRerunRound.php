@@ -106,7 +106,9 @@ final class WithdrawCorpusRerunRound
             return sprintf('run is %s; only an unfinished or failed round is withdrawn', $run->status->value);
         }
 
-        if (data_get($run->processing_metadata?->toArray(), 'manual_review.status') === 'required') {
+        // A flag left from an earlier review (1209's dates from 09-17, before the run completed)
+        // does not hold an unfinished round; a run the round failed into review does.
+        if ($run->status === ProcessingStatus::Failed && data_get($run->processing_metadata?->toArray(), 'manual_review.status') === 'required') {
             return 'run waits on a manual review, which has its own route back into a round';
         }
 
