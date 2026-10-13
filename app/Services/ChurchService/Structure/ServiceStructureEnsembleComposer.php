@@ -59,6 +59,15 @@ class ServiceStructureEnsembleComposer
      */
     private const MAJORITY_VOTES = 3;
 
+    /** The fewest verses a reading some drafts left out must name to be one (pattern P1). */
+    private const SHORT_READING_VERSES = 3;
+
+    /** The shortest such reading whose reference cannot count its verses (pattern P1). */
+    private const SHORT_READING_SECONDS = 25.0;
+
+    /** Where in the service a reading is its closing blessing instead (pattern P1). */
+    private const CLOSING_BLESSING_SHARE = 0.95;
+
     /** Catalogue matches that name one song without inference; a fuzzy or hymnbook-absent match guesses. */
     private const DETERMINISTIC_SONG_MATCHES = [
         SongTitleMatch::TYPE_EXACT,
@@ -232,6 +241,15 @@ class ServiceStructureEnsembleComposer
             $flagged = $disagrees && ! $decided;
             $written = $forcedGroups[$groupIndex]
                 ?? ($winningVotes > $absent || ($winningVotes === $absent && min(array_keys($eligible)) === min(array_column($winner, 'slot'))));
+            // P1 (the operator's answers, 2026-10-11): whether a reading only some drafts found is
+            // one is settled by its length, not asked. Drafts cutting it at other edges found it:
+            // that stays an edge question.
+            if ($disagrees && ! isset($forcedGroups[$groupIndex]) && $source->type === ServiceSectionType::BibleReading
+                && count($variants) === 1 && $absent > 0 && $this->noReadingThere($source, array_diff_key($eligible, array_flip(array_column($group, 'slot'))))) {
+                $decided = true;
+                $flagged = false;
+                $written = $this->isAReading($source, $transcript);
+            }
 
             if ($disagrees) {
                 $records[] = [
@@ -950,6 +968,57 @@ class ServiceStructureEnsembleComposer
         }
 
         return $start === $sermon->startTime && $end === $sermon->endTime ? $sermon : $sermon->withTimes($start, $end);
+    }
+
+    /**
+     * Whether these drafts left the reading's time to nothing in particular: none gives a reading
+     * there, nor most of it to another item. A draft calling it a prayer disagrees about what it
+     * is, which stays a question (P1 only settled readings some drafts did not find).
+     *
+     * @param  array<int,ValidationResult>  $draws
+     */
+    private function noReadingThere(ServiceStructureSection $reading, array $draws): bool
+    {
+        $length = $reading->endTime - $reading->startTime;
+
+        foreach ($draws as $draw) {
+            foreach ($draw->structure->sections as $other) {
+                $overlap = min($other->endTime, $reading->endTime) - max($other->startTime, $reading->startTime);
+
+                if ($overlap > 0.0 && ($other->type === ServiceSectionType::BibleReading
+                    || ($other->type !== ServiceSectionType::Other && $overlap > $length / 2))) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Whether a reading some drafts left out was read (pattern P1, from the operator's answers on
+     * 2026-10-11): three verses or more is a reading; a verse or two is not, nor is a blessing in
+     * the service's last twentieth. A reference without verses (a chapter) or none at all
+     * cannot say how much was read, so the reading needs {@see self::SHORT_READING_SECONDS}.
+     */
+    private function isAReading(ServiceStructureSection $reading, ?ChurchServiceTranscript $transcript): bool
+    {
+        $recording = $transcript === null ? 0.0 : $transcript->duration;
+
+        if ($recording > 0.0 && $reading->startTime >= $recording * self::CLOSING_BLESSING_SHARE) {
+            return false;
+        }
+
+        $reference = $reading->readingReference;
+
+        if ($reference !== null && str_contains($reference, ':') && $this->scriptureReferences->normalizeAll($reference) !== null) {
+            $verses = $this->scriptureReferences->verseCount($reference);
+
+            // A passage crossing chapters runs to many verses.
+            return $verses === null || $verses >= self::SHORT_READING_VERSES;
+        }
+
+        return $reading->endTime - $reading->startTime >= self::SHORT_READING_SECONDS;
     }
 
     /**

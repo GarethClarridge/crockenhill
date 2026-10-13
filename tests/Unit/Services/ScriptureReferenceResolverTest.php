@@ -330,4 +330,22 @@ class ScriptureReferenceResolverTest extends TestCase
         $this->assertFalse($this->resolver->namesPassage('the numbers 21 and 22 were drawn', 'Numbers 21:4-9'), 'not a book name in lower case without context');
         $this->assertFalse($this->resolver->namesPassage('Hebrews 9', 'not a reference'));
     }
+
+    #[DataProvider('verseCounts')]
+    public function test_it_counts_the_verses_a_reference_names(string $reference, ?int $expected): void
+    {
+        $this->assertSame($expected, $this->resolver->verseCount($reference));
+    }
+
+    public static function verseCounts(): array
+    {
+        return [
+            'a range' => ['Psalm 95:1-7', 7],
+            'one verse' => ['John 3:16', 1],
+            'a whole chapter' => ['Psalm 95', 11],
+            'two passages' => ['John 3:16-18, 4:1-2', 5],
+            'across chapters' => ['Job 12:1-14:22', null],
+            'unparseable' => ['the closing blessing', null],
+        ];
+    }
 }

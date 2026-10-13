@@ -18,6 +18,7 @@ use App\Services\ChurchService\Structure\TalkEdgeChecks;
 use App\Services\ChurchService\Structure\UntranscribedSpeechBeforeSection;
 use App\Services\ChurchService\Structure\ValidationResult;
 use App\Services\Song\SongTitleResolver;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -996,7 +997,7 @@ class ServiceStructureEnsembleComposerTest extends TestCase
     }
 
     #[Test]
-    public function an_unpaired_reading_reference_or_presence_disagreement_is_still_a_question(): void
+    public function an_unpaired_reading_reference_disagreement_is_still_a_question_but_presence_is_settled(): void
     {
         $draw = fn (?string $reference): ServiceStructure => $this->structure(...array_values(array_filter([
             $reference === null ? null : $this->section(ServiceSectionType::BibleReading, 300, 500, $reference),
@@ -1017,7 +1018,9 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         ]);
 
         $this->assertContains('bible_reading', array_column($reference->disputes, 'type'));
-        $this->assertContains('bible_reading', array_column($presence->disputes, 'type'));
+        // Pattern P1 (2026-10-11): a whole chapter read for 200 s that half the drafts left out is a reading.
+        $this->assertNotContains('bible_reading', array_column($presence->disputes, 'type'));
+        $this->assertCount(1, $presence->structure->sectionsOfType(ServiceSectionType::BibleReading));
     }
 
     /**
@@ -1028,17 +1031,18 @@ class ServiceStructureEnsembleComposerTest extends TestCase
     #[Test]
     public function an_omitted_disputed_reading_holds_the_sermon_it_could_join(): void
     {
-        $draw = fn (bool $withReading): ServiceStructure => $this->structure(...array_values(array_filter([
-            $withReading ? $this->section(ServiceSectionType::BibleReading, 300, 500, 'Genesis 8') : null,
+        // The two drafts that found the reading disagree on its passage, so P1 cannot settle it.
+        $draw = fn (?string $reading): ServiceStructure => $this->structure(...array_values(array_filter([
+            $reading !== null ? $this->section(ServiceSectionType::BibleReading, 300, 500, $reading) : null,
             $this->song(1000, 1200, 'Amazing Grace'),
             $this->section(ServiceSectionType::Sermon, 2000, 4000),
         ])));
 
         $result = app(ServiceStructureEnsembleComposer::class)->compose([
-            0 => $this->vote($draw(false)),
-            1 => $this->vote($draw(false)),
-            2 => $this->vote($draw(true)),
-            3 => $this->vote($draw(true)),
+            0 => $this->vote($draw(null)),
+            1 => $this->vote($draw(null)),
+            2 => $this->vote($draw('Genesis 8')),
+            3 => $this->vote($draw('Genesis 9')),
         ]);
 
         $this->assertSame([], $result->structure->sectionsOfType(ServiceSectionType::BibleReading));
@@ -1257,6 +1261,39 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         $result = app(ServiceStructureEnsembleComposer::class)->compose($votes);
 
         $this->assertSame(['sermon'], array_column($result->disputes, 'type'));
+    }
+
+    /**
+     * Pattern P1 (operator's answers, 2026-10-11): a short reading only some drafts found is a
+     * reading at three verses or more; a verse or two, or a blessing closing the service, is not.
+     * A chapter-only reference cannot count verses, so it needs 25 s to be a reading.
+     */
+    #[Test]
+    #[DataProvider('shortReadings')]
+    public function a_reading_some_drafts_found_is_kept_by_its_length(int $start, int $end, string $reference, bool $kept): void
+    {
+        $sermon = $this->section(ServiceSectionType::Sermon, 1000, 3000);
+        $reading = $this->section(ServiceSectionType::BibleReading, $start, $end, $reference);
+        $result = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($this->structure($reading, $sermon)),
+            1 => $this->vote($this->structure($reading, $sermon)),
+            2 => $this->vote($this->structure($sermon)),
+            3 => $this->vote($this->structure($sermon)),
+        ], ChurchServiceTranscript::fromCues([], 3200, ChurchServiceTranscript::SOURCE_MOCK));
+
+        $this->assertSame([], array_values(array_filter($result->disputes, static fn (array $dispute): bool => $dispute['type'] === 'bible_reading')));
+        $this->assertCount($kept ? 1 : 0, $result->structure->sectionsOfType(ServiceSectionType::BibleReading));
+    }
+
+    public static function shortReadings(): array
+    {
+        return [
+            'seven verses' => [300, 340, 'Psalm 95:1-7', true],
+            'one verse' => [300, 312, 'John 3:16', false],
+            'a closing blessing' => [3100, 3130, 'Numbers 6:24-26', false],
+            'a chapter read briefly' => [300, 313, 'Psalm 23', false],
+            'a chapter read at length' => [300, 340, 'Psalm 23', true],
+        ];
     }
 
     #[Test]

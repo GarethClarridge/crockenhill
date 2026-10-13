@@ -383,6 +383,22 @@ class ScriptureReferenceResolver
     }
 
     /**
+     * How many verses a reference names, or null when it does not parse or a passage crosses
+     * chapters (no count is known without each chapter's length). A whole chapter counts its
+     * verses ("Psalm 95" is 11).
+     */
+    public function verseCount(string $reference): ?int
+    {
+        $spans = $this->verseSpans($reference);
+
+        if ($spans === [] || array_any($spans, static fn (array $span): bool => intdiv($span[0], 1000) !== intdiv($span[1], 1000))) {
+            return null;
+        }
+
+        return array_sum(array_map(static fn (array $span): int => $span[1] - $span[0] + 1, $spans));
+    }
+
+    /**
      * Each passage as an inclusive [from, to] span in the parser's integer
      * notation (book/chapter/verse packed into one comparable integer).
      *
