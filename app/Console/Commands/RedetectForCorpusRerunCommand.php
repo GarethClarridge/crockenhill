@@ -78,19 +78,18 @@ class RedetectForCorpusRerunCommand extends Command
 
             $run = MediaProcessingLog::find($runId);
 
+            $result = $run instanceof MediaProcessingLog
+                ? $redetector->execute($run, $snapshot, false)
+                : ['outcome' => 'refused', 'reason' => 'run not found'];
+
             // Left unnamed, the batch took the full pass's 37 recompose-routed runs too, throwing
             // their banked draws away (2026-10-10). Draws that still fit are recomposed; re-detecting
             // such a run takes naming it.
-            if (! $named && $run instanceof MediaProcessingLog && $this->banksCurrentDraws($run, $ensembleGate)) {
-                $counts['refused']++;
-                $rows[] = [$runId, 'refused', 'its banked draws still fit the run: recompose it (historic-import:rerun-recompose), or name it to re-detect'];
-
-                continue;
+            if ($result['outcome'] === 'ready' && ! $named && $run instanceof MediaProcessingLog && $this->banksCurrentDraws($run, $ensembleGate)) {
+                $result = ['outcome' => 'refused', 'reason' => 'its banked draws still fit the run: recompose it (historic-import:rerun-recompose), or name it to re-detect'];
+            } elseif ($result['outcome'] === 'ready' && $execute && $run instanceof MediaProcessingLog) {
+                $result = $redetector->execute($run, $snapshot, true);
             }
-
-            $result = $run instanceof MediaProcessingLog
-                ? $redetector->execute($run, $snapshot, $execute)
-                : ['outcome' => 'refused', 'reason' => 'run not found'];
 
             $counts[$result['outcome']]++;
             $rows[] = [$runId, $result['outcome'], $result['reason']];
