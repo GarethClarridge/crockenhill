@@ -14,7 +14,6 @@ use App\Jobs\AnalyzeSegments;
 use App\Jobs\ClassifyServiceAudio;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\GenerateRmsLog;
-use App\Jobs\PromoteHistoricAssets;
 use App\Jobs\RecordCorpusRerunTranscription;
 use App\Jobs\TranscribeFullService;
 use App\Models\MediaProcessingLog;
@@ -150,7 +149,6 @@ class RetranscribeForCorpusRerunCommandTest extends TestCase
             TranscribeFullService::class,
             ClassifyServiceAudio::class,
             RecordCorpusRerunTranscription::class,
-            PromoteHistoricAssets::class,
             CleanupTemporaryFiles::class,
         ]);
     }

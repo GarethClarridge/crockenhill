@@ -175,9 +175,16 @@ class ProcessingPipelineBuilder
      *
      * A detection round is re-run after every detector fix, and nothing it judges needs media,
      * so cutting clips each round would only produce work the next round throws away.
-     * {@see RecordDeferredCorpusRerunMedia} records what would be cut instead, and the
-     * sermonless tail completes the run. The media is cut once, on the frozen commit, by
-     * re-extraction ({@see ProcessingRunOrchestrator::reExtract()}).
+     * {@see RecordDeferredCorpusRerunMedia} records what would be cut instead, and cleanup
+     * completes the run. The media is cut once, on the frozen commit, by re-extraction
+     * ({@see ProcessingRunOrchestrator::reExtract()}).
+     *
+     * Nor does it promote. Media an earlier cut left in staging is exactly what this round's cut
+     * will replace, and only that cut carries the authority to replace a quarantined copy
+     * ({@see MediaProcessingLog::authoriseVideoReplacementOnPromotion()}); promoting it here
+     * could only be refused against the older copy, failing a run whose detection succeeded and
+     * so barring it from the cut that would have settled both (run 946 and 14 others,
+     * 2026-10-13).
      *
      * Sliced from the full chain rather than listed, so the two can never disagree on the jobs
      * a re-detection's offset counts over.
@@ -196,7 +203,7 @@ class ProcessingPipelineBuilder
         return [
             ...array_slice($jobs, 0, $firstMediaJob - 1),
             new RecordDeferredCorpusRerunMedia($log),
-            ...$this->buildSermonlessServiceChainJobs($log),
+            new CleanupTemporaryFiles($log),
         ];
     }
 
@@ -208,8 +215,8 @@ class ProcessingPipelineBuilder
      * throws away a Tier A detection. The recording is unchanged, so its RMS log
      * ({@see self::buildLivestreamTranscriptionOnlyParallelJobs()}) and audio timeline are reused:
      * measuring them again would only occupy the ffmpeg worker the cuts need.
-     * {@see RecordCorpusRerunTranscription} records the text written, and the sermonless tail
-     * completes the run.
+     * {@see RecordCorpusRerunTranscription} records the text written, and cleanup completes the
+     * run; like the detection round, it cuts nothing, so it promotes nothing.
      *
      * @return non-empty-list<object>
      */
@@ -220,7 +227,7 @@ class ProcessingPipelineBuilder
             new TranscribeFullService($log),
             new ClassifyServiceAudio($log, mayReuseRecordedTimeline: true),
             new RecordCorpusRerunTranscription($log),
-            ...$this->buildSermonlessServiceChainJobs($log),
+            new CleanupTemporaryFiles($log),
         ];
     }
 

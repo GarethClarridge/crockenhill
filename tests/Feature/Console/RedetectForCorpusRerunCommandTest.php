@@ -14,7 +14,6 @@ use App\Jobs\ExtendSongsOverOwnLyrics;
 use App\Jobs\MatchSongsFromTranscript;
 use App\Jobs\MergeSongContinuations;
 use App\Jobs\ProjectLivestreamServiceStructure;
-use App\Jobs\PromoteHistoricAssets;
 use App\Jobs\RecordDeferredCorpusRerunMedia;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
@@ -149,7 +148,6 @@ class RedetectForCorpusRerunCommandTest extends TestCase
             ExtendSongsOverOwnLyrics::class,
             ProjectLivestreamServiceStructure::class,
             RecordDeferredCorpusRerunMedia::class,
-            PromoteHistoricAssets::class,
             CleanupTemporaryFiles::class,
         ]);
 
@@ -493,6 +491,49 @@ class RedetectForCorpusRerunCommandTest extends TestCase
             ->assertSuccessful();
     }
 
+    /**
+     * The follow-up round, 2026-10-13: 946 and 14 others recomposed cleanly, then the round's tail
+     * promoted song videos an earlier cut had left in staging and was refused against the older
+     * quarantined copies. Their detection had finished; only a step rounds no longer run failed.
+     */
+    #[Test]
+    public function it_admits_a_run_a_round_failed_after_its_detection_finished(): void
+    {
+        Bus::fake();
+        $run = $this->failedAfterDetection();
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true, '--execute' => true])
+            ->expectsOutputToContain('dispatched from structure detection')
+            ->assertSuccessful();
+
+        self::assertCount(2, $run->fresh()?->corpusRerunStamps() ?? []);
+    }
+
+    /** A round that failed before recording its media failed in detection, which is not this case. */
+    #[Test]
+    public function it_refuses_a_run_a_round_failed_before_its_detection_finished(): void
+    {
+        $run = $this->failedAfterDetection(mediaRecorded: false);
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true])
+            ->expectsOutputToContain('run is failed, not completed')
+            ->assertSuccessful();
+    }
+
+    /** A run that cut its own media had its media promoted by the round that cut it. */
+    #[Test]
+    public function it_refuses_a_run_failed_after_a_round_that_cut_its_media(): void
+    {
+        $run = $this->failedAfterDetection(media: 'extracted');
+        $this->snapshot([$run->id]);
+
+        $this->artisan('historic-import:rerun-redetect', ['snapshot' => $this->snapshotPath(), '--all' => true])
+            ->expectsOutputToContain('run is failed, not completed')
+            ->assertSuccessful();
+    }
+
     #[Test]
     public function it_refuses_an_excluded_run(): void
     {
@@ -630,6 +671,23 @@ class RedetectForCorpusRerunCommandTest extends TestCase
         if ($stamped) {
             $metadata[RedetectForCorpusRerun::STAMP_KEY] = [['grounds' => 'corpus_rerun', 'git_commit' => str_repeat('e', 40), 'media' => 'deferred', 'dispatched_at' => '2026-10-09T19:28:43+00:00']];
         }
+
+        $run->forceFill(['processing_metadata' => $metadata])->save();
+
+        return $run->fresh() ?? $run;
+    }
+
+    private function failedAfterDetection(bool $mediaRecorded = true, string $media = 'deferred'): MediaProcessingLog
+    {
+        $run = $this->completedRun(['status' => ProcessingStatus::Failed, 'current_step' => 'project_livestream_service_structure']);
+        $metadata = $run->processing_metadata?->toArray() ?? [];
+        $metadata[RedetectForCorpusRerun::STAMP_KEY] = [[
+            'grounds' => 'corpus_rerun',
+            'git_commit' => str_repeat('e', 40),
+            'media' => $media,
+            'dispatched_at' => '2026-10-13T20:34:42+00:00',
+            ...($mediaRecorded ? ['media_recorded_at' => '2026-10-13T21:17:09+00:00'] : []),
+        ]];
 
         $run->forceFill(['processing_metadata' => $metadata])->save();
 

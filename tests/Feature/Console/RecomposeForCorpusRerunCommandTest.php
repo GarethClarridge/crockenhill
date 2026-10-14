@@ -13,7 +13,6 @@ use App\Jobs\ExtendSongsOverOwnLyrics;
 use App\Jobs\MatchSongsFromTranscript;
 use App\Jobs\MergeSongContinuations;
 use App\Jobs\ProjectLivestreamServiceStructure;
-use App\Jobs\PromoteHistoricAssets;
 use App\Jobs\RecordDeferredCorpusRerunMedia;
 use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\Structure\EnsembleReviewGate;
@@ -126,7 +125,6 @@ class RecomposeForCorpusRerunCommandTest extends TestCase
             ExtendSongsOverOwnLyrics::class,
             ProjectLivestreamServiceStructure::class,
             RecordDeferredCorpusRerunMedia::class,
-            PromoteHistoricAssets::class,
             CleanupTemporaryFiles::class,
         ]);
     }

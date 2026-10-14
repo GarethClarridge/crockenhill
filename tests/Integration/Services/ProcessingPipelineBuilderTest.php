@@ -338,7 +338,12 @@ class ProcessingPipelineBuilderTest extends TestCase
 
     /**
      * The corpus re-run's detection rounds (plan §4.0): the livestream chain up to the refining
-     * projection, then a step that records what media would be cut, then the sermonless tail.
+     * projection, then a step that records what media would be cut, then cleanup.
+     *
+     * Nothing here promotes media: whatever an earlier cut left in staging is the cut this
+     * round will replace, and promoting it could only collide with the copy already in
+     * quarantine. The round's own cut promotes, with the authority to replace (run 946,
+     * 2026-10-13).
      */
     #[Test]
     public function it_builds_a_detection_only_chain_that_stops_before_any_media_is_cut(): void
@@ -359,15 +364,14 @@ class ProcessingPipelineBuilderTest extends TestCase
             ExtendSongsOverOwnLyrics::class,
             ProjectLivestreamServiceStructure::class,
             RecordDeferredCorpusRerunMedia::class,
-            PromoteHistoricAssets::class,
             CleanupTemporaryFiles::class,
         ], $classes);
     }
 
     /**
      * The corpus re-run's Tier A round (plan §4.0): the livestream chain up to detection, reusing
-     * the recording's audio measurements, then a step that records the new text, then the
-     * sermonless tail. Detection is left to the Tier B round that follows.
+     * the recording's audio measurements, then a step that records the new text, then cleanup.
+     * Detection is left to the Tier B round that follows.
      */
     #[Test]
     public function it_builds_a_transcription_only_chain_that_stops_before_detection(): void
@@ -381,7 +385,6 @@ class ProcessingPipelineBuilderTest extends TestCase
             TranscribeFullService::class,
             ClassifyServiceAudio::class,
             RecordCorpusRerunTranscription::class,
-            PromoteHistoricAssets::class,
             CleanupTemporaryFiles::class,
         ], array_map(static fn (object $job): string => $job::class, $jobs));
     }

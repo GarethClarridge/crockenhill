@@ -27,9 +27,10 @@ use App\Support\RepositoryCommit;
  * - the run is completed and not excluded (the eligible membership). Failed runs a round caused
  *   are let back in: one parked because its detection left a content hold with nowhere to land
  *   (canary 4, 1304 §3872), once the operator has released every hold it named; one held for
- *   ensemble or composition review, or parked for its content-held sermon; and one failed
+ *   ensemble or composition review, or parked for its content-held sermon; one failed
  *   because fewer than two draws validated (canary 15, 967 and 1005), which a new round draws
- *   again;
+ *   again; and one failed after its detection finished (the follow-up round's promotion
+ *   refusals, 2026-10-13);
  * - the run has a readable audio timeline, which detection refuses to run without;
  * - the run has not changed since the snapshot, so the diff reads the re-run's change alone.
  *   A finished transcription round dispatched against this snapshot may have changed the text
@@ -78,7 +79,8 @@ final class CorpusRerunGuard
 
         if ($run->status !== ProcessingStatus::Completed
             && ! $this->heldForEnsembleReviewByARound($run)
-            && ! $this->failedForWantOfDrawsByARound($run)) {
+            && ! $this->failedForWantOfDrawsByARound($run)
+            && ! $this->failedAfterItsDetectionFinishedByARound($run)) {
             $stillHeld = $this->unplacedHoldsStillLive($run);
 
             if ($stillHeld === null) {
@@ -257,6 +259,25 @@ final class CorpusRerunGuard
             && $run->corpusRerunStamps() !== []
             && data_get($metadata, 'manual_review.reason_code') === 'llm_structure_validation_failed'
             && in_array('insufficient_ensemble_votes', (array) data_get($latest, 'composition.failure_codes', []), true);
+    }
+
+    /**
+     * Whether a detection round failed the run after recording the media it deferred.
+     *
+     * Its detection finished, so the failure was in the custody tail, which detection rounds no
+     * longer run: the follow-up round's recomposition of 946 and 14 others promoted song videos an
+     * earlier cut had left in staging, and was refused against the older quarantined copies
+     * (2026-10-13). Only the round's own cut may replace those, and a failed run cannot be cut.
+     * A run that failed earlier, or after a round that cut its media, stays out.
+     */
+    private function failedAfterItsDetectionFinishedByARound(MediaProcessingLog $run): bool
+    {
+        $stamps = $run->corpusRerunStamps();
+        $latest = $stamps === [] ? null : $stamps[count($stamps) - 1];
+
+        return $run->status === ProcessingStatus::Failed
+            && ($latest['media'] ?? null) === RedetectForCorpusRerun::MEDIA_DEFERRED
+            && ($latest['media_recorded_at'] ?? null) !== null;
     }
 
     /**
