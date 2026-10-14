@@ -13,6 +13,7 @@ use App\Services\ChurchService\Structure\SilenceSnapService;
 use App\Services\ChurchService\Structure\SongSpeechEdges;
 use App\Services\ChurchService\Structure\UntranscribedSpeechBeforeSection;
 use App\Support\SermonAutoExtractionPolicy;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -191,6 +192,154 @@ class ServiceStructureEnsembleRulingApplierTest extends TestCase
         $this->assertSame([], $result['conflicting_rulings']);
         $this->assertCount(2, $result['applied_rulings']);
         $this->assertSame([['bible_reading', 100.0, 200.0], ['short_talk', 200.5, 300.0]], $this->spans($result));
+    }
+
+    /**
+     * Full pass, 1027 and 987 (2026-10-11): the sermon answer took the earliest start, "unless
+     * the extra is an item of its own", and the reading answer said the passage inside that
+     * span is an item of its own. The exception decides it: the sermon starts after the item
+     * rather than both answers staying open as a clash.
+     *
+     * @param  list<array{0: string, 1: float, 2: float}>  $inner
+     * @param  array{0: float, 1: float}  $sermonScope
+     * @param  list<array{0: string, 1: float, 2: float}>  $expected
+     */
+    #[Test]
+    #[DataProvider('itemsAnsweredInsideASermon')]
+    public function a_sermon_answer_yields_to_an_item_answered_as_its_own_inside_it(array $inner, array $sermonScope, float $sermonStart, float $sermonEnd, array $expected): void
+    {
+        $innerSections = array_map(fn (array $span): ServiceStructureSection => $this->section(ServiceSectionType::from($span[0]), $span[1], $span[2]), $inner);
+        $innerScope = ['type' => $inner[0][0], 'start_time' => $inner[0][1], 'end_time' => end($inner)[2]];
+        $proposal = [...$this->proposalOf([
+            $this->section(ServiceSectionType::from($innerScope['type']), $innerScope['start_time'], $innerScope['end_time']),
+            $this->section(ServiceSectionType::Sermon, $sermonScope[0], $sermonScope[1]),
+        ], []), 'disputes' => [
+            ['question_id' => 'item-question', 'written' => true, ...$innerScope],
+            ['question_id' => 'sermon-question', 'type' => 'sermon', 'written' => true, 'start_time' => $sermonScope[0], 'end_time' => $sermonScope[1]],
+        ]];
+        $answers = [
+            [...$this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::Sermon, $sermonStart, $sermonEnd)->toArray()]], 'sermon-ruling'),
+                'scope' => ['type' => 'sermon', 'start_time' => $sermonScope[0], 'end_time' => $sermonScope[1]]],
+            [...$this->ruling(count($inner) > 1 ? 'correct' : 'choose', ['sections' => array_map(static fn (ServiceStructureSection $section): array => $section->toArray(), $innerSections)], 'item-ruling'),
+                'scope' => $innerScope],
+        ];
+        $applier = app(ServiceStructureEnsembleRulingApplier::class);
+
+        foreach ([$answers, array_reverse($answers)] as $ordered) {
+            $result = $applier->apply($proposal, $ordered);
+
+            $this->assertSame([], $result['conflicting_rulings']);
+            $this->assertSame([], $result['disputes']);
+            $this->assertCount(2, $result['applied_rulings']);
+            $this->assertSame($expected, $this->spans($result));
+        }
+    }
+
+    /** @return array<string, array<int, mixed>> */
+    public static function itemsAnsweredInsideASermon(): array
+    {
+        return [
+            '1027: reading after the preacher\'s introduction' => [
+                [['bible_reading', 233.0, 430.0]], [433.0, 2275.0], 0.0, 2275.0,
+                [['bible_reading', 233.0, 430.0], ['sermon', 430.0, 2275.0]],
+            ],
+            '987: reading at the very start' => [
+                [['bible_reading', 0.0, 253.0]], [0.0, 1144.0], 0.0, 1144.0,
+                [['bible_reading', 0.0, 253.0], ['sermon', 253.0, 1144.0]],
+            ],
+            '1363: a corrected greeting and talk' => [
+                [['other', 889.0, 894.0], ['short_talk', 894.0, 932.0]], [1178.0, 3059.0], 889.0, 3059.0,
+                [['other', 889.0, 894.0], ['short_talk', 894.0, 932.0], ['sermon', 932.0, 3059.0]],
+            ],
+        ];
+    }
+
+    /**
+     * Full pass, 1285, 1305 and 1269: the operator chose one reading spanning two passages, and
+     * the short-readings rule answered that one of those passages is a reading. Both are true:
+     * the whole reading includes it, so the part's answer is honoured by the whole one.
+     */
+    #[Test]
+    public function an_answer_about_part_of_a_reading_is_honoured_by_the_answer_about_the_whole(): void
+    {
+        $proposal = [...$this->proposalOf([
+            $this->section(ServiceSectionType::BibleReading, 1172, 1309),
+            $this->section(ServiceSectionType::BibleReading, 1309, 1373),
+        ], []), 'disputes' => [
+            ['question_id' => 'whole', 'type' => 'bible_reading', 'written' => true, 'start_time' => 1172.0, 'end_time' => 1309.0],
+            ['question_id' => 'part', 'type' => 'bible_reading', 'written' => true, 'start_time' => 1309.0, 'end_time' => 1373.0],
+        ]];
+        $answers = [
+            [...$this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::BibleReading, 1162, 1373)->toArray()]], 'whole-ruling'),
+                'scope' => ['type' => 'bible_reading', 'start_time' => 1172.0, 'end_time' => 1309.0]],
+            [...$this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::BibleReading, 1309, 1371)->toArray()]], 'part-ruling'),
+                'scope' => ['type' => 'bible_reading', 'start_time' => 1309.0, 'end_time' => 1373.0]],
+        ];
+        $applier = app(ServiceStructureEnsembleRulingApplier::class);
+
+        foreach ([$answers, array_reverse($answers)] as $ordered) {
+            $result = $applier->apply($proposal, $ordered);
+
+            $this->assertSame([], $result['conflicting_rulings']);
+            $this->assertSame([], $result['disputes']);
+            $this->assertCount(2, $result['applied_rulings']);
+            $this->assertSame([['bible_reading', 1162.0, 1373.0]], $this->spans($result));
+        }
+    }
+
+    /**
+     * Full pass, 1343: the chosen talk ran five seconds past the start of the chosen song. A
+     * song's spoken introduction may be in or out of it (operator, 2026-10-10: don't ask), so
+     * the crossing is not a question: the song keeps its edge.
+     */
+    #[Test]
+    public function a_talk_crossing_a_song_edge_yields_the_crossing_to_the_song(): void
+    {
+        $proposal = [...$this->proposalOf([
+            $this->section(ServiceSectionType::ShortTalk, 218, 486),
+            $this->section(ServiceSectionType::Song, 490, 660),
+        ], []), 'disputes' => [
+            ['question_id' => 'talk', 'type' => 'short_talk', 'written' => true, 'start_time' => 218.0, 'end_time' => 486.0],
+            ['question_id' => 'song', 'type' => 'song', 'written' => true, 'start_time' => 490.0, 'end_time' => 660.0],
+        ]];
+        $answers = [
+            [...$this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::ShortTalk, 218, 486)->toArray()]], 'talk-ruling'),
+                'scope' => ['type' => 'short_talk', 'start_time' => 218.0, 'end_time' => 486.0]],
+            [...$this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::Song, 481, 660)->toArray()]], 'song-ruling'),
+                'scope' => ['type' => 'song', 'start_time' => 490.0, 'end_time' => 660.0]],
+        ];
+        $applier = app(ServiceStructureEnsembleRulingApplier::class);
+
+        foreach ([$answers, array_reverse($answers)] as $ordered) {
+            $result = $applier->apply($proposal, $ordered);
+
+            $this->assertSame([], $result['conflicting_rulings']);
+            $this->assertCount(2, $result['applied_rulings']);
+            $this->assertSame([['short_talk', 218.0, 481.0], ['song', 481.0, 660.0]], $this->spans($result));
+        }
+    }
+
+    /** Two answers of different types that each claim part of the other stay a clash. */
+    #[Test]
+    public function a_sermon_answer_crossing_part_of_another_item_stays_unresolved(): void
+    {
+        $proposal = [...$this->proposalOf([
+            $this->section(ServiceSectionType::BibleReading, 233, 430),
+            $this->section(ServiceSectionType::Sermon, 433, 2275),
+        ], []), 'disputes' => [
+            ['question_id' => 'reading', 'type' => 'bible_reading', 'written' => true, 'start_time' => 233.0, 'end_time' => 430.0],
+            ['question_id' => 'sermon', 'type' => 'sermon', 'written' => true, 'start_time' => 433.0, 'end_time' => 2275.0],
+        ]];
+
+        $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($proposal, [
+            [...$this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::Sermon, 300, 2275)->toArray()]], 'sermon-ruling'),
+                'scope' => ['type' => 'sermon', 'start_time' => 433.0, 'end_time' => 2275.0]],
+            [...$this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::BibleReading, 233, 430)->toArray()]], 'reading-ruling'),
+                'scope' => ['type' => 'bible_reading', 'start_time' => 233.0, 'end_time' => 430.0]],
+        ]);
+
+        $this->assertCount(2, $result['conflicting_rulings']);
+        $this->assertCount(2, $result['disputes']);
     }
 
     #[Test]

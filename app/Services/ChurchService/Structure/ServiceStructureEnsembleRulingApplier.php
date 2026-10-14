@@ -123,8 +123,9 @@ class ServiceStructureEnsembleRulingApplier
 
         $keyByDispute = array_flip($pairs);
         $reopened = [];
+        [$resolutions, $honoured] = $this->reconcileNestedClaims($current, $alreadyAbsent);
 
-        foreach ($this->overlappingClaims($current, $alreadyAbsent) as $key) {
+        foreach ($this->overlappingClaims($current, $alreadyAbsent, $resolutions, $honoured) as $key) {
             $conflicting[] = $current[$key];
 
             // An answer with no question to pair with reopens its own, keyed so a fresh answer
@@ -192,7 +193,13 @@ class ServiceStructureEnsembleRulingApplier
                 throw new InvalidArgumentException('Unsupported ensemble answer.');
             }
 
-            $resolution = $answer['resolution'] ?? null;
+            if (isset($honoured[$key])) {
+                $applied[] = $answer;
+
+                continue;
+            }
+
+            $resolution = $resolutions[$key] ?? $answer['resolution'] ?? null;
 
             if (! is_array($resolution)) {
                 throw new InvalidArgumentException('An ensemble answer has no recorded resolution.');
@@ -218,12 +225,19 @@ class ServiceStructureEnsembleRulingApplier
                 continue;
             }
 
+            if (isset($honoured[$key])) {
+                $applied[] = $answer;
+
+                continue;
+            }
+
             // No question to pair with: the fresh draws agreed. Agreement is still a vote, so an
             // answer on this source that the output contradicts decides the section it names.
             $target = $this->scopeTarget($sections, $answer);
+            $settling = isset($resolutions[$key]) ? [...$answer, 'resolution' => $resolutions[$key]] : $answer;
 
-            if ($this->contradicted($sections, $target, $answer)) {
-                $sections = $this->settle($sections, $target, $answer['resolution']);
+            if ($this->contradicted($sections, $target, $settling)) {
+                $sections = $this->settle($sections, $target, $settling['resolution']);
                 $applied[] = $answer;
 
                 continue;
@@ -399,19 +413,13 @@ class ServiceStructureEnsembleRulingApplier
      *
      * @param  array<string, array<string, mixed>>  $current
      * @param  array<string, true>  $alreadyAbsent
+     * @param  array<string, array<string, mixed>>  $resolutions
+     * @param  array<string, true>  $honoured
      * @return list<string>
      */
-    private function overlappingClaims(array $current, array $alreadyAbsent): array
+    private function overlappingClaims(array $current, array $alreadyAbsent, array $resolutions, array $honoured): array
     {
-        $claims = [];
-
-        foreach ($current as $key => $answer) {
-            if (! isset($alreadyAbsent[$key]) && in_array($answer['kind'] ?? null, ['accept', 'choose', 'correct'], true)
-                && is_array($answer['resolution']['sections'] ?? null)) {
-                $claims[$key] = $this->resolvedSections($answer['resolution']);
-            }
-        }
-
+        $claims = array_diff_key($this->claims($current, $alreadyAbsent, $resolutions), $honoured);
         $overlapping = [];
 
         foreach ($claims as $key => $sections) {
@@ -429,6 +437,176 @@ class ServiceStructureEnsembleRulingApplier
         }
 
         return $overlapping;
+    }
+
+    /**
+     * Settles the overlaps between answers that the operator's own rules already decide, so
+     * only the overlaps no rule decides stay open as a clash. Answers taken one at a time can
+     * each be right yet claim the same time, and three shapes of that are not a question:
+     *
+     * - One answer's item lies wholly inside a section of another type that a second answer
+     *   settled (full pass 1027, 987, 1363). The sermon rule takes the earliest start "unless
+     *   the extra is an item of its own" (operator, 2026-10-11), and the inner answer says it
+     *   is, so the containing section keeps the side of the item its own question was about.
+     * - One reading lies wholly inside a longer reading another answer settled (1285, 1305,
+     *   1269). Both are true: the inner answer says the passage is a reading and the whole
+     *   reading includes it, so the whole one honours it and the inner answer settles nothing.
+     * - Speech crosses the edge of a song (1343). A song's spoken introduction may be in or
+     *   out of it (operator, 2026-10-10: don't ask), so the song keeps its edge.
+     *
+     * Claims are taken in key order, never answer order, so the outcome cannot follow which
+     * answer came first.
+     *
+     * @param  array<string, array<string, mixed>>  $current
+     * @param  array<string, true>  $alreadyAbsent
+     * @return array{0: array<string, array<string, mixed>>, 1: array<string, true>} Reconciled resolutions by key, and the answers another answer honours
+     */
+    private function reconcileNestedClaims(array $current, array $alreadyAbsent): array
+    {
+        $claims = $this->claims($current, $alreadyAbsent, []);
+        ksort($claims, SORT_STRING);
+        $honoured = [];
+
+        foreach ($claims as $key => $inner) {
+            foreach ($claims as $outerKey => $outer) {
+                if ($key !== $outerKey && ! isset($honoured[$outerKey])
+                    && array_all($inner, fn (ServiceStructureSection $section): bool => array_any($outer,
+                        fn (ServiceStructureSection $whole): bool => $whole->type === $section->type
+                            && $this->strictlyWraps($whole, $section->startTime, $section->endTime)))) {
+                    $honoured[$key] = true;
+
+                    break;
+                }
+            }
+        }
+
+        $claims = array_diff_key($claims, $honoured);
+        $changed = [];
+
+        foreach (array_keys($claims) as $outerKey) {
+            foreach ($claims[$outerKey] as $index => $section) {
+                foreach ($claims as $key => $inner) {
+                    if ($key === $outerKey || $inner === []) {
+                        continue;
+                    }
+
+                    $start = min(array_map(static fn (ServiceStructureSection $item): float => $item->startTime, $inner));
+                    $end = max(array_map(static fn (ServiceStructureSection $item): float => $item->endTime, $inner));
+
+                    if (! $this->strictlyWraps($section, $start, $end)
+                        || array_any($inner, static fn (ServiceStructureSection $item): bool => $item->type === $section->type)) {
+                        continue;
+                    }
+
+                    $side = $this->sideHoldingScope($section, $start, $end, $current[$outerKey]['scope'] ?? []);
+
+                    if ($side !== null) {
+                        $section = $section->withTimes($side[0], $side[1], ['Adjusted around an operator ruling.']);
+                        $claims[$outerKey][$index] = $section;
+                        $changed[$outerKey] = true;
+                    }
+                }
+            }
+        }
+
+        foreach (array_keys($claims) as $speechKey) {
+            foreach ($claims[$speechKey] as $index => $speech) {
+                if ($speech->type === ServiceSectionType::Song) {
+                    continue;
+                }
+
+                foreach ($claims as $songKey => $songs) {
+                    foreach ($songs as $song) {
+                        if ($songKey === $speechKey || $song->type !== ServiceSectionType::Song
+                            || min($speech->endTime, $song->endTime) - max($speech->startTime, $song->startTime) <= self::RULING_EDGE_TOLERANCE
+                            || $this->strictlyWraps($speech, $song->startTime, $song->endTime) || $this->strictlyWraps($song, $speech->startTime, $speech->endTime)) {
+                            continue;
+                        }
+
+                        [$start, $end] = $speech->startTime < $song->startTime
+                            ? [$speech->startTime, $song->startTime]
+                            : [$song->endTime, $speech->endTime];
+
+                        if ($end - $start > self::RULING_EDGE_TOLERANCE) {
+                            $speech = $speech->withTimes($start, $end, ['Adjusted around an operator ruling.']);
+                            $claims[$speechKey][$index] = $speech;
+                            $changed[$speechKey] = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        $resolutions = [];
+
+        foreach (array_keys($changed) as $key) {
+            $resolutions[$key] = [
+                ...$current[$key]['resolution'],
+                'sections' => array_map(static fn (ServiceStructureSection $section): array => $section->toArray(), $claims[$key]),
+            ];
+        }
+
+        return [$resolutions, $honoured];
+    }
+
+    /**
+     * The settled sections of each content-deciding answer, as reconciled where a rule did so.
+     *
+     * @param  array<string, array<string, mixed>>  $current
+     * @param  array<string, true>  $alreadyAbsent
+     * @param  array<string, array<string, mixed>>  $resolutions
+     * @return array<string, list<ServiceStructureSection>>
+     */
+    private function claims(array $current, array $alreadyAbsent, array $resolutions): array
+    {
+        $claims = [];
+
+        foreach ($current as $key => $answer) {
+            if (! isset($alreadyAbsent[$key]) && in_array($answer['kind'] ?? null, ['accept', 'choose', 'correct'], true)
+                && is_array($answer['resolution']['sections'] ?? null)) {
+                $claims[$key] = $this->resolvedSections($resolutions[$key] ?? $answer['resolution']);
+            }
+        }
+
+        return array_filter($claims, static fn (array $sections): bool => $sections !== []);
+    }
+
+    /** Whether a section holds the span inside it and is longer than it by more than a snap. */
+    private function strictlyWraps(ServiceStructureSection $section, float $start, float $end): bool
+    {
+        return $section->startTime <= $start + self::RULING_EDGE_TOLERANCE
+            && $section->endTime >= $end - self::RULING_EDGE_TOLERANCE
+            && ($start - $section->startTime > self::RULING_EDGE_TOLERANCE || $section->endTime - $end > self::RULING_EDGE_TOLERANCE);
+    }
+
+    /**
+     * The part of a section before or after an item inside it that its own question was about:
+     * the side its scope overlaps most, the longer side on a tie, or null when neither side is
+     * longer than a snap.
+     *
+     * @param  array<string, mixed>  $scope
+     * @return array{0: float, 1: float}|null
+     */
+    private function sideHoldingScope(ServiceStructureSection $section, float $start, float $end, array $scope): ?array
+    {
+        $sides = array_values(array_filter(
+            [[$section->startTime, $start], [$end, $section->endTime]],
+            static fn (array $side): bool => $side[1] - $side[0] > self::RULING_EDGE_TOLERANCE,
+        ));
+
+        if ($sides === []) {
+            return null;
+        }
+
+        $fit = static fn (array $side): array => [
+            is_numeric($scope['start_time'] ?? null) && is_numeric($scope['end_time'] ?? null)
+                ? max(0.0, min($side[1], (float) $scope['end_time']) - max($side[0], (float) $scope['start_time']))
+                : 0.0,
+            $side[1] - $side[0],
+        ];
+        usort($sides, static fn (array $left, array $right): int => $fit($right) <=> $fit($left));
+
+        return $sides[0];
     }
 
     /**
