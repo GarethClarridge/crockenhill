@@ -201,7 +201,8 @@ return [
         'retry_delay_base' => env('TRANSCRIPTION_RETRY_DELAY_BASE', 2),
         'local_whisper_url' => env('LOCAL_WHISPER_URL', 'http://whisper:8000'),
         'local_whisper_transcription_path' => env('LOCAL_WHISPER_TRANSCRIPTION_PATH', '/v1/audio/transcriptions'),
-        'local_whisper_model' => env('LOCAL_WHISPER_MODEL', 'small'),
+        // Every loop, coverage and edge measurement in the historic work used this model.
+        'local_whisper_model' => env('LOCAL_WHISPER_MODEL', 'large-v3-turbo'),
         'local_whisper_timeout' => (int) env('LOCAL_WHISPER_TIMEOUT', 1800),
         'local_whisper_serialize' => (bool) env('LOCAL_WHISPER_SERIALIZE', true),
         'local_whisper_lock_release_after' => (int) env('LOCAL_WHISPER_LOCK_RELEASE_AFTER', 60),
@@ -212,7 +213,8 @@ return [
         'openai_api_key' => env('OPENAI_API_KEY'),
         // Dedicated knob (was the shared OPENAI_MODEL) so sermon analysis can diverge from the
         // lower-stakes email parser; defaults to a reasoning model for better public summaries.
-        'model' => env('ANALYSIS_MODEL', 'gpt-5.6-terra'),
+        // Adopted 2026-08-28 (IC5 item 6d).
+        'model' => env('ANALYSIS_MODEL', 'gpt-5.6-luna'),
         'reasoning_effort' => env('ANALYSIS_REASONING_EFFORT', 'low'),
         'debug_http_responses' => env('OPENAI_DEBUG_HTTP_RESPONSES', false),
     ],
@@ -453,9 +455,10 @@ return [
         'mode' => env('SERVICE_STRUCTURE_MODE', 'primary'),
         // mock|openai — the ServiceStructureInterface binding.
         'detector' => env('SERVICE_STRUCTURE_DETECTOR', 'mock'),
-        // Owns the sermon-vs-children's-talk judgement, so it defaults to the
-        // flagship reasoning model.
-        'model' => env('SERVICE_STRUCTURE_MODEL', 'gpt-5.6-sol'),
+        // Single-model structure calls (spoken-edge sentence check, shadow and
+        // evaluation runs); detection itself uses the ensemble below. Adopted
+        // 2026-08-28 (IC5 item 6d) and used through the historic work.
+        'model' => env('SERVICE_STRUCTURE_MODEL', 'gpt-5.6-luna'),
         'ensemble' => [
             'models' => ['gpt-5.6-luna', 'gpt-5.6-luna', 'gpt-6-luna', 'gpt-6-luna'],
             'draw_timeout_seconds' => 300,

@@ -463,11 +463,12 @@ class ProcessTranscriptWithAITest extends TestCase
     }
 
     /**
-     * A live run still takes the model's series: it is naming the series the
-     * church is currently preaching, which it has real context for.
+     * A weekly run holds an uncorroborated series too. The model is given the
+     * same undated list of every series on either path, so a weekly run has no
+     * more context for the current series than a historic one (2026-10-14).
      */
     #[Test]
-    public function it_still_takes_an_uncorroborated_series_on_a_live_run(): void
+    public function it_holds_an_uncorroborated_series_on_a_weekly_run_too(): void
     {
         Storage::fake();
         Storage::put('transcripts/1/transcript.txt', $this->sampleTranscript);
@@ -495,7 +496,8 @@ class ProcessTranscriptWithAITest extends TestCase
             $this->app->make(SermonRepository::class),
         );
 
-        $this->assertSame('Easter: Good Friday', $sermon->refresh()->series);
+        $this->assertNull($sermon->refresh()->series);
+        $this->assertSame('Easter: Good Friday', $log->refresh()->processing_metadata['sermon_series_suggestion']['series'] ?? null);
     }
 
     private function historicRun(?Sermon &$sermon): MediaProcessingLog

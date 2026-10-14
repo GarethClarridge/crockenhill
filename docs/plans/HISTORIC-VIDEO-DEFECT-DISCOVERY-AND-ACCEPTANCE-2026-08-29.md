@@ -840,6 +840,36 @@ treat historic acceptance as proof for all three modes.
   - Historic acceptance is not evidence for the direct routes. It shares only the context
     fix and the video quality check with them.
 
+  **Re-checked 2026-10-14 against `12b16f5e1` (code only; §4.5 weekly-path item).**
+  - *Same chain.* `ProcessingPipelineBuilder::buildLivestreamChainJobs` builds one job list
+    for weekly and historic livestream runs; the only historic addition is
+    `AwaitHistoricSermonVideoStorage` (custody). Auto-trim has the same structure,
+    edge-transcription and extraction jobs, without song matching or clips.
+  - *Fixes since 09-23 sit in shared code.* Ensemble detection runs unconditionally in
+    `DetectServiceStructure` (models fixed in `config/media-processing.php`, not `.env`).
+    Cut planning, spoken-edge tail and sentence check (`CueSafeExtractionPlan`,
+    `SermonExtractionPlanResolver`), and the §6.3 audio treatment (`SectionAudioTreatment`
+    via `VideoExtractionService`) are reached from `ExtractSermon`, `TranscribeOutputEdges`
+    and `PrepareSectionPublicationCandidates`, so they reach weekly livestream runs.
+  - *Every `historic_import_operation_id` branch in pipeline code is custody, queue routing,
+    nested-job bookkeeping, quarantine or historic-only tooling (re-detection, tail
+    recovery)*, with **one behaviour difference**: `ProcessTranscriptWithAI::applyAnalysisSeries`
+    held an uncorroborated AI series for review on historic runs but wrote it straight to
+    the sermon on weekly runs. **Removed 2026-10-14:** the weekly exemption assumed the
+    model knows the current series, but both paths give it the same undated list.
+    Weekly runs now hold it too.
+  - *Configuration the historic results depend on lives only in this machine's `.env`*:
+    `LOCAL_WHISPER_MODEL=large-v3-turbo` (default `small`), `SERVICE_STRUCTURE_MODEL` and
+    `ANALYSIS_MODEL` `gpt-5.6-luna` (defaults `gpt-5.6-sol`, `gpt-5.6-terra`),
+    `VIDEO_EXTRACTION_REENCODE_PRESET=veryfast` (default `faster`), and the detector and
+    transcription service selections (defaults `mock`). **Defaults moved 2026-10-14** for
+    the Whisper model and both OpenAI models (`MediaProcessingDefaultsTest`). The preset
+    stays `faster`: `veryfast` buys bulk-pass throughput a weekly run does not need. The
+    service selections stay `mock` by design, so an unconfigured machine never calls a
+    paid API.
+  - *Not checkable yet:* worker evidence and a weekly evaluation. Weekly processing is
+    paused, and has never run consistently on production.
+
 The dependency order (transcript → structure and identity → planning → extraction →
 stored-output checks) is §4.0's tier shape. The 09-22 numbered workstream list moved to the
 [log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-12-TO-2026-09-23.md#moved-from-the-plan-on-2026-09-24); its open gaps are in §4.4, §4.5 and the

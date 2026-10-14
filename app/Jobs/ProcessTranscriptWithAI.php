@@ -386,16 +386,17 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
     /**
      * Apply the analysed series, or hold it back for review.
      *
-     * On a historic run the model is naming a series from a list it cannot
-     * check, and the pilot showed it reaching: a September sermon joined
+     * The model names a series from an undated list of every series it cannot
+     * check, and the historic pilot showed it reaching: a September sermon joined
      * "Easter: Good Friday", and one on Genesis 44 joined "Abraham". A series
      * named after a Bible book can be checked against the sermon's own
      * reference, and on the pilot that test accepted every right answer and
      * refused every wrong one. Anything it cannot corroborate is recorded as a
      * suggestion instead of written to the sermon.
      *
-     * A live run keeps the previous behaviour: its series is the one the church
-     * is currently preaching, which the model has real context for.
+     * Weekly runs are held the same way (2026-10-14). They were exempt on the
+     * grounds that the model knows the series the church is currently preaching,
+     * but it is given the same undated list on either path.
      *
      * @param  array<string, mixed>  $updateData
      */
@@ -405,15 +406,14 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
         ?string $reference,
         array &$updateData,
     ): void {
-        if ($this->processingLog->historic_import_operation_id === null
-            || $series === null
+        if ($series === null
             || app(SermonSeriesCorroboration::class)->corroborates($series, $reference)) {
             $updateData['series'] = $series;
 
             return;
         }
 
-        Log::info('Holding an uncorroborated historic series for review', [
+        Log::info('Holding an uncorroborated series for review', [
             'processing_id' => $this->processingLog->processing_id,
             'sermon_id' => $sermon->id,
             'suggested_series' => $series,
