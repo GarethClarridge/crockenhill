@@ -143,3 +143,33 @@ is never again called held out.
 - a short result appended to historic plan §4.5
 
 The hymn-usage apply artifact is generated only after stage 2, against the converged graph.
+
+## 9. Results
+
+### Stage 1 (2026-10-14, provisional, not pooled)
+
+On protocol 8e5cb9ee3, outputs in `storage/scratch/song-acceptance-20261011/` (`stage1-held-out.json`,
+`score-stage1-held-out.json`, rulings in `rulings/`). Page: https://claude.ai/artifact/NH1FeCeK3MYaXXFrSSQFWF.
+
+- **Frame:** 55 of 143 held-out services measured, all bound on the full-pass code (74ed3b78b).
+  82 are deferred to stage 2 (follow-up round members). Excluded: E1 × 3, E2 × 1, E4 × 2
+  (2024-11-17 morning has no run; 1108 failed).
+- **M1:** 90 units. 87 agree with the workbook. 3 disagree, and the operator's listening (blind to
+  source) chose the pipeline's song every time. Adjudicated: 90 / 90 right, 0 wrong (held or
+  unheld), 0 *can't tell*. 4 song sections unbound.
+- **Interval:** with no errors, the percentile bootstrap collapses to [0, 0]. Reported alongside it:
+  the rule-of-three one-sided 95% upper bound of **3.3%** (3 / 90), which treats units as
+  independent and so understates the uncertainty.
+- **The three disagreements (all workbook-side, no pipeline verdict needed):**
+  - 1237 (2023-03-12 morning): Timothy Dudley-Smith's "How shall they hear, who have not heard" (#389)
+    was sung, as announced. The workbook names #390 ("How Shall They Hear The Word Of God"), even
+    though it uses #389's own title elsewhere: a slip in the workbook.
+  - 1224 (2023-06-11 morning): 10,000 Reasons (#131) was sung. The workbook row is a bare "Bless the
+    Lord, O my soul", which resolves to #132. This is the same title family as the §4 correction.
+    One other 2023+ row has this bare title, so it may come up again in stage 2.
+  - 1200 (2023-12-10 morning): "I Will Give Thanks To You" (#438, Psalm 57) was sung, and the
+    workbook doesn't list it.
+- **M3:** 12 workbook hymns unbound on full-grade runs. The draw of up to 30 is taken over the
+  pooled set in stage 2.
+- **Selection:** settled runs are those that needed no follow-up, so they skew clean (the discovery
+  half's settled runs had 0 disagreements in 43 services). Stage 2 holds the harder cases.
