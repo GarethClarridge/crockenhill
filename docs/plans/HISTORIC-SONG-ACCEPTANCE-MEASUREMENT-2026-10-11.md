@@ -56,7 +56,8 @@ on a section at cut time.
 - **Stage 1 (2026-10-14, during the follow-up round):** M1 and M3 on the held-out identities whose
   run is settled. At the 10-14 count that is 59 of 143; 82 are round members.
 - **Stage 2 (after the round, the duration-fix deploy and the questions are answered):** M1 and M3 on
-  the remaining identities (round members, E3, runs with open questions), and M2 on all of them.
+  the remaining identities (round members, E3, runs with open questions), M2 on all of them, and
+  the M4 draw.
 - **What is measured is the final output, not one code revision.** Matching, detection and
   composition code has changed since the 10-10 freeze (for example 7e5168cb4 and the rulings
   applied for the round), and may change again. Each identity is measured once, on the run state
@@ -93,6 +94,23 @@ dropped.
   did not bind. Up to 30 are drawn with seed `20261011` and classified by listening: no section,
   section unbound, bound to a different hymn, or outside the recording (for example, communion after
   the stream ends). Partial recordings are left out because the workbook gives no time positions.
+- **M4, 2020–2022 listening sample (added 2026-10-14):** the workbook has no 2019–2022 sheets
+  (operator: assume none exist), so the 151 services from 2020–2022 have no independent song
+  record. Their binding accuracy is estimated by listening, on the run state they will be released
+  with:
+  - **Frame:** 2020–2022 services whose run is settled (§3) at the stage-2 draw, and which have at
+    least one bound song section. Exclusions as in §2.1 (E4, E5).
+  - **Draw:** 40 services, 14 from 2020 and 13 each from 2021 and 2022, with seed `20261014`
+    (order services in each year by sha256(seed|identity) and take the first). From each, take one
+    bound song section, also chosen by that hash. With one section per service the units are
+    close to independent.
+  - **Question:** "Is this the song?" The page plays the section's middle 25 s and the lead-in,
+    and shows the bound song's opening lines and the announcement transcript. Answers: *yes*,
+    *no* (name the song in the note if known), *can't tell*.
+  - **Report:** accuracy = yes / (40 − can't tell), with its exact 95% interval, by year and in
+    total. Unbound song sections in 2020–2022 are reported as the refusal rate. Every *no* gets a
+    mechanism class and a fix / leave verdict (§7). M4 is reported separately and never pooled
+    with M1, since its truth is a listener, not the workbook.
 - **Comparator (not independent):** the same measures on the discovery half after the re-run, set
   beside 09-25's 290 + 2 agree / 38 video-only. This shows the change; it is not evidence of
   generalisation.
