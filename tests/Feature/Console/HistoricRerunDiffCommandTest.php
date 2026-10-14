@@ -416,6 +416,38 @@ class HistoricRerunDiffCommandTest extends TestCase
     }
 
     /**
+     * The follow-up round, run 1002 (2026-10-14): an earlier structure left song 859's clip on what
+     * became an "other" section. Recomposition inserted a section, so the sync re-bound that row to
+     * new content, clip and all, and a fresh row took the "other" span with no media. The clip was
+     * never the section's own and its song video survives: pending, not a custody loss.
+     */
+    #[Test]
+    public function a_stale_song_clip_left_behind_on_a_non_song_section_is_pending(): void
+    {
+        [$run, $stale] = $this->staleSongClipRebound();
+
+        $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json'), '--output' => $this->path('diff.json')]);
+
+        $result = $this->report()['runs'][(string) $run->id];
+
+        self::assertSame([], $result['attention']);
+        self::assertContains(true, array_map(static fn (string $item): bool => str_contains($item, 'a stale song clip on a section that is not a song'), $result['pending']));
+        self::assertNotNull(SongVideo::find($stale->id));
+    }
+
+    /** If the stale clip's song video is gone, the clip is lost, whoever it belonged to. */
+    #[Test]
+    public function a_stale_song_clip_whose_song_video_is_gone_still_needs_attention(): void
+    {
+        [$run, $stale] = $this->staleSongClipRebound();
+        $stale->delete();
+
+        $this->artisan('historic-import:rerun-diff', ['snapshot' => $this->path('before.json'), '--output' => $this->path('diff.json')]);
+
+        self::assertContains(true, array_map(static fn (string $item): bool => str_contains($item, 'lost its extracted media'), $this->report()['runs'][(string) $run->id]['attention']));
+    }
+
+    /**
      * Only a never-published copy is excused: a published section retyped away still loses media.
      */
     #[Test]
@@ -775,6 +807,28 @@ class HistoricRerunDiffCommandTest extends TestCase
     /**
      * @param  list<array<string, mixed>>  $holds
      */
+    /**
+     * Run 1002's shape: an "other" section carrying a song's clip, then a sync that re-binds its row
+     * to a prayer elsewhere and gives the "other" span a fresh row with no media.
+     *
+     * @return array{0: MediaProcessingLog, 1: SongVideo}
+     */
+    private function staleSongClipRebound(): array
+    {
+        $run = $this->processingRun();
+        $row = $this->section($run, ServiceSectionType::Other, 1811.88, 1833.08, order: 11);
+        $row->update(['title' => 'Introduction to the next song', 'extracted_video_path' => 'sermons/songs/859/1229.mp4', 'extracted_at' => now()]);
+        $stale = SongVideo::factory()->quarantined()->create(['service_section_id' => $row->id]);
+        $this->snapshot([$run->id]);
+
+        $row->update(['section_type' => ServiceSectionType::Prayer, 'title' => 'Prayer', 'start_time' => 1381.08, 'end_time' => 1807.14, 'duration' => 1807.14 - 1381.08]);
+        $this->section($run, ServiceSectionType::Other, 1811.88, 1833.08, order: 12)->update(['title' => 'Introduction to the next song']);
+        $this->deferMedia($run);
+        $run->amendLatestCorpusRerunStamp(['media' => 'extracted', 'extraction_dispatched_at' => '2026-10-13T23:30:00+00:00']);
+
+        return [$run, $stale];
+    }
+
     private function section(MediaProcessingLog $run, ServiceSectionType $type, float $start, float $end, ?int $order = null, array $holds = []): ServiceSection
     {
         return ServiceSection::factory()->create([

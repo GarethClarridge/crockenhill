@@ -206,6 +206,8 @@ final class HistoricRerunDiff
                     $awaitingReview[] = sprintf('%s lost its extracted media (song match demoted to inferred — clip withheld)', $label);
                 } elseif ($this->retypedAwayFromPublication($old, $new)) {
                     $awaitingReview[] = sprintf('%s lost its extracted media (retyped to %s, which is never published; its old copy was never published)', $label, $new['type']);
+                } elseif ($this->staleSongClipKept($old, $new, $after)) {
+                    $awaitingReview[] = sprintf('%s lost its extracted media (a stale song clip on a section that is not a song; its song video is kept)', $label);
                 } else {
                     $mediaCustody[] = sprintf('%s lost its extracted media', $label);
                 }
@@ -260,6 +262,37 @@ final class HistoricRerunDiff
         return ($old['type'] ?? null) !== ($new['type'] ?? null)
             && ($new['publication_status'] ?? null) === 'not_applicable'
             && ! $wasPublished;
+    }
+
+    /**
+     * Whether the media lost was a song clip an earlier structure left on a section that is not a
+     * song, and every song video it carried is still on the run.
+     *
+     * Sections sync by order, so a recomposition that inserts a section re-binds the later rows,
+     * clip and all, and the old span returns as a fresh row with no media (the follow-up round's
+     * run 1002, 2026-10-14; 177 such sections across the corpus, plan §9.1). The clip was never the
+     * section's own, and its song video is where custody lives: lost, it still needs attention, as
+     * does any clip that was or became public.
+     *
+     * @param  array<string, mixed>  $old
+     * @param  array<string, mixed>  $new
+     * @param  list<array<string, mixed>>  $after
+     */
+    private function staleSongClipKept(array $old, array $new, array $after): bool
+    {
+        $oldVideos = $old['song_videos'] ?? [];
+
+        if (($old['type'] ?? null) === 'song' || ($new['type'] ?? null) === 'song' || $oldVideos === []) {
+            return false;
+        }
+
+        if (array_filter($oldVideos, static fn (array $video): bool => $video['publication_state'] === self::PUBLIC) !== []) {
+            return false;
+        }
+
+        $keptVideoIds = array_column(array_merge(...array_map(static fn (array $section): array => $section['song_videos'] ?? [], $after)), 'id');
+
+        return array_diff(array_column($oldVideos, 'id'), $keptVideoIds) === [];
     }
 
     /**
