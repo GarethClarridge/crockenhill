@@ -337,6 +337,66 @@ If a fix cannot wait: pause, withdraw (§4) the runs that are not finished, end 
 and start a new round with a new snapshot. Keep the original snapshots: a new baseline must
 not swallow earlier damage.
 
+### 9.1 Clean-up pass: stale song clips on sections that are not songs (found 14-10)
+
+**What.** Older structures left song clips attached to section rows that are no longer songs.
+Sections are synced by order (see the "section insert deletes later media" memory), so when a
+re-detection or recomposition re-types or re-spans a row, the row keeps its old
+`extracted_video_path` and its `SongVideo` binding. The clip then describes a section that no
+longer exists.
+
+**How it was found.** At 06:39 UTC on 14-10 the watcher stopped the round on run 1002. Its
+recomposition had inserted a section, so the later rows were re-created under new IDs:
+- the 21-second "Introduction to the next song" (§1229 before, §211588 now) had carried song
+  859's clip;
+- the sermon (§1231 before, §211589 now) had carried song 159's clip.
+
+The new rows have no media, so the watcher read this as lost media. Both files are still in
+quarantine, along with `SongVideo` 166 and 167. The run's real song clips were promoted at
+06:36. The stop was acknowledged in `watch-state.json`, and its stop file was archived as
+`watch-stop-20261014T0639Z-run1002-stale-clips.json`.
+
+**How many** (counted 14-10 at about 06:50 UTC, mid-round; recount after the round):
+
+| Residue | Count | Round members |
+|---|---|---|
+| Non-song sections whose `extracted_video_path` is a song clip (`sermons/songs/…`) | 177 | 133 |
+| `SongVideo` rows bound to a non-song section (all quarantined) | 184 | 140 |
+| Historic `SongVideo` rows whose section is gone (quarantined) | 15 | — |
+
+- By section type, the 177 are: prayer 44, bible reading 40, other 39, sermon 23, short talk
+  15, welcome 9, notices 7.
+- All 184 files are in quarantine.
+- In 88 of the 184 cases, the same song also has a clip on a real song section in that run.
+  The other 96 are the only clip of that song in that run.
+- Out of scope: 22 published `SongVideo` rows with no section. These come from routine (not
+  historic) processing, where having no section is normal.
+
+**Why it matters.** Nothing here is public, but:
+- the stale rows make the watcher stop the round falsely whenever IDs move;
+- they misdescribe the service, for example a prayer section claiming song 859's clip;
+- a later release step that reads `SongVideo` by section could act on the wrong clip.
+
+**The pass, in order** (repair through the pipeline, not by hand):
+1. **Fix the mechanism first.** When a sync re-types a row away from `song`, or moves its span,
+   clear its `extracted_video_path` and detach its `SongVideo` in the same transaction. Test it
+   with a failing test reproducing 1002: insert a section and check the later rows. Otherwise
+   every future re-detection recreates the residue.
+2. **Then a command for the existing rows,** dry run by default. It finds the three groups above
+   and, for each:
+   - un-points the section's path;
+   - re-binds the `SongVideo` to the run's song section for the same song when there is exactly
+     one, or otherwise retires it, keeping its file;
+   - writes a report per run.
+3. **Quarantine is single-copy:** retire, never delete files. Deleting a stale clip whose song has
+   no other clip is a separate decision for the operator, made from the report.
+4. **Recount** (the table above should read zero), then re-run the watcher's diff on the round's
+   runs to confirm no new "lost media" lines.
+
+**Open for the operator:** whether the 96 clips that are the only copy of their song in their
+run should be listened to before they are retired. They are probably mis-cut, since they were
+cut for a section that turned out not to be that song.
+
 ## 10. Codex review of rev 1 (13-10), and what changed
 
 | Finding | Rev 2 |
@@ -402,3 +462,6 @@ The decision page's rulings, applied:
 - Withdrawn: 67 on the main snapshot, 38 on Tier B, none refused; 929's interrupted `transcribe_full_service` cancelled.
 - S1 `followup-round-20261013`: 301 runs (the 300 plus 1286), Tier A routes from `listening-20260924/routing-bound.json`. Watcher running; parked 930, 945, 1220, 1223, 1314. 1202 not parked: §6 pattern B covers it.
 - Stage (a), 1263: recompose clean (talk 3299 kept its Psalm 19 answer). Its first encode hung in `open()` on the Staging drive: the LaunchAgent's Python had never been granted removable-volume access (every earlier host run was on project files). The LaunchAgent is unloaded; the same server runs from the operator's session until the permission is granted, then the LaunchAgent comes back (round paused for the swap).
+- Stage (d) batch (938 942 947 950 951 958 960 963 969 974 986 987): 10 recomposed; 942 and 974 failed validation on `duplicate_oos_item`, from 3e03c0b0a's kept voter links. Replaying every R1 run's recompose: 7 failed on d18b53ab7 (942, 974, 1002, 1030, 1096, 1217, 1240), all pass on the fix 7e5168cb4 and nothing else changed (1143 and 1262 have no banked draws). Clone fast-forwarded to 7e5168cb4 (not yet pushed: no SSH key in the session); workers restarted on the revision change. Nothing needed withdrawing. S1b `followup-round-20261013b` taken: same 301 members and routing, S1 kept; watcher moved to S1b with the same five parked. Round paused.
+- Batch D on S1b: 10 recomposed; 960 and 987 refused at extraction (open ensemble disputes; 19 R1 runs carry some, 1281 and 1363 among them with answers banked); 942 and 974 have no route back (failed validation with no questions; the guard keeps them out). 7 cut in 86 min (12.3 min/run, 0 failed jobs); 969 failed on a sermon content hold (new, not on the R4 list). ExtractSermon 6.2 and PrepareSectionPublicationCandidates 4.2 min/run, each scanning the whole 3-12 GB source for the timing check; Staging had been on USB 2.0 (36 MB/s), hardware encoders busy < 28%.
+- 075006548: the timing check reads the source in windows. Replay on batch D: 8 sermons identical (old 14-300 s, new 3-21 s), 29 section clips pass. Operator swapped the cables: Staging and Sonnics both USB 3, Staging 158 MB/s in the Mac and in the workers. Clone fast-forwarded, S1c `followup-round-20261013c`, watcher on S1c with the same five parked. Batch E (928 933 941 948 949 953 956 962 964 966) recomposed and dispatched for extraction at 19:13 UTC.
