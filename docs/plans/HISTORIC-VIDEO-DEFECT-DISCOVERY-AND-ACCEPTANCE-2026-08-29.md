@@ -1667,6 +1667,19 @@ check against the 09-17 speech-edge trim) deserve a closer look before being bui
   job/service fixtures rather than starting a new harness. `TypingBaseline` tests
   PHP typing conventions and is not a media-processing regression set. Keep tests
   using mock detector responses distinct from evaluations of live model behaviour.
+  **Built 2026-10-14 from operator-ruled endings, not weekly services.** The weekly frame is
+  empty: none of the 20 local weekly runs has an email or OpenLP record or a completed review,
+  and the weekly pipeline has never run consistently on production. The cut planner is one
+  shared chain (§4.0b re-check), so the operator's 340 ruled endings test it for weekly runs as
+  much as historic ones. `RuledEndingsRegressionTest` replays 36 of them from checked-in
+  fixtures (`tests/Fixtures/RuledEndings`, 2.7 MB; sample and provenance in its
+  `manifest.json`): 14 clipped-word endings current code fixes, 12 sermon and 10 section endings
+  ruled right, all on settled runs. Each fixture must reproduce its live cut (fidelity) and keep
+  its ruling. No model or audio calls: the deterministic planning stages only. A deliberate
+  mutation (song-end reach 30 s → 5 s, anchor reach 2 s → 0.2 s) fails 6 of 36. 8 clipped-word
+  endings current code still gets wrong are listed as open, not tested. Still open under this
+  item: structure detection and song identity have no fixture set beyond `StructureEval`'s
+  evaluator check; direct uploads are out of scope (operator, 2026-10-14).
 - [ ] Complete §4.1b's source-to-delivery alignment and expected-output
   reconciliation for the exact proposed membership; repeat affected checks after
   repairs and bind acceptance to current artifacts and policy. Confirm the

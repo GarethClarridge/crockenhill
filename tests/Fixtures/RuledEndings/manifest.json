@@ -1,0 +1,57 @@
+{
+    "_comment": "Operator-ruled endings captured as regression fixtures for RuledEndingsRegressionTest (plan §4.5, 2026-10-14). Rulings: the 2026-10 endings listening (340 endings, 274 right / 39 clips_word / 25 cut_sentence / 2 defer). Sample: settled runs only (outside follow-up round snapshot 20261013d), current code at 04f68ef04; every clips_word ending the code now fixes, plus 12 sermon and 10 section endings ruled right, drawn round-robin across listening groups with seed 20261014. Captured with scripts/ruled-endings/capture.php, RMS_WINDOW=35.",
+    "captured": [
+        "end-1036-1476",
+        "end-1040-sermon",
+        "end-1087-sermon",
+        "end-1099-sermon",
+        "end-1118-sermon",
+        "end-1160-sermon",
+        "end-1298-sermon",
+        "end-1306-3899",
+        "end-1311-sermon",
+        "end-1356-sermon",
+        "end-1369-sermon",
+        "end-932-sermon",
+        "end-975-sermon",
+        "end-990-sermon",
+        "end-1206-sermon",
+        "end-1103-sermon",
+        "end-1182-sermon",
+        "end-1165-sermon",
+        "end-1093-sermon",
+        "end-1091-sermon",
+        "end-996-sermon",
+        "end-1021-sermon",
+        "end-1011-sermon",
+        "end-1029-sermon",
+        "end-1050-sermon",
+        "end-1053-sermon",
+        "end-1025-1376",
+        "end-1311-3950",
+        "end-1245-3053",
+        "end-1117-1960",
+        "end-1149-2214",
+        "end-1118-1975",
+        "end-1247-3087",
+        "end-1356-4480",
+        "end-1294-3682",
+        "end-936-607"
+    ],
+    "open_clips_word": {
+        "_comment": "clips_word endings on settled runs that current code still cuts at or before the clipped cut: open defects, not regression fixtures.",
+        "ids": [
+            "end-1025-sermon",
+            "end-1028-1396",
+            "end-1072-sermon",
+            "end-1190-sermon",
+            "end-1279-sermon",
+            "end-1358-73676",
+            "end-967-1075",
+            "end-972-sermon"
+        ]
+    },
+    "excluded": {
+        "_comment": "cut_sentence rulings are heterogeneous (recording ends, outward and inward moves; see the follow-up round plan) and defer rulings have no truth, so neither is a fixture."
+    }
+}
