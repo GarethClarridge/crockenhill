@@ -24,7 +24,7 @@ class ExcludeHistoricRunCommand extends Command
                             {--operation= : Exact immutable historic operation that owns the runs}
                             {--processing-id=* : Exact processing ID to exclude; repeat for every run}
                             {--reason=no_sermon_in_source : Recorded exclusion reason}
-                            {--duplicates= : For a rehearsal, the processing ID of the kept run whose sermon it duplicates}
+                            {--duplicates= : For a rehearsal or duplicate recording, the processing ID of the kept run}
                             {--note= : The operator note that justifies the exclusion}
                             {--apply : Write the exclusion (default: dry-run)}
                             {--yes : Confirm the guarded --apply operation}';

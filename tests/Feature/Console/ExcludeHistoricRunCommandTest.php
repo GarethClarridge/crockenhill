@@ -300,6 +300,52 @@ class ExcludeHistoricRunCommandTest extends TestCase
         $this->assertFalse($rehearsal->fresh()?->isExcluded());
     }
 
+    /**
+     * One performance imported twice: the poorer recording is set aside for the
+     * better master. The service is the real occasion, so it stays.
+     */
+    #[Test]
+    public function it_records_a_duplicate_recording_with_the_kept_run_and_keeps_the_service(): void
+    {
+        $poorer = $this->heldRun('2025-11-30-morning');
+        $service = $this->serviceOwnedBy($poorer);
+        $better = $this->heldRun('2025-11-29-morning');
+
+        $this->artisan('historic-import:exclude-run', [
+            '--operation' => $this->operation->operation_id,
+            '--processing-id' => [$poorer->processing_id],
+            '--reason' => MediaProcessingLog::EXCLUSION_REASON_DUPLICATE_RECORDING,
+            '--duplicates' => $better->processing_id,
+            '--note' => 'Same service recorded once and imported twice; the other file is the better master.',
+            '--apply' => true,
+            '--yes' => true,
+        ])->assertSuccessful();
+
+        $fresh = $poorer->fresh();
+
+        $this->assertSame(MediaProcessingLog::EXCLUSION_REASON_DUPLICATE_RECORDING, $fresh?->exclusionReason());
+        $this->assertSame($better->processing_id, $fresh?->exclusionEvidence()['duplicates_processing_id'] ?? null);
+        $this->assertModelExists($service);
+        $this->assertFalse($better->fresh()?->isExcluded());
+    }
+
+    #[Test]
+    public function it_refuses_a_duplicate_recording_that_does_not_name_the_kept_run(): void
+    {
+        $poorer = $this->heldRun();
+
+        $this->artisan('historic-import:exclude-run', [
+            '--operation' => $this->operation->operation_id,
+            '--processing-id' => [$poorer->processing_id],
+            '--reason' => MediaProcessingLog::EXCLUSION_REASON_DUPLICATE_RECORDING,
+            '--note' => 'A duplicate of nothing in particular.',
+            '--apply' => true,
+            '--yes' => true,
+        ])->expectsOutputToContain('--duplicates')->assertFailed();
+
+        $this->assertFalse($poorer->fresh()?->isExcluded());
+    }
+
     #[Test]
     public function it_refuses_a_duplicated_run_for_any_other_reason(): void
     {

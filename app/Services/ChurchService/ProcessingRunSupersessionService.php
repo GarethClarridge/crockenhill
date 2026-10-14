@@ -17,8 +17,10 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
  * overlapping sections. This picks the single authoritative run and marks the
  * rest superseded so review and timeline surfaces show one coherent structure.
  *
- * Best-run-wins (decision OD-2, revised): the winner is ranked by
- * transcript-confirmed song count, then whether the run failed, then high-confidence
+ * Best-run-wins (decision OD-2, revised): an excluded run never wins — an operator
+ * set it aside, for a better master of the same recording among other reasons.
+ * Among the rest the winner is ranked by transcript-confirmed song count, then
+ * whether the run failed, then high-confidence
  * coverage, mean confidence, section count, and recency.
  *
  * Confirmed song matches lead the ordering because they are grounded evidence —
@@ -118,7 +120,7 @@ class ProcessingRunSupersessionService
     /**
      * Higher is better, compared element by element.
      *
-     * @return array{int, int, int, float, int, int}
+     * @return array{int, int, int, int, float, int, int}
      */
     private function score(MediaProcessingLog $run): array
     {
@@ -138,6 +140,7 @@ class ProcessingRunSupersessionService
             : 0.0;
 
         return [
+            $run->isExcluded() ? 0 : 1,
             $confirmedSongs,
             $run->isFailed() ? 0 : 1,
             $highConfidence,

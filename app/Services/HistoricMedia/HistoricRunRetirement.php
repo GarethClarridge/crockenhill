@@ -5,14 +5,12 @@ declare(strict_types=1);
 namespace App\Services\HistoricMedia;
 
 use App\Enums\ProcessingStatus;
-use App\Enums\SermonPublicationState;
 use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Services\Processing\ProcessingNotificationRouter;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Throwable;
 
@@ -40,23 +38,9 @@ use Throwable;
  */
 class HistoricRunRetirement
 {
-    /** Where a retired sermon's assets are relocated, relative to its own disk. */
-    private const SUPERSEDED_PREFIX = 'superseded';
-
-    /**
-     * Sermon columns naming a stored asset, keyed by the role recorded in the
-     * inventory. Ordered so the largest file moves first: a failure then costs
-     * the least rollback work.
-     */
-    private const ASSET_COLUMNS = [
-        'video' => 'video_file_path',
-        'audio' => 'audio_file_path',
-        'transcript' => 'transcript_file_path',
-        'thumbnail' => 'thumbnail_file_path',
-    ];
-
     public function __construct(
         private readonly ProcessingNotificationRouter $notificationRouter,
+        private readonly HistoricSermonWithdrawal $sermonWithdrawal,
     ) {}
 
     /**
@@ -118,7 +102,7 @@ class HistoricRunRetirement
                 'item_key' => (string) (data_get($run->processing_metadata?->toArray(), 'historic_import.manifest_item_key') ?? '(unknown)'),
                 'status_now' => $run->status->value,
                 'sermon' => $sermon,
-                'assets' => $sermon instanceof Sermon ? $this->assetsFor($sermon) : [],
+                'assets' => $sermon instanceof Sermon ? $this->sermonWithdrawal->assetsFor($sermon) : [],
                 'sections' => ServiceSection::query()->where('media_processing_log_id', $run->id)->count(),
                 // A run superseded by another path — the projector reconciling
                 // duplicate runs against one service — is withdrawn but carries no
@@ -184,8 +168,8 @@ class HistoricRunRetirement
             $moved = [];
 
             if ($sermon instanceof Sermon) {
-                $this->guardSermonIsWithdrawable($sermon);
-                $moved = $this->relocateAssets($sermon, $operation, $entry['assets']);
+                $this->sermonWithdrawal->guardWithdrawable($sermon);
+                $moved = $this->sermonWithdrawal->relocate($sermon, $operation, $entry['assets']);
             }
 
             try {
@@ -228,12 +212,16 @@ class HistoricRunRetirement
                     );
                 });
             } catch (Throwable $exception) {
-                $this->rollBackRelocation($moved);
+                $this->sermonWithdrawal->rollBack($moved);
 
                 throw $exception;
             }
 
-            $this->writeOnDiskInventory($operation, $run, $sermon, $moved);
+            if ($sermon instanceof Sermon) {
+                $this->sermonWithdrawal->writeInventory($operation, $run, $sermon, $moved, 'retirement.json', [
+                    'retired_at' => now()->toIso8601String(),
+                ]);
+            }
 
             $retired++;
             $assetsRelocated += count($moved);
@@ -249,180 +237,6 @@ class HistoricRunRetirement
             'sermons_deleted' => $sermonsDeleted,
             'assets_relocated' => $assetsRelocated,
         ];
-    }
-
-    /**
-     * A published sermon is not a historic import's to withdraw, and a sermon a
-     * service section has published cannot be deleted at all — the foreign key
-     * restricts it. Both are refused here so the operator reads why rather than
-     * a constraint violation.
-     */
-    private function guardSermonIsWithdrawable(Sermon $sermon): void
-    {
-        if ($sermon->publication_state === SermonPublicationState::Published) {
-            throw new RuntimeException(
-                "Sermon [{$sermon->id}] is published; unpublish it before retiring the run that produced it."
-            );
-        }
-
-        $publishedSections = ServiceSection::query()
-            ->where('published_sermon_id', $sermon->id)
-            ->count();
-
-        if ($publishedSections > 0) {
-            throw new RuntimeException(
-                "Sermon [{$sermon->id}] is published by {$publishedSections} service section(s); withdraw those first."
-            );
-        }
-    }
-
-    /**
-     * Move each asset to the superseded prefix, returning the inventory of what
-     * moved. A destination that already holds a file is refused rather than
-     * overwritten: it means a previous retirement of this sermon is still there.
-     *
-     * @param  list<array{role:string, disk:string, path:string, bytes:int}>  $assets
-     * @return list<array{role:string, disk:string, from:string, to:string, bytes:int, sha256:string}>
-     */
-    private function relocateAssets(Sermon $sermon, HistoricImportOperation $operation, array $assets): array
-    {
-        $moved = [];
-
-        foreach ($assets as $asset) {
-            $disk = Storage::disk($asset['disk']);
-            $destination = $this->destinationFor($operation, $sermon, $asset['role'], $asset['path']);
-
-            if ($disk->exists($destination)) {
-                $this->rollBackRelocation($moved);
-
-                throw new RuntimeException(
-                    "A superseded asset already exists at [{$asset['disk']}:{$destination}]; resolve it before retiring again."
-                );
-            }
-
-            $sha256 = hash_file('sha256', $disk->path($asset['path']));
-
-            try {
-                $disk->move($asset['path'], $destination);
-            } catch (Throwable $exception) {
-                $this->rollBackRelocation($moved);
-
-                throw new RuntimeException(
-                    "Could not relocate [{$asset['disk']}:{$asset['path']}]: {$exception->getMessage()}",
-                    0,
-                    $exception,
-                );
-            }
-
-            $moved[] = [
-                'role' => $asset['role'],
-                'disk' => $asset['disk'],
-                'from' => $asset['path'],
-                'to' => $destination,
-                'bytes' => $asset['bytes'],
-                'sha256' => $sha256 === false ? '' : $sha256,
-            ];
-        }
-
-        return $moved;
-    }
-
-    /**
-     * Put every relocated asset back where it came from. Best effort by
-     * construction: a rollback that itself fails must not mask the original
-     * failure the caller is about to report.
-     *
-     * @param  list<array{role:string, disk:string, from:string, to:string, bytes:int, sha256:string}>  $moved
-     */
-    private function rollBackRelocation(array $moved): void
-    {
-        foreach (array_reverse($moved) as $asset) {
-            try {
-                Storage::disk($asset['disk'])->move($asset['to'], $asset['from']);
-            } catch (Throwable) {
-                // Reported by the exception the caller is already raising.
-            }
-        }
-    }
-
-    /**
-     * The retirement record written beside the relocated files, so the disk
-     * explains itself without the database. The database row is authoritative;
-     * this is the copy that survives a restore of one without the other.
-     *
-     * @param  list<array{role:string, disk:string, from:string, to:string, bytes:int, sha256:string}>  $moved
-     */
-    private function writeOnDiskInventory(
-        HistoricImportOperation $operation,
-        MediaProcessingLog $run,
-        ?Sermon $sermon,
-        array $moved,
-    ): void {
-        if ($moved === [] || ! $sermon instanceof Sermon) {
-            return;
-        }
-
-        $disk = Storage::disk((string) $sermon->asset_disk);
-        $path = $this->sermonPrefix($operation, $sermon).'/retirement.json';
-
-        $disk->put($path, json_encode([
-            'operation_id' => $operation->operation_id,
-            'processing_id' => $run->processing_id,
-            'sermon_id' => $sermon->id,
-            'sermon_slug' => $sermon->slug,
-            'retired_at' => now()->toIso8601String(),
-            'assets' => $moved,
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}');
-    }
-
-    private function destinationFor(
-        HistoricImportOperation $operation,
-        Sermon $sermon,
-        string $role,
-        string $path,
-    ): string {
-        return $this->sermonPrefix($operation, $sermon).'/'.$role.'-'.basename($path);
-    }
-
-    private function sermonPrefix(HistoricImportOperation $operation, Sermon $sermon): string
-    {
-        return self::SUPERSEDED_PREFIX.'/'.$operation->operation_id.'/'.$sermon->id;
-    }
-
-    /**
-     * The stored assets this sermon actually has. A column naming a file that is
-     * no longer there is skipped rather than failing the retirement: the point
-     * is to withdraw the result, and a missing file is already withdrawn.
-     *
-     * @return list<array{role:string, disk:string, path:string, bytes:int}>
-     */
-    private function assetsFor(Sermon $sermon): array
-    {
-        $diskName = $sermon->asset_disk;
-
-        if (! is_string($diskName) || $diskName === '') {
-            return [];
-        }
-
-        $disk = Storage::disk($diskName);
-        $assets = [];
-
-        foreach (self::ASSET_COLUMNS as $role => $column) {
-            $path = $sermon->{$column};
-
-            if (! is_string($path) || $path === '' || ! $disk->exists($path)) {
-                continue;
-            }
-
-            $assets[] = [
-                'role' => $role,
-                'disk' => $diskName,
-                'path' => $path,
-                'bytes' => $disk->size($path),
-            ];
-        }
-
-        return $assets;
     }
 
     private function sermonFor(MediaProcessingLog $run): ?Sermon

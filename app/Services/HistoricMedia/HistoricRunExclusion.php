@@ -52,7 +52,13 @@ use RuntimeException;
  *  - *This is a private occasion* — a funeral. A real, correctly dated service
  *    whose sermon and songs do not belong in the public archive.
  *
- * Neither would have been uploaded had the week been processed by hand, so both
+ * A fifth, ruled on 2026-10-14, is about the file rather than the occasion:
+ *
+ *  - *This recording duplicates another run's* — one performance imported twice,
+ *    the other copy the better master. Like a rehearsal it names the kept run;
+ *    unlike one, its service is the real occasion and is never removed.
+ *
+ * Rehearsals and private occasions would never have been uploaded had the week been processed by hand, so both
  * also remove the service the run created — but only a service that run alone
  * describes. A service with another source or another run is a real service
  * record and is refused, never deleted.
@@ -71,6 +77,13 @@ class HistoricRunExclusion
         MediaProcessingLog::EXCLUSION_REASON_NO_SERMON_IN_SOURCE,
         MediaProcessingLog::EXCLUSION_REASON_REHEARSAL_DUPLICATE,
         MediaProcessingLog::EXCLUSION_REASON_PRIVATE_OCCASION,
+        MediaProcessingLog::EXCLUSION_REASON_DUPLICATE_RECORDING,
+    ];
+
+    /** Reasons that set a run aside for another copy, which must be named and must stand. */
+    private const KEPT_RUN_REASONS = [
+        MediaProcessingLog::EXCLUSION_REASON_REHEARSAL_DUPLICATE,
+        MediaProcessingLog::EXCLUSION_REASON_DUPLICATE_RECORDING,
     ];
 
     /**
@@ -233,10 +246,11 @@ class HistoricRunExclusion
     }
 
     /**
-     * The run a rehearsal duplicates. It is required for that reason and refused
-     * for every other, and it must be a different run of the same operation that
-     * still stands — excluding a rehearsal whose kept run is gone would discard
-     * the sermon's only copy.
+     * The run a rehearsal or duplicate recording is set aside for. It is required
+     * for those reasons and refused for every other, and it must be a different
+     * historic run that still stands — excluding a copy whose kept run is gone would
+     * discard the only one. A rehearsal's kept run is of the same operation; a
+     * duplicate recording's may be of any.
      *
      * @param  list<string>  $processingIds
      */
@@ -246,20 +260,20 @@ class HistoricRunExclusion
         string $reason,
         ?string $duplicatesProcessingId,
     ): ?MediaProcessingLog {
-        $isRehearsal = $reason === MediaProcessingLog::EXCLUSION_REASON_REHEARSAL_DUPLICATE;
+        $namesKeptRun = in_array($reason, self::KEPT_RUN_REASONS, true);
 
         if ($duplicatesProcessingId === null) {
-            if ($isRehearsal) {
-                throw new RuntimeException('A rehearsal exclusion must name the run whose sermon it duplicates with --duplicates.');
+            if ($namesKeptRun) {
+                throw new RuntimeException("A [{$reason}] exclusion must name the run it is set aside for with --duplicates.");
             }
 
             return null;
         }
 
-        if (! $isRehearsal) {
+        if (! $namesKeptRun) {
             throw new RuntimeException(sprintf(
                 '--duplicates applies only to [%s], not [%s].',
-                MediaProcessingLog::EXCLUSION_REASON_REHEARSAL_DUPLICATE,
+                implode(', ', self::KEPT_RUN_REASONS),
                 $reason,
             ));
         }
@@ -268,13 +282,19 @@ class HistoricRunExclusion
             throw new RuntimeException("Run [{$duplicatesProcessingId}] cannot be both excluded and the run it duplicates.");
         }
 
+        // A better master can arrive with a later operation than the copy it
+        // replaces (pair 873/1045); a rehearsal and its Sunday came in together.
         $kept = MediaProcessingLog::query()
             ->where('processing_id', $duplicatesProcessingId)
-            ->where('historic_import_operation_id', $operation->id)
+            ->when(
+                $reason === MediaProcessingLog::EXCLUSION_REASON_DUPLICATE_RECORDING,
+                fn ($query) => $query->whereNotNull('historic_import_operation_id'),
+                fn ($query) => $query->where('historic_import_operation_id', $operation->id),
+            )
             ->first();
 
         if (! $kept instanceof MediaProcessingLog) {
-            throw new RuntimeException("No run [{$duplicatesProcessingId}] exists in operation [{$operation->operation_id}].");
+            throw new RuntimeException("No historic run [{$duplicatesProcessingId}] exists to keep for operation [{$operation->operation_id}].");
         }
 
         if ($kept->isExcluded()) {
@@ -291,14 +311,28 @@ class HistoricRunExclusion
      */
     private function removableService(MediaProcessingLog $run): ?ChurchService
     {
-        if ($run->church_service_id === null) {
-            return null;
+        ['service' => $service, 'refusal' => $refusal] = $this->serviceOnlyThisRunDescribes($run);
+
+        if ($refusal !== null) {
+            throw new RuntimeException($refusal);
         }
 
-        $service = ChurchService::query()->find($run->church_service_id);
+        return $service;
+    }
+
+    /**
+     * The run's service when nothing but this run describes it, or why it cannot
+     * be treated as the run's own: another source describes it, or another run
+     * belongs to it. Both null when the run has no service.
+     *
+     * @return array{service: ?ChurchService, refusal: ?string}
+     */
+    public function serviceOnlyThisRunDescribes(MediaProcessingLog $run): array
+    {
+        $service = $run->church_service_id === null ? null : ChurchService::query()->find($run->church_service_id);
 
         if (! $service instanceof ChurchService) {
-            return null;
+            return ['service' => null, 'refusal' => null];
         }
 
         $ownKey = $run->processing_id.'|v'.LivestreamSourceAdapter::FORMAT_VERSION;
@@ -308,9 +342,7 @@ class HistoricRunExclusion
                 || $record->source_key !== $ownKey);
 
         if ($describedElsewhere) {
-            throw new RuntimeException(
-                "Service [{$service->id}] is described by another source as well as run [{$run->processing_id}], so it cannot be removed with it."
-            );
+            return ['service' => null, 'refusal' => "Service [{$service->id}] is described by another source as well as run [{$run->processing_id}], so it cannot be removed with it."];
         }
 
         $sharedWithAnotherRun = MediaProcessingLog::query()
@@ -319,12 +351,10 @@ class HistoricRunExclusion
             ->exists();
 
         if ($sharedWithAnotherRun) {
-            throw new RuntimeException(
-                "Service [{$service->id}] belongs to another run as well as run [{$run->processing_id}], so it cannot be removed with it."
-            );
+            return ['service' => null, 'refusal' => "Service [{$service->id}] belongs to another run as well as run [{$run->processing_id}], so it cannot be removed with it."];
         }
 
-        return $service;
+        return ['service' => $service, 'refusal' => null];
     }
 
     private function runDisposition(MediaProcessingLog $run): string

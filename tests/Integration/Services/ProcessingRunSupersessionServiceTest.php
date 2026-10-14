@@ -51,6 +51,26 @@ class ProcessingRunSupersessionServiceTest extends TestCase
     }
 
     #[Test]
+    public function an_excluded_run_never_wins_however_strong_its_sections(): void
+    {
+        // A recording set aside for its better master (pairs 873/1045, 969/1307,
+        // 1296/1297) still projects onto the service; it must never take it.
+        $churchService = $this->churchService();
+
+        $excludedRun = $this->processingRun($churchService, status: 'completed');
+        $this->sections($excludedRun, [0.9, 0.95, 0.98], songMatch: ServiceSectionSongMatchType::Confirmed);
+        $excludedRun->putExclusion(MediaProcessingLog::EXCLUSION_REASON_DUPLICATE_RECORDING, ['note' => 'Poorer copy.']);
+
+        $keptRun = $this->processingRun($churchService, status: 'failed');
+        $this->sections($keptRun, [0.3]);
+
+        $result = $this->service->reconcile($churchService);
+
+        $this->assertTrue($result['winner']->is($keptRun));
+        $this->assertSame([$excludedRun->id], $result['superseded']);
+    }
+
+    #[Test]
     public function a_failed_run_does_not_win_on_confidence_alone(): void
     {
         // Reproduces run 936 (service 544): re-detection merged a completed run's

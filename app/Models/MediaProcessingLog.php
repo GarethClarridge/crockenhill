@@ -137,12 +137,20 @@ class MediaProcessingLog extends Model
      */
     public const EXCLUSION_REASON_PRIVATE_OCCASION = 'private_occasion';
 
+    /**
+     * The same performance was recorded once and imported twice, and the other
+     * copy is the better master. The evidence names the kept run, as for a
+     * rehearsal, but the service is the real occasion and stays.
+     */
+    public const EXCLUSION_REASON_DUPLICATE_RECORDING = 'duplicate_recording';
+
     /** Every reason a run may be excluded under. */
     public const EXCLUSION_REASONS = [
         self::EXCLUSION_REASON_SOURCE_AUDIO_SILENT,
         self::EXCLUSION_REASON_NO_SERMON_IN_SOURCE,
         self::EXCLUSION_REASON_REHEARSAL_DUPLICATE,
         self::EXCLUSION_REASON_PRIVATE_OCCASION,
+        self::EXCLUSION_REASON_DUPLICATE_RECORDING,
     ];
 
     protected $fillable = [
@@ -1861,6 +1869,32 @@ class MediaProcessingLog extends Model
     {
         $this->writeProcessingMetadata(static function (array $processingMetadata) use ($record): array {
             $processingMetadata['retirement'] = [
+                'recorded_at' => now()->toIso8601String(),
+            ] + $record;
+
+            return $processingMetadata;
+        });
+    }
+
+    /**
+     * The operator's correction of this run's service identity — the date and
+     * slot it was imported under, the ones it was moved to, and what that
+     * withdrew — or null when its identity was never corrected.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function identityCorrectionRecord(): ?array
+    {
+        $record = data_get($this->processing_metadata?->toArray() ?? [], 'identity_correction');
+
+        return is_array($record) ? $record : null;
+    }
+
+    /** @param  array<string, mixed>  $record */
+    public function putIdentityCorrection(array $record): void
+    {
+        $this->writeProcessingMetadata(static function (array $processingMetadata) use ($record): array {
+            $processingMetadata['identity_correction'] = [
                 'recorded_at' => now()->toIso8601String(),
             ] + $record;
 
