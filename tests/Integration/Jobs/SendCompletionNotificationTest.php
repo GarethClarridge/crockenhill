@@ -85,6 +85,33 @@ class SendCompletionNotificationTest extends TestCase
         $this->assertStringContainsString('Notification failed:', (string) $log->error_message);
     }
 
+    /**
+     * 894 adopted 1126's sermon and made none, so there is no new sermon to announce; a
+     * retry resuming the main chain still reaches this job, and it stands down.
+     */
+    #[Test]
+    public function it_skips_a_run_that_adopted_a_better_recordings_sermon(): void
+    {
+        Mail::fake();
+        config([
+            'media-processing.email.send_success_notifications' => true,
+            'media-processing.email.admin_email' => 'admin@example.com',
+        ]);
+
+        $sermon = Sermon::factory()->create();
+        $log = MediaProcessingLog::factory()->processing()->create([
+            'sermon_id' => null,
+            'processing_metadata' => ['sermon_adopted' => ['sermon_id' => $sermon->id, 'holder_processing_id' => 'holder']],
+        ]);
+
+        (new SendCompletionNotification($log))->handle();
+
+        $log->refresh();
+        $this->assertSame('notification_skipped', $log->current_step);
+        $this->assertNull($log->error_message);
+        Mail::assertNothingSent();
+    }
+
     #[Test]
     public function it_skips_with_notification_skipped_when_admin_email_not_configured(): void
     {

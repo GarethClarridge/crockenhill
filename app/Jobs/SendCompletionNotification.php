@@ -84,6 +84,16 @@ class SendCompletionNotification implements ShouldQueue
                 return;
             }
 
+            // A run that adopted a better recording's sermon made none to announce.
+            if ($this->processingLog->sermon_id === null && $this->processingLog->adoptedSermon() instanceof Sermon) {
+                Log::info('Run adopted a better recording\'s sermon; no new sermon to announce', [
+                    'processing_id' => $this->processingLog->processing_id,
+                ]);
+                $processingRunTransitions->updateStep($this->processingLog, 'notification_skipped');
+
+                return;
+            }
+
             // Update processing log to indicate notification started
             $processingRunTransitions->updateStep($this->processingLog, 'sending_notification');
 
