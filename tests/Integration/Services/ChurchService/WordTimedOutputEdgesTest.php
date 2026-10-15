@@ -9,6 +9,7 @@ use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\OutputEdgeWordTimings;
 use App\Services\ChurchService\PrepareOutputEdgeWordTimings;
+use App\Services\ChurchService\Structure\DeadFeedInsideSection;
 use App\Services\Media\Audio\LocalWhisperServiceTranscriptionService;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Media\Audio\ServiceAudioWindowExtractor;
@@ -727,6 +728,158 @@ class WordTimedOutputEdgesTest extends TestCase
         app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($identity), ['identity' => $identity, 'words' => []]);
         $this->assertSame($identity, $evidence->identity($log, ['start' => 98.0, 'end' => 102.0]));
         $this->assertSame([], $evidence->read($log->fresh(), ['start' => 98.0, 'end' => 102.0])['words']);
+    }
+
+    /**
+     * 1023's sermon opened on 16 s of a muted feed while the children went out: the first cue and
+     * its decoded "Well," were stretched back over the silence, and the cut began there (operator
+     * listening, 2026-10-15: "there's no speech in the first two clips"). Single-frame noises in the
+     * dead feed are not sound.
+     */
+    #[Test]
+    public function a_start_in_a_dead_feed_moves_to_where_the_speech_is_heard(): void
+    {
+        $log = $this->deadFeedStart();
+        $this->withLevels($log, [[2121.0, 2149.4, null], [2143.5, 2143.6, -40.0], [2149.4, 2200.0, -30.0]]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 2133.5, 'end_time' => 3735.0]]);
+
+        $this->assertEqualsWithDelta(2149.1, $plan['segments'][0]['start_time'], 0.001);
+        $this->assertSame(2149.1, round($plan['cue_edge_widening'][0]['dead_feed']['time'], 3));
+    }
+
+    /** A short word inside the dead stretch is sound: the start stops before it, so no word is lost. */
+    #[Test]
+    public function a_start_in_a_dead_feed_keeps_a_short_word_heard_inside_it(): void
+    {
+        $log = $this->deadFeedStart();
+        $this->withLevels($log, [[2121.0, 2149.4, null], [2140.0, 2140.3, -30.0], [2149.4, 2200.0, -30.0]]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 2133.5, 'end_time' => 3735.0]]);
+
+        $this->assertEqualsWithDelta(2139.7, $plan['segments'][0]['start_time'], 0.001);
+    }
+
+    /**
+     * A quiet room is not a dead feed: a speaker's pause sits tens of decibels above the dropout
+     * floor ({@see DeadFeedInsideSection}), so where the stretch is quiet but live, the edge stays.
+     */
+    #[Test]
+    public function a_start_in_a_quiet_but_live_room_stays_where_the_words_put_it(): void
+    {
+        $log = $this->deadFeedStart();
+        $placed = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 2133.5, 'end_time' => 3735.0]]);
+        $this->withLevels($log, [[2121.0, 2149.4, -62.0], [2149.4, 2200.0, -30.0]]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 2133.5, 'end_time' => 3735.0]]);
+
+        $this->assertEqualsWithDelta($placed['segments'][0]['start_time'], $plan['segments'][0]['start_time'], 0.001);
+        $this->assertArrayNotHasKey('dead_feed', $plan['cue_edge_widening'][0]);
+    }
+
+    /**
+     * 1275's sermon ended 39 s into a muted feed, after an "Amen." the decode smeared across it.
+     * The end moves back to where the feed goes dead, keeping the word's decay in the room tone
+     * before it; a single dropped frame in that decay is not where the feed goes dead.
+     */
+    #[Test]
+    public function an_end_in_a_dead_feed_moves_back_to_where_the_feed_goes_dead(): void
+    {
+        $log = $this->deadFeedEnd();
+        $this->withLevels($log, [[4100.0, 4161.4, -30.0], [4161.4, 4161.8, -62.0], [4161.5, 4161.6, null], [4161.8, 4200.0, null]]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 2146.34, 'end_time' => 4198.0]]);
+
+        $this->assertEqualsWithDelta(4161.8, $plan['segments'][0]['end_time'], 0.001);
+    }
+
+    /**
+     * 1025's last word sounds after 1.5 s of dead feed and only touches the threshold: 0.5 s of live
+     * audio peaking at −46 dB against −51 dB, ruled "word clipped" (operator, 2026-10-12). Its level
+     * matches the noises in 1023's dead stretch, so anything live that reaches the threshold is kept.
+     */
+    #[Test]
+    public function an_end_in_a_dead_feed_keeps_a_quiet_last_word_heard_after_a_gap(): void
+    {
+        $log = $this->deadFeedEnd();
+        $this->withLevels($log, [[4100.0, 4161.4, -30.0], [4161.4, 4163.0, null], [4163.0, 4163.5, -62.0], [4163.2, 4163.3, -44.0], [4163.5, 4200.0, null]]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 2146.34, 'end_time' => 4198.0]]);
+
+        $this->assertEqualsWithDelta(4163.5, $plan['segments'][0]['end_time'], 0.001);
+    }
+
+    /** Song edges have their own dead-feed rule (operator ruling 2): this one leaves them alone. */
+    #[Test]
+    public function a_song_output_is_left_to_its_own_dead_feed_rule(): void
+    {
+        $log = $this->deadFeedStart();
+        $this->withLevels($log, [[2121.0, 2149.4, -62.0], [2149.4, 2200.0, -30.0]]);
+        $live = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 2133.5, 'end_time' => 3735.0]], songEnds: true);
+        $this->withLevels($log, [[2121.0, 2149.4, null], [2149.4, 2200.0, -30.0]]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 2133.5, 'end_time' => 3735.0]], songEnds: true);
+
+        $this->assertEqualsWithDelta($live['segments'][0]['start_time'], $plan['segments'][0]['start_time'], 0.001);
+    }
+
+    private function deadFeedStart(): MediaProcessingLog
+    {
+        $log = $this->logWithCues([
+            ['start' => 2120.5, 'end' => 2123.4, 'text' => 'in the back hall.'],
+            ['start' => 2133.5, 'end' => 2153.4, 'text' => "Well, I'm not following a particular passage in the Bible."],
+        ]);
+        $this->bankWindow($log, 2133.5, [
+            ['start' => 2132.64, 'end' => 2135.46, 'word' => ' Well,'],
+            ['start' => 2149.6, 'end' => 2150.0, 'word' => " I'm"],
+            ['start' => 2150.0, 'end' => 2150.4, 'word' => ' not'],
+        ]);
+
+        return $log;
+    }
+
+    private function deadFeedEnd(): MediaProcessingLog
+    {
+        $log = $this->logWithCues([
+            ['start' => 4150.0, 'end' => 4160.6, 'text' => 'and we give thanks to God.'],
+            ['start' => 4160.8, 'end' => 4198.0, 'text' => 'Amen.'],
+        ]);
+        $this->bankWindow($log, 4198.0, [
+            ['start' => 4159.0, 'end' => 4160.6, 'word' => ' to God.'],
+            ['start' => 4160.8, 'end' => 4198.0, 'word' => ' Amen.'],
+        ]);
+
+        return $log;
+    }
+
+    /**
+     * The run's level log: live audio at −30 dB sampled every 0.1 s from 2000 s to 4300 s, with each
+     * stretch at its level (null for `-inf`), later stretches over earlier ones. The threshold is
+     * pinned at −45 dB, as a run's adaptive one is computed from its whole file.
+     *
+     * @param  list<array{0: float, 1: float, 2: float|null}>  $stretches
+     */
+    private function withLevels(MediaProcessingLog $log, array $stretches): void
+    {
+        config(['media-processing.segmentation.adaptive_thresholds.enabled' => false, 'media-processing.segmentation.rms_threshold' => -45.0]);
+        $lines = [];
+
+        for ($tenth = 20000; $tenth < 43000; $tenth++) {
+            $time = $tenth / 10;
+            $level = '-30.0';
+
+            foreach ($stretches as [$from, $to, $stretchLevel]) {
+                if ($time >= $from - 0.0001 && $time < $to - 0.0001) {
+                    $level = $stretchLevel === null ? '-inf' : sprintf('%.1f', $stretchLevel);
+                }
+            }
+
+            $lines[] = sprintf('frame:%d pts:%d pts_time:%.1f', $tenth, $tenth * 800, $time);
+            $lines[] = 'lavfi.astats.Overall.RMS_level='.$level;
+        }
+
+        $log->forceFill(['rms_log_path' => 'service-transcripts/edge-test.rms.log'])->save();
+        Storage::disk('local')->put('service-transcripts/edge-test.rms.log', implode("\n", $lines)."\n");
     }
 
     private function log(array $cue): MediaProcessingLog

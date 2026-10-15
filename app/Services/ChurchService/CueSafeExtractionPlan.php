@@ -11,6 +11,7 @@ use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Exceptions\SegmentationException;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\Structure\DeadFeedInsideSection;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SongSpeechEdges;
 use App\Services\ChurchService\Structure\UntranscribedSpeechBeforeSection;
@@ -150,6 +151,26 @@ class CueSafeExtractionPlan
 
     /** Seconds within which a section's bound borders an unresolved interval. */
     private const INTERVAL_REACH = 0.5;
+
+    /**
+     * Seconds of dead feed a spoken edge may sit in before it moves to the sound: a pause between
+     * items is shorter (operator, 2026-10-15). 1023's sermon opened on 16 s of a muted feed.
+     */
+    private const DEAD_FEED_SECONDS = 2.0;
+
+    /**
+     * How long live audio that reaches the run's threshold must last to count as sound. A quiet word
+     * and a noise in a dead feed cannot be told apart by level: 1025's clipped last word (0.51 s,
+     * peak −46 dB, 4 frames above a −51 dB threshold) matches the noises in 1023's dead stretch
+     * (0.4 s, peak −45 dB, 1 frame above −49 dB), so both are kept and no word is lost (2026-10-15).
+     */
+    private const HEARD_SECONDS = 0.1;
+
+    /** The shortest dead run an end moves back to: a single dropped frame is not where the feed died. */
+    private const DEAD_FEED_RUN_SECONDS = 0.5;
+
+    /** What a start moved out of a dead feed keeps before the first sound. */
+    private const DEAD_FEED_LEAD = 0.3;
 
     /**
      * A section's own output: the section, or a talk with the reading it is answered to go with
@@ -309,6 +330,7 @@ class CueSafeExtractionPlan
         unset($span);
         if (! $songEnds) {
             $spans = $this->afterSongSound($log, $cues, $sectionSpans, $spans, $audit);
+            $spans = $this->outOfDeadFeed($log, $sectionSpans, $spans, $audit);
         }
         $audit = $this->withAnswerIdentity($log, $sectionSpans, $songEnds, $sermonEnd, $cues, $levels, $timeline, $audit);
         $spans = $this->withAnsweredEdges($log, $spans, $audit);
@@ -520,6 +542,203 @@ class CueSafeExtractionPlan
         }
 
         return $spans;
+    }
+
+    /**
+     * A spoken edge that sits in a dead feed moves to the sound: a start to just before the first
+     * thing heard, an end back to where the feed goes dead after the last. The words cannot place
+     * these edges: a decode stretches the first or last cue over the silence (1023's "Well, I'm not
+     * following…" ran 20 s, 16 s of it over a feed muted while the children went out; operator
+     * listening, 2026-10-15). Only a dead feed counts, digital zero or a dropout at or below
+     * {@see DeadFeedInsideSection::DROPOUT_LEVEL_DB}: a speaker's pause and a word's decay sit tens
+     * of decibels above it, so no word's tail is cut (the 2026-10-12 clipped endings). Song outputs
+     * keep their own dead-feed rule (operator ruling 2), and edges where two parts meet are not cuts.
+     *
+     * @param  list<array{start_time: float, end_time: float}>  $sectionSpans  The spans as detection gave them
+     * @param  list<array{start_time: float, end_time: float}>  $spans  The spans as placed
+     * @param  list<array<string, mixed>>  $audit
+     * @return list<array{start_time: float, end_time: float}>
+     */
+    private function outOfDeadFeed(MediaProcessingLog $log, array $sectionSpans, array $spans, array &$audit): array
+    {
+        $levels = $this->levels($log);
+
+        if ($levels === null) {
+            return $spans;
+        }
+
+        foreach ($spans as $index => $span) {
+            foreach (['start' => 'start_time', 'end' => 'end_time'] as $edge => $key) {
+                $neighbour = $edge === 'end' ? ($sectionSpans[$index + 1]['start_time'] ?? null) : ($sectionSpans[$index - 1]['end_time'] ?? null);
+                if ($neighbour !== null && abs($neighbour - $sectionSpans[$index][$key]) < 0.001) {
+                    continue;
+                }
+
+                $placed = (float) $span[$key];
+                $time = $edge === 'start'
+                    ? $this->firstSoundAfterDeadFeed($levels, $placed, (float) $span['end_time'])
+                    : $this->deadFeedAfterLastSound($levels, (float) $span['start_time'], $placed);
+
+                if ($time === null) {
+                    continue;
+                }
+
+                $spans[$index][$key] = $time;
+                $entry = array_key_first(array_filter($audit, static fn (array $entry): bool => $entry['span_index'] === $index && $entry['edge'] === $edge));
+                $original = $entry === null ? (float) $sectionSpans[$index][$key] : (float) $audit[$entry]['original_time'];
+                $moved = ['time' => $time, 'seconds_moved' => $time - $original, 'seconds_added' => abs($time - $original),
+                    'dead_feed' => ['placed_time' => $placed, 'time' => $time]];
+                if ($entry === null) {
+                    $audit[] = ['span_index' => $index, 'edge' => $edge, 'original_time' => $original, 'window' => null, 'cue' => null, 'cues' => [],
+                        'chosen_pause' => null, 'word_before' => null, 'word_after' => null, 'reason' => 'dead_feed', 'text_disagreement' => false, ...$moved];
+                } else {
+                    $audit[$entry] = [...$audit[$entry], ...$moved];
+                }
+            }
+        }
+
+        return $spans;
+    }
+
+    /**
+     * Just before the first sound heard after a start, when at least {@see self::DEAD_FEED_SECONDS}
+     * of the stretch before it is dead feed; otherwise null.
+     *
+     * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}  $levels
+     */
+    private function firstSoundAfterDeadFeed(array $levels, float $start, float $until): ?float
+    {
+        $samples = $this->samplesBetween($levels, $start, $until);
+        $heard = $this->heardRuns($samples, $levels['threshold']);
+
+        if ($heard === []) {
+            return null;
+        }
+
+        $sound = $heard[0]['start'];
+
+        if ($this->deadSeconds($samples, $start, $sound) < self::DEAD_FEED_SECONDS) {
+            return null;
+        }
+
+        $time = max($start, $sound - self::DEAD_FEED_LEAD);
+
+        return $time > $start + 0.001 ? $time : null;
+    }
+
+    /**
+     * Where the feed goes dead after the last sound heard before an end, when at least
+     * {@see self::DEAD_FEED_SECONDS} of the stretch from there is dead feed; otherwise null.
+     *
+     * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}  $levels
+     */
+    private function deadFeedAfterLastSound(array $levels, float $from, float $end): ?float
+    {
+        $samples = $this->samplesBetween($levels, $from, $end);
+        $heard = $this->heardRuns($samples, $levels['threshold']);
+
+        if ($heard === []) {
+            return null;
+        }
+
+        $sound = $heard[count($heard) - 1]['end'];
+        $dead = null;
+        $count = count($samples);
+
+        for ($i = 0; $i < $count; $i++) {
+            if ($samples[$i]['time'] <= $sound || ! $this->isDeadFeed($samples[$i]['rms'])) {
+                continue;
+            }
+
+            $j = $i;
+            while ($j + 1 < $count && $this->isDeadFeed($samples[$j + 1]['rms'])) {
+                $j++;
+            }
+
+            $runEnd = $samples[$j + 1]['time'] ?? $end;
+            if ($runEnd - $samples[$i]['time'] >= self::DEAD_FEED_RUN_SECONDS - 0.0001) {
+                $dead = $samples[$i]['time'];
+
+                break;
+            }
+
+            $i = $j;
+        }
+
+        if ($dead === null || $this->deadSeconds($samples, $dead, $end) < self::DEAD_FEED_SECONDS) {
+            return null;
+        }
+
+        return $dead < $end - 0.001 ? $dead : null;
+    }
+
+    /**
+     * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}  $levels
+     * @return list<array{time: float, rms: float}>
+     */
+    private function samplesBetween(array $levels, float $from, float $to): array
+    {
+        return array_values(array_filter($levels['samples'], static fn (array $sample): bool => $sample['time'] >= $from && $sample['time'] <= $to));
+    }
+
+    /**
+     * The runs of consecutive live samples (above the dead feed) that last {@see self::HEARD_SECONDS}
+     * and reach the threshold at least once.
+     *
+     * @param  list<array{time: float, rms: float}>  $samples
+     * @return list<array{start: float, end: float}>
+     */
+    private function heardRuns(array $samples, float $threshold): array
+    {
+        $runs = [];
+        $run = null;
+        $heard = static fn (array $run): bool => $run['peak'] >= $threshold && self::HEARD_SECONDS - 0.0001 <= $run['end'] - $run['start'];
+
+        foreach ($samples as $sample) {
+            if (! $this->isDeadFeed($sample['rms'])) {
+                $run = $run === null
+                    ? ['start' => $sample['time'], 'end' => $sample['time'], 'peak' => $sample['rms']]
+                    : [...$run, 'end' => $sample['time'], 'peak' => max($run['peak'], $sample['rms'])];
+
+                continue;
+            }
+
+            if ($run !== null && $heard($run)) {
+                $runs[] = ['start' => $run['start'], 'end' => $run['end']];
+            }
+            $run = null;
+        }
+
+        if ($run !== null && $heard($run)) {
+            $runs[] = ['start' => $run['start'], 'end' => $run['end']];
+        }
+
+        return $runs;
+    }
+
+    /**
+     * Seconds of dead feed between two times: each dead sample counts until the next sample.
+     *
+     * @param  list<array{time: float, rms: float}>  $samples
+     */
+    private function deadSeconds(array $samples, float $from, float $to): float
+    {
+        $seconds = 0.0;
+
+        foreach ($samples as $index => $sample) {
+            if ($sample['time'] < $from || $sample['time'] >= $to || ! $this->isDeadFeed($sample['rms'])) {
+                continue;
+            }
+
+            $seconds += min($samples[$index + 1]['time'] ?? $to, $to) - $sample['time'];
+        }
+
+        return $seconds;
+    }
+
+    private function isDeadFeed(float $rms): bool
+    {
+        return $rms <= DeadFeedInsideSection::DROPOUT_LEVEL_DB;
     }
 
     /**
