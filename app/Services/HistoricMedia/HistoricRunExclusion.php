@@ -291,9 +291,9 @@ class HistoricRunExclusion
     /**
      * The run a rehearsal or duplicate recording is set aside for. It is required
      * for those reasons and refused for every other, and it must be a different
-     * historic run that still stands — excluding a copy whose kept run is gone would
+     * run that still stands — excluding a copy whose kept run is gone would
      * discard the only one. A rehearsal's kept run is of the same operation; a
-     * duplicate recording's may be of any.
+     * duplicate recording's may be of any operation, or of the weekly lane.
      *
      * @param  list<string>  $processingIds
      */
@@ -326,18 +326,18 @@ class HistoricRunExclusion
         }
 
         // A better master can arrive with a later operation than the copy it
-        // replaces (pair 873/1045); a rehearsal and its Sunday came in together.
+        // replaces (pair 873/1045), or through the weekly lane (546: the livestream
+        // keeps the reading the capture lacks); a rehearsal and its Sunday came in together.
         $kept = MediaProcessingLog::query()
             ->where('processing_id', $duplicatesProcessingId)
             ->when(
-                $reason === MediaProcessingLog::EXCLUSION_REASON_DUPLICATE_RECORDING,
-                fn ($query) => $query->whereNotNull('historic_import_operation_id'),
+                $reason !== MediaProcessingLog::EXCLUSION_REASON_DUPLICATE_RECORDING,
                 fn ($query) => $query->where('historic_import_operation_id', $operation?->id),
             )
             ->first();
 
         if (! $kept instanceof MediaProcessingLog) {
-            throw new RuntimeException(sprintf('No historic run [%s] exists to keep for %s.', $duplicatesProcessingId,
+            throw new RuntimeException(sprintf('No run [%s] exists to keep for %s.', $duplicatesProcessingId,
                 $operation instanceof HistoricImportOperation ? "operation [{$operation->operation_id}]" : 'this weekly run'));
         }
 

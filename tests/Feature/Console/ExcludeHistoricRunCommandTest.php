@@ -357,6 +357,29 @@ class ExcludeHistoricRunCommandTest extends TestCase
         $this->assertFalse($master->fresh()?->isExcluded());
     }
 
+    /**
+     * 546 (operator, 2026-10-15): the weekly livestream's cut joins the reading the historic
+     * sermon capture lacks, so the weekly run is the master and the capture is set aside.
+     */
+    #[Test]
+    public function it_records_a_historic_run_as_a_duplicate_of_a_weekly_master(): void
+    {
+        $capture = $this->heldRun('2024-01-21-morning');
+        $weekly = MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Failed]);
+
+        $this->artisan('historic-import:exclude-run', [
+            '--operation' => $this->operation->operation_id,
+            '--processing-id' => [$capture->processing_id],
+            '--reason' => MediaProcessingLog::EXCLUSION_REASON_DUPLICATE_RECORDING,
+            '--duplicates' => $weekly->processing_id,
+            '--note' => 'The livestream cut keeps the reading this capture lacks.',
+            '--apply' => true,
+            '--yes' => true,
+        ])->assertSuccessful();
+
+        $this->assertSame($weekly->processing_id, $capture->fresh()?->exclusionEvidence()['duplicates_processing_id'] ?? null);
+    }
+
     /** Only a better master explains setting a weekly run aside; the other reasons are historic rulings. */
     #[Test]
     public function it_refuses_a_weekly_run_for_any_reason_but_a_duplicate_recording(): void
