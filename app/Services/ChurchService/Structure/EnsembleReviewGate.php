@@ -250,7 +250,7 @@ class EnsembleReviewGate
      * order the recording follows, after the bundle is banked. The input stays current when the
      * source items have the same identities and content, in any order (operator, 2026-10-07).
      *
-     * @param  list<array{id: int, position: int, type: string, title: ?string, song_id: ?int}>  $current
+     * @param  list<array{id: int, position: int, type: string, title: ?string, song_id: ?int, projected_by_run: bool}>  $current
      */
     private function oosItemsMatch(mixed $banked, array $current): bool
     {
@@ -269,6 +269,13 @@ class EnsembleReviewGate
             $currentItem = $currentById[$item['id']];
             unset($item['position'], $currentItem['position'], $currentById[$item['id']]);
 
+            // A type this run projected onto the item is the bundle's own output, not new evidence (890).
+            if ($currentItem['projected_by_run']) {
+                unset($item['type'], $currentItem['type']);
+            }
+
+            unset($currentItem['projected_by_run']);
+
             if ($item !== $currentItem) {
                 return false;
             }
@@ -277,7 +284,12 @@ class EnsembleReviewGate
         return $currentById === [];
     }
 
-    /** @return list<array{id: int, position: int, type: string, title: ?string, song_id: ?int}> */
+    /**
+     * Each item as the bundle read it, and whether its section type was projected onto it by this
+     * run's own structure write (its livestream projection names this run).
+     *
+     * @return list<array{id: int, position: int, type: string, title: ?string, song_id: ?int, projected_by_run: bool}>
+     */
     private function currentOosItems(MediaProcessingLog $log): array
     {
         if ($log->church_service_id === null) {
@@ -296,6 +308,9 @@ class EnsembleReviewGate
                 'type' => $item->semanticSectionType()->value,
                 'title' => $item->title,
                 'song_id' => $item->song_id === null ? null : (int) $item->song_id,
+                'projected_by_run' => $item->section_type !== null
+                    && $item->livestream_processing_id === $log->processing_id
+                    && is_array($item->metadata['livestream_projection'] ?? null),
             ])
             ->all() ?? []);
     }

@@ -149,6 +149,68 @@ class EnsembleReviewGateTest extends TestCase
         $this->assertFalse($gate->inputIsCurrent($log, $evidence));
     }
 
+    /**
+     * 890 (2026-10-15): the run's own structure write projected its sections onto the order of
+     * service, typing item "Ezekiel" `short_talk` two minutes after the bundle read it as `other`.
+     * That type is the bundle's own output, so its questions must stay answerable; the same change
+     * by another run, or any other change, is new evidence.
+     */
+    #[Test]
+    public function a_type_the_run_itself_projected_onto_an_item_does_not_make_its_input_stale(): void
+    {
+        Config::set('media-processing.storage.service_artifact_disk', 'local');
+        Storage::fake('local');
+        $service = ChurchService::factory()->create();
+        $item = ChurchServiceItem::factory()->for($service)->create([
+            'position' => 6,
+            'type' => 'custom',
+            'title' => 'Ezekiel',
+            'section_type' => null,
+            'metadata' => null,
+        ]);
+        $log = MediaProcessingLog::factory()->livestream()->create(['church_service_id' => $service->id]);
+        $other = MediaProcessingLog::factory()->livestream()->create(['church_service_id' => $service->id]);
+        $inputPath = 'service-transcripts/projected-type.input.json';
+        $input = json_encode([
+            'source' => [
+                'church_service_id' => $service->id,
+                'transcript_path' => null,
+                'audio_timeline_path' => null,
+                'rms_log_path' => null,
+                'transcript_hash' => null,
+                'audio_timeline_hash' => null,
+                'rms_log_hash' => null,
+            ],
+            'validation_context' => ['recording_omits_songs' => false],
+            'oos_items' => [
+                ['id' => $item->id, 'position' => 6, 'type' => 'other', 'title' => 'Ezekiel', 'song_id' => null],
+            ],
+        ], JSON_THROW_ON_ERROR);
+        Storage::disk('local')->put($inputPath, $input);
+        $evidence = ['artifact_disk' => 'local', 'input_path' => $inputPath, 'input_hash' => hash('sha256', $input)];
+        $gate = app(EnsembleReviewGate::class);
+        $this->assertTrue($gate->inputIsCurrent($log, $evidence));
+
+        $projectedBy = static fn (MediaProcessingLog $run): array => [
+            'section_type' => 'short_talk',
+            'livestream_processing_id' => $run->processing_id,
+            'metadata' => ['livestream_projection' => ['confidence_level' => 'high']],
+        ];
+
+        $item->update($projectedBy($log));
+        $this->assertTrue($gate->inputIsCurrent($log, $evidence));
+
+        $item->update(['title' => 'Ezekiel 37']);
+        $this->assertFalse($gate->inputIsCurrent($log, $evidence), 'only the projected type is the run\'s own');
+        $item->update(['title' => 'Ezekiel']);
+
+        $item->update($projectedBy($other));
+        $this->assertFalse($gate->inputIsCurrent($log, $evidence));
+
+        $item->update([...$projectedBy($log), 'metadata' => null]);
+        $this->assertFalse($gate->inputIsCurrent($log, $evidence), 'a type with no projection record is not the run\'s output');
+    }
+
     #[Test]
     public function complete_evidence_cannot_authorise_extraction_after_policy_or_artifact_drift(): void
     {
