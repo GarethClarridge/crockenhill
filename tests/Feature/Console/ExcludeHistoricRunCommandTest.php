@@ -619,4 +619,51 @@ class ExcludeHistoricRunCommandTest extends TestCase
 
         $this->assertTrue($run->fresh()?->isExcludedSilentAudio());
     }
+
+    /** 894 (operator, 2026-10-15): the exclusion is taken back once the better design lets the run keep the service. */
+    #[Test]
+    public function an_operator_exclusion_is_rescinded_and_kept_on_record(): void
+    {
+        $weekly = MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Failed]);
+        $weekly->putExclusion(MediaProcessingLog::EXCLUSION_REASON_DUPLICATE_RECORDING, ['note' => 'Set aside for the capture.']);
+        $arguments = ['--processing-id' => $weekly->processing_id, '--note' => 'It keeps the service and adopts the better sermon.'];
+
+        $this->artisan('historic-import:rescind-exclusion', $arguments)->expectsOutputToContain('DRY RUN')->assertSuccessful();
+        $this->assertTrue($weekly->fresh()?->isExcluded());
+
+        $this->artisan('historic-import:rescind-exclusion', [...$arguments, '--apply' => true])->assertFailed();
+        $this->artisan('historic-import:rescind-exclusion', [...$arguments, '--apply' => true, '--yes' => true])->assertSuccessful();
+
+        $fresh = $weekly->fresh();
+        $rescinded = $fresh?->processing_metadata?->toArray()['rescinded_exclusions'] ?? [];
+
+        $this->assertFalse($fresh?->isExcluded());
+        $this->assertSame(ProcessingStatus::Failed, $fresh?->status);
+        $this->assertCount(1, $rescinded);
+        $this->assertSame(MediaProcessingLog::EXCLUSION_REASON_DUPLICATE_RECORDING, $rescinded[0]['reason'] ?? null);
+        $this->assertSame('It keeps the service and adopts the better sermon.', $rescinded[0]['note'] ?? null);
+    }
+
+    #[Test]
+    public function a_silent_source_or_a_removed_service_is_never_rescinded(): void
+    {
+        $silent = $this->heldRun();
+        $silent->putSilentAudioExclusion(['frame_count' => 22857]);
+        $rehearsal = $this->heldRun('2025-11-29-morning');
+        $rehearsal->putExclusion(MediaProcessingLog::EXCLUSION_REASON_REHEARSAL, ['note' => 'Rehearsal.', 'removed_service' => ['id' => 1]]);
+        $standing = $this->heldRun('2025-11-30-morning');
+
+        foreach ([$silent, $rehearsal, $standing] as $run) {
+            $this->artisan('historic-import:rescind-exclusion', [
+                '--processing-id' => $run->processing_id,
+                '--note' => 'Taking it back.',
+                '--apply' => true,
+                '--yes' => true,
+            ])->assertFailed();
+        }
+
+        $this->assertTrue($silent->fresh()?->isExcludedSilentAudio());
+        $this->assertTrue($rehearsal->fresh()?->isExcluded());
+        $this->assertFalse($standing->fresh()?->isExcluded());
+    }
 }

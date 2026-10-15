@@ -247,6 +247,34 @@ class HistoricRunExclusion
     }
 
     /**
+     * The excluded run an operator may take back: one whose exclusion was an operator's
+     * decision and removed nothing. A silent source is the pipeline's to decide, and a
+     * removed service cannot be put back by clearing a flag.
+     */
+    public function rescindable(string $processingId): MediaProcessingLog
+    {
+        $run = MediaProcessingLog::query()->where('processing_id', $processingId)->first();
+
+        if (! $run instanceof MediaProcessingLog) {
+            throw new RuntimeException("No processing run exists for [{$processingId}].");
+        }
+
+        if (! $run->isExcluded()) {
+            throw new RuntimeException("Run [{$processingId}] is not excluded.");
+        }
+
+        if (! in_array($run->exclusionReason(), self::OPERATOR_REASONS, true)) {
+            throw new RuntimeException("Run [{$processingId}] was excluded by the pipeline, not an operator, so it is not rescinded here.");
+        }
+
+        if (($run->exclusionEvidence()['removed_service'] ?? null) !== null) {
+            throw new RuntimeException("Run [{$processingId}]'s exclusion removed its service, which rescinding cannot restore.");
+        }
+
+        return $run;
+    }
+
+    /**
      * @phpstan-assert value-of<self::OPERATOR_REASONS> $reason
      */
     private function guardReason(string $reason): void

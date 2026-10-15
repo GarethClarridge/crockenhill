@@ -1795,6 +1795,23 @@ class MediaProcessingLog extends Model
     }
 
     /**
+     * Withdraw this run's exclusion on an operator's word, keeping what was rescinded and why
+     * beside the earlier rescissions, so the decision and its reversal both stay on record.
+     */
+    public function rescindExclusion(string $note): void
+    {
+        $this->writeProcessingMetadata(static function (array $processingMetadata) use ($note): array {
+            $processingMetadata['rescinded_exclusions'] = [
+                ...(is_array($processingMetadata['rescinded_exclusions'] ?? null) ? $processingMetadata['rescinded_exclusions'] : []),
+                [...(is_array($processingMetadata['exclusion'] ?? null) ? $processingMetadata['exclusion'] : []), 'rescinded_at' => now()->toIso8601String(), 'note' => $note],
+            ];
+            unset($processingMetadata['exclusion']);
+
+            return $processingMetadata;
+        });
+    }
+
+    /**
      * The evidence recorded alongside whichever exclusion applies, or null when
      * this run was not excluded.
      *
