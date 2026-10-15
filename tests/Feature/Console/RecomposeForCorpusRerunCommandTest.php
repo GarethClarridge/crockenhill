@@ -16,6 +16,7 @@ use App\Jobs\ProjectLivestreamServiceStructure;
 use App\Jobs\RecordDeferredCorpusRerunMedia;
 use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\Structure\EnsembleReviewGate;
+use App\Services\ChurchService\Structure\ServiceStructureEnsembleReplay;
 use App\Services\HistoricMedia\HistoricRerunSnapshot;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Support\PrivateEvidenceFile;
@@ -233,6 +234,40 @@ class RecomposeForCorpusRerunCommandTest extends TestCase
         $this->artisan('historic-import:rerun-recompose', ['snapshot' => $this->snapshotPath(), 'runs' => [$run->id]])
             ->expectsOutputToContain('run is failed, not completed')
             ->assertSuccessful();
+    }
+
+    /**
+     * 942 and 974 (2026-10-15): their draws failed validation on `duplicate_oos_item` for a shared
+     * `other` item, which a later rule turned into a flag. The stored failure is the old rules';
+     * composing the same draws under the running rules is what the round would cut.
+     */
+    #[Test]
+    public function a_run_a_round_failed_on_validation_that_the_running_rules_pass_can_be_recomposed(): void
+    {
+        $this->replayValidates(true);
+        $run = $this->parkedForCompositionReview(byARound: true, reason: 'llm_structure_validation_failed', openQuestions: false);
+
+        $this->artisan('historic-import:rerun-recompose', ['snapshot' => $this->snapshotPath(), 'runs' => [$run->id]])
+            ->expectsOutputToContain('ready to recompose banked draws attempt-1')
+            ->assertSuccessful();
+    }
+
+    #[Test]
+    public function a_run_a_round_failed_on_validation_that_the_running_rules_still_fail_is_refused(): void
+    {
+        $this->replayValidates(false);
+        $run = $this->parkedForCompositionReview(byARound: true, reason: 'llm_structure_validation_failed', openQuestions: false);
+
+        $this->artisan('historic-import:rerun-recompose', ['snapshot' => $this->snapshotPath(), 'runs' => [$run->id]])
+            ->expectsOutputToContain('run is failed, not completed')
+            ->assertSuccessful();
+    }
+
+    private function replayValidates(bool $passes): void
+    {
+        $replay = Mockery::mock(ServiceStructureEnsembleReplay::class);
+        $replay->shouldReceive('replay')->andReturn(['validation_passed' => $passes]);
+        $this->app->instance(ServiceStructureEnsembleReplay::class, $replay);
     }
 
     private function parkedForCompositionReview(bool $byARound, string $reason = 'sermon_composition_review', bool $openQuestions = false, bool $answeredValid = false): MediaProcessingLog

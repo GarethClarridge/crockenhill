@@ -11,8 +11,10 @@ use App\Actions\RetranscribeForCorpusRerun;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\Structure\ServiceStructureEnsembleReplay;
 use App\Support\CodeRevision;
 use App\Support\RepositoryCommit;
+use Throwable;
 
 /**
  * The batch guards every corpus re-run dispatch shares, whichever tier it is (plan §4.0).
@@ -44,6 +46,7 @@ final class CorpusRerunGuard
     public function __construct(
         private readonly HistoricRerunState $state,
         private readonly HistoricRerunDiff $diff,
+        private readonly ServiceStructureEnsembleReplay $replay,
     ) {}
 
     public function refusal(MediaProcessingLog $run, HistoricRerunSnapshot $snapshot): ?string
@@ -216,7 +219,8 @@ final class CorpusRerunGuard
         $reason = data_get($metadata, 'manual_review.reason_code');
 
         return in_array($reason, ['service_structure_ensemble_review', 'sermon_composition_review', 'sermon_section_content_held'], true)
-            || ($reason === 'llm_structure_validation_failed' && $this->failedWithQuestionsOpen($metadata));
+            || ($reason === 'llm_structure_validation_failed'
+                && ($this->failedWithQuestionsOpen($metadata) || $this->validatesUnderRunningRules($run, $metadata)));
     }
 
     /**
@@ -239,6 +243,35 @@ final class CorpusRerunGuard
         return (array) data_get($latest, 'composition.disputes', []) !== []
             || (data_get($latest, 'composition.validation_passed') === true
                 && (array) data_get($latest, 'composition.applied_rulings', []) !== []);
+    }
+
+    /**
+     * Whether the run's banked draws, with its answers, compose into a valid structure under the
+     * rules now running.
+     *
+     * The stored failure is the verdict of the rules it was composed under. 942 and 974 failed on
+     * `duplicate_oos_item` for a shared `other` item that a later rule made a flag (2026-10-14);
+     * recomposing is the round's way onto a new commit's rules, and a structure that still fails
+     * is refused again by the recomposition itself.
+     *
+     * @param  array<string, mixed>  $metadata
+     */
+    private function validatesUnderRunningRules(MediaProcessingLog $run, array $metadata): bool
+    {
+        $attempts = data_get($metadata, 'service_structure_ensemble', []);
+        $latest = is_array($attempts) && $attempts !== [] ? end($attempts) : null;
+
+        if (! is_array($latest)) {
+            return false;
+        }
+
+        try {
+            $rulings = array_values((array) data_get($metadata, 'service_structure_ensemble_rulings', []));
+
+            return ($this->replay->replay($latest, $rulings, $run)['validation_passed'] ?? null) === true;
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     /**

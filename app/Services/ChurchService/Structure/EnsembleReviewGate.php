@@ -165,7 +165,10 @@ class EnsembleReviewGate
                 return true;
             }
 
-            if ($slot['status'] !== 'valid' && ($composition['degraded_reviewed'] ?? null) !== true) {
+            // A draw recorded invalid that the running rules validate is counted in a composition
+            // that is not degraded (1299's slot 0, 2026-10-15): there is no lost draw to review.
+            if ($slot['status'] !== 'valid' && ($composition['degraded'] ?? null) !== false
+                && ($composition['degraded_reviewed'] ?? null) !== true) {
                 return true;
             }
         }

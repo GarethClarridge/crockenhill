@@ -233,6 +233,13 @@ class EnsembleReviewGateTest extends TestCase
         $log->forceFill(['processing_metadata' => $metadata])->save();
         $this->assertFalse($gate->requiresReview($log->fresh()));
 
+        // 1299 (2026-10-15): a draw recorded invalid that the running rules validate. Answering
+        // recomposed all four draws, so the composition is not degraded and nothing is to review.
+        $metadata['service_structure_ensemble'][0]['composition']['degraded'] = false;
+        $metadata['service_structure_ensemble'][0]['composition']['degraded_reviewed'] = false;
+        $log->forceFill(['processing_metadata' => $metadata])->save();
+        $this->assertFalse($gate->requiresReview($log->fresh()));
+
         $log->forceFill(['processing_metadata' => [
             ...$log->processing_metadata->toArray(),
             'historic_import' => ['concatenation' => 'fragments'],
