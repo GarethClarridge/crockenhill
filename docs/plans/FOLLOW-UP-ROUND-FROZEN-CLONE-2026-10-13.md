@@ -489,3 +489,21 @@ The decision page's rulings, applied:
   - A superseded run whose sermon a standing run adopted stays exportable (readiness) and re-cuttable (`ExtractForCorpusRerun`). The adopting run is not "missing" its sermon.
   - `historic-import:rescind-exclusion` takes back an operator exclusion and keeps it on record. It refuses silent-source exclusions and those that removed a service.
 - Bounded check, read-only, five services. 546: 893 adopts 1189's 1080p sermon 1108. 607: 894 adopts 1126's 1051. 790: 889 and 890 adopt 1378's 869. 583 unchanged: 1080p run 943 has 794 s of a 1,232 s sermon. 795 unchanged: 1080p run 1377 never cut a sermon, and 909's 720p sermon 857 stands.
+- Adoption committed: branch 0f231f402, ae08dd13a, 07cb3fa43; master 657d97acd, f300269f8, d1d5068ae; clone at 07cb3fa43. 607 applied:
+  - 894's exclusion rescinded and the run retried; it adopted 1126's sermon 1051 at sermon creation.
+  - The first retry failed at song candidates: last night's failure cleanup had deleted the working copy. The source was restored byte-identical (251,732,985 bytes) and the run retried.
+  - The resumed main chain reached the completion notice, which failed for want of a sermon (now skipped, d1d5068ae). Its step label stays `notification_failed`; its status is completed.
+  - 607: 894 wins (4 confirmed songs, 3 clips published, 1 awaiting approval); 1126 is superseded but holds sermon 1051 and stays exportable.
+- Open, not part of this change: 13 of 15 sampled completed historic runs fail export readiness on "unclassified identity field: church_service_item_id"; 1126's sermon has no thumbnail.
+- Next for adoption: 546 (retry 893) and 790 (retry 890; 889 completed without a sermon). Both were stranded in July and need their sources restored. Awaiting the operator.
+
+**2026-10-15, 546 settled, and weekly runs' output held (operator: "720p with the reading", "Go ahead", "Build it").**
+- Weekly master (branch f5f2476ef, master 0a50de4c3): a historic duplicate may be set aside for a weekly run. 1189 was excluded (`duplicate_recording`, `--duplicates=893`) and retired. Its sermon 1108 was withdrawn and its three assets (588 MiB) moved to `superseded/`.
+- 893's source was restored byte-identical (232,834,621 bytes) and the run retried. It cut a new sermon 1310, "Persevering in faith": 1,944 s including the reading (plan segments 1309.8–1423.21 and 1969.11–3800). 546: 893 wins; 1189 is excluded and superseded.
+- Found after: the weekly runs 890, 893 and 894 created their output **published** with `asset_disk` null. That was sermon 1310 and song videos 1233–1242, with every file on `historic_staging`. Custody was decided only by `historic_import_operation_id`.
+  - Thumbnail generation for 1310 resolved the empty disk to `THUMBNAIL_STORAGE_DISK`, which is `do_spaces`. It wrote five public-read plain candidates (about 51 KB) to the production bucket: `sermons/thumbnails/sermon_1310_2026-10-15_candidate-{1..5}_plain.webp`, at 08:26 UTC. A scan of `sermons/` for objects modified since 2026-10-12 found only those five. **Not deleted: deleting from the bucket is the operator's call.**
+- Fix (branch adc56d620, master 7799bfb78; clone at adc56d620): custody follows the disk.
+  - `MediaAssetPath::holdingDisk()`: when the sermon disk is historic staging or quarantine, new sermons and song clips are quarantined and name that disk, whatever the lane. Production publishes, so it is unchanged.
+  - `historic-import:hold-run-output` applies the rule to existing rows. It refuses unless every referenced file is on the holding disk.
+  - Applied to 890, 893 and 894: 11 rows held. None remain published without a disk since 2026-10-12.
+- Open: 1310 has no thumbnail; a regeneration would now write to `historic_staging`. 790 / 890 is waiting on ensemble answers.
