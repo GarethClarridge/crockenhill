@@ -141,7 +141,8 @@ final class ExtractForCorpusRerun
             return 'run is excluded';
         }
 
-        if ($run->superseded_at !== null || $run->isRetired()) {
+        // A run holding the sermon a fuller recording adopted gave up only the service's structure.
+        if ($run->isRetired() && ! $run->holdsAdoptedSermon()) {
             return 'run is superseded or retired';
         }
 

@@ -12,6 +12,8 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\HistoricMedia\HistoricProcessingThroughput;
 use App\Services\Processing\MediaProcessingRunTransitionService;
+use App\Services\Processing\ProcessingRunOrchestrator;
+use App\Services\Sermon\BetterSermonRecording;
 use App\Services\Sermon\SermonCreationService;
 use App\Traits\ChecksCancellation;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -51,6 +53,10 @@ class SubmitToProcessing implements ShouldQueue
                 'processing_id' => $this->processingLog->processing_id,
                 'audio_path' => $this->processingLog->audio_file_path,
             ]);
+
+            if ($this->concludeWithAdoptedSermon()) {
+                return;
+            }
 
             if (! $this->processingLog->audio_file_path) {
                 throw new \Exception('Sermon audio path not found in processing log');
@@ -227,6 +233,35 @@ class SubmitToProcessing implements ShouldQueue
         );
 
         // Cleanup will be handled by the chain failure handler
+    }
+
+    /**
+     * A run resumed here after its cut (894) meets the better recording's sermon at creation
+     * rather than extraction: it adopts that sermon as {@see ExtractSermon} would, instead of
+     * failing on its custody, and its cut is left for cleanup.
+     */
+    private function concludeWithAdoptedSermon(): bool
+    {
+        $duration = $this->processingLog->sermonDurationForRecord()
+            ?? (float) $this->processingLog->sermon_end_time - (float) $this->processingLog->sermon_start_time;
+        $recordings = app(BetterSermonRecording::class);
+        $adopted = $duration > 0 ? $recordings->holderFor($this->processingLog, $duration) : null;
+
+        if ($adopted === null) {
+            return false;
+        }
+
+        $recordings->adopt($this->processingLog, $adopted);
+        Log::info('Sermon creation skipped: a better recording of the service holds the sermon', [
+            'processing_id' => $this->processingLog->processing_id,
+            'sermon_id' => $adopted['sermon']->id,
+            'holder_processing_id' => $adopted['holder']->processing_id,
+        ]);
+
+        $this->chained = [];
+        app(ProcessingRunOrchestrator::class)->concludeWithAdoptedSermon($this->processingLog);
+
+        return true;
     }
 
     private function refreshExistingLivestreamSermon(Sermon $sermon): Sermon

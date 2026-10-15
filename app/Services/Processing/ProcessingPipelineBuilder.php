@@ -35,6 +35,7 @@ use App\Jobs\TranscribeOutputEdges;
 use App\Jobs\ValidateAudioFile;
 use App\Jobs\ValidateVideoFile;
 use App\Models\MediaProcessingLog;
+use App\Services\Sermon\BetterSermonRecording;
 
 /**
  * ProcessingPipelineBuilder - Unified job chains for all media processing types
@@ -324,6 +325,22 @@ class ProcessingPipelineBuilder
         return [
             new PromoteHistoricAssets($log),
             new CleanupTemporaryFiles($log),
+        ];
+    }
+
+    /**
+     * The tail a run takes when a better recording of its service already holds the sermon
+     * ({@see BetterSermonRecording}). The run's structure and songs are the service's, so
+     * their clips are still prepared; everything sermon-shaped is the other recording's, and
+     * the custody transition and cleanup run as for a service with no sermon.
+     *
+     * @return non-empty-list<object>
+     */
+    public function buildAdoptedSermonServiceChainJobs(MediaProcessingLog $log): array
+    {
+        return [
+            new PrepareSectionPublicationCandidates($log),
+            ...$this->buildSermonlessServiceChainJobs($log),
         ];
     }
 

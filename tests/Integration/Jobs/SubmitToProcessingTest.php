@@ -6,14 +6,20 @@ namespace Tests\Integration\Jobs;
 
 use App\Data\SermonCreationOptions;
 use App\Enums\SermonPublicationState;
+use App\Enums\TalkType;
+use App\Jobs\CleanupTemporaryFiles;
+use App\Jobs\PrepareSectionPublicationCandidates;
+use App\Jobs\PromoteHistoricAssets;
 use App\Jobs\StoreSermonVideo;
 use App\Jobs\SubmitToProcessing;
+use App\Models\ChurchService;
 use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Processing\MediaProcessingRunTransitionService;
 use App\Services\Sermon\SermonCreationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -144,6 +150,42 @@ class SubmitToProcessingTest extends TestCase
         Queue::assertPushed(StoreSermonVideo::class, function (StoreSermonVideo $job) use ($createdSermon): bool {
             return $job->sermonId === $createdSermon->id;
         });
+    }
+
+    /**
+     * 894 resumed at sermon creation after its cut, and failed on 1126's sermon custody. It
+     * adopts that better recording's sermon instead: no sermon row, no video, nothing written.
+     */
+    #[Test]
+    public function it_adopts_the_sermon_a_better_recording_holds_instead_of_failing_on_its_custody(): void
+    {
+        Bus::fake();
+
+        $service = ChurchService::factory()->create();
+        $capture = MediaProcessingLog::factory()->create([
+            'church_service_id' => $service->id,
+            'processing_metadata' => ['format_details' => ['height' => 1080, 'bit_rate' => 2_663_497]],
+        ]);
+        $held = Sermon::factory()->create(['livestream_processing_id' => $capture->processing_id, 'content_type' => TalkType::Sermon, 'duration' => 2007.8]);
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create([
+            'church_service_id' => $service->id,
+            'audio_file_path' => 'sermons/audio/test-audio.mp3',
+            'sermon_start_time' => 300.0,
+            'sermon_end_time' => 2037.0,
+            'processing_metadata' => ['format_details' => ['height' => 720, 'bit_rate' => 490_906]],
+        ]);
+
+        $mockCreationService = $this->createMock(SermonCreationService::class);
+        $mockCreationService->expects($this->never())->method('createSermon');
+
+        (new SubmitToProcessing($log))->handle($mockCreationService);
+
+        $log->refresh();
+        $this->assertNull($log->sermon_id);
+        $this->assertFalse($log->isFailed());
+        $this->assertSame($held->id, $log->processing_metadata?->toArray()['sermon_adopted']['sermon_id'] ?? null);
+        Queue::assertNotPushed(StoreSermonVideo::class);
+        Bus::assertChained([PrepareSectionPublicationCandidates::class, PromoteHistoricAssets::class, CleanupTemporaryFiles::class]);
     }
 
     #[Test]

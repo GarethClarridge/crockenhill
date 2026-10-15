@@ -33,6 +33,7 @@ use App\Services\Media\Audio\AudioTreatmentSettings;
 use App\Services\Media\Audio\ServiceTranscriptRepetitionScreen;
 use App\Services\Processing\ProcessingRunOrchestrator;
 use App\Services\Processing\SermonMetadataIntegrationService;
+use App\Services\Sermon\BetterSermonRecording;
 use App\Support\MediaProcessingVersion;
 use App\Support\ServiceArtifactDisk;
 use Database\Factories\MediaProcessingLogFactory;
@@ -1868,6 +1869,37 @@ class MediaProcessingLog extends Model
     public function isRetired(): bool
     {
         return $this->superseded_at !== null;
+    }
+
+    /**
+     * The sermon a better recording of this run's service holds, which this run adopted
+     * instead of cutting its own, or null when the run made its own or none.
+     */
+    public function adoptedSermon(): ?Sermon
+    {
+        $sermonId = data_get($this->processing_metadata?->toArray() ?? [], 'sermon_adopted.sermon_id');
+
+        return is_int($sermonId) ? Sermon::query()->find($sermonId) : null;
+    }
+
+    /**
+     * Whether this run holds the sermon a fuller recording of its service adopted
+     * ({@see BetterSermonRecording}): it gave up the service's structure, not its sermon, so
+     * superseding it leaves that sermon to be released and re-cut. A run retired through the
+     * withdrawal path, or excluded, holds nothing.
+     */
+    public function holdsAdoptedSermon(): bool
+    {
+        if ($this->church_service_id === null || $this->retirementRecord() !== null || $this->isExcluded()) {
+            return false;
+        }
+
+        return self::query()
+            ->whereKeyNot($this->getKey())
+            ->where('church_service_id', $this->church_service_id)
+            ->where('processing_metadata->sermon_adopted->holder_processing_id', $this->processing_id)
+            ->get()
+            ->contains(static fn (self $run): bool => ! $run->isExcluded());
     }
 
     /**

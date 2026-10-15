@@ -25,6 +25,7 @@ use App\Services\Processing\ProcessingNotificationRouter;
 use App\Services\Processing\ProcessingRunOrchestrator;
 use App\Services\Processing\SermonMetadataIntegrationService;
 use App\Services\Processing\StorageAdapterHelper;
+use App\Services\Sermon\BetterSermonRecording;
 use App\Services\Sermon\SermonExtractionPlanResolver;
 use App\Support\ChurchServiceProcessingTimeline;
 use App\Support\MediaProcessingVersion;
@@ -117,6 +118,10 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
 
             $plannedDuration = $this->totalPlannedDuration($extractionPlan['segments']);
             $this->recordExtractionPlanAudit($extractionPlan);
+
+            if ($this->concludeWithAdoptedSermon($plannedDuration)) {
+                return;
+            }
 
             Log::info('Starting sermon extraction', [
                 'processing_id' => $this->processingLog->processing_id,
@@ -425,6 +430,38 @@ class ExtractSermon extends ProcessingJob implements ShouldQueue
         $this->chained = [];
 
         app(ProcessingRunOrchestrator::class)->concludeWithoutSermon($this->processingLog);
+
+        return true;
+    }
+
+    /**
+     * Stand down when a better recording of this service already holds the sermon
+     * ({@see BetterSermonRecording}; 894 behind 1126, operator 2026-10-15). Nothing is cut
+     * and the run keeps no sermon of its own, so no later step can write this recording's
+     * transcript, title or video onto the better one's sermon; its song clips still go on.
+     */
+    private function concludeWithAdoptedSermon(float $plannedDuration): bool
+    {
+        $recordings = app(BetterSermonRecording::class);
+        $adopted = $recordings->holderFor($this->processingLog, $plannedDuration);
+
+        if ($adopted === null) {
+            return false;
+        }
+
+        $recordings->adopt($this->processingLog, $adopted);
+
+        $reason = sprintf('Sermon %d, from the better recording %s, is kept; this recording cuts none.',
+            $adopted['sermon']->id, $adopted['holder']->processing_id);
+        $this->logStepSkipped(ChurchServiceProcessingTimeline::EXTRACT_SERMON, $reason);
+        Log::info('Sermon extraction skipped: a better recording of the service holds the sermon', [
+            'processing_id' => $this->processingLog->processing_id,
+            'sermon_id' => $adopted['sermon']->id,
+            'holder_processing_id' => $adopted['holder']->processing_id,
+        ]);
+
+        $this->chained = [];
+        app(ProcessingRunOrchestrator::class)->concludeWithAdoptedSermon($this->processingLog);
 
         return true;
     }

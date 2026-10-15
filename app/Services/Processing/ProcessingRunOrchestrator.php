@@ -190,6 +190,20 @@ class ProcessingRunOrchestrator
     }
 
     /**
+     * Finish a run whose sermon a better recording of the same service already holds: its
+     * song clips are prepared and its custody tail runs, but no sermon of its own is made.
+     */
+    public function concludeWithAdoptedSermon(MediaProcessingLog $processingLog): void
+    {
+        $this->dispatchChain(
+            $this->pipelineBuilder->buildAdoptedSermonServiceChainJobs($processingLog),
+            $this->queueForPipeline($processingLog->processingPipelineProfile()),
+            $processingLog,
+            $this->failureProfileForPipeline($processingLog->processingPipelineProfile()),
+        );
+    }
+
+    /**
      * Attempt to retry a failed or cancelled processing run.
      *
      * Consults the PhaseRegistry to determine a surgical retry plan (either

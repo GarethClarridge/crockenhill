@@ -10,13 +10,16 @@ use App\Actions\FlagSermonAudioPartUntreated;
 use App\Actions\FlagSermonAudioSpeechNearNoise;
 use App\Actions\HoldSectionForContentReview;
 use App\Enums\AudioProfile;
+use App\Enums\ProcessingStatus;
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\ExtractSermon;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\PromoteHistoricAssets;
 use App\Jobs\SubmitToProcessing;
 use App\Mail\ManualReviewRequired;
+use App\Models\ChurchService;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -1335,6 +1338,60 @@ class ExtractSermonTest extends TestCase
         // The custody tail still runs: a sermon-less service has song videos to
         // promote and working copies to release.
         Bus::assertChained([PromoteHistoricAssets::class, CleanupTemporaryFiles::class]);
+    }
+
+    /**
+     * 894 (operator, 2026-10-15): the livestream download of a Sunday whose 1080p local
+     * capture already holds the sermon. The service keeps this run's structure and songs,
+     * so their clips are still prepared, but the sermon stays the better recording's: no
+     * cut, no sermon row, and nothing downstream writes through it.
+     */
+    #[Test]
+    public function it_adopts_the_sermon_a_better_recording_of_the_service_holds(): void
+    {
+        Bus::fake();
+
+        $service = ChurchService::factory()->create();
+        $capture = MediaProcessingLog::factory()->create([
+            'church_service_id' => $service->id,
+            'status' => ProcessingStatus::Completed,
+            'processing_metadata' => ['format_details' => ['height' => 1080, 'bit_rate' => 2_663_497]],
+        ]);
+        $held = Sermon::factory()->create([
+            'livestream_processing_id' => $capture->processing_id,
+            'content_type' => TalkType::Sermon,
+            'duration' => 1790.0,
+        ]);
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'church_service_id' => $service->id,
+            'sermon_start_time' => 300.0,
+            'sermon_end_time' => 2100.0,
+            'source_file_path' => 'livestreams/full-service.mp4',
+            'processing_metadata' => ['format_details' => ['height' => 720, 'bit_rate' => 490_906]],
+        ]);
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Sermon,
+            'start_time' => 300.0,
+            'end_time' => 2100.0,
+            'duration' => 1800.0,
+            'needs_manual_review' => false,
+        ]);
+
+        $mockExtractor = $this->createMock(VideoExtractionService::class);
+        $mockExtractor->expects($this->never())->method('extractMedia');
+
+        $this->runJob(new ExtractSermon($log), $mockExtractor, $this->createStub(VideoStorageService::class));
+
+        $log->refresh();
+
+        $this->assertFalse($log->isFailed());
+        $this->assertNull($log->sermon_id);
+        $this->assertSame(
+            ['sermon_id' => $held->id, 'holder_processing_id' => $capture->processing_id],
+            array_intersect_key($log->processing_metadata?->toArray()['sermon_adopted'] ?? [], array_flip(['sermon_id', 'holder_processing_id'])),
+        );
+        Bus::assertChained([PrepareSectionPublicationCandidates::class, PromoteHistoricAssets::class, CleanupTemporaryFiles::class]);
     }
 
     #[Test]

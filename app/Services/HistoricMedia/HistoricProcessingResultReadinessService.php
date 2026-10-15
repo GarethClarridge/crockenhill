@@ -12,6 +12,7 @@ use App\Enums\ServiceSectionType;
 use App\Jobs\StoreSermonVideo;
 use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
+use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Models\SongVideo;
 use App\Services\Media\Audio\ServiceArtifactStorage;
@@ -33,7 +34,7 @@ class HistoricProcessingResultReadinessService
             $reasons[] = "Processing run is {$processingLog->status->value}, not completed.";
         }
 
-        if ($processingLog->superseded_at !== null) {
+        if ($processingLog->superseded_at !== null && ! $processingLog->holdsAdoptedSermon()) {
             $reasons[] = 'Processing run has been superseded.';
         }
 
@@ -55,7 +56,10 @@ class HistoricProcessingResultReadinessService
         $sermon = $processingLog->sermon;
 
         if ($sermon === null) {
-            $reasons[] = 'Main sermon publication is missing.';
+            // A run that adopted a better recording's sermon publishes none; the holder's run does.
+            if (! $processingLog->adoptedSermon() instanceof Sermon) {
+                $reasons[] = 'Main sermon publication is missing.';
+            }
         } else {
             foreach (['video_file_path', 'transcript_file_path', 'thumbnail_file_path'] as $attribute) {
                 if (blank($sermon->getAttribute($attribute))) {

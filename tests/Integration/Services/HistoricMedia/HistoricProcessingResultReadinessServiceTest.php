@@ -7,6 +7,7 @@ namespace Tests\Integration\Services\HistoricMedia;
 use App\Enums\ProcessingStatus;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Jobs\StoreSermonVideo;
+use App\Models\ChurchService;
 use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -76,6 +77,46 @@ class HistoricProcessingResultReadinessServiceTest extends TestCase
         $this->assertContains('Main sermon publication is missing.', $result->reasons);
         $this->assertContains('Durable service artifact manifest is missing.', $result->reasons);
         $this->assertContains('Durable processing output changed between readiness reads.', $result->reasons);
+    }
+
+    /**
+     * 894 and 1126 (operator, 2026-10-15): the fuller recording wins the service and adopts the
+     * better recording's sermon. The holder is superseded yet still exports its sermon, and the
+     * adopting run, which published none, is not short of one.
+     */
+    #[Test]
+    public function an_adopted_sermon_keeps_both_recordings_exportable(): void
+    {
+        $service = ChurchService::factory()->create();
+        $holder = MediaProcessingLog::factory()->livestream()->completed()->create(['church_service_id' => $service->id]);
+        $sermon = Sermon::factory()->create(['livestream_processing_id' => $holder->processing_id]);
+        $holder->forceFill(['sermon_id' => $sermon->id])->save();
+        $adopting = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'church_service_id' => $service->id,
+            'processing_metadata' => ['sermon_adopted' => ['sermon_id' => $sermon->id, 'holder_processing_id' => $holder->processing_id]],
+        ]);
+        $holder->forceFill(['superseded_at' => now(), 'superseded_by_processing_log_id' => $adopting->id])->save();
+
+        $readiness = app(HistoricProcessingResultReadinessService::class);
+
+        $this->assertNotContains('Processing run has been superseded.', $readiness->audit($holder->fresh())->reasons);
+        $this->assertNotContains('Main sermon publication is missing.', $readiness->audit($adopting->fresh())->reasons);
+    }
+
+    #[Test]
+    public function a_superseded_run_whose_sermon_nothing_adopted_is_still_refused(): void
+    {
+        $service = ChurchService::factory()->create();
+        $winner = MediaProcessingLog::factory()->livestream()->completed()->create(['church_service_id' => $service->id]);
+        $loser = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'church_service_id' => $service->id,
+            'superseded_at' => now(),
+            'superseded_by_processing_log_id' => $winner->id,
+        ]);
+
+        $result = app(HistoricProcessingResultReadinessService::class)->audit($loser);
+
+        $this->assertContains('Processing run has been superseded.', $result->reasons);
     }
 
     #[Test]
