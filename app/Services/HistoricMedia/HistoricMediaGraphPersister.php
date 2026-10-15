@@ -18,6 +18,7 @@ use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use App\Models\SermonProcessingStep;
 use App\Models\SermonScriptureFilter;
+use App\Data\ServiceSectionMetadata;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
@@ -714,7 +715,102 @@ class HistoricMediaGraphPersister
             $sections[$payload['section_key']] = $section;
         }
 
+        $this->relinkMetadataReferences($sections);
+
         return $sections;
+    }
+
+    /**
+     * The export names sections of the run by key and songs by canonical key, since row ids are
+     * local (2026-10-15); the destination's metadata must name its own rows again, or a marker
+     * such as a sermon continuation admits nothing (943). A reference it cannot resolve fails.
+     *
+     * @param  array<string, ServiceSection>  $sections
+     */
+    private function relinkMetadataReferences(array $sections): void
+    {
+        foreach ($sections as $section) {
+            // Reading the cast of a null column instantiates it, and a later save would then write `[]`.
+            if ($section->getRawOriginal('metadata') === null) {
+                continue;
+            }
+
+            $metadata = $section->metadata?->toArray() ?? [];
+            $relinked = $this->localReferences($metadata, $sections);
+
+            if ($relinked !== $metadata) {
+                $section->metadata = ServiceSectionMetadata::fromArray($relinked);
+                $section->save();
+            }
+        }
+    }
+
+    /**
+     * @param  array<mixed>  $value
+     * @param  array<string, ServiceSection>  $sections
+     * @return array<mixed>
+     */
+    private function localReferences(array $value, array $sections): array
+    {
+        $local = [];
+        $sectionId = static function (mixed $key) use ($sections): ?int {
+            if ($key === null) {
+                return null;
+            }
+
+            $section = is_string($key) ? ($sections[$key] ?? null) : null;
+
+            if (! $section instanceof ServiceSection) {
+                throw new RuntimeException('Bundle metadata names an unknown section key.');
+            }
+
+            return $section->id;
+        };
+
+        foreach ($value as $key => $item) {
+            if ($key === 'following_sections' && is_array($item) && array_is_list($item)) {
+                $local[$key] = array_map(function (mixed $following) use ($sections, $sectionId): mixed {
+                    if (! is_array($following) || ! array_key_exists('section_key', $following)) {
+                        return $following;
+                    }
+
+                    $id = $sectionId($following['section_key']);
+                    unset($following['section_key']);
+
+                    return ['id' => $id, ...$this->localReferences($following, $sections)];
+                }, $item);
+
+                continue;
+            }
+
+            if (is_string($key) && preg_match('/(^|_)section_key$/', $key) === 1) {
+                $local[substr($key, 0, -3).'id'] = $sectionId($item);
+
+                continue;
+            }
+
+            if (is_string($key) && preg_match('/(^|_)section_keys$/', $key) === 1 && is_array($item)) {
+                $local[substr($key, 0, -4).'ids'] = array_map($sectionId, array_values($item));
+
+                continue;
+            }
+
+            if (is_string($key) && str_ends_with($key, '_song_canonical_key')) {
+                $songId = $item === null ? null : Song::query()->where('canonical_key', $item)->value('id');
+
+                if ($item !== null && $songId === null) {
+                    throw new RuntimeException('Bundle metadata names an unknown song.');
+                }
+
+                $local[substr($key, 0, -strlen('canonical_key')).'id'] = $songId;
+
+                continue;
+            }
+
+            $local[$key] = is_array($item) ? $this->localReferences($item, $sections) : $item;
+        }
+
+        return $local;
     }
 
     /**

@@ -44,6 +44,11 @@ class HistoricProcessingMetadataSerializer
      * shaped the sections the export carries. Their files stay with the local service
      * artifacts and its backups. `service_structure_recompose` is a pending instruction to
      * compose those draws again, naming a local attempt; it lives only until its job settles.
+     *
+     * `service_structure_retry` records why a detection was retried, and
+     * `structure_redetection_snapshot` the sections copied aside before a re-detection,
+     * with their local item ids. Both are local review history; the sections the export
+     * carries are what they settled into (2026-10-15).
      */
     private const RUNTIME_KEYS = [
         'historic_promotion',
@@ -59,7 +64,9 @@ class HistoricProcessingMetadataSerializer
         'service_structure_ensemble_rulings',
         'service_structure_proposal',
         'service_structure_recompose',
+        'service_structure_retry',
         'source_file_path',
+        'structure_redetection_snapshot',
     ];
 
     /**

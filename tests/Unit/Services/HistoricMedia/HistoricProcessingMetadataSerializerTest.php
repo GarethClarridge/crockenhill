@@ -28,6 +28,22 @@ class HistoricProcessingMetadataSerializerTest extends TestCase
         $this->assertSame(['service_artifacts' => [$rms]], $result);
     }
 
+    /**
+     * 2026-10-15: a retried detection's failure record (949, 964, 1148, 1196, 1210, 1218) and the
+     * sections copied aside before a re-detection are local review state.
+     */
+    #[Test]
+    public function detection_retry_and_redetection_snapshots_stay_local(): void
+    {
+        $result = (new HistoricProcessingMetadataSerializer)->serialize([
+            'rms_log_path' => 'service-transcripts/x.rms.json',
+            'service_structure_retry' => ['generated_at' => '2026-09-28T16:48:11+00:00', 'failure_codes' => ['non_chronological']],
+            'structure_redetection_snapshot' => ['sections' => [['id' => 9, 'metadata' => ['superseded' => ['previous_signature' => ['church_service_item_id' => 1]]]]]],
+        ]);
+
+        $this->assertSame(['rms_log_path' => 'service-transcripts/x.rms.json'], $result);
+    }
+
     #[Test]
     public function it_preserves_supported_durable_blocks_and_removes_runtime_state(): void
     {

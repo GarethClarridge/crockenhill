@@ -12,7 +12,7 @@ use Throwable;
 /**
  * Hold a weekly run's published output when it was written to a holding disk.
  *
- * Deletion trigger: Delete with {@see HoldingDiskCustodyRepair}.
+ * Deletion trigger: Delete alongside {@see HoldingDiskCustodyRepair}.
  */
 class HoldRunOutputOnHoldingDiskCommand extends Command
 {

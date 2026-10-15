@@ -28,6 +28,18 @@ class HistoricProcessingResultReadinessService
     public function audit(MediaProcessingLog $processingLog, ?string $expectedLogicalHash = null): HistoricProcessingResultReadiness
     {
         $processingLog->loadMissing(['sermon', 'processingSteps', 'serviceSections']);
+
+        // An excluded run (a rehearsal, a private occasion) is never exported, so nothing else about it is asked.
+        if ($processingLog->isExcluded()) {
+            $reason = $processingLog->processing_metadata?->toArray()['exclusion']['reason'] ?? 'no reason recorded';
+
+            return new HistoricProcessingResultReadiness(
+                ready: false,
+                reasons: ['Processing run is excluded ('.$reason.'); it is not exported.'],
+                logicalHash: null,
+            );
+        }
+
         $reasons = [];
 
         if ($processingLog->status !== ProcessingStatus::Completed) {

@@ -14,11 +14,21 @@ use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
 use App\Support\CanonicalJson;
+use App\Support\ServiceArtifactDisk;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class HistoricProcessingResultInventory
 {
+    /**
+     * The run's sections by row id, as their export keys, while one build is running: metadata
+     * names sections of its own run by id at any depth, and those become keys.
+     *
+     * @var array<int, string>
+     */
+    private array $sectionKeysById = [];
+
     public function __construct(
         private readonly HistoricProcessingMetadataSerializer $metadataSerializer,
         private readonly HistoricProcessingResultSectionKey $sectionKey,
@@ -73,7 +83,41 @@ class HistoricProcessingResultInventory
                 ->whereKey($serviceItemIds)
                 ->get()
                 ->keyBy('id');
+        $this->sectionKeysById = $sections
+            ->mapWithKeys(fn (ServiceSection $section): array => [$section->id => $this->sectionKey($processingLog, $section, $serviceItems)])
+            ->all();
 
+        try {
+            return $this->inventory($processingLog, $segments, $segmentKeys, $sections, $serviceItems);
+        } finally {
+            $this->sectionKeysById = [];
+        }
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, LivestreamSegment>  $segments
+     * @param  \Illuminate\Support\Collection<int, string>  $segmentKeys
+     * @param  Collection<int, ServiceSection>  $sections
+     * @param  Collection<int|string, ChurchServiceItem>  $serviceItems
+     * @return array{
+     *     processing_key: string,
+     *     run: array<string, mixed>,
+     *     steps: array<int, array<string, mixed>>,
+     *     segments: array<int, array<string, mixed>>,
+     *     sections: array<int, array<string, mixed>>,
+     *     publications: array<int, array<string, mixed>>,
+     *     song_videos: array<int, array<string, mixed>>,
+     *     metadata: array<string, mixed>,
+     *     logical_hash: string
+     * }
+     */
+    private function inventory(
+        MediaProcessingLog $processingLog,
+        \Illuminate\Support\Collection $segments,
+        \Illuminate\Support\Collection $segmentKeys,
+        Collection $sections,
+        Collection $serviceItems,
+    ): array {
         /**
          * The publications read their Scripture settlement out of this, not out
          * of the raw model metadata, so the export and the destination that
@@ -187,7 +231,7 @@ class HistoricProcessingResultInventory
             'section_type' => $section->section_type->value,
             'title' => $section->title,
             'summary' => $section->summary,
-            'metadata' => $this->sectionMetadata($section, $serviceItems),
+            'metadata' => $this->sectionMetadata($log, $section, $serviceItems),
             'start_time' => $section->start_time,
             'end_time' => $section->end_time,
             'duration' => $section->duration,
@@ -412,7 +456,7 @@ class HistoricProcessingResultInventory
      * @param  Collection<int|string, ChurchServiceItem>  $serviceItems
      * @return array<string, mixed>|null
      */
-    private function sectionMetadata(ServiceSection $section, Collection $serviceItems): ?array
+    private function sectionMetadata(MediaProcessingLog $log, ServiceSection $section, Collection $serviceItems): ?array
     {
         if ($section->getRawOriginal('metadata') === null) {
             return null;
@@ -424,7 +468,87 @@ class HistoricProcessingResultInventory
             return null;
         }
 
-        return $this->portableMetadata($metadata, $serviceItems);
+        $metadata = $this->withoutLocalSectionState($metadata);
+        $boundaryInputs = [];
+
+        foreach ($metadata as $key => $value) {
+            if (str_ends_with($key, '_boundary') && is_array($value) && is_array($value['inputs'] ?? null)) {
+                $boundaryInputs[$key] = $this->portableBoundaryInputs($value['inputs'], $serviceItems);
+                unset($metadata[$key]['inputs']);
+            }
+        }
+
+        $portable = $this->portableMetadata($metadata, $serviceItems);
+
+        foreach ($boundaryInputs as $key => $inputs) {
+            $portable[$key]['inputs'] = $inputs;
+        }
+
+        return $portable;
+    }
+
+    /**
+     * Section metadata the round writes that is local history or a local locator (2026-10-15,
+     * when it failed every completed historic run). A sync's `superseded` signatures record the
+     * section it replaced, with local item ids: history, dropped. A content hold travels, since
+     * holds follow content, but the item it was on is a local id its span and transcript hash
+     * already locate.
+     *
+     * @param  array<string, mixed>  $metadata
+     * @return array<string, mixed>
+     */
+    private function withoutLocalSectionState(array $metadata): array
+    {
+        unset($metadata['superseded']);
+
+        if (is_array($metadata['content_holds'] ?? null)) {
+            $metadata['content_holds'] = array_map(static function (mixed $hold): mixed {
+                if (is_array($hold)) {
+                    unset($hold['church_service_item_id']);
+                }
+
+                return $hold;
+            }, $metadata['content_holds']);
+        }
+
+        return $metadata;
+    }
+
+    /**
+     * The files a boundary decision read: service artifacts, which the run's own metadata
+     * carries as portable relative paths, so they are allowed here on the same terms.
+     *
+     * @param  array<mixed>  $inputs
+     * @param  Collection<int|string, ChurchServiceItem>  $serviceItems
+     * @return array<mixed>
+     */
+    private function portableBoundaryInputs(array $inputs, Collection $serviceItems): array
+    {
+        $portable = [];
+
+        foreach ($inputs as $name => $input) {
+            if (! is_array($input)) {
+                $portable[$name] = $input;
+
+                continue;
+            }
+
+            $path = $input['path'] ?? null;
+            unset($input['path']);
+            $input = $this->portableMetadataValue($input, $serviceItems, false);
+
+            if ($path !== null) {
+                if (! is_string($path) || ! str_starts_with($path, ServiceArtifactDisk::DURABLE_PREFIX) || str_contains($path, '..')) {
+                    throw new RuntimeException('Historic durable metadata contains a boundary input outside the service artifacts.');
+                }
+
+                $input['path'] = $path;
+            }
+
+            $portable[$name] = $input;
+        }
+
+        return $portable;
     }
 
     /**
@@ -539,6 +663,64 @@ class HistoricProcessingResultInventory
                 continue;
             }
 
+            /**
+             * References the round's decisions record (2026-10-15): a section of this run by
+             * its export key (the persister maps it back), a song by its canonical key, as
+             * `song_id` above. Anything else of that shape still fails below.
+             */
+            if (preg_match('/(^|_)section_id$/', $key) === 1) {
+                $portable[substr($key, 0, -2).'key'] = $this->sectionReference($value);
+
+                continue;
+            }
+
+            if (preg_match('/(^|_)section_ids$/', $key) === 1 && is_array($value)) {
+                $portable[substr($key, 0, -3).'keys'] = array_map(fn (mixed $id): ?string => $this->sectionReference($id), array_values($value));
+
+                continue;
+            }
+
+            if ($key === 'following_sections' && is_array($value) && array_is_list($value)) {
+                $portable[$key] = array_map(function (mixed $following) use ($serviceItems, $allowAssetPaths): mixed {
+                    if (! is_array($following) || ! array_key_exists('id', $following)) {
+                        return $following;
+                    }
+
+                    $sectionKey = $this->sectionReference($following['id']);
+                    unset($following['id']);
+
+                    return ['section_key' => $sectionKey, ...$this->portableMetadataValue($following, $serviceItems, $allowAssetPaths)];
+                }, $value);
+
+                continue;
+            }
+
+            if (str_ends_with($key, '_song_id')) {
+                $songKey = $this->songCanonicalKey(is_numeric($value) ? (int) $value : null, $serviceItems);
+
+                if ($value !== null && $songKey === null) {
+                    throw new RuntimeException("Historic durable metadata contains an unresolved song identity in {$key}.");
+                }
+
+                $portable[substr($key, 0, -2).'canonical_key'] = $songKey;
+
+                continue;
+            }
+
+            /** A publication candidate's UUID is minted, not a local row, so it travels like `processing_id`. */
+            if ($key === 'candidate_id' && is_string($value) && Str::isUuid($value)) {
+                $portable[$key] = $value;
+
+                continue;
+            }
+
+            /** A null identity names nothing local. */
+            if ($value === null && HistoricProcessingResultFieldClassifier::isIdentityKey($key)) {
+                $portable[$key] = null;
+
+                continue;
+            }
+
             if (
                 HistoricProcessingResultFieldClassifier::isPathKey($key)
                 && (! $allowAssetPaths || ! in_array($key, [
@@ -574,6 +756,21 @@ class HistoricProcessingResultInventory
         }
 
         return $portable;
+    }
+
+    private function sectionReference(mixed $id): ?string
+    {
+        if ($id === null) {
+            return null;
+        }
+
+        $sectionKey = is_numeric($id) ? ($this->sectionKeysById[(int) $id] ?? null) : null;
+
+        if ($sectionKey === null) {
+            throw new RuntimeException('Historic durable metadata names a section outside the run.');
+        }
+
+        return $sectionKey;
     }
 
     /** @param Collection<int|string, ChurchServiceItem>|null $serviceItems */

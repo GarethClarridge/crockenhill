@@ -103,6 +103,20 @@ class HistoricProcessingResultReadinessServiceTest extends TestCase
         $this->assertNotContains('Main sermon publication is missing.', $readiness->audit($adopting->fresh())->reasons);
     }
 
+    /** An excluded run (a rehearsal, a private occasion) is never exported, whatever its metadata holds. */
+    #[Test]
+    public function an_excluded_run_is_not_exported(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'processing_metadata' => ['exclusion' => ['reason' => 'private_occasion', 'evidence' => ['note' => 'funeral']]],
+        ]);
+
+        $result = app(HistoricProcessingResultReadinessService::class)->audit($run);
+
+        $this->assertFalse($result->ready);
+        $this->assertSame(['Processing run is excluded (private_occasion); it is not exported.'], $result->reasons);
+    }
+
     #[Test]
     public function a_superseded_run_whose_sermon_nothing_adopted_is_still_refused(): void
     {

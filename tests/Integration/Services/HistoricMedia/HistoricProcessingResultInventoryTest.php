@@ -287,6 +287,166 @@ class HistoricProcessingResultInventoryTest extends TestCase
         $this->assertSame(0.975, $metadata['talk_speaker']['predicted']['confidence']);
     }
 
+    /**
+     * 2026-10-15: none of 368 completed historic runs passed export, each on a section metadata
+     * field written after the export's classification: the sync's superseded signatures (359
+     * runs), content holds (71), boundary inputs and a sermon continuation's sermon.
+     */
+    #[Test]
+    public function it_classifies_the_section_metadata_the_round_writes(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create([
+            'processing_id' => 'round-section-metadata',
+        ]);
+        $sermon = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_order' => 1,
+            'section_type' => ServiceSectionType::Sermon,
+            'source_segment_ids' => [],
+            'metadata' => [
+                'superseded' => [
+                    'previous_signature' => ['church_service_item_id' => 7173, 'start_time' => 10.0],
+                    'next_signature' => ['church_service_item_id' => 7174, 'start_time' => 12.0],
+                ],
+                'content_holds' => [[
+                    'reason' => 'short_transcript_loop_source_mismatch',
+                    'start_time' => 10.0,
+                    'end_time' => 900.0,
+                    'transcript_sha256' => 'abc',
+                    'church_service_item_id' => 7173,
+                ]],
+                'short_talk_boundary' => [
+                    'inputs' => [
+                        'service_transcript' => ['path' => 'service-transcripts/2022-12-10/morning-x.normalized.json', 'status' => 'available'],
+                    ],
+                    'decision' => 'kept',
+                ],
+            ],
+        ]);
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_order' => 2,
+            'section_type' => ServiceSectionType::Other,
+            'source_segment_ids' => [],
+            'metadata' => [
+                'sermon_continuation' => ['of_section_id' => $sermon->id, 'evidence' => 'This continues the sermon.', 'source' => 'detector_notes'],
+            ],
+        ]);
+
+        $graph = app(HistoricProcessingResultInventory::class)->build($run->fresh());
+        [$sermonPayload, $continuationPayload] = $graph['sections'];
+
+        $this->assertArrayNotHasKey('superseded', $sermonPayload['metadata']);
+        // The JSON column re-sorts keys and drops `.0`, so these compare by value.
+        $this->assertEquals([[
+            'reason' => 'short_transcript_loop_source_mismatch',
+            'start_time' => 10.0,
+            'end_time' => 900.0,
+            'transcript_sha256' => 'abc',
+        ]], $sermonPayload['metadata']['content_holds']);
+        $this->assertSame(
+            'service-transcripts/2022-12-10/morning-x.normalized.json',
+            $sermonPayload['metadata']['short_talk_boundary']['inputs']['service_transcript']['path'],
+        );
+        $this->assertEquals([
+            'of_section_key' => $sermonPayload['section_key'],
+            'evidence' => 'This continues the sermon.',
+            'source' => 'detector_notes',
+        ], $continuationPayload['metadata']['sermon_continuation']);
+    }
+
+    /**
+     * The section, song and candidate references the round's decisions record, at any depth:
+     * sections of the run become their keys, songs their canonical keys, candidate UUIDs travel,
+     * and a null identity names nothing local.
+     */
+    #[Test]
+    public function it_makes_section_song_and_candidate_references_portable(): void
+    {
+        $song = Song::factory()->create(['canonical_key' => 'song:amazing-grace']);
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create(['processing_id' => 'portable-references']);
+        $reading = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id, 'church_service_item_id' => null, 'section_order' => 1,
+            'section_type' => ServiceSectionType::BibleReading, 'source_segment_ids' => [],
+        ]);
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id, 'church_service_item_id' => null, 'section_order' => 2,
+            'section_type' => ServiceSectionType::Sermon, 'source_segment_ids' => [],
+            'metadata' => [
+                'sermon_boundary' => [
+                    'sermon_section_id' => null,
+                    'bible_section_id' => $reading->id,
+                    'selected_section_ids' => [$reading->id],
+                ],
+                'short_talk_boundary' => ['following_sections' => [['id' => $reading->id, 'type' => 'bible_reading']]],
+                'lyric_identity_check' => ['bound_song_id' => $song->id, 'rival_song_id' => null],
+                'publication_candidate_extraction' => ['candidate_id' => 'f5075315-2c1f-4e4f-8fd4-a99ed2ef35ea'],
+                'publication' => ['demoted' => ['previously_published_sermon_id' => null]],
+            ],
+        ]);
+
+        $graph = app(HistoricProcessingResultInventory::class)->build($run->fresh());
+        $readingKey = $graph['sections'][0]['section_key'];
+        $metadata = $graph['sections'][1]['metadata'];
+
+        $this->assertEquals(['sermon_section_key' => null, 'bible_section_key' => $readingKey, 'selected_section_keys' => [$readingKey]], $metadata['sermon_boundary']);
+        $this->assertSame([['section_key' => $readingKey, 'type' => 'bible_reading']], $metadata['short_talk_boundary']['following_sections']);
+        $this->assertEquals(['bound_song_canonical_key' => 'song:amazing-grace', 'rival_song_canonical_key' => null], $metadata['lyric_identity_check']);
+        $this->assertSame('f5075315-2c1f-4e4f-8fd4-a99ed2ef35ea', $metadata['publication_candidate_extraction']['candidate_id']);
+        $this->assertNull($metadata['publication']['demoted']['previously_published_sermon_id']);
+    }
+
+    #[Test]
+    public function it_still_rejects_a_local_identity_it_cannot_translate(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create(['processing_id' => 'untranslatable-identity']);
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id, 'church_service_item_id' => null, 'section_order' => 1, 'source_segment_ids' => [],
+            'metadata' => ['publication' => ['demoted' => ['previously_published_sermon_id' => 42]]],
+        ]);
+
+        $this->expectException(RuntimeException::class);
+
+        app(HistoricProcessingResultInventory::class)->build($run->fresh());
+    }
+
+    #[Test]
+    public function it_rejects_an_absolute_boundary_input_path(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create(['processing_id' => 'absolute-boundary-input']);
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_order' => 1,
+            'source_segment_ids' => [],
+            'metadata' => ['song_publication_boundary' => ['inputs' => ['rms_log' => ['path' => '/var/www/html/storage/x.rms.json']]]],
+        ]);
+
+        $this->expectException(RuntimeException::class);
+
+        app(HistoricProcessingResultInventory::class)->build($run->fresh());
+    }
+
+    #[Test]
+    public function it_rejects_a_sermon_continuation_naming_another_runs_section(): void
+    {
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create(['processing_id' => 'foreign-continuation']);
+        $foreign = ServiceSection::factory()->create(['source_segment_ids' => []]);
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_order' => 1,
+            'source_segment_ids' => [],
+            'metadata' => ['sermon_continuation' => ['of_section_id' => $foreign->id, 'evidence' => 'x']],
+        ]);
+
+        $this->expectException(RuntimeException::class);
+
+        app(HistoricProcessingResultInventory::class)->build($run->fresh());
+    }
+
     #[Test]
     public function it_rejects_unclassified_relative_metadata_paths(): void
     {

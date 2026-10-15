@@ -23,6 +23,7 @@ use App\Models\Preacher;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
+use App\Models\Song;
 use App\Services\HistoricMedia\HistoricMediaGraphPersister;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
@@ -292,6 +293,51 @@ class HistoricMediaGraphPersisterTest extends TestCase
      * metadata is the only place the curated fact can land. Losing it here means
      * the one-time import destroyed a fact that cannot be re-derived.
      */
+    /** The export names sections by key and songs by canonical key; the destination needs its own row ids (943). */
+    #[Test]
+    public function it_relinks_section_and_song_references_to_destination_rows(): void
+    {
+        $song = Song::factory()->create(['canonical_key' => 'song:relinked']);
+        $unpublished = [
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+            'extracted_video_path' => null,
+            'extracted_audio_path' => null,
+            'extracted_at' => null,
+            'published_at' => null,
+        ];
+
+        app(HistoricMediaGraphPersister::class)->persist($this->planWithGraph(
+            processingId: '00000000-0000-0000-0000-000000000043',
+            sections: [
+                $this->section('sermon-key', $unpublished),
+                $this->section('continuation-key', [
+                    ...$unpublished,
+                    'section_order' => 2,
+                    'section_type' => ServiceSectionType::Other->value,
+                    'start_time' => 60.0,
+                    'end_time' => 90.0,
+                    'duration' => 30.0,
+                    'metadata' => [
+                        'sermon_continuation' => ['of_section_key' => 'sermon-key', 'evidence' => 'This continues the sermon.', 'source' => 'detector_notes'],
+                        'short_talk_boundary' => ['following_sections' => [['section_key' => 'sermon-key', 'type' => 'sermon']]],
+                        'lyric_identity_check' => ['bound_song_canonical_key' => 'song:relinked', 'rival_song_canonical_key' => null],
+                    ],
+                ]),
+            ],
+        ));
+
+        $run = MediaProcessingLog::query()->where('processing_id', '00000000-0000-0000-0000-000000000043')->sole();
+        $sermon = $run->serviceSections()->where('section_order', 1)->sole();
+        $continuation = $run->serviceSections()->where('section_order', 2)->sole();
+
+        $metadata = $continuation->metadata->toArray();
+
+        $this->assertTrue($continuation->metadata?->sermonContinuation?->continues($sermon->id));
+        $this->assertArrayNotHasKey('of_section_key', $metadata['sermon_continuation']);
+        $this->assertSame([['id' => $sermon->id, 'type' => 'sermon']], $metadata['short_talk_boundary']['following_sections']);
+        $this->assertSame(['bound_song_id' => $song->id, 'rival_song_id' => null], $metadata['lyric_identity_check']);
+    }
+
     #[Test]
     public function it_lands_curated_editorial_facts_on_the_destination_run(): void
     {

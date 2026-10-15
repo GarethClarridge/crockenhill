@@ -16,7 +16,7 @@ use Throwable;
  * evidence (894, 2026-10-15: a fuller recording could keep the service and adopt the
  * better recording's sermon). The exclusion stays on record beside its rescission.
  *
- * Deletion trigger: Delete with {@see ExcludeHistoricRunCommand}.
+ * Deletion trigger: Delete alongside {@see ExcludeHistoricRunCommand}.
  */
 class RescindHistoricRunExclusionCommand extends Command
 {
