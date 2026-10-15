@@ -20,6 +20,7 @@ use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Services\Preacher\PreacherResolutionService;
+use App\Support\MediaAssetPath;
 use App\Support\PlaceholderSermonTitle;
 use App\Traits\SanitizesLogData;
 use Illuminate\Database\Eloquent\Builder;
@@ -525,7 +526,7 @@ class SermonCreationService
             $preacher,
         );
 
-        if ($processingLog->historic_import_operation_id !== null) {
+        if ($processingLog->historic_import_operation_id !== null || MediaAssetPath::holdingDisk() !== null) {
             $sermonData['publication_state'] = SermonPublicationState::Quarantined;
             $sermonData['asset_disk'] = $this->sermonDisk();
             $sermonData['historic_import_operation_id'] = $processingLog->historic_import_operation_id;

@@ -11,6 +11,7 @@ use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
 use App\Services\HistoricMedia\HistoricStagingUrlGuard;
+use App\Support\MediaAssetPath;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -169,7 +170,7 @@ class SongVideoService
             'publication_state' => SermonPublicationState::Published,
         ];
 
-        if ($processingLog->historic_import_operation_id !== null) {
+        if ($processingLog->historic_import_operation_id !== null || MediaAssetPath::holdingDisk() !== null) {
             $attributes['publication_state'] = SermonPublicationState::Quarantined;
             $attributes['asset_disk'] = $this->sermonDisk();
             $attributes['historic_import_operation_id'] = $processingLog->historic_import_operation_id;

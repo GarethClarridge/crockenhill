@@ -66,6 +66,24 @@ class SermonCreationServiceTest extends TestCase
         self::assertSame('sermons/audio/retained.mp3', $existing->fresh()->audio_file_path);
     }
 
+    /** 893 (2026-10-15): a weekly run in the round published its sermon onto the staging disk. */
+    #[Test]
+    public function a_weekly_run_writing_to_a_holding_disk_holds_its_sermon(): void
+    {
+        config(['media-processing.storage.sermon_disk' => 'historic_staging']);
+        $log = MediaProcessingLog::factory()->livestream()->create([
+            'extracted_date' => '2024-11-17',
+            'extracted_service' => SermonService::Morning,
+            'audio_file_path' => 'sermons/audio/weekly.mp3',
+        ]);
+
+        $sermon = $this->service->createSermon($log, SermonCreationOptions::fromLivestream($log, []))->refresh();
+
+        $this->assertSame(SermonPublicationState::Quarantined, $sermon->publication_state);
+        $this->assertSame('historic_staging', $sermon->asset_disk);
+        $this->assertNull($sermon->historic_import_operation_id);
+    }
+
     #[Test]
     public function it_extracts_date_from_processing_log_column(): void
     {

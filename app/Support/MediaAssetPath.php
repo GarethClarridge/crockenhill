@@ -31,4 +31,24 @@ final class MediaAssetPath
     {
         return (string) config('media-processing.storage.sermon_disk', config('filesystems.default', 'local'));
     }
+
+    /**
+     * The sermon disk when it is a private holding disk, null when it is where media is published.
+     *
+     * An environment whose sermon disk is historic staging or quarantine (the follow-up round's
+     * frozen clone) writes nothing a viewer may reach, so what it makes is held whichever lane made
+     * it: quarantined, naming the disk its bytes are on. A weekly run there published straight
+     * away, with no disk recorded, and its thumbnail candidates resolved to the public bucket
+     * (893, 2026-10-15). Production's sermon disk publishes, so routine processing is unchanged.
+     */
+    public static function holdingDisk(): ?string
+    {
+        $disk = self::disk();
+        $holding = [
+            config('media-processing.storage.historic_staging_disk'),
+            config('media-processing.storage.historic_quarantine_disk'),
+        ];
+
+        return in_array($disk, $holding, true) ? $disk : null;
+    }
 }

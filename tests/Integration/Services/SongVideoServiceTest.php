@@ -312,6 +312,34 @@ class SongVideoServiceTest extends TestCase
         $this->assertSame($operation->id, $video->historic_import_operation_id);
     }
 
+    /** 890, 893 and 894 (2026-10-15): weekly runs in the round published their clips onto the staging disk. */
+    #[Test]
+    public function a_weekly_extraction_onto_a_holding_disk_is_held(): void
+    {
+        config()->set('media-processing.storage.sermon_disk', 'historic_quarantine');
+
+        $churchService = ChurchService::factory()->create(['date' => '2024-11-17']);
+        $song = Song::factory()->create();
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id,
+            'song_id' => $song->id,
+        ]);
+        $processingLog = MediaProcessingLog::factory()->livestream()->create(['church_service_id' => $churchService->id]);
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+        ]);
+
+        $video = $this->service->createFromExtraction($section, 'sermons/songs/'.$song->id.'/'.$section->id.'.mp4');
+
+        $this->assertSame(SermonPublicationState::Quarantined, $video->publication_state);
+        $this->assertSame('historic_quarantine', $video->asset_disk);
+        $this->assertNull($video->historic_import_operation_id);
+    }
+
     #[Test]
     public function it_resolves_a_recorded_asset_disk_after_global_storage_changes(): void
     {
