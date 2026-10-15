@@ -87,11 +87,12 @@ class ServiceStructureEnsembleRulingApplierTest extends TestCase
 
     /**
      * F06: each answer made room for itself by trimming its neighbours, including content
-     * another answer had settled, and both were then recorded as applied. Neither answer
-     * order may decide which operator decision owns the overlap.
+     * another answer had settled, so answer order decided which owned the overlap. 1096
+     * (operator, 2026-10-14): a stretch can end one item and begin the next, so a seam two
+     * answers share stays in both, whichever order they are applied in.
      */
     #[Test]
-    public function answers_whose_settled_content_overlaps_remain_unresolved_in_either_order(): void
+    public function answers_sharing_a_seam_both_keep_their_edges_in_either_order(): void
     {
         $reading = $this->section(ServiceSectionType::BibleReading, 100, 200);
         $talk = $this->section(ServiceSectionType::ShortTalk, 220, 300);
@@ -108,10 +109,10 @@ class ServiceStructureEnsembleRulingApplierTest extends TestCase
         foreach ([$answers, array_reverse($answers)] as $ordered) {
             $result = $applier->apply($proposal, $ordered);
 
-            $this->assertSame([], $result['applied_rulings']);
-            $this->assertCount(2, $result['conflicting_rulings']);
-            $this->assertCount(2, $result['disputes']);
-            $this->assertSame([['bible_reading', 100.0, 200.0], ['short_talk', 220.0, 300.0]], $this->spans($result));
+            $this->assertCount(2, $result['applied_rulings']);
+            $this->assertSame([], $result['conflicting_rulings']);
+            $this->assertSame([], $result['disputes']);
+            $this->assertSame([['bible_reading', 100.0, 200.0], ['short_talk', 180.0, 300.0]], $this->spans($result));
         }
     }
 
@@ -148,14 +149,14 @@ class ServiceStructureEnsembleRulingApplierTest extends TestCase
         $this->assertSame([], $repeated['conflicting_rulings']);
     }
 
-    /** Fresh draws that raise no question still cannot let one of two overlapping answers win. */
+    /** Fresh draws that raise no question still cannot let one of two grossly overlapping answers win. */
     #[Test]
     public function overlapping_answers_against_unanimous_output_reopen_their_questions(): void
     {
         $unanimous = [...$this->proposal(), 'disputes' => []];
         $answers = [
             [...$this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::ShortTalk, 100, 280)->toArray()]]), 'question' => ['question_id' => 'talk-question', 'type' => 'short_talk', 'start_time' => 100.0, 'end_time' => 200.0]],
-            [...$this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::Sermon, 240, 500)->toArray()]], 'sermon-ruling'),
+            [...$this->ruling('choose', ['sections' => [$this->section(ServiceSectionType::Sermon, 150, 500)->toArray()]], 'sermon-ruling'),
                 'scope' => ['type' => 'sermon', 'start_time' => 250.0, 'end_time' => 500.0], 'question' => ['question_id' => 'sermon-question', 'type' => 'sermon', 'start_time' => 250.0, 'end_time' => 500.0]],
         ];
 
@@ -288,12 +289,11 @@ class ServiceStructureEnsembleRulingApplierTest extends TestCase
     }
 
     /**
-     * Full pass, 1343: the chosen talk ran five seconds past the start of the chosen song. A
-     * song's spoken introduction may be in or out of it (operator, 2026-10-10: don't ask), so
-     * the crossing is not a question: the song keeps its edge.
+     * Full pass, 1343: the chosen talk ran five seconds past the start of the chosen song. The
+     * seam is in both clips; neither answer trims the other.
      */
     #[Test]
-    public function a_talk_crossing_a_song_edge_yields_the_crossing_to_the_song(): void
+    public function a_talk_sharing_a_seam_with_a_song_keeps_its_end(): void
     {
         $proposal = [...$this->proposalOf([
             $this->section(ServiceSectionType::ShortTalk, 218, 486),
@@ -315,11 +315,11 @@ class ServiceStructureEnsembleRulingApplierTest extends TestCase
 
             $this->assertSame([], $result['conflicting_rulings']);
             $this->assertCount(2, $result['applied_rulings']);
-            $this->assertSame([['short_talk', 218.0, 481.0], ['song', 481.0, 660.0]], $this->spans($result));
+            $this->assertSame([['short_talk', 218.0, 486.0], ['song', 481.0, 660.0]], $this->spans($result));
         }
     }
 
-    /** Two answers of different types that each claim part of the other stay a clash. */
+    /** Two answers of different types where one lies mostly inside the other, and neither contains it, stay a clash. */
     #[Test]
     public function a_sermon_answer_crossing_part_of_another_item_stays_unresolved(): void
     {
@@ -340,6 +340,66 @@ class ServiceStructureEnsembleRulingApplierTest extends TestCase
 
         $this->assertCount(2, $result['conflicting_rulings']);
         $this->assertCount(2, $result['disputes']);
+    }
+
+    /**
+     * Full pass, 1042: the operator chose the version of the closing hymn that starts 3s after
+     * the composed one. Inserted beside it, the choice left a 3s sliver of the same hymn and
+     * failed validation as a duplicate order-of-service item.
+     */
+    #[Test]
+    public function choosing_an_unwritten_version_replaces_the_composed_section_it_mostly_covers(): void
+    {
+        $hymn = new ServiceStructureSection(ServiceSectionType::Song, 'Hail the Day', 4140.0, 4332.1, 0.95, 4790, null, null);
+        $chosen = new ServiceStructureSection(ServiceSectionType::Song, 'Hail the Day That Sees Him Rise', 4143.3, 4332.1, 0.95, 4790, null, null);
+        $proposal = $this->proposalOf([$this->section(ServiceSectionType::Sermon, 2000, 4100), $hymn],
+            ['type' => 'song', 'written' => false, 'start_time' => 4143.3, 'end_time' => 4332.1]);
+
+        $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($proposal, [
+            [...$this->ruling('choose', ['sections' => [$chosen->toArray()]]), 'scope' => ['type' => 'song', 'start_time' => 4143.3, 'end_time' => 4332.1]],
+        ]);
+
+        $this->assertSame([['sermon', 2000.0, 4100.0], ['song', 4143.3, 4332.1]], $this->spans($result));
+        $this->assertSame([], $result['disputes']);
+    }
+
+    /**
+     * Full pass, 1004: "either version is fine" names the section the question was about, but
+     * the edge rules had since moved its end (4191.9s to 4184.2s), so an exact match found
+     * nothing and the answer was refused.
+     *
+     * @param  array{0: float, 1: float}  $asked
+     */
+    #[Test]
+    #[DataProvider('sectionsAQuestionNames')]
+    public function a_question_names_its_section_by_its_times_or_the_closest_fit_of_its_type(array $asked, ?int $expected): void
+    {
+        $sections = [
+            $this->section(ServiceSectionType::Song, 3900, 4110),
+            $this->section(ServiceSectionType::Song, 4120, 4184.2),
+            $this->section(ServiceSectionType::Prayer, 4120, 4191.9),
+        ];
+
+        $this->assertSame($expected, ServiceStructureEnsembleRulingApplier::sectionFor($sections, ['type' => 'song', 'start_time' => $asked[0], 'end_time' => $asked[1]]));
+    }
+
+    /** @return array<string, array<int, mixed>> */
+    public static function sectionsAQuestionNames(): array
+    {
+        return [
+            'exact times' => [[3900.0, 4110.0], 0],
+            'an edge moved after the question' => [[4120.0, 4191.9], 1],
+            'mostly another section' => [[4000.0, 4300.0], null],
+        ];
+    }
+
+    #[Test]
+    public function a_question_equally_close_to_two_sections_names_neither(): void
+    {
+        $sections = [$this->section(ServiceSectionType::Song, 100, 200), $this->section(ServiceSectionType::Song, 200, 300)];
+
+        $this->assertNull(ServiceStructureEnsembleRulingApplier::sectionFor($sections, ['type' => 'song', 'start_time' => 100.0, 'end_time' => 300.0]));
+        $this->assertSame(0, ServiceStructureEnsembleRulingApplier::sectionFor($sections, ['type' => 'song', 'start_time' => 100.0, 'end_time' => 290.0]));
     }
 
     #[Test]
@@ -476,6 +536,44 @@ class ServiceStructureEnsembleRulingApplierTest extends TestCase
         $this->assertCount(1, $reading['applied_rulings']);
         $this->assertSame('Luke 15:11-32', $sermon['structure']['sections'][1]['sermon_reference']);
         $this->assertCount(1, $sermon['applied_rulings']);
+    }
+
+    /**
+     * 987: the composition flagged the sermon because no reading was written; the operator's
+     * answer wrote the reading it preached, so the flag no longer holds.
+     */
+    #[Test]
+    public function an_answered_reading_clears_the_missing_preached_reading_flag(): void
+    {
+        $reading = new ServiceStructureSection(ServiceSectionType::BibleReading, null, 100, 200, 0.95, null, null, 'Luke 15:11-32');
+        $sermon = (new ServiceStructureSection(ServiceSectionType::Sermon, null, 250, 500, 0.95, null, null, null, 'Luke 15:11-32'))
+            ->withReviewFlags([ServiceStructureValidator::FLAG_MISSING_PREACHED_READING]);
+        $proposal = $this->proposalOf([$sermon], ['type' => 'bible_reading', 'written' => false, 'start_time' => 100.0, 'end_time' => 200.0]);
+
+        $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($proposal, [[
+            ...$this->ruling('choose', ['sections' => [$reading->toArray()]], 'reading-ruling'),
+            'scope' => ['type' => 'bible_reading', 'start_time' => 100.0, 'end_time' => 200.0],
+        ]]);
+
+        $this->assertSame([['bible_reading', 100.0, 200.0], ['sermon', 250.0, 500.0]], $this->spans($result));
+        $this->assertNotContains(ServiceStructureValidator::FLAG_MISSING_PREACHED_READING, $result['structure']['sections'][1]['review_flags']);
+    }
+
+    /** The other way: an answer removing the only reading before the sermon leaves it bare. */
+    #[Test]
+    public function an_answer_removing_the_preached_reading_flags_the_sermon(): void
+    {
+        $reading = new ServiceStructureSection(ServiceSectionType::BibleReading, null, 100, 200, 0.95, null, null, 'Luke 15:11-32');
+        $sermon = new ServiceStructureSection(ServiceSectionType::Sermon, null, 250, 500, 0.95, null, null, null, 'Luke 15:11-32');
+        $proposal = $this->proposalOf([$reading, $sermon], ['type' => 'bible_reading', 'written' => true, 'start_time' => 100.0, 'end_time' => 200.0]);
+
+        $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($proposal, [[
+            ...$this->ruling('remove', ['absent' => true], 'reading-ruling'),
+            'scope' => ['type' => 'bible_reading', 'start_time' => 100.0, 'end_time' => 200.0],
+        ]]);
+
+        $this->assertSame([['sermon', 250.0, 500.0]], $this->spans($result));
+        $this->assertContains(ServiceStructureValidator::FLAG_MISSING_PREACHED_READING, $result['structure']['sections'][0]['review_flags']);
     }
 
     #[Test]

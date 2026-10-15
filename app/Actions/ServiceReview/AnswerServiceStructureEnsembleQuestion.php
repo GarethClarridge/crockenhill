@@ -326,12 +326,11 @@ class AnswerServiceStructureEnsembleQuestion
      */
     private function writtenSection(array $question, array $before): ServiceStructureSection
     {
-        foreach (ServiceStructure::fromArray($before['structure'])->sections as $section) {
-            if ($section->type->value === ($question['type'] ?? null)
-                && $section->startTime === ($question['start_time'] ?? null)
-                && $section->endTime === ($question['end_time'] ?? null)) {
-                return $section;
-            }
+        $sections = ServiceStructure::fromArray($before['structure'])->sections;
+        $index = ServiceStructureEnsembleRulingApplier::sectionFor($sections, $question);
+
+        if ($index !== null) {
+            return $sections[$index];
         }
 
         throw new InvalidArgumentException('The disputed section no longer matches the proposal.');

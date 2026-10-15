@@ -1339,16 +1339,23 @@ class ServiceStructureEnsembleComposer
      * Flags each sermon extraction could cut no reading into, by the resolver's own membership
      * rule: a reading that matches, shares verses or has no reference could be the preached
      * one, however far before the sermon it starts; only unrelated readings leave it bare.
+     * The flag is decided afresh, so an operator's answer that writes or removes a reading
+     * (987) settles it too.
      *
      * @param  list<ServiceStructureSection>  $sections
      * @return list<ServiceStructureSection>
      */
-    private function flagMissingPreachedReading(array $sections): array
+    public function flagMissingPreachedReading(array $sections): array
     {
         foreach ($sections as $index => $sermon) {
             if ($sermon->type !== ServiceSectionType::Sermon) {
                 continue;
             }
+
+            $sermon = $sermon->withoutReviewFlags()->withReviewFlags(
+                array_values(array_diff($sermon->reviewFlags, [ServiceStructureValidator::FLAG_MISSING_PREACHED_READING])),
+            );
+            $sections[$index] = $sermon;
 
             $readings = array_map(
                 static fn (ServiceStructureSection $reading): ?string => $reading->readingReference,

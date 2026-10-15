@@ -123,6 +123,7 @@ class ServiceStructureEnsembleRulingApplier
 
         $keyByDispute = array_flip($pairs);
         $reopened = [];
+        $settled = [];
         [$resolutions, $honoured] = $this->reconcileNestedClaims($current, $alreadyAbsent);
 
         foreach ($this->overlappingClaims($current, $alreadyAbsent, $resolutions, $honoured) as $key) {
@@ -205,7 +206,8 @@ class ServiceStructureEnsembleRulingApplier
                 throw new InvalidArgumentException('An ensemble answer has no recorded resolution.');
             }
 
-            $sections = $this->settle($sections, $this->targetIndex($sections, $dispute), $resolution);
+            $sections = $this->settle($sections, $this->targetIndex($sections, $dispute, $resolution), $resolution, $settled);
+            array_push($settled, ...(($resolution['absent'] ?? false) === true ? [] : $this->resolvedSections($resolution)));
             $applied[] = $answer;
 
             if ($kind === 'accept' && ($dispute['written'] ?? false) !== true && is_string($type)
@@ -237,7 +239,8 @@ class ServiceStructureEnsembleRulingApplier
             $settling = isset($resolutions[$key]) ? [...$answer, 'resolution' => $resolutions[$key]] : $answer;
 
             if ($this->contradicted($sections, $target, $settling)) {
-                $sections = $this->settle($sections, $target, $settling['resolution']);
+                $sections = $this->settle($sections, $target, $settling['resolution'], $settled);
+                array_push($settled, ...(($settling['resolution']['absent'] ?? false) === true ? [] : $this->resolvedSections($settling['resolution'])));
                 $applied[] = $answer;
 
                 continue;
@@ -267,6 +270,7 @@ class ServiceStructureEnsembleRulingApplier
 
             return $section->withoutReviewFlags()->withReviewFlags($flags);
         }, $sections);
+        $sections = app(ServiceStructureEnsembleComposer::class)->flagMissingPreachedReading($sections);
 
         $chapterMarkers = array_map(static fn (ServiceStructureSection $section): array => [
             'title' => $section->title ?? $section->type->label(),
@@ -364,14 +368,25 @@ class ServiceStructureEnsembleRulingApplier
      *
      * @param  list<ServiceStructureSection>  $sections
      * @param  list<ServiceStructureSection>  $replacements
+     * @param  list<ServiceStructureSection>  $settled
      * @return list<ServiceStructureSection>
      */
-    private function makeRoomFor(array $sections, array $replacements): array
+    private function makeRoomFor(array $sections, array $replacements, array $settled): array
     {
         $note = 'Adjusted around an operator ruling.';
         $kept = [];
 
         foreach ($sections as $section) {
+            // Another answer settled this content: the seam the two share stays in both clips
+            // (operator, 2026-10-14), and gross overlap between answers never reaches here.
+            if (array_any($settled, static fn (ServiceStructureSection $answered): bool => $answered->type === $section->type
+                && abs($answered->startTime - $section->startTime) <= self::RULING_EDGE_TOLERANCE
+                && abs($answered->endTime - $section->endTime) <= self::RULING_EDGE_TOLERANCE)) {
+                $kept[] = $section;
+
+                continue;
+            }
+
             $pieces = [$section];
 
             foreach ($replacements as $claim) {
@@ -405,11 +420,12 @@ class ServiceStructureEnsembleRulingApplier
     }
 
     /**
-     * Answers whose settled content claims the same time differently. Each answer makes room
-     * for itself by trimming its neighbours, so applying both would let whichever came second
-     * cut into the other while both were recorded as applied: ownership of the overlap would
-     * follow answer order, not an operator decision. Neither applies; the questions stay open.
-     * The same section settled twice is agreement, and contact within a snap is noise.
+     * Answers whose settled content claims the same time differently: one lies mostly inside
+     * another, by the validator's measure of gross overlap, and no rule reconciled them. Which
+     * item the time belongs to is then an operator decision, so neither applies and the
+     * questions stay open. A seam two answers share is not a clash: a stretch can end one
+     * item and begin the next (operator, 2026-10-14), so both keep their edges and neither
+     * trims the other. The same section settled twice is agreement.
      *
      * @param  array<string, array<string, mixed>>  $current
      * @param  array<string, true>  $alreadyAbsent
@@ -425,7 +441,7 @@ class ServiceStructureEnsembleRulingApplier
         foreach ($claims as $key => $sections) {
             foreach ($claims as $otherKey => $otherSections) {
                 if ($key !== $otherKey && array_any($sections, fn (ServiceStructureSection $section): bool => array_any($otherSections,
-                    static fn (ServiceStructureSection $other): bool => min($section->endTime, $other->endTime) - max($section->startTime, $other->startTime) > self::RULING_EDGE_TOLERANCE
+                    static fn (ServiceStructureSection $other): bool => ServiceStructureValidator::sharesGrossly($section, $other)
                         && ! ($section->type === $other->type
                             && abs($section->startTime - $other->startTime) <= self::RULING_EDGE_TOLERANCE
                             && abs($section->endTime - $other->endTime) <= self::RULING_EDGE_TOLERANCE)))) {
@@ -440,9 +456,9 @@ class ServiceStructureEnsembleRulingApplier
     }
 
     /**
-     * Settles the overlaps between answers that the operator's own rules already decide, so
-     * only the overlaps no rule decides stay open as a clash. Answers taken one at a time can
-     * each be right yet claim the same time, and three shapes of that are not a question:
+     * Settles the gross overlaps between answers that the operator's own rules already decide,
+     * so only the overlaps no rule decides stay open as a clash. Answers taken one at a time can
+     * each be right yet claim the same time, and two shapes of that are not a question:
      *
      * - One answer's item lies wholly inside a section of another type that a second answer
      *   settled (full pass 1027, 987, 1363). The sermon rule takes the earliest start "unless
@@ -451,8 +467,6 @@ class ServiceStructureEnsembleRulingApplier
      * - One reading lies wholly inside a longer reading another answer settled (1285, 1305,
      *   1269). Both are true: the inner answer says the passage is a reading and the whole
      *   reading includes it, so the whole one honours it and the inner answer settles nothing.
-     * - Speech crosses the edge of a song (1343). A song's spoken introduction may be in or
-     *   out of it (operator, 2026-10-10: don't ask), so the song keeps its edge.
      *
      * Claims are taken in key order, never answer order, so the outcome cannot follow which
      * answer came first.
@@ -504,34 +518,6 @@ class ServiceStructureEnsembleRulingApplier
                         $section = $section->withTimes($side[0], $side[1], ['Adjusted around an operator ruling.']);
                         $claims[$outerKey][$index] = $section;
                         $changed[$outerKey] = true;
-                    }
-                }
-            }
-        }
-
-        foreach (array_keys($claims) as $speechKey) {
-            foreach ($claims[$speechKey] as $index => $speech) {
-                if ($speech->type === ServiceSectionType::Song) {
-                    continue;
-                }
-
-                foreach ($claims as $songKey => $songs) {
-                    foreach ($songs as $song) {
-                        if ($songKey === $speechKey || $song->type !== ServiceSectionType::Song
-                            || min($speech->endTime, $song->endTime) - max($speech->startTime, $song->startTime) <= self::RULING_EDGE_TOLERANCE
-                            || $this->strictlyWraps($speech, $song->startTime, $song->endTime) || $this->strictlyWraps($song, $speech->startTime, $speech->endTime)) {
-                            continue;
-                        }
-
-                        [$start, $end] = $speech->startTime < $song->startTime
-                            ? [$speech->startTime, $song->startTime]
-                            : [$song->endTime, $speech->endTime];
-
-                        if ($end - $start > self::RULING_EDGE_TOLERANCE) {
-                            $speech = $speech->withTimes($start, $end, ['Adjusted around an operator ruling.']);
-                            $claims[$speechKey][$index] = $speech;
-                            $changed[$speechKey] = true;
-                        }
                     }
                 }
             }
@@ -614,9 +600,10 @@ class ServiceStructureEnsembleRulingApplier
      *
      * @param  list<ServiceStructureSection>  $sections
      * @param  array<string, mixed>  $resolution
+     * @param  list<ServiceStructureSection>  $settled  Content earlier answers settled, which this one never trims
      * @return list<ServiceStructureSection>
      */
-    private function settle(array $sections, ?int $target, array $resolution): array
+    private function settle(array $sections, ?int $target, array $resolution, array $settled): array
     {
         if (($resolution['absent'] ?? false) === true) {
             if ($target !== null) {
@@ -648,7 +635,7 @@ class ServiceStructureEnsembleRulingApplier
             array_splice($sections, $target, 1);
         }
 
-        return [...$this->makeRoomFor($sections, $replacements), ...$replacements];
+        return [...$this->makeRoomFor($sections, $replacements, $settled), ...$replacements];
     }
 
     /**
@@ -707,24 +694,72 @@ class ServiceStructureEnsembleRulingApplier
                 && ($settled->sermonReference === null || $section->sermonReference === $settled->sermonReference)));
     }
 
-    /** @param  list<ServiceStructureSection>  $sections
+    /**
+     * The section an answer replaces. A question about the composed section names it; one
+     * about a version the composition did not write still replaces the composed section of
+     * its type that it mostly covers (1042: choosing a song that starts 3s later than the
+     * composed one), rather than being inserted beside it and leaving a sliver of the same
+     * item. An answer that leaves the version out replaces nothing it did not ask about.
+     *
+     * @param  list<ServiceStructureSection>  $sections
      * @param  array<string, mixed>  $dispute
+     * @param  array<string, mixed>  $resolution
      */
-    private function targetIndex(array $sections, array $dispute): ?int
+    private function targetIndex(array $sections, array $dispute, array $resolution): ?int
     {
-        if (($dispute['written'] ?? false) !== true) {
+        if (($dispute['written'] ?? false) !== true && ($resolution['absent'] ?? false) === true) {
             return null;
         }
 
+        return self::sectionFor($sections, $dispute);
+    }
+
+    /**
+     * The section a question is about: the one at its times or, once a later rule has moved
+     * an edge (cue boundaries, song speech edges), the section of its type that overlaps it
+     * by at least half their union, closest first. Two equally close sections, or none,
+     * name nothing.
+     *
+     * @param  list<ServiceStructureSection>  $sections
+     * @param  array<string, mixed>  $dispute
+     */
+    public static function sectionFor(array $sections, array $dispute): ?int
+    {
+        $type = $dispute['type'] ?? null;
+        $start = $dispute['start_time'] ?? null;
+        $end = $dispute['end_time'] ?? null;
+
+        if (! is_numeric($start) || ! is_numeric($end)) {
+            return null;
+        }
+
+        $scores = [];
+
         foreach ($sections as $index => $section) {
-            if ($section->type->value === ($dispute['type'] ?? null)
-                && $section->startTime === ($dispute['start_time'] ?? null)
-                && $section->endTime === ($dispute['end_time'] ?? null)) {
+            if ($section->type->value !== $type) {
+                continue;
+            }
+
+            if ($section->startTime === (float) $start && $section->endTime === (float) $end) {
                 return $index;
+            }
+
+            $overlap = min($section->endTime, (float) $end) - max($section->startTime, (float) $start);
+            $union = max($section->endTime, (float) $end) - min($section->startTime, (float) $start);
+
+            if ($overlap > 0 && $union > 0 && $overlap / $union >= self::SPAN_MATCH_OVERLAP) {
+                $scores[$index] = $overlap / $union;
             }
         }
 
-        return null;
+        if ($scores === []) {
+            return null;
+        }
+
+        arsort($scores);
+        $best = array_key_first($scores);
+
+        return count(array_keys($scores, $scores[$best], true)) === 1 ? $best : null;
     }
 
     /**

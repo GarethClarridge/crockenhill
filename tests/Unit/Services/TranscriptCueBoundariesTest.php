@@ -10,6 +10,7 @@ use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Services\ChurchService\Structure\ServiceStructureDrawExecutor;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleRulingApplier;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\TranscriptCueBoundaries;
 use App\Services\ChurchService\Structure\ValidationContext;
 use PHPUnit\Framework\Attributes\Test;
@@ -192,7 +193,8 @@ class TranscriptCueBoundariesTest extends TestCase
         $transcript = ChurchServiceTranscript::fromCues([['start' => 100.0, 'end' => 200.0, 'text' => 'Complete sermon']], 3000, ChurchServiceTranscript::SOURCE_MOCK);
         $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($proposal, [], $transcript);
         $this->assertSame([], $result['disputes']);
-        $this->assertSame([], $result['structure']['sections'][0]['review_flags']);
+        // The lone sermon has no reading before it, which the applier decides afresh after answers.
+        $this->assertSame([ServiceStructureValidator::FLAG_MISSING_PREACHED_READING], $result['structure']['sections'][0]['review_flags']);
     }
 
     #[Test]
