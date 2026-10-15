@@ -372,6 +372,40 @@ class ServiceStructureValidatorTest extends TestCase
         $this->assertContains('duplicate_oos_item', $result->failureCodes());
     }
 
+    /**
+     * 974 (operator, 2026-10-14): the slide deck shown through the reading and the sermon is
+     * one order-of-service item describing both sections. An item that is not a performed
+     * piece may be shared; it is flagged on both sections, never a failure.
+     */
+    #[Test]
+    public function an_other_item_two_sections_share_is_flagged_not_failed(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('bible_reading', 0.0, 300.0, oosItemId: 5),
+            $this->section('sermon', 300.0, 2300.0, oosItemId: 5),
+        ]);
+
+        $result = $this->validator->validate($structure, $this->context());
+
+        $this->assertNotContains('duplicate_oos_item', $result->failureCodes());
+        foreach ($result->structure->sections as $section) {
+            $this->assertContains(ServiceStructureValidator::FLAG_OOS_SHARED_ITEM, $section->reviewFlags);
+        }
+    }
+
+    /** A named reading claimed twice is still one item claimed by two sections. */
+    #[Test]
+    public function a_typed_item_two_sections_share_still_fails_hard(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('bible_reading', 0.0, 300.0, oosItemId: 3),
+            $this->section('bible_reading', 400.0, 600.0, oosItemId: 3),
+            $this->section('sermon', 700.0, 2300.0),
+        ]);
+
+        $this->assertContains('duplicate_oos_item', $this->validator->validate($structure, $this->context())->failureCodes());
+    }
+
     #[Test]
     public function a_type_incompatible_oos_item_fails_hard(): void
     {

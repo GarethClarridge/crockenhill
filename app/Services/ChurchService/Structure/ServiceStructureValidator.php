@@ -82,6 +82,15 @@ class ServiceStructureValidator
     public const FLAG_OOS_TYPE_UNRESOLVED = 'structure_oos_type_unresolved';
 
     /**
+     * Two sections claim one order-of-service item that is not a performed piece: a slide deck
+     * shown through the reading and the sermon (974), a "Reading" placeholder (942). Such an
+     * item can describe more than one section, so this is a flag; a song or any other typed item
+     * claimed twice still fails hard, since song identity flows through the item (operator,
+     * 2026-10-14). Left out of {@see self::REANNOTATED_FLAGS} like the inversion flags beside it.
+     */
+    public const FLAG_OOS_SHARED_ITEM = 'structure_oos_shared_item';
+
+    /**
      * A section claims an OoS item printed *before* one an earlier section
      * already claimed, within the same OpenLP item type.
      *
@@ -469,7 +478,7 @@ class ServiceStructureValidator
              * re-added nor withdrawn here, which is why none of them appear in
              * {@see self::REANNOTATED_FLAGS}.
              */
-            ['cross_type' => [], 'same_type' => [], 'unresolved_type' => []],
+            ['cross_type' => [], 'same_type' => [], 'unresolved_type' => [], 'shared_item' => []],
         );
     }
 
@@ -699,6 +708,23 @@ class ServiceStructureValidator
      * Measured against the shorter of the two, so a brief item swallowed by a
      * long one is caught regardless of which side is longer.
      */
+    /**
+     * Whether two sections share time grossly, by the same measure that makes a pair
+     * incoherent here; sharing less is a seam both sections keep.
+     */
+    public static function sharesGrossly(ServiceStructureSection $one, ServiceStructureSection $other): bool
+    {
+        $overlap = min($one->endTime, $other->endTime) - max($one->startTime, $other->startTime);
+
+        if ($overlap < self::GROSS_CONTAINMENT_MINIMUM_SECONDS) {
+            return false;
+        }
+
+        $shorter = min($one->duration(), $other->duration());
+
+        return $shorter <= 0.0 || $overlap / $shorter >= self::GROSS_CONTAINMENT_FRACTION;
+    }
+
     private function grosslyContains(ServiceStructureSection $previous, ServiceStructureSection $section): bool
     {
         $overlap = $previous->endTime - $section->startTime;
@@ -866,7 +892,7 @@ class ServiceStructureValidator
 
     /**
      * @param  list<array{code: string, message: string}>  $hardFailures
-     * @return array{cross_type: array<int, true>, same_type: array<int, true>, unresolved_type: array<int, true>}
+     * @return array{cross_type: array<int, true>, same_type: array<int, true>, unresolved_type: array<int, true>, shared_item: array<int, true>}
      *                                                                                                             Section indices whose claimed item precedes an
      *                                                                                                             earlier-claimed item, split by whether the two share an
      *                                                                                                             OpenLP type, plus those where the detector abstained on
@@ -875,6 +901,8 @@ class ServiceStructureValidator
     private function checkOosAnchoring(ServiceStructure $structure, ValidationContext $context, array &$hardFailures): array
     {
         $claimed = [];
+        $firstClaimedAt = [];
+        $sharedItems = [];
 
         /** @var array<string, array{itemId: int, position: int}> $lastClaimedByType */
         $lastClaimedByType = [];
@@ -900,6 +928,13 @@ class ServiceStructureValidator
             }
 
             if (in_array($itemId, $claimed, true)) {
+                if ($context->oosItemTypes[$itemId] === ServiceSectionType::Other) {
+                    $sharedItems[$firstClaimedAt[$itemId]] = true;
+                    $sharedItems[$index] = true;
+
+                    continue;
+                }
+
                 $hardFailures[] = [
                     'code' => 'duplicate_oos_item',
                     'message' => sprintf('OoS item %d is claimed by more than one section.', $itemId),
@@ -909,6 +944,7 @@ class ServiceStructureValidator
             }
 
             $claimed[] = $itemId;
+            $firstClaimedAt[$itemId] = $index;
 
             $itemType = $context->oosItemTypes[$itemId];
 
@@ -1000,6 +1036,7 @@ class ServiceStructureValidator
         }
 
         return [
+            'shared_item' => $sharedItems,
             'cross_type' => $crossTypeInversions,
             'same_type' => $sameTypeInversions,
             'unresolved_type' => $unresolvedTypes,
@@ -1007,7 +1044,7 @@ class ServiceStructureValidator
     }
 
     /**
-     * @param  array{cross_type: array<int, true>, same_type: array<int, true>, unresolved_type: array<int, true>}  $inversions
+     * @param  array{cross_type: array<int, true>, same_type: array<int, true>, unresolved_type: array<int, true>, shared_item: array<int, true>}  $inversions
      */
     private function annotateSoftFlags(ServiceStructure $structure, ValidationContext $context, array $inversions): ServiceStructure
     {
@@ -1052,6 +1089,10 @@ class ServiceStructureValidator
 
             if (isset($inversions['unresolved_type'][$index])) {
                 $flags[] = self::FLAG_OOS_TYPE_UNRESOLVED;
+            }
+
+            if (isset($inversions['shared_item'][$index])) {
+                $flags[] = self::FLAG_OOS_SHARED_ITEM;
             }
 
             if ($this->songTitleContradictsChapterMarker($section, $structure->chapterMarkers)) {

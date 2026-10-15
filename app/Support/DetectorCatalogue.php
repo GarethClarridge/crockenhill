@@ -563,6 +563,16 @@ class DetectorCatalogue
                 summary: 'The detected section count or ordering does not match the order of service.',
                 owningClass: ServiceStructureValidator::class,
             ),
+            new DetectorEntry(
+                id: 'structure-oos-shared-item',
+                surface: DetectorSurface::SectionReviewFlag,
+                signals: [ServiceStructureValidator::FLAG_OOS_SHARED_ITEM],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::WrongMetadata,
+                unit: DetectorUnit::Section,
+                summary: 'Two sections claim one order-of-service item that is not a performed piece, such as a slide deck or a reading placeholder.',
+                owningClass: ServiceStructureValidator::class,
+            ),
         ];
     }
 
