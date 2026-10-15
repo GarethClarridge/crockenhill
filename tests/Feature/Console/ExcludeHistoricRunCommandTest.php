@@ -329,6 +329,69 @@ class ExcludeHistoricRunCommandTest extends TestCase
         $this->assertFalse($better->fresh()?->isExcluded());
     }
 
+    /**
+     * 894 (operator, 2026-10-15): a weekly run's livestream download of a Sunday whose
+     * local capture the historic import holds. It has no operation, and is set aside for
+     * the historic master so it can no longer supersede it.
+     */
+    #[Test]
+    public function it_records_a_weekly_run_as_a_duplicate_of_its_historic_master(): void
+    {
+        $weekly = MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Failed, 'current_step' => 'sermon_creation']);
+        $master = $this->heldRun('2024-11-17-morning');
+
+        $this->artisan('historic-import:exclude-run', [
+            '--processing-id' => [$weekly->processing_id],
+            '--reason' => MediaProcessingLog::EXCLUSION_REASON_DUPLICATE_RECORDING,
+            '--duplicates' => $master->processing_id,
+            '--note' => 'The local 1080p capture holds the sermon; this is the 720p livestream.',
+            '--apply' => true,
+            '--yes' => true,
+        ])->assertSuccessful();
+
+        $fresh = $weekly->fresh();
+
+        $this->assertSame(MediaProcessingLog::EXCLUSION_REASON_DUPLICATE_RECORDING, $fresh?->exclusionReason());
+        $this->assertSame($master->processing_id, $fresh?->exclusionEvidence()['duplicates_processing_id'] ?? null);
+        $this->assertSame(ProcessingStatus::Failed, $fresh?->status);
+        $this->assertFalse($master->fresh()?->isExcluded());
+    }
+
+    /** Only a better master explains setting a weekly run aside; the other reasons are historic rulings. */
+    #[Test]
+    public function it_refuses_a_weekly_run_for_any_reason_but_a_duplicate_recording(): void
+    {
+        $weekly = MediaProcessingLog::factory()->create(['status' => ProcessingStatus::Failed]);
+
+        $this->artisan('historic-import:exclude-run', [
+            '--processing-id' => [$weekly->processing_id],
+            '--reason' => MediaProcessingLog::EXCLUSION_REASON_NO_SERMON_IN_SOURCE,
+            '--note' => 'No sermon.',
+            '--apply' => true,
+            '--yes' => true,
+        ])->expectsOutputToContain('--operation')->assertFailed();
+
+        $this->assertFalse($weekly->fresh()?->isExcluded());
+    }
+
+    #[Test]
+    public function it_still_requires_the_operation_for_a_historic_run(): void
+    {
+        $poorer = $this->heldRun('2025-11-30-morning');
+        $better = $this->heldRun('2025-11-29-morning');
+
+        $this->artisan('historic-import:exclude-run', [
+            '--processing-id' => [$poorer->processing_id],
+            '--reason' => MediaProcessingLog::EXCLUSION_REASON_DUPLICATE_RECORDING,
+            '--duplicates' => $better->processing_id,
+            '--note' => 'Imported twice.',
+            '--apply' => true,
+            '--yes' => true,
+        ])->expectsOutputToContain('--operation')->assertFailed();
+
+        $this->assertFalse($poorer->fresh()?->isExcluded());
+    }
+
     #[Test]
     public function it_refuses_a_duplicate_recording_that_does_not_name_the_kept_run(): void
     {

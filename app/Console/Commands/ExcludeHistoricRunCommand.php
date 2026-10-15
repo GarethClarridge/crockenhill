@@ -21,7 +21,7 @@ use Throwable;
 class ExcludeHistoricRunCommand extends Command
 {
     protected $signature = 'historic-import:exclude-run
-                            {--operation= : Exact immutable historic operation that owns the runs}
+                            {--operation= : Exact immutable historic operation that owns the runs; omitted only for a weekly run}
                             {--processing-id=* : Exact processing ID to exclude; repeat for every run}
                             {--reason=no_sermon_in_source : Recorded exclusion reason}
                             {--duplicates= : For a rehearsal or duplicate recording, the processing ID of the kept run}
@@ -89,12 +89,13 @@ class ExcludeHistoricRunCommand extends Command
         }
     }
 
-    private function operation(): HistoricImportOperation
+    /** None for a weekly run, which no historic operation owns; the exclusion decides what that allows. */
+    private function operation(): ?HistoricImportOperation
     {
         $operationId = $this->option('operation');
 
         if (! is_string($operationId) || trim($operationId) === '') {
-            throw new RuntimeException('--operation is required and must name the exact immutable operation.');
+            return null;
         }
 
         $operation = HistoricImportOperation::query()

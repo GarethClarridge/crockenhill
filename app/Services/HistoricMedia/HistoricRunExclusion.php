@@ -67,6 +67,11 @@ use RuntimeException;
  * refuses them instead ({@see HistoricReleaseReviewHolds}),
  * and the quarantined bytes stay where they are.
  *
+ * A weekly run, which no operation owns, can be set aside only as a duplicate
+ * recording of a historic master: a livestream download of a Sunday whose local
+ * capture the historic import holds (894 behind 1126, operator 2026-10-15). Without
+ * it the weekly run could supersede the master on songs a sermon-only capture never has.
+ *
  * Deletion trigger: Delete once the historic import operation is closed out and
  * no further exclusion decisions can be recorded against it.
  */
@@ -109,12 +114,16 @@ class HistoricRunExclusion
      * @return list<array{run: MediaProcessingLog, item_key: string, disposition_now: string, already_excluded: bool, duplicates: ?MediaProcessingLog, removes_service: ?ChurchService}>
      */
     public function inspect(
-        HistoricImportOperation $operation,
+        ?HistoricImportOperation $operation,
         array $processingIds,
         string $reason,
         ?string $duplicatesProcessingId = null,
     ): array {
         $this->guardReason($reason);
+
+        if (! $operation instanceof HistoricImportOperation && $reason !== MediaProcessingLog::EXCLUSION_REASON_DUPLICATE_RECORDING) {
+            throw new RuntimeException("--operation is required for [{$reason}]; only a duplicate recording sets aside a weekly run.");
+        }
 
         $duplicates = $this->keptRun($operation, $processingIds, $reason, $duplicatesProcessingId);
         $entries = [];
@@ -128,13 +137,17 @@ class HistoricRunExclusion
                 throw new RuntimeException("No processing run exists for [{$processingId}].");
             }
 
-            if ($run->historic_import_operation_id !== $operation->id) {
+            $metadataOperationId = data_get($run->processing_metadata?->toArray(), 'historic_import.operation_id');
+
+            if (! $operation instanceof HistoricImportOperation) {
+                if ($run->historic_import_operation_id !== null || $metadataOperationId !== null) {
+                    throw new RuntimeException("Run [{$processingId}] is historic: --operation is required and must name the exact immutable operation.");
+                }
+            } elseif ($run->historic_import_operation_id !== $operation->id) {
                 throw new RuntimeException("Run [{$processingId}] does not belong to operation [{$operation->operation_id}].");
             }
 
-            $metadataOperationId = data_get($run->processing_metadata?->toArray(), 'historic_import.operation_id');
-
-            if ($metadataOperationId !== null && $metadataOperationId !== $operation->operation_id) {
+            if ($operation instanceof HistoricImportOperation && $metadataOperationId !== null && $metadataOperationId !== $operation->operation_id) {
                 throw new RuntimeException("Run [{$processingId}] records a different owning operation than the one named.");
             }
 
@@ -171,7 +184,7 @@ class HistoricRunExclusion
      * @param  list<array{run: MediaProcessingLog, item_key: string, disposition_now: string, already_excluded: bool, duplicates: ?MediaProcessingLog, removes_service: ?ChurchService}>  $entries
      * @return array{excluded: int, already_excluded: int}
      */
-    public function apply(HistoricImportOperation $operation, array $entries, string $reason, string $note): array
+    public function apply(?HistoricImportOperation $operation, array $entries, string $reason, string $note): array
     {
         $this->guardReason($reason);
 
@@ -222,7 +235,7 @@ class HistoricRunExclusion
                     [
                         'reason' => $note,
                         'manifest_item_key' => $entry['item_key'],
-                        'operation_id' => $operation->operation_id,
+                        'operation_id' => $operation?->operation_id,
                     ],
                 );
             });
@@ -257,7 +270,7 @@ class HistoricRunExclusion
      * @param  list<string>  $processingIds
      */
     private function keptRun(
-        HistoricImportOperation $operation,
+        ?HistoricImportOperation $operation,
         array $processingIds,
         string $reason,
         ?string $duplicatesProcessingId,
@@ -291,12 +304,13 @@ class HistoricRunExclusion
             ->when(
                 $reason === MediaProcessingLog::EXCLUSION_REASON_DUPLICATE_RECORDING,
                 fn ($query) => $query->whereNotNull('historic_import_operation_id'),
-                fn ($query) => $query->where('historic_import_operation_id', $operation->id),
+                fn ($query) => $query->where('historic_import_operation_id', $operation?->id),
             )
             ->first();
 
         if (! $kept instanceof MediaProcessingLog) {
-            throw new RuntimeException("No historic run [{$duplicatesProcessingId}] exists to keep for operation [{$operation->operation_id}].");
+            throw new RuntimeException(sprintf('No historic run [%s] exists to keep for %s.', $duplicatesProcessingId,
+                $operation instanceof HistoricImportOperation ? "operation [{$operation->operation_id}]" : 'this weekly run'));
         }
 
         if ($kept->isExcluded()) {
