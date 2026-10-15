@@ -76,6 +76,7 @@ class HistoricRunExclusion
     public const OPERATOR_REASONS = [
         MediaProcessingLog::EXCLUSION_REASON_NO_SERMON_IN_SOURCE,
         MediaProcessingLog::EXCLUSION_REASON_REHEARSAL_DUPLICATE,
+        MediaProcessingLog::EXCLUSION_REASON_REHEARSAL,
         MediaProcessingLog::EXCLUSION_REASON_PRIVATE_OCCASION,
         MediaProcessingLog::EXCLUSION_REASON_DUPLICATE_RECORDING,
     ];
@@ -92,6 +93,7 @@ class HistoricRunExclusion
      */
     private const SERVICE_REMOVING_REASONS = [
         MediaProcessingLog::EXCLUSION_REASON_REHEARSAL_DUPLICATE,
+        MediaProcessingLog::EXCLUSION_REASON_REHEARSAL,
         MediaProcessingLog::EXCLUSION_REASON_PRIVATE_OCCASION,
     ];
 

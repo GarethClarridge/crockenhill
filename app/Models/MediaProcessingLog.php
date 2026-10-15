@@ -131,6 +131,13 @@ class MediaProcessingLog extends Model
     public const EXCLUSION_REASON_REHEARSAL_DUPLICATE = 'rehearsal_duplicate';
 
     /**
+     * The recording is a rehearsal, and no run carries the service it rehearsed
+     * (940, operator 2026-10-14: "it's a rehearsal … shouldn't be included at all").
+     * There is no kept copy to name, so nothing is discarded that exists elsewhere.
+     */
+    public const EXCLUSION_REASON_REHEARSAL = 'rehearsal';
+
+    /**
      * A real, correctly dated service that does not belong in the public archive,
      * such as a funeral. Unlike the other reasons this is a ruling about the
      * occasion, not a fact about the capture.
@@ -149,6 +156,7 @@ class MediaProcessingLog extends Model
         self::EXCLUSION_REASON_SOURCE_AUDIO_SILENT,
         self::EXCLUSION_REASON_NO_SERMON_IN_SOURCE,
         self::EXCLUSION_REASON_REHEARSAL_DUPLICATE,
+        self::EXCLUSION_REASON_REHEARSAL,
         self::EXCLUSION_REASON_PRIVATE_OCCASION,
         self::EXCLUSION_REASON_DUPLICATE_RECORDING,
     ];

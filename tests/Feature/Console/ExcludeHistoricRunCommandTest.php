@@ -435,8 +435,44 @@ class ExcludeHistoricRunCommandTest extends TestCase
     {
         return [
             'rehearsal' => [MediaProcessingLog::EXCLUSION_REASON_REHEARSAL_DUPLICATE],
+            'rehearsal of an unrecorded service' => [MediaProcessingLog::EXCLUSION_REASON_REHEARSAL],
             'private occasion' => [MediaProcessingLog::EXCLUSION_REASON_PRIVATE_OCCASION],
         ];
+    }
+
+    /**
+     * 940 (operator, 2026-10-14): a rehearsal whose service was never recorded duplicates
+     * no run, so there is no kept run to name, and naming one is refused.
+     */
+    #[Test]
+    public function it_records_a_rehearsal_of_an_unrecorded_service_without_a_kept_run(): void
+    {
+        $rehearsal = $this->heldRun('2025-05-18-evening');
+        $other = $this->heldRun('2025-05-18-morning');
+
+        $this->artisan('historic-import:exclude-run', [
+            '--operation' => $this->operation->operation_id,
+            '--processing-id' => [$rehearsal->processing_id],
+            '--reason' => MediaProcessingLog::EXCLUSION_REASON_REHEARSAL,
+            '--duplicates' => $other->processing_id,
+            '--note' => 'A rehearsal names no kept run.',
+            '--apply' => true,
+            '--yes' => true,
+        ])->assertFailed();
+
+        $this->assertFalse($rehearsal->fresh()?->isExcluded());
+
+        $this->artisan('historic-import:exclude-run', [
+            '--operation' => $this->operation->operation_id,
+            '--processing-id' => [$rehearsal->processing_id],
+            '--reason' => MediaProcessingLog::EXCLUSION_REASON_REHEARSAL,
+            '--note' => 'Operator 2026-10-14: a rehearsal, not a service.',
+            '--apply' => true,
+            '--yes' => true,
+        ])->assertSuccessful();
+
+        $this->assertSame(MediaProcessingLog::EXCLUSION_REASON_REHEARSAL, $rehearsal->fresh()?->exclusionReason());
+        $this->assertFalse($other->fresh()?->isExcluded());
     }
 
     /**

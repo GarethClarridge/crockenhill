@@ -662,6 +662,7 @@ class HistoricSermonReleaseBatchTest extends TestCase
     {
         return [
             'rehearsal' => [MediaProcessingLog::EXCLUSION_REASON_REHEARSAL_DUPLICATE],
+            'rehearsal of an unrecorded service' => [MediaProcessingLog::EXCLUSION_REASON_REHEARSAL],
             'private occasion' => [MediaProcessingLog::EXCLUSION_REASON_PRIVATE_OCCASION],
             'no sermon in source' => [MediaProcessingLog::EXCLUSION_REASON_NO_SERMON_IN_SOURCE],
         ];
