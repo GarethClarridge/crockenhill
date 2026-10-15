@@ -38,9 +38,11 @@ class CutAwareEnsembleComposer
             return $composition;
         }
         $final = app(TranscriptCueBoundaries::class)->finish($composition->structure, $transcript);
+        $voters = array_keys(array_filter($draws, static fn (ValidationResult $draw): bool => $draw->passed()));
+        sort($voters);
 
-        return new EnsembleComposition($final['structure'], [...$composition->disputes, ...$final['questions']], $composition->provenance,
-            $composition->degraded, $composition->refused, $composition->validVotes, $composition->degradedReviewed, $composition->majorityDecisions);
+        return app(LoopedSegmentChecks::class)->apply(new EnsembleComposition($final['structure'], [...$composition->disputes, ...$final['questions']], $composition->provenance,
+            $composition->degraded, $composition->refused, $composition->validVotes, $composition->degradedReviewed, $composition->majorityDecisions), $transcript, $voters);
     }
 
     /**

@@ -174,6 +174,12 @@ class EnsembleReviewExport
             $spans[] = [(float) $dispute['start_time'], (float) $dispute['end_time']];
         }
 
+        // A replay is judged against the opening it replays, so that is heard too.
+        if (($dispute['check'] ?? null) === LoopedSegmentChecks::CHECK && is_array($dispute['loop'] ?? null)) {
+            $opening = (float) $dispute['loop']['opening_at'];
+            $spans[] = [$opening, $opening + (float) $dispute['loop']['end_time'] - (float) $dispute['loop']['start_time']];
+        }
+
         [$options, $answers] = $this->options($type, $dispute, $alternatives, $decided);
         $from = $spans === [] ? null : min(array_column($spans, 0));
         $to = $spans === [] ? null : max(array_column($spans, 1));
@@ -190,6 +196,7 @@ class EnsembleReviewExport
             'context' => $this->context($type, $dispute, $alternatives, $decided),
             'question' => match (true) {
                 ($dispute['check'] ?? null) === TalkEdgeChecks::CHECK => $this->edgeQuestion($dispute),
+                ($dispute['check'] ?? null) === LoopedSegmentChecks::CHECK => 'What is the repeat?',
                 $decided => 'Is the majority right?',
                 default => 'Which is right?',
             },
@@ -385,6 +392,29 @@ class EnsembleReviewExport
             ];
         }
 
+        if (($dispute['check'] ?? null) === LoopedSegmentChecks::CHECK && $alternatives !== []) {
+            $section = $alternatives[0]['section'];
+            $noun = $this->noun($type);
+            $trimmed = (float) $section['end_time'] < (float) $dispute['end_time']
+                ? sprintf('end the %s at %s', $noun, $this->clock((float) $section['end_time']))
+                : sprintf('start the %s at %s', $noun, $this->clock((float) $section['start_time']));
+
+            return [
+                [
+                    ['alt0', "The pre-recorded segment looped: {$trimmed}"],
+                    ['keep', "It belongs here: keep the {$noun} as it is"],
+                    ['neither', 'Something else (say what in the note)'],
+                    ['defer', 'Can’t tell'],
+                ],
+                [
+                    'alt0' => ['kind' => 'choose', 'slot' => (int) $alternatives[0]['slots'][0]],
+                    'keep' => ['kind' => 'accept', 'slot' => null],
+                    'neither' => ['kind' => 'correct', 'slot' => null],
+                    'defer' => ['kind' => 'defer', 'slot' => null],
+                ],
+            ];
+        }
+
         if ($type === 'sermon_absence') {
             return [
                 [['absent', 'There was no sermon (say why in the note)'], ['defer', 'Can’t tell']],
@@ -476,6 +506,16 @@ class EnsembleReviewExport
 
         if ($type === 'alignment') {
             return 'One draft’s section could belong to more than one of the others’ sections.';
+        }
+
+        if (($dispute['check'] ?? null) === LoopedSegmentChecks::CHECK && is_array($dispute['loop'] ?? null)) {
+            return sprintf(
+                'The opening of this %s, first heard at %s, is heard again at %s–%s. A pre-recorded segment that looped replays the same audio; a passage that repeats its own words, as psalms often do, belongs here.',
+                $this->noun($type),
+                $this->clock((float) $dispute['loop']['opening_at']),
+                $this->clock((float) $dispute['loop']['start_time']),
+                $this->clock((float) $dispute['loop']['end_time']),
+            );
         }
 
         if (($dispute['check'] ?? null) === TalkEdgeChecks::CHECK) {

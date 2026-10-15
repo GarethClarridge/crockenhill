@@ -21,6 +21,7 @@ use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\Structure\EnsembleReviewExport;
 use App\Services\ChurchService\Structure\EnsembleReviewGate;
 use App\Services\ChurchService\Structure\MockServiceStructureService;
+use App\Services\ChurchService\Structure\ServiceStructureEnsembleReplay;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SilenceSnapService;
 use App\Services\Media\Audio\ServiceArtifactStorage;
@@ -381,6 +382,42 @@ class EnsembleReviewCommandsTest extends TestCase
     }
 
     /** Operator ruling 2026-10-10: a talk edge every draft agrees on is no longer asked. */
+    /**
+     * 1342 (operator, 2026-10-14): the pre-recorded reading looped, replaying its opening before
+     * the next item cut it off. It is asked, never trimmed unasked: "looped" ends the reading
+     * before the replay, and "it belongs here" keeps it, as a psalm repeating its opening would.
+     */
+    #[Test]
+    public function a_reading_whose_opening_replays_at_its_end_is_asked_and_either_answer_applies(): void
+    {
+        foreach (['alt0' => 588.0, 'keep' => 600.0] as $choice => $readingEnd) {
+            $log = $this->loopedReadingRun();
+            File::deleteDirectory($this->out);
+
+            $this->artisan('structure:ensemble-export-questions', ['runs' => [$log->id], '--out' => $this->out])->assertSuccessful();
+
+            $items = json_decode((string) file_get_contents("{$this->out}/answers-map.json"), true)['items'];
+            $open = array_values(array_filter($items, static fn (array $item): bool => ! $item['decided']));
+            $this->assertCount(1, $open);
+            $this->assertSame(['alt0', 'keep', 'neither', 'defer'], array_keys($open[0]['answers']));
+            $this->assertSame('accept', $open[0]['answers']['keep']['kind']);
+            $this->assertStringContainsString('What is the repeat?', (string) file_get_contents("{$this->out}/index.html"));
+
+            $answers = "{$this->out}/answers.json";
+            file_put_contents($answers, json_encode([['question_id' => "{$log->id}-q0", 'choice' => $choice, 'note' => '']]));
+            $this->artisan('structure:ensemble-apply-answers', ['export' => $this->out, 'answers' => $answers, '--operator' => (string) $this->operatorId, '--execute' => true])
+                ->expectsOutputToContain('1 applied, 0 failed')
+                ->assertSuccessful();
+
+            $raw = $log->fresh()->processing_metadata?->raw ?? [];
+            $replayed = app(ServiceStructureEnsembleReplay::class)->replay(end($raw['service_structure_ensemble']), $raw['service_structure_ensemble_rulings'], $log->fresh());
+            $reading = array_values(array_filter($replayed['structure']['sections'], static fn (array $section): bool => $section['type'] === 'bible_reading'));
+
+            $this->assertSame([], $replayed['disputes'], "answered {$choice}");
+            $this->assertEqualsWithDelta($readingEnd, $reading[0]['end_time'], 1.0, "answered {$choice}");
+        }
+    }
+
     #[Test]
     public function a_talk_edge_every_draft_agrees_on_is_not_asked(): void
     {
@@ -471,6 +508,42 @@ class EnsembleReviewCommandsTest extends TestCase
             $this->section(['type' => 'sermon', 'start_time' => 600.0, 'end_time' => 2200.0, 'sermon_reference' => 'Luke 15:1-10']),
             $this->section(['type' => 'song', 'start_time' => 2210.0, 'end_time' => 2400.0]),
         ])), model: 'mock');
+        MockServiceStructureService::useStructureSequence($draw, $draw, $draw, $draw);
+
+        (new DetectServiceStructure($log))->handle(
+            app(ServiceStructureInterface::class),
+            app(SilenceSnapService::class),
+            app(ServiceStructureValidator::class),
+            app(ServiceSectionSyncService::class),
+            app(SermonCandidateConfidenceService::class),
+        );
+
+        return $log->fresh();
+    }
+
+    private function loopedReadingRun(): MediaProcessingLog
+    {
+        $this->operatorId = User::factory()->admin()->create()->id;
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'church_service_id' => ChurchService::factory()->create()->id,
+        ]);
+        $opening = 'Our reading this morning is from Luke chapter fifteen verses one to ten.';
+        $this->storeInputs($log, [
+            ['start' => 0.0, 'end' => 120.0, 'text' => 'Good morning everyone and a very warm welcome.'],
+            ['start' => 130.0, 'end' => 400.0, 'text' => 'A word for the children before they go out.'],
+            ['start' => 420.0, 'end' => 430.0, 'text' => $opening],
+            ['start' => 430.0, 'end' => 585.0, 'text' => 'Now the tax collectors and sinners were all gathering round to hear Jesus. This is the word of the Lord.'],
+            ['start' => 588.0, 'end' => 598.0, 'text' => $opening],
+            ['start' => 600.0, 'end' => 2200.0, 'text' => 'Please turn with me to our passage.'],
+            ['start' => 2210.0, 'end' => 2400.0, 'text' => 'Praise my soul the King of heaven.'],
+        ]);
+        $draw = ServiceStructure::fromSections([
+            $this->section(['type' => 'welcome', 'start_time' => 0.0, 'end_time' => 120.0]),
+            $this->section(['type' => 'short_talk', 'start_time' => 130.0, 'end_time' => 400.0]),
+            $this->section(['type' => 'bible_reading', 'start_time' => 420.0, 'end_time' => 600.0, 'reading_reference' => 'Luke 15:1-10']),
+            $this->section(['type' => 'sermon', 'start_time' => 600.0, 'end_time' => 2200.0, 'sermon_reference' => 'Luke 15:1-10']),
+            $this->section(['type' => 'song', 'start_time' => 2210.0, 'end_time' => 2400.0]),
+        ], model: 'mock');
         MockServiceStructureService::useStructureSequence($draw, $draw, $draw, $draw);
 
         (new DetectServiceStructure($log))->handle(
@@ -702,9 +775,10 @@ class EnsembleReviewCommandsTest extends TestCase
         return $log->fresh();
     }
 
-    private function storeInputs(MediaProcessingLog $log): void
+    /** @param  list<array{start: float, end: float, text: string}>|null  $cues */
+    private function storeInputs(MediaProcessingLog $log, ?array $cues = null): void
     {
-        $transcript = ChurchServiceTranscript::fromCues([
+        $transcript = ChurchServiceTranscript::fromCues($cues ?? [
             ['start' => 0.0, 'end' => 120.0, 'text' => 'Good morning everyone and a very warm welcome.'],
             ['start' => 130.0, 'end' => 330.0, 'text' => 'A word for the children.'],
             ['start' => 330.0, 'end' => 400.0, 'text' => 'Before they go out.'],
