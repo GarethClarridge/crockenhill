@@ -507,3 +507,25 @@ The decision page's rulings, applied:
   - `historic-import:hold-run-output` applies the rule to existing rows. It refuses unless every referenced file is on the holding disk.
   - Applied to 890, 893 and 894: 11 rows held. None remain published without a disk since 2026-10-12.
 - Open: 1310 has no thumbnail; a regeneration would now write to `historic_staging`. 790 / 890 is waiting on ensemble answers.
+
+**2026-10-15 afternoon: questions, group A, recompose and cut (operator: "Build the question page", "Do 3-6", "Leave the 5 images").**
+- The five stray thumbnails in the bucket are left in place (operator).
+- Question page https://claude.ai/artifact/FyeQQAfXu3pvqRZhty6ALZ (`rulings`), export `storage/scratch/round-questions-20261015`.
+  - 1154's three questions were removed before any answer was saved: group A already answered them on 11 October.
+  - 1341 and 1342 were left off the page: they were already answered as loops on HRHvUj2.
+  - Answers: 1299-q0 keep (applied); 890-q0 none (refused, see below).
+- 940: the rehearsal exclusion dry run was clean; it removes service 653, described only by 940's own livestream record. The apply was blocked by the permission check, so it is the operator's to run. Exclusion leaves sermon 879; retiring it is the operator's call.
+- Group A (`groupA-round.json`, 8 answers) applied to 1004, 1042, 1154, 1281 and 1307. The 1341 and 1342 loop rulings were applied as alt0 through the with-loops export (`loops-1341-1342.json`).
+- Snapshot `followup-round-20261015-settled-r` (12 runs at adc56d620; `-settled` was written as a file, and Docker's mount cached it, so it was renamed) recomposed 10.
+  - 942 and 974 refused: they failed validation on 10-13 and no answer fixed them. The shared-item rule now passes them, but the guard has no case for that. A guard change is for the operator to decide.
+- answers2's six refused to cut on 4f0a20c12 code, so they were re-snapshotted as `followup-round-20261015-answers2b` and recomposed on adc56d620.
+- Cut 16, 12:39–13:41Z (3.9 min/run, no watcher stops):
+  - 11 completed, every sermon re-cut, quarantined, on `historic_quarantine`: 1004, 1042, 1154, 1281, 1307, 1329, 1341, 1342, 960, 977, 1272.
+  - Content holds as designed (held-sermon re-cuts): 971 (§1093), 1195 (§2450), 1350 (§4423).
+  - Composition review:
+    - 1096 is `sermon_reading_membership_unresolved`: two readings, 17:23 and 30:23; the September plan joined the second. It needs an operator answer on the service page.
+    - 1363's composition is now clean (recomputed: no risks), so a fresh snapshot is needed to cut it. One cut per commit per snapshot.
+  - Reading the composition with `compose()` writes it back (`sermon_composition` and the section's composition flag). It was done for 1096 and 1363; it is the same recompute the pipeline runs.
+- Group B check: 987, 1027, 1269, 1285 and 1305 were re-cut on 10-14 18:24–18:34Z, quarantined, videos present, readings joined. 1343 is parked on a content hold.
+- 1299: snapshot `followup-round-20261015-q1299`, recomposed with its answer.
+- 890's answer was refused: the run's own structure write at 07:45 linked OoS item 5280 "Ezekiel", changing its type from `other` to `short_talk` 2 min after the bundle input (07:43). `oosItemsMatch` compares type, so the evidence reads as changed. The written structure already omits the 16 s reading. It is the only held run in this state. Options for the operator: re-detect, or a gate change after the cuts.
