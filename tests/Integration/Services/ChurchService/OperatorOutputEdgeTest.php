@@ -14,9 +14,12 @@ use App\Services\ChurchService\OutputEdgeAnswers;
 use App\Services\ChurchService\OutputEdgeCheck;
 use App\Services\ChurchService\OutputEdgeWordTimings;
 use App\Services\ChurchService\PublicationPlanValidator;
+use App\Services\ChurchService\SermonSongIntroductionCheck;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
+use OpenAI\Laravel\Facades\OpenAI;
+use OpenAI\Responses\Chat\CreateResponse;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Support\AudioTimelineFixture;
 use Tests\TestCase;
@@ -33,9 +36,8 @@ class OperatorOutputEdgeTest extends TestCase
     use DatabaseTransactions;
 
     /**
-     * 1224: the preacher reads the hymn's first verse over its introduction, heard as speech, so
-     * the spoken stretch carries the sermon's end 22 s into the hymn. The operator ends it where
-     * the sermon ends.
+     * 1224: the preacher reads the hymn's first verse over its introduction, and the sermon's end
+     * was carried 22 s into the hymn. The operator ends it where they hear the sermon end.
      */
     #[Test]
     public function an_end_set_by_ear_replaces_a_sermon_end_carried_into_the_hymn(): void
@@ -44,7 +46,7 @@ class OperatorOutputEdgeTest extends TestCase
         $spans = [['start_time' => 2545.22, 'end_time' => 4007.22]];
 
         $planned = $this->plans()->forSpans($log, $spans, sermonEnd: true, edgeAnswers: OutputEdgeAnswers::of($sermon, [$sermon]));
-        $this->assertGreaterThan(4020.0, $planned['segments'][0]['end_time'], 'the precondition: the stretch runs on into the hymn');
+        $this->assertGreaterThan(4010.0, $planned['segments'][0]['end_time'], 'the precondition: the planned end runs on into the hymn');
 
         $this->setEdge($sermon, 'end', 4007.6);
         $answered = $this->plans()->forSpans($log->fresh(), $spans, sermonEnd: true, edgeAnswers: OutputEdgeAnswers::of($sermon->fresh(), [$sermon]));
@@ -118,7 +120,7 @@ class OperatorOutputEdgeTest extends TestCase
 
         $unowned = $this->plans()->forSpans($log->fresh(), $spans, sermonEnd: true);
 
-        $this->assertGreaterThan(4020.0, $unowned['segments'][0]['end_time'], 'a plan not of this sermon\'s output reads no answer');
+        $this->assertGreaterThan(4010.0, $unowned['segments'][0]['end_time'], 'a plan not of this sermon\'s output reads no answer');
     }
 
     /**
@@ -220,9 +222,18 @@ class OperatorOutputEdgeTest extends TestCase
             ['start' => 4040.00, 'end' => 4046.00, 'text' => 'Immortal honours rest on Jesus\' head'],
         ], [['bible_reading', 2093.92, 2372.83], ['song', 2372.88, 2543.31], ['sermon', 2545.22, 4007.22], ['song', 4008.21, 4175.06]],
             timeline: [[3990, 4008, 0.01, 0.8], [4008, 4029, 0.4, 0.7], [4029, 4175, 0.8, 0.01]]);
-        $this->bank($log, 4028.60, [
-            ['start' => 4026.80, 'end' => 4027.40, 'word' => ' my'],
-            ['start' => 4027.50, 'end' => 4028.40, 'word' => ' care.'],
+        // K16: the answer keeps the verse read as the sermon's conclusion; its last line before the
+        // music window, "…rest on Jesus' head,", is as far as the end can go.
+        $answer = CreateResponse::fake(['choices' => [['message' => ['content' => json_encode([
+            'sermon_last_line' => 1, 'ties_to_sermon' => true, 'video_last_line' => 5, 'reason' => 'test',
+        ], JSON_THROW_ON_ERROR)]]]]);
+        OpenAI::fake([$answer, $answer]);
+        app(SermonSongIntroductionCheck::class)->prepare($log, [['start_time' => 2545.22, 'end_time' => 4007.22]]);
+        $this->bank($log->fresh(), 4016.20, [
+            ['start' => 4014.60, 'end' => 4014.90, 'word' => ' on'],
+            ['start' => 4014.90, 'end' => 4015.40, 'word' => " Jesus'"],
+            ['start' => 4015.50, 'end' => 4016.10, 'word' => ' head,'],
+            ['start' => 4016.50, 'end' => 4016.70, 'word' => ' my'],
         ]);
 
         return [$log->fresh(), $log->serviceSections()->where('section_type', ServiceSectionType::Sermon->value)->firstOrFail()];

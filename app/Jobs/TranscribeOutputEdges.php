@@ -9,6 +9,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\PrepareOutputEdgeWordTimings;
+use App\Services\ChurchService\SermonSongIntroductionCheck;
 use App\Services\ChurchService\SpokenEdgeSentenceCheck;
 use App\Services\Sermon\SermonExtractionPlanResolver;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -46,7 +47,7 @@ class TranscribeOutputEdges extends ProcessingJob implements ShouldQueue
         return [(new WithoutOverlapping('output-edge-words-'.$this->processingLog->id))->releaseAfter(30)->expireAfter($this->timeout + 120)];
     }
 
-    public function handle(PrepareOutputEdgeWordTimings $prepare, SermonExtractionPlanResolver $resolver, CueSafeExtractionPlan $cutPlans, SpokenEdgeSentenceCheck $sentenceCheck): void
+    public function handle(PrepareOutputEdgeWordTimings $prepare, SermonExtractionPlanResolver $resolver, CueSafeExtractionPlan $cutPlans, SpokenEdgeSentenceCheck $sentenceCheck, SermonSongIntroductionCheck $introductionCheck): void
     {
         if ($this->refreshAndCheckCancellation($this->processingLog, $this->job ?? null, $this->attempts())) {
             return;
@@ -69,10 +70,13 @@ class TranscribeOutputEdges extends ProcessingJob implements ShouldQueue
         }
         $sermonSpans = array_values($this->processingLog->serviceSections()->whereIn('id', $composition['selected_section_ids'])->orderBy('start_time')->get()
             ->map(static fn (ServiceSection $section): array => ['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time])->all());
+        // Where the sermon ends beside a song (K16) is answered first, so its words are decoded.
+        $introduction = $introductionCheck->prepare($this->processingLog, $sermonSpans);
+        $this->processingLog->refresh();
         foreach ($cutPlans->spokenEndsBesideSongs($this->processingLog, $sermonSpans) as $edge) {
             $spans[] = ['start_time' => $edge, 'end_time' => $edge];
         }
-        $summary = $prepare->prepare($this->processingLog->fresh() ?? throw new \RuntimeException('Processing run disappeared'), $spans);
+        $summary = ['song_introduction' => $introduction] + $prepare->prepare($this->processingLog->fresh() ?? throw new \RuntimeException('Processing run disappeared'), $spans);
         $this->processingLog->refresh();
         // Asked of the cuts the decoded words place, so only once they are decoded.
         $summary['sentence_check'] = $sentenceCheck->prepare($this->processingLog, $composition['selected_section_ids']);

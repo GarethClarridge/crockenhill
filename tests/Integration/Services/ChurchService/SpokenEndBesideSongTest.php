@@ -10,19 +10,22 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\OutputEdgeWordTimings;
+use App\Services\ChurchService\SermonSongIntroductionCheck;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
+use OpenAI\Laravel\Facades\OpenAI;
+use OpenAI\Responses\Chat\CreateResponse;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Support\AudioTimelineFixture;
 use Tests\TestCase;
 
 /**
- * Canary 12 (operator, 2026-10-06): sermon ends extended to the song after them (A) landed
- * mid-word or mid-sentence. 1028 clipped half of "nine" ("Number 749."); 1304 kept most of a
- * quoted hymn verse but not its last two lines. The spoken stretch before the singing goes into
- * the sermon whole, and the cut sits in the pause after its last word, not on the decoded end of
- * that word. 1112's extended end (ruled right) sits in a pause already and stays.
+ * Canary 12 (operator, 2026-10-06): sermon ends beside a song landed mid-word or mid-sentence.
+ * 1028 clipped half of "nine" ("Number 749."); the cut sits in the pause after the last word, not
+ * on its decoded end. Where the sermon ends beside a song is register K16 (2026-10-16): at the
+ * line the banked introduction answer names ({@see SermonSongIntroductionCheck}), which replaced
+ * running on to wherever the singing starts (K8).
  */
 class SpokenEndBesideSongTest extends TestCase
 {
@@ -30,10 +33,11 @@ class SpokenEndBesideSongTest extends TestCase
 
     /**
      * 1077 and 1023: a looped transcript repeats a line as zero-length cues at one instant. The
-     * spoken stretch stopped advancing on them and the edge job spun until it timed out.
+     * old spoken stretch stopped advancing on them and the edge job spun until it timed out; the
+     * question numbers them as lines and the answer's end is read past them.
      */
     #[Test]
-    public function zero_length_cues_in_the_spoken_stretch_do_not_stop_it_advancing(): void
+    public function zero_length_cues_before_the_song_do_not_stop_the_end_being_found(): void
     {
         $repeat = ['start' => 1935.66, 'end' => 1935.66, 'text' => 'because you died for me,'];
         $log = $this->service([
@@ -42,10 +46,11 @@ class SpokenEndBesideSongTest extends TestCase
             $repeat, $repeat, $repeat,
             ['start' => 1935.66, 'end' => 1938.26, 'text' => 'I will remember you, my Lord,'],
         ], [['sermon', 0.0, 1920.08], ['song', 1921.4, 1942.7]], timeline: [[1900, 1940, 0.01, 0.8]]);
+        $this->introduction($log, [['start_time' => 0.0, 'end_time' => 1920.08]], [1, true, 6], [1, true, 6]);
 
         $through = app(CueSafeExtractionPlan::class)->spokenEndsBesideSongs($log, [['start_time' => 0.0, 'end_time' => 1920.08]]);
 
-        $this->assertSame([1938.26], $through, 'the stretch carries on past the repeats to the last line heard as speech');
+        $this->assertSame([1938.26], $through);
     }
 
     /** 1028: the edge falls inside "749"; the decode ends "49" early, so the cut keeps a tail. */
@@ -57,6 +62,7 @@ class SpokenEndBesideSongTest extends TestCase
             ['start' => 4113.66, 'end' => 4115.72, 'text' => 'Number 749.'],
             ['start' => 4130.92, 'end' => 4137.10, 'text' => 'The grace of God'],
         ], [['sermon', 1965.95, 4115.0], ['song', 4115.0, 4303.18]], timeline: [[4100, 4120, 0.01, 0.75], [4120, 4300, 0.66, 0.02]]);
+        $this->introduction($log, [['start_time' => 1965.95, 'end_time' => 4115.0]], [1, true, 2], [1, true, 2]);
         $this->bank($log, 4115.72, [
             ['start' => 4112.78, 'end' => 4113.60, 'word' => ' amazes me.'],
             ['start' => 4113.66, 'end' => 4113.80, 'word' => ' Number'],
@@ -68,16 +74,15 @@ class SpokenEndBesideSongTest extends TestCase
 
         $this->assertGreaterThanOrEqual(4115.98, $plan['segments'][0]['end_time']);
         $this->assertLessThanOrEqual(4116.72, $plan['segments'][0]['end_time']);
-        $this->assertSame([], CueSafeExtractionPlan::unresolvedEdges($plan['cue_edge_widening']), 'the hymn is sung next: the stretch is whole');
+        $this->assertSame([], CueSafeExtractionPlan::unresolvedEdges($plan['cue_edge_widening']), 'the answer says where it ends');
     }
 
     /**
-     * 1304: the section ends at 3702.58, in the middle of the preacher quoting the hymn, while the
-     * song starts at 3706.01 after "Let's stand and sing". The quotation and the call to stand are
-     * the spoken stretch before the singing: wholly in.
+     * 1304 under K16: the section ends mid-way through the preacher quoting the hymn, which ties
+     * it to the sermon. The quotation goes in whole; "Let's stand and sing." on its own does not.
      */
     #[Test]
-    public function a_sermon_end_beside_a_song_takes_the_whole_spoken_stretch_before_the_singing(): void
+    public function a_tied_introduction_ends_before_the_call_to_stand_and_sing(): void
     {
         $log = $this->service([
             ['start' => 3697.06, 'end' => 3699.66, 'text' => 'Climb the steeps and cross the waves.'],
@@ -87,36 +92,34 @@ class SpokenEndBesideSongTest extends TestCase
             ['start' => 3706.74, 'end' => 3708.74, 'text' => 'Amen.'],
             ['start' => 3736.74, 'end' => 3740.08, 'text' => 'Every man by the saints'],
         ], [['sermon', 1871.36, 3702.58], ['song', 3706.01, 3897.92]], timeline: [[3690, 3705, 0.01, 0.77], [3705, 3710, 0.59, 0.49], [3710, 3900, 0.8, 0.01]]);
-        $this->bank($log, 3705.48, [
+        $spans = [['start_time' => 1871.36, 'end_time' => 3702.58]];
+        $this->introduction($log, $spans, [0, true, 3], [0, true, 3]);
+        $this->bank($log, 3704.54, [
+            ['start' => 3702.90, 'end' => 3703.10, 'word' => ' Jesus'],
             ['start' => 3703.20, 'end' => 3704.02, 'word' => ' saves.'],
             ['start' => 3704.64, 'end' => 3704.87, 'word' => " Let's"],
             ['start' => 3705.10, 'end' => 3705.66, 'word' => ' stand'],
-            ['start' => 3705.66, 'end' => 3706.01, 'word' => ' and'],
-            ['start' => 3706.01, 'end' => 3706.47, 'word' => ' sing.'],
         ]);
 
         $plans = app(CueSafeExtractionPlan::class);
-        $plan = $plans->forSpans($log, [['start_time' => 1871.36, 'end_time' => 3702.58]], sermonEnd: true);
+        $plan = $plans->forSpans($log, $spans, sermonEnd: true);
 
-        $this->assertGreaterThanOrEqual(3706.47, $plan['segments'][0]['end_time']);
-        $this->assertLessThanOrEqual(3706.74, $plan['segments'][0]['end_time']);
+        $this->assertGreaterThanOrEqual(3704.02, $plan['segments'][0]['end_time']);
+        $this->assertLessThanOrEqual(3704.64, $plan['segments'][0]['end_time']);
         $this->assertSame([], CueSafeExtractionPlan::unresolvedEdges($plan['cue_edge_widening']));
-        $this->assertSame([3705.48], $plans->spokenEndsBesideSongs($log, [['start_time' => 1871.36, 'end_time' => 3702.58]]),
-            'the edge step decodes the window the extended end reads');
+        $this->assertSame([3704.54], $plans->spokenEndsBesideSongs($log, $spans), 'the edge step decodes the window the answer\'s end reads');
     }
 
-    /**
-     * Codex review: a line before the song's recorded start is not a whole thought. "Let's stand
-     * and | sing our final hymn." continues in a line that starts after it; where the classifier
-     * hears that line as speech, it goes in too.
-     */
+    /** A song's recorded start is no boundary: a line past it that the answer keeps goes in whole. */
     #[Test]
     public function a_thought_continuing_past_the_songs_recorded_start_goes_in_whole(): void
     {
         $log = $this->service($this->unfinishedThought(), [['sermon', 1871.36, 3702.58], ['song', 3706.01, 3897.92]],
             timeline: [[3600, 3710, 0.05, 0.8], [3710, 3900, 0.8, 0.02]]);
+        $spans = [['start_time' => 1871.36, 'end_time' => 3702.58]];
+        $this->introduction($log, $spans, [1, true, 4], [1, true, 4]);
         $plans = app(CueSafeExtractionPlan::class);
-        $this->assertSame([3707.2], $plans->spokenEndsBesideSongs($log, [['start_time' => 1871.36, 'end_time' => 3702.58]]));
+        $this->assertSame([3707.2], $plans->spokenEndsBesideSongs($log, $spans));
         $this->bank($log, 3707.2, [
             ['start' => 3706.15, 'end' => 3706.40, 'word' => ' sing'],
             ['start' => 3706.40, 'end' => 3706.55, 'word' => ' our'],
@@ -124,85 +127,70 @@ class SpokenEndBesideSongTest extends TestCase
             ['start' => 3706.80, 'end' => 3707.15, 'word' => ' hymn.'],
         ]);
 
-        $plan = $plans->forSpans($log, [['start_time' => 1871.36, 'end_time' => 3702.58]], sermonEnd: true);
+        $plan = $plans->forSpans($log, $spans, sermonEnd: true);
 
         $this->assertGreaterThanOrEqual(3707.15, $plan['segments'][0]['end_time']);
         $this->assertSame([], CueSafeExtractionPlan::unresolvedEdges($plan['cue_edge_widening']));
     }
 
     /**
-     * Operator ruling 2026-10-13 (pattern A, 16 sermons): the sermon runs to where the singing
-     * starts. A line cut off mid-phrase by the singing ("Let's stand and | sing…", heard as music)
-     * no longer leaves the end a question: the singing has begun.
+     * 1112 under K16 ("Let's stand to sing, I am trusting you, Lord Jesus." was ruled right under
+     * K7): a bare call to sing and the song's title are no conclusion. The sermon ends at its own
+     * last line, inside its section.
      */
     #[Test]
-    public function a_line_running_into_the_singing_ends_the_stretch_without_a_full_stop(): void
+    public function a_bare_call_to_sing_is_left_out_of_the_sermon(): void
     {
-        $log = $this->service($this->unfinishedThought(), [['sermon', 1871.36, 3702.58], ['song', 3706.01, 3897.92]],
-            timeline: [[3600, 3705, 0.05, 0.8], [3705, 3900, 0.8, 0.02]]);
-        $this->bank($log, 3705.9, [
-            ['start' => 3704.64, 'end' => 3704.87, 'word' => " Let's"],
-            ['start' => 3705.10, 'end' => 3705.40, 'word' => ' stand'],
-            ['start' => 3705.40, 'end' => 3705.85, 'word' => ' and'],
+        $log = $this->service([
+            ['start' => 3741.20, 'end' => 3745.90, 'text' => 'trusting him to make us holy by his blood.'],
+            ['start' => 3746.42, 'end' => 3747.32, 'text' => "Let's stand to sing,"],
+            ['start' => 3747.80, 'end' => 3749.92, 'text' => 'I am trusting you, Lord Jesus.'],
+            ['start' => 3758.86, 'end' => 3764.78, 'text' => 'I am trusting you, Lord Jesus,'],
+        ], [['sermon', 2051.20, 3755.0], ['song', 3755.0, 3885.0]], timeline: [[3740, 3750, 0.01, 0.7], [3750, 3900, 0.65, 0.02]]);
+        $spans = [['start_time' => 2051.20, 'end_time' => 3755.0]];
+        $this->introduction($log, $spans, [1, false, 1], [1, false, 1]);
+        $this->bank($log, 3745.90, [
+            ['start' => 3744.20, 'end' => 3744.40, 'word' => ' holy'],
+            ['start' => 3744.45, 'end' => 3744.85, 'word' => ' by'],
+            ['start' => 3744.90, 'end' => 3745.30, 'word' => ' his'],
+            ['start' => 3745.30, 'end' => 3745.85, 'word' => ' blood.'],
+            ['start' => 3746.50, 'end' => 3746.80, 'word' => " Let's"],
         ]);
 
-        $plan = app(CueSafeExtractionPlan::class)->forSpans($log, [['start_time' => 1871.36, 'end_time' => 3702.58]], sermonEnd: true);
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log, $spans, sermonEnd: true);
 
+        $this->assertGreaterThanOrEqual(3745.85, $plan['segments'][0]['end_time']);
+        $this->assertLessThanOrEqual(3746.50, $plan['segments'][0]['end_time']);
         $this->assertSame([], CueSafeExtractionPlan::unresolvedEdges($plan['cue_edge_widening']));
-        $this->assertGreaterThanOrEqual(3705.85, $plan['segments'][0]['end_time']);
     }
 
     /**
-     * Codex review: whisper punctuates one thought as two sentences ("…let's have our morning
-     * reading. | It's quite a short one.", canary 11). A quotation that goes on past the song's
-     * recorded start after a full stop is still the preacher speaking: where the classifier hears
-     * the next line as speech it goes in, whatever the punctuation.
+     * 1111: the introduction is a section of its own. The sermon runs on through it to the line
+     * the answer keeps, across the boundary the old rule stopped at.
      */
     #[Test]
-    public function a_full_stop_does_not_end_the_spoken_stretch_while_speech_goes_on(): void
+    public function a_tied_introduction_in_a_section_of_its_own_joins_the_sermon(): void
     {
-        $log = $this->service($this->quotationAcrossTheSongStart(), [['sermon', 1871.36, 3702.58], ['song', 3702.70, 3897.92]],
+        $log = $this->service($this->quotationAcrossTheSongStart(), [['sermon', 1871.36, 3702.58], ['other', 3702.70, 3709.0], ['song', 3710.0, 3897.92]],
             timeline: [[3690, 3710, 0.01, 0.78], [3710, 3900, 0.8, 0.01]]);
-        $plans = app(CueSafeExtractionPlan::class);
-        $this->assertSame([3708.0], $plans->spokenEndsBesideSongs($log, [['start_time' => 1871.36, 'end_time' => 3702.58]]));
-        $this->bank($log, 3708.0, [
+        $spans = [['start_time' => 1871.36, 'end_time' => 3702.58]];
+        $this->introduction($log, $spans, [1, true, 3], [1, true, 3]);
+        $this->bank($log, 3706.0, [
+            ['start' => 3704.70, 'end' => 3705.10, 'word' => ' tidings'],
+            ['start' => 3705.10, 'end' => 3705.40, 'word' => ' all'],
+            ['start' => 3705.40, 'end' => 3705.95, 'word' => ' around.'],
             ['start' => 3706.20, 'end' => 3706.60, 'word' => " Let's"],
-            ['start' => 3706.60, 'end' => 3707.00, 'word' => ' stand'],
-            ['start' => 3707.00, 'end' => 3707.20, 'word' => ' and'],
-            ['start' => 3707.20, 'end' => 3707.80, 'word' => ' sing.'],
         ]);
 
-        $plan = $plans->forSpans($log, [['start_time' => 1871.36, 'end_time' => 3702.58]], sermonEnd: true);
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log, $spans, sermonEnd: true);
 
-        $this->assertGreaterThanOrEqual(3707.8, $plan['segments'][0]['end_time']);
-        $this->assertSame([], CueSafeExtractionPlan::unresolvedEdges($plan['cue_edge_widening']));
+        $this->assertGreaterThanOrEqual(3705.95, $plan['segments'][0]['end_time']);
+        $this->assertLessThanOrEqual(3706.20, $plan['segments'][0]['end_time']);
     }
 
-    /**
-     * A line heard as neither speech nor music is no singing: 1221's closing "Amen." sits in a
-     * mostly quiet window (speech 0.33, music 0) and stays in the sermon, as the operator ruled it.
-     */
+    /** Without a banked answer nothing says where the sermon ends beside a song: the end is asked. */
     #[Test]
-    public function a_line_heard_as_neither_speech_nor_music_does_not_end_the_stretch(): void
-    {
-        $log = $this->service($this->quotationAcrossTheSongStart(), [['sermon', 1871.36, 3702.58], ['song', 3702.70, 3897.92]],
-            timeline: [[3690, 3700, 0.01, 0.78], [3700, 3900, 0.05, 0.05]]);
-        $this->bank($log, 3708.0, [
-            ['start' => 3706.20, 'end' => 3706.60, 'word' => " Let's"],
-            ['start' => 3706.60, 'end' => 3707.00, 'word' => ' stand'],
-            ['start' => 3707.00, 'end' => 3707.20, 'word' => ' and'],
-            ['start' => 3707.20, 'end' => 3707.80, 'word' => ' sing.'],
-        ]);
-
-        $plan = app(CueSafeExtractionPlan::class)->forSpans($log, [['start_time' => 1871.36, 'end_time' => 3702.58]], sermonEnd: true);
-
-        $this->assertGreaterThanOrEqual(3707.8, $plan['segments'][0]['end_time']);
-        $this->assertSame([], CueSafeExtractionPlan::unresolvedEdges($plan['cue_edge_widening']));
-    }
-
-    /** Without an audio timeline nothing can say where the singing starts: the end is asked. */
-    #[Test]
-    public function without_an_audio_timeline_an_end_beside_a_song_is_asked(): void
+    public function without_a_banked_answer_an_end_beside_a_song_is_asked(): void
     {
         $log = $this->service($this->quotationAcrossTheSongStart(), [['sermon', 1871.36, 3702.58], ['song', 3702.70, 3897.92]]);
         $this->bank($log, 3702.58, [
@@ -237,23 +225,6 @@ class SpokenEndBesideSongTest extends TestCase
             ['start' => 3706.10, 'end' => 3707.20, 'text' => 'sing our final hymn.'],
             ['start' => 3736.74, 'end' => 3740.08, 'text' => 'Every man by the saints'],
         ];
-    }
-
-    /** 1112 (ruled right): the speech ended before the section did; the end stays in its pause. */
-    #[Test]
-    public function a_sermon_end_already_after_the_spoken_stretch_stays(): void
-    {
-        $log = $this->service([
-            ['start' => 3746.42, 'end' => 3747.32, 'text' => "Let's stand to sing,"],
-            ['start' => 3747.80, 'end' => 3749.92, 'text' => 'I am trusting you, Lord Jesus.'],
-            ['start' => 3758.86, 'end' => 3764.78, 'text' => 'I am trusting you, Lord Jesus,'],
-        ], [['sermon', 2051.20, 3755.0], ['song', 3755.0, 3885.0]], timeline: [[3740, 3750, 0.01, 0.7], [3750, 3900, 0.65, 0.02]]);
-
-        $plans = app(CueSafeExtractionPlan::class);
-        $plan = $plans->forSpans($log, [['start_time' => 2051.20, 'end_time' => 3755.0]], sermonEnd: true);
-
-        $this->assertSame(3755.0, $plan['segments'][0]['end_time']);
-        $this->assertSame([], $plans->spokenEndsBesideSongs($log, [['start_time' => 2051.20, 'end_time' => 3755.0]]));
     }
 
     /**
@@ -376,6 +347,19 @@ class SpokenEndBesideSongTest extends TestCase
         app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($evidence->identity($log, $window)), [
             'identity' => $evidence->identity($log, $window), 'words' => $words, 'compute_seconds' => 1.0,
         ]);
+        $log->refresh();
+    }
+
+    /**
+     * @param  list<array{start_time: float, end_time: float}>  $spans
+     * @param  array{0: int, 1: bool, 2: int}  ...$answers  sermon_last_line, ties_to_sermon, video_last_line
+     */
+    private function introduction(MediaProcessingLog $log, array $spans, array ...$answers): void
+    {
+        OpenAI::fake(array_map(static fn (array $answer): CreateResponse => CreateResponse::fake(['choices' => [['message' => ['content' => json_encode([
+            'sermon_last_line' => $answer[0], 'ties_to_sermon' => $answer[1], 'video_last_line' => $answer[2], 'reason' => 'test',
+        ], JSON_THROW_ON_ERROR)]]]]), $answers));
+        app(SermonSongIntroductionCheck::class)->prepare($log, $spans);
         $log->refresh();
     }
 }

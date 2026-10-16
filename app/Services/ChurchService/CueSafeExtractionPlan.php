@@ -238,7 +238,7 @@ class CueSafeExtractionPlan
     /**
      * @param  list<array{start_time: float, end_time: float}>  $spans
      * @param  bool  $songEnds  Each span is a song: its end runs on to silence or the next speech
-     * @param  bool  $sermonEnd  The last span ends a sermon output: beside a song it takes the spoken stretch before the singing (A)
+     * @param  bool  $sermonEnd  The last span ends a sermon output: beside a song it ends where the banked introduction answer says (K16, {@see SermonSongIntroductionCheck})
      * @param  OutputEdgeAnswers|null  $edgeAnswers  The operator's start and end for this output, applied after every edge rule
      * @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>, audio_fade_out: float|null}
      */
@@ -248,7 +248,9 @@ class CueSafeExtractionPlan
         $cues = $evidence->cues($log);
         $levels = $songEnds ? $this->levels($log) : null;
         $timeline = $songEnds || $sermonEnd ? $this->timeline($log) : null;
-        $songStarts = $sermonEnd ? $this->songStarts($log) : [];
+        // K16: a sermon followed by a song ends where the banked introduction answer says.
+        $introduction = $sermonEnd ? app(SermonSongIntroductionCheck::class) : null;
+        $introductionSong = $introduction?->songStart($log, $spans);
         $last = array_key_last($spans);
         $sectionSpans = $spans;
         $audit = [];
@@ -262,14 +264,17 @@ class CueSafeExtractionPlan
                 if ($neighbour !== null && abs($neighbour - $original) < 0.001) {
                     continue;
                 }
-                $extendedFrom = null;
+                $movedFrom = null;
                 $besideSong = false;
                 $thoughtComplete = true;
-                if ($edge === 'end' && $index === $last && ($song = $this->songAfter($songStarts, $original)) !== null) {
+                $songIntroduction = null;
+                if ($edge === 'end' && $index === $last && $introductionSong !== null) {
                     $besideSong = true;
-                    ['through' => $through, 'complete' => $thoughtComplete] = $this->spokenThrough($cues, $original, $song, $timeline);
-                    if ($through > $original) {
-                        [$extendedFrom, $original] = [$original, $through];
+                    // No banked answer, or one naming no line, leaves the end to the operator.
+                    $songIntroduction = $introduction->read($log, $sectionSpans);
+                    $thoughtComplete = ($songIntroduction['end'] ?? null) !== null;
+                    if ($thoughtComplete && abs($songIntroduction['end'] - $original) > 0.001) {
+                        [$movedFrom, $original] = [$original, $songIntroduction['end']];
                     }
                 }
                 $time = $original;
@@ -306,13 +311,13 @@ class CueSafeExtractionPlan
                             $decision = $this->withSpokenEndTail($decision);
                         }
                         $span[$key] = $decision['time'];
-                        $audit[] = ['span_index' => $index, 'edge' => $edge, 'original_time' => $extendedFrom ?? $original,
-                            'time' => $decision['time'], 'seconds_added' => abs($decision['time'] - ($extendedFrom ?? $original)),
-                            'seconds_moved' => $decision['time'] - ($extendedFrom ?? $original), 'window' => $window,
+                        $audit[] = ['span_index' => $index, 'edge' => $edge, 'original_time' => $movedFrom ?? $original,
+                            'time' => $decision['time'], 'seconds_added' => abs($decision['time'] - ($movedFrom ?? $original)),
+                            'seconds_moved' => $decision['time'] - ($movedFrom ?? $original), 'window' => $window,
                             'cue' => $window['cues'][0], 'cues' => $window['cues'],
                             ...$decision, 'reason' => $thoughtComplete ? $reason : self::SPOKEN_END_UNRESOLVED, 'sentence_check' => $sentenceCheck,
                             'text_disagreement' => $this->disagrees($words, $window['cues']),
-                            'extended_beside_song_from' => $extendedFrom];
+                            'moved_beside_song_from' => $movedFrom, 'song_introduction' => $songIntroduction];
 
                         continue;
                     }
@@ -331,13 +336,13 @@ class CueSafeExtractionPlan
                     }
                 } while ($before !== $time);
                 $span[$key] = $time;
-                if ($time !== $original || $window !== null || $extendedFrom !== null) {
+                if ($time !== $original || $window !== null || $movedFrom !== null) {
                     $included = array_values(array_filter($cues, static fn (array $cue): bool => $cue['start'] < max($time, $original) && $cue['end'] > min($time, $original)));
-                    $audit[] = ['span_index' => $index, 'edge' => $edge, 'original_time' => $extendedFrom ?? $original,
-                        'time' => $time, 'seconds_added' => abs($time - ($extendedFrom ?? $original)), 'seconds_moved' => $time - ($extendedFrom ?? $original),
+                    $audit[] = ['span_index' => $index, 'edge' => $edge, 'original_time' => $movedFrom ?? $original,
+                        'time' => $time, 'seconds_added' => abs($time - ($movedFrom ?? $original)), 'seconds_moved' => $time - ($movedFrom ?? $original),
                         'cue' => $included[0] ?? ($window['cues'][0] ?? null), 'cues' => $included,
                         'window' => $window, 'chosen_pause' => null, 'word_before' => null, 'word_after' => null,
-                        'reason' => $thoughtComplete ? 'no_words_whole_cue' : self::SPOKEN_END_UNRESOLVED, 'text_disagreement' => false, 'extended_beside_song_from' => $extendedFrom];
+                        'reason' => $thoughtComplete ? 'no_words_whole_cue' : self::SPOKEN_END_UNRESOLVED, 'text_disagreement' => false, 'moved_beside_song_from' => $movedFrom, 'song_introduction' => $songIntroduction];
                 }
             }
         }
@@ -371,8 +376,8 @@ class CueSafeExtractionPlan
     }
 
     /**
-     * The extended end {@see self::forSpans()} reads for a sermon output followed by a song: the
-     * edge whose word timings the edge step must decode, beyond the spans' own.
+     * The sermon output's end {@see self::forSpans()} reads beside a song (K16): the banked
+     * introduction answer's end, whose word timings the edge step must decode, beyond the spans' own.
      *
      * @param  list<array{start_time: float, end_time: float}>  $spans  The sermon output's spans
      * @return list<float>
@@ -384,10 +389,15 @@ class CueSafeExtractionPlan
         }
 
         $end = (float) $spans[array_key_last($spans)]['end_time'];
-        $song = $this->songAfter($this->songStarts($log), $end);
-        $through = $song !== null ? $this->spokenThrough(app(OutputEdgeWordTimings::class)->cues($log), $end, $song, $this->timeline($log))['through'] : $end;
+        $answer = app(SermonSongIntroductionCheck::class)->read($log, $spans)['end'] ?? null;
 
-        return $through > $end ? [$through] : [];
+        return $answer !== null && abs($answer - $end) > 0.001 ? [$answer] : [];
+    }
+
+    /** The run's classifier timeline, or null when it has none or it cannot be read. */
+    public function audioTimeline(MediaProcessingLog $log): ?AudioTimeline
+    {
+        return $this->timeline($log);
     }
 
     /**
@@ -418,55 +428,6 @@ class CueSafeExtractionPlan
         }
 
         return null;
-    }
-
-    /**
-     * Where the spoken stretch before a song ends (canary 12, A): through the last line that
-     * starts before the song does and runs past the edge (1304's "Onward, 'tis our Lord's
-     * command. | Jesus saves. Let's stand and sing."), then on through each next line the
-     * classifier hears mostly as speech: a song's recorded start is no boundary, and whisper's
-     * full stops are no proof a thought is over (canary 11: one handover punctuated as two
-     * sentences; Codex review).
-     *
-     * The stretch ends where the singing starts: at the first line heard more as music than as
-     * speech, or where no line follows within reach (operator ruling 2026-10-13, pattern A). A
-     * preacher who reads the hymn's words over its introduction, or says "Amen" and announces it,
-     * is heard as speech over music, line by line (982's "He is more than life to me…" at speech
-     * 1.00 in a mixed window), while the singing is heard as music (933's first sung "great is the
-     * gospel" at music 1.00, speech 0.54). A short line in a mostly quiet window keeps its place
-     * (1221's closing "Amen." at speech 0.33, music 0). Sixteen sermons were refused because such
-     * a line ran into the singing without a full stop; the stretch is now `complete` wherever the
-     * timeline can tell, and only a recording without one leaves it unresolved.
-     *
-     * @param  list<array{start: float, end: float, text: string}>  $cues
-     * @return array{through: float, complete: bool}
-     */
-    private function spokenThrough(array $cues, float $end, float $songStart, ?AudioTimeline $timeline): array
-    {
-        $through = $end;
-
-        foreach ($cues as $cue) {
-            if (TranscriptCueEvidence::isEvidence($cue, $timeline) && $cue['start'] < $songStart && $cue['end'] >= $through - 0.001) {
-                $through = max($through, $cue['end']);
-            }
-        }
-
-        if ($timeline === null) {
-            return ['through' => $through, 'complete' => false];
-        }
-
-        while (true) {
-            // A next line must carry the stretch on: a looped transcript's zero-length repeats at
-            // one instant held it still, and the edge job spun until it timed out (1077, 1023).
-            $next = array_values(array_filter($cues, static fn (array $cue): bool => $cue['start'] >= $through - 0.001 && $cue['end'] > $through + 0.001
-                && $cue['start'] <= $songStart + self::SONG_END_REACH && TranscriptCueEvidence::isEvidence($cue, $timeline)))[0] ?? null;
-
-            if ($next === null || $timeline->musicShare($next['start'], $next['end']) > $timeline->speechShare($next['start'], $next['end'])) {
-                return ['through' => $through, 'complete' => true];
-            }
-
-            $through = $next['end'];
-        }
     }
 
     /**
@@ -940,7 +901,7 @@ class CueSafeExtractionPlan
                 continue;
             }
 
-            $times = [(float) $entry['original_time'], (float) $entry['time'], ...array_map(floatval(...), array_filter([$entry['extended_beside_song_from'] ?? null, $entry['onset_bound'] ?? null], is_numeric(...)))];
+            $times = [(float) $entry['original_time'], (float) $entry['time'], ...array_map(floatval(...), array_filter([$entry['moved_beside_song_from'] ?? null, $entry['onset_bound'] ?? null], is_numeric(...)))];
             [$from, $to] = [min($times) - self::SONG_END_REACH, max($times) + self::SONG_END_REACH];
             $words = [];
 

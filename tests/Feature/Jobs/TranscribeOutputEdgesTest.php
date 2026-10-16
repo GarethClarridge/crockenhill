@@ -11,6 +11,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\PrepareOutputEdgeWordTimings;
+use App\Services\ChurchService\SermonSongIntroductionCheck;
 use App\Services\ChurchService\SpokenEdgeSentenceCheck;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
@@ -84,5 +85,46 @@ class TranscribeOutputEdgesTest extends TestCase
         app()->call([new TranscribeOutputEdges($log), 'handle']);
 
         $this->assertSame(['words', 'sentences'], $order);
+    }
+
+    /**
+     * K16: where a sermon ends beside a song is answered before the words are decoded, and the
+     * words are decoded at the end the answer names.
+     */
+    #[Test]
+    public function it_decodes_the_words_where_the_introduction_answer_ends_the_sermon(): void
+    {
+        Storage::fake('local');
+        config(['media-processing.storage.service_artifact_disk' => 'local']);
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create(['duration' => 5000]);
+        $log->putServiceTranscriptPath('temp/edges.json');
+        Storage::disk('local')->put('temp/edges.json', json_encode(ChurchServiceTranscript::fromCues([
+            ['start' => 10.0, 'end' => 20.0, 'text' => 'Words.'],
+        ], 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        $sermon = ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => ServiceSectionType::Sermon, 'start_time' => 100.0, 'end_time' => 2000.0]);
+        $log->forceFill(['processing_metadata' => ['sermon_composition' => ['sermon_section_id' => $sermon->id, 'selected_section_ids' => [$sermon->id]]]])->save();
+        $order = [];
+        $this->mock(SermonSongIntroductionCheck::class, function (MockInterface $mock) use (&$order): void {
+            $mock->shouldReceive('prepare')->once()->andReturnUsing(function () use (&$order): array {
+                $order[] = 'introduction';
+
+                return ['asked' => true, 'end' => 2031.5, 'ties_to_sermon' => true];
+            });
+            $mock->shouldReceive('read')->andReturn(['end' => 2031.5, 'ties_to_sermon' => true, 'line' => 'A verse.']);
+            $mock->shouldReceive('songStart')->andReturn(null);
+        });
+        $this->mock(PrepareOutputEdgeWordTimings::class, function (MockInterface $mock) use (&$order): void {
+            $mock->shouldReceive('prepare')->once()->withArgs(static fn (MediaProcessingLog $run, array $spans): bool => in_array(['start_time' => 2031.5, 'end_time' => 2031.5], $spans, true))
+                ->andReturnUsing(function () use (&$order): array {
+                    $order[] = 'words';
+
+                    return ['windows' => 0, 'decoded' => 0, 'compute_seconds' => 0.0];
+                });
+        });
+        $this->mock(SpokenEdgeSentenceCheck::class, fn (MockInterface $mock) => $mock->shouldReceive('prepare')->andReturn(['edges' => 0, 'asked' => 0, 'agreed_moves' => 0]));
+
+        app()->call([new TranscribeOutputEdges($log), 'handle']);
+
+        $this->assertSame(['introduction', 'words'], $order);
     }
 }
