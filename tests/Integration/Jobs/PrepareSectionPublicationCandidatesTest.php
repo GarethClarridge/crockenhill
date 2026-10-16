@@ -1038,6 +1038,33 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
     }
 
     #[Test]
+    public function a_song_candidate_cut_before_the_digital_zero_start_rule_is_regenerated(): void
+    {
+        [$processingLog, $section] = $this->songAwaitingCandidate();
+        Bus::fake([AutoPublishServiceSection::class]);
+        Storage::disk('public')->put('sermons/songs/old/video.mp4', 'old-song');
+        $candidate = PublicationCandidateFixture::current(AudioProfile::Music);
+        $candidate['media_processing']['version'] = 9;
+        $section->update([
+            'asset_disk' => 'public',
+            'extracted_video_path' => 'sermons/songs/old/video.mp4',
+            'metadata' => [...$section->metadata->toArray(), 'publication_candidate_extraction' => [
+                ...$candidate, 'processing_id' => $processingLog->processing_id,
+                'media_signature' => $section->mediaSignature(),
+                'segments' => [['start_time' => 60.0, 'end_time' => 300.0]],
+            ]],
+        ]);
+        $videoExtractor = $this->createMock(VideoExtractionService::class);
+        $videoExtractor->expects($this->once())->method('extractMedia')
+            ->willReturn(new ExtractedMedia('temp/section-video.mp4', null, PublicationCandidateFixture::audioReport(AudioProfile::Music)));
+
+        $this->prepare($processingLog, $videoExtractor);
+
+        $this->assertSame(10, $section->fresh()->metadata->raw['publication_candidate_extraction']['media_processing']['version']);
+        $this->assertNotSame('sermons/songs/old/video.mp4', $section->fresh()->extracted_video_path);
+    }
+
+    #[Test]
     public function reused_media_cut_with_other_audio_settings_is_cut_again(): void
     {
         $this->assertReusedTalkIsCutAgain($this->cutUnderCurrentProcessing(['hum_hz' => 50]));

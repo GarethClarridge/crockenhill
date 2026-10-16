@@ -284,7 +284,8 @@ return [
     // 8: music is given a plain gain where loudnorm cannot land its target (SectionAudioTreatment::plainGain).
     // 9: full-pass fixes (2026-10-12): spoken-end tail, sentence-end stop, smeared starts, starts after a
     //    song's sound, amended D1 (prayer before the sermon, silent gaps play through), audio holes kept.
-    'media_processing_version' => 9,
+    // 10: song starts remove only >= 2 s of verified digital zero, retaining a 0.3 s lead.
+    'media_processing_version' => 10,
 
     'video_extraction' => [
         'reencode_crf' => (int) env('VIDEO_EXTRACTION_REENCODE_CRF', 23),

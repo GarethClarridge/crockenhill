@@ -172,6 +172,9 @@ class CueSafeExtractionPlan
     /** What a start moved out of a dead feed keeps before the first sound. */
     private const DEAD_FEED_LEAD = 0.3;
 
+    /** Known RMS logs sample at least every 0.1 s; missing frames cannot prove digital zero. */
+    private const SONG_SILENCE_MAXIMUM_SAMPLE_GAP = 0.1;
+
     /**
      * A section's own output: the section, or a talk with the reading it is answered to go with
      * ({@see TalkReadingPairing}), one span per section. The reading takes the pause before the
@@ -330,8 +333,8 @@ class CueSafeExtractionPlan
         unset($span);
         if (! $songEnds) {
             $spans = $this->afterSongSound($log, $cues, $sectionSpans, $spans, $audit);
-            $spans = $this->outOfDeadFeed($log, $sectionSpans, $spans, $audit);
         }
+        $spans = $this->outOfDeadFeed($log, $sectionSpans, $spans, $audit, songStartsOnly: $songEnds, levels: $levels);
         $audit = $this->withAnswerIdentity($log, $sectionSpans, $songEnds, $sermonEnd, $cues, $levels, $timeline, $audit);
         $spans = $this->withAnsweredEdges($log, $spans, $audit);
         $spans = $this->withUnresolvedIntervals($log, $sectionSpans, $spans, $audit);
@@ -551,33 +554,37 @@ class CueSafeExtractionPlan
      * following…" ran 20 s, 16 s of it over a feed muted while the children went out; operator
      * listening, 2026-10-15). Only a dead feed counts, digital zero or a dropout at or below
      * {@see DeadFeedInsideSection::DROPOUT_LEVEL_DB}: a speaker's pause and a word's decay sit tens
-     * of decibels above it, so no word's tail is cut (the 2026-10-12 clipped endings). Song outputs
-     * keep their own dead-feed rule (operator ruling 2), and edges where two parts meet are not cuts.
+     * of decibels above it, so no word's tail is cut (the 2026-10-12 clipped endings). Song starts
+     * only remove verified digital zero and keep 0.3 s before the first finite sample (operator,
+     * 2026-10-16). Song ends keep their existing rule; edges where two parts meet are not cuts.
      *
      * @param  list<array{start_time: float, end_time: float}>  $sectionSpans  The spans as detection gave them
      * @param  list<array{start_time: float, end_time: float}>  $spans  The spans as placed
      * @param  list<array<string, mixed>>  $audit
+     * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}|null  $levels
      * @return list<array{start_time: float, end_time: float}>
      */
-    private function outOfDeadFeed(MediaProcessingLog $log, array $sectionSpans, array $spans, array &$audit): array
+    private function outOfDeadFeed(MediaProcessingLog $log, array $sectionSpans, array $spans, array &$audit, bool $songStartsOnly = false, ?array $levels = null): array
     {
-        $levels = $this->levels($log);
+        $levels ??= $this->levels($log);
 
         if ($levels === null) {
             return $spans;
         }
 
         foreach ($spans as $index => $span) {
-            foreach (['start' => 'start_time', 'end' => 'end_time'] as $edge => $key) {
+            foreach ($songStartsOnly ? ['start' => 'start_time'] : ['start' => 'start_time', 'end' => 'end_time'] as $edge => $key) {
                 $neighbour = $edge === 'end' ? ($sectionSpans[$index + 1]['start_time'] ?? null) : ($sectionSpans[$index - 1]['end_time'] ?? null);
                 if ($neighbour !== null && abs($neighbour - $sectionSpans[$index][$key]) < 0.001) {
                     continue;
                 }
 
                 $placed = (float) $span[$key];
-                $time = $edge === 'start'
-                    ? $this->firstSoundAfterDeadFeed($levels, $placed, (float) $span['end_time'])
-                    : $this->deadFeedAfterLastSound($levels, (float) $span['start_time'], $placed);
+                $time = match (true) {
+                    $songStartsOnly => $this->songStartAfterDigitalSilence($levels, $placed, (float) $span['end_time']),
+                    $edge === 'start' => $this->firstSoundAfterDeadFeed($levels, $placed, (float) $span['end_time']),
+                    default => $this->deadFeedAfterLastSound($levels, (float) $span['start_time'], $placed),
+                };
 
                 if ($time === null) {
                     continue;
@@ -587,10 +594,11 @@ class CueSafeExtractionPlan
                 $entry = array_key_first(array_filter($audit, static fn (array $entry): bool => $entry['span_index'] === $index && $entry['edge'] === $edge));
                 $original = $entry === null ? (float) $sectionSpans[$index][$key] : (float) $audit[$entry]['original_time'];
                 $moved = ['time' => $time, 'seconds_moved' => $time - $original, 'seconds_added' => abs($time - $original),
-                    'dead_feed' => ['placed_time' => $placed, 'time' => $time]];
+                    'dead_feed' => ['placed_time' => $placed, 'time' => $time, ...($songStartsOnly ? ['digital_zero' => true] : [])]];
                 if ($entry === null) {
                     $audit[] = ['span_index' => $index, 'edge' => $edge, 'original_time' => $original, 'window' => null, 'cue' => null, 'cues' => [],
-                        'chosen_pause' => null, 'word_before' => null, 'word_after' => null, 'reason' => 'dead_feed', 'text_disagreement' => false, ...$moved];
+                        'chosen_pause' => null, 'word_before' => null, 'word_after' => null,
+                        'reason' => $songStartsOnly ? 'song_start_digital_silence' : 'dead_feed', 'text_disagreement' => false, ...$moved];
                 } else {
                     $audit[$entry] = [...$audit[$entry], ...$moved];
                 }
@@ -598,6 +606,38 @@ class CueSafeExtractionPlan
         }
 
         return $spans;
+    }
+
+    /**
+     * Never use a loudness threshold to discard a quiet note or a brief live sample. Only a
+     * prefix of digital zero lasting at least two seconds may move a song's opening. An entirely
+     * silent song has no opening to find; its existing content review remains responsible for it.
+     *
+     * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}  $levels
+     */
+    private function songStartAfterDigitalSilence(array $levels, float $start, float $until): ?float
+    {
+        $samples = $this->samplesBetween($levels, $start, $until);
+        $first = $samples[0]['time'] ?? null;
+        $previous = $start;
+        $rms = app(RmsAnalysisService::class);
+
+        foreach ($samples as $sample) {
+            if ($sample['time'] - $previous > self::SONG_SILENCE_MAXIMUM_SAMPLE_GAP + 0.0001) {
+                return null;
+            }
+            $previous = $sample['time'];
+
+            if ($rms->isDigitalSilence($sample['rms'])) {
+                continue;
+            }
+
+            return $first !== null && $sample['time'] - $first >= self::DEAD_FEED_SECONDS
+                ? max($start, $sample['time'] - self::DEAD_FEED_LEAD)
+                : null;
+        }
+
+        return null;
     }
 
     /**

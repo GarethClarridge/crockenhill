@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\ChurchService;
 
 use App\Actions\HoldSectionForContentReview;
+use App\Enums\SermonPublicationState;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Exceptions\UnplacedContentHoldException;
@@ -75,6 +76,7 @@ class ServiceSectionSyncService
     {
         $this->cleanupExtractedAssets($section);
         $this->notifyHandlerOfRemoval($section);
+        $this->detachSongVideos($section);
         $section->delete();
     }
 
@@ -90,6 +92,7 @@ class ServiceSectionSyncService
         DB::transaction(function () use ($processingLog, $classifiedSections, $defaultPublicationStatus): void {
             $existingByOrder = ServiceSection::query()
                 ->where('media_processing_log_id', $processingLog->id)
+                ->with('songVideos')
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('section_order');
@@ -166,6 +169,7 @@ class ServiceSectionSyncService
                     if ($signatureChanged) {
                         $this->cleanupExtractedAssets($existing);
                         $this->notifyHandlerOfRemoval($existing);
+                        $this->detachSongVideos($existing);
 
                         $payload = array_merge(
                             $payload,
@@ -173,6 +177,15 @@ class ServiceSectionSyncService
                         );
                     } else {
                         $payload['metadata'] = $this->mergeExistingMetadata($existing, $payload['metadata']);
+
+                        if ($existing->section_type !== ServiceSectionType::Song) {
+                            $hasSongVideo = $existing->songVideos->isNotEmpty();
+
+                            if ($hasSongVideo || str_starts_with($existing->extracted_video_path ?? '', 'sermons/songs/')) {
+                                $payload['extracted_video_path'] = null;
+                                $this->detachSongVideos($existing);
+                            }
+                        }
                     }
 
                     if ($signatureChanged || ! $this->songMatchWasReviewed($existing)) {
@@ -206,6 +219,7 @@ class ServiceSectionSyncService
             foreach ($staleSections as $staleSection) {
                 $this->cleanupExtractedAssets($staleSection);
                 $this->notifyHandlerOfRemoval($staleSection);
+                $this->detachSongVideos($staleSection);
                 $staleSection->delete();
             }
         });
@@ -382,6 +396,15 @@ class ServiceSectionSyncService
                 ]
             ),
         ];
+    }
+
+    /** Detach obsolete bindings without deleting the single-copy published or quarantined media. */
+    private function detachSongVideos(ServiceSection $section): void
+    {
+        SongVideo::query()->where('service_section_id', $section->id)->update([
+            'service_section_id' => null,
+            'publication_state' => SermonPublicationState::Quarantined,
+        ]);
     }
 
     private function notifyHandlerOfRemoval(ServiceSection $section): void
@@ -736,7 +759,8 @@ class ServiceSectionSyncService
      */
     private function cleanupExtractedAssets(ServiceSection $section): void
     {
-        if ($this->holdsPublishedMedia($section)) {
+        if ($this->holdsPublishedMedia($section)
+            || str_starts_with($section->extracted_video_path ?? '', 'sermons/songs/')) {
             return;
         }
 

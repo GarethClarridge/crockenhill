@@ -50,6 +50,37 @@ class EdgeAnswerBindingTest extends TestCase
         $this->assertSame(9.9, $plan['segments'][0]['start_time']);
     }
 
+    #[Test]
+    public function a_song_start_trim_keeps_its_refusal_and_applies_the_operators_answer_last(): void
+    {
+        $log = $this->log([self::CUE], self::WORDS);
+        config(['media-processing.segmentation.adaptive_thresholds.enabled' => false]);
+        $lines = [];
+
+        for ($tenth = 0; $tenth < 500; $tenth++) {
+            $lines[] = sprintf('frame:%d pts:%d pts_time:%.1f', $tenth, $tenth * 800, $tenth / 10);
+            $lines[] = 'lavfi.astats.Overall.RMS_level='.($tenth < 150 ? '-inf' : '-25');
+        }
+
+        $log->update(['rms_log_path' => 'service-transcripts/answered-song.rms.log']);
+        Storage::disk('local')->put($log->rms_log_path, implode("\n", $lines));
+        $plan = $this->plans()->forSpans($log->fresh(), self::OUTPUT, songEnds: true);
+        $entry = $plan['cue_edge_widening'][0];
+        $this->assertSame(CueSafeExtractionPlan::AMBIGUOUS_CUE_ANCHOR, $entry['reason']);
+        $this->assertEqualsWithDelta(14.7, $entry['time'], 0.001);
+        $this->assertTrue($entry['dead_feed']['digital_zero']);
+        $log->writeProcessingMetadata(static fn (array $metadata): array => [...$metadata,
+            CueSafeExtractionPlan::EDGE_ANSWERS_KEY => [['key' => CueSafeExtractionPlan::edgeAnswerKey($entry),
+                'decision' => 'cut_at', 'time' => 14.0]],
+        ]);
+
+        $answered = $this->plans()->forSpans($log->fresh(), self::OUTPUT, songEnds: true);
+
+        $this->assertSame(14.0, $answered['segments'][0]['start_time']);
+        $this->assertSame(CueSafeExtractionPlan::OPERATOR_ANSWERED_EDGE, $answered['cue_edge_widening'][0]['reason']);
+        $this->assertSame([], CueSafeExtractionPlan::unresolvedEdges($answered['cue_edge_widening']));
+    }
+
     /** A line near the edge re-transcribed with the same timings: the operator heard other evidence. */
     #[Test]
     public function changed_transcript_with_unchanged_timestamps_invalidates_an_answer(): void

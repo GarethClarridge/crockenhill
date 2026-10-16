@@ -96,10 +96,11 @@ song digital-zero bar, run 937's retirement).
 | Q5 | No review state means nothing to hide: a sermon with no pipeline run or sections is public as before. | 10-05 | [Boundary] §8.8 |
 | Q6 | A title variant is not a question. Normalise titles against the catalogue before composing. | 10-06 | [Boundary] §8.9 |
 | Q7 | One question per clip: merge disputes that settle the same decision over one stretch. | 10-06 | [Boundary] §8.9 |
-| Q8 | **Held sermons are cut with `--held-section`.** The hold stays; a release page then has the operator confirm each defect is gone. | 10-13 | [Round] §5 R4; [Runbook] §4.2 |
+| Q8 | **Held sermons are cut with `--held-section`.** The hold stays; a release page then has the operator confirm each defect is gone. The operator approved the 62-run cohort listed in [Plan] §4.0 decision 2, with a dry run per run and the recorded duplicate exclusions and routing. | 10-13; cohort approved 10-16 | [Round] §5 R4; [Runbook] §4.2; operator: "Recut the 62 held sermons" |
 | Q9 | **A looped pre-recorded segment is a flag to listen to, never a trim.** A reading may repeat its first and last verse. | 10-14 | [Round] §12 |
 | Q10 | Listening pages: ask which text matches, show service time, play at 3× by default, never scroll sideways, and build from the last working page. | 10-07 to 10-11 | [Runbook] §5.3 |
 | Q11 | Explain the evidence before asking for a decision. | 07-05 | notes |
+| Q12 | **Hold and review the known-bad endings:** runs 1224, 1111, 1198, 962, 1005, 1240 and 1271. Keep or apply content-defect holds and review against the source; a re-cut alone does not clear them. The operator confirms each ending defect is resolved before its hold is cleared. Holds applied and verified on 10-16 to sections 846, 1242, 1935, 165128, 146083, 175519 and 3397. Source listening and operator confirmation remain outstanding. | 10-16 | Operator: "Hold and review the known bad endings"; [Plan] §4.0 decision 5 |
 
 ## 5. Sermon composition
 
@@ -138,10 +139,12 @@ song digital-zero bar, run 937's retirement).
 | E11 | **Finished runs are re-cut** wherever the replayed plan differs from the cut at all, with no tolerance; song and talk clips too. | 10-15 | [Round] §12 |
 | E12 | A clip with no recorded cut is re-cut, not reused. All 155 pre-fix runs go into the re-cut round, and its fresh comparison decides. | 10-16 | [Round] §12 |
 | E13 | Use VideoToolbox (host ffmpeg service) for section cuts. | 10-13 | [Round] §2 |
-| E14 | **Music ruling 2:** a song edge that runs ≥ 15 s into verified digital zero (every frame `-inf`) moves to where the zeros begin, with no hold. Shorter dead air is left by design. **Open, 10-16:** should songs take E10's 2 s bar? | 09-25 | [Music] §12 |
+| E14 | **Music ruling 2:** a song edge that runs ≥ 15 s into verified digital zero (every frame `-inf`) moves to where the zeros begin, with no hold. Song starts additionally follow E18; song ends and the 15 s dropout/whole-song policy remain unchanged. | 09-25; clarified 10-16 | [Music] §12; [Plan] §4.0 decision 4 |
 | E15 | **Video whole or not at all:** release the whole video when ≥ 75% has usable picture, otherwise hide it and release audio only. Never trim dead stretches; flag "has video issues". | 09-22 | notes; `release_usable_share` |
 | E16 | Whole-recording cards count as no video; 1225's partial video is shown. | 09-14 | [Plan] §4.3 |
 | E17 | A concatenated recording can contain a song: keep a song section the evidence supports, and demote only join fragments. | 09-14 | [Plan] §4.3 |
+| E18 | **Song starts:** remove a leading prefix of ≥ 2 s of verified digital zero, keeping 0.3 s before the first finite audio sample, however quiet or brief. Preserve song ends, fades, interior gaps, content holds and explicit operator answers. All 15 proposed starts were accepted before implementation was authorised. No dispatch or release is authorised by this rule. | 10-16 | Operator: "All of these are fine", then "Ok, do that"; [Plan] §4.0 decision 4 |
+| E19 | **Add the 39 missed v9 runs to the re-cut round.** Exact membership and routing are listed in [Plan] §4.0 decision 1; 974 uses `reExtract` under X7. This settles cohort inclusion; the remaining pre-dispatch checks still apply. | 10-16 | Operator: "Add the 39 runns"; [Plan] §4.0 decision 1 |
 
 ## 7. Audio
 
@@ -181,7 +184,7 @@ song digital-zero bar, run 937's retirement).
 | X1 | Retire stale runs 931, 934, 935 (superseded by 936), **937 (dead duplicate of 938)** and 959. | 09-03 | appendix D4 |
 | X2 | Saturday rehearsals 1043 and 1089 are excluded (`rehearsal_duplicate`), as are funerals 1051 and 1098 (`private_occasion`). The services their runs created are removed; release refuses an excluded run's rows. | 09-14, 09-15 | [Plan] §4.5 |
 | X3 | 1145 is excluded, `no_sermon_in_source`, keeping service 1030; 1143 is an accepted hold. | 09-19 | [Plan] §4.5 |
-| X4 | **Duplicate pairs:** keep the real service, use the better file's run, set the poorer run aside (`duplicate_recording`): A 1120 over 930, B 1034 over 1035, C 1375 over 1374. Not applied. | 10-14 | [Plan] §4.4 |
+| X4 | **Duplicate pairs:** keep the real service, use the better file's run, set the poorer run aside (`duplicate_recording`): A 1120 over 930, B 1034 over 1035, C 1375 over 1374. Applied and verified locally on 10-16; all 10 withdrawn assets preserved and hash-checked. Re-detection and re-cut remain pending. | 10-14 | [Plan] §4.4 |
 | X5 | 940 is a rehearsal (`rehearsal`, service 653 removed, done 10-15); 879 and 1016 are rehearsals of 1015. Retire 879 (not done). | 10-14, 10-15 | [Round] §12 |
 | X6 | 607: keep 1126's 1080p sermon; 894 adopts it. 546: "720p with the reading", so 893 wins and 1189 is set aside. 790: 889 and 890 adopt 1378's sermon. | 10-14, 10-15 | [Round] §12 |
 | X7 | Hand-edited structure, never to be recomposed: 942, 974, 1363. | 10-15 | [Round] §12 |
@@ -198,13 +201,14 @@ song digital-zero bar, run 937's retirement).
 | R6 | Never run tests in the round clone. | 10-15 | [Runbook] §1 |
 | R7 | Fix everything on the fix-round list (items 1–20) before the next run. | 10-12 | [Log 10-16] Part 2 |
 | R8 | **Weekly processing takes over when the historic import is done**; services after 2026-08-23 wait for it. The definition of "done" is proposed in [Programme] §0.4. | 10-16 | operator, 10-16; [Plan] §4.2 |
+| R9 | **Fix the stale-clip cause before the re-cut round.** Complete [Round] §9.1 step 1, test it and include it in the new freeze before dispatch; existing residue clean-up remains in [Plan] §4.1. Implemented in the local working tree; focused tests pass. Inclusion in the next freeze remains pending. | 10-16 | Operator: "Fix the stale clips before the round"; [Plan] §4.0 decision 7 |
 
 ## 12. Release
 
 | ID | Ruling | Date | Source |
 |---|---|---|---|
 | P1 | Release by era slice, each batch separately signed, with observation and rollback. | 08-14 | [Programme] §8 |
-| P2 | **Thumbnails are deferred** until the release membership's editorial QA passes (cost), then generated as an explicit step and checked. | 09-14 | [Plan] §4.5 |
+| P2 | **Thumbnails are deferred** until the release membership's editorial QA passes (cost), then generated as an explicit step and checked. Deferral reaffirmed for the coming round. | 09-14; reaffirmed 10-16 | [Plan] §4.5; operator: "Keep thumbnail deferral" |
 | P3 | Speaker identification stays disabled for the historic corpus. Retrain it on the historic video, or accept "Visiting Speaker" explicitly for a batch. | 09-14 | [Plan] §4.5 |
 | P4 | No AI-generated answers on public surfaces. | 07-20 | notes |
 

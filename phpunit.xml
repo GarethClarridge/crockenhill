@@ -43,6 +43,8 @@
     </source>
     <php>
         <env name="APP_ENV" value="testing" force="true"/>
+        <!-- Clones lack .env.testing: never inherit the live database from .env. -->
+        <env name="DB_DATABASE" value="testing" force="true"/>
         <env name="CACHE_DRIVER" value="array"/>
         <env name="CACHE_PREFIX" value="test_process"/>
         <!-- .env.testing replaces .env rather than merging with it, so REDIS_HOST

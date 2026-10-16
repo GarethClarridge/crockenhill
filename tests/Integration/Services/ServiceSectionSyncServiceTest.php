@@ -7,6 +7,7 @@ namespace Tests\Integration\Services;
 use App\Actions\HoldSectionForContentReview;
 use App\Actions\ServiceReview\ConfirmServiceSection;
 use App\Enums\ContentHoldCheck;
+use App\Enums\SermonPublicationState;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionStatus;
@@ -23,6 +24,8 @@ use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\TalkReadingPairing;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -41,6 +44,141 @@ class ServiceSectionSyncServiceTest extends TestCase
         parent::setUp();
 
         $this->service = app(ServiceSectionSyncService::class);
+    }
+
+    #[Test]
+    public function inserting_a_section_detaches_stale_song_clips_from_later_non_song_rows(): void
+    {
+        Storage::fake('public');
+        $run = MediaProcessingLog::factory()->livestream()->create();
+        $sections = [];
+        $videos = [];
+
+        foreach ([ServiceSectionType::Other, ServiceSectionType::Sermon] as $index => $type) {
+            $section = ServiceSection::factory()->create([
+                'media_processing_log_id' => $run->id,
+                'church_service_item_id' => null,
+                'section_order' => $index + 1,
+                'section_type' => $type,
+                'title' => $index === 0 ? 'Introduction to the next song' : 'Sermon',
+                'start_time' => 100.0 + $index * 100,
+                'end_time' => 121.0 + $index * 100,
+                'extracted_video_path' => "sermons/songs/stale-{$index}.mp4",
+            ]);
+            $videos[] = SongVideo::factory()->quarantined()->create([
+                'service_section_id' => $section->id,
+                'video_file_path' => $section->extracted_video_path,
+            ]);
+            Storage::disk('public')->put($section->extracted_video_path, 'preserved clip');
+            $sections[] = $section;
+        }
+
+        $incoming = [$this->sectionData(null, 1, ServiceSectionType::Prayer->value, 'Inserted prayer', 0.0, 60.0, 60.0)];
+        foreach ($sections as $index => $section) {
+            $incoming[] = $this->sectionData(null, $index + 2, $section->section_type->value, $section->title, $section->start_time, $section->end_time, $section->duration);
+        }
+        $this->service->sync($run, $incoming);
+
+        foreach ($sections as $index => $section) {
+            $this->assertSame($index + 2, $section->fresh()->section_order);
+            $this->assertNull($section->fresh()->extracted_video_path);
+            $this->assertNull($videos[$index]->fresh()->service_section_id);
+            Storage::disk('public')->assertExists($videos[$index]->video_file_path);
+        }
+    }
+
+    /** @return array<string, array{bool}> */
+    public static function removalRoutes(): array
+    {
+        return ['sync' => [false], 'explicit removal' => [true]];
+    }
+
+    #[Test]
+    #[DataProvider('removalRoutes')]
+    public function removing_a_non_song_section_quarantines_and_detaches_its_stale_video(bool $explicit): void
+    {
+        Storage::fake('public');
+        $run = MediaProcessingLog::factory()->livestream()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Prayer,
+            'extracted_video_path' => 'sermons/songs/stale.mp4',
+        ]);
+        $video = SongVideo::factory()->create([
+            'service_section_id' => $section->id,
+            'video_file_path' => $section->extracted_video_path,
+        ]);
+        Storage::disk('public')->put($video->video_file_path, 'preserved clip');
+
+        if ($explicit) {
+            $this->service->removeSection($section);
+        } else {
+            $this->service->sync($run, []);
+        }
+
+        $this->assertModelMissing($section);
+        $this->assertNull($video->fresh()->service_section_id);
+        $this->assertSame(SermonPublicationState::Quarantined, $video->fresh()->publication_state);
+        Storage::disk('public')->assertExists($video->video_file_path);
+    }
+
+    /** @return array<string, array{string, float, bool}> */
+    public static function changedSongSections(): array
+    {
+        return [
+            'moved span' => [ServiceSectionType::Song->value, 65.0, false],
+            'retyped section' => [ServiceSectionType::Prayer->value, 60.0, false],
+            'rollback' => [ServiceSectionType::Song->value, 65.0, true],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('changedSongSections')]
+    public function changing_a_song_detaches_its_old_video_without_deleting_it(string $type, float $start, bool $rollback): void
+    {
+        Storage::fake('public');
+        $run = MediaProcessingLog::factory()->livestream()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'church_service_item_id' => null,
+            'section_order' => 1,
+            'section_type' => ServiceSectionType::Song,
+            'title' => 'Song',
+            'start_time' => 60.0,
+            'end_time' => 180.0,
+            'extracted_video_path' => 'sermons/songs/old.mp4',
+        ]);
+        $video = SongVideo::factory()->create([
+            'service_section_id' => $section->id,
+            'video_file_path' => $section->extracted_video_path,
+        ]);
+        Storage::disk('public')->put($video->video_file_path, 'preserved clip');
+
+        $incoming = [$this->sectionData(null, 1, $type, 'Song', $start, 180.0, 180.0 - $start)];
+        if ($rollback) {
+            $incoming[] = $this->sectionData(null, 2, 'invalid_type');
+        }
+
+        try {
+            $this->service->sync($run, $incoming);
+            $this->assertFalse($rollback, 'Invalid sections must refuse the sync.');
+        } catch (ValidationException $exception) {
+            if (! $rollback) {
+                throw $exception;
+            }
+
+            $this->assertSame($section->id, $video->fresh()->service_section_id);
+            $this->assertSame(SermonPublicationState::Published, $video->fresh()->publication_state);
+            $this->assertSame($video->video_file_path, $section->fresh()->extracted_video_path);
+            Storage::disk('public')->assertExists($video->video_file_path);
+
+            return;
+        }
+
+        $this->assertNull($section->fresh()->extracted_video_path);
+        $this->assertNull($video->fresh()->service_section_id);
+        $this->assertSame(SermonPublicationState::Quarantined, $video->fresh()->publication_state);
+        Storage::disk('public')->assertExists($video->video_file_path);
     }
 
     #[Test]
@@ -266,6 +404,7 @@ class ServiceSectionSyncServiceTest extends TestCase
         $this->assertSame('section-publications/2727/video.mp4', $section->extracted_video_path);
         $this->assertArrayNotHasKey('superseded', $section->metadata?->toArray() ?? []);
         $this->assertModelExists($songVideo);
+        $this->assertSame($section->id, $songVideo->fresh()->service_section_id);
         Storage::disk('public')->assertExists('section-publications/2727/video.mp4');
         Storage::disk('public')->assertExists('sermons/songs/2727.mp4');
     }

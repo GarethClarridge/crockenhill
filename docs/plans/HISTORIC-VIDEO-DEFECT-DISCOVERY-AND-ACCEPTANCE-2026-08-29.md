@@ -1,9 +1,10 @@
 # Historic Video Defect Discovery and Acceptance Plan
 
 > **Status — 2026-10-16.** The full pass (10-10 to 10-12), its fix round (10-12/13) and the follow-up
-> round (10-13 to 10-15) are done. Nothing is public: all 443 historic sermons and 953 historic song
+> round (10-13 to 10-15) are done. Nothing is public: all 440 historic sermons and 953 historic song
 > videos are quarantined. Export readiness is 12 of 455 runs (§3). The **re-cut round** is set up and
-> **not dispatched**: its membership and eight decisions wait on the operator (§4.0). The
+> **not dispatched**: its membership needs refreshing on current code; duplicate corrections and
+> ending holds are now applied, with source listening still pending (§4.0). The
 > stale-clip clean-up (§4.1), song acceptance stage 2 and the release work (§4.5) follow it.
 > Getting production complete is mapped in the
 > [programme plan §0.4](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md#04-getting-production-complete-the-map-2026-10-16);
@@ -192,14 +193,14 @@ E11, E12), so the edge fixes of 10-12 and the dead-feed rule (E10) reach the med
 **Decisions before dispatch** (pre-dispatch review, 2026-10-16; evidence in the archived
 [follow-up round §12](../archived-plans/FOLLOW-UP-ROUND-FROZEN-CLONE-2026-10-13.md), "Pre-dispatch review"):
 
-1. **Add the 39 v9 runs the dead-feed rule moves.** The rule did not bump the media version, so the
+1. **Add the 39 v9 runs the dead-feed rule moves — approved 10-16 (register E19).** The rule did not bump the media version, so the
    version-based membership missed them. They include 1096 (sermon 1023, the case the rule was built
    for), 1352 (sermon end −39.3 s), 1308 (+35.3 s), and the talks 1020 §1344, 988 §1149 and
    1326 §4135. Route: recompose and cut; 974 through `reExtract` (register X7).
    - The runs: 928 941 951 956 974 976 977 983 988 993 994 997 1002 1004 1015 1017 1018 1020 1023
      1060 1062 1063 1066 1077 1096 1102 1106 1131 1136 1210 1229 1269 1308 1326 1328 1334 1339
      1342 1352.
-2. **Cut the 62 held sermons with `--held-section`** (register Q8), after a `--dry-run` per run. A run
+2. **Cut the 62 held sermons with `--held-section` — approved 10-16** (register Q8), after a `--dry-run` per run. Holds remain until the operator confirms each defect is gone. A run
    stopped before `TranscribeOutputEdges` goes through `reExtract`. Four are the duplicate pairs' runs
    (1034, 1120 and 1375 kept, 1374 excluded) and follow decision 3 instead.
    - The runs: 929 946 969 980 1003 1008 1019 1030 1031 1032 1034 1039 1047 1052 1057 1059 1064
@@ -209,28 +210,94 @@ E11, E12), so the edge fixes of 10-12 and the dead-feed rule (E10) reach the med
 3. **Apply the duplicate-pair corrections first** (§4.4, register X4). Drop 1035 (pair B's poorer
    run, a member on the paid re-detection route). Take kept runs 1034, 1120 and 1375 through
    re-detection, then `--held-section`. 1374 is excluded.
-4. **Song dead air:** should song outputs take the spoken edges' 2 s bar (register E14)? A yes needs
-   a replay against the song regression fixtures first.
-5. **Known-wrong endings cut again unchanged:**
+4. **Song dead air — decided 10-16 (register E18):** song starts remove a leading prefix of ≥ 2 s
+   of verified digital zero and keep 0.3 s before the first finite sample. Song ends, fades and
+   the 15 s dropout/whole-song policy remain unchanged.
+   - **Evidence before adoption, 10-16:** a bounded read-only replay selected 63 IDs from the
+     saved ≥3 s leading/trailing-silence scan; 62 current eligible song plans matched. The spoken
+     algorithm moves 49 edges, but 34 would remove finite-level audio. Only 15 moves remove solely
+     digital zero (all starts; 70.633 s total). The direct transfer also violates the existing
+     1028 §1392 ending fixture (553.1 s against its required minimum 555.01 s). A test-only variant
+     that accepts only digital-zero removals and preserves fades passes the song fixtures; the
+     combined focused checks pass 111 tests, with PHPStan at zero errors. Evidence:
+     `storage/scratch/song-dead-feed-evidence-20261016.json` (raw replay and SHA-256 alongside it).
+     This ruled out copying the spoken ≤ −80 dB rule and supported the separate start-only rule
+     subsequently adopted. This sample supplies no zero-only end-move evidence.
+   - **Listening set prepared, 10-16:** `storage/scratch/song-start-listening-20261016/index.html`
+     contains all 15 starts, with current/proposed previews from each saved processed clip and
+     wider source context (45 lossless audio excerpts). Recorded starts match the replay;
+     excerpt durations and references are checked. Five review-control tests pass. Answers stay
+     in the browser and can be exported as JSON bound to the evidence hash.
+     The blank file-preview delivery was fixed by embedding the cards and script in the HTML;
+     a restricted loopback preview was verified in the browser with all 15 cards and 45 audio
+     players loaded, with no audio errors. No review choices were selected during verification.
+   - **Operator listening acceptance, 10-16:** "All of these are fine" accepts all 15 proposed
+     starts in the reviewed set: run/section 963/860, 967/1073, 974/997, 1007/1251, 1009/1270,
+     1009/1277, 1036/1477, 1062/1662, 1066/212330, 1102/1863, 1102/1866, 1315/4002, 1323/4099,
+     1338/4762 and 1345/4356. Exact coordinates and excerpt hashes are recorded in
+     `storage/scratch/song-start-listening-20261016/operator-verdicts-20261016.json`, bound to
+     evidence SHA-256 `1ac1c12c1e7ff3e96ccc6fc8f05e566d6e63107accdc7fac63c6ae86d2432aa6`.
+     All 15 are accepted; none is deferred. This settles these starts, not song ends, finite quiet
+     audio, a general cutting-rule change, unrelated holds or release. No cuts have been applied.
+   - **Implementation authorised, 10-16:** after accepting the 15 starts, the operator approved
+     implementing the 2 s digital-zero-only start rule. The shared cut planner now stops before
+     the first finite sample, with no loudness or minimum-live-duration threshold. On the accepted
+     recordings this keeps up to 0.107 s extra zero lead compared with the previews. Durable RMS
+     fixtures cover all 15; synthetic cases cover the exact threshold, finite quiet audio, brief
+     sounds, wholly silent songs and missing evidence. A partial RMS prefix or a sample gap over
+     0.1 s refuses the trim; unknown audio cannot be treated as digital zero. Answered edges still
+     apply after the rule.
+     Media-processing version is **10**, so earlier candidate stamps cannot be reused. The frozen
+     round clone and its snapshot have not been changed; the next freeze must remeasure affected
+     membership and bank current edge evidence before dispatch. No re-cut, hold clearance or
+     release was performed by this implementation.
+     **Validation:** all 15 accepted RMS fixtures and the focused song regressions pass; Pint
+     passes and PHPStan reports zero errors. The full parallel suite completes with no failures:
+     9,829 tests, 96,908 assertions, 163 PHPUnit notices and one skipped opt-in corpus replay.
+5. **Hold and review the known-bad endings — decided 10-16 (register Q12):**
    - members 1224 (the sermon end runs 22 s into the hymn while the preacher reads it) and 1111
      (ends mid-sentence);
    - non-members 1198, 962, 1005, 1240 and 1271.
 
-   Rule them, hold them, or accept them on record.
+   Keep or apply a content-defect hold and review each ending against the source. A re-cut alone
+   does not clear the hold; the operator must confirm the ending defect is resolved. This decision
+   is recorded. **Applied and verified locally 10-16 at 10:39 UTC:** sections 846 (962),
+   1242 (1005), 1935 (1111), 165128 (1198), 146083 (1224), 175519 (1240) and 3397 (1271)
+   now carry live decision-owned `content_defect_hold` records and `needs_manual_review`.
+   Source listening and operator confirmation remain pending; no hold was cleared.
 6. **Unreviewed structure changes on recompose:** 1036 drops "Unidentified singing" §1470 (no media);
    1255 drops "Opening Bible reading" §3178, which carries a stale song clip. Look before the round,
    or listen after it.
-7. **§9.1 step 1 before the round?** If the cause is fixed first, the 141 recomposes stop adding to
-   the stale-clip residue (§4.1).
-8. **Thumbnails:** no change to the round unless the deferral is brought forward (§4.5).
+   **Read-only inspection, 10-16:** §1470 spans 29.98–90 s, has no extracted video, and its
+   stored text is only “Amen. Thank you.”; this does not settle whether singing occurred.
+   §3178 spans 141–179.127 s and its stored transcript contains a Revelation 1 reading, while
+   its video path is the stale song clip `sermons/songs/104/3178.mp4`. Its proposed removal is
+   not accepted merely because that clip is stale. Both remain explicit source-listening
+   entries in `storage/scratch/recut-preflight-next-20261016/review-entries.json`, alongside the
+   seven ending reviews. Their section data has not been changed.
+7. **Fix the stale-clip cause before the round — approved 10-16 (register R9).** Complete
+   [follow-up round §9.1](../archived-plans/FOLLOW-UP-ROUND-FROZEN-CLONE-2026-10-13.md#91-clean-up-pass-stale-song-clips-on-sections-that-are-not-songs-found-14-10)
+   step 1 before freezing or dispatching, so recomposition stops adding to the stale-clip residue
+   (§4.1). Implemented in the local working tree on 10-16: section sync clears stale song paths on
+   non-song rows and detaches/quarantines obsolete `SongVideo` bindings when content changes or
+   sections are removed, keeping the files. The run-1002 insertion regression and moved-span
+   regression failed before the fix; focused coverage also proves retyping, removal, rollback and
+   preservation of unchanged bindings. All 33 section-sync tests pass; Pint passes and PHPStan is
+   at zero errors. The full parallel suite passes: 9,835 tests, 96,939 assertions, 163 PHPUnit
+   notices and one skipped opt-in corpus replay. The frozen clone is unchanged; include
+   this fix in the next freeze. Existing residue clean-up remains in §4.1.
+8. **Keep thumbnail deferral — reaffirmed 10-16 (register P2).** Generate thumbnails only after
+   the release membership's editorial QA passes (§4.5).
 
 **Go checklist** (on the operator's word, after the decisions):
 1. Push master to a backup branch: no workflow runs on a non-master push. Force
    `DB_DATABASE=testing` in `phpunit.xml`, so tests in a clone cannot reach `crockenhill`; test it
    on main.
-2. Apply the three duplicate-pair corrections (`historic-import:correct-run-identity … --apply`).
+2. **Done locally 10-16:** the three duplicate-pair corrections were applied and verified
+   (`historic-import:correct-run-identity … --apply`); see §4.4.
 3. Build what the decisions approve on master. Move the clone to it ([runbook](HISTORIC-ROUND-RUNBOOK.md)
-   §2.1).
+   §2.1). The stale-clip cause fix (R9) must be tested and included before the new freeze;
+   verify the seven known-bad endings are held and have a review entry (Q12).
 4. New snapshot: the 144 less 1035, plus the 38 v9 runs (the 39 less 974), plus 1034, 1120 and 1375
    on `rerun-redetect`. Dry-run every route.
 5. Watcher on the new snapshot (runbook §5.1). Then:
@@ -246,6 +313,17 @@ E11, E12), so the edge fixes of 10-12 and the dead-feed rule (E10) reach the med
 
 **Time:** about 3.9 min a run (10-15): about 9.5 h for the 144, plus 2.5 h for the v9 runs. Held
 sermons take about 6 min each, one at a time: about 6 h.
+
+**Preflight operation, 10-16:** no processing dispatched. No active processing step or real
+queue payload was present (Redis notification tokens are not jobs). Before the identity corrections
+and Q12 holds, a fresh consistent database backup was taken:
+`storage/scratch/recut-preflight-next-20261016/before-identity-and-holds.sql.gz`
+(SHA-256 `60e64c23c720e2512545ab4488243ce54aaa856edc2ba12ae067821646a53040`).
+The earlier Sonnics backup remains. Verification and review entries are beside the fresh dump;
+`preserved-assets.json` verifies all 10 relocated assets against the command's inventory hashes.
+The correction/hold command tests passed: 20 tests, 121 assertions. After these operations,
+440 historic sermon rows remain and no historic sermon or song video is public. The §3 counts
+above are the earlier pre-correction measurement. The frozen clone and snapshot remain unchanged.
 
 **Execution log:** record the round here as it runs. Move the record to a dated archive log when it
 closes.
@@ -698,14 +776,19 @@ check against the 09-17 speech-edge trim) deserve a closer look before being bui
   (Angels noted "had am and pm"), so it is the same service as run 930. Runs 1034 (dated Monday
   2025-12-22) and 1035 (2025-12-21) both match the workbook's 2025-12-21 evening carol list, and
   the workbook records no service on the 22nd.
-- [ ] Resolve source adoption for pairs 873/1045, 969/1307 and 1296/1297 without
+- [x] Resolve source adoption for pairs 873/1045, 969/1307 and 1296/1297 without
   deleting the better master or substituting media beneath existing timings.
   **Ruled 2026-10-14 (operator, on recommendation): keep the real service, use the better
   file's run, set the poorer run aside.** Built and committed the same day (`12b16f5e1`):
   `historic-import:correct-run-identity --operation --processing-id --date --service --duplicate
   --note [--apply --yes]` and the new exclusion reason `duplicate_recording`, whose kept run may
   belong to another operation. With it, an excluded run never wins supersession. Dry runs on all
-  three pairs read as the table below. **Not applied.**
+  three pairs read as the table below. **Applied locally 2026-10-16, 10:38–10:39 UTC.**
+  Fresh dry runs matched the table exactly. The three kept sermons were re-dated in place;
+  poorer runs 930, 1035 and 1374 are excluded as `duplicate_recording`; sermons 873, 1307 and
+  1296 were withdrawn and all 10 assets retained under `superseded/` with matching SHA-256
+  hashes. Misdated services 1027, 1017 and 1122 were removed. Re-detection, re-cutting and
+  release of the kept runs' identity holds remain pending.
 
   | Pair | Kept run (better master) | Moves to | Poorer run (excluded) | Removes service | Re-dates sermon | Withdraws sermon |
   |---|---|---|---|---|---|---|

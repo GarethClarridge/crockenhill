@@ -809,7 +809,7 @@ class WordTimedOutputEdgesTest extends TestCase
         $this->assertEqualsWithDelta(4163.5, $plan['segments'][0]['end_time'], 0.001);
     }
 
-    /** Song edges have their own dead-feed rule (operator ruling 2): this one leaves them alone. */
+    /** Song starts now remove digital zero; finite room sound and the song's end stay intact. */
     #[Test]
     public function a_song_output_is_left_to_its_own_dead_feed_rule(): void
     {
@@ -820,7 +820,10 @@ class WordTimedOutputEdgesTest extends TestCase
 
         $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 2133.5, 'end_time' => 3735.0]], songEnds: true);
 
-        $this->assertEqualsWithDelta($live['segments'][0]['start_time'], $plan['segments'][0]['start_time'], 0.001);
+        $this->assertLessThan($plan['segments'][0]['start_time'], $live['segments'][0]['start_time']);
+        $this->assertEqualsWithDelta(2149.1, $plan['segments'][0]['start_time'], 0.001);
+        $this->assertSame($live['segments'][0]['end_time'], $plan['segments'][0]['end_time']);
+        $this->assertSame($live['audio_fade_out'], $plan['audio_fade_out']);
     }
 
     private function deadFeedStart(): MediaProcessingLog
