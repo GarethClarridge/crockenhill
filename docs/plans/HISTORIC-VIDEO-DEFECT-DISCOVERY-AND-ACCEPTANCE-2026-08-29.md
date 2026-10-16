@@ -178,6 +178,40 @@ not to this plan. The class-to-detector binding is data, in `resources/detector-
 **Purpose:** re-cut every run whose replayed plan differs from its cut on current code (register
 E11, E12), so the edge fixes of 10-12 and the dead-feed rule (E10) reach the media.
 
+**All known fixes before one round (operator, 10-16: "everything in one round, so all known fixes
+first").** Built test-first on master after the `recut-round-20261016c` freeze, which they
+supersede; a new freeze and snapshot follow.
+- **Held re-cut decodes instead of refusing** (`6a4667608`): `sermons:re-extract --held-section`
+  accepts a sound structure whose edge words are not yet decoded and lets `TranscribeOutputEdges`
+  decode; `ExtractSermon` still checks the final plan. Clears the 54 held runs below.
+- **D21 split sermons joined** (`77d880b44`): a draw's extra sermon parts become `other`
+  continuations of the longest part. Replay on banked draws: 1073 and 1268 go from 0 to 4 valid
+  draws, no disputes (free recompose, no re-detection). Members 1224 and 1335 move edges slightly
+  (listening ≥ 1 s covers them). Non-member 1148 now has 4 disputes (two draws call 688–1726 s a
+  talk, two a sermon part): a question for the operator before it is cut.
+- **D22 talk over a notices item** (`affa64e11`): flagged, not failed. 954 goes to 4 valid draws;
+  the talk-over-reading (1297) and sermon-over-prayer-slide (1164) conflicts still fail.
+- **Candidate-prep nested row** (`b9b07f60b`): the chain no longer re-marks a standalone row
+  running. 1220's row is still `running` from the old defect; settling it is an operator decision.
+- **Order-of-service re-link** (`94f66bf0b`): the section panel can link a section to its item
+  (1363: item 18035 to sermon §248827); a retype that contradicts the linked item asks again.
+- **Readiness** (`c2b3cec35`): a retired run (937) reads "retired; not exported"; a thumbnail
+  deferred by P2 is pending, not missing.
+- **Stale-clip clean-up command** (`af6ff1d36`): `historic-import:clear-stale-song-clips`, dry run
+  10-16: 199 sections in 130 runs, 55 clips re-bound, 144 retired, files kept. Run after the round
+  closes (it writes to members).
+- **No code needed:** 1108's promotion refusal was fixed earlier (held candidates always replace);
+  1223's §2751 clip vanished from quarantine at 12:34 UTC on 10-10 for an unrecoverable reason and
+  its re-cut regenerates it — both need only the cut route. The song-policy refresh is
+  `service:backfill-song-boundary-evidence`. The extract route decodes edge evidence
+  (`reExtract` resumes at `TranscribeOutputEdges`). The 36 song clips with no recorded cut,
+  measured from their section starts: none moves.
+- **Not changed, operator's:** 1314's benediction hold (§3994) has no prayer-typed section after
+  re-detection; content holds follow content (ruling), so confirm or re-hold it. §988's
+  spoken-material boundary check is a detector change; §988 is held.
+- **Gates:** full parallel suite 9,857 tests green; PHPStan 0; Pint clean. Dusk: only
+  `ChurchServiceEvidenceReviewTest` (`@sermon-composition-2`) fails, as on master since 10-14.
+
 **Re-frozen 2026-10-16 (supersedes the set-up below; not dispatched):**
 - **Clone** at `29126fb8a` (old line kept as branch `codex/round-20261016-before-v10`);
   `CodeRevision` `e5a35676…` equals main's. Round workers are stopped and will boot on it.
