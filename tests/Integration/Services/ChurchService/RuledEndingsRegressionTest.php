@@ -7,11 +7,17 @@ namespace Tests\Integration\Services\ChurchService;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
+use App\Services\ChurchService\OutputEdgeWordTimings;
+use App\Services\ChurchService\SermonSongIntroductionCheck;
+use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Sermon\SermonExtractionPlanResolver;
 use App\Support\ServiceArtifactDisk;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use OpenAI\Laravel\Facades\OpenAI;
+use OpenAI\Resources\Chat;
+use OpenAI\Responses\Chat\CreateResponse;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -63,6 +69,7 @@ class RuledEndingsRegressionTest extends TestCase
         $fixture = json_decode((string) gzdecode((string) file_get_contents($path)), true, flags: JSON_THROW_ON_ERROR);
         $log = $this->rebuild($fixture);
         [, , $which] = explode('-', $fixture['id'], 3);
+        $this->replaySongIntroduction($log, $fixture['song_introduction'] ?? null);
 
         $cut = $which === 'sermon'
             ? end(app(SermonExtractionPlanResolver::class)->resolve($log)['segments'])['end_time']
@@ -135,6 +142,40 @@ class RuledEndingsRegressionTest extends TestCase
         ], $fixture['sections']));
 
         return $log->fresh() ?? $log;
+    }
+
+    /**
+     * The edge step's K16 answer, replayed from the model's recorded answers to the recorded
+     * question ({@see SermonSongIntroductionCheck}): the question rebuilt from the fixture must be
+     * the one the model answered.
+     *
+     * @param  array{prompt: string, calls: list<array<string, mixed>>, edge_words?: list<array{time: float, words: list<array{start: float, end: float, word: string}>}>}|null  $recorded
+     */
+    private function replaySongIntroduction(MediaProcessingLog $log, ?array $recorded): void
+    {
+        if ($recorded === null) {
+            return;
+        }
+
+        OpenAI::fake(array_map(static fn (array $call): CreateResponse => CreateResponse::fake(['choices' => [['message' => [
+            'content' => json_encode($call, JSON_THROW_ON_ERROR),
+        ]]]]), $recorded['calls']));
+        $selected = $log->processing_metadata?->raw['sermon_composition']['selected_section_ids'] ?? [];
+        $spans = array_values($log->serviceSections()->whereIn('id', $selected)->orderBy('start_time')->get()
+            ->map(static fn (ServiceSection $section): array => ['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time])->all());
+
+        app(SermonSongIntroductionCheck::class)->prepare($log, $spans);
+
+        OpenAI::assertSent(Chat::class, static fn (string $method, array $parameters): bool => $parameters['messages'][1]['content'] === $recorded['prompt']);
+
+        // The words at the end the answer moves to, which the edge step decodes after asking.
+        $evidence = app(OutputEdgeWordTimings::class);
+        foreach ($recorded['edge_words'] ?? [] as $edge) {
+            $window = $evidence->window($evidence->cues($log), (float) $edge['time'], $log->duration) ?? throw new \LogicException('No edge window at '.$edge['time']);
+            $identity = $evidence->identity($log, $window);
+            app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($identity), ['identity' => $identity, 'words' => $edge['words'], 'compute_seconds' => 0.0]);
+        }
+        $log->refresh();
     }
 
     /** @param  list<array{0: float, 1: float}>  $samples */

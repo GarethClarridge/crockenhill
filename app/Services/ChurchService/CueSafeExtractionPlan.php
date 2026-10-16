@@ -270,8 +270,10 @@ class CueSafeExtractionPlan
                 $songIntroduction = null;
                 if ($edge === 'end' && $index === $last && $introductionSong !== null) {
                     $besideSong = true;
-                    // No banked answer, or one naming no line, leaves the end to the operator.
-                    $songIntroduction = $introduction->read($log, $sectionSpans);
+                    // Never asked is evidence not yet gathered, as undecoded words are: the edge
+                    // step asks before it decodes. Asked with no line named leaves it to the operator.
+                    $songIntroduction = $introduction->read($log, $sectionSpans)
+                        ?? throw new OutputEdgeTimingsMissing(sprintf('edge_word_timings_missing: run %s has no answer on where its sermon ends beside the song (K16)', $log->processing_id));
                     $thoughtComplete = ($songIntroduction['end'] ?? null) !== null;
                     if ($thoughtComplete && abs($songIntroduction['end'] - $original) > 0.001) {
                         [$movedFrom, $original] = [$original, $songIntroduction['end']];

@@ -15,12 +15,14 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\OutputEdgeAnswers;
+use App\Services\ChurchService\SermonSongIntroductionCheck;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\TranscriptCueBoundaries;
 use App\Services\Sermon\SermonExtractionPlanResolver;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
+use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\TestWith;
@@ -648,6 +650,10 @@ class SermonExtractionPlanResolverTest extends TestCase
             'windows' => [['start' => 0, 'end' => 300, 'music' => 0, 'speech' => 0.9]]];
         Storage::disk('local')->put('temp/timeline.json', json_encode($timeline, JSON_THROW_ON_ERROR));
         $this->bankNoWordOutputEdges($log);
+        // The edge step's K16 answer: the sermon ends where it was detected.
+        $this->mock(SermonSongIntroductionCheck::class, fn (MockInterface $mock) => $mock
+            ->shouldReceive('songStart')->andReturn(240.0)
+            ->shouldReceive('read')->andReturn(['end' => 200.0, 'ties_to_sermon' => false, 'line' => 'Identified sermon.']));
         $composition = $this->resolver->compose($log);
         $this->assertSame([], $composition['risks']);
         $this->assertFalse($composition['requires_review']);

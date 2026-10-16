@@ -60,19 +60,42 @@ class SermonSongIntroductionCheckTest extends TestCase
     }
 
     /**
-     * 1304 and 948 (measurement, 2026-10-16): both answers judged the introduction tied but named
-     * neighbouring last lines. The judgement agrees; the later line keeps the sentence whole.
+     * 1160 (operator, 2026-10-16): both answers judged the introduction tied, one stopping at its
+     * last line and one running on into "Maybe we can have the words on the screen". A third
+     * answer decides the line: one named twice stands.
      */
     #[Test]
-    public function answers_agreeing_on_the_judgement_keep_the_later_line(): void
+    public function answers_naming_different_lines_are_settled_by_a_third(): void
     {
         $log = $this->service();
-        $this->answers([3, true, 5], [3, true, 6]);
+        $this->answers([3, true, 5], [3, true, 6], [3, true, 5]);
 
         $result = app(SermonSongIntroductionCheck::class)->prepare($log, $this->spans());
 
-        $this->assertSame(3064.4, $result['end']);
-        OpenAI::assertSent(Chat::class, 2);
+        $this->assertSame(3057.1, $result['end']);
+        OpenAI::assertSent(Chat::class, 3);
+    }
+
+    #[Test]
+    public function three_different_lines_take_the_middle_one(): void
+    {
+        $log = $this->service();
+        $this->answers([3, true, 4], [3, true, 6], [3, true, 5]);
+
+        $this->assertSame(3057.1, app(SermonSongIntroductionCheck::class)->prepare($log, $this->spans())['end']);
+    }
+
+    /** Two answers on the winning side naming different lines: the earlier, as the longer ran on. */
+    #[Test]
+    public function two_winning_answers_naming_different_lines_take_the_earlier(): void
+    {
+        $log = $this->service();
+        $this->answers([3, true, 5], [2, false, 2], [3, true, 6]);
+
+        $result = app(SermonSongIntroductionCheck::class)->prepare($log, $this->spans());
+
+        $this->assertTrue($result['ties_to_sermon']);
+        $this->assertSame(3057.1, $result['end']);
     }
 
     /** 1005: one answer missed a garbled introduction. A third answer decides by majority. */

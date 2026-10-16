@@ -29,9 +29,12 @@ use OpenAI\Laravel\Facades\OpenAI;
  * That is a judgement of meaning, so it is asked of the structure model, as the sentence check is
  * ({@see SpokenEdgeSentenceCheck}). The read-only measurement of 2026-10-16 over 280 sermons
  * (`storage/scratch/weekly-edge-tool-20261016/`) found answers that agree on the judgement but
- * name neighbouring last lines (1304), and a garbled introduction one answer missed (1005). So the
- * judgement is asked twice, a third time when the two differ, and the majority stands; among the
- * answers on the winning side, the latest line is kept, so that no sentence is cut short.
+ * name different last lines (1160), and a garbled introduction one answer missed (1005). So it is
+ * asked twice, and a third time when the two differ in judgement or line; the majority judgement
+ * stands, with a line its answers name at least twice (operator, 2026-10-16).
+ *
+ * The preacher must say how the song relates to the sermon: reading its words aloud is not a tie
+ * on its own (operator, 2026-10-16, on 1040, 1311 and 932).
  *
  * The classifier scores 5 s windows, so the first music window says only that the music starts
  * somewhere in it: 1224's "…destruction, | and despair." was spoken at the start of a mixed window.
@@ -43,7 +46,7 @@ use OpenAI\Laravel\Facades\OpenAI;
 class SermonSongIntroductionCheck
 {
     /** Bumped whenever the prompt changes, so answers to an older question are not reused. */
-    public const PROMPT_VERSION = 1;
+    public const PROMPT_VERSION = 2;
 
     private const ARTIFACT_PREFIX = 'sermon-song-introduction-';
 
@@ -65,7 +68,8 @@ class SermonSongIntroductionCheck
     private const SYSTEM_PROMPT = <<<'TXT'
 You read the end of a sermon in a church-service transcript and what is said between it and the next song. Rules from the person who publishes the sermon videos:
 - The sermon video ends at the join to the song, and never after the music has started. Lines marked [music] are after the music started and are never in the video. Lines marked [music may start] may be in the video only to finish a sentence begun before them.
-- The preacher's introduction to the song (why it was chosen, what it says, a verse read aloud) belongs in the sermon video when it ties the song to the sermon, so that it works as the sermon's conclusion. Usually the song is related to the sermon's theme.
+- The preacher's introduction to the song belongs in the sermon video when the preacher says how the song relates to the sermon (why it was chosen for it, what it says about the sermon's subject, that it was quoted in the sermon), so that it works as the sermon's conclusion. A verse read aloud is part of such an introduction.
+- Reading the song's words aloud without saying how they relate to the sermon does not tie it, even when the words fit the sermon's theme.
 - A bare announcement (the song's name or number, "let's stand and sing"), the introduction to a song that is not connected to the sermon, notices and housekeeping do not belong.
 - A "let's stand and sing" call on its own is never included, even at the end of an introduction that is.
 - It is not about length: a long introduction that ties the song to the sermon belongs; a short one that does not, does not.
@@ -100,7 +104,7 @@ TXT;
 
         $calls = [$this->ask($log, $question['prompt']), $this->ask($log, $question['prompt'])];
 
-        if ($calls[0]['ties_to_sermon'] !== $calls[1]['ties_to_sermon']) {
+        if ($calls[0]['ties_to_sermon'] !== $calls[1]['ties_to_sermon'] || $calls[0]['video_last_line'] !== $calls[1]['video_last_line']) {
             $calls[] = $this->ask($log, $question['prompt']);
         }
 
@@ -309,8 +313,10 @@ TXT;
     }
 
     /**
-     * The majority judgement and the latest line its answers keep, stepped back off any line
-     * after the music started. No end when the answers fail or name no line.
+     * The majority judgement and its answers' line: one named at least twice, else the middle of
+     * three, else the earlier of two (the longer answer ran on into housekeeping: 1160's "Maybe
+     * we can have the words on the screen"), stepped back off any line after the music started.
+     * No end when the answers fail or name no line.
      *
      * @param  list<array{sermon_last_line: int|null, ties_to_sermon: bool|null, video_last_line: int|null, reason: string|null}>  $calls
      * @param  list<array{n: int, start: float, end: float, text: string, music: 'no'|'may'|'yes'}>  $lines
@@ -329,7 +335,15 @@ TXT;
         $ties = $winner === 'true';
         $numbers = array_filter(array_map(static fn (array $call): ?int => $call['ties_to_sermon'] === $ties ? $call['video_last_line'] : null, $calls), is_int(...));
         $byNumber = array_column($lines, null, 'n');
-        $chosen = $numbers === [] ? null : max($numbers);
+        $named = array_count_values($numbers);
+        arsort($named);
+        sort($numbers);
+        $chosen = match (true) {
+            $numbers === [] => null,
+            reset($named) >= 2 => array_key_first($named),
+            count($numbers) === 3 => $numbers[1],
+            default => $numbers[0],
+        };
 
         while ($chosen !== null && ($byNumber[$chosen]['music'] ?? 'yes') === 'yes') {
             $chosen = $chosen > 1 ? $chosen - 1 : null;

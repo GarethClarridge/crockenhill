@@ -248,7 +248,12 @@ class OperatorOutputEdgeTest extends TestCase
             ['start' => 3028.00, 'end' => 3034.00, 'text' => 'of the gospel told, the story of the cross.'],
         ], [['sermon', 1694.88, 3024.83], ['other', 3024.83, 3071.99, 'Introduction to “O I Have Heard The Gospel Told”'], ['song', 3072.08, 3183.16]],
             timeline: [[3000, 3070, 0.01, 0.8], [3070, 3190, 0.8, 0.01]]);
-        $this->bank($log, 3024.83, [
+        $answer = CreateResponse::fake(['choices' => [['message' => ['content' => json_encode([
+            'sermon_last_line' => 1, 'ties_to_sermon' => true, 'video_last_line' => 2, 'reason' => 'test',
+        ], JSON_THROW_ON_ERROR)]]]]);
+        OpenAI::fake([$answer, $answer]);
+        app(SermonSongIntroductionCheck::class)->prepare($log, [['start_time' => 1694.88, 'end_time' => 3024.83]]);
+        $this->bank($log->fresh(), 3024.83, [
             ['start' => 3021.60, 'end' => 3022.30, 'word' => ' again.'],
             ['start' => 3022.70, 'end' => 3023.20, 'word' => ' Amen.'],
             ['start' => 3023.30, 'end' => 3023.50, 'word' => ' And'],

@@ -6,6 +6,7 @@ namespace Tests\Integration\Services\ChurchService;
 
 use App\Data\ChurchServiceTranscript;
 use App\Enums\ServiceSectionType;
+use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
@@ -188,16 +189,39 @@ class SpokenEndBesideSongTest extends TestCase
         $this->assertLessThanOrEqual(3706.20, $plan['segments'][0]['end_time']);
     }
 
-    /** Without a banked answer nothing says where the sermon ends beside a song: the end is asked. */
+    /**
+     * Never asked is evidence not yet gathered, as undecoded words are: the plan waits for the
+     * edge step, which asks before it decodes. A re-cut route that plans first (`sermons:re-extract`)
+     * therefore goes on to the edge step instead of refusing the run.
+     */
     #[Test]
-    public function without_a_banked_answer_an_end_beside_a_song_is_asked(): void
+    public function an_end_beside_a_song_never_asked_about_waits_for_the_edge_step(): void
     {
-        $log = $this->service($this->quotationAcrossTheSongStart(), [['sermon', 1871.36, 3702.58], ['song', 3702.70, 3897.92]]);
+        $log = $this->service($this->quotationAcrossTheSongStart(), [['sermon', 1871.36, 3702.58], ['song', 3702.70, 3897.92]],
+            timeline: [[3690, 3710, 0.01, 0.78], [3710, 3900, 0.8, 0.01]]);
         $this->bank($log, 3702.58, [
             ['start' => 3701.70, 'end' => 3702.31, 'word' => ' command.'],
         ]);
 
-        $plan = app(CueSafeExtractionPlan::class)->forSpans($log, [['start_time' => 1871.36, 'end_time' => 3702.58]], sermonEnd: true);
+        $this->expectException(OutputEdgeTimingsMissing::class);
+
+        app(CueSafeExtractionPlan::class)->forSpans($log, [['start_time' => 1871.36, 'end_time' => 3702.58]], sermonEnd: true);
+    }
+
+    /** Asked, with no answer naming a line (the model failed): the end is the operator's. */
+    #[Test]
+    public function an_end_beside_a_song_with_no_answer_is_asked(): void
+    {
+        $log = $this->service($this->quotationAcrossTheSongStart(), [['sermon', 1871.36, 3702.58], ['song', 3702.70, 3897.92]],
+            timeline: [[3690, 3710, 0.01, 0.78], [3710, 3900, 0.8, 0.01]]);
+        $spans = [['start_time' => 1871.36, 'end_time' => 3702.58]];
+        OpenAI::fake([new \RuntimeException('down'), new \RuntimeException('down')]);
+        app(SermonSongIntroductionCheck::class)->prepare($log, $spans);
+        $this->bank($log->fresh(), 3702.58, [
+            ['start' => 3701.70, 'end' => 3702.31, 'word' => ' command.'],
+        ]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), $spans, sermonEnd: true);
 
         $this->assertCount(1, CueSafeExtractionPlan::unresolvedEdges($plan['cue_edge_widening']));
         $this->assertSame(CueSafeExtractionPlan::SPOKEN_END_UNRESOLVED, collect($plan['cue_edge_widening'])->last()['reason']);
