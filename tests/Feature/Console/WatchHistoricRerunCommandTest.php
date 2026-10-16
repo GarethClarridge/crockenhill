@@ -8,10 +8,12 @@ use App\Data\HistoricStagingContext;
 use App\Enums\ContentHoldCheck;
 use App\Enums\ServiceSectionType;
 use App\Jobs\PromoteHistoricAssets;
+use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
 use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
+use App\Models\Song;
 use App\Models\SongVideo;
 use App\Services\HistoricMedia\HistoricRerunWatch;
 use App\Support\ServiceArtifactDisk;
@@ -22,6 +24,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Testing\PendingCommand;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -65,6 +68,142 @@ class WatchHistoricRerunCommandTest extends TestCase
         self::assertSame(1, $status['progress']['runs']['not_started']);
         self::assertFileDoesNotExist($this->absolute('watch-stop.json'));
         $this->assertNothingPaused();
+    }
+
+    #[Test]
+    #[DataProvider('detachedClipSections')]
+    public function a_preserved_detached_stale_song_clip_does_not_stop_the_watch(bool $removed, bool $staging): void
+    {
+        [$section, $video] = $this->detachedStaleClip(staging: $staging);
+
+        if ($removed) {
+            $section->delete();
+        }
+
+        $this->watch()->expectsOutputToContain('no stop')->assertSuccessful();
+        self::assertSame([], $this->file('watch-status.json')['stops']);
+        $this->assertNothingPaused();
+
+        $path = $staging ? 'historic-batches/'.str_repeat('b', 64).'/'.$video->video_file_path : $video->video_file_path;
+        Storage::disk($video->asset_disk)->delete($path);
+
+        $this->watch()->assertFailed();
+        self::assertNotEmpty($this->file('watch-stop.json')['stops']);
+    }
+
+    public static function detachedClipSections(): array
+    {
+        return [
+            'retained section in quarantine' => [false, false],
+            'removed section in quarantine' => [true, false],
+            'retained section in staging' => [false, true],
+            'removed section in staging' => [true, true],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('unpreservedDetachedClips')]
+    public function an_unpreserved_detached_stale_song_clip_still_stops_the_watch(string $problem): void
+    {
+        [, $video] = $this->detachedStaleClip();
+
+        match ($problem) {
+            'missing file' => Storage::disk('historic_quarantine')->delete($video->video_file_path),
+            'empty file' => Storage::disk('historic_quarantine')->put($video->video_file_path, ''),
+            'deleted row' => $video->delete(),
+            'another service' => $video->update(['church_service_id' => ChurchService::factory()->create()->id]),
+            'another song' => $video->update(['song_id' => Song::factory()->create()->id]),
+            'public' => $video->update(['publication_state' => 'published']),
+            'unconfigured disk' => $video->update(['asset_disk' => 'unconfigured-custody-test']),
+            'no disk' => $video->update(['asset_disk' => null]),
+        };
+
+        $this->watch()->expectsOutputToContain('lost its extracted media')->assertFailed();
+        self::assertNotEmpty($this->file('watch-stop.json')['paused']);
+    }
+
+    public static function unpreservedDetachedClips(): array
+    {
+        $cases = ['missing file', 'empty file', 'deleted row', 'another service', 'another song', 'public', 'unconfigured disk', 'no disk'];
+
+        return array_combine($cases, array_map(static fn (string $case): array => [$case], $cases));
+    }
+
+    #[Test]
+    public function a_previously_public_stale_song_clip_still_stops_after_it_is_detached(): void
+    {
+        $this->detachedStaleClip(published: true);
+
+        $this->watch()->expectsOutputToContain('lost its extracted media')->assertFailed();
+    }
+
+    #[Test]
+    public function a_detached_clip_does_not_excuse_a_run_reassigned_to_another_service(): void
+    {
+        [$section, $video] = $this->detachedStaleClip();
+        $serviceId = ChurchService::factory()->create()->id;
+        $section->processingLog->update(['church_service_id' => $serviceId]);
+        $video->update(['church_service_id' => $serviceId]);
+
+        $this->watch()->expectsOutputToContain('lost its extracted media')->assertFailed();
+    }
+
+    #[Test]
+    public function a_detached_clip_without_a_service_binding_still_stops(): void
+    {
+        [$section, $video] = $this->detachedStaleClip();
+        $section->processingLog->update(['church_service_id' => null]);
+        $video->update(['church_service_id' => null]);
+
+        $this->watch()->expectsOutputToContain('lost its extracted media')->assertFailed();
+    }
+
+    #[Test]
+    public function a_removed_stale_song_clip_rebound_and_made_public_still_stops(): void
+    {
+        [$section, $video] = $this->detachedStaleClip();
+        $replacement = $this->section($section->processingLog, ServiceSectionType::Song, 300, 400);
+        $video->update(['service_section_id' => $replacement->id, 'publication_state' => 'published']);
+        $section->delete();
+
+        $this->watch()->expectsOutputToContain('had extracted media and is gone')->assertFailed();
+    }
+
+    /** @return array{ServiceSection, SongVideo} */
+    private function detachedStaleClip(bool $staging = false, bool $published = false): array
+    {
+        $run = $this->processingRun();
+        $run->update(['church_service_id' => ChurchService::factory()->create()->id]);
+        if ($staging) {
+            $run->writeProcessingMetadata(static fn (array $metadata): array => [...$metadata, 'historic_import' => ['staging_context' => (new HistoricStagingContext(
+                manifestHash: str_repeat('a', 64),
+                planHash: str_repeat('b', 64),
+                stagingDisk: 'historic_staging',
+                batchRoot: 'historic-batches/'.str_repeat('b', 64),
+                storageIdentity: ['driver' => 'local', 'bucket' => null, 'root_fingerprint' => 'r', 'prefix_fingerprint' => 'p'],
+            ))->toArray()]]);
+        }
+        $section = $this->section($run, ServiceSectionType::BibleReading, 100, 200);
+        $video = SongVideo::factory()->quarantined()->create([
+            'service_section_id' => $section->id,
+            'church_service_id' => $run->church_service_id,
+            'asset_disk' => $staging ? 'historic_staging' : 'historic_quarantine',
+            'publication_state' => $published ? 'published' : 'quarantined',
+        ]);
+        $path = $staging ? 'historic-batches/'.str_repeat('b', 64).'/'.$video->video_file_path : $video->video_file_path;
+        Storage::disk($video->asset_disk)->put($path, 'preserved stale song');
+        $section->update(['extracted_video_path' => $video->video_file_path]);
+        $this->snapshot([$run->id]);
+
+        // Existing round snapshots predate detached-video custody evidence.
+        $before = $this->file('before.json');
+        unset($before['runs'][$run->id]['detached_song_videos']);
+        file_put_contents($this->absolute('before.json'), json_encode($before, JSON_THROW_ON_ERROR));
+
+        $section->update(['extracted_video_path' => null]);
+        $video->update(['service_section_id' => null, 'publication_state' => 'quarantined']);
+
+        return [$section, $video];
     }
 
     #[Test]

@@ -102,6 +102,10 @@ final class HistoricRerunDiff
         [$sectionChanges, $sectionAttention, $mediaCustody, $awaitingReview] = $this->sectionChanges(
             $this->sections($before),
             $this->sections($after),
+            ($before['church_service_id'] ?? null) !== null
+                && $before['church_service_id'] === ($after['church_service_id'] ?? null)
+                    ? ($after['detached_song_videos'] ?? [])
+                    : [],
         );
         [$holdChanges, $holdAttention] = $this->holdChanges($this->sections($before), $this->sections($after));
         $mediaDeferred = ($after['media_deferred'] ?? false) === true;
@@ -142,10 +146,11 @@ final class HistoricRerunDiff
     /**
      * @param  list<array<string, mixed>>  $before
      * @param  list<array<string, mixed>>  $after
+     * @param  list<array<string, mixed>>  $detachedVideos
      * @return array{0: list<array<string, mixed>>, 1: list<string>, 2: list<string>, 3: list<string>} changes,
      *                                                                                                 attention, the media custody a detection round defers, and clips awaiting a review
      */
-    private function sectionChanges(array $before, array $after): array
+    private function sectionChanges(array $before, array $after, array $detachedVideos): array
     {
         $changes = [];
         $attention = [];
@@ -157,7 +162,11 @@ final class HistoricRerunDiff
             $changes[] = ['kind' => 'section_removed', 'section' => $this->label($section)];
 
             if (($section['media']['signature'] ?? null) !== null) {
-                $mediaCustody[] = sprintf('%s had extracted media and is gone', $this->label($section));
+                if ($this->staleSongClipKept($section, $section, $after, $detachedVideos)) {
+                    $awaitingReview[] = sprintf('%s was removed; its stale song clip is kept', $this->label($section));
+                } else {
+                    $mediaCustody[] = sprintf('%s had extracted media and is gone', $this->label($section));
+                }
             }
         }
 
@@ -206,7 +215,7 @@ final class HistoricRerunDiff
                     $awaitingReview[] = sprintf('%s lost its extracted media (song match demoted to inferred — clip withheld)', $label);
                 } elseif ($this->retypedAwayFromPublication($old, $new)) {
                     $awaitingReview[] = sprintf('%s lost its extracted media (retyped to %s, which is never published; its old copy was never published)', $label, $new['type']);
-                } elseif ($this->staleSongClipKept($old, $new, $after)) {
+                } elseif ($this->staleSongClipKept($old, $new, $after, $detachedVideos)) {
                     $awaitingReview[] = sprintf('%s lost its extracted media (a stale song clip on a section that is not a song; its song video is kept)', $label);
                 } else {
                     $mediaCustody[] = sprintf('%s lost its extracted media', $label);
@@ -266,7 +275,8 @@ final class HistoricRerunDiff
 
     /**
      * Whether the media lost was a song clip an earlier structure left on a section that is not a
-     * song, and every song video it carried is still on the run.
+     * song, and every song video it carried is still attached to the run or preserved in quarantine
+     * for the same service with a readable, nonempty file.
      *
      * Sections sync by order, so a recomposition that inserts a section re-binds the later rows,
      * clip and all, and the old span returns as a fresh row with no media (the follow-up round's
@@ -277,8 +287,9 @@ final class HistoricRerunDiff
      * @param  array<string, mixed>  $old
      * @param  array<string, mixed>  $new
      * @param  list<array<string, mixed>>  $after
+     * @param  list<array<string, mixed>>  $detachedVideos
      */
-    private function staleSongClipKept(array $old, array $new, array $after): bool
+    private function staleSongClipKept(array $old, array $new, array $after, array $detachedVideos): bool
     {
         $oldVideos = $old['song_videos'] ?? [];
 
@@ -290,9 +301,31 @@ final class HistoricRerunDiff
             return false;
         }
 
-        $keptVideoIds = array_column(array_merge(...array_map(static fn (array $section): array => $section['song_videos'] ?? [], $after)), 'id');
+        if (($old['publication_status'] ?? null) === self::PUBLIC
+            || ($old['published_sermon_state'] ?? null) === self::PUBLIC) {
+            return false;
+        }
 
-        return array_diff(array_column($oldVideos, 'id'), $keptVideoIds) === [];
+        $attachedVideos = array_merge(...array_map(static fn (array $section): array => $section['song_videos'] ?? [], $after));
+        $keptVideoIds = array_column(array_filter($attachedVideos, static fn (array $video): bool => $video['publication_state'] !== self::PUBLIC), 'id');
+
+        $detachedById = array_column($detachedVideos, null, 'id');
+
+        foreach ($oldVideos as $video) {
+            if (in_array($video['id'], $keptVideoIds, true)) {
+                continue;
+            }
+
+            $detached = $detachedById[$video['id']] ?? null;
+
+            if ($detached === null || $detached['song_id'] !== $video['song_id']
+                || $detached['publication_state'] !== 'quarantined'
+                || ($detached['file_present'] ?? false) !== true) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

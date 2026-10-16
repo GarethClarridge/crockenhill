@@ -44,6 +44,7 @@ final class HistoricRerunWatch
         '/became public/',
         '/hold on .+ is gone/',
         '/lost its extracted media/',
+        '/had extracted media and is gone/',
         '/superseded by the re-run/',
         '/became published with nothing recording where it is shown/',
         '/could not be captured/',

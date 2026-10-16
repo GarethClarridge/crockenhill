@@ -12,6 +12,8 @@ use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Models\SongVideo;
+use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 /**
  * What a corpus re-run can change about one run, captured so the change can be read afterwards.
@@ -63,8 +65,58 @@ final class HistoricRerunState
             'sermon_absence' => $run->assertedSermonAbsence() !== null,
             ...$this->sermonPlan($run, $metadata),
             'sermon' => $this->sermon($run->sermon),
+            'detached_song_videos' => $this->detachedSongVideos($run),
             'sections' => $sections->map(fn (ServiceSection $section): array => $this->section($section))->values()->all(),
         ];
+    }
+
+    /**
+     * Sync preserves obsolete song clips in quarantine after detaching their section. Keep their
+     * custody visible to old snapshots as well: a database row alone does not prove a file survived.
+     *
+     * @return list<array{id: int, song_id: int, publication_state: string, file_present: bool}>
+     */
+    private function detachedSongVideos(MediaProcessingLog $run): array
+    {
+        if ($run->church_service_id === null) {
+            return [];
+        }
+
+        return array_values(SongVideo::query()
+            ->where('church_service_id', $run->church_service_id)
+            ->whereNull('service_section_id')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (SongVideo $video): array => [
+                'id' => $video->id,
+                'song_id' => $video->song_id,
+                'publication_state' => $video->publication_state->value,
+                'file_present' => $this->detachedSongFilePresent($video, $run),
+            ])
+            ->all());
+    }
+
+    private function detachedSongFilePresent(SongVideo $video, MediaProcessingLog $run): bool
+    {
+        if (! is_string($video->asset_disk) || $video->asset_disk === ''
+            || $video->video_file_path === '') {
+            return false;
+        }
+
+        try {
+            $path = $video->video_file_path;
+            $context = $run->historicStagingContext();
+
+            if ($context !== null && $video->asset_disk === $context->stagingDisk) {
+                $path = $context->batchRoot.'/'.$path;
+            }
+
+            $disk = Storage::disk($video->asset_disk);
+
+            return $disk->exists($path) && $disk->size($path) > 0;
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     /**

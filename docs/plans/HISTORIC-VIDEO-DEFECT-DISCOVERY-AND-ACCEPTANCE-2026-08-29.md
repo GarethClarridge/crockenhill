@@ -521,6 +521,57 @@ above are the earlier pre-correction measurement. The frozen clone and snapshot 
 **Execution log:** record the round here as it runs. Move the record to a dated archive log when it
 closes.
 
+**Staged start, 10-16, `547bbb52d`:** the clone moved from `be35e9466` (preserved as
+`round-20261016e-line`) to `547bbb52d`; hashed code matches main. Fresh snapshot
+`recut-round-20261016f` freezes 366 members (membership SHA-256
+`d200b05424f274f4daa0b4d5cd1bf257eda98b031a92f29c26ab79190ba33a07`). Route evidence
+and the execution record live beside it. Explicit routes: 357 recompositions; four re-detections
+(1034, 1120, 1262, 1375); five direct extractions (974, 1126, 1220, 1363, 1378), preserving manual
+structure edits. The 300 ordinary extraction members exclude the 61 live held-sermon members;
+60 held-section dry-runs passed, while 1197 refuses on `sermon_section_content_held` and needs
+rechecking after recomposition. No hold was released. Initial diff: zero of 366 changed.
+
+Fresh consistent database/private-storage backup and binlogs are on Sonnics at
+`/Volumes/Sonnics/_pre-recut-round-20261016f-backup-20261016/`; gzip integrity passed and
+`SHA256SUMS` is beside the backup. The dump records binlog `000121:70024469`; the copied active
+binlog covers through `79576687`. Live preflight passed: queues empty, no active steps, isolated
+Redis, speaker identification off, sufficient disk space, USB 3 links, host FFmpeg/Whisper/classifier
+reachable, both structure models accessible on Flex. Clone workers restarted and watcher enabled.
+
+**Only canary 1040 dispatched.** Recomposition and extraction completed, including two K16 calls,
+edge transcription and sentence checks; paired reading and sermon retained. `ExtractSermon` took
+321 seconds. Mid-cut pause/resume proved all ten queues paused, no reserved work after the cut,
+and the next job waiting. Quality verdict approved; thumbnail stage intentionally skipped public
+thumbnail for quarantine; candidates prepared and assets promoted to private quarantine.
+
+**Bulk dispatch stopped by the canary gate.** The final watcher paused all ten queues on
+`run 1040: §1511 bible_reading 1662.4–1780.1 → §1511 bible_reading 1662.4–1780.1 lost its extracted media`.
+This is the intended stale-song detach from the 10-16 sync fix, but the watcher's
+`staleSongClipKept()` only sees videos still attached to sections. SongVideo 198 remains detached,
+quarantined and present at `sermons/songs/878/1511.mp4` (372,467,769 bytes; SHA-256
+`cab27d57293484109bfcd2476a43e10b15e41541e936f363712d43e2db00de8a`). Evidence:
+`stale-song-198-custody.json`, `canary-diff.json`, `watch-stop.json`. No new failed job, publication
+or lost hold was reported. The baseline has 186 similar non-song stale-media sections on 123 runs,
+so this reporting mismatch needs resolving before unattended bulk dispatch. No stop was
+acknowledged, no autotick enabled, no further member dispatched; queues remain paused.
+
+**Watcher correction, 10-16 (main checkout; not installed in the frozen clone):** read-side
+capture now records detached song-video custody for the same service, including a nonempty file
+check on the recorded disk (with staging batch-root resolution). The diff accepts the stale-clip
+exception only for matching song IDs that remain quarantined and present; missing/deleted files,
+unavailable disks, changed service/song bindings and public copies still require attention.
+Removed non-song sections get the same custody check, and actual removed-media loss now triggers
+the watcher stop as well. Existing v2 snapshots remain readable without the optional new field.
+
+Regression tests reproduced the false stop before the fix. Validation: 69 focused tests,
+362 assertions; full parallel suite 9,925 tests, 97,295 assertions, zero failures/errors,
+163 existing PHPUnit notices and one skipped test. PHPStan: zero errors; Pint: passed. Logs:
+`storage/scratch/watcher-detached-{red,focused,full-suite,phpstan,pint}.log`. Read-only replay
+against `recut-round-20261016f/snapshot.json` reports zero attention items; evidence is
+`recut-round-20261016f/canary-watcher-fix-diff.json`. The original snapshot and stop file remain;
+no stop was acknowledged or cleared, the clone has not moved, and all ten queues stay paused.
+**No batch expansion or additional dispatch without the operator's explicit approval.**
+
 ### 4.1 After the round
 
 1. **Close the round** (runbook §8). Back up the service artifacts.
