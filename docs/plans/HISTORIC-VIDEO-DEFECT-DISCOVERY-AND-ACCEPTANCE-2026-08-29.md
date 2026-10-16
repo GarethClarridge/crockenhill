@@ -178,7 +178,28 @@ not to this plan. The class-to-detector binding is data, in `resources/detector-
 **Purpose:** re-cut every run whose replayed plan differs from its cut on current code (register
 E11, E12), so the edge fixes of 10-12 and the dead-feed rule (E10) reach the media.
 
-**As set up:**
+**Re-frozen 2026-10-16 (supersedes the set-up below; not dispatched):**
+- **Clone** at `29126fb8a` (old line kept as branch `codex/round-20261016-before-v10`);
+  `CodeRevision` `e5a35676…` equals main's. Round workers are stopped and will boot on it.
+- **Snapshot** `recut-round-20261016c/snapshot.json`: 192 runs, membership `de52ba19…`. That is the
+  old 144 less 1035, plus the 38 v9 runs, plus 1034, 1120 and 1375, plus the 8 song-start runs.
+  `members.txt`, `extract-runs.txt` (190: all but 1126 and 1378), `held-runs.txt` and every
+  dry run sit beside it.
+- **Dry runs:** recompose 187 ready. 1034, 1120 and 1375 refuse ("banked ensemble input no longer
+  matches") and `rerun-redetect` has all three ready; 1126 and 1378 refuse as before
+  (`reExtract`). Extract refuses all 192 before recompose, as expected.
+- **Held sermons (decision 2), 57 runs** (the 62 less the duplicate-pair runs and 1322, a member
+  whose dry run would write its composition): `--held-section --dry-run` is ready for only 1019,
+  1330 and 1364. **54 resolve no segments: `edge_word_timings_missing`.** The v10 bump makes
+  their banked edge evidence stale, and the command plans before it decodes (as 1126 and 1378).
+  Their route is `authoriseHeldSermonSpan(§)` then `ProcessingRunOrchestrator::reExtract`,
+  which decodes at `TranscribeOutputEdges`. 1322 is cut the same way after its recompose.
+- **Preflight (read only):** queues empty on DB 0; Staging on USB at 5 Gb/s, 448 GiB free;
+  Sonnics 299 GiB; internal 32 GiB; speaker identification off; host ffmpeg on the clone's
+  script (unchanged since `bef6b303a`); the seven Q12 sections are held. Still to do at the go:
+  a fresh backup (runbook §6.5), workers up, watcher.
+
+**As first set up:**
 - **Snapshot** `recut-round-20261016`: 144 runs at `bef6b303a`, the 155 runs planned before the
   10-12 fixes less:
   - 7 excluded;
@@ -310,7 +331,7 @@ E11, E12), so the edge fixes of 10-12 and the dead-feed rule (E10) reach the med
 3. Build what the decisions approve on master. Move the clone to it ([runbook](HISTORIC-ROUND-RUNBOOK.md)
    §2.1). The stale-clip cause fix (R9) must be tested and included before the new freeze;
    verify the seven known-bad endings are held and have a review entry (Q12).
-4. New snapshot: the 144 less 1035, plus the 38 v9 runs (the 39 less 974), plus 1034, 1120 and 1375
+4. **Done 10-16** (`recut-round-20261016c`, above). New snapshot: the 144 less 1035, plus the 38 v9 runs (the 39 less 974), plus 1034, 1120 and 1375
    on `rerun-redetect`, plus the 8 runs the song-start remeasurement adds (decision 4). Dry-run
    every route.
 5. Watcher on the new snapshot (runbook §5.1). Then:
@@ -319,12 +340,13 @@ E11, E12), so the edge fixes of 10-12 and the dead-feed rule (E10) reach the med
    - `rerun-redetect` for its runs;
    - autotick on the extract list;
    - 974, 1126 and 1378 through `reExtract`.
-6. `sermons:re-extract --held-section --dry-run` over the held runs, then cut them one at a time
-   after the main batch.
+6. Held runs, one at a time after the main batch: 1019, 1330 and 1364 with `sermons:re-extract
+   --held-section`; the other 54, and 1322, with `authoriseHeldSermonSpan` then `reExtract`
+   (dry runs done 10-16, above).
 7. Listening: every edge moved ≥ 1 s, the backlog in §4.1, 1036 and 1255, and the held-sermon release
    page. Then close (runbook §8).
 
-**Time:** about 3.9 min a run (10-15): about 9.5 h for the 144, plus 2.5 h for the v9 runs. Held
+**Time:** about 3.9 min a run (10-15): about 12.5 h for the 192. Held
 sermons take about 6 min each, one at a time: about 6 h.
 
 **Preflight operation, 10-16:** no processing dispatched. No active processing step or real
