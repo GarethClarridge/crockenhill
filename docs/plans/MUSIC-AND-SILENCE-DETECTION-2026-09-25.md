@@ -436,6 +436,24 @@ it blocks resuming weekly processing.
 2. **Digital-zero edges: move without a hold.** A song edge that runs ≥ 15 s into verified digital
    zero (every frame `-inf`) moves to where the zeros begin, with a note on the section. Overruns
    into audio that is only ≤ −80 dB, interior dropouts and whole songs over dead feed stay held.
+
+   **Measured against cut song clips, 2026-10-16 (question for the operator, not a change).**
+   Spoken edges now move after ≥ 2 s at ≤ −80 dB at cut time (`20529521a`, operator ruling
+   2026-10-15), and that rule leaves songs to this ruling. A read-only scan covered all 908 cut
+   song clips of completed historic runs (`storage/scratch/review-20261016/`):
+   - 44 open on ≥ 3 s of silence below −45 dB, and 17 on ≥ 5 s. 14 of the 17 were cut on current
+     (v9) code, so the re-cut round will not change them.
+   - 25 of the 44 are ≥ 80 % digital zero, below this ruling's 15 s bar. Examples: 967 §1073
+     (12.0 s, all zero), 963 §860 (8.0 s), 1007 §1251 (7.7 s), 976 §961 (6.8 s), and 993 §1181
+     (22.5 s, 92 %, so not "every frame").
+   - 19 open on quiet room, which no rule touches: for example 1367 §4574, 17 s at −62 dB before
+     the music.
+   - Two song sections are silent throughout: 938 §627 (11.2 s) and 1106 §1878 (6.0 s, bound to
+     `SongVideo` 238).
+
+   The question is whether song outputs should take the spoken bar at cut time. Any change would
+   need a replay against the song regression fixtures first, and must keep this ruling's
+   protection of interior dropouts and whole songs over dead feed.
 3. **Canary 5: the 13 plus 1028, 1262, 1346 and 1050, plus one run with an interior song
    dropout.** Checked 2026-09-25: 1304's dropouts (903–1014 s, 1021–1120 s) fall in §3874 `other`
    ("Baptism of Roy") and unsectioned time; its next song starts at 1125 s, so no 1304 song

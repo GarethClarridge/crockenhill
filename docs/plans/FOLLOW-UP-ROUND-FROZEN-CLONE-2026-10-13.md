@@ -1,5 +1,10 @@
 # Follow-up round from a frozen clone, pausable — 2026-10-13 (rev 3)
 
+> **Status — 2026-10-16:** the follow-up round ended on 10-15 (§12). The re-cut round is set up
+> and **not dispatched**; a read-only pre-dispatch review found runs it leaves out and decisions
+> to take first (§12, "Pre-dispatch review (10-16)", with a proposed go checklist). The status
+> below is rev 3's, kept as history.
+
 Status: **rev 3: everything §3–§7 needs is built (§11), for Codex's review before setup.**
 Nothing is set up: no clone, no round containers, the working checkout's workers and `.env`
 are unchanged. Rev 2 added the following after Codex's review of rev 1 (findings in §10):
@@ -397,6 +402,24 @@ quarantine, along with `SongVideo` 166 and 167. The run's real song clips were p
 run should be listened to before they are retired. They are probably mis-cut, since they were
 cut for a section that turned out not to be that song.
 
+**Recount 2026-10-16** (read-only, before the re-cut round; step 1 is still not built):
+
+| Residue | 14-10 | 16-10 | Re-cut round members |
+|---|---:|---:|---:|
+| Non-song sections whose `extracted_video_path` is a song clip | 177 | 170 (120 runs) | 44 |
+| `SongVideo` rows bound to a non-song section | 184 | 199 | 47 |
+
+- The residue is still being made. Each of the 199 bindings sits on a section last updated by
+  the rounds of 10-11 to 10-15, while the `SongVideo` rows themselves date from 08-26 to 10-10.
+- Why, from the code: a material change (type, item or bounds) clears the section's path. But
+  `ServiceSectionSyncService::cleanupExtractedAssets` keeps the file while a `SongVideo` is bound
+  (`holdsPublishedMedia`), and nothing detaches the binding. A section the sync deletes leaves its
+  `SongVideo` with no section (`service_section_id` is `ON DELETE SET NULL`). The file survives
+  either way: the service is misdescribed, but nothing is lost.
+- The re-cut round recomposes 141 runs. Example: 1255's recompose drops §3178 "Opening Bible
+  reading" (141–179 s), which holds a song clip and a `SongVideo`, so that binding will be left
+  with no section. Building step 1 before the round stops the count growing again.
+
 ## 10. Codex review of rev 1 (13-10), and what changed
 
 | Finding | Rev 2 |
@@ -587,3 +610,139 @@ The decision page's rulings, applied:
 - Clone `../crockenhill-round`: old line kept as branch `round-20261013-line` (all 15 commits have patch equivalents on master), `master` reset to `bef6b303a`, lockfiles unchanged so `vendor/` stands, `bootstrap/cache/*.php` cleared; hashed directories identical to main apart from main's untracked `.DS_Store` files (revision `94cefe9fe4a9…`). Main: workers removed, `.env` on Redis 4/5 with replicas 0 (pre-round copy `env.main-before-recut-round` in session 781bf913's scratchpad), `laravel.test` restarted on 4/5. Round project up (9 containers, Redis 0/1, `h264_videotoolbox`, Staging mounted); ffmpeg LaunchAgent on the clone's script, reached from a round worker.
 - Snapshot `recut-round-20261016/snapshot.json`: 144 runs at `bef6b303a`, membership `cc5bd8fe…`. Dry runs (beside it): recompose 141 ready, 3 refused (1035 no banked draws → `rerun-redetect`: dry run ready; 1126 superseded; 1378 no audio timeline); extract 0 ready, 144 refused ("no detection round on this code") as expected before recompose. 1126 and 1378: `sermons:re-extract --dry-run` resolves no segments (their v8 edge evidence is invalid at v9, and the command plans before decoding), so their route is `ProcessingRunOrchestrator::reExtract`, as 942/974/1363 on 10-15. `extract-runs.txt` (142: the 141 plus 1035) written for autotick. Nothing dispatched; the watcher and autotick are not started.
 - **Go checklist** (on the operator's word): (1) `round-tools`: start the watcher on `recut-round-20261016/snapshot.json` once, so it writes `watch-state.json` with its baseline; (2) stage (a): `rerun-recompose … <one run> --execute`, follow it through extraction and the detached jobs; (3) `rerun-recompose --all --max=500 --execute`, and `rerun-redetect … 1035 --execute`; (4) start autotick with `ROUND_SNAPSHOT=recut-round-20261016`; (5) 1126 and 1378 through `ProcessingRunOrchestrator::reExtract`; (6) then listening on the re-cut endings, and §9 to close.
+
+### Pre-dispatch review (10-16): nothing dispatched; proposals await the operator
+
+A read-only review of the set-up above, checked against the local database and the cut media.
+Nothing was written, dispatched or changed. Evidence is in `storage/scratch/review-20261016/`:
+- `clip-silence.tsv` and `clip-silence-pass2.tsv`: leading and trailing silence of every song
+  and short-talk clip;
+- `deadshare.sh`: how much of each leading silence is digital zero;
+- the clip list `clips.tsv`.
+
+**Who the round leaves out**
+
+- **The dead-feed rule reaches runs outside the round.** Membership is "planned before the 10-12
+  fixes", that is media version 8 or none. `20529521a` did not bump `media_processing_version`,
+  so a v9 cut made before the rule carries the same version as one made after. The replay
+  (`recut-listening-20261015/deadfeed-replay.json`) moved 70 edges:
+  - 24 of them (21 runs) are on members;
+  - 46 of them (39 runs) are on v9 runs outside the round, every one moving ≥ 2 s.
+
+  The 46 include 1096 (+10.5 s, sermon 1023, the case the rule was built for), 1352's sermon
+  end (−39.3 s), 1308 (+35.3 s), 1339 (+31.4 s), 1342 (+28.6 s), 1131 (+16.2 s), 1002 (+15.1 s),
+  and three short talks: 1020 §1344 (+22.4 s), 988 §1149 (+11.8 s) and 1326 §4135 (+10.1 s). The
+  clip scan confirms the three talks open on 22.7, 11.9 and 10.5 s of near-total digital zero.
+
+  The full list: 928 941 951 956 974 976 977 983 988 993 994 997 1002 1004 1015 1017 1018 1020
+  1023 1060 1062 1063 1066 1077 1096 1102 1106 1131 1136 1210 1229 1269 1308 1326 1328 1334 1339
+  1342 1352. Route: recompose and cut, like the members. The exception is 974: it was edited by
+  hand on 10-15, so it goes through `ProcessingRunOrchestrator::reExtract` and is never recomposed.
+- **62 failed runs are parked on a sermon content hold**, each with the message "re-cut it with
+  `sermons:re-extract … --held-section`". The follow-up round put 61 of them there on 10-13 and
+  10-14. Five similar runs were cut that way on 10-15 (971, 1195, 1350, 1343, 1299); these 62
+  were not. They still hold their September cut, or no cut. None is a member, because membership
+  counts completed runs only.
+  - The 10-13 agreement covers them: cut with `--held-section` (the holds stay), then a release
+    page where the operator confirms each defect is gone.
+  - Do a `--dry-run` per run first. A run that stopped before `TranscribeOutputEdges` resolves no
+    segments and goes through `reExtract` instead, as 1126 and 1378 do.
+  - The runs: 929 946 969 980 1003 1008 1019 1030 1031 1032 1034 1039 1047 1052 1057 1059 1064
+    1065 1068 1069 1075 1084 1090 1095 1100 1107 1120 1121 1168 1176 1177 1187 1197 1208 1209
+    1215 1230 1248 1254 1258 1262 1276 1278 1297 1300 1309 1310 1317 1320 1322 1330 1332 1336
+    1347 1359 1364 1373 1374 1375 1380 1381 1382.
+  - 1034, 1120 and 1375 are the duplicate pairs' kept runs, and 1374 is pair C's run to be
+    excluded (next item).
+- **Duplicate pairs** (main plan §4.4, ruled 10-14). 1035 is pair B's poorer run, which the ruling
+  excludes, yet it is a member on the paid `rerun-redetect` route. The kept runs 1034, 1120 and
+  1375 are not members. Proposal:
+  - apply the three `historic-import:correct-run-identity` corrections before the new snapshot;
+  - drop 1035;
+  - take the kept runs through re-detection and then `--held-section`, as §4.4 records, checking
+    in the dry run that the guard admits them.
+- **937** failed at `rms_generation` on 09-03 under the old 8 GB livestream limit. Its file is
+  11.79 GB, under today's 12 GiB (`MEDIA_PROCESSING_LIVESTREAM_MAX_FILE_SIZE`), so a retry would
+  pass that step once its source is restaged. It is a full run with paid detection: the
+  operator's call.
+- **Weekly runs cannot enter a round.** 909's sermon 857 (service 795) opens on 8.0 s of silence
+  and has no route; 893's sermon 1310 was never replayed.
+
+**Settle before re-cutting the same runs**
+
+- **Known-wrong endings would be cut again unchanged.** The members 1224 (the sermon end runs
+  22 s into the hymn while the preacher reads its words: item 18) and 1111 (ends mid-sentence
+  before the next cue: item 9) both replay as "same". The non-members 1198, 962, 1005, 1240 and
+  1271 stand as they are. Rule them, hold them, or accept them on record before the round.
+- **Structure changes nobody has reviewed.** 24 members change structure on recompose. The
+  pre-flight compares sections by position, so one dropped section reads as every later section
+  retyped. Two examples:
+  - 1036 drops "Unidentified singing" §1470 (30–90 s, no media);
+  - 1255 drops "Opening Bible reading" §3178 (141–179 s), which carries a stale song clip (§9.1).
+
+  Look at both before the round, or listen to them after it.
+- **Song clips keep their dead air.** The dead-feed rule leaves songs to ruling 2
+  (MUSIC-AND-SILENCE §12), which moves a song edge only after ≥ 15 s of pure digital zero. The
+  scan covered all 908 song clips and 230 short-talk clips (silence below −45 dB lasting ≥ 1 s):
+  - 44 song clips open on ≥ 3 s of silence and 17 on ≥ 5 s. 14 of the 17 were cut on v9 code,
+    and the round will not change them.
+  - 25 of the 44 are ≥ 80 % digital zero (≤ −80 dB): for example 967 §1073 (12.0 s), 963 §860
+    (8.0 s), 1007 §1251 (7.7 s) and 976 §961 (6.8 s).
+  - 19 open on quiet room, which neither rule touches: for example 1367 §4574, 17 s at −62 dB
+    before the music.
+  - Two song sections are silent throughout: 938 §627 (11.2 s, no `SongVideo`) and 1106 §1878
+    (6.0 s, `SongVideo` 238 "Holy Holy Holy", held).
+  - Trailing silence: 22 song clips have ≥ 3 s, and only the two silent clips have ≥ 5 s. No
+    short talk has ≥ 3 s.
+
+  Question for the operator: should song edges take the spoken bar (≥ 2 s at ≤ −80 dB) at cut
+  time? Answering yes needs a replay against the song regression fixtures first.
+- **The §9.1 residue is still growing** (recount in §9.1). The 141 recomposes will move it again.
+
+**Measurement and safety**
+
+- **The 15-10 scan understates dead air.** At −45 dB, a single blip ends a silence. 1079's
+  sermon measured 3.8 s but opens on about 14.5 s of digital zero: half-second RMS levels read
+  `-inf` to 15 s, apart from one noise at about 4 s. The rule's +13.9 s move is right. Measure the
+  round's result by time at digital zero, not by `silencedetect`.
+- **The mechanism behind the 10-15 wipe is still live.** `phpunit.xml` forces Redis 6/7 but not
+  `DB_DATABASE`. Neither the round clone nor the five other sibling checkouts has a
+  `.env.testing`, so `RefreshDatabase` there runs against `crockenhill`. Forcing
+  `DB_DATABASE=testing` in `phpunit.xml` makes that mistake harmless, and CI already uses `testing`.
+- **18 code commits exist only on this machine** (master is 34 ahead of origin). A push to master
+  deploys; no workflow runs on a push to any other branch, so pushing a backup branch is safe.
+- **Listening backlog never put on a page:**
+  - the J1 and J2 moved starts: 976-960, 1232, 1214, 1227-2799, 1291, 1203, 1040, 939 (J2) and
+    990, 1149, 1167 (J1);
+  - 1271's "sovereign" ending (§11);
+  - 1345's "Technical difficulties".
+
+  Add them to the round's listening.
+- **Readiness overstates the thumbnail blocker and leaves out preachers.**
+  - The 406 sermons "without thumbnails" in 10-15's readiness count are the deferral ruled on
+    09-14 (main plan §4.5). `GenerateThumbnail` skips every unpublished sermon by design.
+  - 423 of 439 historic sermons are "Visiting Speaker" with `needs_preacher_review`, and
+    readiness does not count that.
+
+  Details in main plan §4.5.
+
+**Proposed go checklist.** It replaces the checklist above once the operator rules; none of it
+is done.
+
+1. Push master to a backup branch, and force `DB_DATABASE=testing` in `phpunit.xml` (tested on
+   main, never in the clone).
+2. Apply the three duplicate-pair corrections (`historic-import:correct-run-identity … --apply`).
+3. Operator rulings: the song dead-air bar; 1224 and 1111; 1036 and 1255; 937; and whether §9.1
+   step 1 is built before the round.
+4. Build what is approved on master. Reset the clone's `master` to it and clear
+   `bootstrap/cache/*.php`.
+5. Take a new snapshot: the 144 less 1035, plus the 38 v9 dead-feed runs (the 39 less 974), plus
+   1034, 1120 and 1375 on `rerun-redetect`. Dry-run it.
+6. Run the watcher, stage (a), the `--all` recompose and autotick as the checklist above
+   describes. 974, 1126 and 1378 go through `reExtract`.
+7. Run `sermons:re-extract --held-section --dry-run` over the held runs, then cut them one at a
+   time after the main batch.
+8. Listening: every edge moved ≥ 1 s, the backlog above, 1036 and 1255, and the held-sermon
+   release page. Then close with §9.
+
+Time, at 10-15's 3.9 min a run: about 2.5 h more for the v9 runs. The held sermons take about
+6 min each, one at a time: about 6 h for the 62.

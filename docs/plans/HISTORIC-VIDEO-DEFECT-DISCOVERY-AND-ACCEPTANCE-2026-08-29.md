@@ -1,5 +1,18 @@
 # Historic Video Defect Discovery and Acceptance Plan
 
+> **Status — 2026-10-16, re-cut round set up, not dispatched.** The full pass (10-10 to 10-12),
+> its fix round and the follow-up round (10-13 to 10-15) are recorded in
+> [FOLLOW-UP-ROUND §12](FOLLOW-UP-ROUND-FROZEN-CLONE-2026-10-13.md). The re-cut round's
+> pre-dispatch review found that membership leaves out:
+> - 39 v9 runs whose edges the dead-feed rule moves;
+> - 62 failed runs still parked on sermon content holds;
+> - the duplicate pairs' kept runs, while it includes the poorer run 1035.
+>
+> It also found that song clips keep up to 12 s of digital-zero dead air under ruling 2's
+> 15-second bar, and that the §9.1 stale-clip residue is still growing. The review and a
+> proposed go checklist are at the end of that §12; §4.4 and §4.5 below carry the parts that
+> belong here.
+
 > **Status — 2026-10-10, full pass:** the current execution record (freeze, settings, membership,
 > routing, order, stopping conditions, backup, preflight) is
 > [VIDEO-BOUNDARY-CONSISTENCY §6.3.9](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md). Where §4.0 below
@@ -1385,6 +1398,31 @@ check against the 09-17 speech-edge trim) deserve a closer look before being bui
   the workbook records no service on the 22nd.
 - [ ] Resolve source adoption for pairs 873/1045, 969/1307 and 1296/1297 without
   deleting the better master or substituting media beneath existing timings.
+  **Ruled 2026-10-14 (operator, on recommendation): keep the real service, use the better
+  file's run, set the poorer run aside.** Built and committed the same day (`12b16f5e1`):
+  `historic-import:correct-run-identity --operation --processing-id --date --service --duplicate
+  --note [--apply --yes]` and the new exclusion reason `duplicate_recording`, whose kept run may
+  belong to another operation. With it, an excluded run never wins supersession. Dry runs on all
+  three pairs read as the table below. **Not applied.**
+
+  | Pair | Kept run (better master) | Moves to | Poorer run (excluded) | Removes service | Re-dates sermon | Withdraws sermon |
+  |---|---|---|---|---|---|---|
+  | A 873/1045 | 1120 | 2024-12-22 evening (617) | 930 (other operation) | 1027 | 1045 | 873 |
+  | B 969/1307 | 1034 | 2025-12-21 evening (1018) | 1035 | 1017 | 969 | 1307 |
+  | C 1296/1297 | 1375 | 2020-04-12 morning (1121) | 1374 | 1122 | 1297 | 1296 |
+
+  - A re-cut finds its sermon by run (`SubmitToProcessing::resolveExistingLivestreamSermon`), not
+    by date. So the kept run's own sermon row is re-dated and the poorer run's row is withdrawn,
+    its files kept under `superseded/`.
+  - Order: apply the three corrections, re-detect the kept runs so they project onto the real
+    service's order of service, re-cut with `--held-section`, check, and release the September
+    identity holds above on the kept runs' sermon and song sections (re-read their section
+    IDs at the time: re-detection re-creates rows). The kept runs' song videos lose
+    `church_service_id` when the misdated service is deleted (`SET NULL`) until they are re-cut.
+  - **Timing (pre-dispatch review, 2026-10-16):** the re-cut round as set up includes 1035 on the
+    paid re-detection route and leaves 1034, 1120 and 1375 out. Applying the corrections before
+    its snapshot turns that into one round instead of two.
+    [FOLLOW-UP-ROUND §12](FOLLOW-UP-ROUND-FROZEN-CLONE-2026-10-13.md), "Pre-dispatch review".
 - [ ] Update exact release membership only after each identity decision is
   evidence-bound.
 
@@ -1705,6 +1743,10 @@ check against the 09-17 speech-edge trim) deserve a closer look before being bui
   Independently verify the 16 existing non-default assignments; neither deferral
   nor retraining exempts them. Keep reserved evaluation recordings out of speaker
   training, including alternate encodes of those recordings.
+  **Recounted 2026-10-16:** 423 of the 439 sermons on non-superseded historic runs are
+  "Visiting Speaker" with `needs_preacher_review`, and 16 carry a named preacher.
+  `HistoricProcessingResultReadinessService` does not check the preacher, so the readiness count
+  (12 of 455 on 10-15) does not show this item.
 - [ ] Complete editorial QA for titles, slugs, references, series, speakers, songs,
   children's talks and occasions, including source-supported summary/point claims
   and meaning-changing transcript errors under §4.1b's blind review method.
@@ -1714,6 +1756,19 @@ check against the 09-17 speech-edge trim) deserve a closer look before being bui
   explicit step, then checked (frame inside the span, not black or a slide).
   Existing thumbnails are checked against current cuts and editorial values too;
   deferral never certifies them.
+  **Readiness counts this deferral as a blocker (found 2026-10-16).**
+  `HistoricProcessingResultReadinessService` refuses a run whose sermon has no
+  `thumbnail_file_path`. `GenerateThumbnail` skips every sermon that is not published
+  (`SermonExposurePolicy::shouldGenerateVideoThumbnail` → `isWholeContentPublic`), so every
+  quarantined sermon fails that check, and no re-cut changes it. The 15 October count of
+  "406 main sermons without thumbnails" is therefore this ruling, not a backlog. The sermons of
+  27 completed and 6 failed historic runs do have thumbnails; those need the check above.
+  Decision for the operator:
+  - readiness treats the thumbnail as pending this step until the exact membership is chosen, so
+    the count shows the other blockers;
+  - or the step is brought forward, generating onto the holding disk (`MediaAssetPath::holdingDisk`,
+    never `THUMBNAIL_STORAGE_DISK`, which is the production bucket: 2026-10-15's five stray
+    objects came that way).
 - [ ] Audit exact assets, Scripture settlement, quarantine visibility and
   notification containment.
 - [ ] Regenerate the hymn-usage apply artifact against the exact converged graph.
