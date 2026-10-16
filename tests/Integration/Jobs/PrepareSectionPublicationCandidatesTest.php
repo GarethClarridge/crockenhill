@@ -871,6 +871,20 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         Bus::assertDispatched(CleanupTemporaryFiles::class, static function (CleanupTemporaryFiles $cleanup): bool {
             return true;
         });
+
+        /**
+         * Run 1220, 2026-10-12: the chain's own preparation re-marked the standalone row running and
+         * only a standalone run settles it, so cleanup refused the run for ever. The chain's step is
+         * not the standalone dispatch's work and must leave its row as it found it.
+         */
+        (new PrepareSectionPublicationCandidates($processingLog->fresh()))->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(SectionPublicationHandlerFactory::class),
+            app(ServiceSectionPublicationTransitionService::class),
+        );
+
+        $this->assertSame('completed', HistoricImportNestedJob::query()->sole()->state);
     }
 
     #[Test]

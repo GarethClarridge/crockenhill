@@ -739,8 +739,17 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         );
     }
 
+    /**
+     * Only a standalone preparation owns the nested row, and only it settles the row. The chain's
+     * step re-marked a finished standalone row running and left it so, and cleanup refused run
+     * 1220 for ever on it (2026-10-12).
+     */
     private function markHistoricNestedJobRunning(): void
     {
+        if (! $this->standalone) {
+            return;
+        }
+
         $nestedJob = $this->historicNestedJob();
 
         if (! $nestedJob instanceof HistoricImportNestedJob) {
