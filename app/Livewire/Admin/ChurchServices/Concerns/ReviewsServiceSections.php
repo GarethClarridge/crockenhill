@@ -11,6 +11,7 @@ use App\Actions\ServiceReview\MarkServiceReviewed;
 use App\Actions\ServiceReview\MergeAdjacentServiceSections;
 use App\Actions\ServiceReview\MergeInterruptedTalk;
 use App\Actions\ServiceReview\SaveServiceSection;
+use App\Actions\ServiceReview\SetOutputEdge;
 use App\Actions\ServiceReview\SplitServiceSection;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
@@ -18,6 +19,12 @@ use App\Models\ChurchServiceItem;
 use App\Models\Preacher;
 use App\Models\ServiceSection;
 use App\Queries\ServiceReviewDashboardQuery;
+use App\Services\ChurchService\OutputEdgeAnswers;
+use App\Services\ChurchService\OutputEdgeCheck;
+use App\Services\ChurchService\OutputEdgeWordTimings;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
+use App\Services\Media\Audio\ServiceArtifactStorage;
+use App\Support\ServiceTimestamp;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -26,7 +33,8 @@ use Livewire\Attributes\Computed;
 /**
  * Section review editing for the service workbench: inline type/title/boundary edits,
  * children's-talk speaker picks, batch approval, adjacent-section merging, merging a talk
- * across the readings or prayers that interrupted it, and splitting a section in two.
+ * across the readings or prayers that interrupted it, splitting a section in two, and an
+ * operator's "start here" / "end here" for a sermon's or a talk's output ({@see SetOutputEdge}).
  *
  * Edit state is seeded for review-candidate sections only — seeding every
  * section of every run would balloon the Livewire payload.
@@ -71,6 +79,20 @@ trait ReviewsServiceSections
      * @var array<int, string>
      */
     public array $splitTimes = [];
+
+    /**
+     * The start and end times a reviewer has typed for an output, keyed by section id and edge.
+     *
+     * @var array<int, array{start?: string, end?: string}>
+     */
+    public array $outputEdgeTimes = [];
+
+    /**
+     * The last read-only plan check of each output's edges ({@see OutputEdgeCheck}), keyed by section id.
+     *
+     * @var array<int, array<string, mixed>>
+     */
+    public array $outputEdgeChecks = [];
 
     protected ServiceReviewDashboardQuery $dashboardQuery;
 
@@ -157,6 +179,104 @@ trait ReviewsServiceSections
         ];
 
         $this->success('Section changes saved.');
+    }
+
+    /**
+     * Record the reviewer's typed time as the output's start or end. Nothing is cut here: the
+     * planner applies it on the next cut, and a check shows whether it is placed.
+     */
+    public function setOutputEdge(int $sectionId, string $edge): void
+    {
+        $this->recordOutputEdge($sectionId, $edge, $this->outputEdgeTimes[$sectionId][$edge] ?? '');
+    }
+
+    public function clearOutputEdge(int $sectionId, string $edge): void
+    {
+        $this->recordOutputEdge($sectionId, $edge, null);
+    }
+
+    /** Resolve the output's next cut read only and show where each edge lands, or why it is refused. */
+    public function checkOutputEdges(int $sectionId): void
+    {
+        $this->authorizeAdmin();
+
+        $section = ServiceSection::query()->find($sectionId);
+
+        if (! $section instanceof ServiceSection) {
+            $this->error('Section not found.');
+
+            return;
+        }
+
+        $this->outputEdgeChecks[$sectionId] = app(OutputEdgeCheck::class)->check($section);
+    }
+
+    /**
+     * What the panel's start and end controls show for a sermon or talk: each edge's current bound,
+     * the answer set and who set it, and the transcript lines and audio clip around it, in
+     * recording time. Null for any other section.
+     *
+     * @return array{audio_url: string|null, edges: array<'start'|'end', array{bound: float, around: float, clip: array{start: float, end: float}, answer: array<string, mixed>|null, cues: list<array{start: float, end: float, text: string}>}>}|null
+     */
+    public function outputEdgePanelFor(ServiceSection $section): ?array
+    {
+        $output = app(SetOutputEdge::class)->outputSections($section);
+
+        if ($output === null) {
+            return null;
+        }
+
+        $log = $section->processingLog;
+        $answers = OutputEdgeAnswers::recordsOf($section);
+        $readCues = static fn (): array => app(OutputEdgeWordTimings::class)->cues($log);
+
+        try {
+            $context = $log->historicStagingContext();
+            $cues = $context === null ? $readCues() : app(HistoricStagingContextRegistry::class)->within($context, $readCues);
+        } catch (\Throwable) {
+            $cues = [];
+        }
+
+        $edges = [];
+
+        foreach (['start' => (float) $output[0]->start_time, 'end' => (float) $output[count($output) - 1]->end_time] as $edge => $bound) {
+            $around = $answers[$edge]['time'] ?? $bound;
+            $edges[$edge] = [
+                'bound' => $bound,
+                'around' => $around,
+                'clip' => ['start' => max(0.0, $around - 20.0), 'end' => $around + 20.0],
+                'answer' => $answers[$edge] ?? null,
+                'cues' => array_values(array_filter($cues, static fn (array $cue): bool => $cue['end'] >= $around - 25.0 && $cue['start'] <= $around + 25.0)),
+            ];
+        }
+
+        $hasAudio = collect(ServiceArtifactStorage::recordedFor($log))->contains(static fn (array $entry): bool => $entry['kind'] === 'audio');
+
+        return ['audio_url' => $hasAudio ? route('admin.recordings.service-audio', $log) : null, 'edges' => $edges];
+    }
+
+    private function recordOutputEdge(int $sectionId, string $edge, ?string $at): void
+    {
+        $this->authorizeAdmin();
+
+        $section = ServiceSection::query()->find($sectionId);
+
+        if (! $section instanceof ServiceSection || ! in_array($edge, ['start', 'end'], true)) {
+            $this->error('Section not found.');
+
+            return;
+        }
+
+        try {
+            app(SetOutputEdge::class)->execute($section, $edge, $at, $this->reviewingUserId());
+        } catch (ValidationException $exception) {
+            throw ValidationException::withMessages(["outputEdgeTimes.{$sectionId}.{$edge}" => array_merge(...array_values($exception->errors()))]);
+        }
+
+        unset($this->outputEdgeTimes[$sectionId][$edge], $this->outputEdgeChecks[$sectionId]);
+        $this->success($at === null
+            ? sprintf('The %s is cleared: the next cut uses the planner\'s own.', $edge)
+            : sprintf('%s set at %s. It applies on the next cut; check it against the plan below.', ucfirst($edge), ServiceTimestamp::format((float) ServiceTimestamp::parse($at))));
     }
 
     public function confirmSection(int $sectionId): void

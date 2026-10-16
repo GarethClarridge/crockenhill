@@ -14,6 +14,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
+use App\Services\ChurchService\OutputEdgeAnswers;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\TranscriptCueBoundaries;
 use App\Services\Sermon\SermonExtractionPlanResolver;
@@ -2426,6 +2427,49 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->assertSame([['start_time' => 2123.0, 'end_time' => 3740.0]], $plan['segments']);
         $this->assertSame($sermon->id, $plan['metadata']['sermon_section_id']);
         $this->assertSame($sermon->id, $plan['metadata']['held_span_authorised_section_id']);
+    }
+
+    /**
+     * Q12 (1224, 1111): the operator's "end here" on a held sermon is cut by the repair that
+     * re-cuts it, and the hold stays for the release page.
+     */
+    #[Test]
+    public function an_authorised_held_sermon_is_cut_at_the_end_its_operator_set(): void
+    {
+        [$log, $sermon] = $this->runWithHeldSermon();
+        $this->setOutputEdge($sermon, 'end', 3731.4);
+        $log->authoriseHeldSermonSpan($sermon->fresh());
+
+        $plan = $this->resolver->resolve($log->fresh());
+
+        $this->assertSame([['start_time' => 2123.0, 'end_time' => 3731.4]], $plan['segments']);
+        $this->assertSame(CueSafeExtractionPlan::OPERATOR_SET_EDGE, collect($plan['metadata']['cue_edge_widening'])->firstWhere('edge', 'end')['reason']);
+        $this->assertTrue(HoldSectionForContentReview::isHeld($sermon->fresh()->metadata->reviewFlags), 'setting an edge releases no hold');
+    }
+
+    /** An answer the plan cannot apply holds the whole plan for review, with its own reason. */
+    #[Test]
+    public function a_refused_operator_edge_holds_the_sermon_plan(): void
+    {
+        [$log, $sermon] = $this->runWithHeldSermon();
+        ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 2, 'start_time' => 3742.0, 'end_time' => 3900.0, 'title' => 'Closing hymn']);
+        $this->setOutputEdge($sermon, 'end', 3760.0);
+        $log->authoriseHeldSermonSpan($sermon->fresh());
+
+        $plan = $this->resolver->resolve($log->fresh());
+
+        $this->assertTrue($plan['metadata']['requires_review']);
+        $this->assertSame('sermon_operator_edge_refused', $plan['metadata']['reason']);
+        $this->assertStringContainsString('Closing hymn', CueSafeExtractionPlan::refusedOperatorEdges($plan['metadata']['cue_edge_widening'])[0]['refusal']);
+    }
+
+    private function setOutputEdge(ServiceSection $section, string $edge, float $time): void
+    {
+        $metadata = $section->fresh()->metadata?->toArray() ?? [];
+        $metadata[OutputEdgeAnswers::METADATA_KEY][$edge] = ['time' => $time, 'set_by_user_id' => 1, 'set_at' => now()->toIso8601String(),
+            'from_time' => (float) $section->{$edge.'_time'}, 'section_span' => ['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time]];
+        $section->forceFill(['metadata' => $metadata])->save();
     }
 
     /**

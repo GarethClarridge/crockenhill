@@ -14,12 +14,14 @@ use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Enums\TalkType;
 use App\Exceptions\UnplacedContentHoldException;
+use App\Exceptions\UnplacedOutputEdgeAnswerException;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Models\SongVideo;
 use App\Models\User;
+use App\Services\ChurchService\OutputEdgeAnswers;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\TalkReadingPairing;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -1049,6 +1051,76 @@ class ServiceSectionSyncServiceTest extends TestCase
         $moved = $this->sectionAt($processingLog, 2);
         $this->assertNotHeld($moved);
         $this->assertCount(1, $moved->metadata?->toArray()[HoldSectionForContentReview::METADATA_KEY] ?? []);
+    }
+
+    /**
+     * An operator's "end here" follows its sermon, as a content hold does: re-detection that adds
+     * sections before it leaves the sermon on another row.
+     */
+    #[Test]
+    public function an_output_edge_follows_its_sermon_to_a_new_order(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $this->sectionWithOutputEdge($processingLog, sectionOrder: 2, startTime: 600.0, endTime: 1800.0, end: 1795.4);
+
+        $this->service->sync($processingLog, [
+            $this->sectionData(null, 1, ServiceSectionType::Welcome->value, startTime: 0.0, endTime: 50.0, duration: 50.0),
+            $this->sectionData(null, 2, ServiceSectionType::Song->value, startTime: 60.0, endTime: 180.0, duration: 120.0),
+            $this->sectionData(null, 3, ServiceSectionType::Sermon->value, startTime: 610.0, endTime: 1790.0, duration: 1180.0),
+        ]);
+
+        $this->assertSame(1795.4, OutputEdgeAnswers::recordsOf($this->sectionAt($processingLog, 3))['end']['time']);
+        $this->assertSame([], OutputEdgeAnswers::recordsOf($this->sectionAt($processingLog, 2)));
+    }
+
+    #[Test]
+    public function an_unchanged_sermon_keeps_its_output_edge(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $this->sectionWithOutputEdge($processingLog, sectionOrder: 1, startTime: 600.0, endTime: 1800.0, end: 1795.4);
+
+        $this->service->sync($processingLog, [
+            $this->sectionData(null, 1, ServiceSectionType::Sermon->value, startTime: 600.0, endTime: 1800.0, duration: 1200.0),
+        ]);
+
+        $this->assertSame(1795.4, OutputEdgeAnswers::recordsOf($this->sectionAt($processingLog, 1))['end']['time']);
+    }
+
+    /** Nothing of the sermon's type covers it any more: the answer is not dropped, the sync is refused. */
+    #[Test]
+    public function a_re_detection_that_leaves_an_output_edge_nowhere_to_go_writes_nothing(): void
+    {
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $section = $this->sectionWithOutputEdge($processingLog, sectionOrder: 1, startTime: 600.0, endTime: 1800.0, end: 1795.4);
+
+        try {
+            $this->service->sync($processingLog, [
+                $this->sectionData(null, 1, ServiceSectionType::Song->value, startTime: 60.0, endTime: 180.0, duration: 120.0),
+            ]);
+            $this->fail('A re-detection dropped an operator\'s output edge.');
+        } catch (UnplacedContentHoldException $exception) {
+            $this->assertInstanceOf(UnplacedOutputEdgeAnswerException::class, $exception);
+            $this->assertStringContainsString("section {$section->id}", $exception->getMessage());
+            $this->assertSame([$section->id], $exception->unplacedSectionIds());
+        }
+
+        $this->assertSame(1795.4, OutputEdgeAnswers::recordsOf($section->fresh())['end']['time']);
+        $this->assertSame(1, $processingLog->serviceSections()->count());
+    }
+
+    private function sectionWithOutputEdge(MediaProcessingLog $processingLog, int $sectionOrder, float $startTime, float $endTime, float $end): ServiceSection
+    {
+        return ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => null,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'section_order' => $sectionOrder,
+            'start_time' => $startTime,
+            'end_time' => $endTime,
+            'duration' => $endTime - $startTime,
+            'metadata' => ['review_flags' => [], OutputEdgeAnswers::METADATA_KEY => ['end' => ['time' => $end, 'set_by_user_id' => 1,
+                'set_at' => '2026-10-16T12:00:00+00:00', 'from_time' => $endTime, 'section_span' => ['start_time' => $startTime, 'end_time' => $endTime]]]],
+        ]);
     }
 
     private function heldSection(

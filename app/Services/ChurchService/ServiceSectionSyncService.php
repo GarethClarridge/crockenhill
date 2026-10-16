@@ -9,6 +9,7 @@ use App\Enums\SermonPublicationState;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Exceptions\UnplacedContentHoldException;
+use App\Exceptions\UnplacedOutputEdgeAnswerException;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\SongVideo;
@@ -125,6 +126,9 @@ class ServiceSectionSyncService
                 ])
                 ->all());
 
+            // Read before any row is rewritten, for the same reason: an operator's edge follows its content.
+            $edgeAnswers = $this->outputEdgeAnswersTo($existingByOrder->all(), $classifiedSections);
+
             $this->refuseUnplacedContentHolds(
                 array_values(array_filter($heldContent, static fn (array $held): bool => $held['held'])),
                 $classifiedSections,
@@ -192,14 +196,14 @@ class ServiceSectionSyncService
                         $payload = $this->withoutSongBinding($payload);
                     }
 
-                    $existing->fill($this->withTalkAnswer($this->withContentHolds($payload, $heldContent), $talkAnswers));
+                    $existing->fill($this->withOutputEdgeAnswers($this->withTalkAnswer($this->withContentHolds($payload, $heldContent), $talkAnswers), $edgeAnswers[$index] ?? null));
                     $existing->save();
 
                     continue;
                 }
 
                 ServiceSection::query()->create(array_merge(
-                    $this->withTalkAnswer($this->withContentHolds($payload, $heldContent), $talkAnswers),
+                    $this->withOutputEdgeAnswers($this->withTalkAnswer($this->withContentHolds($payload, $heldContent), $talkAnswers), $edgeAnswers[$index] ?? null),
                     [
                         'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
                         'song_match_type' => null,
@@ -711,6 +715,79 @@ class ServiceSectionSyncService
             if ($best !== null) {
                 $metadata[TalkReadingPairing::METADATA_KEY] = $best;
             }
+        }
+
+        $payload['metadata'] = $metadata;
+
+        return $payload;
+    }
+
+    /**
+     * Which incoming section takes each stored section's output edges ({@see OutputEdgeAnswers}):
+     * the one of its type that overlaps it most. Like a content hold, the answer follows its
+     * content, not its row. A stored answer no incoming section of its type overlaps refuses the
+     * whole sync before anything is written: it was heard on that content, and dropping it would
+     * quietly undo the operator's ruling.
+     *
+     * @param  array<int, ServiceSection>  $existing
+     * @param  array<int, ClassifiedSection>  $classifiedSections
+     * @return array<int, array<string, mixed>> The stored answers, keyed by incoming index
+     *
+     * @throws UnplacedOutputEdgeAnswerException
+     */
+    private function outputEdgeAnswersTo(array $existing, array $classifiedSections): array
+    {
+        $placed = [];
+        $unplaced = [];
+
+        foreach ($existing as $section) {
+            $answers = $section->metadata?->raw[OutputEdgeAnswers::METADATA_KEY] ?? null;
+
+            if (! is_array($answers) || $answers === []) {
+                continue;
+            }
+
+            $best = null;
+            $bestOverlap = 0.0;
+
+            foreach ($classifiedSections as $index => $sectionData) {
+                $overlap = min((float) $sectionData['end_time'], (float) $section->end_time) - max((float) $sectionData['start_time'], (float) $section->start_time);
+
+                if ($sectionData['section_type'] === $section->section_type->value && $overlap > $bestOverlap) {
+                    [$best, $bestOverlap] = [$index, $overlap];
+                }
+            }
+
+            if ($best === null) {
+                $unplaced[] = ['id' => $section->id, 'section_type' => $section->section_type->value,
+                    'start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time];
+
+                continue;
+            }
+
+            $placed[$best] = $answers;
+        }
+
+        if ($unplaced !== []) {
+            throw UnplacedOutputEdgeAnswerException::forAnswers($unplaced);
+        }
+
+        return $placed;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @param  array<string, mixed>|null  $answers
+     * @return array<string, mixed>
+     */
+    private function withOutputEdgeAnswers(array $payload, ?array $answers): array
+    {
+        /** @var array<string, mixed> $metadata */
+        $metadata = $payload['metadata'];
+        unset($metadata[OutputEdgeAnswers::METADATA_KEY]);
+
+        if ($answers !== null) {
+            $metadata[OutputEdgeAnswers::METADATA_KEY] = $answers;
         }
 
         $payload['metadata'] = $metadata;

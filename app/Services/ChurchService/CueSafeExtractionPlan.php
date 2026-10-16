@@ -19,6 +19,8 @@ use App\Services\Media\Audio\AudioTimeline;
 use App\Services\Media\Audio\RmsAnalysisService;
 use App\Services\Media\Audio\UntranscribedSpeechRecovery;
 use App\Support\ServiceArtifactDisk;
+use App\Support\ServiceTimestamp;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 
 /** Put output edges in measured word pauses; no-word windows retain whole-cue widening. */
@@ -149,6 +151,12 @@ class CueSafeExtractionPlan
     /** The audit reason for a refused edge an operator has answered; its old reason is kept. */
     public const OPERATOR_ANSWERED_EDGE = 'operator_answered_edge';
 
+    /** The audit reason for an output edge the operator set by ear ({@see OutputEdgeAnswers}); the planner's own is kept. */
+    public const OPERATOR_SET_EDGE = 'operator_set_edge';
+
+    /** The audit reason for an operator's edge the plan cannot apply: the planner's edge stands, and the plan is invalid. */
+    public const OPERATOR_EDGE_REFUSED = 'operator_edge_refused';
+
     /** Seconds within which a section's bound borders an unresolved interval. */
     private const INTERVAL_REACH = 0.5;
 
@@ -178,7 +186,8 @@ class CueSafeExtractionPlan
     /**
      * A section's own output: the section, or a talk with the reading it is answered to go with
      * ({@see TalkReadingPairing}), one span per section. The reading takes the pause before the
-     * talk, so the two meet and play straight through, as a sermon's silent joins do.
+     * talk, so the two meet and play straight through, as a sermon's silent joins do. A talk's
+     * output takes the operator's start and end ({@see OutputEdgeAnswers}).
      *
      * @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>, audio_fade_out: float|null}
      */
@@ -196,6 +205,7 @@ class CueSafeExtractionPlan
             $section->processingLog,
             $spans,
             songEnds: $section->section_type === ServiceSectionType::Song,
+            edgeAnswers: $section->section_type === ServiceSectionType::ShortTalk ? OutputEdgeAnswers::of($section, $sections) : null,
         );
     }
 
@@ -229,9 +239,10 @@ class CueSafeExtractionPlan
      * @param  list<array{start_time: float, end_time: float}>  $spans
      * @param  bool  $songEnds  Each span is a song: its end runs on to silence or the next speech
      * @param  bool  $sermonEnd  The last span ends a sermon output: beside a song it takes the spoken stretch before the singing (A)
+     * @param  OutputEdgeAnswers|null  $edgeAnswers  The operator's start and end for this output, applied after every edge rule
      * @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>, audio_fade_out: float|null}
      */
-    public function forSpans(MediaProcessingLog $log, array $spans, bool $songEnds = false, bool $sermonEnd = false): array
+    public function forSpans(MediaProcessingLog $log, array $spans, bool $songEnds = false, bool $sermonEnd = false, ?OutputEdgeAnswers $edgeAnswers = null): array
     {
         $evidence = app(OutputEdgeWordTimings::class);
         $cues = $evidence->cues($log);
@@ -338,6 +349,7 @@ class CueSafeExtractionPlan
         $audit = $this->withAnswerIdentity($log, $sectionSpans, $songEnds, $sermonEnd, $cues, $levels, $timeline, $audit);
         $spans = $this->withAnsweredEdges($log, $spans, $audit);
         $spans = $this->withUnresolvedIntervals($log, $sectionSpans, $spans, $audit);
+        $spans = $this->withOperatorEdges($log, $sectionSpans, $spans, $audit, $songEnds ? null : $edgeAnswers);
         $lastSpan = $last;
         $merged = [];
         foreach ($spans as $span) {
@@ -623,7 +635,7 @@ class CueSafeExtractionPlan
         $rms = app(RmsAnalysisService::class);
 
         foreach ($samples as $sample) {
-            if ($sample['time'] - $previous > self::SONG_SILENCE_MAXIMUM_SAMPLE_GAP + 0.0001) {
+            if (self::SONG_SILENCE_MAXIMUM_SAMPLE_GAP + 0.0001 < $sample['time'] - $previous) {
                 return null;
             }
             $previous = $sample['time'];
@@ -1063,6 +1075,121 @@ class CueSafeExtractionPlan
         usort($spans, static fn (array $a, array $b): int => $a['start_time'] <=> $b['start_time']);
 
         return $spans;
+    }
+
+    /**
+     * The operator's start and end for this output ({@see OutputEdgeAnswers}), set by ear: applied
+     * last, after the edge rules, the dead-feed rule (E18's order) and the unresolved intervals, so
+     * no word-timing move takes them back. The planner's own edge is kept beside the answer.
+     *
+     * An answer is refused, and the planner's edge stands, where it would leave a part out, fall
+     * outside the recording, or, moved outward past the planner's edge, cut into a section this
+     * output does not include. Content the planner already reaches is not new: 1224's end, carried
+     * into the hymn, may be set anywhere inside that stretch. The validator refuses a plan with a
+     * refused answer ({@see self::refusedOperatorEdges()}), so it is changed, never silently dropped.
+     *
+     * @param  list<array{start_time: float, end_time: float}>  $sectionSpans
+     * @param  list<array{start_time: float, end_time: float}>  $spans
+     * @param  list<array<string, mixed>>  $audit
+     * @return list<array{start_time: float, end_time: float}>
+     */
+    private function withOperatorEdges(MediaProcessingLog $log, array $sectionSpans, array $spans, array &$audit, ?OutputEdgeAnswers $answers): array
+    {
+        if ($answers === null || $answers->isEmpty() || $spans === []) {
+            return $spans;
+        }
+
+        $others = $log->serviceSections()->whereNotIn('id', $answers->outputSectionIds)->orderBy('start_time')->orderBy('id')->get();
+
+        foreach ($answers->answers as $edge => $answer) {
+            $index = $edge === 'start' ? array_key_first($spans) : array_key_last($spans);
+            $key = $edge === 'start' ? 'start_time' : 'end_time';
+            $planned = $edge === 'start' ? $spans[$index]['start_time'] : $spans[$index]['end_time'];
+            $time = (float) $answer['time'];
+            $record = ['section_id' => $answers->ownerSectionId, ...$answer];
+            $refusal = $this->operatorEdgeRefusal($log, $spans[$index], $edge, $planned, $time, $others);
+            $entryKey = array_key_first(array_filter($audit, static fn (array $entry): bool => $entry['span_index'] === $index
+                && $entry['edge'] === $edge && ($entry['reason'] ?? null) !== self::UNRESOLVED_INTERVAL));
+            $original = $entryKey === null ? (float) ($sectionSpans[$index][$key] ?? $planned) : (float) $audit[$entryKey]['original_time'];
+
+            if ($refusal !== null) {
+                $audit[] = ['span_index' => $index, 'edge' => $edge, 'original_time' => $original, 'time' => $planned,
+                    'seconds_added' => 0.0, 'seconds_moved' => 0.0, 'window' => null, 'cue' => null, 'cues' => [],
+                    'chosen_pause' => null, 'word_before' => null, 'word_after' => null, 'reason' => self::OPERATOR_EDGE_REFUSED,
+                    'refusal' => $refusal, 'operator_edge' => $record, 'text_disagreement' => false];
+
+                continue;
+            }
+
+            $spans[$index] = $edge === 'start' ? ['start_time' => $time, 'end_time' => $spans[$index]['end_time']]
+                : ['start_time' => $spans[$index]['start_time'], 'end_time' => $time];
+            $moved = ['time' => $time, 'seconds_moved' => $time - $original, 'seconds_added' => abs($time - $original),
+                'planned_time' => $planned, 'reason' => self::OPERATOR_SET_EDGE, 'operator_edge' => $record];
+
+            if ($entryKey === null) {
+                $audit[] = ['span_index' => $index, 'edge' => $edge, 'original_time' => $original, 'window' => null, 'cue' => null, 'cues' => [],
+                    'chosen_pause' => null, 'word_before' => null, 'word_after' => null, 'planned_reason' => null, 'text_disagreement' => false, ...$moved];
+            } else {
+                $audit[$entryKey] = [...$audit[$entryKey], 'planned_reason' => $audit[$entryKey]['reason'] ?? null, ...$moved];
+            }
+        }
+
+        return $spans;
+    }
+
+    /**
+     * Why an operator's edge cannot be applied to its part, or null when it can.
+     *
+     * @param  array{start_time: float, end_time: float}  $span  The output's first part for a start, its last for an end
+     * @param  Collection<int, ServiceSection>  $others  The run's sections this output does not cut
+     */
+    private function operatorEdgeRefusal(MediaProcessingLog $log, array $span, string $edge, float $planned, float $time, Collection $others): ?string
+    {
+        $at = ServiceTimestamp::format($time);
+
+        if ($time < 0.0 || ($log->duration !== null && $time > (float) $log->duration + 0.001)) {
+            return sprintf('The %s at %s is outside the recording.', $edge, $at);
+        }
+
+        if ($edge === 'start' ? $time >= $span['end_time'] - 0.001 : $time <= $span['start_time'] + 0.001) {
+            return sprintf('The %s at %s would leave out the whole %s part (%s–%s).', $edge, $at, $edge === 'start' ? 'first' : 'last',
+                ServiceTimestamp::format($span['start_time']), ServiceTimestamp::format($span['end_time']));
+        }
+
+        $outward = $edge === 'start' ? $time < $planned - 0.001 : $time > $planned + 0.001;
+
+        if (! $outward) {
+            return null;
+        }
+
+        [$from, $to] = [min($planned, $time), max($planned, $time)];
+
+        foreach ($others as $section) {
+            $overlap = min($to, (float) $section->end_time) - max($from, (float) $section->start_time);
+
+            if ($overlap > self::CUE_BOUNDARY_TOLERANCE) {
+                return sprintf('The %s at %s would cut %.1f s into “%s” (%s, §%d), which this output does not include. Move that section\'s bound first, or choose a time outside it.',
+                    $edge, $at, $overlap, (string) $section->title, strtolower($section->section_type->label()), $section->id);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The operator's edges a plan could not apply, with the reason the planner gave
+     * ({@see self::withOperatorEdges()}): the plan is not cut until each is changed or cleared.
+     *
+     * @param  list<array<string, mixed>>  $audit  a plan's `cue_edge_widening`
+     * @return list<array{span_index: int, edge: string, refusal: string, section_id: int|null}>
+     */
+    public static function refusedOperatorEdges(array $audit): array
+    {
+        return array_values(array_map(
+            static fn (array $entry): array => ['span_index' => (int) $entry['span_index'], 'edge' => (string) $entry['edge'],
+                'refusal' => (string) ($entry['refusal'] ?? ''), 'section_id' => is_int($entry['operator_edge']['section_id'] ?? null) ? $entry['operator_edge']['section_id'] : null],
+            array_filter($audit, static fn (array $entry): bool => ($entry['reason'] ?? null) === self::OPERATOR_EDGE_REFUSED),
+        ));
     }
 
     /**

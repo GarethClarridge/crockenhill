@@ -25,7 +25,7 @@ class PublicationPlanValidator
      * @param  list<ServiceSection>  $selected  The sections the output publishes
      * @param  list<array{start_time: float, end_time: float}>  $spans  The final cut, after every adjustment
      * @param  list<array<string, mixed>>  $edges  The cut's `cue_edge_widening` audit, one span per selected section
-     * @return list<array{kind: 'selected_section_not_cut'|'crosses_held_section'|'edge_unresolved', section_ids: list<int>}>
+     * @return list<array{kind: 'selected_section_not_cut'|'crosses_held_section'|'edge_unresolved'|'operator_edge_refused', section_ids: list<int>}>
      */
     public function validate(MediaProcessingLog $log, array $selected, array $spans, array $edges = []): array
     {
@@ -68,6 +68,13 @@ class PublicationPlanValidator
 
         if ($unresolved !== []) {
             $violations[] = ['kind' => 'edge_unresolved', 'section_ids' => $unresolved];
+        }
+
+        // An operator's edge the plan could not apply is never dropped: the plan waits for it.
+        $refused = array_values(array_unique(array_filter(array_column(CueSafeExtractionPlan::refusedOperatorEdges($edges), 'section_id'), is_int(...))));
+
+        if ($refused !== []) {
+            $violations[] = ['kind' => 'operator_edge_refused', 'section_ids' => $refused];
         }
 
         return $violations;

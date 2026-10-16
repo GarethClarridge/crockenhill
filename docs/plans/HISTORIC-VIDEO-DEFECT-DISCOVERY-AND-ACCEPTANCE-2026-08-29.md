@@ -396,11 +396,36 @@ supersede; a new freeze and snapshot follow.
      answers in `storage/scratch/structure-review-1036-1255-20261016/`): §1470 is only
      pre-service music or talk, and §3178 is not a reading. Both runs recompose as planned and
      the sections go; routes unchanged;
-   - **the seven Q12 endings:** no tool can set a sermon or talk ending that the planner does not
-     refuse, on the service screen or the command line, and at v10 there is nothing to preview
-     before the round decodes. Operator, 10-16: build a weekly "end here / start here" tool in
-     its own session first; these seven are its first users (prompt in
-     `storage/scratch/recut-freeze-20261016/weekly-edge-tool-prompt.md`);
+   - **the seven Q12 endings — tool built 10-16, answers outstanding.** The service screen's
+     section panel now has "Where this sermon starts and ends" for every sermon and short talk
+     (a weekly tool; no historic-only behaviour): it plays the archived service audio around each
+     output edge in service time at 1×/2×/3× (default 3×) with the transcript lines, records
+     "start here" / "end here" as a recording time, and checks it against a read-only plan.
+     - **Rule:** the answer is the *output's* edge (a sermon composition's first start or last
+       end; a talk with its paired reading), kept on the owning section
+       (`output_edge_answers`, with who, when, the bound it replaced, the section span and the
+       output's parts; earlier answers in `history`). `CueSafeExtractionPlan` applies it last,
+       after the edge rules, dead feed (E10/E18 order) and unresolved intervals, so no
+       word-timing move overrides it. It is refused, the planner's edge kept and the plan held
+       (`sermon_operator_edge_refused`), when it leaves a part out, falls outside the recording,
+       or moves outward past the planner's edge into a section the output does not cut (the
+       panel shows the reason). Inside content the plan already reaches (1224's hymn) is fine.
+       `SetOutputEdge` also refuses, before any decode, what section bounds alone rule out and
+       a reach into a held section. Setting an edge confirms nothing and releases no hold.
+       Re-detection carries the answer to the overlapping section of its type, or refuses the
+       sync (`UnplacedOutputEdgeAnswerException`, a content-hold refusal, so the run parks).
+       A sermon's re-cut stays explicit; a talk's clip returns to candidate preparation, as the
+       existing talk recut does.
+     - **Measured:** all 772 banked plans (466 sermon runs, 306 short talks) replayed read only
+       on master and on the change, on current (v10) evidence and on the v9 bank as a proxy
+       (540 with segments): byte-identical, as no answers exist yet. Evidence and the script:
+       `storage/scratch/weekly-edge-tool-20261016/`.
+     - **Still to do:** the operator listens and sets the seven on the service screen (all
+       seven have archived audio); each answer is then confirmed placed by a read-only replay.
+       At v10 their edge words are not decoded, so the live check reads "not decoded yet"
+       until the round decodes; the v9 proxy replay is the pre-decode confirmation.
+     - **This is new code: re-freeze before the go** — move the clone to the new master
+       commit, take a fresh snapshot and dry-run every route (runbook §2.1, §3).
    - a fresh backup to Sonnics (runbook §6.5) and the live preflight (runbook §6);
    - round workers up from the clone (runbook §3), restarted after the clone moved.
 3. Watcher on `recut-round-20261016e` (runbook §5.1). Then:

@@ -30,6 +30,7 @@ class SaveServiceSection
         private readonly ConfirmServiceSection $confirmSection,
         private readonly ServiceSectionPublicationTransitionService $publicationTransitions,
         private readonly ExtractedSectionMediaChecker $mediaChecker,
+        private readonly ReturnTalkCandidateForRecut $returnForRecut,
     ) {}
 
     /**
@@ -243,14 +244,7 @@ class SaveServiceSection
         }
 
         if ($boundaryChanged) {
-            $this->invalidateCandidateAfterRecut($section);
-
-            if ($section->publication_status === ServiceSectionPublicationStatus::Approved) {
-                if (! $this->publicationTransitions->transition($section, ServiceSectionPublicationStatus::NotApplicable)) {
-                    throw new \RuntimeException('Unable to return a recut section to candidate preparation.');
-                }
-            }
-
+            $this->returnForRecut->apply($section);
             $section->save();
             $this->recomposeIfChanged($section, $compositionChanged);
             $section->loadMissing('processingLog');
@@ -428,27 +422,5 @@ class SaveServiceSection
         $metadata['short_talk_boundary'] = $boundary;
 
         return $metadata;
-    }
-
-    private function invalidateCandidateAfterRecut(ServiceSection $section): void
-    {
-        $metadata = $section->metadata?->toArray() ?? [];
-        $publication = $metadata['publication'] ?? null;
-
-        if (is_array($publication)) {
-            unset($publication['approved_signature'], $publication['approved_at']);
-
-            if ($publication === []) {
-                unset($metadata['publication']);
-            } else {
-                $metadata['publication'] = $publication;
-            }
-        }
-
-        $section->extracted_video_path = null;
-        $section->extracted_audio_path = null;
-        $section->extracted_at = null;
-        $section->unpublished_expires_at = null;
-        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
     }
 }

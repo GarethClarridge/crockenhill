@@ -12,6 +12,7 @@ use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
+use App\Services\ChurchService\OutputEdgeAnswers;
 use App\Services\ChurchService\PublicationPlanValidator;
 use App\Services\ChurchService\Structure\SermonContinuationScreen;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
@@ -519,7 +520,9 @@ class SermonExtractionPlanResolver
         $spans = $this->throughSilentGaps($spans, $sections, $selectedSections);
 
         try {
-            $cuePlan = app(CueSafeExtractionPlan::class)->forSpans($processingLog, $spans, sermonEnd: true);
+            $sermon = $byId->get($composition['sermon_section_id'] ?? null);
+            $cuePlan = app(CueSafeExtractionPlan::class)->forSpans($processingLog, $spans, sermonEnd: true,
+                edgeAnswers: $sermon instanceof ServiceSection ? OutputEdgeAnswers::of($sermon, $selectedSections) : null);
         } catch (OutputEdgeTimingsMissing $exception) {
             // Nothing can be cut until the edge words are decoded, but the structure's own verdict
             // still stands: a re-cut may decode them first only when the structure needs no review.
@@ -559,6 +562,7 @@ class SermonExtractionPlanResolver
                     $held !== [] => 'sermon_section_content_held',
                     $crossed !== [] => 'sermon_span_crosses_held_section',
                     $violated('edge_unresolved') !== [] => 'sermon_edge_unresolved',
+                    $violated('operator_edge_refused') !== [] => 'sermon_operator_edge_refused',
                     $violations !== [] => 'sermon_plan_invalid',
                     $requiresReview => 'sermon_composition_review',
                     default => null,

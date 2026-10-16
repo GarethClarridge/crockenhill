@@ -97,6 +97,13 @@
         </x-card>
     @endif
 
+    @php
+        $edgePanel = $this->outputEdgePanelFor($section);
+    @endphp
+    @if($edgePanel !== null)
+        @include('livewire.admin.church-services.partials.output-edges', ['section' => $section, 'edgePanel' => $edgePanel])
+    @endif
+
     <div class="grid gap-3 md:grid-cols-[12rem_minmax(0,1fr)_auto]">
         <x-select
             label="Section type"

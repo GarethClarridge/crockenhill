@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Livewire\Admin\ChurchServices;
 
 use App\Actions\ConfirmLivestreamSermonSegment;
+use App\Actions\HoldSectionForContentReview;
 use App\Actions\SaveChurchServiceFromAdmin;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\ProcessingStatus;
@@ -24,6 +25,7 @@ use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\User;
 use App\Presenters\ChurchServiceShowPresenter;
+use App\Services\ChurchService\OutputEdgeAnswers;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -1452,6 +1454,7 @@ class ShowChurchServiceTest extends TestCase
             'media_processing_log_id' => $run->id,
             'section_type' => ServiceSectionType::Sermon->value,
             'section_order' => 2,
+            'title' => 'The promise of exaltation',
             'church_service_item_id' => null,
             'needs_manual_review' => true,
         ]);
@@ -1465,6 +1468,67 @@ class ShowChurchServiceTest extends TestCase
 
         $this->assertSame($item->id, $sermon->fresh()->church_service_item_id);
         $this->assertNull($prayer->fresh()->church_service_item_id);
+    }
+
+    /**
+     * Q12 (1224): the operator listens around the sermon's end on the service screen and sets it.
+     * The hold stays, and nothing is queued.
+     */
+    #[Test]
+    public function a_reviewer_sets_a_held_sermons_end_by_ear_on_the_service_screen(): void
+    {
+        Queue::fake();
+        [$service, $run] = $this->workbenchServiceWithRun();
+        $run->update(['church_service_id' => $service->id, 'duration' => 5000]);
+        $sermon = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'section_order' => 1,
+            'start_time' => 2545.22,
+            'end_time' => 4007.22,
+            'needs_manual_review' => true,
+            'metadata' => ['review_flags' => [HoldSectionForContentReview::FLAG]],
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Where this sermon starts and ends')
+            ->assertSee('Section end: 1:06:47.2')
+            ->set("outputEdgeTimes.{$sermon->id}.end", '1:06:47.6')
+            ->call('setOutputEdge', $sermon->id, 'end')
+            ->assertHasNoErrors()
+            ->assertSee('Set at 1:06:47.6')
+            ->call('checkOutputEdges', $sermon->id)
+            ->assertSee('Placed: the next cut ends at 1:06:47.6; the planner alone would use 1:06:47.2.');
+
+        $sermon->refresh();
+        $this->assertSame(4007.6, OutputEdgeAnswers::recordsOf($sermon)['end']['time']);
+        $this->assertSame($this->admin->id, OutputEdgeAnswers::recordsOf($sermon)['end']['set_by_user_id']);
+        $this->assertTrue(HoldSectionForContentReview::isHeld($sermon->metadata->reviewFlags));
+        Queue::assertNothingPushed();
+    }
+
+    #[Test]
+    public function a_refused_output_edge_is_shown_on_its_field(): void
+    {
+        [$service, $run] = $this->workbenchServiceWithRun();
+        $run->update(['church_service_id' => $service->id, 'duration' => 5000]);
+        $sermon = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'start_time' => 2545.22,
+            'end_time' => 4007.22,
+            'needs_manual_review' => true,
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->set("outputEdgeTimes.{$sermon->id}.end", '40:00')
+            ->call('setOutputEdge', $sermon->id, 'end')
+            ->assertHasErrors(["outputEdgeTimes.{$sermon->id}.end"])
+            ->assertSee('would leave out the whole last part');
+
+        $this->assertSame([], OutputEdgeAnswers::recordsOf($sermon->fresh()));
     }
 
     #[Test]
