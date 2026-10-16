@@ -29,6 +29,10 @@ use Illuminate\Support\Facades\Storage;
  * such a plan against the RMS blocks and may refuse it after this command has
  * reported success. A content-held sermon is the common cause; naming it with
  * `--held-section` re-cuts its span and leaves the hold in place.
+ *
+ * Edge words not yet decoded on current code (every run after a media-version bump) are no
+ * reason to refuse: the chain resumes at TranscribeOutputEdges, which decodes them, so the
+ * command checks the structure alone and ExtractSermon checks the finished plan.
  */
 class ReExtractSermonCommand extends Command
 {
@@ -88,6 +92,20 @@ class ReExtractSermonCommand extends Command
         /** @var array{mode: string, source: string, segments: array<int, array{start_time: float, end_time: float}>, metadata: array<string, mixed>} $plan */
         $plan = $inspect(fn (): array => $planResolver->resolve($processingLog, $heldSpanAuthority));
         $segments = $plan['segments'];
+        $edgeWordsUndecoded = ($plan['metadata']['reason'] ?? null) === 'edge_word_timings_missing';
+
+        if ($edgeWordsUndecoded) {
+            if (($plan['metadata']['structure_requires_review'] ?? true) === true) {
+                $reason = (string) ($plan['metadata']['structure_reason'] ?? 'sermon_composition_review');
+                $this->error("The selected structure requires review ({$reason}); resolve it before re-cutting.");
+                $this->suggestHeldSermons($processingLog);
+
+                return self::FAILURE;
+            }
+
+            /** @var list<array{start_time: float, end_time: float}> $segments */
+            $segments = $plan['metadata']['structure_segments'] ?? [];
+        }
 
         if ($segments === []) {
             $this->error('The extraction plan resolved no segments; nothing would be published.');
@@ -102,7 +120,9 @@ class ReExtractSermonCommand extends Command
         $this->line(sprintf('Recorded: %.1fs - %.1fs', (float) $processingLog->sermon_start_time, (float) $processingLog->sermon_end_time));
         $this->line(sprintf('Planned:  %.1fs - %.1fs  [%s from %s]', $newStart, $newEnd, (string) ($plan['metadata']['strategy'] ?? 'unknown'), $plan['source']));
 
-        if (($plan['metadata']['requires_review'] ?? true) === true) {
+        if ($edgeWordsUndecoded) {
+            $this->line('Edges:    from the structure; the edge words are decoded at TranscribeOutputEdges and ExtractSermon checks the final plan.');
+        } elseif (($plan['metadata']['requires_review'] ?? true) === true) {
             $reason = (string) ($plan['metadata']['reason'] ?? 'sermon_composition_review');
             $this->error("The selected structure requires review ({$reason}); resolve it before re-cutting.");
             $this->suggestHeldSermons($processingLog);

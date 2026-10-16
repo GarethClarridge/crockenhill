@@ -7,6 +7,7 @@ namespace Tests\Feature\Console;
 use App\Actions\HoldSectionForContentReview;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
+use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\DetectServiceStructure;
 use App\Jobs\TranscribeFullService;
@@ -14,6 +15,7 @@ use App\Jobs\TranscribeOutputEdges;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\Media\Video\VideoStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
@@ -199,6 +201,90 @@ class ReExtractSermonCommandTest extends TestCase
         $this->assertTrue(HoldSectionForContentReview::isHeld($sermon->metadata->reviewFlags ?? []));
     }
 
+    /**
+     * A media-version bump makes every run's banked edge words stale (54 held runs at v10,
+     * 2026-10-16). The command plans before anything decodes them, so it must accept a sound
+     * structure and let the chain decode at TranscribeOutputEdges; ExtractSermon checks the
+     * finished plan.
+     */
+    #[Test]
+    public function it_plans_a_named_held_sermon_whose_edge_words_are_not_yet_decoded(): void
+    {
+        Bus::fake();
+        $this->edgeWordsNotYetDecoded();
+
+        [$log, $sermon] = $this->completedRunWithHeldSermon();
+
+        $this->artisan('sermons:re-extract', [
+            'processing_id' => $log->processing_id,
+            '--held-section' => $sermon->id,
+            '--dry-run' => true,
+        ])
+            ->expectsOutputToContain('2123.0s - 3800.0s')
+            ->expectsOutputToContain('edge words are decoded at TranscribeOutputEdges')
+            ->expectsOutputToContain("Held:     section {$sermon->id} stays held")
+            ->assertExitCode(0);
+
+        Bus::assertNothingDispatched();
+        $this->assertNull($log->fresh()->authorisedHeldSermonSpan());
+    }
+
+    #[Test]
+    public function it_dispatches_a_named_held_sermon_whose_edge_words_are_not_yet_decoded(): void
+    {
+        Bus::fake();
+        $this->edgeWordsNotYetDecoded();
+
+        [$log, $sermon] = $this->completedRunWithHeldSermon();
+
+        $this->artisan('sermons:re-extract', [
+            'processing_id' => $log->processing_id,
+            '--held-section' => $sermon->id,
+            '--yes' => true,
+        ])
+            ->expectsOutputToContain('Re-extraction dispatched')
+            ->assertExitCode(0);
+
+        Bus::assertDispatched(TranscribeOutputEdges::class);
+        $this->assertSame($sermon->id, $log->fresh()->authorisedHeldSermonSpan()['section_id'] ?? null);
+        $this->assertTrue(HoldSectionForContentReview::isHeld($sermon->fresh()->metadata->reviewFlags ?? []));
+    }
+
+    #[Test]
+    public function it_dispatches_an_unheld_run_whose_edge_words_are_not_yet_decoded(): void
+    {
+        Bus::fake();
+        $this->edgeWordsNotYetDecoded();
+
+        $log = $this->completedRunWithTrailingPrayer();
+
+        $this->artisan('sermons:re-extract', ['processing_id' => $log->processing_id, '--yes' => true])
+            ->expectsOutputToContain('630.0s - 2260.0s')
+            ->assertExitCode(0);
+
+        Bus::assertDispatched(TranscribeOutputEdges::class);
+    }
+
+    /**
+     * Undecoded edge words never excuse the structure: an unnamed held sermon still refuses.
+     */
+    #[Test]
+    public function it_refuses_an_unnamed_held_sermon_whose_edge_words_are_not_yet_decoded(): void
+    {
+        Bus::fake();
+        $this->edgeWordsNotYetDecoded();
+
+        [$log, $sermon] = $this->completedRunWithHeldSermon();
+
+        $this->artisan('sermons:re-extract', ['processing_id' => $log->processing_id, '--yes' => true])
+            ->expectsOutputToContain('sermon_section_content_held')
+            ->expectsOutputToContain("--held-section={$sermon->id}")
+            ->assertExitCode(1);
+
+        Bus::assertNothingDispatched();
+        $this->assertNull($log->fresh()->authorisedHeldSermonSpan());
+    }
+
     #[Test]
     public function it_refuses_a_named_section_that_is_not_a_content_held_sermon_of_the_run(): void
     {
@@ -250,6 +336,13 @@ class ReExtractSermonCommandTest extends TestCase
             ->assertExitCode(0);
 
         Bus::assertNothingDispatched();
+    }
+
+    private function edgeWordsNotYetDecoded(): void
+    {
+        $this->mock(CueSafeExtractionPlan::class)
+            ->shouldReceive('forSpans')
+            ->andThrow(new OutputEdgeTimingsMissing('edge_word_timings_missing: run x window 1.000000–2.000000 model large-v3-turbo'));
     }
 
     /**

@@ -521,9 +521,20 @@ class SermonExtractionPlanResolver
         try {
             $cuePlan = app(CueSafeExtractionPlan::class)->forSpans($processingLog, $spans, sermonEnd: true);
         } catch (OutputEdgeTimingsMissing $exception) {
+            // Nothing can be cut until the edge words are decoded, but the structure's own verdict
+            // still stands: a re-cut may decode them first only when the structure needs no review.
             return ['mode' => 'single_span', 'source' => 'service_sections', 'segments' => [],
                 'metadata' => [...$composition, 'requires_review' => true, 'reason' => 'edge_word_timings_missing',
-                    'edge_word_timings_error' => $exception->getMessage(), 'cue_edge_widening' => []]];
+                    'edge_word_timings_error' => $exception->getMessage(), 'cue_edge_widening' => [],
+                    'structure_requires_review' => $requiresReview,
+                    'structure_reason' => match (true) {
+                        $held !== [] => 'sermon_section_content_held',
+                        $requiresReview => 'sermon_composition_review',
+                        default => null,
+                    },
+                    'structure_segments' => $spans,
+                    'held_sermon_section_ids' => $held,
+                    'held_span_authorised_section_id' => $authority['section_id'] ?? null]];
         }
         $spans = $cuePlan['segments'];
         // Only a plan whose final spans pass every check may be executed (S6).
