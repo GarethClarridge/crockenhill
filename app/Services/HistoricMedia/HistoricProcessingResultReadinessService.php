@@ -13,6 +13,7 @@ use App\Jobs\StoreSermonVideo;
 use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
+use App\Services\Sermon\SermonExposurePolicy;
 use App\Models\ServiceSection;
 use App\Models\SongVideo;
 use App\Services\Media\Audio\ServiceArtifactStorage;
@@ -40,14 +41,25 @@ class HistoricProcessingResultReadinessService
             );
         }
 
+        // A retired run's result is withdrawn the same way (937, a dead duplicate of 938): another run
+        // carries its service, so its own unfinished work is owed by nobody. One still holding the
+        // sermon a fuller recording adopted exports that sermon and is audited as usual.
+        if ($processingLog->isRetired() && ! $processingLog->holdsAdoptedSermon()) {
+            $supersededBy = $processingLog->superseded_by_processing_log_id === null
+                ? 'superseded'
+                : "superseded by run {$processingLog->superseded_by_processing_log_id}";
+
+            return new HistoricProcessingResultReadiness(
+                ready: false,
+                reasons: ["Processing run is retired ({$supersededBy}); it is not exported."],
+                logicalHash: null,
+            );
+        }
+
         $reasons = [];
 
         if ($processingLog->status !== ProcessingStatus::Completed) {
             $reasons[] = "Processing run is {$processingLog->status->value}, not completed.";
-        }
-
-        if ($processingLog->superseded_at !== null && ! $processingLog->holdsAdoptedSermon()) {
-            $reasons[] = 'Processing run has been superseded.';
         }
 
         $this->auditHistoricQueueState($processingLog, $reasons);
@@ -73,7 +85,14 @@ class HistoricProcessingResultReadinessService
                 $reasons[] = 'Main sermon publication is missing.';
             }
         } else {
-            foreach (['video_file_path', 'transcript_file_path', 'thumbnail_file_path'] as $attribute) {
+            // A thumbnail waits for release (ruling P2): GenerateThumbnail skips a sermon whose video
+            // may not be shown, so its absence is the deferral, not missing work.
+            $thumbnailDeferred = $sermon->hasVideo() && ! app(SermonExposurePolicy::class)->shouldGenerateVideoThumbnail($sermon);
+            $required = $thumbnailDeferred
+                ? ['video_file_path', 'transcript_file_path']
+                : ['video_file_path', 'transcript_file_path', 'thumbnail_file_path'];
+
+            foreach ($required as $attribute) {
                 if (blank($sermon->getAttribute($attribute))) {
                     $reasons[] = "Main sermon {$attribute} is missing.";
                 }

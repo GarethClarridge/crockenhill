@@ -17,6 +17,7 @@ use App\Services\HistoricMedia\HistoricProcessingResultReadinessService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
+use App\Services\Sermon\SermonExposurePolicy;
 use Tests\TestCase;
 
 class HistoricProcessingResultReadinessServiceTest extends TestCase
@@ -52,6 +53,36 @@ class HistoricProcessingResultReadinessServiceTest extends TestCase
         $this->assertTrue($first->ready, implode("\n", $first->reasons));
         $this->assertTrue($second->ready, implode("\n", $second->reasons));
         $this->assertSame($first->logicalHash, $second->logicalHash);
+    }
+
+    /**
+     * Ruling P2: thumbnails wait for the release membership's editorial QA, and GenerateThumbnail
+     * skips any sermon whose video may not be shown. The 406 deferred thumbnails were counted as
+     * missing work; a thumbnail the policy would make is still required.
+     */
+    #[Test]
+    public function a_thumbnail_deferred_until_release_is_pending_not_missing(): void
+    {
+        $quarantined = Sermon::factory()->create([
+            'video_file_path' => 'sermons/2/video.mp4',
+            'transcript_file_path' => 'sermons/2/transcript.txt',
+            'thumbnail_file_path' => null,
+            'publication_state' => 'quarantined',
+        ]);
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create(['sermon_id' => $quarantined->id]);
+        $service = app(HistoricProcessingResultReadinessService::class);
+
+        $this->assertNotContains('Main sermon thumbnail_file_path is missing.', $service->audit($run)->reasons);
+
+        $public = Sermon::factory()->create([
+            'video_file_path' => 'sermons/3/video.mp4',
+            'transcript_file_path' => 'sermons/3/transcript.txt',
+            'thumbnail_file_path' => null,
+        ]);
+        $this->assertTrue(app(SermonExposurePolicy::class)->shouldGenerateVideoThumbnail($public));
+        $publicRun = MediaProcessingLog::factory()->livestream()->completed()->create(['sermon_id' => $public->id]);
+
+        $this->assertContains('Main sermon thumbnail_file_path is missing.', $service->audit($publicRun)->reasons);
     }
 
     #[Test]
@@ -117,8 +148,12 @@ class HistoricProcessingResultReadinessServiceTest extends TestCase
         $this->assertSame(['Processing run is excluded (private_occasion); it is not exported.'], $result->reasons);
     }
 
+    /**
+     * A retired run is withdrawn like an excluded one: 937, a dead duplicate of 938 (register X1),
+     * was counted as "never dispatched" work still owed.
+     */
     #[Test]
-    public function a_superseded_run_whose_sermon_nothing_adopted_is_still_refused(): void
+    public function a_superseded_run_whose_sermon_nothing_adopted_is_retired_and_not_exported(): void
     {
         $service = ChurchService::factory()->create();
         $winner = MediaProcessingLog::factory()->livestream()->completed()->create(['church_service_id' => $service->id]);
@@ -128,9 +163,12 @@ class HistoricProcessingResultReadinessServiceTest extends TestCase
             'superseded_by_processing_log_id' => $winner->id,
         ]);
 
-        $result = app(HistoricProcessingResultReadinessService::class)->audit($loser);
+        $loser->forceFill(['status' => 'failed'])->save();
 
-        $this->assertContains('Processing run has been superseded.', $result->reasons);
+        $result = app(HistoricProcessingResultReadinessService::class)->audit($loser->fresh());
+
+        $this->assertFalse($result->ready);
+        $this->assertSame(["Processing run is retired (superseded by run {$winner->id}); it is not exported."], $result->reasons);
     }
 
     #[Test]
