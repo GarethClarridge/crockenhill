@@ -496,6 +496,7 @@ class ServiceStructureEnsembleRulingApplier
 
         $claims = array_diff_key($claims, $honoured);
         $changed = [];
+        $resumed = [];
 
         foreach (array_keys($claims) as $outerKey) {
             foreach ($claims[$outerKey] as $index => $section) {
@@ -515,12 +516,25 @@ class ServiceStructureEnsembleRulingApplier
                     $side = $this->sideHoldingScope($section, $start, $end, $current[$outerKey]['scope'] ?? []);
 
                     if ($side !== null) {
+                        // The sermon-start rule decides where a sermon begins, never that it ends at an
+                        // item inside it: 1148's preacher carried on for four minutes after Revelation 5.
+                        // The part after the item stays a sermon part, which the join makes a continuation.
+                        if ($section->type === ServiceSectionType::Sermon
+                            && abs($side[0] - $section->startTime) <= self::RULING_EDGE_TOLERANCE
+                            && $section->endTime - $end > self::RULING_EDGE_TOLERANCE) {
+                            $resumed[$outerKey][] = $section->withTimes($end, $section->endTime, ['The sermon resumes after an item of its own inside it.']);
+                        }
+
                         $section = $section->withTimes($side[0], $side[1], ['Adjusted around an operator ruling.']);
                         $claims[$outerKey][$index] = $section;
                         $changed[$outerKey] = true;
                     }
                 }
             }
+        }
+
+        foreach ($resumed as $key => $parts) {
+            $claims[$key] = [...$claims[$key], ...$parts];
         }
 
         $resolutions = [];

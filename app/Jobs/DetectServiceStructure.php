@@ -27,6 +27,7 @@ use App\Services\ChurchService\Structure\ServiceStructureEnsembleInput;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleReplay;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleRunner;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\ChurchService\Structure\SplitSermonParts;
 use App\Services\ChurchService\Structure\SilenceSnapService;
 use App\Services\ChurchService\Structure\SoundStage;
 use App\Services\ChurchService\Structure\TranscriptCueBoundaries;
@@ -427,7 +428,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
                 $composition->structure,
                 [['code' => 'insufficient_ensemble_votes', 'message' => 'Fewer than two validated ensemble draws.']],
             )
-            : $validator->validate($composition->structure, $context);
+            : $validator->validate(app(SplitSermonParts::class)->join($composition->structure), $context);
 
         $runner->recordComposition($this->processingLog, $run['evidence']['attempt_id'], [
             'structure' => $composition->structure->toArray(),

@@ -123,10 +123,12 @@ class ServiceStructureEnsembleReplay
         ];
 
         $corrected = $this->rulings->apply($proposal, $rulings, ChurchServiceTranscript::fromArray($input['transcript'] ?? null));
+        // Answers can keep a sermon on both sides of a hymn (1148: "one sermon in parts"), so the
+        // answered whole is joined as each draft is (D21).
         $validated = $composition->refused
             ? null
             : $this->validator->validate(
-                ServiceStructure::fromArray($corrected['structure']),
+                app(SplitSermonParts::class)->join(ServiceStructure::fromArray($corrected['structure'])),
                 ServiceStructureDrawExecutor::contextFromSnapshot($contextPayload),
             );
 

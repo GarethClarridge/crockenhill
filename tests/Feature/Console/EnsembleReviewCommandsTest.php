@@ -23,6 +23,7 @@ use App\Services\ChurchService\Structure\EnsembleReviewGate;
 use App\Services\ChurchService\Structure\MockServiceStructureService;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleReplay;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\ChurchService\Structure\SplitSermonParts;
 use App\Services\ChurchService\Structure\SilenceSnapService;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Processing\ProcessingRunOrchestrator;
@@ -218,6 +219,36 @@ class EnsembleReviewCommandsTest extends TestCase
         $this->assertEqualsWithDelta(420.0, (float) $sermon->start_time, 1.0);
         $replayed = app(EnsembleReviewExport::class)->items($log->fresh());
         $this->assertSame([], array_values(array_filter($replayed, static fn (array $item): bool => ! $item['decided'])), 'nothing reopened');
+    }
+
+    /**
+     * 1148 (2026-10-16): two drafts preach one sermon either side of a hymn, two call its first
+     * part a talk. The operator answered "one sermon in parts", which keeps a sermon on both sides;
+     * the answered whole must be joined as each draft is (D21), or it fails as two sermons and the
+     * second half is lost.
+     */
+    #[Test]
+    public function answering_both_parts_a_sermon_joins_them_into_one(): void
+    {
+        $log = $this->sermonInPartsRun();
+        $this->artisan('structure:ensemble-export-questions', ['runs' => [$log->id], '--out' => $this->out])->assertSuccessful();
+        $map = json_decode((string) file_get_contents("{$this->out}/answers-map.json"), true)['items'];
+        $answers = [];
+        foreach ($map as $id => $item) {
+            $answers[] = ['question_id' => $id, 'choice' => $item['type'] === 'sermon' ? 'alt0' : 'none', 'choice_label' => '', 'note' => 'One sermon in parts.'];
+        }
+        file_put_contents("{$this->out}/answers.json", json_encode($answers));
+
+        $this->artisan('structure:ensemble-apply-answers', ['export' => $this->out, 'answers' => "{$this->out}/answers.json", '--operator' => (string) $this->operatorId, '--execute' => true])
+            ->expectsOutputToContain('0 failed')
+            ->assertSuccessful();
+
+        $sections = $log->fresh()->serviceSections()->orderBy('start_time')->get();
+        $this->assertCount(1, $sections->where('section_type', ServiceSectionType::Sermon));
+        $this->assertSame([], $sections->where('section_type', ServiceSectionType::ShortTalk)->values()->all());
+        $part = $sections->first(static fn ($section): bool => $section->section_type === ServiceSectionType::Other && (float) $section->start_time >= 1499.0);
+        $this->assertNotNull($part, 'the second part is kept');
+        $this->assertContains(SplitSermonParts::NOTE, $part->metadata->raw['ai_notes'] ?? []);
     }
 
     /**
@@ -582,6 +613,87 @@ class EnsembleReviewCommandsTest extends TestCase
             $this->section(['type' => 'song', 'start_time' => 2210.0, 'end_time' => 2400.0]),
         ], model: 'mock');
         MockServiceStructureService::useStructureSequence($merged, $merged, $separate, $separate);
+
+        (new DetectServiceStructure($log))->handle(
+            app(ServiceStructureInterface::class),
+            app(SilenceSnapService::class),
+            app(ServiceStructureValidator::class),
+            app(ServiceSectionSyncService::class),
+            app(SermonCandidateConfidenceService::class),
+        );
+
+        return $log->fresh();
+    }
+
+    /**
+     * 1148: Revelation 5 is read at 52:48 and the preacher carries on to 1:00:25. Answered as an
+     * item of its own inside the sermon, it kept only the sermon before it and lost the rest; the
+     * sermon-start rule decides where a sermon begins, never that its end is dropped.
+     */
+    #[Test]
+    public function a_reading_answered_inside_a_sermon_keeps_the_sermon_after_it(): void
+    {
+        $log = $this->sermonInPartsRun(withReading: true);
+        $this->artisan('structure:ensemble-export-questions', ['runs' => [$log->id], '--out' => $this->out])->assertSuccessful();
+        $map = json_decode((string) file_get_contents("{$this->out}/answers-map.json"), true)['items'];
+        $answers = [];
+        foreach ($map as $id => $item) {
+            $answers[] = ['question_id' => $id, 'choice' => $item['type'] === 'short_talk' ? 'none' : 'alt0', 'choice_label' => '', 'note' => 'One sermon in parts, with a reading in it.'];
+        }
+        file_put_contents("{$this->out}/answers.json", json_encode($answers));
+
+        $this->artisan('structure:ensemble-apply-answers', ['export' => $this->out, 'answers' => "{$this->out}/answers.json", '--operator' => (string) $this->operatorId, '--execute' => true])
+            ->expectsOutputToContain('0 failed')
+            ->assertSuccessful();
+
+        $sections = $log->fresh()->serviceSections()->orderBy('start_time')->get();
+        $this->assertCount(1, $sections->where('section_type', ServiceSectionType::Sermon));
+        $this->assertTrue(
+            $sections->contains(static fn ($section): bool => (float) $section->start_time <= 1901.0 && (float) $section->end_time >= 2199.0
+                && in_array($section->section_type, [ServiceSectionType::Sermon, ServiceSectionType::Other], true)),
+            'the sermon after the reading is kept',
+        );
+    }
+
+    private function sermonInPartsRun(bool $withReading = false): MediaProcessingLog
+    {
+        $this->operatorId = User::factory()->admin()->create()->id;
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create([
+            'church_service_id' => ChurchService::factory()->create()->id,
+        ]);
+        $this->storeInputs($log);
+        $inParts = ServiceStructure::fromSections([
+            $this->section(['type' => 'welcome', 'start_time' => 0.0, 'end_time' => 120.0]),
+            $this->section(['type' => 'sermon', 'start_time' => 420.0, 'end_time' => 1300.0, 'title' => 'Joseph']),
+            $this->section(['type' => 'song', 'start_time' => 1300.0, 'end_time' => 1500.0]),
+            ...($withReading ? [
+                $this->section(['type' => 'sermon', 'start_time' => 1500.0, 'end_time' => 1800.0, 'title' => 'Judah']),
+                $this->section(['type' => 'bible_reading', 'start_time' => 1800.0, 'end_time' => 1900.0, 'title' => 'Revelation 5', 'reading_reference' => 'Revelation 5']),
+                $this->section(['type' => 'sermon', 'start_time' => 1900.0, 'end_time' => 2200.0, 'title' => 'The Lion of Judah']),
+            ] : [
+                $this->section(['type' => 'sermon', 'start_time' => 1500.0, 'end_time' => 2200.0, 'title' => 'Judah']),
+            ]),
+            $this->section(['type' => 'song', 'start_time' => 2210.0, 'end_time' => 2400.0]),
+        ], model: 'mock');
+        $talkThenSermon = ServiceStructure::fromSections([
+            $this->section(['type' => 'welcome', 'start_time' => 0.0, 'end_time' => 120.0]),
+            $this->section(['type' => 'short_talk', 'start_time' => 420.0, 'end_time' => 1300.0, 'title' => 'Joseph']),
+            $this->section(['type' => 'song', 'start_time' => 1300.0, 'end_time' => 1500.0]),
+            $this->section(['type' => 'sermon', 'start_time' => 1500.0, 'end_time' => 2200.0, 'title' => 'Judah']),
+            $this->section(['type' => 'song', 'start_time' => 2210.0, 'end_time' => 2400.0]),
+        ], model: 'mock');
+        // The two drafts in parts disagree on the last part (1148: one ends it 87 s early, before
+        // the closing hymn's introduction), so only the answered sermon carries it.
+        $inPartsShorterEnd = $withReading ? ServiceStructure::fromSections([
+            ...array_map(
+                fn (ServiceStructureSection $section): ServiceStructureSection => $section->startTime === 1900.0
+                    ? $section->withTimes(1900.0, 2050.0)
+                    : $section,
+                $inParts->sections,
+            ),
+            $this->section(['type' => 'other', 'start_time' => 2060.0, 'end_time' => 2080.0, 'title' => 'Introducing the hymn']),
+        ], model: 'mock') : $inParts;
+        MockServiceStructureService::useStructureSequence($inParts, $inPartsShorterEnd, $talkThenSermon, $talkThenSermon);
 
         (new DetectServiceStructure($log))->handle(
             app(ServiceStructureInterface::class),
