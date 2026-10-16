@@ -228,7 +228,21 @@ supersede; a new freeze and snapshot follow.
 - **Gates:** full parallel suite 9,859 tests green; PHPStan 0; Pint clean. Dusk: only
   `ChurchServiceEvidenceReviewTest` (`@sermon-composition-2`) fails, as on master since 10-14.
 
-**Re-frozen 2026-10-16 (supersedes the set-up below; not dispatched):**
+**Re-frozen again 2026-10-16, on all the fixes (supersedes both set-ups below; not dispatched):**
+- **Clone** at `be35e9466` (previous line kept as `round-20261016c-line`); `CodeRevision`
+  `870c2902…` equals main's; lockfiles unchanged; `bootstrap/cache` cleared.
+- **Snapshot** `recut-round-20261016e/snapshot.json`: 200 runs, membership `122307f8…` — the 192
+  of `…c` plus 1073, 1268, 954, 1108, 1223, 1220, 1314 and 1148. (`…d` has the same membership;
+  it was retaken as `…e` after a `--dry-run` resolve on member 1220.)
+- **Routes (dry runs beside it):** recompose 194 ready, including 1073, 1268, 954, 1108, 1223,
+  1314 and 1148 (free, from banked draws). `rerun-redetect`: 1034, 1120 and 1375 ready.
+  `reExtract`: 1126, 1378 and 1220 (`sermons:re-extract --dry-run` ready for 1220). Extract refuses
+  all 200 before recompose, as expected. `extract-runs.txt`: 197.
+- **Held sermons after the batch:** the 57 in `…c/held-runs.txt` (1322 after its recompose), now
+  through `sermons:re-extract --held-section`, which decodes their edge words (A1).
+- **Still to do at the go:** a fresh backup (runbook §6.5), round workers up, watcher on `…e`.
+
+**Re-frozen 2026-10-16 (superseded):**
 - **Clone** at `29126fb8a` (old line kept as branch `codex/round-20261016-before-v10`);
   `CodeRevision` `e5a35676…` equals main's. Round workers are stopped and will boot on it.
 - **Snapshot** `recut-round-20261016c/snapshot.json`: 192 runs, membership `de52ba19…`. That is the
