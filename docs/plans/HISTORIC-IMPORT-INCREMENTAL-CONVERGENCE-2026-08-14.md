@@ -7,6 +7,8 @@
 > on 10-16 against the video plan's §4.5: §8's era-slice release, signed batches and editorial QA
 > agree with it, and §8.4's deferred release policy is carried there as an open item. Nothing has
 > been released; existing containment, exact-membership release and IC8 ownership are unchanged.
+> **§0.4 maps every lane from here to a complete production**, starting with a census of what
+> production holds.
 
 > **Status (2026-08-14): plan of record for the whole historic-import programme.** This plan
 > supersedes the executable content of the three prior authorities, now archived:
@@ -89,6 +91,46 @@ used by the weekly upload. Preserve that seam; the corpus is meant to exercise i
 Do not add Horizon, a second batch framework, a new historic processing pipeline, or a general
 audit subsystem for this one-off. Prefer a small command fix and focused regression test. The
 round evidence pack may be a reviewed collection of existing JSON reports with their hashes.
+
+### 0.4 Getting production complete: the map (2026-10-16)
+
+**No lane has reached production yet.** Email and OpenLP were settled in a rehearsal database
+(row 1), video is still being repaired locally, and rows 6–8 have not started. This machine's
+database was built here, not restored from production (operator, 2026-09-08). Production holds
+content the local graph has never seen: some 2014–2019 sermons exist only there (operator,
+2026-10-16), and so do whatever weekly services were processed there.
+
+**What "done" means.** Production holds every lane's converged state, the eras are released by
+signed batches or explicitly held, and weekly processing has taken over. The operator ruled on
+2026-10-16 that weekly takes over "whenever historic import is done".
+
+**Proposed definition of the historic import being done** (for the operator to confirm):
+- the last historic production round is applied;
+- every era is released or explicitly held;
+- the weekly-resumption canary has passed on production (video plan §4.2).
+
+| Step | Lane | Production today | Next step | Where |
+|---|---|---|---|---|
+| 0 | **Production census** | Never measured against the local graph | Read-only, on the server. The GitHub production-audit channel has never worked: its environment has no secrets. See below. | This section |
+| 1 | Deploy and pending actions | Commits after `7a69aac5d` (2026-10-14) not deployed; four items in `PROD-ACTIONS-PENDING.md` | Deploy, then apply the pending actions in their order. Speaker identification goes off first. | [PROD-ACTIONS-PENDING](PROD-ACTIONS-PENDING.md) |
+| 2 | Email and OpenLP | Settled in rehearsal on 08-24; 223 services uncorroborated and 135 disagreeing | Re-run membership and the proposal census after the video re-census, settle the two classes, rehearse on a production copy, apply (RG-B) | Rows 1, 8; §7 |
+| 3 | Video, 2020-03-22 to 2026-08-23 | Nothing historic there | Accepted runs exported as bundles by era and applied quarantined, then released by signed era batches | Video plan §4.5; §7–§8 |
+| 4 | Hymn workbook | Apply artifact stale | Regenerate against the converged corpus and apply once | Row 7 |
+| 5 | Current-era evidence back-fill | Based on a production count from 08-09 | `audit:service-evidence-coverage` on production, recover real sources | Row 6 |
+| 6 | Legacy sermon transcripts, 2003–2019 | 1 of 808 local legacy sermons has a transcript; the 2014–2019 sermons on production are uncounted | Proposed, after step 5 | Video plan §4.7 |
+| 7 | Weekly takes over | Paused since 2026-09-14; never ran consistently on production | Weekly-resumption canary, then the services from 2026-08-30 onward, oldest first | Video plan §4.2 |
+| 8 | IC8 retirement | — | Only after the long-term repair route for historic media is decided | Video plan §4.6; IC8 |
+
+**Step 0, the production census.** Run on the server, read-only:
+1. Run `audit:sermon-assets`, `audit:section-assets`, `audit:service-evidence-coverage`,
+   `service-tracking:audit-convergence` and `service-tracking:audit-source-revision-lineages`.
+2. Export production's identities (sermons by date, service and source; services and their items;
+   song videos; speaker profiles). This needs a small read-only export command.
+3. Compare them with the local graph.
+
+The census decides, for every production row, whether a round will create it, enrich it or leave it
+alone. It names the production-only content (the 2014–2019 sermons, weekly services processed
+there) that no historic round may overwrite or duplicate.
 
 ## 1. Goal and value
 

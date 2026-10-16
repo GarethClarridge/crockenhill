@@ -5,6 +5,10 @@
 > videos are quarantined. Export readiness is 12 of 455 runs (§3). The **re-cut round** is set up and
 > **not dispatched**: its membership and eight decisions wait on the operator (§4.0). The
 > stale-clip clean-up (§4.1), song acceptance stage 2 and the release work (§4.5) follow it.
+> Getting production complete is mapped in the
+> [programme plan §0.4](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md#04-getting-production-complete-the-map-2026-10-16);
+> weekly take-over (§4.2), lasting evaluation and custody (§4.6) and legacy transcripts (§4.7) were
+> added on 2026-10-16.
 
 **How to read this plan.** It holds the current state and the remaining work, nothing else.
 - **Rulings in force:** the [rulings register](HISTORIC-IMPORT-DECISIONS-2026-09-03.md). Check it
@@ -151,7 +155,8 @@ Clip edges are from `clip-silence*.tsv` and `deadshare.sh` there, sermon edges f
   `/Volumes/Sonnics/_pre-recut-round-backup-20261016/` (SHA-256 in
   `storage/scratch/recut-preflight-20261015/backup-sha256.txt`).
 - Free space: internal disk 29 GB, Staging 448 GB, Sonnics 299 GB.
-- Master is 35 commits ahead of origin, 18 of them code. A push to master deploys.
+- Commits after `7a69aac5d` (2026-10-14) are unpushed. A push to master deploys; a push to any other
+  branch runs no workflow.
 
 ## 4. Remaining work in execution order
 
@@ -398,6 +403,44 @@ The dependency order (transcript → structure and identity → planning → ext
 stored-output checks) is the tier shape (register R1). The 09-22 numbered workstream list moved to the
 [log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-12-TO-2026-09-23.md#moved-from-the-plan-on-2026-09-24); its open gaps are in §4.4, §4.5 and the
 carried items in §4.3.
+
+#### Weekly resumption (added 2026-10-16)
+
+Weekly processing takes over when the historic import is done (operator, 2026-10-16; register R8).
+The definition of "done" is proposed in the
+[programme plan §0.4](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md#04-getting-production-complete-the-map-2026-10-16).
+The weekly pipeline has never run consistently on production, so taking over is its own work, not a
+switch.
+
+- [ ] **Where weekly runs.** On production, by the 2026-10-05 ruling: weekly on the server, historic
+  locally with a promotion step. Confirm it, or decide to run weekly on this Mac through the historic
+  promotion path.
+- [ ] **Production parity.** Production runs Caddy, the app (workers under Supervisor), MySQL and
+  Redis, with no Whisper or classifier service. Check against the local setup the historic results
+  came from:
+  - **Transcription.** Which backend `.env.production` uses, and whether it gives timed cues and edge
+    word timings. `max_context=0` is a local-Whisper fix; OpenAI `whisper-1` has neither it nor loop
+    detection (table above).
+  - **Audio classifier.** It runs in the image on CPU: measure CPU, memory and time per service on the
+    production host, and the image size
+    ([music plan §10](MUSIC-AND-SILENCE-DETECTION-2026-09-25.md#10-production)).
+  - **Ensemble.** Models and keys (`gpt-5.6-luna`, `gpt-6-luna`), and the cost per service.
+  - **Encoder.** libx264 at preset `faster`; VideoToolbox is Mac-only.
+  - **Speaker identification** off (`PROD-ACTIONS-PENDING.md` §1).
+- [ ] **Review without a terminal.** Only ensemble questions have an admin screen. These are
+  command-line only, so each needs an admin action, or to fold into the review-question pattern
+  (§4.3, "Added 2026-10-16"; register Q1):
+  - edge questions (`historic-import:unresolved-edge-excerpts` and `-answers`);
+  - content-hold release (`service:release-content-hold`);
+  - held-sermon re-cuts (`sermons:re-extract --held-section`);
+  - talk–reading answers (`service:answer-talk-reading`).
+- [ ] **Weekly canary on production.** Two recent services through the whole weekly path on
+  production code and hardware: time, CPU and cost measured, every question answerable in the
+  admin, and the outputs listened to.
+- [ ] **The backlog.** Services from 2026-08-30 until take-over, oldest first, through the weekly
+  path. **Keep their original recordings until then.** Sonnics' `Services/` stops at 2026-08-23, and
+  only the original file lines up with its banked timings: a re-download is a different encode.
+- [ ] **Scored against the evaluation set** (§4.6) before and after take-over.
 
 ### 4.3 Acceptance evidence still owed
 
@@ -813,12 +856,76 @@ Open:
   ([§8.4](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md#8-release-policy)) before large
   releases.
 
+### 4.6 Lasting evaluation and long-term custody (added 2026-10-16)
+
+What we would regret not doing while the context exists.
+
+- [ ] **A second copy of the source masters.** The 1 TB archive in `/Volumes/Sonnics/Services`
+  (649 recordings) has no second copy (operator, 2026-10-16).
+  - The decision not to back up quarantine and staging (register C2) rests on outputs being
+    re-derivable from this archive, so everything else depends on it.
+  - Make one copy on a separate drive or in cold cloud storage, ideally off site.
+  - It needs no round to finish, but don't run it during a cut: both drives share the Mac's USB 3
+    bandwidth.
+- [ ] **The operator's rulings as a maintained evaluation set.** 1,290 saved ruling files sit in
+  gitignored `storage/scratch`, backed up only as a tarball on Sonnics. Only 36 are committed
+  fixtures (`tests/Fixtures/RuledEndings`, `RuledEndingsRegressionTest`). The edge replay and scoring
+  are scratch code too (`recut-preflight-20261015/preflight.php`,
+  `recut-listening-20261015/deadfeed-replay.php`, `endings-rule/score.py`). Commit two things:
+  - a data-only set: for each ruled edge or clip, the evidence the planner reads (word timings, cues,
+    level windows, classifier windows) and the ruled outcome, with no audio;
+  - one replay-and-score command over it, run before any change to detection, composition or
+    cutting, and in CI where it fits.
+
+  Cover the endings rulings (340), the main and re-check pages, the canary 11–15 listening, the re-cut
+  listening, the structure answers from the decision and question pages, the loop page and song
+  stage 1.
+- [ ] **Before IC8, decide how historic media is repaired after release.** Production receives only
+  outputs; the masters, the round tooling and the promotion path all live on this Mac, and IC8
+  retires the one-shot historic surface. Either keep a maintained repair route (the runbook,
+  promotion, the masters) or record that the released outputs are final.
+- [ ] **Preacher attribution, as proposals before release** (with §4.5's speaker item). 423 of the
+  439 sermons on non-superseded historic runs are "Visiting Speaker". Evidence already in hand:
+  - about 48 of the 555 order-of-service emails name the preacher ("Speaker: …");
+  - many services' welcomes, in the transcripts, name the visitor;
+  - a voice-clustering design exists
+    ([speaker identification §11](SPEAKER-IDENTIFICATION-ROOT-CAUSE-2026-09-03.md)).
+
+  These become proposals for the operator to confirm; nothing is applied unreviewed.
+- [ ] **Settle the programme plan's deferred release policy early**
+  ([§8.4](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md#8-release-policy)). It decides whether
+  the 953 song videos can be published at all, so it should come before song acceptance stage 2 and
+  the clip clean-up, not after them.
+- [ ] **Rehearse the whole route on one service, early.** Export it, import it into a
+  production-like copy, release it and play it back on a real server. §4.5's actual-server checks are
+  done once now, while problems are cheap, as well as at the end.
+
+### 4.7 Legacy sermon transcripts (proposed 2026-10-16; awaiting the operator)
+
+The 808 legacy sermons (2003–2013, audio only, 494 hours) are published. 807 have a named preacher
+and 685 a Scripture reference, but only 1 has a transcript. Some 2014–2019 sermons exist only on
+production, and are not yet counted.
+
+**Proposal: transcribe them, and do nothing else to them.**
+- Use the transcription setup the historic work proved: local Whisper `large-v3-turbo`, timed cues,
+  `max_context=0`, the repetition screen and recovery. Not the direct-upload path, which returns
+  untimed text with no loop screening (§4.2's table). This needs a small route that transcribes an
+  existing published sermon's audio.
+- Run it locally, with no paid calls, timing a sample first. The transcripts reach production as a
+  promotion round (programme plan §0.4, step 6). The 2014–2019 sermons' audio comes down from
+  production storage first.
+- Do no structure detection, re-cutting, AI titles or summaries: their titles, preachers and
+  references are curated (register P4). No audio re-treatment either, unless a listening sample of
+  about 20 shows level problems.
+- Do it after the historic import, so weekly's take-over is not delayed.
+
 ## 5. Go/no-go
 
 | Gate | State | Required evidence to turn green |
 |---|---|---|
 | Processing | GO for an authorised round | The re-cut round is set up and not dispatched (§4.0). Every round needs the operator's go and a live preflight (runbook §6). |
 | Containment | **NO-GO** | Nothing is public (0 of 443 sermons, 0 of 953 song videos), and the watcher stops a round on any lost hold. Remaining: the current-policy and unassessable residue, and the stale-clip residue (§4.1). Containment is not adoption: the duplicate pairs are ruled but not applied (§4.4). |
+| Weekly take-over | **NO-GO** | §4.2's weekly-resumption checks and a canary on production, and the historic import done ([programme plan §0.4](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md#04-getting-production-complete-the-map-2026-10-16)). |
 | Export readiness | **12 of 455** | §3's reasons cleared or explained. The thumbnail line is a ruled deferral (§4.5). |
 | Content acceptance | **NO-GO** | §4.3's stopping rule, song acceptance stage 2, listening on the re-cut edges, and §4.5's fresh release-membership sample, each against criteria fixed beforehand. There is no reserved historic set; insufficient evidence is not a pass. |
 | Public release | **NO-GO** | Phase 9 convergence, QA and actual-server browser checks pass, then the operator signs an exact era-sized batch. Actual-destination delivery checks run within the authorised release's rollback window and must pass to close observation. |

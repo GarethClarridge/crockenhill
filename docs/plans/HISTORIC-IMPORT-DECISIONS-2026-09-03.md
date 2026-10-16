@@ -197,6 +197,7 @@ song digital-zero bar, run 937's retirement).
 | R5 | Rounds run from a frozen, pausable clone. | 10-13 | [Runbook] |
 | R6 | Never run tests in the round clone. | 10-15 | [Runbook] §1 |
 | R7 | Fix everything on the fix-round list (items 1–20) before the next run. | 10-12 | [Log 10-16] Part 2 |
+| R8 | **Weekly processing takes over when the historic import is done**; services after 2026-08-23 wait for it. The definition of "done" is proposed in [Programme] §0.4. | 10-16 | operator, 10-16; [Plan] §4.2 |
 
 ## 12. Release
 
