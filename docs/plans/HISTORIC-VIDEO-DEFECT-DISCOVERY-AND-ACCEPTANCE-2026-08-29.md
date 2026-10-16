@@ -254,6 +254,18 @@ E11, E12), so the edge fixes of 10-12 and the dead-feed rule (E10) reach the med
      **Validation:** all 15 accepted RMS fixtures and the focused song regressions pass; Pint
      passes and PHPStan reports zero errors. The full parallel suite completes with no failures:
      9,829 tests, 96,908 assertions, 163 PHPUnit notices and one skipped opt-in corpus replay.
+   - **Membership remeasured at `29126fb8a`, 10-16 (read only):** the rule applied to the recorded
+     cut start of every extracted song clip on active, non-excluded historic runs. 1,075 clips
+     assessed; 26 starts move (128.4 s in all), in 21 runs; 36 clips have no recorded cut and could
+     not be assessed. All 15 accepted starts are among them. 11 further starts move that nobody
+     has heard (1.8–5.2 s, except 993 §1181 at 19.7 s): 976 §961/§964/§163426, 993 §1181,
+     1034 §1455/§1462, 1088 §1787, 1109 §1908, 1322 §4085, 1326 §4134 and 1334 §4241. They join
+     the listening in checklist step 7.
+     - **Runs to add to the snapshot**, outside the 144, the v9 runs and the duplicate pairs:
+       963, 1009, 1109, 1315, 1322, 1323, 1338 and 1345. 1322 is also a held sermon (decision 2).
+     - Report: `storage/scratch/recut-freeze-20261016/song-start-membership.json`
+       (SHA-256 `e6132347dcdd6546bf6055870d099433bb4d16084b0ffe9760b5dccc6a52dd92`), shard
+       outputs and the script beside it.
 5. **Hold and review the known-bad endings — decided 10-16 (register Q12):**
    - members 1224 (the sermon end runs 22 s into the hymn while the preacher reads it) and 1111
      (ends mid-sentence);
@@ -299,7 +311,8 @@ E11, E12), so the edge fixes of 10-12 and the dead-feed rule (E10) reach the med
    §2.1). The stale-clip cause fix (R9) must be tested and included before the new freeze;
    verify the seven known-bad endings are held and have a review entry (Q12).
 4. New snapshot: the 144 less 1035, plus the 38 v9 runs (the 39 less 974), plus 1034, 1120 and 1375
-   on `rerun-redetect`. Dry-run every route.
+   on `rerun-redetect`, plus the 8 runs the song-start remeasurement adds (decision 4). Dry-run
+   every route.
 5. Watcher on the new snapshot (runbook §5.1). Then:
    - stage (a): one recompose followed through every job;
    - then `rerun-recompose --all --max=500 --execute`;
