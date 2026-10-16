@@ -9,13 +9,21 @@
  *
  * Each fixture holds what the cut planner reads for that run: the run row, every section, the
  * transcript and audio timeline, sound levels in windows around the section edges (with the
- * threshold the whole file gives, so the trim cannot move it), the banked edge words and sentence
- * answers, the operator's ruling, and the cut the current code gives (`live_cut`).
+ * threshold the whole file gives, so the trim cannot move it), the banked edge words, sentence
+ * answers and sermon-song introduction answers (register K16), the operator's ruling, and the cut
+ * the current code gives (`live_cut`).
+ *
+ * A sermon beside a song whose introduction question was never asked on the live run (any run
+ * not through the edge step since K16, 2026-10-16) captures no answer, and its fixture fails on
+ * missing evidence: the script warns. The fixtures captured before then carry the model's answers
+ * in a `song_introduction` block, which the test replays; keep that block when re-capturing one
+ * of them until its live run has been asked.
  */
 
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
+use App\Services\ChurchService\SermonSongIntroductionCheck;
 use App\Services\Media\Audio\RmsAnalysisService;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Sermon\SermonExtractionPlanResolver;
@@ -84,7 +92,7 @@ foreach ($ids as $id) {
     $keepArtifacts = [];
 
     foreach (ServiceArtifactStorage::recordedFor($log) as $entry) {
-        if (! preg_match('/^edge-(words|sentence)-/', $entry['kind'])) {
+        if (! preg_match('/^(edge-(words|sentence)|sermon-song-introduction)-/', $entry['kind'])) {
             continue;
         }
         $raw = rescue(fn () => Storage::disk($entry['disk'])->get($entry['path']), null, false);
@@ -105,6 +113,15 @@ foreach ($ids as $id) {
     }
 
     $sections = ServiceSection::query()->where('media_processing_log_id', $log->id)->orderBy('start_time')->orderBy('id')->get();
+
+    if ($which === 'sermon') {
+        $selected = $metadata['sermon_composition']['selected_section_ids'] ?? [];
+        $spans = $sections->whereIn('id', $selected)->map(static fn (ServiceSection $s): array => ['start_time' => (float) $s->start_time, 'end_time' => (float) $s->end_time])->values()->all();
+        $introduction = app(SermonSongIntroductionCheck::class);
+        if ($introduction->songStart($log, $spans) !== null && $introduction->read($log, $spans) === null) {
+            fwrite(STDERR, "WARNING {$id}: a song follows the sermon, but the live run has no banked introduction answer (K16); this fixture will fail on missing evidence unless it carries a song_introduction block.\n");
+        }
+    }
     // Levels only around the edges this ruling depends on: the ruled cut, the target section's
     // own edges (every sermon section's, for a sermon ending), and any edge near the cut.
     $ruledCut = (float) $joined[$id]['cut'];
