@@ -444,7 +444,9 @@ supersede; a new freeze and snapshot follow.
      - **Ruled endings (§4.5):** the seven sermon fixtures beside a song now carry the recorded
        answers (and, for 1160, 1311 and 932, words decoded read only at the new end); all 36 keep
        their rulings. 1160 and 1311 move later (to "…grace and truth" and the second "Amen.").
-       A re-capture with `scripts/ruled-endings/capture.php` does not record these yet.
+       Re-capture copies banked K16 answers and warns where a live run has none; keep the seven
+       fixtures' recorded blocks until their runs are asked (the round), and update the script's
+       `media_processing_version` pin (8) to the round's before any re-capture after it.
      - **Re-processing:** every route that cuts a sermon resumes at `TranscribeOutputEdges`, which
        asks (Tier C `rerun-extract` and `sermons:re-extract`, both via `reExtract`). A run never
        asked plans as `edge_word_timings_missing`, like undecoded words, so `sermons:re-extract`
