@@ -386,32 +386,31 @@ supersede; a new freeze and snapshot follow.
 8. **Keep thumbnail deferral — reaffirmed 10-16 (register P2).** Generate thumbnails only after
    the release membership's editorial QA passes (§4.5).
 
-**Go checklist** (on the operator's word, after the decisions):
-1. Push master to a backup branch: no workflow runs on a non-master push. Force
-   `DB_DATABASE=testing` in `phpunit.xml`, so tests in a clone cannot reach `crockenhill`; test it
-   on main.
-2. **Done locally 10-16:** the three duplicate-pair corrections were applied and verified
-   (`historic-import:correct-run-identity … --apply`); see §4.4.
-3. Build what the decisions approve on master. Move the clone to it ([runbook](HISTORIC-ROUND-RUNBOOK.md)
-   §2.1). The stale-clip cause fix (R9) must be tested and included before the new freeze;
-   verify the seven known-bad endings are held and have a review entry (Q12).
-4. **Done 10-16** (`recut-round-20261016c`, above). New snapshot: the 144 less 1035, plus the 38 v9 runs (the 39 less 974), plus 1034, 1120 and 1375
-   on `rerun-redetect`, plus the 8 runs the song-start remeasurement adds (decision 4). Dry-run
-   every route.
-5. Watcher on the new snapshot (runbook §5.1). Then:
+**Go checklist** (reconciled 10-16 with the `recut-round-20261016e` freeze; on the operator's word):
+1. **Done 10-16:** `phpunit.xml` forces `DB_DATABASE=testing` (`29126fb8a`); duplicate-pair
+   corrections applied (§4.4); Q12 holds applied and verified; all known fixes built, tested and
+   pushed; clone at `be35e9466`; snapshot `recut-round-20261016e` (200 runs) with every route
+   dry-run (above).
+2. **Before dispatch, still open:**
+   - the source reviews Codex flagged on 10-16: the seven Q12 endings, and 1036 §1470 and
+     1255 §3178 (their disposition is recorded beside this list when settled);
+   - a fresh backup to Sonnics (runbook §6.5) and the live preflight (runbook §6);
+   - round workers up from the clone (runbook §3), restarted after the clone moved.
+3. Watcher on `recut-round-20261016e` (runbook §5.1). Then:
    - stage (a): one recompose followed through every job;
-   - then `rerun-recompose --all --max=500 --execute`;
-   - `rerun-redetect` for its runs;
-   - autotick on the extract list;
-   - 974, 1126 and 1378 through `reExtract`.
-6. Held runs, one at a time after the main batch: 1019, 1330 and 1364 with `sermons:re-extract
-   --held-section`; the other 54, and 1322, with `authoriseHeldSermonSpan` then `reExtract`
-   (dry runs done 10-16, above).
-7. Listening: every edge moved ≥ 1 s, the backlog in §4.1, 1036 and 1255, and the held-sermon release
-   page. Then close (runbook §8).
+   - `rerun-recompose --all --max=500 --execute` (194 ready);
+   - `rerun-redetect` for 1034, 1120 and 1375, then their extraction;
+   - autotick on `extract-runs.txt` (197);
+   - 1126, 1378 and 1220 through `ProcessingRunOrchestrator::reExtract` (974 is not a member;
+     it is cut the same way, as register X7 says).
+4. Held runs, one at a time after the main batch: the 57 in `recut-round-20261016c/held-runs.txt`
+   (1322 after its recompose), each with `sermons:re-extract <processing_id> --held-section=<§>
+   --yes`. The command now decodes their edge words itself (A1); holds stay.
+5. Listening: every edge moved ≥ 1 s, the backlog in §4.1, and the held-sermon release page.
+   Then close (runbook §8) and run `historic-import:clear-stale-song-clips --execute`.
 
-**Time:** about 3.9 min a run (10-15): about 12.5 h for the 192. Held
-sermons take about 6 min each, one at a time: about 6 h.
+**Time:** about 3.9 min a run (10-15): about 13 h for the 200. Held sermons take about 6 min
+each, one at a time: about 6 h.
 
 **Preflight operation, 10-16:** no processing dispatched. No active processing step or real
 queue payload was present (Redis notification tokens are not jobs). Before the identity corrections
