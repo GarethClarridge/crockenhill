@@ -2,14 +2,15 @@
 
 > **Implementation gaps recorded 2026-10-04:** the design and operator decisions below remain
 > authoritative, but “built” does not mean all their invariants hold in `8a5929681`.
-> [Video boundary consistency](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md) records F01
+> [Video boundary consistency](../archived-plans/VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md) records F01
 > (reference-only answers lost), F05 (validator annotations discarded on answer projection),
 > F06 (accepted answers trimming one another), F02 (900-second pairing-window drift) and F08
 > (overlap equivalence versus containment-based selection). Its S1/S3 slices own the proposed
-> regressions/corrections; do not duplicate a delivery sequence here. Earlier evaluation results
+> regressions/corrections; do not duplicate a delivery sequence here. *(2026-10-16: all were built
+> by 2026-10-06, and that plan is archived.)* Earlier evaluation results
 > retain their measured scope and are not proof against these newly identified cases.
 > Further research is scoped by the consistency plan's
-> [I1/I3/I5](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md#7-further-bounded-investigations--added-2026-10-04):
+> [I1/I3/I5](../archived-plans/VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md#7-further-bounded-investigations--added-2026-10-04):
 > completeness of the input all voters share, stable/local replay behaviour, and source-based
 > checks of unanimous output. Identical answers to incomplete input are not independent content
 > evidence. Use isolated stability tests and saved artifacts; no fresh model evaluation is implied.

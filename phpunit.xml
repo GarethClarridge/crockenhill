@@ -53,7 +53,7 @@
         <!-- Redis databases of their own (queue 6, cache 7): CacheQueueRedisIsolationTest
              flushes the cache store, and FLUSHDB ignores prefixes, so the default 1 would
              clear the live workers' cache, queue pause flags included. Dusk uses 8/9, a
-             running app 0/1 (docs/plans/FOLLOW-UP-ROUND-FROZEN-CLONE-2026-10-13.md §3.3). -->
+             running app 0/1 (docs/plans/HISTORIC-ROUND-RUNBOOK.md §2.3). -->
         <env name="REDIS_DB" value="6" force="true"/>
         <env name="REDIS_CACHE_DB" value="7" force="true"/>
         <env name="SESSION_DRIVER" value="array"/>

@@ -1,4 +1,4 @@
-# A historic round run from its own frozen clone (docs/plans/FOLLOW-UP-ROUND-FROZEN-CLONE-2026-10-13.md).
+# A historic round run from its own frozen clone (docs/plans/HISTORIC-ROUND-RUNBOOK.md).
 #
 # Used ONLY from the clone, as a separate compose project, never from the working checkout:
 #

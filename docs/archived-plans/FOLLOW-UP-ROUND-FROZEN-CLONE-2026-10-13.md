@@ -1,5 +1,13 @@
 # Follow-up round from a frozen clone, pausable — 2026-10-13 (rev 3)
 
+> **Archived 2026-10-16.** The follow-up round ran from 2026-10-13 to 10-15 and ended (§12). Its
+> procedure (§1, §3, §7–§9) is now the [round runbook](../plans/HISTORIC-ROUND-RUNBOOK.md); its
+> rulings are in the [rulings register](../plans/HISTORIC-IMPORT-DECISIONS-2026-09-03.md); §9.1's
+> clean-up pass is [plan](../plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md) §4.1. The
+> re-cut round's set-up and pre-dispatch review (§12, end) moved to plan §4.0, corrected there:
+> **937 is not a retry candidate**, it was retired on 2026-09-03 as a dead duplicate of 938. Code
+> comments citing this plan's §4 or §5 mean this file. Only link targets changed, so they resolve from here.
+
 > **Status — 2026-10-16:** the follow-up round ended on 10-15 (§12). The re-cut round is set up
 > and **not dispatched**; a read-only pre-dispatch review found runs it leaves out and decisions
 > to take first (§12, "Pre-dispatch review (10-16)", with a proposed go checklist). The status

@@ -19,27 +19,13 @@ touched `.env` or production data. It is a running list, not a complete audit.
 
 ## How to use this index
 
-**2026-10-06 current boundary-fix handover:** canary 12 listening found 41/53 edges right and
-12 wrong. Start the next session at [boundary consistency §6.1](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md#61-reviewed-implementation-plan-before-canary-13--2026-10-06):
-evidence filtering/recovery → B1/B3 → A placement → unresolved-interval fallback →
-questions/flags, catalogue identity and C optimisation → canary 13 with regression and listening
-checks. That reviewed checklist replaces the earlier slice ordering for this work. 949 awaits
-confirmation and 1250 remains parked on reading membership; neither is silently counted as a pass.
-Earlier dated entries below are history, not current checkout or queue state.
-
-**2026-10-05:** F01–F03, F05, F06 and F08–F10 of the boundary-consistency plan are built and merged;
-see its §6 completion record. The canary 10 Tier C round was abandoned and its queue removed.
-
-**2026-10-04 correctness handover:** [Video boundary consistency](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md)
-records ten findings/cases from the read-only pipeline investigation against `8a5929681`,
-proposed regression-first slices, and an incremental publication-plan design. It does not
-supersede historic/cut policy or authorise worker starts, queued-payload changes, provider calls
-or operator rulings. Read its baseline and stopped-operation constraints before picking it up.
-Its [five bounded follow-up investigations](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md#7-further-bounded-investigations--added-2026-10-04)
-are hypotheses, separate from the ten findings/cases. Start further research with transcript
-completeness (I1) and replay stability (I3); S1/S2 were the first proposed implementation slices
-at that date (the current implementation order is §6.1, linked above).
-Every slice must state its invariant and demonstrate downstream preservation.
+**Historic video (2026-10-16):** start at the
+[historic video plan](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md): current state (§3),
+the re-cut round and its pending decisions (§4.0), then the remaining work. Every ruling in force is in the
+[rulings register](HISTORIC-IMPORT-DECISIONS-2026-09-03.md); how a round runs is in the
+[round runbook](HISTORIC-ROUND-RUNBOOK.md). The boundary consistency, cut redesign and follow-up round
+plans were archived on 2026-10-16 beside the
+[10-03 to 10-16 execution log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-10-03-TO-2026-10-16.md).
 
 - The historic import has **one** plan. Its §2 decision record, §3 safety model and §4 finding
   dispositions are binding; the archived predecessors hold finding/decision evidence only.
@@ -119,23 +105,13 @@ None of these lanes blocks the public product sequence except where a plan expli
 
 ## Active plans
 
-**Historic video — reconciled from the recorded 2026-10-04 shutdown, not a new live census:**
-canary 10 remains unaccepted. Its latest Tier C round was dispatched and parked with 15 pending
-FFmpeg jobs and one pending orchestration job; runs 1108/1112 failed extraction amid staging-mount
-problems. Read the final shutdown and frozen-branch instructions in
-[Cut What Was Identified, In Sync](CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md) before resuming
-existing chains. Do not repeat the original dispatch sequence or consume those jobs on the
-output-changing fixes branch. Technical quality, custody and listening acceptance remain pending.
-
-The [focused video plan](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md) owns
-execution and acceptance; the [ensemble plan](HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md)
-retains its design/operator decisions. [Boundary consistency](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md)
-owns the new regression-first code slices and proposed incremental design. Finishing the frozen
-round does not validate later fixes: those join the next freeze/canary. The familiar sixteen
-provide regression evidence; the prepared twenty discovery candidates are not proven held out
-and remain undispatched. “Final canary” in older records is the earlier schedule, not acceptance.
-The detection reliability work package remains complete and archived; no model-evaluation restart
-or new provider calls are authorised by this documentation reconciliation.
+**Historic video:** the [focused video plan](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md)
+owns execution and acceptance; the [rulings register](HISTORIC-IMPORT-DECISIONS-2026-09-03.md) holds
+every ruling in force; the [round runbook](HISTORIC-ROUND-RUNBOOK.md) is the procedure. The
+[ensemble plan](HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md), [music and silence](MUSIC-AND-SILENCE-DETECTION-2026-09-25.md),
+[song acceptance](HISTORIC-SONG-ACCEPTANCE-MEASUREMENT-2026-10-11.md) and
+[talks](TALKS-AND-SHORT-TALK-DETECTION-2026-09-18.md) plans are design references. Nothing here
+authorises a dispatch, a provider call or a release.
 
 | Order | Plan | Verified status | Next independently useful slice |
 |---|---|---|---|

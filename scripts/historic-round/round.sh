@@ -1,5 +1,5 @@
 #!/bin/bash
-# Control a historic round running from its frozen clone (docs/plans/FOLLOW-UP-ROUND-FROZEN-CLONE-2026-10-13.md §7.1).
+# Control a historic round running from its frozen clone (docs/plans/HISTORIC-ROUND-RUNBOOK.md §5.2).
 # Runs on the host. Every command goes to the round's own `round-tools` container, so it runs the
 # clone's code against the round's Redis databases; nothing here touches the working checkout.
 #

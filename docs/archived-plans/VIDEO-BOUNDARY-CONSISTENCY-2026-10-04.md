@@ -1,5 +1,13 @@
 # Video boundary consistency: findings and implementation handover
 
+> **Archived 2026-10-16: complete.** F01–F11 and I1–I5 were built or ruled by 2026-10-06;
+> canaries 11–15 and the full pass (§6.3.9) ran on this work. Open work moved to the
+> [plan](../plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md): the review-question slices of §8.6
+> (plan §4.3). Its rulings are in the [rulings register](../plans/HISTORIC-IMPORT-DECISIONS-2026-09-03.md)
+> (Q1–Q7, D16, D17, D23, E7, E9, K13, A1–A3, R3), and its round procedure in the
+> [round runbook](../plans/HISTORIC-ROUND-RUNBOOK.md). Status blocks and "current" headings below are
+> as they stood on 2026-10-13; read them as history. Only link targets changed, so they resolve from here.
+
 > **Current handover — 2026-10-10, full pass ready to launch:** frozen on `441b14ed6`, verified backup,
 > routing measured, watcher and listening feed built; Codex's readiness review found no blocker.
 > **§6.3.9 is the one current execution record** (it supersedes the historic plan's §4.0 canary-10
@@ -44,7 +52,7 @@
 > **Supersession and ownership:** this document consolidates this conversation's findings
 > and proposed code work. It supersedes no operational decision or existing plan.
 > [Cut from sections](CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md) retains the cut-policy and
-> stopped-canary history; [historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md)
+> stopped-canary history; [historic incremental convergence](../plans/HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md)
 > retains import, release and production authority. This is a bounded correctness workstream,
 > not a second historic-import execution plan or approval for a wholesale rewrite.
 

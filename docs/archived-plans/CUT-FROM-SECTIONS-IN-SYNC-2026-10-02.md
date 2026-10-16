@@ -1,12 +1,19 @@
 # Cut What Was Identified, In Sync
 
+> **Archived 2026-10-16: complete.** The cut redesign was built on 2026-10-02 and refined through
+> canary 10 (2026-10-03); the boundary consistency work and the full pass carried it on. Its cut
+> rules are in the [rulings register](../plans/HISTORIC-IMPORT-DECISIONS-2026-09-03.md) (K1, K2,
+> E2–E6). Open: D4, the audit of already-published weekly clips, is now
+> [plan §4.3](../plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md). Status lines below are
+> as they stood; read them as history. Only link targets changed, so they resolve from here.
+
 > **Current implementation handover — 2026-10-06:** canary 12 listening and the reviewed work
 > order before canary 13 are in the [boundary consistency plan, §6.1](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md#61-reviewed-implementation-plan-before-canary-13--2026-10-06).
 > Follow that checklist for the next boundary-fix session. This plan's earlier canary/checkout
 > snapshots remain historical records; its settled cut policy and operational ownership remain.
 
 **Date:** 2026-10-02 · **Status:** IMPLEMENTED on master; corpus benchmark passed, canary review and operator acceptance pending · **Blocks:** canary 10
-acceptance and Tier A ([main plan §4.0](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md))
+acceptance and Tier A ([main plan §4.0](../plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md))
 
 > **Correctness follow-up — 2026-10-04:** implementation and technical timing benchmarks do
 > not close content-boundary correctness. The open

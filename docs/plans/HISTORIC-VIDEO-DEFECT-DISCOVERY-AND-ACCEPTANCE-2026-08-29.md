@@ -1,124 +1,34 @@
 # Historic Video Defect Discovery and Acceptance Plan
 
-> **Status — 2026-10-16, re-cut round set up, not dispatched.** The full pass (10-10 to 10-12),
-> its fix round and the follow-up round (10-13 to 10-15) are recorded in
-> [FOLLOW-UP-ROUND §12](FOLLOW-UP-ROUND-FROZEN-CLONE-2026-10-13.md). The re-cut round's
-> pre-dispatch review found that membership leaves out:
-> - 39 v9 runs whose edges the dead-feed rule moves;
-> - 62 failed runs still parked on sermon content holds;
-> - the duplicate pairs' kept runs, while it includes the poorer run 1035.
->
-> It also found that song clips keep up to 12 s of digital-zero dead air under ruling 2's
-> 15-second bar, and that the §9.1 stale-clip residue is still growing. The review and a
-> proposed go checklist are at the end of that §12; §4.4 and §4.5 below carry the parts that
-> belong here.
+> **Status — 2026-10-16.** The full pass (10-10 to 10-12), its fix round (10-12/13) and the follow-up
+> round (10-13 to 10-15) are done. Nothing is public: all 443 historic sermons and 953 historic song
+> videos are quarantined. Export readiness is 12 of 455 runs (§3). The **re-cut round** is set up and
+> **not dispatched**: its membership and eight decisions wait on the operator (§4.0). The
+> stale-clip clean-up (§4.1), song acceptance stage 2 and the release work (§4.5) follow it.
 
-> **Status — 2026-10-10, full pass:** the current execution record (freeze, settings, membership,
-> routing, order, stopping conditions, backup, preflight) is
-> [VIDEO-BOUNDARY-CONSISTENCY §6.3.9](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md). Where §4.0 below
-> differs from it (canary-10 gates, counts, the 40-run batch shape, "Open before batch 1"), §6.3.9 wins.
+**How to read this plan.** It holds the current state and the remaining work, nothing else.
+- **Rulings in force:** the [rulings register](HISTORIC-IMPORT-DECISIONS-2026-09-03.md). Check it
+  before calling anything a gap.
+- **How a round runs:** the [round runbook](HISTORIC-ROUND-RUNBOOK.md).
+- **Design references, still current:**
+  - [ensemble detection](HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md);
+  - [music and silence](MUSIC-AND-SILENCE-DETECTION-2026-09-25.md);
+  - [song acceptance protocol](HISTORIC-SONG-ACCEPTANCE-MEASUREMENT-2026-10-11.md);
+  - [talks](TALKS-AND-SHORT-TALK-DETECTION-2026-09-18.md).
+- **Programme authority** (production rounds, release policy, IC8): the
+  [incremental convergence plan](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md).
+- **History, word for word, for evidence only:**
+  - [10-03 to 10-16](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-10-03-TO-2026-10-16.md):
+    this plan as it stood on 10-16, and the session notes of 10-10 to 10-16;
+  - with it, the [cut redesign](../archived-plans/CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md), the
+    [boundary consistency work and full-pass record](../archived-plans/VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md)
+    and the [follow-up round](../archived-plans/FOLLOW-UP-ROUND-FROZEN-CLONE-2026-10-13.md);
+  - earlier: [09-24 to 10-02](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-24-TO-2026-10-02.md),
+    [09-12 to 09-23](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-12-TO-2026-09-23.md),
+    [phases 0–8](../archived-plans/HISTORIC-VIDEO-PILOT-TO-BULK-EXECUTION-LOG-2026-08-29-TO-2026-09-11.md).
 
-> **Status — 2026-10-10, after canary 15 and its repair pass:** canary 15 (29 runs, 12 a seeded
-> unseen draw) met one stopping condition, published song clips deleted with no copy; it is fixed,
-> along with the other findings, and a repair pass listened 7/7 right. Operator rulings the same
-> day stopped the structure questions whose answers never changed an output (12 → 3 on canary 15).
-> An offline old/new replay of 41 banked runs found no sermon cut changed, so **no canary 16**; the
-> next step is to freeze and plan the full pass. Record:
-> [VIDEO-BOUNDARY-CONSISTENCY §6.3.8](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md).
-
-> **Planning reconciliation — 2026-10-04, after the read-only boundary review.**
-> [Video boundary consistency](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md) owns ten newly
-> recorded findings/cases and their proposed regression-first code slices. Static defects,
-> synthetic counterexamples and listening candidates are distinguished there; these are not
-> ten demonstrated bad recordings. F01/F05/F06 concern answers reaching projected output;
-> F02/F08 concern reading equivalence; F03/F09/F10 concern final cuts; F04/F07 supply
-> multipart-reading and exposed-speech cases. Track their reproduction/disposition when
-> assessing the next code freeze; do not infer their closure from zero questions or technical
-> media checks. No new acceptance threshold or operator policy is adopted by this note.
->
-> The queued canary remains parked on its existing frozen-code contract. Finishing that round
-> does not validate fixes on `fix-silent-sermon-omissions` or the proposed consistency work.
-> “Final canary” below is the earlier schedule, not evidence that no further validation is
-> necessary after output-changing fixes. The familiar sixteen are regression cases; the
-> prepared twenty discovery candidates have unproven prior exposure and are not held out.
-> Existing batch/release gates and the frozen-branch resume instructions remain authoritative.
-
-> **Further investigation scope — 2026-10-04:** the consistency plan's
-> [I1–I5](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md#7-further-bounded-investigations--added-2026-10-04)
-> cover pre-detection transcript loss, speech ownership, replay stability, artifact invalidation
-> and shared errors in apparently clean/unanimous output. These are bounded hypotheses, not
-> additional confirmed defects. Prioritise I1/I3 for further research; I2/I5 supplement existing
-> source-based acceptance evidence. Record checked extent, exposure and omissions separately
-> from agreement/question counts. Every repair slice must name its restored invariant and
-> prove downstream preservation. No operational authorisation or numeric acceptance bar changes.
-
-> **Safety continuation — 2026-10-04.** The operator authorised the review fixes and
-> as much of its five next steps as can proceed without input. Provider-aware edge
-> transcription and custody-preserving output relocation are implemented; 1112's
-> interrupted quality step was cancelled with its prior rows preserved. Code gates
-> passed (9,212 tests; PHPStan zero errors) and the fresh same-16 replay passed.
-> Tier C was dispatched, then parked for operator shutdown with extraction failures
-> on 1108/1112 and intermittent staging-mount loss requiring investigation before
-> resuming the existing queue. Canary 10 remains unaccepted; Tier A,
-> the prepared next discovery-half batch and public release remain gated. Current
-> evidence and technical results are recorded at the end of
-> [Cut What Was Identified, In Sync](CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md).
-
-> **Status — 2026-10-02 (redrafted before the final canary).** Bulk processing is drained;
-> containment, content acceptance and public release remain **NO-GO**. Repairs run through §4.0's
-> corpus re-run: every eligible run is re-detected by the four-draw ensemble, its questions are
-> answered, its answered draws are recomposed, and its media is cut once. Where the work stands:
->
-> - **Detection passed canary 9 (2026-09-30):** 64/64 draws valid, 0 talk-count errors, 0 wrong
->   cuts. **Custody failed** on 1221 (a title-only respelling deleted two clips); fixed in
->   `1210d534e` and proven on canary 9's own before/after sections. Twenty operator decisions set
->   what the ensemble compares ([design and rule register](HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md));
->   rules A–D took canary 9's 41 questions to 7.
-> - **Built 2026-10-02 for the final canary** (§4.0 "Built for the final canary"): a recompose round,
->   so answers reach the cut from the draws they were given on; evidence bound to a code revision
->   instead of a commit; the RMS log banked by reference; talk-edge checks; review samples; a batch
->   report; a held-transcript report and an operator release command.
-> - **Committed 2026-10-02:** `f3b8f8893` through `e42c8e338`; the operator adopted the closing-prayer
->   exemption and authorised canary 10. Gates: 9,106 tests and 59 Dusk tests pass; PHPStan and Pint
->   clean. `.env` unchanged after Dusk. External backups completed and verified before dispatch.
-> - **Canary 10 dispatched 2026-10-02:** all 16 runs reached Tier B; 11 completed and five await
->   review. Draw coverage is 63/64 valid (one invalid draw on 936); all 16 bundles replay. The
->   operator granted a bounded exception for the benign 1112 carry-forward flag (below). The
->   finalized answers are applied, six runs recomposed with no new draws, and all 16 have no
->   open question. All eight samples pass. Tier C dispatched all 16, then paused after 936
->   failed the input gate on projection-only OoS renumbering; see the recovery record below.
->   After three gate fixes (through `da7e4900b`), all 16 were recomposed from saved draws and
->   cut. The predeclared bar was met as written, but the operator then ruled that **any
->   sound/picture drift is a defect** and that **a cut is the identified sections, with no
->   second set of times**. Canary 10 is therefore **not accepted**. The causes and the
->   redesign are in [Cut What Was Identified, In Sync](CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md);
->   Sermon composition is now settled in its §5 D1. Tier A waits for implementation and
->   acceptance of the repeated canary 10.
-> - Release-side items, identity pairs and acceptance are unchanged (§4.4, §4.5).
->
-> The 2026-09-24 to 10-02 status blocks and §4.0 narrative (route builds, canaries 1–8, freezes
-> 1–10, batch 1, the detection evaluation) and the ensemble plan's evidence, evaluation and canary
-> 9 record moved verbatim to the
-> [2026-09-24 to 10-02 execution log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-24-TO-2026-10-02.md).
-> The [detection reliability work package](../archived-plans/HISTORIC-VIDEO-DETECTION-RELIABILITY-2026-09-28.md)
-> is complete and archived; its DR6 is §4.0 "Batches" here. Earlier history:
-> [2026-09-12 to 09-23](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-12-TO-2026-09-23.md),
-> [phases 0–8](../archived-plans/HISTORIC-VIDEO-PILOT-TO-BULK-EXECUTION-LOG-2026-08-29-TO-2026-09-11.md).
-> Use those files only as evidence. This document contains the remaining work.
->
-> The [Historic Import: Incremental Convergence Plan](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md)
-> remains the programme-level authority for production rounds, convergence,
-> release and one-shot retirement. This plan owns the video-output containment
-> and acceptance work feeding its final convergence/release slice.
-
-**Original date:** 2026-08-29 (formerly `HISTORIC-VIDEO-PILOT-TO-BULK-PLAN-2026-08-29.md`, renamed 2026-09-14)
-**Last condensed:** 2026-10-02 (previously 2026-09-23 and 2026-09-12)
-**Last reviewed:** 2026-10-02, a critical review before the final canary (performance, accuracy,
-learning). It found that an answer reached a cut only through four fresh draws, which nobody had
-reviewed and which asked again in one re-run in five; that no canary had cut media on the ensemble
-code; that every commit, documentation included, stranded uncut rounds; that the internal disk
-would fill with copies of the RMS log; and that the three plans contradicted each other. The
-fixes are in §4.0.
+**Original date:** 2026-08-29. **Redrafted:** 2026-10-16 (previously 10-02, 09-23, 09-12), keeping only
+current state and open work. Everything removed is in the 10-03 to 10-16 log.
 
 ## 1. Outcome and boundaries
 
@@ -158,7 +68,12 @@ The following constraints remain binding:
 | Phase 8 | Processing drained; acceptance open | Pass execution, remediation and the 2026-09-06/09 reviews are in the [Phase 8 record](../archived-plans/HISTORIC-VIDEO-PILOT-TO-BULK-EXECUTION-LOG-2026-08-29-TO-2026-09-11.md#phase-8--process-the-remainder-as-a-closed-pass-loop). |
 | Defect discovery 09-12 to 09-23 | §4.0–§4.3a detailed | Canary, containment, censuses, rulings, transcript-loop and song work, class table, detector harness H1–H10b: the [2026-09-12 to 09-23 log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-12-TO-2026-09-23.md). |
 | Corpus re-run 09-24 to 10-02 | Route built; canaries 1–9; ensemble built and evaluated | Diff, rounds, tiers, concatenation gate, canaries 1–9, freezes 1–10, batch 1, the detection evaluation, the ensemble's evidence, §6 evaluation and canary 9: the [2026-09-24 to 10-02 log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-24-TO-2026-10-02.md); the [detection reliability work package](../archived-plans/HISTORIC-VIDEO-DETECTION-RELIABILITY-2026-09-28.md). |
-| Phase 9 | Blocked | Missing holds and current-policy failures below must be contained before final convergence and release. |
+| Canary 10 to the full pass, 10-03 to 10-10 | Cut redesign, boundary findings F01–F11 and I1–I5 built or ruled, canaries 10–15, audio treatment | [Cut redesign](../archived-plans/CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md); [boundary consistency §2–§8](../archived-plans/VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md) |
+| Full pass, 10-10 to 10-12 | Dispatched whole on freeze `441b14ed6`: 152 Tier A, 37 recompose, 244 Tier B. Listening found 19% of endings clipped | [Boundary consistency §6.3.9](../archived-plans/VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md#639-full-pass-execution-record-2026-10-10--the-one-current-instruction-set); [log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-10-03-TO-2026-10-16.md) Part 2 |
+| Fix round, 10-12/13 | Items 1–20: spoken-end tail, sentence ends, start joins (J1, J2), amended D1, rule M, widest sermons, media version 9 | Log Part 2 |
+| Follow-up round, 10-13 to 10-15 | Frozen clone, 301 runs over a dozen snapshots, rulings applied, duplicate-recording adoption, custody follows the disk, export fixed (363 of 363 build an inventory), database wiped and recovered | [Follow-up round §11–§12](../archived-plans/FOLLOW-UP-ROUND-FROZEN-CLONE-2026-10-13.md) |
+| Re-cut round set-up and its review, 10-16 | Dead-feed edge rule, pre-flight, set up short of dispatch, read-only pre-dispatch review | Follow-up round §12 (end); §4.0 here |
+| Phase 9 | Blocked | Acceptance (§4.3, §4.5) and identity disputes (§4.4) remain before final convergence and release. |
 
 The archive retains the exact M1–M12 and P8-Q1–P8-Q16 narratives, commands,
 measurements, hashes, repair sessions and superseded conclusions. Do not copy
@@ -167,613 +82,209 @@ decision.
 
 ## 3. Current measured state
 
-**Reconciled 2026-09-16 at 17:14:57 UTC against `84d33bb24`, local Sail database.**
-The census used a read-only transaction and the application's
-`HistoricReleaseReviewHolds::assess()` per record. It did not modify a hold,
-publication, worker or processing run, inspect production, decode media, or test a
-signed release authorisation. Evidence:
-`storage/scratch/plan-review-20260916-live-state.json`.
-**This census predates** the 1004 and 1287 repairs, the 09-23 hold provenance backfill
-and the 09-24 hold re-checks. It is recounted and hashed at the freeze (§4.0), not reused.
+**Measured 2026-10-16, read-only, local Sail database and quarantine.** Readiness ran per run inside a
+rolled-back transaction (`storage/scratch/review-20261016/readiness.php`, output `readiness.json`).
+Clip edges are from `clip-silence*.tsv` and `deadshare.sh` there, sermon edges from
+`recut-listening-20261015/`. This machine is not production.
 
-| Population | Runs | Linked sermons | Sections | Generated SongVideos |
-|---|---:|---:|---:|---:|
-| Historic, not superseded, including failures and exclusions | 445 (442 completed, 3 failed) | 438 | 4,190 | 460 |
-| Historic, completed and not excluded: current discovery/repair denominator | **437** | **434** | **4,141** | **457** |
+| Population | Count |
+|---|---:|
+| Historic runs | 455: 372 completed (6 superseded), 83 failed (5 superseded) |
+| Completed, not superseded, by sermon-plan media version | v8: 135 · v9: 217 · none: 14 |
+| Historic sermons | 443, all quarantined |
+| Historic song videos | 953, all quarantined |
+| Public historic sermons or song videos | 0 |
 
-The five exclusions are silent source 955, rehearsals 1043/1089, and private
-occasions 1051/1098. The former **442-run** completed baseline includes those five;
-retain it on historical measurements, but use 437 for a new comparable census.
-All-quarantined-row inventories also include other/superseded rows and must not be
-substituted for these relationship-defined populations.
+**Export readiness: 12 of 455.** Reasons (a run can have several):
 
-- The content gate refuses **119/438 sermons and 187/460 song videos** across
-  active historic runs; in the completed, non-excluded population it refuses
-  **115/434 and 184/457**. These are contained records, not defect rates. A record
-  with no content refusal is not accepted or authorised for release.
-- ~~**Identity remains an immediate containment gap.**~~ **Closed the same day,
-  17:52 UTC.** Sermons 969, 1045, 1296, 1297 and 1307 had no gate refusal, identity
-  hold or exclusion; sermon 873 was refused only by an unrelated reading
-  micro-section; videos 189, 190, 250, 264, 544, 546 and 547 had no refusal. All
-  six sermons and all seven videos are now refused through holds on their own
-  sections (§4.4), which also rules that all seven videos inherit the dispute.
-  This contains the rows; it does not decide source adoption, which §4.4 still owns.
-- **Publication-state consistency is verified, not content acceptance:**
-  `service:demote-held-publications --all --json` inspected 291 published sections
-  and found zero demotable/refused cases. A separate database count found zero
-  published sections with `needs_manual_review`. All **36** publicly published
-  SongVideos are outside the historic lane and none of their sections is held.
-  This is local exposure, not a production assertion. Evidence:
-  `plan-review-20260916-demotion-dry-run.json`. **Broken and restored the same
-  day:** the §4.4 identity holds put seven song sections into `published` with
-  `needs_manual_review` at 17:52 UTC, and demoting them at 18:22 UTC returned the
-  corpus-wide count to zero. The zero now holds over a population that includes
-  the newly held rows, which the original measurement predated.
-- The saved title-resolution comparison remains **75 changed bindings: 72
-  deterministic catalogue resolutions and 3 fallback cases**. Refreshing those
-  exact rows now finds **7 unheld**, §§872, 935, 2901, 3128, 3323, 3587 and 4156,
-  rather than the earlier nine. §2683 is now held; §4156 still is not. This refresh
-  reads their current state, not a new matcher evaluation or performance-identity
-  adjudication. Do not bulk apply the three fallback suggestions.
-- Operation 4 remains **`planned`**, with 409 completed and three failed active
-  runs. Runs **1004, 1143 and 1145** remain unexcluded and need terminal
-  dispositions. `external_disabled` remains its notification mode; this is not a
-  fresh end-to-end notification audit.
-- **Worker readiness is GO only for a freshly preflighted bounded repair.** The
-  16 September NO-GO snapshot is superseded: all six workers were restarted onto
-  `1c65dd104` before 1340's successful repair on 18 September, and the current
-  container snapshot shows all six running. This is not reusable evidence for a
-  later dispatch. Recheck empty queued/reserved/delayed sets, mounted staging/temp
-  paths, process starts and loaded code immediately before each bounded batch.
+| Reason | Runs |
+|---|---:|
+| Main sermon `thumbnail_file_path` missing: the **ruled deferral** (register P2), not a defect (§4.5) | 406 |
+| A section's publication decision unsettled, mostly song acceptance stage 2 (10-15 counted 520 sections) | 249 |
+| Run failed, not completed | 81 |
+| Processing history holds active or failed work | 17 |
+| Main sermon publication missing | 8 |
+| Superseded | 7 |
+| Excluded (no sermon in source 2, rehearsal duplicate 2, private occasion 2, rehearsal 1, silent source 1, duplicate recording 1) | 9 |
+| Nested publication work not terminal (1127, 1352, 1220, 1223) | 4 |
+| Scripture enrichment unsettled (973, 1022, 1171) | 3 |
+| 937 never dispatched: it was **retired on 09-03** as a dead duplicate of 938 (register X1), but readiness does not read retirement | 1 |
 
-**Status vocabulary used below:** *implemented* means the response exists in code;
-*applied* means named existing rows were processed through it; *verified* names the
-specific check and population that passed; *held/deferred* preserves uncertainty
-without claiming repair. These states are independent: a tested fix is not a
-repaired corpus, and a correct hold is not a confirmed defect.
+**Failed runs, by cause** (78 not superseded):
+- **62 parked on a sermon content hold**, each waiting for `sermons:re-extract … --held-section`
+  (register Q8). The list is in §4.0.
+- 6 waiting for their sermon sections and uncovered speech to be resolved: 973, 1287, 1288, 1327,
+  1355, 1366.
+- 3 with fewer than two valid draws: 954 (a talk, D22), 1073 and 1268 (split sermons, D21). Their
+  fixes are not built.
+- 1108 and 1223: an internal error at projection.
+- 945: sections cover 64% of the recording.
+- 1143: an accepted hold. 1145: excluded.
+- 1314: re-detection left holds with no section of their type.
+- 1220: cleanup refused while a candidate step row is `running`.
 
-| Workstream | Implemented | Applied / verified on existing outputs | Remaining |
-|---|---|---|---|
-| Explicit holds and occasion exclusions | Yes; holds survive sync and merges | Named holds, identity containment, four occasion exclusions, publication demotions and held-then-reprocessed canary applied; dated state above | Current-policy residue; source-adoption decisions |
-| Song boundary/loop evidence | Version 7, input fingerprints, lyric-edge and loop risks | Successive backfills and demotions recorded in §4.3a | Current-policy scope/limitations; independent audio evaluation; identity confirmation |
-| Smart cut, MP3, source audio format | Yes, including `fda414eb2` source-frame correction | Tests, source-content canary and limited real-source measurements; no completed corpus repair pass recorded | Affected media reruns; actual-server delivery checks at release |
-| Structure and song identity | Prompt seconds, closing prayer/reading retention, sustained singing, mistyped sung-item risk, catalogue-title priority and 17 September speech-edge trim | Retrospective measurements and tests; trim replay is not a corpus write | Per-run re-detection/re-resolution, then extraction and derived-item repair; speech-edge exceptions |
-| Local Whisper decoding | Context carry disabled; initial prompt retained on both request paths; options fingerprinted | Seven-run experiment, MP3-form check, 1314/1340/1343/1258/980 repairs and four-run recovery reconciliation; request/fingerprint tests | Wider raw-transcript census; full independent source/content and dependent-analysis checks |
-| Video-quality detector | Dead-picture coverage and owning-run evidence | 48 prior rejections reassessed (28 approve/19 reject/1 review); seven prior approvals moved to review | 862 where its output lives; 897/1005 unassessed; source-versus-cut black-picture causes; independent negatives |
-| Acceptance and release | Existing signed release machinery | Nine-service source inventories compared; acceptance incomplete; no new release authorised | Interior semantic review, H10 detector-negative sampling (no reserved set — H9), canary, bounded repairs, operation closeout, exact-membership QA and delivery |
+**Edges.**
+- **Sermons.** The 10-15 scan (silence below −45 dB lasting ≥ 1 s) of 442 cut sermons found leading
+  silence of ≥ 5 s in 16 and trailing silence of ≥ 5 s in 5. The scan understates digital-zero dead
+  air: 1079 measured 3.8 s but holds about 14.5 s.
+- **The dead-feed rule** (E10) moves 70 edges in its replay. 24 of them are in the re-cut round's
+  membership; 46 (39 runs) are v9 runs outside it (§4.0).
+- **Song clips (908).** 44 open on ≥ 3 s of silence and 17 on ≥ 5 s, 14 of the 17 cut on v9 code.
+  25 of the 44 are mostly digital zero, below ruling 2's 15 s bar (register E14).
+  - Two song sections are silent throughout: 938 §627 and 1106 §1878 (`SongVideo` 238).
+- **Short talks (230).** 10 open on ≥ 3 s of silence, all but two of them mostly digital zero; the
+  dead-feed rule covers them.
 
-The 10–11 September transcript/media-readability census and its missing-hold list
-remain in the preserved follow-up review, now in the [log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-12-TO-2026-09-23.md). They are not
-fresh readability checks or current missing-hold counts. The five confirmed sermon
-loops and §§988/1457/3869 were held on 13 September (§4.1).
+**Residue and attribution.**
+- Stale song clips on non-song sections: 170 sections (120 runs) and 199 `SongVideo` bindings,
+  up from 184 on 10-14 (§4.1).
+- Preachers: 423 of 439 sermons on non-superseded runs are "Visiting Speaker" with
+  `needs_preacher_review` (§4.5).
+
+**Machine and backups.**
+- The round's infrastructure:
+  - the round containers are up from `../crockenhill-round` at `bef6b303a`;
+  - main has no workers and runs on Redis 4/5 (its pre-round `.env` is in session `781bf913`'s
+    scratchpad as `env.main-before-recut-round`);
+  - the ffmpeg LaunchAgent is on the clone's script.
+- Backups: a database dump and private storage from 2026-10-16 03:06 are in
+  `/Volumes/Sonnics/_pre-recut-round-backup-20261016/` (SHA-256 in
+  `storage/scratch/recut-preflight-20261015/backup-sha256.txt`).
+- Free space: internal disk 29 GB, Staging 448 GB, Sonnics 299 GB.
+- Master is 35 commits ahead of origin, 18 of them code. A push to master deploys.
 
 ## 4. Remaining work in execution order
 
-**Execution model.** §4.0's corpus re-run is the repair route: every eligible run goes through the
+**Execution model.** The corpus re-run (rounds, §4.0 and the runbook) is the repair route: every eligible run goes through the
 pipeline again, so every fix that changed detection, matching or cutting reaches it, and a repair
 also protects future services. Outside it a run is repaired only as a named exception with its own
 reason (1287 on 09-23, 1112 on 09-24). This plan revision authorises no processing membership,
 dispatch, paid call or release; each needs the operator's go.
 
-### 4.0 Corpus re-run
+**Section numbers in the carried text** (§4.2 to §4.5): §3.1, §4.0a, §4.1–§4.1d, §4.3a, the §4.1b
+coverage matrix, the H-numbered harness steps, and the bold group labels inside §4.3 ("4.1 Contain…",
+"4.2 Close…", "4.3 Refresh…") all refer to the
+[09-12 to 09-23 log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-12-TO-2026-09-23.md),
+not to this plan. The class-to-detector binding is data, in `resources/detector-classes.json`.
 
-#### Standing decisions
+### 4.0 The re-cut round (set up 2026-10-16, not dispatched)
 
-Full text and evidence are in the [execution log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-24-TO-2026-10-02.md).
+**Purpose:** re-cut every run whose replayed plan differs from its cut on current code (register
+E11, E12), so the edge fixes of 10-12 and the dead-feed rule (E10) reach the media.
 
-1. **Re-run every eligible run** (historic, completed, not superseded, not excluded: 437 at the
-   2026-09-27 recount, recounted at each snapshot), not only runs predicted to change (09-23).
-2. **Tiers.** Tier A re-transcribes and stops before detection (ruled 10-01, superseding 09-24's
-   "Tier A as a detection round"): runs whose H10b listening route is live `new_better` (126) or
-   that hold a live transcript-loss hold (64), 170 in all. Tier B detects every run, Tier A's
-   included once their new text is written. Tier C cuts each run's media once.
-3. **Inputs.** Detection reads only independently sourced order-of-service items (09-24). Email
-   stays out of the re-run, so the video stays an independent witness (09-25). Duplicate
-   catalogue songs are merged in OpenLP after the re-run, before the convergence re-census
-   (09-25). The hymn workbook's held-out half (143 services, `storage/scratch/hymn-video-20260925/split.json`)
-   stays unopened until §4.5's song acceptance measurement.
-4. **Holds.** Holds follow their content; only code-found holds recheck themselves (09-23).
-   Listening's mixed and neither windows are held where a section can hold them (09-25). **945
-   §669 and 1342 §4319 are held once Tier A has written their new text (09-28; open).**
-5. **Talks.** A talk interrupted by a reading or prayer is flagged, never merged (09-28). A reading
-   or recording inside a talk stays an ensemble question (decision 20). Each batch's diff lists
-   every new `short_talk` under 60 s for a hand check; **stop before the next batch if more than
-   three in one batch are confirmed false** (09-28).
-6. **Media.** Tier C re-encodes above the bitrate threshold with preset `veryfast` (operator,
-   2026-09-30; set in `.env` as `VIDEO_EXTRACTION_REENCODE_PRESET=veryfast`, not in code; probe
-   `storage/scratch/preset-probe-20260930/`: 1.56× faster to encode, files 16–29% smaller, SSIM
-   −0.0004 to −0.0014). One ffmpeg worker: a second measured +6–16% and was declined against the
-   staging drive's USB-link exposure (09-30). The smart cut is frame-exact (09-27).
-7. **Evidence binds a code revision, not a commit (2026-10-02).** A snapshot and its rounds bind
-   the hash of the code a checkout runs (`App\Support\CodeRevision`: `app`, `config`, `database`,
-   `routes`, `resources`, `bootstrap/app.php`, `bootstrap/providers.php`, `composer.lock`).
-   A commit that changes only documentation leaves every snapshot and round valid; any code
-   change, committed or not, needs a new snapshot and a worker restart. Snapshots and stamps
-   written before this bind their commit as before. Workers still restart after any commit
-   (the stale-worker exit), which is what restarted them unexplained on 09-28 and 09-30; it is
-   harmless, as a worker's boot revision is the same after a documentation commit. `.env` is not
-   code: a ruling that changes it is recorded here and the workers are restarted.
-8. **Rules between batches (decision 10, reconciled with 09-23's "one commit" on 2026-10-02).** A
-   recurring answer becomes a rule only after a replay over saved draws shows its changes and the
-   operator approves. Adopting one changes the code revision, so: every uncut run is recomposed
-   onto the new revision (no draws); every cut run is replayed, and only a run whose cut changes
-   is recomposed and cut again. Each run's evidence names the revision its cut was made on.
+**As set up:**
+- **Snapshot** `recut-round-20261016`: 144 runs at `bef6b303a`, the 155 runs planned before the
+  10-12 fixes less:
+  - 7 excluded;
+  - 3 superseded runs whose media no service uses (943, 1249, 1377);
+  - 930, which is parked.
+- **Dry runs:** recompose 141 ready; 1035 goes to `rerun-redetect`; 1126 and 1378 go to
+  `ProcessingRunOrchestrator::reExtract`. `extract-runs.txt` (142) is written.
+- **Not yet started:** the watcher and autotick.
+- Membership: `storage/scratch/recut-preflight-20261015/members.txt`. Pre-flight:
+  `preflight.json` beside it.
 
-#### The route a run takes
+**Decisions before dispatch** (pre-dispatch review, 2026-10-16; evidence in the archived
+[follow-up round §12](../archived-plans/FOLLOW-UP-ROUND-FROZEN-CLONE-2026-10-13.md), "Pre-dispatch review"):
 
-| Step | Command | What it does |
-|---|---|---|
-| Snapshot | `historic-import:rerun-snapshot {runs} --routing=… --routing-sha256=…` | Membership, code revision, each run's state and listening routes |
-| Tier A | `historic-import:rerun-retranscribe {snapshot} [runs]` | Whisper afresh; reuses RMS and audio timeline; stamps `detection: none` |
-| Tier B | `historic-import:rerun-redetect {snapshot} [runs]` | Four draws composed; any question holds the run for review |
-| Review | `structure:ensemble-export-questions {runs} --sample-decided=… --sample-cuts=… --seed=…` | Review page: questions, talk-edge checks, samples, skim list |
-| Answers | `structure:ensemble-apply-answers {export} {answers} --execute` | Banks each answer; records sampled cuts in `sample-results.json` |
-| Recompose | `historic-import:rerun-recompose {snapshot} [runs]` | The answered draws composed again under current rules; no draw |
-| Held text | `historic-import:held-transcript-report` then `service:release-content-hold` | Proposes held talks whose new text reads restored; the operator releases |
-| Tier C | `historic-import:rerun-extract {snapshot} [runs]` | Cuts the media once |
-| Diff | `historic-import:rerun-diff {snapshot}` | What changed; attention fails the batch |
-| Backup | `rsync -a --exclude '._*'` of `storage/app/private/service-artifacts/` and `…/detection-rulings/` to `/Volumes/Sonnics/` | After every batch |
-| Learning | `structure:ensemble-batch-report {runs} --export={dir} --report=…` | Questions, answers, samples, review minutes |
+1. **Add the 39 v9 runs the dead-feed rule moves.** The rule did not bump the media version, so the
+   version-based membership missed them. They include 1096 (sermon 1023, the case the rule was built
+   for), 1352 (sermon end −39.3 s), 1308 (+35.3 s), and the talks 1020 §1344, 988 §1149 and
+   1326 §4135. Route: recompose and cut; 974 through `reExtract` (register X7).
+   - The runs: 928 941 951 956 974 976 977 983 988 993 994 997 1002 1004 1015 1017 1018 1020 1023
+     1060 1062 1063 1066 1077 1096 1102 1106 1131 1136 1210 1229 1269 1308 1326 1328 1334 1339
+     1342 1352.
+2. **Cut the 62 held sermons with `--held-section`** (register Q8), after a `--dry-run` per run. A run
+   stopped before `TranscribeOutputEdges` goes through `reExtract`. Four are the duplicate pairs' runs
+   (1034, 1120 and 1375 kept, 1374 excluded) and follow decision 3 instead.
+   - The runs: 929 946 969 980 1003 1008 1019 1030 1031 1032 1034 1039 1047 1052 1057 1059 1064
+     1065 1068 1069 1075 1084 1090 1095 1100 1107 1120 1121 1168 1176 1177 1187 1197 1208 1209
+     1215 1230 1248 1254 1258 1262 1276 1278 1297 1300 1309 1310 1317 1320 1322 1330 1332 1336
+     1347 1359 1364 1373 1374 1375 1380 1381 1382.
+3. **Apply the duplicate-pair corrections first** (§4.4, register X4). Drop 1035 (pair B's poorer
+   run, a member on the paid re-detection route). Take kept runs 1034, 1120 and 1375 through
+   re-detection, then `--held-section`. 1374 is excluded.
+4. **Song dead air:** should song outputs take the spoken edges' 2 s bar (register E14)? A yes needs
+   a replay against the song regression fixtures first.
+5. **Known-wrong endings cut again unchanged:**
+   - members 1224 (the sermon end runs 22 s into the hymn while the preacher reads it) and 1111
+     (ends mid-sentence);
+   - non-members 1198, 962, 1005, 1240 and 1271.
 
-Every dispatch is a dry run without `--execute` and is bounded by `--max`.
+   Rule them, hold them, or accept them on record.
+6. **Unreviewed structure changes on recompose:** 1036 drops "Unidentified singing" §1470 (no media);
+   1255 drops "Opening Bible reading" §3178, which carries a stale song clip. Look before the round,
+   or listen after it.
+7. **§9.1 step 1 before the round?** If the cause is fixed first, the 141 recomposes stop adding to
+   the stale-clip residue (§4.1).
+8. **Thumbnails:** no change to the round unless the deferral is brought forward (§4.5).
 
-#### Built for the final canary (2026-10-02, uncommitted at the time of writing)
+**Go checklist** (on the operator's word, after the decisions):
+1. Push master to a backup branch: no workflow runs on a non-master push. Force
+   `DB_DATABASE=testing` in `phpunit.xml`, so tests in a clone cannot reach `crockenhill`; test it
+   on main.
+2. Apply the three duplicate-pair corrections (`historic-import:correct-run-identity … --apply`).
+3. Build what the decisions approve on master. Move the clone to it ([runbook](HISTORIC-ROUND-RUNBOOK.md)
+   §2.1).
+4. New snapshot: the 144 less 1035, plus the 38 v9 runs (the 39 less 974), plus 1034, 1120 and 1375
+   on `rerun-redetect`. Dry-run every route.
+5. Watcher on the new snapshot (runbook §5.1). Then:
+   - stage (a): one recompose followed through every job;
+   - then `rerun-recompose --all --max=500 --execute`;
+   - `rerun-redetect` for its runs;
+   - autotick on the extract list;
+   - 974, 1126 and 1378 through `reExtract`.
+6. `sermons:re-extract --held-section --dry-run` over the held runs, then cut them one at a time
+   after the main batch.
+7. Listening: every edge moved ≥ 1 s, the backlog in §4.1, 1036 and 1255, and the held-sermon release
+   page. Then close (runbook §8).
 
-Measured read-only before building; full suite, PHPStan and Pint after.
+**Time:** about 3.9 min a run (10-15): about 9.5 h for the 144, plus 2.5 h for the v9 runs. Held
+sermons take about 6 min each, one at a time: about 6 h.
 
-1. **Recompose round.** An answer on a run with media never touched its sections: the answer
-   action syncs only runs without media, and every historic run has some. So the answer reached
-   the run only at the next detection, which drew four fresh drafts nobody had reviewed, and a
-   second detection on one commit was refused, so every review cycle cost a freeze move.
-   **Measured** (`storage/scratch/carryover-20261002/carryover-report.json`, no calls): canary 9's
-   answers applied to the 58 saved §6 sequences of the same 16 recordings (all 16 source hashes
-   match) left 13 questions open; **11 of 58 re-rounds asked again**: 6 lost or invalid drafts
-   (reduced coverage is bound to its attempt by design), one answered span matched at 0.49
-   overlap against the 0.5 bar, and 6 new content questions canary 9's drafts never raised.
-   Built: `DetectServiceStructure` takes a recompose request (`service_structure_recompose`, naming
-   the attempt) and composes the latest banked draws with every answer, then validates, syncs and
-   reviews exactly as after fresh draws. It refuses rather than draws when the attempt is no longer
-   the latest or its input no longer matches the run (re-transcribed, new order of service). A job
-   retry recomposes again; a final failure withdraws the request. `historic-import:rerun-recompose`
-   continues a round on the same code and snapshot (held for questions, or completed and not yet
-   cut), or brings an uncut run onto new code after a rule; Tier C takes either.
-2. **Code revision** (standing decision 7). Computing it reads every code file, about 0.7 s
-   through Docker's file sharing, once per worker boot and once per command.
-3. **RMS log banked by reference.** Each attempt's input averaged 15.2 MB, almost all of it a copy
-   of the RMS log already kept on the artifact disk; the internal disk had 18 GB free (96% used),
-   and 437 runs at 1.5–2 rounds each would have taken 10–13 GB. The input now names the log by the
-   path and hash it already recorded; a replay or draw reads it back and refuses if it changed.
-   Canary 9's 16 bundles keep their copies and replay unchanged.
-4. **Talk-edge checks** (ensemble decision 21). The ensemble cannot see an error every draft
-   shares, and the 09-28 ruling asks about every talk edge that touches other speech with no
-   pause. Each such edge on an agreed talk is now an ordinary question with the composed talk as
-   its one version: "Yes, it is right" or "No, say where in the note". **Measured:** on canary 9
-   with its answers, 7 open questions become 12 (5 runs; every check a talk ending straight into a
-   prayer); over the 232 §6 draws, 0.77 → 1.19 questions per batch-1 sequence and 23 → 15 of 48
-   sequences question-free; 16 of the 20 checks are talk–prayer joins; none fell on an edge the
-   truth file marks wrong (every known error there is already a dispute). **Adopted 2026-10-02:**
-   exempt a talk's end running into a prayer under the closing-prayer ruling; prayer before a
-   talk, readings, interruptions and other speech remain checked. Replay of all 232 saved draws
-   removes 12 of the 20 checks: 0.94 questions per batch-1 sequence, 20 of 48 question-free,
-   zero unflagged talk-count errors and zero wrong scored cuts (45 scored, three accepted holds).
-   Evidence: `storage/scratch/carryover-20261002/prayer-exempt-report.json` (no provider calls).
-5. **Review samples.** `--sample-decided=N` moves N majority decisions, drawn with a recorded seed,
-   into the questions (answered and applied as any question). `--sample-cuts=N` asks "does the
-   cut start and end in the right places?" of N question-free runs, around the cut Tier C will
-   make; the answer is recorded, never applied, and a wrong cut is held through the hold path and
-   counted as an unflagged error. Together they measure what the queue cannot: how often a
-   three-to-one vote is wrong and how often an agreed cut is wrong, on services the rules were not
-   tuned on.
-6. **Batch report** (`structure:ensemble-batch-report`): runs; rounds detected, recomposed and
-   transcribed; open questions by type and per run; deferred; talk-edge checks; skim-list size;
-   answers by kind, split into corrections and confirmations; answers applied, stale and
-   conflicting; degraded attempts; sampled decisions overruled and sampled cuts wrong; and review
-   minutes estimated from the answers' times.
-7. **Held-transcript report and release** (proposed 09-25, ruled before the first era batch).
-   Tier C parks 74 runs held on a sermon or talk, 36 of them Tier A runs whose holds no code check
-   can re-test. `historic-import:held-transcript-report` measures each live hold's passage in the
-   current text with the pipeline's own repetition screen and 1112's "no gap over 8 s", and
-   proposes `looks_restored`, `still_suspect` or `text_unchanged`. It never clears a hold. The
-   operator listens and releases with `service:release-content-hold {section} --because=… --execute`,
-   which keeps the record and recomputes review. Release after the Tier B round and before Tier C:
-   the diff then reads the release as `hold_cleared`, a change, not a failure.
+**Execution log:** record the round here as it runs. Move the record to a dated archive log when it
+closes.
 
-#### Canary 10, the final canary
+### 4.1 After the round
 
-**Historical dispatch sequence; not current resume instructions (clarified 2026-10-04).**
-The steps below record the authorised original round. Do not repeat these dispatches over
-the parked queue. Use the latest shutdown/frozen-branch record at the end of
-[Cut What Was Identified, In Sync](CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md).
-Validation of output-changing fixes belongs to the next freeze/canary, with the open
-[consistency findings](VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md#2-finding-register)
-explicitly accounted for; this note does not authorise that operation.
+1. **Close the round** (runbook §8). Back up the service artifacts.
+2. **Listening:**
+   - every edge the round moved ≥ 1 s, and the large dead-feed moves (1308, 1339, 1342, 1352);
+   - the starts moved by J1 and J2 on 10-12, never heard: 976-960, 1232, 1214, 1227-2799, 1291, 1203,
+     1040, 939 (J2) and 990, 1149, 1167 (J1);
+   - 1271's "sovereign" ending, 1345's "Technical difficulties", and 1036 and 1255;
+   - the held-sermon release page (Q8).
+3. **Stale song clips on non-song sections** (archived
+   [follow-up round §9.1](../archived-plans/FOLLOW-UP-ROUND-FROZEN-CLONE-2026-10-13.md#91-clean-up-pass-stale-song-clips-on-sections-that-are-not-songs-found-14-10),
+   recounted 10-16):
+   1. fix the cause, with a failing test from 1002;
+   2. a dry-run command that un-points the path and re-binds or retires each `SongVideo`, keeping its
+      file;
+   3. recount;
+   4. re-run the watcher's diff.
 
-**Scope:** the 16 batch-1 runs (canary 9's set: 936, 949, 964, 1025, 1028, 1050, 1108, 1112, 1117,
-1221, 1250, 1304, 1311, 1346, 1356, 1358), so every path the batches use runs once on the frozen
-code, and 1221's lost clips are re-cut.
+   Open for the operator: listen to the clips that are the only copy of their song in a run before
+   they are retired?
+4. **Duplicate pairs**, if not applied before the round (§4.4).
+5. **Song acceptance stage 2** on the settled runs ([protocol](HISTORIC-SONG-ACCEPTANCE-MEASUREMENT-2026-10-11.md)
+   §3, M4).
+6. **Run-level items:**
+   - retire 879 (register X5);
+   - 1363: OoS item 18035 still links the prayer §215988, not the sermon §248827, and no admin action
+     re-links a section;
+   - 1015: preacher ("Visiting Speaker", while 879 names the operator);
+   - Scripture enrichment for 973, 1022 and 1171;
+   - nested publication work for 1127, 1352, 1220 and 1223;
+   - 1108 and 1223 (projection error), 945 (coverage), 1314 (holds without a section);
+   - the six structure-review runs (973, 1287, 1288, 1327, 1355, 1366).
+7. **Build the two detection fixes ruled on 10-14:** join split sermons (D21: 1073, 1268) and 954's
+   talk (D22). Then re-detect those runs.
+8. **Small code items:**
+   - readiness should treat a retired run like an excluded one (937);
+   - readiness should treat the thumbnail as pending its §4.5 step, if the operator agrees.
+9. **Unset the temp-file cleanup pause** after the historic repairs (register C6).
 
-1. Commit. Restart the workers and check each one's start time against the commit. Snapshot all
-   16 with the bound routing file. Preflight (below).
-2. **Tier B, fresh draws:** `rerun-redetect --max=16 --execute`. This exercises the draw children
-   reading the RMS log by reference, and canary 9's answers carrying to fresh draws.
-3. Export with `--sample-decided=3 --sample-cuts=2`, answer every question, apply.
-4. **Recompose** the runs held for questions: `rerun-recompose --execute`.
-5. **Tier C** on every completed run: `rerun-extract --max=16 --execute`; the diff after it.
-6. Frame-gap scan of every new cut (the canary-6 harness); batch report; back up.
-
-**Pass, predeclared (all must hold):**
-
-- *Custody:* both diffs show no live hold lost and nothing public; every section that lost media
-  in the round has it again after Tier C, including 1221 §2718 and §2727 and their song video.
-- *Draws:* 64 of 64 draws valid, or each lost one shown as reduced coverage; every new input
-  banked without an RMS copy, and every bundle replays.
-- *Carry:* no question canary 9 answered is asked again; no conflicting answer.
-- *Accuracy:* 0 unflagged talk-count errors and 0 wrong cuts against the truth file, as canary 9;
-  every question answered.
-- *Recompose:* no draw made (the bank's attempt count unchanged), and no question left open on any
-  answered run.
-- *Cut:* every completed run cut, at `veryfast`, with no frame gap or repeat at a join; held
-  sermons park as designed.
-
-Reported, not judged: new questions on fresh draws (about 3 expected from the 11-in-58 carry-over
-rate), review minutes and the samples. **A failure stops advancement and remains evidence**: fix,
-commit, new snapshot, and canary 10 again on the same set.
-
-**Operator amendment — 2026-10-02, after the Tier B result.** The predeclared bar above is
-retained as the original contract. The operator explicitly permits one exception for 1112's
-logged conflicting answer in this canary: canary 9 accepted one talk at 886–1596 s and rejected
-a separate inner testimony at 1057–1455 s. Fresh draws contain the wider talk and no separate
-inner testimony. The rejected inner scope overlaps the wider majority decision above the 0.5
-matching threshold, so the matcher reports a competing answer although the two operator
-instructions agree. Run 1112 completed with one talk and no open question. This exception does
-not excuse any other conflicting answer, re-asked decision, accuracy, custody or cut failure;
-the canary has not yet passed. The evidence is the banked compositions and saved rulings,
-`storage/scratch/c10_1112.out` and the private canary batch report.
-
-Before batch 1, fix the matcher after the canary cut queue drains. Write the reproducing test
-first and cover a genuine contradictory answer as well. A rejected standalone inner section
-must not compete with, or remove, the accepted containing talk when the inner section is
-already absent. Preserve the evidence and check the corrected matcher against this saved bundle.
-
-The 17 stale answers were compared with the final banked compositions, not just their source
-hashes (`storage/app/private/canary10-20261002/stale-content-audit.json`). Rejected standalone
-fragments are absent or merged, and the settled passages remain represented. Accuracy review
-still includes 964's chosen Psalm 105 start (141.998 s → 145.017 s), 936's corrected closing-hymn
-introduction now split into adjacent sections, and 1358's opening Revelation verse-reference
-change. These differences are retained as evidence; source listening and cut acceptance remain.
-
-**Tier C attempt and pause — 2026-10-02.** The finalized answers file is
-`storage/scratch/canary10-questions/answers-final.json`. Ten rulings applied; the last answer,
-1356-q1, was already closed by keeping the same passage as a notice through 1356-q0. The final
-structure contains one notice and no duplicate other section. The conditional 1108 song answer
-was checked: "Who has held the oceans in His hands" is followed by "His Mercy Is More". Six runs
-(936, 949, 964, 1108, 1346, 1356) recomposed; banked attempt counts stayed unchanged. All 16
-completed with zero open questions. The post-recompose diff has zero attention failures and
-media custody pending extraction. The review report records 3/3 sampled cuts right and 5/5
-sampled majority decisions upheld.
-
-Tier C's dry run accepted all 16, and all 16 were dispatched. ExtractSermon then refused 936:
-projection had renumbered canonical OoS positions without changing identities, content or
-relative order. All source and slot hashes still match. This is a gate defect, not an
-unanswered question. Historic workers were paused between jobs; 949's in-flight extraction
-finished, with 14 ffmpeg jobs and one orchestration job queued and none reserved. Evidence is
-in `storage/app/private/canary10-20261002/` (`answers-applied.txt`, `answer-application-note.json`,
-`after-recompose-status.json`, `diff-after-recompose.json`, `batch-report-after-review.json`,
-`extract-dispatch.txt`, `936-extraction-gate-source.json`, `936-current-oos-source.json`,
-`tier-c-pause.json`). The gate fix is tested first against the renumbering regression and retains
-rejection of real ordering, content, membership, policy and artifact changes. The regression failed
-on renumbering before the fix and passed afterwards; 24 focused tests and the full 9,107-test
-parallel suite pass, with PHPStan and Pint clean. Historic ffmpeg and orchestration containers
-are stopped with their queued jobs preserved, so a commit cannot auto-resume the old round. Recovery requires
-a new snapshot on the fixed code; the operator's approval of
-a bounded reuse exception is recorded below. Do not resume the old queued round on changed code.
-
-**Operator recovery exception — 2026-10-02.** The operator explicitly ruled "Reuse the saved
-draws" after the projection-renumbering fix (`a66da8ced`). This is a second, bounded amendment to
-the original predeclared failure rule: no fresh provider draws are required for this gate-only
-fix. Retire the preserved stopped Tier C payloads by exact membership, settle their interrupted
-runs, then take a new snapshot of the same 16 on the fixed code. Restart workers after the
-commit and recompose all 16 from their latest saved attempts and finalized answers. Banked
-attempt counts and attempt identities must stay unchanged, with no open questions. Then Tier C
-and every original accuracy, frame-gap, custody and containment check still apply. Keep the
-original before.json for full custody comparison as well as the new recovery snapshot; the
-partially completed first extraction attempt is retained as evidence. This approval does not
-waive any input content/order change, any additional answer conflict or any other failed gate.
-
-**Saved-draw recovery follow-up — 2026-10-02.** The first recovery snapshot is
-`canary10-20261002/reuse-before.json`, on `ee49aabd3` with the gate fix `a66da8ced`. All 16 draws
-recomposed with unchanged banked attempt counts and zero open questions, but a second raw-position
-comparison in DetectServiceStructure's locked write guard rejected most runs before syncing.
-1050 alone completed that round. This duplicate check was missed in the first fix. No Tier C
-was dispatched from this recovery snapshot. Three pending retries (936, 1221, 1250) were retired
-by exact preserved payload and the interrupted/failed runs settled for recovery.
-
-The follow-up unifies the write, dispatch and extraction input checks in EnsembleReviewGate,
-retaining source artifact hashes, policy, canonical identity/content and relative order guards.
-The full-job regression failed on the duplicate check before the fix; it then passed alongside
-55 other focused tests. The full suite passes (9,108 tests); PHPStan and Pint are clean. A second recovery snapshot on this code
-must precede recomposition and extraction; the operator's saved-draw exception still applies to
-this same projection-only defect. Original before.json and both recovery attempts remain
-custody evidence, and the 1112 exception and all other acceptance gates remain as recorded.
-
-
-**Projection provenance follow-up — 2026-10-02.** The next snapshot,
-`canary10-20261002/reuse-shared-guard-before.json` on `fe605f442`, passed detection's shared
-input guard for all 16 saved bundles, with unchanged attempts and zero questions. Projection
-then exposed a separate round-identity omission: the provisional song payload had already
-been superseded by the previous round's refined payload, so ingestion refused to replay it.
-936 and 1050 completed; the other 14 failed after exhausting retries. No Tier C was dispatched.
-The failures were settled through the existing manual-review transition, with the complete
-pre-transition records saved in `projection-retirement-before.json` and no evidence deleted.
-
-LivestreamSourceAdapter now retains the latest detection round's snapshot hash and dispatch
-time as immutable processing provenance. A new recorded round may legitimately observe its
-provisional payload before refinement; a retry of the same round keeps the same identity.
-The source ingestion guard against replaying superseded evidence is unchanged. The regression
-failed on that guard before the fix and passes afterwards, including final-pass idempotence;
-62 focused tests and the full suite (9,109 tests) pass; PHPStan and Pint are clean. All earlier snapshots remain custody
-evidence. Recovery continues with the saved bundles and operator answers, without new draws.
-
-**Canary 10 result — 2026-10-02, after Tier C.** Snapshot `reuse-provenance-before.json` on
-`da7e4900b`; the ffmpeg worker started after that commit. All 16 recomposed from saved draws
-(32 banked attempts unchanged, 0 new draws, 0 open questions), and Tier C dispatched all 16 at
-16:38Z. The queue drained at 18:33Z with 0 failed jobs; all 16 are `completed` and stamped
-`extracted`. Every predeclared criterion is met as written, with the two operator amendments
-above (1112's carry exception, saved-draw recovery). Three findings for the operator follow
-the list. Evidence is in `canary10-20261002/`: `diff-after-tier-c.json`,
-`original-before-diff-after-tier-c.json`, `media-after-tier-c.json`, `cut-gapscan.json`,
-`canary10-score.json` and `batch-report-after-tier-c.{json,txt}`. Scripts are
-`storage/scratch/canary10-measure-20261002.php`, `canary10-gapscan-20261002.py` and
-`canary10/score.php`, copied from the canary 6 and canary 9 harnesses.
-
-- *Custody:* against the recovery snapshot, 0 runs need attention and 0 have custody pending.
-  Against the original `before.json`, 10 runs list 25 sections that "left review". In
-  `before.json` each was in review only through `structure_ensemble_disagrees`, the
-  open-question flag; those questions are answered, and all 25 were already out of review in
-  the recovery snapshot. Neither diff has a lost hold, lost or removed media, or anything
-  public. The 20 newly published songs are all `section_published_into_quarantine`. For 1221:
-  §2718 was retitled "King of Kings" → "King Of Kings" (canary 9's failure shape) and
-  re-cut, not deleted. §2727 and its song video 659 were re-cut.
-- *Draws, carry, recompose:* as recorded above (63/64 valid, with 936's lost draw shown as
-  reduced coverage; every bundle replays). 1 conflicting answer, which is 1112's excepted one.
-- *Accuracy:* against `detection-truth-20260928.json`, 0 talk-count errors (flagged or
-  unflagged), every truth section matched, and 0 wrong cuts. For the 13 scored cuts, the
-  written video matches the planned span to within 0.05 s. Samples: 0/5 majority decisions
-  overruled, 0/3 cuts wrong.
-- *Cut:* 72 files measured plus 1221 §2718, none missing, at `veryfast`. 70 of 73 have
-  regular frame timing. Two of the three exceptions are not this round's defects: 1050's last
-  frame (+0.1 s, in the recording, as canary 6), and 1028 §1398's held clip, a 09-27 cut
-  reused because its section did not change (1112's song video 614 was reused the same way).
-
-**Findings for the operator (not failures of the bar as written):**
-
-1. **936 sermon, half-frame step at 59.25 s.** The stream-copied piece and the re-encoded tail
-   of the first span join 0.049 s apart instead of 0.033 s. No frame is lost or repeated: the
-   span holds 1,799 frames against 1,798.8 planned. The source has no part boundary there and
-   is regular (33/34 ms steps, keyframe at 248.0 s in `11-02.mkv`), so the cut introduced it.
-   The step is a 16 ms timing hold, not a missing frame. Accept, or investigate the piece
-   placement on millisecond-clock Matroska before batches.
-2. **Sermons merged across an interruption are cut from the baseline.** In 1050, 1250 and 1356,
-   detection's sermon matches the truth. However, `structure_sermon_interruption_merged` is a
-   `MATERIAL_BOUNDARY_FLAGS` entry, so the resolver falls back to the dominant speech segment
-   (`no_high_confidence_sermon_section`). 1050 is cut 0–920 s (truth 79–838), 1250 is cut
-   1739–4391 s (truth 2454–4310; it started at 2182 s before this round), and 1356 is cut
-   1233–3555 s (truth 1234–3489). All three sermon sections have `needs_manual_review`,
-   are quarantined and remain unscored as in canary 9. This is designed behaviour, but the
-   held cut is worse than the detected span. A rule change would come before batch 1.
-3. The 1112 matcher fix (above) remains required before batch 1.
-
-**Operator ruling — 2026-10-02, after the result.** "Anything that gets audio out of sync
-with video is bad", and a cut should simply be the video for what was identified, with no
-extra logic about times. Canary 10 is not accepted. A whole-file sync scan found four causes,
-all in our code (`loudnorm` in song videos, span joins, smart-cut piece placement, and reuse of
-old cuts). A census of 475 runs found 46 sermons cut from the old detector's times, 26 of them
-containing songs. See [Cut What Was Identified, In Sync](CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md).
-**Follow-up operator decision — 2026-10-02:** sermon media contains the sermon reading
-(if separate), the sermon, and a concluding prayer if before the post-sermon song. The linked
-plan now records this composition and the simplified shared cutter, focused sync regression
-tests and explicit media-processing version. Implementation is committed through `fbfd9d1cd`,
-with the 1112 matcher fix in `0098afe2c` and unindexed-WebM compatibility in `cf8a44371`;
-the full suite passes (9,140 tests), PHPStan and Pint
-are clean, and the frontend build and full Dusk suite pass. The selected corpus benchmark passes
-(27 output assets plus the isolated known-defect span). The linked plan records the evidence and the
-fresh same-16 canary snapshot. Canary 10 remains unaccepted under the existing controls. The production
-weekly-media audit is a separate follow-up.
-
-**Section-cut canary follow-up — 2026-10-03:** after explicit approval, private service-artifact
-and detection-ruling backups were refreshed on `/Volumes/Sonnics`. All 16 saved-draw
-recompositions completed on the fixed code, with queues drained and no new failed jobs.
-Both fresh and original custody diffs report zero attention; media custody is still pending
-extraction (15 and 12 runs respectively). Fifteen runs now require composition review: 98
-uncovered-speech findings and one unresolved reading-membership finding. The private
-`cut-sections-canary10-20261002/composition-review.md` handoff links their service editors.
-No extraction or acceptance was dispatched; those findings must be resolved first.
-
-#### Batches
-
-**Tier A** starts once canary 10 passes (dispatch only after its custody diff is clean): 170 runs,
-transcription only, on the Whisper worker (130–280 s a run, 6–13 hours), and it can run while
-Tier B batches use the LLM worker. Then raise the 945 and 1342 holds, take a new snapshot (the
-code is unchanged, so no commit is needed), and run the held-transcript report after each batch's
-round.
-
-**Batch shape, adopted by the operator 2026-10-02:**
-
-- About 40 runs a batch, in era order: about 5 hours of Tier C and, at canary 9's rate after rules
-  plus the talk-edge checks, about 35 questions.
-- **Batch 1:** 20 runs from the workbook's *discovery* half (2023–2026), so song identity is scored
-  automatically against the pianist's record without opening the held-out half.
-- Each batch: snapshot → Tier B → export (`--sample-decided=5 --sample-cuts=3`, seed recorded) →
-  answers → recompose → held-transcript releases → Tier C → diff → back up → batch report → rule
-  proposals.
-
-**Stop rules, adopted by the operator 2026-10-02:** stop before the next batch when any of:
-
-- a live hold is lost or anything becomes public;
-- a sampled cut is judged wrong with no question raised on it (an unflagged error): investigate
-  before the next batch; two in one batch stop it;
-- a sampled majority decision is overruled: investigate rule D; two in one batch stop it;
-- more than three new talks under 60 s in one batch are confirmed false (standing decision 5);
-- more than 10% of a batch's ensembles lose a draft (provider trouble);
-- unresolved composer disputes per run, **before saved answers**, exceed **2.0**. The operator
-  adopted the raw canary 10 baseline of 16 disputes / 16 runs = **1.0** on 2026-10-02, replacing
-  the post-answer rate of 0.31. Use the same composer-dispute unit in later batches; a dispute
-  may produce more than one review-page question. Samples are excluded from this rate.
-
-**Performance.** Tier C dominates: about 50–58 hours on one ffmpeg worker at `veryfast` (60–68 at
-`faster`, measured on canary 5). Tier B rounds take about 88 s a run on the one LLM worker (about
-10.7 hours for 437); a second LLM worker would halve that if review ever waits on rounds. With the
-recompose round and the code revision, batches can overlap: batch N+1's round and review while
-batch N cuts, because neither an answer nor a documentation commit strands a queued cut. Only a
-rule commit does, and it waits until the cut queue has drained.
-
-#### Open before batch 1
-
-- Batch shape and stop rules adopted 2026-10-02 as written above.
-- Talk-ending prayer exemption adopted 2026-10-02 (built 4); retain checks at other speech edges.
-- Raise the 945 §669 and 1342 §4319 holds after Tier A writes their text.
-- Run the held-transcript report and release what listening confirms.
-
-#### Preflight for every dispatch
-
-1. Freeze exact membership in the snapshot; settle transcript and structure dependencies before
-   cutting; retain or exclude unresolved cases explicitly rather than widening the batch.
-2. Queues empty (queued, reserved, delayed); every worker started after the last code commit;
-   staging and temp mounts readable and writable; free space for the batch on `/Volumes/Staging`
-   and at least 10 GB on the internal disk (service artifacts live there); the previous batch
-   backed up.
-3. Reuse the canary's evidence for paths it covered; check representative first outputs of any
-   path it did not; stop expansion on a new regression or an unassessable result. Outputs stay
-   quarantined pending §4.5.
-
-**Canary 10 word-pause dispatch, 2026-10-03 — initial extraction hold, resolved below.** The
-operator authorized only the same sixteen, with 1050, 1250 and 1356's interruption-merged
-sermons parked. Preflight passed on unchanged code `6b355b8cd` / revision
-`e09d11928eeb5a3401e9e5068b4eb247234c3b3a7696b6ce35b505533fb09cde`; `8ea5a0a99` is
-documentation only. The latest `before-word-edges.json` snapshot was reused. All historic
-workers started at 12:29:54 UTC, after the last code commit. Queues were empty, staging and
-temp mounts passed read/write probes, internal free space was 20,249,888 KiB and staging
-489,518,068 KiB. Sonnics service-artifact and detection-ruling backups were refreshed with
-checksum comparison and no deletions. Receipt: `canary10-word-run-20261003/preflight.json`.
-
-All sixteen saved-draw recompositions completed. The bank still has 32 attempts with unchanged
-attempt IDs and draw-bank hashes; failed jobs remain at 479, with zero new failures.
-`before.json`, `after-recompose.json` and `timing-results.json` in that receipt directory bind
-the comparison. All 64 immutable draw artifacts match their checksums; 63 remain valid.
-936's pre-existing slot 2 still fails `non_chronological`, giving three valid votes rather
-than four (`936-slot-replay.json`); no provider draw or new bank input was made.
-**1311 still has one open talk-edge question**, Naomi's testimony
-1056.60–1149.31, beside baptismal instructions. Its accepted word-pause relisten concerned
-songs. The operator prohibited other answers and required zero open questions, so Tier C is
-held pending the requested choice: park 1311 and cut twelve, or hold all cuts pending review.
-No answer was invented or recorded. The thirteen excluding the three interruption-merged
-runs pass the extraction dry run, but this does not resolve the zero-question condition.
-
-**1311 continuation, 13:42 UTC:** the operator confirmed Naomi's testimony as proposed,
-1056.60–1149.31 s; the father's words from 1152.28 belong to the baptism section.
-`structure:ensemble-export-questions 1311` produced an exact answer map for
-`ea480c55f1eaa6e5a690af4c315a4720f532e361d806e5135c3ce2c004cf0ae5`.
-`structure:ensemble-apply-answers` dry run reported one ready/no attention, then `--execute`
-recorded the choice through the existing review action as verified admin 1. All sixteen have
-zero open questions; bank counts, attempt IDs and draw hashes remain unchanged. The batch
-replay corroborates zero open and zero unreplayable runs: `batch-after-1311-answer.json`.
-Refreshed preflight (`preflight-tierc.json`): unchanged code/snapshot, workers started
-13:18:13 UTC, empty queued/reserved/delayed queues, read/write mounts, 20,118,940 KiB internal
-and 490,289,896 KiB staging free, checksum backups refreshed successfully. At 13:50–13:51 UTC,
-Tier C dispatched thirteen with zero refusals (`tierc-dispatch.txt`), excluding 1050, 1250 and
-1356. Those three retain their interruption flags and await the operator's join confirmation.
-The answer receipt is `1311-answer-receipt.json`; extraction/check results follow below.
-
-**Cut/check receipt, completed 2026-10-03:** thirteen Tier C runs completed by 15:53:33 UTC,
-queues drained and failed jobs remained 479 (zero new). No fresh draw or extra answer was
-made. 1050/1250/1356 remain parked with interruption flags retained. `receipt.json` under
-`storage/app/private/canary10-word-run-20261003/` binds all evidence; the detailed per-step
-receipt is in [the cut/sync plan](CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md).
-
-- Timing: the all-sixteen step checked 153 windows, 152 reused/one decoded in 2.135 compute
-  seconds; Tier C rechecked 135, all reused. No no-word fallback or missing-cache blocker.
-  Ninety-eight generated-cut edge audits, 83 text disagreements; absolute movement median
-  0.92 s, p90 7.22 s, p95 10.61 s, max 27.54 s. Sixty-two transcript-gap edges retained their
-  originals, with reasons in `edge-inventory.json`.
-- Generation/sync: thirteen sermon and 57 section audits are current version 6 and match the
-  cached selected plans; 70 distinct new videos (60 quarantine/ten private staging candidates).
-  Seventy cut checks plus seventeen enhancement checks passed, no source anomaly or timing
-  refusal. Original AV/gap scripts covered all seventy, including ten diagnostic candidates
-  omitted by the promotion inventory: zero packet jumps/gaps/repeats, max packet-end offset
-  29 ms. No pre-redesign file was reused for a generated output. 1050's known final-frame gap
-  is confirmed in source; it remains parked. Evidence: `in-cutter-final.json`,
-  `new-videos-all.tsv`, `avscan-final.json`, `gapscan-final.json`, `file-generation-check.json`.
-- **Bar not met.** Original/latest custody diffs have 9/11 attention runs; all 48 attention/
-  pending strings are explained in `attention-explained.json`, without waivers. No lost live
-  hold or public output. Three held extraction signatures remain unrestored: 1108 §1897,
-  1221 §2718/§73036. Five other media losses belong to parked 1250. Review exits are changes
-  in saved-draw projection/publication routing, not operator acceptance.
-- **Naomi clip still blocked.** 1311's authorized answer closed the question in the bank,
-  but the action preserves projections on runs with media. §73575 still carries the old
-  disagreement flag and was skipped. It should have been reprojected while the round was
-  deferred, before Tier C; that ordering was missed. The subsequent 1311-only recompose dry
-  run refused `already re-run on this commit at 2026-10-03T12:48:32+00:00`. No repeat, flag/
-  stamp bypass, code/freeze change or fresh draw was dispatched. Its plan is
-  1056.70–1149.31; the father's 1152.28 words are excluded, but no new Naomi clip exists.
-- Accuracy: scorer talk-count errors zero; copied-run cache probes leave cuts unscored, so
-  `accuracy-direct.json` and `accuracy-talk-direct.json` report every selected/actual plan
-  against truth spans. All sermon/talk planned boundaries are within tolerance; thirteen
-  sermons/seventeen talks have new audits, with parked outputs and Naomi explicitly pending.
-  `listening-list.json` has 106 moved-edge/join/comparison entries; `joins.json` supplies the
-  three parked interruption candidates and 1250's four-part joins, transcript lines and
-  review URLs. Only output-edge timing windows were decoded.
-- Further read-only findings: five talk texts preserved/flagged as predating evidence;
-  quality assessments before promotion inspect prior quarantine files; seventeen published
-  song sections retain staging disk pointers although canonical new quarantine files exist.
-  These were recorded without fixes. 1267's two-song/silence finding remains separate.
-- Both Sonnics backups refreshed with checksum rsync, no deletions, exit zero. The fresh
-  detection-ruling export contains current bank/ruling/review/hold state and its backup SHA
-  matches. The final batch report ran afterwards: zero open/deferred/unreplayable questions,
-  34 applied/17 stale/one conflicting answer (known 1112), one degraded attempt (known 936).
-  `batch-final-after-backup.json`. Unchanged implementation gates remain valid; this receipt
-  changes documentation only. **No canary acceptance, Tier A or hold release.**
-
-The paragraphs below retain the initial pre-cut chronology; the cut/check receipt above is
-the current result.
-
-1250's all-readings ruling was recorded through the existing composition review at 12:57:59
-UTC, by verified admin user 1. Recomposition remapped the earlier IDs: Job 29 73103→3128,
-Job 30 3131→73104, Job 31 3132→4910, sermon 4910→73105. References and source bounds were
-checked before recording; the old-ID request was safely refused because those IDs now name
-different items. `ruling-receipt.json` records the remap and decision. Intervening items remain
-excluded; the interruption flag is retained, so 1250 is still parked. No code or other answer
-changed.
-
-`TranscribeOutputEdges` completed for all sixteen on the Whisper queue: **153 windows checked,
-152 reused, one newly decoded in 2.135 seconds**, zero no-word fallbacks, zero missing-cache
-output blockers and zero failed jobs (`timing-summary.json`, `timings-receipt.json`). Queues
-drained. Both custody diffs before extraction report zero attention runs, no lost live holds
-and nothing public; they retain 13/14 runs pending extraction, with 25 section-media pointers
-pending restoration in the latest diff. Reports: `diff-original-before-extraction.json` and
-`diff-latest-before-extraction.json`. These do not pass final custody until media is restored.
-
-The scorer reports zero talk-count errors. Its copied-run probe cannot read real-run-keyed
-edge caches; `accuracy-direct.json` supplements every unscored cut with selected planned
-spans and truth spans/alternatives. All sixteen planned sermon boundaries are within the ruled
-tolerances; preparatory reading membership is reported separately. New-output timing scans,
-in-cutter evidence, current-version/file-reuse checks and final custody remain pending cuts.
-Baseline scans/score were preserved. 1050's source at PTS 920.321 has the same excess final-
-frame gap (0.067 s) as the baseline cut (0.0666 s); source audio is regular in that window.
-
-`listening-list.json` has 90 moved-edge/join entries; `joins.json` supplies raw sermon parts,
-intervening readings, transcript lines and review URLs for the three parked sermons, and the
-three joins of 1250's four selected parts. Full steps, source-tail evidence and log paths are
-in [the cut redesign plan](CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md#authorized-canary-10-dispatch--2026-10-03-cut-dispatch-held-for-1311).
-The bar has **not passed**; no canary acceptance, Tier A, Tier C, hold release or other answer
-has been dispatched or recorded in this operation.
-Both backups completed again with checksum comparison, exit zero and no deletions; the batch
-report then ran (`batch-after-backup.json`). It reports 16 replayable runs, one open question,
-33 applied, 17 stale and one conflicting ruling (the declared 1112 exception), with no
-unreplayable bundle. `receipt.json` binds all evidence hashes and pending steps;
-`open-question.json` includes 1311's source context and review URL. Cut dispatch still awaits
-the operator's requested scope choice. No acceptance is claimed.
-
-### 4.0b Regular uploads are the lasting outcome
+### 4.2 Regular uploads are the lasting outcome
 
 Historic imports use the livestream
 path. Current auto-trim already shares full-service transcription, structure
@@ -884,285 +395,16 @@ treat historic acceptance as proof for all three modes.
     paused, and has never run consistently on production.
 
 The dependency order (transcript → structure and identity → planning → extraction →
-stored-output checks) is §4.0's tier shape. The 09-22 numbered workstream list moved to the
+stored-output checks) is the tier shape (register R1). The 09-22 numbered workstream list moved to the
 [log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-12-TO-2026-09-23.md#moved-from-the-plan-on-2026-09-24); its open gaps are in §4.4, §4.5 and the
-carried items below.
+carried items in §4.3.
 
-### 4.1–4.3a Workstream status (condensed 2026-09-23)
+### 4.3 Acceptance evidence still owed
 
-The detailed workstream sections §4.0–§4.3a (canary, containment, §4.1a–§4.1d
-censuses and rulings, transcript-loop and song-policy work, the class table and the
-H1–H10b detector harness) moved **verbatim** to the
-[execution log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-12-TO-2026-09-23.md).
-Cite it for evidence; do not copy histories back. The class-to-detector binding is
-data, in `resources/detector-classes.json`. Section numbers §3.1, §4.0a, §4.1–§4.1d and
-§4.3a, the §4.1b coverage matrix and the H-numbered harness steps refer to that log; this
-plan's §4.0 is the corpus re-run, not the log's.
-
-| Workstream | State on 2026-09-23 |
-|---|---|
-| §4.0a Repair canary | Done 09-17 (3/3). 1340 repaired 09-18. Held sermons park at extraction. Bounded retranscription of 980/1258/1343 done 09-20; 1287 re-transcribed and re-detected 09-23 (stale replay stamp superseded on dispatch, `ed92d48f2`). |
-| §4.1 Containment | Missing holds from the 09-10/11 review contained. Assets stay quarantined until their text or cuts are recovered. |
-| §4.1a/§4.1b Discovery censuses | Coverage censuses complete (residue, OoS order, titles, dates, sections, song loops, Scripture, consumer rendering, tails, video quality). The field coverage matrix is in the log. Human-only rows (end-to-end watching, real server/browser playback) remain open. |
-| §4.1c/§4.1d Rulings, interior review | BC-06/BC-07 ruled 09-18 (§4684 moved to the talks plan). 18 interior windows and BC-05 replay done. |
-| §4.2 Transcript loops | `max_context=0` fixes context drift; screen, sparse cadence (both-flank excuse) and recovery re-applied corpus-wide 09-21. Corpus re-decoding via H10b (below). Direct uploads: loops not reproduced on local Whisper. |
-| §4.3 Song policy | Speech-edge trim, sustained-sound widening, 10 s introduction bridge (09-22), lyric edges, neighbour same-song rule (09-23) built. Existing outputs need re-detection and re-extraction through the pipeline. Hint/binding contradiction rule measured and not built (all genuine cases already held). |
-| §4.3a Detector harness | Catalogue, five adapters, case book, replay and evaluation built. Last full evaluation (before the 09-23 detectors): 38 detectors, 5 fail, 33 not established, 0 accepted. 1341 fixed (bridge), 1337 fixed (neighbour rule), 1287 diagnosed as transcript loss (not a detector gap), 1109 below the intentional threshold. Recall via H10/H10b. |
-| H10b Re-decode comparison | Built, controlled (C1/C2/C3) and run over 338 runs; decision rule applied unchanged (tripwire 2.20%). 99 restaged runs decoding as batch 2. **Listening done 2026-09-24** (352/353 judged); results and routing below and in §4.0. Details and the committed rule below. |
-
-#### H10b, 1337 and 1287: live notes (verbatim from the 2026-09-22/23 follow-up)
-
-- **H10b corpus preparation, 2026-09-22.**
-  - **Membership census** (read-only, `h10b-membership-20260922.{php,json}`): of 455
-    historic runs, **338 are decodable** (321.5 hours of audio). 117 are unassessable
-    before decoding: 113 have lost their staged source (the pipeline's own
-    `livestream/temp/…mkv` copy was cleaned after completion; 101 single-source, 12
-    lossless concatenations, including 1003 and 1084), 7 are not completed, 3 have
-    no recorded hash and 1 has no stored transcript. Restoring the 113 is a separate
-    byte-identical restage decision and is not assumed here. Every decodable run has
-    recorded screen blocks (none null).
-  - **Strata**, recorded on every artifact and counted in the report: `original` 97,
-    `recovered` 229 (stored text includes recovery or replay windows) and
-    `already_redecoded` 12 (banked audio, decoded at `max_context=0`).
-  - **Window labels** added test-first: each window carries the type of the section
-    overlapping most of it, and its sustained-sound share from the run's RMS log
-    (null when unreadable, never 0).
-  - **Decision rule, committed before any corpus decode.** It is not revised after
-    seeing results. Any change is a new, dated rule, and the earlier results stay
-    reported under this one.
-    1. *Floor.* A window **differs** when `token_distance` > 0.45, above C2's
-       largest cross-process difference (0.44).
-    2. *Abandon.* If more than 3% of `already_redecoded` windows differ, the floor is
-       wrong. Stop and report; do not reinterpret.
-    3. *Side labels.* A side is **repetitive** when its bigram redundancy is ≥ 0.20,
-       otherwise **clean**. C3's screened windows ran 0.18–0.96 stored and ≤ 0.19 new.
-    4. *Classes.* Each differing window takes one of the four classes in the H10b
-       table from its two side labels. It is counted by stratum, never pooled across
-       strata.
-    5. *Speech only for listening.* Only windows whose section type is not `song`
-       and whose sustained share is < 0.5 enter the listening queue. The rest are
-       counted and not adjudicated: that is where the cross-process residue lives.
-    6. *Listening queue* (the operator's ears; the order below is the priority):
-       (a) every **uncovered repetitive/clean** window (stored screen overlap false):
-       each is a candidate screen miss; (b) up to 30 **clean/clean** windows, random
-       with a recorded seed: the substitution class with no detector; (c) up to 10
-       **clean/repetitive**: candidate regressions in the new decode; (d) 20 random
-       **covered repetitive/clean** windows for precision. `recovered`-stratum
-       windows are listed separately from `original`.
-    7. *Reporting.* Report counts per class and stratum with denominators, the
-       number of listened minutes, and the unassessable 117. No recall figure is
-       stated from counts alone. Adoption of any new decode stays per run, through
-       the tested path.
-  - **Corpus decode started 2026-09-22** over the frozen 338
-    (`storage/scratch/h10b-corpus-20260922/membership.txt`). It runs at about
-    4 min/run because each source is hashed and compressed over the staging link, so
-    roughly 20 h unattended.
-  - **Restage census for the 113 missing sources** (read-only,
-    `h10b-restage-census-20260922.json`, `h10b-restage-hashes-20260922.json`). Most
-    recorded source paths are relative to the Sonnics services root, a separate drive
-    from Staging, so the originals could be hashed during the decode without
-    contention. Results:
-    - **86 byte-identical on Sonnics** (91 files, 50.4 GB, every SHA-256 equal to the
-      recorded one): 78 original and 7 recovered are clear to restage. 959's original
-      had moved to the drive root, with the same size and mtime, and hashes equal.
-    - 2 are otherwise blocked (one has no recorded hash, one is not completed).
-    - **25 originals are on the Staging drive**, with size and mtime matching; they are
-      hashed only after the decode, to keep the faulty link to one reader. 21 are
-      clear and 4 are blocked (not completed). 10 of the 25 are lossless
-      concatenations, whose recorded run hash is of the assembled file, so a restage
-      must reproduce the assembly byte for byte or stay unassessable.
-    - **943 is lost:** its five segment files were replaced on 09-01 by a single,
-      different `Sunday 28th July 2024.mp4`. Adopting that file is the existing
-      source-adoption question, not a restage.
-    - Net: up to **106** more decodable runs (about 91 original), which nearly doubles
-      the `original` stratum. The restage itself waits until the decode finishes.
-  - **Corpus decode complete 2026-09-23: 338/338 decoded, 0 unassessable.** The first
-    comparison refused 69 runs whose durations differed. 30 were under 0.5 s (float and
-    rounding), and 39 ran 0.5–29.8 s, **every one with the stored side longer**, because
-    the stored decode stamped its last cue out to the padded final 30 s window (1007:
-    last cue 4811.98 s against 4785.73 s of audio). That is an assessability rule, not
-    the decision rule, and it was fixed test-first: the pair is compared over the shared
-    span using the transcript's own final-window clipping, the overrun is recorded, and
-    pairs 30 s or more apart stay unassessable. Re-compared: **338/338 assessable, 64
-    overruns recorded** (`comparison-v2.json`).
-  - **Decision rule applied unchanged** (`h10b-apply-rule-20260923.py`, seed 20260923):
-    - Tripwire: 34/1,548 `already_redecoded` windows differ = **2.20%**, under the 3%
-      abandon line. The floor holds, though it sits above the pilot's ~1%.
-    - Differing windows by class (stored/new), `original` (11,124 windows):
-      clean/clean 596, repetitive/clean 618, repetitive/repetitive 119,
-      clean/repetitive 53. `recovered` (26,063): 2,413 / 1,086 / 217 / 324.
-    - Speech-only (not a song section, sustained share < 0.5; no window had an unknown
-      share), repetitive/clean: `original` 62 covered by the stored screen, **19 not**;
-      `recovered` 103 covered, **69 not**. These are candidates, not adjudicated misses,
-      and no recall is stated from them.
-    - Listening queue (`listening-queue.json`): `original` 19 + 30 + 10 + 20 = 79
-      windows, `recovered` 69 + 30 + 10 + 20 = 129, about 104 minutes of audio.
-      Listening is the operator's.
-  - **Batch 2 (restaged runs), 2026-09-23: 99/99 decoded and compared, 0 unassessable.**
-    Same rule, same seed (`listening-queue-batch2.json`). It has no `already_redecoded`
-    runs, so the batch-1 tripwire stands. These are the runs with no review obligation
-    when they completed, and they differ far less: `original` 132/4,765 windows differ
-    (about 3%, against about 12% in batch 1); `recovered` 265/1,472. Speech
-    repetitive/clean windows the screen did **not** flag: 10 `original` and 2
-    `recovered`, which are candidate misses on never-held runs. The queue adds 98
-    windows; the listening page now holds **306** (`listening/index.html`, batch
-    shown). `score-verdicts.py` reports by batch.
-  - **Batch 3 (the nine concatenated runs), 2026-09-24: 9/9 decoded and compared, 0
-    unassessable.** They could be decoded only once the concatenation gate had restaged
-    them and stamped their hash. Same rule, same seed (`listening-queue-batch3.json`,
-    `comparison-batch3.json`); no `already_redecoded` runs, so the batch-1 tripwire stands.
-    `original` 71/672 windows differ (about 11%, like batch 1 rather than batch 2) and
-    `recovered` 21/156. Speech repetitive/clean windows the screen did **not** flag: 4
-    `original`, on **942** (750 s `other`, 1470 s sermon) and **975** (150 s notices,
-    660 s reading). These are candidate misses. The queue adds 47 windows, and every run
-    gets at least one, because a small batch samples all its clean/clean candidates. The
-    listening page now holds **353**, with clips cut from the restaged sources.
-  - **Listening, 2026-09-24: 352 of 353 windows judged, about 235 minutes** (one blank).
-    **Button meanings as the operator used them** (confirmed against the page's text): button 1,
-    *"Stored text is a loop / wrong; new is right"* (`stored_loop`) = stored wrong, new right;
-    button 2, *"Stored text is right (real repetition or speech)"* (`real_speech`) = new wrong,
-    stored right; *"Both wrong"* and *"Can't tell"* as labelled; *"New decode is wrong"* was not
-    used. Scored under step 7 with `real_speech` read as `new_wrong`
-    (`listening/verdicts-20260924-operator-mapping.json`, each entry keeping `as_pressed`).
-    Counts, all strata and batches together (per-stratum counts in `verdict-score.json`):
-
-    | Group | Stored wrong, new right | New wrong, stored right | Both wrong | Can't tell |
-    |---|---|---|---|---|
-    | (a) uncovered repetitive/clean | 81 | 2 | 20 | 0 |
-    | (b) clean/clean random sample | 83 | 31 | 20 | 3 |
-    | (c) clean/repetitive | 6 | 25 | 5 | 0 |
-    | (d) covered repetitive/clean | 70 | 0 | 6 | 0 |
-
-    Read per step 7, no recall stated: candidate screen misses are mostly real (81 of 103
-    judged in (a)); the screen is precise where it flags (70 of 76 in (d)); the class no
-    detector sees is common (stored text wrong in 103 of 134 judged in (b)); and the new
-    decode does regress (30 of 36 confirmed in (c), 58 windows overall), so adoption stays
-    per run. Routing per run is in §4.0, decision 2. Future listening pages ask "which text
-    matches the audio?" rather than naming a verdict.
-- **1337 follow-up, 2026-09-23.**
-  - **Neighbour rule built test-first** (`2185ab734`). `adjacent_same_song` now also
-    holds a song whose previous or next section is the same song with nothing between,
-    whatever the gap. A reprise after another section is still released. A corpus
-    census found this adds exactly one pair, 1337 §4274→§4275 (12 s apart); the 2 s
-    rule already caught the other 4.
-  - **Hint/binding contradiction rule measured, not built.** §4275 was confirmed by
-    **OCR** (confidence 1), not by the transcript, and its transcript also carries a
-    refrain of the bound #699, so a flat rule would overrule independent evidence. A
-    census over 1,191 confirmed song sections with a hint
-    (`storage/scratch/hint-binding-census-20260923.json`) found 39 whose hint matches
-    neither the bound song's titles nor its lyrics. Most are modernised wording
-    (Thou/You, Ye/You, 'Tis/Yes) or junk hints ("Let", "again", "number 426"). The
-    genuine contradictions (1337 §4275, 1144 §2163, 1215 §2638/§2639/§2641, 1223 §2747,
-    1174 §2331, 1297 §3802, 1120 §1998) are **all already held**. The rule would add no
-    new hold and would hold correct bindings over wording, so it is not built.
-    Revisit only if a genuine contradiction turns up unheld.
-- **1287 diagnosed 2026-09-23 (read-only; `storage/scratch/run-1287-probe-20260923.php`).**
-  The H10b re-decode (`max_context=0`) hears what the stored transcript did not. Song 1,
-  #797 "Praise the Lord you heavens", runs 189–268 s. A **spoken reading** (Revelation
-  4:9–11) runs 268–299 s. **Song 2**, #934 "There is a higher throne", runs **304–452 s**,
-  where the stored transcript has an unobservable window at 299–437 s
-  (`retranscription_failed`). The detector was told of two songs but could see only one,
-  so it split song 1 across §3596 (180–232) and §3597 (232–299). §3597 took song 2's
-  binding and absorbed the reading, and song 2 got no section. **Cause: context-drift
-  transcript loss, which `max_context=0` already fixes. Not a detector gap.** The lyric
-  check already caught it (§3597 held since 09-14), and the case-book entry under
-  `structure-song-widened-to-sustained-sound` is mis-filed. Its widening failure is a
-  consequence (20 s unsustained, the reading, before song 2), and no widening rule should
-  be bent to reach it. **Repair:** re-transcribe, then re-detect, through the pipeline in
-  the next bounded batch. Its staged source is present (it was in the first decode batch),
-  but the retranscription command is still restricted to 980/1258/1343. *(1287 was added
-  and repaired on 09-23, below.)*
-
-
-#### 1287 repair result and the hold carry-through ruling — 2026-09-23
-
-**1287 retranscribed and re-detected** (operator dispatch, completed 18:11). The transcript
-is whole (no unobservable windows, no suspect blocks). Song 1 (190–277 s) and song 2
-(304–458 s) are separate sections, the Revelation 4 passage is a `bible_reading`, and the
-replay stamp moved to history. Clips 581–583 are `quarantined` on `historic_quarantine`,
-so nothing is exposed.
-
-**Two defects found by the post-run check:**
-1. **Content holds follow `section_order`, not content.** Re-detection inserted two sections,
-   so the 09-14 "wrong song" hold now sits on §3597 (the reading) as well as §3596, and
-   both describe the defect the repair fixed.
-2. **Derived review flags were re-derived and cleared.** "The Lord's My Shepherd", "Your
-   Word" and "Who Can Cheer" went to `published` section state. That is correct for
-   derived flags: they are policy output, and re-deriving is their purpose.
-
-**How the 181 content holds were made** (census 2026-09-23): none records a person
-listening. They came from mechanical checks run outside the pipeline, mostly in agent
-census sessions with operator approval: loop/repetition screens 75, lyric comparisons 68,
-fresh Whisper source decodes 12, frames or duration 4. 65 name no method; they are
-decisions (duplicate-performance identity) or judgements (wrong title or passage,
-semantic substitution). A hold records only `reason`, `held_at` and `evidence`.
-
-**Operator ruling, 2026-09-23: holds follow content and are re-checked by the check that made them.**
-1. A content hold follows its content (time span and bound item) through a re-run, never
-   the section's position.
-2. Each hold records **which check found it**.
-3. After a repair, a hold whose check exists in code is re-run automatically. It clears if
-   the check passes, and the record says why.
-4. Decision and judgement holds stay until someone re-decides them.
-5. Derived review flags keep re-deriving freely.
-
-Until this is built, a batch that inserts or removes sections **misplaces content holds**.
-Build it test-first before the next bounded batch larger than one run. For 1287 the two
-stale holds are lyric-comparison holds, so they would clear on re-check; they are left in
-place, not lifted by hand.
-
-**Built 2026-09-23.** Every hold record carries `found_by` (`ContentHoldCheck`: loop screen,
-lyric comparison, source audio, media measurement, boundary, judgement, decision), the span
-and item it was found on, and the fingerprint of the transcript its check read. Section sync
-carries records, live or released, by type and span overlap, so a row keeps nothing for
-content it no longer covers. `ContentHoldRechecker` runs after every structure-detection sync
-(and via `service:recheck-content-holds`). It re-runs loop-screen and lyric-comparison holds
-only when the transcript has been rewritten since the hold, and records why each record
-cleared or stayed. `service:backfill-content-hold-checks` classified the existing 181 by
-reason: loop 73, lyric 29, source audio 22, boundary 22, decision 14, media 11, judgement 7.
-It dropped three records left behind on rows that never carried them (§1016 run 980, §3227
-run 1258, §3597 run 1287), and marked 12 holds raised before a later re-decode as superseded.
-**Local re-check result:** loop holds on §3858 (1303) and §3985 (1314) cleared, because the
-screen finds no loop in the re-decoded transcript. 1287's lyric hold on §3596 **stays**: the
-sung words now match #797, the song the hold said was really sung, but item 11981 binds no
-song, so identity is still unestablished. That needs a binding decision, not a hold lift.
-
-**Review fixes, 2026-09-24** (`0beb1f996`…`1a5b17019`). A critical review of the 09-22/23
-commits found holds that could clear without a repair, and song-matching side effects:
-- A re-raised record now takes the current fingerprint and check; before, the next re-check
-  compared the stale one and cleared the operator's re-hold again.
-- A lyric comparison re-runs when the **binding** changes as well as the transcript, and after
-  song matching, not only after detection. So §3596 now re-checks itself once 1287's binding
-  decision is made; no by-hand lift is needed. It clears only on the census scorer's positive
-  reading (`SongLyricIdentityCheck::confirms()`: the bound song leads with ≥4 pairs).
-- **34 inferred checks corrected** by re-running `service:backfill-content-hold-checks`: 33
-  short-loop and cadence holds (below the repetition screen's floors, confirmed against the
-  source) and 1337 §4275 (its song, Shine Your Light, is not in the catalogue, so no lyric test
-  can see it; the re-check would have cleared it) are now `source_audio`. No clearance needed
-  revoking: the §3858/§3985 clears were song-loop holds the screen can re-test.
-- `service:recheck-content-holds --execute` then cleared **§519 (run 929)**: its OpenLP item now
-  binds #295, the announced song, which its sung words confirm with 26 pairs. 27 records stay.
-- Bound single-source songs are no longer flagged `unmatched_song_section` (or, if
-  speech-classified, retyped to `other`) when OCR finds nothing. `planned` counts only an item
-  at the section's own place in the plan (none of 1,082 confirmed bindings relied on another).
-- Released hold history for content a re-detection drops is kept on the run
-  (`unplaced_content_hold_records`).
-- `structure:recompute-sound-stage` now replays `SongSpeechEdges`, so it reports
-  `structure_song_swallows_speech`.
-
-**The 09-23 detectors, checked read-only on 09-24.** `detectors:evaluate` (case book frozen as
-`storage/scratch/detector-case-book-20260924.json`) scores every new detector's regression
-cases `missed`, because no stored run carries their output yet; that is expected before the
-re-run. Replayed from banked inputs instead, each fires on every regression case:
-sung-span-in-sermon 949/1014, song-swallows-speech 974/1036, speech-under-loop
-§4731/§1082/§4390, section-without-song §622/§2851/§3368 (not §678, the doxology, as ruled), and
-adjacent-same-song 1337 §4274/§4275. `song-identity-single-source` and
-`song-identity-contradicted-by-lyrics` have **no case-book entries**; they need adjudicated
-cases before they can be scored. Song boundary evidence went v5→v7 in one evening, so run the
-boundary-evidence backfill **once, after the freeze** (v7 today; a gate item that touches song
-boundaries would bump it).
-
-#### Carried open items
+The discovery workstreams of 09-12 to 09-23 left these boxes. They were triaged on 09-23 and are
+kept as they stood. The detail is in the
+[09-12 to 09-23 log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-12-TO-2026-09-23.md)
+at the lines cited. Their 09-14 rulings are also in the register (§5–§6 there).
 
 Every box still unticked in the moved sections, grouped by the section it came from. Most
 items are the first line of the original; its scope, populations and acceptance are in the
@@ -1341,6 +583,23 @@ check against the 09-17 speech-edge trim) deserve a closer look before being bui
 - [ ] **Make policy refresh reach already-generated songs.** Reassess within each owning staging context and bind the result to current inputs. *(Full text: log L4579.)*
 - [ ] **Bind the three deferred duplicate pairs into Phase 9's membership.** *Triage 09-23: tracked in §4.4; kept here only as a pointer.* *(Full text: log L4584.)*
 
+**Added 2026-10-16** (open work found in the documents archived that day):
+
+- [ ] **One pattern for review questions, slices 1–4** (register Q1; archived
+  [boundary consistency §8.6](../archived-plans/VIDEO-BOUNDARY-CONSISTENCY-2026-10-04.md#86-proposed-slices-after-measurement)).
+  Ruled on 10-05 and not built:
+  - the consequence is declared once and every gate reads it;
+  - durable per-question answers;
+  - a shared publication predicate with read-side enforcement (weekly) and the promotion pre-flight
+    (historic), replacing `HistoricReleaseReviewHolds`' own rules;
+  - talks are ask-only.
+- [ ] **Already-published weekly clips** (cut plan D4,
+  [archived §5](../archived-plans/CUT-FROM-SECTIONS-IN-SYNC-2026-10-02.md#5-decisions-and-scope)):
+  a read-only, source-aware audit for the section-edge and sync defects the cut redesign fixed.
+  Production re-cuts are a separate operational act.
+- [ ] **945 §669 and 1342 §4319:** standing decision 4 (09-28) held them once Tier A wrote their
+  text. Still marked open on 10-16: check them.
+
 ### 4.4 Bind deferred identity disputes
 
 - [x] Choose the containment mechanism (§3.1 item 4): a hold on each sermon's own
@@ -1422,266 +681,30 @@ check against the 09-17 speech-edge trim) deserve a closer look before being bui
   - **Timing (pre-dispatch review, 2026-10-16):** the re-cut round as set up includes 1035 on the
     paid re-detection route and leaves 1034, 1120 and 1375 out. Applying the corrections before
     its snapshot turns that into one round instead of two.
-    [FOLLOW-UP-ROUND §12](FOLLOW-UP-ROUND-FROZEN-CLONE-2026-10-13.md), "Pre-dispatch review".
+    [FOLLOW-UP-ROUND §12](../archived-plans/FOLLOW-UP-ROUND-FROZEN-CLONE-2026-10-13.md), "Pre-dispatch review".
 - [ ] Update exact release membership only after each identity decision is
   evidence-bound.
 
 ### 4.5 Prove acceptance, then converge and release
 
-- [x] Give runs 1004, 1143 and 1145 terminal dispositions (repair, exclude with
-  reason, or an explicit accepted hold).
-  - **Diagnosed read-only 2026-09-19 against the live local Sail database and
-    mounted historic volume.** The exact three-key pass report is one `failed`
-    and two `manual_review`, with zero open runs and zero queued historic jobs.
-    Operation 4 remains `planned` and owns **zero** durable checkpoint rows.
-  - **1004 (`2026-04-26-evening`) requires a fresh full-source transcription,
-    not another recovery replay.** Both banked attempts were rejected by the
-    pathology detector; the recorded replay is 0 words before and after across
-    4,317 blind seconds. The current `service_transcript_path` points at the
-    resulting empty region-recovered artifact, and neither it, the prior
-    normalized artifact nor the temporary staged source now exists on the mounted
-    work volume. The archive source remains hash-bound in the manifest. A bounded
-    repair must therefore restage that exact source, transcribe it afresh with the
-    current decoding/recovery code, and only then decide repair versus an accepted
-    hold. Ordinary retry and structure redetection are correctly refused and must
-    not be used to spend again on the same empty evidence.
-    **Repair dispatched 2026-09-19.** The exact archive source is present and the
-    run's context-bound staged source was already restored. A red-first regression
-    proved that retry incorrectly resumed at structure detection when its recorded
-    transcript existed but held no cues; retry now rewinds to
-    `transcribe_full_service` in that exact case. All historic workers were
-    gracefully restarted while queues were empty, and run 1004 is now in progress
-    on `historic-whisper`. The full-manifest command independently refused a newly
-    present unmanifested `2020-04-12` file; the already operation-bound run was
-    therefore resumed through `UnifiedMediaProcessor::retry()` rather than weakening
-    the corpus guard or using `--force`.
-    **Completed 2026-09-19.** The fresh pass cleared transcription, structure,
-    extraction and the remaining pipeline; the final database-owned disposition
-    is `completed`, with zero historic jobs or open runs. The two earlier failure
-    alerts remain retained history and the pass now also records success.
-  - **1143 (`2024-08-11-morning`) is an evidence decision, not a retry.** Its
-    recovered transcript still has 5,980 words; its persisted structure contains
-    16 coherent sections and a 1,216-second sermon (§2157, 2203–3419, Luke
-    12:49–53). RMS also contains two speech blocks over 20 minutes (410–1964 and
-    2146–3656), so the baseline selector truthfully refused to choose between
-    them. The structure's sermon is held for `structure_low_confidence`; an
-    ordinary manifest retry deliberately leaves manual-review runs alone. The
-    legitimate outcomes are an operator-approved section-bound extraction, checked
-    against source audio, or an explicit accepted content hold. Selecting the
-    whole second RMS block would include material outside the detected sermon and
-    is not an evidence-backed shortcut.
-    **Accepted hold retained 2026-09-19.** Source-timed evidence fixes the proposed
-    end: prayer ends at 3419 and the final hymn follows immediately. It does not
-    fix the start: 1963.74–2203.58 is explicitly unobservable and the next roughly
-    630 seconds are pathological 30-second transcript chunks before coherent sermon
-    text resumes. The existing manual-review hold remains the honest terminal
-    disposition; no extraction or publication was approved.
-  - **1145 (`2024-08-08-morning`) fits the existing recording-level exclusion.**
-    Its 1,014-second capture contains two songs, a 706-second children's programme
-    and a closing notice, with no sermon. A dry run of
-    `historic-import:exclude-run --reason=no_sermon_in_source` changes the pass
-    disposition from `manual_review` to `excluded` and keeps service 1030; no state
-    was written. Applying it remains an operator factual ruling because the
-    exclusion is terminal.
-    **Applied 2026-09-19.** Run 1145 is now terminally excluded with
-    `no_sermon_in_source`; service 1030 was kept. The exact pass report confirms
-    the disposition is `excluded` and records the explanatory note.
-- [x] **Build and apply the occasion exclusions ruled 2026-09-14** (Saturday
-  rehearsals 1043, 1089; funerals 1051, 1098). **The following is the original
-  14 September diagnosis, resolved by the 15 September implementation below:**
-  at that time nothing could execute them:
-  `HistoricRunExclusion::OPERATOR_REASONS` holds only `no_sermon_in_source`, its D1
-  docblock forbids excluding a real service that way, and exclusion is read only by
-  `HistoricVideoPassStatus`. Neither release (`ReleaseHistoricImportBatchCommand`
-  refuses holds, not exclusions) nor `ChurchServiceCorpusMembership` consults it, so
-  an excluded run's rows would still be released. Work, test first:
-  - Add two operator reasons, one for a rehearsal that duplicates another run's
-    sermon (recording the kept run: 1042, 1088) and one for a private occasion.
-    Update the D1 docblock to say these differ from "this service held no sermon".
-  - Make exclusion reach the rows the run already created. Sermons 977, 1016, 985 and
-    1025 and song videos 211, 231 and 232 must be refused by release and absent from
-    exact membership, the hymn usage artifact, search, sitemap and feeds. Either the
-    exclusion withdraws them, or release refuses any row whose run is excluded; choose
-    one and test it at both the release command and the membership builder.
-  - Decide the service rows. The rehearsals' Saturday services (1019, 1021) were
-    manufactured by the import and have no other source, so withdraw them with their
-    runs. The funeral services (1020, 1022) are real occasions: keep or withdraw them
-    as an explicit decision, and never show them on a public service page either way.
-  - Apply through the command with an operator note citing this ruling; confirm with a
-    dry run first, and record the release gate before and after, as for holds.
-  - Acceptance: a feature test per reason proves the rows cannot be released; the
-    gate after application refuses all four runs for their exclusion; the Sunday
-    sermons 976 and 1015 are unaffected.
-  - **Built test-first 2026-09-15 (`8585de074`, `61ae5b34f`) and applied.** Two operator reasons,
-    `rehearsal_duplicate` and `private_occasion`. A rehearsal must name its kept run with
-    `--duplicates`, and that run must be a different run of the same operation that is
-    not itself excluded. *Chosen: release refuses, nothing is withdrawn.*
-    `HistoricReleaseReviewHolds` refuses any sermon whose run is excluded, and any song
-    video whose section's run is excluded, for every exclusion reason. The dry run and
-    live release both go through it. Search, sitemap, feeds and hymn usage only read
-    published rows, and none of the four services has a song usage report. There is no
-    membership builder to change: the signed authorisation is the membership, and the
-    gate refuses it. The tests cover each reason, the dry run, a live release, a song
-    video on its own, and the kept sermon releasing once the excluded record is dropped.
-  - **Gate before application** (`storage/scratch/exclusion-20260915-gate-before.json`):
-    of the seven rows, only sermons 1016 and 1025 and song video 231 are refused, and only
-    for unrelated review holds. **Sermons 977 and 985 and song videos 211 and 232 are
-    releasable today.** Sunday sermons 976 and 1015 carry no refusal.
-  - **Service rows: removed (operator ruling 2026-09-15).** Neither a funeral nor a
-    rehearsal would have been uploaded had the week been processed by hand, so both
-    reasons also delete the service the run created. All four services (1019, 1020, 1021,
-    1022) were made by the import on 2026-09-04 from their run's livestream source record
-    alone. Removal is refused when another source or another run describes the service.
-    `no_sermon_in_source` keeps its service (D1). The evidence records a snapshot of the
-    removed service. An excluded run no longer projects, so a retry or re-detection
-    cannot bring its service back.
-  - **Applied 2026-09-15** after dry runs naming each service. The removed rows are saved
-    in `storage/scratch/exclusion-20260915-removed-services-snapshot.json` (sha256
-    `0f195069…3ff59`): 4 services, 29 items, 6 source records, 38 assertions, 2 merge
-    proposals, and the links on 21 sections, 4 runs and 3 song videos. After application no
-    row of the four services remains. Services 706 and 654 and runs 1042 and 1088 are
-    unchanged.
-  - **Gate after** (`exclusion-20260915-gate-after.json`): all seven rows are refused as
-    excluded (sermons 977, 985, 1016, 1025; song videos 211, 231, 232), and 1016, 1025 and
-    231 still carry their review holds. Sunday sermons 976 and 1015 carry no refusal.
-  - *Worker code:* the projection guard reaches the queue workers only after they restart.
-    No projection is due for these runs, which are completed and terminal.
-- [x] Design how operation 4 reaches `Complete` (§3.1 item 5) now, before
-  convergence work depends on it, without manufacturing checkpoint or closeout state.
-  **Designed 2026-09-19; implementation and evidence review remain open.** The
-  video command bound every dispatch to operation, manifest and plan, but never
-  called `HistoricImportCheckpointPlanner` or `HistoricImportCheckpointRuntime`.
-  Its `--only` option was a bounded manifest selector, not a durable checkpoint.
-  Retrofitting 412 post-hoc checkpoint memberships, dispatch events, source
-  snapshots and item outcomes would assert history that did not happen.
+Done (detail in the [10-03 to 10-16 log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-10-03-TO-2026-10-16.md), Part 1 §4.5):
 
-  The programme authority already resolves this seam: the incremental convergence
-  plan §4 lapses checkpoint exactness and HIR4/HIR5 ceremony, and §7.3 replaces
-  exact closeout with a reviewed, hash-bound round evidence pack. Operation 4 uses
-  that contract:
-  1. finish the three dispositions above and freeze exact manifest membership;
-  2. assemble, rather than reimplement, the existing video status report, manifest
-     expectation, combined membership/census, asset audit, Scripture settlement,
-     notification/nested-job ledger and cost/duration output; hash each and add a
-     short cover binding operation id, commit, target fingerprint, manifest hash,
-     plan hash, backup receipt and every non-zero residue;
-  3. require every manifest identity to be completed, approved-excluded, or an
-     explicitly accepted hold with a non-empty reason and evidence reference;
-     refuse missing/extra membership, changed input, degraded or unexplained failed
-     work, unowned assets, external historic notifications and unsettled nested jobs;
-  4. add one narrow video-round verifier/transition, not a general audit framework.
-     It accepts operation 4's genuine `planned`/zero-checkpoint history plus the
-     reviewed §7.3 pack, persists its digest and journal event atomically, and
-     transitions through an explicit round-evidence closeout state to `Complete`.
-     The legacy checkpoint closeout remains unchanged for operations that actually
-     used it; release keeps its hard `Complete` requirement, with wording updated
-     to mean the operation's applicable verified completion contract;
-  5. prove fail-closed behaviour for every refusal above, digest/binding drift,
-     idempotence and release-before/after completion. Only after those tests and the
-     maintainer's pack review may the transition be applied.
+- [x] Terminal dispositions for 1004, 1143 and 1145 (09-19): 1004 repaired by a fresh
+  transcription; 1143 an accepted hold; 1145 excluded, `no_sermon_in_source` (register X3).
+- [x] Occasion exclusions built and applied (09-15): `rehearsal_duplicate` and `private_occasion`.
+  The services their runs created are removed, and release refuses every row of an excluded run
+  (register X2).
+- [x] Operation 4's completion designed and its verifier core built (09-19). **Still open:**
+  1. The cover awaits the real Operation 4 backup receipt and `HISTORIC_IMPORT_EVIDENCE_SIGNING_KEY`
+     (neither may be inferred).
+  2. Then generate the exact 474-item cover, review every disposition and residue, sign it, run the
+     verifier, and only then apply the round-evidence closeout transition.
 
-  This is design authority, not a completed operation: no checkpoint, outcome,
-  journal, operation state or release row was created or changed in this review.
-  **Verifier core implemented 2026-09-19; transition still awaits the real pack.**
-  `HistoricVideoRoundEvidence` now verifies an HMAC-signed cover against operation,
-  target, runtime, manifest and plan bindings; a fixed seven-report allowlist and
-  each report's live SHA-256; exact unique item dispositions; and explained non-zero
-  residue. `round_closeout_required` is an explicit state that can only advance to
-  completion or reconciliation, and both production approval and historic-tail
-  recovery treat it as a no-new-work barrier. Focused tests are green. No operation
-  state was changed: the report set and reviewed cover do not yet exist.
+  The seven-report set of 09-19 is in `storage/scratch/operation-4-round-evidence/` and must be
+  rebuilt on the converged state.
 
-  **First real-pack review 2026-09-19: correctly refused; Operation 4 remains
-  `planned`.** The binding resolves to the 1 September manifest and plan
-  (`d25d2085…` / `9351fa4e…`, 464 included and 10 manifest exclusions), not the
-  older 26 August files. Against that exact membership the database-owned status
-  report is 406 `completed`, five `excluded`, one `manual_review`, 48
-  `not_dispatched` and four `retired`, with zero open runs and zero queued historic
-  jobs. The manual-review member is the explicitly accepted 2024-08-11 hold; the
-  52 not-dispatched/retired members still require the combined membership report
-  to prove their exact prior/present disposition rather than relabelling them in
-  the cover.
+Open:
 
-  **Membership and retained-asset follow-up 2026-09-19.** The exact combined
-  membership report now resolves 455 identities as complete and 15 as excluded,
-  leaving four explicit unresolved identities: 2023-02-26 morning, 2024-05-05
-  morning, the already accepted 2024-08-11 morning hold, and 2024-11-03 morning.
-  In particular, 45 apparent `not_dispatched` identities are completed by their
-  pre-existing live runs, while the four operation runs superseded during service
-  reconciliation still prove their own source consumption; neither class is
-  relabelled as an operation completion.
-
-  The old asset failures were then reproduced and separated from real custody
-  loss. `audit:historic-import-assets` had forgotten each run's recorded batch
-  root and resolved promoted sermon and thumbnail paths through current global
-  disks. Regression-tested corrections now re-enter the run context and resolve
-  every sermon asset through `asset_disk`. Pass 1 now verifies 48/48 assets, step
-  11 verifies 18/18, the WebM proof verifies 5/5, and Phase 8 verifies all 1,926
-  auditable assets. The two Phase 8 incomplete runs are the 2023-02-26 and
-  2024-05-05 manual-review identities. One genuine stale reference remained:
-  retrying the older 2026-06-28 run on 10 September had overwritten quarantined
-  sermon 857's audio pointer with a path on another custody disk. The retained
-  replacement MP3 was already present and independently probed; a guarded one-row
-  repair restored that reference, and `SermonCreationService` now refuses future
-  cross-custody media replacement (47 service tests green, PHPStan clean).
-
-  No cover was created, reviewed or signed, and Operation 4 remains `planned`.
-  The asset evidence is clean for every completed dispatch, but the pack cannot
-  claim exact closure until the three unaccepted manual-review identities receive
-  dispositions and the accepted 2024-08-11 hold is represented explicitly. Then
-  produce the consolidated operation-wide asset report, assemble the Scripture,
-  ledger and cost/duration reports, and review every non-zero residue.
-
-  **The three manual-review identities were adjudicated on 2026-09-19 and all
-  three are accepted holds, not exclusions.** The operation-bound review artifact
-  is `storage/scratch/operation-4-round-evidence/manual-review-dispositions.json`
-  (SHA-256 `1f3b8eb44e2620f1069f347728436db5d9a7f551fbe013a949a9907592923822`).
-  For 2023-02-26, the retained proposal has an evident decimal-place timestamp
-  defect (`41410s` against a `4407.681451s` source) plus a 4.9-second overlap, but
-  identifies a plausible sermon and the source survives. For 2024-05-05, the
-  proposal identifies a plausible 1,642.81-second sermon but incorrectly binds an
-  explicitly unplanned Psalm reading into the OoS order; its source also survives.
-  Neither produced projected sections or a sermon, so both remain recoverable
-  structure/extraction holds. For 2024-11-03, sermon 865 and ten projected
-  sections survive, including a high-confidence 1,548.98-second sermon, but a
-  later proposal duplicated OoS item 4079 and left the run failed. The existing
-  reconciler would resume it, but doing that before settling the duplicate claim
-  and storage ownership risks replacing media references; it therefore remains
-  held rather than being relabelled complete. No media, run, section, sermon or
-  operation state was changed by this adjudication.
-
-  **Seven-report set assembled 2026-09-19; unsigned.** The private files under
-  `storage/scratch/operation-4-round-evidence/` now fill every fixed report slot:
-  video status `e9ec0d68…`, manifest expectation `f175ffcf…`, membership census
-  `ebd786b0…`, asset audit `39808a23…`, Scripture settlement `6f7b727c…`, operation
-  ledger `a732df07…`, and cost/duration `8ba42bcc…` (full SHA-256 values are the
-  reviewed file digests used by the future cover). The asset report records 1,997
-  verified references and zero missing; Scripture records sermons 1005 and 1305
-  as contained holds with zero public exposure. The ledger records 835 completed
-  nested jobs and three failed-but-settled publication attempts; all three owning
-  runs later completed and carry success alerts, while live jobs and external
-  notifications are zero. The performance report covers 416 operation runs and
-  explicitly records 68 runs without timing evidence and two with retries.
-
-  These are explained residues, not invented zeroes. The raw membership census
-  deliberately still calls the four manual-review identities unresolved because
-  it reports database observation; the cover's exact item dispositions must bind
-  those four to the separately hashed accepted-hold evidence rather than rewriting
-  the census after the fact. No signed cover exists yet, and no operation state
-  changed. Next: generate the exact 474-item cover, review every disposition and
-  residue reference, sign it, run the verifier, then—and only then—apply the
-  round-evidence closeout transition.
-
-  **Cover preflight 2026-09-19 stopped at two genuine external bindings.** No
-  Operation 4 backup receipt exists in the repository or retained operation
-  artifacts, and `HISTORIC_IMPORT_EVIDENCE_SIGNING_KEY` is not configured in the
-  current runtime. Neither value can be inferred or replaced with a placeholder.
-  While checking that boundary, the verifier was found to validate uniqueness but
-  not equality with the manifest. It now parses the digested manifest-expectation
-  report, verifies its manifest/plan binding, and refuses any missing, extra or
-  duplicated cover identity; focused tests (30 assertions), PHPStan and Pint are
-  clean. No cover was generated or signed. Resume only after the maintainer names
-  the real backup receipt and configures the signing key without exposing it.
 - [ ] Re-run §4.1a's sample validation on a fresh sample drawn after repairs, as final
   acceptance evidence, across eras and apparently clean cases. It is not a held-out set:
   H9 rules that none survives, so the sample is new, not reserved (wording corrected
@@ -1786,334 +809,16 @@ check against the 09-17 speech-edge trim) deserve a closer look before being bui
   rollback process if it fails.
 - [ ] At IC8, retire the remaining one-shot historic-import surface and the inert
   cost-accounting residue together.
+- [ ] Settle the programme plan's deferred release policy
+  ([§8.4](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md#8-release-policy)) before large
+  releases.
 
 ## 5. Go/no-go
 
 | Gate | State | Required evidence to turn green |
 |---|---|---|
-| Processing | GO | Definitive passes drained; the three former failures have recorded terminal dispositions in §4.5 (19 September). This is dated execution evidence, not a new live census. |
-| Queued repair readiness | **PARKED — shutdown record 2026-10-04; not a fresh live census** | Tier C was dispatched and then stopped: 15 pending FFmpeg jobs, one pending orchestration job; 1108/1112 failed extraction amid staging-mount problems. Preserve those payloads and investigate stable mounts/failures before deciding how to resume the existing chains on `fix-historic-video-custody` at the frozen revision or a doc-only descendant. Do not redispatch the round. See the cut-from-sections plan's final shutdown/resume record. Canary acceptance and later batches remain pending; output-changing fixes use the next freeze/canary. |
-| Containment | **NO-GO** | The six disputed sermons and their seven song videos were held on 2026-09-16 and the sections those holds left published were demoted the same hour (§4.4), so the identity gate-clear gap is closed and published-while-held is zero again. Remaining: the current-policy and unassessable residue. Containment is not adoption — the three pairs are still undecided, and the holds are what make deferring them safe. |
-| Content acceptance | **NO-GO** | The strengthened stopping rule (carried items, "Rulings and stopping rule") passes: scoped coverage and limitations, omission reconciliation, independent source evidence, content handoffs, controlled variations/interruption tests, tail and whole-output reviews. Every §4.3a class has a tested response or recorded decision; detector errors and review burden are evaluated against predeclared criteria using H9/H10's retrospective, source-adjudicated evidence, with measured units and limitations explicit. There is no reserved historic set; insufficient evidence is not a pass, and H10b disagreement counts are not complete recall. The fresh release-membership sample includes repaired/held runs and meets its separate predeclared limits. Evidence is bound to current artifacts; operator rulings are recorded. |
-| Public release | **NO-GO** | Phase 9 convergence, QA and actual-server browser checks pass, then the operator signs an exact era-sized batch. Actual-destination delivery checks are scheduled within the authorised release's rollback window and must pass to close observation. |
-
-<a id="correctness-review-2026-09-10-followup"></a>
-
-### Follow-up correctness review — 2026-09-10/11
-
-Moved to the [execution log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-12-TO-2026-09-23.md); its open actions are listed under "Carried open items" above.
-
-### Canary 10 four-defect repair and same-sixteen re-run — 2026-10-03
-
-The operator authorised repairs of the four failures in the preceding receipt, followed by
-another saved-draw round of the same sixteen. No acceptance, Tier A, hold release or new answer
-is authorised. 1050, 1250 and 1356 remain parked until the operator confirms their joins.
-
-All four defects were reproduced before their fixes: an answer banked on a run with media
-without recomposition; a content-held song skipped before extraction; fresh staging video
-assessed from stale quarantine bytes; and a song section retaining its staging pointer after
-promotion of its canonical SongVideo. Tier C now refuses an unapplied ensemble projection in
-both `rerun-extract` and the orchestrator, naming `historic-import:rerun-recompose`; the answer
-command prints that next step. Content-held non-sermon candidates now extract and run their
-post-extraction hooks before the manual-review route withholds publication. Content-held
-sermons and ensemble-disagreement skips retain their guards. The regression also exercises
-weekly auto-publication and `HistoricReleaseReviewHolds`: both still withhold the held song.
-Pre-promotion quality assessment reads the configured fresh output disk for a re-extraction
-and records the assessed disk/path. Song promotion binds the section's disk and canonical
-video path in its locked custody transaction, including an already-promoted replay.
-
-Gates: focused tests **84 passed**; full parallel suite **9,181 tests, 94,429 assertions**, no
-failures (163 PHPUnit notices); PHPStan zero errors; Pint passed. Queues were empty throughout
-testing. No UI changed and no Dusk ran. The paired cutter and output recipe are unchanged, so
-media-processing version remains **6**. Private evidence for this new operation is
-`storage/app/private/canary10-defect-rerun-20261003/`; its `before-state.json` records 32
-unchanged attempts, zero open questions, the saved Naomi answer and 1250's recorded four-part
-selection. Implementation is ready for the commit, worker restart, fresh bound snapshot and
-preflight; dispatch/results will be recorded below. Canary 10 remains unaccepted.
-
-
-### Canary 10 four-defect continuation — stopped on run 964, 2026-10-03
-
-The authorised same-sixteen saved-draw recomposition completed on code commit
-`288975926fcf42be6405990499a21d1ff9432cbb` (revision
-`ef594e1344d9bbb85dd253fc36c0320660b9b49db10b0468a50c8c1c9701a3cd`).
-All 16 runs completed, all 32 attempt IDs and bank hashes are unchanged, all 64 immutable
-saved draw artifacts match their checksums, and there are zero open questions. Failed jobs
-remain 479, with no new failures. Receipts: `after-recompose.json`,
-`evidence-after-recompose.json` and `recompose-dispatch.txt` in
-`storage/app/private/canary10-defect-rerun-20261003/`.
-
-1311's projected Naomi section 73575 is 1056.60–1149.31 s with no disagreement flag;
-the father's words begin in the next section at 1152.28 s. 1250's existing composition review
-survived: by content, the selected sections are Job 29:1–25, Job 30:1–31, Job 31:1–40,
-and the sermon 2454.06–4310.36 s. No replacement ruling or question answer was needed.
-1050, 1250 and 1356 remain parked; their interruption flags were not cleared.
-
-**New blocker: stop before timing or Tier C.** The 13-run extraction dry run returned
-12 ready and one refusal, run 964. Its saved composition and projected structure differ
-only at `/sections/6/review_flags`: the bank has `[]`, while projection added
-`["structure_micro_section"]`. No projected section has `structure_ensemble_disagrees`.
-The new equality guard therefore refuses this successfully recomposed run with the
-instruction to run `historic-import:rerun-recompose`. This is recorded, not resolved,
-because the operator explicitly required stopping on any new blocker. Evidence:
-`964-projection-blocker.json`, `tierc-dry-run.txt`, and the enclosing `receipt.json`.
-Review: [run 964's service](http://localhost/admin/services/982).
-
-Queues drained after recomposition; every worker still started at 17:13:48 UTC, after the
-code commit, and refreshed mount probes passed. Internal free space was 19,677,424 KiB
-and staging 491,847,568 KiB. No timing or extraction jobs were dispatched in this
-continuation. There are no new cuts to scan, assess or listen to; both custody diffs,
-accuracy checks, listening list and final batch report remain unperformed. Canary 10 is
-not accepted, Tier A has not started, and no hold or question was resolved.
-
-Both Sonnics backups completed again after recomposition with `rsync -a --checksum`,
-excluding `._*` and without `--delete` (both exit 0). The stopped receipt records these
-results, empty queues and evidence SHA-256 hashes. This stop is documentation only;
-the four-defect code commit and its passing quality gates remain unchanged.
-
-
-### Canary 10 projection-provenance ruling and repair — 2026-10-03
-
-The operator ruled that run 964's extraction refusal was a false positive: projection
-legitimately derives flags that are absent from the bank. The 1166.00–1167.21 s
-“Prayer for Families” fragment and its `structure_micro_section` flag remain unchanged;
-it is a recorded artefact, not an output. Whole-structure equality is removed.
-
-Projection now records the latest bank attempt ID and SHA-256 of the complete composition
-and ruling history in `service_structure_projection`. Detection and saved-draw recomposition
-write that provenance atomically with the sections and projected structure, under the run
-lock; changed bank inputs before projection refuse the write. Answer application records
-new provenance only when it actually synchronises sections. An answer banked after media
-exists retains the previous stamp and refuses cutting until recomposed. The extraction
-check refuses missing or mismatched provenance, explicit `sections_synced=false`, and any
-remaining `structure_ensemble_disagrees` section.
-
-Test-first regressions reproduced the validator-only flag refusal, missing-provenance
-acceptance, and same-content re-answer acceptance. Detection and immediate answer projection
-were also checked for the new stamp. The integration case banks an answer after media
-exists, proves Tier C and the general dispatch path refuse, and recomposes through
-`DetectServiceStructure` before proving the new provenance clears the guard. Focused gates:
-65 tests / 328 assertions passed, PHPStan zero errors, Pint completed; the full parallel
-suite passed 9,184 tests / 94,441 assertions (163 PHPUnit notices, no failures). Receipts will be kept in
-`storage/app/private/canary10-provenance-rerun-20261003/`, separate from the stopped attempt.
-The cutter and encoding recipe are unchanged; MediaProcessingVersion remains 6.
-
-
-**Operator confirmation received, stitched sermons, 2026-10-03.** The operator listened
-to every listed passage and ruled it part of the sermon: 1050, John 15:18–20 and
-2 Timothy 3:10–12 (275–346 s), 1 Peter 1:6–9 (387–425 s), 1 Peter 4:13–14
-(517–536 s), Acts 5:41 (580–605 s); 1250, Job 30:24–31 (3070–3122 s);
-1356, Isaiah 61:10 (2573–2605 s). Evidence:
-[operator listening page](https://claude.ai/artifact/Fmzqu1GAvjCVb99m5XD9er) and
-`storage/scratch/stitched-sermon-listening-20261003/passages.json` with six saved
-`part_of_sermon` rulings under `saved/rulings/`.
-
-The existing `ConfirmServiceSection` path was inspected before any write. The three
-sermon sections currently carry only `structure_sermon_interruption_merged`, have no
-other review flag or content hold, and have resolved identified-section membership.
-1250's separate four-part composition ruling remains on the run. Confirmation will be
-recorded against the fresh recomposed sections through that path, with a transaction
-refusing any change beyond the interruption flag and its review audit. All sixteen are
-then authorised for timing and Tier C, conditional on current provenance and the
-unchanged preflight and acceptance checks. No canary acceptance or public release is
-included in this ruling.
-
-
-**Same-sixteen replay and stitched confirmations completed, 18:37 UTC.** Code commit
-`ca1af7f59e4da955a4db2b29c94dbbba94b398cf`; all six workers restarted at 18:22:25 UTC
-and passed mount probes. Fresh `snapshot.json` binds the same membership hash
-`0bbc51836e06a7d9e9ed7b3edd8c0e185723495670bc4f6e323da78291eb4c2e` and listening
-routing hash `2fc8903c7e239847a9a12ab449535e1b8398c588bfb88488c3bc47e230819f16`.
-Internal free space was 19,608,148 KiB and staging 491,895,840 KiB; queues were empty,
-both checksum backups completed without deletion, and saved-draw dry run was 16 ready.
-`preflight-recompose.json` and `recompose-dispatch.txt` bind the dispatch.
-
-All 16 completed, with 32 unchanged attempts, no new draw, all 64 artifact checksums
-matching, zero open questions and failed jobs unchanged at 479. `after-recompose.json`
-and `evidence-after-recompose.json` record the replay. Run 964 retains its 1.21 s prayer
-fragment and derived flag, but its current projection provenance now passes the guard.
-Naomi's ruled section is reflected in the projection, and 1250 retains all three Job
-readings plus its sermon.
-
-The existing `ConfirmServiceSection` action then recorded the three authorised merged
-sermons (sections 1582, 73105 and 4485) as verified operator 1. The transaction checked
-that each section had only the interruption flag and reason, preserved all other section
-metadata, and verified run metadata—including provenance and 1250's composition ruling—
-was unchanged. Receipt: `confirm-stitches-receipt.json`; preserved operator evidence is
-in `stitched-sermon-rulings/`, including hashes of the six saved decisions and passages.
-`after-stitch-confirmation.json` confirms no remaining interruption flag, no projection
-refusal and no parked run. The all-sixteen extraction dry run is 16 ready / zero refused
-(`tierc-dry-run.txt`). Timing and cutting have not yet been dispatched.
-
-
-**All-sixteen edge timing completed, 18:48 UTC.** `preflight-timings.json` records empty
-queues, refreshed staging/temp probes in the app and all workers, unchanged post-commit
-worker starts, 19,475,968 KiB internal free space, 491,895,836 KiB staging free space,
-and both refreshed checksum backups (exit 0). `timings-receipt.json` binds all 16 chains.
-The new timing steps checked 153 windows, reused all 153 and decoded zero new windows
-(zero decode compute seconds). All 16 resolved plans use word-pause audits: 182 planned
-audits, no no-word fallback and no missing-cache blocker. `timing-window-summary.json`,
-`timing-plan-summary.json`, `timing-results.json` and `evidence-planned.json` record this.
-All runs completed and queues drained; failed jobs remain 479. Provenance remains current,
-all three interruption confirmations remain settled, and 1250's four-part membership
-remains intact. Tier C is awaiting its refreshed backup/preflight, not yet dispatched.
-
-
-**Tier C dispatched for all sixteen, 19:00 UTC.** Fresh post-timing extraction dry run
-was 16 ready / zero refused. `preflight-tierc.json` binds empty queues, all worker starts
-still 18:22:25 UTC after the code commit, refreshed staging/temp read/write probes,
-19,444,604 KiB internal free space, 491,895,836 KiB staging free space and both refreshed
-checksum backups (exit 0, no deletion). `tierc-dispatch.txt` records 16 dispatched / zero
-refused. No run remains parked. The initial `receipt.json` records the running state;
-cut/file checks, both custody comparisons, accuracy, the listening list and final backups
-and batch report remain pending. No test suite or Dusk is running alongside queue work.
-
-
-**Tier C stopped on stale-file quality assessment, 20:38 UTC.** All sixteen main
-sermon cuts passed their source-aware timing checks. Tier C checked 153 edge windows,
-reused all 153 and decoded none. There were no timing errors or new failed jobs; the
-failed-job baseline remains 479. All 32 attempt IDs and draw-bank hashes are unchanged,
-all 64 saved draw checksums match, no question is open, projection provenance is current
-for all sixteen, and the three authorised interruption confirmations remain settled.
-Run 964's 1166–1167.21 s prayer fragment is unchanged and outside the outputs; 1250's
-four-part composition ruling is preserved.
-
-**New blocker: the quality repair still selects the prior file in the real pipeline.**
-`SermonMetadataIntegrationService` spends `re_extraction.requested` when the new video is
-stored, replacing it with `replacement_authorised`. By the time
-`AssessSermonVideoQuality` runs, `isReExtraction()` is false; its disk selection therefore
-falls back to the sermon's existing quarantine disk. For run 936, the assessment at
-20:35:04 UTC cites `historic_quarantine:sermons/876/video.mp4`, modified at 15:19:07 UTC,
-while this round's file exists on `historic_staging` and was stored at 19:03:01 UTC.
-The seven assessments completed before the stop (936, 949, 964, 1025, 1028, 1050, 1108)
-all cite prior quarantine files. Six approvals and 1050's `mostly_black` rejection are
-not evidence about this round's new files; no fresh-file quality verdict is claimed.
-Evidence: `quality-blocker.json`, `evidence-quality-blocker.json`,
-`in-cutter-stopped.json` and `stopped-state.json` under
-`storage/app/private/canary10-provenance-rerun-20261003/`.
-Review: [run 936](http://localhost/admin/services/544),
-[run 1050](http://localhost/admin/services/699).
-
-All six worker containers were stopped; five exited normally and the active historic
-FFmpeg worker was terminated after its stop grace period (exit 137). Payloads were
-preserved, not deleted, cancelled, retried or settled. `stopped-workers.json` and
-`stopped-queues.txt` record 15 pending and one reserved historic FFmpeg job, with every
-other monitored queue empty. All sixteen runs remain in processing at the AI-analysis
-completed step; none has completed the section-cut/promotion tail. The three held clips
-(1108 §1897, 1221 §2718/§73036) and Naomi §73575 still have no media. Both final custody
-diffs, AV/gap scans, final accuracy and disk-pointer checks, the listening list and final
-checksum backups remain incomplete. The pre-dispatch backups passed as recorded above.
-The failure is recorded without another fix or resumed dispatch. No canary acceptance,
-Tier A, content-hold release or ensemble answer was made.
-
-
-The read-only stopped-batch report completed at 20:46:50 UTC (`batch-stopped.json`):
-16 bundles replay, 32 attempts, zero open or deferred questions, 34 applied / 17 stale /
-one conflicting ruling (the predeclared 1112 exception), and one degraded attempt
-(the pre-existing 936 invalid slot). It is a stopped-state report, not the final report
-after completed cuts and backups. `stopped-pending-payloads.jsonl` and
-`stopped-reserved-payloads.txt` preserve the exact remaining payloads: eight pending and
-one reserved assessment, plus seven pending thumbnail-chain continuations. The operation's
-`receipt.json` now records `stopped_quality_reads_prior_quarantine_file`. Do not restart
-these workers or resume this queued round on changed code without a separately recorded
-recovery; no payload was retired or database status changed to conceal the interruption.
-
-**Exact-file assessment and stitch-vote repair — 2026-10-03 (operator-authorised).**
-The stopped round at `09c5bce3b` is retained as evidence under
-`storage/app/private/canary10-provenance-rerun-20261003/`; its seven old-file verdicts
-remain invalid evidence for those new cuts. The authorised replacement round is recorded
-under `storage/app/private/canary10-exact-file-rerun-20261003/`.
-
-Storage now records each fresh sermon or section video as `media_outputs`, with disk,
-path, byte count and SHA-256 bound to the run, dispatch round, ensemble projection,
-ordered selected spans and media-processing signature. Assessment verifies that identity
-before and after grading and writes the exact graded identity beside its verdict. Missing
-records/files and changed size, hash or provenance refuse assessment with a specific
-reason; neither replacement markers nor a prior sermon copy select the file. The real
-store → assess regression includes the marker-consuming metadata integration and proves
-that the fresh staging bytes are graded while a stale quarantine copy exists. Identity
-mismatch and producer regressions were also run red before their repairs. Provenance
-normalises object keys while preserving span order; a reversed-span regression caught and
-corrected list sorting during this repair.
-
-Fix A keeps `structure_sermon_interruption_merged` only when more than half of a composed
-section's supporting drafts carried it. The real 1050 slots 1 and 3 (two of four) no longer
-retain it; three of four do. All other flags retain the union rule, including content holds.
-The detection prompt and the three recorded operator confirmations are unchanged. Their
-six passage decisions remain in
-`storage/scratch/stitched-sermon-listening-20261003/saved/rulings/`, with the prior
-`confirm-stitches-receipt.json` preserved in this round. MediaProcessingVersion remains 6:
-these repairs bind assessment evidence and change review voting, without changing the
-paired sound/picture cutter recipe.
-
-Focused checks pass (129 tests, 489 assertions), PHPStan reports zero errors and Pint
-passes. The full parallel gate passes: 9,193 tests / 94,493 assertions, with 163 PHPUnit
-notices and no failure (7m 45.818s). Every gate ran with all workers stopped. Exact recovery
-is prepared but not executed: 15 pending and one reserved payload match the preserved
-bytes, reserved score and exact sixteen-run membership. No payload, file, hold, answer or
-operator confirmation has been removed or changed during this preparation.
-
-
-**Exact recovery and worker/snapshot preflight completed, 21:32 UTC.** Code commit
-`eb95fcd4227b024f4c6a6327f7cb6579a89ad960` binds revision
-`655e2ed6494ee285a9264c706d4c6a92d289d04765dc2576cdadaf7ef00daae5`.
-At 21:26:11 UTC the recovery retired precisely the preserved 15 pending and one reserved
-historic FFmpeg payloads, verified their bytes, UUIDs, reserved score and sixteen-run
-membership, and released only their job-specific uniqueness locks. It settled all sixteen
-through `markAsCompleted(..., interrupted_corpus_round_retired, ...)`, explicitly recording
-the interrupted old-code round and need for a fresh replay. Full pre-transition rows,
-payload copies and `recovery-receipt.json` remain; no cut file or other evidence was deleted.
-
-All six workers were recreated and started after the 21:25:42 UTC code commit:
-orchestration at 21:27:01 UTC, the other five at 21:27:13 UTC. App and worker staging/temp
-write-and-read probes passed; internal free space was 19,721,216,000 bytes, staging
-498,583,126,016 bytes. Ten monitored queues were empty in all three states; failed jobs
-remain 479. The initial pre-start snapshot was retained as
-`snapshot-before-worker-start-check.json` and superseded, without dispatch, by a fresh
-`snapshot.json` after the start-time checks. That snapshot binds the same sixteen and
-listening routing; the saved-draw dry run is 16 ready / zero refused. The service-artifact
-checksum backup is still running; the detection-rulings backup is being refreshed again
-with this recovery evidence. Recompose waits for both backups and final preflight.
-
-
-**Recompose stopped on a restored saved-ruling flag, 21:41 UTC.** Both checksum backups
-completed with exit 0 before dispatch. `preflight-recompose.json` records the empty queues,
-post-commit worker starts, writable mounts, 19,681,169,408 internal free bytes and fresh
-snapshot. `recompose-dispatch.txt` records 16 dispatched / zero refused. All sixteen saved
-bundles were recomposed and projected, but the deferred orchestration tail was stopped
-before completion when 1250 again required the interruption review. Timings and Tier C
-were not dispatched; there are no new cuts or new quality verdicts in this round.
-
-**New blocker: 1250's saved answer restores a flag after the majority composer removes it.**
-Fix A's composer produces an unflagged sermon, but the carried canary-9 answer
-`f7b2a77ec5269f967e8a8ff86b6c3fdc86fc22ae059a0ff966c9a2938f5d01a1`, ruling
-`0dfb6c27-4a43-4d5d-af65-c3c71c7cbd97` (2026-10-01 19:55:39 UTC), contains
-`structure_sermon_interruption_merged` in its saved resolution. The existing
-`ServiceStructureEnsembleRulingApplier::apply()` copies that resolution's flags onto
-the replacement section after composition. The read-only replay demonstrates the sequence:
-no stitch flag before rulings, stitch flag after rulings. Section 73105 therefore has
-`needs_manual_review=true` and its extraction plan has `requires_review=true`.
-1050 and 1356 have no remaining stitch flag. The prior authorised passage confirmations
-remain evidence; none was rewritten or repeated to clear this restored flag.
-
-Evidence under `storage/app/private/canary10-exact-file-rerun-20261003/`:
-`stitch-flag-blocker.json`, `1250-stitch-replay-readonly.json`,
-`evidence-stitch-blocker.json`, `stopped-state.json` and `stopped-checks.json`.
-Review: [1250 — Job's final defence](http://localhost/admin/services/400).
-The 1250 four-part review and selected sections [3128, 73104, 4910, 73105] are unchanged.
-Naomi §73575 remains projected at 1056.60–1149.31 s with no ensemble flag; no fresh clip
-exists yet. Run 964's recorded 1166–1167.21 s prayer fragment and micro-section flag remain
-unchanged. All 32 attempt IDs and bank hashes are unchanged, all 64 saved artifact
-checksums match, zero questions are open and all sixteen projection-provenance guards pass.
-Failed jobs remain 479.
-
-All six workers stopped normally (exit 0). Precisely 16 pending orchestration payloads
-remain preserved, with no reserved or delayed job; every other monitored queue is empty.
-`stopped-workers.json`, `stopped-queues.json` and
-`stopped-historic-orchestration-pending-payloads.jsonl` bind that state. They have not been
-retired or resumed, and the sixteen processing states remain evidence of the interrupted
-tail. The prior stopped round's cut files have not been replaced or deleted. No hold was
-released and no answer was recorded. Fresh-file quality, including 1050's fresh verdict,
-all final custody/AV/gap/accuracy/disk-pointer checks and the listening list remain pending.
-This is a stop before extraction, not acceptance or a final cut receipt. Stopped-evidence
-checksum backups are running; a read-only stopped-batch report will follow them.
+| Processing | GO for an authorised round | The re-cut round is set up and not dispatched (§4.0). Every round needs the operator's go and a live preflight (runbook §6). |
+| Containment | **NO-GO** | Nothing is public (0 of 443 sermons, 0 of 953 song videos), and the watcher stops a round on any lost hold. Remaining: the current-policy and unassessable residue, and the stale-clip residue (§4.1). Containment is not adoption: the duplicate pairs are ruled but not applied (§4.4). |
+| Export readiness | **12 of 455** | §3's reasons cleared or explained. The thumbnail line is a ruled deferral (§4.5). |
+| Content acceptance | **NO-GO** | §4.3's stopping rule, song acceptance stage 2, listening on the re-cut edges, and §4.5's fresh release-membership sample, each against criteria fixed beforehand. There is no reserved historic set; insufficient evidence is not a pass. |
+| Public release | **NO-GO** | Phase 9 convergence, QA and actual-server browser checks pass, then the operator signs an exact era-sized batch. Actual-destination delivery checks run within the authorised release's rollback window and must pass to close observation. |

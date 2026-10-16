@@ -36,7 +36,7 @@ services:
         image: 'sail-8.4/app'
         restart: unless-stopped
         # 0 while a historic round runs from its own clone, whose workers read these queues
-        # (docs/plans/FOLLOW-UP-ROUND-FROZEN-CLONE-2026-10-13.md §3.3).
+        # (docs/plans/HISTORIC-ROUND-RUNBOOK.md §2.3).
         deploy:
             replicas: ${QUEUE_WORKERS_DEFAULT:-1}
         environment:
