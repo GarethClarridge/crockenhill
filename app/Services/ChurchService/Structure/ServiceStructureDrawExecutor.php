@@ -108,6 +108,7 @@ class ServiceStructureDrawExecutor
         }
 
         $refined = app(TranscriptCueBoundaries::class)->finish($refined, $transcript)['structure'];
+        $refined = app(SplitSermonParts::class)->join($refined);
 
         return [
             'refined' => $refined,

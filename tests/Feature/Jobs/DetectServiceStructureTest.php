@@ -1588,12 +1588,12 @@ class DetectServiceStructureTest extends TestCase
         $this->storeTranscript($log);
         $this->coveringSegments($log);
 
-        // Two sermons can be detector instability rather than genuine ambiguity.
+        // A sermon too short to be one can be detector instability rather than genuine ambiguity.
         // One feedback-guided attempt gets the exact validator finding and may recover.
         MockServiceStructureService::useStructureSequence(
             ServiceStructure::fromSections([
-                $this->section('sermon', 0.0, 1000.0),
-                $this->section('sermon', 1100.0, 2300.0),
+                $this->section('sermon', 0.0, 100.0),
+                $this->section('other', 100.0, 2300.0),
             ], model: 'mock'),
             $this->validStructure(),
         );
@@ -1799,10 +1799,10 @@ class DetectServiceStructureTest extends TestCase
         $this->storeTranscript($log);
         $this->coveringSegments($log);
 
-        // Two sermons — a hard validator failure.
+        // A sermon too short to be one — a hard validator failure.
         MockServiceStructureService::useStructure(ServiceStructure::fromSections([
-            $this->section('sermon', 0.0, 1000.0),
-            $this->section('sermon', 1100.0, 2300.0),
+            $this->section('sermon', 0.0, 100.0),
+            $this->section('other', 100.0, 2300.0),
         ], model: 'mock'));
 
         $job = new DetectServiceStructure($log);
@@ -1927,10 +1927,10 @@ class DetectServiceStructureTest extends TestCase
         ]);
         $existingSnapshot = $existingSection->fresh()->toArray();
 
-        // Two sermons — a hard validator failure.
+        // A sermon too short to be one — a hard validator failure.
         MockServiceStructureService::useStructure(ServiceStructure::fromSections([
-            $this->section('sermon', 0.0, 1000.0),
-            $this->section('sermon', 1100.0, 2300.0),
+            $this->section('sermon', 0.0, 100.0),
+            $this->section('other', 100.0, 2300.0),
         ], model: 'mock'));
 
         $this->runJob($log, reconcile: true);
