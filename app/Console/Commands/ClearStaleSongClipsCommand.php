@@ -26,6 +26,9 @@ use Illuminate\Support\Facades\Storage;
  * deleting a clip is the operator's decision from the report.
  *
  * Writes to round members, so it runs only when no round is open (runbook §2.4).
+ *
+ * Deletion trigger: delete once an executed run reports no stale sections and the watcher's diff
+ * on the next round shows no "lost media" from stale clips.
  */
 class ClearStaleSongClipsCommand extends Command
 {

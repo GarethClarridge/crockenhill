@@ -442,7 +442,7 @@ trait ReviewsServiceSections
             return [];
         }
 
-        return $this->serviceItemOptionsByService[$serviceId] ??= ChurchServiceItem::query()
+        return $this->serviceItemOptionsByService[$serviceId] ??= array_values(ChurchServiceItem::query()
             ->where('church_service_id', $serviceId)
             ->orderBy('position')
             ->get(['id', 'position', 'title', 'type', 'section_type'])
@@ -450,8 +450,7 @@ trait ReviewsServiceSections
                 'id' => (string) $item->id,
                 'name' => sprintf('%d. %s (%s)', $item->position, $item->title, strtolower($item->semanticSectionType()->label())),
             ])
-            ->values()
-            ->all();
+            ->all());
     }
 
     /**
