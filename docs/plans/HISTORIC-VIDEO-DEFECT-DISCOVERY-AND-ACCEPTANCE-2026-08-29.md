@@ -392,8 +392,15 @@ supersede; a new freeze and snapshot follow.
    pushed; clone at `be35e9466`; snapshot `recut-round-20261016e` (200 runs) with every route
    dry-run (above).
 2. **Before dispatch, still open:**
-   - the source reviews Codex flagged on 10-16: the seven Q12 endings, and 1036 §1470 and
-     1255 §3178 (their disposition is recorded beside this list when settled);
+   - **1036 and 1255 settled 10-16** (listening page https://claude.ai/artifact/1nnya6qTouPWLaEEEE2k1C,
+     answers in `storage/scratch/structure-review-1036-1255-20261016/`): §1470 is only
+     pre-service music or talk, and §3178 is not a reading. Both runs recompose as planned and
+     the sections go; routes unchanged;
+   - **the seven Q12 endings:** no tool can set a sermon or talk ending that the planner does not
+     refuse, on the service screen or the command line, and at v10 there is nothing to preview
+     before the round decodes. Operator, 10-16: build a weekly "end here / start here" tool in
+     its own session first; these seven are its first users (prompt in
+     `storage/scratch/recut-freeze-20261016/weekly-edge-tool-prompt.md`);
    - a fresh backup to Sonnics (runbook §6.5) and the live preflight (runbook §6);
    - round workers up from the clone (runbook §3), restarted after the clone moved.
 3. Watcher on `recut-round-20261016e` (runbook §5.1). Then:
