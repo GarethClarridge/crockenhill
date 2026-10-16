@@ -112,8 +112,6 @@ song digital-zero bar, run 937's retirement).
 | K4 | **Closing prayers are actively preferred in sermons.** | 09-30 | [Ensemble] 18 |
 | K5 | A non-matching reading stays joined to the sermon (the nearest one, across a hymn if need be). | 09-14 | [Plan] §4.3 |
 | K6 | Every reading directly before the sermon is cut with it, except a carol service's lessons (December, four or more readings), plus passage matches further back. | 10-13 | [Round] §6, §11 |
-| K7 | A sermon may end on the next hymn's announcement and instrumental introduction, or the leader reading its first verse: not a defect. | 09-14 | [Plan] §4.3 |
-| K8 | Pattern A: a sermon beside a song ends where the singing starts. | 10-13 | [Round] §11 |
 | K9 | Pattern B: a recording that opens with the sermon (first section, ≤ 5 s in) publishes that sermon. | 10-13 | [Round] §11 |
 | K10 | Pattern C: a reading the sermon stops for and resumes after stays inside it. Prayers, and parts preaching different passages, stay questions. | 10-13 | [Round] §11 |
 | K11 | Pattern D: a low-confidence reading directly before the sermon is cut with it; low confidence holds neither. | 10-13 | [Round] §11 |
@@ -121,6 +119,7 @@ song digital-zero bar, run 937's retirement).
 | K13 | A sermon part whose speech stands < 20 dB above its pauses is held, never dropped. | 10-10 | [Boundary] §6.3.8 |
 | K14 | **Use the longer recording for the service, but never let its sermon replace a better recording's** (higher resolution, then bitrate; the held sermon ≥ 95% of the length). | 10-15 | [Round] §12 |
 | K15 | Two answers that share a seam both keep it: the seam stays in both clips. | 10-14 | [Round] §12 |
+| K16 | **A sermon followed by a song ends at the join to it, and never after the music starts.** The preacher's introduction to the song is part of the sermon when it ties the song to the sermon, because then it works as the sermon's conclusion. A bare announcement, the introduction to an unrelated song, and notices are not. A "let's stand and sing" call on its own is never included. "It's not really about the length, it's about the relevance of the song to the sermon." Notices or housekeeping between the sermon and a tied introduction end the sermon at its own last sentence. The judgement is asked of the model in the routine pipeline, with a third answer where two disagree. | 10-16 | Edge-tool session 10-16 (`storage/scratch/weekly-edge-tool-20261016/`) |
 
 ## 6. Edges and cutting
 
@@ -227,6 +226,8 @@ song digital-zero bar, run 937's retirement).
 | A sermon's closing prayer "either way" | 09-28 | K4 (09-30) |
 | Cut plan D1 as first written | 10-02 | K2 (10-11) |
 | A new freeze and canary for every output-changing fix | 10-04 | "No canary 16" and R3 (10-10) |
+| A sermon may end on the next hymn's announcement and instrumental introduction, or the leader reading its first verse (K7) | 09-14 | K16 (10-16) |
+| Pattern A: a sermon beside a song ends where the singing starts (K8) | 10-13 | K16 (10-16): at the music's start at the latest, and only through an introduction that ties the song to the sermon |
 
 ---
 

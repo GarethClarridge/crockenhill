@@ -426,6 +426,26 @@ supersede; a new freeze and snapshot follow.
        until the round decodes; the v9 proxy replay is the pre-decode confirmation.
      - **This is new code: re-freeze before the go** — move the clone to the new master
        commit, take a fresh snapshot and dry-run every route (runbook §2.1, §3).
+   - **Sermon ends beside a song — K16 built 10-16, not yet committed.** Ruled 10-16 (register
+     K16, superseding K7/K8): the sermon ends at the join to the song, never after the music
+     starts, and keeps the preacher's introduction only when it ties the song to the sermon.
+     `SermonSongIntroductionCheck` asks the structure model on the edge step, *before* the edge
+     words are decoded (twice; a third time when the two disagree; majority; the later line of
+     the winning side), and banks the answer; `CueSafeExtractionPlan` ends the sermon at the
+     answer's line and reaches across an unpublished introduction section (class B, 1111).
+     Pattern A's spoken stretch (`spokenThrough`) is deleted. Lines in the first 5 s music
+     window may finish a sentence; later lines never count (1224).
+     - **Measured read only** (`storage/scratch/weekly-edge-tool-20261016/`, 280 sermons
+       followed by a song, then the production prompt on 23): of the 23, the housekeeping rule
+       ended the six long-housekeeping runs at the sermon's own last line (951, 1008, 1096,
+       1168, 1240, 1283; 1185's introduction holds no notices and stays tied); a third answer
+       settled 6 of the 16 split runs. One weak case: 1133 stops at a line boundary
+       before "…entitled Your Word, and we'll stand to sing."
+     - **Rollout:** a sermon beside a song with no banked answer plans as
+       `spoken_end_thought_unresolved` and is held. Every such run needs the edge step re-run
+       (2–3 model calls each, about 280 historic runs). The recompose route runs it;
+       `sermons:re-extract` plans before it decodes and would hold these runs.
+       New code, so re-freeze before the go.
    - a fresh backup to Sonnics (runbook §6.5) and the live preflight (runbook §6);
    - round workers up from the clone (runbook §3), restarted after the clone moved.
 3. Watcher on `recut-round-20261016e` (runbook §5.1). Then:
