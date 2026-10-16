@@ -1017,8 +1017,16 @@ class ServiceStructureValidator
                  * A genuine conflict, where both sides name a type and the types
                  * differ, still fails: three of the nine on record are that, and
                  * they mean the detector anchored a section to the wrong item.
+                 *
+                 * Except a talk over a notices item (ruling D22, 2026-10-14): an
+                 * order of service lists a report from an event the way it lists
+                 * notices, so 954's "Report from Men's Event" is both. Across every
+                 * banked draw on 2026-10-16 that pair is the only talk conflict that
+                 * names the right item; the others (a talk over a reading, a sermon
+                 * over a prayer slide) are wrong anchors and still fail.
                  */
-                if ($section->type === ServiceSectionType::Other) {
+                if ($section->type === ServiceSectionType::Other
+                    || ($section->type === ServiceSectionType::ShortTalk && $itemType === ServiceSectionType::Notices)) {
                     $unresolvedTypes[$index] = true;
                 } else {
                     $hardFailures[] = [

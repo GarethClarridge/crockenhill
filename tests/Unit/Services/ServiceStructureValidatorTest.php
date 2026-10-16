@@ -443,6 +443,40 @@ class ServiceStructureValidatorTest extends TestCase
         );
     }
 
+    /**
+     * Ruling D22: 954's "Report from Men's Event" is a talk, and the order of service lists it
+     * as notices. Three of four draws said so and every one of them was discarded. A report is
+     * listed the way notices are, so the two types are not a contradiction worth a run.
+     */
+    #[Test]
+    public function a_talk_claiming_a_notices_item_is_flagged_not_failed(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('short_talk', 0.0, 400.0, oosItemId: 6),
+            $this->section('sermon', 500.0, 2200.0),
+        ]);
+
+        $result = $this->validator->validate($structure, $this->contextWithNotices());
+
+        $this->assertNotContains('incompatible_oos_item', $result->failureCodes());
+        $this->assertContains(ServiceStructureValidator::FLAG_OOS_TYPE_UNRESOLVED, $result->structure->sections[0]->reviewFlags);
+        $this->assertSame(ServiceSectionType::ShortTalk, $result->structure->sections[0]->type);
+    }
+
+    /**
+     * 1297's two draws anchoring a talk to "Matthew 6:1-18" anchored it to the wrong item.
+     */
+    #[Test]
+    public function a_talk_claiming_a_reading_still_fails_hard(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('short_talk', 0.0, 400.0, oosItemId: 3),
+            $this->section('sermon', 500.0, 2200.0),
+        ]);
+
+        $this->assertContains('incompatible_oos_item', $this->validator->validate($structure, $this->contextWithNotices())->failureCodes());
+    }
+
     #[Test]
     public function same_type_oos_items_claimed_out_of_planned_order_are_flagged_not_failed(): void
     {
@@ -955,6 +989,16 @@ class ServiceStructureValidatorTest extends TestCase
                 5 => ServiceSectionType::Other,
             ],
             oosItemPositions: [1 => 1, 2 => 2, 3 => 3, 4 => 4, 5 => 5],
+        );
+    }
+
+    private function contextWithNotices(): ValidationContext
+    {
+        return new ValidationContext(
+            recordingDuration: 2430.0,
+            speechDuration: 2300.0,
+            oosItemTypes: [3 => ServiceSectionType::BibleReading, 6 => ServiceSectionType::Notices],
+            oosItemPositions: [3 => 1, 6 => 2],
         );
     }
 
