@@ -11,6 +11,8 @@ use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Enums\TalkType;
 use App\Jobs\PrepareSectionPublicationCandidates;
+use App\Models\ChurchService;
+use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\ServiceSection;
@@ -71,6 +73,113 @@ class SaveServiceSectionTest extends TestCase
         $this->assertFalse($section->needs_manual_review);
         $this->assertArrayNotHasKey('review_reason', $metadata);
         $this->assertArrayHasKey('manual_review', $metadata);
+    }
+
+    /**
+     * Run 1363: splitting the sermon left its order-of-service item on the first part, which the
+     * reviewer retyped as the prayer; the sermon part had no item and nothing could re-link it.
+     */
+    #[Test]
+    public function a_reviewer_moves_the_order_of_service_item_to_the_section_it_belongs_to(): void
+    {
+        [$prayer, $sermon, $sermonItem] = $this->splitSermonRun();
+
+        $this->action->execute(
+            section: $sermon,
+            sectionEdits: [$sermon->id => ['section_type' => 'sermon', 'title' => 'The promise of exaltation', 'church_service_item_id' => (string) $sermonItem->id]],
+            speakerEdits: [],
+            userId: $this->admin->id,
+        );
+
+        $this->assertSame($sermonItem->id, $sermon->fresh()->church_service_item_id);
+        $this->assertNull($prayer->fresh()->church_service_item_id);
+        $this->assertEquals(
+            ['from' => null, 'to' => $sermonItem->id, 'taken_from_section_id' => $prayer->id, 'by_user_id' => $this->admin->id],
+            array_diff_key($sermon->fresh()->metadata->raw['manual_item_link'], ['at' => true]),
+        );
+    }
+
+    #[Test]
+    public function an_item_from_another_service_cannot_be_linked(): void
+    {
+        [, $sermon] = $this->splitSermonRun();
+        $elsewhere = ChurchServiceItem::factory()->create(['church_service_id' => ChurchService::factory()->create()->id]);
+
+        $this->expectException(ValidationException::class);
+
+        $this->action->execute(
+            section: $sermon,
+            sectionEdits: [$sermon->id => ['section_type' => 'sermon', 'title' => 'Sermon', 'church_service_item_id' => (string) $elsewhere->id]],
+            speakerEdits: [],
+            userId: $this->admin->id,
+        );
+    }
+
+    /**
+     * The retype that made 1363's mistake: a prayer may not keep the sermon's item unasked.
+     */
+    #[Test]
+    public function a_retype_that_contradicts_the_linked_item_asks_for_the_item_again(): void
+    {
+        [$prayer, , $sermonItem] = $this->splitSermonRun();
+        $prayer->update(['section_type' => ServiceSectionType::Sermon->value]);
+
+        try {
+            $this->action->execute(
+                section: $prayer->fresh(),
+                sectionEdits: [$prayer->id => ['section_type' => 'prayer', 'title' => 'Prayer']],
+                speakerEdits: [],
+                userId: $this->admin->id,
+            );
+            $this->fail('The retype kept a sermon item on a prayer.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('church_service_item_id', $exception->errors());
+        }
+
+        $this->action->execute(
+            section: $prayer->fresh(),
+            sectionEdits: [$prayer->id => ['section_type' => 'prayer', 'title' => 'Prayer', 'church_service_item_id' => '']],
+            speakerEdits: [],
+            userId: $this->admin->id,
+        );
+
+        $this->assertSame(ServiceSectionType::Prayer, $prayer->fresh()->section_type);
+        $this->assertNull($prayer->fresh()->church_service_item_id);
+        $this->assertNotNull($sermonItem->fresh());
+    }
+
+    /**
+     * @return array{ServiceSection, ServiceSection, ChurchServiceItem}
+     */
+    private function splitSermonRun(): array
+    {
+        $service = ChurchService::factory()->create();
+        $sermonItem = ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'title' => 'The promise of exaltation',
+            'section_type' => ServiceSectionType::Sermon->value,
+        ]);
+        $run = MediaProcessingLog::factory()->livestream()->create(['church_service_id' => $service->id]);
+        $prayer = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Prayer->value,
+            'section_order' => 1,
+            'title' => 'Prayer',
+            'start_time' => 932.0,
+            'end_time' => 1104.0,
+            'church_service_item_id' => $sermonItem->id,
+        ]);
+        $sermon = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'section_order' => 2,
+            'title' => 'The promise of exaltation',
+            'start_time' => 1178.3,
+            'end_time' => 3058.6,
+            'church_service_item_id' => null,
+        ]);
+
+        return [$prayer, $sermon, $sermonItem];
     }
 
     #[Test]

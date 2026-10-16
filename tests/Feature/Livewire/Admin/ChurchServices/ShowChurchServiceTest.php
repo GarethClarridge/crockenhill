@@ -1424,7 +1424,47 @@ class ShowChurchServiceTest extends TestCase
             ->set("sectionEdits.{$section->id}.section_type", 'invalid')
             ->set("sectionEdits.{$section->id}.title", '')
             ->call('saveSection', $section->id)
-            ->assertHasErrors(['section_type', 'title']);
+            ->assertHasErrors(['section_type', 'title', "sectionEdits.{$section->id}.title"]);
+    }
+
+    /**
+     * Run 1363: the sermon's order-of-service item sat on its prayer and no control could move it.
+     */
+    #[Test]
+    public function a_reviewer_links_a_section_to_its_order_of_service_item(): void
+    {
+        [$service, $run] = $this->workbenchServiceWithRun();
+        $run->update(['church_service_id' => $service->id]);
+        $item = ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 13,
+            'title' => 'The promise of exaltation',
+            'section_type' => ServiceSectionType::Sermon->value,
+        ]);
+        $prayer = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Prayer->value,
+            'section_order' => 1,
+            'church_service_item_id' => $item->id,
+            'needs_manual_review' => true,
+        ]);
+        $sermon = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Sermon->value,
+            'section_order' => 2,
+            'church_service_item_id' => null,
+            'needs_manual_review' => true,
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('13. The promise of exaltation (sermon)')
+            ->set("sectionEdits.{$sermon->id}.church_service_item_id", (string) $item->id)
+            ->call('saveSection', $sermon->id)
+            ->assertHasNoErrors();
+
+        $this->assertSame($item->id, $sermon->fresh()->church_service_item_id);
+        $this->assertNull($prayer->fresh()->church_service_item_id);
     }
 
     #[Test]

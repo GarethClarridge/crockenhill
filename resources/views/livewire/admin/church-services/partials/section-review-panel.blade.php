@@ -124,6 +124,20 @@
         </div>
     </div>
 
+    @php
+        $serviceItemOptions = $this->serviceItemOptionsFor($section);
+    @endphp
+    @if($serviceItemOptions !== [])
+        <x-select
+            label="Order of service item"
+            wire:model.blur="sectionEdits.{{ $section->id }}.church_service_item_id"
+            :options="$serviceItemOptions"
+            placeholder="None"
+            hint="Saving moves the item here from any other section of this recording."
+            dusk="section-item-{{ $section->id }}"
+        />
+    @endif
+
     @if($section->section_type === \App\Enums\ServiceSectionType::ShortTalk)
         @if(is_array($boundaryEvidence))
             <div class="space-y-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-3 text-sm text-amber-900">

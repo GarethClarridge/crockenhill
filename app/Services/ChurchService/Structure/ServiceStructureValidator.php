@@ -851,6 +851,20 @@ class ServiceStructureValidator
     }
 
     /**
+     * Whether a section of one type may claim an order-of-service item of another without
+     * contradicting it: an untyped item or section claims nothing, and a talk may be listed as
+     * notices (D22). The reasons are where {@see self::checkOosAnchoring()} applies the rule; a
+     * reviewer's re-link is held to the same one.
+     */
+    public static function sectionMayClaimItemOfType(ServiceSectionType $section, ServiceSectionType $item): bool
+    {
+        return $item === ServiceSectionType::Other
+            || $item === $section
+            || $section === ServiceSectionType::Other
+            || ($section === ServiceSectionType::ShortTalk && $item === ServiceSectionType::Notices);
+    }
+
+    /**
      * @param  list<array{code: string, message: string}>  $hardFailures
      */
     private function checkSermons(ServiceStructure $structure, array &$hardFailures): void
@@ -1025,8 +1039,7 @@ class ServiceStructureValidator
                  * names the right item; the others (a talk over a reading, a sermon
                  * over a prayer slide) are wrong anchors and still fail.
                  */
-                if ($section->type === ServiceSectionType::Other
-                    || ($section->type === ServiceSectionType::ShortTalk && $itemType === ServiceSectionType::Notices)) {
+                if (self::sectionMayClaimItemOfType($section->type, $itemType)) {
                     $unresolvedTypes[$index] = true;
                 } else {
                     $hardFailures[] = [

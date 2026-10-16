@@ -14,11 +14,13 @@ use App\Actions\ServiceReview\SaveServiceSection;
 use App\Actions\ServiceReview\SplitServiceSection;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
+use App\Models\ChurchServiceItem;
 use App\Models\Preacher;
 use App\Models\ServiceSection;
 use App\Queries\ServiceReviewDashboardQuery;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 
 /**
@@ -44,7 +46,7 @@ trait ReviewsServiceSections
     ];
 
     /**
-     * @var array<int, array{section_type: string, title: string, end_time: string, talk_type?: string, sermon_section_ids?: string, sermon_composition_identity?: string}>
+     * @var array<int, array{section_type: string, title: string, end_time: string, talk_type?: string, church_service_item_id?: string, sermon_section_ids?: string, sermon_composition_identity?: string}>
      */
     public array $sectionEdits = [];
 
@@ -127,12 +129,23 @@ trait ReviewsServiceSections
             return;
         }
 
-        $this->saveSectionAction->execute(
-            section: $section,
-            sectionEdits: $this->sectionEdits,
-            speakerEdits: $this->speakerEdits,
-            userId: $this->reviewingUserId(),
-        );
+        try {
+            $this->saveSectionAction->execute(
+                section: $section,
+                sectionEdits: $this->sectionEdits,
+                speakerEdits: $this->speakerEdits,
+                userId: $this->reviewingUserId(),
+            );
+        } catch (ValidationException $exception) {
+            // The action names fields plainly; each control shows the errors bound to its own model.
+            $scoped = [];
+            foreach ($exception->errors() as $field => $messages) {
+                $edits = in_array($field, ['preacher_id', 'speaker_name'], true) ? 'speakerEdits' : 'sectionEdits';
+                $scoped["{$edits}.{$section->id}.{$field}"] = $messages;
+            }
+
+            throw ValidationException::withMessages([...$exception->errors(), ...$scoped]);
+        }
 
         $this->sectionEdits[$section->id] = $this->sectionEditState($section);
         $publicationSpeaker = $section->publicationTalkSpeaker();
@@ -413,6 +426,34 @@ trait ReviewsServiceSections
         );
     }
 
+    /** @var array<int, list<array{id: string, name: string}>> */
+    private array $serviceItemOptionsByService = [];
+
+    /**
+     * The order of service a section can be linked to: its own service's items, in printed order.
+     *
+     * @return list<array{id: string, name: string}>
+     */
+    public function serviceItemOptionsFor(ServiceSection $section): array
+    {
+        $serviceId = $section->processingLog->church_service_id;
+
+        if ($serviceId === null) {
+            return [];
+        }
+
+        return $this->serviceItemOptionsByService[$serviceId] ??= ChurchServiceItem::query()
+            ->where('church_service_id', $serviceId)
+            ->orderBy('position')
+            ->get(['id', 'position', 'title', 'type', 'section_type'])
+            ->map(static fn (ChurchServiceItem $item): array => [
+                'id' => (string) $item->id,
+                'name' => sprintf('%d. %s (%s)', $item->position, $item->title, strtolower($item->semanticSectionType()->label())),
+            ])
+            ->values()
+            ->all();
+    }
+
     /**
      * @return list<array{id: string, name: string}>
      */
@@ -448,7 +489,7 @@ trait ReviewsServiceSections
      * proposal is shown beside it, never preselected: every short talk's first save
      * also sets its speaker, and that save must not confirm the detector's guess.
      *
-     * @return array{section_type: string, title: string, end_time: string, talk_type: string, sermon_section_ids?: string, sermon_composition_identity?: string}
+     * @return array{section_type: string, title: string, end_time: string, talk_type: string, church_service_item_id: string, sermon_section_ids?: string, sermon_composition_identity?: string}
      */
     private function sectionEditState(ServiceSection $section): array
     {
@@ -457,6 +498,7 @@ trait ReviewsServiceSections
             'title' => (string) ($section->title ?? ''),
             'end_time' => (string) $section->end_time,
             'talk_type' => $section->publicationTalkType()->value ?? '',
+            'church_service_item_id' => (string) ($section->church_service_item_id ?? ''),
         ];
         if ($section->section_type === ServiceSectionType::Sermon && is_array($section->metadata?->raw['sermon_boundary'] ?? null)) {
             $state['sermon_section_ids'] = implode(', ', $section->metadata->raw['sermon_boundary']['selected_section_ids'] ?? []);

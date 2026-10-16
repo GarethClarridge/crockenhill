@@ -10,9 +10,11 @@ use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Enums\TalkType;
 use App\Jobs\PrepareSectionPublicationCandidates;
+use App\Models\ChurchServiceItem;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ExtractedSectionMediaChecker;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
+use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Preacher\TalkSpeakerService;
 use App\Services\Sermon\SermonExtractionPlanResolver;
@@ -36,7 +38,7 @@ class SaveServiceSection
      * Throws ValidationException on invalid input; throws \RuntimeException if the section
      * is no longer a review candidate.
      *
-     * @param  array<int, array{section_type:string,title:string,end_time?:string|int|float|null,talk_type?:string|null}>  $sectionEdits
+     * @param  array<int, array{section_type:string,title:string,end_time?:string|int|float|null,talk_type?:string|null,church_service_item_id?:string|null}>  $sectionEdits
      * @param  array<int, array{preacher_id:string,speaker_name:string}>  $speakerEdits
      *
      * @throws ValidationException
@@ -58,7 +60,10 @@ class SaveServiceSection
             'talk_type' => $section->publicationTalkType()->value ?? '',
             'sermon_section_ids' => null,
             'sermon_composition_identity' => null,
+            'church_service_item_id' => (string) ($section->church_service_item_id ?? ''),
         ], $sectionEdits[$section->id] ?? [], $speakerEdits[$section->id] ?? []);
+        $churchServiceId = $section->processingLog->church_service_id;
+        $itemChanged = (string) $payload['church_service_item_id'] !== (string) ($section->church_service_item_id ?? '');
 
         $originalSectionType = $section->section_type;
         $originalEndTime = (float) $section->end_time;
@@ -81,6 +86,9 @@ class SaveServiceSection
                     static fn (TalkType $type): string => $type->value,
                     TalkType::nonSermon()
                 ))],
+                'church_service_item_id' => $itemChanged
+                    ? ['nullable', 'integer', Rule::exists('church_service_items', 'id')->where('church_service_id', $churchServiceId ?? 0)]
+                    : ['nullable'],
             ],
             [
                 'section_type.required' => 'Choose a section type.',
@@ -88,6 +96,7 @@ class SaveServiceSection
                 'end_time.required' => 'Enter an end time.',
                 'end_time.numeric' => 'The end time must be a number of seconds.',
                 'talk_type.in' => 'Choose a talk type from the list.',
+                'church_service_item_id.exists' => 'Choose an order-of-service item from this service.',
             ]
         );
 
@@ -97,8 +106,20 @@ class SaveServiceSection
             $originalSectionType,
             $originalEndTime,
             $originalStartTime,
+            $itemChanged,
         ): void {
             $targetType = ServiceSectionType::tryFrom($payload['section_type']);
+            $item = ($itemChanged || $targetType !== $originalSectionType) && is_numeric($payload['church_service_item_id']) ? ChurchServiceItem::query()->find((int) $payload['church_service_item_id']) : null;
+
+            if ($targetType instanceof ServiceSectionType && $item instanceof ChurchServiceItem
+                && ! ServiceStructureValidator::sectionMayClaimItemOfType($targetType, $item->semanticSectionType())) {
+                $validator->errors()->add('church_service_item_id', sprintf(
+                    'A %s cannot be the order-of-service item "%s" (a %s). Choose its item again, or none.',
+                    strtolower($targetType->label()),
+                    $item->title,
+                    strtolower($item->semanticSectionType()->label()),
+                ));
+            }
 
             if ($targetType === ServiceSectionType::ShortTalk) {
                 $existingSpeaker = $section->publicationTalkSpeaker();
@@ -175,7 +196,8 @@ class SaveServiceSection
         $section->section_type = ServiceSectionType::from($validated['section_type']);
         $section->title = trim($validated['title']);
 
-        $metadata = $section->metadata?->toArray() ?? [];
+        $metadata = $this->withItemLink($section, $validated['church_service_item_id'] ?? null, $section->metadata?->toArray() ?? [], $userId);
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
 
         if ($boundaryChanged) {
             $metadata = $this->recordReviewedRecut(
@@ -273,6 +295,40 @@ class SaveServiceSection
 
         $section->save();
         $this->recomposeIfChanged($section, $compositionChanged);
+    }
+
+    /**
+     * Link the section to the item the reviewer chose, taking it from any other section of the run
+     * that held it: one item is one section's (1363's split left the sermon's item on its prayer).
+     *
+     * @param  array<string, mixed>  $metadata
+     * @return array<string, mixed>
+     */
+    private function withItemLink(ServiceSection $section, mixed $itemId, array $metadata, int $userId): array
+    {
+        $itemId = is_numeric($itemId) ? (int) $itemId : null;
+
+        if ($itemId === $section->church_service_item_id) {
+            return $metadata;
+        }
+
+        $holder = $itemId === null ? null : ServiceSection::query()
+            ->where('media_processing_log_id', $section->media_processing_log_id)
+            ->where('church_service_item_id', $itemId)
+            ->whereKeyNot($section->id)
+            ->first();
+        $holder?->forceFill(['church_service_item_id' => null])->save();
+
+        $metadata['manual_item_link'] = [
+            'from' => $section->church_service_item_id,
+            'to' => $itemId,
+            'taken_from_section_id' => $holder?->id,
+            'by_user_id' => $userId,
+            'at' => now()->toIso8601String(),
+        ];
+        $section->church_service_item_id = $itemId;
+
+        return $metadata;
     }
 
     private function recomposeIfChanged(ServiceSection $section, bool $changed): void
