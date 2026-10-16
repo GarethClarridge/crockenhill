@@ -739,6 +739,7 @@ class ServiceSectionSyncService
     {
         $placed = [];
         $unplaced = [];
+        $owners = [];
 
         foreach ($existing as $section) {
             $answers = $section->metadata?->raw[OutputEdgeAnswers::METADATA_KEY] ?? null;
@@ -747,6 +748,7 @@ class ServiceSectionSyncService
                 continue;
             }
 
+            $active = OutputEdgeAnswers::recordsOf($section) !== [];
             $best = null;
             $bestOverlap = 0.0;
 
@@ -758,14 +760,36 @@ class ServiceSectionSyncService
                 }
             }
 
+            if ($best === null && ! $active) {
+                continue;
+            }
+
+            $content = ['id' => $section->id, 'section_type' => $section->section_type->value,
+                'start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time];
+
             if ($best === null) {
-                $unplaced[] = ['id' => $section->id, 'section_type' => $section->section_type->value,
-                    'start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time];
+                $unplaced[] = $content;
 
                 continue;
             }
 
-            $placed[$best] = $answers;
+            if ($active && isset($owners[$best])) {
+                $unplaced[] = $owners[$best];
+                $unplaced[] = $content;
+
+                continue;
+            }
+
+            $history = [...($placed[$best][OutputEdgeAnswers::HISTORY_KEY] ?? []), ...($answers[OutputEdgeAnswers::HISTORY_KEY] ?? [])];
+            $placed[$best] = [...($placed[$best] ?? []), ...$answers];
+
+            if ($history !== []) {
+                $placed[$best][OutputEdgeAnswers::HISTORY_KEY] = $history;
+            }
+
+            if ($active) {
+                $owners[$best] = $content;
+            }
         }
 
         if ($unplaced !== []) {

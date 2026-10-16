@@ -12,6 +12,7 @@ use App\Services\Media\Audio\AudioTimeline;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Support\MediaProcessingVersion;
 use App\Support\OpenAiChatPayload;
+use App\Support\OpenAiFlexFallback;
 use App\Support\OpenAiUsageLogger;
 use Illuminate\Support\Facades\Storage;
 use OpenAI\Laravel\Facades\OpenAI;
@@ -110,7 +111,7 @@ TXT;
 
         $decision = $this->decision($calls, $question['lines']);
         app(ServiceArtifactStorage::class)->putJson($log->processing_id, $this->kind($question['identity']), [
-            'identity' => $question['identity'], 'prompt' => $question['prompt'], 'lines' => $question['lines'], 'calls' => $calls, ...$decision,
+            'calls_completed' => true, 'identity' => $question['identity'], 'prompt' => $question['prompt'], 'lines' => $question['lines'], 'calls' => $calls, ...$decision,
         ]);
         $log->refresh();
 
@@ -289,18 +290,20 @@ TXT;
     {
         $model = (string) config('media-processing.service_structure.model');
 
-        try {
-            $response = OpenAI::chat()->create(OpenAiChatPayload::forModel([
+        $result = OpenAiFlexFallback::send(
+            OpenAiChatPayload::forModel([
                 'model' => $model,
+                'service_tier' => config('openai.service_tier'),
                 'messages' => [['role' => 'system', 'content' => self::SYSTEM_PROMPT], ['role' => 'user', 'content' => $prompt]],
                 'response_format' => ['type' => 'json_object'],
                 'max_completion_tokens' => 4000,
-            ], reasoningEffort: 'medium'));
-            OpenAiUsageLogger::log($response, 'sermon_song_introduction', $model, $log->processing_id, 'medium');
-            $answer = json_decode($response->choices[0]->message->content ?? 'null', true);
-        } catch (\Throwable) {
-            $answer = null;
-        }
+            ], reasoningEffort: 'medium'),
+            static fn (array $payload) => OpenAI::chat()->create($payload),
+            'sermon_song_introduction',
+        );
+        $response = $result->response;
+        OpenAiUsageLogger::log($response, 'sermon_song_introduction', $model, $log->processing_id, 'medium', $result->serviceTier);
+        $answer = json_decode($response->choices[0]->message->content ?? 'null', true);
 
         $line = static fn (string $key): ?int => is_array($answer) && is_int($answer[$key] ?? null) ? $answer[$key] : null;
 
@@ -374,6 +377,11 @@ TXT;
             }
 
             if (is_array($payload) && ($payload['identity'] ?? null) == $identity && array_key_exists('end', $payload)) {
+                // Older null answers may have swallowed a transport failure; ask again once.
+                if ($payload['end'] === null && ($payload['calls_completed'] ?? false) !== true) {
+                    continue;
+                }
+
                 return [
                     'end' => is_numeric($payload['end']) ? (float) $payload['end'] : null,
                     'ties_to_sermon' => is_bool($payload['ties_to_sermon'] ?? null) ? $payload['ties_to_sermon'] : null,

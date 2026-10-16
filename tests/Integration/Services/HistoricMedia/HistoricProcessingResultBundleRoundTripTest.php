@@ -118,7 +118,7 @@ class HistoricProcessingResultBundleRoundTripTest extends TestCase
 
         $this->stageExportedAssets($service['assets']);
         $this->tearDownSourceGraph();
-        $this->shiftPrimaryKeys();
+        $this->shiftPrimaryKeys($sourceIds);
         $this->useDestinationHostDisks();
 
         $importer = app(HistoricProcessingResultBundleImporter::class);
@@ -155,8 +155,9 @@ class HistoricProcessingResultBundleRoundTripTest extends TestCase
         $bundle = $this->export($canary['run']);
 
         $this->stageExportedAssets($bundle['services'][0]['assets']);
+        $sourceIds = $this->currentIds();
         $this->tearDownSourceGraph();
-        $this->shiftPrimaryKeys();
+        $this->shiftPrimaryKeys($sourceIds);
         $this->useDestinationHostDisks();
 
         $bundle['services'][0]['media_graph']['run']['sermon_start_time'] = 999.0;
@@ -382,11 +383,13 @@ class HistoricProcessingResultBundleRoundTripTest extends TestCase
      * keeps counting after a delete, so without this the imported rows could
      * land on ids that merely happen to differ; the shift makes the difference
      * deliberate and large.
+     *
+     * @param  array<string, int>  $sourceIds
      */
-    private function shiftPrimaryKeys(): void
+    private function shiftPrimaryKeys(array $sourceIds): void
     {
         foreach ([...self::RECREATED_TABLES, ...self::RESOLVED_TABLES] as $table) {
-            $next = ((int) DB::table($table)->max('id')) + self::PRIMARY_KEY_SHIFT;
+            $next = max($sourceIds[$table], (int) DB::table($table)->max('id')) + self::PRIMARY_KEY_SHIFT;
             DB::statement("ALTER TABLE `{$table}` AUTO_INCREMENT = {$next}");
         }
     }

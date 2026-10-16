@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Storage;
 use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Resources\Chat;
 use OpenAI\Responses\Chat\CreateResponse;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Support\AudioTimelineFixture;
 use Tests\TestCase;
@@ -191,17 +192,79 @@ class SermonSongIntroductionCheckTest extends TestCase
         OpenAI::assertNothingSent();
     }
 
-    /** Failed answers name no end: the planner leaves it to the operator. */
     #[Test]
-    public function failed_answers_bank_no_end(): void
+    #[DataProvider('transportFailurePositions')]
+    public function transport_failure_is_not_banked_and_a_retry_can_recover(int $position): void
     {
         $log = $this->service();
-        OpenAI::fake([new \RuntimeException('down'), new \RuntimeException('down')]);
+        $failure = new \RuntimeException('down');
+        $responses = [
+            CreateResponse::fake(['choices' => [['message' => ['content' => '{"sermon_last_line":3,"ties_to_sermon":true,"video_last_line":5}']]]]),
+            CreateResponse::fake(['choices' => [['message' => ['content' => '{"sermon_last_line":3,"ties_to_sermon":true,"video_last_line":6}']]]]),
+        ];
+        OpenAI::fake([...array_slice($responses, 0, $position - 1), $failure]);
 
-        $result = app(SermonSongIntroductionCheck::class)->prepare($log, $this->spans());
+        try {
+            app(SermonSongIntroductionCheck::class)->prepare($log, $this->spans());
+            $this->fail('Transport failure must propagate for retry.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame($failure, $exception);
+        }
 
-        $this->assertNull($result['end']);
+        $this->assertNull(app(SermonSongIntroductionCheck::class)->read($log->fresh(), $this->spans()));
+        $this->answers([3, true, 6], [3, true, 6]);
+        $this->assertSame(3064.4, app(SermonSongIntroductionCheck::class)->prepare($log->fresh(), $this->spans())['end']);
+    }
+
+    /** @return array<string, array{int}> */
+    public static function transportFailurePositions(): array
+    {
+        return ['first call' => [1], 'second call' => [2], 'tie-break call' => [3]];
+    }
+
+    #[Test]
+    public function invalid_content_answers_are_banked_as_uncertain(): void
+    {
+        $log = $this->service();
+        OpenAI::fake([CreateResponse::fake(['choices' => [['message' => ['content' => '{}']]]]), CreateResponse::fake(['choices' => [['message' => ['content' => '{}']]]])]);
+        $this->assertNull(app(SermonSongIntroductionCheck::class)->prepare($log, $this->spans())['end']);
         $this->assertSame(['end' => null, 'ties_to_sermon' => null, 'line' => null], app(SermonSongIntroductionCheck::class)->read($log->fresh(), $this->spans()));
+    }
+
+    #[Test]
+    public function flex_capacity_failure_uses_the_default_tier(): void
+    {
+        $log = $this->service();
+        config(['openai.service_tier' => 'flex']);
+        $answer = CreateResponse::fake(['choices' => [['message' => ['content' => '{"sermon_last_line":3,"ties_to_sermon":true,"video_last_line":6,"reason":"test"}']]]]);
+        OpenAI::fake([
+            new \OpenAI\Exceptions\RateLimitException(new \GuzzleHttp\Psr7\Response(429, [], '{"error":{"code":"flex_unavailable"}}')),
+            $answer,
+            $answer,
+        ]);
+
+        $this->assertSame(3064.4, app(SermonSongIntroductionCheck::class)->prepare($log, $this->spans())['end']);
+        OpenAI::assertSent(Chat::class, static fn (string $method, array $parameters): bool => $method === 'create' && $parameters['service_tier'] === 'default');
+        OpenAI::assertSent(Chat::class, 3);
+    }
+
+    #[Test]
+    public function legacy_null_answers_without_completed_transport_are_retried(): void
+    {
+        $log = $this->service();
+        OpenAI::fake([CreateResponse::fake(['choices' => [['message' => ['content' => '{}']]]]), CreateResponse::fake(['choices' => [['message' => ['content' => '{}']]]])]);
+        app(SermonSongIntroductionCheck::class)->prepare($log, $this->spans());
+        foreach (\App\Services\Media\Audio\ServiceArtifactStorage::recordedFor($log->fresh()) as $entry) {
+            if (! str_starts_with($entry['kind'], 'sermon-song-introduction-')) {
+                continue;
+            }
+            $payload = json_decode(Storage::disk($entry['disk'])->get($entry['path']), true);
+            unset($payload['calls_completed']);
+            Storage::disk($entry['disk'])->put($entry['path'], json_encode($payload, JSON_THROW_ON_ERROR));
+        }
+
+        $this->answers([3, true, 6], [3, true, 6]);
+        $this->assertSame(3064.4, app(SermonSongIntroductionCheck::class)->prepare($log->fresh(), $this->spans())['end']);
     }
 
     /** @return list<array{start_time: float, end_time: float}> */

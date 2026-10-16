@@ -25,7 +25,7 @@ class UnplacedOutputEdgeAnswerException extends UnplacedContentHoldException
         ));
 
         $exception = new self(
-            "Re-detection left operator output edges with no overlapping section of their type: {$described}. "
+            "Re-detection left operator output edges without a unique overlapping section of their type (missing or merged answers): {$described}. "
             .'Clear or re-set these edges on the service screen before re-running.',
         );
 

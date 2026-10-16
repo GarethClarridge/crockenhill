@@ -208,14 +208,14 @@ class SpokenEndBesideSongTest extends TestCase
         app(CueSafeExtractionPlan::class)->forSpans($log, [['start_time' => 1871.36, 'end_time' => 3702.58]], sermonEnd: true);
     }
 
-    /** Asked, with no answer naming a line (the model failed): the end is the operator's. */
+    /** Asked, with no answer naming a line (content uncertainty): the end is the operator's. */
     #[Test]
     public function an_end_beside_a_song_with_no_answer_is_asked(): void
     {
         $log = $this->service($this->quotationAcrossTheSongStart(), [['sermon', 1871.36, 3702.58], ['song', 3702.70, 3897.92]],
             timeline: [[3690, 3710, 0.01, 0.78], [3710, 3900, 0.8, 0.01]]);
         $spans = [['start_time' => 1871.36, 'end_time' => 3702.58]];
-        OpenAI::fake([new \RuntimeException('down'), new \RuntimeException('down')]);
+        OpenAI::fake([CreateResponse::fake(['choices' => [['message' => ['content' => '{}']]]]), CreateResponse::fake(['choices' => [['message' => ['content' => '{}']]]])]);
         app(SermonSongIntroductionCheck::class)->prepare($log, $spans);
         $this->bank($log->fresh(), 3702.58, [
             ['start' => 3701.70, 'end' => 3702.31, 'word' => ' command.'],

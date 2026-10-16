@@ -1108,6 +1108,72 @@ class ServiceSectionSyncServiceTest extends TestCase
         $this->assertSame(1, $processingLog->serviceSections()->count());
     }
 
+    #[Test]
+    public function cleared_edge_history_does_not_block_a_changed_section_type(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create();
+        $section = $this->sectionWithOutputEdge($log, 1, 600.0, 1800.0, 1795.4);
+        $answers = $section->metadata->raw[OutputEdgeAnswers::METADATA_KEY];
+        $section->update(['metadata' => [OutputEdgeAnswers::METADATA_KEY => ['history' => [$answers['end']]]]]);
+
+        $this->service->sync($log, [
+            $this->sectionData(null, 1, ServiceSectionType::Song->value, startTime: 600.0, endTime: 1800.0, duration: 1200.0),
+        ]);
+
+        $this->assertSame(ServiceSectionType::Song, $this->sectionAt($log, 1)->section_type);
+    }
+
+    #[Test]
+    public function merging_answered_sections_refuses_before_overwriting_either_answer(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create();
+        $first = $this->sectionWithOutputEdge($log, 1, 600.0, 1200.0, 1195.4);
+        $second = $this->sectionWithOutputEdge($log, 2, 1200.0, 1800.0, 1795.4);
+
+        try {
+            $this->service->sync($log, [
+                $this->sectionData(null, 1, ServiceSectionType::Sermon->value, startTime: 600.0, endTime: 1800.0, duration: 1200.0),
+            ]);
+            $this->fail('Merging must not silently overwrite an answer.');
+        } catch (UnplacedOutputEdgeAnswerException $exception) {
+            $this->assertEqualsCanonicalizing([$first->id, $second->id], $exception->unplacedSectionIds());
+        }
+
+        $this->assertSame(1195.4, OutputEdgeAnswers::recordsOf($first->fresh())['end']['time']);
+        $this->assertSame(1795.4, OutputEdgeAnswers::recordsOf($second->fresh())['end']['time']);
+        $this->assertSame(2, $log->serviceSections()->count());
+    }
+
+    #[Test]
+    public function cleared_edge_history_does_not_block_removing_a_section(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create();
+        $section = $this->sectionWithOutputEdge($log, 1, 600.0, 1800.0, 1795.4);
+        $answers = $section->metadata->raw[OutputEdgeAnswers::METADATA_KEY];
+        $section->update(['metadata' => [OutputEdgeAnswers::METADATA_KEY => ['history' => [$answers['end']]]]]);
+
+        $this->service->sync($log, []);
+
+        $this->assertSame(0, $log->serviceSections()->count());
+    }
+
+    #[Test]
+    public function cleared_edge_history_follows_an_overlapping_section(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create();
+        $section = $this->sectionWithOutputEdge($log, 1, 600.0, 1800.0, 1795.4);
+        $history = [$section->metadata->raw[OutputEdgeAnswers::METADATA_KEY]['end']];
+        $section->update(['metadata' => [OutputEdgeAnswers::METADATA_KEY => ['history' => $history]]]);
+
+        $this->service->sync($log, [
+            $this->sectionData(null, 1, ServiceSectionType::Sermon->value, startTime: 610.0, endTime: 1790.0, duration: 1180.0),
+        ]);
+
+        $section = $this->sectionAt($log, 1);
+        $this->assertSame([], OutputEdgeAnswers::recordsOf($section));
+        $this->assertEquals($history, $section->metadata->raw[OutputEdgeAnswers::METADATA_KEY]['history']);
+    }
+
     private function sectionWithOutputEdge(MediaProcessingLog $processingLog, int $sectionOrder, float $startTime, float $endTime, float $end): ServiceSection
     {
         return ServiceSection::factory()->create([

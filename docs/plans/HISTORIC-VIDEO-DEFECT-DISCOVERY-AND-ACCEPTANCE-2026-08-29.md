@@ -386,21 +386,55 @@ supersede; a new freeze and snapshot follow.
 8. **Keep thumbnail deferral — reaffirmed 10-16 (register P2).** Generate thumbnails only after
    the release membership's editorial QA passes (§4.5).
 
+**Readiness correction, 10-16 (final review fixes):** the 200-run snapshot below is superseded
+for membership planning, but has not been replaced or dispatched. Read-only inventory using the
+production `SermonSongIntroductionCheck::songStart()` rule found 280 song-adjacent sermon runs,
+277 eligible historic runs. Of those, **166 are outside the old 200**, making the combined
+proposed membership **366**. Exact previous, additional and proposed IDs, plus the seven Q12
+edge-answer inventories, are in
+`storage/scratch/weekly-edge-tool-20261016/k16-freeze-inventory.json`; its read-only inventory
+script is beside it. The seven Q12 owners still have **no active edge answers and no history**.
+Their post-reprocessing source confirmations remain outstanding; no answer or hold was changed.
+Missing manual timestamps do not block reprocessing: Q12 requires confirmation that the known
+defect is resolved before its hold is cleared, not an operator-selected timestamp for every run.
+
+The working-tree fixes propagate K16 provider failures for queue retry, explicitly request the
+configured tier through the Flex fallback and log the actual tier. Completed content uncertainty
+still banks a null end; legacy null artifacts without proof that calls completed are asked again
+once. Section sync ignores history-only records when no same-type section remains, retains history
+when it can follow the content, and refuses a merge of two actively answered sections before any
+write, identifying both owners. Re-freeze on the tested code, take a new snapshot using the
+remeasured membership, and dry-run every route before dispatch. The clone and existing snapshot
+remain untouched.
+
+Validation: 72 focused tests pass; the full parallel suite completes with 9,909 tests,
+97,187 assertions, zero failures/errors, 163 PHPUnit notices and one skipped test.
+PHPStan reports zero errors and Pint passes. The full run also exposed an obsolete outage fixture
+in `SpokenEndBesideSongTest` (now a completed uncertain response) and an ID-shift setup error in
+`HistoricProcessingResultBundleRoundTripTest` (now shifts above the captured source IDs after
+deletion); both were corrected and passed in the fresh full run. Logs:
+`storage/scratch/weekly-edge-tool-20261016/freeze-review-{focused,full-suite,phpstan}.log`.
+
 **Go checklist** (reconciled 10-16 with the `recut-round-20261016e` freeze; on the operator's word):
 1. **Done 10-16:** `phpunit.xml` forces `DB_DATABASE=testing` (`29126fb8a`); duplicate-pair
    corrections applied (§4.4); Q12 holds applied and verified; all known fixes built, tested and
    pushed; clone at `be35e9466`; snapshot `recut-round-20261016e` (200 runs) with every route
    dry-run (above).
-2. **Before dispatch, still open:**
+2. **Remaining dispatch preparation and post-processing review:**
    - **1036 and 1255 settled 10-16** (listening page https://claude.ai/artifact/1nnya6qTouPWLaEEEE2k1C,
      answers in `storage/scratch/structure-review-1036-1255-20261016/`): §1470 is only
      pre-service music or talk, and §3178 is not a reading. Both runs recompose as planned and
      the sections go; routes unchanged;
-   - **the seven Q12 endings — tool built 10-16, answers outstanding.** The service screen's
-     section panel now has "Where this sermon starts and ends" for every sermon and short talk
-     (a weekly tool; no historic-only behaviour): it plays the archived service audio around each
-     output edge in service time at 1×/2×/3× (default 3×) with the transcript lines, records
-     "start here" / "end here" as a recording time, and checks it against a read-only plan.
+   - **The seven Q12 endings — automatic reprocessing first; source confirmation before hold
+     release.** Runs 1224, 1111, 1198, 962, 1005, 1240 and 1271 go through the automatic pipeline,
+     including K16 where applicable, word timing and sentence checks. Missing manual timestamps
+     do not block dispatch or reprocessing. Keep the Q12 content-defect holds until the operator
+     reviews the resulting endings against the source and confirms each defect is resolved.
+     Manual edge answers are a fallback for cuts the automatic pipeline cannot resolve correctly.
+     The service screen's section panel has "Where this sermon starts and ends" for every sermon
+     and short talk (a weekly tool; no historic-only behaviour): it plays the archived service audio
+     around each output edge in service time at 1×/2×/3× (default 3×) with the transcript lines,
+     records "start here" / "end here" as a recording time, and checks it against a read-only plan.
      - **Rule:** the answer is the *output's* edge (a sermon composition's first start or last
        end; a talk with its paired reading), kept on the owning section
        (`output_edge_answers`, with who, when, the bound it replaced, the section span and the
@@ -420,10 +454,12 @@ supersede; a new freeze and snapshot follow.
        on master and on the change, on current (v10) evidence and on the v9 bank as a proxy
        (540 with segments): byte-identical, as no answers exist yet. Evidence and the script:
        `storage/scratch/weekly-edge-tool-20261016/`.
-     - **Still to do:** the operator listens and sets the seven on the service screen (all
-       seven have archived audio); each answer is then confirmed placed by a read-only replay.
-       At v10 their edge words are not decoded, so the live check reads "not decoded yet"
-       until the round decodes; the v9 proxy replay is the pre-decode confirmation.
+     - **After automatic reprocessing:** the operator listens to each resulting ending against
+       the archived source and confirms the defect is resolved before clearing its Q12 hold.
+       Only where the automatic cut remains wrong or unresolved does the operator set an edge
+       on the service screen, verify its placement with a read-only replay and re-cut as needed.
+       At v10 the edge words are not decoded until the round decodes them; "not decoded yet"
+       is not a requirement to supply a manual timestamp before dispatch.
      - **This is new code: re-freeze before the go** — move the clone to the new master
        commit, take a fresh snapshot and dry-run every route (runbook §2.1, §3).
    - **Sermon ends beside a song — K16 built 10-16 (`de9a1f0e1` and the follow-up).** Ruled 10-16
