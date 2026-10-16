@@ -209,7 +209,23 @@ supersede; a new freeze and snapshot follow.
 - **Not changed, operator's:** 1314's benediction hold (§3994) has no prayer-typed section after
   re-detection; content holds follow content (ruling), so confirm or re-hold it. §988's
   spoken-material boundary check is a detector change; §988 is held.
-- **Gates:** full parallel suite 9,857 tests green; PHPStan 0; Pint clean. Dusk: only
+- **Operator decisions, 10-16 (applied):**
+  - **1220:** nested row 904 settled `completed` at 2026-10-12 19:25:55 UTC, when that run's
+    candidates were cut and promoted. 1220 joins the round.
+  - **1314:** §3994's hold released (`service:release-content-hold`, reason recorded): its
+    song-boundary concern does not apply to the benediction re-detection types `other`.
+  - **1148: "one sermon in parts".** Answers applied from
+    `storage/scratch/ensemble-review-1148-20261016/` (q0 Version A, q1 no talk, q2 Version A,
+    q3 the Revelation 5 reading, read by Andrew). My first mapping put q2 as "leave it out",
+    which dropped 39:53–52:48; that ruling was removed (recorded under
+    `service_structure_ensemble_ruling_corrections`) and q2 re-applied.
+  - The answered whole still lost the sermon after the reading, which exposed two gaps, fixed in
+    `15d5cbea6`: answers that keep a sermon on both sides of a hymn are joined at the composed
+    level too, and an item answered inside a sermon keeps the sermon after it (the start rule
+    decides where a sermon begins, not that it ends there). Replaying all 170 answered runs
+    changes only 1148, now sermon 11:28 + parts 39:53–52:48 and 56:23–1:00:25 around the
+    reading. 1148 joins the round.
+- **Gates:** full parallel suite 9,859 tests green; PHPStan 0; Pint clean. Dusk: only
   `ChurchServiceEvidenceReviewTest` (`@sermon-composition-2`) fails, as on master since 10-14.
 
 **Re-frozen 2026-10-16 (supersedes the set-up below; not dispatched):**
