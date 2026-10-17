@@ -11,7 +11,6 @@ use App\Models\Meeting;
 use App\Models\Page;
 use App\Models\Preacher;
 use App\Models\Sermon;
-use App\Services\Public\PublicChurchServiceArchiveService;
 use App\Services\Public\SermonRepository;
 use App\Services\Public\SitemapService;
 use App\Services\Sermon\SermonExposurePolicy;
@@ -43,7 +42,6 @@ class SitemapServiceTest extends TestCase
             $exposurePolicy,
             $sermonRepository,
             $sermonSitemapPresenter,
-            app(PublicChurchServiceArchiveService::class),
         );
     }
 
@@ -124,7 +122,6 @@ class SitemapServiceTest extends TestCase
                 $exposurePolicy,
                 $sermonRepository,
                 $this->createStub(SermonSitemapPresenter::class),
-                app(PublicChurchServiceArchiveService::class),
             ])
             ->onlyMethods(['getFilePath'])
             ->getMock();
@@ -146,7 +143,7 @@ class SitemapServiceTest extends TestCase
     }
 
     #[Test]
-    public function generate_indexes_only_church_services_with_public_content(): void
+    public function generate_excludes_the_authenticated_service_archive(): void
     {
         config(['church.services.public_from' => '2000-01-01']);
 
@@ -179,7 +176,6 @@ class SitemapServiceTest extends TestCase
                 $this->createStub(SermonExposurePolicy::class),
                 $this->stubbedSermonRepository(),
                 $this->createStub(SermonSitemapPresenter::class),
-                app(PublicChurchServiceArchiveService::class),
             ])
             ->onlyMethods(['getFilePath'])
             ->getMock();
@@ -191,9 +187,9 @@ class SitemapServiceTest extends TestCase
 
             $xml = file_get_contents($filePath);
 
-            $this->assertStringContainsString('/church/services/2026-06-14/morning', $xml);
+            $this->assertStringNotContainsString('/church/services/2026-06-14/morning', $xml);
             $this->assertStringNotContainsString('/church/services/2026-06-14/evening', $xml);
-            $this->assertStringContainsString(route('church.services.index'), $xml);
+            $this->assertStringNotContainsString(route('church.services.index'), $xml);
         } finally {
             if (file_exists($filePath)) {
                 unlink($filePath);

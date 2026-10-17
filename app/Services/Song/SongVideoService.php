@@ -27,17 +27,17 @@ use Illuminate\Support\Str;
 class SongVideoService
 {
     /**
-     * Get the publicly accessible URL for a song video.
+     * Get the authenticated playback route for a song video.
      *
      * @param  SongVideo  $video  The video model to get the URL for
-     * @return string The absolute URL to the video file
+     * @return string The absolute URL to the playback gate
      */
     public function getVideoUrl(SongVideo $video): string
     {
         $disk = $this->assetDisk($video);
         HistoricStagingUrlGuard::assertAllowed($disk);
 
-        return Storage::disk($disk)->url($video->video_file_path);
+        return route('church.song-videos.show', $video);
     }
 
     /**
@@ -119,15 +119,22 @@ class SongVideoService
     {
         $storagePath = 'sermons/songs/'.$song->id.'/'.Str::ulid()->toBase32().'.mp4';
 
-        Storage::disk($this->sermonDisk())->putFileAs(
+        $disk = $this->storageDisk();
+        $stored = Storage::disk($disk)->putFileAs(
             dirname($storagePath),
             $file,
             basename($storagePath),
+            ['visibility' => 'private'],
         );
+
+        if ($stored === false) {
+            throw new \RuntimeException('Unable to store private song video');
+        }
 
         return SongVideo::query()->create([
             'song_id' => $song->id,
             'video_file_path' => $storagePath,
+            'asset_disk' => $disk,
             'is_featured' => false,
         ]);
     }
@@ -165,6 +172,7 @@ class SongVideoService
             'service_section_id' => $section->id,
             'church_service_id' => $processingLog->church_service_id,
             'video_file_path' => $videoPath,
+            'asset_disk' => $this->storageDisk(),
             'duration' => $clipSeconds ?? $section->duration,
             'recorded_date' => $churchService?->date,
             'publication_state' => SermonPublicationState::Published,
@@ -172,7 +180,6 @@ class SongVideoService
 
         if ($processingLog->historic_import_operation_id !== null || MediaAssetPath::holdingDisk() !== null) {
             $attributes['publication_state'] = SermonPublicationState::Quarantined;
-            $attributes['asset_disk'] = $this->sermonDisk();
             $attributes['historic_import_operation_id'] = $processingLog->historic_import_operation_id;
         }
 
@@ -196,12 +203,20 @@ class SongVideoService
         $section->save();
     }
 
+    /** New local song files must stay outside the web-served public disk. */
+    public function storageDisk(): string
+    {
+        $disk = $this->sermonDisk();
+
+        return $disk === 'public' ? 'local' : $disk;
+    }
+
     private function sermonDisk(): string
     {
         return (string) config('media-processing.storage.sermon_disk', config('filesystems.default', 'local'));
     }
 
-    private function assetDisk(SongVideo $video): string
+    public function assetDisk(SongVideo $video): string
     {
         return filled($video->asset_disk) ? (string) $video->asset_disk : $this->sermonDisk();
     }

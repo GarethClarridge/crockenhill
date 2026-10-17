@@ -26,7 +26,7 @@ use Illuminate\Support\Facades\Storage;
  * Handler for publishing song segments extracted from livestreams.
  *
  * The candidate clip is cut with the music profile's sound (§6.3), so publishing
- * promotes it unchanged to the public sermon disk, where it is linked to a
+ * promotes it unchanged to private song storage, where it is linked to a
  * canonical Song model.
  */
 class SongPublicationHandler implements SectionPublicationHandler
@@ -156,7 +156,7 @@ class SongPublicationHandler implements SectionPublicationHandler
     /**
      * Publish a song section by promoting its candidate clip.
      *
-     * Measures the clip's length, promotes the MP4 to the public sermon disk
+     * Measures the clip's length, promotes the MP4 to private song storage
      * and creates the SongVideo record.
      *
      * @param  ServiceSection  $section  The section to publish
@@ -234,6 +234,7 @@ class SongPublicationHandler implements SectionPublicationHandler
         }
 
         $section->extracted_video_path = $promotedPath;
+        $section->asset_disk = $this->songVideoService->storageDisk();
         $metadata = $section->metadata?->toArray() ?? [];
         $metadata['song_video_extraction'] = [
             'candidate_id' => PublicationCandidate::id($section),
@@ -358,9 +359,13 @@ class SongPublicationHandler implements SectionPublicationHandler
         $targetPath = 'sermons/songs/'.$item->song_id.'/'.$section->id.'.mp4';
 
         $sourceDisk = $section->extractedAssetDisk();
-        $targetDisk = $this->sermonDisk();
+        $targetDisk = $this->songVideoService->storageDisk();
 
         if ($sourceDisk === $targetDisk && $sourcePath === $targetPath) {
+            if (! Storage::disk($targetDisk)->setVisibility($targetPath, 'private')) {
+                throw new \RuntimeException('Unable to make song video private');
+            }
+
             return $sourcePath;
         }
 
@@ -370,7 +375,7 @@ class SongPublicationHandler implements SectionPublicationHandler
         }
 
         try {
-            $written = Storage::disk($targetDisk)->put($targetPath, $sourceStream);
+            $written = Storage::disk($targetDisk)->put($targetPath, $sourceStream, ['visibility' => 'private']);
         } finally {
             fclose($sourceStream);
         }
@@ -384,10 +389,5 @@ class SongPublicationHandler implements SectionPublicationHandler
         }
 
         return $targetPath;
-    }
-
-    private function sermonDisk(): string
-    {
-        return (string) config('media-processing.storage.sermon_disk', config('filesystems.default', 'local'));
     }
 }

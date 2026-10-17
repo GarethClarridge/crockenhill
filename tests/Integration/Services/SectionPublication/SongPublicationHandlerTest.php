@@ -130,7 +130,7 @@ class SongPublicationHandlerTest extends TestCase
     private function recut(ServiceSection $section, string $videoPath, array $candidate): ServiceSection
     {
         $section->refresh();
-        $section->update(['extracted_video_path' => $videoPath, 'metadata' => [
+        $section->update(['extracted_video_path' => $videoPath, 'asset_disk' => 'public', 'metadata' => [
             ...($section->metadata?->toArray() ?? []),
             'publication_candidate_extraction' => $candidate,
         ]]);
@@ -494,7 +494,10 @@ class SongPublicationHandlerTest extends TestCase
 
         $expectedPath = 'sermons/songs/'.$song->id.'/'.$section->id.'.mp4';
         $this->assertEquals($expectedPath, $section->extracted_video_path);
-        Storage::disk('public')->assertExists($expectedPath);
+        Storage::disk('local')->assertExists($expectedPath);
+        Storage::disk('public')->assertMissing($expectedPath);
+        $this->assertSame('local', $section->asset_disk);
+        $this->assertSame('private', Storage::disk('local')->getVisibility($expectedPath));
 
         $songVideo = SongVideo::query()->where('service_section_id', $section->id)->first();
         $this->assertNotNull($songVideo);
@@ -582,7 +585,7 @@ class SongPublicationHandlerTest extends TestCase
 
         $this->assertSame(1, SongVideo::query()->where('service_section_id', $section->id)->count());
         $this->assertTrue($existing->fresh()->is_featured);
-        $this->assertSame('regenerated-content', Storage::disk('public')->get($existing->fresh()->video_file_path));
+        $this->assertSame('regenerated-content', Storage::disk('local')->get($existing->fresh()->video_file_path));
         $this->assertSame($section->mediaSignature(), $section->fresh()->metadata->raw['song_video_extraction']['media_signature']);
         $this->assertSame($nextVersion, $section->fresh()->metadata->raw['song_video_extraction']['media_processing']['version']);
     }
@@ -718,7 +721,7 @@ class SongPublicationHandlerTest extends TestCase
         $section->refresh();
         $expectedPath = 'sermons/songs/'.$song->id.'/'.$section->id.'.mp4';
         $this->assertEquals($expectedPath, $section->extracted_video_path);
-        $this->assertEquals('candidate-video-content', Storage::disk('public')->get($expectedPath));
+        $this->assertEquals('candidate-video-content', Storage::disk('local')->get($expectedPath));
         Storage::disk('public')->assertMissing($videoPath);
     }
 
@@ -782,7 +785,7 @@ class SongPublicationHandlerTest extends TestCase
 
         $section->refresh();
         $this->assertEquals(ServiceSectionPublicationStatus::Published, $section->publication_status);
-        $this->assertSame('video-content', Storage::disk('public')->get($section->extracted_video_path));
+        $this->assertSame('video-content', Storage::disk('local')->get($section->extracted_video_path));
     }
 
     // ---- Publication follows the candidate the section holds now ----
@@ -805,7 +808,7 @@ class SongPublicationHandlerTest extends TestCase
         $this->assertFalse($this->handler->isPublishedFromCurrentCandidate($recut));
         $this->handler->publish($recut);
 
-        $this->assertSame('new-sound', Storage::disk('public')->get($published->fresh()->video_file_path));
+        $this->assertSame('new-sound', Storage::disk('local')->get($published->fresh()->video_file_path));
         $this->assertTrue($this->handler->isPublishedFromCurrentCandidate($section->fresh()));
     }
 
@@ -823,7 +826,7 @@ class SongPublicationHandlerTest extends TestCase
         $this->handler->refreshPublished($this->recut($section, 'sections/second.mp4', $this->candidate()));
 
         $published = SongVideo::query()->where('service_section_id', $section->id)->sole();
-        $this->assertSame('edges-moved', Storage::disk('public')->get($published->video_file_path));
+        $this->assertSame('edges-moved', Storage::disk('local')->get($published->video_file_path));
     }
 
     #[Test]
@@ -909,7 +912,7 @@ class SongPublicationHandlerTest extends TestCase
         $this->handler->refreshPublished($recut);
 
         $published = SongVideo::query()->where('service_section_id', $section->id)->sole();
-        $this->assertSame('good-sound', Storage::disk('public')->get($published->video_file_path));
+        $this->assertSame('good-sound', Storage::disk('local')->get($published->video_file_path));
         Storage::disk('public')->assertExists('sections/missed.mp4');
         $this->assertSame([SongPublicationReviewPolicy::LOUDNESS_MISSED], array_column($recut->metadata->raw['song_publication_review']['reasons'], 'kind'));
     }
@@ -929,6 +932,6 @@ class SongPublicationHandlerTest extends TestCase
         $this->assertTrue($this->handler->requiresApproval($recut));
         $this->handler->refreshPublished($recut);
         $video = SongVideo::query()->where('service_section_id', $section->id)->sole();
-        $this->assertSame('accepted-song', Storage::disk('public')->get($video->video_file_path));
+        $this->assertSame('accepted-song', Storage::disk('local')->get($video->video_file_path));
     }
 }

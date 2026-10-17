@@ -146,6 +146,8 @@ class PublicSongDetailTest extends TestCase
         $response->assertSee('Amazing Grace');
         $response->assertDontSee('Amazing Grace (OoS Only)');
         $response->assertSee('Used in 2 services');
+        $response->assertSee(route('church.services.show', ['date' => '2026-02-16', 'service' => 'evening']), false);
+        $response->assertSee(route('church.services.show', ['date' => '2026-02-09', 'service' => 'morning']), false);
         $response->assertSee('Last sung 16 February 2026');
         $response->assertSee('Title in Service');
     }
@@ -195,7 +197,7 @@ class PublicSongDetailTest extends TestCase
 
         $song = Song::factory()->create(['title' => 'In Christ Alone']);
 
-        SongVideo::factory()->create([
+        $video = SongVideo::factory()->create([
             'song_id' => $song->id,
             'video_file_path' => 'sermons/songs/'.$song->id.'/test-video.mp4',
             'recorded_date' => '2026-03-01',
@@ -205,7 +207,8 @@ class PublicSongDetailTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('<video', false);
-        $response->assertSee('sermons/songs/'.$song->id.'/test-video.mp4', false);
+        $response->assertSee(route('church.song-videos.show', $video), false);
+        $response->assertDontSee('test-video.mp4', false);
     }
 
     #[Test]
@@ -235,7 +238,7 @@ class PublicSongDetailTest extends TestCase
             'is_featured' => false,
         ]);
 
-        SongVideo::factory()->featured()->create([
+        $featured = SongVideo::factory()->featured()->create([
             'song_id' => $song->id,
             'video_file_path' => 'sermons/songs/'.$song->id.'/featured.mp4',
             'recorded_date' => '2026-01-01',
@@ -244,7 +247,8 @@ class PublicSongDetailTest extends TestCase
         $response = $this->get(route('church.songs.show', $song->slug));
 
         $response->assertOk();
-        $response->assertSee('sermons/songs/'.$song->id.'/featured.mp4', false);
+        $response->assertSee(route('church.song-videos.show', $featured), false);
+        $response->assertDontSee('featured.mp4', false);
         $response->assertDontSee('recent.mp4', false);
     }
 

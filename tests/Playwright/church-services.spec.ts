@@ -1,5 +1,14 @@
 import { test, expect } from './fixtures/visual';
 
+// The visual seed provides this verified account; login is only a screenshot precondition.
+test.beforeEach(async ({ stablePage }) => {
+  await stablePage.goto('/login');
+  await stablePage.locator('#email').fill('admin@crockenhill.org');
+  await stablePage.locator('#password').fill('password');
+  await stablePage.getByRole('button', { name: 'Log in', exact: true }).click();
+  await stablePage.waitForURL('**/church/members');
+});
+
 test('church services archive', async ({ stablePage }) => {
   await stablePage.goto('/church/services');
   await expect(stablePage).toHaveScreenshot('church-services-index.png', {

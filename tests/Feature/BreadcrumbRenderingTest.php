@@ -20,6 +20,16 @@ class BreadcrumbRenderingTest extends TestCase
     // -------------------------------------------------------------------------
 
     #[Test]
+    public function service_breadcrumb_is_hidden_from_guests(): void
+    {
+        $this->get('/church/services/2026-06-14/morning');
+
+        $items = app(BreadcrumbPresenter::class)->items('church', 'Morning service');
+
+        $this->assertNotContains('Services', array_column($items, 'name'));
+    }
+
+    #[Test]
     public function presenter_builds_two_item_trail_for_area_root_page(): void
     {
         $this->get('/church');

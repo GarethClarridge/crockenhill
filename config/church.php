@@ -45,27 +45,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Public service history
+    | Authenticated service history
     |--------------------------------------------------------------------------
     |
-    | `public_from` is the era boundary for the public service archive. Services
-    | dated before it are complete in the database but are never listed, served
-    | or indexed.
+    | `public_from` is the earliest service date released to signed-in, verified
+    | users. The name and environment variable are retained for compatibility.
+    | Services before this date remain held; null disables the archive.
     |
-    | This exists because the historic import will land a decade of services in
-    | one operation, and the editorial, copyright, speaker-consent and takedown
-    | questions covering historic material are open (see WP8 §14.4 of
-    | docs/archived-plans/HISTORIC-ARCHIVE-READINESS-REMEDIATION-2026-07-31.md). The
-    | sermon-level exposure attributes withhold *media*; nothing else withheld a
-    | *service* from the listing. This does.
+    | This date never grants anonymous access. Service pages, archive links and
+    | song recordings require login regardless of era, and services are excluded
+    | from the sitemap. Songs remain authenticated-only after any era release.
     |
-    | Null means the public service archive is disabled. Set it explicitly.
-    |
-    | Note what this does *not* cover: sermon pages, the podcast feed and the
-    | sitemap's sermon URLs are governed by `sermons.publication_state`, not by
-    | this date. Setting an early bound here therefore publishes the service
-    | archive in full and leaves the import's audience boundary resting on the
-    | per-record publication state alone.
+    | Sermon pages, podcast feeds and sermon sitemap URLs remain governed by
+    | their own publication state and exposure rules, independently of this date.
     |
     */
     'services' => [

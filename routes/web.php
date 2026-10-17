@@ -17,6 +17,7 @@ use App\Http\Controllers\PublicSongListController;
 use App\Http\Controllers\SermonAssetController;
 use App\Http\Controllers\SermonController;
 use App\Http\Controllers\SitemapController;
+use App\Http\Controllers\SongVideoController;
 use App\Livewire\Admin\CalendarEvents\EditCalendarEvent;
 use App\Livewire\Admin\CalendarEvents\ListCalendarEvents;
 use App\Livewire\Admin\ChurchServices\AddToService;
@@ -71,7 +72,7 @@ Route::get('/christ/sermons/{path?}', [LegacyTalkRedirectController::class, 'ser
 Route::get('/church', [LandingPageController::class, 'church'])->name('pages.church');
 Route::get('/community', [LandingPageController::class, 'community'])->name('pages.community');
 
-Route::middleware('service-tracking.enabled')->prefix('church/services')->name('church.services.')->group(function () {
+Route::middleware(['service-tracking.enabled', 'auth', 'verified'])->prefix('church/services')->name('church.services.')->group(function () {
     Route::get('', [PublicChurchServiceController::class, 'index'])->name('index');
     Route::get('{date}/{service}', [PublicChurchServiceController::class, 'show'])
         ->where([
@@ -257,6 +258,10 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
 Route::middleware(['auth', 'verified'])->prefix('church/members')->group(function () {
     Route::get('', MemberController::class)->name('members.home');
 });
+
+Route::get('church/song-videos/{songVideo}', SongVideoController::class)
+    ->middleware(['auth', 'verified', 'service-tracking.enabled'])
+    ->name('church.song-videos.show');
 
 Route::middleware(['auth', 'verified'])->prefix('church/songs')->name('church.songs.')->group(function () {
     Route::middleware('service-tracking.enabled')->group(function () {

@@ -1288,8 +1288,13 @@ What we would regret not doing while the context exists.
   standalone testimonies, prayer requests, prayers and private occasions are withheld by default.
   Prayers within agreed sermon boundaries stay included. Applicable permissions and actual access
   enforcement still need verification before release; no batch was authorised by this decision.
-  **Enforcement planned 2026-10-17, not built** (programme plan §8.4 item 5). Today the service archive is
-  public and song video files are public-read on the CDN. Old service links will redirect to login.
+  **Enforcement built locally 2026-10-17; not deployed** (programme plan §8.4 item 5).
+  Verified-login service access, gated song playback, private new song writes and a dry-run-first
+  existing-object privacy command are implemented and focused-tested. Old service links preserve
+  their destination through login. Full-suite and visual checks remain pending, as do operator-approved
+  deployment, immediate sitemap regeneration, the reviewed production privacy dry run/approved ACL
+  apply, and bucket-policy/direct/CDN reachability checks. Existing production objects were not changed;
+  no release batch is authorised. See the programme's delivery status for evidence and remaining gates.
 - [ ] **Rehearse the whole route on one service, early.** Export it, import it into a
   production-like copy, release it and play it back on a real server. §4.5's actual-server checks are
   done once now, while problems are cheap, as well as at the end.

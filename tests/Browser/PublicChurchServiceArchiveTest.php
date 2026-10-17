@@ -10,6 +10,7 @@ use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\Sermon;
 use App\Models\Song;
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Laravel\Dusk\Browser;
 use Tests\DuskTestCase;
@@ -18,7 +19,7 @@ class PublicChurchServiceArchiveTest extends DuskTestCase
 {
     use DatabaseTruncation;
 
-    public function test_visitor_can_browse_from_the_archive_into_a_service_and_back(): void
+    public function test_verified_user_can_browse_from_the_archive_into_a_service_and_back(): void
     {
         $service = $this->serviceWithContent('2026-06-14', SermonService::Morning, 'Genesis 1:1-5');
 
@@ -31,7 +32,8 @@ class PublicChurchServiceArchiveTest extends DuskTestCase
         ]);
 
         $this->browse(function (Browser $browser) use ($sermon): void {
-            $browser->visit('/church/services')
+            $browser->loginAs(User::factory()->create())
+                ->visit('/church/services')
                 ->assertSee('14 June 2026')
                 ->clickLink('View service')
                 ->waitForLocation('/church/services/2026-06-14/morning')
@@ -50,7 +52,8 @@ class PublicChurchServiceArchiveTest extends DuskTestCase
         $this->serviceWithContent('2026-06-21', SermonService::Evening, 'Leviticus 3:1-5');
 
         $this->browse(function (Browser $browser): void {
-            $browser->visit('/church/services')
+            $browser->loginAs(User::factory()->create())
+                ->visit('/church/services')
                 ->assertSee('14 June 2026')
                 ->assertSee('15 June 2025')
                 ->clickLink('2026')
@@ -73,13 +76,32 @@ class PublicChurchServiceArchiveTest extends DuskTestCase
             // Every route into a service must be a real anchor rather than a click
             // handler, so keyboard and screen-reader users can reach it, and the
             // filter group must be labelled for anyone navigating by landmark.
-            $browser->visit('/church/services')
+            $browser->loginAs(User::factory()->create())
+                ->visit('/church/services')
                 ->assertPresent('a[href$="/church/services/2026-06-14/morning"]')
                 ->assertSourceHas('aria-label="Service archive filters"')
                 ->assertSourceHas('aria-current="page"')
                 ->click('a[href$="/church/services/2026-06-14/morning"]')
                 ->waitForLocation('/church/services/2026-06-14/morning')
                 ->assertSourceHas('aria-label="Public service order"');
+        });
+    }
+
+    public function test_old_service_link_returns_to_the_service_after_login(): void
+    {
+        $this->serviceWithContent('2026-06-14', SermonService::Morning, 'Genesis 1:1-5');
+        $user = User::factory()->create();
+
+        $this->browse(function (Browser $browser) use ($user): void {
+            $browser->logout()
+                ->visit('/church/services/2026-06-14/morning')
+                ->waitForLocation('/login')
+                ->waitFor('#email')
+                ->type('#email', $user->email)
+                ->type('#password', 'password')
+                ->press('Log in')
+                ->waitForLocation('/church/services/2026-06-14/morning')
+                ->assertSee('Genesis 1:1-5');
         });
     }
 

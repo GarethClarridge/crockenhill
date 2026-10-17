@@ -18,6 +18,7 @@ use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
+use App\Models\User;
 use App\Services\Public\PublicChurchServiceArchiveService;
 use App\Services\Public\PublicSongUsageService;
 use App\Services\Sermon\SermonExposurePolicy;
@@ -44,6 +45,45 @@ class PublicChurchServiceArchiveTest extends TestCase
         ]);
 
         Storage::fake('public');
+
+        $this->actingAs(User::factory()->create());
+    }
+
+    #[Test]
+    public function guests_are_sent_to_login_with_the_original_service_url(): void
+    {
+        [$service] = $this->processedService();
+        auth()->logout();
+
+        foreach ([route('church.services.index'), $this->showUrl($service)] as $url) {
+            $this->get($url)->assertRedirect(route('login'));
+            $this->assertSame($url, session('url.intended'));
+        }
+    }
+
+    #[Test]
+    public function unverified_users_must_verify_before_viewing_services(): void
+    {
+        [$service] = $this->processedService();
+        $this->actingAs(User::factory()->create(['email_verified_at' => null]));
+
+        $this->get(route('church.services.index'))->assertRedirect(route('verification.notice'));
+        $this->get($this->showUrl($service))->assertRedirect(route('verification.notice'));
+    }
+
+    #[Test]
+    public function guests_see_public_sermons_without_service_links(): void
+    {
+        [$service, $sermon] = $this->processedService();
+        auth()->logout();
+        $archive = app(PublicChurchServiceArchiveService::class);
+
+        $this->assertNull($archive->publicUrlFor($service));
+        $this->assertNull($archive->publicUrlForSermon($sermon));
+        $this->get(app(SermonExposurePolicy::class)->canonicalUrl($sermon))
+            ->assertOk()
+            ->assertDontSee(route('church.services.index'), false)
+            ->assertDontSee($this->showUrl($service), false);
     }
 
     #[Test]
@@ -54,6 +94,7 @@ class PublicChurchServiceArchiveTest extends TestCase
         $this->get(route('church.services.index'))
             ->assertOk()
             ->assertSee('Church services')
+            ->assertSee(route('church.services.index'), false)
             ->assertSee(route('church.services.show', [
                 'date' => $service->date->format('Y-m-d'),
                 'service' => $service->service->value,
@@ -73,7 +114,8 @@ class PublicChurchServiceArchiveTest extends TestCase
             ->assertSee($song->title)
             ->assertSee(route('church.songs.show', $song->slug), false)
             ->assertSee('Isaiah 53:1-6')
-            ->assertSee('song-performance.mp4', false)
+            ->assertSee(route('church.song-videos.show', SongVideo::query()->where('video_file_path', 'sermons/songs/song-performance.mp4')->firstOrFail()), false)
+            ->assertDontSee('song-performance.mp4', false)
             ->assertDontSee('Notices2024Looped.pptx')
             ->assertDontSee('scenechange:Lecturn')
             ->assertDontSee('Prayer for the Hurst family');

@@ -49,7 +49,7 @@ class SongVideoServiceTest extends TestCase
 
         $url = $this->service->getVideoUrl($video);
 
-        $this->assertStringContainsString('sermons/songs/1/abc123.mp4', $url);
+        $this->assertSame(route('church.song-videos.show', $video), $url);
     }
 
     #[Test]
@@ -176,6 +176,7 @@ class SongVideoServiceTest extends TestCase
     public function it_creates_a_video_from_upload_with_ulid_path(): void
     {
         Storage::fake('public');
+        Storage::fake('local');
         config(['media-processing.storage.sermon_disk' => 'public']);
 
         $song = Song::factory()->create();
@@ -188,7 +189,25 @@ class SongVideoServiceTest extends TestCase
         $this->assertNull($video->service_section_id);
         $this->assertStringStartsWith('sermons/songs/'.$song->id.'/', $video->video_file_path);
         $this->assertStringEndsWith('.mp4', $video->video_file_path);
-        Storage::disk('public')->assertExists($video->video_file_path);
+        $this->assertSame('local', $video->asset_disk);
+        Storage::disk('local')->assertExists($video->video_file_path);
+        Storage::disk('public')->assertMissing($video->video_file_path);
+        $this->assertSame('private', Storage::disk('local')->getVisibility($video->video_file_path));
+    }
+
+    #[Test]
+    public function uploads_to_a_cloud_disk_explicitly_use_private_visibility(): void
+    {
+        Storage::fake('song_cloud');
+        config(['media-processing.storage.sermon_disk' => 'song_cloud']);
+
+        $video = $this->service->createFromUpload(
+            Song::factory()->create(),
+            UploadedFile::fake()->create('song.mp4', 1, 'video/mp4'),
+        );
+
+        $this->assertSame('song_cloud', $video->asset_disk);
+        $this->assertSame('private', Storage::disk('song_cloud')->getVisibility($video->video_file_path));
     }
 
     #[Test]
@@ -341,13 +360,11 @@ class SongVideoServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_resolves_a_recorded_asset_disk_after_global_storage_changes(): void
+    public function its_playback_route_is_stable_after_global_storage_changes(): void
     {
         Storage::fake('recorded_media');
         Storage::fake('public');
         config()->set('media-processing.storage.sermon_disk', 'public');
-        $recordedDisk = Storage::disk('recorded_media');
-        Storage::shouldReceive('disk')->with('recorded_media')->once()->andReturn($recordedDisk);
 
         $path = 'sermons/songs/1/recorded.mp4';
         $video = SongVideo::factory()->create([
@@ -357,7 +374,7 @@ class SongVideoServiceTest extends TestCase
 
         $url = $this->service->getVideoUrl($video);
 
-        $this->assertStringContainsString($path, $url);
+        $this->assertSame(route('church.song-videos.show', $video), $url);
     }
 
     #[Test]

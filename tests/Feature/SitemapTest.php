@@ -59,6 +59,8 @@ class SitemapTest extends TestCase
 
         $content = $response->getContent();
 
+        $this->assertStringNotContainsString('/church/services', $content);
+
         // Check for main static URLs
         $this->assertStringContainsString('<loc>http://localhost</loc>', $content);
         $this->assertStringContainsString('<loc>http://localhost/christ</loc>', $content);

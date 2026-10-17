@@ -152,6 +152,7 @@
         </li>
         @endif
         @endforeach
+        @auth
         @if (config('service-tracking.enabled', true))
         @php $isActive = request()->is('church/services*'); @endphp
         <li class="leading-none">
@@ -161,7 +162,6 @@
           </a>
         </li>
         @endif
-        @auth
         @php $isActive = request()->is('church/songs*'); @endphp
         <li class="leading-none">
           <a class="inline-flex rounded-md px-3 py-1.5 text-base no-underline transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-cbc-teal-dark {{ $isActive ? 'bg-white/20 text-white font-bold shadow-sm' : 'text-white/85 font-medium hover:text-white hover:bg-white/5' }}"

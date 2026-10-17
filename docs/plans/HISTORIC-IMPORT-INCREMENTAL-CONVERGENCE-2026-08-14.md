@@ -2322,9 +2322,47 @@ reported recoverable residue.
    These decisions settle the content/access policy; they do not authorise any release batch or
    establish copyright/CCLI licence coverage. Verify applicable permissions and actual access
    enforcement before release. No production settings or publication state changed with this ruling.
-5. **Enforcing G10–G11 (investigated read-only 2026-10-17; nothing built).**
+5. **Enforcing G10–G11 (built locally 2026-10-17; not deployed).**
 
-   **The code today does not enforce either ruling:**
+   **Delivery status (2026-10-17):** steps 1–3 are implemented in the working checkout.
+   The operator requested a local commit to `master`; pushing and deployment remain pending.
+   No production settings, object ACLs or publication states have been changed by this work. The running video round remains on its
+   frozen clone; its workers, inputs and storage were not changed.
+
+   - **Step 1 built:** services require `auth` and `verified`; old links preserve the intended
+     destination through login. Guest navigation, breadcrumbs and sermon-to-service links are
+     hidden, and generated sitemaps exclude the service archive. **Regenerate the cached sitemap
+     immediately after deployment** (`artisan sitemap:generate`).
+   - **Step 2 built:** `config/church.php` now describes `public_from` as the era bound for
+     verified signed-in users. The config key, environment variable and configured value are
+     unchanged; an era release never grants anonymous service access.
+   - **Step 3 built:** `SongVideoController` requires a verified login and a published video,
+     refuses held/staging, missing and unsafe assets, and redirects cloud playback to a
+     five-minute `temporaryUrl()`. Local playback stays behind the authenticated route, supports
+     byte ranges and sends private/no-store cache headers. Song and service players use the gate.
+     New uploaded and extracted song videos are written private; new files that would otherwise
+     use the local `public` disk use `local` outside the web-served directory, with their disk
+     recorded. The historic release's existing no-ACL write is unchanged; bucket-policy
+     verification remains required.
+   - **Existing objects are not migrated:** `songs:privatise-videos --disk=do_spaces` defaults to
+     a dry run that lists selected song keys without changing ACLs. Review that output first;
+     `--apply` requires the operator's go. It preflights keys, refuses local disks and unexpected
+     paths, and verifies each applied private ACL. A failure stops the command; already changed
+     objects remain private, and re-running is supported. ACL checks alone do not prove that a
+     bucket policy or cached CDN copy cannot still expose an object.
+   - **Validation:** the final focused PHPUnit run passed **92 tests / 287 assertions**; a
+     separate command/admin/integrity run passed **19 tests / 61 assertions**. Both song Dusk
+     tests passed, including the gated player URL and logged-out redirect; the four service Dusk
+     journeys also passed during step 1. PHPStan reports zero errors and changed-file Pint passed.
+     Playwright specs now sign in and load successfully, but screenshot comparison/baseline review
+     is still pending. The full suite remains deferred while video processing is active.
+   - **Still to do:** finish visual checks and the full suite when processing permits; obtain
+     operator approval before pushing/deploying; regenerate the sitemap; review the production
+     privacy dry run before any approved ACL apply; complete every production check in step 4,
+     including bucket policy and logged-out direct/CDN reachability. No release batch is authorised.
+
+   **Pre-implementation findings (read-only investigation, 2026-10-17; retained as the rollout baseline,
+   not a description of the changed working checkout):**
    - **Services are public.**
      - `church/services` and `church/services/{date}/{service}` sit behind
        `service-tracking.enabled` only (`routes/web.php`), with no `auth` middleware.
@@ -2348,7 +2386,7 @@ reported recoverable residue.
      to the public CDN URL. That is acceptable while sermons are public, but it is not a gate.
 
    **Work, test-first, each step pushed only on the operator's go (a push to master deploys):**
-   1. **Services login-only.**
+   1. **Services login-only — built locally; deployment and sitemap regeneration pending.**
       - Add `auth` and `verified` to the `church.services.*` group.
       - **Old service links redirect a guest to login and back** (operator, 2026-10-17), not a 404.
       - Leave the index and the service pages out of the sitemap, and regenerate it straight after
@@ -2356,10 +2394,10 @@ reported recoverable residue.
       - Put the header link and the breadcrumb inside `@auth`.
       - `publicUrlFor()` and `publicUrlForSermon()` return null for a guest, so public sermon pages
         stop linking to services.
-   2. **`public_from` becomes the era bound for signed-in users only.** Rename it, or rewrite its
+   2. **`public_from` becomes the era bound for signed-in users only — built locally.** Rename it, or rewrite its
       docblock (`config/church.php`), so it no longer reads as the public boundary. §8.1's
       "services release by moving `public_from`" then means releasing to signed-in users.
-   3. **Song media through a gated route.**
+   3. **Song media through a gated route — built locally; existing-object ACL changes pending.**
       - A route behind `auth` checks the video is published, then redirects to a short-lived signed
         URL (`temporaryUrl()`).
       - The service page and the song page use that route, never `url()`.
@@ -2372,7 +2410,7 @@ reported recoverable residue.
       - the bucket policy;
       - a released historic object's reachability;
       - that a weekly song video URL fails when logged out.
-   5. **Tests:**
+   5. **Tests — focused checks pass; full suite and visual comparison pending:**
       - Update `tests/Feature/PublicChurchServiceArchiveTest.php`, its Dusk counterpart,
         `tests/Playwright/church-services.spec.ts`, `SitemapTest`, `SitemapServiceTest` and the
         song detail tests.

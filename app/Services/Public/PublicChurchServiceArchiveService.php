@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -122,7 +123,7 @@ class PublicChurchServiceArchiveService
     }
 
     /**
-     * The public URL for a service, or null when it is not publicly visible.
+     * The service URL for a signed-in user, or null when unavailable.
      *
      * Used by surfaces that already know a service is relevant — a song's usage
      * history, a sermon's page — to link back into the archive without offering a
@@ -133,7 +134,7 @@ class PublicChurchServiceArchiveService
      */
     public function publicUrlFor(?ChurchService $churchService): ?string
     {
-        if (! $churchService instanceof ChurchService) {
+        if (Auth::guest() || ! $churchService instanceof ChurchService) {
             return null;
         }
 
@@ -158,14 +159,14 @@ class PublicChurchServiceArchiveService
     }
 
     /**
-     * The public service page a sermon was preached at, or null if there isn't one.
+     * The service page a sermon was preached at, or null for guests or unavailable services.
      *
      * Unlike {@see publicUrlFor()} this resolves through the full listing query, so
      * it never links to a service the archive would refuse to serve.
      */
     public function publicUrlForSermon(Sermon $sermon): ?string
     {
-        if (! $sermon->service instanceof SermonService) {
+        if (Auth::guest() || ! $sermon->service instanceof SermonService) {
             return null;
         }
 
