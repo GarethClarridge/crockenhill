@@ -7,6 +7,12 @@
  *
  *   RMS_WINDOW=35 vendor/bin/sail php scripts/ruled-endings/capture.php <ids.txt> tests/Fixtures/RuledEndings
  *
+ * An id is either an endings-listening id (end-<run>-<sermon|section id>) or a ruling id from
+ * tests/Fixtures/Rulings/edge-rulings.json (plan §4.6; built by scripts/rulings/gather.py), whose
+ * record becomes the fixture's ruling. A section ruling with no section id takes the run's section
+ * of that type whose edge is nearest the cut heard. Capture only between rounds: the planner is
+ * resolved inside a rolled-back transaction on the live database.
+ *
  * Each fixture holds what the cut planner reads for that run: the run row, every section, the
  * transcript and audio timeline, sound levels in windows around the section edges (with the
  * threshold the whole file gives, so the trim cannot move it), the banked edge words, sentence
@@ -62,7 +68,9 @@ $dropMetadata = ['service_structure_ensemble', 'corpus_rerun', 'media_outputs', 
 $sectionColumns = ['id', 'section_type', 'start_time', 'end_time', 'confidence', 'status', 'metadata', 'section_order',
     'publication_status', 'song_match_type', 'title', 'needs_manual_review', 'duration', 'summary', 'source_segment_ids'];
 
-$cutFor = static function (MediaProcessingLog $log, string $which): array {
+$edgeRulings = collect(json_decode((string) file_get_contents(base_path('tests/Fixtures/Rulings/edge-rulings.json')), true)['rulings'])->keyBy('id');
+
+$cutFor = static function (MediaProcessingLog $log, string $which, string $edge = 'end'): array {
     if ($which === 'sermon') {
         $plan = app(SermonExtractionPlanResolver::class)->resolve($log);
         $audits = $plan['metadata']['cue_edge_widening'] ?? [];
@@ -70,18 +78,52 @@ $cutFor = static function (MediaProcessingLog $log, string $which): array {
         $plan = app(CueSafeExtractionPlan::class)->forSection(ServiceSection::findOrFail((int) $which));
         $audits = $plan['cue_edge_widening'];
     }
-    $ends = array_values(array_filter($audits, static fn ($a) => ($a['edge'] ?? null) === 'end'));
-    $last = $ends === [] ? null : end($ends);
+    $edges = array_values(array_filter($audits, static fn ($a) => ($a['edge'] ?? null) === $edge));
+    $audit = $edges === [] ? null : ($edge === 'start' ? $edges[0] : end($edges));
+    $cut = match (true) {
+        $plan['segments'] === [] => null,
+        $edge === 'start' => (float) reset($plan['segments'])['start_time'],
+        default => (float) end($plan['segments'])['end_time'],
+    };
 
-    return ['cut' => $plan['segments'] === [] ? null : (float) end($plan['segments'])['end_time'], 'reason' => $last['reason'] ?? null];
+    return ['cut' => $cut, 'reason' => $audit['reason'] ?? null];
+};
+
+/**
+ * The ruling, the run, the output and the edge for an id; for an edge-rulings.json section ruling
+ * without a section id, the run's section of that type with the edge nearest the cut heard.
+ *
+ * @return array{0: array<string, mixed>, 1: int, 2: string, 3: string, 4: float}
+ */
+$resolve = static function (string $id) use ($edgeRulings, $key, $joined): array {
+    if (! $edgeRulings->has($id)) {
+        [, $runId, $which] = explode('-', $id, 3);
+
+        return [$key[$id] + ['ruled_cut' => (float) $joined[$id]['cut']], (int) $runId, $which, 'end', (float) $joined[$id]['cut']];
+    }
+
+    $ruling = $edgeRulings[$id];
+    $which = $ruling['output'] === 'sermon' ? 'sermon' : (string) $ruling['section_id'];
+
+    if ($ruling['output'] === 'section' && $ruling['section_id'] === null) {
+        $column = $ruling['edge'] === 'start' ? 'start_time' : 'end_time';
+        $section = ServiceSection::query()->where('media_processing_log_id', $ruling['run'])
+            ->when($ruling['section_type'], fn ($query, $type) => $query->where('section_type', $type))
+            ->get()->sortBy(fn (ServiceSection $s) => abs((float) $s->{$column} - $ruling['heard']))->first()
+            ?? throw new RuntimeException("{$id}: no section to rule on");
+        $which = (string) $section->id;
+        $ruling['section_id'] = $section->id;
+    }
+
+    return [$ruling, (int) $ruling['run'], $which, $ruling['edge'], (float) $ruling['heard']];
 };
 
 foreach ($ids as $id) {
-    [, $runId, $which] = explode('-', $id, 3);
+    [$ruling, $runId, $which, $edge, $ruledCut] = $resolve($id);
     DB::beginTransaction();
     try {
-        $log = MediaProcessingLog::findOrFail((int) $runId);
-        $live = $cutFor($log, $which);
+        $log = MediaProcessingLog::findOrFail($runId);
+        $live = $cutFor($log, $which, $edge);
     } finally {
         DB::rollBack();
     }
@@ -123,8 +165,7 @@ foreach ($ids as $id) {
         }
     }
     // Levels only around the edges this ruling depends on: the ruled cut, the target section's
-    // own edges (every sermon section's, for a sermon ending), and any edge near the cut.
-    $ruledCut = (float) $joined[$id]['cut'];
+    // own edges (every sermon section's, for a sermon edge), and any edge near the cut.
     $edges = [$ruledCut];
     foreach ($sections as $section) {
         $isTarget = $which === 'sermon'
@@ -152,7 +193,7 @@ foreach ($ids as $id) {
 
     $fixture = [
         'id' => $id,
-        'ruling' => $key[$id] + ['ruled_cut' => (float) $joined[$id]['cut']],
+        'ruling' => $ruling,
         'live' => $live + ['code' => trim((string) shell_exec('git -c safe.directory=/var/www/html -C /var/www/html rev-parse --short HEAD'))],
         'config' => $config,
         'run' => [
@@ -181,6 +222,7 @@ foreach ($ids as $id) {
     ];
 
     $json = json_encode($fixture, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION);
-    file_put_contents("{$outDir}/{$id}.json.gz", gzencode($json, 9));
+    $fileName = str_replace(':', '-', $id);
+    file_put_contents("{$outDir}/{$fileName}.json.gz", gzencode($json, 9));
     printf("%s live=%s %s %d KB\n", $id, $live['cut'] === null ? 'null' : number_format($live['cut'], 2), $live['reason'] ?? '-', strlen(gzencode($json, 9)) / 1024);
 }

@@ -35,8 +35,10 @@ use Tests\TestCase;
  * Two checks per fixture:
  *  - fidelity: rebuilt from the fixture, the planner gives the cut it gave on the live data at
  *    capture (`live`), so the fixture holds everything the planner reads;
- *  - the ruling: an ending ruled right stays within 0.31 s of the cut the operator heard; one ruled
- *    to clip its last word stays later than that cut.
+ *  - the ruling, by what it expects (tests/Fixtures/Rulings/edge-rulings.json, plan §4.6): `keep`
+ *    stays within 0.31 s of the cut the operator heard; `outward` opens earlier or ends later than
+ *    it; `inward` opens later or ends earlier; `at` is within a second of the time in the note.
+ *    The first fixtures predate that set and carry only an ending's answer (right or clips_word).
  *
  * A fixture whose capture predates a deliberate change may be re-captured with
  * scripts/ruled-endings/capture.php (sample in manifest.json); the ruling check is what must keep passing.
@@ -49,6 +51,12 @@ class RuledEndingsRegressionTest extends TestCase
     private const RIGHT_TOLERANCE = 0.31;
 
     private const FIDELITY_TOLERANCE = 0.02;
+
+    /** How far an edge must move to count as having moved off a cut ruled wrong. */
+    private const MOVED = 0.05;
+
+    /** The operator gives a time to the second or the tenth of a second. */
+    private const RULED_TIME_TOLERANCE = 1.0;
 
     /** @return array<string, array{string}> */
     public static function fixtures(): array
@@ -64,25 +72,62 @@ class RuledEndingsRegressionTest extends TestCase
 
     #[Test]
     #[DataProvider('fixtures')]
-    public function a_ruled_ending_keeps_its_ruling(string $path): void
+    public function a_ruled_edge_keeps_its_ruling(string $path): void
     {
         $fixture = json_decode((string) gzdecode((string) file_get_contents($path)), true, flags: JSON_THROW_ON_ERROR);
+        $ruling = $this->ruling($fixture);
         $log = $this->rebuild($fixture);
-        [, , $which] = explode('-', $fixture['id'], 3);
         $this->replaySongIntroduction($log, $fixture['song_introduction'] ?? null);
 
-        $cut = $which === 'sermon'
-            ? end(app(SermonExtractionPlanResolver::class)->resolve($log)['segments'])['end_time']
-            : end(app(CueSafeExtractionPlan::class)->forSection(ServiceSection::query()->findOrFail((int) $which))['segments'])['end_time'];
+        $segments = $ruling['section_id'] === null
+            ? app(SermonExtractionPlanResolver::class)->resolve($log)['segments']
+            : app(CueSafeExtractionPlan::class)->forSection(ServiceSection::query()->findOrFail($ruling['section_id']))['segments'];
+        $cut = $ruling['edge'] === 'start' ? reset($segments)['start_time'] : end($segments)['end_time'];
 
         $this->assertEqualsWithDelta($fixture['live']['cut'], $cut, self::FIDELITY_TOLERANCE, 'the fixture no longer reproduces its live cut');
 
-        $ruled = (float) $fixture['ruling']['ruled_cut'];
+        $heard = $ruling['heard'];
+        // Later in the recording, for an end; earlier, for a start.
+        $outward = $ruling['edge'] === 'end' ? $cut - $heard : $heard - $cut;
 
-        match ($fixture['ruling']['answer']) {
-            'right' => $this->assertEqualsWithDelta($ruled, $cut, self::RIGHT_TOLERANCE, 'an ending ruled right has moved'),
-            'clips_word' => $this->assertGreaterThan($ruled + 0.05, $cut, 'an ending ruled to clip its last word is back at the clipped cut'),
+        match ($ruling['expect']) {
+            'keep' => $this->assertEqualsWithDelta($heard, $cut, self::RIGHT_TOLERANCE, 'an edge ruled right has moved'),
+            'outward' => $this->assertGreaterThan(self::MOVED, $outward, 'an edge ruled to clip its item is back at the clipped cut'),
+            'inward' => $this->assertLessThan(-self::MOVED, $outward, 'an edge ruled to take in too much is back at that cut'),
+            'at' => $this->assertEqualsWithDelta($ruling['ruled_time'], $cut, self::RULED_TIME_TOLERANCE, 'an edge is not at the time the operator gave'),
         };
+    }
+
+    /**
+     * The ruling in the shape of edge-rulings.json; the first fixtures carry an ending's answer
+     * and the cut heard, with the output in their id (end-<run>-<sermon|section id>).
+     *
+     * @param  array<string, mixed>  $fixture
+     * @return array{section_id: int|null, edge: string, heard: float, expect: string, ruled_time: float|null}
+     */
+    private function ruling(array $fixture): array
+    {
+        $ruling = $fixture['ruling'];
+
+        if (isset($ruling['expect'])) {
+            return [
+                'section_id' => $ruling['output'] === 'sermon' ? null : (int) $ruling['section_id'],
+                'edge' => $ruling['edge'],
+                'heard' => (float) $ruling['heard'],
+                'expect' => $ruling['expect'],
+                'ruled_time' => isset($ruling['ruled_time']) ? (float) $ruling['ruled_time'] : null,
+            ];
+        }
+
+        [, , $which] = explode('-', $fixture['id'], 3);
+
+        return [
+            'section_id' => $which === 'sermon' ? null : (int) $which,
+            'edge' => 'end',
+            'heard' => (float) $ruling['ruled_cut'],
+            'expect' => ['right' => 'keep', 'clips_word' => 'outward'][$ruling['answer']],
+            'ruled_time' => null,
+        ];
     }
 
     /** @param  array<string, mixed>  $fixture */
