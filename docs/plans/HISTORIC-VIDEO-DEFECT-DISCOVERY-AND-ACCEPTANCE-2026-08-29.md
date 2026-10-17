@@ -1248,6 +1248,8 @@ What we would regret not doing while the context exists.
   standalone testimonies, prayer requests, prayers and private occasions are withheld by default.
   Prayers within agreed sermon boundaries stay included. Applicable permissions and actual access
   enforcement still need verification before release; no batch was authorised by this decision.
+  **Enforcement planned 2026-10-17, not built** (programme plan §8.4 item 5). Today the service archive is
+  public and song video files are public-read on the CDN. Old service links will redirect to login.
 - [ ] **Rehearse the whole route on one service, early.** Export it, import it into a
   production-like copy, release it and play it back on a real server. §4.5's actual-server checks are
   done once now, while problems are cheap, as well as at the end.

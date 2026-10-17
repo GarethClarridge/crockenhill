@@ -2322,6 +2322,64 @@ reported recoverable residue.
    These decisions settle the content/access policy; they do not authorise any release batch or
    establish copyright/CCLI licence coverage. Verify applicable permissions and actual access
    enforcement before release. No production settings or publication state changed with this ruling.
+5. **Enforcing G10–G11 (investigated read-only 2026-10-17; nothing built).**
+
+   **The code today does not enforce either ruling:**
+   - **Services are public.**
+     - `church/services` and `church/services/{date}/{service}` sit behind
+       `service-tracking.enabled` only (`routes/web.php`), with no `auth` middleware.
+     - The header shows a "Services" link to everyone.
+     - The sitemap lists the index and every eligible service page (`SitemapService`).
+     - Public sermon pages link to their service (`publicUrlForSermon()`), as do the breadcrumbs.
+     - `church.services.public_from` bounds by era, not by audience. Production's value is unknown
+       from this machine.
+   - **Song pages are already restricted.** `church/songs*` needs a verified login, and the nav
+     link is `@auth`.
+   - **Song media is not restricted.**
+     - The public service page embeds a published song video's URL (`songVideoUrl()`).
+     - `SongVideoService::getVideoUrl()` returns a plain `url()` on the sermon disk: `do_spaces`,
+       `visibility: public`, behind a CDN.
+     - Weekly song videos are therefore public-read objects at predictable paths, and anyone with
+       the URL can fetch them.
+   - **The historic release writes with no ACL.** `FilesystemHistoricReleaseObjectStore::createRemote`
+     writes objects without one, so they default to private on Spaces unless the bucket policy
+     says otherwise. Production's bucket policy decides which, and it is unverified.
+   - **Sermon media is not a model to copy.** `SermonAssetController` checks access, then redirects
+     to the public CDN URL. That is acceptable while sermons are public, but it is not a gate.
+
+   **Work, test-first, each step pushed only on the operator's go (a push to master deploys):**
+   1. **Services login-only.**
+      - Add `auth` and `verified` to the `church.services.*` group.
+      - **Old service links redirect a guest to login and back** (operator, 2026-10-17), not a 404.
+      - Leave the index and the service pages out of the sitemap, and regenerate it straight after
+        deploy: it is a cached file (`shouldRegenerate()`).
+      - Put the header link and the breadcrumb inside `@auth`.
+      - `publicUrlFor()` and `publicUrlForSermon()` return null for a guest, so public sermon pages
+        stop linking to services.
+   2. **`public_from` becomes the era bound for signed-in users only.** Rename it, or rewrite its
+      docblock (`config/church.php`), so it no longer reads as the public boundary. §8.1's
+      "services release by moving `public_from`" then means releasing to signed-in users.
+   3. **Song media through a gated route.**
+      - A route behind `auth` checks the video is published, then redirects to a short-lived signed
+        URL (`temporaryUrl()`).
+      - The service page and the song page use that route, never `url()`.
+      - Song videos are written private: the weekly path, and the historic release, which already
+        writes without an ACL.
+      - A one-off command makes existing song objects private: dry run first, operator's go, a
+        production storage change.
+   4. **Check production by hand, before any release:**
+      - the production value of `public_from`;
+      - the bucket policy;
+      - a released historic object's reachability;
+      - that a weekly song video URL fails when logged out.
+   5. **Tests:**
+      - Update `tests/Feature/PublicChurchServiceArchiveTest.php`, its Dusk counterpart,
+        `tests/Playwright/church-services.spec.ts`, `SitemapTest`, `SitemapServiceTest` and the
+        song detail tests.
+      - Add tests for a guest redirected from a service page, the sitemap without services, no
+        service link on a sermon page for a guest, and song media refused without a login.
+
+   Nothing here touches a processing round. Steps 1 and 3 change the live site when pushed.
 
 ## 9. Review-load design (carried)
 
