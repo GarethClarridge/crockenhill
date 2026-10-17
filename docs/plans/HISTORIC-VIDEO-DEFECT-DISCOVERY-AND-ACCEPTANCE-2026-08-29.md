@@ -1254,6 +1254,21 @@ What we would regret not doing while the context exists.
     remaining ~400 need the voice clustering, which reads audio from the drives and so waits for the
     round to close. Absence of an introduction is not evidence of who preached.
   - **The speaker model's 13 historic attributions are unreviewed**, and one is contradicted.
+
+  **Operator's answers, 2026-10-17** (`answers/rulings/` beside the page). Not yet applied: applying
+  writes sermon rows, so it waits for the round to close and then uses the ordinary admin route.
+  - **19 confirmed:**
+    - already in the preachers list: Gareth Clarridge (2020-08-16, 2023-08-20, 2025-05-25),
+      Peter Clarridge (2021-02-21), Malcolm Jones (2022-09-11, 2023-08-13, 2026-05-03),
+      Laurie Everest (2025-08-31) and Jon Summers (2023-08-06, the transcript's "John");
+    - new: Andrew Wilson (2023-06-04, 2024-09-01, 2025-02-16, 2025-07-06, 2026-01-25, 2026-07-05),
+      Joshua Bell (2021-09-05 evening), Tarl Reeves (2022-04-17), Le Fras Strydom (2022-05-22) and
+      Ralph Spencer (2025-11-23 evening).
+  - **Can't tell:** 2020-06-21, 2026-07-19, and 2026-07-26 (the speaker model's Mark Drury stays).
+  - **Rejected:** 2026-03-29. The email's "Jason Roach will be the speaker" was not about a service
+    at this church. Email mentions need that check before they become evidence.
+  - **Transcription spells names wrongly** ("Tal", "Laf raz"), so a name heard in a transcript is
+    a lead, never the record.
 - [ ] **Settle the programme plan's deferred release policy early**
   ([§8.4](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md#8-release-policy)). It decides whether
   the 953 song videos can be published at all, so it should come before song acceptance stage 2 and
