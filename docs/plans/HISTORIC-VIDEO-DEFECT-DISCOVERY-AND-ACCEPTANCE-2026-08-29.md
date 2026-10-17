@@ -1239,6 +1239,21 @@ What we would regret not doing while the context exists.
     ([speaker identification §11](SPEAKER-IDENTIFICATION-ROOT-CAUSE-2026-09-03.md)).
 
   These become proposals for the operator to confirm; nothing is applied unreviewed.
+
+  **Text evidence gathered 2026-10-17 (read-only, during the round):** 420 historic sermons are
+  "Visiting Speaker", all 2020–2026.
+  - **How:** a scan of each service transcript (the opening, the 7 minutes before the sermon and its
+    first 2 minutes), plus the emails that name a preacher, each email tied to the right Sunday.
+  - **Result:** 23 proposals, on the "Preacher Proposals" page
+    (`storage/scratch/preacher-proposals-20261017/`, answers in its `rulings` collection):
+    - 19 historic;
+    - 2 weekly sermons that are also "Visiting Speaker" (2026-05-03, 2026-07-05);
+    - 1 conflict: 2026-07-26 is credited to Mark Drury by the speaker model, but two emails say
+      "Gareth preaching from Joshua".
+  - **Most services name no preacher:** the pastor preaches without an introduction. So the
+    remaining ~400 need the voice clustering, which reads audio from the drives and so waits for the
+    round to close. Absence of an introduction is not evidence of who preached.
+  - **The speaker model's 13 historic attributions are unreviewed**, and one is contradicted.
 - [ ] **Settle the programme plan's deferred release policy early**
   ([§8.4](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md#8-release-policy)). It decides whether
   the 953 song videos can be published at all, so it should come before song acceptance stage 2 and
