@@ -13,10 +13,10 @@ use App\Jobs\StoreSermonVideo;
 use App\Models\HistoricImportNestedJob;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Services\Sermon\SermonExposurePolicy;
 use App\Models\ServiceSection;
 use App\Models\SongVideo;
 use App\Services\Media\Audio\ServiceArtifactStorage;
+use App\Services\Sermon\SermonExposurePolicy;
 use Illuminate\Support\Facades\Bus;
 use Throwable;
 

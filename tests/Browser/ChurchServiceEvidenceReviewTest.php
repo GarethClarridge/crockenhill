@@ -81,10 +81,11 @@ class ChurchServiceEvidenceReviewTest extends DuskTestCase
         $service = ChurchService::factory()->create();
         $log = MediaProcessingLog::factory()->livestream()->completed()->create(['church_service_id' => $service->id, 'duration' => 400]);
         $reading = ServiceSection::factory()->create(['media_processing_log_id' => $log->id,
-            'section_type' => ServiceSectionType::BibleReading, 'title' => 'Separate reading', 'start_time' => 10, 'end_time' => 90, 'needs_manual_review' => false]);
+            'section_type' => ServiceSectionType::BibleReading, 'title' => 'Separate reading', 'start_time' => 10, 'end_time' => 60, 'needs_manual_review' => false]);
         $sermon = ServiceSection::factory()->create(['media_processing_log_id' => $log->id,
             'section_type' => ServiceSectionType::Sermon, 'title' => 'Reviewed sermon', 'start_time' => 100, 'end_time' => 300, 'needs_manual_review' => false]);
-        app(SermonExtractionPlanResolver::class)->compose($log);
+        $composition = app(SermonExtractionPlanResolver::class)->compose($log);
+        $this->assertTrue($composition['requires_review']);
 
         $this->browse(function (Browser $browser) use ($admin, $service, $reading, $sermon): void {
             $browser->resize(390, 844)->loginAs($admin)->visit("/admin/services/{$service->id}")

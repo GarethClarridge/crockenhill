@@ -907,10 +907,10 @@ class ServiceStructureValidator
     /**
      * @param  list<array{code: string, message: string}>  $hardFailures
      * @return array{cross_type: array<int, true>, same_type: array<int, true>, unresolved_type: array<int, true>, shared_item: array<int, true>}
-     *                                                                                                             Section indices whose claimed item precedes an
-     *                                                                                                             earlier-claimed item, split by whether the two share an
-     *                                                                                                             OpenLP type, plus those where the detector abstained on
-     *                                                                                                             a section whose OoS item names a type.
+     *                                                                                                                                            Section indices whose claimed item precedes an
+     *                                                                                                                                            earlier-claimed item, split by whether the two share an
+     *                                                                                                                                            OpenLP type, plus those where the detector abstained on
+     *                                                                                                                                            a section whose OoS item names a type.
      */
     private function checkOosAnchoring(ServiceStructure $structure, ValidationContext $context, array &$hardFailures): array
     {

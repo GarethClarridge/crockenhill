@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\HistoricMedia;
 
 use App\Data\HistoricProcessingResultImportPlan;
+use App\Data\ServiceSectionMetadata;
 use App\Enums\SermonPublicationState;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
@@ -18,7 +19,6 @@ use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use App\Models\SermonProcessingStep;
 use App\Models\SermonScriptureFilter;
-use App\Data\ServiceSectionMetadata;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;

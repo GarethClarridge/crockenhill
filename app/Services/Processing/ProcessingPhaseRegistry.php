@@ -13,7 +13,6 @@ use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\CreateSermonRecord;
 use App\Jobs\CreateSermonTranscriptFromService;
 use App\Jobs\DetectServiceStructure;
-use App\Jobs\EnhanceAudio;
 use App\Jobs\ExtractAudioFromVideo;
 use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateRmsLog;

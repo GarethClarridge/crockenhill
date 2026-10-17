@@ -210,7 +210,7 @@ class SourceAwareMediaTimingChecker
             $last = $frames[count($frames) - 1];
 
             if ($frames[0]['time'] > $from + self::COVERAGE_SLACK_SECONDS
-                || $last['time'] + $last['duration'] < min($to, $duration) - self::COVERAGE_SLACK_SECONDS) {
+                || min($to, $duration) - self::COVERAGE_SLACK_SECONDS > $last['time'] + $last['duration']) {
                 return false;
             }
         }

@@ -10,8 +10,8 @@ use App\Jobs\PublishApprovedServiceSection;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ExtractedSectionMediaChecker;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
-use App\Services\Preacher\TalkSpeakerService;
 use App\Services\ChurchService\TalkReadingPairing;
+use App\Services\Preacher\TalkSpeakerService;
 
 class ApproveSectionForPublication
 {

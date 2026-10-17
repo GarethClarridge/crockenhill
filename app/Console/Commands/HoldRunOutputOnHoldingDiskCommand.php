@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Services\HistoricMedia\HoldingDiskCustodyRepair;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Model;
 use RuntimeException;
 use Throwable;
 
@@ -67,7 +68,7 @@ class HoldRunOutputOnHoldingDiskCommand extends Command
     }
 
     /**
-     * @param  list<\Illuminate\Database\Eloquent\Model>  $records
+     * @param  list<Model>  $records
      */
     private function ids(array $records): string
     {

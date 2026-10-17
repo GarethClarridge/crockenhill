@@ -14,10 +14,10 @@ use App\Models\Sermon;
 use App\Models\SermonProcessingStep;
 use App\Models\ServiceSection;
 use App\Services\HistoricMedia\HistoricProcessingResultReadinessService;
+use App\Services\Sermon\SermonExposurePolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
-use App\Services\Sermon\SermonExposurePolicy;
 use Tests\TestCase;
 
 class HistoricProcessingResultReadinessServiceTest extends TestCase
