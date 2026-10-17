@@ -331,7 +331,7 @@ TXT;
         arsort($votes);
         $winner = array_key_first($votes);
 
-        if ($winner === 'NULL' || $votes[$winner] * 2 <= count($calls)) {
+        if ($winner === 'NULL' || count($calls) >= $votes[$winner] * 2) {
             return ['ties_to_sermon' => null, 'end' => null, 'line' => null];
         }
 

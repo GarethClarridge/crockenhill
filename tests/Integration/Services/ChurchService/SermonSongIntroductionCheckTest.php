@@ -9,8 +9,11 @@ use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\SermonSongIntroductionCheck;
+use App\Services\Media\Audio\ServiceArtifactStorage;
+use GuzzleHttp\Psr7\Response;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
+use OpenAI\Exceptions\RateLimitException;
 use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Resources\Chat;
 use OpenAI\Responses\Chat\CreateResponse;
@@ -238,7 +241,7 @@ class SermonSongIntroductionCheckTest extends TestCase
         config(['openai.service_tier' => 'flex']);
         $answer = CreateResponse::fake(['choices' => [['message' => ['content' => '{"sermon_last_line":3,"ties_to_sermon":true,"video_last_line":6,"reason":"test"}']]]]);
         OpenAI::fake([
-            new \OpenAI\Exceptions\RateLimitException(new \GuzzleHttp\Psr7\Response(429, [], '{"error":{"code":"flex_unavailable"}}')),
+            new RateLimitException(new Response(429, [], '{"error":{"code":"flex_unavailable"}}')),
             $answer,
             $answer,
         ]);
@@ -254,7 +257,7 @@ class SermonSongIntroductionCheckTest extends TestCase
         $log = $this->service();
         OpenAI::fake([CreateResponse::fake(['choices' => [['message' => ['content' => '{}']]]]), CreateResponse::fake(['choices' => [['message' => ['content' => '{}']]]])]);
         app(SermonSongIntroductionCheck::class)->prepare($log, $this->spans());
-        foreach (\App\Services\Media\Audio\ServiceArtifactStorage::recordedFor($log->fresh()) as $entry) {
+        foreach (ServiceArtifactStorage::recordedFor($log->fresh()) as $entry) {
             if (! str_starts_with($entry['kind'], 'sermon-song-introduction-')) {
                 continue;
             }
