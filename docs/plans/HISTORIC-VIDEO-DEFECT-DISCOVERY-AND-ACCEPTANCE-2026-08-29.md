@@ -383,6 +383,10 @@ supersede; a new freeze and snapshot follow.
    at zero errors. The full parallel suite passes: 9,835 tests, 96,939 assertions, 163 PHPUnit
    notices and one skipped opt-in corpus replay. The frozen clone is unchanged; include
    this fix in the next freeze. Existing residue clean-up remains in §4.1.
+   **Status checked 10-17:** the cause fix and regression tests are committed in `29126fb8a`.
+   The isolated section-sync test file passes again: **40 tests, 177 assertions**. This check
+   does not establish which revision the running clone uses; no clone, worker or processing
+   data was changed. Do not alter the current round to deploy it.
 8. **Keep thumbnail deferral — reaffirmed 10-16 (register P2).** Generate thumbnails only after
    the release membership's editorial QA passes (§4.5).
 
@@ -584,11 +588,17 @@ no stop was acknowledged or cleared, the clone has not moved, and all ten queues
 3. **Stale song clips on non-song sections** (archived
    [follow-up round §9.1](../archived-plans/FOLLOW-UP-ROUND-FROZEN-CLONE-2026-10-13.md#91-clean-up-pass-stale-song-clips-on-sections-that-are-not-songs-found-14-10),
    recounted 10-16):
-   1. fix the cause, with a failing test from 1002;
-   2. a dry-run command that un-points the path and re-binds or retires each `SongVideo`, keeping its
-      file;
-   3. recount;
-   4. re-run the watcher's diff.
+   1. **Complete — cause fixed in `29126fb8a`.** The run-1002 insertion regression and
+      moved-span regression failed before the fix (§4.0 decision 7). Section sync clears stale
+      song paths and detaches/quarantines obsolete bindings, keeping the files. Reverified
+      10-17 with `vendor/bin/sail artisan test --compact tests/Integration/Services/ServiceSectionSyncServiceTest.php`:
+      **40 tests, 177 assertions passed**. No changes to the running round.
+   2. **Command exists; post-round cleanup outstanding.** Use
+      `historic-import:clear-stale-song-clips` in dry-run mode first to review how it un-points
+      paths and re-binds or retires each `SongVideo`, keeping its file; then apply the cleanup
+      after the round closes.
+   3. **Outstanding:** recount after cleanup;
+   4. **Outstanding:** re-run the watcher's diff.
 
    Open for the operator: listen to the clips that are the only copy of their song in a run before
    they are retired?

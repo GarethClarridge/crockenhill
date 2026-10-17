@@ -202,7 +202,7 @@ song digital-zero bar, run 937's retirement).
 | R6 | Never run tests in the round clone. | 10-15 | [Runbook] §1 |
 | R7 | Fix everything on the fix-round list (items 1–20) before the next run. | 10-12 | [Log 10-16] Part 2 |
 | R8 | **Weekly processing takes over when the historic import is done**; services after 2026-08-23 wait for it. The definition of "done" is proposed in [Programme] §0.4. | 10-16 | operator, 10-16; [Plan] §4.2 |
-| R9 | **Fix the stale-clip cause before the re-cut round.** Complete [Round] §9.1 step 1, test it and include it in the new freeze before dispatch; existing residue clean-up remains in [Plan] §4.1. Implemented in the local working tree; focused tests pass. Inclusion in the next freeze remains pending. | 10-16 | Operator: "Fix the stale clips before the round"; [Plan] §4.0 decision 7 |
+| R9 | **Fix the stale-clip cause before the re-cut round.** Complete [Round] §9.1 step 1, test it and include it in the new freeze before dispatch; existing residue clean-up remains in [Plan] §4.1. Cause fix committed in `29126fb8a`; isolated section-sync tests reverified 10-17: 40 tests, 177 assertions passed. Running clone revision not verified by this check; do not alter the current round. | 10-16; status 10-17 | Operator: "Fix the stale clips before the round"; [Plan] §4.0 decision 7 and §4.1 item 3 |
 
 ## 12. Release
 
