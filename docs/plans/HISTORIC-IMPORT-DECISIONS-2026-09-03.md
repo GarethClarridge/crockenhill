@@ -45,6 +45,8 @@ song digital-zero bar, run 937's retirement).
 | G7 | The review queue is the point. Do not minimise it as a goal; if something needs a human look, flag it. | 09-07 | [Talks] §2; notes |
 | G8 | Re-run every eligible run (historic, completed, not superseded, not excluded), not only runs predicted to change. | 09-23 | [Log 10-16] §4.0 standing decision 1 |
 | G9 | Every repair also protects future services: a run is repaired outside a round only as a named exception with its own reason. | 09-23 | [Log 10-16] §4 |
+| G10 | Songs are permanently authenticated-only, never public. Standalone testimonies, prayer requests, prayers and private occasions are withheld by default; exceptions require a named operator decision. Prayers within agreed sermon boundaries remain included. Editorial review, explicit batch approval and provenance-preserving corrections remain required. This settles content/access policy, not licence coverage or any batch release. | 10-17 | Operator in conversation; [Programme] §8.4 |
+| G11 | Service archive listings and detail pages are authenticated-only; there is no public visitor service archive. Service links, search and sitemap exposure follow that boundary. The separate sermon archive remains public. Era release never grants anonymous service access. Supersedes the programme's earlier public-service exposure assumptions. | 10-17 | Operator in conversation; [Programme] §8.4 |
 
 ## 2. Custody, storage and backups
 

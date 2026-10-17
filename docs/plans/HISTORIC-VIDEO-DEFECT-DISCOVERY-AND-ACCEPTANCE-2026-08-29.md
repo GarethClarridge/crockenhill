@@ -1223,6 +1223,11 @@ What we would regret not doing while the context exists.
   ([§8.4](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md#8-release-policy)). It decides whether
   the 953 song videos can be published at all, so it should come before song acceptance stage 2 and
   the clip clean-up, not after them.
+  **Content/access policy settled 2026-10-17 (G10–G11):** service listings and detail pages are
+  authenticated-only; the separate sermon archive stays public. Songs remain authenticated-only permanently;
+  standalone testimonies, prayer requests, prayers and private occasions are withheld by default.
+  Prayers within agreed sermon boundaries stay included. Applicable permissions and actual access
+  enforcement still need verification before release; no batch was authorised by this decision.
 - [ ] **Rehearse the whole route on one service, early.** Export it, import it into a
   production-like copy, release it and play it back on a real server. §4.5's actual-server checks are
   done once now, while problems are cheap, as well as at the end.

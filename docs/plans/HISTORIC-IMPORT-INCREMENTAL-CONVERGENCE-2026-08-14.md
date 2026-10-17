@@ -2304,9 +2304,24 @@ reported recoverable residue.
 3. **Every release is a controlled batch** with owner and observation, never an import side
    effect (carried §F.6). Corrections and unpublishing use the ordinary application tools without
    deleting provenance.
-4. **Deferred policy, carried unresolved:** editorial, copyright/CCLI, consent, personal-data and
-   safeguarding policy for publishing a decade of services must be decided by the maintainer/church
-   before large releases. Nothing in this plan clears it.
+4. **Release-policy decisions (operator, 2026-10-17):**
+   - The service archive, including its listing and individual service pages, is authenticated-only.
+     It is not a public visitor feature. Service links, search and sitemap exposure must follow
+     that boundary. The separate sermon archive remains public. This supersedes the public-service
+     exposure assumptions in §8.1–§8.2; an era threshold never grants anonymous service access.
+   - Songs are eligible for authenticated access only, permanently. They must never become public;
+     an era release must preserve that restriction, including direct media access.
+   - Do not release standalone testimonies, prayer requests or prayers, or private occasions, by
+     default. Any exception needs an explicit operator decision for the named content.
+   - Prayers already within a sermon's agreed extraction boundaries remain part of that sermon.
+     This policy does not change the cut rules or require re-cutting those prayers out.
+   - Retain reviewed, explicitly approved release batches; preserve curated sermon metadata and
+     verify uncertain speakers and references. Unresolved quality or identity cases stay held.
+   - Apply the church's existing policy when reviewing identifiable children or sensitive material.
+     Corrections and takedowns use ordinary tools and preserve provenance.
+   These decisions settle the content/access policy; they do not authorise any release batch or
+   establish copyright/CCLI licence coverage. Verify applicable permissions and actual access
+   enforcement before release. No production settings or publication state changed with this ruling.
 
 ## 9. Review-load design (carried)
 
