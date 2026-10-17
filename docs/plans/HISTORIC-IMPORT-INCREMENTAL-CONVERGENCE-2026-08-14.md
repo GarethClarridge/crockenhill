@@ -117,7 +117,7 @@ signed batches or explicitly held, and weekly processing has taken over. The ope
 | 3 | Video, 2020-03-22 to 2026-08-23 | Nothing historic there | Accepted runs exported as bundles by era and applied quarantined, then released by signed era batches | Video plan §4.5; §7–§8 |
 | 4 | Hymn workbook | Apply artifact stale | Regenerate against the converged corpus and apply once | Row 7 |
 | 5 | Current-era evidence back-fill | Based on a production count from 08-09 | `audit:service-evidence-coverage` on production, recover real sources | Row 6 |
-| 6 | Legacy sermon transcripts, 2003–2019 | 1 of 808 local legacy sermons has a transcript; the 2014–2019 sermons on production are uncounted | Proposed, after step 5 | Video plan §4.7 |
+| 6 | Legacy sermon transcripts, 2003–2019 | 1 of 808 local legacy sermons has a transcript; the 2014–2019 sermons on production are uncounted | **Decided 2026-10-17**, production-only sermons included; planned, run after the historic import. Membership comes from step 0's export. | Video plan §4.7 |
 | 7 | Weekly takes over | Paused since 2026-09-14; never ran consistently on production | Weekly-resumption canary, then the services from 2026-08-30 onward, oldest first | Video plan §4.2 |
 | 8 | IC8 retirement | — | Only after the long-term repair route for historic media is decided | Video plan §4.6; IC8 |
 

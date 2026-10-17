@@ -8,7 +8,7 @@
 > stale-clip clean-up (§4.1), song acceptance stage 2 and the release work (§4.5) follow it.
 > Getting production complete is mapped in the
 > [programme plan §0.4](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md#04-getting-production-complete-the-map-2026-10-16);
-> weekly take-over (§4.2), lasting evaluation and custody (§4.6) and legacy transcripts (§4.7) were
+> weekly take-over (§4.2), lasting evaluation and custody (§4.6) and legacy transcripts (§4.7, decided 10-17) were
 > added on 2026-10-16.
 
 **How to read this plan.** It holds the current state and the remaining work, nothing else.
@@ -1284,24 +1284,87 @@ What we would regret not doing while the context exists.
   production-like copy, release it and play it back on a real server. §4.5's actual-server checks are
   done once now, while problems are cheap, as well as at the end.
 
-### 4.7 Legacy sermon transcripts (proposed 2026-10-16; awaiting the operator)
+### 4.7 Legacy sermon transcripts (decided 2026-10-17; planned, not built)
 
-The 808 legacy sermons (2003–2013, audio only, 494 hours) are published. 807 have a named preacher
-and 685 a Scripture reference, but only 1 has a transcript. Some 2014–2019 sermons exist only on
-production, and are not yet counted.
+**Operator, 2026-10-17:** do it, and include the sermons that exist only on production. Plan it
+now, build later.
 
-**Proposal: transcribe them, and do nothing else to them.**
-- Use the transcription setup the historic work proved: local Whisper `large-v3-turbo`, timed cues,
-  `max_context=0`, the repetition screen and recovery. Not the direct-upload path, which returns
-  untimed text with no loop screening (§4.2's table). This needs a small route that transcribes an
-  existing published sermon's audio.
-- Run it locally, with no paid calls, timing a sample first. The transcripts reach production as a
-  promotion round (programme plan §0.4, step 6). The 2014–2019 sermons' audio comes down from
-  production storage first.
-- Do no structure detection, re-cutting, AI titles or summaries: their titles, preachers and
-  references are curated (register P4). No audio re-treatment either, unless a listening sample of
-  about 20 shows level problems.
-- Do it after the historic import, so weekly's take-over is not delayed.
+**Scope.** Every published sermon from before the historic video era (before 2020-03-22) that has
+audio and no transcript:
+- **2003–2013:** 808 local rows (494 hours, audio only); 1 has a transcript.
+  - 807 have a named preacher and 685 a Scripture reference.
+  - Their audio is on this machine (`storage/app/public/sermons/audio`, 2.0 GB).
+- **2014–2019:** exist only on production; uncounted.
+
+**Production is the record.** This machine's database was built here, not restored from production
+(programme plan §0.4), so local sermon ids do not match production's, even for 2003–2013.
+- **Membership:** read from production by the census export (programme plan §0.4, step 0). For each
+  sermon, record its production id, slug, date, service, audio path, audio size and SHA-256, and
+  whether it has a transcript.
+- **Identity:** every later step keys on (production sermon id, audio SHA-256), never on a local row.
+
+**Not touched:** titles, preachers, references, series, publication state and audio (register P4).
+No structure detection, cutting, AI titles or summaries.
+
+**One transcription step, shared with direct uploads** (G9; no historic-only behaviour). A legacy
+sermon is a direct audio upload that already exists.
+- **Today's direct path** (`TranscribeAudio`, §4.2) returns untimed prose with no loop screening.
+- **The step:** build one step that transcribes a sermon's audio with local Whisper
+  `large-v3-turbo`, `max_context=0` and timed cues.
+  - It keeps the cues as an artifact and runs `ServiceTranscriptRepetitionScreen`, then
+    `ServiceTranscriptRepetitionRecovery`. Both already take a transcript, not a run.
+  - It writes the markdown transcript through `TranscriptStorageService`.
+- **Who uses it:** new direct uploads use it before their AI step; a legacy sermon uses it with no AI
+  step.
+- **What it closes:** §4.2's direct-upload safeguard item, which is open because the direct path
+  cannot be screened.
+- **One format change:** the sermon page and `ProcessTranscriptWithAI` still read markdown; only the
+  cue artifact is new.
+
+**Route.**
+1. **Build, test-first,** on master after the historic import's rounds (any time; it touches no
+   round):
+   - the shared step;
+   - `sermons:transcribe-legacy`, which reads the membership file and is resumable, with a verdict
+     per sermon that survives re-runs;
+   - a transcript-only promotion bundle and its production importer.
+2. **Audio.**
+   - **2003–2013:** use the local copy only where its SHA-256 matches production's (restore only if
+     byte-identical).
+   - **2014–2019, and any mismatch:** download from production storage into a holding directory on
+     an internal disk, hashing each file.
+3. **Sample before the run.**
+   - Time about 10 sermons on host Whisper.
+   - Listen to about 20 for level problems; audio treatment only if they show some.
+   - Read about 10 transcripts for quality, including names and places.
+   - The timing gives the full run's length: 494 hours plus 2014–2019, likely days.
+4. **Run, after the historic import is done** (weekly's take-over first; Whisper is the rounds'
+   bottleneck, and the run must not share the drives with a cut).
+   - Local only, no paid calls.
+   - A sermon still flagged by the screen after recovery is held, not shipped, and listed for the
+     operator.
+5. **Promote,** as a production round (programme plan §0.4, step 6). The bundle carries, for each
+   sermon: production id, slug, audio SHA-256, the transcript, the cue artifact and provenance
+   (code revision, model, decoding options). The importer on production:
+   - **dry-runs first**;
+   - writes only where the sermon still has no transcript and its audio SHA-256 matches;
+   - stores under the production id;
+   - changes no other field. `SermonObserver` clears the sermon's cached metadata.
+   - **Rollback:** delete what the bundle's ledger wrote.
+6. **Afterwards:** search (site search and the Scripture search plans) can use the transcripts.
+   They appear on public sermon pages, as the sermon archive is public (G11).
+
+**Tests:**
+- the shared step on a direct upload and on an existing sermon, with no AI step for the latter;
+- screen and recovery on a looping fixture;
+- resumability;
+- the importer refusing on a hash mismatch, on an existing transcript and on an unknown id, and
+  changing no other field.
+
+**Open before the run:**
+- the production count for 2014–2019 (the census);
+- whether production's audio for 2003–2013 matches the local copy;
+- the sample's timing.
 
 ## 5. Go/no-go
 
