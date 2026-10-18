@@ -697,8 +697,37 @@ rolled-back transactions, with stray HTTP refused. Ten members failed at `manual
   (`composition_does_not_clear_an_upstream_material_boundary_review`), only Confirm clears it.
   An answered composition therefore still needs Confirm on the sermon section.
 
-**Before closing:** re-cut 941, 1025, 1066, 1236, 1148 and 1223 (after the clone moves to the
-fix); retry 1109 and 1313 after the
+- **Talk and reading edges** (the count's second phase, all 365 members): one more edge changes,
+  1233 short talk §2878 "Still the early days.". On the fix it ends at 1643.39 s, between its own
+  "…days." (1643.20) and the next speaker's "Okay," (1643.58). It has never been cut, so nothing
+  changes until 1233's clips are next prepared. 165 edges in 58 runs are not yet decoded at v10
+  (`edge_word_timings_missing`).
+
+**The six re-cut, 10-18 (snapshot `recut-round-20261018a`; operator: "Go", "Dispatch").**
+- **Clone:** moved to `6072ee52a` (old line kept as `round-20261016g-line`). Lockfiles unchanged;
+  `bootstrap/cache` cleared; `CodeRevision` `8127d428…` equals main's. Workers restarted; the
+  `…g` watcher and autotick stopped.
+- **Backup:** `/Volumes/Sonnics/_pre-recut-round-20261018a-backup-20261018/` (database dump at binlog
+  `000127:572975306`, binlogs, private storage; gzip integrity passed; `SHA256SUMS`).
+- **Route:** `ProcessingRunOrchestrator::reExtract`, because Tier C refuses runs with no detection
+  round on this code, and recompose would re-sync sections over the admin answers.
+  - Preflight (`direct-preflight.jsonl`): no projection refusal, job offset 9, every sermon plan clean.
+  - Dispatched together at 09:16 BST; all six completed by 09:35 with no failed job and no watcher
+    stop.
+- **Diff:** 6 of 6 changed, 0 need attention. Each executed plan equals its replayed plan:
+  - 941 ends at 4180.04 s;
+  - 1025 at 3980.92 s;
+  - 1066 at 2290.40 s;
+  - 1236 at 3638.28 s;
+  - 1148: 688.0–1723.8, 2392.5–3172.7 and 3382.6–3540.2 s;
+  - 1223: 1287.2–1399.1 and 1558.6–3172.2 s.
+- **Sermons** 889, 960, 998, 1070, 1141 and 1155: quarantined on `historic_quarantine`, video
+  quality approved. All 439 historic sermons remain quarantined.
+- **New review flags** (post-cut checks, review queue; nothing held):
+  - 1025: `sermon_audio_loudness_missed` and `transcript_repetition_suspect`;
+  - 1066: `sermon_text_predates_evidence` and `published_reference_contradicts_sermon`.
+
+**Before closing:** retry 1109 and 1313 after the
 §3976 custody check; reproduce and fix the 974/1216 timing failure; then run checklist step 4
 (the held sermons) and step 5 (listening). Each step that processes needs the operator's go.
 
