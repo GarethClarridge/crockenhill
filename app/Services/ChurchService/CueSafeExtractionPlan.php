@@ -2144,9 +2144,11 @@ class CueSafeExtractionPlan
                 'chosen_pause' => ['start' => $pause['start'], 'end' => $pause['end']],
                 'word_before' => $pause['word_before'], 'word_after' => $pause['word_after']];
         }
-        // At an end, the cut after the latest occurrence keeps every one; a closing sentence heard
-        // twice is then placed, as 1105's is (941's "Amen. Amen." beside its song, K16).
-        if (count($candidates) > 1 && ($isStart || ! $this->endsSentence($cue['text']))) {
+        // The cut after the latest occurrence at an end, or before the earliest at a start, keeps
+        // every one; a sentence heard twice on its own line is then placed, as 1105's is (941's
+        // "Amen. Amen." beside its song, K16; 1300's opening "Politicians."). A phrase that is not
+        // a whole sentence may be a neighbour's words, so it stays unresolved (F03).
+        if (count($candidates) > 1 && ! $this->endsSentence($cue['text'])) {
             $decision['candidate_anchors'] = $candidates;
         }
 

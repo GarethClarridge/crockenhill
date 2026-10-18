@@ -405,6 +405,27 @@ class WordTimedOutputEdgesTest extends TestCase
     }
 
     /**
+     * 1300's sermon opens on its own line "Politicians.", which the edge decoding heard twice; the
+     * operator heard it once (2026-10-18). At a start, the cut before the earlier one keeps both, so
+     * an opening sentence heard twice is placed, as a closing one is at an end, not left as a question.
+     */
+    #[Test]
+    public function an_opening_sentence_heard_twice_on_its_own_line_starts_before_the_earlier_one(): void
+    {
+        $cue = ['start' => 2105.24, 'end' => 2106.2, 'text' => 'Politicians.'];
+        $log = $this->log($cue);
+        $this->bank($log, $cue, [
+            ['start' => 2104.38, 'end' => 2106.09, 'word' => ' Politicians.'],
+            ['start' => 2106.32, 'end' => 2107.2, 'word' => ' Politicians.'],
+        ]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 2105.24, 'end_time' => 3862.2]]);
+
+        $this->assertLessThanOrEqual(2104.38, $plan['segments'][0]['start_time']);
+        $this->assertSame([], CueSafeExtractionPlan::unresolvedEdges($plan['cue_edge_widening']));
+    }
+
+    /**
      * 1292's reading ends on "old." decoded to 1506.0000000000002 in a window ending at 1506: no
      * gap after its last word, so the cut fell back to the window margin before "The man who…",
      * dropping the reading's last verse.
