@@ -60,6 +60,30 @@ class EnsembleReviewGateTest extends TestCase
         $this->assertNotNull($gate->projectionRefusal($log->fresh()));
     }
 
+    /**
+     * Run 1340 (2026-10-18): its composition held a snap delta of -5.684341886080803e-14. MySQL
+     * prints that double with 16 significant digits and it reads back as …804e-14, so a projection
+     * stamped from the composition as written never matched the composition as read, and the run
+     * refused every cut. A stamp must survive the database round trip.
+     */
+    #[Test]
+    public function a_projection_stamped_from_unsaved_metadata_survives_the_database_round_trip(): void
+    {
+        $structure = ['sections' => [[
+            'type' => 'bible_reading', 'title' => 'Matthew 5', 'start_time' => 1777.2, 'end_time' => 1834.2,
+            'snap_deltas' => ['start' => -5.684341886080803e-14, 'end' => 0], 'review_flags' => [],
+        ]]];
+        $metadata = [
+            'service_structure' => $structure,
+            'service_structure_ensemble' => [['attempt_id' => '1340-banked-attempt', 'composition' => ['structure' => $structure]]],
+        ];
+        $gate = app(EnsembleReviewGate::class);
+        $metadata['service_structure_projection'] = $gate->projectionProvenance($metadata);
+        $log = MediaProcessingLog::factory()->livestream()->create(['processing_metadata' => $metadata]);
+
+        $this->assertNull($gate->projectionRefusal($log->fresh()));
+    }
+
     /** @return array<string, mixed> */
     private function projectionMetadata(): array
     {

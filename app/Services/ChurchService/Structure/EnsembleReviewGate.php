@@ -35,7 +35,7 @@ class EnsembleReviewGate
         if ($provenance === null
             || ! is_array($projected)
             || ($composition['sections_synced'] ?? null) === false
-            || $provenance !== $projected
+            || ($provenance !== $projected && $this->provenance($metadata, canonical: false) !== $projected)
             || ServiceSection::query()->where('media_processing_log_id', $log->id)
                 ->whereJsonContains('metadata->review_flags', ServiceStructureValidator::FLAG_ENSEMBLE_DISAGREES)->exists()) {
             return 'Banked composition/answers are not reflected in projected sections; run historic-import:rerun-recompose before extraction.';
@@ -53,6 +53,20 @@ class EnsembleReviewGate
      */
     public function projectionProvenance(array $metadata): ?array
     {
+        return $this->provenance($metadata, canonical: true);
+    }
+
+    /**
+     * Floats are hashed at 12 significant digits. MySQL prints a JSON double with at most 16, so
+     * one that needs 17 reads back as a neighbour (1340's snap delta -5.684341886080803e-14 came
+     * back …804e-14): a stamp made before saving never matched the metadata read after it. Stamps
+     * made before 2026-10-18 hashed the raw values, and the gate still accepts those.
+     *
+     * @param  array<string, mixed>  $metadata
+     * @return array{attempt_id: string, composition_rulings_sha256: string}|null
+     */
+    private function provenance(array $metadata, bool $canonical): ?array
+    {
         $bank = $metadata['service_structure_ensemble'] ?? null;
         $latest = is_array($bank) && $bank !== [] ? end($bank) : null;
         $composition = is_array($latest) ? ($latest['composition'] ?? null) : null;
@@ -64,13 +78,25 @@ class EnsembleReviewGate
             return null;
         }
 
+        $inputs = ['composition' => $composition, 'rulings' => $rulings];
+
         return [
             'attempt_id' => $latest['attempt_id'],
-            'composition_rulings_sha256' => hash('sha256', json_encode(Arr::sortRecursive([
-                'composition' => $composition,
-                'rulings' => $rulings,
-            ]), JSON_THROW_ON_ERROR)),
+            'composition_rulings_sha256' => hash('sha256', json_encode(Arr::sortRecursive($canonical ? self::withoutFloatNoise($inputs) : $inputs), JSON_THROW_ON_ERROR)),
         ];
+    }
+
+    /**
+     * @param  array<mixed>  $values
+     * @return array<mixed>
+     */
+    private static function withoutFloatNoise(array $values): array
+    {
+        return array_map(static fn (mixed $value): mixed => match (true) {
+            is_float($value) && is_finite($value) => (float) sprintf('%.11e', $value),
+            is_array($value) => self::withoutFloatNoise($value),
+            default => $value,
+        }, $values);
     }
 
     /** @param list<array{start_time: float, end_time: float}>|null $spans */
