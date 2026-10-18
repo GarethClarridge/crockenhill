@@ -6,8 +6,8 @@
 > 1223, and the four parked runs (974, 1109, 1216, 1313) were retried and completed. Left at manual
 > review: the four structure-review runs (1287, 1288, 1327, 1366). It is **not closed**: the
 > held-sermon batch completed **55 of 61** on 10-18, and the other six were answered, fixed and
-> cut the same afternoon (end of §4.0). On the operator's listening 52 of the 61 are clear of
-> holds; nine remain, none settled by listening (titles, re-transcription, decisions).
+> cut the same afternoon (end of §4.0). 58 of the 61 are clear of holds; left: 1262 (on the
+> listening page), 1322 (needs a one-window text repair) and 1031 (operator decision).
 > Clone at `e66d567d5`. Nothing is public. The §3 measurements
 > below date from 10-16.
 > The stale-clip clean-up (§4.1), song acceptance stage 2 and the release work (§4.5) follow the
@@ -907,15 +907,37 @@ Evidence beside each snapshot (`held-round-20261018b` to `…e`) and in
   0.064–0.069, against 0.85–0.89 held). The operator ruled all 28 matching; 34 text holds were
   released (several sermons carried two). Nothing became public (36 song videos, no historic
   sermon).
-- **Still held: nine, none settled by listening.**
-  - **Titles/references from other weeks:** 944 (Psalm 77 on a sermon on Hannah's song), 1381,
-    1382. Their published metadata needs regenerating through the pipeline.
-  - **Not re-transcribed, so their text is unchanged:** 1262, 1322.
-  - **Operator decisions:** duplicate-performance identity (1034, 1120, 1375); 1031, whose only
-    recording cuts the sermon off (whole-or-nothing ruling).
+- **The nine left after listening (operator: "go ahead with your recommendations"):**
+  - **Titles/references, 944, 1381, 1382: repaired, holds released.** Each run had banked an
+    analysis of its own sermon whose title and reference were discarded: the rows predate the
+    import (null provenance, real titles from other weeks), which `titleMayBeReplacedByAnalysis()`
+    rightly protects in general. Applied through `SaveSermonDetails` as user 1 (slugs kept, as
+    the rows may have prod URLs): 881 "God lifts the humble" / 1 Samuel 2:1–10, 845 "The lost
+    older son" / Luke 15:11–32, 850 "Amazing grace: saving, sustaining and future grace" /
+    1 Peter 5:6–14. Each reference agrees with the one the sermon announced, and
+    `published_reference_contradicts_sermon` withdrew. 881's speaker-model preacher attribution,
+    which the form marks manual, was restored. Before-state:
+    `storage/scratch/title-repair-20261018/before.json`. 845's and 850's preachers came from the
+    other weeks' rows too and are unchecked.
+  - **Duplicate identity, 1034, 1120, 1375: released under X4.** Not an open decision: X4 ruled
+    the pairs on 10-14 and every step it prescribed is now done and was verified (kept runs on
+    services 1018, 617, 1121 with re-dated sermons; 930, 1035, 1374 excluded as
+    `duplicate_recording`; re-detected in `…g`; re-cut). Seven identity holds released, on the
+    three sermons and songs §1997, §2012, §1455, §1457. 1034's other song holds (clip boundaries)
+    stay for song acceptance.
+  - **1262: on the part-2 page as question 29.** Tier A refuses it (no grounds), and rightly: its
+    fresh decode was wrong too. But the faulty stretch (1978.6–2007.6 s) now falls between the
+    reading's span and the sermon's, outside the cut, and the sermon's text opens "Well, if you
+    could have Matthew 17 handy", as the operator's 09-24 note said it should.
+  - **1322: still held.** A fresh decode was right in its window but wrong elsewhere, so the run
+    kept its stored text, and the current text has a 35 s hole at 2545–2582 s inside the cut. No
+    tool repairs one window; a window splice of a listened-right decode would be new pipeline work.
+  - **1031: still held, a decision.** The only recording (755 s) starts mid-sermon; the cut is
+    the last 8 minutes of "Believe the impossible, find true joy" (2025-12-28 evening, visiting
+    speaker). No prod copy exists. E15 concerns dead picture, not a cut-off sermon.
 
-**Before closing:** the nine above, then step 5 (listening). Any further processing needs the
-operator's go.
+**Before closing:** 1262's answer, 1322's window repair (or an accepted hold), 1031's decision,
+then step 5 (listening). Any further processing needs the operator's go.
 
 ### 4.1 After the round
 
