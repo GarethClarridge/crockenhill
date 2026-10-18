@@ -87,7 +87,7 @@ class SermonExtractionPlanResolver
             }
             foreach ($sections as $section) {
                 if ($section->id !== $sermon->id && $this->continues($section, $sermon->id)) {
-                    // An embedded continuation is already present; a partial overlap is invalid.
+                    // An embedded continuation is already present; a partial overlap joins the sermon's span.
                     if ($section->start_time >= $sermon->start_time && $section->end_time <= $sermon->end_time) {
                         continue;
                     }
@@ -280,6 +280,16 @@ class SermonExtractionPlanResolver
     }
 
     /**
+     * Selected sections may overlap at a seam: overlap is benign, and the join through silent gaps
+     * ends the earlier where the later begins (1300's readings, 2026-10-18). A section that starts
+     * before the previous one or ends inside it would lose or reorder audio, so it is refused.
+     */
+    private static function nestsInPrevious(float $start, float $end, float $previousStart, float $previousEnd): bool
+    {
+        return $start < $previousStart || $end <= $previousEnd;
+    }
+
+    /**
      * What a review answered about a risk: its kind and the detail it was shown, which names the
      * reading, interval or text in doubt. The same kind about something else is a new question.
      *
@@ -346,14 +356,16 @@ class SermonExtractionPlanResolver
         if (! in_array($current['sermon_section_id'], $sectionIds, true)) {
             throw new InvalidArgumentException('Composition must include the identified sermon.');
         }
+        $previousStart = 0.0;
         $previousEnd = 0.0;
         foreach ($sections->sortBy('start_time') as $section) {
             $start = (float) $section->start_time;
             $end = (float) $section->end_time;
-            if (! is_finite($start) || ! is_finite($end) || $start < $previousEnd || $end <= $start
+            if (! is_finite($start) || ! is_finite($end) || self::nestsInPrevious($start, $end, $previousStart, $previousEnd) || $end <= $start
                 || ($log->duration !== null && $end > $log->duration + 0.001)) {
-                throw new InvalidArgumentException('Invalid selected section bounds: unordered, overlapping or outside source');
+                throw new InvalidArgumentException('Invalid selected section bounds: unordered, nested or outside source');
             }
+            $previousStart = $start;
             $previousEnd = $end;
         }
         $sermonParts = $sections->filter(fn (ServiceSection $section): bool => $section->id === $current['sermon_section_id']
@@ -483,6 +495,7 @@ class SermonExtractionPlanResolver
         $held = [];
         $requiresReview = ($composition['requires_review'] ?? true) === true;
         $authority = $heldSpanAuthority ?? $processingLog->authorisedHeldSermonSpan();
+        $previousStart = 0.0;
         $previousEnd = 0.0;
         $seen = [];
         $selectedSections = [];
@@ -497,12 +510,13 @@ class SermonExtractionPlanResolver
             if ($processingLog->duration !== null && $end > $processingLog->duration && $end <= $processingLog->duration + self::SOURCE_END_OVERRUN_SECONDS) {
                 $end = (float) $processingLog->duration;
             }
-            if (! is_finite($start) || ! is_finite($end) || $start < $previousEnd || $end <= $start
+            if (! is_finite($start) || ! is_finite($end) || self::nestsInPrevious($start, $end, $previousStart, $previousEnd) || $end <= $start
                 || ($processingLog->duration !== null && $end > $processingLog->duration + 0.001)) {
-                throw new InvalidArgumentException('Invalid selected section bounds: unordered, overlapping or outside source');
+                throw new InvalidArgumentException('Invalid selected section bounds: unordered, nested or outside source');
             }
             $seen[] = $id;
             $selectedSections[] = $section;
+            $previousStart = $start;
             $previousEnd = $end;
             $flags = $section->metadata->reviewFlags ?? [];
             $isHeld = HoldSectionForContentReview::isHeld($flags);

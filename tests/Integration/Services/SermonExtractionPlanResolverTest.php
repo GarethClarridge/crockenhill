@@ -425,6 +425,47 @@ class SermonExtractionPlanResolverTest extends TestCase
     }
 
     /**
+     * Run 1300 (operator, 2026-10-18): Deuteronomy 23, Matthew 5 and Matthew 23 are read back to
+     * back, and the detector let the first two overlap by 2.3 s. Overlapping sections are benign; the
+     * readings play through as one stretch, the earlier ending where the later begins.
+     */
+    #[Test]
+    public function readings_that_overlap_at_their_seam_are_cut_through_without_losing_or_repeating_audio(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 5000, 'sermon_start_time' => 0, 'sermon_end_time' => 4400]);
+        $deuteronomy = $this->reading($log, 13, 1710.1, 1779.5, reference: 'Deuteronomy 23:21-23');
+        $matthewFive = $this->reading($log, 14, 1777.2, 1834.2, reference: 'Matthew 5:33-37');
+        $matthewTwentyThree = $this->reading($log, 15, 1834.2, 1918.2, reference: 'Matthew 23:16-22');
+        $this->section($log, ServiceSectionType::Song, 16, 1924.2, 2095.0);
+        $sermon = $this->sermon($log, 17, 2105.2, 3862.2, 'Matthew 5:33-37');
+        $selection = [$deuteronomy->id, $matthewFive->id, $matthewTwentyThree->id, $sermon->id];
+
+        $this->resolver->reviewComposition($log, $selection, $this->resolver->compose($log)['input_identity'], 1);
+        $this->bankNoWordOutputEdges($log);
+        $plan = $this->resolver->resolve($log->fresh());
+
+        $this->assertSame($selection, $plan['metadata']['selected_section_ids']);
+        $this->assertFalse($plan['metadata']['requires_review']);
+        $spans = array_map(fn (array $span): array => [$span['start_time'], $span['end_time']], $plan['segments']);
+        $this->assertSame([[1710.1, 1777.2], [1777.2, 1834.2], [1834.2, 1918.2], [2105.2, 3862.2]], $spans);
+    }
+
+    /** A section wholly inside another selected one would lose the outer section's tail, so it is still refused. */
+    #[Test]
+    public function a_selected_section_contained_in_another_is_still_refused(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 5000, 'sermon_start_time' => 0, 'sermon_end_time' => 4400]);
+        $outer = $this->reading($log, 1, 1700.0, 1900.0, reference: 'Matthew 5:33-37');
+        $inner = $this->reading($log, 2, 1750.0, 1800.0, reference: 'Matthew 5:33');
+        $sermon = $this->sermon($log, 3, 2105.2, 3862.2, 'Matthew 5:33-37');
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('nested');
+
+        $this->resolver->reviewComposition($log, [$outer->id, $inner->id, $sermon->id], $this->resolver->compose($log)['input_identity'], 1);
+    }
+
+    /**
      * Run 1250 (operator, 2026-10-07): Job 29, a song, Job 30, a prayer, Job 31, then the sermon
      * on "Job 29-31". The output is the three readings in order and the whole sermon; the song,
      * its introduction and the prayer stay out. An unrelated call to worship is not asked about.
@@ -612,15 +653,18 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->assertSame([$reading->id, $sermon->id], $plan['metadata']['selected_section_ids']);
     }
 
+    /** Overlap is benign (2026-09-03): a sermon continuation that overlaps its sermon joins it in one span. */
     #[Test]
-    public function selected_sections_with_overlapping_bounds_are_rejected_without_a_fallback(): void
+    public function a_sermon_continuation_overlapping_its_sermon_joins_it_in_one_span(): void
     {
         $log = $this->logWithSermon(500.0, 1200.0);
         $sermon = $log->serviceSections()->sole();
         $this->section($log, ServiceSectionType::Other, 3, 1100, 1400)->update(['metadata' => ['sermon_continuation' => ['of_section_id' => $sermon->id, 'evidence' => 'Same sermon continues', 'source' => 'review']]]);
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('overlapping');
-        $this->resolver->resolve($log);
+        $this->bankNoWordOutputEdges($log);
+
+        $plan = $this->resolver->resolve($log->fresh());
+
+        $this->assertSame([[500.0, 1400.0]], array_map(fn (array $span): array => [$span['start_time'], $span['end_time']], $plan['segments']));
     }
 
     #[Test]
