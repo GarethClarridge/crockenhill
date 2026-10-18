@@ -748,7 +748,25 @@ container restart, so the stale-view explanation is unproven for 1216. The excep
 measured values (first frame, last frame end, expected, file size), so the failure cannot be
 placed. The scratch outputs were deleted. Evidence: `storage/scratch/timing-974-1216-20261018/`.
 
-**Before closing:** settle 974 and 1216 (above); then run checklist step 4
+**974 and 1216 retried, 10-18 (snapshot `recut-round-20261018c`; operator: "Yes, do both").**
+- **The error now carries its measurements** (`55c9cfdb7`, test-first):
+  `SourceAwareMediaTimingChecker` keeps its prefix and adds the first frame, the measured and
+  expected end, the tolerance, the frame count and the output's size.
+- **Clone** moved to `55c9cfdb7` (old line kept as `round-20261018a-line`); `CodeRevision`
+  `68ccc9b6…` equals main's; workers restarted. A database dump was taken first:
+  `crockenhill-before-974-1216.sql.gz` in the 10-18 backup folder (binlog `000127:640114319`).
+- **Retry:** `UnifiedMediaProcessor::retry` at job 18 (candidate preparation). 974 was still
+  `processing`, so it was retried as a stranded historic run.
+  - Dispatched 09:55 BST; 1216 completed at 09:57 and 974 at 09:58, with **no timing error**, no
+    failed job and no watcher stop.
+  - Diff: 2 of 2 changed, 0 need attention; 8 section clips re-cut. All 12 linked clips are
+    present (three under the staging batch root).
+  - Song videos: 36 published (the weekly ones, unchanged since 09-10). Historic sermons: all 441
+    quarantined.
+- **The cause stays unknown.** The failures were transient and match the stale gRPC-FUSE view
+  class only by circumstance. A repeat now logs its numbers.
+
+**Before closing:** run checklist step 4
 (the held sermons) and step 5 (listening). Each step that processes needs the operator's go.
 
 ### 4.1 After the round
