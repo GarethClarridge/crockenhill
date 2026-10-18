@@ -972,9 +972,18 @@ Evidence beside each snapshot (`held-round-20261018b` to `…e`) and in
     holds for §966: none. Before-state: `storage/scratch/reference-1031-20261018/before.json`.
     §966's preacher still reads "Visiting Speaker" (source `default`); the operator preached it.
 
-**Before closing:** E20 is built and 1322's re-cut is complete. Finish step 5 (listening), including
-1322's new seam and its remaining repetition question, then obtain the operator's hold decision.
-Any further processing needs the operator's go.
+**1322 listening, 10-18 (operator, page `ENUVcmHL8RxXC5iZBiMhYq`):** the new join at 9:21.48 is
+clean. At source 3270–3283 s the fresh decode is correct: the preacher says "I heard someone say
+quite a number of years ago that the most amazing thing is that God loves sinners" once, and the
+stored "God loves sinners" ×6 (`transcript_repetition_blocks` on §4090) is a decoder loop over that
+sentence. The stored transcript is therefore wrong for that stretch. Still open: the operator's
+decision on §4090's `content_defect_hold` (its recorded evidence window, 2550–2580 s, now lies
+inside the E20 excision 2511–2584 s) and whether to repair the stored text, which needs
+re-transcription and so the operator's go.
+
+**Before closing:** E20 is built and 1322's re-cut is complete, and its seam is heard. Finish the
+rest of step 5 (listening), then obtain the operator's hold decision on §4090. Any further
+processing needs the operator's go.
 
 ### 4.1 After the round
 
