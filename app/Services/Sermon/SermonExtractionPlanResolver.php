@@ -12,6 +12,7 @@ use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
+use App\Services\ChurchService\DeadFeedExcision;
 use App\Services\ChurchService\OutputEdgeAnswers;
 use App\Services\ChurchService\PublicationPlanValidator;
 use App\Services\ChurchService\Structure\SermonContinuationScreen;
@@ -553,7 +554,8 @@ class SermonExtractionPlanResolver
                     'held_sermon_section_ids' => $held,
                     'held_span_authorised_section_id' => $authority['section_id'] ?? null]];
         }
-        $spans = $cuePlan['segments'];
+        $excision = app(DeadFeedExcision::class)->apply($processingLog, $selectedSections, $cuePlan['segments']);
+        $spans = $excision['segments'];
         // Only a plan whose final spans pass every check may be executed (S6).
         $violations = $spans === [] ? [] : $this->validator->validate($processingLog, $selectedSections, $spans, $cuePlan['cue_edge_widening']);
         $violated = static fn (string $kind): array => array_merge([], ...array_column(
@@ -570,6 +572,7 @@ class SermonExtractionPlanResolver
             'metadata' => [
                 ...$composition,
                 'cue_edge_widening' => $cuePlan['cue_edge_widening'],
+                'dead_feed_excisions' => $excision['dead_feed_excisions'],
                 'strategy' => 'identified_sections',
                 'requires_review' => $requiresReview,
                 'reason' => match (true) {
@@ -642,6 +645,8 @@ class SermonExtractionPlanResolver
      */
     private function inputIdentity(MediaProcessingLog $log, array $sections): string
     {
+        $deadFeed = app(DeadFeedExcision::class);
+
         return hash('sha256', (string) json_encode([
             'sections' => array_map(fn (ServiceSection $section): array => [
                 $section->id, $section->section_type->value, (float) $section->start_time, (float) $section->end_time,
@@ -651,6 +656,7 @@ class SermonExtractionPlanResolver
             'duration' => $log->duration,
             'transcript' => $this->evidenceHash($log->serviceTranscriptPath()),
             'audio_timeline' => $this->evidenceHash($log->audio_timeline_path),
+            ...($deadFeed->identity($log) === null ? [] : ['dead_feed_input_identity' => $deadFeed->inputIdentity($log)]),
         ]));
     }
 

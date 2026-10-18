@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Support;
 
 use App\Enums\AudioProfile;
+use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\DeadFeedExcision;
 use App\Services\Media\Audio\AudioTreatmentSettings;
 
 /**
@@ -35,6 +37,24 @@ final class PublicationCandidate
 
         if (! self::settingsMatch($candidate['audio_treatment']['settings'] ?? null, $section->processingLog, $profile)) {
             return 'was cut with other audio settings than the recording now has';
+        }
+
+        if ($section->section_type === ServiceSectionType::ShortTalk) {
+            $deadFeed = app(DeadFeedExcision::class);
+            $recordedIdentity = $candidate['dead_feed_input_identity'] ?? null;
+            if (is_string($recordedIdentity) && $recordedIdentity !== $deadFeed->inputIdentity($section->processingLog)) {
+                return 'was cut with different dead-feed evidence';
+            }
+            $spans = [];
+            foreach ($candidate['segments'] ?? [] as $span) {
+                if (! is_array($span) || ! is_numeric($span['start_time'] ?? null) || ! is_numeric($span['end_time'] ?? null)) {
+                    return 'has invalid recorded cut bounds';
+                }
+                $spans[] = ['start_time' => (float) $span['start_time'], 'end_time' => (float) $span['end_time']];
+            }
+            if ($deadFeed->apply($section->processingLog, [$section], $spans)['dead_feed_excisions'] !== []) {
+                return 'still contains an E20 dead feed';
+            }
         }
 
         return null;

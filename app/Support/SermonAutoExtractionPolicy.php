@@ -78,8 +78,9 @@ class SermonAutoExtractionPolicy
      * opening found later is a re-extraction (F11).
      *
      * `structure_talk_audio_dropout` is a dead feed inside the talk. Nothing can
-     * restore it and the cut is not in question; the operator accepts or excludes
-     * the talk with its media in hand.
+     * restore the lost words. E20 may excise corroborated dead sound and picture,
+     * but this source warning stays as a review note; preparation remains permitted
+     * so the operator can accept or exclude the talk with its media in hand.
      */
     private const NON_DISQUALIFYING_REVIEW_FLAGS = [
         ServiceStructureValidator::FLAG_OOS_CROSS_TYPE_INVERSION,

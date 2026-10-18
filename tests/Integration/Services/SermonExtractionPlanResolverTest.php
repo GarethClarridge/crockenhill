@@ -14,10 +14,12 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
+use App\Services\ChurchService\DeadFeedExcision;
 use App\Services\ChurchService\OutputEdgeAnswers;
 use App\Services\ChurchService\SermonSongIntroductionCheck;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\TranscriptCueBoundaries;
+use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Sermon\SermonExtractionPlanResolver;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
@@ -41,6 +43,36 @@ class SermonExtractionPlanResolverTest extends TestCase
         parent::setUp();
 
         $this->resolver = app(SermonExtractionPlanResolver::class);
+    }
+
+    #[Test]
+    public function e20_excises_only_the_dead_sound_and_picture_intersection_inside_a_talk(): void
+    {
+        Storage::fake('local');
+        config(['media-processing.storage.service_artifact_disk' => 'local']);
+        $log = $this->logWithSermon(1970.63, 3875.81);
+        $log->update(['duration' => 4000, 'source_file_path' => 'temp/source.mp4', 'rms_log_path' => 'temp/e20.rms']);
+        $rms = "frame:0 pts:0 pts_time:1970\nlavfi.astats.Overall.RMS_level=-20\n"
+            ."frame:1 pts:0 pts_time:2511\nlavfi.astats.Overall.RMS_level=-inf\n"
+            ."frame:2 pts:0 pts_time:2584\nlavfi.astats.Overall.RMS_level=-20\n";
+        Storage::disk('local')->put('temp/e20.rms', $rms);
+        $beforeEvidence = $this->resolver->currentInputIdentity($log->fresh());
+        app(ServiceArtifactStorage::class)->putJson($log->processing_id, 'dead-picture', [
+            'source' => app(DeadFeedExcision::class)->sourceIdentity($log),
+            'rms_sha256' => hash('sha256', $rms),
+            'windows' => [['start' => 2491.0, 'end' => 2604.0, 'dead_intervals' => [[2510.8, 2583.8]]]],
+        ]);
+        $this->bankNoWordOutputEdges($log);
+
+        $plan = $this->resolver->resolve($log->fresh());
+
+        $this->assertSame([
+            ['start_time' => 1970.63, 'end_time' => 2511.0],
+            ['start_time' => 2583.8, 'end_time' => 3875.81],
+        ], $plan['segments']);
+        $this->assertNotSame($beforeEvidence, $this->resolver->currentInputIdentity($log->fresh()));
+        $this->assertSame('concat_spans', $plan['mode']);
+        $this->assertSame('E20', $plan['metadata']['dead_feed_excisions'][0]['ruling']);
     }
 
     #[Test]

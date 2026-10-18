@@ -1,13 +1,14 @@
 # Historic Video Defect Discovery and Acceptance Plan
 
-> **Status — 2026-10-18 (late afternoon).** The **re-cut round** (365 members, snapshot `recut-round-20261016g`)
+> **Status — 2026-10-18 (evening).** The **re-cut round** (365 members, snapshot `recut-round-20261016g`)
 > processed between 10-16 and 10-18 06:28 BST: 285 runs cut and completed. On 10-18 the K16
 > doubled-word fix (`b9ebcaf55`) and the operator's answers re-cut 941, 1025, 1066, 1236, 1148 and
 > 1223, and the four parked runs (974, 1109, 1216, 1313) were retried and completed. Left at manual
 > review: the four structure-review runs (1287, 1288, 1327, 1366). It is **not closed**: the
 > held-sermon batch completed **55 of 61** on 10-18, and the other six were answered, fixed and
-> cut the same afternoon (end of §4.0). 60 of the 61 are clear of holds; left: 1322 (needs a
-> dead-feed cut under E20, or an accepted hold).
+> cut the same afternoon (end of §4.0). 60 of the 61 are clear of holds. **E20 is implemented and
+> 1322's dead-feed re-cut completed at 19:36 UTC on 10-18**; §4090 remains held pending listening
+> and an operator decision. The new video has no measured dead picture.
 > Clone at `e66d567d5`. Nothing is public. The §3 measurements
 > below date from 10-16.
 > The stale-clip clean-up (§4.1), song acceptance stage 2 and the release work (§4.5) follow the
@@ -930,16 +931,36 @@ Evidence beside each snapshot (`held-round-20261018b` to `…e`) and in
     reading's span and the sermon's, outside the cut, and the sermon's text opens "Well, if you
     could have Matthew 17 handy", as the operator's 09-24 note said it should. Hold on §3287
     released with `service:release-content-hold`; no flags left.
-  - **1322: still held; a dead feed, not a text fault (corrected 10-18).** The source carries no
-    sound at 2511–2584 s (73 s at ≤ −80 dB, `structure_talk_audio_dropout`) and the cut's picture
-    is frozen over the same window (`partially_frozen`, clip 561–634 s = service 2510.8–2583.8 s).
-    Every decode there was invented: the stored text looped "…it was Jacob's plan to" 13 times,
-    and the H10b decode the 09-25 hold called "right here" reads "Thank you." twice. The 09-24
-    verdict was `stored_loop`: it judged the stored text, not the new. The current text's hole
-    (from 2511 s, not 35 s at 2545) is correct, so no splice. Operator ruling **E20**: cut out a
-    stretch where sound and picture are both dead; sound-only dropouts (988, 1148) stay. Built
-    as pipeline work, then 1322 re-cut, on the operator's word. Its `transcript_repetition_suspect`
-    ("God loves sinners" ×6, 3270–3283 s) is unheard.
+  - **1322: E20 re-cut complete; §4090 still held (10-18, 19:36 UTC).** On the operator's
+    instruction, the standard `sermons:re-extract` chain ran with `--held-section=4090` after the
+    staged source's SHA-256 matched the recorded source. The source probe confirmed dead picture
+    over the dead audio; their intersection, **2511.29–2583.83 s (72.54 s)**, was excised. The cut
+    now joins **1449.07–1469.89, 1970.63–2511.29 and 2583.83–3875.81 s**. Final video duration:
+    **1853.48 s**; MP3: **1853.52 s**. Source-aware timing checks passed without source anomalies;
+    the new video assessment is `approved`, with **0 dead-picture seconds** and usable share 1.
+    The pipeline completed and promoted the outputs to private quarantine. Nothing was released.
+    The isolated worker used the tested main checkout and Redis 10/11, then stopped; the frozen
+    round clone and its workers were unchanged.
+
+    **E20 is a shared pipeline rule for sermons and short talks.** `TranscribeOutputEdges` probes
+    only dead-audio windows overlapping talks, with detector margins, and banks source-time picture
+    evidence beside the RMS/classifier artifacts as `.dead-picture.json`, bound to source and RMS
+    hashes. Both planners excise the corroborated interior overlap through the existing multi-span
+    cut after edge snapping; songs and sound-only dropouts are unchanged. The read-only replay
+    identified 1322 alone, with 988 and 1148 unchanged; 940 lacked graded-picture evidence and was
+    reported as unassessable. The real source measurement then established 1322's cut above.
+
+    The source text's hole was correct: no transcript splice was made. Removing dead media cannot
+    recover lost words, so `structure_talk_audio_dropout` stays as a source-loss review note.
+    §4090 still has `content_defect_hold` and `transcript_repetition_suspect`; its “God loves
+    sinners” ×6 passage at 3270–3283 s remains unheard. Listen to that passage and the new seam
+    before deciding the hold. The new seam is at about **561.48 s (9:21.48)** in the output.
+
+    Validation: **172 focused tests passed**, PHPStan **0 errors**, Pint passed. The full parallel
+    suite ran **9973 tests**, with 3 failures and 1 skipped test. All three failures reproduced on
+    unchanged `HEAD`: the two public-page tests in `ServiceOccasionConfirmationTest` received
+    redirects, and `PrepareSectionPublicationCandidatesTest`'s recording-override song re-cut kept
+    the old sound. They are baseline failures, not E20 regressions.
   - **1031: released (operator: "publish 1031 anyway").** The only recording (755 s) starts a
     sentence into "Believe the impossible, find true joy" (2025-12-28 evening): its first words
     are "…Zachariah, especially when he's on duty in the temple". The sermon section is 462.7 s
@@ -951,7 +972,9 @@ Evidence beside each snapshot (`held-round-20261018b` to `…e`) and in
     holds for §966: none. Before-state: `storage/scratch/reference-1031-20261018/before.json`.
     §966's preacher still reads "Visiting Speaker" (source `default`); the operator preached it.
 
-**Before closing:** E20 built and 1322 re-cut (or an accepted hold), then step 5 (listening). Any further processing needs the operator's go.
+**Before closing:** E20 is built and 1322's re-cut is complete. Finish step 5 (listening), including
+1322's new seam and its remaining repetition question, then obtain the operator's hold decision.
+Any further processing needs the operator's go.
 
 ### 4.1 After the round
 

@@ -20,7 +20,8 @@ use App\Services\ChurchService\Structure\ServiceStructureValidator;
  *    boundary/ordering doubt implies no operator action.
  *  - Demoted when the section already carries the fact the flag exists to
  *    obtain: a missing preached reading on a sermon that named its own passage.
- *  - Everything else forces review.
+ *  - Everything else forces review. A talk's source-audio dropout stays reviewable
+ *    after E20 excision: removing dead media cannot recover the lost words.
  *
  * Shared by the detection path (ServiceStructure::toClassifiedSections) and the
  * backfill/cleanup commands so stored and freshly-detected sections agree.

@@ -189,7 +189,7 @@ class CueSafeExtractionPlan
      * talk, so the two meet and play straight through, as a sermon's silent joins do. A talk's
      * output takes the operator's start and end ({@see OutputEdgeAnswers}).
      *
-     * @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>, audio_fade_out: float|null}
+     * @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>, audio_fade_out: float|null, dead_feed_excisions?: list<array<string, mixed>>, dead_feed_input_identity?: string}
      */
     public function forSection(ServiceSection $section): array
     {
@@ -201,12 +201,18 @@ class CueSafeExtractionPlan
             $spans[] = ['start_time' => (float) $part->start_time, 'end_time' => $next === null ? (float) $part->end_time : (float) $next->start_time];
         }
 
-        return $this->forSpans(
+        $plan = $this->forSpans(
             $section->processingLog,
             $spans,
             songEnds: $section->section_type === ServiceSectionType::Song,
             edgeAnswers: $section->section_type === ServiceSectionType::ShortTalk ? OutputEdgeAnswers::of($section, $sections) : null,
         );
+        if (! in_array($section->section_type, [ServiceSectionType::Sermon, ServiceSectionType::ShortTalk], true)) {
+            return $plan;
+        }
+        $excision = app(DeadFeedExcision::class)->apply($section->processingLog, $sections, $plan['segments']);
+
+        return [...$plan, ...$excision, 'dead_feed_input_identity' => app(DeadFeedExcision::class)->inputIdentity($section->processingLog)];
     }
 
     /**

@@ -24,6 +24,27 @@ class VideoDeadPictureProbeTest extends TestCase
         $this->probe = new VideoDeadPictureProbe;
     }
 
+    #[Test]
+    public function source_window_measurements_are_shifted_back_to_source_time(): void
+    {
+        $probe = \Mockery::mock(VideoDeadPictureProbe::class)->makePartial()->shouldAllowMockingProtectedMethods();
+        $probe->shouldReceive('runDetectors')->once()->with('source.mp4', 2491.0, 113.0)
+            ->andReturn('freeze_start: 20 freeze_end: 93');
+        $coverage = $probe->probeWindow('source.mp4', 2491.0, 2604.0);
+        $this->assertNotNull($coverage);
+        $this->assertSame([[2511.0, 2584.0]], $coverage->deadIntervals);
+    }
+
+    #[Test]
+    public function unreadable_source_windows_return_no_evidence(): void
+    {
+        $probe = \Mockery::mock(VideoDeadPictureProbe::class)->makePartial()->shouldAllowMockingProtectedMethods();
+        $probe->shouldReceive('runDetectors')->once()->with('missing.mp4', 10.0, 60.0)->andReturnNull();
+        $this->assertNull($probe->probeWindow('missing.mp4', 10.0, 70.0));
+        $this->assertNull($probe->probeWindow('missing.mp4', -1.0, 70.0));
+        $this->assertNull($probe->probeWindow('missing.mp4', 10.0, 10.0));
+    }
+
     /**
      * A black picture is also a frozen one, so both detectors report the same
      * stretch. Summing them would count 941's black opening twice; the dead

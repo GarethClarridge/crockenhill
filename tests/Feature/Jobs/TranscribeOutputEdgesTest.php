@@ -10,6 +10,7 @@ use App\Jobs\TranscribeOutputEdges;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
+use App\Services\ChurchService\DeadFeedExcision;
 use App\Services\ChurchService\PrepareOutputEdgeWordTimings;
 use App\Services\ChurchService\SermonSongIntroductionCheck;
 use App\Services\ChurchService\SpokenEdgeSentenceCheck;
@@ -67,6 +68,12 @@ class TranscribeOutputEdgesTest extends TestCase
             ['start' => 10.0, 'end' => 20.0, 'text' => 'Words.'],
         ], 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
         $order = [];
+        $this->mock(DeadFeedExcision::class, function (MockInterface $mock) use (&$order): void {
+            $mock->shouldReceive('prepare')->once()->andReturnUsing(function () use (&$order): void {
+                $order[] = 'dead_picture';
+            });
+            $mock->shouldReceive('identity')->andReturnNull();
+        });
         $this->mock(PrepareOutputEdgeWordTimings::class, function (MockInterface $mock) use (&$order): void {
             $mock->shouldReceive('prepare')->once()->andReturnUsing(function () use (&$order): array {
                 $order[] = 'words';
@@ -84,7 +91,7 @@ class TranscribeOutputEdgesTest extends TestCase
 
         app()->call([new TranscribeOutputEdges($log), 'handle']);
 
-        $this->assertSame(['words', 'sentences'], $order);
+        $this->assertSame(['dead_picture', 'words', 'sentences'], $order);
     }
 
     /**

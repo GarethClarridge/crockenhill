@@ -8,9 +8,11 @@ use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
+use App\Services\ChurchService\DeadFeedExcision;
 use App\Services\ChurchService\PrepareOutputEdgeWordTimings;
 use App\Services\ChurchService\SermonSongIntroductionCheck;
 use App\Services\ChurchService\SpokenEdgeSentenceCheck;
+use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Sermon\SermonExtractionPlanResolver;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -55,6 +57,7 @@ class TranscribeOutputEdges extends ProcessingJob implements ShouldQueue
         $this->initializeStepLogging($this->processingLog->processing_id);
         $this->markProcessingRunAsProcessing($this->processingLog, 'transcribe_output_edges');
         $this->logStepStart('transcribe_output_edges');
+        app(DeadFeedExcision::class)->prepare($this->processingLog, app(StorageAdapterHelper::class));
         $composition = $resolver->compose($this->processingLog);
         $spans = [];
         foreach ($this->processingLog->serviceSections()->orderBy('start_time')->get() as $section) {

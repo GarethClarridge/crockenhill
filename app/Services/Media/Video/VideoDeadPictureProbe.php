@@ -45,6 +45,25 @@ class VideoDeadPictureProbe
         return $log === null ? null : $this->measure($log, $duration);
     }
 
+    /** Probe a source window; returned intervals remain in source time. Failure is no evidence. */
+    public function probeWindow(string $localVideoPath, float $start, float $end): ?VideoDeadPictureCoverage
+    {
+        if ($start < 0.0 || $end <= $start) {
+            return null;
+        }
+
+        $log = $this->runDetectors($localVideoPath, $start, $end - $start);
+        if ($log === null) {
+            return null;
+        }
+        $coverage = $this->measure($log, $end - $start);
+
+        return new VideoDeadPictureCoverage(
+            $coverage->durationSeconds, $coverage->deadSeconds, $coverage->freezeSeconds, $coverage->blackSeconds,
+            array_map(static fn (array $interval): array => [$interval[0] + $start, $interval[1] + $start], $coverage->deadIntervals),
+        );
+    }
+
     /**
      * Read the detectors' log into dead intervals and merge them.
      *
@@ -161,15 +180,17 @@ class VideoDeadPictureProbe
     /**
      * @return string|null The detector log, or null when ffmpeg could not read the file
      */
-    private function runDetectors(string $localVideoPath): ?string
+    protected function runDetectors(string $localVideoPath, ?float $start = null, ?float $duration = null): ?string
     {
         $command = [
             (string) config('media-processing.ffmpeg.ffmpeg_path', '/usr/bin/ffmpeg'),
             '-hide_banner',
             '-nostats',
+            ...($start === null ? [] : ['-ss', (string) $start]),
             '-i', $localVideoPath,
+            ...($duration === null ? [] : ['-t', (string) $duration]),
             '-an',
-            '-vf', $this->filterChain(),
+            '-vf', ($start === null ? '' : 'setpts=PTS-STARTPTS,').$this->filterChain(),
             '-f', 'null',
             '-',
         ];

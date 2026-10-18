@@ -7,6 +7,7 @@ namespace App\Services\ChurchService\Structure;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
+use App\Services\ChurchService\DeadFeedExcision;
 use App\Services\Media\Audio\RmsAnalysisService;
 use App\Support\SermonAutoExtractionPolicy;
 
@@ -24,10 +25,10 @@ use App\Support\SermonAutoExtractionPolicy;
  * still a talk. Run 980's two dropouts now fall in the `other` section before its sermon, and
  * run 1043 is excluded.
  *
- * Nothing downstream can put the words back, so for a talk the flag is the outcome: it goes to
- * review for an operator to accept or exclude. It is registered as non-disqualifying in
- * {@see SermonAutoExtractionPolicy}, because the cut is not in question and the
- * operator decides with the media in hand.
+ * Nothing downstream can put the words back, so the source-loss flag stays for operator review.
+ * E20 additionally excises an interior dropout corroborated by dead picture from a talk's cut
+ * ({@see DeadFeedExcision}). The flag remains non-disqualifying in
+ * {@see SermonAutoExtractionPolicy}, allowing preparation of the media the operator reviews.
  *
  * Songs were the missing type (music and silence plan §6.5, 2026-09-25). The step 0 scan of 442
  * completed historic runs found 29 song/dropout overlaps in 24 sections: a whole "song" over a
