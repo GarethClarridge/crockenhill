@@ -383,6 +383,28 @@ class WordTimedOutputEdgesTest extends TestCase
     }
 
     /**
+     * 941's sermon ends on its own line "Amen." (K16), and "Amen." is heard twice within reach: once
+     * just before the line and once inside it. At an end, the cut after the later one keeps both,
+     * so a closing sentence heard twice is placed, as 1105's was, not left as a question; it held
+     * 941, 1025, 1066 and 1236 at manual review in the re-cut round.
+     */
+    #[Test]
+    public function a_closing_sentence_heard_twice_on_its_own_line_ends_after_the_later_one(): void
+    {
+        $cue = ['start' => 4178.82, 'end' => 4179.82, 'text' => 'Amen.'];
+        $log = $this->log($cue);
+        $this->bank($log, $cue, [
+            ['start' => 4177.94, 'end' => 4178.22, 'word' => ' Amen.'],
+            ['start' => 4179.32, 'end' => 4179.74, 'word' => ' Amen.'],
+        ]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 4000.0, 'end_time' => 4179.82]]);
+
+        $this->assertGreaterThanOrEqual(4179.74, $plan['segments'][0]['end_time']);
+        $this->assertSame([], CueSafeExtractionPlan::unresolvedEdges($plan['cue_edge_widening']));
+    }
+
+    /**
      * 1292's reading ends on "old." decoded to 1506.0000000000002 in a window ending at 1506: no
      * gap after its last word, so the cut fell back to the window margin before "The man who…",
      * dropping the reading's last verse.

@@ -2144,7 +2144,9 @@ class CueSafeExtractionPlan
                 'chosen_pause' => ['start' => $pause['start'], 'end' => $pause['end']],
                 'word_before' => $pause['word_before'], 'word_after' => $pause['word_after']];
         }
-        if (count($candidates) > 1) {
+        // At an end, the cut after the latest occurrence keeps every one; a closing sentence heard
+        // twice is then placed, as 1105's is (941's "Amen. Amen." beside its song, K16).
+        if (count($candidates) > 1 && ($isStart || ! $this->endsSentence($cue['text']))) {
             $decision['candidate_anchors'] = $candidates;
         }
 
