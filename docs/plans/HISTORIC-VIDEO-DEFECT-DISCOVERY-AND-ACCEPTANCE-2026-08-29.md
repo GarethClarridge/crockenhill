@@ -1,12 +1,13 @@
 # Historic Video Defect Discovery and Acceptance Plan
 
-> **Status — 2026-10-18 (late morning).** The **re-cut round** (365 members, snapshot `recut-round-20261016g`)
+> **Status — 2026-10-18 (afternoon).** The **re-cut round** (365 members, snapshot `recut-round-20261016g`)
 > processed between 10-16 and 10-18 06:28 BST: 285 runs cut and completed. On 10-18 the K16
 > doubled-word fix (`b9ebcaf55`) and the operator's answers re-cut 941, 1025, 1066, 1236, 1148 and
 > 1223, and the four parked runs (974, 1109, 1216, 1313) were retried and completed. Left at manual
 > review: the four structure-review runs (1287, 1288, 1327, 1366). It is **not closed**: the
-> **61 held sermons** come next, as a canary then in parallel ("Held sermons: the procedure",
-> end of §4.0), then the listening. Clone at `55c9cfdb7`. Nothing is public. The §3 measurements
+> held-sermon batch completed **55 of 61** on 10-18; six need decisions (1034, 1120, 1197,
+> 1262, 1300, 1340; execution record at the end of §4.0), then the listening.
+> Clone at `55c9cfdb7`. Nothing is public. The §3 measurements
 > below date from 10-16.
 > The stale-clip clean-up (§4.1), song acceptance stage 2 and the release work (§4.5) follow the
 > close.
@@ -771,7 +772,7 @@ placed. The scratch outputs were deleted. Evidence: `storage/scratch/timing-974-
 - **The cause stays unknown.** The failures were transient and match the stale gRPC-FUSE view
   class only by circumstance. A repeat now logs its numbers.
 
-**Held sermons: the procedure (written 10-18 for a separate session; not started).**
+**Held sermons: the procedure (written 10-18; executed 10-18, results below).**
 - **Parallel is fine (checked 10-18).** "One at a time" began on 10-13, when the first five held
   re-cuts were done individually, and was copied forward as a rule. `sermons:re-extract
   --held-section` only writes a one-run authority onto that run
@@ -807,8 +808,49 @@ placed. The scratch outputs were deleted. Evidence: `storage/scratch/timing-974-
 - **Shell traps:** zsh does not split a variable holding several names or IDs (this hit both the
   round dispatch and a worker restart). Use `xargs` or an explicit list.
 
-**Before closing:** run checklist step 4
-(the held sermons) and step 5 (listening). Each step that processes needs the operator's go.
+**Held sermons: execution, 10-18.**
+- **Freeze and preflight:** clone `55c9cfdb7`, code revision `68ccc9b6…`; workers booted after
+  the commit; queues idle; speaker identification off; host ffmpeg and Whisper healthy; USB 3
+  at 5 Gb/s; internal free space above 27 GB. Snapshot
+  `held-round-20261018/snapshot.json` freezes all 61, membership `6e247b15…`, with the corrected
+  sections for 1262 and 1314. All execution evidence is beside that snapshot.
+- **Backup:** fresh `crockenhill-before-held-20261018.sql.gz`, closed `binlog.000127`, and
+  `private-except-service-artifacts-before-held.tar.gz` in
+  `/Volumes/Sonnics/_pre-recut-round-20261018a-backup-20261018/`, with `SHA256SUMS-held`;
+  gzip integrity passed. Service artifacts were backed up separately to
+  `/Volumes/Sonnics/_service-artifacts-backup/`. The post-batch artifact and detection-ruling
+  backup copies completed by 14:52 BST.
+- **Dry runs:** 57 passed; four refused and were not forced:
+  - **1034, 1262:** `sermon_composition_review`;
+  - **1120:** listed §2012 is no longer a content-held sermon;
+  - **1197:** `sermon_section_content_held`, as anticipated above.
+- **Canary 929:** dispatched 10:26 BST, completed 10:38. All 14 edge windows decoded;
+  extraction, quality, candidates and promotion completed. Diff: one changed, none needing
+  attention. Sermon 872's audio and video were present in private quarantine; §531 stayed held.
+- **Batch:** of 56 further dispatch attempts after the canary, **1340** refused at the dispatch guard:
+  banked composition/answers are not reflected in projected sections. It was not forced.
+  Thus **56 runs were submitted in total**. **1300** subsequently refused extraction with
+  `sermon_composition_review` after edge decoding; `ExtractSermon` was skipped for manual
+  review, not a failed queue job. **55 completed**, the last by 14:47 BST.
+- **One watcher stop, resolved:** at 13:09 BST the watcher paused every queue because sermon
+  845 (run 1381) linked the newly cut audio name while its bytes were still in batch staging,
+  before promotion. The 10,146,908-byte staged audio was copied without overwriting to its
+  linked private-quarantine path; source and destination SHA-256 both `66eef83a…`.
+  `custody-recovery-1381.json` records the paths and hashes. A fresh scan was clean; the stop
+  record was archived, the watcher restarted and all queues resumed. No hold or publication
+  state was changed for this recovery.
+- **Final checks (14:47 BST):** diff: 56 of 61 changed, only **1300** needs attention, no media
+  custody pending extraction; 240 section media re-cuts. All **539 linked files** are present
+  and non-empty, with staging paths resolved under their batch roots. All 61 member sermons
+  remain quarantined; 715 historic song videos remain quarantined; the published song-video
+  count remains 36. Holds remain. Zero failed queue jobs since the watch began; queues empty
+  and no pause flags. `final-diff.json`, `final-custody.json` and the refusal reports retain
+  the detail. Post-cut text, reference and audio review flags remain for listening/review.
+- **Outstanding:** operator decisions for **1034, 1120, 1197, 1262, 1300 and 1340**, then the
+  held-sermon release listening. Nothing was released or made public.
+
+**Before closing:** settle or explicitly retain the six held-run refusals above and complete
+step 5 (listening). Any further processing needs the operator's go.
 
 ### 4.1 After the round
 
