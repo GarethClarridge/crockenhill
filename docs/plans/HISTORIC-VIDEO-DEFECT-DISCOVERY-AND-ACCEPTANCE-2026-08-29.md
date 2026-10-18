@@ -6,8 +6,8 @@
 > 1223, and the four parked runs (974, 1109, 1216, 1313) were retried and completed. Left at manual
 > review: the four structure-review runs (1287, 1288, 1327, 1366). It is **not closed**: the
 > held-sermon batch completed **55 of 61** on 10-18, and the other six were answered, fixed and
-> cut the same afternoon (end of §4.0). 23 edge holds were released on the operator's listening;
-> release page part 2 (text holds) and the listening remain.
+> cut the same afternoon (end of §4.0). On the operator's listening 52 of the 61 are clear of
+> holds; nine remain, none settled by listening (titles, re-transcription, decisions).
 > Clone at `e66d567d5`. Nothing is public. The §3 measurements
 > below date from 10-16.
 > The stale-clip clean-up (§4.1), song acceptance stage 2 and the release work (§4.5) follow the
@@ -896,12 +896,26 @@ Evidence beside each snapshot (`held-round-20261018b` to `…e`) and in
   for their edges, each clip the newly cut file. The operator ruled all 23 fixed; those 23 holds
   were released with `service:release-content-hold` (the record kept, reason citing the page).
   1359 keeps its transcript-loop hold. 1197 was added as question 24 after its cut.
-- **Still held:** the transcript-text holds (release page part 2), title/reference holds (944,
-  1381, 1382), duplicate-identity holds (1034, 1120, 1375), and 1031, whose only recording cuts
-  the sermon off.
+  Later added and ruled fixed: 1197 (q24), 1300's closing prayer (q25) and 1340's opening
+  sentence (q26). 26 edge holds released in all.
+- **Release page, part 2** https://claude.ai/artifact/PRFC9qE57UCsJ9CBdhLUWA: 28 sermons held
+  for their transcript text, each clip at the fault, with the current text beside it
+  (`storage/scratch/held-release-part2-20261018/`). Windows were located from the evidence:
+  the 09-20 reviews' fresh source decodes matched to the current cues by word bigrams, the
+  P8-Q14 `source_start` times, the source phrases of the 09-19 findings, the H10b listening
+  windows, and 1278's 2736–2857 s. BC-08 drift was measured first (full stops per word now
+  0.064–0.069, against 0.85–0.89 held). The operator ruled all 28 matching; 34 text holds were
+  released (several sermons carried two). Nothing became public (36 song videos, no historic
+  sermon).
+- **Still held: nine, none settled by listening.**
+  - **Titles/references from other weeks:** 944 (Psalm 77 on a sermon on Hannah's song), 1381,
+    1382. Their published metadata needs regenerating through the pipeline.
+  - **Not re-transcribed, so their text is unchanged:** 1262, 1322.
+  - **Operator decisions:** duplicate-performance identity (1034, 1120, 1375); 1031, whose only
+    recording cuts the sermon off (whole-or-nothing ruling).
 
-**Before closing:** release page part 2 and the decisions above, then step 5 (listening). Any
-further processing needs the operator's go.
+**Before closing:** the nine above, then step 5 (listening). Any further processing needs the
+operator's go.
 
 ### 4.1 After the round
 
