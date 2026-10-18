@@ -1,13 +1,14 @@
 # Historic Video Defect Discovery and Acceptance Plan
 
-> **Status — 2026-10-18 (afternoon).** The **re-cut round** (365 members, snapshot `recut-round-20261016g`)
+> **Status — 2026-10-18 (late afternoon).** The **re-cut round** (365 members, snapshot `recut-round-20261016g`)
 > processed between 10-16 and 10-18 06:28 BST: 285 runs cut and completed. On 10-18 the K16
 > doubled-word fix (`b9ebcaf55`) and the operator's answers re-cut 941, 1025, 1066, 1236, 1148 and
 > 1223, and the four parked runs (974, 1109, 1216, 1313) were retried and completed. Left at manual
 > review: the four structure-review runs (1287, 1288, 1327, 1366). It is **not closed**: the
-> held-sermon batch completed **55 of 61** on 10-18; six need decisions (1034, 1120, 1197,
-> 1262, 1300, 1340; execution record at the end of §4.0), then the listening.
-> Clone at `55c9cfdb7`. Nothing is public. The §3 measurements
+> held-sermon batch completed **55 of 61** on 10-18, and the other six were answered, fixed and
+> cut the same afternoon (end of §4.0). 23 edge holds were released on the operator's listening;
+> release page part 2 (text holds) and the listening remain.
+> Clone at `e66d567d5`. Nothing is public. The §3 measurements
 > below date from 10-16.
 > The stale-clip clean-up (§4.1), song acceptance stage 2 and the release work (§4.5) follow the
 > close.
@@ -846,11 +847,61 @@ placed. The scratch outputs were deleted. Evidence: `storage/scratch/timing-974-
   count remains 36. Holds remain. Zero failed queue jobs since the watch began; queues empty
   and no pause flags. `final-diff.json`, `final-custody.json` and the refusal reports retain
   the detail. Post-cut text, reference and audio review flags remain for listening/review.
-- **Outstanding:** operator decisions for **1034, 1120, 1197, 1262, 1300 and 1340**, then the
-  held-sermon release listening. Nothing was released or made public.
+- **Outstanding at 14:52:** operator decisions for **1034, 1120, 1197, 1262, 1300 and 1340**,
+  then the held-sermon release listening. Nothing was released or made public.
 
-**Before closing:** settle or explicitly retain the six held-run refusals above and complete
-step 5 (listening). Any further processing needs the operator's go.
+**The six refusals, 10-18 afternoon (operator: "do 3 and 2 first, then process while I listen").**
+Evidence beside each snapshot (`held-round-20261018b` to `…e`) and in
+`storage/scratch/held-six-questions-20261018/`. Fresh dump before any of it:
+`crockenhill-before-held-six-20261018.sql.gz` (`SHA256SUMS-held`, binlog `000128:679412361`).
+- **What each refusal really was** (plans replayed read-only with the held-span authority):
+  - **1120:** a stale member entry. The 10-17 re-detection replaced §2012 with **§174713**, as
+    1262's §4873 was. Its dry run passed on the new section.
+  - **1034, 1262:** the sermon's reading carried `structure_ensemble_disagrees` from open ensemble
+    questions. Answering them clears it.
+  - **1197:** §2481 carried `sermon_composition_review_required`, from the risk "choose the sermon
+    reading" (Matthew 2:10–12 at 3:55 or Matthew 2:1–12 at 23:53). Only that flag blocks a held
+    repair.
+  - **1300:** `ExtractSermon` reports any review as `sermon_composition_review`; the real reason
+    was `sermon_edge_unresolved`, the sermon's **start** on "Politicians." decoded twice
+    (`ambiguous_cue_anchor`).
+  - **1340:** a code defect, below.
+- **Questions page** https://claude.ai/artifact/GHciJbJTzQJVwwu6fw5ba7: six questions, one per
+  region; 1262's three overlapping song questions were merged into one. Answers:
+  1034 version A ("While Shepherds Watched", ends 36:55); 1262 short talk either, four hymns as
+  proposed; 1197 Matthew 2:1–12 only; 1300 all three readings, and "there's only one
+  'Politicians' here".
+- **Applied:** `structure:ensemble-apply-answers` (4 applied); `reviewComposition` for 1197
+  [§2478, §2481] and, after the fixes, 1300 [§4644, §4645, §4646, §214779], with before-state
+  files. No output edge was set: 1300's start is placed by the new rule.
+- **Three fixes** (each failing test first; full suite: only the three known failures at line 683):
+  - `bc1d6fd58`: selected sections that overlap at a seam are cut through instead of refused
+    (1300's Deuteronomy and Matthew 5 overlapped by 2.3 s). A nested section still refuses.
+  - `ac8cba823`: an opening sentence heard twice starts before the earlier occurrence, as a
+    closing one ends after the later. Measured on the frozen code over all 365 members: 1300's
+    start was the only ambiguous sermon edge left (`storage/scratch/start-anchor-20261018/`).
+  - `e66d567d5`: ensemble projection stamps survive the database round trip. MySQL prints a JSON
+    double with at most 16 significant digits; 1340's snap delta `-5.684341886080803e-14` read
+    back as `…804e-14` (binlog row images showed the flip), so its stamp never matched and every
+    recompose refused again. Floats are hashed at 12 significant digits; old raw stamps are still
+    accepted. Over all 415 ensemble runs the gate refuses no run it accepted before. 890, 930, 940
+    and 1196 still refuse for other reasons, not examined.
+- **Clone moved** to `e66d567d5` (old line `round-20261018b-line`; lockfiles unchanged;
+  `bootstrap/cache` cleared). All eight round workers restarted on it.
+- **Cut:** 1120 (snapshot `…c`, 14:30); 1034, 1262, 1197 (recompose then held cut, `…d`,
+  diff 0 attention); 1300 and 1340 (`…e`, 1340 recomposed first; completed 15:26 and 15:27 UTC,
+  diff 0 attention: 1300 at 1710.1–3862.2 s with its three readings, 1340 at 1582.3–3300.6 s).
+  Every hold stays. 36 song videos public, unchanged.
+- **Release page, part 1** https://claude.ai/artifact/BhfDhv3nSfsCUfw8skvsFz: the sermons held
+  for their edges, each clip the newly cut file. The operator ruled all 23 fixed; those 23 holds
+  were released with `service:release-content-hold` (the record kept, reason citing the page).
+  1359 keeps its transcript-loop hold. 1197 was added as question 24 after its cut.
+- **Still held:** the transcript-text holds (release page part 2), title/reference holds (944,
+  1381, 1382), duplicate-identity holds (1034, 1120, 1375), and 1031, whose only recording cuts
+  the sermon off.
+
+**Before closing:** release page part 2 and the decisions above, then step 5 (listening). Any
+further processing needs the operator's go.
 
 ### 4.1 After the round
 
