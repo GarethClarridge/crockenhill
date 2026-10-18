@@ -354,7 +354,7 @@ Start autotick with `ROUND_SNAPSHOT=<snapshot>` and an explicit run list (for ex
 
 Measured on 2026-10-15, VideoToolbox:
 - about 3.9 min a run for a recompose and cut;
-- about 6 min each for held-sermon re-cuts, one at a time.
+- about 6 min each for held-sermon re-cuts; they can run in parallel (checked 2026-10-18: the command holds no lock or shared state). Canary one first after code changes.
 
 The full pass on libx264 averaged 8.9 min a cut. Time spent paused adds its own length.
 

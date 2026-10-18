@@ -1,9 +1,13 @@
 # Historic Video Defect Discovery and Acceptance Plan
 
-> **Status — 2026-10-18.** The **re-cut round** (365 members, snapshot `recut-round-20261016g`)
-> processed between 10-16 and 10-18 06:28 BST: 285 runs cut and completed, 62 held sermons awaiting
-> `--held-section`, 10 at manual review, 4 parked. It is **not closed**: §4.0 "Triage, 10-18" lists
-> what comes before closing. Nothing is public. The §3 measurements below date from 10-16.
+> **Status — 2026-10-18 (late morning).** The **re-cut round** (365 members, snapshot `recut-round-20261016g`)
+> processed between 10-16 and 10-18 06:28 BST: 285 runs cut and completed. On 10-18 the K16
+> doubled-word fix (`b9ebcaf55`) and the operator's answers re-cut 941, 1025, 1066, 1236, 1148 and
+> 1223, and the four parked runs (974, 1109, 1216, 1313) were retried and completed. Left at manual
+> review: the four structure-review runs (1287, 1288, 1327, 1366). It is **not closed**: the
+> **61 held sermons** come next, as a canary then in parallel ("Held sermons: the procedure",
+> end of §4.0), then the listening. Clone at `55c9cfdb7`. Nothing is public. The §3 measurements
+> below date from 10-16.
 > The stale-clip clean-up (§4.1), song acceptance stage 2 and the release work (§4.5) follow the
 > close.
 > Getting production complete is mapped in the
@@ -502,14 +506,15 @@ deletion); both were corrected and passed in the fresh full run. Logs:
    - autotick on `extract-runs.txt` (197);
    - 1126, 1378 and 1220 through `ProcessingRunOrchestrator::reExtract` (974 is not a member;
      it is cut the same way, as register X7 says).
-4. Held runs, one at a time after the main batch: the 57 in `recut-round-20261016c/held-runs.txt`
-   (1322 after its recompose), each with `sermons:re-extract <processing_id> --held-section=<§>
-   --yes`. The command now decodes their edge words itself (A1); holds stay.
+4. Held runs after the main batch: **a canary, then the rest in parallel** (see "Held sermons:
+   the procedure", end of §4.0). Each is cut with `sermons:re-extract <processing_id>
+   --held-section=<§> --yes`. The command decodes their edge words itself (A1); holds stay.
 5. Listening: every edge moved ≥ 1 s, the backlog in §4.1, and the held-sermon release page.
    Then close (runbook §8) and run `historic-import:clear-stale-song-clips --execute`.
 
 **Time:** about 3.9 min a run (10-15): about 13 h for the 200. Held sermons take about 6 min
-each, one at a time: about 6 h.
+each. In parallel on three ffmpeg workers the 61 take about 2 h; the single whisper worker that
+decodes edge words is the narrowest point.
 
 **Preflight operation, 10-16:** no processing dispatched. No active processing step or real
 queue payload was present (Redis notification tokens are not jobs). Before the identity corrections
@@ -765,6 +770,42 @@ placed. The scratch outputs were deleted. Evidence: `storage/scratch/timing-974-
     quarantined.
 - **The cause stays unknown.** The failures were transient and match the stale gRPC-FUSE view
   class only by circumstance. A repeat now logs its numbers.
+
+**Held sermons: the procedure (written 10-18 for a separate session; not started).**
+- **Parallel is fine (checked 10-18).** "One at a time" began on 10-13, when the first five held
+  re-cuts were done individually, and was copied forward as a rule. `sermons:re-extract
+  --held-section` only writes a one-run authority onto that run
+  (`MediaProcessingLog::authoriseHeldSermonSpan`) and calls `ProcessingRunOrchestrator::reExtract`;
+  it has no lock and no shared state. The queues set the concurrency.
+- **A canary first anyway.** The held route last ran on 10-13. Since then it has gained edge-word
+  decoding (`6a4667608`), the K16 end rule and the doubled-word fix (`b9ebcaf55`). One run goes
+  through every job before the other 60 (runbook §3, staged start (a)).
+- **Membership: 61 runs**, from `storage/app/private/recut-round-20261016g/held-members.json`
+  (run → held section). Checked 10-18: none overlaps the runs cut that day, and every run is
+  `completed`. Two entries are out of date; use the corrected sections:
+  - **1262:** re-detected in `…g`, so the held sermon is now **§3287** (the old §4873 is gone);
+  - **1314:** the held sermon is **§3993** (the listed §3992 carries no hold).
+  - **1197** refused its 10-16 dry run (`sermon_section_content_held`): another held section lies
+    inside its span. If it still refuses, it stays held and is left out of the batch.
+- **Steps**, on the clone at `55c9cfdb7` or a newer master commit moved to by runbook §2.1:
+  1. **Preflight** (runbook §6): queues idle; workers started after the last commit; a fresh
+     database dump with SHA-256; the live checks (speaker identification off, host
+     ffmpeg/whisper, Staging on USB 3, internal disk ≥ 10 GB).
+  2. **Snapshot** the 61 (`historic-import:rerun-snapshot … --output=<fresh dir>/snapshot.json`)
+     and start its watcher (`ROUND_SNAPSHOT=<dir> scripts/historic-round/round.sh watch`).
+  3. **Dry-run every run:** `sermons:re-extract <processing_id> --held-section=<§> --dry-run`.
+     Record the output beside the snapshot, and list any refusal for the operator rather than
+     forcing it.
+  4. **Canary:** dispatch one run that passed its dry run (`--yes`) and follow it to `completed`:
+     edges, `ExtractSermon`, quality, candidates, promotion. Check the diff
+     (`historic-import:rerun-diff`) and that its sermon is quarantined.
+  5. **The rest together:** dispatch every other run that passed its dry run. Watch with the
+     watcher; any failed job pauses all queues.
+  6. **Afterwards:** the diff, a custody check (every linked clip present; staging clips sit under
+     their batch root), and confirmation that nothing is public. Holds stay; the operator clears
+     each one on the held-sermon release page (listening, step 5).
+- **Shell traps:** zsh does not split a variable holding several names or IDs (this hit both the
+  round dispatch and a worker restart). Use `xargs` or an explicit list.
 
 **Before closing:** run checklist step 4
 (the held sermons) and step 5 (listening). Each step that processes needs the operator's go.
