@@ -1,11 +1,11 @@
 # Historic Video Defect Discovery and Acceptance Plan
 
-> **Status — 2026-10-16.** The full pass (10-10 to 10-12), its fix round (10-12/13) and the follow-up
-> round (10-13 to 10-15) are done. Nothing is public: all 440 historic sermons and 953 historic song
-> videos are quarantined. Export readiness is 12 of 455 runs (§3). The **re-cut round** is set up and
-> **not dispatched**: its membership needs refreshing on current code; duplicate corrections and
-> ending holds are now applied, with source listening still pending (§4.0). The
-> stale-clip clean-up (§4.1), song acceptance stage 2 and the release work (§4.5) follow it.
+> **Status — 2026-10-18.** The **re-cut round** (365 members, snapshot `recut-round-20261016g`)
+> processed between 10-16 and 10-18 06:28 BST: 285 runs cut and completed, 62 held sermons awaiting
+> `--held-section`, 10 at manual review, 4 parked. It is **not closed**: §4.0 "Triage, 10-18" lists
+> what comes before closing. Nothing is public. The §3 measurements below date from 10-16.
+> The stale-clip clean-up (§4.1), song acceptance stage 2 and the release work (§4.5) follow the
+> close.
 > Getting production complete is mapped in the
 > [programme plan §0.4](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md#04-getting-production-complete-the-map-2026-10-16);
 > weekly take-over (§4.2), lasting evaluation and custody (§4.6) and legacy transcripts (§4.7, decided 10-17) were
@@ -173,7 +173,7 @@ coverage matrix, the H-numbered harness steps, and the bold group labels inside 
 [09-12 to 09-23 log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-12-TO-2026-09-23.md),
 not to this plan. The class-to-detector binding is data, in `resources/detector-classes.json`.
 
-### 4.0 The re-cut round (set up 2026-10-16, not dispatched)
+### 4.0 The re-cut round (set up 2026-10-16; processed 10-16 to 10-18; not closed)
 
 **Purpose:** re-cut every run whose replayed plan differs from its cut on current code (register
 E11, E12), so the edge fixes of 10-12 and the dead-feed rule (E10) reach the media.
@@ -575,6 +575,132 @@ against `recut-round-20261016f/snapshot.json` reports zero attention items; evid
 `recut-round-20261016f/canary-watcher-fix-diff.json`. The original snapshot and stop file remain;
 no stop was acknowledged or cleared, the clone has not moved, and all ten queues stay paused.
 **No batch expansion or additional dispatch without the operator's explicit approval.**
+
+**The round, 10-16 to 10-18, on `8440211fc` (snapshot `recut-round-20261016g`).** The record is
+`storage/app/private/recut-round-20261016g/execution.json`, and the watcher's state and stop files
+are beside it.
+- **Freeze:** the clone was re-frozen on the watcher fix, at code revision `8fd2aae3…`. 365 members
+  (the 366 less canary 1040), membership `f1adeee0…`. A fresh backup is in
+  `/Volumes/Sonnics/_pre-recut-round-20261016g-backup-20261016`. The operator authorised the
+  whole remainder with no staging batch.
+- **Dispatch:** 356 recompositions, four re-detections (1034, 1120, 1262, 1375) and five direct
+  `reExtract`s (974, 1126, 1220, 1363, 1378); autotick ran the ordinary extractions. A zsh
+  argument-splitting slip first accepted only 928 and 1034. The rest followed explicitly, with
+  no duplicates.
+- **Recoveries:**
+  - **10-17 morning:** 1378's archived service audio was restored byte-identical. Seven members
+    (1002, 1012, 1032, 1059, 1106, 1229, 1379) regained authority through single-stepped
+    queued jobs.
+  - **10-17 18:46:** 1313 parked (below).
+  - **10-17 23:28:** a stale Docker gRPC-FUSE view showed the directory
+    `section-publications/1845-f8501cd931d180a0` as a 2,795-byte regular file. Restarting all
+    nine round containers at 00:46 cleared it, and the directory reads correctly now. 1109 parked.
+  - **10-18 05:13:** 1216 parked.
+- **Settled 10-18 06:28 BST:** queues empty, three failed jobs since the start, all of them
+  acknowledged. The watcher's count:
+
+| State | Runs |
+|---|---:|
+| Cut and completed | 285 |
+| Detected only: held sermons awaiting `--held-section` (checklist step 4) | 62 |
+| Held or failed: the 10 below at manual review, and 1109, 1216 and 1313 | 13 |
+| Parked: 974, still `processing` | 1 |
+| Not started | 4 |
+
+The four parked payloads (974, 1109, 1216, 1313) sit under
+`historic-round:recut-round-20261016g:parked:<run>`.
+
+**Triage, 10-18 (read only).** Plans were replayed in `round-tools` on the frozen code inside
+rolled-back transactions, with stray HTTP refused. Ten members failed at `manual_review_required`.
+- **Four are known structure-review runs:** 1287, 1327 and 1366 (`sermon_reading_membership_unresolved`)
+  and 1288. Not new.
+- **Four were completed before the round and now fail on a K16 end: 941, 1025, 1066 and 1236.**
+  - **Cause:** `sermon_edge_unresolved`, in every case the K16 end (`moved_beside_song_from`)
+    anchored on a line whose word occurs twice close together, so the anchor is
+    `ambiguous_cue_anchor` (`c6aebe9a0`, F03). Composition and structure need no review.
+  - **The anchors:**
+
+    | Run | K16 line | Occurrences in the words | Cut placed after the second | Stored end it replaces |
+    |---|---|---|---:|---:|
+    | 941 | "Amen." | 4177.94 and 4179.32 s | 4180.04 s | 4205 s, 25 s into the song |
+    | 1066 | "Amen." | 2288.94 and 2289.80 s | 2290.40 s | 2360 s, 70 s later |
+    | 1236 | "Amen." | 3636.15 and 3637.50 s | 3638.28 s | — |
+    | 1025 | "…hour." | 3979.56 and 3980.26 s | 3980.92 s | — |
+
+    1025 is a stated link (`ties_to_sermon`), so it is kept.
+  - **Containment:** none of the four had its sermon re-cut, and its old quarantined cut stands.
+    No register ruling covers ambiguous anchors under K16. **Open for the operator:** answer the
+    four on the edge panel, or change the mechanism. The second option means taking the last
+    occurrence when every candidate lies inside the K16 line's own cue; it needs a failing test
+    first and a count over the cut members.
+- **1148** (answered "one sermon in parts" on 10-16): the plan now has the answered parts
+  (688.0–1723.8, 2392.5–3172.7, 3382.6–3625.0 s), but it fails on two things:
+  - `spoken_end_thought_unresolved` at the final end, 3625 s, inside a 30 s cue "Thank you."
+    (3611.7–3641.7);
+  - uncovered speech "Okay, right." at 1725.0–1725.8 s.
+
+  Both are listening questions for the edge panel.
+- **1223:** no longer a projection error. It now asks for its sermon reading
+  (`sermon_reading_membership_unresolved`), an operator answer.
+- **Parked:**
+  - **1109** (`PromoteHistoricAssets`) and **1313** (`ExtractSermon`: "source or output cannot be
+    probed", 18:12 on 10-17) both failed on batch root `9351fa4e…` before the 00:46 container
+    restart. 1109's failure is the stale FUSE view. 1313's fits the same class but is unproven,
+    because its temporary output no longer exists.
+  - The watcher found that 1313's three song clips and §3976's short-talk media lost their links.
+    The songs are verified in quarantine; **§3976's short-talk custody is still unresolved.**
+  - Both runs look retryable from their parked payloads once that custody is settled.
+- **974 and 1216 fail deterministically in `PrepareSectionPublicationCandidates`.** Three
+  identical attempts each, 1216's after the restart, with "Timing check: video start or duration
+  differs from selected sections" (`SourceAwareMediaTimingChecker`). The log does not name the
+  section, and the failed outputs are gone.
+  - **974:** §997's start moves 3.49 s under E18 (`song_start_digital_silence`).
+  - **1216:** no E18 move; the next section after the last extracted one is probably §2655,
+    whose plan moves −1.56 s and −4.16 s.
+
+  So E18 alone does not explain both. Reproduce with a failing test before any retry.
+
+**Settled 10-18 (operator's answers; not yet re-cut).**
+- **The K16 anchors: mechanism fixed on master (operator: "Build it"), uncommitted at the time of
+  writing.**
+  - **The rule:** in `CueSafeExtractionPlan::cueBoundaryPause`, an **end** on a cue that closes a
+    sentence is placed after the latest occurrence and no longer marked `candidate_anchors`. That
+    is 1105's ruled case, a closing sentence heard twice, now also for a single-cue window. Starts,
+    and ends on lines that don't close a sentence, stay unresolved, as F03 has them.
+  - **Tests:** 941's timings failed first and pass now. All 28 planner test files pass.
+  - **The count** (frozen code, all 365 members, `storage/scratch/k16-ambiguous-anchor-20261018/`):
+    the only ambiguous sermon edges are the four K16 ends (941, 1025, 1066, 1236), with no errors.
+    Talk and reading edges in held runs are not yet decoded at v10, so they can't be counted; the
+    rule changes whether such an edge is asked, never where it is cut.
+  - **Replay on the change:** the four plan without review, at the same cut points.
+  - **Full suite:** 9,940 tests, 3 failures, all of which fail on master without the change:
+    `PrepareSectionPublicationCandidatesTest::a_published_song_recut_under_a_new_recording_override_publishes_the_new_sound`
+    and both `ServiceOccasionConfirmationTest` public-page tests (a 302, probably `6cea189c8`'s
+    access restriction). Open.
+- **1148 and 1223:** answered on the listening page
+  https://claude.ai/artifact/TsV7ry9isjjGM4tyoUjW7B (`rulings` collection, saved in
+  `storage/scratch/review-1148-1223-20261018/answers/`). They were applied through the screen's own
+  actions as user 1, with before-state snapshots beside them.
+  - **1148:**
+    - "Okay, right." at 28:45 is the hand-over to the prayer, so the composition is
+      `reviewComposition` 2201, 2205, 2207.
+    - The sermon ends after "…Amen. Amen." at 58:59 (`SetOutputEdge` end 3540.2 s, in the 1.4 s
+      pause after the second Amen); the hymn announcement is not the sermon's (K16).
+    - §2201 confirmed (`ConfirmServiceSection`), on the operator's word.
+  - **1223:** the sermon preaches John 8:12–20 ("chapter 8 and verse 12", "verse 20 of chapter 8",
+    "Verse 12 again"), so the composition is 2753, 2755 (the reading, then the sermon; hymn 737
+    left out). §2755 confirmed on the operator's word.
+  - Both now plan without review: 1148 at 688.0–1723.8, 2392.5–3172.7 and 3382.6–3540.2 s; 1223
+    at 1287.2–1399.1 and 1558.6–3172.2 s.
+- **Found on the way:** `structure_sermon_boundary_material_risk` is added by
+  `ExtractSermon::recordSermonBoundaryEvidence` and, by design
+  (`composition_does_not_clear_an_upstream_material_boundary_review`), only Confirm clears it.
+  An answered composition therefore still needs Confirm on the sermon section.
+
+**Before closing:** re-cut 941, 1025, 1066, 1236, 1148 and 1223 (after the clone moves to the
+fix); retry 1109 and 1313 after the
+§3976 custody check; reproduce and fix the 974/1216 timing failure; then run checklist step 4
+(the held sermons) and step 5 (listening). Each step that processes needs the operator's go.
 
 ### 4.1 After the round
 
