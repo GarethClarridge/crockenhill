@@ -105,9 +105,16 @@ class SourceAwareMediaTimingChecker
             // selected source's real presentation end, allowing one boundary rounding.
             $sourceOverrun = abs($lastSpan['end_time'] - $input['duration']) <= $resolution
                 ? max(0.0, $sourceLast['time'] + $sourceLast['duration'] - $input['duration']) : 0.0;
+            $endTolerance = count($spans) * $tolerance + 1024 / 48000 + $sourceOverrun;
             if (abs($first['time']) > $tolerance
-                || abs($last['time'] + $last['duration'] - $streamExpected) > count($spans) * $tolerance + 1024 / 48000 + $sourceOverrun) {
-                throw new VideoProcessingException("Timing check: {$type} start or duration differs from selected sections");
+                || abs($last['time'] + $last['duration'] - $streamExpected) > $endTolerance) {
+                // The measurements place the fault from the log alone: 974 and 1216 failed here
+                // without them and did not reproduce.
+                $size = @filesize($output);
+                throw new VideoProcessingException(sprintf(
+                    'Timing check: %s start or duration differs from selected sections (first frame at %.6fs, ends at %.6fs, expected %.6fs within %.6fs; %d frames; output %s bytes)',
+                    $type, $first['time'], $last['time'] + $last['duration'], $streamExpected, $endTolerance, count($outputFrames), $size === false ? 'unknown' : (string) $size,
+                ));
             }
             $frames += count($outputFrames);
         }

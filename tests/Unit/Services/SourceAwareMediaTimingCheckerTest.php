@@ -140,6 +140,19 @@ PROBE);
         $this->assertNotSame([], array_filter($this->sourcePacketReads('source-len=60-noseek'), static fn (array $call): bool => ! in_array('-read_intervals', $call, true)));
     }
 
+    /**
+     * 974 and 1216 failed candidate preparation with this message alone, and neither failure
+     * reproduced: the measured values have to be in the message for the log to place the fault.
+     */
+    #[Test]
+    public function a_short_output_reports_what_it_measured(): void
+    {
+        $this->expectException(VideoProcessingException::class);
+        $this->expectExceptionMessage('Timing check: video start or duration differs from selected sections (first frame at 0.000000s, ends at 1.000000s, expected 2.000000s');
+
+        app(SourceAwareMediaTimingChecker::class)->check($this->directory.'/source-len=60', $this->directory.'/output-len=1', [['start_time' => 10.0, 'end_time' => 12.0]]);
+    }
+
     #[Test]
     public function span_bounds_are_checked_against_the_header_without_reading_packets(): void
     {
