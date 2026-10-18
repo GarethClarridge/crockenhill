@@ -6,8 +6,8 @@
 > 1223, and the four parked runs (974, 1109, 1216, 1313) were retried and completed. Left at manual
 > review: the four structure-review runs (1287, 1288, 1327, 1366). It is **not closed**: the
 > held-sermon batch completed **55 of 61** on 10-18, and the other six were answered, fixed and
-> cut the same afternoon (end of §4.0). 58 of the 61 are clear of holds; left: 1262 (on the
-> listening page), 1322 (needs a one-window text repair) and 1031 (operator decision).
+> cut the same afternoon (end of §4.0). 60 of the 61 are clear of holds; left: 1322 (needs a
+> one-window text repair, or an accepted hold).
 > Clone at `e66d567d5`. Nothing is public. The §3 measurements
 > below date from 10-16.
 > The stale-clip clean-up (§4.1), song acceptance stage 2 and the release work (§4.5) follow the
@@ -925,19 +925,26 @@ Evidence beside each snapshot (`held-round-20261018b` to `…e`) and in
     `duplicate_recording`; re-detected in `…g`; re-cut). Seven identity holds released, on the
     three sermons and songs §1997, §2012, §1455, §1457. 1034's other song holds (clip boundaries)
     stay for song acceptance.
-  - **1262: on the part-2 page as question 29.** Tier A refuses it (no grounds), and rightly: its
-    fresh decode was wrong too. But the faulty stretch (1978.6–2007.6 s) now falls between the
+  - **1262: released (part-2 q29, ruled "matches").** Tier A refuses it (no grounds), and rightly:
+    its fresh decode was wrong too. But the faulty stretch (1978.6–2007.6 s) now falls between the
     reading's span and the sermon's, outside the cut, and the sermon's text opens "Well, if you
-    could have Matthew 17 handy", as the operator's 09-24 note said it should.
+    could have Matthew 17 handy", as the operator's 09-24 note said it should. Hold on §3287
+    released with `service:release-content-hold`; no flags left.
   - **1322: still held.** A fresh decode was right in its window but wrong elsewhere, so the run
     kept its stored text, and the current text has a 35 s hole at 2545–2582 s inside the cut. No
     tool repairs one window; a window splice of a listened-right decode would be new pipeline work.
-  - **1031: still held, a decision.** The only recording (755 s) starts mid-sermon; the cut is
-    the last 8 minutes of "Believe the impossible, find true joy" (2025-12-28 evening, visiting
-    speaker). No prod copy exists. E15 concerns dead picture, not a cut-off sermon.
+  - **1031: released (operator: "publish 1031 anyway").** The only recording (755 s) starts a
+    sentence into "Believe the impossible, find true joy" (2025-12-28 evening): its first words
+    are "…Zachariah, especially when he's on duty in the temple". The sermon section is 462.7 s
+    of a sermon the operator (who preached it) puts at about 8 minutes, so it is nearly whole,
+    not the tail of a longer one as first reported. Cut-off hold on §1421 released. Its D5 flag
+    (`structure_missing_preached_reading`, no reference) resolved as D5 intends: the operator
+    supplied Luke 1:1–2:40, set on §966 through `SaveSermonDetails` (was Luke 1:5–2:38; passage
+    left to the queued enrichment), and §1421 confirmed through `ConfirmServiceSection`. Release
+    holds for §966: none. Before-state: `storage/scratch/reference-1031-20261018/before.json`.
+    §966's preacher still reads "Visiting Speaker" (source `default`); the operator preached it.
 
-**Before closing:** 1262's answer, 1322's window repair (or an accepted hold), 1031's decision,
-then step 5 (listening). Any further processing needs the operator's go.
+**Before closing:** 1322's window repair (or an accepted hold), then step 5 (listening). Any further processing needs the operator's go.
 
 ### 4.1 After the round
 
