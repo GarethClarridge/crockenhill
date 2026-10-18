@@ -981,6 +981,27 @@ decision on §4090's `content_defect_hold` (its recorded evidence window, 2550�
 inside the E20 excision 2511–2584 s) and whether to repair the stored text, which needs
 re-transcription and so the operator's go.
 
+**1322 follow-up, 10-18 (operator):** hold on §4090 RELEASED (`service:release-content-hold`, because
+the 2550–2580 s window is excised and the stored loop is to be re-transcribed) and re-transcription
+ordered. The round clone is reset to master `5baf012bf` (old line kept as `round-20261018-line`) but
+its workers are not restarted and nothing is dispatched: the `CodeRevision` comparison was refused by
+auto mode, so the operator runs it or authorises it first. Route: restart workers, snapshot 1322, Tier A
+(retranscribe), Tier B (redetect), recompose, Tier C (extract), 1322 alone, stopping at any Tier B question.
+
+**Moved-edge listening, page 1, 10-18 (operator; page `AD4hcutdyPbxYNZNUrWkeY`, `rulings` collection,
+answers in `storage/scratch/listening-edges-20261018/answers/`):** the sermon edges moved ≥ 10 s by the
+round (136 sermons, plus 1308/1339/1342/1352; the already-heard 1148, 1223, 1036, 1255 left out), 143
+edges. **128 right, 15 wrong.** Wrong:
+- Cut mid-sentence before a song or housekeeping line (end too early): 1115 ("stand and sing it"),
+  1127 ("let's sing"), 1167, 1004, 1166, 1283. The operator: the K16 rule is applied too literally and
+  cuts off the sentence before; "either include the sentence or don't".
+- End too late, taking the first word of the next thing: 1244 ("But anyw…"), 1294 ("let's"), 992 (a
+  split second of the next word), 1130 (ends mid-sentence).
+- Start: 1136 and 1308 start too late; 1328 starts mid reading; 957 starts at the mic check, should
+  start at "Let me begin".
+These are one class, the word edge at a K16 end or a start-cue anchor. Mechanism not yet examined.
+Still to listen: moved sermon edges of 3–10 s, then the 94 section edges ≥ 1 s.
+
 **Before closing:** E20 is built and 1322's re-cut is complete, and its seam is heard. Finish the
 rest of step 5 (listening), then obtain the operator's hold decision on §4090. Any further
 processing needs the operator's go.
