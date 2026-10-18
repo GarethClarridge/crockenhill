@@ -1000,7 +1000,14 @@ edges. **128 right, 15 wrong.** Wrong:
 - Start: 1136 and 1308 start too late; 1328 starts mid reading; 957 starts at the mic check, should
   start at "Let me begin".
 These are one class, the word edge at a K16 end or a start-cue anchor. Mechanism not yet examined.
-Still to listen: moved sermon edges of 3–10 s, then the 94 section edges ≥ 1 s.
+**Moved-edge listening, page 2, 10-18 (operator; page `G8qPsMP1xBhsH3Ljx1zcLA`, 6 s clips, answers in
+`storage/scratch/listening-edges2-20261018/answers/`):** the remaining 72 sermon edges moved 1–10 s.
+**62 right, 7 wrong, 3 unsure.** Wrong, all ends: 1053 (late, "cut mid sentence"), 1186 (late, "sentence
+clipped"), 1315 (early, ends on "so let's"; "include the sentence or drop it"), 1216 (early), 1108 (early,
+"might be an audio quality issue"), 1070 and 1218 (late). Unsure, no note on the edge: 1011, 1012 (clip
+holds no speech, a sound check) and 1077 (no speech). Same class as page 1: ends beside a song or
+housekeeping line landing mid-sentence. Page 3 (section edges, 112 clips, `1Wb36h4YD86bbt2ryvoLqw`) is
+still to hear, then the J1/J2 starts, 1271, 1345 and the held-sermon release page.
 
 **Before closing:** E20 is built and 1322's re-cut is complete, and its seam is heard. Finish the
 rest of step 5 (listening), then obtain the operator's hold decision on §4090. Any further
