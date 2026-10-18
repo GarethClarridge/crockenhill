@@ -727,8 +727,28 @@ rolled-back transactions, with stray HTTP refused. Ten members failed at `manual
   - 1025: `sermon_audio_loudness_missed` and `transcript_repetition_suspect`;
   - 1066: `sermon_text_predates_evidence` and `published_reference_contradicts_sermon`.
 
-**Before closing:** retry 1109 and 1313 after the
-§3976 custody check; reproduce and fix the 974/1216 timing failure; then run checklist step 4
+**1109 and 1313 retried, 10-18 (snapshot `recut-round-20261018b`; operator: "Do 1 and 2").**
+- **§3976 custody:** its quarantine and staging directories were empty, from the host as well as
+  the container. Every one of the 961 sections that points at a quarantine file has a non-empty
+  file; the 584 empty directories are superseded versions. Both runs' sources were intact.
+- **Retry:** `UnifiedMediaProcessor::retry`, which resumes at the failed step: 1313 at job 10
+  (`ExtractSermon`), 1109 at job 19 (promotion). 1313's plan replayed clean on the current code.
+  - Dispatched 09:39 BST; 1109 completed at 09:39, 1313 at 09:49. No failed job, no watcher stop.
+  - Diff: 2 of 2 changed, 0 need attention.
+  - §3976's clip was regenerated (40 MB in quarantine, `pending_approval`). 1313's three songs are
+    in quarantine. The 36 published song videos are the weekly ones, unchanged since 09-10.
+- **The parked payloads** under `historic-round:recut-round-20261016g:parked:{1109,1313}` are now
+  obsolete; they are kept for audit.
+
+**974 and 1216 don't reproduce, 10-18.** The section clips their candidate preparation would re-cut
+were encoded into scratch files through the same `extractMedia` call and timing check, on
+`6072ee52a`: 974 §989 and §997 (§997's start moves 3.49 s under E18), and 1216 §2655, §2658 and
+§2660. **All five pass.** 1216's three identical failures (04:58 on 10-18) came after the 00:46
+container restart, so the stale-view explanation is unproven for 1216. The exception records no
+measured values (first frame, last frame end, expected, file size), so the failure cannot be
+placed. The scratch outputs were deleted. Evidence: `storage/scratch/timing-974-1216-20261018/`.
+
+**Before closing:** settle 974 and 1216 (above); then run checklist step 4
 (the held sermons) and step 5 (listening). Each step that processes needs the operator's go.
 
 ### 4.1 After the round
