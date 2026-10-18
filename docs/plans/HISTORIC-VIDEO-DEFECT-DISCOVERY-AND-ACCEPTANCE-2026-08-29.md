@@ -7,7 +7,7 @@
 > review: the four structure-review runs (1287, 1288, 1327, 1366). It is **not closed**: the
 > held-sermon batch completed **55 of 61** on 10-18, and the other six were answered, fixed and
 > cut the same afternoon (end of §4.0). 60 of the 61 are clear of holds; left: 1322 (needs a
-> one-window text repair, or an accepted hold).
+> dead-feed cut under E20, or an accepted hold).
 > Clone at `e66d567d5`. Nothing is public. The §3 measurements
 > below date from 10-16.
 > The stale-clip clean-up (§4.1), song acceptance stage 2 and the release work (§4.5) follow the
@@ -930,9 +930,16 @@ Evidence beside each snapshot (`held-round-20261018b` to `…e`) and in
     reading's span and the sermon's, outside the cut, and the sermon's text opens "Well, if you
     could have Matthew 17 handy", as the operator's 09-24 note said it should. Hold on §3287
     released with `service:release-content-hold`; no flags left.
-  - **1322: still held.** A fresh decode was right in its window but wrong elsewhere, so the run
-    kept its stored text, and the current text has a 35 s hole at 2545–2582 s inside the cut. No
-    tool repairs one window; a window splice of a listened-right decode would be new pipeline work.
+  - **1322: still held; a dead feed, not a text fault (corrected 10-18).** The source carries no
+    sound at 2511–2584 s (73 s at ≤ −80 dB, `structure_talk_audio_dropout`) and the cut's picture
+    is frozen over the same window (`partially_frozen`, clip 561–634 s = service 2510.8–2583.8 s).
+    Every decode there was invented: the stored text looped "…it was Jacob's plan to" 13 times,
+    and the H10b decode the 09-25 hold called "right here" reads "Thank you." twice. The 09-24
+    verdict was `stored_loop`: it judged the stored text, not the new. The current text's hole
+    (from 2511 s, not 35 s at 2545) is correct, so no splice. Operator ruling **E20**: cut out a
+    stretch where sound and picture are both dead; sound-only dropouts (988, 1148) stay. Built
+    as pipeline work, then 1322 re-cut, on the operator's word. Its `transcript_repetition_suspect`
+    ("God loves sinners" ×6, 3270–3283 s) is unheard.
   - **1031: released (operator: "publish 1031 anyway").** The only recording (755 s) starts a
     sentence into "Believe the impossible, find true joy" (2025-12-28 evening): its first words
     are "…Zachariah, especially when he's on duty in the temple". The sermon section is 462.7 s
@@ -944,7 +951,7 @@ Evidence beside each snapshot (`held-round-20261018b` to `…e`) and in
     holds for §966: none. Before-state: `storage/scratch/reference-1031-20261018/before.json`.
     §966's preacher still reads "Visiting Speaker" (source `default`); the operator preached it.
 
-**Before closing:** 1322's window repair (or an accepted hold), then step 5 (listening). Any further processing needs the operator's go.
+**Before closing:** E20 built and 1322 re-cut (or an accepted hold), then step 5 (listening). Any further processing needs the operator's go.
 
 ### 4.1 After the round
 
