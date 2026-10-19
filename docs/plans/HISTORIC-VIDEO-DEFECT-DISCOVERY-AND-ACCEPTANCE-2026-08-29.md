@@ -984,9 +984,9 @@ re-transcription and so the operator's go.
 
 **1322 follow-up, 10-18 (operator):** hold on §4090 RELEASED (`service:release-content-hold`, because
 the 2550–2580 s window is excised and the stored loop is to be re-transcribed) and re-transcription
-ordered. The round clone is reset to master `5baf012bf` (old line kept as `round-20261018-line`) but
-its workers are not restarted and nothing is dispatched: the `CodeRevision` comparison was refused by
-auto mode, so the operator runs it or authorises it first. Route: restart workers, snapshot 1322, Tier A
+ordered. The round clone is reset to master `5baf012bf` (old line kept as `round-20261018-line`).
+Nothing was dispatched that day: the `CodeRevision` comparison was refused by auto mode (dispatched
+10-19, below). Route: restart workers, snapshot 1322, Tier A
 (retranscribe), Tier B (redetect), recompose, Tier C (extract), 1322 alone, stopping at any Tier B question.
 
 **Moved-edge listening, page 1, 10-18 (operator; page `AD4hcutdyPbxYNZNUrWkeY`, `rulings` collection,
@@ -1069,12 +1069,32 @@ relabelled questions, heard with correct titles and the neighbouring section nam
 
 Page 3 with these replacements: **64 right, 33 wrong, 15 unsure** of 112.
 
-Still to listen: the J1/J2 starts, 1271,
-1345 and the held-sermon release page.
+**Last listening page, 10-19** (`U2tnvvPquMyVtEawS88GB7`, `rulings` collection, built by
+`storage/scratch/listening-last-20261019/build.php`), 12 questions:
+- the sermon starts moved by J1 (1149, 1167) and J2 (976, 1232, 1214, 1227, 1291, 1203, 1040, 939),
+  each the first 12 s of the sermon audio as cut. 990's start was already heard on page 2 (right);
+- 1271's end beside "O Father You Are Sovereign" (§3398 from 65:53.0; the cut ends at 65:50.1);
+- 1345's gap (8:00.0–8:55.0) between two "All Creatures Of Our God And King" sections (§4354, §4356),
+  holding §4355 "Technical difficulties": does the song restart or resume?
 
-**Before closing:** E20 is built and 1322's re-cut is complete, and its seam is heard. Finish the
-rest of step 5 (listening), then obtain the operator's hold decision on §4090. Any further
-processing needs the operator's go.
+The held-sermon release pages were finished on 10-18 (above). 1036 and 1255 were heard before page 1.
+
+**1322 re-transcription dispatched, 10-19 (operator's go).** 1322's 09-24 route on its current
+transcript (`2ff056a7…`) is `mixed`: stored text loops at 2550 s (now inside the E20 excision); the
+fresh decode invented text in silence at 1680 s and 1710 s ("There's no speech here"), both outside
+the sermon cut (in the gap 1469.9–1970.6 s). With the 10-18 verdict at 3270 s that is two each way.
+The operator ruled to re-transcribe anyway: the loop lies inside the sermon, and Tier B stops on any
+question the invented text raises. Recorded as a one-run route,
+`storage/app/private/listening-20261019-1322/routing.json` (sha256 `8e5a69d3…381d`). The workers
+had already restarted onto `5baf012bf` at the clone reset (processes from 19:58:45 UTC on 10-18, 2 s
+after it). Preflight: queues empty and unpaused, 21 GB internal, Staging 474 GB, Sonnics 246 GB,
+speaker identification off. Snapshot `retranscribe-1322-20261019a/snapshot.json` (`--output` names a
+file, so it was moved into its own directory), watcher started on it, Tier A dispatched at about
+19:08 UTC. Next: a second snapshot for Tier B (runbook §4.2), re-detect, recompose, Tier C, 1322 alone,
+stopping at any Tier B question; then listen to the sermon at 3270 s.
+
+**Before closing:** finish 1322's route and the last listening page. Any further processing needs
+the operator's go.
 
 ### 4.1 After the round
 
