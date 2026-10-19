@@ -1079,6 +1079,21 @@ Page 3 with these replacements: **64 right, 33 wrong, 15 unsure** of 112.
 
 The held-sermon release pages were finished on 10-18 (above). 1036 and 1255 were heard before page 1.
 
+**Heard 10-19 (operator; answers in `storage/scratch/listening-last-20261019/answers/`): 10 right, 1
+wrong, 1 other.**
+- Right: every J1 start (1149, 1167), the J2 starts of 976, 1232, 1214, 1227, 1203, 1040 and 939, and
+  1271's end.
+- Wrong: 1291's start is early, "the end of the song". Its first cues are the song's last lines
+  ("For your endless mercy follows me. Your goodness will lead me home."), so J2 left the outro in.
+  It joins the "starts that take in the previous item" group from page 3.
+- 1345: "Announcement about technical difficulties, then an introduction to a prayer." The transcript
+  agrees and shows what follows: the room could not hear the streamed song; the leader says "Let me
+  lead us in prayer" (8:42), and the song is then sung again from the top ("All creatures of our God and
+  King", 9:10). §4355 is rightly its own `other` section, and §4356 is a full second singing, not a
+  resumption.
+
+**Step 5 listening is complete** apart from 1322's sermon after its re-cut.
+
 **1322 re-transcription dispatched, 10-19 (operator's go).** 1322's 09-24 route on its current
 transcript (`2ff056a7…`) is `mixed`: stored text loops at 2550 s (now inside the E20 excision); the
 fresh decode invented text in silence at 1680 s and 1710 s ("There's no speech here"), both outside
@@ -1093,8 +1108,33 @@ file, so it was moved into its own directory), watcher started on it, Tier A dis
 19:08 UTC. Next: a second snapshot for Tier B (runbook §4.2), re-detect, recompose, Tier C, 1322 alone,
 stopping at any Tier B question; then listen to the sermon at 3270 s.
 
-**Before closing:** finish 1322's route and the last listening page. Any further processing needs
-the operator's go.
+**1322 route, 10-19 (UTC):**
+- **Tier A:** 19:07:59–19:11:01, new transcript `1d3d83ee…`. At 3270 s the sentence is now said once
+  ("…the most amazing thing is that God loves sinners."); 1680–1745 s has no cues (no invented text).
+- **Tier B:** snapshot `redetect-1322-20261019/snapshot.json`, watcher moved onto it, re-detected
+  19:12:39–19:15:13, no question. The same 13 sections, types and titles; edges move by seconds
+  (sermon start 1959.74 → 1961.52 s). §4090 keeps only `structure_talk_audio_dropout`, and the
+  repetition flag is gone. Recompose was skipped: its banked draws `e63deb69…` are the ones Tier B had
+  just made and composed on the same code.
+- **Tier C:** cut at 19:25 UTC, sermon #1247 quarantined, video `approved`, no stops and no failed
+  jobs. E20's excision holds (spans 1447.28–1469.89, 1960.67–2511.29, 2583.83–3876.50 s).
+- **Defect found in the cut:** it adds a fourth span, **4022.64–4130.6 s, the closing prayer §4092,
+  which comes after the song "Take My Life And Let It Be"** (sermon now 1973.9 s, was 1853.5 s).
+  Cause: `SermonExtractionPlanResolver.php:147` gathers the sections that follow the sermon by
+  `start_time >= end of the last selected section`, then stops at the first song. Re-detection starts
+  §4091's song at 3869.4 s, 6.1 s before the sermon's end (3875.5 s). The song is filtered out, the
+  walk never meets it, and the prayer after it is adopted.
+  **The same class in the corpus, read-only scan:** cuts that end with a prayer after a song: 1219
+  (song starts 1.1 s before the sermon's end), 1251 (0.1 s), 1328 (song starts at the sermon's end;
+  cause not yet traced) and 1322. 1347's composition has it too, but its cut (09-06) predates it and
+  stops before the song. None of those ends was on the listening pages. All are quarantined.
+  Not yet fixed: the walk should take the sections that come after the sermon in order, so a song
+  overlapping the sermon's end still stops it. Fix test-first, then re-cut the four.
+- The old §4090 `content_holds` entry is the released 09-25 one (`released_at` 10-18), not a new
+  hold. No thumbnail, as for the other historic sermons (P2, pending its §4.5 step).
+
+**Before closing:** fix the closing-prayer walk and re-cut 1219, 1251, 1322 and 1328, then hear
+1322's sermon (3270 s and the end). Any further processing needs the operator's go.
 
 ### 4.1 After the round
 
