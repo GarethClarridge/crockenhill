@@ -122,6 +122,17 @@ class RuledEndingsRegressionTest extends TestCase
     }
 
     #[Test]
+    public function a_song_end_does_not_keep_a_prayer_hidden_in_a_smeared_opening_word(): void
+    {
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/listening-edges3-20261018-954-s901-end.json.gz')), true, flags: JSON_THROW_ON_ERROR);
+        $log = $this->rebuild($fixture);
+        $plan = app(CueSafeExtractionPlan::class)->forSection($log->serviceSections()->findOrFail(901));
+
+        $this->assertLessThanOrEqual(3830.56, end($plan['segments'])['end_time'], json_encode($plan['cue_edge_widening'], JSON_THROW_ON_ERROR));
+        $this->assertGreaterThan(3828.0, end($plan['segments'])['end_time']);
+    }
+
+    #[Test]
     #[DataProvider('fixtures')]
     public function a_ruled_edge_keeps_its_ruling(string $path): void
     {
@@ -143,6 +154,12 @@ class RuledEndingsRegressionTest extends TestCase
         }
         $this->assertNotEmpty($segments, $fixture['id'].': '.json_encode($plan['metadata'] ?? []));
         $cut = $ruling['edge'] === 'start' ? reset($segments)['start_time'] : end($segments)['end_time'];
+        if (isset($fixture['expected_range'])) {
+            $this->assertGreaterThanOrEqual($fixture['expected_range'][0], $cut);
+            $this->assertLessThanOrEqual($fixture['expected_range'][1], $cut);
+
+            return;
+        }
 
         $this->assertEqualsWithDelta($fixture['live']['cut'], $cut, self::FIDELITY_TOLERANCE, 'the fixture no longer reproduces its live cut');
 
