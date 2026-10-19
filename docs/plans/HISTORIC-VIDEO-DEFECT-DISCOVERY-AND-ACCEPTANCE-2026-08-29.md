@@ -1006,8 +1006,70 @@ These are one class, the word edge at a K16 end or a start-cue anchor. Mechanism
 clipped"), 1315 (early, ends on "so let's"; "include the sentence or drop it"), 1216 (early), 1108 (early,
 "might be an audio quality issue"), 1070 and 1218 (late). Unsure, no note on the edge: 1011, 1012 (clip
 holds no speech, a sound check) and 1077 (no speech). Same class as page 1: ends beside a song or
-housekeeping line landing mid-sentence. Page 3 (section edges, 112 clips, `1Wb36h4YD86bbt2ryvoLqw`) is
-still to hear, then the J1/J2 starts, 1271, 1345 and the held-sermon release page.
+housekeeping line landing mid-sentence.
+
+**Moved-edge listening, page 3, 10-19 (operator; page `1Wb36h4YD86bbt2ryvoLqw`, `rulings-cut` collection,
+answers in `storage/scratch/listening-edges3-20261018/answers/`):** every non-sermon section edge the round
+moved ≥ 1 s, plus sermon sections not on pages 1–2, 112 edges, heard as cut-only clips (the first or last
+3 s of the section as cut). **60 right, 28 wrong (21 early, 7 late), 24 unsure.** The summary doc
+(`Ru85aJgE6xw2m93Vgk1iy2`) has the right counts but repeats the page's labelling fault (below).
+- **The page mislabelled 39 of its 112 questions.** `page3-items.json` carries section ids from a
+  different copy of the rows (1262's §4873, §4913 and §4914 do not exist in this database), while
+  `build.php` took each title from `ServiceSection::find()` on that id here. The type and times were
+  right, but the title belonged to a neighbouring section: 1314 is off by one throughout, and 1262 by
+  up to two. Runs affected: 1314 (13), 1073 (10), 1262 (10), 1120 (5), 1034 (1). The types of 954 §798
+  and 1148 §2201/§2205 also differ from this database's, but their ids are right. The operator's
+  "mistitled" notes are this fault, not a data defect: 1314 and 1262 are titled correctly here. Each
+  ruling is re-keyed to the section whose times it played (`answers/relabelled.json`, matched on start
+  and end ±0.6 s, all 112 resolved). The verdicts below use those sections.
+- **Wrong, the page 1–2 word-edge class (10):** mid-sentence at 1053 §1610 end, 1070 §3705 end, 1073
+  §1714 end, 1186 §2410 end, 1268 §4734 end, 1343 §4326 end, and starts 1034 §173999, 1073 §267202,
+  1120 §1994 and 1262 §3278. 11 sermon edges were heard on both page 2 and page 3. 8 agree, and 1053 and
+  1186 are mid-sentence on both (only the direction differs).
+- **Wrong, song edges that cut the music (8):** 954 §796 start (late) and end, 1073 §1712 end, 1120
+  §1999 and §2002 ("end of the music is cut off"), 1224 §2769, 1262 §3278 end, 1262 §3288 end.
+- **Wrong, starts that take in the previous item (4):** 1224 §146083 (sermon starts in the song), 1073
+  §267201 (in a song), 1262 §3289 (in the end of a song) and 1262 §3286 (the reading starts at the
+  announcement "I think we'll have the Bible reading").
+- **Wrong, ends that run into the next item, and others (6):** 954 §901 (song end at 63:58.8 holds the
+  prayer; the transcript has "Our gracious and loving God" at 63:50.6), 1034 §1454 (reading end holds a
+  song intro), 1120 §174715 (song end holds the prayer start), 1314 §3990 start (late, mid introduction
+  to the testimony), 1314 §3992 end (early), and 1148 §2201 end (early, "a multipart sermon"; the ruled
+  composition plans that part to 1723.8 s, 2.3 s after the section end heard).
+- **Unsure, no audible speech (11):** 954 ×5 (§798 end, §900 start and end, §901 start, §902 start),
+  1034 §1452, 1120 §174716, 1148 §2204, 1262 §3283, 1314 §3994 start, 1368 §4583. **954, 1073 and 1034's
+  service recordings are noise-gated:** they contain long runs of digital zero (−91 dB): 590 s,
+  397 s and 528 s; the other runs checked have 0–70 s. 954 is silent at 25:49.4–26:07.4, where §900
+  starts at 26:00.5. Their transcript cues mostly avoid those runs (954: 5.4% of cues against 15%
+  silence), so audio and transcript share a timeline. The silence is in the source, not the clip.
+- **Unsure because of the labelling (11):** 1073 §1709 start, §1716 start and end, §267202 end; 1262
+  §3281 start, §3284 start, §3285 end; 1314 §3983 end, §3989 end, §3990 end, §3994 end. Several notes
+  describe a verdict once the right title is known: 1262 §3284 "the start of a song" is right, and 1314
+  §3994 end "mid sentence of an announcement" and §3989 end "introduction to a testimony" are late.
+  These are not the operator's rulings yet and need hearing again with correct titles.
+- **Other unsure (2):** 1120 §2000 ("Mary's Song", a reading, heard as sung); 1148 §2205 end (moved
+  456.8 s earlier, to the middle of "I think we have time for Revelation 5"). 1148's ruled composition
+  ends that part at 3172.7 s, not at this section end (3168.2 s), so the published edge was not heard here.
+
+**Section-edge re-listen, 10-19 (operator; page `4SHVNmipS1EbWHJAvJmFaY`, `rulings-relisten` collection,
+answers in `storage/scratch/listening-relisten-20261019/answers/`, built by `build.php` there):** the 11
+relabelled questions, heard with correct titles and the neighbouring section named. **4 right, 5 wrong,
+2 unsure.** These replace the page-3 rulings for the same edges.
+- Right: 1073 §1709 start, 1262 §3284 start, 1314 §3983 end, 1314 §3990 end.
+- Wrong: 1262 §3281 start (early: "the end of the song. No words are spoken"); 1314 §3989 end (late:
+  "the start of the testimony"); 1314 §3994 end (late); 1073 §1716 end (early); 1073 §267202 end (late:
+  "should either end at the end of the music or include both 'hallelujah' and 'Jesus saves'", the
+  word-edge class again).
+- Unsure: 1262 §3285 end ("might be right if there is a hard cut"); 1073 §1716 start ("I suspect this is
+  part of 'In Awe and Wonder'"). The rows support that: §1715 "In Awe and Wonder" is a 4 s stub
+  (2694.7–2698.7 s), then an 11 s gap, then §1716 "Unidentified singing" (2710.0–2888.7 s) holds the
+  singing. It looks like one song split into a titled stub and an untitled body. Neither is published.
+  1073 is already due for re-detection (D21, §4.1 item 7), so check this after that, not by hand.
+
+Page 3 with these replacements: **64 right, 33 wrong, 15 unsure** of 112.
+
+Still to listen: the J1/J2 starts, 1271,
+1345 and the held-sermon release page.
 
 **Before closing:** E20 is built and 1322's re-cut is complete, and its seam is heard. Finish the
 rest of step 5 (listening), then obtain the operator's hold decision on §4090. Any further
