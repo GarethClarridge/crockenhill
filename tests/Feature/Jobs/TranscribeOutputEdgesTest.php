@@ -75,13 +75,14 @@ class TranscribeOutputEdgesTest extends TestCase
             $mock->shouldReceive('identity')->andReturnNull();
         });
         $this->mock(PrepareOutputEdgeWordTimings::class, function (MockInterface $mock) use (&$order): void {
-            $mock->shouldReceive('prepare')->once()->andReturnUsing(function () use (&$order): array {
+            $mock->shouldReceive('prepare')->twice()->andReturnUsing(function () use (&$order): array {
                 $order[] = 'words';
 
                 return ['windows' => 0, 'decoded' => 0, 'compute_seconds' => 0.0];
             });
         });
         $this->mock(SpokenEdgeSentenceCheck::class, function (MockInterface $mock) use (&$order): void {
+            $mock->shouldReceive('outputEdges')->once()->andReturn([['start', 12.5]]);
             $mock->shouldReceive('prepare')->once()->andReturnUsing(function () use (&$order): array {
                 $order[] = 'sentences';
 
@@ -91,7 +92,7 @@ class TranscribeOutputEdgesTest extends TestCase
 
         app()->call([new TranscribeOutputEdges($log), 'handle']);
 
-        $this->assertSame(['dead_picture', 'words', 'sentences'], $order);
+        $this->assertSame(['dead_picture', 'words', 'words', 'sentences'], $order);
     }
 
     /**
@@ -128,7 +129,10 @@ class TranscribeOutputEdgesTest extends TestCase
                     return ['windows' => 0, 'decoded' => 0, 'compute_seconds' => 0.0];
                 });
         });
-        $this->mock(SpokenEdgeSentenceCheck::class, fn (MockInterface $mock) => $mock->shouldReceive('prepare')->andReturn(['edges' => 0, 'asked' => 0, 'agreed_moves' => 0]));
+        $this->mock(SpokenEdgeSentenceCheck::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('outputEdges')->once()->andReturn([]);
+            $mock->shouldReceive('prepare')->andReturn(['edges' => 0, 'asked' => 0, 'agreed_moves' => 0]);
+        });
 
         app()->call([new TranscribeOutputEdges($log), 'handle']);
 

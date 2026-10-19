@@ -133,6 +133,33 @@ class RuledEndingsRegressionTest extends TestCase
     }
 
     #[Test]
+    public function a_reading_after_a_song_does_not_use_its_last_lyric_as_the_speech_onset(): void
+    {
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/listening-last-20261019-1291-start.json.gz')), true, flags: JSON_THROW_ON_ERROR);
+        $log = $this->rebuild($fixture);
+
+        $edges = app(CueSafeExtractionPlan::class)->songEndSpeechEdges($log, [['start_time' => 950.494, 'end_time' => 1115.54]]);
+
+        $this->assertSame([1119.86], $edges, 'decode the reading cue, rather than anchoring it on the preceding sung lyric');
+    }
+
+    #[Test]
+    public function an_opening_mic_check_can_be_removed_without_losing_the_sermon_introduction(): void
+    {
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/listening-edges-20261018-957-start.json.gz')), true, flags: JSON_THROW_ON_ERROR);
+        $log = $this->rebuild($fixture);
+        OpenAI::fake(array_fill(0, 20, CreateResponse::fake(['choices' => [['message' => ['content' => json_encode([
+            'decision' => 'shrink', 'words_to_move' => 'Is that a bit better?', 'reason' => 'The microphone check precedes the introduction.',
+        ], JSON_THROW_ON_ERROR)]]]])));
+        $summary = app(SpokenEdgeSentenceCheck::class)->prepare($log, $log->processing_metadata->raw['sermon_composition']['selected_section_ids']);
+        $plan = app(SermonExtractionPlanResolver::class)->resolve($log->fresh());
+
+        $this->assertGreaterThan(0, $summary['agreed_moves']);
+        $this->assertGreaterThanOrEqual(30.98, $plan['segments'][0]['start_time']);
+        $this->assertLessThanOrEqual(32.0, $plan['segments'][0]['start_time'], 'keep "Let me begin"');
+    }
+
+    #[Test]
     #[DataProvider('fixtures')]
     public function a_ruled_edge_keeps_its_ruling(string $path): void
     {

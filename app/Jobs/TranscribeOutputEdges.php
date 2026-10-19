@@ -81,6 +81,18 @@ class TranscribeOutputEdges extends ProcessingJob implements ShouldQueue
         }
         $summary = ['song_introduction' => $introduction] + $prepare->prepare($this->processingLog->fresh() ?? throw new \RuntimeException('Processing run disappeared'), $spans);
         $this->processingLog->refresh();
+        $knownEdges = array_merge(...array_map(array_values(...), $spans));
+        $exposed = $sentenceCheck->outputEdges($this->processingLog, array_values($this->processingLog->serviceSections()->orderBy('start_time')->get()->all()), $composition['selected_section_ids']);
+        $followup = [];
+        foreach ($exposed as [, $time]) {
+            if (! array_any($knownEdges, static fn (float $known): bool => abs($known - $time) < 0.001)) {
+                $followup[] = ['start_time' => $time, 'end_time' => $time];
+            }
+        }
+        if ($followup !== []) {
+            $summary['exposed_edges'] = $prepare->prepare($this->processingLog, $followup);
+            $this->processingLog->refresh();
+        }
         // Asked of the cuts the decoded words place, so only once they are decoded.
         $summary['sentence_check'] = $sentenceCheck->prepare($this->processingLog, $composition['selected_section_ids']);
         $this->processingLog->refresh();

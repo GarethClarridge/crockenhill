@@ -364,6 +364,9 @@ class CueSafeExtractionPlan
             $spans = $this->afterSongSound($log, $cues, $sectionSpans, $spans, $audit);
         }
         $spans = $this->outOfDeadFeed($log, $sectionSpans, $spans, $audit, songStartsOnly: $songEnds, levels: $levels);
+        if (! $songEnds) {
+            $spans = $this->withDeadFeedOpeningCheck($log, $cues, $spans, $audit);
+        }
         $audit = $this->withAnswerIdentity($log, $sectionSpans, $songEnds, $sermonEnd, $cues, $levels, $timeline, $audit);
         $spans = $this->withAnsweredEdges($log, $spans, $audit);
         $spans = $this->withUnresolvedIntervals($log, $sectionSpans, $spans, $audit);
@@ -590,6 +593,41 @@ class CueSafeExtractionPlan
                 }
             }
         }
+
+        return $spans;
+    }
+
+    /**
+     * A muted recording can open on a microphone check (957). Check the opening the dead-feed
+     * rule actually exposes, after that rule, using the same banked identity as the edge step.
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  list<array{start_time: float, end_time: float}>  $spans
+     * @param  list<array<string, mixed>>  $audit
+     * @return list<array{start_time: float, end_time: float}>
+     */
+    private function withDeadFeedOpeningCheck(MediaProcessingLog $log, array $cues, array $spans, array &$audit): array
+    {
+        foreach ($audit as &$entry) {
+            if ($entry['edge'] !== 'start' || ! isset($entry['dead_feed']['time'])) {
+                continue;
+            }
+            $index = (int) $entry['span_index'];
+            $original = (float) $spans[$index]['start_time'];
+            $placed = $this->wordPauseEdge($log, $cues, $original, 'start');
+            if ($placed === null) {
+                continue;
+            }
+            $decision = $this->placedEdge($log, $placed['words'], $placed['window'], $original, 'start', songEnds: false);
+            [$decision, $check] = $this->sentenceChecked($log, $cues, $placed['words'], $placed['window'], $original, 'start', $decision);
+            if (! ($check['moved'] ?? false) || $decision['time'] >= $spans[$index]['end_time']) {
+                continue;
+            }
+            $spans[$index]['start_time'] = $decision['time'];
+            $entry = [...$entry, ...$decision, 'reason' => 'sentence_check', 'sentence_check' => $check,
+                'seconds_moved' => $decision['time'] - $entry['original_time'], 'seconds_added' => abs($decision['time'] - $entry['original_time'])];
+        }
+        unset($entry);
 
         return $spans;
     }
@@ -1641,6 +1679,9 @@ class CueSafeExtractionPlan
         usort($after, static fn (array $a, array $b): int => $a['start'] <=> $b['start']);
 
         foreach ($after as $cue) {
+            if ($cue['start'] >= $end - self::SONG_END_LEAD && $this->cueIsOnlyMusic($cue, $timeline)) {
+                continue;
+            }
             // Inside the section a cue is speech only where it starts in speech: 1311 §4931's last
             // sung line ran on into a window the classifier half-hears as speech.
             if ($cue['start'] < $end - self::SONG_END_LEAD) {
@@ -1665,6 +1706,25 @@ class CueSafeExtractionPlan
         }
 
         return null;
+    }
+
+    /**
+     * A lyric beyond a song's recorded edge is still singing (1291's "Your goodness…").
+     * Require complete classifier coverage, music, and no speech anywhere in the cue; an early
+     * speech cue spanning the transition must still be decoded at its own onset.
+     *
+     * @param  array{start: float, end: float, text: string}  $cue
+     */
+    private function cueIsOnlyMusic(array $cue, ?AudioTimeline $timeline): bool
+    {
+        if (count(TranscriptCueEvidence::tokens($cue['text'])) < 4) {
+            return false;
+        }
+        $windows = array_values(array_filter($timeline->windows ?? [], static fn (array $window): bool => $window['end'] > $cue['start'] && $window['start'] < $cue['end']));
+
+        return $windows !== [] && $windows[0]['start'] <= $cue['start'] && $windows[array_key_last($windows)]['end'] >= $cue['end']
+            && array_any($windows, static fn (array $window): bool => $window['music'] >= AudioTimeline::MUSIC_CUTOFF)
+            && ! array_any($windows, static fn (array $window): bool => $window['speech'] >= AudioTimeline::SPEECH_CUTOFF);
     }
 
     /**

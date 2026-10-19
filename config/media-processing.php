@@ -285,7 +285,7 @@ return [
     // 9: full-pass fixes (2026-10-12): spoken-end tail, sentence-end stop, smeared starts, starts after a
     //    song's sound, amended D1 (prayer before the sermon, silent gaps play through), audio holes kept.
     // 10: song starts remove only >= 2 s of verified digital zero, retaining a 0.3 s lead.
-    'media_processing_version' => 12,
+    'media_processing_version' => 13,
 
     'video_extraction' => [
         'reencode_crf' => (int) env('VIDEO_EXTRACTION_REENCODE_CRF', 23),

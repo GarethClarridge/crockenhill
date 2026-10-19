@@ -92,6 +92,9 @@ TXT;
             $edges[sprintf('end@%.3f', $sermonEnd)] = ['end', $sermonEnd];
             $exposed[] = ['end', $sermonEnd];
         }
+        foreach ($exposed as [$edge, $time]) {
+            $edges[sprintf('%s@%.3f', $edge, $time)] = [$edge, $time];
+        }
 
         foreach ($edges as [$edge, $original]) {
             $besideSong = $edge === 'end' && $sermonEnd !== null && abs($original - $sermonEnd) < 0.001;
@@ -141,7 +144,7 @@ TXT;
      * @param  list<int>  $sermonSectionIds
      * @return list<array{0: 'start'|'end', 1: float}>
      */
-    private function outputEdges(MediaProcessingLog $log, array $sections, array $sermonSectionIds): array
+    public function outputEdges(MediaProcessingLog $log, array $sections, array $sermonSectionIds): array
     {
         $handlers = app(SectionPublicationHandlerFactory::class);
         $pairing = app(TalkReadingPairing::class);
@@ -167,7 +170,13 @@ TXT;
         }
 
         try {
-            $segments = app(CueSafeExtractionPlan::class)->forSpans($log, $parts, sermonEnd: true)['segments'];
+            $planned = app(CueSafeExtractionPlan::class)->forSpans($log, $parts, sermonEnd: true);
+            $segments = $planned['segments'];
+            foreach ($planned['cue_edge_widening'] as $entry) {
+                if ($entry['edge'] === 'start' && isset($entry['dead_feed']['time'])) {
+                    $edges[] = ['start', (float) $entry['dead_feed']['time']];
+                }
+            }
         } catch (OutputEdgeTimingsMissing) {
             $segments = $parts;
         }
@@ -246,15 +255,17 @@ TXT;
         if ($besideSong || $this->spokenSides($log, $time) !== null) {
             return true;
         }
-        if ($edge !== 'end') {
-            return false;
-        }
         $timeline = app(CueSafeExtractionPlan::class)->audioTimeline($log);
         $window = $timeline?->windowAt($time);
 
-        return $window !== null && $timeline->classOf($window) === SoundClass::Speech
-            && $log->serviceSections()->where('section_type', '!=', ServiceSectionType::Song->value)
-                ->whereBetween('end_time', [$time - self::NEIGHBOUR_TOLERANCE, $time + self::NEIGHBOUR_TOLERANCE])->exists();
+        $sections = $log->serviceSections()->whereIn('section_type', [ServiceSectionType::Sermon->value, ServiceSectionType::BibleReading->value, ServiceSectionType::ShortTalk->value]);
+        if ($edge === 'start') {
+            $sections->where('start_time', '<=', $time + self::NEIGHBOUR_TOLERANCE)->where('end_time', '>', $time);
+        } else {
+            $sections->whereBetween('end_time', [$time - self::NEIGHBOUR_TOLERANCE, $time + self::NEIGHBOUR_TOLERANCE]);
+        }
+
+        return $window !== null && $timeline->classOf($window) === SoundClass::Speech && $sections->exists();
     }
 
     /**
@@ -358,7 +369,11 @@ TXT;
         $video = $edge === 'start' ? ($sides['after'] ?? null) : ($sides['before'] ?? null);
         $neighbour = $edge === 'start' ? ($sides['before'] ?? null) : ($sides['after'] ?? null);
 
-        return ($besideSong ? "This is the sermon's chosen end before a song, including any introduction that relates the song to the sermon. Keep or omit a complete thought. Exclude a standalone call to sing, but never split a sentence to remove those words. Music and lyrics are not part of this question.\n" : '').sprintf(
+        $opening = $edge === 'start' && $sides === null
+            ? "This is the opening of a sermon, reading or short talk. A microphone check or leftover material from the previous item is not its opening; remove that material as a whole. Keep the introduction (including 'Let me begin'), the reading's announcement and any opening prayer. Never skip introductory content just to reach the main argument.\n"
+            : '';
+
+        return $opening.($besideSong ? "This is the sermon's chosen end before a song, including any introduction that relates the song to the sermon. Keep or omit a complete thought. Exclude a standalone call to sing, but never split a sentence to remove those words. Music and lyrics are not part of this question.\n" : '').sprintf(
             "The video is the %s. Next to it is the %s.\nThe cut is where the video %s; the video is the text %s ‖.\n\nTranscript:\n%s ‖ %s",
             $video !== null ? str_replace('_', ' ', $video->section_type->value) : 'item',
             $neighbour !== null ? str_replace('_', ' ', $neighbour->section_type->value) : 'item',
