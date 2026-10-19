@@ -10,7 +10,6 @@ use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
-use App\Services\Media\Audio\AudioTimeline;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Support\MediaProcessingVersion;
 use App\Support\OpenAiChatPayload;
@@ -29,8 +28,14 @@ use OpenAI\Laravel\Facades\OpenAI;
  * sentences are joined by meaning, so presumably an LLM can". A read-only evaluation on the
  * canary's judged edges agreed on edges between two spoken items. At song edges the words are
  * misheard lyrics ("Let's ‖ pray." is a sung "Bless the Lord"), and the answers moved with the
- * prompt, so song clips stay with the song rule. A sermon's K16-selected end is checked with
- * only its spoken context; each edge is asked twice and only an agreed move is made.
+ * prompt, so song edges are left to the song rule and each edge is asked twice: only a move both
+ * answers name is made. The one exception is an opening the dead-feed rule exposes (957's
+ * microphone check), which has no spoken neighbour but is still asked about.
+ *
+ * Asking at a sermon's K16 end beside a song, at a spoken end with no next section and at every
+ * opening without a neighbour was measured on 10-19 against the ruled edges, and withdrawn: of
+ * 232 edges ruled right it moved 11 and held 24 for review, to fix 4
+ * (storage/scratch/edge-gate-20261019, plan §4.0).
  *
  * Answers are banked per cut on the edge step ({@see self::prepare()}) and only read when a plan
  * is made, as edge word timings are: planning runs many times and must not call a model. An edge
@@ -42,6 +47,9 @@ class SpokenEdgeSentenceCheck
     public const PROMPT_VERSION = 1;
 
     private const ARTIFACT_PREFIX = 'edge-sentence-';
+
+    /** {@see self::outputEdges()}'s tag on an opening the dead-feed rule exposes. */
+    private const DEAD_FEED_OPENING = 'dead_feed_opening';
 
     /** A section boundary further than this from the edge is not the edge's neighbour. */
     private const NEIGHBOUR_TOLERANCE = 2.0;
@@ -82,28 +90,18 @@ TXT;
         }
 
         $exposed = $this->outputEdges($log, array_values($sections->all()), $sermonSectionIds);
-        $sermonSpans = array_values($sections->whereIn('id', $sermonSectionIds)->map(static fn (ServiceSection $section): array => [
-            'start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time,
-        ])->all());
-        $sermonEnd = app(SermonSongIntroductionCheck::class)->read($log, $sermonSpans)['end'] ?? null;
-        if ($sermonEnd !== null && $sermonSpans !== []) {
-            $lastSectionEnd = $sermonSpans[array_key_last($sermonSpans)]['end_time'];
-            $exposed = array_values(array_filter($exposed, static fn (array $cut): bool => $cut[0] !== 'end' || abs($cut[1] - $lastSectionEnd) >= 0.001));
-            $edges[sprintf('end@%.3f', $sermonEnd)] = ['end', $sermonEnd];
-            $exposed[] = ['end', $sermonEnd];
-        }
         foreach ($exposed as [$edge, $time]) {
             $edges[sprintf('%s@%.3f', $edge, $time)] = [$edge, $time];
         }
 
         foreach ($edges as [$edge, $original]) {
-            $besideSong = $edge === 'end' && $sermonEnd !== null && abs($original - $sermonEnd) < 0.001;
-            if (! $this->canCheck($log, $original, $edge, $besideSong)
+            $deadFeedOpening = array_any($exposed, static fn (array $cut): bool => ($cut[2] ?? null) === self::DEAD_FEED_OPENING && abs($cut[1] - $original) < 0.001);
+            if (! $this->canCheck($log, $original, $edge, $deadFeedOpening)
                 || ! array_any($exposed, static fn (array $cut): bool => $cut[0] === $edge && abs($cut[1] - $original) < 0.001)) {
                 continue;
             }
 
-            $placed = $plans->wordPauseEdge($log, $cues, $original, $edge, $besideSong);
+            $placed = $plans->wordPauseEdge($log, $cues, $original, $edge);
 
             if ($placed === null) {
                 $summary['unchecked']++;
@@ -112,14 +110,14 @@ TXT;
             }
 
             $summary['edges']++;
-            $prompt = $this->prompt($log, $cues, $placed['words'], $placed['window'], $placed['time'], $edge, $besideSong);
-            $identity = $this->identity($log, $placed['window'], $original, $edge, $placed['time'], $prompt);
+            $prompt = $this->prompt($log, $cues, $placed['words'], $placed['window'], $placed['time'], $edge, $deadFeedOpening);
+            $identity = $this->identity($log, $placed['window'], $original, $edge, $placed['time'], $prompt, $deadFeedOpening);
 
             if ($this->read($log, $identity) !== null) {
                 continue;
             }
 
-            $calls = [$this->ask($log, $prompt), $this->ask($log, $prompt)];
+            $calls = [$this->ask($log, $prompt, $deadFeedOpening), $this->ask($log, $prompt, $deadFeedOpening)];
             $record = ['identity' => $identity, 'prompt' => $prompt, 'calls' => $calls, ...$this->agreement($calls)];
             app(ServiceArtifactStorage::class)->putJson($log->processing_id, $this->kind($identity), $record);
             $log->refresh();
@@ -138,11 +136,12 @@ TXT;
      * merges them ({@see CueSafeExtractionPlan::forSpans()}): a second's gap the plan keeps is
      * two cuts (Codex review, 2026-10-07). Without the edge words to plan, every part's edges are
      * taken as cut. Each cut is an output's start or end: a clip ending where the sermon output
-     * runs on is no cut at the sermon part's start.
+     * runs on is no cut at the sermon part's start. An opening the dead-feed rule moves the sermon
+     * to is a cut too, tagged so it can be asked about without a spoken neighbour.
      *
      * @param  list<ServiceSection>  $sections
      * @param  list<int>  $sermonSectionIds
-     * @return list<array{0: 'start'|'end', 1: float}>
+     * @return list<array{0: 'start'|'end', 1: float, 2?: 'dead_feed_opening'}>
      */
     public function outputEdges(MediaProcessingLog $log, array $sections, array $sermonSectionIds): array
     {
@@ -174,7 +173,7 @@ TXT;
             $segments = $planned['segments'];
             foreach ($planned['cue_edge_widening'] as $entry) {
                 if ($entry['edge'] === 'start' && isset($entry['dead_feed']['time'])) {
-                    $edges[] = ['start', (float) $entry['dead_feed']['time']];
+                    $edges[] = ['start', (float) $entry['dead_feed']['time'], self::DEAD_FEED_OPENING];
                 }
             }
         } catch (OutputEdgeTimingsMissing) {
@@ -249,34 +248,35 @@ TXT;
         return ['before' => $before, 'after' => $after];
     }
 
-    /** Ends of spoken outputs still need a sentence check when no adjacent section was detected. */
-    public function canCheck(MediaProcessingLog $log, float $time, string $edge, bool $besideSong = false): bool
+    /**
+     * An edge between two spoken items, or an opening the dead-feed rule exposes in the speech of
+     * a sermon, reading or short talk (957), which has no spoken neighbour to be between.
+     */
+    public function canCheck(MediaProcessingLog $log, float $time, string $edge, bool $deadFeedOpening = false): bool
     {
-        if ($besideSong || $this->spokenSides($log, $time) !== null) {
+        if ($this->spokenSides($log, $time) !== null) {
             return true;
+        }
+        if (! $deadFeedOpening || $edge !== 'start') {
+            return false;
         }
         $timeline = app(CueSafeExtractionPlan::class)->audioTimeline($log);
         $window = $timeline?->windowAt($time);
 
-        $sections = $log->serviceSections()->whereIn('section_type', [ServiceSectionType::Sermon->value, ServiceSectionType::BibleReading->value, ServiceSectionType::ShortTalk->value]);
-        if ($edge === 'start') {
-            $sections->where('start_time', '<=', $time + self::NEIGHBOUR_TOLERANCE)->where('end_time', '>', $time);
-        } else {
-            $sections->whereBetween('end_time', [$time - self::NEIGHBOUR_TOLERANCE, $time + self::NEIGHBOUR_TOLERANCE]);
-        }
-
-        return $window !== null && $timeline->classOf($window) === SoundClass::Speech && $sections->exists();
+        return $window !== null && $timeline->classOf($window) === SoundClass::Speech
+            && $log->serviceSections()->whereIn('section_type', [ServiceSectionType::Sermon->value, ServiceSectionType::BibleReading->value, ServiceSectionType::ShortTalk->value])
+                ->where('start_time', '<=', $time + self::NEIGHBOUR_TOLERANCE)->where('end_time', '>', $time)->exists();
     }
 
     /**
-     * What a banked answer was given on: the cut, the model and prompt, and the transcript the
+     * What a banked answer was given on: the cut, the model and both prompts, and the transcript the
      * model read. A line re-transcribed at the same times is a new question (Codex review,
-     * 2026-10-07): the answer judged other words.
+     * 2026-10-07): the answer judged other words. So is any change to the instructions.
      *
      * @param  array{start: float, end: float}  $window
      * @return array<string, mixed>
      */
-    public function identity(MediaProcessingLog $log, array $window, float $original, string $edge, float $cut, string $prompt): array
+    public function identity(MediaProcessingLog $log, array $window, float $original, string $edge, float $cut, string $prompt, bool $deadFeedOpening = false): array
     {
         return [
             'processing_id' => $log->processing_id,
@@ -287,6 +287,7 @@ TXT;
             'model' => (string) config('media-processing.service_structure.model'),
             'prompt_version' => self::PROMPT_VERSION,
             'transcript' => hash('sha256', $prompt),
+            'system_prompt' => hash('sha256', self::systemPrompt($deadFeedOpening)),
             'media_processing' => MediaProcessingVersion::signature(),
         ];
     }
@@ -300,9 +301,9 @@ TXT;
      * @param  array{start: float, end: float}  $window
      * @return array<string, mixed>
      */
-    public function identityFor(MediaProcessingLog $log, array $cues, array $words, array $window, float $original, string $edge, float $cut, bool $besideSong = false): array
+    public function identityFor(MediaProcessingLog $log, array $cues, array $words, array $window, float $original, string $edge, float $cut, bool $deadFeedOpening = false): array
     {
-        return $this->identity($log, $window, $original, $edge, $cut, $this->prompt($log, $cues, $words, $window, $cut, $edge, $besideSong));
+        return $this->identity($log, $window, $original, $edge, $cut, $this->prompt($log, $cues, $words, $window, $cut, $edge, $deadFeedOpening), $deadFeedOpening);
     }
 
     /**
@@ -348,16 +349,12 @@ TXT;
      * @param  list<array{start: float, end: float, word: string}>  $words
      * @param  array{start: float, end: float}  $window
      */
-    private function prompt(MediaProcessingLog $log, array $cues, array $words, array $window, float $cut, string $edge, bool $besideSong = false): string
+    private function prompt(MediaProcessingLog $log, array $cues, array $words, array $window, float $cut, string $edge, bool $deadFeedOpening = false): string
     {
         $before = [];
         $after = [];
-        $musicLimit = $besideSong ? $this->musicLimit($log, $cut) : null;
 
         foreach (CueSafeExtractionPlan::tokens($cues, $words, $window, $cut - self::CONTEXT_SECONDS, $cut + self::CONTEXT_SECONDS) as $token) {
-            if ($besideSong && $token['end'] > ($musicLimit ?? INF)) {
-                continue;
-            }
             if (($token['start'] + $token['end']) / 2 < $cut) {
                 $before[] = $token['word'];
             } else {
@@ -369,11 +366,11 @@ TXT;
         $video = $edge === 'start' ? ($sides['after'] ?? null) : ($sides['before'] ?? null);
         $neighbour = $edge === 'start' ? ($sides['before'] ?? null) : ($sides['after'] ?? null);
 
-        $opening = $edge === 'start' && $sides === null
+        $opening = $deadFeedOpening && $sides === null
             ? "This is the opening of a sermon, reading or short talk. A microphone check or leftover material from the previous item is not its opening; remove that material as a whole. Keep the introduction (including 'Let me begin'), the reading's announcement and any opening prayer. Never skip introductory content just to reach the main argument.\n"
             : '';
 
-        return $opening.($besideSong ? "This is the sermon's chosen end before a song, including any introduction that relates the song to the sermon. Keep or omit a complete thought. Exclude a standalone call to sing, but never split a sentence to remove those words. Music and lyrics are not part of this question.\n" : '').sprintf(
+        return $opening.sprintf(
             "The video is the %s. Next to it is the %s.\nThe cut is where the video %s; the video is the text %s ‖.\n\nTranscript:\n%s ‖ %s",
             $video !== null ? str_replace('_', ' ', $video->section_type->value) : 'item',
             $neighbour !== null ? str_replace('_', ' ', $neighbour->section_type->value) : 'item',
@@ -384,34 +381,25 @@ TXT;
         );
     }
 
-    /** The start of clearly sung audio after a spoken ending; mixed windows cannot place its words. */
-    public function musicLimit(MediaProcessingLog $log, float $cut): ?float
+    /** The rules the model is given; an exposed opening may also drop a whole microphone check. */
+    private static function systemPrompt(bool $deadFeedOpening): string
     {
-        $timeline = app(CueSafeExtractionPlan::class)->audioTimeline($log);
-        foreach ($timeline->windows ?? [] as $window) {
-            if ($window['end'] > $cut && $window['music'] >= AudioTimeline::MUSIC_CUTOFF && $window['speech'] < AudioTimeline::SPEECH_CUTOFF) {
-                return (float) $window['start'];
-            }
-        }
-
-        return null;
+        return self::SYSTEM_PROMPT.($deadFeedOpening
+            ? "\nAn opening check also removes complete microphone checks or material belonging to the previous item: choose shrink for that material even when it forms a whole thought. Keep the item's own introduction, reading announcement and opening prayer."
+            : '');
     }
 
     /** @return array{decision: string|null, words_to_move: string|null, reason: string|null} */
-    private function ask(MediaProcessingLog $log, string $prompt): array
+    private function ask(MediaProcessingLog $log, string $prompt, bool $deadFeedOpening = false): array
     {
         $model = (string) config('media-processing.service_structure.model');
-        $system = self::SYSTEM_PROMPT;
-        if (str_starts_with($prompt, 'This is the opening of a sermon, reading or short talk.')) {
-            $system .= "\nAn opening check also removes complete microphone checks or material belonging to the previous item: choose shrink for that material even when it forms a whole thought. Keep the item's own introduction, reading announcement and opening prayer.";
-        }
 
         $result = OpenAiFlexFallback::send(OpenAiChatPayload::forModel([
-                'model' => $model,
-            'messages' => [['role' => 'system', 'content' => $system], ['role' => 'user', 'content' => $prompt]],
-                'response_format' => ['type' => 'json_object'],
-                'max_completion_tokens' => 4000, 'service_tier' => config('openai.service_tier'),
-            ], reasoningEffort: 'medium'), static fn (array $payload) => OpenAI::chat()->create($payload), 'edge_sentence_check');
+            'model' => $model,
+            'messages' => [['role' => 'system', 'content' => self::systemPrompt($deadFeedOpening)], ['role' => 'user', 'content' => $prompt]],
+            'response_format' => ['type' => 'json_object'],
+            'max_completion_tokens' => 4000, 'service_tier' => config('openai.service_tier'),
+        ], reasoningEffort: 'medium'), static fn (array $payload) => OpenAI::chat()->create($payload), 'edge_sentence_check');
         $response = $result->response;
         OpenAiUsageLogger::log($response, 'edge_sentence_check', $model, $log->processing_id, 'medium', serviceTier: $result->serviceTier);
         $answer = json_decode($response->choices[0]->message->content ?? 'null', true);

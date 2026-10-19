@@ -21,6 +21,7 @@ use OpenAI\Resources\Chat;
 use OpenAI\Responses\Chat\CreateResponse;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\TestCase;
 
 /**
@@ -72,41 +73,59 @@ class RuledEndingsRegressionTest extends TestCase
     }
 
     #[Test]
-    public function a_k16_end_inside_a_sentence_is_checked_at_the_selected_end(): void
+    public function a_k16_sermon_end_beside_a_song_is_left_to_the_song_rule(): void
     {
+        // Withdrawn 10-19: asking here moved 11 and held 24 of 232 edges ruled right, and made
+        // 1115 itself worse (storage/scratch/edge-gate-20261019).
         $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/listening-edges-20261018-1115-end.json.gz')), true, flags: JSON_THROW_ON_ERROR);
         $log = $this->rebuild($fixture);
         OpenAI::fake(array_fill(0, 40, CreateResponse::fake(['choices' => [['message' => ['content' => json_encode([
             'decision' => 'extend', 'words_to_move' => 'stand and sing it together this evening.',
             'reason' => 'The invitation completes the sentence already included.',
         ], JSON_THROW_ON_ERROR)]]]])));
-        $selected = $log->processing_metadata->raw['sermon_composition']['selected_section_ids'];
 
-        $summary = app(SpokenEdgeSentenceCheck::class)->prepare($log, $selected);
+        app(SpokenEdgeSentenceCheck::class)->prepare($log, $log->processing_metadata->raw['sermon_composition']['selected_section_ids']);
         $plan = app(SermonExtractionPlanResolver::class)->resolve($log->fresh());
 
-        $this->assertGreaterThan(0, $summary['agreed_moves']);
-        $this->assertNotEmpty($plan['segments']);
-        $this->assertGreaterThanOrEqual(1493.38, end($plan['segments'])['end_time']);
-        $this->assertLessThan(1493.74, end($plan['segments'])['end_time'], 'the next hymn number is not part of the thought');
+        $this->assertFalse(array_any($this->askedEdges($log, 'end'), static fn (float $time): bool => abs($time - 1490.74) < 0.01), 'the K16 end is not a sentence question');
+        $this->assertEqualsWithDelta($fixture['live']['cut'], end($plan['segments'])['end_time'], self::FIDELITY_TOLERANCE);
     }
 
+    /**
+     * Withdrawn 10-19 with the K16 question: an end with no next section and an opening without
+     * a spoken neighbour (928's openings, 1053's) were asked too. Only an opening the dead-feed
+     * rule exposes is asked without one (957).
+     */
     #[Test]
-    public function a_spoken_sermon_end_without_a_neighbour_is_still_checked(): void
+    #[TestWith(['listening-edges-20261018-928-end'])]
+    #[TestWith(['listening-edges2-20261018-1053-end'])]
+    #[TestWith(['listening-edges-20261018-1115-end'])]
+    public function only_edges_between_two_spoken_items_are_asked(string $name): void
     {
-        $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/listening-edges2-20261018-1053-end.json.gz')), true, flags: JSON_THROW_ON_ERROR);
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/'.$name.'.json.gz')), true, flags: JSON_THROW_ON_ERROR);
         $log = $this->rebuild($fixture);
-        OpenAI::fake(array_fill(0, 10, CreateResponse::fake(['choices' => [['message' => ['content' => json_encode([
+        OpenAI::fake(array_fill(0, 40, CreateResponse::fake(['choices' => [['message' => ['content' => json_encode([
             'decision' => 'keep', 'words_to_move' => '', 'reason' => 'A test response, not an operator ruling.',
         ], JSON_THROW_ON_ERROR)]]]])));
+        $check = app(SpokenEdgeSentenceCheck::class);
 
-        $summary = app(SpokenEdgeSentenceCheck::class)->prepare($log, $log->processing_metadata->raw['sermon_composition']['selected_section_ids']);
+        $selected = $log->processing_metadata->raw['sermon_composition']['selected_section_ids'];
+        $banked = $this->askedEdges($log);
+        $summary = $check->prepare($log, $selected);
+        $log->refresh();
+        $deadFeedOpenings = array_column(array_filter($check->outputEdges($log, $log->serviceSections()->orderBy('start_time')->get()->all(), $selected),
+            static fn (array $cut): bool => ($cut[2] ?? null) === 'dead_feed_opening'), 1);
 
-        $this->assertGreaterThan(0, $summary['asked'], '1053 has no next section, but its cut still needs a sentence decision');
+        $asked = array_diff_key($this->askedEdges($log), $banked);
+        $this->assertCount($summary['asked'], $asked);
+        foreach ($asked as $time) {
+            $this->assertTrue($check->spokenSides($log, $time) !== null || array_any($deadFeedOpenings, static fn (float $opening): bool => abs($opening - $time) < 0.001),
+                "{$name}: the edge at {$time}s has no spoken neighbour and is no dead-feed opening");
+        }
     }
 
     #[Test]
-    public function conflicting_sentence_answers_do_not_execute_a_partial_k16_thought(): void
+    public function conflicting_sentence_answers_never_hold_a_k16_end(): void
     {
         $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/listening-edges-20261018-1115-end.json.gz')), true, flags: JSON_THROW_ON_ERROR);
         $log = $this->rebuild($fixture);
@@ -117,8 +136,8 @@ class RuledEndingsRegressionTest extends TestCase
 
         $plan = app(SermonExtractionPlanResolver::class)->resolve($log->fresh());
 
-        $this->assertTrue($plan['metadata']['requires_review']);
-        $this->assertSame('sermon_edge_unresolved', $plan['metadata']['reason']);
+        $this->assertNotSame('sermon_edge_unresolved', $plan['metadata']['reason']);
+        $this->assertEqualsWithDelta($fixture['live']['cut'], end($plan['segments'])['end_time'], self::FIDELITY_TOLERANCE);
     }
 
     #[Test]
@@ -332,6 +351,26 @@ class RuledEndingsRegressionTest extends TestCase
             app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($identity), ['identity' => $identity, 'words' => $edge['words'], 'compute_seconds' => 0.0]);
         }
         $log->refresh();
+    }
+
+    /**
+     * The cuts the sentence check has banked an answer for, by artifact kind.
+     *
+     * @return array<string, float>
+     */
+    private function askedEdges(MediaProcessingLog $log, ?string $edge = null): array
+    {
+        $asked = [];
+        foreach (ServiceArtifactStorage::recordedFor($log->fresh() ?? $log) as $entry) {
+            if (str_starts_with($entry['kind'], 'edge-sentence-')) {
+                $identity = json_decode((string) Storage::disk($entry['disk'])->get($entry['path']), true)['identity'];
+                if ($edge === null || $identity['edge'] === $edge) {
+                    $asked[$entry['kind']] = (float) $identity['original'];
+                }
+            }
+        }
+
+        return $asked;
     }
 
     /** @param  list<array{0: float, 1: float}>  $samples */

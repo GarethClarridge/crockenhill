@@ -285,7 +285,10 @@ return [
     // 9: full-pass fixes (2026-10-12): spoken-end tail, sentence-end stop, smeared starts, starts after a
     //    song's sound, amended D1 (prayer before the sermon, silent gaps play through), audio holes kept.
     // 10: song starts remove only >= 2 s of verified digital zero, retaining a 0.3 s lead.
-    'media_processing_version' => 13,
+    // 11–13 (10-19, never cut with): sentence checks at K16 ends, ends without a neighbour and openings;
+    //    a smeared prayer opening bounds a song end; a lyric past a song's edge is not a speech onset.
+    // 14: 11–13 less the sentence-check widening, which only an exposed dead-feed opening keeps (957).
+    'media_processing_version' => 14,
 
     'video_extraction' => [
         'reencode_crf' => (int) env('VIDEO_EXTRACTION_REENCODE_CRF', 23),

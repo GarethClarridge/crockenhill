@@ -1181,6 +1181,30 @@ re-cuts, hold releases or public releases were performed. Remaining before the n
 the changed plans and newly requested evidence, obtain the operator's processing go, then listen
 to repaired media. The remaining open fixtures and unsure rulings are not silently accepted.
 
+**Review and measurement of those fixes, 10-19/20 (Claude; operator agreed the three steps).** The
+fixtures replay at version 10 with banked answers, so a new model question reads as "not asked" there
+and the controls cannot see it. Two read-only gates were built (`storage/scratch/edge-gate-20261019/`,
+rolled-back transactions, answers banked to a scratch disk):
+- **Gate 1, planner old against new, all 440 composed runs, same evidence.** The old code reproduces
+  409/409 recorded sermon cuts and 1,399/1,400 section cuts. The prayer walk changes only 1219, 1251,
+  1322, 1328, 1347 and **1355** (its spurious prayer question goes). The song rules move **33 song ends**
+  (`2c9548a64` 20, `92e540398` 13, mostly 1.5–5 s earlier) and refuse **27 songs** pending fresh edge
+  words. None of them was heard.
+- **Gate 2, the sentence questions asked for real on the 224 ruled runs.** On `603cdd724`: 682 new
+  questions (K16 ends disagree 14%, openings 30%); of 232 edges heard and ruled right, **11 moved and 24
+  held** (`sermon_edge_unresolved`, including controls 933, 949 and 951) to fix 4, with 1115 itself worse.
+- **Withdrawn (version 14):** the sentence question at K16 ends beside a song, at spoken ends with no
+  next section, and at openings without a spoken neighbour. Kept: the question at an opening the
+  dead-feed rule exposes (957), now only moving inward; provider failures propagating; the system
+  prompt hashed into the answer identity. The three regression tests asserting the withdrawn behaviour
+  now guard against it, and fail on `603cdd724`.
+- **Gate 2 on version 14:** 214 questions, **no new holds**; of the 232, 230 kept and 2 moved (982, 990).
+  Both are the pre-existing between-speech check asked afresh: the version change invalidates every
+  banked answer, and 990's fresh pair agreed to drop its reading announcement. That is the existing
+  check's variance, which any re-cut on a new version re-samples.
+- **Next:** re-cut 1219, 1251, 1322, 1328 and 1355 (`sermons:re-extract`, runbook procedure as on
+  10-18) and hear their ends; hear the 33 moved song ends before the song rules are relied on.
+
 ### 4.1 After the round
 
 1. **Close the round** (runbook §8). Back up the service artifacts.
