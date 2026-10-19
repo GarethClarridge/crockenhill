@@ -79,9 +79,18 @@ class RuledEndingsRegressionTest extends TestCase
         $log = $this->rebuild($fixture);
         $this->replaySongIntroduction($log, $fixture['song_introduction'] ?? null);
 
-        $segments = $ruling['section_id'] === null
-            ? app(SermonExtractionPlanResolver::class)->resolve($log)['segments']
-            : app(CueSafeExtractionPlan::class)->forSection(ServiceSection::query()->findOrFail($ruling['section_id']))['segments'];
+        $plan = $ruling['section_id'] === null
+            ? app(SermonExtractionPlanResolver::class)->resolve($log)
+            : app(CueSafeExtractionPlan::class)->forSection(ServiceSection::query()->findOrFail($ruling['section_id']));
+        $segments = $plan['segments'];
+        if (isset($fixture['expected_refusal'])) {
+            $this->assertSame([], $segments);
+            $this->assertSame($fixture['expected_refusal'], $plan['metadata']['reason'] ?? null);
+            $this->assertSame([], $plan['metadata']['trailing_section_ids']);
+
+            return;
+        }
+        $this->assertNotEmpty($segments, $fixture['id'].': '.json_encode($plan['metadata'] ?? []));
         $cut = $ruling['edge'] === 'start' ? reset($segments)['start_time'] : end($segments)['end_time'];
 
         $this->assertEqualsWithDelta($fixture['live']['cut'], $cut, self::FIDELITY_TOLERANCE, 'the fixture no longer reproduces its live cut');

@@ -309,6 +309,52 @@ class SermonExtractionPlanResolverTest extends TestCase
     }
 
     #[Test]
+    #[TestWith([3869.4, 3875.5])]
+    #[TestWith([3198.9, 3200.0])]
+    #[TestWith([3199.9, 3200.0])]
+    #[TestWith([3200.0, 3200.0])]
+    public function a_song_overlapping_the_sermon_end_stops_the_closing_prayer_walk(float $songStart, float $sermonEnd): void
+    {
+        $log = $this->logWithSermon(1500, $sermonEnd);
+        $sermon = $log->serviceSections()->sole();
+        $song = $this->section($log, ServiceSectionType::Song, 2, $songStart, 4000);
+        $prayer = $this->section($log, ServiceSectionType::Prayer, 3, 4022.64, 4130.6);
+
+        $composition = $this->resolver->compose($log);
+
+        $this->assertContains($sermon->id, $composition['selected_section_ids']);
+        $this->assertNotContains($song->id, $composition['selected_section_ids']);
+        $this->assertNotContains($prayer->id, $composition['selected_section_ids']);
+        $this->assertSame([], $composition['trailing_section_ids']);
+    }
+
+    #[Test]
+    public function a_concluding_prayer_overlapping_the_sermon_end_is_kept_before_the_song(): void
+    {
+        $log = $this->logWithSermon(1500, 3200);
+        $prayer = $this->section($log, ServiceSectionType::Prayer, 2, 3199.9, 3250);
+        $this->section($log, ServiceSectionType::Song, 3, 3250, 4000);
+
+        $composition = $this->resolver->compose($log);
+
+        $this->assertContains($prayer->id, $composition['selected_section_ids']);
+    }
+
+    #[Test]
+    public function a_prayer_contained_inside_the_sermon_is_not_a_second_concluding_prayer(): void
+    {
+        $log = $this->logWithSermon(1500, 3200);
+        $this->section($log, ServiceSectionType::Prayer, 2, 2000, 2100);
+        $prayer = $this->section($log, ServiceSectionType::Prayer, 3, 3201, 3250);
+        $this->section($log, ServiceSectionType::Song, 4, 3250, 4000);
+
+        $composition = $this->resolver->compose($log);
+
+        $this->assertContains($prayer->id, $composition['selected_section_ids']);
+        $this->assertNotContains('sermon_prayer_membership_unresolved', array_column($composition['risks'], 'kind'));
+    }
+
+    #[Test]
     public function absent_accepted_sections_never_fall_back_to_the_old_detector(): void
     {
         $log = MediaProcessingLog::factory()->livestream()->create(['sermon_start_time' => 0, 'sermon_end_time' => 3000]);
