@@ -9,6 +9,7 @@ use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\OutputEdgeWordTimings;
 use App\Services\ChurchService\SermonSongIntroductionCheck;
+use App\Services\ChurchService\SpokenEdgeSentenceCheck;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Sermon\SermonExtractionPlanResolver;
 use App\Support\ServiceArtifactDisk;
@@ -68,6 +69,56 @@ class RuledEndingsRegressionTest extends TestCase
         }
 
         return $fixtures;
+    }
+
+    #[Test]
+    public function a_k16_end_inside_a_sentence_is_checked_at_the_selected_end(): void
+    {
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/listening-edges-20261018-1115-end.json.gz')), true, flags: JSON_THROW_ON_ERROR);
+        $log = $this->rebuild($fixture);
+        OpenAI::fake(array_fill(0, 40, CreateResponse::fake(['choices' => [['message' => ['content' => json_encode([
+            'decision' => 'extend', 'words_to_move' => 'stand and sing it together this evening.',
+            'reason' => 'The invitation completes the sentence already included.',
+        ], JSON_THROW_ON_ERROR)]]]])));
+        $selected = $log->processing_metadata->raw['sermon_composition']['selected_section_ids'];
+
+        $summary = app(SpokenEdgeSentenceCheck::class)->prepare($log, $selected);
+        $plan = app(SermonExtractionPlanResolver::class)->resolve($log->fresh());
+
+        $this->assertGreaterThan(0, $summary['agreed_moves']);
+        $this->assertNotEmpty($plan['segments']);
+        $this->assertGreaterThanOrEqual(1493.38, end($plan['segments'])['end_time']);
+        $this->assertLessThan(1493.74, end($plan['segments'])['end_time'], 'the next hymn number is not part of the thought');
+    }
+
+    #[Test]
+    public function a_spoken_sermon_end_without_a_neighbour_is_still_checked(): void
+    {
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/listening-edges2-20261018-1053-end.json.gz')), true, flags: JSON_THROW_ON_ERROR);
+        $log = $this->rebuild($fixture);
+        OpenAI::fake(array_fill(0, 10, CreateResponse::fake(['choices' => [['message' => ['content' => json_encode([
+            'decision' => 'keep', 'words_to_move' => '', 'reason' => 'A test response, not an operator ruling.',
+        ], JSON_THROW_ON_ERROR)]]]])));
+
+        $summary = app(SpokenEdgeSentenceCheck::class)->prepare($log, $log->processing_metadata->raw['sermon_composition']['selected_section_ids']);
+
+        $this->assertGreaterThan(0, $summary['asked'], '1053 has no next section, but its cut still needs a sentence decision');
+    }
+
+    #[Test]
+    public function conflicting_sentence_answers_do_not_execute_a_partial_k16_thought(): void
+    {
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/listening-edges-20261018-1115-end.json.gz')), true, flags: JSON_THROW_ON_ERROR);
+        $log = $this->rebuild($fixture);
+        OpenAI::fake(array_map(static fn (string $decision): CreateResponse => CreateResponse::fake(['choices' => [['message' => ['content' => json_encode([
+            'decision' => $decision, 'words_to_move' => 'stand and sing it together this evening.', 'reason' => 'Disputed thought.',
+        ], JSON_THROW_ON_ERROR)]]]]), array_merge(...array_fill(0, 20, ['extend', 'shrink']))));
+        app(SpokenEdgeSentenceCheck::class)->prepare($log, $log->processing_metadata->raw['sermon_composition']['selected_section_ids']);
+
+        $plan = app(SermonExtractionPlanResolver::class)->resolve($log->fresh());
+
+        $this->assertTrue($plan['metadata']['requires_review']);
+        $this->assertSame('sermon_edge_unresolved', $plan['metadata']['reason']);
     }
 
     #[Test]

@@ -53,6 +53,17 @@ class SpokenEdgeSentenceCheckTest extends TestCase
     ];
 
     #[Test]
+    public function a_provider_failure_is_not_banked_as_a_completed_sentence_check(): void
+    {
+        [, $reading] = $this->handover(ServiceSectionType::BibleReading);
+        OpenAI::fake([new \RuntimeException('Provider unavailable')]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Provider unavailable');
+        app(SpokenEdgeSentenceCheck::class)->prepare($reading->processingLog->fresh(), [$reading->id]);
+    }
+
+    #[Test]
     public function an_agreed_move_keeps_a_split_thought_whole(): void
     {
         [$talk, $reading] = $this->handover(ServiceSectionType::BibleReading);

@@ -311,8 +311,13 @@ class CueSafeExtractionPlan
                         $reason = isset($decision['candidate_anchors']) ? self::AMBIGUOUS_CUE_ANCHOR : 'word_pause';
                         $sentenceCheck = null;
                         if ($reason === 'word_pause') {
-                            [$decision, $sentenceCheck] = $this->sentenceChecked($log, $cues, $words, $window, $original, $edge, $decision);
+                            [$decision, $sentenceCheck] = $this->sentenceChecked($log, $cues, $words, $window, $original, $edge, $decision, $besideSong);
                             $reason = $sentenceCheck['moved'] ?? false ? 'sentence_check' : $reason;
+                            if ($besideSong && ($sentenceCheck['asked'] ?? false)
+                                && (! ($sentenceCheck['agreed'] ?? false)
+                                    || (in_array($sentenceCheck['decision'] ?? null, ['extend', 'shrink'], true) && ! ($sentenceCheck['moved'] ?? false)))) {
+                                $thoughtComplete = false;
+                            }
                         }
                         // After the sentence check, whose banked answers are bound to the cut it was asked about.
                         if ($edge === 'end') {
@@ -1203,7 +1208,7 @@ class CueSafeExtractionPlan
      * @param  list<array{start: float, end: float, text: string}>  $cues
      * @return array{time: float, window: array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>}, words: list<array{start: float, end: float, word: string}>}|null
      */
-    public function wordPauseEdge(MediaProcessingLog $log, array $cues, float $original, string $edge): ?array
+    public function wordPauseEdge(MediaProcessingLog $log, array $cues, float $original, string $edge, bool $besideSong = false): ?array
     {
         $evidence = app(OutputEdgeWordTimings::class);
         $window = $evidence->window($cues, $original, $log->duration);
@@ -1224,6 +1229,9 @@ class CueSafeExtractionPlan
 
         // A spoken edge: the sentence check is asked about the cut the plan makes.
         $decision = $this->placedEdge($log, $words, $window, $original, $edge, songEnds: false);
+        if ($besideSong) {
+            $decision = $this->withTail($decision);
+        }
 
         return isset($decision['candidate_anchors']) ? null : ['time' => $decision['time'], 'window' => $window, 'words' => $words];
     }
@@ -1297,15 +1305,15 @@ class CueSafeExtractionPlan
      * @param  array<string, mixed>  $decision
      * @return array{0: array<string, mixed>, 1: array<string, mixed>|null}
      */
-    private function sentenceChecked(MediaProcessingLog $log, array $cues, array $words, array $window, float $original, string $edge, array $decision): array
+    private function sentenceChecked(MediaProcessingLog $log, array $cues, array $words, array $window, float $original, string $edge, array $decision, bool $besideSong = false): array
     {
         $check = app(SpokenEdgeSentenceCheck::class);
 
-        if ($check->spokenSides($log, $original) === null) {
+        if (! $check->canCheck($log, $original, $edge, $besideSong)) {
             return [$decision, null];
         }
 
-        $answer = $check->read($log, $check->identityFor($log, $cues, $words, $window, $original, $edge, $decision['time']));
+        $answer = $check->read($log, $check->identityFor($log, $cues, $words, $window, $original, $edge, $decision['time'], $besideSong));
 
         if ($answer === null) {
             return [$decision, ['asked' => false]];
@@ -1360,6 +1368,9 @@ class CueSafeExtractionPlan
         }
 
         $time = ($previous['end'] + $next['start']) / 2;
+        if ($besideSong && $time > ($check->musicLimit($log, $original) ?? INF)) {
+            return [$decision, [...$audit, 'refused' => 'music']];
+        }
 
         return [['time' => $time, 'chosen_pause' => ['start' => $previous['end'], 'end' => $next['start']],
             'word_before' => $previous, 'word_after' => $next], [...$audit, 'moved' => true, 'word_pause_time' => $cut]];

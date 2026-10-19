@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace App\Services\ChurchService;
 
 use App\Enums\ServiceSectionType;
+use App\Enums\SoundClass;
 use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
+use App\Services\Media\Audio\AudioTimeline;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Support\MediaProcessingVersion;
 use App\Support\OpenAiChatPayload;
+use App\Support\OpenAiFlexFallback;
 use App\Support\OpenAiUsageLogger;
 use Illuminate\Support\Facades\Storage;
 use OpenAI\Laravel\Facades\OpenAI;
@@ -26,8 +29,8 @@ use OpenAI\Laravel\Facades\OpenAI;
  * sentences are joined by meaning, so presumably an LLM can". A read-only evaluation on the
  * canary's judged edges agreed on edges between two spoken items. At song edges the words are
  * misheard lyrics ("Let's ‖ pray." is a sung "Bless the Lord"), and the answers moved with the
- * prompt, so song edges are left to the song rule and each edge is asked twice: only a move both
- * answers name is made.
+ * prompt, so song clips stay with the song rule. A sermon's K16-selected end is checked with
+ * only its spoken context; each edge is asked twice and only an agreed move is made.
  *
  * Answers are banked per cut on the edge step ({@see self::prepare()}) and only read when a plan
  * is made, as edge word timings are: planning runs many times and must not call a model. An edge
@@ -79,14 +82,25 @@ TXT;
         }
 
         $exposed = $this->outputEdges($log, array_values($sections->all()), $sermonSectionIds);
+        $sermonSpans = array_values($sections->whereIn('id', $sermonSectionIds)->map(static fn (ServiceSection $section): array => [
+            'start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time,
+        ])->all());
+        $sermonEnd = app(SermonSongIntroductionCheck::class)->read($log, $sermonSpans)['end'] ?? null;
+        if ($sermonEnd !== null && $sermonSpans !== []) {
+            $lastSectionEnd = $sermonSpans[array_key_last($sermonSpans)]['end_time'];
+            $exposed = array_values(array_filter($exposed, static fn (array $cut): bool => $cut[0] !== 'end' || abs($cut[1] - $lastSectionEnd) >= 0.001));
+            $edges[sprintf('end@%.3f', $sermonEnd)] = ['end', $sermonEnd];
+            $exposed[] = ['end', $sermonEnd];
+        }
 
         foreach ($edges as [$edge, $original]) {
-            if ($this->spokenSides($log, $original) === null
+            $besideSong = $edge === 'end' && $sermonEnd !== null && abs($original - $sermonEnd) < 0.001;
+            if (! $this->canCheck($log, $original, $edge, $besideSong)
                 || ! array_any($exposed, static fn (array $cut): bool => $cut[0] === $edge && abs($cut[1] - $original) < 0.001)) {
                 continue;
             }
 
-            $placed = $plans->wordPauseEdge($log, $cues, $original, $edge);
+            $placed = $plans->wordPauseEdge($log, $cues, $original, $edge, $besideSong);
 
             if ($placed === null) {
                 $summary['unchecked']++;
@@ -95,7 +109,7 @@ TXT;
             }
 
             $summary['edges']++;
-            $prompt = $this->prompt($log, $cues, $placed['words'], $placed['window'], $placed['time'], $edge);
+            $prompt = $this->prompt($log, $cues, $placed['words'], $placed['window'], $placed['time'], $edge, $besideSong);
             $identity = $this->identity($log, $placed['window'], $original, $edge, $placed['time'], $prompt);
 
             if ($this->read($log, $identity) !== null) {
@@ -226,6 +240,23 @@ TXT;
         return ['before' => $before, 'after' => $after];
     }
 
+    /** Ends of spoken outputs still need a sentence check when no adjacent section was detected. */
+    public function canCheck(MediaProcessingLog $log, float $time, string $edge, bool $besideSong = false): bool
+    {
+        if ($besideSong || $this->spokenSides($log, $time) !== null) {
+            return true;
+        }
+        if ($edge !== 'end') {
+            return false;
+        }
+        $timeline = app(CueSafeExtractionPlan::class)->audioTimeline($log);
+        $window = $timeline?->windowAt($time);
+
+        return $window !== null && $timeline->classOf($window) === SoundClass::Speech
+            && $log->serviceSections()->where('section_type', '!=', ServiceSectionType::Song->value)
+                ->whereBetween('end_time', [$time - self::NEIGHBOUR_TOLERANCE, $time + self::NEIGHBOUR_TOLERANCE])->exists();
+    }
+
     /**
      * What a banked answer was given on: the cut, the model and prompt, and the transcript the
      * model read. A line re-transcribed at the same times is a new question (Codex review,
@@ -258,9 +289,9 @@ TXT;
      * @param  array{start: float, end: float}  $window
      * @return array<string, mixed>
      */
-    public function identityFor(MediaProcessingLog $log, array $cues, array $words, array $window, float $original, string $edge, float $cut): array
+    public function identityFor(MediaProcessingLog $log, array $cues, array $words, array $window, float $original, string $edge, float $cut, bool $besideSong = false): array
     {
-        return $this->identity($log, $window, $original, $edge, $cut, $this->prompt($log, $cues, $words, $window, $cut, $edge));
+        return $this->identity($log, $window, $original, $edge, $cut, $this->prompt($log, $cues, $words, $window, $cut, $edge, $besideSong));
     }
 
     /**
@@ -306,12 +337,16 @@ TXT;
      * @param  list<array{start: float, end: float, word: string}>  $words
      * @param  array{start: float, end: float}  $window
      */
-    private function prompt(MediaProcessingLog $log, array $cues, array $words, array $window, float $cut, string $edge): string
+    private function prompt(MediaProcessingLog $log, array $cues, array $words, array $window, float $cut, string $edge, bool $besideSong = false): string
     {
         $before = [];
         $after = [];
+        $musicLimit = $besideSong ? $this->musicLimit($log, $cut) : null;
 
         foreach (CueSafeExtractionPlan::tokens($cues, $words, $window, $cut - self::CONTEXT_SECONDS, $cut + self::CONTEXT_SECONDS) as $token) {
+            if ($besideSong && $token['end'] > ($musicLimit ?? INF)) {
+                continue;
+            }
             if (($token['start'] + $token['end']) / 2 < $cut) {
                 $before[] = $token['word'];
             } else {
@@ -323,7 +358,7 @@ TXT;
         $video = $edge === 'start' ? ($sides['after'] ?? null) : ($sides['before'] ?? null);
         $neighbour = $edge === 'start' ? ($sides['before'] ?? null) : ($sides['after'] ?? null);
 
-        return sprintf(
+        return ($besideSong ? "This is the sermon's chosen end before a song, including any introduction that relates the song to the sermon. Keep or omit a complete thought. Exclude a standalone call to sing, but never split a sentence to remove those words. Music and lyrics are not part of this question.\n" : '').sprintf(
             "The video is the %s. Next to it is the %s.\nThe cut is where the video %s; the video is the text %s ‖.\n\nTranscript:\n%s ‖ %s",
             $video !== null ? str_replace('_', ' ', $video->section_type->value) : 'item',
             $neighbour !== null ? str_replace('_', ' ', $neighbour->section_type->value) : 'item',
@@ -334,23 +369,33 @@ TXT;
         );
     }
 
+    /** The start of clearly sung audio after a spoken ending; mixed windows cannot place its words. */
+    public function musicLimit(MediaProcessingLog $log, float $cut): ?float
+    {
+        $timeline = app(CueSafeExtractionPlan::class)->audioTimeline($log);
+        foreach ($timeline->windows ?? [] as $window) {
+            if ($window['end'] > $cut && $window['music'] >= AudioTimeline::MUSIC_CUTOFF && $window['speech'] < AudioTimeline::SPEECH_CUTOFF) {
+                return (float) $window['start'];
+            }
+        }
+
+        return null;
+    }
+
     /** @return array{decision: string|null, words_to_move: string|null, reason: string|null} */
     private function ask(MediaProcessingLog $log, string $prompt): array
     {
         $model = (string) config('media-processing.service_structure.model');
 
-        try {
-            $response = OpenAI::chat()->create(OpenAiChatPayload::forModel([
+        $result = OpenAiFlexFallback::send(OpenAiChatPayload::forModel([
                 'model' => $model,
                 'messages' => [['role' => 'system', 'content' => self::SYSTEM_PROMPT], ['role' => 'user', 'content' => $prompt]],
                 'response_format' => ['type' => 'json_object'],
-                'max_completion_tokens' => 4000,
-            ], reasoningEffort: 'medium'));
-            OpenAiUsageLogger::log($response, 'edge_sentence_check', $model, $log->processing_id, 'medium');
-            $answer = json_decode($response->choices[0]->message->content ?? 'null', true);
-        } catch (\Throwable) {
-            $answer = null;
-        }
+                'max_completion_tokens' => 4000, 'service_tier' => config('openai.service_tier'),
+            ], reasoningEffort: 'medium'), static fn (array $payload) => OpenAI::chat()->create($payload), 'edge_sentence_check');
+        $response = $result->response;
+        OpenAiUsageLogger::log($response, 'edge_sentence_check', $model, $log->processing_id, 'medium', serviceTier: $result->serviceTier);
+        $answer = json_decode($response->choices[0]->message->content ?? 'null', true);
 
         $decision = is_array($answer) && in_array($answer['decision'] ?? null, ['keep', 'extend', 'shrink'], true) ? $answer['decision'] : null;
 
