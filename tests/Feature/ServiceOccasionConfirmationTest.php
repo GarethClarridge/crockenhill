@@ -10,6 +10,7 @@ use App\Enums\ServiceOccasion;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -151,6 +152,7 @@ class ServiceOccasionConfirmationTest extends TestCase
     public function the_public_page_hides_an_unconfirmed_occasion_and_shows_a_confirmed_one(): void
     {
         [$service] = $this->missionPresentationEvening();
+        $this->actingAs(User::factory()->create());
 
         $this->get($this->serviceUrl($service))
             ->assertOk()
@@ -171,6 +173,7 @@ class ServiceOccasionConfirmationTest extends TestCase
     public function the_meta_description_does_not_promise_a_sermon_a_service_never_had(): void
     {
         [$service] = $this->missionPresentationEvening();
+        $this->actingAs(User::factory()->create());
 
         $this->get($this->serviceUrl($service))
             ->assertOk()

@@ -1747,7 +1747,10 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $this->prepare($processingLog, $videoExtractor);
 
-        $this->assertSame('new-sound', Storage::disk('public')->get($songVideo->fresh()->video_file_path));
+        $songVideo->refresh();
+        $this->assertSame('local', $songVideo->asset_disk);
+        $this->assertSame('new-sound', Storage::disk($songVideo->asset_disk)->get($songVideo->video_file_path));
+        $this->assertSame($songVideo->asset_disk, $section->fresh()->extractedAssetDisk());
         $this->assertSame(
             $section->fresh()->metadata->raw['publication_candidate_extraction']['candidate_id'],
             $section->fresh()->metadata->raw['song_video_extraction']['candidate_id'],
