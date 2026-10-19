@@ -684,7 +684,8 @@ rolled-back transactions, with stray HTTP refused. Ten members failed at `manual
   - **Full suite:** 9,940 tests, 3 failures, all of which fail on master without the change:
     `PrepareSectionPublicationCandidatesTest::a_published_song_recut_under_a_new_recording_override_publishes_the_new_sound`
     and both `ServiceOccasionConfirmationTest` public-page tests (a 302, probably `6cea189c8`'s
-    access restriction). Open.
+    access restriction). **Fixed in `df9d259f3`** (10-19): the tests sign in, and the re-cut test reads the
+    clip from the section's asset disk.
 - **1148 and 1223:** answered on the listening page
   https://claude.ai/artifact/TsV7ry9isjjGM4tyoUjW7B (`rulings` collection, saved in
   `storage/scratch/review-1148-1223-20261018/answers/`). They were applied through the screen's own
@@ -960,7 +961,7 @@ Evidence beside each snapshot (`held-round-20261018b` to `…e`) and in
     suite ran **9973 tests**, with 3 failures and 1 skipped test. All three failures reproduced on
     unchanged `HEAD`: the two public-page tests in `ServiceOccasionConfirmationTest` received
     redirects, and `PrepareSectionPublicationCandidatesTest`'s recording-override song re-cut kept
-    the old sound. They are baseline failures, not E20 regressions.
+    the old sound. They are baseline failures, not E20 regressions. **Fixed in `df9d259f3`** (10-19).
   - **1031: released (operator: "publish 1031 anyway").** The only recording (755 s) starts a
     sentence into "Believe the impossible, find true joy" (2025-12-28 evening): its first words
     are "…Zachariah, especially when he's on duty in the temple". The sermon section is 462.7 s
