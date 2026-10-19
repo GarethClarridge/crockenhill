@@ -401,10 +401,14 @@ TXT;
     private function ask(MediaProcessingLog $log, string $prompt): array
     {
         $model = (string) config('media-processing.service_structure.model');
+        $system = self::SYSTEM_PROMPT;
+        if (str_starts_with($prompt, 'This is the opening of a sermon, reading or short talk.')) {
+            $system .= "\nAn opening check also removes complete microphone checks or material belonging to the previous item: choose shrink for that material even when it forms a whole thought. Keep the item's own introduction, reading announcement and opening prayer.";
+        }
 
         $result = OpenAiFlexFallback::send(OpenAiChatPayload::forModel([
                 'model' => $model,
-                'messages' => [['role' => 'system', 'content' => self::SYSTEM_PROMPT], ['role' => 'user', 'content' => $prompt]],
+            'messages' => [['role' => 'system', 'content' => $system], ['role' => 'user', 'content' => $prompt]],
                 'response_format' => ['type' => 'json_object'],
                 'max_completion_tokens' => 4000, 'service_tier' => config('openai.service_tier'),
             ], reasoningEffort: 'medium'), static fn (array $payload) => OpenAI::chat()->create($payload), 'edge_sentence_check');

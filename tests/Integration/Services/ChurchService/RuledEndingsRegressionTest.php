@@ -157,6 +157,7 @@ class RuledEndingsRegressionTest extends TestCase
         $this->assertGreaterThan(0, $summary['agreed_moves']);
         $this->assertGreaterThanOrEqual(30.98, $plan['segments'][0]['start_time']);
         $this->assertLessThanOrEqual(32.0, $plan['segments'][0]['start_time'], 'keep "Let me begin"');
+        OpenAI::assertSent(Chat::class, static fn (string $method, array $parameters): bool => str_contains($parameters['messages'][0]['content'], 'An opening check also removes complete microphone checks'));
     }
 
     #[Test]

@@ -1074,7 +1074,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $this->prepare($processingLog, $videoExtractor);
 
-        $this->assertSame(10, $section->fresh()->metadata->raw['publication_candidate_extraction']['media_processing']['version']);
+        $this->assertSame((int) config('media-processing.media_processing_version'), $section->fresh()->metadata->raw['publication_candidate_extraction']['media_processing']['version']);
         $this->assertNotSame('sermons/songs/old/video.mp4', $section->fresh()->extracted_video_path);
     }
 

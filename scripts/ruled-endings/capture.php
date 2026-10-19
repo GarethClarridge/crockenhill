@@ -8,6 +8,11 @@ declare(strict_types=1);
  * machine's endings listening rulings in storage/scratch.
  *
  *   RMS_WINDOW=35 vendor/bin/sail php scripts/ruled-endings/capture.php <ids.txt> tests/Fixtures/RuledEndings
+ *   vendor/bin/sail php scripts/ruled-endings/capture.php <ids.txt> <review-dir> --current --review-only
+ *
+ * --review-only exports immutable recorded-output identities and executed spans, without planning
+ * or modifying a run. These records identify the media to play; their stored hash must match the
+ * file used to build a listening clip. Raw section bounds are never substituted for an output.
  *
  * An id is either an endings-listening id (end-<run>-<sermon|section id>) or a ruling id from
  * tests/Fixtures/Rulings/edge-rulings.json (plan §4.6; built by scripts/rulings/gather.py), whose
@@ -31,6 +36,7 @@ declare(strict_types=1);
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
+use App\Services\ChurchService\CutReviewEvidence;
 use App\Services\ChurchService\SermonSongIntroductionCheck;
 use App\Services\Media\Audio\RmsAnalysisService;
 use App\Services\Media\Audio\ServiceArtifactStorage;
@@ -81,7 +87,7 @@ $cutFor = static function (MediaProcessingLog $log, string $which, string $edge 
         $plan = app(SermonExtractionPlanResolver::class)->resolve($log);
         $audits = $plan['metadata']['cue_edge_widening'] ?? [];
     } else {
-        $plan = app(CueSafeExtractionPlan::class)->forSection(ServiceSection::findOrFail((int) $which));
+        $plan = app(CueSafeExtractionPlan::class)->forSection($log->serviceSections()->findOrFail((int) $which));
         $audits = $plan['cue_edge_widening'];
     }
     $edges = array_values(array_filter($audits, static fn ($a) => ($a['edge'] ?? null) === $edge));
@@ -92,7 +98,7 @@ $cutFor = static function (MediaProcessingLog $log, string $which, string $edge 
         default => (float) end($plan['segments'])['end_time'],
     };
 
-    return ['cut' => $cut, 'reason' => $audit['reason'] ?? null];
+    return ['kind' => 'planned_cut', 'cut' => $cut, 'reason' => $audit['reason'] ?? null, 'segments' => $plan['segments']];
 };
 
 /**
@@ -126,6 +132,16 @@ $resolve = static function (string $id) use ($edgeRulings, $key, $joined): array
 
 foreach ($ids as $id) {
     [$ruling, $runId, $which, $edge, $ruledCut] = $resolve($id);
+    if (in_array('--review-only', $argv, true)) {
+        $log = MediaProcessingLog::findOrFail($runId);
+        $review = app(CutReviewEvidence::class)->recorded($log, $which === 'sermon' ? null : (int) $which);
+        $review['edge'] = $edge;
+        $review['recorded_edge'] = $edge === 'start' ? $review['segments'][0]['start_time'] : $review['segments'][array_key_last($review['segments'])]['end_time'];
+        $review['previously_heard'] = $ruling['heard'] ?? $ruledCut;
+        file_put_contents($outDir.'/'.str_replace(':', '-', $id).'.json', json_encode($review, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_PRESERVE_ZERO_FRACTION));
+
+        continue;
+    }
     DB::beginTransaction();
     try {
         $log = MediaProcessingLog::findOrFail($runId);

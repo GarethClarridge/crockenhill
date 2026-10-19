@@ -1133,9 +1133,53 @@ stopping at any Tier B question; then listen to the sermon at 3270 s.
 - The old §4090 `content_holds` entry is the released 09-25 one (`released_at` 10-18), not a new
   hold. No thumbnail, as for the other historic sermons (P2, pending its §4.5 step).
 
-**Before closing:** fix the closing-prayer walk and re-cut 1219, 1251, 1322 and 1328, then hear
+**Before closing:** apply the closing-prayer walk fix below through re-cuts of 1219, 1251, 1322 and 1328, then hear
 1322's sermon (3270 s and the end). The fixes, including the edge faults from listening, are taken
 separately (operator, 10-19). Any further processing needs the operator's go.
+
+**Listening fixes implemented on master, 10-19 (operator: implement, committing each stage).**
+These are code changes, not a processing round or listening acceptance; the frozen clone, queues,
+media and holds have not been changed.
+- `8caeeeabc`: preserve all 338 latest edge rulings (264 keep, 56 wrong, 18 unsure), with the
+  corrected section IDs and superseding re-listens. Capture 51 additional offline fixtures,
+  including 22 accepted controls and 29 explicitly open defects, alongside the original 36.
+- `e32b13e0d`: walk after the last sermon part in section order, retaining sections crossing its
+  end and ignoring sections wholly inside it. An overlapping song stops the closing-prayer walk;
+  a genuine concluding prayer before the song remains eligible. 1328 also exposes missing K16
+  edge evidence once the post-song prayer is removed; it must be decoded, not bypassed.
+- `d3727c361`: check the K16-selected output end, not just the detected section end. Agreed
+  sentence moves can complete or remove a whole thought; unresolved K16 disagreements remain
+  review-required. Exclude clear music from that question. Spoken ends without a detected next
+  section are checked too. Provider failures propagate for retry through the Flex fallback.
+- `2c9548a64`: 954's nine-second decoded “Our” hid its prayer opening behind an outro classifier
+  window. A smeared opening whose cue crosses into speech alone now bounds the song before the
+  prayer. Normally timed lyrics and mixed-only windows retain their protection. A separate
+  measurement matters: 954's other song was heard at raw section end 420.24 s, whereas its planned
+  output already ends at 421.89 s, after the decoded last sung word at 421.23 s. Do not shift the
+  latter based on the raw-edge preview.
+- `92e540398`: 1291's last lyric no longer supplies the reading's speech onset; the standard edge
+  step decodes the reading cue it now selects. Short ambiguous cues remain unchanged, preserving
+  the accepted 1203 control. Check actual spoken openings, including microphone checks, and
+  decode/check the opening exposed *after* a dead-feed move (957), keeping the introduction.
+  Media-processing version is **13**. The accepted J1/J2 fixtures still pass; missing new words
+  on 1291 are an explicit refusal until the standard pipeline gathers them.
+- Review evidence: `CutReviewEvidence` and `scripts/ruled-endings/capture.php --current
+  --review-only` export the **recorded** output's spans and media hash, with a section scoped to
+  its owning run. Missing recorded media or changed section bounds refuse export. A planned
+  replay is labelled separately; it is not proof of what the operator heard.
+
+Focused validation: prayer walk plus replay 196 tests; sentence checks and edge job 119; song
+boundaries plus replay 163; opening/word/song checks and edge job 183. The final sentence/replay
+check passes 107 tests, including the opening-only system-prompt exception for complete microphone
+checks. Static analysis is at zero errors and Pint passes. **Final unchanged-code parallel run:
+10,041 tests, 97,699 assertions, zero failures/errors, 163 existing PHPUnit notices and one skipped
+opt-in corpus replay** (`/tmp/cut-final-frozen-suite.log`). The candidate-regeneration test now
+asserts the configured media version rather than hard-coding 10; all 34 candidate-preparation
+tests pass. Both Python ruling-data tests pass. Tests with fake model
+answers prove the mechanism, not the judgement a fresh model call will make. No new model calls,
+re-cuts, hold releases or public releases were performed. Remaining before the next round: review
+the changed plans and newly requested evidence, obtain the operator's processing go, then listen
+to repaired media. The remaining open fixtures and unsure rulings are not silently accepted.
 
 ### 4.1 After the round
 
