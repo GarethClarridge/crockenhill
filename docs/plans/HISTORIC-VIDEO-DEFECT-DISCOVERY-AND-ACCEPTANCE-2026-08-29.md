@@ -1134,7 +1134,8 @@ stopping at any Tier B question; then listen to the sermon at 3270 s.
   hold. No thumbnail, as for the other historic sermons (P2, pending its §4.5 step).
 
 **Before closing:** fix the closing-prayer walk and re-cut 1219, 1251, 1322 and 1328, then hear
-1322's sermon (3270 s and the end). Any further processing needs the operator's go.
+1322's sermon (3270 s and the end). The fixes, including the edge faults from listening, are taken
+separately (operator, 10-19). Any further processing needs the operator's go.
 
 ### 4.1 After the round
 
