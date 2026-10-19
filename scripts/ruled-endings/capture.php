@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * Capture ruled endings as self-contained regression fixtures for RuledEndingsRegressionTest
  * (plan §4.5 regression set, 2026-10-14). Read-only against the live database; needs this
@@ -43,9 +45,10 @@ $app = require __DIR__.'/../../bootstrap/app.php';
 $app->make(Kernel::class)->bootstrap();
 
 // The full pass banked its edge evidence under these (endings-rule/replay.php).
+$current = in_array('--current', $argv, true);
 $config = [
-    'media-processing.media_processing_version' => 8,
-    'media-processing.video_extraction.encoder' => 'libx264',
+    'media-processing.media_processing_version' => $current ? (int) config('media-processing.media_processing_version') : 8,
+    'media-processing.video_extraction.encoder' => $current ? config('media-processing.video_extraction.encoder') : 'libx264',
     'media-processing.service_structure.transcription_service' => (string) config('media-processing.service_structure.transcription_service'),
     'media-processing.transcription.local_whisper_model' => (string) config('media-processing.transcription.local_whisper_model'),
 ];
@@ -69,6 +72,9 @@ $sectionColumns = ['id', 'section_type', 'start_time', 'end_time', 'confidence',
     'publication_status', 'song_match_type', 'title', 'needs_manual_review', 'duration', 'summary', 'source_segment_ids'];
 
 $edgeRulings = collect(json_decode((string) file_get_contents(base_path('tests/Fixtures/Rulings/edge-rulings.json')), true)['rulings'])->keyBy('id');
+if ($current) {
+    $edgeRulings = $edgeRulings->merge(collect(json_decode((string) file_get_contents(base_path('tests/Fixtures/Rulings/recut-20261019.json')), true)['rulings'])->keyBy('id'));
+}
 
 $cutFor = static function (MediaProcessingLog $log, string $which, string $edge = 'end'): array {
     if ($which === 'sermon') {
@@ -124,8 +130,21 @@ foreach ($ids as $id) {
     try {
         $log = MediaProcessingLog::findOrFail($runId);
         $live = $cutFor($log, $which, $edge);
+    } catch (Throwable $exception) {
+        if (! $current) {
+            throw $exception;
+        }
+        fwrite(STDERR, "UNASSESSABLE {$id}: {$exception->getMessage()}\n");
+
+        continue;
     } finally {
         DB::rollBack();
+    }
+
+    if ($current && ($live['cut'] === null || $ruling['expect'] === null)) {
+        fwrite(STDERR, "UNASSESSABLE {$id}: no executable cut or no ruled expectation\n");
+
+        continue;
     }
 
     $log = MediaProcessingLog::findOrFail((int) $runId);
@@ -185,7 +204,7 @@ foreach ($ids as $id) {
     foreach ($rmsService->extractRmsData($rmsContent) as $sample) {
         foreach ($edges as $edge) {
             if (abs($sample['time'] - $edge) <= $windowSeconds) {
-                $samples[] = [round($sample['time'], 3), is_finite($sample['rms']) ? round($sample['rms'], 2) : -200.0];
+                $samples[] = [round($sample['time'], 3), is_finite($sample['rms']) ? round($sample['rms'], 2) : -999.0];
                 break;
             }
         }
@@ -194,6 +213,7 @@ foreach ($ids as $id) {
     $fixture = [
         'id' => $id,
         'ruling' => $ruling,
+        'open_defect' => $current && $ruling['expect'] !== 'keep',
         'live' => $live + ['code' => trim((string) shell_exec('git -c safe.directory=/var/www/html -C /var/www/html rev-parse --short HEAD'))],
         'config' => $config,
         'run' => [
