@@ -1283,6 +1283,15 @@ rolled-back transactions, answers banked to a scratch disk):
   end; they refuse until a re-cut asks it, and their current cuts stand. 1340's end was ruled to
   clip a word (10-12). **Next:** re-cut 1251 on version 16 and hear it; 1328's start; a page for the
   next songs' starts.
+- **1251 re-cut on version 16 (operator's word; pushed and deployed as `82378974a`):** clone moved
+  (old line `round-20261020b-line`, hashes equal, workers restarted), binlogs 128–129 copied with
+  sums beside the 10-20 backup, snapshot `recut-1251-k16-20261020`, watcher moved onto it. Cut
+  21:12–21:22 BST, no failed jobs, diff 0 attention, artifacts backed up. K16 was asked for the first
+  time and ended the sermon at 4072.38 s, after "…as we possibly can." (`ties_to_sermon: false`),
+  51 s earlier: the 4073.7–4125 s introduction ("We're going to sing a hymn as we finish, which
+  reminds us that God moves in a mysterious way…", reading and reflecting on its lines) is left out.
+  **To hear:** [1251 sermon end](https://claude.ai/artifact/TeHhKwzd7VGUuDM2LboFeZ), the new end
+  and whether that introduction ties the hymn to the sermon.
 
 ### 4.1 After the round
 
