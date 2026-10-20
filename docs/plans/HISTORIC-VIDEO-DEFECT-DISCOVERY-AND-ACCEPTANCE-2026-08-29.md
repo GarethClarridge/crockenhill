@@ -1231,6 +1231,24 @@ rolled-back transactions, answers banked to a scratch disk):
   speech; the sermon and talk changes are those already measured (prayer walk; version re-asks).
 - **Still wrong, not addressed:** the both-wrong song ends above (three ending inside the next song,
   two cut short of the last word, four outros), and 1215 §2637.
+- **Their cause, measured 10-20 (read-only, `storage/scratch/listening-songs-20261020/`):** seven of
+  them are song-to-song changes (1267 §3348 and §3349, 1307 §4652, 941, 976, 1232, 1215 §2637). In
+  each the change of song is the deepest sound-level dip near the boundary, 6–35 s from where the
+  transcript put it. Five of the seven have a broken transcript at the change: a repetition loop
+  ("Rejoice" ×15, "Yes." ×9) or a 30 s invented cue. The detected boundary also starts the next
+  song, so a late boundary cuts its opening (1267 §3350 by about 35 s). Across all 88 song-to-song
+  pairs a plain "end at the dip" rule moves at least five ends ruled right by more than 5 s, so it is
+  not shippable. Gated on a broken transcript (29 pairs) it reaches five of the seven and no end ruled
+  right by more than 2 s (1262 §3284 −1.9 s), but moves unheard ends. **Listening page:**
+  [Song changes](https://claude.ai/artifact/P4j9D1qAVVsPYC425N5dXD), 24 blind A/B questions, current
+  end against dip end (`storage/scratch/listening-song-changes-20261020/`, key in `questions.json`).
+  No rule is built until it is heard. The other three (1212, 1222, 1309) are song-to-speech: a short
+  sung cue ("Oh Lord") or an early speech cue taken as the speech onset; not yet worked.
+- **Step 1, 10-20:** the clone is on `009c96169` (old line `round-20261020-line`, code hash equal to
+  main's, workers restarted). Snapshot `recut-prayer-20261020` (membership `a612fcc6…`), watcher
+  running. Dry runs plan 1219 (end 3870.0), 1251 (4125.0), 1322 (3875.5) and 1328 (1395.8–3475.0) as
+  gate 1 predicted. **1355 is refused:** its structure needs a review answer
+  (`sermon_composition_review`), so it is out of this re-cut. Nothing dispatched yet.
 
 ### 4.1 After the round
 
