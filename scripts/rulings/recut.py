@@ -26,7 +26,8 @@ def collect(scratch):
     for directory, length in [('listening-edges-20261018', 12),
                               ('listening-edges2-20261018', 6),
                               ('listening-last-20261019', 12),
-                              ('listening-recut-20261020', 12)]:
+                              ('listening-recut-20261020', 12),
+                              ('listening-1251-k16-20261020', 12)]:
         root = scratch / directory
         questions = {q['id']: q for q in read(root / 'questions.json')}
         for path in sorted((root / 'answers/rulings').glob('*.json')):

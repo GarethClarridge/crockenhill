@@ -3779,6 +3779,20 @@
       "note": ""
     },
     {
+      "id": "listening-1251-k16-20261020:1251-end",
+      "source": "listening-1251-k16-20261020",
+      "run": 1251,
+      "output": "sermon",
+      "section_id": null,
+      "section_type": null,
+      "title": "End: “Wisdom in the mystery of suffering” (2022-11-27, morning)",
+      "edge": "end",
+      "heard": 4072.38,
+      "answer": "right",
+      "expect": "keep",
+      "note": ""
+    },
+    {
       "id": "listening-recut-20261020:1251-end",
       "source": "listening-recut-20261020",
       "run": 1251,

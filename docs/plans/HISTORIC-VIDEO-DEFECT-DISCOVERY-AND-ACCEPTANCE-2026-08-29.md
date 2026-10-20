@@ -1290,8 +1290,13 @@ rolled-back transactions, answers banked to a scratch disk):
   time and ended the sermon at 4072.38 s, after "…as we possibly can." (`ties_to_sermon: false`),
   51 s earlier: the 4073.7–4125 s introduction ("We're going to sing a hymn as we finish, which
   reminds us that God moves in a mysterious way…", reading and reflecting on its lines) is left out.
-  **To hear:** [1251 sermon end](https://claude.ai/artifact/TeHhKwzd7VGUuDM2LboFeZ), the new end
-  and whether that introduction ties the hymn to the sermon.
+  **Heard 10-20:** the end is right. The introduction should ideally be in, "but it's not a
+  disaster to leave it. It's not worth breaking other things to fix this" (operator). 1251 stands
+  as cut; K16's judgement here is a known soft miss, not a defect to fix at others' expense.
+- **The lane's closing conditions are met:** the prayer-walk fix is applied through re-cuts of 1219,
+  1251, 1322 and 1328 and all four ends are heard right, and 1322's sermon is heard (54:30 clean, end
+  right). Carried forward, not closing conditions: 1328's start (late, the 10-18 defect), 1355's
+  structure answer, and the next songs' starts the song-change rule leaves alone.
 
 ### 4.1 After the round
 
