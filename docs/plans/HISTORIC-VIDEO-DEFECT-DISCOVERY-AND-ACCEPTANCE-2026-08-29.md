@@ -1,18 +1,13 @@
 # Historic Video Defect Discovery and Acceptance Plan
 
-> **Status — 2026-10-18 (evening).** The **re-cut round** (365 members, snapshot `recut-round-20261016g`)
-> processed between 10-16 and 10-18 06:28 BST: 285 runs cut and completed. On 10-18 the K16
-> doubled-word fix (`b9ebcaf55`) and the operator's answers re-cut 941, 1025, 1066, 1236, 1148 and
-> 1223, and the four parked runs (974, 1109, 1216, 1313) were retried and completed. Left at manual
-> review: the four structure-review runs (1287, 1288, 1327, 1366). It is **not closed**: the
-> held-sermon batch completed **55 of 61** on 10-18, and the other six were answered, fixed and
-> cut the same afternoon (end of §4.0). 60 of the 61 are clear of holds. **E20 is implemented and
-> 1322's dead-feed re-cut completed at 19:36 UTC on 10-18**; §4090 remains held pending listening
-> and an operator decision. The new video has no measured dead picture.
-> Clone at `e66d567d5`. Nothing is public. The §3 measurements
-> below date from 10-16.
-> The stale-clip clean-up (§4.1), song acceptance stage 2 and the release work (§4.5) follow the
-> close.
+> **Status — 2026-10-20 (night).** The lane's closing conditions are met: the closing-prayer walk fix
+> was re-cut through 1219, 1251, 1322 and 1328 and all four ends were heard right, and 1322's sermon
+> was heard clean (§4.0, 10-19/20). Master is at version 16 (`82378974a`, pushed and deployed): the
+> sentence-check widening withdrawn (v14), the smeared-prayer song rule removed and the lyric rule
+> narrowed (v15), the song-change dip for song ends and K16 seeing an overlapping song (v16). The
+> round stays up on that commit. **Next (§4.1, agreed 10-20): fix everything before wrapping up**:
+> measure (song acceptance stage 2, the next songs' starts), fix test-first, one final round,
+> listen, then close and resume weekly processing. Nothing is public.
 > Getting production complete is mapped in the
 > [programme plan §0.4](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md#04-getting-production-complete-the-map-2026-10-16);
 > weekly take-over (§4.2), lasting evaluation and custody (§4.6) and legacy transcripts (§4.7, decided 10-17) were
@@ -1065,7 +1060,7 @@ relabelled questions, heard with correct titles and the neighbouring section nam
   part of 'In Awe and Wonder'"). The rows support that: §1715 "In Awe and Wonder" is a 4 s stub
   (2694.7–2698.7 s), then an 11 s gap, then §1716 "Unidentified singing" (2710.0–2888.7 s) holds the
   singing. It looks like one song split into a titled stub and an untitled body. Neither is published.
-  1073 is already due for re-detection (D21, §4.1 item 7), so check this after that, not by hand.
+  1073 is already due for re-detection (D21, §4.1 items 2 and 4), so check this after that, not by hand.
 
 Page 3 with these replacements: **64 right, 33 wrong, 15 unsure** of 112.
 
@@ -1298,50 +1293,72 @@ rolled-back transactions, answers banked to a scratch disk):
   right). Carried forward, not closing conditions: 1328's start (late, the 10-18 defect), 1355's
   structure answer, and the next songs' starts the song-change rule leaves alone.
 
-### 4.1 After the round
+### 4.1 Finish every fix, then one final round, then close (agreed 10-20)
 
-1. **Close the round** (runbook §8). Back up the service artifacts.
-2. **Listening:**
-   - every edge the round moved ≥ 1 s, and the large dead-feed moves (1308, 1339, 1342, 1352);
-   - the starts moved by J1 and J2 on 10-12, never heard: 976-960, 1232, 1214, 1227-2799, 1291, 1203,
-     1040, 939 (J2) and 990, 1149, 1167 (J1);
-   - 1271's "sovereign" ending, 1345's "Technical difficulties", and 1036 and 1255;
-   - the held-sermon release page (Q8).
-3. **Stale song clips on non-song sections** (archived
-   [follow-up round §9.1](../archived-plans/FOLLOW-UP-ROUND-FROZEN-CLONE-2026-10-13.md#91-clean-up-pass-stale-song-clips-on-sections-that-are-not-songs-found-14-10),
-   recounted 10-16):
-   1. **Complete — cause fixed in `29126fb8a`.** The run-1002 insertion regression and
-      moved-span regression failed before the fix (§4.0 decision 7). Section sync clears stale
-      song paths and detaches/quarantines obsolete bindings, keeping the files. Reverified
-      10-17 with `vendor/bin/sail artisan test --compact tests/Integration/Services/ServiceSectionSyncServiceTest.php`:
-      **40 tests, 177 assertions passed**. No changes to the running round.
-   2. **Command exists; post-round cleanup outstanding.** Use
-      `historic-import:clear-stale-song-clips` in dry-run mode first to review how it un-points
-      paths and re-binds or retires each `SongVideo`, keeping its file; then apply the cleanup
-      after the round closes.
-   3. **Outstanding:** recount after cleanup;
-   4. **Outstanding:** re-run the watcher's diff.
+**Operator, 10-20: fix everything before wrapping up historic processing.** The round stays up
+(clone `82378974a`, version 16, workers on the round's DBs) until every known defect is fixed,
+so the fixes are re-cut together in **one final round**. It closes once, at the end. Weekly
+processing stays paused until then. Every change goes through tonight's gates: a failing test
+first, gate 1 over every composed run (`storage/scratch/edge-gate-20261019/`, excluding the
+round's member runs while they process), listening before a change is relied on, and nothing
+that moves an edge ruled right. "Ideally X, not a disaster" answers stay as cut (1251's hymn
+introduction, 10-20).
 
-   Open for the operator: listen to the clips that are the only copy of their song in a run before
-   they are retired?
-4. **Duplicate pairs**, if not applied before the round (§4.4).
-5. **Song acceptance stage 2** on the settled runs ([protocol](HISTORIC-SONG-ACCEPTANCE-MEASUREMENT-2026-10-11.md)
-   §3, M4).
-6. **Run-level items:**
-   - retire 879 (register X5);
-   - 1363: OoS item 18035 still links the prayer §215988, not the sermon §248827, and no admin action
-     re-links a section;
-   - 1015: preacher ("Visiting Speaker", while 879 names the operator);
-   - Scripture enrichment for 973, 1022 and 1171;
-   - nested publication work for 1127, 1352, 1220 and 1223;
-   - 1108 and 1223 (projection error), 945 (coverage), 1314 (holds without a section);
-   - the six structure-review runs (973, 1287, 1288, 1327, 1355, 1366).
-7. **Build the two detection fixes ruled on 10-14:** join split sermons (D21: 1073, 1268) and 954's
-   talk (D22). Then re-detect those runs.
-8. **Small code items:**
-   - readiness should treat a retired run like an excluded one (937);
-   - readiness should treat the thumbnail as pending its §4.5 step, if the operator agrees.
-9. **Unset the temp-file cleanup pause** after the historic repairs (register C6).
+1. **Measure first, so nothing turns up after the fixes:**
+   - **Song acceptance stage 2** on the settled runs ([protocol](HISTORIC-SONG-ACCEPTANCE-MEASUREMENT-2026-10-11.md)
+     §3, M4). It finds the defects not yet known, so it comes before the fix list is final.
+   - **The starts of songs that follow another song.** The 8 song ends version 16 moves to the dip
+     leave the next song starting at the old, late boundary (1267 §3350 loses about 35 s). Build a
+     blind A/B page for the 7 starts the rule would move (current start against the dip), from the
+     song-change page (`storage/scratch/listening-song-changes-20261020/`). 1262 §3284's start is
+     ruled right at 1531 s, and its current cut already starts at 1520.86 s: check which section
+     that ruling is about before relying on it. Extend `atSongChangeDip` to starts only if the page
+     rules the dip right.
+2. **Fix, test-first:**
+   - **1328's start** (late, "starts mid reading", ruled 10-18 and again 10-20).
+   - **1297 §3803's end:** should be near 28:26, before the next song's spoken introduction.
+   - **1378 §4617's end:** both endings heard sit at a spoken introduction, not the song's end.
+   - **The song-to-speech ends** ruled wrong both ways on 10-20 (§4.0, 10-19 review): 1212 §2910 (a
+     short sung cue, "Oh Lord", taken as the speech onset; misses the last verse), 1222 §2733 (the
+     held last word cut by an early speech cue), 1309 §3922 (slightly early).
+   - **The two detection fixes ruled on 10-14:** join split sermons (D21: 1073, 1268) and 954's
+     talk (D22).
+   - Whatever step 1 finds.
+   - **Small code items:** readiness should treat a retired run like an excluded one (937); readiness
+     should treat the thumbnail as pending its §4.5 step, if the operator agrees.
+3. **Operator answers, in parallel with 1 and 2:**
+   - the structure-review runs: **1355** (its 10-20 dry run cleared `sermon_composition_review_required`
+     on §4473 by recomputing; the run is still `failed / manual_review_required`), 973, 1287, 1288,
+     1327 and 1366;
+   - 1015's preacher ("Visiting Speaker", while 879 names the operator); retire 879 (register X5);
+   - whether to hear the stale song clips that are a run's only copy of a song before they are
+     retired (item 4).
+4. **The final round** on the finished code: a fresh snapshot, then the runbook procedure as on 10-20
+   (back-up, preflight, watcher, a dry run each, a canary, the rest, diff, custody, back-up):
+   - re-detect D21/D22's runs (1073, 1268, 954) and anything else whose structure changes;
+   - re-cut every run a fix changes: the version 16 song ends (1154, 1215, 1237, 1267, 1272, 1307),
+     with the next songs' starts if step 1 extends the rule; 1220, 1340 and 1347, which K16 now
+     reaches (a song overlaps each sermon's end; 1340's end was ruled to clip a word on 10-12); 1328,
+     1297, 1378, 1212, 1222, 1309; and whatever step 1 finds;
+   - the data items: 1363 (OoS item 18035 still links the prayer §215988, not the sermon §248827,
+     and no admin action re-links a section); Scripture enrichment for 973, 1022 and 1171; nested
+     publication work for 1127, 1352, 1220 and 1223; 1108 and 1223 (projection error), 945
+     (coverage), 1314 (holds without a section); duplicate pairs (§4.4), if any remain;
+   - **stale song clips on non-song sections** (archived
+     [follow-up round §9.1](../archived-plans/FOLLOW-UP-ROUND-FROZEN-CLONE-2026-10-13.md#91-clean-up-pass-stale-song-clips-on-sections-that-are-not-songs-found-14-10)):
+     the cause is fixed (`29126fb8a`, 40 tests reverified 10-17). Run
+     `historic-import:clear-stale-song-clips` as a dry run for the operator to review (it un-points
+     paths and re-binds or retires each `SongVideo`, keeping its file), apply it, recount, re-run the
+     watcher's diff.
+5. **Listen:** one page with every edge the final round moves by 1 s or more (cut plus 12 s), blind
+   A/B where a rule chose between two ends. Already heard and need not be repeated: the moved edges
+   of the 10-16 round (pages 1–3, 10-18), the J1/J2 starts, 1271's "sovereign" ending and 1345's gap
+   (10-19), the song ends (10-20), and the four prayer-walk re-cuts (10-20). Check the record for
+   1036, 1255 and the held-sermon release page (Q8) before asking again.
+6. **Close** (runbook §8): no round work queued, no pause flags, watcher stopped, failed jobs reviewed;
+   remove `crockenhill-round`, move main back to Redis 0/1 and restore its workers, point the ffmpeg
+   LaunchAgent back at main and reach it from a main worker; back up the service artifacts. Then
+   unset the temp-file cleanup pause (register C6) and resume weekly processing (§4.2).
 
 ### 4.2 Regular uploads are the lasting outcome
 
