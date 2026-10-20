@@ -130,6 +130,21 @@
       "ending": "current"
     },
     {
+      "id": "listening-song-changes-20261020:941-s751-end-dip",
+      "source": "listening-song-changes-20261020",
+      "run": 941,
+      "output": "section",
+      "section_id": 751,
+      "section_type": "song",
+      "title": "End of “How Deep The Father's Love For Us” (2025-02-09, morning)",
+      "edge": "end",
+      "heard": 1261.5,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "dip"
+    },
+    {
       "id": "listening-edges-20261018:941-end",
       "source": "listening-edges-20261018",
       "run": 941,
@@ -656,6 +671,21 @@
       "ending": "current"
     },
     {
+      "id": "listening-song-changes-20261020:976-s958-end-dip",
+      "source": "listening-song-changes-20261020",
+      "run": 976,
+      "output": "section",
+      "section_id": 958,
+      "section_type": "song",
+      "title": "End of “I Will Glory In My Redeemer” (2025-01-26, morning)",
+      "edge": "end",
+      "heard": 533.5,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "dip"
+    },
+    {
       "id": "listening-last-20261019:976-start",
       "source": "listening-last-20261019",
       "run": 976,
@@ -907,6 +937,36 @@
       "answer": "early",
       "expect": "outward",
       "note": ""
+    },
+    {
+      "id": "listening-song-changes-20261020:1007-s1258-end-current",
+      "source": "listening-song-changes-20261020",
+      "run": 1007,
+      "output": "section",
+      "section_id": 1258,
+      "section_type": "song",
+      "title": "End of “No One Is Good” (2026-04-12, morning)",
+      "edge": "end",
+      "heard": 2416.43,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
+    },
+    {
+      "id": "listening-song-changes-20261020:1007-s1258-end-dip",
+      "source": "listening-song-changes-20261020",
+      "run": 1007,
+      "output": "section",
+      "section_id": 1258,
+      "section_type": "song",
+      "title": "End of “No One Is Good” (2026-04-12, morning)",
+      "edge": "end",
+      "heard": 2417.5,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "dip"
     },
     {
       "id": "listening-edges-20261018:1007-end",
@@ -1316,6 +1376,21 @@
       "note": ""
     },
     {
+      "id": "listening-song-changes-20261020:1042-s1521-end-current",
+      "source": "listening-song-changes-20261020",
+      "run": 1042,
+      "output": "section",
+      "section_id": 1521,
+      "section_type": "song",
+      "title": "End of “Rejoicing In Hope We Wait For Our King” (2025-11-30, morning)",
+      "edge": "end",
+      "heard": 1481.3,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
+    },
+    {
       "id": "listening-edges2-20261018:1042-end",
       "source": "listening-edges2-20261018",
       "run": 1042,
@@ -1429,6 +1504,36 @@
       "answer": "right",
       "expect": "keep",
       "note": ""
+    },
+    {
+      "id": "listening-song-changes-20261020:1060-s1648-end-current",
+      "source": "listening-song-changes-20261020",
+      "run": 1060,
+      "output": "section",
+      "section_id": 1648,
+      "section_type": "song",
+      "title": "End of “Man Of Sorrows” (2025-09-21, morning)",
+      "edge": "end",
+      "heard": 2010.3,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
+    },
+    {
+      "id": "listening-song-changes-20261020:1060-s1648-end-dip",
+      "source": "listening-song-changes-20261020",
+      "run": 1060,
+      "output": "section",
+      "section_id": 1648,
+      "section_type": "song",
+      "title": "End of “Man Of Sorrows” (2025-09-21, morning)",
+      "edge": "end",
+      "heard": 2017.5,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "dip"
     },
     {
       "id": "listening-edges-20261018:1060-end",
@@ -2614,6 +2719,51 @@
       "note": ""
     },
     {
+      "id": "listening-song-changes-20261020:1154-s3753-end-dip",
+      "source": "listening-song-changes-20261020",
+      "run": 1154,
+      "output": "section",
+      "section_id": 3753,
+      "section_type": "song",
+      "title": "End of “Praise My Soul The King Of Heaven” (2024-06-30, morning)",
+      "edge": "end",
+      "heard": 1216.5,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "dip"
+    },
+    {
+      "id": "listening-song-changes-20261020:1154-s3754-end-current",
+      "source": "listening-song-changes-20261020",
+      "run": 1154,
+      "output": "section",
+      "section_id": 3754,
+      "section_type": "song",
+      "title": "End of “All People That On Earth Do Dwell” (2024-06-30, morning)",
+      "edge": "end",
+      "heard": 1401.64,
+      "answer": "right",
+      "expect": "keep",
+      "note": "There isn't really a good ending here - the song is cut off mid word in the original recording.",
+      "ending": "current"
+    },
+    {
+      "id": "listening-song-changes-20261020:1154-s3754-end-dip",
+      "source": "listening-song-changes-20261020",
+      "run": 1154,
+      "output": "section",
+      "section_id": 3754,
+      "section_type": "song",
+      "title": "End of “All People That On Earth Do Dwell” (2024-06-30, morning)",
+      "edge": "end",
+      "heard": 1407.5,
+      "answer": "right",
+      "expect": "keep",
+      "note": "There isn't really a good ending here - the song is cut off mid word in the original recording.",
+      "ending": "dip"
+    },
+    {
       "id": "listening-edges-20261018:1154-end",
       "source": "listening-edges-20261018",
       "run": 1154,
@@ -3060,6 +3210,21 @@
       "ending": "current"
     },
     {
+      "id": "listening-song-changes-20261020:1215-s2639-end-dip",
+      "source": "listening-song-changes-20261020",
+      "run": 1215,
+      "output": "section",
+      "section_id": 2639,
+      "section_type": "song",
+      "title": "End of “Praise To The Lord The Almighty” (2023-08-13, morning)",
+      "edge": "end",
+      "heard": 1571.5,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "dip"
+    },
+    {
       "id": "listening-songs-20261020:1216-s2655-end-current",
       "source": "listening-songs-20261020",
       "run": 1216,
@@ -3103,6 +3268,20 @@
       "note": ""
     },
     {
+      "id": "listening-recut-20261020:1219-end",
+      "source": "listening-recut-20261020",
+      "run": 1219,
+      "output": "sermon",
+      "section_id": null,
+      "section_type": null,
+      "title": "End: “Jesus is the way, the truth and the life” (2023-07-16, morning)",
+      "edge": "end",
+      "heard": 3870.9,
+      "answer": "right",
+      "expect": "keep",
+      "note": ""
+    },
+    {
       "id": "listening-edges-20261018:1221-end",
       "source": "listening-edges-20261018",
       "run": 1221,
@@ -3115,6 +3294,21 @@
       "answer": "right",
       "expect": "keep",
       "note": ""
+    },
+    {
+      "id": "listening-song-changes-20261020:1222-s2733-end-current",
+      "source": "listening-song-changes-20261020",
+      "run": 1222,
+      "output": "section",
+      "section_id": 2733,
+      "section_type": "song",
+      "title": "End of “God And God Alone” (2023-06-25, morning)",
+      "edge": "end",
+      "heard": 342.7,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
     },
     {
       "id": "listening-songs-20261020:1222-s2733-end-current",
@@ -3198,6 +3392,21 @@
       "page_section_id": 2769,
       "corrected_id": "1224-s2769-end",
       "relistened": false
+    },
+    {
+      "id": "listening-song-changes-20261020:1226-s2782-end-current",
+      "source": "listening-song-changes-20261020",
+      "run": 1226,
+      "output": "section",
+      "section_id": 2782,
+      "section_type": "song",
+      "title": "End of “God Of Glory” (2023-05-28, morning)",
+      "edge": "end",
+      "heard": 511.62,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
     },
     {
       "id": "listening-edges-20261018:1226-end",
@@ -3383,6 +3592,21 @@
       "note": ""
     },
     {
+      "id": "listening-song-changes-20261020:1237-s2948-end-dip",
+      "source": "listening-song-changes-20261020",
+      "run": 1237,
+      "output": "section",
+      "section_id": 2948,
+      "section_type": "song",
+      "title": "End of “Jesus Christ I Think Upon Your Sacrifice” (2023-03-12, morning)",
+      "edge": "end",
+      "heard": 1473.5,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "dip"
+    },
+    {
       "id": "listening-edges-20261018:1237-end",
       "source": "listening-edges-20261018",
       "run": 1237,
@@ -3553,6 +3777,20 @@
       "answer": "right",
       "expect": "keep",
       "note": ""
+    },
+    {
+      "id": "listening-recut-20261020:1251-end",
+      "source": "listening-recut-20261020",
+      "run": 1251,
+      "output": "sermon",
+      "section_id": null,
+      "section_type": null,
+      "title": "End: “Wisdom in the mystery of suffering” (2022-11-27, morning)",
+      "edge": "end",
+      "heard": 4123.83,
+      "answer": "early",
+      "expect": "outward",
+      "note": "Last word is clipped"
     },
     {
       "id": "listening-edges2-20261018:1252-end",
@@ -3754,6 +3992,36 @@
       "relistened": true
     },
     {
+      "id": "listening-song-changes-20261020:1262-s3282-end-current",
+      "source": "listening-song-changes-20261020",
+      "run": 1262,
+      "output": "section",
+      "section_id": 3282,
+      "section_type": "song",
+      "title": "End of “Praise My Soul The King Of Heaven” (2022-09-11, morning)",
+      "edge": "end",
+      "heard": 1255.76,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
+    },
+    {
+      "id": "listening-song-changes-20261020:1262-s3282-end-dip",
+      "source": "listening-song-changes-20261020",
+      "run": 1262,
+      "output": "section",
+      "section_id": 3282,
+      "section_type": "song",
+      "title": "End of “Praise My Soul The King Of Heaven” (2022-09-11, morning)",
+      "edge": "end",
+      "heard": 1263.5,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "dip"
+    },
+    {
       "id": "listening-edges3-20261018:1262-s3284-end",
       "source": "listening-edges3-20261018",
       "run": 1262,
@@ -3786,6 +4054,36 @@
       "ending": "new"
     },
     {
+      "id": "listening-song-changes-20261020:1262-s3283-end-dip",
+      "source": "listening-song-changes-20261020",
+      "run": 1262,
+      "output": "section",
+      "section_id": 3283,
+      "section_type": "song",
+      "title": "End of “All People That On Earth Do Dwell” (2022-09-11, morning)",
+      "edge": "end",
+      "heard": 1519.5,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "dip"
+    },
+    {
+      "id": "listening-song-changes-20261020:1262-s3283-end-current",
+      "source": "listening-song-changes-20261020",
+      "run": 1262,
+      "output": "section",
+      "section_id": 3283,
+      "section_type": "song",
+      "title": "End of “All People That On Earth Do Dwell” (2022-09-11, morning)",
+      "edge": "end",
+      "heard": 1520.76,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
+    },
+    {
       "id": "listening-songs-20261020:1262-s3283-end-current",
       "source": "listening-songs-20261020",
       "run": 1262,
@@ -3816,6 +4114,36 @@
       "page_section_id": 3286,
       "corrected_id": "1262-s3284-start",
       "relistened": true
+    },
+    {
+      "id": "listening-song-changes-20261020:1262-s3284-end-dip",
+      "source": "listening-song-changes-20261020",
+      "run": 1262,
+      "output": "section",
+      "section_id": 3284,
+      "section_type": "song",
+      "title": "End of “Praise To The Lord The Almighty” (2022-09-11, morning)",
+      "edge": "end",
+      "heard": 1696.5,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "dip"
+    },
+    {
+      "id": "listening-song-changes-20261020:1262-s3284-end-current",
+      "source": "listening-song-changes-20261020",
+      "run": 1262,
+      "output": "section",
+      "section_id": 3284,
+      "section_type": "song",
+      "title": "End of “Praise To The Lord The Almighty” (2022-09-11, morning)",
+      "edge": "end",
+      "heard": 1698.4,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
     },
     {
       "id": "listening-songs-20261020:1262-s3284-end-current",
@@ -3992,6 +4320,66 @@
       "note": ""
     },
     {
+      "id": "listening-song-changes-20261020:1267-s3346-end-current",
+      "source": "listening-song-changes-20261020",
+      "run": 1267,
+      "output": "section",
+      "section_id": 3346,
+      "section_type": "song",
+      "title": "End of “All People That On Earth Do Dwell” (2022-08-07, morning)",
+      "edge": "end",
+      "heard": 958.42,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
+    },
+    {
+      "id": "listening-song-changes-20261020:1267-s3346-end-dip",
+      "source": "listening-song-changes-20261020",
+      "run": 1267,
+      "output": "section",
+      "section_id": 3346,
+      "section_type": "song",
+      "title": "End of “All People That On Earth Do Dwell” (2022-08-07, morning)",
+      "edge": "end",
+      "heard": 966.5,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "dip"
+    },
+    {
+      "id": "listening-song-changes-20261020:1267-s3347-end-dip",
+      "source": "listening-song-changes-20261020",
+      "run": 1267,
+      "output": "section",
+      "section_id": 3347,
+      "section_type": "song",
+      "title": "End of “Praise To The Lord The Almighty” (2022-08-07, morning)",
+      "edge": "end",
+      "heard": 1142.5,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "dip"
+    },
+    {
+      "id": "listening-song-changes-20261020:1267-s3348-end-dip",
+      "source": "listening-song-changes-20261020",
+      "run": 1267,
+      "output": "section",
+      "section_id": 3348,
+      "section_type": "song",
+      "title": "End of “Rejoice The Lord Is King” (2022-08-07, morning)",
+      "edge": "end",
+      "heard": 1340.5,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "dip"
+    },
+    {
       "id": "listening-songs-20261020:1267-s3348-end-current",
       "source": "listening-songs-20261020",
       "run": 1267,
@@ -4007,6 +4395,21 @@
       "ending": "current"
     },
     {
+      "id": "listening-song-changes-20261020:1267-s3349-end-dip",
+      "source": "listening-song-changes-20261020",
+      "run": 1267,
+      "output": "section",
+      "section_id": 3349,
+      "section_type": "song",
+      "title": "End of “What A Friend We Have In Jesus” (2022-08-07, morning)",
+      "edge": "end",
+      "heard": 1526.5,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "dip"
+    },
+    {
       "id": "listening-songs-20261020:1267-s3349-end-current",
       "source": "listening-songs-20261020",
       "run": 1267,
@@ -4020,6 +4423,36 @@
       "expect": null,
       "note": "These are both in the middle of the next song",
       "ending": "current"
+    },
+    {
+      "id": "listening-song-changes-20261020:1267-s3350-end-current",
+      "source": "listening-song-changes-20261020",
+      "run": 1267,
+      "output": "section",
+      "section_id": 3350,
+      "section_type": "song",
+      "title": "End of “I Heard The Voice Of Jesus Say” (2022-08-07, morning)",
+      "edge": "end",
+      "heard": 1727.17,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
+    },
+    {
+      "id": "listening-song-changes-20261020:1267-s3350-end-dip",
+      "source": "listening-song-changes-20261020",
+      "run": 1267,
+      "output": "section",
+      "section_id": 3350,
+      "section_type": "song",
+      "title": "End of “I Heard The Voice Of Jesus Say” (2022-08-07, morning)",
+      "edge": "end",
+      "heard": 1729.5,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "dip"
     },
     {
       "id": "listening-edges-20261018:1267-end",
@@ -4265,6 +4698,21 @@
       "note": ""
     },
     {
+      "id": "listening-song-changes-20261020:1272-s3403-end-dip",
+      "source": "listening-song-changes-20261020",
+      "run": 1272,
+      "output": "section",
+      "section_id": 3403,
+      "section_type": "song",
+      "title": "End of “Father God I Wonder” (2022-06-19, morning)",
+      "edge": "end",
+      "heard": 885.5,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "dip"
+    },
+    {
       "id": "listening-edges-20261018:1272-end",
       "source": "listening-edges-20261018",
       "run": 1272,
@@ -4478,6 +4926,36 @@
       "note": ""
     },
     {
+      "id": "listening-song-changes-20261020:1291-s3639-end-current",
+      "source": "listening-song-changes-20261020",
+      "run": 1291,
+      "output": "section",
+      "section_id": 3639,
+      "section_type": "song",
+      "title": "End of “We Are Here To Praise You” (2022-01-09, morning)",
+      "edge": "end",
+      "heard": 402.1,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
+    },
+    {
+      "id": "listening-song-changes-20261020:1291-s3639-end-dip",
+      "source": "listening-song-changes-20261020",
+      "run": 1291,
+      "output": "section",
+      "section_id": 3639,
+      "section_type": "song",
+      "title": "End of “We Are Here To Praise You” (2022-01-09, morning)",
+      "edge": "end",
+      "heard": 403.5,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "dip"
+    },
+    {
       "id": "listening-last-20261019:1291-start",
       "source": "listening-last-20261019",
       "run": 1291,
@@ -4606,6 +5084,21 @@
       "note": ""
     },
     {
+      "id": "listening-song-changes-20261020:1297-s3803-end-current",
+      "source": "listening-song-changes-20261020",
+      "run": 1297,
+      "output": "section",
+      "section_id": 3803,
+      "section_type": "song",
+      "title": "End of “O great God of highest heaven” (2021-11-28, morning)",
+      "edge": "end",
+      "heard": 1712.95,
+      "answer": "neither",
+      "expect": null,
+      "note": "Should be about 28:26. After this is the introduction to the next song.",
+      "ending": "current"
+    },
+    {
       "id": "listening-edges-20261018:1301-end",
       "source": "listening-edges-20261018",
       "run": 1301,
@@ -4688,6 +5181,21 @@
       "answer": "right",
       "expect": "keep",
       "note": ""
+    },
+    {
+      "id": "listening-song-changes-20261020:1307-s4652-end-dip",
+      "source": "listening-song-changes-20261020",
+      "run": 1307,
+      "output": "section",
+      "section_id": 4652,
+      "section_type": "song",
+      "title": "End of “My Jesus My Saviour” (2021-09-19, morning)",
+      "edge": "end",
+      "heard": 228.5,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "dip"
     },
     {
       "id": "listening-songs-20261020:1307-s4652-end-current",
@@ -5158,6 +5666,20 @@
       "note": ""
     },
     {
+      "id": "listening-recut-20261020:1322-end",
+      "source": "listening-recut-20261020",
+      "run": 1322,
+      "output": "sermon",
+      "section_id": null,
+      "section_type": null,
+      "title": "End: “Submitting to God's will” (2021-05-23, morning)",
+      "edge": "end",
+      "heard": 3876.5,
+      "answer": "right",
+      "expect": "keep",
+      "note": ""
+    },
+    {
       "id": "listening-edges-20261018:1323-end",
       "source": "listening-edges-20261018",
       "run": 1323,
@@ -5256,6 +5778,34 @@
       "answer": "late",
       "expect": "outward",
       "note": "This seems to start mid reading"
+    },
+    {
+      "id": "listening-recut-20261020:1328-start",
+      "source": "listening-recut-20261020",
+      "run": 1328,
+      "output": "sermon",
+      "section_id": null,
+      "section_type": null,
+      "title": "Start: “God transforms his people” (2021-04-11, morning)",
+      "edge": "start",
+      "heard": 1407.14,
+      "answer": "late",
+      "expect": "outward",
+      "note": "Feels like it starts mid reading"
+    },
+    {
+      "id": "listening-recut-20261020:1328-end",
+      "source": "listening-recut-20261020",
+      "run": 1328,
+      "output": "sermon",
+      "section_id": null,
+      "section_type": null,
+      "title": "End: “God transforms his people” (2021-04-11, morning)",
+      "edge": "end",
+      "heard": 3451.52,
+      "answer": "right",
+      "expect": "keep",
+      "note": ""
     },
     {
       "id": "listening-edges-20261018:1329-end",
@@ -5666,6 +6216,21 @@
       "answer": "right",
       "expect": "keep",
       "note": ""
+    },
+    {
+      "id": "listening-song-changes-20261020:1378-s4617-end-current",
+      "source": "listening-song-changes-20261020",
+      "run": 1378,
+      "output": "section",
+      "section_id": 4617,
+      "section_type": "song",
+      "title": "End of “What Love Could Remember” (2026-06-14, morning)",
+      "edge": "end",
+      "heard": 4184.66,
+      "answer": "neither",
+      "expect": null,
+      "note": "These are fine endings for the spoken introduction to both songs, but they're not the ending of the song itself.",
+      "ending": "current"
     },
     {
       "id": "listening-edges2-20261018:1379-end",

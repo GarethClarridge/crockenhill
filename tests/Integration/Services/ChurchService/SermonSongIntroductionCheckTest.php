@@ -175,6 +175,18 @@ class SermonSongIntroductionCheckTest extends TestCase
         OpenAI::assertNothingSent();
     }
 
+    /**
+     * 1251 (heard 10-20): the song starts 0.11 s before the sermon's detected end, so it was never
+     * the sermon's neighbour and the end split "Let's stand and sing, shall we".
+     */
+    #[Test]
+    public function a_song_overlapping_the_sermons_end_is_its_neighbour(): void
+    {
+        $log = $this->service(sections: [['sermon', 0.0, 3024.83], ['song', 3024.72, 3300.0]]);
+
+        $this->assertSame(3024.72, app(SermonSongIntroductionCheck::class)->songStart($log, $this->spans()));
+    }
+
     #[Test]
     public function a_song_out_of_reach_is_not_the_sermons_neighbour(): void
     {

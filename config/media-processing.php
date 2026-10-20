@@ -289,7 +289,9 @@ return [
     //    a smeared prayer opening bounds a song end; a lyric past a song's edge is not a speech onset.
     // 14: 11–13 less the sentence-check widening, which only an exposed dead-feed opening keeps (957).
     // 15: 14 less the smeared-prayer song-end bound, which cut 12 of the 20 song ends it moved (10-20).
-    'media_processing_version' => 15,
+    // 16: a song running into another ends at the quietest second when a broken transcript hid it, and
+    //     K16 sees a song that overlaps the sermon's end (10-20).
+    'media_processing_version' => 16,
 
     'video_extraction' => [
         'reencode_crf' => (int) env('VIDEO_EXTRACTION_REENCODE_CRF', 23),

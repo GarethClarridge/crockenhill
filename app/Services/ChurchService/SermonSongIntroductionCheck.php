@@ -161,11 +161,14 @@ TXT;
             return null;
         }
 
+        $start = (float) $sermonSpans[array_key_last($sermonSpans)]['start_time'];
         $end = (float) $sermonSpans[array_key_last($sermonSpans)]['end_time'];
         $handlers = app(SectionPublicationHandlerFactory::class);
 
         foreach ($log->serviceSections()->orderBy('start_time')->orderBy('id')->get() as $section) {
-            if ((float) $section->start_time < $end - 0.05) {
+            // What comes after the sermon, including a section that overlaps its end: 1251's song
+            // starts 0.11 s before the detected end (as e32b13e0d found for the prayer walk).
+            if ((float) $section->end_time <= $end + 0.05 || (float) $section->start_time <= $start) {
                 continue;
             }
 

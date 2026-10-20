@@ -184,6 +184,32 @@ class CueSafeExtractionPlan
     private const SONG_SILENCE_MAXIMUM_SAMPLE_GAP = 0.1;
 
     /**
+     * A change of song hidden by a broken transcript ({@see self::atSongChangeDip()}): the
+     * transcript is read this far either side of the change, and one cue this long, or the same
+     * line three times running, is not what was sung (1267's 30 s "Cumbered with the Lord of
+     * care" cues; 1307's nine "Yes.").
+     */
+    private const SONG_CHANGE_TRANSCRIPT_REACH = 30.0;
+
+    private const SONG_CHANGE_STRETCHED_CUE = 20.0;
+
+    /** Where the quietest second is sought: before and after the detected change, and never this near either song's other edge. */
+    private const SONG_CHANGE_SEARCH_BEFORE = 45.0;
+
+    private const SONG_CHANGE_SEARCH_AFTER = 15.0;
+
+    private const SONG_CHANGE_SONG_MINIMUM = 30.0;
+
+    /**
+     * Heard blind 10-20: of 24 such changes, the quietest second was right in all 8 where it lay
+     * more than this before the cut, and a matter of taste or wrong where it lay after.
+     */
+    private const SONG_CHANGE_MOVE = 5.0;
+
+    /** How far the quietest second falls below the median of the 30 s before it: 19.7 dB at least in those 8. */
+    private const SONG_CHANGE_DEPTH = 15.0;
+
+    /**
      * A section's own output: the section, or a talk with the reading it is answered to go with
      * ({@see TalkReadingPairing}), one span per section. The reading takes the pause before the
      * talk, so the two meet and play straight through, as a sermon's silent joins do. A talk's
@@ -360,7 +386,9 @@ class CueSafeExtractionPlan
             $spans = $this->afterSongSound($log, $cues, $sectionSpans, $spans, $audit);
         }
         $spans = $this->outOfDeadFeed($log, $sectionSpans, $spans, $audit, songStartsOnly: $songEnds, levels: $levels);
-        if (! $songEnds) {
+        if ($songEnds) {
+            $spans = $this->atSongChangeDip($log, $cues, $sectionSpans, $spans, $audit, $levels);
+        } else {
             $spans = $this->withDeadFeedOpeningCheck($log, $cues, $spans, $audit);
         }
         $audit = $this->withAnswerIdentity($log, $sectionSpans, $songEnds, $sermonEnd, $cues, $levels, $timeline, $audit);
@@ -591,6 +619,112 @@ class CueSafeExtractionPlan
         }
 
         return $spans;
+    }
+
+    /**
+     * A song that runs straight into another, where the transcript breaks down across the change,
+     * ends at the quietest second near it when that lies well before its cut. The transcript placed
+     * the change, so it cannot be trusted to have placed it right (1267 §3349 ran 35 s into the next
+     * song). Heard for ends only: the next song's start keeps its rules until its starts are heard.
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  list<array{start_time: float, end_time: float}>  $sectionSpans
+     * @param  list<array{start_time: float, end_time: float}>  $spans
+     * @param  list<array<string, mixed>>  $audit
+     * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}|null  $levels
+     * @return list<array{start_time: float, end_time: float}>
+     */
+    private function atSongChangeDip(MediaProcessingLog $log, array $cues, array $sectionSpans, array $spans, array &$audit, ?array $levels): array
+    {
+        if ($levels === null || $spans === []) {
+            return $spans;
+        }
+        $last = array_key_last($spans);
+        $end = (float) $sectionSpans[$last]['end_time'];
+        $after = $log->serviceSections()->where('start_time', '>=', $end - self::CUE_BOUNDARY_TOLERANCE)->orderBy('start_time')->orderBy('id')->first();
+        if ($after?->section_type !== ServiceSectionType::Song || (float) $after->start_time - $end > self::SONG_END_REACH || ! $this->transcriptBreaksDown($cues, $end)) {
+            return $spans;
+        }
+        $span = $spans[$last];
+        $placed = (float) $span['end_time'];
+        $dip = $this->quietestSecond($levels, max($end - self::SONG_CHANGE_SEARCH_BEFORE, (float) $sectionSpans[array_key_first($spans)]['start_time'] + self::SONG_CHANGE_SONG_MINIMUM),
+            min($end + self::SONG_CHANGE_SEARCH_AFTER, (float) $after->end_time - self::SONG_CHANGE_SONG_MINIMUM));
+        if ($dip === null || $dip['time'] >= $placed - self::SONG_CHANGE_MOVE || $dip['depth'] < self::SONG_CHANGE_DEPTH || $dip['time'] <= (float) $span['start_time']) {
+            return $spans;
+        }
+
+        $spans[$last] = ['start_time' => $span['start_time'], 'end_time' => $dip['time']];
+        $entry = array_key_first(array_filter($audit, static fn (array $entry): bool => $entry['span_index'] === $last && $entry['edge'] === 'end'));
+        $original = $entry === null ? $end : (float) $audit[$entry]['original_time'];
+        $moved = ['time' => $dip['time'], 'seconds_moved' => $dip['time'] - $original, 'seconds_added' => abs($dip['time'] - $original),
+            'reason' => 'song_change_dip', 'fade_out' => null, 'song_change_dip' => ['placed_time' => $placed, ...$dip]];
+        if ($entry === null) {
+            $audit[] = ['span_index' => $last, 'edge' => 'end', 'original_time' => $original, 'window' => null, 'cue' => null, 'cues' => [],
+                'chosen_pause' => null, 'word_before' => null, 'word_after' => null, 'text_disagreement' => false, ...$moved];
+        } else {
+            $audit[$entry] = [...$audit[$entry], ...$moved];
+        }
+
+        return $spans;
+    }
+
+    /**
+     * Whether the transcript fails to say what was sung across a change of song: a cue of
+     * {@see self::SONG_CHANGE_STRETCHED_CUE} seconds or more, or the same words three cues running.
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     */
+    private function transcriptBreaksDown(array $cues, float $change): bool
+    {
+        $near = array_values(array_filter($cues, static fn (array $cue): bool => $cue['end'] > $change - self::SONG_CHANGE_TRANSCRIPT_REACH
+            && $cue['start'] < $change + self::SONG_CHANGE_TRANSCRIPT_REACH));
+        usort($near, static fn (array $a, array $b): int => $a['start'] <=> $b['start']);
+        $words = static fn (array $cue): string => trim((string) preg_replace('/[^a-z ]+/', '', strtolower($cue['text'])));
+
+        foreach ($near as $index => $cue) {
+            if ($cue['end'] - $cue['start'] >= self::SONG_CHANGE_STRETCHED_CUE) {
+                return true;
+            }
+            if ($index >= 2 && $words($cue) !== '' && $words($cue) === $words($near[$index - 1]) && $words($cue) === $words($near[$index - 2])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * The quietest whole second between two times, by the loudest frame in it, and how far it falls
+     * below the median of the 30 s before it. Seconds with no finite frame are not candidates.
+     *
+     * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}  $levels
+     * @return array{time: float, level: float, depth: float}|null
+     */
+    private function quietestSecond(array $levels, float $from, float $until): ?array
+    {
+        $loudest = [];
+        foreach ($levels['samples'] as $sample) {
+            if (is_finite($sample['rms']) && $sample['time'] >= floor($from) - 30 && $sample['time'] < $until + 1) {
+                $second = (int) floor($sample['time']);
+                $loudest[$second] = max($loudest[$second] ?? -INF, $sample['rms']);
+            }
+        }
+        $quietest = null;
+        for ($second = (int) floor($from); $second <= (int) floor($until); $second++) {
+            if (isset($loudest[$second]) && ($quietest === null || $loudest[$second] < $loudest[$quietest])) {
+                $quietest = $second;
+            }
+        }
+        if ($quietest === null) {
+            return null;
+        }
+        $before = array_values(array_filter(array_map(static fn (int $second): ?float => $loudest[$second] ?? null, range($quietest - 30, $quietest - 1)), is_float(...)));
+        if ($before === []) {
+            return null;
+        }
+        sort($before);
+
+        return ['time' => $quietest + 0.5, 'level' => $loudest[$quietest], 'depth' => $before[intdiv(count($before), 2)] - $loudest[$quietest]];
     }
 
     /**

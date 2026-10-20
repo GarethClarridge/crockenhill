@@ -1248,7 +1248,41 @@ rolled-back transactions, answers banked to a scratch disk):
   main's, workers restarted). Snapshot `recut-prayer-20261020` (membership `a612fcc6…`), watcher
   running. Dry runs plan 1219 (end 3870.0), 1251 (4125.0), 1322 (3875.5) and 1328 (1395.8–3475.0) as
   gate 1 predicted. **1355 is refused:** its structure needs a review answer
-  (`sermon_composition_review`), so it is out of this re-cut. Nothing dispatched yet.
+  (`sermon_composition_review`), so it is out of this re-cut.
+  - **1355's dry run wrote to it (18:05:44 UTC):** `sermons:re-extract --dry-run` resolved its
+    composition, which recomputed it and cleared `sermon_composition_review_required` on §4473 (the
+    runbook's resolve-writes-back trap). The run stays `failed / manual_review_required`.
+  - **Dispatched (operator's word):** 1322 as canary 19:15–19:24 BST, then 1219, 1251 and 1328
+    together to 19:55. No failed jobs; the watcher never stopped. Cuts: 1219 2024.26–3870.90,
+    1251 four spans to 4123.83, 1322 three spans to 3876.50 (E20's excision kept, the prayer span
+    gone), 1328 1407.14–1685.64 + 1900.14–3451.52 (its end freshly decoded; gate 1 could not plan it).
+    All on `historic_quarantine`.
+  - **Diff:** 5 of 5 changed, 1 attention: 1251 §3148 left review. Its only repetition block,
+    4125.6–4275.6 s, now lies after the cut (4123.83 s), so `FlagSuspectTranscriptRepetition`
+    withdrew `transcript_repetition_suspect` as designed. Artifacts backed up to Sonnics.
+  - **Listening:** [Re-cut sermon ends](https://claude.ai/artifact/VvEfnsnetYsCWuBwQmkL6f):
+    the four ends, 1328's start (ruled clipped on 10-18, untouched) and 1322 at 54:24–54:49.
+  - **Heard 10-20:** 1219, 1322 and 1328 ends right; 1322 at 54:30 clean (so 1322 is heard as the
+    lane asked). **1251's end is early ("Last word is clipped")**: the cut, 4123.83 s, splits the
+    song's introduction "Let's stand and sing, | shall we, this one through together". K16 never
+    saw the song, which starts 0.11 s before the sermon's detected end (4124.89 against 4125.0):
+    `SermonSongIntroductionCheck::song()` skipped every section starting before the end. Fixed in
+    version 16 as `e32b13e0d` fixed the prayer walk. **1328's start is late** ("starts mid
+    reading"), the 10-18 defect this fix never touched.
+- **Song-change rule (version 16, built 10-20 after the page was heard):** of 24, the dip was right
+  in all 8 where it lay more than 5 s before the cut (none worse); later dips were 2 better, 4 tie,
+  3 worse, so they are not used. `atSongChangeDip` moves a song's end to the quietest second when it
+  runs into another song, the transcript breaks down there, and the dip is more than 5 s earlier
+  and at least 15 dB below the 30 s before it. The next song's start keeps its rules: of the 7
+  starts it would move, none was heard, and 1262 §3284's ruled start already differs. Fixtures
+  1267 §3349, 1307 §4652 and 1215 §2639 fail without it; 1042 §1521 and 1222 §2733 (current ruled
+  right) are controls. Notes for later: 1297 §3803 should end near 28:26 (before the next song's
+  spoken introduction); 1378 §4617's endings both sit at a spoken introduction, not the song's end.
+- **Gate 1 on version 16 (435 runs, the round's five excluded):** the 8 song ends ruled to the dip
+  move, nothing else does. K16 now reaches 1220, 1340 and 1347, whose songs overlap the sermon's
+  end; they refuse until a re-cut asks it, and their current cuts stand. 1340's end was ruled to
+  clip a word (10-12). **Next:** re-cut 1251 on version 16 and hear it; 1328's start; a page for the
+  next songs' starts.
 
 ### 4.1 After the round
 
