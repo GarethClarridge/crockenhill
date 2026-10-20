@@ -15,6 +15,36 @@
       "note": ""
     },
     {
+      "id": "listening-songs-20261020:929-s524-end-new",
+      "source": "listening-songs-20261020",
+      "run": 929,
+      "output": "section",
+      "section_id": 524,
+      "section_type": "song",
+      "title": "End of “Faithful One” (2025-02-02, morning)",
+      "edge": "end",
+      "heard": 1190,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "new"
+    },
+    {
+      "id": "listening-songs-20261020:929-s524-end-current",
+      "source": "listening-songs-20261020",
+      "run": 929,
+      "output": "section",
+      "section_id": 524,
+      "section_type": "song",
+      "title": "End of “Faithful One” (2025-02-02, morning)",
+      "edge": "end",
+      "heard": 1190.55,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
+    },
+    {
       "id": "listening-edges-20261018:933-end",
       "source": "listening-edges-20261018",
       "run": 933,
@@ -83,6 +113,21 @@
       "answer": "right",
       "expect": "keep",
       "note": ""
+    },
+    {
+      "id": "listening-songs-20261020:941-s751-end-current",
+      "source": "listening-songs-20261020",
+      "run": 941,
+      "output": "section",
+      "section_id": 751,
+      "section_type": "song",
+      "title": "End of “How Deep The Father's Love For Us” (2025-02-09, morning)",
+      "edge": "end",
+      "heard": 1247.82,
+      "answer": "neither",
+      "expect": null,
+      "note": "1 is better, but they're both too short",
+      "ending": "current"
     },
     {
       "id": "listening-edges-20261018:941-end",
@@ -376,6 +421,21 @@
       "relistened": false
     },
     {
+      "id": "listening-songs-20261020:954-s901-end-current",
+      "source": "listening-songs-20261020",
+      "run": 954,
+      "output": "section",
+      "section_id": 901,
+      "section_type": "song",
+      "title": "End of “Above The Voices Of The World” (2026-05-17, morning)",
+      "edge": "end",
+      "heard": 3833.43,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
+    },
+    {
       "id": "listening-edges3-20261018:954-s901-end",
       "source": "listening-edges3-20261018",
       "run": 954,
@@ -581,6 +641,21 @@
       "note": ""
     },
     {
+      "id": "listening-songs-20261020:976-s958-end-current",
+      "source": "listening-songs-20261020",
+      "run": 976,
+      "output": "section",
+      "section_id": 958,
+      "section_type": "song",
+      "title": "End of “I Will Glory In My Redeemer” (2025-01-26, morning)",
+      "edge": "end",
+      "heard": 523,
+      "answer": "neither",
+      "expect": null,
+      "note": "1 is better (includes all the lyrics), but still cuts off the musical outro.",
+      "ending": "current"
+    },
+    {
       "id": "listening-last-20261019:976-start",
       "source": "listening-last-20261019",
       "run": 976,
@@ -735,6 +810,21 @@
       "note": ""
     },
     {
+      "id": "listening-songs-20261020:991-s1174-end-current",
+      "source": "listening-songs-20261020",
+      "run": 991,
+      "output": "section",
+      "section_id": 1174,
+      "section_type": "song",
+      "title": "End of “Jesus Lover Of My Soul” (2026-07-19, morning)",
+      "edge": "end",
+      "heard": 3960.04,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
+    },
+    {
       "id": "listening-edges-20261018:992-end",
       "source": "listening-edges-20261018",
       "run": 992,
@@ -831,6 +921,21 @@
       "answer": "right",
       "expect": "keep",
       "note": ""
+    },
+    {
+      "id": "listening-songs-20261020:1007-s1261-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1007,
+      "output": "section",
+      "section_id": 1261,
+      "section_type": "song",
+      "title": "End of “What love could remember” (2026-04-12, morning)",
+      "edge": "end",
+      "heard": 4744.64,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
     },
     {
       "id": "listening-edges-20261018:1009-end",
@@ -1180,6 +1285,21 @@
       "answer": "right",
       "expect": "keep",
       "note": ""
+    },
+    {
+      "id": "listening-songs-20261020:1040-s1508-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1040,
+      "output": "section",
+      "section_id": 1508,
+      "section_type": "song",
+      "title": "End of “Jesus Shall Take The Highest Honour” (2025-12-07, morning)",
+      "edge": "end",
+      "heard": 1159.89,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
     },
     {
       "id": "listening-last-20261019:1040-start",
@@ -2724,6 +2844,36 @@
       "note": ""
     },
     {
+      "id": "listening-songs-20261020:1200-s2509-end-new",
+      "source": "listening-songs-20261020",
+      "run": 1200,
+      "output": "section",
+      "section_id": 2509,
+      "section_type": "song",
+      "title": "End of “I Will Give Thanks To You” (2023-12-10, morning)",
+      "edge": "end",
+      "heard": 457.58,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "new"
+    },
+    {
+      "id": "listening-songs-20261020:1200-s2509-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1200,
+      "output": "section",
+      "section_id": 2509,
+      "section_type": "song",
+      "title": "End of “I Will Give Thanks To You” (2023-12-10, morning)",
+      "edge": "end",
+      "heard": 460.495,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
+    },
+    {
       "id": "listening-edges-20261018:1200-end",
       "source": "listening-edges-20261018",
       "run": 1200,
@@ -2764,6 +2914,21 @@
       "answer": "right",
       "expect": "keep",
       "note": ""
+    },
+    {
+      "id": "listening-songs-20261020:1208-s2551-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1208,
+      "output": "section",
+      "section_id": 2551,
+      "section_type": "song",
+      "title": "End of “Immortal Invisible” (2023-10-15, morning)",
+      "edge": "end",
+      "heard": 448.304,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
     },
     {
       "id": "listening-edges-20261018:1210-end",
@@ -2808,6 +2973,21 @@
       "note": ""
     },
     {
+      "id": "listening-songs-20261020:1212-s2910-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1212,
+      "output": "section",
+      "section_id": 2910,
+      "section_type": "song",
+      "title": "End of “You O Lord Have Searched And Known Me” (2023-09-17, morning)",
+      "edge": "end",
+      "heard": 4531.33,
+      "answer": "neither",
+      "expect": null,
+      "note": "Both cut off the the last verse.",
+      "ending": "current"
+    },
+    {
       "id": "listening-edges2-20261018:1213-end",
       "source": "listening-edges2-20261018",
       "run": 1213,
@@ -2850,6 +3030,51 @@
       "note": ""
     },
     {
+      "id": "listening-songs-20261020:1215-s2637-end-new",
+      "source": "listening-songs-20261020",
+      "run": 1215,
+      "output": "section",
+      "section_id": 2637,
+      "section_type": "song",
+      "title": "End of “Praise My Soul The King Of Heaven” (2023-08-13, morning)",
+      "edge": "end",
+      "heard": 1130.46,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "new"
+    },
+    {
+      "id": "listening-songs-20261020:1215-s2638-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1215,
+      "output": "section",
+      "section_id": 2638,
+      "section_type": "song",
+      "title": "End of “All People That On Earth Do Dwell” (2023-08-13, morning)",
+      "edge": "end",
+      "heard": 1395.5,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
+    },
+    {
+      "id": "listening-songs-20261020:1216-s2655-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1216,
+      "output": "section",
+      "section_id": 2655,
+      "section_type": "song",
+      "title": "End of “Your Mercy My God” (2023-08-06, morning)",
+      "edge": "end",
+      "heard": 1357.42,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
+    },
+    {
       "id": "listening-edges2-20261018:1216-end",
       "source": "listening-edges2-20261018",
       "run": 1216,
@@ -2890,6 +3115,21 @@
       "answer": "right",
       "expect": "keep",
       "note": ""
+    },
+    {
+      "id": "listening-songs-20261020:1222-s2733-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1222,
+      "output": "section",
+      "section_id": 2733,
+      "section_type": "song",
+      "title": "End of “God And God Alone” (2023-06-25, morning)",
+      "edge": "end",
+      "heard": 342.7,
+      "answer": "neither",
+      "expect": null,
+      "note": "Both cut off the last (held) word",
+      "ending": "current"
     },
     {
       "id": "listening-edges3-20261018:1224-s2765-start",
@@ -3058,6 +3298,21 @@
       "note": ""
     },
     {
+      "id": "listening-songs-20261020:1232-s2854-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1232,
+      "output": "section",
+      "section_id": 2854,
+      "section_type": "song",
+      "title": "End of “All Heaven Declares” (2023-04-09, morning)",
+      "edge": "end",
+      "heard": 213.17,
+      "answer": "neither",
+      "expect": null,
+      "note": "1 is too long, and includes some of the next songs intro. 2 is too short and misses the outro.",
+      "ending": "current"
+    },
+    {
       "id": "listening-last-20261019:1232-start",
       "source": "listening-last-20261019",
       "run": 1232,
@@ -3156,6 +3411,36 @@
       "note": ""
     },
     {
+      "id": "listening-songs-20261020:1241-s2994-end-new",
+      "source": "listening-songs-20261020",
+      "run": 1241,
+      "output": "section",
+      "section_id": 2994,
+      "section_type": "song",
+      "title": "End of “O Lord My God” (2023-02-05, morning)",
+      "edge": "end",
+      "heard": 385.14,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "new"
+    },
+    {
+      "id": "listening-songs-20261020:1241-s2994-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1241,
+      "output": "section",
+      "section_id": 2994,
+      "section_type": "song",
+      "title": "End of “O Lord My God” (2023-02-05, morning)",
+      "edge": "end",
+      "heard": 388.012,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
+    },
+    {
       "id": "listening-edges-20261018:1241-end",
       "source": "listening-edges-20261018",
       "run": 1241,
@@ -3212,6 +3497,36 @@
       "note": "Includes \"But anyw...\""
     },
     {
+      "id": "listening-songs-20261020:1245-s3050-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1245,
+      "output": "section",
+      "section_id": 3050,
+      "section_type": "song",
+      "title": "End of “I Know That My Redeemer Lives” (2023-01-08, morning)",
+      "edge": "end",
+      "heard": 491.05,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
+    },
+    {
+      "id": "listening-songs-20261020:1245-s3050-end-new",
+      "source": "listening-songs-20261020",
+      "run": 1245,
+      "output": "section",
+      "section_id": 3050,
+      "section_type": "song",
+      "title": "End of “I Know That My Redeemer Lives” (2023-01-08, morning)",
+      "edge": "end",
+      "heard": 491.36,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "new"
+    },
+    {
       "id": "listening-edges-20261018:1245-end",
       "source": "listening-edges-20261018",
       "run": 1245,
@@ -3252,6 +3567,36 @@
       "answer": "right",
       "expect": "keep",
       "note": ""
+    },
+    {
+      "id": "listening-songs-20261020:1252-s165623-end-new",
+      "source": "listening-songs-20261020",
+      "run": 1252,
+      "output": "section",
+      "section_id": 165623,
+      "section_type": "song",
+      "title": "End of “Jesus, your blood and righteousness” (2022-11-20, morning)",
+      "edge": "end",
+      "heard": 3902.42,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "new"
+    },
+    {
+      "id": "listening-songs-20261020:1252-s165623-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1252,
+      "output": "section",
+      "section_id": 165623,
+      "section_type": "song",
+      "title": "End of “Jesus, your blood and righteousness” (2022-11-20, morning)",
+      "edge": "end",
+      "heard": 3905.58,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
     },
     {
       "id": "listening-edges-20261018:1253-end",
@@ -3426,6 +3771,36 @@
       "relistened": false
     },
     {
+      "id": "listening-songs-20261020:1262-s3283-end-new",
+      "source": "listening-songs-20261020",
+      "run": 1262,
+      "output": "section",
+      "section_id": 3283,
+      "section_type": "song",
+      "title": "End of “All People That On Earth Do Dwell” (2022-09-11, morning)",
+      "edge": "end",
+      "heard": 1517.44,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "new"
+    },
+    {
+      "id": "listening-songs-20261020:1262-s3283-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1262,
+      "output": "section",
+      "section_id": 3283,
+      "section_type": "song",
+      "title": "End of “All People That On Earth Do Dwell” (2022-09-11, morning)",
+      "edge": "end",
+      "heard": 1520.76,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
+    },
+    {
       "id": "listening-edges3-20261018:1262-s3286-start",
       "source": "listening-edges3-20261018",
       "run": 1262,
@@ -3441,6 +3816,21 @@
       "page_section_id": 3286,
       "corrected_id": "1262-s3284-start",
       "relistened": true
+    },
+    {
+      "id": "listening-songs-20261020:1262-s3284-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1262,
+      "output": "section",
+      "section_id": 3284,
+      "section_type": "song",
+      "title": "End of “Praise To The Lord The Almighty” (2022-09-11, morning)",
+      "edge": "end",
+      "heard": 1698.4,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
     },
     {
       "id": "listening-edges3-20261018:1262-s3287-end",
@@ -3559,6 +3949,21 @@
       "note": ""
     },
     {
+      "id": "listening-songs-20261020:1263-s3304-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1263,
+      "output": "section",
+      "section_id": 3304,
+      "section_type": "song",
+      "title": "End of “Who Can Cheer The Heart Like Jesus” (2022-09-04, morning)",
+      "edge": "end",
+      "heard": 3505.1,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
+    },
+    {
       "id": "listening-edges-20261018:1265-end",
       "source": "listening-edges-20261018",
       "run": 1265,
@@ -3585,6 +3990,36 @@
       "answer": "right",
       "expect": "keep",
       "note": ""
+    },
+    {
+      "id": "listening-songs-20261020:1267-s3348-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1267,
+      "output": "section",
+      "section_id": 3348,
+      "section_type": "song",
+      "title": "End of “Rejoice The Lord Is King” (2022-08-07, morning)",
+      "edge": "end",
+      "heard": 1351.82,
+      "answer": "neither",
+      "expect": null,
+      "note": "These are both the start of the next song",
+      "ending": "current"
+    },
+    {
+      "id": "listening-songs-20261020:1267-s3349-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1267,
+      "output": "section",
+      "section_id": 3349,
+      "section_type": "song",
+      "title": "End of “What A Friend We Have In Jesus” (2022-08-07, morning)",
+      "edge": "end",
+      "heard": 1560.56,
+      "answer": "neither",
+      "expect": null,
+      "note": "These are both in the middle of the next song",
+      "ending": "current"
     },
     {
       "id": "listening-edges-20261018:1267-end",
@@ -3900,6 +4335,36 @@
       "note": ""
     },
     {
+      "id": "listening-songs-20261020:1279-s3497-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1279,
+      "output": "section",
+      "section_id": 3497,
+      "section_type": "song",
+      "title": "End of “All Heaven Declares” (2022-04-17, morning)",
+      "edge": "end",
+      "heard": 379.972,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
+    },
+    {
+      "id": "listening-songs-20261020:1279-s3497-end-new",
+      "source": "listening-songs-20261020",
+      "run": 1279,
+      "output": "section",
+      "section_id": 3497,
+      "section_type": "song",
+      "title": "End of “All Heaven Declares” (2022-04-17, morning)",
+      "edge": "end",
+      "heard": 380.072,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "new"
+    },
+    {
       "id": "listening-edges-20261018:1280-end",
       "source": "listening-edges-20261018",
       "run": 1280,
@@ -3954,6 +4419,21 @@
       "answer": "early",
       "expect": "outward",
       "note": ""
+    },
+    {
+      "id": "listening-songs-20261020:1284-s3561-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1284,
+      "output": "section",
+      "section_id": 3561,
+      "section_type": "song",
+      "title": "End of “Oh How Good It Is” (2022-03-13, morning)",
+      "edge": "end",
+      "heard": 1670.06,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
     },
     {
       "id": "listening-edges-20261018:1285-end",
@@ -4068,6 +4548,36 @@
       "note": "Includes \"let's\""
     },
     {
+      "id": "listening-songs-20261020:1294-s166088-end-new",
+      "source": "listening-songs-20261020",
+      "run": 1294,
+      "output": "section",
+      "section_id": 166088,
+      "section_type": "song",
+      "title": "End of “Silently We Watch” (2021-12-19, morning)",
+      "edge": "end",
+      "heard": 3863.18,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "new"
+    },
+    {
+      "id": "listening-songs-20261020:1294-s166088-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1294,
+      "output": "section",
+      "section_id": 166088,
+      "section_type": "song",
+      "title": "End of “Silently We Watch” (2021-12-19, morning)",
+      "edge": "end",
+      "heard": 3864.97,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
+    },
+    {
       "id": "listening-edges2-20261018:1295-end",
       "source": "listening-edges2-20261018",
       "run": 1295,
@@ -4180,6 +4690,36 @@
       "note": ""
     },
     {
+      "id": "listening-songs-20261020:1307-s4652-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1307,
+      "output": "section",
+      "section_id": 4652,
+      "section_type": "song",
+      "title": "End of “My Jesus My Saviour” (2021-09-19, morning)",
+      "edge": "end",
+      "heard": 244,
+      "answer": "neither",
+      "expect": null,
+      "note": "These are both the start of the next song",
+      "ending": "current"
+    },
+    {
+      "id": "listening-songs-20261020:1307-s4653-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1307,
+      "output": "section",
+      "section_id": 4653,
+      "section_type": "song",
+      "title": "End of “Lord I Lift Your Name On High” (2021-09-19, morning)",
+      "edge": "end",
+      "heard": 336.115,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
+    },
+    {
       "id": "listening-edges-20261018:1307-end",
       "source": "listening-edges-20261018",
       "run": 1307,
@@ -4220,6 +4760,66 @@
       "answer": "right",
       "expect": "keep",
       "note": ""
+    },
+    {
+      "id": "listening-songs-20261020:1309-s3922-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1309,
+      "output": "section",
+      "section_id": 3922,
+      "section_type": "song",
+      "title": "End of “We Are Here To Praise You” (2021-08-29, morning)",
+      "edge": "end",
+      "heard": 286.74,
+      "answer": "neither",
+      "expect": null,
+      "note": "1 has some speech at the end, 2 cuts off slightly too early.",
+      "ending": "current"
+    },
+    {
+      "id": "listening-songs-20261020:1311-s4874-end-new",
+      "source": "listening-songs-20261020",
+      "run": 1311,
+      "output": "section",
+      "section_id": 4874,
+      "section_type": "song",
+      "title": "End of “I Will Sing Of The Lamb” (2021-08-08, morning)",
+      "edge": "end",
+      "heard": 1583.17,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "new"
+    },
+    {
+      "id": "listening-songs-20261020:1311-s4874-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1311,
+      "output": "section",
+      "section_id": 4874,
+      "section_type": "song",
+      "title": "End of “I Will Sing Of The Lamb” (2021-08-08, morning)",
+      "edge": "end",
+      "heard": 1585.26,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
+    },
+    {
+      "id": "listening-songs-20261020:1311-s135568-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1311,
+      "output": "section",
+      "section_id": 135568,
+      "section_type": "song",
+      "title": "End of “Before The Throne Of God Above” (2021-08-08, morning)",
+      "edge": "end",
+      "heard": 2372.25,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
     },
     {
       "id": "listening-edges2-20261018:1311-start",
@@ -4572,6 +5172,21 @@
       "note": ""
     },
     {
+      "id": "listening-songs-20261020:1325-s4118-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1325,
+      "output": "section",
+      "section_id": 4118,
+      "section_type": "song",
+      "title": "End of “All Praise To Him” (2021-05-02, morning)",
+      "edge": "end",
+      "heard": 463.778,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
+    },
+    {
       "id": "listening-edges2-20261018:1325-start",
       "source": "listening-edges2-20261018",
       "run": 1325,
@@ -4612,6 +5227,21 @@
       "answer": "right",
       "expect": "keep",
       "note": ""
+    },
+    {
+      "id": "listening-songs-20261020:1327-s4150-end-current",
+      "source": "listening-songs-20261020",
+      "run": 1327,
+      "output": "section",
+      "section_id": 4150,
+      "section_type": "song",
+      "title": "End of “Who O Lord Could Save Themselves” (2021-04-18, morning)",
+      "edge": "end",
+      "heard": 1321.06,
+      "answer": "right",
+      "expect": "keep",
+      "note": "",
+      "ending": "current"
     },
     {
       "id": "listening-edges-20261018:1328-start",

@@ -9,6 +9,7 @@ declare(strict_types=1);
  *
  *   RMS_WINDOW=35 vendor/bin/sail php scripts/ruled-endings/capture.php <ids.txt> tests/Fixtures/RuledEndings
  *   vendor/bin/sail php scripts/ruled-endings/capture.php <ids.txt> <review-dir> --current --review-only
+ *   vendor/bin/sail php scripts/ruled-endings/capture.php <ids.txt> tests/Fixtures/RuledEndings --current --version=10
  *
  * --review-only exports immutable recorded-output identities and executed spans, without planning
  * or modifying a run. These records identify the media to play; their stored hash must match the
@@ -52,8 +53,10 @@ $app->make(Kernel::class)->bootstrap();
 
 // The full pass banked its edge evidence under these (endings-rule/replay.php).
 $current = in_array('--current', $argv, true);
+// --version=N: the version a run's edge evidence was banked under, when it predates the current one.
+$version = array_values(array_filter(array_map(static fn (string $arg): ?int => str_starts_with($arg, '--version=') ? (int) substr($arg, 10) : null, $argv)))[0] ?? null;
 $config = [
-    'media-processing.media_processing_version' => $current ? (int) config('media-processing.media_processing_version') : 8,
+    'media-processing.media_processing_version' => $version ?? ($current ? (int) config('media-processing.media_processing_version') : 8),
     'media-processing.video_extraction.encoder' => $current ? config('media-processing.video_extraction.encoder') : 'libx264',
     'media-processing.service_structure.transcription_service' => (string) config('media-processing.service_structure.transcription_service'),
     'media-processing.transcription.local_whisper_model' => (string) config('media-processing.transcription.local_whisper_model'),

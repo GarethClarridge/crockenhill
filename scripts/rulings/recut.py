@@ -49,7 +49,28 @@ def collect(scratch):
                               item['true_sid'], item['type'], item['title'],
                               page_section_id=item['page_sid'], corrected_id=corrected_id,
                               relistened=replacement.exists()))
+    records += song_endings(scratch / 'listening-songs-20261020')
     return sorted(records, key=lambda r: (r['run'], r['heard'], r['id']))
+
+
+def song_endings(root):
+    """The 10-20 blind A/B of song ends the 10-19 rules moved: each ending chosen is kept.
+
+    "Both" keeps both; "neither" keeps nothing and stays as evidence at the current ending.
+    """
+    questions = {q['id']: q for q in read(root / 'questions.json')}
+    records = []
+    for path in sorted((root / 'answers/rulings').glob('*.json')):
+        answer = read(path)
+        question = questions[answer['question_id']]
+        key = question['key']
+        chosen = {'1': [key['1']], '2': [key['2']], 'both': ['current', 'new']}.get(answer['choice'], [])
+        for which in chosen or ['current']:
+            records.append(record('listening-songs-20261020', f'{question["id"]}-{which}',
+                                  {**answer, 'choice': 'right' if chosen else answer['choice']},
+                                  question['run'], 'end', key[f'{which}_end'], 'section',
+                                  key['section_id'], 'song', question['title'], ending=which))
+    return records
 
 
 def record(source, question_id, answer, run, edge, heard, output, section_id, section_type, title, **extra):

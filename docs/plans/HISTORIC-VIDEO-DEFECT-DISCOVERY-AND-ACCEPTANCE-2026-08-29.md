@@ -1204,6 +1204,33 @@ rolled-back transactions, answers banked to a scratch disk):
   check's variance, which any re-cut on a new version re-samples.
 - **Next:** re-cut 1219, 1251, 1322, 1328 and 1355 (`sermons:re-extract`, runbook procedure as on
   10-18) and hear their ends; hear the 33 moved song ends before the song rules are relied on.
+- **The 33 song ends heard, 10-20** (blind A/B from the same lead-in; rulings in the page's `rulings`
+  collection, key in `storage/scratch/listening-songs-20261020/questions.json`):
+
+  | Rule | Current right | New right | Both fine | Neither |
+  |---|---|---|---|---|
+  | `2c9548a64` smeared prayer opening (20) | **12** | 0 | 5 | 3 |
+  | `92e540398` lyric is not a speech onset (13) | 3¹ | 2 | 4 | 4 |
+
+  ¹ 1215 §2638, 1262 §3284 (new runs 21 s on) and 976 §958 ("1 is better", the current).
+  **`2c9548a64` is wrong, including on its own case:** 954 §901 is ruled right at the current
+  3833.43 s, and the rule's 3830.46 s cuts the song. The 10-18 complaint was about the heard cut at
+  63:58.8, which the code before the rule already no longer produces; the regression test pins the
+  rule's wrong end (≤ 3830.56). Every move is earlier, mostly `song_end_silence` → `song_end_fade`.
+  `92e540398` is mixed and smaller. **Wrong either way (both endings):** 1267 §3348 and §3349 and
+  1307 §4652 end inside the next song; 1212 §2910 and 1222 §2733 cut the last verse or held word;
+  1232 §2854 runs into the next intro under one rule and loses the outro under the other; 941 §751,
+  976 §958 and 1309 §3922 cut the outro (1309's current end also holds speech).
+- **Acted on (version 15, operator agreed):** the smeared-prayer song-end bound is removed; 954 §901's
+  fixture now carries the 10-20 ruling (keep 3833.43 s) and its test guards it. The lyric rule moved
+  only songs followed by another song, whose first lyric had bounded the end; it now applies only
+  when no song follows, keeping 1291 (a reading follows). Fixtures 1262 §3284 and 1215 §2638 (keep)
+  and 1215 §2637 (open defect: the end chosen blind was the rule's) fail on `b3906cd92`. The 33
+  rulings are in `recut-20261019.json` (`scripts/rulings/recut.py`). **Gate 1 on version 15:** 1,098
+  songs unchanged, none moved; 15 refuse pending fresh edge words (27 before), all followed by
+  speech; the sermon and talk changes are those already measured (prayer walk; version re-asks).
+- **Still wrong, not addressed:** the both-wrong song ends above (three ending inside the next song,
+  two cut short of the last word, four outros), and 1215 §2637.
 
 ### 4.1 After the round
 

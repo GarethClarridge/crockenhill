@@ -288,7 +288,8 @@ return [
     // 11–13 (10-19, never cut with): sentence checks at K16 ends, ends without a neighbour and openings;
     //    a smeared prayer opening bounds a song end; a lyric past a song's edge is not a speech onset.
     // 14: 11–13 less the sentence-check widening, which only an exposed dead-feed opening keeps (957).
-    'media_processing_version' => 14,
+    // 15: 14 less the smeared-prayer song-end bound, which cut 12 of the 20 song ends it moved (10-20).
+    'media_processing_version' => 15,
 
     'video_extraction' => [
         'reencode_crf' => (int) env('VIDEO_EXTRACTION_REENCODE_CRF', 23),

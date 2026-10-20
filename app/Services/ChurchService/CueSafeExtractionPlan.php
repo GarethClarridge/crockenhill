@@ -227,11 +227,12 @@ class CueSafeExtractionPlan
         $cues = app(OutputEdgeWordTimings::class)->cues($log);
         $levels = $this->levels($log);
         $timeline = $this->timeline($log);
+        $starts = $this->songStarts($log);
         $edges = [];
 
         foreach ($spans as $span) {
             $end = (float) $span['end_time'];
-            $cue = $this->speechAfterSong($cues, $end, $levels, $timeline, $this->singingStops($timeline, $end));
+            $cue = $this->speechAfterSong($cues, $end, $levels, $timeline, $this->singingStops($timeline, $end), $this->songAfter($starts, $end) !== null);
 
             if ($cue !== null) {
                 $edges[] = $cue['start'];
@@ -1469,16 +1470,12 @@ class CueSafeExtractionPlan
         $singing = $this->singingStops($timeline, $end);
         $from = $singing !== null && $singing['inside'] ? min($singing['from'], $end) : $end;
         $heard = $window !== null ? $this->withWindow($evidence->read($log, $window)['words'], $window) : [];
-        $speech = $this->speechAfterSong($cues, $end, $levels, $timeline, $singing, $heard);
+        $speech = $this->speechAfterSong($cues, $end, $levels, $timeline, $singing, $this->songAfter($this->songStarts($log), $end) !== null);
         $speechWords = [];
 
         if ($speech !== null) {
             $speechWindow = $evidence->window($cues, $speech['start'], $log->duration);
-            $atSpeech = $timeline?->windowAt($speech['start']);
-            $coveredSmear = $window !== null && $speech['start'] >= $window['start'] && $speech['end'] <= $window['end']
-                && $timeline !== null && $atSpeech !== null && $this->smearedSpeechAcrossMusicWindow($speech, $heard, $timeline, $atSpeech);
-            $speechWords = $coveredSmear ? $heard
-                : ($speechWindow !== null ? $this->withWindow($evidence->read($log, $speechWindow)['words'], $speechWindow) : []);
+            $speechWords = $speechWindow !== null ? $this->withWindow($evidence->read($log, $speechWindow)['words'], $speechWindow) : [];
         }
 
         $words = $this->merged([...$heard, ...$speechWords]);
@@ -1658,10 +1655,10 @@ class CueSafeExtractionPlan
      * @param  list<array{start: float, end: float, text: string}>  $cues
      * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}|null  $levels
      * @param  array{from: float, speech_by: float, speech_alone_from: float|null, inside: bool}|null  $singing
-     * @param  list<array{start: float, end: float, word: string, window_start: float}>  $heard
+     * @param  bool  $songFollows  The next section is a song, whose opening lyric bounds this one
      * @return array{start: float, end: float, text: string}|null
      */
-    private function speechAfterSong(array $cues, float $end, ?array $levels, ?AudioTimeline $timeline = null, ?array $singing = null, array $heard = []): ?array
+    private function speechAfterSong(array $cues, float $end, ?array $levels, ?AudioTimeline $timeline = null, ?array $singing = null, bool $songFollows = false): ?array
     {
         $from = $singing !== null && $singing['inside'] ? min($singing['from'], $end - self::SONG_END_LEAD) : $end - self::SONG_END_LEAD;
         $after = array_values(array_filter($cues, static fn (array $cue): bool => $cue['start'] >= $from
@@ -1669,7 +1666,7 @@ class CueSafeExtractionPlan
         usort($after, static fn (array $a, array $b): int => $a['start'] <=> $b['start']);
 
         foreach ($after as $cue) {
-            if ($cue['start'] >= $end - self::SONG_END_LEAD && $this->cueIsOnlyMusic($cue, $timeline)) {
+            if (! $songFollows && $cue['start'] >= $end - self::SONG_END_LEAD && $this->cueIsOnlyMusic($cue, $timeline)) {
                 continue;
             }
             // Inside the section a cue is speech only where it starts in speech: 1311 §4931's last
@@ -1677,8 +1674,7 @@ class CueSafeExtractionPlan
             if ($cue['start'] < $end - self::SONG_END_LEAD) {
                 $window = $timeline?->windowAt($cue['start']);
 
-                if ($window === null || ($timeline->windows[$window]['speech'] < AudioTimeline::SPEECH_CUTOFF
-                    && ! $this->smearedSpeechAcrossMusicWindow($cue, $heard, $timeline, $window))) {
+                if ($window === null || $timeline->windows[$window]['speech'] < AudioTimeline::SPEECH_CUTOFF) {
                     continue;
                 }
             }
@@ -1701,7 +1697,9 @@ class CueSafeExtractionPlan
     /**
      * A lyric beyond a song's recorded edge is still singing (1291's "Your goodness…").
      * Require complete classifier coverage, music, and no speech anywhere in the cue; an early
-     * speech cue spanning the transition must still be decoded at its own onset.
+     * speech cue spanning the transition must still be decoded at its own onset. Not asked when
+     * a song follows: there the next song's first lyric bounds this one, and skipping it moved
+     * 13 song ends, heard 10-20 as better twice and worse three times.
      *
      * @param  array{start: float, end: float, text: string}  $cue
      */
@@ -1715,28 +1713,6 @@ class CueSafeExtractionPlan
         return $windows !== [] && $windows[0]['start'] <= $cue['start'] && $windows[array_key_last($windows)]['end'] >= $cue['end']
             && array_any($windows, static fn (array $window): bool => $window['music'] >= AudioTimeline::MUSIC_CUTOFF)
             && ! array_any($windows, static fn (array $window): bool => $window['speech'] >= AudioTimeline::SPEECH_CUTOFF);
-    }
-
-    /**
-     * 954's "Our" spans nine seconds across the outro and prayer. A coarse music window cannot
-     * discard the whole cue when its opening is unplaced and it reaches speech alone. A normally
-     * timed last lyric and a cue reaching only mixed sound keep the existing song protection.
-     *
-     * @param  array{start: float, end: float, text: string}  $cue
-     * @param  list<array{start: float, end: float, word: string, window_start: float}>  $heard
-     */
-    private function smearedSpeechAcrossMusicWindow(array $cue, array $heard, AudioTimeline $timeline, int $window): bool
-    {
-        $opening = array_any($heard, static fn (array $word): bool => abs($word['start'] - $cue['start']) <= self::ANCHOR_REACH
-            && $word['end'] - $word['start'] > self::ANCHOR_REACH);
-
-        if (! $opening) {
-            return false;
-        }
-        $next = $window + 1;
-
-        return $next < $timeline->windowCount() && $timeline->classOf($next) === SoundClass::Speech
-            && $timeline->windows[$next]['start'] < $cue['end'];
     }
 
     /**

@@ -141,14 +141,15 @@ class RuledEndingsRegressionTest extends TestCase
     }
 
     #[Test]
-    public function a_song_end_does_not_keep_a_prayer_hidden_in_a_smeared_opening_word(): void
+    public function a_smeared_prayer_opening_does_not_pull_a_song_end_into_its_outro(): void
     {
+        // Heard blind 10-20: 3833.43 s is right; bounding the song at the smeared "Our" (3830.46 s)
+        // cut the song, as it did 12 of the 20 song ends that rule moved.
         $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/listening-edges3-20261018-954-s901-end.json.gz')), true, flags: JSON_THROW_ON_ERROR);
         $log = $this->rebuild($fixture);
         $plan = app(CueSafeExtractionPlan::class)->forSection($log->serviceSections()->findOrFail(901));
 
-        $this->assertLessThanOrEqual(3830.56, end($plan['segments'])['end_time'], json_encode($plan['cue_edge_widening'], JSON_THROW_ON_ERROR));
-        $this->assertGreaterThan(3828.0, end($plan['segments'])['end_time']);
+        $this->assertEqualsWithDelta(3833.43, end($plan['segments'])['end_time'], self::RIGHT_TOLERANCE, json_encode($plan['cue_edge_widening'], JSON_THROW_ON_ERROR));
     }
 
     #[Test]
