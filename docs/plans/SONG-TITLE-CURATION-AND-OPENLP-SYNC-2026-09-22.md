@@ -260,6 +260,9 @@ Providence of Heaven", "Praise the Word from everlasting", "God's Love to Be wit
 "Psalm 11 hymn". **"Rejoice" is the one addition the historic final round needs:** it is a
 new song, so nothing already bound moves, and it lets §4534 be bound and cut. It must be
 added and synced before the round starts (the runbook forbids catalogue edits during one).
+**Added locally on 10-21 as song 1162** (operator), pending its OpenLP entry: add it in OpenLP
+titled "Rejoice" so the next sync updates row 1162 (same canonical key) instead of creating a twin.
+Its `lyrics_plain` holds only the two slides seen in clip 435; OpenLP's full lyrics replace them.
 
 **3. Alternative titles (6):** ST3's table (712, 254, 644, 606, 996, 980).
 

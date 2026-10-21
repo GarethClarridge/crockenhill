@@ -1422,6 +1422,10 @@ introduction, 10-20).
    - **first, 1378's split (R11):** set §4618 to not applicable (SongVideo #442 stays quarantined),
      split it at about 4358.8 s, fold §4617's introduction into the first half as "What love could
      remember" (item 5284), and keep the second half as "When I Was Lost" (item 5285); the round cuts both;
+   - **then 1363's "Rejoice" binding:** run `MatchSongsFromTranscript` for 1363 before its
+     `reExtract` (that route resumes at `TranscribeOutputEdges`, after matching), so §4534 and item
+     15906 bind to song **1162**; after its clip is cut, `historic-import:clear-stale-song-clips
+     --run=1363` retires clip 435;
    - re-detect D21/D22's runs (1073, 1268, 954) and anything else whose structure changes;
    - recompose the 12 runs with duplicate section pointers (R10): 980, 1073, 1074, 1138, 1159,
      1198, 1259, 1260, 1261, 1265, 1269, 1301 (1073 is covered by its re-detection). Afterwards,
@@ -2611,3 +2615,14 @@ findings from the historic import"). **The only catalogue change before the fina
 "Rejoice"** (a new song; nothing bound moves), so that 1363 §4534 is bound and cut and clip 435
 can retire. Add and sync it before the round starts: the runbook (§2.4) forbids catalogue edits
 during one.
+
+- **"Rejoice" added locally (operator: "just add it here for now"):** song **1162**, title
+  "Rejoice", key `rejoice`, slug `rejoice`, copyright from the slides; `lyrics_plain` is only the two
+  projected slides in clip 435's frames (verse 1, chorus); `import_metadata.local_addition` records
+  why. The sync never removes a song absent from OpenLP, so the row survives; adding "Rejoice" to
+  OpenLP under the same title later makes the sync update it rather than create a twin. The resolver
+  gives "Rejoice" → 1162 (exact) and "Come and stand before your Maker" → 1162 (first line); of 16
+  song items titled with "Rejoice", only 1363's item 15906 now resolves to it. **Not bound yet:** a
+  song clip needs a song match on the section and `song_id` on its item, and only the pipeline's
+  matching step sets both, so the binding is a round step (above). `service-tracking:link-songs`
+  was **not** run: its dry run would change 298 links corpus-wide and clear one.
