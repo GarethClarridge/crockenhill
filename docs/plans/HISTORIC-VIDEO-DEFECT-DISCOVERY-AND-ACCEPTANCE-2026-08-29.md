@@ -1360,6 +1360,178 @@ introduction, 10-20).
    LaunchAgent back at main and reach it from a main worker; back up the service artifacts. Then
    unset the temp-file cleanup pause (register C6) and resume weekly processing (§4.2).
 
+#### Session after `8039b8ada`, 10-20: measurement prepared; listening moved to Claude's artifact pages
+
+**Operator:** listen through Claude's artifact pages instead; continue the other work. Claude
+builds and publishes the pages and reads back the saved answers; **the operator does the listening
+and gives every answer**. Claude cannot hear the clips and never rules on one. No new listening
+answer from this session has been banked. The operator completed the first two local pages, then
+repeated the first page, but **the real answer folder stayed empty**. An isolated save/reload test
+worked; the remote user's save path did not. Do not infer their answers from the clips, the test
+store, or the absence of files. Do not ask them to use the local pages again. The material below
+is ready for Claude to publish as artifact pages, with answers saved to each page's database.
+
+**Listening handoff:** `storage/scratch/song-acceptance-20261021/` (the directory name is a session
+label; this work was done on 10-20):
+- `questions.json` holds five groups, with clip references: `starts` (8 blind A/B openings),
+  `identity` (5 song comparisons), `older` (the 40-service M4 draw), `coverage` (30 M3 questions),
+  and `reading` (1328's earlier context and current opening). Keep each question's `id` when
+  publishing. **Remove `key` from displayed questions**; retain it privately to decode A/B answers
+  and distinguish pipeline/workbook candidates. The generated HTML already removes it.
+- `clips/` holds the checked excerpts and links to the complete internal audio recordings for
+  the coverage questions. `clip-specs.json` records their source paths and intervals. No source
+  master or authoritative media was changed. `render.php` checked excerpt durations with ffprobe.
+- `clip-limitations.json`: 1370's recording ends during its M4 excerpts; its middle excerpt has
+  only 16.2 s available, not 25. Preserve that limitation and an uncertain answer; do not replace
+  this sampled service merely because it is difficult.
+- `starts-audit.json` records the **8** next-song starts reached by version 16's changed ends
+  (the plan said 7): 1154 §3754, 1215 §2640, 1237 §2949, 1267 §§3348–3350, 1272 §3404 and
+  1307 §4653. Current starts are the recorded extraction starts, not raw section bounds.
+  1262 §3284 is not in this changed set: its preceding end does not meet the rule's earlier-by-5-s
+  condition. Its separate 1531/1520.86-s ruling discrepancy remains unresolved; do not move it.
+- `structure-export/` is the standard read-only export for 973, 1287, 1288, 1327, 1355 and 1366,
+  with `answers-map.json`, clips and HTML. It found **no open ensemble questions**, and exported
+  6 sampled-cut questions plus 13 majority decisions. This does **not** itself answer or clear
+  their composition/processing review state, especially 1355's resolve-writes-back history.
+
+**Stage-2 measurement is provisional, not acceptance.** The existing
+`song-acceptance-20261011/measure.php` was adapted to enforce settlement in stage 2 too (previously
+`STAGE=2` bypassed those deferrals), accept an explicit current snapshot, and write to the new
+directory without replacing stage 1. It was run with protocol commit
+`3dadadff587a5665c708b5833cebf809ea821760`, the fixed split/reconciliation hashes, current snapshot
+`recut-1251-k16-20261020`, and explicit deferral of the known repair/final-round runs.
+- `stage2-held-out.json`: frame 143; 113 measured, 23 excluded (E1 8, E2 1, E4 14), 7 deferred.
+  The identities and reasons are in the file. Nothing was silently dropped.
+- `adjudicate-stage2-held-out.json`: 7 disagreements; two unchanged stage-1 rulings are reusable
+  (`reused-stage1-rulings.json`), leaving the 5 questions above. No aggregate rate was presented
+  before adjudication. The stage-2 file currently re-reads eligible stage-1 identities too;
+  deduplicate by identity and preserve stage provenance when pooling, rather than adding counts.
+- `m4-draw.json`: seed 20261014, the prescribed year allocation 14/13/13, service/section hash
+  selection and the eligible frame/exclusions. **Provisional while repairs remain:** check the
+  final settled frame and regenerate/replace affected evidence before calling this acceptance.
+- `m3-draw.json`: the seeded 30 workbook-only units on the current full-grade measured runs.
+  The coverage page supplies whole-recording seeking; a missing binding is not proof a song is
+  absent from the recording.
+
+**The code already contains four items the amended list still calls unbuilt:** D21's
+`SplitSermonParts` (`77d880b44`), D22's talk-over-notices anchoring exception, and readiness's retired
+run/deferred-thumbnail handling (`c2b3cec35`). Focused validation this session: **105 tests,
+335 assertions passed** across split-sermon, validator, readiness and ensemble-review commands.
+The named runs still need the final-round application; do not rebuild those fixes.
+
+**Conflicting ruling found:** 1222 §2733 was “neither; both cut off the last held word” on the
+song-endings page at 08:56:46 UTC, but the later song-changes page at **18:21:10 UTC** chose its
+current 342.7-s end as right. Both files name the same song/section. The later accepted ruling
+is a control; do not change this end on the earlier complaint alone. Source files:
+`listening-songs-20261020/answers/rulings/1222-s2733-end.json` and
+`listening-song-changes-20261020/answers/rulings/1222-s2733-end.json`.
+
+**Stale clips, dry run only:**
+`storage/app/historic-review-20261021/stale-clips-dry-run.json` proposes 7 section cleanups in
+6 runs: 2 clips re-bound (1198) and 5 retired. `song-acceptance-20261021/stale-replacements.json`
+checks the same-run bindings: retirements on 1219, 1220, 1251 and 1310 have replacement clips;
+**1363's “Thank You Lord For Gifts Of Teaching” (#435, song #11, old §4533) has none**. That is
+the only proposed retirement needing the unique-copy decision. “Stale” alone does not prove
+a better copy exists. The operator's question was conditional on there being a better copy;
+it is not approval to retire the unique one. Files are retained by the cleanup either way.
+**1015's preacher stays pending evidence**, explicitly answered this session.
+
+**Code investigation remains in progress, not a shipped repair:** offline evidence for 1328 and
+the five song endings is captured under the new directory's `fixtures/`. A current 1328 capture
+reproduces 1407.14 s; the old fixture did not reproduce the current route. Its full audit shows
+the final inward move comes from `outOfDeadFeed`, not just the smeared-word guard: there is
+finite audio around 1377–1384, then dead feed to 1407.4, but the detected reading starts at
+1395.76 inside that dead feed. The context question is needed to establish the earlier reading
+opening. A word-guard-only attempt was withdrawn. 1378 §4617 is also a **structure** problem:
+4153–4184.66 is the spoken introduction to two songs, while §4618 runs 4184.66–4572.99 under
+“When I Was Lost”; moving §4617's end by seconds cannot recover the missing first song.
+
+**1212 candidate retained pending targeted listening:** a held-word/music-resumption rule moves its
+end from **4531.33 to 4537.08 s**, before the following prayer at 4537.18. Its reproducing test
+failed before the rule and passed after it, and the focused boundary suite passed **178 tests /
+734 assertions**. But the broader unchanged-evidence gate found that the same rule moves
+**1012 §1291's accepted end from 994.57 to 995.48 s**, outside the 0.31-s accepted-edge
+tolerance. **The operator challenged automatic withdrawal over a sub-second move:** the
+numerical flag does not establish that the new cut sounds worse or is perceptibly different.
+The rule was briefly withdrawn, then restored as a candidate while the complete corpus
+comparison resumes. The operator compares the two 1012 endings on an artifact page, with “both are fine”
+available; their answer, not the number, decides whether the repair is discarded or accepted. Existing right
+rulings remain controls, but a numerical movement is a review flag, not proof of regression.
+An earlier broad short-cue attempt also disturbed accepted controls, including 1222, and
+remains withdrawn. The patch files named `withdrawn-held-word-{candidate,test}.patch` preserve
+the same candidate during the brief withdrawal; their names are historical. The 1212 fixture
+records the original cut in `previous_live` and the candidate in `live`, with
+`acceptance_pending`; the separate current 1328 fixture remains an open defect. Two 1328 fixtures carry the same
+ruling, both open defects at 1407.14 s: `listening-edges-20261018-1328-start` (captured at
+`821354d69`) and `listening-recut-20261020-1328-start` (at `8039b8ada`). The older one predates
+the current route; it gives the same cut by an older path, so it is kept as a guard on that path
+until 1328's repair lands. Then retire it (operator approval), as the repair's red-to-green test
+should build on the current capture. Neither is
+a new listening acceptance.
+
+The read-only corpus comparison uses the existing gate at
+`storage/scratch/edge-gate-20261019/`, labels `session-20261021-before` and
+`session-20261021-held-word`, excluding current member 1251. The final candidate's planner
+SHA-256 is `a32695e596498c11e7ee353d0c82068162e053e6307bbefb5095307ef2743a6c`.
+**Completed comparison: 439 baseline / 439 candidate runs, exact membership, excluding 1251.**
+The candidate is its initial output plus `held-word-part0`–`part2`; resumed parts skip their
+completed records. `out/session-20261021-comparison.json` binds every input file and the planner
+by SHA-256. **27 song endings extend; every start, 439 sermon outputs and 286 short-talk outputs
+stay unchanged.** The other 1,083 song outputs are unchanged. No refusal or review-state change
+was introduced. Of the extensions, 22 are below 1 s; the five larger changes are:
+
+| Run / section | Before (s) | Candidate (s) | Extension (s) |
+|---|---:|---:|---:|
+| 1023 / 1364 | 2496.49 | 2500.34 | 3.85 |
+| 1211 / 175128 | 4387.835 | 4391.42 | 3.585 |
+| 1212 / 2910 | 4531.33 | 4537.08 | 5.75 |
+| 1213 / 175130 | 4327.41 | 4330.48 | 3.07 |
+| 1250 / 3124 | 421.82 | 425.84 | 4.02 |
+
+Four previously accepted ends are numeric review flags: **1012, 1200, 1250 and 1286**.
+1262 §3280 instead moves **to** its accepted 1061.44-s ending (from 1060.5), illustrating why
+movement alone cannot prove harm. This says nothing about 1262 §3284's separate start question.
+The interrupted `session-20261021-short-cue` output is exploratory.
+Logs (copied from `/tmp` on 10-21 so they survive a reboot) are in
+`storage/scratch/edge-gate-20261019/logs-20261021/`: `historic-gate-before-20261021.log`,
+`historic-gate-held-word[-partN]-20261021.log` and `historic-full-suite-20261021.log`.
+The first full parallel suite was stopped at 55% during withdrawal; do not report that run as
+passed. The completed replacement, with eight isolated workers, reports **10,055 tests,
+97,730 assertions, no failures, 163 PHPUnit notices and one skip**, logged to
+`logs-20261021/historic-resumed-full-suite-20261021.log`. The restored ruled-boundary suite also passed
+106 tests / 318 assertions. PHPStan reports zero errors; final Pint and `git diff --check` pass.
+
+**Additional listening material:** `song-acceptance-20261021/candidate-edge-questions.json` holds
+all **27 blind A/B ending comparisons**, including 1012 and the five larger changes above.
+Their 54 clips are rendered and duration-checked; `candidate-edge-clip-specs.json` records their
+source intervals. No local page/server was started. **Remove both `key` and `prior_rulings`
+before displaying questions**; keep them privately to decode answers. “Both are fine” and
+“Can't tell” are available. The operator's answers, not the numbers, decide which flags matter. The candidate remains unaccepted, with media version still 16; other listed
+repairs and the single final round remain outstanding.
+
+**Final-round data audit, no repairs applied:**
+`song-acceptance-20261021/data-readiness-audit.json` records the named runs inside a
+database-enforced read-only transaction, without composition resolution. Item 18035 still
+points to prayer §215988. Scripture enrichment is unsettled on 973, 1022 and 1171. Nested
+publication failures remain on **1127** (`auto-publish-section-2041`) and **1352**
+(`auto-publish-section-4440`); 1220 and 1223 no longer have that readiness blocker, though
+their section publication decisions are unsettled. 945 still reports 64% speech coverage
+against the 70% floor. The structure-review runs remain failed; exporting questions did not
+settle them. 937 correctly reports retired/not exported. 1268 passes readiness, which does
+not prove D21's rerun has happened. **1015, 879 and 1016 in the duplicate/preacher discussion
+are sermon IDs**, belonging to runs 1088, 940 and 1089 respectively; do not use them as run
+IDs. Sermon 1015's preacher remains pending evidence. The full report includes these sermon
+records, queue state, nested jobs, section links, hold history and hashes for the final-round
+operator.
+1314's unplaced §3994 hold is **already released**, with the operator's 10-16 reason retained
+in its history; its sermon §3993 hold was released after listening on 10-18, and §3986's loop
+hold was cleared on 09-23. Do not ask for those releases again or treat the unplaced history
+record as an active hold. Its remaining section publication decisions are separate. Sermon
+1015 still has `needs_preacher_review=true`; sermons 879, 1015 and 1016 remain quarantined.
+
+No processing was dispatched, no hold released, no round closed, no cleanup applied, no
+publication performed. The local listening server is stopped; the listening pages are Claude's to build and publish.
+
 ### 4.2 Regular uploads are the lasting outcome
 
 Historic imports use the livestream

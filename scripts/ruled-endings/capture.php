@@ -105,6 +105,20 @@ $cutFor = static function (MediaProcessingLog $log, string $which, string $edge 
 };
 
 /**
+ * The commit the cut came from. Uncommitted application code is named by the hash of its diff, so
+ * a candidate's cut is never recorded as the commit's (1212 §2910's held-word candidate, 10-20).
+ *
+ * @return array{code: string, uncommitted_app_sha256?: string}
+ */
+$capturedCode = static function (): array {
+    $git = 'git -c safe.directory=/var/www/html -C /var/www/html';
+    $head = trim((string) shell_exec("{$git} rev-parse --short HEAD"));
+    $diff = (string) shell_exec("{$git} diff HEAD -- app");
+
+    return $diff === '' ? ['code' => $head] : ['code' => "{$head}+uncommitted", 'uncommitted_app_sha256' => hash('sha256', $diff)];
+};
+
+/**
  * The ruling, the run, the output and the edge for an id; for an edge-rulings.json section ruling
  * without a section id, the run's section of that type with the edge nearest the cut heard.
  *
@@ -233,7 +247,7 @@ foreach ($ids as $id) {
         'id' => $id,
         'ruling' => $ruling,
         'open_defect' => $current && $ruling['expect'] !== 'keep',
-        'live' => $live + ['code' => trim((string) shell_exec('git -c safe.directory=/var/www/html -C /var/www/html rev-parse --short HEAD'))],
+        'live' => $live + $capturedCode(),
         'config' => $config,
         'run' => [
             'id' => $log->id,

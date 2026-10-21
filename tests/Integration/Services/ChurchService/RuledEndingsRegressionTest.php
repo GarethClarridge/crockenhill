@@ -73,6 +73,20 @@ class RuledEndingsRegressionTest extends TestCase
     }
 
     #[Test]
+    public function a_held_word_over_resumed_music_does_not_end_a_song_early(): void
+    {
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/listening-songs-20261020-1212-s2910-end-current.json.gz')), true, flags: JSON_THROW_ON_ERROR);
+        $log = $this->rebuild($fixture);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($log->serviceSections()->findOrFail(2910));
+
+        $cut = end($plan['segments'])['end_time'];
+
+        $this->assertGreaterThan(4532.28, $cut, 'A gap before the smeared “Lord” cannot cut the sung sound that follows it.');
+        $this->assertLessThanOrEqual(4537.18, $cut, 'The repair must still stop before the following prayer.');
+    }
+
+    #[Test]
     public function a_k16_sermon_end_beside_a_song_is_left_to_the_song_rule(): void
     {
         // Withdrawn 10-19: asking here moved 11 and held 24 of 232 edges ruled right, and made
@@ -209,7 +223,7 @@ class RuledEndingsRegressionTest extends TestCase
             return;
         }
 
-        $this->assertEqualsWithDelta($fixture['live']['cut'], $cut, self::FIDELITY_TOLERANCE, 'the fixture no longer reproduces its live cut');
+        $this->assertEqualsWithDelta($fixture['live']['cut'], $cut, self::FIDELITY_TOLERANCE, $fixture['id'].': the fixture no longer reproduces its live cut');
 
         $heard = $ruling['heard'];
         if ($fixture['open_defect'] ?? false) {

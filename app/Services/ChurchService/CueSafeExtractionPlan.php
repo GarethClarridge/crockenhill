@@ -1696,6 +1696,17 @@ class CueSafeExtractionPlan
         }
         $quiet = $levels !== null && ! $textBound ? $this->beforeMusicResumes(fn (float $from): ?array => $this->firstQuiet($levels, $from, $until), $levels, $timeline, $lastSound, $until) : null;
         $gap = $quiet ?? $this->lastGap($words, min($lastSound, $floor), $until);
+        // A long decoded word can stand over the final sung phrase (1212's “Lord”). Its preceding
+        // word gap cannot end the song when sound resumes in classified music after that gap.
+        if ($nextSong === null && $quiet === null && $gap !== null && $levels !== null && $timeline !== null
+            && array_any($words, static fn (array $word): bool => $word['end'] - $word['start'] > self::ANCHOR_REACH
+                && $word['start'] >= $gap['end'] - 0.001 && $word['start'] < $until
+                && $timeline->musicShare($word['start'], min($word['end'], $until)) > 0.0)) {
+            $afterMusic = $this->beforeMusicResumes(fn (float $from): ?array => $this->lastGap($words, $from, $until), $levels, $timeline, min($lastSound, $floor), $until);
+            if ($afterMusic === null || abs($afterMusic['end'] - $gap['end']) > self::CUE_BOUNDARY_TOLERANCE) {
+                $gap = $afterMusic;
+            }
+        }
 
         $time = $gap !== null ? ($quiet !== null ? $gap['start'] + min(self::SONG_END_SILENCE_TAIL, ($gap['end'] - $gap['start']) / 2) : $gap['end'] - min(0.1, ($gap['end'] - $gap['start']) / 2))
             : max(min($lastSound, $until), $until - 0.1);
