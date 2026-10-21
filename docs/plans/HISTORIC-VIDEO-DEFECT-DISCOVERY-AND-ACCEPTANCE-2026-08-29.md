@@ -1560,6 +1560,22 @@ Next: capture both from there, write the failing tests (1250's end is already ru
 does not extend the song, re-run the corpus gate, and put any newly moved ends to listening.
 The candidate stays committed but unreleased; media version stays 16.
 
+**Song Questions answered 10-21** (decoded in
+`storage/scratch/listening-final-20261021/song-questions/decoded.json`; no notes given):
+- **Next-song openings: all 8 chose the earlier start at the song-change dip**, which is where
+  version 16 now ends the previous song (1154 §3754, 1215 §2640, 1237 §2949, 1267 §§3348–3350,
+  1272 §3404, 1307 §4653; 8–34 s earlier than the recorded start). Version 16 moved the previous
+  song's end to the dip but left the next song at its old start, so the stretch between them now
+  belongs to neither song. **Mechanism to fix:** a song whose start follows a song end moved to
+  `song_change_dip` starts at that dip. Test-first, then the corpus gate.
+- **Song identities: all 5 confirm the pipeline's song.** 971 §1087 song 753, 1032 §1437 song 420,
+  1225 §2770 song 794, 1225 §2771 song 65, and 1236 §2936 song 1105 (“You're The Word Of God The
+  Father”) over the workbook's 398 (“I Am Not My Own”). These are stage-2 adjudications;
+  the workbook disagreement at 1236 and 1225 does not make the binding wrong.
+- **1328's reading: “The current opening is right”.** This contradicts the 10-18 ruling (“seems to
+  start mid reading”, expect outward) that both 1328 fixtures carry as an open defect. The answer
+  is being confirmed with the operator before either fixture's ruling changes.
+
 ### 4.2 Regular uploads are the lasting outcome
 
 Historic imports use the livestream
