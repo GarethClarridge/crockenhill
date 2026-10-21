@@ -207,6 +207,65 @@ sync. No ongoing manual patch application is required after this handoff.
 **Outcome:** both applications use the same corrected catalogue, and an ordinary
 OpenLP edit/save followed by website sync does not undo the cleanup.
 
+## Known catalogue findings from the historic import (2026-10-21)
+
+A starting list for ST1, consolidated from the historic plans' listening and censuses
+and remeasured against the local catalogue on 2026-10-21 (1,160 songs). It is input
+to review, not an approved correction list. Relinking the sections and clips bound to
+a twin stays with the historic plans (register S4: merge after the historic re-run,
+before the convergence re-census).
+
+**Why no merge is made in OpenLP alone:** `SongCatalogSyncService` upserts the songs
+it reads and never removes or redirects a local song that has left the source.
+Deleting a twin in OpenLP would leave the local row and everything bound to it in
+place. Each merge needs ST2's verified identity mapping and a historic relink step.
+
+**1. Duplicate entries: 26 groups share a first line.** Bound usage is shown as
+sections/song clips per local song; 49 sections are bound to a twin in all.
+
+| Local songs | Bound (sections/clips) | Notes |
+|---|---|---|
+| 20 / 195 Come We That Love The Lord | 0/0, 0/0 | |
+| 76 / 77 Amazing Grace (#772 / original) | 5/4, 1/0 | Both used. 1341 sang #772, bound to 77 (listening 10-20; operator: "a catalogue problem") |
+| 84 / 1149 Angels From The Realms Of Glory (`<copy>`) | 6/9, 0/0 | |
+| 126 / 127 Beneath The Cross Of Jesus | 0/0, 0/0 | |
+| 131 / 132 10000 Reasons / Bless the Lord, O My Soul | 12/10, 0/0 | 1224's order of service names 132, the section is bound to 131 (operator: "the same… Catalogue problem") |
+| 189 / 1112 Come O Fount Of Every Blessing | 2/2, 1/2 | Both used; fuzzy matching ties between them (08-24) |
+| 190 / 1125 / 1150 Come O Long-Expected Jesus (`<copy>`) | 0/0 each | |
+| 220 / 1110 Facing A Task Unfinished | 1/0, 2/2 | Both used |
+| 339 / 340 He Is Exalted | 0/0, 4/5 | |
+| 341 / 342 He Is Lord | 0/0, 0/0 | |
+| 358 / 359 Here Is Love | 0/0, 2/1 | |
+| 382 / 383 How Lovely Is Thy Dwelling (Place) | 0/0, 0/0 | |
+| 521 / 522 Jesus Stand Among Us | 0/0, 0/0 | |
+| 551 / 552 Lead Us Heavenly Father | 0/0, 0/0 | |
+| 624 / 1113 May The Grace Of Christ Our Saviour | 0/0, 0/0 | Fuzzy matching ties between them (08-24) |
+| 642 / 643 My Hope Is Built | 2/0, 6/5 | Both used |
+| 791 / 792 Praise Him | 0/0, 0/0 | |
+| 900 / 1120 The Head That Once Was Crowned With Thorns | 0/0, 0/0 | |
+| 950 / 1129 This Earth Belongs To God (#24b / #024b) | 2/4, 2/2 | Both used |
+| 1006 / 1007 What Blessings God Bestows | 1/0, 0/0 | |
+| 48 / 49 / 1153 All Creatures Of Our God And King | — | Original, adapted and Sovereign Grace versions: confirm whether distinct |
+| 265 / 267 Give Thanks To God (#118 / #107) | — | Possibly different settings: confirm |
+| 918 / 919 The Lord's My Shepherd (#23B / Townend) | — | Distinct songs sharing Psalm 23's opening |
+| 944 / 945 There's A Way Back To God | — | Confirm |
+| 504 / 505 "Jesus Is Lord" | — | Distinct songs (this plan, ST3) |
+| 1042 / 1053 | — | Probably a false first-line match |
+
+**2. Songs missing from the catalogue (8).** "Rejoice" (Townend/Kensrue, 2013; "Come and
+stand before your Maker"), sung in 1363 §4534 (2020-08-16), whose only recording is the
+quarantined clip 435, wrongly bound to song 11; "Did You Know?" (1344 §4342); and six
+titles from the 09-18 census: "My God How Wonderful Thou Art", "Welcome Home", "Great
+Providence of Heaven", "Praise the Word from everlasting", "God's Love to Be with You",
+"Psalm 11 hymn". **"Rejoice" is the one addition the historic final round needs:** it is a
+new song, so nothing already bound moves, and it lets §4534 be bound and cut. It must be
+added and synced before the round starts (the runbook forbids catalogue edits during one).
+
+**3. Alternative titles (6):** ST3's table (712, 254, 644, 606, 996, 980).
+
+**Resolved since recorded:** song 83 "Angel Voices Ever Singing" lacked lyrics (10-12); it
+now has them.
+
 ## Verification, rollout and completion
 
 1. Reproduce overwrite, number-loss and source-rename risks in focused tests before

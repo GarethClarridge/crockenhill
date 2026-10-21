@@ -164,7 +164,7 @@ song digital-zero bar, run 937's retirement).
 | S1 | A song bound to an order-of-service item is that item's song, however its title is spelt. | 09-30 | [Ensemble] 14 |
 | S2 | An unbound song is the catalogue song its title names, when the resolver matches it deterministically (rule B). Untitled versus titled stays a question. | 10-01 | [Ensemble] 19 |
 | S3 | `confirmed` means any two independent evidence sources. | 09-23 | [Plan] §4.3 |
-| S4 | Duplicate catalogue songs are merged in OpenLP after the re-run, before the convergence re-census. Song data lives in OpenLP; local `alternate_title` edits revert. | 09-25 | [Log 10-16] §4.0 standing decision 3 |
+| S4 | Duplicate catalogue songs are merged in OpenLP after the re-run, before the convergence re-census. Song data lives in OpenLP; local `alternate_title` edits revert. Includes 76/77 and 131/132; the 20 groups are listed in the song title curation plan (10-21). Only "Rejoice" (a new song) is added before the final round. | 09-25 | [Log 10-16] §4.0 standing decision 3 |
 | S5 | The hymn workbook's held-out half stays unopened until song acceptance measures it; once measured, it is spent. | 09-25, 10-14 | [Songs] §7 |
 | S6 | **Song acceptance has no numeric bar.** Rates are reported as measured; every wrong binding gets a fix or leave verdict with a reason. | 10-14 | [Songs] §7 |
 | S7 | 2020–2022 have no workbook; stage 2 adds a 40-service listening sample for those years, reported separately. | 10-14 | [Songs] §9 |

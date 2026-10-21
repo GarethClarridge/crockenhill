@@ -1354,7 +1354,8 @@ introduction, 10-20).
        round clone, since this checkout's rows may differ.
      - **Not pipeline fixes, for OpenLP:** two “Amazing Grace” entries (songs 76 and 77; 1341 sang
        #772 but was bound to “(original)”), and “Bless the Lord, O My Soul” (132), which duplicates
-       “10000 Reasons” (131; 1224). Song data is synced from OpenLP, so it is corrected there.
+       “10000 Reasons” (131; 1224). Song data is synced from OpenLP, so it is corrected there,
+       **after the round with the other duplicate groups (S4; corrected 10-21, below)**.
 
      **Code implemented 10-21, without new listening or media generation:**
      - Gate 1 reads the shared database and `service_artifacts`, pinning each run's recorded
@@ -2595,3 +2596,18 @@ in `storage/scratch/edge-gate-20261019/out/song-operator-20261021-comparison.jso
   `historic-c24f1acfc3b4f9986882be35c917b73f`. Dry run reviewed, then applied: one sermon withdrawn,
   three assets (722.7 MiB) moved under `superseded/`. The importer reads a retired run as
   `resume-superseded`, so the rehearsal is not re-imported.
+
+#### 10-21 (later): which catalogue changes the round needs
+
+**Correction:** this plan and the session report listed the two duplicates above (76/77, 131/132)
+with "Rejoice" as OpenLP changes to make before the final round. That was wrong. They are two of
+**20 duplicate groups** (49 song sections bound to a twin; both twins in use in five groups), and
+an OpenLP merge alone re-binds nothing: `SongCatalogSyncService` never removes or redirects a
+local song that has left the source. All the merges, the relinking of what is bound to a twin, the
+other seven missing songs and the six alternative titles follow register **S4** (after the re-run,
+before the convergence re-census). The consolidated list is in the
+[song title curation plan](SONG-TITLE-CURATION-AND-OPENLP-SYNC-2026-09-22.md) ("Known catalogue
+findings from the historic import"). **The only catalogue change before the final round is adding
+"Rejoice"** (a new song; nothing bound moves), so that 1363 §4534 is bound and cut and clip 435
+can retire. Add and sync it before the round starts: the runbook (§2.4) forbids catalogue edits
+during one.
