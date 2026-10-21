@@ -218,7 +218,7 @@ class CueSafeExtractionPlan
     /**
      * A section's own output: the section, or a talk with the reading it is answered to go with
      * ({@see TalkReadingPairing}), one span per section. The reading takes the pause before the
-     * talk, so the two meet and play straight through, as a sermon's silent joins do. A talk's
+     * talk, so the two meet and play straight through, as a sermon's silent joins do. A talk's or song's
      * output takes the operator's start and end ({@see OutputEdgeAnswers}).
      *
      * @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>, audio_fade_out: float|null, dead_feed_excisions?: list<array<string, mixed>>, dead_feed_input_identity?: string}
@@ -237,7 +237,7 @@ class CueSafeExtractionPlan
             $section->processingLog,
             $spans,
             songEnds: $section->section_type === ServiceSectionType::Song,
-            edgeAnswers: $section->section_type === ServiceSectionType::ShortTalk ? OutputEdgeAnswers::of($section, $sections) : null,
+            edgeAnswers: in_array($section->section_type, [ServiceSectionType::ShortTalk, ServiceSectionType::Song], true) ? OutputEdgeAnswers::of($section, $sections) : null,
         );
         if (! in_array($section->section_type, [ServiceSectionType::Sermon, ServiceSectionType::ShortTalk], true)) {
             return $plan;
@@ -401,7 +401,7 @@ class CueSafeExtractionPlan
         $audit = $this->withAnswerIdentity($log, $sectionSpans, $songEnds, $sermonEnd, $cues, $levels, $timeline, $audit);
         $spans = $this->withAnsweredEdges($log, $spans, $audit);
         $spans = $this->withUnresolvedIntervals($log, $sectionSpans, $spans, $audit);
-        $spans = $this->withOperatorEdges($log, $sectionSpans, $spans, $audit, $songEnds ? null : $edgeAnswers);
+        $spans = $this->withOperatorEdges($log, $sectionSpans, $spans, $audit, $edgeAnswers);
         $lastSpan = $last;
         $merged = [];
         foreach ($spans as $span) {

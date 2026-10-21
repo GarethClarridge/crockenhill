@@ -195,6 +195,36 @@ class OperatorOutputEdgeTest extends TestCase
         $this->assertSame('decode_pending', app(OutputEdgeCheck::class)->check($sermon->fresh())['status']);
     }
 
+    #[Test]
+    public function a_song_answer_cannot_extend_into_the_following_spoken_item(): void
+    {
+        $log = $this->service([], [['song', 10.0, 60.0], ['prayer', 60.0, 90.0]]);
+        $song = $log->serviceSections()->where('section_type', ServiceSectionType::Song)->sole();
+        $this->setEdge($song, 'end', 65.0);
+
+        $plan = $this->plans()->forSection($song->fresh());
+
+        $this->assertCount(1, CueSafeExtractionPlan::refusedOperatorEdges($plan['cue_edge_widening']));
+        $this->assertContains(['kind' => 'operator_edge_refused', 'section_ids' => [$song->id]],
+            app(PublicationPlanValidator::class)->validate($log, [$song], $plan['segments'], $plan['cue_edge_widening']));
+    }
+
+    #[Test]
+    public function the_read_only_check_uses_the_songs_output_and_its_answer(): void
+    {
+        $log = $this->service([], [['song', 10.0, 60.0], ['prayer', 60.0, 90.0]]);
+        $song = $log->serviceSections()->where('section_type', ServiceSectionType::Song)->sole();
+        $this->setEdge($song, 'end', 55.0);
+        $before = $log->fresh()->processing_metadata?->toArray();
+
+        $check = app(OutputEdgeCheck::class)->check($song->fresh());
+
+        $this->assertSame('checked', $check['status']);
+        $this->assertSame(55.0, $check['edges']['end']['cut']);
+        $this->assertSame(55.0, $check['edges']['end']['answer']);
+        $this->assertSame($before, $log->fresh()->processing_metadata?->toArray());
+    }
+
     private function plans(): CueSafeExtractionPlan
     {
         return app(CueSafeExtractionPlan::class);

@@ -12,7 +12,7 @@ use App\Services\Sermon\SermonExtractionPlanResolver;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Where the next cut of a sermon's or a talk's output would put its start and end, and whether
+ * Where the next cut of a sermon's, talk's or song's output would put its start and end, and whether
  * each operator edge ({@see OutputEdgeAnswers}) is placed or refused: the plan the cut would
  * follow, resolved read only. Planning recomposes the sermon and writes it on the run, so it runs
  * in a transaction that is rolled back. Nothing is cut, queued or recorded.
@@ -34,7 +34,7 @@ class OutputEdgeCheck
         $log = $owner->processingLog;
         $context = $log->historicStagingContext();
         $plan = function () use ($owner, $log): array {
-            if ($owner->section_type === ServiceSectionType::ShortTalk) {
+            if (in_array($owner->section_type, [ServiceSectionType::ShortTalk, ServiceSectionType::Song], true)) {
                 $planned = $this->cutPlans->forSection($owner);
 
                 return ['segments' => $planned['segments'], 'audit' => $planned['cue_edge_widening'], 'reason' => null];

@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services\ChurchService;
 
+use App\Actions\ServiceReview\SetOutputEdge;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Models\User;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\OutputEdgeWordTimings;
 use App\Services\ChurchService\SermonSongIntroductionCheck;
@@ -72,6 +74,22 @@ class RuledEndingsRegressionTest extends TestCase
         }
 
         return $fixtures;
+    }
+
+    #[Test]
+    public function a_song_ends_before_an_untranscribed_introduction_to_the_next_song(): void
+    {
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/listening-song-changes-20261020-1297-s3803-end-current.json.gz')), true, flags: JSON_THROW_ON_ERROR);
+        $log = $this->rebuild($fixture);
+
+        $section = $log->serviceSections()->findOrFail(3803);
+        $admin = User::factory()->create(['is_admin' => true]);
+        app(SetOutputEdge::class)->execute($section, 'end', '28:26', $admin->id,
+            'Operator ruling: before the next song introduction.');
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section->fresh());
+
+        $this->assertEqualsWithDelta(1706.0, end($plan['segments'])['end_time'], self::FIDELITY_TOLERANCE, json_encode($plan['cue_edge_widening'], JSON_THROW_ON_ERROR));
     }
 
     #[Test]

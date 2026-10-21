@@ -17,7 +17,7 @@ use App\Support\ServiceTimestamp;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Record an operator's "start here" or "end here" for a sermon's or a talk's output, chosen by ear
+ * Record an operator's "start here" or "end here" for a sermon's, talk's or song's output, chosen by ear
  * on the service screen ({@see OutputEdgeAnswers}). The cut planner applies it on the next cut,
  * after every edge rule ({@see CueSafeExtractionPlan::forSpans()}), and refuses it there if it
  * would cut into other content, so nothing needs decoding first.
@@ -48,10 +48,11 @@ class SetOutputEdge
         $output = $this->outputSections($section);
 
         if ($output === null) {
-            throw ValidationException::withMessages([$field => 'Only a sermon\'s or a talk\'s own start and end can be set here.']);
+            throw ValidationException::withMessages([$field => 'Only a sermon\'s, a talk\'s or a song\'s own start and end can be set here.']);
         }
 
-        if ($section->publication_status === ServiceSectionPublicationStatus::Published) {
+        // A published song's clip is refreshed in place on its next cut; a published sermon's is not.
+        if ($section->publication_status === ServiceSectionPublicationStatus::Published && $section->section_type !== ServiceSectionType::Song) {
             throw ValidationException::withMessages([$field => 'Published sections cannot be recut here.']);
         }
 
@@ -121,6 +122,10 @@ class SetOutputEdge
     {
         if ($section->section_type === ServiceSectionType::ShortTalk) {
             return $this->talkReadings->sectionsCut($section);
+        }
+
+        if ($section->section_type === ServiceSectionType::Song) {
+            return [$section];
         }
 
         if ($section->section_type !== ServiceSectionType::Sermon) {

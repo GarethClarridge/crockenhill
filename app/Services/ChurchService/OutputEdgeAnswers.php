@@ -7,9 +7,9 @@ namespace App\Services\ChurchService;
 use App\Models\ServiceSection;
 
 /**
- * An operator's "start here" and "end here" for one sermon's or talk's output, as the cut planner
+ * An operator's "start here" and "end here" for one sermon's, talk's or song's output, as the cut planner
  * reads them ({@see CueSafeExtractionPlan::forSpans()}). Each is a recording time chosen by ear,
- * kept on the section that owns the output (the sermon, or the talk), so it follows that content
+ * kept on the section that owns the output (the sermon, talk or song), so it follows that content
  * through re-detection as a content hold does ({@see ServiceSectionSyncService}). It applies to
  * the output's first start or last end only, after every edge rule.
  *

@@ -1,8 +1,12 @@
-{{-- "Start here / end here" for a sermon's or talk's output: expects $section and $edgePanel
+{{-- "Start here / end here" for a sermon's, talk's or song's output: expects $section and $edgePanel
      ({@see ReviewsServiceSections::outputEdgePanelFor()}). Times are recording (service) time. --}}
 @php
     $check = $this->outputEdgeChecks[$section->id] ?? null;
-    $outputLabel = $section->section_type === \App\Enums\ServiceSectionType::ShortTalk ? 'talk' : 'sermon';
+    $outputLabel = match ($section->section_type) {
+        \App\Enums\ServiceSectionType::ShortTalk => 'talk',
+        \App\Enums\ServiceSectionType::Song => 'song',
+        default => 'sermon',
+    };
 @endphp
 
 <x-card heading="Where this {{ $outputLabel }} starts and ends" dusk="output-edges-{{ $section->id }}">

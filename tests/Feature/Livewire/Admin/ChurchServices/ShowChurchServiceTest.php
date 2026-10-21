@@ -1509,6 +1509,27 @@ class ShowChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function a_songs_edge_panel_names_the_song(): void
+    {
+        [$service, $run] = $this->workbenchServiceWithRun();
+        $run->update(['church_service_id' => $service->id, 'duration' => 1800]);
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'start_time' => 1570.06,
+            'end_time' => 1713.05,
+            'needs_manual_review' => true,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSee('Where this song starts and ends')
+            ->assertSee('set the time you hear the song start or end')
+            ->assertDontSee('Where this sermon starts and ends');
+    }
+
+    #[Test]
     public function a_refused_output_edge_is_shown_on_its_field(): void
     {
         [$service, $run] = $this->workbenchServiceWithRun();

@@ -135,14 +135,38 @@ class SetOutputEdgeTest extends TestCase
     }
 
     #[Test]
-    public function only_a_sermon_or_a_talk_owns_an_output_edge(): void
+    public function a_song_records_its_edge_without_dispatching_the_final_round(): void
+    {
+        Bus::fake();
+        $log = MediaProcessingLog::factory()->create(['duration' => 1800.0]);
+        $song = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song,
+            'start_time' => 1570.06,
+            'end_time' => 1713.05,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable,
+        ]);
+
+        $this->action->execute($song, 'end', '28:26', $this->admin->id, 'Before the next song introduction.');
+
+        $song->refresh();
+        $answer = OutputEdgeAnswers::recordsOf($song)['end'];
+        $this->assertSame(1706.0, $answer['time']);
+        $this->assertSame([$song->id], $answer['output_section_ids']);
+        $this->assertSame(1713.05, (float) $song->end_time);
+        $this->assertSame($this->admin->id, $answer['set_by_user_id']);
+        Bus::assertNothingDispatched();
+    }
+
+    #[Test]
+    public function a_reading_does_not_own_an_output_edge(): void
     {
         [$log] = $this->heldSermonAfterItsReading();
-        $song = $log->serviceSections()->where('section_type', ServiceSectionType::Song->value)->firstOrFail();
+        $reading = $log->serviceSections()->where('section_type', ServiceSectionType::BibleReading->value)->firstOrFail();
 
-        $this->expectExceptionMessage('Only a sermon\'s or a talk\'s own start and end');
+        $this->expectExceptionMessage('Only a sermon\'s, a talk\'s or a song\'s own start and end');
 
-        $this->action->execute($song, 'end', '2540', $this->admin->id);
+        $this->action->execute($reading, 'end', '2540', $this->admin->id);
     }
 
     #[Test]
@@ -154,6 +178,28 @@ class SetOutputEdgeTest extends TestCase
         $this->expectExceptionMessage('Published sections cannot be recut here.');
 
         $this->action->execute($sermon, 'end', '4007.6', $this->admin->id);
+    }
+
+    /** A published song's clip is refreshed in place on its next cut, so its edge may still be set. */
+    #[Test]
+    public function a_published_song_records_its_edge(): void
+    {
+        Bus::fake();
+        $log = MediaProcessingLog::factory()->create(['duration' => 1800.0]);
+        $song = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song,
+            'start_time' => 1570.06,
+            'end_time' => 1713.05,
+            'publication_status' => ServiceSectionPublicationStatus::Published,
+        ]);
+
+        $this->action->execute($song, 'end', '28:26', $this->admin->id);
+
+        $song->refresh();
+        $this->assertSame(1706.0, OutputEdgeAnswers::recordsOf($song)['end']['time']);
+        $this->assertSame(ServiceSectionPublicationStatus::Published, $song->publication_status);
+        Bus::assertNothingDispatched();
     }
 
     /** As the screen's talk recut does: the stale clip goes, and candidate preparation is queued. */
