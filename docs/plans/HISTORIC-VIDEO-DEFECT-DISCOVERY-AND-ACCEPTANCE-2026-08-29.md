@@ -1532,6 +1532,16 @@ record as an active hold. Its remaining section publication decisions are separa
 No processing was dispatched, no hold released, no round closed, no cleanup applied, no
 publication performed. The local listening server is stopped; the listening pages are Claude's to build and publish.
 
+**Listening pages published 10-21** (built by `storage/scratch/listening-final-20261021/build.py`
+from the Song Changes page; answers save to each page's `rulings` collection under the question
+id; each page's `private.json` holds the stripped `key`/`prior_rulings` that decode them):
+- Held-word Endings, 27 A/B ends (decides the `93beb7c28` candidate): https://claude.ai/artifact/KfG1eZjh5g7i5zpL5mFmo5
+- Song Questions, 8 starts + 5 identities + 1328's reading: https://claude.ai/artifact/MCoJuTGZKs9K1U67LZegf1
+- Older Songs, the 40 M4 draws: https://claude.ai/artifact/CCfMsqp69tRJH2uqr3HbX1
+- Hymn Book Coverage 1 and 2, the 30 M3 units by run (each whole service in two stream-copied
+  halves, service time kept): https://claude.ai/artifact/T5veqBCc8N1bW7bYWbXqre and
+  https://claude.ai/artifact/K5XTYdJxQtPoaXcpdyRzhQ
+
 ### 4.2 Regular uploads are the lasting outcome
 
 Historic imports use the livestream
