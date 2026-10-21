@@ -1304,7 +1304,8 @@ round's member runs while they process), listening before a change is relied on,
 that moves an edge ruled right. "Ideally X, not a disaster" answers stay as cut (1251's hymn
 introduction, 10-20).
 
-1. **Measure first, so nothing turns up after the fixes:**
+1. **Measure first, so nothing turns up after the fixes** (done 10-21; every page is answered and
+   recorded below, under the session after `8039b8ada`):
    - **Song acceptance stage 2** on the settled runs ([protocol](HISTORIC-SONG-ACCEPTANCE-MEASUREMENT-2026-10-11.md)
      §3, M4). It finds the defects not yet known, so it comes before the fix list is final.
    - **The starts of songs that follow another song.** The 8 song ends version 16 moves to the dip
@@ -1325,7 +1326,35 @@ introduction, 10-20).
      held last word cut by an early speech cue), 1309 §3922 (slightly early).
    - **The two detection fixes ruled on 10-14:** join split sermons (D21: 1073, 1268) and 954's
      talk (D22).
-   - Whatever step 1 finds.
+   - **What step 1 found (10-21)**, each with a failing test first, then gate 1 and listening for any
+     edge that moves:
+     - **Narrow the held-word song-end candidate** (`93beb7c28`, unreleased). It extends 25 of 27
+       ends rightly (E21) and fixes 1212 §2910, the item above. But it runs into the next spoken
+       item at 1211 §175128 (the benediction, 4384.50–4394.24) and 1250 §3124 (“Let's pray
+       together.”, 422.78–426.54). A long decoded word that is the following speech must not
+       extend the song. First find where gate 1 reads the banked edge words: this checkout's
+       database lacks them, and `capture.php --current` on 1250 is UNASSESSABLE
+       (`edge_word_timings_missing`). Capture 1211 and 1250 from that store as the failing fixtures.
+     - **Start the next song at the song-change dip.** All 8 Song Questions openings chose the
+       dip where version 16 now ends the previous song (1154 §3754, 1215 §2640, 1237 §2949, 1267
+       §§3348–3350, 1272 §3404, 1307 §4653). Extend `atSongChangeDip` to the following song's
+       start. This replaces step 1's “only if the page rules the dip right”: it did. Check 1262
+       §3284's ruled start (1531 s) against the rule before relying on it.
+     - **An uncatalogued song must not borrow another title (1344 §4342, M4).** The sung “Did You
+       Know?” is not in the catalogue, and the item's livestream evidence also names “Nobody's A
+       Nobody”, which it was bound to. Confirm the matching path in code, then make an item whose
+       own title has no catalogue match stay unbound (a refusal, not a wrong song).
+     - **A song section joined to the wrong order-of-service item (1198 §2487, M3).** The section
+       is titled “O holy night” (867.52–1114.96) but is joined to OpenLP item 3604 (position 9, “Of
+       The Father's Heart Begotten #371”, song 752). The OpenLP item “O holy night” (3599, position
+       6, song 1107) exists in the same service. The catalogue has one “O holy night”, so this is
+       alignment, not catalogue. The section's title and the item's title disagree outright, so
+       count that class across the corpus, then fix the alignment test-first. Also check 1138
+       §2120 (a 3-s song section titled with the heading “Songs of Christ and redemption”) on the
+       round clone, since this checkout's rows may differ.
+     - **Not pipeline fixes, for OpenLP:** two “Amazing Grace” entries (songs 76 and 77; 1341 sang
+       #772 but was bound to “(original)”), and “Bless the Lord, O My Soul” (132), which duplicates
+       “10000 Reasons” (131; 1224). Song data is synced from OpenLP, so it is corrected there.
    - **Small code items:** readiness should treat a retired run like an excluded one (937); readiness
      should treat the thumbnail as pending its §4.5 step, if the operator agrees.
 3. **Operator answers, in parallel with 1 and 2:**
@@ -1463,13 +1492,12 @@ An earlier broad short-cue attempt also disturbed accepted controls, including 1
 remains withdrawn. The patch files named `withdrawn-held-word-{candidate,test}.patch` preserve
 the same candidate during the brief withdrawal; their names are historical. The 1212 fixture
 records the original cut in `previous_live` and the candidate in `live`, with
-`acceptance_pending`. Two 1328 fixtures carry the same ruling, open defects at 1407.14 s until
-10-21 and keeps since (see the Song Questions results below): `listening-edges-20261018-1328-start` (captured at
-`821354d69`) and `listening-recut-20261020-1328-start` (at `8039b8ada`). The older one predates
-the current route; it gives the same cut by an older path, so it is kept as a guard on that path
-while it was an open defect. With no repair coming, it now only duplicates the current capture,
-so it can be retired (operator approval). Neither is
-a new listening acceptance.
+`acceptance_pending`. 1328's start is guarded by `listening-recut-20261020-1328-start` (captured
+at `8039b8ada`). It was an open defect at 1407.14 s until 10-21 and has been a keep since (see the
+Song Questions results below). The older `listening-edges-20261018-1328-start` (at `821354d69`)
+gave the same cut by an older route. It was kept as a guard on that route while a repair was
+expected, and was retired with the operator's approval on 10-21. Neither is a new listening
+acceptance.
 
 The read-only corpus comparison uses the existing gate at
 `storage/scratch/edge-gate-20261019/`, labels `session-20261021-before` and
@@ -1609,9 +1637,13 @@ pipeline misses. Three are found in the recording:
 - **1138 song 439 (“I Will Glory In My Redeemer”): unbound, section 2120.** Locally that section is
   a 3-s song section titled “Songs of Christ and redemption”, a heading rather than a song title,
   so it has nothing to match. Check the section on the round clone before calling it a class.
-- **1198 song 1107 (“O holy night”): unbound, should be section 2486.** Locally §2486 is a
-  `short_talk` titled “Introduction to O Holy Night” (571.52–867.52), so the song was typed as a
-  talk and never reached matching. Class: a sung item typed as speech.
+- **1198 song 1107 (“O holy night”): sung in §2487, which is bound to another song.** The
+  operator first answered “unbound, should be 2486” (§2486 is the spoken introduction), then
+  corrected it on 10-21 to §2487. §2487 is titled “O holy night”, but the page showed its bound
+  song as 752 (“Of The Father's Heart Begotten #371”). Locally it is joined to OpenLP item 3604,
+  that song's item, while the OpenLP item “O holy night” (3599, song 1107) is in the same service.
+  The operator suggested a catalogue problem. The catalogue has one “O holy night”, so the class
+  is a song section joined to the wrong order-of-service item.
 - **1224 song 132 (“Bless the Lord, O My Soul”): bound to a different song, §2762 → song 131
   “10000 Reasons”.** Operator: “This is the same as the song bound to 2762. Catalogue problem.” Songs
   131 and 132 are one song entered twice. Verdict: **leave the pipeline**. Fix it in OpenLP, like
