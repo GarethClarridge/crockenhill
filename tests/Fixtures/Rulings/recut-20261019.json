@@ -5789,9 +5789,15 @@
       "title": "Start: “God transforms his people” (2021-04-11, morning)",
       "edge": "start",
       "heard": 1407.14,
-      "answer": "late",
-      "expect": "outward",
-      "note": "This seems to start mid reading"
+      "answer": "right",
+      "expect": "keep",
+      "note": "The reading opens in a dead feed; the current opening is the first reading recorded.",
+      "superseded": {
+        "answer": "late",
+        "expect": "outward",
+        "note": "This seems to start mid reading"
+      },
+      "superseded_by": "listening-final-20261021:1328-reading-opening-context"
     },
     {
       "id": "listening-recut-20261020:1328-start",
@@ -5803,9 +5809,15 @@
       "title": "Start: “God transforms his people” (2021-04-11, morning)",
       "edge": "start",
       "heard": 1407.14,
-      "answer": "late",
-      "expect": "outward",
-      "note": "Feels like it starts mid reading"
+      "answer": "right",
+      "expect": "keep",
+      "note": "The reading opens in a dead feed; the current opening is the first reading recorded.",
+      "superseded": {
+        "answer": "late",
+        "expect": "outward",
+        "note": "Feels like it starts mid reading"
+      },
+      "superseded_by": "listening-final-20261021:1328-reading-opening-context"
     },
     {
       "id": "listening-recut-20261020:1328-end",

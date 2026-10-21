@@ -1315,7 +1315,9 @@ introduction, 10-20).
      that ruling is about before relying on it. Extend `atSongChangeDip` to starts only if the page
      rules the dip right.
 2. **Fix, test-first:**
-   - **1328's start** (late, "starts mid reading", ruled 10-18 and again 10-20).
+   - ~~**1328's start**~~ (late, "starts mid reading", 10-18 and 10-20): **closed 10-21, no fix**.
+     The reading's first verse is in a dead feed, so the current start is the first reading
+     recorded (see the Song Questions results below).
    - **1297 §3803's end:** should be near 28:26, before the next song's spoken introduction.
    - **1378 §4617's end:** both endings heard sit at a spoken introduction, not the song's end.
    - **The song-to-speech ends** ruled wrong both ways on 10-20 (§4.0, 10-19 review): 1212 §2910 (a
@@ -1461,12 +1463,12 @@ An earlier broad short-cue attempt also disturbed accepted controls, including 1
 remains withdrawn. The patch files named `withdrawn-held-word-{candidate,test}.patch` preserve
 the same candidate during the brief withdrawal; their names are historical. The 1212 fixture
 records the original cut in `previous_live` and the candidate in `live`, with
-`acceptance_pending`; the separate current 1328 fixture remains an open defect. Two 1328 fixtures carry the same
-ruling, both open defects at 1407.14 s: `listening-edges-20261018-1328-start` (captured at
+`acceptance_pending`. Two 1328 fixtures carry the same ruling, open defects at 1407.14 s until
+10-21 and keeps since (see the Song Questions results below): `listening-edges-20261018-1328-start` (captured at
 `821354d69`) and `listening-recut-20261020-1328-start` (at `8039b8ada`). The older one predates
 the current route; it gives the same cut by an older path, so it is kept as a guard on that path
-until 1328's repair lands. Then retire it (operator approval), as the repair's red-to-green test
-should build on the current capture. Neither is
+while it was an open defect. With no repair coming, it now only duplicates the current capture,
+so it can be retired (operator approval). Neither is
 a new listening acceptance.
 
 The read-only corpus comparison uses the existing gate at
@@ -1572,9 +1574,14 @@ The candidate stays committed but unreleased; media version stays 16.
   1225 §2770 song 794, 1225 §2771 song 65, and 1236 §2936 song 1105 (“You're The Word Of God The
   Father”) over the workbook's 398 (“I Am Not My Own”). These are stage-2 adjudications;
   the workbook disagreement at 1236 and 1225 does not make the binding wrong.
-- **1328's reading: “The current opening is right”.** This contradicts the 10-18 ruling (“seems to
-  start mid reading”, expect outward) that both 1328 fixtures carry as an open defect. The answer
-  is being confirmed with the operator before either fixture's ruling changes.
+- **1328's reading: “The current opening is right”, confirmed 10-21 as a recording loss.** After
+  “Thank you, Naomi” (22:49.8) there is near-silence to 23:04, then a 22-s dead feed (23:05–23:27).
+  Sound returns at 23:27.1 mid-verse (“Then put my cup…”, Genesis 44:2). Verse 1 was read inside
+  the dead feed and is not in the source. The 10-18 complaint was accurate but cannot be fixed:
+  1407.14 s is the first reading recorded, and `outOfDeadFeed` is right to keep the cut out of the
+  gap. The detected 23:15.8 is a smeared cue inside the dead feed. `scripts/rulings/recut.py`
+  supersedes both late rulings with keeps, and records the earlier answers as `superseded`. Both
+  fixtures are now keeps, not open defects.
 
 **Older Songs (M4) answered 10-21** (decoded in
 `storage/scratch/listening-final-20261021/older-songs/decoded.json`): 37 yes, 2 no, 1 can't tell.

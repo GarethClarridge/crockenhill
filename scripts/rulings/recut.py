@@ -53,6 +53,7 @@ def collect(scratch):
                               relistened=replacement.exists()))
     records += song_endings(scratch / 'listening-songs-20261020', 'new')
     records += song_endings(scratch / 'listening-song-changes-20261020', 'dip')
+    supersede_with_reading_context(records, scratch / 'listening-final-20261021/song-questions')
     return sorted(records, key=lambda r: (r['run'], r['heard'], r['id']))
 
 
@@ -76,6 +77,26 @@ def song_endings(root, alternative):
                                   question['run'], 'end', key[f'{which}_end'], 'section',
                                   key['section_id'], 'song', question['title'], ending=which))
     return records
+
+
+def supersede_with_reading_context(records, root):
+    """1328's start was heard as mid-reading (10-18, 10-20); its context question (10-21) settled it.
+
+    The reading's opening verse fell in a 22-s dead feed, so 1407.14 s is the first reading the
+    recording holds. "The current opening is right" turns both late rulings into keeps; the earlier
+    answer stays on the record as `superseded`.
+    """
+    path = root / 'answers/rulings/1328-reading-opening-context.json'
+    if not path.exists():
+        return
+    answer = read(path)
+    if answer['choice'] != 'current':
+        return
+    for r in records:
+        if r['run'] == 1328 and r['edge'] == 'start' and r['output'] == 'sermon':
+            r['superseded'] = {'answer': r['answer'], 'expect': r['expect'], 'note': r['note']}
+            r.update(answer='right', expect='keep', superseded_by=f'{root.parent.name}:{answer["question_id"]}',
+                     note='The reading opens in a dead feed; the current opening is the first reading recorded.')
 
 
 def record(source, question_id, answer, run, edge, heard, output, section_id, section_type, title, **extra):

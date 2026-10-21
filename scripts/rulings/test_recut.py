@@ -29,6 +29,15 @@ class RecutRulingsTest(unittest.TestCase):
                                       if r['id'].endswith(':1291-start'))['expect'])
         self.assertFalse(any('1345-gap' in r['id'] for r in records))
 
+    def test_the_reading_context_answer_keeps_1328s_start(self):
+        path = pathlib.Path(__file__).parents[2] / 'tests/Fixtures/Rulings/recut-20261019.json'
+        starts = [r for r in recut.read(path)['rulings'] if r['run'] == 1328 and r['edge'] == 'start']
+        self.assertEqual(2, len(starts))
+        for edge in starts:
+            self.assertEqual('keep', edge['expect'])
+            self.assertEqual('outward', edge['superseded']['expect'])
+            self.assertEqual('listening-final-20261021:1328-reading-opening-context', edge['superseded_by'])
+
 
 if __name__ == '__main__':
     unittest.main()
