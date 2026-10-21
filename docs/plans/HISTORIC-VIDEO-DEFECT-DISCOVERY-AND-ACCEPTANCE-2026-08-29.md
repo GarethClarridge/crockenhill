@@ -2571,3 +2571,27 @@ in `storage/scratch/edge-gate-20261019/out/song-operator-20261021-comparison.jso
   **Operator, 10-21: run it as the final round's first step** (§4.1 item 4 below).
 - **Listening page:** [Final open questions](https://claude.ai/artifact/3STKtfYsNgX5QJUdccUBNe),
   `rulings` collection (`storage/scratch/final-open-20261021/`; key in `questions.json`).
+
+#### 10-21 (later): structure reviews, 1015's preacher and 1016
+
+- **The six structure-review runs answered (operator: "All as proposed"):** each was blocked only on
+  sermon composition (`ExtractSermon`: "Resolve the identified sermon sections…"). Recorded through
+  `SermonExtractionPlanResolver::reviewComposition()` in each run's source context (no dispatch;
+  `SaveServiceSection` would dispatch candidate preparation to the round's live workers). Each now
+  composes with `requires_review=false` and no risks: **1355** [4472, 4473]; **973** [190537, 190538],
+  no prayer (the benediction follows the closing song); **1287** [3604, 3605]; **1288** [3617, 3618,
+  3619, 3621], adding Luke 5:33-39 (the prayer asks to "bless the reading of your word", then all three
+  readings); **1327** [4152, 4153] (Ralph's "two readings" in one section); **1366** [4571, 4572].
+  Upstream section flags such as `structure_sermon_boundary_material_risk` stay as they were (by design).
+- **Composition review refused a reading that ran into the sermon.** The automatic path asks about such
+  a reading, and the review then refused "include it", so the question could never be answered yes.
+  Corpus: three cases (1065 5.0 s, 1287 3.67 s, 1366 2.9 s). The review now requires the reading to
+  *start* before the sermon; nesting is still refused, and the plan ends the reading where the sermon
+  begins (test with 1287's bounds). **1065 is still unanswered** (its composition selects the sermon alone).
+- **Sermon 1015's preacher is the operator** (preacher #120, `manual`, review cleared, through
+  `SaveSermonDetails` with every other field unchanged). Evidence: the service recording at 0:33,
+  "Gareth is going to be preaching for us this morning"; the operator confirmed.
+- **Sermon 1016 retired** (X5): run **1089** (already excluded, `rehearsal_duplicate`), operation
+  `historic-c24f1acfc3b4f9986882be35c917b73f`. Dry run reviewed, then applied: one sermon withdrawn,
+  three assets (722.7 MiB) moved under `superseded/`. The importer reads a retired run as
+  `resume-superseded`, so the rehearsal is not re-imported.

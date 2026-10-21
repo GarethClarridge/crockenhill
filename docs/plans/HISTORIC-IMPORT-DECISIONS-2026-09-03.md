@@ -188,7 +188,7 @@ song digital-zero bar, run 937's retirement).
 | X2 | Saturday rehearsals 1043 and 1089 are excluded (`rehearsal_duplicate`), as are funerals 1051 and 1098 (`private_occasion`). The services their runs created are removed; release refuses an excluded run's rows. | 09-14, 09-15 | [Plan] §4.5 |
 | X3 | 1145 is excluded, `no_sermon_in_source`, keeping service 1030; 1143 is an accepted hold. | 09-19 | [Plan] §4.5 |
 | X4 | **Duplicate pairs:** keep the real service, use the better file's run, set the poorer run aside (`duplicate_recording`): A 1120 over 930, B 1034 over 1035, C 1375 over 1374. Applied and verified locally on 10-16; all 10 withdrawn assets preserved and hash-checked. Re-detection and re-cut remain pending. | 10-14 | [Plan] §4.4 |
-| X5 | 940 is a rehearsal (`rehearsal`, service 653 removed, done 10-15); 879 and 1016 are rehearsals of 1015. Retire 879 (**done 10-21**: actual run 940 retired; sermon withdrawn and four assets retained under `superseded/`). | 10-14, 10-15 | [Round] §12 |
+| X5 | 940 is a rehearsal (`rehearsal`, service 653 removed, done 10-15); 879 and 1016 are rehearsals of 1015. Retire 879 (**done 10-21**: actual run 940 retired; sermon withdrawn and four assets retained under `superseded/`) and 1016 (**done 10-21**: run 1089; three assets under `superseded/`). **1015 was preached by the operator** (10-21). | 10-14, 10-15 | [Round] §12 |
 | X6 | 607: keep 1126's 1080p sermon; 894 adopts it. 546: "720p with the reading", so 893 wins and 1189 is set aside. 790: 889 and 890 adopt 1378's sermon. | 10-14, 10-15 | [Round] §12 |
 | X7 | Hand-edited structure, never to be recomposed: 942, 974, 1363. | 10-15 | [Round] §12 |
 
@@ -207,6 +207,7 @@ song digital-zero bar, run 937's retirement).
 | R9 | **Fix the stale-clip cause before the re-cut round.** Complete [Round] §9.1 step 1, test it and include it in the new freeze before dispatch; existing residue clean-up remains in [Plan] §4.1. Cause fix committed in `29126fb8a`; isolated section-sync tests reverified 10-17: 40 tests, 177 assertions passed. Running clone revision not verified by this check; do not alter the current round. | 10-16; status 10-17 | Operator: "Fix the stale clips before the round"; [Plan] §4.0 decision 7 and §4.1 item 3 |
 | R10 | **Recompose the 12 runs with duplicate section pointers in the final round** (980, 1073, 1074, 1138, 1159, 1198, 1259, 1260, 1261, 1265, 1269, 1301), so their items re-sync through the projection; a Tier C cut alone does not re-sync. Repair through the pipeline, not by hand. | 10-21 | Operator: "Yes, recompose them"; [Plan] §4.1 item 4 |
 | R11 | **1309 §3922 ends at 284.9 s** (283.8 and 284.9 both fine; E21), banked as an operator edge. **1378 §4618 is two songs**, "What love could remember" then "When I Was Lost", changing in the 4356.4–4361.2 silence; split pending. A published song's edge may be set (its clip refreshes in place); a published sermon's may not. | 10-21 | Operator listening, Final open questions; [Plan] §4.1 |
+| R12 | **Structure reviews answered as proposed:** 1355 [4472, 4473], 973 [190537, 190538], 1287 [3604, 3605], 1288 [3617, 3618, 3619, 3621], 1327 [4152, 4153], 1366 [4571, 4572]. A reading running into the sermon may be reviewed into it. | 10-21 | Operator: "All as proposed"; [Plan] §4.1 |
 
 ## 12. Release
 
