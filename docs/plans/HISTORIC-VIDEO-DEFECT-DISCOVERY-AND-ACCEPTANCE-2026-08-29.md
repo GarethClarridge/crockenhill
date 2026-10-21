@@ -1595,6 +1595,21 @@ can't tell:
   My Shepherd” from home. The song is not in the recording, and the operator thinks the binding
   (#23B) is probably the wrong setting. Excluded from the denominator, as the protocol says.
 
+**Hymn Book Coverage (M3) answered 10-21** (both pages, 30 units; decoded in
+`storage/scratch/listening-final-20261021/hymn-book-coverage-decoded.json`). **27 of 30 are outside
+the recording.** The hymn book lists them, but they are not sung in the stream, so they are not
+pipeline misses. Three are found in the recording:
+- **1138 song 439 (“I Will Glory In My Redeemer”): unbound, section 2120.** Locally that section is
+  a 3-s song section titled “Songs of Christ and redemption”, a heading rather than a song title,
+  so it has nothing to match. Check the section on the round clone before calling it a class.
+- **1198 song 1107 (“O holy night”): unbound, should be section 2486.** Locally §2486 is a
+  `short_talk` titled “Introduction to O Holy Night” (571.52–867.52), so the song was typed as a
+  talk and never reached matching. Class: a sung item typed as speech.
+- **1224 song 132 (“Bless the Lord, O My Soul”): bound to a different song, §2762 → song 131
+  “10000 Reasons”.** Operator: “This is the same as the song bound to 2762. Catalogue problem.” Songs
+  131 and 132 are one song entered twice. Verdict: **leave the pipeline**. Fix it in OpenLP, like
+  1341's two Amazing Graces.
+
 ### 4.2 Regular uploads are the lasting outcome
 
 Historic imports use the livestream
