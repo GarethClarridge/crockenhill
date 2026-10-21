@@ -1386,8 +1386,8 @@ introduction, 10-20).
        1260 §3249, 1261 §3272, 1265 §3321, 1269 §3368, 1301 §3828. None of the 12 services has a
        reviewed canonical revision, so the next sync is not skipped. Only the projection syncs,
        and it runs in Tier B and recompose; Tier C starts at `TranscribeOutputEdges`, after it.
-       A run routed to Tier C alone keeps its duplicate pointer: **operator decision** whether
-       these 12 runs recompose in the final round. Check the count is zero at close. The corpus has **7**
+       A run routed to Tier C alone keeps its duplicate pointer. **Operator, 10-21: recompose
+       these 12 runs in the final round** (register R10). Check the count is zero at close. The corpus has **7**
        section/item song-ID disagreements (1073 §1712, 1198 §2487, and 1035 §§4817, 4819, 4821,
        4823, 4825). Main and the round clone use the same database; 1138 §2120 is still the
        three-second heading section described below, not a newly established alignment class.
@@ -1418,9 +1418,16 @@ introduction, 10-20).
      retired (item 4).
 4. **The final round** on the finished code: a fresh snapshot, then the runbook procedure as on 10-20
    (back-up, preflight, watcher, a dry run each, a canary, the rest, diff, custody, back-up):
+   - **first, 1378's split (R11):** set §4618 to not applicable (SongVideo #442 stays quarantined),
+     split it at about 4358.8 s, fold §4617's introduction into the first half as "What love could
+     remember" (item 5284), and keep the second half as "When I Was Lost" (item 5285); the round cuts both;
    - re-detect D21/D22's runs (1073, 1268, 954) and anything else whose structure changes;
+   - recompose the 12 runs with duplicate section pointers (R10): 980, 1073, 1074, 1138, 1159,
+     1198, 1259, 1260, 1261, 1265, 1269, 1301 (1073 is covered by its re-detection). Afterwards,
+     count live items sharing a `livestream_service_section_id`: it must be zero;
    - re-cut every run a fix changes: the version 16 song ends (1154, 1215, 1237, 1267, 1272, 1307),
-     with the next songs' starts if step 1 extends the rule; 1220, 1340 and 1347, which K16 now
+     with the next songs' starts (extended 10-21, `69c9f359a`); 1211 and 1250, whose held-word ends
+     are restored; the 25 held-word extensions; 1220, 1340 and 1347, which K16 now
      reaches (a song overlaps each sermon's end; 1340's end was ruled to clip a word on 10-12); 1328,
      1297, 1378, 1212, 1222, 1309; and whatever step 1 finds;
    - the data items: 1363 (OoS item 18035 still links the prayer §215988, not the sermon §248827,
@@ -2471,3 +2478,96 @@ sermon is a direct audio upload that already exists.
 | Export readiness | **12 of 455** | §3's reasons cleared or explained. The thumbnail line is a ruled deferral (§4.5). |
 | Content acceptance | **NO-GO** | §4.3's stopping rule, song acceptance stage 2, listening on the re-cut edges, and §4.5's fresh release-membership sample, each against criteria fixed beforehand. There is no reserved historic set; insufficient evidence is not a pass. |
 | Public release | **NO-GO** | Phase 9 convergence, QA and actual-server browser checks pass, then the operator signs an exact era-sized batch. Actual-destination delivery checks run within the authorised release's rollback window and must pass to close observation. |
+
+#### 10-21: recorded song edge and rehearsal retirement
+
+- **1297 §3803:** banked the operator's **28:26 / 1706-s** end under
+  `output_edge_answers`, with admin attribution, the previous section span and the original
+  ruling. Its automatic cut remains reproducible at 1712.95 s without that answer. The existing
+  operator-edge mechanism now accepts song outputs and applies their answers after the automatic
+  rules, using the same neighbouring-content refusal and read-only check as talks. The regression
+  failed before this change and passes with the recorded answer. No automatic song-end rule was
+  broadened. The section is pipeline-published, but its SongVideo #1018 is **quarantined**; only
+  answer metadata was written, retaining the existing clip for the final-round re-cut. Its prior
+  section record is backed up at `storage/app/historic-review-20261021/1297-section-3803-before-operator-edge.json`.
+- **1309 §3922:** the saved A/B key matters: ending 1 is the **current 286.74-s** end, ruled to
+  include speech; ending 2 is the **282.34-s candidate**, ruled slightly early. Do not extend the
+  current end on the wording “slightly early”. A precise replacement time remains pending.
+- **1222 §2733** stays the later-ruling control. **1378** remains a structure repair: neither
+  its missing song boundary nor the six structure-review decisions has been supplied. No answer
+  was inferred and no failed review state was cleared.
+- **Sermon 879 retired** under X5, using `historic-import:retire-run` for its actual run **940**,
+  processing ID `8443b8b4-a805-4e9a-a54c-f4e0fad2e0ca`, operation
+  `historic-60b16730090144bd307984abf538a7d7`. The dry run was reviewed, then the exact selection
+  applied: one sermon withdrawn, four assets relocated under the operation's `superseded/`
+  prefix with hashes in the retirement record. Verified that sermon 879 is absent and run 940
+  has its retirement record. **1015's preacher remains pending evidence.**
+- **1363's clip #435 remains intact.** On the operator's “What is this clip?” question,
+  frames at **0:10 and 1:30** establish that it displays **“Rejoice” (“Come and stand before your
+  Maker”)**, with the Townend/Kensrue credit, not “Thank You Lord For Gifts Of Teaching”. The
+  current **Rejoice §4534 (305.002–489.996)** has no clip attached; old §4533 is now a short talk.
+  The 183.879-s recording is at `/Volumes/Staging/HistoricWork/quarantine/sermons/songs/11/4533.mp4`,
+  dated **2020-08-16**. Its song #11 binding is therefore wrong; the old “unique copy” audit only
+  established uniqueness under that wrong identity. No catalogue entry matching Rejoice or its
+  opening was found by title/alternate-title lookup; “Come People Of The Risen King” has an
+  alternate “Rejoice! Rejoice!” but is a different song. Keep this recording pending a correct
+  catalogue identity and re-binding; do not blindly retire it through stale cleanup. Evidence
+  frames: `song-acceptance-20261021/1363-clip-435-frame{10,90}.jpg`.
+- **OpenLP is unavailable on this Mac**; its catalogue corrections have not been applied or
+  substituted with local song-row edits. The operator asked to leave the structure-review
+  items pending and could not give 1309's replacement time without hearing it; neither was guessed.
+
+No round was started and no publication media was generated or published by these changes. The new cut
+still needs the final round and its listening check; the round's other prerequisites remain open.
+
+**Validation:** full parallel suite **10,096 tests / 97,835 assertions, zero failures**,
+163 PHPUnit notices and one skip (`/tmp/song-operator-full-suite-20261021.log`); PHPStan zero
+errors; Pint and `git diff --check` pass. Gate 1 compared **439** runs with exact membership,
+excluding active member 1251, against the banked `review-20261021` baseline: **1,835 outputs,
+exactly one change**, 1297 §3803's end **1712.95 → 1706.0 s**. Its start and every other output,
+refusal and review state remain unchanged. The fresh corpus pass is the initial
+`song-operator-20261021-corpus` file plus `corpus-part0`–`part3`; the earlier partial `before`
+pass was stopped and is not claimed as complete. Input/code hashes and the exact difference are
+in `storage/scratch/edge-gate-20261019/out/song-operator-20261021-comparison.json`.
+
+#### 10-21 (later): review of the song operator edge, and the last two listening questions
+
+- **Review of the song operator edge (above): accepted, with two corrections.** (1) `SetOutputEdge`
+  refused every published section, but a published song's clip is refreshed in place on its next
+  cut (`PrepareSectionPublicationCandidates` re-extracts on a changed plan, then
+  `SongPublicationHandler::refreshPublished()`); a published sermon is skipped. The guard therefore
+  refused **696 of 1,374** song sections that the pipeline would re-cut, including 1297 §3803 itself,
+  whose answer was written as metadata outside the action. The guard now exempts songs; a published
+  sermon is still refused. The regression fixture's rebuild forces `not_applicable`, which hid this.
+  (2) The service screen's edge panel called a song a "sermon"; it now says "song". The operator end
+  keeps the automatic end's `fade_out` (1297: 1.5 s, ending at 1706.0), which is acceptable. The
+  answer follows the song through re-detection (the sync carry-over is type-generic). The clip-435
+  finding was re-checked: frames show Townend/Kensrue "Rejoice", no catalogue song matches, and the
+  current §4534 "Rejoice" (305.0–490.0) has no binding or clip. **Add "Rejoice" to OpenLP**, then bind
+  §4534 and retire clip 435.
+- **1309 §3922, measured:** the song's sound decays to −31 dB by 284.8 s, and speech starts at
+  **285.0 s** (classifier s0.65; the transcript times its "So we declare his majesty" from 283.26,
+  early). The next item is the song "We Declare Your Majesty" at 288.5. Candidate ends 283.8, 284.9
+  and the current 286.74 are on the listening page below, blind.
+- **1378 §4618 is two songs.** Order of service #14 "What love could remember" (song 1013) and #15
+  "When I Was Lost" (1024); §4617 (4153–4184.66) is the spoken introduction naming both. A transcript
+  loop ("When I was lost…" from 4183) covers the whole section. Levels: continuous music 4185–4351,
+  silence **4356.4–4361.2** (to −75 dB), an instrumental opening, full level 4367–4531. Local whisper
+  hears "Our sins they are many, His mercy is more" at 4246–4306 and a different song after 4421.
+  **Class scan:** a short song section beside a 300-s-plus one finds only 1378; long song sections
+  beside an order-of-service song with no section (9 checked) show no interior dip deeper than
+  11 dB apart from 1378 (21.7 dB) and 1310 §3939 (40.6 dB), which is one pre-recorded song with
+  digital-silence gaps and no missing item. So this is one structure repair, not a detection rule.
+  Proposed repair, through the review actions: split §4618 at the silence (about 4358.8), so that the
+  first part, with §4617's introduction, is "What love could remember" and the second is "When I Was
+  Lost"; the final round re-cuts both.
+- **Operator rulings, 10-21** (`answers/rulings-20261021.json`): **1309**: "2 or 3 are fine", that is
+  283.8 s and 284.9 s, not the current 286.74 s. Under E21 the end is **284.9 s**, banked through
+  `SetOutputEdge` (no dispatch). Its plan check waits for fresh edge words in this window
+  (`edge_word_timings_missing`), which Tier C's `TranscribeOutputEdges` produces. **1378**: **two
+  songs**. The split is **not applied**: §4618 is `published` (its 388-s SongVideo #442 is quarantined,
+  bound to song 1024), `SplitServiceSection` refuses published sections, and a split dispatches
+  `PrepareSectionPublicationCandidates` at once, which the round's running workers would execute.
+  **Operator, 10-21: run it as the final round's first step** (§4.1 item 4 below).
+- **Listening page:** [Final open questions](https://claude.ai/artifact/3STKtfYsNgX5QJUdccUBNe),
+  `rulings` collection (`storage/scratch/final-open-20261021/`; key in `questions.json`).
