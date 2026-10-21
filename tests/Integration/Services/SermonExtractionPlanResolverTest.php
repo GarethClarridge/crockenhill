@@ -528,6 +528,30 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->assertSame([[1710.1, 1777.2], [1777.2, 1834.2], [1834.2, 1918.2], [2105.2, 3862.2]], $spans);
     }
 
+    /**
+     * Run 1287 (operator, 2026-10-21): Matthew 6:19-24 runs 3.67 s into the sermon on it. Asked
+     * whether it belongs, the operator includes it; it ends where the sermon begins, as at a seam.
+     */
+    #[Test]
+    public function a_reading_overlapping_the_sermons_start_can_be_reviewed_into_it(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 5000, 'sermon_start_time' => 0, 'sermon_end_time' => 4400]);
+        $this->reading($log, 1, 300.0, 360.0, reference: 'Revelation 15');
+        $reading = $this->reading($log, 2, 1873.02, 1982.3, reference: 'Matthew 6:19-24');
+        $sermon = $this->sermon($log, 3, 1978.63, 3461.42, 'Matthew 6:19-24');
+        $this->section($log, ServiceSectionType::Song, 4, 3461.42, 3681.0);
+        $selection = [$reading->id, $sermon->id];
+
+        $this->resolver->reviewComposition($log, $selection, $this->resolver->compose($log)['input_identity'], 1);
+        $this->bankNoWordOutputEdges($log);
+        $plan = $this->resolver->resolve($log->fresh());
+
+        $this->assertSame($selection, $plan['metadata']['selected_section_ids']);
+        $this->assertFalse($plan['metadata']['requires_review']);
+        $spans = array_map(fn (array $span): array => [$span['start_time'], $span['end_time']], $plan['segments']);
+        $this->assertSame([[1873.02, 1978.63], [1978.63, 3461.42]], $spans);
+    }
+
     /** A section wholly inside another selected one would lose the outer section's tail, so it is still refused. */
     #[Test]
     public function a_selected_section_contained_in_another_is_still_refused(): void

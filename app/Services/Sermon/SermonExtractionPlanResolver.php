@@ -384,7 +384,8 @@ class SermonExtractionPlanResolver
         $songStart = $log->serviceSections()->where('section_type', ServiceSectionType::Song)
             ->where('start_time', '>=', $sermonEnd)->min('start_time');
         foreach ($sections as $section) {
-            if (($section->section_type === ServiceSectionType::BibleReading && $section->end_time > $sermonStart)
+            // A reading running on into the sermon still comes before it: it ends where the sermon begins, as at a seam.
+            if (($section->section_type === ServiceSectionType::BibleReading && $section->start_time >= $sermonStart)
                 || ($section->section_type === ServiceSectionType::Prayer
                     && ($section->start_time < $sermonEnd || ($songStart !== null && $section->end_time > $songStart)))) {
                 throw new InvalidArgumentException('Select the reading before the sermon and the concluding prayer before the post-sermon song.');
