@@ -74,6 +74,17 @@ class ChurchServiceItemSyncService
 
             /** @var Collection<int, ChurchServiceItem> $existingItems */
             $existingItems = $lockedService->items()->withTrashed()->orderBy('id')->get();
+            if ($incomingSource->isDetected()) {
+                $sectionIds = array_column($incomingItems, 'livestream_service_section_id');
+                foreach ($existingItems as $existingItem) {
+                    if (in_array($existingItem->livestream_service_section_id, $sectionIds, true)) {
+                        $existingItem->forceFill([
+                            'livestream_processing_id' => null,
+                            'livestream_service_section_id' => null,
+                        ])->saveQuietly();
+                    }
+                }
+            }
             $matchedExistingItemIds = [];
             $seenPositions = [];
             $conflicts = [];

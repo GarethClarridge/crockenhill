@@ -47,6 +47,12 @@ class CueSafeExtractionPlan
      */
     private const SONG_END_REACH = 30.0;
 
+    /**
+     * A cue whose words come again this close by is a repeated line, not the onset of a
+     * spoken phrase a held word may not run into (1023): the whole of a song end's reach.
+     */
+    private const HELD_WORD_REPEATED_CUE = self::SONG_END_REACH;
+
     /** A cue starting this close before a song's end can be the speech that ends it (1304's benediction). */
     private const SONG_END_LEAD = 0.5;
 
@@ -388,6 +394,7 @@ class CueSafeExtractionPlan
         $spans = $this->outOfDeadFeed($log, $sectionSpans, $spans, $audit, songStartsOnly: $songEnds, levels: $levels);
         if ($songEnds) {
             $spans = $this->atSongChangeDip($log, $cues, $sectionSpans, $spans, $audit, $levels);
+            $spans = $this->atSongChangeDip($log, $cues, $sectionSpans, $spans, $audit, $levels, start: true);
         } else {
             $spans = $this->withDeadFeedOpeningCheck($log, $cues, $spans, $audit);
         }
@@ -634,32 +641,66 @@ class CueSafeExtractionPlan
      * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}|null  $levels
      * @return list<array{start_time: float, end_time: float}>
      */
-    private function atSongChangeDip(MediaProcessingLog $log, array $cues, array $sectionSpans, array $spans, array &$audit, ?array $levels): array
+    private function atSongChangeDip(MediaProcessingLog $log, array $cues, array $sectionSpans, array $spans, array &$audit, ?array $levels, bool $start = false): array
     {
         if ($levels === null || $spans === []) {
             return $spans;
         }
-        $last = array_key_last($spans);
-        $end = (float) $sectionSpans[$last]['end_time'];
-        $after = $log->serviceSections()->where('start_time', '>=', $end - self::CUE_BOUNDARY_TOLERANCE)->orderBy('start_time')->orderBy('id')->first();
-        if ($after?->section_type !== ServiceSectionType::Song || (float) $after->start_time - $end > self::SONG_END_REACH || ! $this->transcriptBreaksDown($cues, $end)) {
+        $index = $start ? array_key_first($spans) : array_key_last($spans);
+        $songStart = (float) $sectionSpans[array_key_first($spans)]['start_time'];
+        $end = (float) $sectionSpans[$index]['end_time'];
+        if ($start) {
+            $before = $log->serviceSections()->where('start_time', '<', $songStart)
+                ->where('end_time', '<=', $songStart + self::CUE_BOUNDARY_TOLERANCE)->orderByDesc('end_time')->orderByDesc('id')->first();
+            if ($before?->section_type !== ServiceSectionType::Song || $songStart - (float) $before->end_time > self::SONG_END_REACH) {
+                return $spans;
+            }
+            $afterEnd = $end;
+            $end = (float) $before->end_time;
+            $songStart = (float) $before->start_time;
+        } else {
+            $after = $log->serviceSections()->where('start_time', '>=', $end - self::CUE_BOUNDARY_TOLERANCE)->orderBy('start_time')->orderBy('id')->first();
+            if ($after?->section_type !== ServiceSectionType::Song || (float) $after->start_time - $end > self::SONG_END_REACH) {
+                return $spans;
+            }
+            $afterEnd = (float) $after->end_time;
+        }
+        if (! $this->transcriptBreaksDown($cues, $end)) {
             return $spans;
         }
-        $span = $spans[$last];
-        $placed = (float) $span['end_time'];
-        $dip = $this->quietestSecond($levels, max($end - self::SONG_CHANGE_SEARCH_BEFORE, (float) $sectionSpans[array_key_first($spans)]['start_time'] + self::SONG_CHANGE_SONG_MINIMUM),
-            min($end + self::SONG_CHANGE_SEARCH_AFTER, (float) $after->end_time - self::SONG_CHANGE_SONG_MINIMUM));
-        if ($dip === null || $dip['time'] >= $placed - self::SONG_CHANGE_MOVE || $dip['depth'] < self::SONG_CHANGE_DEPTH || $dip['time'] <= (float) $span['start_time']) {
+        $span = $spans[$index];
+        $edge = $start ? 'start' : 'end';
+        $placed = (float) $span[$edge.'_time'];
+        $dip = $this->quietestSecond($levels, max($end - self::SONG_CHANGE_SEARCH_BEFORE, $songStart + self::SONG_CHANGE_SONG_MINIMUM),
+            min($end + self::SONG_CHANGE_SEARCH_AFTER, $afterEnd - self::SONG_CHANGE_SONG_MINIMUM));
+        if ($dip === null || $dip['time'] >= $placed - self::SONG_CHANGE_MOVE || $dip['depth'] < self::SONG_CHANGE_DEPTH
+            || $dip['time'] <= ($start ? $songStart : (float) $span['start_time']) || ($start && $dip['time'] >= (float) $span['end_time'])) {
             return $spans;
         }
 
-        $spans[$last] = ['start_time' => $span['start_time'], 'end_time' => $dip['time']];
-        $entry = array_key_first(array_filter($audit, static fn (array $entry): bool => $entry['span_index'] === $last && $entry['edge'] === 'end'));
-        $original = $entry === null ? $end : (float) $audit[$entry]['original_time'];
+        if ($start) {
+            try {
+                $previousPlan = $this->forSection($before);
+            } catch (OutputEdgeTimingsMissing) {
+                return $spans;
+            }
+            $previousEnd = $previousPlan['segments'] === [] ? null : end($previousPlan['segments'])['end_time'];
+            if ($previousEnd === null || abs($previousEnd - $dip['time']) > self::CUE_BOUNDARY_TOLERANCE
+                || ! array_any($previousPlan['cue_edge_widening'], static fn (array $entry): bool => $entry['edge'] === 'end'
+                    && $entry['reason'] === 'song_change_dip' && abs($entry['time'] - $dip['time']) <= self::CUE_BOUNDARY_TOLERANCE)) {
+                return $spans;
+            }
+        }
+
+        $spans[$index] = $start
+            ? ['start_time' => $dip['time'], 'end_time' => $span['end_time']]
+            : ['start_time' => $span['start_time'], 'end_time' => $dip['time']];
+        $entry = array_key_first(array_filter($audit, static fn (array $entry): bool => $entry['span_index'] === $index && $entry['edge'] === $edge));
+        $original = $entry === null ? (float) $sectionSpans[$index][$edge.'_time'] : (float) $audit[$entry]['original_time'];
         $moved = ['time' => $dip['time'], 'seconds_moved' => $dip['time'] - $original, 'seconds_added' => abs($dip['time'] - $original),
             'reason' => 'song_change_dip', 'fade_out' => null, 'song_change_dip' => ['placed_time' => $placed, ...$dip]];
         if ($entry === null) {
-            $audit[] = ['span_index' => $last, 'edge' => 'end', 'original_time' => $original, 'window' => null, 'cue' => null, 'cues' => [],
+            $audit[] = ['span_index' => $index, 'edge' => $edge, 'original_time' => $original, 'window' => null, 'cue' => null, 'cues' => [],
                 'chosen_pause' => null, 'word_before' => null, 'word_after' => null, 'text_disagreement' => false, ...$moved];
         } else {
             $audit[$entry] = [...$audit[$entry], ...$moved];
@@ -1667,7 +1708,7 @@ class CueSafeExtractionPlan
             if ($onset['established'] && abs($onset['word']['start'] - $until) < 0.001) {
                 $pause = $onset['pause'];
 
-                $time = $pause['end'] - min(0.1, ($pause['end'] - $pause['start']) / 2);
+                $time = $this->cutInGap($pause, $lastSound, $until);
 
                 return ['time' => $time, 'chosen_pause' => $pause,
                     'word_before' => $onset['word_before'], 'word_after' => $this->plain($onset['word']),
@@ -1703,19 +1744,42 @@ class CueSafeExtractionPlan
                 && $word['start'] >= $gap['end'] - 0.001 && $word['start'] < $until
                 && $timeline->musicShare($word['start'], min($word['end'], $until)) > 0.0)) {
             $afterMusic = $this->beforeMusicResumes(fn (float $from): ?array => $this->lastGap($words, $from, $until), $levels, $timeline, min($lastSound, $floor), $until);
-            if ($afterMusic === null || abs($afterMusic['end'] - $gap['end']) > self::CUE_BOUNDARY_TOLERANCE) {
+            $extendedCut = $this->cutInGap($afterMusic, $lastSound, $until);
+            // Do not carry a song into a distinct spoken phrase (1211, 1250). Ending just
+            // before it is still safe. Repeated cues are unreliable (1023), and short
+            // smeared cues such as 1212's “Oh Lord” do not establish a phrase's onset.
+            $insidePhrase = array_any($cues, static fn (array $cue): bool => $cue['start'] < $extendedCut && $cue['end'] > $extendedCut
+                && count(TranscriptCueEvidence::tokens($cue['text'])) >= 3
+                && array_any($words, static fn (array $word): bool => $word['end'] - $word['start'] > self::ANCHOR_REACH
+                    && $word['start'] >= $gap['end'] - 0.001 && $word['start'] < $until
+                    && array_intersect(TranscriptCueEvidence::tokens($word['word']), TranscriptCueEvidence::tokens($cue['text'])) !== [])
+                && ! array_any($cues, static fn (array $other): bool => $other['start'] !== $cue['start']
+                    && abs($other['start'] - $cue['start']) <= self::HELD_WORD_REPEATED_CUE
+                    && TranscriptCueEvidence::tokens($other['text']) === TranscriptCueEvidence::tokens($cue['text'])));
+            if (! $insidePhrase && ($afterMusic === null || abs($afterMusic['end'] - $gap['end']) > self::CUE_BOUNDARY_TOLERANCE)) {
                 $gap = $afterMusic;
             }
         }
 
-        $time = $gap !== null ? ($quiet !== null ? $gap['start'] + min(self::SONG_END_SILENCE_TAIL, ($gap['end'] - $gap['start']) / 2) : $gap['end'] - min(0.1, ($gap['end'] - $gap['start']) / 2))
-            : max(min($lastSound, $until), $until - 0.1);
+        $time = $gap !== null && $quiet !== null ? $gap['start'] + min(self::SONG_END_SILENCE_TAIL, ($gap['end'] - $gap['start']) / 2)
+            : $this->cutInGap($gap, $lastSound, $until);
         // Only the reach bounds the search: nothing says where the speech starts.
         $unidentified = abs($until - ($end + self::SONG_END_REACH)) < 0.001;
 
         return ['time' => $time, 'chosen_pause' => $gap, 'word_before' => null, 'word_after' => null,
             'reason' => $unidentified ? self::SONG_END_UNRESOLVED : self::SONG_END_FADE, 'speech_cue' => $speech, 'onset_bound' => $until,
             ...($unidentified ? [] : ['fade_out' => $this->fadeOut($time, $lastSound)])];
+    }
+
+    /**
+     * The cut in a word gap: just before the next word, or at most half the gap back from it;
+     * with no gap, just before the bound, and never before the last sung sound.
+     *
+     * @param  array{start: float, end: float}|null  $gap
+     */
+    private function cutInGap(?array $gap, float $lastSound, float $until): float
+    {
+        return $gap !== null ? $gap['end'] - min(0.1, ($gap['end'] - $gap['start']) / 2) : max(min($lastSound, $until), $until - 0.1);
     }
 
     /** The fade of a song's sound ending at its cut: the gap from the last sung sound, bounded. */

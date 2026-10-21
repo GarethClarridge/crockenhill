@@ -988,6 +988,30 @@ class MatchSongsFromTranscriptTest extends TestCase
     }
 
     #[Test]
+    public function an_uncatalogued_song_stays_unbound_despite_an_older_title_in_its_item_evidence(): void
+    {
+        $other = Song::factory()->create([
+            'title' => "Nobody's A Nobody", 'canonical_key' => 'nobodys a nobody',
+            'first_line_key' => "nobody's a nobody,",
+            'lyrics_plain' => "Nobody's a nobody,\nbelieve me 'cause it's true!\nBut did you know I'm special,\nIn fact I'm quite unique!",
+        ]);
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $item = ChurchServiceItem::factory()->livestream()->create([
+            'title' => 'Did You Know?', 'song_id' => $other->id,
+            'metadata' => ['source_evidence' => ['livestream' => ['titles' => ['Did You Know?', "Nobody's A Nobody"]]]],
+        ]);
+        $section = $this->unmatchedSongSectionFor($log, $item, 'Did You Know?');
+        $section->forceFill(['title' => 'Did You Know?'])->save();
+
+        $this->runSongMatching($log);
+
+        $this->assertNull($section->fresh()->resolvedSongId());
+        $this->assertNull($item->fresh()->song_id);
+        $this->assertSame('Did You Know?', $item->fresh()->title);
+        $this->assertTrue($section->fresh()->needs_manual_review);
+    }
+
+    #[Test]
     public function a_run_item_drops_a_song_its_rematched_section_no_longer_matches(): void
     {
         $earlier = Song::factory()->create(['title' => 'Almighty Lord Most High', 'canonical_key' => 'almighty lord most high', 'lyrics_plain' => null]);

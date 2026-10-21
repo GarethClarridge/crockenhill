@@ -18,8 +18,11 @@ declare(strict_types=1);
  * An id is either an endings-listening id (end-<run>-<sermon|section id>) or a ruling id from
  * tests/Fixtures/Rulings/edge-rulings.json (plan §4.6; built by scripts/rulings/gather.py), whose
  * record becomes the fixture's ruling. A section ruling with no section id takes the run's section
- * of that type whose edge is nearest the cut heard. Capture only between rounds: the planner is
- * resolved inside a rolled-back transaction on the live database.
+ * of that type whose edge is nearest the cut heard. A guard id (guard-<date>:<run>-s<section id>-<start|end>)
+ * is no ruling: it holds an edge a gate found a candidate rule would wrongly move (977 §1005, 10-21)
+ * at the cut it has now, with `expect: keep` and its source saying it was not listened to.
+ * Capture only between rounds: the planner is resolved inside a rolled-back transaction on the
+ * live database.
  *
  * Each fixture holds what the cut planner reads for that run: the run row, every section, the
  * transcript and audio timeline, sound levels in windows around the section edges (with the
@@ -125,6 +128,15 @@ $capturedCode = static function (): array {
  * @return array{0: array<string, mixed>, 1: int, 2: string, 3: string, 4: float}
  */
 $resolve = static function (string $id) use ($edgeRulings, $key, $joined): array {
+    if (preg_match('/^guard-\d{8}:(\d+)-s(\d+)-(start|end)$/', $id, $guard) === 1) {
+        // The cut heard is the one the planner gives, filled in once it has planned.
+        return [['id' => $id, 'source' => 'gate, not listened', 'run' => (int) $guard[1], 'output' => 'section',
+            'section_id' => (int) $guard[2], 'section_type' => null, 'title' => null, 'edge' => $guard[3], 'heard' => null,
+            'answer' => null, 'expect' => 'keep', 'ruled_time' => null,
+            'note' => 'Not an operator ruling: a gate found a candidate rule moving this edge, which must stay.'],
+            (int) $guard[1], $guard[2], $guard[3], 0.0];
+    }
+
     if (! $edgeRulings->has($id)) {
         [, $runId, $which] = explode('-', $id, 3);
 
@@ -172,6 +184,9 @@ foreach ($ids as $id) {
         continue;
     } finally {
         DB::rollBack();
+    }
+    if (str_starts_with($id, 'guard-') && $live['cut'] !== null) {
+        $ruling['heard'] = $ruledCut = $live['cut'];
     }
 
     if ($current && ($live['cut'] === null || $ruling['expect'] === null)) {

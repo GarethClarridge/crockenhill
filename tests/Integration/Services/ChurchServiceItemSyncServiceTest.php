@@ -10,6 +10,8 @@ use App\Enums\ServiceSectionType;
 use App\Events\ChurchServiceCanonicalListChanged;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
+use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Services\ChurchService\ChurchServiceCanonicalStateService;
 use App\Services\ChurchService\ChurchServiceCanonicalUpdateService;
@@ -31,6 +33,51 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         parent::setUp();
 
         $this->service = app(ChurchServiceItemSyncService::class);
+    }
+
+    #[Test]
+    public function reprojection_replaces_stale_section_pointers_on_preserved_planned_items(): void
+    {
+        $service = ChurchService::factory()->create();
+        $log = MediaProcessingLog::factory()->livestream()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::Song,
+            'title' => 'O holy night',
+        ]);
+        $song = Song::factory()->create(['title' => 'O holy night', 'canonical_key' => 'o holy night']);
+        $right = ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 6,
+            'type' => 'songs',
+            'title' => 'O holy night',
+            'song_id' => $song->id,
+            'source' => ChurchServiceItemSource::OpenLp,
+        ]);
+        $wrong = ChurchServiceItem::factory()->create([
+            'church_service_id' => $service->id,
+            'position' => 9,
+            'type' => 'songs',
+            'title' => "Of The Father's Heart Begotten #371",
+            'source' => ChurchServiceItemSource::OpenLp,
+            'livestream_processing_id' => $log->processing_id,
+            'livestream_service_section_id' => $section->id,
+        ]);
+        $payload = [
+            'position' => 1, 'type' => 'songs', 'section_type' => 'song',
+            'title' => 'O holy night', 'song_id' => $song->id,
+            'livestream_processing_id' => $log->processing_id,
+            'livestream_service_section_id' => $section->id,
+        ];
+
+        $this->service->sync($service, [$payload], ChurchServiceItemSource::Livestream);
+
+        $this->assertSame($section->id, $right->fresh()->livestream_service_section_id);
+        $this->assertNull($wrong->fresh()->livestream_service_section_id);
+        $this->assertNull($wrong->fresh()->livestream_processing_id);
+        $this->assertSame("Of The Father's Heart Begotten #371", $wrong->fresh()->title);
+        $this->service->sync($service, [$payload], ChurchServiceItemSource::Livestream);
+        $this->assertSame(1, $service->items()->where('livestream_service_section_id', $section->id)->count());
     }
 
     #[Test]

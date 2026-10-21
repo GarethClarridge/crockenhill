@@ -247,7 +247,7 @@ class SongLyricsMatchingService
         /** @var Collection<int, Song> $songs */
         $songs = Song::query()
             ->whereNotNull('lyrics_plain')
-            ->select(['id', 'title', 'lyrics_plain', 'first_line_key'])
+            ->select(['id', 'title', 'alternate_title', 'lyrics_plain', 'first_line_key'])
             ->get();
 
         foreach ($songs as $song) {
@@ -281,6 +281,17 @@ class SongLyricsMatchingService
         }
 
         if ($bestScore >= $threshold && $bestSong instanceof Song) {
+            // An incidental phrase inside a verse cannot name an uncatalogued song
+            // (1344's “Did You Know?”). Keep titles and phrases touching a lyric
+            // line boundary, including openings that span several lines. Resolve ties first so
+            // rejecting an incidental phrase cannot manufacture a unique winner.
+            if ($refuseTiedHymns && $bestScore === 1.0
+                && ! str_contains($this->normalize($bestSong->title), $transcriptNormalized)
+                && ! str_contains($this->normalize((string) $bestSong->alternate_title), $transcriptNormalized)
+                && ! $this->touchesLyricLineBoundary((string) $bestSong->lyrics_plain, $transcriptNormalized)) {
+                return $this->noMatch();
+            }
+
             return [
                 'song_id' => $bestSong->id,
                 'confidence' => round($bestScore, 4),
@@ -289,6 +300,14 @@ class SongLyricsMatchingService
         }
 
         return $this->noMatch();
+    }
+
+    private function touchesLyricLineBoundary(string $lyrics, string $probe): bool
+    {
+        $lines = implode("\n", array_map($this->normalize(...), preg_split('/\R/u', $lyrics) ?: []));
+        $phrase = str_replace(' ', '\\s+', preg_quote($probe, '/'));
+
+        return preg_match('/(?:^|\n)'.$phrase.'(?=\s|$)|(?:^|\s)'.$phrase.'(?=\n|$)/u', $lines) === 1;
     }
 
     /**

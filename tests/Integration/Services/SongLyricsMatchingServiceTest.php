@@ -9,6 +9,7 @@ use App\Services\Song\SongLyricsMatchingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\TestCase;
 
 class SongLyricsMatchingServiceTest extends TestCase
@@ -267,6 +268,37 @@ class SongLyricsMatchingServiceTest extends TestCase
     }
 
     // ---- Title hint resolution ----
+
+    #[Test]
+    #[TestWith(['Immortal Honours #302', '#302 Immortal Honours', "Immortal honours\nrest on Jesus' head,\nMy God, my portion", "Immortal honours rest on Jesus' head"])]
+    #[TestWith(['I Cannot Tell #508', '#508 I Cannot Tell', "And so the Saviour,\nSaviour of the world, has come.", 'Saviour of the world'])]
+    #[TestWith(['Jesus The Everlasting Word #310', '#310 Jesus The Everlasting Word', 'Worthy, O Lamb of God adored,', 'Worthy, O Lamb of God'])]
+    #[TestWith(['All Praise To Him', 'All Praise To Him, The God Of Light', "All praise to Him,\nthe God of light,", 'Praise to Him, the God of Light'])]
+    public function title_hints_can_name_openings_across_line_breaks_and_refrain_fragments(string $title, string $alternate, string $lyrics, string $hint): void
+    {
+        $song = Song::factory()->create([
+            'title' => $title, 'canonical_key' => Song::canonicalizeKey($title),
+            'alternate_title' => $alternate, 'lyrics_plain' => $lyrics,
+        ]);
+
+        $this->assertSame($song->id, $this->service->matchTitleHint($hint)['song_id']);
+    }
+
+    #[Test]
+    public function an_uncatalogued_title_cannot_match_an_incidental_phrase_inside_another_songs_verse(): void
+    {
+        Song::factory()->create([
+            'title' => "Nobody's A Nobody",
+            'canonical_key' => 'nobodys a nobody',
+            'first_line_key' => "nobody's a nobody,",
+            'lyrics_plain' => "Nobody's a nobody,\nbelieve me 'cause it's true!\nBut did you know I'm special,\nIn fact I'm quite unique!",
+        ]);
+
+        $result = $this->service->matchTitleHint('Did You Know?');
+
+        $this->assertNull($result['song_id']);
+        $this->assertNull($result['match_source']);
+    }
 
     /**
      * §991 (run 974, song video 137): the detector heard "Rock Of Ages" and the

@@ -41,6 +41,8 @@ use Tests\TestCase;
  *    stays within 0.31 s of the cut the operator heard; `outward` opens earlier or ends later than
  *    it; `inward` opens later or ends earlier; `at` is within a second of the time in the note.
  *    The first fixtures predate that set and carry only an ending's answer (right or clips_word).
+ *    A `guard-` fixture is no ruling: it keeps an edge a gate found a candidate rule moving
+ *    wrongly at the cut it had, and its ruling's source says it was not listened to.
  *
  * A fixture whose capture predates a deliberate change may be re-captured with
  * scripts/ruled-endings/capture.php (sample in manifest.json); the ruling check is what must keep passing.
@@ -70,6 +72,93 @@ class RuledEndingsRegressionTest extends TestCase
         }
 
         return $fixtures;
+    }
+
+    #[Test]
+    #[TestWith(['listening-held-word-20261021-1211-s175128-end', 175128, 4387.835])]
+    #[TestWith(['canary13-041-1250-end', 3124, 421.82])]
+    #[TestWith(['listening-held-word-20261021-1012-s1291-end', 1291, 995.48])]
+    #[TestWith(['listening-held-word-20261021-1023-s1364-end', 1364, 2500.34])]
+    #[TestWith(['listening-held-word-20261021-1088-s1778-end', 1778, 543.68])]
+    #[TestWith(['listening-held-word-20261021-946-s780-end', 780, 378.52])]
+    #[TestWith(['listening-held-word-20261021-1213-s175130-end', 175130, 4330.48])]
+    public function song_ends_distinguish_held_words_from_the_following_speech(string $name, int $sectionId, float $expected): void
+    {
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/'.$name.'.json.gz')), true, flags: JSON_THROW_ON_ERROR);
+        $log = $this->rebuild($fixture);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($log->serviceSections()->findOrFail($sectionId));
+
+        $this->assertEqualsWithDelta($expected, end($plan['segments'])['end_time'], self::RIGHT_TOLERANCE, json_encode($plan['cue_edge_widening'], JSON_THROW_ON_ERROR));
+    }
+
+    #[Test]
+    #[TestWith(['listening-song-changes-20261020-1154-s3753-end-dip', 3753, 3754])]
+    #[TestWith(['listening-song-changes-20261020-1215-s2639-end-dip', 2639, 2640])]
+    #[TestWith(['listening-song-changes-20261020-1237-s2948-end-dip', 2948, 2949])]
+    #[TestWith(['listening-song-changes-20261020-1267-s3347-end-dip', 3347, 3348])]
+    #[TestWith(['listening-song-changes-20261020-1267-s3349-end-dip', 3348, 3349])]
+    #[TestWith(['listening-song-changes-20261020-1267-s3349-end-dip', 3349, 3350])]
+    #[TestWith(['listening-song-changes-20261020-1272-s3403-end-dip', 3403, 3404])]
+    #[TestWith(['listening-song-changes-20261020-1307-s4652-end-dip', 4652, 4653])]
+    public function the_next_song_starts_at_the_previous_songs_change_dip(string $name, int $beforeId, int $afterId): void
+    {
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/'.$name.'.json.gz')), true, flags: JSON_THROW_ON_ERROR);
+        $log = $this->rebuild($fixture);
+        $planner = app(CueSafeExtractionPlan::class);
+
+        $before = $planner->forSection($log->serviceSections()->findOrFail($beforeId));
+        $after = $planner->forSection($log->serviceSections()->findOrFail($afterId));
+
+        $this->assertContains('song_change_dip', array_column($before['cue_edge_widening'], 'reason'));
+        $this->assertEqualsWithDelta(end($before['segments'])['end_time'], $after['segments'][0]['start_time'], self::FIDELITY_TOLERANCE);
+    }
+
+    #[Test]
+    public function a_next_song_does_not_use_a_dip_when_the_previous_song_ends_at_speech(): void
+    {
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/listening-song-changes-20261020-1215-s2639-end-dip.json.gz')), true, flags: JSON_THROW_ON_ERROR);
+        $log = $this->rebuild($fixture);
+        $planner = \Mockery::mock(CueSafeExtractionPlan::class)->makePartial();
+        $planner->shouldReceive('forSection')->withArgs(static fn (ServiceSection $section): bool => $section->id === 2639)
+            ->andReturn(['segments' => [['start_time' => 1400.0, 'end_time' => 1578.0]],
+                'cue_edge_widening' => [['edge' => 'end', 'reason' => 'song_end_speech', 'time' => 1578.0]], 'audio_fade_out' => null]);
+
+        $plan = $planner->forSection($log->serviceSections()->findOrFail(2640));
+
+        $this->assertEqualsWithDelta(1584.55, $plan['segments'][0]['start_time'], self::FIDELITY_TOLERANCE);
+    }
+
+    /**
+     * The gate's false candidate (10-21): a dip at 561.5 s sits before 977 §1005, but
+     * §232943 ends at the speech between them, so §1005 keeps its own start.
+     */
+    #[Test]
+    public function a_next_song_keeps_its_start_when_the_previous_song_ended_at_speech(): void
+    {
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/guard-20261021-977-s1005-start.json.gz')), true, flags: JSON_THROW_ON_ERROR);
+        $log = $this->rebuild($fixture);
+        $planner = app(CueSafeExtractionPlan::class);
+
+        $before = $planner->forSection($log->serviceSections()->findOrFail(232943));
+        $after = $planner->forSection($log->serviceSections()->findOrFail(1005));
+
+        $this->assertNotContains('song_change_dip', array_column($before['cue_edge_widening'], 'reason'));
+        $this->assertNotContains('song_change_dip', array_column($after['cue_edge_widening'], 'reason'));
+        $this->assertEqualsWithDelta(589.994, $after['segments'][0]['start_time'], self::FIDELITY_TOLERANCE);
+    }
+
+    #[Test]
+    public function the_separate_1262_start_discrepancy_is_not_moved_by_the_song_change_rule(): void
+    {
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/listening-songs-20261020-1262-s3284-end-current.json.gz')), true, flags: JSON_THROW_ON_ERROR);
+        $log = $this->rebuild($fixture);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($log->serviceSections()->findOrFail(3284));
+
+        // The plan records 1531 s as heard but 1520.86 s as the existing cut. Resolving
+        // that discrepancy is separate; this rule must not move it (plan §4.0, 10-20).
+        $this->assertEqualsWithDelta(1520.86, $plan['segments'][0]['start_time'], self::FIDELITY_TOLERANCE);
     }
 
     #[Test]

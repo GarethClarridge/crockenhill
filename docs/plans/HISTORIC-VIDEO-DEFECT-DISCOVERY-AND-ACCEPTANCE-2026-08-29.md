@@ -1355,6 +1355,58 @@ introduction, 10-20).
      - **Not pipeline fixes, for OpenLP:** two “Amazing Grace” entries (songs 76 and 77; 1341 sang
        #772 but was bound to “(original)”), and “Bless the Lord, O My Soul” (132), which duplicates
        “10000 Reasons” (131; 1224). Song data is synced from OpenLP, so it is corrected there.
+
+     **Code implemented 10-21, without new listening or media generation:**
+     - Gate 1 reads the shared database and `service_artifacts`, pinning each run's recorded
+       media signature (`gatePin` in `storage/scratch/edge-gate-20261019/boot.php`). The words were
+       present; `capture.php --current --version=10` reproduces 1211 and 1250 with this checkout's
+       VideoToolbox settings. Both now have failing-cut captures and passing regression guards.
+       The held-word rule refuses an extension into a distinct multiword cue containing the
+       decoded long word, while retaining the other 25 accepted extensions. Repeated cues do
+       not establish that onset; 1023 and 1213 have explicit regression coverage.
+     - Next-song starts require the preceding song's actual planned end to be `song_change_dip`
+       at the same time. All eight agreed starts are covered. The gate caught 977 as a false
+       candidate: its predecessor ends at speech, so its start stays. 977 §1005 has a real-data
+       guard (`guard-20261021-977-s1005-start`, captured with `capture.php`'s new `guard:` id, which
+       records a gate-found edge at its current cut and is no operator ruling); with the
+       predecessor check removed it fails at the gate's 561.5 s. 1262 §3284 remains at
+       1520.86 s; the separate 1531-s ruling discrepancy recorded below is unchanged.
+     - Title-hint fallback refuses incidental phrases inside another song's verse, preserving
+       catalogue/alternate titles, lyric openings across line breaks and refrain fragments.
+       Across **1,323** song-section hints, the only song-ID change is 1344 §4342: 660 → unbound.
+       A job regression also guards against borrowing the older title in its item's evidence.
+     - 1198's correct item 3599 and stale item 3604 both pointed at §2487; the later item won
+       the projection's reverse map. Detected-item sync now clears superseded section pointers
+       before assigning the new matches, preserving the planned items themselves. A regression
+       reproduces that duplicate pointer and verifies repeat syncs. Sync is the only writer that
+       can duplicate a pointer: the bundle persister points items at sections it has just created.
+       The fix clears pointers only when a run's items next sync, so **13** sections still have two
+       live items pointing at them, every pair inside one service and one run: 980 §1017,
+       1073 §1712, 1074 §1719, 1138 §2120, 1159 §2241, 1198 §§2487 and 2490, 1259 §3235,
+       1260 §3249, 1261 §3272, 1265 §3321, 1269 §3368, 1301 §3828. None of the 12 services has a
+       reviewed canonical revision, so the next sync is not skipped. Only the projection syncs,
+       and it runs in Tier B and recompose; Tier C starts at `TranscribeOutputEdges`, after it.
+       A run routed to Tier C alone keeps its duplicate pointer: **operator decision** whether
+       these 12 runs recompose in the final round. Check the count is zero at close. The corpus has **7**
+       section/item song-ID disagreements (1073 §1712, 1198 §2487, and 1035 §§4817, 4819, 4821,
+       4823, 4825). Main and the round clone use the same database; 1138 §2120 is still the
+       three-second heading section described below, not a newly established alignment class.
+     - **Read-only gate:** all **439** baseline runs compared, **1,825** outputs unchanged,
+       exactly **10** changed: the eight agreed starts and the two rejected endings restored.
+       No additional refusals or review-state changes. The banked held-word baseline matched
+       all 206 fresh baseline comparisons; final refinements rechecked the 34 affected runs,
+       then the eight held-word controls. Reports:
+       `storage/scratch/edge-gate-20261019/out/fixes-20261021-comparison.json` and
+       `song-hints-fixes-20261021-comparison.json`. **311 focused tests pass; PHPStan has zero
+       errors; Pint passes.** Final parallel suite: **10,089 tests, 97,814 assertions, zero
+       failures**, one skipped and 163 PHPUnit notices (`/tmp/song-fixes-final-full-suite-20261021.log`).
+       Media version remains 16. OpenLP catalogue corrections and listening remain outstanding.
+     - **Review, 10-21:** the 977 guard above; the held-word cut and the plain song-end cut share
+       `cutInGap()`, and the repeated-cue window is named. A fresh gate pass of the final code
+       (`--label=review-20261021`, 1251 excluded) changes exactly the same **10** of **1,835**
+       outputs from the held-word baseline and differs from the final candidate in none.
+       Full suite **10,091 tests, zero failures** (one skipped, 163 notices); Dusk **63 passed**;
+       PHPStan and Pint pass.
    - **Small code items:** readiness should treat a retired run like an excluded one (937); readiness
      should treat the thumbnail as pending its §4.5 step, if the operator agrees.
 3. **Operator answers, in parallel with 1 and 2:**
