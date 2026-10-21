@@ -2587,7 +2587,7 @@ in `storage/scratch/edge-gate-20261019/out/song-operator-20261021-comparison.jso
   a reading, and the review then refused "include it", so the question could never be answered yes.
   Corpus: three cases (1065 5.0 s, 1287 3.67 s, 1366 2.9 s). The review now requires the reading to
   *start* before the sermon; nesting is still refused, and the plan ends the reading where the sermon
-  begins (test with 1287's bounds). **1065 is still unanswered** (its composition selects the sermon alone).
+  begins (test with 1287's bounds). **1065 answered (operator, "yes")**: [1683, 1684], the Genesis 27:41–28:22 reading with the sermon on Genesis 28:10-22; no prayer in the recording.
 - **Sermon 1015's preacher is the operator** (preacher #120, `manual`, review cleared, through
   `SaveSermonDetails` with every other field unchanged). Evidence: the service recording at 0:33,
   "Gareth is going to be preaching for us this morning"; the operator confirmed.
