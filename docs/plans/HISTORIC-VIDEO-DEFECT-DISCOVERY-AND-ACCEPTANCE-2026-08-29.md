@@ -1576,6 +1576,25 @@ The candidate stays committed but unreleased; media version stays 16.
   start mid reading”, expect outward) that both 1328 fixtures carry as an open defect. The answer
   is being confirmed with the operator before either fixture's ruling changes.
 
+**Older Songs (M4) answered 10-21** (decoded in
+`storage/scratch/listening-final-20261021/older-songs/decoded.json`): 37 yes, 2 no, 1 can't tell.
+**Accuracy 37/39 = 94.9%** (exact 95% interval 82.7–99.4%). By year: 2020 12/13 (one can't tell),
+2021 12/13, 2022 13/13. Reported on its own, never pooled with M1. The two *no* answers and the
+can't tell:
+- **1344 §4342 (2020-12-25), bound to “Nobody's A Nobody”; the operator heard “Did You Know?”.**
+  The section and its order-of-service item (10702) are titled “Did You Know?”, which is not in the
+  catalogue. The item's livestream evidence carries both titles, and the binding appears to have
+  taken the one that is. Class: an uncatalogued song bound to another title in its evidence.
+  Verdict: **fix**. A song whose own title has no catalogue match stays unbound rather than
+  borrowing a neighbouring title. Confirm the path in code first, then write a failing test.
+- **1341 §166750 (2021-01-10), bound to “Amazing Grace (original)” (song 77); the sung song is the
+  other Amazing Grace (#772, song 76).** Operator: “this is really a catalogue problem.” Class:
+  two catalogue entries with the same title. Verdict: **leave the pipeline**. The catalogue is
+  fixed in OpenLP, because local song edits revert.
+- **938 §623 (2020-03-22), can't tell.** The 9.5-s section is the invitation to sing “The Lord's
+  My Shepherd” from home. The song is not in the recording, and the operator thinks the binding
+  (#23B) is probably the wrong setting. Excluded from the denominator, as the protocol says.
+
 ### 4.2 Regular uploads are the lasting outcome
 
 Historic imports use the livestream
