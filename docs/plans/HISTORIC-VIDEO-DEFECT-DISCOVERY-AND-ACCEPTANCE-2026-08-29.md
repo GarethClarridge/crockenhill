@@ -1542,6 +1542,24 @@ id; each page's `private.json` holds the stripped `key`/`prior_rulings` that dec
   halves, service time kept): https://claude.ai/artifact/T5veqBCc8N1bW7bYWbXqre and
   https://claude.ai/artifact/K5XTYdJxQtPoaXcpdyRzhQ
 
+**Held-word Endings answered 10-21** (decoded in
+`storage/scratch/listening-final-20261021/held-word-endings/decoded.json`; no notes given):
+20 both fine, 5 the candidate (1111, 1212, 1213, 1242, 1322), **2 the current end (1211 §175128,
+1250 §3124)**. Under E21 a “both” counts for the candidate, so 25 of 27 favour it, including
+three of the four numeric flags (1012, 1200, 1286; the fourth, 1250, is a rejection), and 1212 is fixed. **The two rejections
+are the same mechanism, not two instances:** each candidate end lands inside the next spoken item.
+1211's moves from 4387.84 to 4391.42, inside the closing benediction (cue 4384.50–4394.24, “And now
+to him who is able…”, the prayer section starting 4384.50); 1250's moves from 421.82 to 425.84,
+inside “Let's pray together.” (cue 422.78–426.54, before the opening prayer). In 1212 the long item
+was the sung “Oh Lord” (4532.28–4537.18) ending at the prayer. The rule takes speech over closing
+music for a held sung word. **Not yet established:** the banked edge words the rule read at 1211
+and 1250. The main checkout cannot reproduce them (`capture.php` reports
+`edge_word_timings_missing` for 1250's ruled end); they sit wherever the corpus gate reads.
+Next: capture both from there, write the failing tests (1250's end is already ruled right at
+421.82, `canary13:041-1250-end`), narrow the rule so a long item that is the following speech
+does not extend the song, re-run the corpus gate, and put any newly moved ends to listening.
+The candidate stays committed but unreleased; media version stays 16.
+
 ### 4.2 Regular uploads are the lasting outcome
 
 Historic imports use the livestream
