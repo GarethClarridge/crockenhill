@@ -2670,3 +2670,44 @@ sections the pipeline holds as `short_song_clip` with no lyrics), and 1363's Rej
 about was checked to be written by this round and to match its recorded segments within 0.1 s
 (`provenance.json`). Next: the operator answers; Claude decodes, records and acts on what is found; then close
 (§4.1 step 6).
+
+#### 10-22 (later): step 5 answered
+
+All **61** answered (operator, 10-22 11:20 UTC); decoded with the key in
+`listening-final-round-20261022/decoded.json` (raw rows under `answers/rulings/`). "Both" counts for the
+edge that keeps more (E21).
+- **Accepted as cut (38):** 14 A/B moves won by the new edge (7 of them "both" where the new edge is
+  the longer); 14 new-cut edges "right"; 7 of 9 sermon joins "right" (954, 1073 ×2, 1268 ×3, 1347); 1363
+  §4534 "Rejoice" whole; 1073 §1715 and 1074 §164323 are **only the song's introduction**, so the hold is right.
+- **Soft, "both" where the old edge kept more (11):** 954 §798 and §901 ends, 973 sermon end (63 s
+  shorter), 980 sermon start, 1138 §2122 end, 1220, 1267, 1287 and 1340 sermon ends, 1268 §4737 start, 1366
+  sermon start. Acceptable by the answer; E21 prefers the longer.
+- **Neither (2):** 1065's sermon start and end (below).
+- **Old edge chosen (3):**
+  - **1274 §3433 end:** the sentence check's `extend` took in the reading's announcement ("and we're going
+    to read from Job chapter 2. In fact, … the whole of Job chapter 2", +9.16 s). The operator keeps "We're
+    going to turn to the Bible now." Corpus: 8 `extend` decisions; this is the only one taking in the next
+    item's announcement (1117 §1962's "It's quite a short one." is the prompt's own handover example).
+  - **1347 sermon start:** the reading's section start (1568.51) sits in a real dead feed (1554.2–1577.0 is
+    below −60 dB). The cut starts at the first sound, mid-verse ("They do not sow or reap"); the old start
+    (1538.16) opens on the handover ("Well, we're going to have our Bible reading now … Owen") and then holds
+    23 s of dead air, which the 12 s clip did not reach. The reading's opening is not in the recording either way.
+  - **1262 §3284 start:** the old 1520.86 (with the instrumental lead-in) over 1531 (the first sung word).
+    A song introduction (10-10: in or out, never asked). Asked in error; recorded as a preference.
+- **Defects and findings:**
+  - **1269 sermon join, words lost:** the feed resumes at 2297.9 s partway through the sermon's first
+    sentence; the dead-feed opening's sentence check answered `shrink` and moved the start 11.28 s, dropping
+    "…of a little boy who went to church with his mother". Its base rule (each sentence wholly in or out) reads a
+    sentence whose beginning the dead feed lost as a partial thought. Corpus: 5 dead-feed opening checks, this
+    the only shrink; 9 shrinks overall, the other 8 drop "Amen." or a handover line.
+  - **973 sermon join, "words lost": the question was wrong.** Its text said the sermon resumes with
+    "Let's stand and sing"; that line is inside the skipped span. The stream jumps from it (1573.0) to 8.6 s of
+    near-silence and "Well, my thanks to Gareth…" (1582.4); the song was not recorded. Nothing is lost.
+  - **1363 §4533 start, early:** the talk opens on the repeated "Our first reading this morning is taken
+    from 1 Samuel 2." (200–209) before "I don't know about you…"; the sentence check kept it.
+  - **1065, "neither" for both edges:** the recording is 895.9 s; it starts during the reading and ends
+    mid-sermon. The cut runs from 4.34 s to the recording's end. No ruling covers a recording that holds only
+    part of a sermon.
+  - **1198 §165127 and §165130 ends, 1378 §272906 end, "nothing in this clip":** 1198's recording is
+    silent 2554.7–2777.3 and 3556.8–3805.5 (both songs are `structure_song_over_dead_feed`, withheld);
+    §165130's start is also "late" (misses "Silently"), in the same muted song. §272906 ends with the recording.
