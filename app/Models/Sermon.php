@@ -80,6 +80,7 @@ use Spatie\Sitemap\Tags\Url;
  * @property ?string $summary
  * @property bool $show_summary
  * @property bool $show_points
+ * @property bool $partial_recording
  * @property ?string $transcript_file_path
  * @property ?string $thumbnail_file_path
  * @property ?Carbon $thumbnail_generated_at
@@ -126,12 +127,13 @@ class Sermon extends Model implements Sitemapable
     /**
      * A new sermon carries `asset_disk` from the start, so {@see assetDisk()}
      * refuses only a row read by a query that did not select the column, not
-     * one created in this request.
+     * one created in this request. `partial_recording` mirrors its column default.
      *
      * @var array<string, mixed>
      */
     protected $attributes = [
         'asset_disk' => null,
+        'partial_recording' => false,
     ];
 
     /**
@@ -163,6 +165,7 @@ class Sermon extends Model implements Sitemapable
         'meta_description', // SEO meta description (auto-generated if empty)
         'show_summary', // Toggle to show/hide AI-generated summary
         'show_points', // Toggle to show/hide AI-generated points
+        'partial_recording', // Only part of the talk was recorded; the public page says so
         'transcript_file_path', // Renamed from 'transcript_path' for consistency
         'thumbnail_file_path', // Renamed from 'thumbnail_path' for consistency
         'thumbnail_generated_at', // Timestamp when thumbnail was generated
@@ -202,6 +205,7 @@ class Sermon extends Model implements Sitemapable
             'thumbnail_metadata' => ThumbnailMetadataCast::class,
             'show_summary' => 'boolean',
             'show_points' => 'boolean',
+            'partial_recording' => 'boolean',
             'source_type' => SermonSourceType::class,
             'video_quality_status' => SermonVideoQualityStatus::class,
             'video_visibility_override' => SermonVideoVisibilityOverride::class,
@@ -302,6 +306,7 @@ class Sermon extends Model implements Sitemapable
             'points.*.sub_points.*' => ['nullable', 'string', 'max:255'],
             'show_summary' => ['boolean'],
             'show_points' => ['boolean'],
+            'partial_recording' => ['boolean'],
             'needs_preacher_review' => ['boolean'],
             'transcript_file_path' => ['nullable', 'string', 'max:255'],
             'thumbnail_file_path' => ['nullable', 'string', 'max:255'],

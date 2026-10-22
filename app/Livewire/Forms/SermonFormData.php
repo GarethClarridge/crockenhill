@@ -54,6 +54,8 @@ class SermonFormData extends Form
 
     public bool $showPoints = true;
 
+    public bool $partialRecording = false;
+
     public string $lastGeneratedSlug = '';
 
     public function setSermon(Sermon $sermon, SermonViewPresenter $presenter): void
@@ -86,6 +88,7 @@ class SermonFormData extends Form
             'points' => $sermon->points ?? [],
             'showSummary' => $sermon->show_summary,
             'showPoints' => $sermon->show_points,
+            'partialRecording' => $sermon->partial_recording,
         ]);
 
         $this->lastGeneratedSlug = (string) Str::slug($this->title);
@@ -124,6 +127,7 @@ class SermonFormData extends Form
             'points.*.sub_points.*' => $modelRules['points.*.sub_points.*'],
             'showSummary' => $modelRules['show_summary'],
             'showPoints' => $modelRules['show_points'],
+            'partialRecording' => $modelRules['partial_recording'],
         ];
     }
 

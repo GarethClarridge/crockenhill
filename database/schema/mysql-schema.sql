@@ -1197,6 +1197,7 @@ CREATE TABLE `sermons` (
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `points` text CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci,
   `show_points` tinyint(1) NOT NULL DEFAULT '0',
+  `partial_recording` tinyint(1) NOT NULL DEFAULT '0',
   `transcript_file_path` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `thumbnail_file_path` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `thumbnail_generated_at` timestamp NULL DEFAULT NULL,
@@ -1856,3 +1857,4 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_24_061346_resta
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_24_073158_confirm_talk_type_of_approved_short_talks',104);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_24_073200_stamp_candidate_media_signatures',104);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_25_222923_add_audio_timeline_path_to_media_processing_logs_table',105);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_10_22_120331_add_partial_recording_to_sermons_table',106);

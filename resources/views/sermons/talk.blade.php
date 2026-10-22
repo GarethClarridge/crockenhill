@@ -105,6 +105,10 @@
             </div>
         </div>
 
+        @if ($hasAudio || $hasVideo)
+            <x-sermon-partial-recording-note :sermon="$sermon" />
+        @endif
+
         @if ($hasVideo)
             <x-card heading="Watch">
                 <div class="not-prose">

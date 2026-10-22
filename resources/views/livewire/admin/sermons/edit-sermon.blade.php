@@ -143,6 +143,11 @@
     <x-slot:sidebar>
         <livewire:admin.sermons.edit-sermon-thumbnails :sermon="$sermon" defer />
 
+        <x-card heading="Recording">
+            <x-toggle label="Partial recording" wire:model="form.partialRecording"
+                hint="Say on the public page that only part of this {{ strtolower($contentTypeLabel) }} was recorded." />
+        </x-card>
+
         @unless($isTalk)
             <x-card heading="Display options">
                 <div class="space-y-4">

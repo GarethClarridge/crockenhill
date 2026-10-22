@@ -88,6 +88,8 @@
                 </h2>
             </div>
             <div class="p-6 space-y-6">
+                <x-sermon-partial-recording-note :sermon="$sermon" />
+
                 @if ($hasPublicAudio)
                 <audio
                     src="{{ $sermonView['audio_url'] }}"

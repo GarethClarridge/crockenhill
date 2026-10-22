@@ -165,6 +165,31 @@ class EditSermonTest extends TestCase
     }
 
     #[Test]
+    public function it_saves_the_partial_recording_flag(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(EditSermon::class, ['sermon' => $this->sermon])
+            ->assertSet('form.partialRecording', false)
+            ->set('form.partialRecording', true)
+            ->call('save')
+            ->assertDispatched('notify', type: 'success', message: 'Sermon updated');
+
+        $this->assertTrue($this->sermon->refresh()->partial_recording);
+    }
+
+    #[Test]
+    public function it_pre_populates_the_partial_recording_flag(): void
+    {
+        $this->actingAs($this->admin);
+        $this->sermon->update(['partial_recording' => true]);
+
+        Livewire::test(EditSermon::class, ['sermon' => $this->sermon->refresh()])
+            ->assertSet('form.partialRecording', true)
+            ->assertSee('Partial recording');
+    }
+
+    #[Test]
     public function it_links_sermon_to_preacher_model_when_preacher_id_is_set(): void
     {
         $this->actingAs($this->admin);

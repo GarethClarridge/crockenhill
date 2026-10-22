@@ -295,6 +295,33 @@ class TalksPageTest extends TestCase
     /**
      * @param  array<string, mixed>  $attributes
      */
+    #[Test]
+    public function a_partly_recorded_sermon_says_so_beside_its_recording(): void
+    {
+        $partial = Sermon::factory()->create([
+            'content_type' => TalkType::Sermon, 'slug' => 'partly-recorded',
+            'audio_file_path' => 'sermons/audio/partly-recorded.mp3', 'partial_recording' => true,
+        ]);
+        $whole = Sermon::factory()->create([
+            'content_type' => TalkType::Sermon, 'slug' => 'wholly-recorded',
+            'audio_file_path' => 'sermons/audio/wholly-recorded.mp3',
+        ]);
+
+        $this->get($this->datedUrl($partial))->assertOk()->assertSee('Only part of this sermon was recorded.');
+        $this->get($this->datedUrl($whole))->assertOk()->assertDontSee('was recorded.');
+    }
+
+    #[Test]
+    public function a_partly_recorded_talk_says_so_beside_its_recording(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $talk = $this->childrensTalk([
+            'slug' => 'partly-recorded-talk', 'audio_file_path' => 'sermons/audio/partly-recorded-talk.mp3', 'partial_recording' => true,
+        ]);
+
+        $this->get($this->datedUrl($talk))->assertOk()->assertSee('Only part of this children&#039;s talk was recorded.', false);
+    }
+
     private function childrensTalk(array $attributes = []): Sermon
     {
         return Sermon::factory()->create(array_merge(['content_type' => TalkType::ChildrensTalk], $attributes));

@@ -32,7 +32,7 @@ class SaveSermonDetails
      *   segmentStartTime: ?float, segmentEndTime: ?float,
      *   downloadCount: ?int, reference: ?string, series: ?string,
      *   summary: ?string, points: array<int,string>,
-     *   showSummary: bool, showPoints: bool
+     *   showSummary: bool, showPoints: bool, partialRecording: bool
      * } $validated
      */
     public function execute(Sermon $sermon, array $validated): void
@@ -75,6 +75,7 @@ class SaveSermonDetails
             'points' => array_filter($validated['points']),
             'show_summary' => $validated['showSummary'],
             'show_points' => $validated['showPoints'],
+            'partial_recording' => $validated['partialRecording'],
         ];
 
         $sermon->update($updateData);
