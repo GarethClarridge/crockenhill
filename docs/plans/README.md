@@ -113,6 +113,11 @@ every ruling in force; the [round runbook](HISTORIC-ROUND-RUNBOOK.md) is the pro
 [talks](TALKS-AND-SHORT-TALK-DETECTION-2026-09-18.md) plans are design references. Nothing here
 authorises a dispatch, a provider call or a release.
 
+The [post-round audit work package](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md)
+(planned 2026-10-22) supplies agent-led semantic and artifact review after closure. It starts with
+a bounded Luna/optional Haiku calibration and feeds the existing acceptance plan; it does not
+block round closure or authorise release.
+
 | Order | Plan | Verified status | Next independently useful slice |
 |---|---|---|---|
 | H0 | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | **Programme authority; video handover reconciled 2026-10-04.** Latest canary Tier C round parked; mount failures and two failed extractions remain. Content acceptance/public release remain NO-GO. See the recorded shutdown, not older repair-readiness rows, for resume state. | Preserve the queue and investigate the recorded shutdown/mount failures under the frozen-code contract. For separately authorised code work, start boundary-consistency S1/S2 regressions; later fixes require the next freeze/canary. Neither path is authorised to dispatch by this index. |

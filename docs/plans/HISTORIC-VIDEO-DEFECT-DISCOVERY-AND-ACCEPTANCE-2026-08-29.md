@@ -1,9 +1,11 @@
 # Historic Video Defect Discovery and Acceptance Plan
 
-> **Status — 2026-10-22.** The final round ran overnight 10-21/22 (§5, "10-22"): 61 of 62 runs completed,
-> 1288 stopped for its composition, backups verified, queues paused, nothing public. **Next: step 5 listening**
-> on the [Final Round Edges](https://claude.ai/artifact/4ZHDrw6F5Rn5geArxUbLbn) page (61 questions), then
-> 1288, 1363 and 1310 §3942, then close (§4.1 step 6) and resume weekly processing.
+> **Status — 2026-10-22, round closed.** The final round ran overnight 10-21/22; step 5's 61 answers led to four
+> fixes and six re-cuts (1269, 1288, 1090, 1310), all heard "right"; 1363's "Rejoice" and 1310's "Purify My Heart"
+> approved, quarantined; the round closed under runbook §8 (§5, "10-22 (later): the round closed"). Nothing is
+> public. **Next:** a second copy of the source masters (§4.6, before lifting the temp-file cleanup pause C6);
+> deploy the `partial_recording` migration and bundle code before the next export; capture and score the ruled
+> evidence (§4.6); weekly take-over (§4.2) with its own production parity checks and canary; acceptance (§4.5).
 > Getting production complete is mapped in the
 > [programme plan §0.4](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md#04-getting-production-complete-the-map-2026-10-16);
 > weekly take-over (§4.2), lasting evaluation and custody (§4.6) and legacy transcripts (§4.7, decided 10-17) were
@@ -2845,3 +2847,40 @@ of the only source recording" — the 1065 case. Live holds with that reason: 10
 - **§3942 approved** from round-tools on clone `8189bfdea` (`CodeRevision` `2002deb4…`): **SongVideo 1565**, song 804,
   quarantined, `historic-batches/9351fa4e…/sermons/songs/804/3942.mp4` (inside the batch this time), 143.46 s. No
   watcher stop, 0 failed jobs, public song videos 36. Workers stopped, queues paused, watcher stopped.
+
+#### 10-22 (later): the round closed
+
+Operator: "Please continue to close the round", after Codex judged it ready subject to a final custody check and
+backup. Closing a processing round accepts no content and authorises no release: song acceptance, editorial and
+preacher work, production access checks and release verification stay in §4.5.
+- **Reconciliation** (`storage/scratch/close-final-round-20261022/reconcile.php` → `reconcile.json`, read-only):
+  69 members, **693 linked outputs checked, 0 missing** (sermon audio and video, section candidates and song videos,
+  under each run's batch root on staging; retained clips 435 and 442 included); live (not deleted) items sharing a
+  section pointer **0**; public song videos 36, member sermons public 0; **0 failed jobs** since the round began
+  (517 older failed jobs, latest 10-18, kept as history).
+- **Watcher warnings, dispositions:** the "left review" lines are the operator's own answers — composition reviews
+  (R12: 973, 1274, 1287, 1355, 1366), hold releases (1065, 1310), the R11 split (1378) and the "Rejoice" approval
+  (1363); 1022's 2 John and 1171's Philemon have no catalogue passage — a catalogue addition after the round.
+  The other data items stay as listed (945 coverage flagged for review; 1127/1352 obsolete nested failures;
+  1074 `mostly_black` correct).
+- **Listening evidence** (`close-final-round-20261022/listening_evidence.py` → `listening-evidence.json`): all 72
+  answers on the four pages with their keys (exact spans or times), clip hashes and the output judged with its
+  SHA-256 now; outputs replaced since judging are traced: 1269's step 5 join superseded by its accepted re-cut,
+  1363 §4534 and 1310 §3942 promoted unchanged to SongVideos 1564 and 1565 (durations equal).
+- **Final backup** `/Volumes/Sonnics/_close-final-round-20261022-backup/`: database at `binlog.000138:18421689`,
+  `evidence-20261022.tar.gz` (listening pages, answers, close-out, execution record, re-cut records), and
+  `storage/app/private` (28,817 files) with a per-file SHA-256 list verified on the destination; `SHA256SUMS`.
+- **§8:** queues empty (ready, delayed, reserved), pause flags cleared, watcher and autotick stopped; the nine
+  `crockenhill-round` containers removed (the clone stays at `8189bfdea`); the ffmpeg LaunchAgent points at main's
+  `scripts/ffmpeg_host_server.py` (byte-identical to the clone's) and answers on :2024 from a main worker; main's
+  `.env` back to Redis 0/1 with one worker per queue (`env.before-round` was not kept; 1 is the compose default;
+  previous file `.env.backup-before-round-close-20261022`); `sail up -d` started main's six workers on `266941fe2`.
+  No scheduler runs locally (`schedule:work` is production's), so the workers start no weekly work.
+- **Kept on deliberately (operator):** `MEDIA_PAUSE_TEMP_FILE_CLEANUP=true` (C6) until the 649 masters have a second
+  copy — the staged working copies are the only other copy of the sources.
+- **Docker's file sharing hung four times on 10-22** (FUSE `request_wait_answer`); each time `docker desktop
+  restart` and the main containers by name. Worth a full quit and relaunch, or a Mac restart, before the next
+  long job.
+- **Ruled-evidence capture** (§4.6 "Capture evidence after the round closes"): started into
+  `storage/scratch/rulings-capture-20261022/` for the 883 gathered edge rulings (`--current`, rolled back);
+  scoring and the CI ratchet set remain §4.6 work.
