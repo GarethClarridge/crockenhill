@@ -2971,8 +2971,8 @@ fine" (edge decodes and the structure-model questions that bank edge evidence); 
 publication, releasing holds, deletions. **Usage:** no cap; stop by **07:00** (the weekly usage period
 resets then), winding down from 06:30. The audit continues into **Pass B** if the calibration meets
 the audit plan's fixed scaling criteria (one Haiku review per service, at most one retry, at most
-three at a time, strong review of findings and the §5 sample); Pass C's fresh transcription is not
-part of tonight. Planned, not started: a fresh session runs it from the handover
+three at a time, strong review of findings and the §5 sample); Pass C's fresh transcription follows,
+local whisper only, after the edge decodes, for the windows the audit plan §5 names. Planned, not started: a fresh session runs it from the handover
 prompt in `storage/scratch/overnight-20261023/handover-prompt.md`.
 
 1. **Edge evidence for the `edge_word_timings_missing` rulings (processing, authorised).**
