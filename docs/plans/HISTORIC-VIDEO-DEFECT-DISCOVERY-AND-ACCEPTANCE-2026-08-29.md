@@ -2769,3 +2769,6 @@ no stop (cut 21, held or failed 0). Queues paused again, workers stopped, watche
 `storage/scratch/listening-recut-20261022/build.php` (copied from the final-round build; sermon edges allowed,
 join lines taken from the cue the join lands in, per-item notes and longer tails). 4 questions: 1269's join;
 1288's start, join and end.
+- **Backed up after the re-cut:** service artifacts and detection rulings rsynced (`--checksum`, no deletions)
+  to `/Volumes/Sonnics/_service-artifacts-backup/` and `_detection-rulings-backup/`. A checksum dry run afterwards
+  lists only permission differences (18,596 `.f...p...`, exFAT keeps no modes): no content differs, nothing missing.
