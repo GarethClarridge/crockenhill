@@ -2716,3 +2716,15 @@ edge that keeps more (E21).
   set it); 1347 keeps the mid-verse start as cut; 1274 §3433 and 1363 §4533 are left as cut (soft misses).
   Still to do: the 1269 fix (dead-feed opening keeps a first sentence the feed cut short), then 1288, 1310
   §3942, and close.
+- **1269 fixed (`26f80f181`), not yet re-cut:** the dead-feed opening's instructions now say a first sentence
+  the recording joins partway through is the item's own words. Measured read-only on all 5 banked dead-feed
+  openings plus 957's microphone check, 3 calls each (`storage/scratch/dead-feed-opening-20261022/eval.php`):
+  1269 keeps 3/3 (was shrink 2/2), 957 still shrinks 3/3; the other openings' extends cannot apply (opening
+  moves are inward only). The answers are bound to the prompt's hash, so only dead-feed openings are re-asked.
+  The re-cut needs the fix on the round clone and the operator's word.
+- **Partial-recording flag (`520caebc5`, operator: public note):** `sermons.partial_recording`, a "Partial
+  recording" toggle in the sermon editor and "Only part of this sermon was recorded." beside the recording on
+  both public templates. Set on 1065's sermon #997 (direct one-column update). Migrated locally; schema dump
+  rebuilt from the committed dump plus the migration and checked to load standalone.
+- Docker's file sharing hung again at about 11:30 and was restarted (operator: "Yes"; `docker desktop
+  restart`, main containers started by name, round pause flags intact).
