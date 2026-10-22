@@ -2385,7 +2385,13 @@ What we would regret not doing while the context exists.
         wretch is true." (4119.46). Needs a failing test, then a measured fix: a word pause must not
         fall inside a decoded word.
     - Ratchet set rebuilt on the 161: 37 run fixtures, 5.9 MB, 299 tests pass (141 s serial).
-    - Still owed: the 6 listening questions, the 1108 fix, then the 394 decodes.
+    - **Open edges heard 10-22** (https://claude.ai/artifact/Jf6beGhaHC24y9rrr83M9R,
+      `listening-open-edges-20261022`): 1111 and 1259 sermon ends "either is fine" (with or without
+      the song introduction K16 kept), 1198 §2491 end "both are fine", 1286 §3582 "starts in the right
+      place" at its reading. Gathered (1,345 rulings); **167 of 168 now met**; ratchet rebuilt on the
+      167 (38 run fixtures, 305 tests pass).
+    - Still owed: the 1108 fix (failing test written; the window decode lost "Let's" to the dropout,
+      while other banked decodes heard "Let" at 4119.58), then the 394 decodes.
   - **The re-cut listening.** Gathered 10-22 (`listening-recut-20261020`, `-20261022`, `-1310-`).
   - **Structure answers, the loop page and song stage 1.** Each needs its own replay.
 - [ ] **Before IC8, decide how historic media is repaired after release.** Production receives only

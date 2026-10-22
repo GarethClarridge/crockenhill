@@ -303,7 +303,8 @@ for source, name in (('listening-held-word-20261021', 'held-word-endings'), ('li
     from_keys(source, f'listening-final-20261021/{name}', keys)
 for source, directory in (('listening-final-round-20261022', 'listening-final-round-20261022'),
                           ('listening-recut-20261022', 'listening-recut-20261022'),
-                          ('listening-1310-20261022', 'listening-1310-20261022')):
+                          ('listening-1310-20261022', 'listening-1310-20261022'),
+                          ('listening-open-edges-20261022', 'listening-open-edges-20261022')):
     from_keys(source, directory, {question['id']: question['key'] for question in load(f'{directory}/questions.json')})
 
 # Answers the plan later closed with a reading of its own: the answer heard something true that no
