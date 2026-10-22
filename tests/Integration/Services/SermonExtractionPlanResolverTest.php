@@ -552,6 +552,58 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->assertSame([[1873.02, 1978.63], [1978.63, 3461.42]], $spans);
     }
 
+    /**
+     * Run 1288 (operator, 2026-10-21, R12): Luke 5:33-39, a 28-s "Matthew 6:1" and Matthew 6:16-18
+     * are read before the sermon on them. The short reading is flagged as a possible fragment; the
+     * operator's composition review takes it into the sermon, which answers that question.
+     */
+    #[Test]
+    public function a_reviewed_composition_answers_its_members_micro_section_flag(): void
+    {
+        [$log, $selection] = $this->runWithMicroReading();
+
+        $this->resolver->reviewComposition($log, $selection, $this->resolver->compose($log)['input_identity'], 1);
+        $this->bankNoWordOutputEdges($log);
+        $plan = $this->resolver->resolve($log->fresh());
+
+        $this->assertSame($selection, $plan['metadata']['selected_section_ids']);
+        $this->assertFalse($plan['metadata']['requires_review']);
+        $this->assertNull($plan['metadata']['reason']);
+    }
+
+    /** Without the operator's review the short reading's own question still stands. */
+    #[Test]
+    public function a_micro_section_chosen_by_the_rules_still_asks_for_review(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 5000, 'sermon_start_time' => 0, 'sermon_end_time' => 4400]);
+        $short = $this->reading($log, 1, 1604.52, 1632.46, reference: 'Matthew 6:16-18');
+        $short->update(['needs_manual_review' => true, 'metadata' => [...$short->metadata->toArray(), 'review_flags' => [ServiceStructureValidator::FLAG_MICRO_SECTION]]]);
+        $sermon = $this->sermon($log, 2, 1640.0, 3775.0, 'Matthew 6:16-18');
+
+        $this->bankNoWordOutputEdges($log);
+        $plan = $this->resolver->resolve($log->fresh());
+
+        $this->assertSame('rules', $plan['metadata']['selection_source']);
+        $this->assertSame([$short->id, $sermon->id], $plan['metadata']['selected_section_ids']);
+        $this->assertTrue($plan['metadata']['requires_review']);
+    }
+
+    /** The review answers membership, not a flag that disputes where the member's own cut falls. */
+    #[Test]
+    public function a_reviewed_composition_does_not_answer_a_members_boundary_risk(): void
+    {
+        [$log, $selection, $short] = $this->runWithMicroReading();
+        $short->update(['metadata' => [...$short->metadata->toArray(), 'review_flags' => [
+            ServiceStructureValidator::FLAG_MICRO_SECTION, ServiceStructureValidator::FLAG_SERMON_BOUNDARY_MATERIAL_RISK,
+        ]]]);
+
+        $this->resolver->reviewComposition($log, $selection, $this->resolver->compose($log)['input_identity'], 1);
+        $this->bankNoWordOutputEdges($log);
+        $plan = $this->resolver->resolve($log->fresh());
+
+        $this->assertTrue($plan['metadata']['requires_review']);
+    }
+
     /** A section wholly inside another selected one would lose the outer section's tail, so it is still refused. */
     #[Test]
     public function a_selected_section_contained_in_another_is_still_refused(): void
@@ -2011,6 +2063,25 @@ class SermonExtractionPlanResolverTest extends TestCase
         ] + ($reference === null ? [] : [
             'metadata' => ['confidence_level' => 'high', 'sermon_reference' => $reference],
         ]));
+    }
+
+    /**
+     * Run 1288's shape: three readings, the middle one 28 s and held as a possible fragment, a song,
+     * then the sermon.
+     *
+     * @return array{0: MediaProcessingLog, 1: list<int>, 2: ServiceSection}
+     */
+    private function runWithMicroReading(): array
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 5000, 'sermon_start_time' => 0, 'sermon_end_time' => 4400]);
+        $luke = $this->reading($log, 1, 1510.37, 1604.52, reference: 'Luke 5:33-39');
+        $short = $this->reading($log, 2, 1604.52, 1632.46, reference: 'Matthew 6:1');
+        $short->update(['needs_manual_review' => true, 'metadata' => [...$short->metadata->toArray(), 'review_flags' => [ServiceStructureValidator::FLAG_MICRO_SECTION]]]);
+        $matthew = $this->reading($log, 3, 1633.84, 1663.8, reference: 'Matthew 6:16-18');
+        $this->section($log, ServiceSectionType::Song, 4, 1678.72, 1888.97);
+        $sermon = $this->sermon($log, 5, 1888.97, 3775.0, 'Matthew 6:16-18');
+
+        return [$log, [$luke->id, $short->id, $matthew->id, $sermon->id], $short->fresh()];
     }
 
     private function biblesOosItem(): ChurchServiceItem

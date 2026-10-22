@@ -470,10 +470,14 @@ class SermonExtractionPlanResolver
      * 23–28 minutes from the preacher's first word, held for want of a reading to pair with).
      * A review that flag alone asked for goes with it.
      *
+     * A section the operator's composition review took into the sermon is no longer asked whether
+     * it is a fragment: the review answered that (1288's 28-s "Matthew 6:1", operator 2026-10-22).
+     * Flags that dispute where its own cut falls still stand.
+     *
      * @param  array<int, string>  $flags
      * @param  ServiceSection|null  $firstSection  The run's first section in time
      */
-    private function reviewStatePermitsTheCut(ServiceSection $section, array $flags, ?ServiceSection $firstSection): bool
+    private function reviewStatePermitsTheCut(ServiceSection $section, array $flags, ?ServiceSection $firstSection, bool $operatorReviewed = false): bool
     {
         $opensTheRecording = $section->section_type === ServiceSectionType::Sermon
             && $firstSection?->is($section) === true
@@ -483,6 +487,11 @@ class SermonExtractionPlanResolver
         if (($section->section_type === ServiceSectionType::BibleReading || $opensTheRecording)
             && in_array(ServiceStructureValidator::FLAG_LOW_CONFIDENCE, $flags, true)) {
             $flags = array_values(array_diff($flags, [ServiceStructureValidator::FLAG_LOW_CONFIDENCE]));
+            $needsReview = $needsReview && $flags !== [];
+        }
+
+        if ($operatorReviewed && in_array(ServiceStructureValidator::FLAG_MICRO_SECTION, $flags, true)) {
+            $flags = array_values(array_diff($flags, [ServiceStructureValidator::FLAG_MICRO_SECTION]));
             $needsReview = $needsReview && $flags !== [];
         }
 
@@ -536,7 +545,7 @@ class SermonExtractionPlanResolver
             if ($isHeld && ! $authorised) {
                 $held[] = $id;
                 $requiresReview = true;
-            } elseif (! $authorised && ! $this->reviewStatePermitsTheCut($section, $flags, $sections[0] ?? null)) {
+            } elseif (! $authorised && ! $this->reviewStatePermitsTheCut($section, $flags, $sections[0] ?? null, ($composition['selection_source'] ?? null) === 'operator_review')) {
                 $requiresReview = true;
             }
             $spans[] = ['start_time' => $start, 'end_time' => $end];
