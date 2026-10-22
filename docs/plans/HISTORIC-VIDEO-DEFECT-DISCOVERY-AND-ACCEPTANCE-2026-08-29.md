@@ -2711,3 +2711,8 @@ edge that keeps more (E21).
   - **1198 §165127 and §165130 ends, 1378 §272906 end, "nothing in this clip":** 1198's recording is
     silent 2554.7–2777.3 and 3556.8–3805.5 (both songs are `structure_song_over_dead_feed`, withheld);
     §165130's start is also "late" (misses "Silently"), in the same muted song. §272906 ends with the recording.
+- **Operator, 10-22:** 1065 is published, "ideally with a flag" (no partial-recording flag exists; 122 of
+  450 sermon cuts touch their recording's start or end, almost all sermon-only files, so the edge alone cannot
+  set it); 1347 keeps the mid-verse start as cut; 1274 §3433 and 1363 §4533 are left as cut (soft misses).
+  Still to do: the 1269 fix (dead-feed opening keeps a first sentence the feed cut short), then 1288, 1310
+  §3942, and close.
