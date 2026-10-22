@@ -2791,3 +2791,18 @@ restarted (`docker desktop restart`, main containers by name, pause flags intact
 - **Result:** §4534 `published` (section state); **SongVideo 1564**, song 1162, `quarantined`, `historic_staging`,
   `sermons/songs/1162/4534.mp4`, 185.294 s, the candidate's exact bytes. Public song videos still 36 (as before
   the round). 0 failed jobs since 13:00.
+
+#### 10-22 (later): partial recordings — 1065 released; 1090 and 1310 asked
+
+**1310 §3942** is blocked by its held sermon §215095: the song-end rule (`song_end_silence`) ends "Purify My
+Heart" at 1777.8 s (10.7 s on, its last sound; "Amen" follows at about 1779), which crosses the held sermon's
+start (1772.1, its first cue smeared back over the music). §215095's hold is "Sermon cut off by the start or end
+of the only source recording" — the 1065 case. Live holds with that reason: 1090 §1793 and 1310 §215095 (980 and
+1089 are dropouts inside the sermon, not cut-off recordings). Operator, "Yes":
+- **1065 §1684 hold released** (`service:release-content-hold 1684 --execute`, from round-tools; its record also
+  names §1475, a run-1036 talk filed on the same register line, not 1065's). Live holds 0; sermon 997 stays
+  quarantined with `partial_recording`. Nothing queued.
+- **Listening:** [Partial Recordings](https://claude.ai/artifact/7Natho1v8TCVSfPRM2HwdY), `rulings`, built by
+  `storage/scratch/listening-partial-20261022/build.py`: 1090's recording start and end, 1310's recording end
+  (both sermons run to their recording's last second: 1205.5 s and 3282.7 s). If cut off: release, flag, re-cut
+  1310 (its sermon audio is from 09-07), which also lets §3942 cut.
