@@ -122,6 +122,23 @@ class ApproveSectionForPublicationTest extends TestCase
     // Happy path
     // -------------------------------------------------------------------------
 
+    /** 1363's "Rejoice", held for review and heard whole, could not be approved: songs have no audio file. */
+    #[Test]
+    public function a_song_held_for_review_can_be_approved_with_its_video(): void
+    {
+        Queue::fake();
+        $section = $this->makePendingSection([
+            'section_type' => ServiceSectionType::Song->value,
+            'extracted_video_path' => 'section-publications/11/video.mp4',
+            'extracted_audio_path' => null,
+        ]);
+        Storage::disk('public')->put('section-publications/11/video.mp4', 'video');
+
+        $this->assertNull($this->action->execute($section));
+        $this->assertSame(ServiceSectionPublicationStatus::Approved, $section->refresh()->publication_status);
+        Queue::assertPushed(PublishApprovedServiceSection::class);
+    }
+
     #[Test]
     public function it_approves_section_transitions_state_and_dispatches_publish_job(): void
     {

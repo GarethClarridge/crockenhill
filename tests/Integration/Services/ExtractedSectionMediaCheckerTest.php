@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
+use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ExtractedSectionMediaChecker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -41,6 +42,24 @@ class ExtractedSectionMediaCheckerTest extends TestCase
 
         $section->update(['extracted_video_path' => '']);
         $this->assertFalse($this->service->hasExtractedMedia($section));
+    }
+
+    /** A song is published from its video alone; songs are never cut to audio (1363 §4534, 10-22). */
+    #[Test]
+    public function a_song_with_its_video_has_its_media(): void
+    {
+        Storage::disk('public')->put('section-publications/1/video.mp4', 'video');
+        $section = ServiceSection::factory()->create([
+            'section_type' => ServiceSectionType::Song->value,
+            'extracted_video_path' => 'section-publications/1/video.mp4',
+            'extracted_audio_path' => null,
+            'asset_disk' => 'public',
+        ]);
+
+        $this->assertTrue($this->service->hasExtractedMedia($section));
+
+        Storage::disk('public')->delete('section-publications/1/video.mp4');
+        $this->assertFalse($this->service->hasExtractedMedia($section), 'still needs the video itself');
     }
 
     #[Test]
