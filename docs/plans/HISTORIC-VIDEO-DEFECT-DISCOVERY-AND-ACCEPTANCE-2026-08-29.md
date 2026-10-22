@@ -2881,6 +2881,8 @@ preacher work, production access checks and release verification stay in §4.5.
 - **Docker's file sharing hung four times on 10-22** (FUSE `request_wait_answer`); each time `docker desktop
   restart` and the main containers by name. Worth a full quit and relaunch, or a Mac restart, before the next
   long job.
-- **Ruled-evidence capture** (§4.6 "Capture evidence after the round closes"): started into
-  `storage/scratch/rulings-capture-20261022/` for the 883 gathered edge rulings (`--current`, rolled back);
-  scoring and the CI ratchet set remain §4.6 work.
+- **Ruled-evidence capture** (§4.6 "Capture evidence after the round closes"): `storage/scratch/rulings-capture-
+  20261022/` for the 883 gathered edge rulings (`--current`, rolled back). **168 captured** (20 MB of fixtures);
+  715 unassessable: **394** `edge_word_timings_missing` (no banked words for the window current code asks
+  about — needs a decode, which is processing), **315** no executable cut or no ruled expectation, **6** sections
+  gone. Scoring, the 394 decodes and the CI ratchet set remain §4.6 work.
