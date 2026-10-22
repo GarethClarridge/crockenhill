@@ -3,9 +3,12 @@
 > **Status — 2026-10-22, round closed.** The final round ran overnight 10-21/22; step 5's 61 answers led to four
 > fixes and six re-cuts (1269, 1288, 1090, 1310), all heard "right"; 1363's "Rejoice" and 1310's "Purify My Heart"
 > approved, quarantined; the round closed under runbook §8 (§5, "10-22 (later): the round closed"). Nothing is
-> public. **Next:** a second copy of the source masters (§4.6, before lifting the temp-file cleanup pause C6);
-> deploy the `partial_recording` migration and bundle code before the next export; capture and score the ruled
-> evidence (§4.6); weekly take-over (§4.2) with its own production parity checks and canary; acceptance (§4.5).
+> public. **Next:** deploy the `partial_recording` migration and bundle code before the next export; score the
+> ruled evidence (§4.6); the [post-round audit](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md) (first slice:
+> inventory, read-only packets, calibration; no processing); weekly take-over (§4.2) with its own production
+> parity checks and canary; acceptance (§4.5). **Deferred:** the second copy of the source masters (§4.6) has
+> no destination yet; the operator expects to use the staging drive once historic processing is done. C6 stays
+> on until then.
 > Getting production complete is mapped in the
 > [programme plan §0.4](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md#04-getting-production-complete-the-map-2026-10-16);
 > weekly take-over (§4.2), lasting evaluation and custody (§4.6) and legacy transcripts (§4.7, decided 10-17) were
@@ -2288,7 +2291,8 @@ Open:
 What we would regret not doing while the context exists.
 
 - [ ] **A second copy of the source masters.** The 1 TB archive in `/Volumes/Sonnics/Services`
-  (649 recordings) has no second copy (operator, 2026-10-16).
+  (649 recordings) has no second copy (operator, 2026-10-16). **Deferred (operator, 2026-10-22):**
+  no destination yet; probably the staging drive once historic processing is done.
   - The decision not to back up quarantine and staging (register C2) rests on outputs being
     re-derivable from this archive, so everything else depends on it.
   - Make one copy on a separate drive or in cold cloud storage, ideally off site.
