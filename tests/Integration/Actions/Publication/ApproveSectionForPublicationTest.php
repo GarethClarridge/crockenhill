@@ -6,11 +6,14 @@ namespace Tests\Integration\Actions\Publication;
 
 use App\Actions\HoldSectionForContentReview;
 use App\Actions\Publication\ApproveSectionForPublication;
+use App\Data\HistoricStagingContext;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Jobs\PublishApprovedServiceSection;
 use App\Models\MediaProcessingLog;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
+use App\Services\HistoricMedia\HistoricStagingGuard;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\SectionPublication\TalkPublicationHandler;
 use App\Services\ChurchService\TalkReadingPairing;
@@ -18,11 +21,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
 
 class ApproveSectionForPublicationTest extends TestCase
 {
-    use RefreshDatabase;
+    use CreatesHistoricImportOperations, RefreshDatabase;
 
     private ApproveSectionForPublication $action;
 
@@ -121,6 +125,85 @@ class ApproveSectionForPublicationTest extends TestCase
     // -------------------------------------------------------------------------
     // Happy path
     // -------------------------------------------------------------------------
+
+    /**
+     * An approval is made from a web request (or a console), where no staging context is active.
+     * The publish job takes its context from the queue payload, so without this 1363's "Rejoice"
+     * was promoted to the staging disk's plain root rather than its run's batch, and the round's
+     * watcher stopped on a published file missing (2026-10-22).
+     */
+    #[Test]
+    public function approving_a_historic_section_dispatches_its_publish_job_in_the_runs_staging_context(): void
+    {
+        Queue::fake();
+        $context = new HistoricStagingContext(
+            manifestHash: str_repeat('a', 64),
+            planHash: str_repeat('b', 64),
+            stagingDisk: 'historic_staging',
+            batchRoot: 'batches/20261022-approval',
+            storageIdentity: ['driver' => 'local', 'bucket' => null, 'root_fingerprint' => str_repeat('c', 64), 'prefix_fingerprint' => str_repeat('d', 64)],
+        );
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'historic_import_operation_id' => $this->createHistoricImportOperation()->id,
+            'processing_metadata' => ['historic_import' => ['staging_context' => $context->toArray()]],
+        ]);
+        $section = $this->makePendingSection([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'extracted_video_path' => 'section-publications/12/video.mp4',
+            'extracted_audio_path' => null,
+        ]);
+        Storage::disk('public')->put('section-publications/12/video.mp4', 'video');
+        $registry = $this->recordingRegistry();
+
+        $this->assertNull($this->action->execute($section));
+
+        $this->assertSame(['batches/20261022-approval'], $registry->observed);
+        Queue::assertPushed(PublishApprovedServiceSection::class);
+    }
+
+    #[Test]
+    public function approving_an_ordinary_section_needs_no_staging_context(): void
+    {
+        Queue::fake();
+        $section = $this->makePendingSection(['extracted_video_path' => 'sermons/sections/13/video.mp4', 'extracted_audio_path' => 'sermons/audio/section-13.mp3']);
+        Storage::disk('public')->put('sermons/sections/13/video.mp4', 'video');
+        Storage::disk('public')->put('sermons/audio/section-13.mp3', 'audio');
+        $registry = $this->recordingRegistry();
+
+        $this->assertNull($this->action->execute($section));
+
+        $this->assertSame([], $registry->observed);
+        Queue::assertPushed(PublishApprovedServiceSection::class);
+    }
+
+    /** A registry that records each context it is asked to enter. */
+    private function recordingRegistry(): HistoricStagingContextRegistry
+    {
+        $observed = [];
+        $registry = new class(app(HistoricStagingGuard::class), $observed) extends HistoricStagingContextRegistry
+        {
+            /** @param array<int, string> $observed */
+            public function __construct(HistoricStagingGuard $guard, public array &$observed)
+            {
+                parent::__construct($guard);
+            }
+
+            public function within(HistoricStagingContext $context, \Closure $callback): mixed
+            {
+                $result = $callback();
+                // A pending dispatch is queued only when it is destroyed: it must be queued here,
+                // while the context is active, not after the callback hands it back.
+                $pushed = Queue::pushed(PublishApprovedServiceSection::class)->count();
+                $this->observed[] = $context->batchRoot.($pushed > 0 ? '' : ' (queued after the context ended)');
+
+                return $result;
+            }
+        };
+        app()->instance(HistoricStagingContextRegistry::class, $registry);
+
+        return $registry;
+    }
 
     /** 1363's "Rejoice", held for review and heard whole, could not be approved: songs have no audio file. */
     #[Test]

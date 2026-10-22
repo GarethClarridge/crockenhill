@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Actions\Publication;
 
+use App\Data\HistoricStagingContext;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Jobs\PublishApprovedServiceSection;
@@ -11,6 +12,7 @@ use App\Models\ServiceSection;
 use App\Services\ChurchService\ExtractedSectionMediaChecker;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\ChurchService\TalkReadingPairing;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Preacher\TalkSpeakerService;
 
 class ApproveSectionForPublication
@@ -58,8 +60,19 @@ class ApproveSectionForPublication
         $section->extracted_at ??= now();
         $section->save();
 
-        PublishApprovedServiceSection::dispatch($section->id)
-            ->onQueue((string) config('media-processing.queues.livestream', 'livestream-processing'));
+        // The job takes its staging context from the queue payload, and an approval is made where
+        // none is active: a historic section's clip would land outside its run's batch (1363, 10-22).
+        // A pending dispatch queues when it is destroyed, so it must not outlive the closure.
+        $dispatch = static function () use ($section): null {
+            PublishApprovedServiceSection::dispatch($section->id)
+                ->onQueue((string) config('media-processing.queues.livestream', 'livestream-processing'));
+
+            return null;
+        };
+        $stagingContext = $section->processingLog->historicStagingContext();
+        $stagingContext instanceof HistoricStagingContext
+            ? app(HistoricStagingContextRegistry::class)->within($stagingContext, $dispatch)
+            : $dispatch();
 
         return null;
     }
