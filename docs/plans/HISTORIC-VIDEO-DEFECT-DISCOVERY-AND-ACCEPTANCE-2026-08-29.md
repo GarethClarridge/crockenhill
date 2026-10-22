@@ -2330,7 +2330,30 @@ What we would regret not doing while the context exists.
   - **Capture evidence after the round closes.** Capture resolves the planner on the live database.
   - **Score all 883 rulings, then fix a ratchet set for CI.** Rulings current code does not yet
     satisfy are open defects, not regressions (as with the manifest's `open_clips_word`).
-  - **The re-cut listening.** No saved rulings were found.
+    **Scored 2026-10-22** (the 168 captured; `rulings-capture-20261022/score2-junit.xml`):
+    - `gather.py` now also reads the 14 pages of 10-18 → 10-22 (edges 1–3, last, relisten, re-cuts
+      10-20 and 10-22, K16, songs, song changes, held-word endings, song questions, final round,
+      1310): **1,339 rulings** on 333 runs. The 883 are unchanged. A ruling replaced by a later one
+      on the same edge is marked `superseded` (355). Single-cut `early`/`late` answers become
+      outward or inward by edge. An A/B answer keeps the version chosen, and "both" keeps the
+      longer edge (E21). Times come from the clip, not the context's tenth-of-a-second clock.
+    - The test now scores a fixture against the newest rulings on its edge **made by its capture
+      date** (`captured_on`, written by `capture.php` from now on). Data captured before a later
+      ruling cannot reproduce the cut that ruling heard. Fixtures without a date keep their own
+      ruling, so the committed 138 pass unchanged.
+    - **150 of 168 meet their latest ruling.** Of the first pass's 45 "ruled right has moved",
+      27 were moves heard right later. **18 open:** 1012 (three canary 13 edges moved 2–6 min, and
+      a start by 2.9 s: section redetection, not edge drift — examine first); 1286 §3582 start
+      (125 s earlier) and a sermon-section start (5.7 s); 1111 sermon end (+41 s, never re-heard);
+      1259 sermon end (+12.6 s); 1250 end (−0.6 s, canary 13 and 14); 1108 canary 11 start
+      (+1.1 s); 1198 §2491 end (+0.7 s); 1108 sermon end (outward, still at the clipped cut);
+      1138 §2122 and 1274 §3433 (the final round chose the other version; 1274 §3433 left as cut
+      by the operator, so a soft miss).
+    - **Ambiguous:** 1328 start on edges 10-18 is "starts too late" with the note "seems to start
+      mid reading". The committed fixture reads it as keep, the gathered set as outward.
+    - Still owed: the ratchet set itself (commit the 150, about 21 MB, or a slimmer form), then
+      triage of the 18 and the 394 decodes.
+  - **The re-cut listening.** Gathered 10-22 (`listening-recut-20261020`, `-20261022`, `-1310-`).
   - **Structure answers, the loop page and song stage 1.** Each needs its own replay.
 - [ ] **Before IC8, decide how historic media is repaired after release.** Production receives only
   outputs; the masters, the round tooling and the promotion path all live on this Mac, and IC8

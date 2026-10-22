@@ -349,22 +349,57 @@ class RuledEndingsRegressionTest extends TestCase
 
         $this->assertEqualsWithDelta($fixture['live']['cut'], $cut, self::FIDELITY_TOLERANCE, $fixture['id'].': the fixture no longer reproduces its live cut');
 
-        $heard = $ruling['heard'];
         if ($fixture['open_defect'] ?? false) {
             // Keep the failing cut reproducible until its own red-to-green regression lands.
             $this->assertNotSame('keep', $ruling['expect']);
 
             return;
         }
-        // Later in the recording, for an end; earlier, for a start.
-        $outward = $ruling['edge'] === 'end' ? $cut - $heard : $heard - $cut;
 
-        match ($ruling['expect']) {
-            'keep' => $this->assertEqualsWithDelta($heard, $cut, self::RIGHT_TOLERANCE, 'an edge ruled right has moved'),
-            'outward' => $this->assertGreaterThan(self::MOVED, $outward, 'an edge ruled to clip its item is back at the clipped cut'),
-            'inward' => $this->assertLessThan(-self::MOVED, $outward, 'an edge ruled to take in too much is back at that cut'),
-            'at' => $this->assertEqualsWithDelta($ruling['ruled_time'], $cut, self::RULED_TIME_TOLERANCE, 'an edge is not at the time the operator gave'),
-        };
+        // A later listening heard a later cut of the same edge, so its ruling is the one to keep.
+        foreach ($this->latestRulings((int) $fixture['run']['id'], $ruling, $fixture['captured_on'] ?? null) as $latest) {
+            $heard = $latest['heard'];
+            // Later in the recording, for an end; earlier, for a start.
+            $outward = $latest['edge'] === 'end' ? $cut - $heard : $heard - $cut;
+            $message = $fixture['id'].' against '.$latest['id'];
+
+            match ($latest['expect']) {
+                'keep' => $this->assertEqualsWithDelta($heard, $cut, self::RIGHT_TOLERANCE, $message.': an edge ruled right has moved'),
+                'outward' => $this->assertGreaterThan(self::MOVED, $outward, $message.': an edge ruled to clip its item is back at the clipped cut'),
+                'inward' => $this->assertLessThan(-self::MOVED, $outward, $message.': an edge ruled to take in too much is back at that cut'),
+                'at' => $this->assertEqualsWithDelta($latest['ruled_time'], $cut, self::RULED_TIME_TOLERANCE, $message.': an edge is not at the time the operator gave'),
+            };
+        }
+    }
+
+    /**
+     * The newest rulings on the fixture's edge in tests/Fixtures/Rulings/edge-rulings.json made by the
+     * day it was captured: a later listening heard a later cut, which data captured before it may not
+     * reproduce. A fixture without a capture date keeps its own ruling.
+     *
+     * @param  array{section_id: int|null, edge: string, heard: float, expect: string, ruled_time: float|null}  $ruling
+     * @return list<array{id: string, edge: string, heard: float, expect: string, ruled_time: float|null}>
+     */
+    private function latestRulings(int $run, array $ruling, ?string $capturedOn): array
+    {
+        $own = [['id' => 'the fixture\'s ruling', ...$ruling]];
+        if ($capturedOn === null) {
+            return $own;
+        }
+
+        $rulings = json_decode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/Rulings/edge-rulings.json'), true, flags: JSON_THROW_ON_ERROR)['rulings'];
+        $onEdge = array_filter($rulings, static fn (array $candidate): bool => $candidate['run'] === $run
+            && $candidate['edge'] === $ruling['edge']
+            && $candidate['ruled_on'] <= $capturedOn
+            && ($candidate['output'] === 'sermon') === ($ruling['section_id'] === null)
+            && ($candidate['output'] === 'sermon' ? null : $candidate['section_id']) === $ruling['section_id']);
+        if ($onEdge === []) {
+            return $own;
+        }
+
+        $newest = max(array_column($onEdge, 'ruled_on'));
+
+        return array_values(array_filter($onEdge, static fn (array $candidate): bool => $candidate['ruled_on'] === $newest));
     }
 
     /**

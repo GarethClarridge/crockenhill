@@ -263,6 +263,8 @@ foreach ($ids as $id) {
         'ruling' => $ruling,
         'open_defect' => $current && $ruling['expect'] !== 'keep',
         'live' => $live + $capturedCode(),
+        // Rulings made by this date heard cuts this data can reproduce; later ones may not.
+        'captured_on' => now()->toDateString(),
         'config' => $config,
         'run' => [
             'id' => $log->id,

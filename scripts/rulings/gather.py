@@ -70,9 +70,9 @@ records = []
 skipped = collections.Counter()
 
 
-def add(source, ruling, *, run, edge, heard, output, section_id=None, section_type=None):
+def add(source, ruling, *, run, edge, heard, output, section_id=None, section_type=None, expect=None):
     choice = ruling['choice']
-    expect = EXPECT.get(choice)
+    expect = expect or EXPECT.get(choice)
     at = ruled_time(ruling)
     if at is not None and expect in ('outward', 'inward', 'at'):
         expect = 'at'
@@ -205,12 +205,119 @@ for question_id, ruling in saved('canary13-edges/saved/rulings').items():
         output='sermon' if which == 'sermon' else 'section', section_id=section_id,
         section_type=None if which == 'sermon' else 'song')
 
+# Pages from 2026-10-18 on. Their single-cut questions answer `early` or `late`, which clip or
+# overrun depending on the edge; their A/B questions name the version heard right.
+TOWARDS = {('end', 'early'): 'outward', ('start', 'late'): 'outward',
+           ('end', 'late'): 'inward', ('start', 'early'): 'inward'}
+
+CLOCK = r'((?:\d+:)?\d{1,2}:\d{2}(?:\.\d+)?)'
+CONTEXT_TIME = [re.compile(pattern + CLOCK) for pattern in (
+    r'from \S+ to ', r'beginning (?:exactly )?at ', r'ending (?:exactly )?at ', r'now ends at ')]
+
+
+def single(source, ruling, *, run, edge, heard, output, section_id=None, section_type=None):
+    if ruling['choice'] in ('early', 'late'):
+        add(source, ruling, run=run, edge=edge, heard=heard, output=output, section_id=section_id,
+            section_type=section_type, expect=TOWARDS[(edge, ruling['choice'])])
+    else:
+        add(source, ruling, run=run, edge=edge, heard=heard, output=output, section_id=section_id,
+            section_type=section_type)
+
+
+def versions(source, ruling, key, *, run, edge, output, section_id=None, section_type=None):
+    """An A/B answer keeps the version chosen; "both fine" keeps the one that keeps more (register E21)."""
+    times = key.get('times') or {name: key[f'{name}_end'] for name in (key['1'], key['2'])}
+    choice = ruling['choice']
+    if choice in ('1', '2'):
+        heard = times[key[choice]]
+    elif choice == 'both':
+        heard = max(times.values()) if edge == 'end' else min(times.values())
+    else:
+        skipped[f'{source}:{choice}'] += 1
+        return
+    version = next(name for name, time in times.items() if time == heard)
+    add(source, {**ruling, 'choice': 'right', 'question_id': f"{ruling['question_id']}-{version}"}, run=run, edge=edge,
+        heard=heard, output=output, section_id=section_id, section_type=section_type)
+
+
+def from_context(source, directory, rulings_dir='answers/rulings'):
+    """Pages whose question text gives the cut heard: `<run>-<edge>` sermons, `<run>-s<section>-<edge>` sections."""
+    questions = {question['id']: question for question in load(f'{directory}/questions.json')}
+    for question_id, ruling in saved(f'{directory}/{rulings_dir}').items():
+        match = re.fullmatch(r'(\d+)-(?:s(\d+)-)?(start|end)', question_id)
+        context = questions[question_id]['context']
+        heard = next((seconds(m.group(1)) for p in CONTEXT_TIME if (m := p.search(context))), None)
+        if match is None or heard is None:
+            skipped[f'{source}:not an edge question'] += 1
+            continue
+        run, section_id, edge = match.groups()
+        # The context's clock is to a tenth; the clip cut from the edge has it exactly.
+        length = re.search(r'(?:first|last) (\d+(?:\.\d+)?) s', context)
+        if length:
+            exact = questions[question_id]['clips'][0]['offset'] + (float(length.group(1)) if edge == 'end' else 0.0)
+            heard = exact if abs(exact - heard) < 0.1 else heard
+        single(source, ruling, run=run, edge=edge, heard=round(heard, 3),
+               output='section' if section_id else 'sermon', section_id=int(section_id) if section_id else None)
+
+
+def from_keys(source, directory, keys):
+    """Pages that kept each question's edge in a key: one cut (`at`) or two versions (`times`)."""
+    for question_id, ruling in saved(f'{directory}/answers/rulings').items():
+        key = keys.get(question_id) or {}
+        # Held-word ids were candidate-<run>-<section>-<edge>; ids elsewhere name the section s<id>.
+        ruling = {**ruling, 'question_id': re.sub(r'^candidate-(\d+)-(\d+)-', r'\1-s\2-', question_id)}
+        edge = key.get('edge') or question_id.rsplit('-', 1)[-1]
+        if edge not in ('start', 'end') or not ('at' in key or 'times' in key or '1' in key):
+            skipped[f'{source}:not an edge question'] += 1
+            continue
+        owner = dict(output='sermon') if key.get('sermon') or key.get('owner') == 'sermon' else dict(
+            output='section', section_id=key.get('section'), section_type=key.get('type'))
+        if 'at' in key:
+            single(source, ruling, run=ruling['run'], edge=edge, heard=key['at'], **owner)
+        else:
+            versions(source, ruling, key, run=ruling['run'], edge=edge, **owner)
+
+
+from_context('listening-edges-20261018', 'listening-edges-20261018')
+from_context('listening-edges2-20261018', 'listening-edges2-20261018')
+# Some 10-18 section questions named the wrong section; relabelled.json joins each to the true one.
+cut_rulings = saved('listening-edges3-20261018/answers/rulings-cut')
+for edge in load('listening-edges3-20261018/answers/relabelled.json'):
+    single('listening-edges3-20261018', cut_rulings[edge['id']], run=edge['run'], edge=edge['edge'], heard=edge['at'],
+           output='section', section_id=edge['true_sid'], section_type=edge['type'])
+from_context('listening-last-20261019', 'listening-last-20261019')
+from_context('listening-relisten-20261019', 'listening-relisten-20261019', 'answers/rulings-relisten')
+from_context('listening-recut-20261020', 'listening-recut-20261020')
+from_context('listening-1251-k16-20261020', 'listening-1251-k16-20261020')
+for source, directory in (('listening-songs-20261020', 'listening-songs-20261020'),
+                          ('listening-song-changes-20261020', 'listening-song-changes-20261020')):
+    keys = {question['id']: {**question['key'], 'section': question['key']['section_id'], 'type': 'song'}
+            for question in load(f'{directory}/questions.json')}
+    from_keys(source, directory, keys)
+for source, name in (('listening-held-word-20261021', 'held-word-endings'), ('listening-song-questions-20261021', 'song-questions')):
+    keys = {question_id: {**entry.get('key', {}), 'type': 'song'} for question_id, entry in load(f'listening-final-20261021/{name}/private.json').items()}
+    from_keys(source, f'listening-final-20261021/{name}', keys)
+for source, directory in (('listening-final-round-20261022', 'listening-final-round-20261022'),
+                          ('listening-recut-20261022', 'listening-recut-20261022'),
+                          ('listening-1310-20261022', 'listening-1310-20261022')):
+    from_keys(source, directory, {question['id']: question['key'] for question in load(f'{directory}/questions.json')})
+
+# A later ruling on the same edge was made on a later cut, so it replaces the earlier ones.
+latest = {}
+for record in sorted(records, key=lambda record: record['ruled_on']):
+    edge = (record['run'], record['output'], record['section_id'], record['edge'])
+    latest[edge] = record['ruled_on']
+for record in records:
+    edge_ruled_on = latest[(record['run'], record['output'], record['section_id'], record['edge'])]
+    record['superseded'] = record['ruled_on'] < edge_ruled_on
+
 records.sort(key=lambda record: (record['run'], record['heard'], record['id']))
 summary = {
     'rulings': len(records),
     'by_source': dict(sorted(collections.Counter(r['source'] for r in records).items())),
     'by_expect': dict(sorted(collections.Counter(r['expect'] for r in records).items())),
     'runs': len({r['run'] for r in records}),
+    'superseded': sum(r['superseded'] for r in records),
     'left_out': dict(sorted(skipped.items())),
 }
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
