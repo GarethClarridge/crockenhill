@@ -152,4 +152,30 @@ class OutputEdgeWordTimings
 
         throw new OutputEdgeTimingsMissing(sprintf('edge_word_timings_missing: run %s window %.6f–%.6f model %s', $log->processing_id, $window['start'], $window['end'], $identity['model']));
     }
+
+    /**
+     * Every word the run's banked edge decodes heard, from each window {@see read()} still accepts:
+     * windows overlap, so one decode can hear a word another lost to a dropout.
+     *
+     * @return list<array{start: float, end: float, word: string}>
+     */
+    public function heardWords(MediaProcessingLog $log): array
+    {
+        $words = [];
+        foreach (ServiceArtifactStorage::recordedFor($log) as $entry) {
+            if (! str_starts_with($entry['kind'], 'edge-words-')) {
+                continue;
+            }
+            try {
+                $identity = json_decode((string) Storage::disk($entry['disk'])->get($entry['path']), true)['identity'] ?? null;
+                if (is_numeric($identity['start'] ?? null) && is_numeric($identity['end'] ?? null)) {
+                    array_push($words, ...$this->read($log, ['start' => (float) $identity['start'], 'end' => (float) $identity['end']])['words']);
+                }
+            } catch (OutputEdgeTimingsMissing) {
+                // A decode for another version or model is not this run's evidence.
+            }
+        }
+
+        return $words;
+    }
 }

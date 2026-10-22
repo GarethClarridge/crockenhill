@@ -280,6 +280,26 @@ class RuledEndingsRegressionTest extends TestCase
         $this->assertEqualsWithDelta($fixture['live']['cut'], end($plan['segments'])['end_time'], self::FIDELITY_TOLERANCE);
     }
 
+    /**
+     * 1108's sermon ends on "…To make a wretch is true." (4119.46) before the housekeeping "Let's
+     * stand to sing." (4119.58–4121.44). The recording drops out mid-word (levels at −∞ from
+     * 4119.1), and the end was cut inside "Let" (4119.76; "ends too early … might be an audio
+     * quality issue", edges 10-18).
+     */
+    #[Test]
+    public function a_dropout_inside_a_word_is_not_a_pause_to_end_in(): void
+    {
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/run-1108-2026-10-22.json.gz')), true, flags: JSON_THROW_ON_ERROR);
+        $log = $this->rebuild($fixture);
+
+        $plan = app(SermonExtractionPlanResolver::class)->resolve($log);
+        $cut = end($plan['segments'])['end_time'];
+        $audit = json_encode(array_values(array_filter($plan['metadata']['cue_edge_widening'] ?? [], static fn (array $edge): bool => $edge['edge'] === 'end')), JSON_THROW_ON_ERROR);
+
+        $this->assertGreaterThanOrEqual(4119.46, $cut, $audit);
+        $this->assertLessThanOrEqual(4119.58, $cut, 'not inside "Let": '.$audit);
+    }
+
     #[Test]
     public function a_smeared_prayer_opening_does_not_pull_a_song_end_into_its_outro(): void
     {

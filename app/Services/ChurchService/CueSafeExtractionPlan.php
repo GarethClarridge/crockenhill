@@ -293,6 +293,8 @@ class CueSafeExtractionPlan
         $last = array_key_last($spans);
         $sectionSpans = $spans;
         $audit = [];
+        /** @var list<array{start: float, end: float, word: string}>|null $heardWords */
+        $heardWords = null;
         foreach ($spans as $index => &$span) {
             foreach (['start' => 'start_time', 'end' => 'end_time'] as $edge => $key) {
                 $original = $span[$key];
@@ -349,7 +351,8 @@ class CueSafeExtractionPlan
                         }
                         // After the sentence check, whose banked answers are bound to the cut it was asked about.
                         if ($edge === 'end') {
-                            $decision = $this->withSpokenEndTail($decision);
+                            $heardWords ??= $evidence->heardWords($log);
+                            $decision = $this->beforeWordHeardElsewhere($this->withSpokenEndTail($decision), $heardWords);
                         }
                         $span[$key] = $decision['time'];
                         $audit[] = ['span_index' => $index, 'edge' => $edge, 'original_time' => $movedFrom ?? $original,
@@ -515,6 +518,30 @@ class CueSafeExtractionPlan
         $tail = min(self::SPOKEN_END_TAIL, max(0.0, ((float) $pause['end'] - $from) / 2));
 
         return [...$decision, 'time' => max((float) $decision['time'], $from + $tail)];
+    }
+
+    /**
+     * A spoken end's tail stops where another decode of the recording heard the next word begin: the
+     * pause one window's decode shows can be a dropout that lost the words. 1108's sermon ended
+     * inside "Let" of "Let's stand to sing." (4119.76): its window's decode heard nothing after
+     * "true." (4119.46), while the decodes either side heard "Let" at 4119.58 (operator listening,
+     * 2026-10-18). Never before the last kept word's decoded end; smeared words time nothing.
+     *
+     * @param  array<string, mixed>  $decision
+     * @param  list<array{start: float, end: float, word: string}>  $heardWords
+     * @return array<string, mixed>
+     */
+    private function beforeWordHeardElsewhere(array $decision, array $heardWords): array
+    {
+        $word = $decision['word_before'] ?? null;
+        if (! is_array($word) || $decision['time'] <= (float) $word['end'] + 0.001) {
+            return $decision;
+        }
+
+        $starts = array_column(array_filter($heardWords, static fn (array $heard): bool => $heard['end'] - $heard['start'] <= self::ANCHOR_REACH
+            && $heard['start'] > (float) $word['end'] + 0.001 && $heard['start'] < $decision['time'] - 0.001), 'start');
+
+        return $starts === [] ? $decision : [...$decision, 'time' => min($starts), 'next_word_heard_at' => min($starts)];
     }
 
     /**
