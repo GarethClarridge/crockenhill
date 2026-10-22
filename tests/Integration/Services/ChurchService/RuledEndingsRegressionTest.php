@@ -302,6 +302,23 @@ class RuledEndingsRegressionTest extends TestCase
     }
 
     #[Test]
+    public function an_opening_the_recording_joins_mid_sentence_keeps_that_sentence(): void
+    {
+        // 1269's sermon: the feed came back during "…of a little boy who went to church with his
+        // mother", and both answers shrank it away as a fragment (operator, 10-22: words lost).
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/listening-edges-20261018-957-start.json.gz')), true, flags: JSON_THROW_ON_ERROR);
+        $log = $this->rebuild($fixture);
+        OpenAI::fake(array_fill(0, 20, CreateResponse::fake(['choices' => [['message' => ['content' => json_encode([
+            'decision' => 'keep', 'words_to_move' => '', 'reason' => 'The cut is right.',
+        ], JSON_THROW_ON_ERROR)]]]])));
+
+        app(SpokenEdgeSentenceCheck::class)->prepare($log, $log->processing_metadata->raw['sermon_composition']['selected_section_ids']);
+
+        OpenAI::assertSent(Chat::class, static fn (string $method, array $parameters): bool => str_contains($parameters['messages'][0]['content'], 'A first sentence the recording joins partway through is the item\'s own words, not a split thought: keep it.')
+            && str_contains($parameters['messages'][1]['content'], 'The recording may join its first sentence partway through: those words are still its own, so keep them.'));
+    }
+
+    #[Test]
     #[DataProvider('fixtures')]
     public function a_ruled_edge_keeps_its_ruling(string $path): void
     {

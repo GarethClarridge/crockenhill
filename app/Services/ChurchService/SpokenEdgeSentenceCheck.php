@@ -367,7 +367,7 @@ TXT;
         $neighbour = $edge === 'start' ? ($sides['before'] ?? null) : ($sides['after'] ?? null);
 
         $opening = $deadFeedOpening && $sides === null
-            ? "This is the opening of a sermon, reading or short talk. A microphone check or leftover material from the previous item is not its opening; remove that material as a whole. Keep the introduction (including 'Let me begin'), the reading's announcement and any opening prayer. Never skip introductory content just to reach the main argument.\n"
+            ? "This is the opening of a sermon, reading or short talk. A microphone check or leftover material from the previous item is not its opening; remove that material as a whole. The recording may join its first sentence partway through: those words are still its own, so keep them. Keep the introduction (including 'Let me begin'), the reading's announcement and any opening prayer. Never skip introductory content just to reach the main argument.\n"
             : '';
 
         return $opening.sprintf(
@@ -381,11 +381,15 @@ TXT;
         );
     }
 
-    /** The rules the model is given; an exposed opening may also drop a whole microphone check. */
+    /**
+     * The rules the model is given; an exposed opening may also drop a whole microphone check, but
+     * never the first sentence the feed came back during (1269 lost "…of a little boy who went to
+     * church with his mother" as a fragment; operator, 2026-10-22).
+     */
     private static function systemPrompt(bool $deadFeedOpening): string
     {
         return self::SYSTEM_PROMPT.($deadFeedOpening
-            ? "\nAn opening check also removes complete microphone checks or material belonging to the previous item: choose shrink for that material even when it forms a whole thought. Keep the item's own introduction, reading announcement and opening prayer."
+            ? "\nAn opening check also removes complete microphone checks or material belonging to the previous item: choose shrink for that material even when it forms a whole thought. Keep the item's own introduction, reading announcement and opening prayer. A first sentence the recording joins partway through is the item's own words, not a split thought: keep it."
             : '');
     }
 
