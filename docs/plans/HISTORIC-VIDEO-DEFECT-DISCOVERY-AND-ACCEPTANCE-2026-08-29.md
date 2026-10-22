@@ -1,13 +1,9 @@
 # Historic Video Defect Discovery and Acceptance Plan
 
-> **Status — 2026-10-20 (night).** The lane's closing conditions are met: the closing-prayer walk fix
-> was re-cut through 1219, 1251, 1322 and 1328 and all four ends were heard right, and 1322's sermon
-> was heard clean (§4.0, 10-19/20). Master is at version 16 (`82378974a`, pushed and deployed): the
-> sentence-check widening withdrawn (v14), the smeared-prayer song rule removed and the lyric rule
-> narrowed (v15), the song-change dip for song ends and K16 seeing an overlapping song (v16). The
-> round stays up on that commit. **Next (§4.1, agreed 10-20): fix everything before wrapping up**:
-> measure (song acceptance stage 2, the next songs' starts), fix test-first, one final round,
-> listen, then close and resume weekly processing. Nothing is public.
+> **Status — 2026-10-22.** The final round ran overnight 10-21/22 (§5, "10-22"): 61 of 62 runs completed,
+> 1288 stopped for its composition, backups verified, queues paused, nothing public. **Next: step 5 listening**
+> on the [Final Round Edges](https://claude.ai/artifact/4ZHDrw6F5Rn5geArxUbLbn) page (61 questions), then
+> 1288, 1363 and 1310 §3942, then close (§4.1 step 6) and resume weekly processing.
 > Getting production complete is mapped in the
 > [programme plan §0.4](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md#04-getting-production-complete-the-map-2026-10-16);
 > weekly take-over (§4.2), lasting evaluation and custody (§4.6) and legacy transcripts (§4.7, decided 10-17) were
@@ -2626,3 +2622,51 @@ during one.
   song clip needs a song match on the section and `song_id` on its item, and only the pipeline's
   matching step sets both, so the binding is a round step (above). `service-tracking:link-songs`
   was **not** run: its dry run would change 298 links corpus-wide and clear one.
+
+#### 10-22: the final round ran overnight; step 5 listening published
+
+**The round (run by Codex 10-21 21:36 → 10-22 04:34 UTC; record
+`storage/scratch/final-round-20261021/execution.json`):** clone `74006fda3`, code revision `29e5911b…`,
+snapshot `final-round-20261021/snapshot.json` (69 members). Canary 1378 (the R11 split), then the planned
+batches. **61 of 62 media runs completed**; 0 failed jobs. Backups before and after are verified (after:
+`/Volumes/Sonnics/_post-final-round-20261022-backup/`, database with binlog coordinate `binlog.000133:157`,
+28,732 private files, zero mismatches). Queues are paused, round workers stopped, the watcher and heartbeat
+stopped. Nothing is public. Duplicate section pointers: 0. Stale-clip cleanup applied to 1220, 1251 and 1310
+(pointers only, files kept); 1363's clip 435 is excluded. Left open:
+- **1288:** `ExtractSermon` refuses the approved composition [3617, 3618, 3619, 3621]; the section flag
+  `structure_sermon_adjacent_speech_unowned` remains. Not answered or overridden; examine the refusal in code.
+- **1363 §4534 "Rejoice":** cut and bound to 1162, held as `song_looped_transcript`. It is on the page below.
+- **1310 §3942:** not cut, `span_crosses_held_section` 215095 (the held sermon). §3935 and §215094 were re-cut.
+  1310's sermon audio was not re-cut (file dated 09-07), so its new join is not on the page.
+- **1378:** both halves are cut; run 1378's retirement withholds their new SongVideo rows. Clip 442 is kept.
+- Data: 945 coverage 64% (floor 70%); no passage found for 2 John (1022) or Philemon (1171); 973's
+  Luke 22 resolved; 1127 #873 and 1352 #891 are obsolete AutoPublish failures on sections no longer
+  publishable; 1074's video is rejected `mostly_black`, as before the round; 1250's AI title fell back.
+- An encoder fault at 02:37 (one timing check, 97 s output for 316 s) cleared on a serialised retry; all four
+  retried outputs were probed whole (`retry-final-probes.json`).
+
+**Codex's moved-edge handoff missed most moved edges.** It diffed stored section and sermon spans, but this
+round's fixes move the cut, not the stored span. The actual cut is each section's
+`publication_candidate_extraction.segments`. Comparing the pre-round dump
+(`_pre-final-round-20261021-backup/crockenhill-with-binlog-coordinate.sql.gz`) with the live rows gives
+**35 section edges moved ≥ 1 s in 21 runs**, plus 11 sections cut for the first time (R10's re-bound items
+superseded them) and 20 changed sermon outputs. Already ruled at the current value, so not asked again
+(`listening-final-round-20261022/skipped.json`): the 16 dip ends and starts (10-20 and 10-21), the held-word
+ends 1023, 1212 and 1213, 1297 §3803 (the operator's 28:26), 1309 §3922 (284.9) and 1378 §4618's start (it
+folds the song introduction in: never asked, 10-10). 1073 §1712 *is* asked: it was heard at 1194.56 s and is
+now 1197.08 s after D21's re-detection.
+
+**Docker's file sharing hung on 10-22** (new PHP processes blocked in FUSE `request_wait_answer` in both
+main and round containers; MySQL and Redis unaffected). Docker Desktop was restarted (operator: "Restart
+docker"); the six main containers were started by name (not `sail up`, which would start main's workers);
+round tools came back on its own, round workers stayed stopped, and the 10 pause flags survived in Redis DB 1.
+
+**Step 5 listening page:** [Final Round Edges](https://claude.ai/artifact/4ZHDrw6F5Rn5geArxUbLbn),
+`rulings` collection, built by `storage/scratch/listening-final-round-20261022/build.php` from `items.py`
+(the key is in `questions.json`). **61 questions:** 30 blind A/B moved edges (before and after, from the
+service audio), 19 edges of new cuts (the published file plus 12 s either side from the recording), 9 new or
+moved sermon joins (the sermon audio as cut), 2 "what is this?" (1073 §1715 and 1074 §164323, 3–4 s song
+sections the pipeline holds as `short_song_clip` with no lyrics), and 1363's Rejoice whole. Every output asked
+about was checked to be written by this round and to match its recorded segments within 0.1 s
+(`provenance.json`). Next: the operator answers; Claude decodes, records and acts on what is found; then close
+(§4.1 step 6).
