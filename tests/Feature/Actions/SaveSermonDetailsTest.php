@@ -268,7 +268,7 @@ class SaveSermonDetailsTest extends TestCase
      *   segmentStartTime: ?float, segmentEndTime: ?float,
      *   downloadCount: ?int, reference: ?string, series: ?string,
      *   summary: ?string, points: array<int,string>,
-     *   showSummary: bool, showPoints: bool
+     *   showSummary: bool, showPoints: bool, partialRecording: bool
      * }
      */
     private function validData(array $overrides = []): array
@@ -292,6 +292,7 @@ class SaveSermonDetailsTest extends TestCase
             'points' => ['Point 1'],
             'showSummary' => true,
             'showPoints' => true,
+            'partialRecording' => false,
         ], $overrides);
     }
 }

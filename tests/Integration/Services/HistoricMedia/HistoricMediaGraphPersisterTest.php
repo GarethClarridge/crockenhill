@@ -373,6 +373,17 @@ class HistoricMediaGraphPersisterTest extends TestCase
     }
 
     #[Test]
+    public function it_carries_the_partial_recording_flag_onto_the_publication(): void
+    {
+        app(HistoricMediaGraphPersister::class)->persist($this->planWithGraph(
+            processingId: '00000000-0000-0000-0000-000000000032',
+            publications: [[...$this->publication(), 'partial_recording' => true]],
+        ));
+
+        $this->assertTrue(Sermon::query()->where('slug', 'persister-test-sermon')->sole()->partial_recording);
+    }
+
+    #[Test]
     public function it_names_the_section_when_a_published_state_has_no_extraction_media(): void
     {
         Storage::fake('historic_staging');

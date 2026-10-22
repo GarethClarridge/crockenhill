@@ -195,6 +195,7 @@ class SermonPromotionBundleExporter
             'series' => $sermon->series,
             'points' => $sermon->points,
             'show_points' => $sermon->show_points,
+            'partial_recording' => $sermon->partial_recording,
             'transcript_file_path' => $sermon->transcript_file_path,
             'thumbnail_file_path' => $sermon->thumbnail_file_path,
             'thumbnail_generated_at' => $sermon->thumbnail_generated_at?->toIso8601String(),

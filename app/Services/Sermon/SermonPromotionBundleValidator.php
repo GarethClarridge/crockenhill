@@ -60,7 +60,7 @@ class SermonPromotionBundleValidator
             'duration', 'filetype', 'title', 'slug', 'reference', 'preacher', 'preacher_source',
             'preacher_confidence', 'needs_preacher_review', 'series', 'points', 'show_points',
             'transcript_file_path', 'thumbnail_file_path', 'thumbnail_generated_at',
-            'thumbnail_metadata', 'summary', 'meta_description', 'show_summary', 'created_at', 'updated_at',
+            'thumbnail_metadata', 'summary', 'meta_description', 'show_summary', 'partial_recording', 'created_at', 'updated_at',
         ]);
         $provenanceKeys = implode(',', [
             'processing_id', 'processing_type', 'status', 'current_step', 'original_filename',
@@ -103,6 +103,7 @@ class SermonPromotionBundleValidator
             'sermons.*.sermon.series' => ['nullable', 'string', 'max:255'],
             'sermons.*.sermon.points' => ['nullable', 'array'],
             'sermons.*.sermon.show_points' => ['required', 'boolean'],
+            'sermons.*.sermon.partial_recording' => ['sometimes', 'boolean'],
             'sermons.*.sermon.transcript_file_path' => ['nullable', 'string', 'max:255'],
             'sermons.*.sermon.thumbnail_file_path' => ['nullable', 'string', 'max:255'],
             'sermons.*.sermon.thumbnail_generated_at' => ['nullable', 'date'],

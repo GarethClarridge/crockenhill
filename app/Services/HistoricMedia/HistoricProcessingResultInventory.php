@@ -321,6 +321,7 @@ class HistoricProcessingResultInventory
             'points' => $sermon->points,
             'show_summary' => $sermon->show_summary,
             'show_points' => $sermon->show_points,
+            'partial_recording' => $sermon->partial_recording,
             'duration' => $sermon->duration,
             'segment_start_time' => $sermon->segment_start_time,
             'segment_end_time' => $sermon->segment_end_time,

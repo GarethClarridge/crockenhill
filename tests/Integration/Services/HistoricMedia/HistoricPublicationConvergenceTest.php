@@ -204,12 +204,13 @@ class HistoricPublicationConvergenceTest extends TestCase
         $existing = $this->productionSermon([
             'show_summary' => true,
             'show_points' => true,
+            'partial_recording' => true,
             'filetype' => 'mp4',
         ]);
         $this->previousRunFor($existing);
 
         $publication = $this->publication();
-        unset($publication['show_summary'], $publication['show_points'], $publication['filetype']);
+        unset($publication['show_summary'], $publication['show_points'], $publication['partial_recording'], $publication['filetype']);
 
         $plan = $this->plan('00000000-0000-0000-0000-0000000000b6', [$publication]);
 
@@ -218,7 +219,36 @@ class HistoricPublicationConvergenceTest extends TestCase
 
         $this->assertTrue($converged->show_summary);
         $this->assertTrue($converged->show_points);
+        $this->assertTrue($converged->partial_recording);
         $this->assertSame('mp4', $converged->filetype);
+    }
+
+    /** A flag set where the media was reviewed reaches the production record it converges onto. */
+    #[Test]
+    public function it_converges_the_partial_recording_flag_onto_a_production_record(): void
+    {
+        $existing = $this->productionSermon();
+        $this->previousRunFor($existing);
+
+        $plan = $this->plan('00000000-0000-0000-0000-0000000000b7', [[...$this->publication(), 'partial_recording' => true]]);
+
+        app(HistoricMediaGraphPersister::class)->persist($plan);
+
+        $this->assertTrue($existing->fresh()->partial_recording);
+    }
+
+    /** A bundle's default false never clears a flag production already has. */
+    #[Test]
+    public function a_bundle_does_not_clear_a_production_partial_recording_flag(): void
+    {
+        $existing = $this->productionSermon(['partial_recording' => true]);
+        $this->previousRunFor($existing);
+
+        $plan = $this->plan('00000000-0000-0000-0000-0000000000b8', [[...$this->publication(), 'partial_recording' => false]]);
+
+        app(HistoricMediaGraphPersister::class)->persist($plan);
+
+        $this->assertTrue($existing->fresh()->partial_recording);
     }
 
     /** The single preacher every fixture in this file shares, so a name mismatch never masks a convergence failure. */

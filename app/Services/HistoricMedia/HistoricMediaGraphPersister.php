@@ -228,6 +228,7 @@ class HistoricMediaGraphPersister
                 'points' => $publication['points'] ?? null,
                 'show_summary' => $publication['show_summary'] ?? false,
                 'show_points' => $publication['show_points'] ?? false,
+                'partial_recording' => $publication['partial_recording'] ?? false,
                 'duration' => $publication['duration'] ?? null,
                 'segment_start_time' => $publication['segment_start_time'] ?? null,
                 'segment_end_time' => $publication['segment_end_time'] ?? null,
@@ -483,6 +484,15 @@ class HistoricMediaGraphPersister
             if ($this->comparableValue($existingValue, $field) !== $this->comparableValue($incomingValue, $field)) {
                 throw new RuntimeException("Historic publication {$field} conflicts with the richer production record.");
             }
+        }
+
+        /**
+         * `partial_recording` defaults to false, so production's false is no richer record than
+         * the bundle's true: a flag set where the media was reviewed is adopted, and a bundle never
+         * clears one production already has.
+         */
+        if (in_array('partial_recording', $asserted, true) && ($incoming['partial_recording'] ?? false) === true && ! $sermon->partial_recording) {
+            $updates['partial_recording'] = true;
         }
 
         /**
