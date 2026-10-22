@@ -2965,10 +2965,11 @@ preacher work, production access checks and release verification stay in §4.5.
 
 #### 10-23 overnight: unaccompanied work plan
 
-The operator went to bed after the open-edges listening and said "processing is fine". Read here as:
-edge decodes and the structure-model questions that bank edge evidence. **Not** re-cuts, republishing,
-approvals, holds released, deletions, pushes or production writes: anything that changes heard media
-waits for the morning as a list.
+The operator went to bed after the open-edges listening. **Authorised (operator, 10-23):** "processing is
+fine" (edge decodes and the structure-model questions that bank edge evidence); **"You can also recut"**;
+**restarting Docker** if file sharing fails. **Not authorised:** pushes, production writes, approvals or
+publication, releasing holds, deletions. Planned, not started: a fresh session runs it from the handover
+prompt in `storage/scratch/overnight-20261023/handover-prompt.md`.
 
 1. **Edge evidence for the `edge_word_timings_missing` rulings (processing, authorised).**
    - Extract the evidence steps of `TranscribeOutputEdges` (dead-feed excision, K16 question, edge
@@ -2980,8 +2981,10 @@ waits for the morning as a list.
      time with a per-run verdict log, resumable. Stop if more than 5% of runs fail.
    - Re-capture the 394 rulings, score them the 10-22 way, triage, and grow the ratchet set with the
      ones met. Unmet ones are triaged against the record; none is fixed by inference.
-   - List (read-only) every output whose planned cut now differs from its recorded cut beyond the
-     0.31-s tolerance: the morning's re-cut decisions.
+   - List every output whose planned cut now differs from its recorded cut beyond the 0.31-s
+     tolerance. **Re-cut** those whose move no ruling contradicts (after a code freeze; runbook §6
+     preflight); list any a ruling contradicts instead. Build a listening page of the re-cut edges for
+     the morning, cloned from the Open Edges page.
 2. **Post-round audit, first slice** (`HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md`), after step 1 so
    the freeze includes the new evidence: audit schema `crockenhill_audit` from a consistent dump;
    Pass A checks the close's reconciliation did not cover (duration against executed spans, streams,
