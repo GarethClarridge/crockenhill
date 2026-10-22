@@ -46,6 +46,10 @@ use Tests\TestCase;
  *    A `guard-` fixture is no ruling: it keeps an edge a gate found a candidate rule moving
  *    wrongly at the cut it had, and its ruling's source says it was not listened to.
  *
+ * A run fixture (`run-<run>-<date>`, scripts/ruled-endings/merge.py) holds one run's data once and
+ * a `rulings` list; each entry is checked as a fixture of its own. The 10-22 set is the CI ratchet:
+ * every captured ruling current code met (plan §4.6), against the newest rulings by its capture date.
+ *
  * A fixture whose capture predates a deliberate change may be re-captured with
  * scripts/ruled-endings/capture.php (sample in manifest.json); the ruling check is what must keep passing.
  */
@@ -64,13 +68,25 @@ class RuledEndingsRegressionTest extends TestCase
     /** The operator gives a time to the second or the tenth of a second. */
     private const RULED_TIME_TOLERANCE = 1.0;
 
-    /** @return array<string, array{string}> */
+    /**
+     * One data set per ruling: a run fixture (scripts/ruled-endings/merge.py) holds several.
+     *
+     * @return array<string, array{string, int|null}>
+     */
     public static function fixtures(): array
     {
         $fixtures = [];
 
         foreach (glob(dirname(__DIR__, 3).'/Fixtures/RuledEndings/*.json.gz') ?: [] as $path) {
-            $fixtures[basename($path, '.json.gz')] = [$path];
+            $fixture = json_decode((string) gzdecode((string) file_get_contents($path)), true, flags: JSON_THROW_ON_ERROR);
+            if (! isset($fixture['rulings'])) {
+                $fixtures[basename($path, '.json.gz')] = [$path, null];
+
+                continue;
+            }
+            foreach ($fixture['rulings'] as $index => $entry) {
+                $fixtures[basename($path, '.json.gz').' '.$entry['id']] = [$path, $index];
+            }
         }
 
         return $fixtures;
@@ -320,9 +336,14 @@ class RuledEndingsRegressionTest extends TestCase
 
     #[Test]
     #[DataProvider('fixtures')]
-    public function a_ruled_edge_keeps_its_ruling(string $path): void
+    public function a_ruled_edge_keeps_its_ruling(string $path, ?int $index): void
     {
         $fixture = json_decode((string) gzdecode((string) file_get_contents($path)), true, flags: JSON_THROW_ON_ERROR);
+        if ($index !== null) {
+            $rulings = $fixture['rulings'];
+            unset($fixture['rulings']);
+            $fixture = [...$fixture, ...$rulings[$index]];
+        }
         $ruling = $this->ruling($fixture);
         $log = $this->rebuild($fixture);
         $this->replaySongIntroduction($log, $fixture['song_introduction'] ?? null);

@@ -3,8 +3,8 @@
 > **Status — 2026-10-22, round closed.** The final round ran overnight 10-21/22; step 5's 61 answers led to four
 > fixes and six re-cuts (1269, 1288, 1090, 1310), all heard "right"; 1363's "Rejoice" and 1310's "Purify My Heart"
 > approved, quarantined; the round closed under runbook §8 (§5, "10-22 (later): the round closed"). Nothing is
-> public. **Next:** deploy the `partial_recording` migration and bundle code before the next export; score the
-> ruled evidence (§4.6); the [post-round audit](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md) (first slice:
+> public. `partial_recording` is deployed (`3498602e7`, migrated on production 10-22 21:57 UTC). The ruled evidence
+> is scored and its CI ratchet set committed (§4.6). **Next:** triage the 18 open rulings (§4.6); the [post-round audit](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md) (first slice:
 > inventory, read-only packets, calibration; no processing); acceptance (§4.5). Weekly take-over preparation
 > (§4.2: where it runs, production parity, admin review screens) runs alongside; the canary and the take-over
 > itself come after release, when the historic import is done (register R8). **Deferred:** the second copy of the source masters (§4.6) has
@@ -2351,8 +2351,12 @@ What we would regret not doing while the context exists.
       by the operator, so a soft miss).
     - **Ambiguous:** 1328 start on edges 10-18 is "starts too late" with the note "seems to start
       mid reading". The committed fixture reads it as keep, the gathered set as outward.
-    - Still owed: the ratchet set itself (commit the 150, about 21 MB, or a slimmer form), then
-      triage of the 18 and the 394 decodes.
+    - **Ratchet set committed** (operator chose the slim form): `scripts/ruled-endings/merge.py`
+      folds the per-ruling captures into one fixture per run (shared data once, the union of the
+      level windows, a `rulings` list): the 150 in 37 `run-<run>-2026-10-22` fixtures, 5.8 MB
+      instead of about 21 MB. Every live cut still reproduces from the merged levels. The test
+      expands each entry into its own data set: 288 pass, 133 s serial.
+    - Still owed: triage of the 18 (`rulings-capture-20261022/open-18.txt`), then the 394 decodes.
   - **The re-cut listening.** Gathered 10-22 (`listening-recut-20261020`, `-20261022`, `-1310-`).
   - **Structure answers, the loop page and song stage 1.** Each needs its own replay.
 - [ ] **Before IC8, decide how historic media is repaired after release.** Production receives only
