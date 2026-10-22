@@ -2746,3 +2746,26 @@ edge that keeps more (E21).
   changes every graph's `logical_hash`, which is computed, not stored, so **production must deploy the
   migration and this code before the next export**. The prod patch command is unchanged (it reads production's
   schema). Full suite: **10,110 tests, zero failures** (one skipped, 163 notices).
+
+#### 10-22 (later): 1269 and 1288 re-cut; their listening published
+
+Operator: "Yes", "Carry on". Clone moved to `1cb3a52f4` (old line kept as `round-20261021-line`; lockfiles
+unchanged, so `vendor/` stands; `bootstrap/cache` cleared); `CodeRevision` `5174d5f2…` equals main's. Preflight:
+whisper, classifier and encoder healthy (encoder on the clone's unchanged script), speaker identification off,
+21 GB internal free. Database dump before dispatch:
+`/Volumes/Sonnics/_pre-recut-1269-1288-20261022-backup/` (37.9 MB, `binlog.000136:19665504`, SHA-256). Watcher
+restarted on `final-round-20261021`; `sermons:re-extract <pid> --yes` for both from `round-tools`
+(`storage/scratch/recut-1269-1288-20261022/`); workers started 13:05, queues idle 13:17; **0 failed jobs**, watcher
+no stop (cut 21, held or failed 0). Queues paused again, workers stopped, watcher stopped.
+- **1269:** the opening was re-asked under the new instructions; both calls "keep" ("The recording joins
+  partway through the item's own opening sentence"). Segments 1575.04–2042.67, **2297.9**–4002.985 (was 2303.21).
+- **1288:** completed; four segments as planned, 1510.37–3769.97 (readings, then the sermon after the song).
+- Both sermons stay quarantined. Outputs written 13:16 and match their segments within 0.08 s.
+- Heard by whisper before asking: 1269 resumes "Of a little boy who went to church with his mother"; 1288 opens
+  "Would you turn in your Bibles with me, please, to Luke chapter 5", its join is a few seconds of room sound
+  then "Some years ago…", and it ends "…to know Jesus more. … We'll stand to sing."
+
+**Listening:** [Re-cut Edges](https://claude.ai/artifact/WAWzx4PvnsmQRfS3pQYHbJ), `rulings`, built by
+`storage/scratch/listening-recut-20261022/build.php` (copied from the final-round build; sermon edges allowed,
+join lines taken from the cue the join lands in, per-item notes and longer tails). 4 questions: 1269's join;
+1288's start, join and end.
