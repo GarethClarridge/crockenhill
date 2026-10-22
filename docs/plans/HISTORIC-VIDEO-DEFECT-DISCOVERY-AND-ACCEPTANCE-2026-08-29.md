@@ -2806,3 +2806,24 @@ of the only source recording" — the 1065 case. Live holds with that reason: 10
   `storage/scratch/listening-partial-20261022/build.py`: 1090's recording start and end, 1310's recording end
   (both sermons run to their recording's last second: 1205.5 s and 3282.7 s). If cut off: release, flag, re-cut
   1310 (its sermon audio is from 09-07), which also lets §3942 cut.
+
+#### 10-22 (later): 1090 and 1310 released and re-cut; a watcher stop from 1363's approval
+
+- **Partial Recordings answered (operator):** 1090 and 1310 stop mid-sermon at the recording's end; 1090
+  starts at the beginning. The 1065 ruling applied: holds §1793 and §215095 released (one each, "cut off by
+  the only source recording"), `partial_recording` set on sermons 1017 and 1284 (quarantined). Operator: re-cut
+  both ("Both 1090 and 1310"); 1090 was `failed` only for its hold, its sermon audio from 09-05.
+- Backup `/Volumes/Sonnics/_pre-recut-1090-1310-20261022-backup/` (37.9 MB, `binlog.000137:6464642`).
+  Docker's file sharing hung a fourth time mid-dispatch (nothing dispatched; both runs unchanged since 15:48);
+  restarted, then both dispatched (`sermons:re-extract <pid> --yes` from round-tools).
+- **Watcher stop, 16:43:** "published file missing: song video 1564". The 15:24 approval of §4534 ran from
+  tinker with no historic staging context; the context travels in the queue payload
+  (`Queue::createPayloadUsing` → `HistoricStagingContextRegistry`), so `PublishApprovedServiceSection` promoted
+  the clip to the unscoped `staging/sermons/songs/1162/4534.mp4` instead of run 1363's batch root. Fixed by
+  moving it within the volume to `historic-batches/9351fa4e…/sermons/songs/1162/4534.mp4` (SHA-256
+  `d508c16e…` before and after); stop archived as `watch-stop-1564-unscoped-path-20261022.json`; the
+  restarted watcher's first look was clean; queues resumed.
+- **Defect to fix (test-first):** approving a historic section from the review page dispatches its publish job
+  with no staging context, so a song clip lands outside its batch and promotion would miss it.
+  `ApproveSectionForPublication` (or the job) should run within the run's recorded `historicStagingContext()`,
+  as `sermons:re-extract` does.
