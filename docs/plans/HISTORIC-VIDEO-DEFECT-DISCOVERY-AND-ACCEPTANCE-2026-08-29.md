@@ -2728,3 +2728,10 @@ edge that keeps more (E21).
   rebuilt from the committed dump plus the migration and checked to load standalone.
 - Docker's file sharing hung again at about 11:30 and was restarted (operator: "Yes"; `docker desktop
   restart`, main containers started by name, round pause flags intact).
+- **1288 fixed (`a42491090`, operator: "Yes"), not yet re-cut:** the refusal was §3618 "Matthew 6:1" (28 s),
+  `needs_manual_review` with `structure_micro_section`, which `SermonAutoExtractionPolicy` treats as
+  disqualifying, so the plan raised `sermon_composition_review` despite the operator's composition review (R12).
+  A composition chosen by `operator_review` now answers its members' micro-section flag; flags disputing a
+  member's own cut still block. Corpus: of 441 compositions (17 reviewed), 1288 §3618 is the only selected
+  section blocked by that flag. 1288's plan, resolved in a rolled-back transaction: no review, no violations,
+  four segments (1510.37–1604.52, 1604.52–1633.84, 1633.84–1664.09, 1890.39–3769.97).
