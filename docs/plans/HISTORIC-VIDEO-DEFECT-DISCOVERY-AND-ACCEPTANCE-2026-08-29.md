@@ -2968,7 +2968,11 @@ preacher work, production access checks and release verification stay in §4.5.
 The operator went to bed after the open-edges listening. **Authorised (operator, 10-23):** "processing is
 fine" (edge decodes and the structure-model questions that bank edge evidence); **"You can also recut"**;
 **restarting Docker** if file sharing fails. **Not authorised:** pushes, production writes, approvals or
-publication, releasing holds, deletions. Planned, not started: a fresh session runs it from the handover
+publication, releasing holds, deletions. **Usage:** no cap; stop by **07:00** (the weekly usage period
+resets then), winding down from 06:30. The audit continues into **Pass B** if the calibration meets
+the audit plan's fixed scaling criteria (one Haiku review per service, at most one retry, at most
+three at a time, strong review of findings and the §5 sample); Pass C's fresh transcription is not
+part of tonight. Planned, not started: a fresh session runs it from the handover
 prompt in `storage/scratch/overnight-20261023/handover-prompt.md`.
 
 1. **Edge evidence for the `edge_word_timings_missing` rulings (processing, authorised).**
@@ -2991,7 +2995,7 @@ prompt in `storage/scratch/overnight-20261023/handover-prompt.md`.
    partial flags, late approvals, a throttled decode-check of every final output); a tested read-only
    packet builder; the 24-case calibration (8 preserved positives, 8 accepted controls, 8 fresh), run
    on Haiku subagents (bounded at 24 packets, at most three at a time) and strong-reviewed; measured
-   coverage and cost. No scaling past the calibration without the operator.
+   coverage and cost. Then Pass B, only if the calibration meets the fixed criteria (see above).
 3. **If time remains:** the nightly Deep Checks (Playwright still expects `/sermons/` links; Lighthouse
    hits a Chrome interstitial), fixed locally.
 
