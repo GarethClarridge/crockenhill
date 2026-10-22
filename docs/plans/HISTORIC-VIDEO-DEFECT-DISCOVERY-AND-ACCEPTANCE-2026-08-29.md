@@ -2735,3 +2735,8 @@ edge that keeps more (E21).
   member's own cut still block. Corpus: of 441 compositions (17 reviewed), 1288 §3618 is the only selected
   section blocked by that flag. 1288's plan, resolved in a rolled-back transaction: no review, no violations,
   four segments (1510.37–1604.52, 1604.52–1633.84, 1633.84–1664.09, 1890.39–3769.97).
+- **Runbook §2.4 breached while the round is open (Claude, 10-22, round drained and paused, no workers):**
+  the `partial_recording` migration ran against the shared MySQL (batch 106), and sermon #997 (member run
+  1065) was written (`partial_recording = 1`). Both are additive and reversible (drop the column / reset the
+  flag); nothing the round's code reads changed. The closing custody check should expect exactly these two
+  differences from the post-round backup. 1288's plan was read in a rolled-back transaction (§4.3 style).
