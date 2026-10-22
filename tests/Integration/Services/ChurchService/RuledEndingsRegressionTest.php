@@ -65,6 +65,9 @@ class RuledEndingsRegressionTest extends TestCase
     /** How far an edge must move to count as having moved off a cut ruled wrong. */
     private const MOVED = 0.05;
 
+    /** Decibels under the speech threshold below which a level counts as silence. */
+    private const SILENCE_BELOW_SPEECH = 20.0;
+
     /** The operator gives a time to the second or the tenth of a second. */
     private const RULED_TIME_TOLERANCE = 1.0;
 
@@ -378,14 +381,25 @@ class RuledEndingsRegressionTest extends TestCase
         }
 
         // A later listening heard a later cut of the same edge, so its ruling is the one to keep.
-        foreach ($this->latestRulings((int) $fixture['run']['id'], $ruling, $fixture['captured_on'] ?? null) as $latest) {
+        $rulings = $this->latestRulings($fixture, $ruling);
+        $heardRight = array_column(array_filter($rulings, static fn (array $latest): bool => $latest['expect'] === 'keep'), 'heard');
+        if (count($rulings) > 1 && count($heardRight) === count($rulings)) {
+            // Two cuts heard right the same day: what lies between them is optional (1250 §3127).
+            $rulings = [['id' => implode(' + ', array_column($rulings, 'id')), 'edge' => $ruling['edge'], 'heard' => $heardRight[0],
+                'expect' => 'between', 'ruled_time' => null, 'range' => [min($heardRight), max($heardRight)]]];
+        }
+
+        foreach ($rulings as $latest) {
             $heard = $latest['heard'];
             // Later in the recording, for an end; earlier, for a start.
             $outward = $latest['edge'] === 'end' ? $cut - $heard : $heard - $cut;
             $message = $fixture['id'].' against '.$latest['id'];
 
             match ($latest['expect']) {
-                'keep' => $this->assertEqualsWithDelta($heard, $cut, self::RIGHT_TOLERANCE, $message.': an edge ruled right has moved'),
+                'keep' => $this->assertTrue(abs($cut - $heard) <= self::RIGHT_TOLERANCE || $this->onlySilenceBetween($fixture, $heard, $cut),
+                    "{$message}: an edge ruled right has moved from {$heard} to {$cut}, across sound"),
+                'between' => $this->assertTrue($cut >= $latest['range'][0] - self::RIGHT_TOLERANCE && $cut <= $latest['range'][1] + self::RIGHT_TOLERANCE,
+                    "{$message}: {$cut} is outside the cuts ruled right, ".implode('–', $latest['range'])),
                 'outward' => $this->assertGreaterThan(self::MOVED, $outward, $message.': an edge ruled to clip its item is back at the clipped cut'),
                 'inward' => $this->assertLessThan(-self::MOVED, $outward, $message.': an edge ruled to take in too much is back at that cut'),
                 'at' => $this->assertEqualsWithDelta($latest['ruled_time'], $cut, self::RULED_TIME_TOLERANCE, $message.': an edge is not at the time the operator gave'),
@@ -394,33 +408,66 @@ class RuledEndingsRegressionTest extends TestCase
     }
 
     /**
+     * Whether an edge moved only through silence: every level between the two times, which the
+     * fixture's windows must cover, is at least SILENCE_BELOW_SPEECH under the recording's speech
+     * threshold. A move across a dead feed changes nothing anyone hears (1012's start, 10-22).
+     *
+     * @param  array<string, mixed>  $fixture
+     */
+    private function onlySilenceBetween(array $fixture, float $from, float $to): bool
+    {
+        [$from, $to] = [min($from, $to), max($from, $to)];
+        $levels = array_values(array_filter($fixture['rms']['samples'], static fn (array $sample): bool => $sample[0] >= $from && $sample[0] <= $to));
+
+        return $levels !== []
+            && $levels[0][0] - $from <= 0.5
+            && $to - end($levels)[0] <= 0.5
+            && array_all($levels, static fn (array $sample): bool => $sample[1] <= $fixture['rms']['threshold'] - self::SILENCE_BELOW_SPEECH);
+    }
+
+    /**
      * The newest rulings on the fixture's edge in tests/Fixtures/Rulings/edge-rulings.json made by the
      * day it was captured: a later listening heard a later cut, which data captured before it may not
-     * reproduce. A fixture without a capture date keeps its own ruling.
+     * reproduce. A fixture without a capture date keeps its own ruling. Newest is by the answer's time,
+     * so a decision recorded after a listening the same day replaces it. A section ruling without a
+     * section id takes the run's section of its type whose edge is nearest the cut heard, as capture does.
      *
+     * @param  array<string, mixed>  $fixture
      * @param  array{section_id: int|null, edge: string, heard: float, expect: string, ruled_time: float|null}  $ruling
-     * @return list<array{id: string, edge: string, heard: float, expect: string, ruled_time: float|null}>
+     * @return list<array{id: string, edge: string, heard: float, expect: string, ruled_time: float|null, range?: array{float, float}}>
      */
-    private function latestRulings(int $run, array $ruling, ?string $capturedOn): array
+    private function latestRulings(array $fixture, array $ruling): array
     {
         $own = [['id' => 'the fixture\'s ruling', ...$ruling]];
+        $capturedOn = $fixture['captured_on'] ?? null;
         if ($capturedOn === null) {
             return $own;
         }
 
+        $column = $ruling['edge'] === 'start' ? 'start_time' : 'end_time';
+        $sectionOf = static function (array $candidate) use ($fixture, $column): ?int {
+            if ($candidate['output'] === 'sermon' || $candidate['section_id'] !== null) {
+                return $candidate['output'] === 'sermon' ? null : $candidate['section_id'];
+            }
+            $sections = array_filter($fixture['sections'], static fn (array $section): bool => $candidate['section_type'] === null || $section['section_type'] === $candidate['section_type']);
+            usort($sections, static fn (array $a, array $b): int => abs((float) $a[$column] - $candidate['heard']) <=> abs((float) $b[$column] - $candidate['heard']));
+
+            return $sections === [] ? null : (int) $sections[0]['id'];
+        };
+
         $rulings = json_decode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/Rulings/edge-rulings.json'), true, flags: JSON_THROW_ON_ERROR)['rulings'];
-        $onEdge = array_filter($rulings, static fn (array $candidate): bool => $candidate['run'] === $run
+        $onEdge = array_filter($rulings, static fn (array $candidate): bool => $candidate['run'] === (int) $fixture['run']['id']
             && $candidate['edge'] === $ruling['edge']
             && $candidate['ruled_on'] <= $capturedOn
             && ($candidate['output'] === 'sermon') === ($ruling['section_id'] === null)
-            && ($candidate['output'] === 'sermon' ? null : $candidate['section_id']) === $ruling['section_id']);
+            && $sectionOf($candidate) === $ruling['section_id']);
         if ($onEdge === []) {
             return $own;
         }
 
-        $newest = max(array_column($onEdge, 'ruled_on'));
+        $newest = max(array_column($onEdge, 'ruled_at'));
 
-        return array_values(array_filter($onEdge, static fn (array $candidate): bool => $candidate['ruled_on'] === $newest));
+        return array_values(array_filter($onEdge, static fn (array $candidate): bool => $candidate['ruled_at'] === $newest));
     }
 
     /**

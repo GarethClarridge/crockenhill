@@ -2357,7 +2357,35 @@ What we would regret not doing while the context exists.
       level windows, a `rulings` list): the 150 in 37 `run-<run>-2026-10-22` fixtures, 5.8 MB
       instead of about 21 MB. Every live cut still reproduces from the merged levels. The test
       expands each entry into its own data set: 288 pass, 133 s serial.
-    - Still owed: triage of the 18 (`rulings-capture-20261022/open-18.txt`), then the 394 decodes.
+    - **Triage of the 18, 10-22** (`rulings-capture-20261022/score3-junit.xml`): **11 settled, 7 open.**
+      - *Section identity (1012 ×3).* Re-detection re-synced 1012 by order, so canary 13's §1288/§1290
+        now hold "God Of Glory" and the opening prayer. By title the rulings belong to §1289 and §146883,
+        and re-captured there they meet their cuts (198.10, 443.86, 825.72). `capture.php` now follows
+        a ruling's item title when its section id holds another item (`REKEYED`), and refuses if the
+        title is not exactly one section's. Only 1012 was affected among the 122 captured section
+        rulings that name an item.
+      - *Rulings that allow a range (5).* An A/B "both fine" now means any cut between the two versions
+        (1138 §2122; 58 rulings in all). Two cuts heard right the same day mean the same (1250 §3127,
+        canaries 13 and 14), and rulings now carry `ruled_at`, so the newest answer wins within a day.
+        `gather.py`'s `RULED` list adds rulings made outside a page: 1274 §3433 left as cut (operator,
+        10-22) and 1286 §3587 under E9 (the spoken introduction "Now we're going to sing a new song."
+        may be in or out).
+      - *Moved only through silence (2).* 1012's sermon start (1616.42 → 1619.35) and 1108 §1897's start
+        (1181.73 → 1180.65) moved across a dead feed. A `keep` now holds when every level between the
+        two cuts is at least 20 dB under the recording's speech threshold.
+      - **Open: listen (6 rulings, 4 edges).** 1111 sermon end (+41 s) and 1259 sermon end (+12.6 s):
+        K16 kept a song introduction with a stated link (1259: "…only one song that we can really
+        finish with … Jesus who is the servant king. So let's stand and sing it through together.",
+        after a sermon on deacons as servants). 1286 §3582: the operator's 10-13 talk–reading answer
+        ("include") opens the talk at its reading, 596.93; that start is unheard. 1198 §2491 end
+        (+0.74 s), mostly quiet before the music but one level above the threshold.
+      - **Open: defect (1).** 1108's sermon end at 4119.76 is inside "Let" of "Let's stand to sing."
+        (4119.58–4119.92): the word pause sits in a dropout (−999 at 4119.1, 4119.8, 4120.2, 4120.6).
+        The 10-18 answer said "might be an audio quality issue". By K16 the end belongs after "…a
+        wretch is true." (4119.46). Needs a failing test, then a measured fix: a word pause must not
+        fall inside a decoded word.
+    - Ratchet set rebuilt on the 161: 37 run fixtures, 5.9 MB, 299 tests pass (141 s serial).
+    - Still owed: the 6 listening questions, the 1108 fix, then the 394 decodes.
   - **The re-cut listening.** Gathered 10-22 (`listening-recut-20261020`, `-20261022`, `-1310-`).
   - **Structure answers, the loop page and song stage 1.** Each needs its own replay.
 - [ ] **Before IC8, decide how historic media is repaired after release.** Production receives only

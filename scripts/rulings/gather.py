@@ -70,9 +70,9 @@ records = []
 skipped = collections.Counter()
 
 
-def add(source, ruling, *, run, edge, heard, output, section_id=None, section_type=None, expect=None):
+def add(source, ruling, *, run, edge, heard, output, section_id=None, section_type=None, expect=None, heard_range=None):
     choice = ruling['choice']
-    expect = expect or EXPECT.get(choice)
+    expect = 'between' if heard_range else expect or EXPECT.get(choice)
     at = ruled_time(ruling)
     if at is not None and expect in ('outward', 'inward', 'at'):
         expect = 'at'
@@ -86,6 +86,7 @@ def add(source, ruling, *, run, edge, heard, output, section_id=None, section_ty
         'id': f"{source}:{ruling['question_id']}",
         'source': source,
         'ruled_on': ruling['saved_at'][:10],
+        'ruled_at': ruling['saved_at'],
         'run': int(run),
         'output': output,
         'section_id': section_id,
@@ -97,6 +98,7 @@ def add(source, ruling, *, run, edge, heard, output, section_id=None, section_ty
         'expect': expect,
         'ruled_time': at,
         'note': ruling.get('note') or '',
+        **({'range': sorted(round(float(time), 3) for time in heard_range)} if heard_range else {}),
     })
 
 
@@ -225,7 +227,8 @@ def single(source, ruling, *, run, edge, heard, output, section_id=None, section
 
 
 def versions(source, ruling, key, *, run, edge, output, section_id=None, section_type=None):
-    """An A/B answer keeps the version chosen; "both fine" keeps the one that keeps more (register E21)."""
+    """An A/B answer keeps the version chosen. "Both fine" makes what lies between them optional, so any cut
+    between the two is right; `heard` is the one that keeps more, which E21 prefers when cutting."""
     times = key.get('times') or {name: key[f'{name}_end'] for name in (key['1'], key['2'])}
     choice = ruling['choice']
     if choice in ('1', '2'):
@@ -237,7 +240,8 @@ def versions(source, ruling, key, *, run, edge, output, section_id=None, section
         return
     version = next(name for name, time in times.items() if time == heard)
     add(source, {**ruling, 'choice': 'right', 'question_id': f"{ruling['question_id']}-{version}"}, run=run, edge=edge,
-        heard=heard, output=output, section_id=section_id, section_type=section_type)
+        heard=heard, output=output, section_id=section_id, section_type=section_type,
+        heard_range=list(times.values()) if choice == 'both' else None)
 
 
 def from_context(source, directory, rulings_dir='answers/rulings'):
@@ -313,14 +317,29 @@ for record in records:
     if record['id'] in CLOSED:
         record['expect'] = CLOSED[record['id']]
 
+# Rulings made outside a listening page: the operator's word on a heard edge, or a register entry that
+# settles an edge heard before it. Each allows any cut between the two times.
+RULED = [
+    # The decisions were recorded at 11:44 UTC (0cb0fa404), after the 11:11 answer.
+    ('operator-20261022:1274-s3433-end', '2026-10-22T11:44:56Z', 1274, 3433, 'end', (1704.74, 1713.95),
+     'Step 5 chose the old end; the operator left the current one as cut (soft miss, plan §5 10-22).'),
+    ('register-e9:1286-s3587-start', '2026-10-10', 1286, 3587, 'start', (1665.22, 1670.96),
+     'E9: a song clip keeps its spoken introduction ("Now we\'re going to sing a new song."); 10-10: '
+     'an introduction may be in or out.'),
+]
+for ruling_id, ruled_at, run, section_id, edge, heard_range, note in RULED:
+    records.append({'id': ruling_id, 'source': ruling_id.split(':')[0], 'ruled_on': ruled_at[:10], 'ruled_at': ruled_at, 'run': run,
+                    'output': 'section', 'section_id': section_id, 'section_type': None, 'title': None, 'edge': edge,
+                    'heard': heard_range[1] if edge == 'end' else heard_range[0], 'answer': None, 'expect': 'between',
+                    'ruled_time': None, 'note': note, 'range': list(heard_range)})
+
 # A later ruling on the same edge was made on a later cut, so it replaces the earlier ones.
 latest = {}
-for record in sorted(records, key=lambda record: record['ruled_on']):
+for record in sorted(records, key=lambda record: record['ruled_at']):
     edge = (record['run'], record['output'], record['section_id'], record['edge'])
-    latest[edge] = record['ruled_on']
+    latest[edge] = record['ruled_at']
 for record in records:
-    edge_ruled_on = latest[(record['run'], record['output'], record['section_id'], record['edge'])]
-    record['superseded'] = record['ruled_on'] < edge_ruled_on
+    record['superseded'] = record['ruled_at'] < latest[(record['run'], record['output'], record['section_id'], record['edge'])]
 
 records.sort(key=lambda record: (record['run'], record['heard'], record['id']))
 summary = {

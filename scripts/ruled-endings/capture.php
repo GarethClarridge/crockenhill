@@ -156,6 +156,23 @@ $resolve = static function (string $id) use ($edgeRulings, $key, $joined): array
         $ruling['section_id'] = $section->id;
     }
 
+    // Re-detection re-syncs sections by order, so an id can come to hold another item (1012's
+    // §1290 was the short talk the operator heard and is now the opening prayer). A ruling that
+    // names its item follows the title.
+    if ($ruling['output'] === 'section' && preg_match('/^(.+) (?:opens|ends) \(/u', (string) $ruling['title'], $named) === 1) {
+        $title = mb_strtolower(trim($named[1]));
+        $sections = ServiceSection::query()->where('media_processing_log_id', $ruling['run'])->get();
+        if (mb_strtolower(trim((string) $sections->firstWhere('id', $ruling['section_id'])?->title)) !== $title) {
+            $matches = $sections->filter(fn (ServiceSection $s): bool => mb_strtolower(trim((string) $s->title)) === $title);
+            if ($matches->count() !== 1) {
+                throw new RuntimeException("{$id}: §{$ruling['section_id']} no longer holds “{$named[1]}”, and {$matches->count()} sections do");
+            }
+            fwrite(STDERR, "REKEYED {$id}: §{$ruling['section_id']} → §{$matches->first()->id} (“{$named[1]}”)\n");
+            $ruling['section_id'] = $matches->first()->id;
+            $which = (string) $ruling['section_id'];
+        }
+    }
+
     return [$ruling, (int) $ruling['run'], $which, $ruling['edge'], (float) $ruling['heard']];
 };
 
