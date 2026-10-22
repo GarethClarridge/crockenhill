@@ -302,6 +302,17 @@ for source, directory in (('listening-final-round-20261022', 'listening-final-ro
                           ('listening-1310-20261022', 'listening-1310-20261022')):
     from_keys(source, directory, {question['id']: question['key'] for question in load(f'{directory}/questions.json')})
 
+# Answers the plan later closed with a reading of its own: the answer heard something true that no
+# cut can fix, so the cut heard stands.
+CLOSED = {
+    # §4.0, closed 10-21: the reading's first verse is in a dead feed, so this is the first reading recorded.
+    'listening-edges-20261018:1328-start': 'keep',
+    'listening-recut-20261020:1328-start': 'keep',
+}
+for record in records:
+    if record['id'] in CLOSED:
+        record['expect'] = CLOSED[record['id']]
+
 # A later ruling on the same edge was made on a later cut, so it replaces the earlier ones.
 latest = {}
 for record in sorted(records, key=lambda record: record['ruled_on']):

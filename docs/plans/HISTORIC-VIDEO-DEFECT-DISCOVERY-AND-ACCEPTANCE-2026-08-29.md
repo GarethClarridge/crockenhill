@@ -2349,8 +2349,9 @@ What we would regret not doing while the context exists.
       (+1.1 s); 1198 §2491 end (+0.7 s); 1108 sermon end (outward, still at the clipped cut);
       1138 §2122 and 1274 §3433 (the final round chose the other version; 1274 §3433 left as cut
       by the operator, so a soft miss).
-    - **Ambiguous:** 1328 start on edges 10-18 is "starts too late" with the note "seems to start
-      mid reading". The committed fixture reads it as keep, the gathered set as outward.
+    - **1328's start:** both "late … mid reading" answers (10-18, 10-20) read as `keep`, by the
+      10-21 closure above (the reading's first verse is in a dead feed). `gather.py`'s `CLOSED`
+      list carries plan closures like this one, which no listening answer records.
     - **Ratchet set committed** (operator chose the slim form): `scripts/ruled-endings/merge.py`
       folds the per-ruling captures into one fixture per run (shared data once, the union of the
       level windows, a `rulings` list): the 150 in 37 `run-<run>-2026-10-22` fixtures, 5.8 MB
