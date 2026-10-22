@@ -2740,3 +2740,9 @@ edge that keeps more (E21).
   1065) was written (`partial_recording = 1`). Both are additive and reversible (drop the column / reset the
   flag); nothing the round's code reads changed. The closing custody check should expect exactly these two
   differences from the post-round backup. 1288's plan was read in a rolled-back transaction (§4.3 style).
+- **The flag travels (`00e3134c8`):** the first full suite found the flag missing from the historic
+  normal-output contract, so 1065's flag would have stayed local. Historic manifests and promotion bundles now
+  carry `partial_recording` (nullable); a bundle sets it but never clears production's. Adding the field
+  changes every graph's `logical_hash`, which is computed, not stored, so **production must deploy the
+  migration and this code before the next export**. The prod patch command is unchanged (it reads production's
+  schema). Full suite: **10,110 tests, zero failures** (one skipped, 163 notices).
