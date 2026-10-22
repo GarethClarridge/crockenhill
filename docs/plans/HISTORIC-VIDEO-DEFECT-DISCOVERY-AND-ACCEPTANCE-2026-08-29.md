@@ -2836,3 +2836,12 @@ of the only source recording" — the 1065 case. Live holds with that reason: 10
   `storage/scratch/listening-1310-20261022/build.php`: 1310's start ("Well, I've asked Anne… our Bible reading");
   its join, whose sermon side starts 6.6 s before the song's cut ends and about 19 s before the preacher (clip runs
   25 s past the join); §3942's start (instrumental) and end ("…your will." and the chord).
+- **1310 Re-cut answered (operator, 17:59 UTC): all four "right"** — the sermon's start and join, §3942's start
+  and end.
+- **Approval context fixed (`8189bfdea`):** `ApproveSectionForPublication` dispatches the publish job inside the
+  run's recorded staging context; the test also proves the job is queued while the context is active (a pending
+  dispatch queues on destruction, so returning it from the closure would queue it afterwards). Full suite 10,114
+  tests, zero failures.
+- **§3942 approved** from round-tools on clone `8189bfdea` (`CodeRevision` `2002deb4…`): **SongVideo 1565**, song 804,
+  quarantined, `historic-batches/9351fa4e…/sermons/songs/804/3942.mp4` (inside the batch this time), 143.46 s. No
+  watcher stop, 0 failed jobs, public song videos 36. Workers stopped, queues paused, watcher stopped.
