@@ -2827,3 +2827,12 @@ of the only source recording" — the 1065 case. Live holds with that reason: 10
   with no staging context, so a song clip lands outside its batch and promotion would miss it.
   `ApproveSectionForPublication` (or the job) should run within the run's recorded `historicStagingContext()`,
   as `sermons:re-extract` does.
+- **Re-cut result (queues idle 17:03; workers stopped, queues paused, watcher stopped; 0 failed jobs; public song
+  videos still 36):** 1090 completed, one continuous span 0–1205.46 (reading, prayer, sermon; its edges are the
+  recording's, already heard). 1310 completed: reading 1483.63–1617.42, sermon **1771.22**–3282.74. **§3942 "Purify
+  My Heart" cut for the first time**, 1634.34–1777.8, `pending_approval` (held `song_looped_transcript`). Both
+  sermons quarantined with `partial_recording`.
+- **Listening:** [1310 Re-cut](https://claude.ai/artifact/7yuHnRkiai88GpYtyUbBTV), `rulings`, built by
+  `storage/scratch/listening-1310-20261022/build.php`: 1310's start ("Well, I've asked Anne… our Bible reading");
+  its join, whose sermon side starts 6.6 s before the song's cut ends and about 19 s before the preacher (clip runs
+  25 s past the join); §3942's start (instrumental) and end ("…your will." and the chord).
