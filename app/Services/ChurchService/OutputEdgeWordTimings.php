@@ -167,7 +167,13 @@ class OutputEdgeWordTimings
                 continue;
             }
             try {
-                $identity = json_decode((string) Storage::disk($entry['disk'])->get($entry['path']), true)['identity'] ?? null;
+                $raw = Storage::disk($entry['disk'])->get($entry['path']);
+            } catch (\Throwable) {
+                $raw = null;
+            }
+            $payload = is_string($raw) ? json_decode($raw, true) : null;
+            $identity = is_array($payload) && is_array($payload['identity'] ?? null) ? $payload['identity'] : [];
+            try {
                 if (is_numeric($identity['start'] ?? null) && is_numeric($identity['end'] ?? null)) {
                     array_push($words, ...$this->read($log, ['start' => (float) $identity['start'], 'end' => (float) $identity['end']])['words']);
                 }
