@@ -2774,3 +2774,20 @@ join lines taken from the cue the join lands in, per-item notes and longer tails
   lists only permission differences (18,596 `.f...p...`, exFAT keeps no modes): no content differs, nothing missing.
 - **Re-cut listening answered (operator, 10-22 14:43 UTC): all four "right"** — 1269's join; 1288's start,
   join and end. Both fixes are accepted on the recordings.
+
+#### 10-22 (later): 1363's "Rejoice" approved; clip 435 retired
+
+Operator: "whole" (step 5), then "Yes" and "Please run it". Docker's file sharing hung a third time and was
+restarted (`docker desktop restart`, main containers by name, pause flags intact).
+- **Clip 435 retired:** `clear-stale-song-clips --run=1363` (dry run, then `--execute`) took SongVideo 435 (song
+  11) off §4533, now a talk; its row and file are kept, quarantined.
+- **Approving §4534 was refused, "Section media is missing":** `ExtractedSectionMediaChecker` asked every
+  section for an audio file and songs are never cut to one, so **all 338 songs pending approval** could not be
+  approved from the review page, and a split or merged song kept its stale clip. Fixed test-first
+  (`b021fad6d`): a song needs its video only. Full suite 10,112 tests, zero failures.
+- Clone moved to `b021fad6d` (old line `round-20261022-recut-line`, lockfiles unchanged, `CodeRevision`
+  `eca47d7f…` equals main's). §4534 approved from `round-tools`; the workers ran the one publish job
+  15:24 and were stopped again (queues paused, watcher stopped).
+- **Result:** §4534 `published` (section state); **SongVideo 1564**, song 1162, `quarantined`, `historic_staging`,
+  `sermons/songs/1162/4534.mp4`, 185.294 s, the candidate's exact bytes. Public song videos still 36 (as before
+  the round). 0 failed jobs since 13:00.
