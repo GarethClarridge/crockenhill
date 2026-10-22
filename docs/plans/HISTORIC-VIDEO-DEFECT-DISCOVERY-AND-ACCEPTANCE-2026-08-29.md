@@ -5,8 +5,9 @@
 > approved, quarantined; the round closed under runbook §8 (§5, "10-22 (later): the round closed"). Nothing is
 > public. **Next:** deploy the `partial_recording` migration and bundle code before the next export; score the
 > ruled evidence (§4.6); the [post-round audit](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md) (first slice:
-> inventory, read-only packets, calibration; no processing); weekly take-over (§4.2) with its own production
-> parity checks and canary; acceptance (§4.5). **Deferred:** the second copy of the source masters (§4.6) has
+> inventory, read-only packets, calibration; no processing); acceptance (§4.5). Weekly take-over preparation
+> (§4.2: where it runs, production parity, admin review screens) runs alongside; the canary and the take-over
+> itself come after release, when the historic import is done (register R8). **Deferred:** the second copy of the source masters (§4.6) has
 > no destination yet; the operator expects to use the staging drive once historic processing is done. C6 stays
 > on until then.
 > Getting production complete is mapped in the
