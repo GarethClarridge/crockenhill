@@ -2390,8 +2390,17 @@ What we would regret not doing while the context exists.
       the song introduction K16 kept), 1198 §2491 end "both are fine", 1286 §3582 "starts in the right
       place" at its reading. Gathered (1,345 rulings); **167 of 168 now met**; ratchet rebuilt on the
       167 (38 run fixtures, 305 tests pass).
-    - Still owed: the 1108 fix (failing test written; the window decode lost "Let's" to the dropout,
-      while other banked decodes heard "Let" at 4119.58), then the 394 decodes.
+    - **1108 fixed** (`6982cf1a0`, `786f8b39f`): the window's decode lost "Let's" to the dropout, while
+      the run's other banked decodes heard "Let" at 4119.58. A spoken end's tail now stops where another
+      decode heard the next word begin (`OutputEdgeWordTimings::heardWords`, smeared words excluded,
+      never before the last kept word's end). A first attempt bounded the tail by the next transcript
+      line, but 1108's lines sit on a one-second grid ("Let's stand to sing." at 4120.58), so it was
+      reverted. Across every ruled edge the rule moves two: 1108 (4119.76 → 4119.58) and 1218
+      (3875.54 → 3875.25, off the start of "Number 720", which was ruled "too late"). **Both heard
+      "Ends in the right place"** (Open Edges page, 10-22). 1218's live run awaits an edge decode, so
+      its fixture is re-baselined on its 10-18 data.
+    - **All 168 captured rulings met;** ratchet set rebuilt on the 168 (38 run fixtures, 307 tests pass).
+    - Still owed: the 394 decodes (processing; only on the operator's word).
   - **The re-cut listening.** Gathered 10-22 (`listening-recut-20261020`, `-20261022`, `-1310-`).
   - **Structure answers, the loop page and song stage 1.** Each needs its own replay.
 - [ ] **Before IC8, decide how historic media is repaired after release.** Production receives only
