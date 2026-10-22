@@ -2772,3 +2772,5 @@ join lines taken from the cue the join lands in, per-item notes and longer tails
 - **Backed up after the re-cut:** service artifacts and detection rulings rsynced (`--checksum`, no deletions)
   to `/Volumes/Sonnics/_service-artifacts-backup/` and `_detection-rulings-backup/`. A checksum dry run afterwards
   lists only permission differences (18,596 `.f...p...`, exFAT keeps no modes): no content differs, nothing missing.
+- **Re-cut listening answered (operator, 10-22 14:43 UTC): all four "right"** — 1269's join; 1288's start,
+  join and end. Both fixes are accepted on the recordings.
