@@ -2962,3 +2962,36 @@ preacher work, production access checks and release verification stay in §4.5.
   715 unassessable: **394** `edge_word_timings_missing` (no banked words for the window current code asks
   about — needs a decode, which is processing), **315** no executable cut or no ruled expectation, **6** sections
   gone. Scoring, the 394 decodes and the CI ratchet set remain §4.6 work.
+
+#### 10-23 overnight: unaccompanied work plan
+
+The operator went to bed after the open-edges listening and said "processing is fine". Read here as:
+edge decodes and the structure-model questions that bank edge evidence. **Not** re-cuts, republishing,
+approvals, holds released, deletions, pushes or production writes: anything that changes heard media
+waits for the morning as a list.
+
+1. **Edge evidence for the `edge_word_timings_missing` rulings (processing, authorised).**
+   - Extract the evidence steps of `TranscribeOutputEdges` (dead-feed excision, K16 question, edge
+     decodes, exposed edges, sentence check) into one service the job calls, test-first, and add
+     `historic-import:prepare-output-edges {runs*} {--dry-run}` that runs it synchronously, without
+     the job's status change or any cut.
+   - Preflight: local whisper (host whisper.cpp, `large-v3-turbo`) and the structure model answer; a
+     database backup first. Canary two runs, check the banked artifacts, then the rest one run at a
+     time with a per-run verdict log, resumable. Stop if more than 5% of runs fail.
+   - Re-capture the 394 rulings, score them the 10-22 way, triage, and grow the ratchet set with the
+     ones met. Unmet ones are triaged against the record; none is fixed by inference.
+   - List (read-only) every output whose planned cut now differs from its recorded cut beyond the
+     0.31-s tolerance: the morning's re-cut decisions.
+2. **Post-round audit, first slice** (`HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md`), after step 1 so
+   the freeze includes the new evidence: audit schema `crockenhill_audit` from a consistent dump;
+   Pass A checks the close's reconciliation did not cover (duration against executed spans, streams,
+   partial flags, late approvals, a throttled decode-check of every final output); a tested read-only
+   packet builder; the 24-case calibration (8 preserved positives, 8 accepted controls, 8 fresh), run
+   on Haiku subagents (bounded at 24 packets, at most three at a time) and strong-reviewed; measured
+   coverage and cost. No scaling past the calibration without the operator.
+3. **If time remains:** the nightly Deep Checks (Playwright still expects `/sermons/` links; Lighthouse
+   hits a Chrome interstitial), fixed locally.
+
+Throughout: the project's gates before each commit; commits stay local; Docker file-sharing hangs are
+handled as on 10-22 (restart Docker Desktop, then start the main containers by name); a written
+morning summary with counts, decisions needed and anything stopped.
