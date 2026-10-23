@@ -16,7 +16,7 @@ test('sermon detail', async ({ stablePage }) => {
 
   const href = await firstSermonLink.getAttribute('href');
   expect(href, 'expected at least one dated sermon link on the index page').toMatch(
-    /\/christ\/sermons\/\d{4}\/\d{1,2}\/[a-z0-9-]+/
+    /\/christ\/talks\/\d{4}\/\d{1,2}\/[a-z0-9-]+/
   );
 
   await stablePage.goto(href!);

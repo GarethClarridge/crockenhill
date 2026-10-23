@@ -439,7 +439,7 @@ jobs:
 
       - name: Warm up audited URLs
         run: |
-          for url in / /christ /church /community /calendar /christ/sermons; do
+          for url in / /christ /church /community /calendar /christ/talks; do
             curl -sf "http://127.0.0.1:8000${url}" > /dev/null
           done
 

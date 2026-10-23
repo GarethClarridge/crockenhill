@@ -13,7 +13,7 @@
         "http://127.0.0.1:8000/church",
         "http://127.0.0.1:8000/community",
         "http://127.0.0.1:8000/calendar",
-        "http://127.0.0.1:8000/christ/sermons"
+        "http://127.0.0.1:8000/christ/talks"
       ]
     },
     "assert": {
