@@ -113,7 +113,7 @@ song digital-zero bar, run 937's retirement).
 | K3 | Including or excluding the preacher's prayer at the start is always acceptable (ER1). | 09-29 | [Ensemble] 9 |
 | K4 | **Closing prayers are actively preferred in sermons.** | 09-30 | [Ensemble] 18 |
 | K5 | A non-matching reading stays joined to the sermon (the nearest one, across a hymn if need be). | 09-14 | [Plan] §4.3 |
-| K6 | Every reading directly before the sermon is cut with it, except a carol service's lessons (December, four or more readings), plus passage matches further back. | 10-13 | [Round] §6, §11 |
+| K6 | Every reading directly before the sermon is cut with it, except a carol service's lessons (December, four or more readings), plus passage matches further back. **Amended:** a passage match takes the readings read back to back with it (1270's Job 11, 1302's Deuteronomy 24 and Matthew 19; `3189dc6a3`). An earlier reading of the sermon's chapter across a song stays out: 1059's Luke 23:1-25 and 1033's Luke 2:1-7 are recapped by the sermon itself. | 10-13, 10-23 | [Round] §6, §11; operator 10-23 |
 | K9 | Pattern B: a recording that opens with the sermon (first section, ≤ 5 s in) publishes that sermon. | 10-13 | [Round] §11 |
 | K10 | Pattern C: a reading the sermon stops for and resumes after stays inside it. Prayers, and parts preaching different passages, stay questions. | 10-13 | [Round] §11 |
 | K11 | Pattern D: a low-confidence reading directly before the sermon is cut with it; low confidence holds neither. | 10-13 | [Round] §11 |
