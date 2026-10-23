@@ -4,7 +4,8 @@
 > fixes and six re-cuts (1269, 1288, 1090, 1310), all heard "right"; 1363's "Rejoice" and 1310's "Purify My Heart"
 > approved, quarantined; the round closed under runbook §8 (§5, "10-22 (later): the round closed"). Nothing is
 > public. `partial_recording` is deployed (`3498602e7`, migrated on production 10-22 21:57 UTC). The ruled evidence
-> is scored and its CI ratchet set committed (§4.6). **Next:** triage the 18 open rulings (§4.6); the [post-round audit](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md) (first slice:
+> is scored and its CI ratchet set committed (§4.6). **10-23 overnight** (stopped 01:50 at the usage limit; §5): edge
+> decodes on all 426 eligible runs, 464 never-captured rulings found, audit Pass A clean, Haiku failed calibration. **Next:** triage the 18 open rulings (§4.6); the [post-round audit](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md) (first slice:
 > inventory, read-only packets, calibration; no processing); acceptance (§4.5). Weekly take-over preparation
 > (§4.2: where it runs, production parity, admin review screens) runs alongside; the canary and the take-over
 > itself come after release, when the historic import is done (register R8). **Deferred:** the second copy of the source masters (§4.6) has
@@ -2401,6 +2402,10 @@ What we would regret not doing while the context exists.
       its fixture is re-baselined on its 10-18 data.
     - **All 168 captured rulings met;** ratchet set rebuilt on the 168 (38 run fixtures, 307 tests pass).
     - Still owed: the 394 decodes (processing; only on the operator's word).
+    - **10-23 overnight** (§5, "10-23 overnight: what was found"): edge decodes done on all 426 eligible runs
+      (423 ok); 464 rulings had never been captured (the 10-22 capture read only the 10-17 ids); 379 of them
+      captured mid-pass, 180 of 193 met; 3 rulings to add from the record; 9 moved-and-unheard edges. Owed: a
+      full re-capture of the 1,347 on the decoded evidence, scoring, ratchet, then the re-cut list.
   - **The re-cut listening.** Gathered 10-22 (`listening-recut-20261020`, `-20261022`, `-1310-`).
   - **Structure answers, the loop page and song stage 1.** Each needs its own replay.
 - [ ] **Before IC8, decide how historic media is repaired after release.** Production receives only
@@ -2965,6 +2970,20 @@ preacher work, production access checks and release verification stay in §4.5.
 
 #### 10-23 overnight: unaccompanied work plan
 
+> **Morning summary (10-23).** The night **stopped at about 01:50**, when the account hit its weekly usage
+> limit (Sonnet calls refused with HTTP 429, "resets 7am"), not at the planned 06:30 wind-down. Nothing was left
+> in flight: the decode workers had finished, queues are empty, no new failed jobs, no run's status changed.
+> - **Ran:** edge-evidence command (`b4885614d`); edge decodes on **426 runs** (423 ok; 1043, 1051, 1098 are
+>   excluded runs with no archived audio); capture of 379 never-attempted rulings (**180 of 193 met**, 13 unmet,
+>   triaged); audit packet builder (`ced221940`, fixed `4ab6067d2`), audit schema, Pass A; calibration (Haiku
+>   failed the criteria twice; Sonnet 8 of 24 done when the limit hit); Deep Checks repairs (`a4c74184a`).
+> - **Not done:** re-capture and scoring of the 394 and the 315; the re-cut list (the mid-decode one is stale);
+>   re-cuts; the listening page; Sonnet's remaining 16 cases; Pass B; Pass C. The operator chose not to resume
+>   (10-23 morning): the findings are recorded below.
+> - **Decisions needed:** the three rulings the record settles (below, "Rulings to add"); the leads below; the
+>   Dependency Audit advisories (dependency changes need approval).
+> - **Commits (local, unpushed):** `b4885614d`, `ced221940`, `4ab6067d2`, `a4c74184a`, and this plan update.
+
 The operator went to bed after the open-edges listening. **Authorised (operator, 10-23):** "processing is
 fine" (edge decodes and the structure-model questions that bank edge evidence); **"You can also recut"**;
 **restarting Docker** if file sharing fails. **Not authorised:** pushes, production writes, approvals or
@@ -3003,3 +3022,109 @@ prompt in `storage/scratch/overnight-20261023/handover-prompt.md`.
 Throughout: the project's gates before each commit; commits stay local; Docker file-sharing hangs are
 handled as on 10-22 (restart Docker Desktop, then start the main containers by name); a written
 morning summary with counts, decisions needed and anything stopped.
+
+#### 10-23 overnight: what was found
+
+Working files: `storage/scratch/overnight-20261023/` (running notes `running-notes.md`; audit under `audit/`).
+
+**1. Edge evidence (processing).**
+- `PrepareOutputEdgeEvidence` now holds `TranscribeOutputEdges`' evidence steps (dead-feed excision, K16, edge
+  decodes incl. song-end speech edges and spoken ends beside songs, exposed edges, sentence check, re-compose);
+  the job calls it. `historic-import:prepare-output-edges {runs*} {--dry-run}` runs it in place: no status change,
+  no cut, refuses every run if one is unknown, reports a failed run and carries on. Tests in
+  `PrepareHistoricOutputEdgesCommandTest` and the job's existing three.
+- Preflight: whisper (host :2022) answered a 1-s clip; `gpt-5.6-luna` answered; no other pass. Backup before any
+  decode: `crockenhill-before-decodes.sql.gz` (`binlog.000138:34627950`, sha256 `6c99f647…`).
+- The 394 `edge_word_timings_missing` lines are **77 runs** (76 completed, 945 failed). Canary 936 and 939: ok,
+  status unchanged, 936's window 1493–1503 readable. (1250 was run by mistake as a canary: decoded 0, unchanged.)
+- **The class is wider than the 394.** (a) The 315 "no executable cut" are 285 sermon rulings whose plan has *no
+  edge evidence* (`edge_word_timings_error`, 180 runs: the resolver returns empty segments instead of throwing,
+  runbook §4.3), 28 that have a cut now, 2 on superseded runs. (b) **464 rulings were never attempted on 10-22**:
+  `rulings-capture-20261022/ids.txt` holds only the 883 gathered on 10-17, so rulings from the 10-18 → 10-22
+  pages on edges not among those 883 were never captured (e.g. 1115 and 1127 sermon ends, both ruled "cut off
+  mid sentence" and still cut there). (c) A read-only planned-vs-recorded pass (`moves.php`) found 277 of 342
+  sermon plans and 683 section plans without evidence at media version 16: most runs were last decoded under
+  earlier versions. So the decode pass covered **every eligible run** (425 completed, non-superseded historic
+  runs, plus the 77's 945): four workers, verdicts in `decode-verdicts.tsv`. **426 runs, 423 ok, 3 failed**
+  (1043, 1051, 1098: excluded runs with no archived audio; 0.7%), **0 status changes**.
+- **Part of the never-attempted rulings scored** (379 on runs outside the 77, captured mid-pass;
+  `capture-unattempted-a/`, `score-unattempted-a.xml`): 193 captured, **180 met, 13 unmet**; 61 missing words and
+  125 without a cut (123 missing evidence), since decoded. Triage (`triage-unattempted-a.md`):
+  - *Settled by the record (4)* — **rulings to add** (gather.py `RULED`/`CLOSED`): 1262 §3284 start ×2 (step 5
+    "asked in error; recorded as a preference": E9 range 1520.86–1531); 1347 sermon start (operator 10-22 kept
+    the mid-verse start, 1576.7); 1268 §4736 end (join3 at 2338.9 heard right 10-22, superseding 10-18's 2323.34).
+  - *Moved since ruled, unheard (9):* 1268 §4731 end 503.17 → 497.90 (−5.27 s, a song end earlier across sound);
+    1268 §4735 start +1.68, §4738 end +1.56, §4739 start +1.26; 954 §797 start +1.18, §899 start +2.60; 1261
+    sermon end −0.49; 1138 §146073 end +0.32; 1215 §2637 end +9.29.
+- **Still owed:** re-capture all 1,347 rulings on the decoded evidence (the 394, the 315, the 85 never-attempted on
+  the 77's runs, and the 379 again), score, triage, grow the ratchet; then the planned-vs-recorded list (step 2),
+  re-cuts and listening. `RuledEndingsRegressionTest` was pointed at a capture directory through `RULED_FIXTURES`
+  for scoring and reverted afterwards.
+
+**2. Post-round audit, first slice.**
+- Packet builder `ServiceAuditPacket` + `service-audit:packets {runs*} --database=crockenhill_audit… --out=`
+  (refuses any other schema; source transcript apart from delivered outputs; executed segments on each output's
+  own clock with the lines at their edges; stored transcript, sections, song bindings, order of service; missing
+  evidence, shared files and foreign provenance as gaps). Tests: mapping, missing evidence, duplicate outputs,
+  foreign provenance, schema refusal, section segments.
+- **A recording quirk the first answers exposed:** a section's `media_outputs` entry carries the *run's*
+  provenance (`RecordedVideoOutput::metadataProvenance`: `segments` = the sermon's trim) and the disk it was first
+  written to. Every section clip read as the sermon until the packet took the section's own
+  `publication_candidate_extraction.segments` and current file (`4ab6067d2`). By design, but anything reading
+  `media_outputs.section_*.provenance.segments` as the clip's cut is wrong; the first Pass A did (1,219 "missing").
+- **Freeze:** `audit/crockenhill-audit-freeze.sql.gz` (`binlog.000138:402949848`, sha256 `21583cbc…`), loaded as
+  `crockenhill_audit`, `sail` granted SELECT only. Taken at 01:09 **during** the decode pass and before any re-cut
+  (a deviation from "after steps 1–2"): packets read transcripts, recorded segments, sections and bindings, which
+  an edge decode does not change; any later re-cut invalidates its run's packet by hash (audit plan §6).
+- **Pass A** (`audit/pass-a.jsonl`, 425 runs): all **418 sermon files and 1,393 section files present**, video and
+  audio streams in every one, duration equal to executed spans (|drift| ≤ 0.5 s) except **1347 §4387** (SongVideo
+  422 from 09-07, no recorded cut: the E12 "unrecorded" class); 28 section `media_outputs` entries with no current
+  file, 8 sections gone; **99 sermon cuts touch the recording's start or end without `partial_recording`** (as the
+  10-22 note says, the edge alone cannot set it); 1 song video created after the close (1565). The full
+  decode-check of every output was **not run** (hundreds of hours of media).
+- **Calibration** (`audit/calibration-truth.json`, `cases-key.json`; reviewers blind, cases in the session
+  scratchpad). Positives overlay a preserved pre-fix state from rulings onto the current packet: P1 1269 pre-fix
+  join (2303.21), P2 962 §841 without its reading, P3 1120 §174714 mistitled, P4 1262 reading titled "Closing
+  benediction", P5 1267 §3351 two songs, P6 1273 §3416 inside another song, P7 1012 §1289 inside another song,
+  P8 1115 sermon end cut mid-sentence (current; a borderline "material" label kept as registered). Controls:
+  1073, 1268, 1269, 1288, 1090, 1310, 1065, 973. Fresh (seed 20261022, by year): 936 992 1102 1207 1291 1296
+  1341 1348. Case-construction flaws found and fixed during the run: a leftover gap in one positive's packet (c12),
+  and overlaid outputs without a file identity (c08, c10), which v2 read as withheld; c08 was re-run.
+  - **Haiku, original prompt (`rubric-v1.md`): fails.** Positives caught as material **3 of 8** (P3, P4, P7); P1,
+    P6, P8 located exactly but rated minor; P2 seen and dismissed; P5 barely visible in text. Controls: **6
+    material false alarms** (withheld sections called omissions, a dead-feed start, a seam cue, a hymn announced
+    by its refrain, a smeared cue at a join heard right). Citations: 107 of 107 resolvable.
+  - **Haiku, one revision (`rubric-v2.md`): fails.** Control false alarms fell to 1 of 6 checked (c02: a summary
+    misread as reversed), but P3 and P5 were still rated minor; stopped once failure was certain. Bias across both:
+    Haiku finds the place and under-rates boundary and identity defects.
+  - **Sonnet, original prompt:** 8 of 24 done (c01–c08) when the limit hit: **0 material false alarms** on its 4
+    controls, P7 caught, P5 rated minor. No verdict. Pass B and Pass C not started.
+  - Cost: ≈ 2.9 M subagent tokens for Haiku v1 (≈ 120 k a case, 47–187 s), similar for v2's 14; Sonnet ≈ 70–125 k a
+    case, 23–75 s. Twice a fourth reviewer was launched by mistake; each was stopped within a minute.
+  - Strong reviews: `audit/strong-review-haiku-v1.md`, `-v2.md`, `strong-review-sonnet-v1.md`.
+- **Leads from the reviews (unverified; Pass C windows or listening):**
+  - 1262 §3285 "Rejoice The Lord Is King": its opening line (cue 1698.4–1719.2) is in neither song clip (both
+    Haiku runs). 1262's sermon ends after the preacher recites the next hymn's first verse (K16: reading the words
+    is no tie on its own) — check its banked K16 answer.
+  - 1267's song clips sit 11–35 s off their section bounds (§3348–§3350), in ASR-loop stretches.
+  - 1102: 485–503 ("…not with perishable things such as silver and gold…") before "I Will Glory In My Redeemer"
+    is in neither clip (spoken scripture or sung?). 1273 §3423: its last 150 s do not read as "When Peace Like A
+    River". 1207: the sermon output starts after its first cue ("Do turn in your Bibles…").
+  - **Preacher attribution (§4.6):** the transcript names or identifies the preacher where the sermon says
+    "Visiting Speaker" — 1120 ("Mark … the minister or the pastor here"), 973 ("Mark is going to … preach"),
+    1073 ("Jason, our speaker"); and the preacher speaks as the regular minister in 1288, 1348, 1207, 1267, 1269.
+    (1291's "Pastor Mark" gives the short talk, not the sermon.) Series named but null: 936 ("Serve").
+  - Reading sections titled with the planned range rather than what was read (1296: Nehemiah 9:1-38, Matthew
+    6:1-34); stored sermon transcripts carry ASR loops (1073 "He remembered God." ×12) and mishearings.
+
+**3. Deep Checks** (`a4c74184a`, unverified until CI runs). Lighthouse audited `/christ/sermons`, which 301s to
+APP_URL's host (`http://localhost` in that job) → Chrome error interstitial: it now audits `/christ/talks`.
+`sermons.spec.ts` expected `/christ/sermons/` links. Playwright logins were lost because `PLAYWRIGHT_NOW` freezes
+the clock in May, so the session cookie's expiry is already past and the browser drops it (serve.log: login →
+`/church/members` → `/login`): `.env.playwright.ci` sets `SESSION_EXPIRE_ON_CLOSE=true` (`config/session.php` now
+reads it), with `FrozenClockSessionCookieTest`. Still open: `tests/Playwright/snapshots/sermons.spec.ts/` has no
+baselines, and the church-services baselines predate the login; Dependency Audit fails on 7 Composer and 28 npm
+advisories (dependency changes need approval).
+
+**4. Local only:** `/christ/talks` returns 500 here because `.env` has `SERMON_STORAGE_DISK=historic_staging`, so
+published sermons resolve to the staging disk and `HistoricStagingUrlGuard` refuses (production unaffected).
