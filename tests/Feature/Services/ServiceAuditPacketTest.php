@@ -116,6 +116,33 @@ class ServiceAuditPacketTest extends TestCase
         $this->assertContains(sprintf('duplicate_output: section_%d, section_%d', $first->id, $second->id), $packet['gaps']);
     }
 
+    /**
+     * A section output's media_outputs provenance is the run's (its segments are the sermon's trim),
+     * so the section's own cut is the one its extraction recorded, and the file is where the section
+     * says it is now (a promoted clip has moved disk).
+     */
+    #[Test]
+    public function a_section_output_is_its_own_recorded_extraction_not_the_runs_provenance(): void
+    {
+        $log = $this->auditedRun();
+        $section = ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => ServiceSectionType::Song,
+            'start_time' => 95.0, 'end_time' => 115.0, 'asset_disk' => 'audit_outputs', 'extracted_video_path' => 'songs/1.mp4']);
+        $section->forceFill(['metadata' => array_merge($section->metadata?->raw ?? [], ['publication_candidate_extraction' => [
+            'processing_id' => $log->processing_id, 'segments' => [['start_time' => 98.5, 'end_time' => 112.0]]]])])->save();
+        $metadata = $log->processing_metadata?->toArray() ?? [];
+        $metadata['media_outputs']['section_'.$section->id] = $this->media([[95.0, 200.0], [850.0, 920.0]]);
+        $metadata['media_outputs']['section_'.$section->id]['disk'] = 'historic_staging';
+        $metadata['media_outputs']['section_'.$section->id]['provenance']['processing_id'] = $log->processing_id;
+        $log->forceFill(['processing_metadata' => $metadata])->save();
+
+        $packet = app(ServiceAuditPacket::class)->build($log->fresh() ?? $log);
+
+        $output = collect($packet['delivered']['outputs'])->firstWhere('key', 'section_'.$section->id);
+        $this->assertSame([[98.5, 112.0]], array_map(static fn (array $s): array => [$s['source_start'], $s['source_end']], $output['segments']));
+        $this->assertSame(13.5, $output['duration']);
+        $this->assertSame(['audit_outputs', 'songs/1.mp4'], [$output['disk'], $output['path']]);
+    }
+
     /** An output whose provenance names another run describes some other recording's cut. */
     #[Test]
     public function it_flags_an_output_recorded_for_another_run(): void

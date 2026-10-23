@@ -75,7 +75,7 @@ class ServiceAuditPacket
         }
         foreach ($sections as $section) {
             if (isset($recorded['section_'.$section->id])) {
-                $outputs[] = $this->output('section_'.$section->id, $recorded['section_'.$section->id], $run, $cues, $gaps) + ['section_id' => $section->id];
+                $outputs[] = $this->output('section_'.$section->id, $this->sectionMedia($section, $recorded['section_'.$section->id]), $run, $cues, $gaps) + ['section_id' => $section->id];
             }
         }
         $byFile = [];
@@ -125,7 +125,8 @@ class ServiceAuditPacket
         if (! is_array($media) || ! is_array($segments) || $segments === []) {
             $gaps[] = "{$key}_segments_missing";
 
-            return ['key' => $key, 'segments' => [], 'sha256' => null];
+            return ['key' => $key, 'disk' => $media['disk'] ?? null, 'path' => $media['path'] ?? null,
+                'sha256' => is_array($media) ? ($media['sha256'] ?? null) : null, 'segments' => []];
         }
         if (($media['provenance']['processing_id'] ?? null) !== $run->processing_id) {
             $gaps[] = "{$key}_recorded_for_another_run";
@@ -145,6 +146,26 @@ class ServiceAuditPacket
 
         return ['key' => $key, 'disk' => $media['disk'] ?? null, 'path' => $media['path'] ?? null, 'sha256' => $media['sha256'] ?? null,
             'duration' => round($offset, 3), 'segments' => $mapped];
+    }
+
+    /**
+     * A section's media_outputs entry carries the run's provenance, whose segments are the sermon's
+     * trim, and the disk it was first written to; the section's own cut is the one its extraction
+     * recorded, and its file is where the section says it is now (a promoted clip moves disk).
+     *
+     * @param  array<string, mixed>  $media
+     * @return array<string, mixed>
+     */
+    private function sectionMedia(ServiceSection $section, array $media): array
+    {
+        $extraction = $section->metadata?->raw['publication_candidate_extraction'] ?? null;
+        $media['provenance']['segments'] = is_array($extraction) ? ($extraction['segments'] ?? null) : null;
+        if (filled($section->extracted_video_path)) {
+            $media['disk'] = $section->extractedAssetDisk();
+            $media['path'] = $section->extracted_video_path;
+        }
+
+        return $media;
     }
 
     /** @param list<string> $gaps */
