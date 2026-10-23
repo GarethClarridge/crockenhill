@@ -1,7 +1,10 @@
 # Historic video post-round audit
 
-**Status — 2026-10-22: planned, not run; reviewed after the round closed.** Requested by the
-operator while Claude closed the processing round; the round is now closed (historic plan §5). This is an execution work package under the
+**Status — 2026-10-23: calibration and a 20-service discovery pilot completed; wider review pending.**
+The operator approves wider Luna lead discovery with evidence-based verification despite the
+failed calibration gate for cheap-only clearance. Pass A checked the expected files, streams and
+recorded durations, but full decode validation remains undone. The pilot produced five supported
+material findings: four surfaced by Luna and one found by independent review. This is an execution work package under the
 [historic video plan](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md) §4.3–4.6,
 not a new release authority. It adds agent-led semantic inspection of the settled results and
 supplies evidence to the existing acceptance work. It does not replace the song protocol,
@@ -48,7 +51,7 @@ from the retired round clone.
 | A: inventory and media | Every eligible output and every excluded/held disposition | Start from the close's reconciliation (693 outputs, 0 missing, 0 live duplicate pointers, 0 failed jobs; hashes in `storage/scratch/close-final-round-20261022/`) and re-check only what it did not cover: duration versus executed spans, streams, partial-recording flags and late approvals. Decode-check all final outputs with throttled I/O, never during a cut; count failures/unreadable files explicitly. |
 | B: semantic review | Every eligible service with usable text; all its talk outputs and song bindings | Source-first outline, output reconciliation, whole-sermon coherence, metadata grounding, omitted-content review and song identity review. |
 | C: independent verification | Every material finding, every assembled join, and a fixed random sample of apparent passes | Verify against the actual output and source using bounded fresh transcription or supported media inspection. Inspect source windows selected before seeing detector labels. **Fresh transcription is processing:** report the window count and cost, then wait for the operator's word before any decode or provider call. |
-| D: adjudication and handoff | Every finding and every unassessable unit | Strong-model review, deduplication by cause, applicable rulings, severity, evidence and proposed next action. |
+| D: adjudication and handoff | Every finding and every unassessable unit | Evidence-based routing (§5), targeted stronger review where useful, deduplication by cause, applicable rulings, severity, evidence and proposed next action. |
 
 Reuse existing inventory/readiness, recorded-cut evidence, song measurement and regression tools
 after checking their contracts. Avoid a second general processing framework. Build the per-service
@@ -62,6 +65,21 @@ not re-derive an edge question the capture already answers. Any new extractor or
 validator needs tests for timestamp mapping, missing evidence, duplicated outputs and stale hashes;
 use Sail and the normal project quality gates for code changes. Model judgement is evaluated by
 calibration, not proved by mocked-response tests.
+
+### Execution units and checkpoints
+
+The 20-service batch was a pilot, not a throughput limit. Schedule **50–100 services per batch**,
+with a smaller final remainder. A scheduling batch is a queue, not one agent's context: keep at
+most three workers active, assign one or two services per fresh worker, and preserve the source-first
+outline before opening delivered evidence for each service. Split long sources with the coverage
+and synthesis rules in §3. A batch may span several usage windows.
+
+Freeze batch membership and packet hashes before dispatch. Save each completed service result
+immediately, with model/settings, rubric hash, coverage and any protocol deviation. Keep distinct
+queue states for pending, running, reviewed, awaiting adjudication, and evidence-unresolved work.
+On interruption, preserve completed results and explicit partial coverage; resume only unfinished
+work after the allowance resets. A partial review never counts as complete. Batching changes
+throughput and coordination, not the review units or evidence standard.
 
 ## 3. Semantic review instructions
 
@@ -97,7 +115,9 @@ repeated in every sermon packet.
 
 ## 4. Cheap subagent strategy
 
-**Default: Luna for the first pass, a stronger coordinating agent for adjudication.** This session
+**Default: Luna for lead discovery, with evidence-based routing for verification.** An unflagged
+service is an apparent pass, not certified clean. The operator approved this use after the pilot;
+it does not mean Luna passed the original clearance gate. This session
 exposes `gpt-6-luna`; it does not expose Haiku. Claude can run the same packet/rubric contract with
 an available Haiku model in its own environment. Record the exact model/version and settings;
 do not assume either family is sufficiently accurate or cheaper per useful result in advance.
@@ -111,8 +131,9 @@ do not assume either family is sufficiently accurate or cheaper per useful resul
   sequentially per worker, preserving one structured result per service; recycle before context
   accumulates unrelated material. Do not run competing jobs on the same packet.
 - Use scripts for mechanical checks. Do not spend model tokens recounting rows or checking hashes.
-- One cheap semantic pass by default. A second model reads calibration cases, sampled clean
-  cases and genuine disputes, rather than duplicating the entire corpus.
+- One cheap semantic pass by default. A stronger model checks text-resolvable material flags,
+  grouped minor leads where useful, and the corpus-level independent sample (§5). Missing audio
+  evidence goes to the media-verification queue, not repeated model reviews of unchanged text.
 - Different model families can expose different mistakes, but two agreeing models do not create
   independent source evidence. A model verdict cannot release a hold or override a human ruling.
 
@@ -120,7 +141,24 @@ Official Codex guidance supports model-specific subagents and bounded delegation
 [Subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents).
 Actual session capabilities above are the execution constraint; no Haiku integration is presumed.
 
-### Calibration before scaling
+### Calibration evidence and scope of wider use
+
+The initial 24-case calibration is retained below as the clearance test, not a gate that the wider
+discovery workflow has passed. Luna/medium detected 5 of 8 registered material defects. A two-case
+Sol/high pilot did not resolve the two selected song-boundary misses: the text did not establish
+the actual audible content. Repeated model escalation cannot reconstruct missing evidence.
+
+The subsequent 20-service batch supports narrower use: Luna raised 30 flags on 17 services;
+Sol supported 4 material and 16 minor findings, left 8 unresolved, rejected 1 and honoured 1 accepted
+exception. Independent source-first reviews of all 3 apparent passes found run 1027's omitted
+sermon opening. Its affected-class check covered only those 20 services. Run 1167's independent
+sentence-omission finding was downgraded to a minor thematic song handover after severity review.
+Results and hashes: `storage/scratch/overnight-20261023/audit/luna-batch20/batch-report.json`;
+the [historic plan's execution record](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md)
+contains the calibration and pilot history. These observations establish useful lead discovery,
+not a corpus defect rate or reliable cheap-only clearance.
+
+**Original calibration contract (retain for future model/rubric comparisons):**
 
 Prepare 24 blinded service/case packets: 8 confirmed material defects using preserved pre-fix
 evidence, 8 accepted controls (including partial recordings and intentional joins), and 8 fresh
@@ -148,18 +186,28 @@ If performance remains poor, stop cheap-only routing rather than repeatedly tuni
 Record elapsed time, input/output tokens where available, retries and adjudication effort. Compare
 total work per verified finding, including false alarms. Estimate the full run from actual packet
 sizes and measured rates, with a stated contingency, before scaling. Subscription usage is not a
-known cash price; no speculative dollar estimate. Freeze a total token/call budget at that point;
-pause at the limit and report remaining coverage. No unbounded overnight fan-out.
+known cash price; no speculative dollar estimate. For this operator-approved wider discovery run,
+there is **no additional allowance budget**: the account's five-hour usage limit is the execution
+stop. Record usage where exposed, checkpoint and report remaining coverage when the limit is hit,
+and resume after reset when instructed. Do not redeem resets or buy credits automatically. Keep
+the worker concurrency bound and finite batch membership; no unbounded overnight fan-out.
 
 ## 5. Verification that does not ask the operator to listen again
 
-- Strong-review every material cheap-agent finding and all uncertain cases. Validate citations
-  mechanically, then inspect the cited context; reject invented quotations and mismapped times.
+- Give every flag a recorded disposition, using the routing table below. Reuse applicable rulings
+  first. Validate citations mechanically, then inspect the cited context; reject invented quotations
+  and correct mismapped times. A stronger model adjudicates only questions the supplied evidence
+  can answer; it does not certify actual speech or singing from coarse cue durations.
 - For every multi-part output, compare the actual file around each join with its intended source
   spans. Start with 30 seconds each side and expand where an argument requires more context.
-- Draw a reproducible 10% sample of cheap-agent apparent passes, minimum 30 services or all if
-  fewer exist. Stratify by era, repaired/never-repaired status and presence/absence of independent
-  service evidence. Record seed `20261022`, selection logic and denominators before review.
+- Draw a reproducible **corpus-level** sample of cheap-agent apparent passes: for `P` eligible
+  apparent passes, review `min(P, max(30, ceil(0.10 * P)))`. This is not a minimum of 30 per batch.
+  Freeze the apparent-pass population and hashes, stratify by era, repaired/never-repaired status
+  and presence/absence of independent service evidence, and record seed `20261022`, allocation,
+  selection logic and denominators before independent review. As the pool grows, extend a seeded
+  sampling ledger to the final required count without discretionary substitutions; retain and
+  report any extra earlier reviews. The pilot's three checks are not automatic credit against the
+  wider sample: count them only if they meet the final selection and unchanged-evidence contract.
 - Strong-review those services blind to the cheap verdict. For each select three 45-second source
   interior windows before consulting detector labels, including omitted material where present,
   and compare applicable output windows. Report challenge cases separately from random results.
@@ -174,7 +222,27 @@ pause at the limit and report remaining coverage. No unbounded overnight fan-out
   unassessable despite several agreeing transcripts. Frames do not prove continuous video quality.
 - A missed material defect in the clean sample triggers review of its affected class across the
   corpus and another disjoint clean sample for that class. If no safe class boundary exists,
-  escalate the remaining cheap-only semantic passes. Report the resulting cost before expansion.
+  escalate the remaining cheap-only semantic passes. Record the affected population and use the
+  same sample-size rule for the disjoint follow-up pool; these targeted checks are additional to
+  the baseline corpus sample. Report expected work/usage before expansion without inventing a
+  subscription-to-cash conversion. **Already triggered:** run 1027 requires a corpus-wide check
+  for missing sermon openings, including introductions before readings or songs; the 20-service
+  class check does not close that obligation. Record exclusions supported by existing rulings.
+
+### Flag routing
+
+| Evidence/question | Route and recorded outcome |
+|---|---|
+| Applicable existing operator ruling | Check that it covers the same output, cut and question; retain an accepted exception when it does. Do not reopen it as a preference. |
+| Text-supported omission, contradictory metadata, wrong title or song binding | Targeted Sol review of source context, executed spans and stored text; retrieve frozen catalogue/other evidence where needed. Preserve supported material findings and exact correction leads; no repair is implied. |
+| Minor transcript spelling, repetition or wording | Group into an editorial queue. Mechanically deduplicate and use grouped stronger review only where meaning or disposition needs judgment. Do not spend a full-service Sol review on each typo or guess unheard replacement words. |
+| Garbled/missing text, coarse boundary cues, singing-versus-recitation ambiguity | Record `unassessable` or an unresolved lead with the missing evidence, affected interval and consequence. Route consequential questions to bounded Pass C media verification; defer cosmetic questions explicitly. Do not keep escalating models on the same inadequate text. |
+| Conflicting interpretations with adequate evidence | Strong-model adjudication against the cited evidence and rulings; preserve the reasoning and uncertainty rather than voting between models. |
+
+Every material flag is accounted for, but not every flag needs another model call. An unresolved
+media question remains unresolved until actual evidence settles it. Catalogue metadata and
+transcription agreement do not prove continuous audio quality. The independent sample and all
+assembled-join checks remain separate obligations; neither is replaced by flag adjudication.
 
 Only send the operator questions that remain consequential after evidence retrieval and strong
 review. Supply the exact ambiguity, why automation could not settle it, and the shortest useful
@@ -214,8 +282,10 @@ work; preserve rulings under §4.6. The song protocol remains authoritative for 
 Browser/access checks use the existing staging and production acceptance lane. This audit's source
 sample supplements, and does not silently replace, the predeclared release-membership sample.
 
-**First implementation slice (the round is closed, so it can start):** freeze inventory into the
-audit schema, build tested read-only packets, prepare and score the 24-case calibration, then
-present measured coverage/cost and model routing. This slice needs no decode or provider call.
-It does not wait for the second copy of the masters: that waits for a destination drive (historic
-plan §4.6), and the slice reads only the database and private outputs, not `/Volumes/Sonnics`.
+**Next execution slice:** schedule the remaining frozen services in queues of 50–100, reusing
+hash-valid completed reviews rather than repeating the pilot. Route flags by available evidence,
+maintain the corpus-level apparent-pass sampling ledger, and complete the triggered sermon-opening
+class check plus its disjoint follow-up sample. Keep a separate pending record for full decode,
+every assembled join and Pass C media verification; text-only review does not complete those checks.
+Back up the evidence before audit closeout. Repairs to the five pilot findings remain separate,
+test-first work; this plan update performs no repair, publication or fresh transcription.
