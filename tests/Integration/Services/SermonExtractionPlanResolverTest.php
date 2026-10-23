@@ -657,6 +657,70 @@ class SermonExtractionPlanResolverTest extends TestCase
     }
 
     /**
+     * Run 1270: "I'm going to read chapter 11 and chapter 12 now", then a prayer, Job 13 and 14, a
+     * song and the sermon on Job 12:1-14:22. The passage takes Job 12; Job 11, read with it, goes
+     * with it (post-round audit class scan, 2026-10-23), or the cut opens mid-reading.
+     */
+    #[Test]
+    public function a_reading_read_with_one_the_passage_selects_is_cut_with_it(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 4400]);
+        $this->section($log, ServiceSectionType::Song, 1, 1110.8, 1270.0);
+        $job11 = $this->reading($log, 2, 1273.9, 1436.5, reference: 'Job 11:1-20');
+        $job12 = $this->reading($log, 3, 1436.5, 1575.1, reference: 'Job 12:1-25');
+        $this->section($log, ServiceSectionType::Prayer, 4, 1577.1, 1981.8);
+        $job13 = $this->reading($log, 5, 1983.3, 2149.0, reference: 'Job 13:1-28');
+        $job14 = $this->reading($log, 6, 2149.8, 2289.5, reference: 'Job 14:1-22');
+        $this->section($log, ServiceSectionType::Song, 7, 2291.9, 2405.0);
+        $sermon = $this->sermon($log, 8, 2417.9, 4280.2, 'Job 12:1-14:22');
+
+        $composition = $this->resolver->compose($log);
+
+        $this->assertSame([], $composition['risks']);
+        $this->assertSame([$job11->id, $job12->id, $job13->id, $job14->id, $sermon->id], $composition['selected_section_ids']);
+        $this->assertSame($job11->id, $composition['bible_section_id']);
+    }
+
+    /**
+     * Run 1302: Deuteronomy 24, Matthew 5:31-32 and Matthew 19 read back to back, two songs, then
+     * the sermon on Matthew 5:31-32. The passage takes the middle reading; the readings either side
+     * of it go with it, and the prayer before them stays out.
+     */
+    #[Test]
+    public function the_readings_either_side_of_a_passage_reading_are_cut_with_it(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 4400]);
+        $this->section($log, ServiceSectionType::Prayer, 1, 1193.0, 1521.0);
+        $deuteronomy = $this->reading($log, 2, 1558.0, 1623.0, reference: 'Deuteronomy 24:1-4');
+        $matthew5 = $this->reading($log, 3, 1626.0, 1661.0, reference: 'Matthew 5:31-32');
+        $matthew19 = $this->reading($log, 4, 1663.0, 1782.0, reference: 'Matthew 19:1-12');
+        $this->section($log, ServiceSectionType::Song, 5, 1802.0, 1969.0);
+        $this->section($log, ServiceSectionType::Other, 6, 1969.0, 1977.0);
+        $this->section($log, ServiceSectionType::Song, 7, 1977.0, 2170.0);
+        $sermon = $this->sermon($log, 8, 2171.0, 4079.0, 'Matthew 5:31-32');
+
+        $composition = $this->resolver->compose($log);
+
+        $this->assertSame([], $composition['risks']);
+        $this->assertSame([$deuteronomy->id, $matthew5->id, $matthew19->id, $sermon->id], $composition['selected_section_ids']);
+    }
+
+    /** A carol service's lessons stay lessons: its passage reading is cut alone (960). */
+    #[Test]
+    public function a_carol_services_passage_reading_does_not_take_the_other_lessons(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 4000,
+            'church_service_id' => ChurchService::factory()->create(['date' => '2022-12-11'])->id]);
+        $this->reading($log, 1, 800.0, 900.0, reference: 'Isaiah 9:1-7');
+        $this->reading($log, 2, 905.0, 1000.0, reference: 'Luke 1:39-56');
+        $matthew = $this->reading($log, 3, 1005.0, 1100.0, reference: 'Matthew 1:18-25');
+        $this->reading($log, 4, 1105.0, 1200.0, reference: 'Luke 2:1-20');
+        $sermon = $this->sermon($log, 5, 1210.0, 2000.0, 'Matthew 1:23');
+
+        $this->assertSame([$matthew->id, $sermon->id], $this->resolver->compose($log)['selected_section_ids']);
+    }
+
+    /**
      * A reading running into the sermon is already partly in its cut: selecting it would cut the
      * overlap twice. It is asked about, never cut a second time; one wholly inside the sermon (a
      * passage the preacher re-reads) is part of the sermon's own span and not a candidate.

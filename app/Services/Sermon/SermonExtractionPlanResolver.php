@@ -131,6 +131,9 @@ class SermonExtractionPlanResolver
             } else {
                 $selectedReadings = array_map(static fn (int $index): ServiceSection => $readings[$index], $membership['selected']);
             }
+            if (! $this->isServiceOfLessons($log, $readings)) {
+                $selectedReadings = $this->withTheReadingsReadAlongside($sections, $readings, $selectedReadings, $overlapsSelected);
+            }
             if ($selectedReadings !== [] && ! array_any($selectedReadings, $overlapsSelected)) {
                 // One reading holding the passage, or several reading it in parts (1250).
                 array_push($selected, ...$selectedReadings);
@@ -447,6 +450,61 @@ class SermonExtractionPlanResolver
         }
 
         return array_reverse($group);
+    }
+
+    /**
+     * The selected readings and those read back to back with them, in time order (post-round audit
+     * class scan, 2026-10-23: 1270's Job 11 before the passage's Job 12, 1302's Deuteronomy 24 and
+     * Matthew 19 either side of its Matthew 5). Readings separated only by short comments, with no
+     * more than half a minute no section accounts for, are one reading, as they are directly before
+     * the sermon ({@see readingsDirectlyBefore()}); a song, prayer or talk between them parts them
+     * (1250). A neighbour running into a selected part is already partly in the cut and is left out.
+     *
+     * @param  list<ServiceSection>|array<int, ServiceSection>  $sections  The run's sections in time order
+     * @param  list<ServiceSection>  $readings  The readings before the sermon, in time order
+     * @param  list<ServiceSection>  $selectedReadings
+     * @param  callable(ServiceSection): bool  $overlapsSelected
+     * @return list<ServiceSection>
+     */
+    private function withTheReadingsReadAlongside(array $sections, array $readings, array $selectedReadings, callable $overlapsSelected): array
+    {
+        if ($selectedReadings === []) {
+            return [];
+        }
+
+        $groups = [];
+        $group = [];
+        $groupEnd = 0.0;
+        foreach ($sections as $section) {
+            $joinsGroup = $group !== [] && (float) $section->start_time - $groupEnd <= self::UNACCOUNTED_GAP_SECONDS;
+            if (in_array($section, $readings, true)) {
+                if (! $joinsGroup && $group !== []) {
+                    $groups[] = $group;
+                    $group = [];
+                }
+                $group[] = $section;
+                $groupEnd = (float) $section->end_time;
+
+                continue;
+            }
+            if ($joinsGroup && $section->section_type === ServiceSectionType::Other && $section->end_time - $section->start_time <= self::BETWEEN_READINGS_SECONDS) {
+                $groupEnd = (float) $section->end_time;
+
+                continue;
+            }
+            if ($group !== []) {
+                $groups[] = $group;
+            }
+            $group = [];
+        }
+        if ($group !== []) {
+            $groups[] = $group;
+        }
+
+        $alongside = array_merge(...array_values(array_filter($groups, static fn (array $readGroup): bool => array_any($readGroup, static fn (ServiceSection $reading): bool => in_array($reading, $selectedReadings, true)))));
+
+        return array_values(array_filter($readings, static fn (ServiceSection $reading): bool => in_array($reading, $selectedReadings, true)
+            || (in_array($reading, $alongside, true) && ! $overlapsSelected($reading))));
     }
 
     /**
