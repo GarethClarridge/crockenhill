@@ -186,6 +186,24 @@ class SongVideoService
         return SongVideo::query()->updateOrCreate(['service_section_id' => $section->id], $attributes);
     }
 
+    /**
+     * Release a section's song videos that are not of the song it now holds; null releases them all.
+     *
+     * The binding goes and the single-copy published or quarantined file stays. A section that
+     * changed song kept the old song's clip: 17 historic sections did, 1096's "Christ is risen"
+     * showing "I Know That My Redeemer" (2026-10-24).
+     */
+    public function releaseFromSection(int $sectionId, ?int $keepSongId = null): int
+    {
+        return SongVideo::query()
+            ->where('service_section_id', $sectionId)
+            ->when($keepSongId !== null, static fn ($query) => $query->where('song_id', '!=', $keepSongId))
+            ->update([
+                'service_section_id' => null,
+                'publication_state' => SermonPublicationState::Quarantined,
+            ]);
+    }
+
     private function resetLinkedSectionForReExtraction(int $sectionId): void
     {
         $section = ServiceSection::query()->find($sectionId);

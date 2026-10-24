@@ -85,6 +85,61 @@ class ClearStaleSongClipsCommandTest extends TestCase
         $this->assertSame($prayer->id, $video->fresh()->service_section_id);
     }
 
+    /**
+     * Run 1096: the 10-11 re-detection gave row 1814 to "Christ is risen" before section sync
+     * released clips (10-16), so it kept the September clip of "I Know That My Redeemer". The
+     * section's own cut is its media and stays.
+     */
+    #[Test]
+    public function a_song_sections_clip_of_another_song_is_retired_and_its_own_cut_kept(): void
+    {
+        [$video, $run, $oldSong] = $this->clipOfAnotherSong();
+        $section = $video->serviceSection;
+
+        $this->artisan('historic-import:clear-stale-song-clips', ['--execute' => true])->assertExitCode(0);
+
+        $video->refresh();
+        $this->assertNull($video->service_section_id);
+        $this->assertSame(SermonPublicationState::Quarantined, $video->publication_state);
+        $this->assertSame($oldSong->id, $video->song_id);
+        $this->assertSame('section-publications/1814-f283aec7bec2db3f/video.mp4', $section->fresh()->extracted_video_path);
+    }
+
+    #[Test]
+    public function a_song_sections_clip_of_another_song_moves_to_that_songs_section(): void
+    {
+        [$video, $run, $oldSong] = $this->clipOfAnotherSong();
+        $oldSongsSection = $this->songSection($run, $oldSong, order: 5);
+
+        $this->artisan('historic-import:clear-stale-song-clips', ['--execute' => true])->assertExitCode(0);
+
+        $this->assertSame($oldSongsSection->id, $video->fresh()->service_section_id);
+    }
+
+    #[Test]
+    public function a_song_section_with_no_song_releases_its_clip(): void
+    {
+        [$video] = $this->clipOfAnotherSong();
+        $video->serviceSection->forceFill(['church_service_item_id' => null])->save();
+
+        $this->artisan('historic-import:clear-stale-song-clips', ['--execute' => true])->assertExitCode(0);
+
+        $this->assertNull($video->fresh()->service_section_id);
+    }
+
+    #[Test]
+    public function a_song_sections_clip_of_its_own_song_is_left_alone(): void
+    {
+        [$video, $run] = $this->clipOfAnotherSong();
+        $video->forceFill(['song_id' => $video->serviceSection->resolvedSongId()])->save();
+
+        $this->artisan('historic-import:clear-stale-song-clips', ['--execute' => true])
+            ->expectsOutputToContain('0 section(s)')
+            ->assertExitCode(0);
+
+        $this->assertNotNull($video->fresh()->service_section_id);
+    }
+
     #[Test]
     public function the_report_lists_every_change_by_run(): void
     {
@@ -130,6 +185,29 @@ class ClearStaleSongClipsCommandTest extends TestCase
         ]);
 
         return [$prayer, $video, $run, $song];
+    }
+
+    /**
+     * @return array{SongVideo, MediaProcessingLog, Song}
+     */
+    private function clipOfAnotherSong(): array
+    {
+        Storage::fake('historic_quarantine');
+        Storage::disk('historic_quarantine')->put('sermons/songs/420/1814.mp4', 'clip');
+
+        $run = MediaProcessingLog::factory()->livestream()->completed()->create();
+        $oldSong = Song::factory()->create();
+        $section = $this->songSection($run, Song::factory()->create(), order: 4);
+        $section->forceFill(['extracted_video_path' => 'section-publications/1814-f283aec7bec2db3f/video.mp4'])->save();
+        $video = SongVideo::factory()->create([
+            'song_id' => $oldSong->id,
+            'service_section_id' => $section->id,
+            'video_file_path' => 'sermons/songs/420/1814.mp4',
+            'asset_disk' => 'historic_quarantine',
+            'publication_state' => SermonPublicationState::Quarantined,
+        ]);
+
+        return [$video, $run, $oldSong];
     }
 
     private function songSection(MediaProcessingLog $run, Song $song, int $order): ServiceSection

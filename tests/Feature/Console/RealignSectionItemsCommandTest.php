@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
+use App\Enums\SermonPublicationState;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
@@ -11,6 +12,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
+use App\Models\SongVideo;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -52,6 +54,20 @@ class RealignSectionItemsCommandTest extends TestCase
         $this->artisan('service:realign-section-items --apply --include-superseded')
             ->assertSuccessful();
         $this->assertNotSame($supersededWrong->id, $superseded->refresh()->church_service_item_id);
+    }
+
+    /** A clip of the wrong item's song is not a clip of the section's song once it is realigned. */
+    #[Test]
+    public function apply_releases_the_song_video_of_the_item_it_moves_away_from(): void
+    {
+        [$section, , $wrongItem] = $this->misalignedSection();
+        $video = SongVideo::factory()->create(['song_id' => $wrongItem->song_id, 'service_section_id' => $section->id]);
+
+        $this->artisan('service:realign-section-items --apply')->assertSuccessful();
+
+        $video->refresh();
+        $this->assertNull($video->service_section_id);
+        $this->assertSame(SermonPublicationState::Quarantined, $video->publication_state);
     }
 
     /**

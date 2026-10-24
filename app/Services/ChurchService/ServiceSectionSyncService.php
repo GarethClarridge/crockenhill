@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\ChurchService;
 
 use App\Actions\HoldSectionForContentReview;
-use App\Enums\SermonPublicationState;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Exceptions\UnplacedContentHoldException;
@@ -15,6 +14,7 @@ use App\Models\ServiceSection;
 use App\Models\SongVideo;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
 use App\Services\Sermon\SermonExtractionPlanResolver;
+use App\Services\Song\SongVideoService;
 use App\Support\ServiceSectionConfidence;
 use App\Traits\SanitizesLogData;
 use Carbon\CarbonImmutable;
@@ -67,6 +67,7 @@ class ServiceSectionSyncService
 
     public function __construct(
         private readonly SectionPublicationHandlerFactory $handlerFactory,
+        private readonly SongVideoService $songVideos,
     ) {}
 
     /**
@@ -405,10 +406,7 @@ class ServiceSectionSyncService
     /** Detach obsolete bindings without deleting the single-copy published or quarantined media. */
     private function detachSongVideos(ServiceSection $section): void
     {
-        SongVideo::query()->where('service_section_id', $section->id)->update([
-            'service_section_id' => null,
-            'publication_state' => SermonPublicationState::Quarantined,
-        ]);
+        $this->songVideos->releaseFromSection($section->id);
     }
 
     private function notifyHandlerOfRemoval(ServiceSection $section): void

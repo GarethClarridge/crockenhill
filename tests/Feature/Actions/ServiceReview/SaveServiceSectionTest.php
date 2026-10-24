@@ -6,6 +6,7 @@ namespace Tests\Feature\Actions\ServiceReview;
 
 use App\Actions\HoldSectionForContentReview;
 use App\Actions\ServiceReview\SaveServiceSection;
+use App\Enums\SermonPublicationState;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
@@ -16,6 +17,8 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\ServiceSection;
+use App\Models\Song;
+use App\Models\SongVideo;
 use App\Models\User;
 use App\Services\Sermon\SermonExtractionPlanResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -97,6 +100,68 @@ class SaveServiceSectionTest extends TestCase
             ['from' => null, 'to' => $sermonItem->id, 'taken_from_section_id' => $prayer->id, 'by_user_id' => $this->admin->id],
             array_diff_key($sermon->fresh()->metadata->raw['manual_item_link'], ['at' => true]),
         );
+    }
+
+    /**
+     * Run 1378, 2026-10-21: re-linking "What love could remember" to its item left the section's
+     * clip bound to "When I Was Lost", the item's song before. The binding goes; the file stays.
+     */
+    #[Test]
+    public function relinking_a_song_to_another_songs_item_releases_its_old_song_video(): void
+    {
+        $service = ChurchService::factory()->create();
+        $wasLost = ChurchServiceItem::factory()->song()->create(['church_service_id' => $service->id, 'position' => 13, 'song_id' => Song::factory()->create()->id]);
+        $remember = ChurchServiceItem::factory()->song()->create(['church_service_id' => $service->id, 'position' => 14, 'song_id' => Song::factory()->create()->id]);
+        $run = MediaProcessingLog::factory()->livestream()->create(['church_service_id' => $service->id]);
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'title' => 'What love could remember',
+            'church_service_item_id' => $wasLost->id,
+        ]);
+        $video = SongVideo::factory()->create([
+            'song_id' => $wasLost->song_id,
+            'service_section_id' => $section->id,
+            'publication_state' => SermonPublicationState::Published,
+        ]);
+
+        $this->action->execute(
+            section: $section,
+            sectionEdits: [$section->id => ['section_type' => 'song', 'title' => 'What love could remember', 'church_service_item_id' => (string) $remember->id]],
+            speakerEdits: [],
+            userId: $this->admin->id,
+        );
+
+        $video->refresh();
+        $this->assertNull($video->service_section_id);
+        $this->assertSame(SermonPublicationState::Quarantined, $video->publication_state);
+        $this->assertSame($wasLost->song_id, $video->song_id);
+    }
+
+    #[Test]
+    public function relinking_to_an_item_of_the_same_song_keeps_the_song_video(): void
+    {
+        $service = ChurchService::factory()->create();
+        $song = Song::factory()->create();
+        $first = ChurchServiceItem::factory()->song()->create(['church_service_id' => $service->id, 'position' => 3, 'song_id' => $song->id]);
+        $reprise = ChurchServiceItem::factory()->song()->create(['church_service_id' => $service->id, 'position' => 9, 'song_id' => $song->id]);
+        $run = MediaProcessingLog::factory()->livestream()->create(['church_service_id' => $service->id]);
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'title' => 'Reprise',
+            'church_service_item_id' => $first->id,
+        ]);
+        $video = SongVideo::factory()->create(['song_id' => $song->id, 'service_section_id' => $section->id]);
+
+        $this->action->execute(
+            section: $section,
+            sectionEdits: [$section->id => ['section_type' => 'song', 'title' => 'Reprise', 'church_service_item_id' => (string) $reprise->id]],
+            speakerEdits: [],
+            userId: $this->admin->id,
+        );
+
+        $this->assertSame($section->id, $video->fresh()->service_section_id);
     }
 
     #[Test]

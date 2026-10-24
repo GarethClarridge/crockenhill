@@ -25,6 +25,11 @@ use Illuminate\Support\Facades\Storage;
  * and is otherwise retired as sync retires one. No file is deleted: quarantine is single-copy, and
  * deleting a clip is the operator's decision from the report.
  *
+ * Song sections are cleared too when their clip is of another song, or they have none: the
+ * 10-10/10-11 re-detections gave song rows to other songs before sync released clips (10-16), and
+ * 17 kept the September clip (1096's "Christ is risen" showed "I Know That My Redeemer",
+ * 2026-10-24). Their own cut is their media and stays; only the clip's binding moves or goes.
+ *
  * Writes to round members, so it runs only when no round is open (runbook §2.4).
  *
  * Deletion trigger: delete once an executed run reports no stale sections and the watcher's diff
@@ -37,7 +42,7 @@ class ClearStaleSongClipsCommand extends Command
                             {--execute : Make the changes (default: dry run)}
                             {--report= : Write a JSON report to this path on the local disk}';
 
-    protected $description = 'Un-point song clips left on sections that are not songs, re-binding or retiring each clip';
+    protected $description = 'Un-point song clips left on sections that are not songs, or not of the song a section holds, re-binding or retiring each clip';
 
     public function handle(): int
     {
@@ -93,16 +98,37 @@ class ClearStaleSongClipsCommand extends Command
     private function staleSections(): iterable
     {
         return ServiceSection::query()
-            ->where('section_type', '!=', ServiceSectionType::Song->value)
             ->where(fn (Builder $query): Builder => $query
-                ->where('extracted_video_path', 'like', 'sermons/songs/%')
-                ->orWhereHas('songVideos'))
+                ->where(fn (Builder $query): Builder => $query
+                    ->where('section_type', '!=', ServiceSectionType::Song->value)
+                    ->where(fn (Builder $query): Builder => $query
+                        ->where('extracted_video_path', 'like', 'sermons/songs/%')
+                        ->orWhereHas('songVideos')))
+                ->orWhere(fn (Builder $query): Builder => $query
+                    ->where('section_type', ServiceSectionType::Song->value)
+                    ->whereHas('songVideos')))
             ->when($this->option('run') !== [], fn (Builder $query): Builder => $query
                 ->whereIn('media_processing_log_id', array_map('intval', (array) $this->option('run'))))
             ->orderBy('media_processing_log_id')
             ->orderBy('id')
-            ->with('songVideos')
-            ->lazyById();
+            ->with(['songVideos', 'churchServiceItem'])
+            ->lazyById()
+            ->filter(fn (ServiceSection $section): bool => $this->staleVideos($section) !== []
+                || ($section->section_type !== ServiceSectionType::Song && str_starts_with((string) $section->extracted_video_path, 'sermons/songs/')));
+    }
+
+    /**
+     * A section that is not a song holds no song's clip; a song section holds only its own song's.
+     *
+     * @return list<SongVideo>
+     */
+    private function staleVideos(ServiceSection $section): array
+    {
+        $songId = $section->section_type === ServiceSectionType::Song ? $section->resolvedSongId() : null;
+
+        return array_values($section->songVideos
+            ->filter(static fn (SongVideo $video): bool => $songId === null || $video->song_id !== $songId)
+            ->all());
     }
 
     /**
@@ -110,10 +136,11 @@ class ClearStaleSongClipsCommand extends Command
      */
     private function clear(ServiceSection $section, bool $execute): array
     {
-        $path = str_starts_with((string) $section->extracted_video_path, 'sermons/songs/') ? $section->extracted_video_path : null;
+        $path = $section->section_type !== ServiceSectionType::Song
+            && str_starts_with((string) $section->extracted_video_path, 'sermons/songs/') ? $section->extracted_video_path : null;
         $videos = [];
 
-        foreach ($section->songVideos as $video) {
+        foreach ($this->staleVideos($section) as $video) {
             $target = $this->songSectionFor($section, $video);
             $videos[] = [
                 'song_video_id' => $video->id,

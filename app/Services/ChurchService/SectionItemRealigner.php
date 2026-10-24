@@ -9,12 +9,17 @@ use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\Song\SongVideoService;
 use App\Support\SongTitleNormalizer;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\DB;
 
 class SectionItemRealigner
 {
+    public function __construct(
+        private readonly SongVideoService $songVideos,
+    ) {}
+
     /**
      * @return list<array{section: ServiceSection, from: ChurchServiceItem|null, to: ChurchServiceItem|null, from_item_id: int|null, to_item_id: int|null, match: string}>
      */
@@ -124,6 +129,9 @@ class SectionItemRealigner
                     ->whereKey($change['section']->id)
                     ->lockForUpdate()
                     ->update(['church_service_item_id' => $change['to_item_id']]);
+
+                // A clip of the item it moves away from is not a clip of this section's song.
+                $this->songVideos->releaseFromSection($change['section']->id, $change['section']->fresh()?->resolvedSongId());
             }
         });
     }

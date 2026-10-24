@@ -18,6 +18,7 @@ use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Preacher\TalkSpeakerService;
 use App\Services\Sermon\SermonExtractionPlanResolver;
+use App\Services\Song\SongVideoService;
 use Closure;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -31,6 +32,7 @@ class SaveServiceSection
         private readonly ServiceSectionPublicationTransitionService $publicationTransitions,
         private readonly ExtractedSectionMediaChecker $mediaChecker,
         private readonly ReturnTalkCandidateForRecut $returnForRecut,
+        private readonly SongVideoService $songVideos,
     ) {}
 
     /**
@@ -294,6 +296,7 @@ class SaveServiceSection
     /**
      * Link the section to the item the reviewer chose, taking it from any other section of the run
      * that held it: one item is one section's (1363's split left the sermon's item on its prayer).
+     * Either section's clip of a song it no longer holds is released (1378 kept "When I Was Lost").
      *
      * @param  array<string, mixed>  $metadata
      * @return array<string, mixed>
@@ -313,6 +316,10 @@ class SaveServiceSection
             ->first();
         $holder?->forceFill(['church_service_item_id' => null])->save();
 
+        if ($holder instanceof ServiceSection) {
+            $this->songVideos->releaseFromSection($holder->id, $holder->unsetRelation('churchServiceItem')->resolvedSongId());
+        }
+
         $metadata['manual_item_link'] = [
             'from' => $section->church_service_item_id,
             'to' => $itemId,
@@ -321,6 +328,7 @@ class SaveServiceSection
             'at' => now()->toIso8601String(),
         ];
         $section->church_service_item_id = $itemId;
+        $this->songVideos->releaseFromSection($section->id, $section->unsetRelation('churchServiceItem')->resolvedSongId());
 
         return $metadata;
     }
