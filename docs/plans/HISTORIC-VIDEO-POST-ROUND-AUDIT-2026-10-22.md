@@ -1,6 +1,6 @@
 # Historic video post-round audit
 
-**Status — 2026-10-23: calibration and a 20-service discovery pilot completed; wider review pending.**
+**Status — 2026-10-24: initial 70-service discovery completed; luna-batch50-03 at 24/50 reviewed, stopped_at_usage_limit. See live checkpoint below.**
 The operator approves wider Luna lead discovery with evidence-based verification despite the
 failed calibration gate for cheap-only clearance. Pass A checked the expected files, streams and
 recorded durations, but full decode validation remains undone. The pilot produced five supported
@@ -158,6 +158,38 @@ the [historic plan's execution record](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEP
 contains the calibration and pilot history. These observations establish useful lead discovery,
 not a corpus defect rate or reliable cheap-only clearance.
 
+**Next batch completed — 2026-10-23:** `luna-batch50-02` froze 50 previously unpacketed
+services from Pass A, with membership seed `20261023`, packet hashes and the unchanged v2 rubric.
+Twenty-five fresh Luna/medium workers reviewed two services each, at most three active together,
+preserving source-first outlines before opening delivered evidence. Coverage: **54,658 source
+cues, 213 outputs**. Luna raised **39 flags on 29 services**; the other **21 are apparent passes**,
+not certified clean. Targeted Sol/high verification and coordinator editorial grouping produced
+**5 supported material, 16 minor, 13 evidence-unresolved, 3 rejected and 2 accepted-exception**
+dispositions. Four unresolved leads remain potentially material; the other nine are minor.
+Thirty-nine services have unassessable notes, including withheld items and transcription gaps;
+this is not a count of defective services.
+
+The five supported material findings are wrong named-preacher attribution on **967 and 975**,
+omitted foundational readings on **1066 (2 Chronicles 1) and 1148 (Revelation 5)**, and a final
+song retaining complete sentences of the following prayer on **932**. Exact replacement identities
+and repair edges still need their normal evidence checks. Potentially consequential transcript
+leads on **991, 1280, 1283 and 1323** await bounded new media evidence; repeated review of their
+correlated text cannot settle the spoken words. Existing start/closing-prayer acceptances on
+932 and 1379 were retained. A proposed cropped song opening on 1199 remains unresolved because
+the excluded words may be a permitted spoken introduction rather than singing.
+
+Artifacts: `storage/scratch/overnight-20261023/audit/luna-batch50-02/batch-report.json`,
+`coverage.json`, `findings.json`, `sol-verification.json`, effective citation checks, input/result
+hashes and the resumable queue. Citation corrections preserve raw answers separately; all effective
+citations validate. The corpus apparent-pass ledger is
+`storage/scratch/overnight-20261023/audit/apparent-pass-ledger.json`: population and hash records
+are saved, but final strata, selection and blind review remain pending wider coverage. No per-batch
+sample or automatic credit for pilot checks is claimed. All 50 service reviews explicitly screened sermon
+openings; this does not complete the independent corpus-wide affected-class check or its disjoint
+follow-up. Separate pending media records enumerate **213 decode checks and 48 assembled joins**
+for this batch. No decode, fresh transcription, repair, publication or production write occurred.
+Account usage and execution timestamps are recorded with the batch; no reset was redeemed.
+
 **Original calibration contract (retain for future model/rubric comparisons):**
 
 Prepare 24 blinded service/case packets: 8 confirmed material defects using preserved pre-fix
@@ -289,3 +321,33 @@ class check plus its disjoint follow-up sample. Keep a separate pending record f
 every assembled join and Pass C media verification; text-only review does not complete those checks.
 Back up the evidence before audit closeout. Repairs to the five pilot findings remain separate,
 test-first work; this plan update performs no repair, publication or fresh transcription.
+
+<!-- LUNA-CONTINUATION:START -->
+### Continuing Luna execution — limit-stop handoff
+
+Updated 2026-10-24T11:35:58.022450+00:00. **luna-batch50-03: 24/50 services reviewed;
+26 unfinished; execution state `stopped_at_usage_limit`.** The earlier pilot and
+50-service batch cover 70 services; cumulative discovery coverage is now **94**.
+This batch has 16,496 reviewed source cues, 27 raw flags on
+16 services and 8 apparent passes. Current dispositions:
+`{"accepted_exception": 1, "evidence_unresolved": 3, "rejected": 3, "supported_material": 4, "supported_minor": 16}`. Raw flags are not confirmed findings.
+
+Membership, packet hashes, source-first outlines, per-service results, coverage and resumable queue:
+`storage/scratch/overnight-20261023/audit/luna-batch50-03/`. Live aggregate:
+`storage/scratch/overnight-20261023/audit/discovery-report.json`. Start allowance consumed:
+71%; latest observed consumption:
+100%. No reset is redeemed automatically. Resume only
+unfinished reviews, preserving separate awaiting-adjudication and evidence-unresolved work.
+Corpus sampling and the missing-sermon-opening affected-class check/disjoint follow-up remain pending;
+these are not replaced by per-batch passes. Full decode, actual-media join checks and bounded Pass C
+remain separate. No repair, fresh transcription, publication or production write is performed.
+
+The five-hour limit reached **100%**, confirmed by the account limit response and the interrupted
+worker. Allowances subsequently refreshed; the operator requested wrap-up on 2026-10-24, without
+starting more work. Run **1197** retains a source-first outline only and is not counted complete.
+The four supported material findings are **1011** (cropped hymn), **1096** (omitted sermon
+conclusion and mismatched song binding) and **1147** (unrelated prayer-request discussion).
+All 27 flags now have a recorded disposition; unresolved evidence remains unresolved. Protocol
+deviations in 1147/1152 (packet metadata opened before outline preservation, delivered data afterward)
+are retained in coverage, rather than represented as fully blind source-first reviews.
+<!-- LUNA-CONTINUATION:END -->
