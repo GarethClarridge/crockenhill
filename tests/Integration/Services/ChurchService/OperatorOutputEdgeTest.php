@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Storage;
 use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Responses\Chat\CreateResponse;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Support\AudioTimelineFixture;
 use Tests\TestCase;
 
@@ -207,6 +208,40 @@ class OperatorOutputEdgeTest extends TestCase
         $this->assertCount(1, CueSafeExtractionPlan::refusedOperatorEdges($plan['cue_edge_widening']));
         $this->assertContains(['kind' => 'operator_edge_refused', 'section_ids' => [$song->id]],
             app(PublicationPlanValidator::class)->validate($log, [$song], $plan['segments'], $plan['cue_edge_widening']));
+    }
+
+    /**
+     * 1149 §2219: the band plays in under the sermon's last seconds, and the operator starts the song
+     * there by ear. Ruled 10-24: "Some overlap is fine. An intro to the song can also be the end of
+     * the sermon." The musical-introduction rule crosses into a talk's tail the same way.
+     */
+    #[Test]
+    public function a_song_start_may_reach_back_into_the_sermon_before_it(): void
+    {
+        $log = $this->service([], [['sermon', 10.0, 60.0], ['song', 60.0, 200.0]]);
+        $song = $log->serviceSections()->where('section_type', ServiceSectionType::Song)->sole();
+        $this->setEdge($song, 'start', 50.0);
+
+        $plan = $this->plans()->forSection($song->fresh());
+
+        $this->assertSame([], CueSafeExtractionPlan::refusedOperatorEdges($plan['cue_edge_widening']));
+        $this->assertSame(50.0, $plan['segments'][0]['start_time']);
+    }
+
+    /** Music before a song inside the song before it, or before the service, is not its introduction. */
+    #[Test]
+    #[TestWith(['song'])]
+    #[TestWith(['other'])]
+    public function a_song_start_may_not_reach_back_into_music_of_its_own(string $before): void
+    {
+        $log = $this->service([], [[$before, 10.0, 60.0], ['song', 60.0, 200.0, 'This song']]);
+        $song = $log->serviceSections()->where('title', 'This song')->sole();
+        $this->setEdge($song, 'start', 50.0);
+
+        $plan = $this->plans()->forSection($song->fresh());
+
+        $this->assertCount(1, CueSafeExtractionPlan::refusedOperatorEdges($plan['cue_edge_widening']));
+        $this->assertSame(60.0, $plan['segments'][0]['start_time']);
     }
 
     #[Test]

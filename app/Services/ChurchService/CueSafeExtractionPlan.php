@@ -13,6 +13,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\Structure\DeadFeedInsideSection;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\ChurchService\Structure\SongMusicalIntroduction;
 use App\Services\ChurchService\Structure\SongSpeechEdges;
 use App\Services\ChurchService\Structure\UntranscribedSpeechBeforeSection;
 use App\Services\Media\Audio\AudioTimeline;
@@ -1296,7 +1297,10 @@ class CueSafeExtractionPlan
      * An answer is refused, and the planner's edge stands, where it would leave a part out, fall
      * outside the recording, or, moved outward past the planner's edge, cut into a section this
      * output does not include. Content the planner already reaches is not new: 1224's end, carried
-     * into the hymn, may be set anywhere inside that stretch. The validator refuses a plan with a
+     * into the hymn, may be set anywhere inside that stretch. A song's start may reach back into a
+     * spoken section before it: "An intro to the song can also be the end of the sermon" (10-24,
+     * 1149 §2219), as the musical-introduction rule crosses into a talk's tail
+     * ({@see SongMusicalIntroduction::STOPS_AT}); another song or music before the service is not. The validator refuses a plan with a
      * refused answer ({@see self::refusedOperatorEdges()}), so it is changed, never silently dropped.
      *
      * @param  list<array{start_time: float, end_time: float}>  $sectionSpans
@@ -1311,6 +1315,7 @@ class CueSafeExtractionPlan
         }
 
         $others = $log->serviceSections()->whereNotIn('id', $answers->outputSectionIds)->orderBy('start_time')->orderBy('id')->get();
+        $ownerIsSong = $log->serviceSections()->whereKey($answers->ownerSectionId)->value('section_type') === ServiceSectionType::Song;
 
         foreach ($answers->answers as $edge => $answer) {
             $index = $edge === 'start' ? array_key_first($spans) : array_key_last($spans);
@@ -1318,7 +1323,9 @@ class CueSafeExtractionPlan
             $planned = $edge === 'start' ? $spans[$index]['start_time'] : $spans[$index]['end_time'];
             $time = (float) $answer['time'];
             $record = ['section_id' => $answers->ownerSectionId, ...$answer];
-            $refusal = $this->operatorEdgeRefusal($log, $spans[$index], $edge, $planned, $time, $others);
+            $refusal = $this->operatorEdgeRefusal($log, $spans[$index], $edge, $planned, $time, $ownerIsSong && $edge === 'start'
+                ? $others->filter(static fn (ServiceSection $section): bool => in_array($section->section_type, SongMusicalIntroduction::STOPS_AT, true))
+                : $others);
             $entryKey = array_key_first(array_filter($audit, static fn (array $entry): bool => $entry['span_index'] === $index
                 && $entry['edge'] === $edge && ($entry['reason'] ?? null) !== self::UNRESOLVED_INTERVAL));
             $original = $entryKey === null ? (float) ($sectionSpans[$index][$key] ?? $planned) : (float) $audit[$entryKey]['original_time'];

@@ -9,6 +9,7 @@ use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\Media\Audio\AudioTimeline;
 use UnexpectedValueException;
 
@@ -48,9 +49,10 @@ final class SongMusicalIntroduction
     /**
      * Sections whose music is their own: another song, and an `other` section such as music
      * before the service (1233), which D6 keeps apart from the songs. A talk's musical tail is
-     * the next song's introduction, so the walk may cross into it (1154).
+     * the next song's introduction, so the walk may cross into it (1154), and so may an operator's
+     * start set by ear ({@see CueSafeExtractionPlan}).
      */
-    private const STOPS_AT = [
+    public const STOPS_AT = [
         ServiceSectionType::Song,
         ServiceSectionType::Other,
     ];
