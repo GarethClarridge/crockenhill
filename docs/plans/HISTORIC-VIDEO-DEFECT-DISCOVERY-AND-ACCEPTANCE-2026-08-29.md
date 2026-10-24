@@ -3789,3 +3789,30 @@ removing holds that do not predict faults. The remaining work goes into a few de
 
 With these, steps 3 and 4 of the order above no longer wait for a decision. The order is unchanged otherwise.
 
+**2659 answered (10-25): the sermon starts at 32:19** (choice "before 33:05", note "32:19"; saved copy
+`storage/scratch/queue-followup-20261025/answers/rulings/2659-sermon_start.json`). The song before ends at 32:12.4, so
+the sermon begins about 7 s after it, and the stored start (33:30.3) is **about 71 s late**. The sermon's whole
+opening is missing from its media. Capture the start as a ruling in the ruled-endings set (record, not processing).
+
+Why nothing asked about it, read from the code and run 1216's transcript (read-only):
+- The transcript records an **unobservable window 1734.1–2010.1 s, reason `retranscription_failed`**. It covers the
+  last 3 minutes of the song before and the sermon's first 71 s. The first cue is at 2010.3, and the stored start
+  sits on it.
+- `UntranscribedSpeechBeforeSection` (F11) exists to ask about speech after a song that the transcript holds no
+  line for. But it counts a recorded unobservable window as covered: the floor of its stretch moves to the
+  window's end (2010.1), the stretch is under 10 s, and no flag is raised. So **the case where the opening is lost
+  for certain (the re-transcription failed) is the one F11 cannot see.**
+- The sermon reached the queue only because a song trim happened to leave 33:05–33:30 unowned
+  (`structure_sermon_adjacent_speech_unowned`). Under K17 that flag still holds a sermon, because this speech sits on
+  the sermon side.
+
+What this adds to the work (hypotheses until counted):
+- **A class scan for the audit's lost-sermon-opening class (step 4 of "Next, in order"):** every section whose
+  start falls within a second or two of an unobservable window's end, after a song, where the classifier hears
+  speech inside the window. Count them before fixing anything. 1027's lost introduction is the case already known.
+- **The F11 fix to consider, test first:** an unobservable window should not hide the speech under it. Either F11
+  asks about a stretch that runs into the window, or a separate flag holds a section whose start abuts one. The
+  sound can place the start where the transcript cannot (the classifier heard the speech), but the operator's
+  10-05 ruling for F11 is "mark and ask", not move. Keep to that unless the operator rules otherwise.
+- The text of those 71 s is a re-decode question (H10b route), separate from the cut.
+
