@@ -10,7 +10,9 @@
 > 69 unassessable; the CI ratchet grows by 1,145 rulings in 298 run fixtures. **10-24:** the 10-23/24 rule
 > changes have reached no run; a detection-only recompose round (no provider calls, no re-cut) is agreed to show
 > what they change, not yet set up: blocked on the internal disk's 8.7 GB against the 10 GB floor (§5, "10-24").
-> The song evidence backfill's count is fixed (8 newly held, not 286). **Next:** resolve the 106 failing
+> The song evidence backfill's count is fixed (8 newly held, not 286). **10-24/25:** that round is deferred; an
+> 80-item sample of the review queue was heard (10 real defects, 70 held for nothing), and what to do with it is
+> planned in §5 "10-25 (later)": stale review state first, then talk type, S8 and the hold changes. **Next:** resolve the 106 failing
 > edges and 23 current unassessable rulings (§4.6 and §5, morning recapture); the
 > [post-round audit](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md) (first slice:
 > inventory, read-only packets, calibration; no processing); acceptance (§4.5). Weekly take-over preparation
@@ -3686,4 +3688,86 @@ Observations to check, not conclusions:
   totals and say which are observations.
 - Dropping a hold is a code change with a mechanism and a count, not a consequence of ten clean samples. 20 of 20 talk
   answers and 10 of 10 loudness answers say the holds are over-cautious; they do not say why.
+
+#### 10-25 (later): what to do with the sample — holds to drop, defects to fix, and the order
+
+Asked what to do with the 80 answers, with planning only and nothing implemented. Each finding was checked against
+the code and counted read-only (`population.json` and live queries on 10-25); nothing was processed.
+
+**The result in one line.** 10 of the 80 were real defects: 7 song ends, 3 low-confidence songs cut wrongly, and
+2 sermon starts (3242 late; 2659 still to be settled). The other 70 were held for nothing. So most of the gain is in
+removing holds that do not predict faults. The remaining work goes into a few defect classes that keep recurring.
+
+**A. Holds to remove or narrow**
+
+1. **Stale review state: no ruling needed.** The sample's strata were defined by a flag being *present*, not by it
+   *forcing* the hold. Running the current `SectionReviewFlagPolicy::requiresManualReview()` over the export:
+   **29 of the 531 flagged rows would not be held today.** 27 are short talks whose only flag is
+   `structure_oos_cross_type_inversion`, which the policy always demotes; 2 are songs with no flags. So the "talk ·
+   order of service" stratum is mostly held by stale data. Their rows were last written 10-17/18, during the round,
+   so some writer re-held them without asking the policy: the same class as the 09-08 recompute (96 cross-type
+   demotions; `review_flag_recompute_is_one_directional`). Separately, **9 queued sections carry
+   `structure_low_confidence` at confidence ≥ 0.85** (5 songs, 3 talks, 1 reading; 4322 at 0.96 is one).
+   Fix: find the writer and write its failing test, then dry-run `services:recompute-section-review-flags` (and the
+   structure re-derivation for the low-confidence residue). Executing either changes stored state, so it needs the
+   operator's word.
+2. **Pre-service music: the flag serves nothing here.** `FLAG_SECTION_READS_AS_SUNG` is read only by the review queue
+   and the detector catalogue and evaluation. The harm it was built for, a hymn absorbed into a sermon's media, is
+   caught on the sermon itself by `SungSpanInsideSermon` (`structure_sermon_contains_sung_span`).
+   `MistypedSungSections`'s docblock already says pre-service music is "not mistyped at all". Fix (test first): skip
+   sections that end before the service begins, judged by **position, not title**. §1301 ("Lo He Comes", typed
+   `other`, mid-service) must still be flagged. Check 2368 ("Welcome", run 1180) before deciding the welcome case.
+3. **Short song clip: the 90 s floor looks too high.** `SongPublicationReviewPolicy::minimumAutomaticDuration()`
+   comes from the pilot's gap ("every clip a reviewer should have seen ran under a minute and every clip that was
+   fine ran over two"). All 10 sampled (58–81 s) were whole, and fragments under 60 s now get their own diagnosis
+   from `SongSectionWithoutSong`. Queued sections carrying `short_song_clip`, by duration: 0–45 s 18, 45–60 s 9,
+   60–75 s 20, 75–90 s 22. **42 are in 60–90 s, 20 of them held for nothing else.** Proposal: a 60 s floor
+   (operator decision). 2771 and 3285 are truncated by the recording, not by the cut: check them against the
+   partial-recording handling; they are not a reason to keep the floor.
+4. **Unowned speech: split by neighbour, not by gap.** Every note already names the neighbour ("the **reading's** own
+   words or an excluded announcement?" against "the **sermon's** own words…"). Of 47: **37 reading side only, 9 sermon
+   side only, 1 both** (1133). The 7 sampled reading-side items were all announcements; the 3 sermon-side ones were
+   mixed (3506 announcement, 2659 sermon words, 3242 late start). The gap bands of the 10-25 section are a
+   consequence of this: reading-side speech sits before the reading, minutes before the sermon. Proposal:
+   reading-side speech becomes a note, not a hold; the sermon side keeps holding. 0 of 7 bounds the defect rate below
+   about 35% (95%), so this needs the operator's ruling or 10 more reading-side clips (a small page).
+5. **Talks: fix the talk type first.** No talk can publish without a confirmed type, and 172 of 315 have no proposed
+   type, so the talk-type hypothesis (step 3 of "Next, in order" in the 10-24 later section) unblocks more than any
+   hold change. Talk low confidence (10 of 10 fine; confidences 0.62–0.84) needs a measurement before any change.
+   A section's confidence is the detector's own estimate of its *type*, not a measure of the cut (the July Fix 7
+   lesson, `stale_review_state_reconciliation`). Read what the ensemble draws agreed on for these talks before
+   proposing a rule.
+
+**B. Defects to fix**
+
+6. **Song ends (trailing content, 7 of 10 wrong): keep the hold.** Capture the 7 ruled ends, plus the 4 from the
+   low-confidence stratum, into the ruled-endings regression set (`ruled_endings_regression_set`); that is a record,
+   not processing. Then find out why the cut lands where it does, as listed in the music section.
+7. **Early transcript timing and the silence snap.** 3242's notes show two errors in the same direction: the cue gave
+   2112.5 s (already ~11.5 s before the ruled 35:24), then "Start snapped -10.2s to silence at 2101.8s". Across all
+   live sermons, **4 have a start snapped 2 s or more earlier**: 3242 (−10.2), 4435 (−6.3), 3687 (−3.8), 214227
+   (−2.8). Investigate the snap's search distance (a 10 s backward snap should not be allowed past speech the
+   classifier hears) and, separately, a transcript timing offset on runs 1259 and 1308 (3918). Count snap sizes for
+   songs too before generalising.
+8. **Loudness: the check has a gap, and the large misses are unexplained.** `VideoExtractionService::audioReport()`
+   gives the public MP3 a ceiling for lossy files (+1.0 dBTP, `audio_treatment.public_mp3.true_peak_ceiling_db`,
+   because "a lossy encode overshoots its input at a transient"), but holds the video's AAC, also lossy, to the
+   treatment ceiling plus tolerance (−1.5 + 1.0 = −0.5 dBTP). That explains the small misses (0.1–0.8 dB). It does not
+   explain 4.4 dB (1299), 2.7 (1767) or 2.0 (2318): read those parts' treatment mode (`loudnorm` or plain gain) in
+   their audio reports before choosing a fix. Operator decision: is −0.5 dBTP on the video a requirement or a target?
+
+**C. Questions for the operator**
+- Is 60 s the right song floor (item 3)?
+- Reading-side unowned speech: rule now, or listen to 10 more first (item 4)?
+- Is the −0.5 dBTP video limit a requirement or a target (item 8)?
+- 2659: re-listen with the minute before 33:05 (10-25 section).
+
+**Order** (each step failing test first; nothing touches processing without the operator's word):
+1. Stale review state (A1): current policy, no ruling needed.
+2. Talk-type fix (A5), then S8 (already ruled; step 2 of "Next, in order").
+3. Pre-service music (A2) and, once ruled, the 60 s floor (A3).
+4. Reading-side unowned speech (A4), once ruled.
+5. Edge captures and the snap and timing counts (B6, B7); loudness mechanism (B8).
+6. Then the corpus class scans and the one recompose-and-re-cut round, as already planned (steps 4–6 of
+   "Next, in order").
 
