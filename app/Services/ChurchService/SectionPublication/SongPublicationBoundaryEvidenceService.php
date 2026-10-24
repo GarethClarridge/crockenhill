@@ -95,9 +95,12 @@ final class SongPublicationBoundaryEvidenceService
      * 8 (2026-09-24): records {@see SongOpeningAndClosing} under `song_ends`, so a clip that
      * opens after its first verse or closes before its last, with the church still singing
      * beyond the edge, reaches a reviewer.
+     * 9 (2026-10-24): {@see SongLyricsOutsideSection} holds a song's own opening sung after the
+     * introduction up to the start by its loudness, not its pauses (1240, 1345), recorded under
+     * each lyric edge's `sung_opening`.
      * Evidence banked under an earlier version is stale, and the backfill re-assesses it.
      */
-    public const VERSION = 8;
+    public const VERSION = 9;
 
     private const LEADING_CUE_WINDOW_SECONDS = 5.0;
 

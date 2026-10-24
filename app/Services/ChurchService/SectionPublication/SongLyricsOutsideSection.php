@@ -32,6 +32,13 @@ use App\Services\Media\Audio\SustainedSound;
  * music. The operator chose to hold all three, because a missed edge publishes a clip without
  * its verses. Transcripts miss much singing (clip 192's "heaven-born" was never transcribed),
  * so this is a floor, not a census.
+ *
+ * A song's own opening sung just before its start is held whatever its pauses. The lines after
+ * an introduction — the leader's last words, then {@see self::INTRODUCTION_SECONDS} without one
+ * — running up to the start are the congregation coming in, and a congregation finding its feet
+ * breaks like speech: 1240 and 1345 lost 16 s and 13 s of a first verse sung at 80-88% loudness
+ * because the span also took in the leader reading the verse (2026-10-24). They are judged by
+ * loudness instead, so a feed muted until the clip begins (1011) holds nothing.
  */
 final class SongLyricsOutsideSection
 {
@@ -45,6 +52,19 @@ final class SongLyricsOutsideSection
 
     /** A cue's start time stands for a line; the sound is judged a few seconds past it. */
     private const LINE_SECONDS = 6.0;
+
+    /** The wordless introduction between the leader's last words and a sung opening. */
+    private const INTRODUCTION_SECONDS = 5.0;
+
+    /** A sung opening runs up to the start: its last line ends no further out than this. */
+    private const OPENING_REACH_SECONDS = 5.0;
+
+    /** The longest pause between two lines of one sung opening. */
+    private const OPENING_LINE_GAP_SECONDS = 8.0;
+
+    private const MINIMUM_OPENING_LINES = 2;
+
+    private const MINIMUM_OPENING_ACTIVE_SHARE = 0.5;
 
     /**
      * A line repeated more often than this inside one edge window is a transcription loop, and a
@@ -78,6 +98,7 @@ final class SongLyricsOutsideSection
      *     word_pairs: list<string>,
      *     span: array{start: float, end: float},
      *     sustained_share: float,
+     *     sung_opening: array{start: float, end: float, lines: int, active_share: float}|null,
      *     risk: bool,
      *     detail: string
      * }>
@@ -177,7 +198,7 @@ final class SongLyricsOutsideSection
      * @param  list<ServiceSection>  $others
      * @param  array<string, true>  $ownPairs
      * @param  array<int, array<string, true>>  $lyrics
-     * @return array{edge: 'before'|'after', holder: string, lines: int, word_pairs: list<string>, span: array{start: float, end: float}, sustained_share: float, risk: bool, detail: string}|null
+     * @return array{edge: 'before'|'after', holder: string, lines: int, word_pairs: list<string>, span: array{start: float, end: float}, sustained_share: float, sung_opening: array{start: float, end: float, lines: int, active_share: float}|null, risk: bool, detail: string}|null
      */
     private function observeEdge(
         string $edge,
@@ -199,12 +220,14 @@ final class SongLyricsOutsideSection
             $transcript->cues,
             static fn (array $cue): bool => $cue['start'] >= $from && $cue['start'] < $to,
         ));
+        usort($windowCues, static fn (array $a, array $b): int => $a['start'] <=> $b['start']);
+        $counted = [];
         $repeats = array_count_values(array_map(
             static fn (array $cue): string => trim((string) preg_replace('/[^a-z]+/', ' ', mb_strtolower($cue['text']))),
             $windowCues,
         ));
 
-        foreach ($windowCues as $cue) {
+        foreach ($windowCues as $index => $cue) {
             $normalised = trim((string) preg_replace('/[^a-z]+/', ' ', mb_strtolower($cue['text'])));
 
             if (($repeats[$normalised] ?? 0) > self::MAXIMUM_LINE_REPEATS || preg_match(self::ANNOUNCEMENT_PATTERN, $cue['text']) === 1) {
@@ -230,6 +253,7 @@ final class SongLyricsOutsideSection
             }
 
             $lines++;
+            $counted[$index] = true;
             $spanStart = min($spanStart, $cue['start']);
             $spanEnd = max($spanEnd, $cue['start'] + self::LINE_SECONDS);
             $pairs += $shared;
@@ -241,7 +265,8 @@ final class SongLyricsOutsideSection
         }
 
         $share = $sound?->share($spanStart, $spanEnd) ?? 0.0;
-        $risk = $share >= self::MINIMUM_SUSTAINED_SHARE;
+        $opening = $edge === 'before' ? $this->sungOpening($windowCues, $counted, $to, $sound) : null;
+        $risk = $share >= self::MINIMUM_SUSTAINED_SHARE || $opening !== null;
 
         return [
             'edge' => $edge,
@@ -250,6 +275,7 @@ final class SongLyricsOutsideSection
             'word_pairs' => array_keys($pairs),
             'span' => ['start' => $spanStart, 'end' => $spanEnd],
             'sustained_share' => round($share, 2),
+            'sung_opening' => $opening,
             'risk' => $risk,
             'detail' => sprintf(
                 '%d transcript line(s) %s the clip, inside %s at %.1fs-%.1fs, share %d word pairs with this song\'s lyrics%s.',
@@ -259,10 +285,58 @@ final class SongLyricsOutsideSection
                 $spanStart,
                 $spanEnd,
                 count($pairs),
-                $risk
-                    ? ' over sustained sound, so the clip may leave out part of its own song'
-                    : '; the sound under them pauses like speech, so they read as a quotation',
+                match (true) {
+                    $share >= self::MINIMUM_SUSTAINED_SHARE => ' over sustained sound, so the clip may leave out part of its own song',
+                    $opening !== null => sprintf(' and %d of them, from %.1fs, are sung after the introduction up to the start, so the clip may leave out its own opening', $opening['lines'], $opening['start']),
+                    default => '; the sound under them pauses like speech, so they read as a quotation',
+                },
             ),
+        ];
+    }
+
+    /**
+     * The song's own lines sung after the introduction and up to the start, when they are loud.
+     *
+     * Walking in from the start: the last line before it must be this song's and end within
+     * {@see self::OPENING_REACH_SECONDS}; earlier lines of this song join it while no pause
+     * between them passes {@see self::OPENING_LINE_GAP_SECONDS}. The line before the run must
+     * be someone else's words, ended at least {@see self::INTRODUCTION_SECONDS} before it: a
+     * verse read straight into the song (977) has no introduction, and a run with nothing before
+     * it in the window has no evidence of one.
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues  The window, in time order
+     * @param  array<int, true>  $counted  The cues that are this song's lines
+     * @return array{start: float, end: float, lines: int, active_share: float}|null
+     */
+    private function sungOpening(array $cues, array $counted, float $start, ?SustainedSound $sound): ?array
+    {
+        $last = count($cues) - 1;
+
+        if ($sound === null || $last < 0 || ! isset($counted[$last]) || $cues[$last]['end'] < $start - self::OPENING_REACH_SECONDS) {
+            return null;
+        }
+
+        $first = $last;
+
+        while ($first > 0 && isset($counted[$first - 1]) && $cues[$first]['start'] - $cues[$first - 1]['end'] <= self::OPENING_LINE_GAP_SECONDS) {
+            $first--;
+        }
+
+        if ($first === 0 || $cues[$first]['start'] - $cues[$first - 1]['end'] < self::INTRODUCTION_SECONDS || $last - $first + 1 < self::MINIMUM_OPENING_LINES) {
+            return null;
+        }
+
+        $activeShare = $sound->activeShare($cues[$first]['start'], $start);
+
+        if ($activeShare < self::MINIMUM_OPENING_ACTIVE_SHARE) {
+            return null;
+        }
+
+        return [
+            'start' => (float) $cues[$first]['start'],
+            'end' => $start,
+            'lines' => $last - $first + 1,
+            'active_share' => round($activeShare, 2),
         ];
     }
 

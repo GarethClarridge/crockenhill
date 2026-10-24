@@ -258,6 +258,71 @@ class SongLyricEdgeExtensionTest extends TestCase
     }
 
     /**
+     * 1240 §175520: the leader read the first verse, called the church to stand, and the band
+     * played in. The congregation's first lines break like speech, so the hold released them as a
+     * quotation and the clip began 16 s into the song.
+     */
+    #[Test]
+    public function it_starts_a_song_at_its_first_lines_sung_after_the_introduction(): void
+    {
+        $section = $this->song(3888.94, 4007.82, 'O Father you are sovereign in all the worlds you made your mighty word was spoken and light and life obeyed your voice commands the seasons');
+        $this->transcript([
+            [3846.7, 3850.56, 'so I can remember the hymn that I chose two weeks ago.'],
+            [3852.5, 3854.02, 'O Father, you are sovereign.'],
+            [3854.72, 3856.54, 'In all the worlds you made,'],
+            [3857.08, 3860.78, 'your mighty word has spoken and light and life obeyed.'],
+            [3860.78, 3862.10, 'Let\'s stand to sing.'],
+            [3872.60, 3876.94, 'O Father, you are sovereign.'],
+            [3877.46, 3881.02, 'In all the worlds you made,'],
+            [3881.54, 3888.94, 'Your mighty word was spoken and lightened like the bait.'],
+            [3888.94, 3896.86, 'Your voice commands the seasons'],
+        ], [[0, 3863, 'speech'], [3863, 3872, 'sung'], [3872, 3889, 'faltering'], [3889, 4100, 'sung']], duration: 4100.0);
+
+        $this->assertSame(1, $this->extension()->extend($this->run));
+        $this->assertEqualsWithDelta(3872.60, (float) $section->fresh()->start_time, 0.01);
+    }
+
+    /**
+     * 1011 §1285: the lines were transcribed from a feed muted until the clip begins; there is
+     * nothing to hear before it, so the clip keeps its start.
+     */
+    #[Test]
+    public function it_leaves_a_song_whose_opening_lines_lie_under_silence(): void
+    {
+        $section = $this->song(513.85, 637.42, 'This is our God the servant King he calls us now to follow him to bring our lives as a daily offering of worship to the servant King');
+        $this->transcript([
+            [432.0, 436.0, 'Let\'s stand and sing. Number 396, the servant.'],
+            [477.0, 485.08, 'This is our God, the servant King.'],
+            [485.08, 493.58, 'He calls us now to follow Him, to bring our lives as a'],
+            [493.58, 500.80, 'daily offering of worship to the servant King.'],
+            [520.0, 527.0, 'This is our God, the servant King.'],
+        ], [[0, 437, 'speech'], [437, 520, 'silent'], [520, 2000, 'sung']]);
+
+        $this->assertSame(0, $this->extension()->extend($this->run));
+        $this->assertEqualsWithDelta(513.85, (float) $section->fresh()->start_time, 0.01);
+    }
+
+    /**
+     * 977 §1005: the leader read the first verse straight into the song, at speaking pace and
+     * with no introduction between; the reading is not the song's opening.
+     */
+    #[Test]
+    public function it_leaves_a_verse_read_straight_into_the_song(): void
+    {
+        $section = $this->song(589.99, 760.0, 'I\'ll praise my Maker while I\'ve breath and when my voice is lost in death praise shall employ my nobler powers my days of praise shall ne\'er be past');
+        $this->transcript([
+            [565.0, 569.5, 'The first verse goes like this.'],
+            [569.56, 572.5, 'I\'ll praise my maker while I\'ve breath.'],
+            [573.1, 577.4, 'And when my voice is lost in death, praise shall employ my'],
+            [579.2, 581.6, 'my days of praise shall not be passed,'],
+            [590.0, 600.0, 'I\'ll praise my maker while I\'ve breath.'],
+        ], [[0, 589, 'faltering'], [589, 2000, 'sung']]);
+
+        $this->assertSame(0, $this->extension()->extend($this->run));
+        $this->assertEqualsWithDelta(589.99, (float) $section->fresh()->start_time, 0.01);
+    }
+
+    /**
      * Withdrawing public content is DemoteHeldPublicationsCommand's decision, never the
      * pipeline's; a published clip keeps its cut and its hold.
      */
@@ -339,10 +404,13 @@ class SongLyricEdgeExtensionTest extends TestCase
      * -18 dB without a break, speech pauses half a second every 3 s. Sung throughout unless the
      * test says otherwise.
      *
+     * A congregation finding its feet breaks once every 5 s ("faltering"), which reads as speech
+     * by its pauses though it is as loud as singing; a muted feed is "silent".
+     *
      * @param  list<array{0: float, 1: float, 2: string}>  $cues
-     * @param  list<array{0: int, 1: int, 2: 'sung'|'speech'}>  $spans
+     * @param  list<array{0: int, 1: int, 2: 'sung'|'speech'|'faltering'|'silent'}>  $spans
      */
-    private function transcript(array $cues, array $spans = [[0, 2000, 'sung']]): void
+    private function transcript(array $cues, array $spans = [[0, 2000, 'sung']], float $duration = 2000.0): void
     {
         config([
             'media-processing.segmentation.adaptive_thresholds.enabled' => false,
@@ -350,13 +418,18 @@ class SongLyricEdgeExtensionTest extends TestCase
         ]);
         $lines = [];
 
-        for ($tenth = 0; $tenth < 20000; $tenth++) {
+        for ($tenth = 0; $tenth < $duration * 10; $tenth++) {
             $time = $tenth / 10;
             $level = -60.0;
 
             foreach ($spans as [$from, $to, $kind]) {
                 if ($time >= $from && $time < $to) {
-                    $level = $kind === 'sung' ? -18.0 : (fmod($time, 3.0) < 2.5 ? -25.0 : -60.0);
+                    $level = match ($kind) {
+                        'sung' => -18.0,
+                        'faltering' => fmod($time, 5.0) < 4.4 ? -18.0 : -60.0,
+                        'silent' => -90.0,
+                        default => fmod($time, 3.0) < 2.5 ? -25.0 : -60.0,
+                    };
                 }
             }
 
@@ -371,7 +444,7 @@ class SongLyricEdgeExtensionTest extends TestCase
         $path = 'service-transcripts/test-'.$this->run->processing_id.'.normalized.json';
         Storage::disk('local')->put($path, json_encode([
             'cues' => array_map(static fn (array $cue): array => ['start' => $cue[0], 'end' => $cue[1], 'text' => $cue[2]], $cues),
-            'duration' => 2000.0,
+            'duration' => $duration,
             'source' => 'mock',
         ], JSON_THROW_ON_ERROR));
         $this->run->putServiceTranscriptPath($path);

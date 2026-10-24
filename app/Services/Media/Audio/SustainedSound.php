@@ -45,10 +45,12 @@ final readonly class SustainedSound
     /**
      * @param  list<bool>  $bins  Whether each 5 s bin lies inside sustained sound
      * @param  float  $audioEnd  The last sample's time
+     * @param  list<float>  $activeRatios  The share of each 5 s bin's own samples above the threshold
      */
     private function __construct(
         public array $bins,
         public float $audioEnd,
+        public array $activeRatios = [],
     ) {}
 
     /**
@@ -104,7 +106,13 @@ final readonly class SustainedSound
                 && array_sum(array_slice($pauses, $from, $length)) / $minutes <= self::MAXIMUM_PAUSES_PER_MINUTE;
         }
 
-        return new self($bins, $audioEnd);
+        $activeRatios = array_map(
+            static fn (int $count, int $samples): float => $samples > 0 ? $count / $samples : 0.0,
+            $active,
+            $total,
+        );
+
+        return new self($bins, $audioEnd, $activeRatios);
     }
 
     /**
@@ -135,6 +143,22 @@ final readonly class SustainedSound
     public function isSustainedBin(int $bin): bool
     {
         return $this->bins[$bin] ?? false;
+    }
+
+    /**
+     * The share of sound above the threshold from one time to another, pauses or not: a
+     * congregation finding its feet breaks like speech but is as loud as singing (1240, 1345).
+     */
+    public function activeShare(float $from, float $to): float
+    {
+        $first = max(0, (int) floor($from / self::BIN_SECONDS));
+        $last = min(count($this->activeRatios) - 1, (int) floor($to / self::BIN_SECONDS));
+
+        if ($last < $first) {
+            return 0.0;
+        }
+
+        return array_sum(array_slice($this->activeRatios, $first, $last - $first + 1)) / ($last - $first + 1);
     }
 
     /**
