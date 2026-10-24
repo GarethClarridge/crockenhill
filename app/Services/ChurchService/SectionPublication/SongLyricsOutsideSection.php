@@ -35,7 +35,8 @@ use App\Services\Media\Audio\SustainedSound;
  *
  * A song's own opening sung just before its start is held whatever its pauses. The lines after
  * an introduction — the leader's last words, then {@see self::INTRODUCTION_SECONDS} without one
- * — running up to the start are the congregation coming in, and a congregation finding its feet
+ * — running up to the start are the congregation coming in (heard 10-24: 1240 and 1345 right;
+ * 929's lines straight after the previous song were an introduction, so those are excluded), and a congregation finding its feet
  * breaks like speech: 1240 and 1345 lost 16 s and 13 s of a first verse sung at 80-88% loudness
  * because the span also took in the leader reading the verse (2026-10-24). They are judged by
  * loudness instead, so a feed muted until the clip begins (1011) holds nothing.
@@ -265,7 +266,7 @@ final class SongLyricsOutsideSection
         }
 
         $share = $sound?->share($spanStart, $spanEnd) ?? 0.0;
-        $opening = $edge === 'before' ? $this->sungOpening($windowCues, $counted, $to, $sound) : null;
+        $opening = $edge === 'before' ? $this->sungOpening($windowCues, $counted, $to, $sound, $others) : null;
         $risk = $share >= self::MINIMUM_SUSTAINED_SHARE || $opening !== null;
 
         return [
@@ -300,15 +301,17 @@ final class SongLyricsOutsideSection
      * Walking in from the start: the last line before it must be this song's and end within
      * {@see self::OPENING_REACH_SECONDS}; earlier lines of this song join it while no pause
      * between them passes {@see self::OPENING_LINE_GAP_SECONDS}. The line before the run must
-     * be someone else's words, ended at least {@see self::INTRODUCTION_SECONDS} before it: a
-     * verse read straight into the song (977) has no introduction, and a run with nothing before
-     * it in the window has no evidence of one.
+     * be the leader's words, ended at least {@see self::INTRODUCTION_SECONDS} before it: a
+     * verse read straight into the song (977) has no introduction, a run with nothing before it
+     * in the window has no evidence of one, and one straight after another song's lines is the
+     * musicians taking this song through (929, heard 10-24).
      *
      * @param  list<array{start: float, end: float, text: string}>  $cues  The window, in time order
      * @param  array<int, true>  $counted  The cues that are this song's lines
+     * @param  list<ServiceSection>  $others
      * @return array{start: float, end: float, lines: int, active_share: float}|null
      */
-    private function sungOpening(array $cues, array $counted, float $start, ?SustainedSound $sound): ?array
+    private function sungOpening(array $cues, array $counted, float $start, ?SustainedSound $sound, array $others): ?array
     {
         $last = count($cues) - 1;
 
@@ -323,6 +326,10 @@ final class SongLyricsOutsideSection
         }
 
         if ($first === 0 || $cues[$first]['start'] - $cues[$first - 1]['end'] < self::INTRODUCTION_SECONDS || $last - $first + 1 < self::MINIMUM_OPENING_LINES) {
+            return null;
+        }
+
+        if ($this->holderAt($others, $cues[$first - 1]['start'])?->section_type === ServiceSectionType::Song) {
             return null;
         }
 

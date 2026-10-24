@@ -283,6 +283,28 @@ class SongLyricEdgeExtensionTest extends TestCase
     }
 
     /**
+     * 929 §520, heard 10-24: straight after "God of Glory", the musicians took "All Praise To Him"
+     * through as an introduction before the church sang it from its first line. No leader spoke
+     * between, so the lines are not the congregation coming in.
+     */
+    #[Test]
+    public function it_leaves_an_introduction_sung_straight_after_the_previous_song(): void
+    {
+        $this->song(195.0, 325.0, 'God of glory we exalt your name your love is gracious you are my God');
+        $section = $this->song(345.0, 497.72, 'All praise to him the God of light who formed the mountains by his might all praise to him who names the stars that sing his fame in skies afar');
+        $this->transcript([
+            [316.24, 320.52, 'Your love is gracious, you are my God.'],
+            [331.52, 335.0, 'Who formed the mountains by his might.'],
+            [335.66, 338.7, 'All praise to him who names the stars'],
+            [338.7, 342.38, 'that sing his fame in skies afar.'],
+            [353.72, 358.66, 'All praise to him, the God of light,'],
+        ], [[0, 2000, 'faltering']]);
+
+        $this->assertSame(0, $this->extension()->extend($this->run));
+        $this->assertEqualsWithDelta(345.0, (float) $section->fresh()->start_time, 0.01);
+    }
+
+    /**
      * 1011 §1285: the lines were transcribed from a feed muted until the clip begins; there is
      * nothing to hear before it, so the clip keeps its start.
      */
