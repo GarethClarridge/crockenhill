@@ -7,7 +7,10 @@
 > is scored and its CI ratchet set committed (§4.6). **10-23 overnight** (stopped 01:50 at the usage limit; §5): edge
 > decodes on all 426 eligible runs, 464 never-captured rulings found, audit Pass A clean, Haiku failed calibration.
 > **10-23 morning:** full ruled-evidence capture and scoring done: 1,351 ledger entries, 1,145 met, 137 failed,
-> 69 unassessable; the CI ratchet grows by 1,145 rulings in 298 run fixtures. **Next:** resolve the 106 failing
+> 69 unassessable; the CI ratchet grows by 1,145 rulings in 298 run fixtures. **10-24:** the 10-23/24 rule
+> changes have reached no run; a detection-only recompose round (no provider calls, no re-cut) is agreed to show
+> what they change, not yet set up: blocked on the internal disk's 8.7 GB against the 10 GB floor (§5, "10-24").
+> The song evidence backfill's count is fixed (8 newly held, not 286). **Next:** resolve the 106 failing
 > edges and 23 current unassessable rulings (§4.6 and §5, morning recapture); the
 > [post-round audit](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md) (first slice:
 > inventory, read-only packets, calibration; no processing); acceptance (§4.5). Weekly take-over preparation
@@ -3245,7 +3248,13 @@ status changes, holds released or production writes. Work: `storage/scratch/ruli
 planned-versus-recorded re-cut list under step 2. This scoring pass does not authorise automatic repairs
 of disputed moves or substitute for the outstanding audit and listening.
 
-#### 10-24: song boundary evidence backfill, and the current-rules replay (planned, not started)
+#### 10-24: what the current rules would change — backfill counted, detection-only round agreed (not set up)
+
+Started from the question "are there talks or songs that would be different if the current logic were
+applied to them? I thought we'd rerun everything that changed." **Answer: no.** "Everything that changed"
+was rerun up to the final round's freeze; the round closed 10-22, and rules committed on 10-23/24 (the
+musical introduction, the sung-opening hold, quiet introductions, readings cut with a passage reading, a
+song's start reaching into the sermon) have reached no run. Nothing has been recomposed since.
 
 **Backfill count corrected (`8cd6a1477`).** The `service:backfill-song-boundary-evidence` dry run reported 286
 of 978 stale songs as newly held. Publication holds a doubtful song by `pending_approval` with
@@ -3261,23 +3270,89 @@ introduction), 1310 §3942 "Purify My Heart" and 1363 §4534 "Rejoice" (looped t
 were approved by the operator after listening on 10-22**: the backfill would hold an approved clip again for
 the reason it was approved over. Not yet fixed.
 
-**What would differ under the current rules: a detection-only round, not a replay.** Rule changes after
-the round's composition (10-23/24: the musical introduction, the sung-opening hold, quiet introductions,
-readings cut with a passage reading, a song's start reaching into the sermon) have each been replayed
-alone (27 of 1,209 song starts move for the musical introduction); nothing shows the corpus against the
-running commit. Holds are versioned (boundary evidence version 10); section bounds and cut plans are not,
-so stale cuts show only by recomposing. A rolled-back replay harness was planned and dropped (operator,
-10-24): a real `historic-import:rerun-recompose` round composes the banked draws again with no provider
-call, defers media, and `historic-import:rerun-diff` is the report. Recomposition is not re-cutting: changed
-sections no longer describe their recorded clips until a re-cut, which waits for the diff and the 106-edge
-triage so media is cut once.
+**How each layer records staleness (so this is not re-derived):**
+- **Judgements are versioned.** Song boundary evidence carries `version` (10 since 10-24); the backfill
+  finds stale ones by SQL. Local count 10-24: 957 published/pending songs below 10 (918 historic, 39
+  weekly), plus about 20 whose inputs changed = the 978. Short-talk boundary evidence is version 1.
+  Sermon text and analysis are tracked by transcript hash (`analysisIsOwed()`); nothing is owed.
+- **Section bounds and cut plans are not.** No rules version is recorded on a run or section, so a cut
+  made under old rules can only be found by recomposing or replaying.
+- **Which commands apply which rules.** `ExtendSongsOverOwnLyrics` (lyric edges, then the musical
+  introduction) runs in the structure stage, between song matching and the first cut
+  (`ProcessingPipelineBuilder`). `sections:recut` and `sermons:re-extract` cut again from existing bounds
+  and never reach it; the reading-cut change lives in `SermonExtractionPlanResolver`, so a re-cut does
+  apply it. The backfill only re-judges existing bounds.
+- **Re-judging before a recompose is cheap, not wasted:** evidence whose banked candidate no longer
+  matches its section is stale by `CandidateStartDisagrees`/`CandidateEndDisagrees` and re-derives itself.
 
+**No provider calls are needed to apply the new rules.** A recompose
+(`DetectServiceStructure::recomposeBankedAttempt`, routed by `RecomposeForCorpusRerun`) composes the run's
+banked four-draw ensemble again under the current rules and every answer on the run ("Recomposed banked
+service structure draws without a provider call"). The draw code and prompts are unchanged since the round;
+K16 (`SermonSongIntroductionCheck`, prompt v2) and the sentence check (`SpokenEdgeSentenceCheck`, v1) bank
+answers on the edge step and last changed 10-22. Edge words are banked local-whisper decodes. A run whose
+banked ensemble input no longer matches is refused and would need paid re-detection: list it, do not
+re-detect.
+
+**Why a real round, not a replay harness (operator, 10-24).** A rolled-back harness was planned and dropped:
+the round machinery already recomposes with media deferred, `historic-import:rerun-diff` is the report
+(by title and position, containment changes listed separately), and the watcher stops on a lost hold. For any
+future rolled-back replay, what the design found:
+- `ServiceSectionSyncService::cleanupExtractedAssets()` deletes a removed section's working video and
+  audio **immediately**, not after commit; a rollback cannot restore them. Disks must be read-only.
+  `league/flysystem-read-only` is not installed (Laravel's `read-only` disk option needs it).
+- Model observers that touch caches or dispatch work are all `ShouldHandleEventsAfterCommit`, so a rolled-back
+  transaction never fires them; the structure stages use no cache.
+- Song matching samples fresh OCR (tesseract on the source video) only when a section has no
+  `song_ocr_text`; the only other subprocess route is `PrepareOutputEdgeWordTimings` →
+  `ServiceAudioWindowExtractor`, not in the detection chain.
+- Calling a job's `handle()` directly skips queue middleware, which is where historic jobs enter their staging
+  context: wrap in `HistoricStagingContextRegistry::within()`, as `SongBoundaryEvidenceBackfill` does.
+- `Bus::fake()` records a chain as its first job with the rest serialized on `chained`.
+- `structure:ensemble-replay` recomposes the ensemble stage only; it does not show `ExtendSongsOverOwnLyrics`.
+
+**The round (agreed, not set up; "we won't set up in this session"):**
 - **Members:** the eligible runs (`storage/scratch/class-scan-20261024/eligible-runs.txt`, 424) less
-  942, 974 and 1363 (hand-made structural edits; runbook §4.2). Refused recompositions are listed, not
-  re-detected.
-- **Estimate:** 3½–5 h unstopped: preflight and backup 45–75 min, setup 30–45 min, staged start
-  15–20 min, recomposition 1½–2 h (10-17: 282 recompositions in 63 min alongside cutting), diff and close
-  20–40 min.
-- **Preflight found:** the internal disk at **8.7 GB free**, under the 10 GB floor (runbook §6, §9);
-  Sonnics 42 GB free for the ≈13 GB private storage and dump. Ruled-endings regression set on the
-  current tree: 1,452 passed.
+  942, 974 and 1363 (hand-made structural edits; runbook §4.2). Route: `historic-import:rerun-recompose`
+  (detection only, media deferred), then `historic-import:rerun-diff`, then close (§8). No re-cut: changed
+  sections stop describing their recorded clips (`CutReviewEvidence`: "The section no longer describes its
+  recorded cut") until a re-cut, which waits for the diff and the 106-edge triage so media is cut once.
+  Listening or review on changed runs breaks in that gap.
+- **State at 10-24 close:** tree clean at `67f98d151`; the clone `../crockenhill-round` is still at
+  `8189bfdea` and must be moved to the round commit (runbook §2.1; check lockfiles for `vendor/`); round
+  containers were removed at the 10-22 close; main is on Redis 0/1 with its workers.
+- **Estimate:** 3½–5 h unstopped: preflight and pre-round backup 45–75 min (≈13 GB private storage plus a
+  dump to Sonnics), setup 30–45 min, staged start 15–20 min, recomposition 1½–2 h, diff and close 20–40 min.
+  Basis: on 10-17, 282 recompositions were stamped 00:03–01:05 UTC while cutting shared the workers; the
+  stages after composition are not timestamped, so they are allowed for, not measured. Watcher stops add
+  their own time.
+- **Ruled-endings regression set on `67f98d151`'s tree:** 1,452 passed, 4,341 assertions (15 min).
+
+**Disk (measured 10-24; blocks the runbook's 10 GB floor):**
+- The Mac's internal disk has **8.7 GB free**. The watcher measures `disk_free_space()` on the service-artifact
+  disk, which is main's `storage/` bind-mounted from the Mac, so the Mac's figure is the one that counts.
+- **Docker gives nothing back.** 6 images, all in use, 0 B reclaimable; build cache 5.46 GB (139.5 MB
+  reclaimable by Docker's measure); volumes 37 GB (210 MB reclaimable). Docker's disk is a sparse
+  `Docker.raw` (52 GB on disk) that does not shrink when space inside it is freed, so a prune need not move the
+  Mac's free space. The 10-14 gain (10 → 28 GB) came from old images that no longer exist.
+- **Where the space is:** `storage/scratch` 23 GB (9.5 GB `ServiceRecords`: 655 OpenLP `.osz` service files,
+  source evidence; a 1.0 GB `binlog.000067` copy); `storage/app/temp` 12 GB (mostly `_enhanced.mp3`; temp
+  cleanup is paused on purpose until the masters have a second copy); `~/Downloads` 13 GB and
+  `~/Library/Caches` 8 GB are the operator's. None is to be cleared without the operator.
+- **Proposed, not agreed:** run this detection-only round's watcher with `--min-free-gb=5`
+  (`historic-import:rerun-watch` option). A detection-only round writes logs and small JSON to the internal disk;
+  database writes go to Docker's disk and the backup to Sonnics. Keep 10 GB for the re-cut round, which writes
+  media; space has to be found before it.
+- Sonnics: 42 GB free of 1.8 TB (98% used).
+
+**Open decisions and next, in order:**
+1. Operator: the watcher floor for the detection-only round (5 GB proposed), or free space first.
+2. Set up and run the round per the runbook from a fresh session; stop before dispatching the full list.
+3. Read `rerun-diff`: which sections move, by how much, and against the ruled ledger (a met ruling that
+   would fail first; a failed one that would be met is a re-cut candidate).
+4. Fix the backfill re-holding operator-approved clips (1310 §3942, 1363 §4534) test-first, before any
+   `--execute`.
+5. Check weekly 908 §308 and 920 §461 on production before the backfill runs there (local rows prove
+   nothing about production).
+6. Then the backfill `--execute` (or `--section` for runs the round leaves unchanged), and the 106-edge
+   triage and re-cut list as before.

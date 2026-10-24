@@ -388,7 +388,13 @@ Also:
   2. with the operator's approval, free old Docker images and the build cache;
   3. archive the stop file and resume.
 
-  On 2026-10-14 this took free space from 10 GB to 28 GB.
+  On 2026-10-14 this took free space from 10 GB to 28 GB. **It will not again** (measured 10-24): every
+  image left is in use and the build cache reports almost nothing reclaimable, and Docker's sparse
+  `Docker.raw` does not shrink when space inside it is freed. Run `docker system df` before counting on it,
+  and look at the Mac's own folders (plan §5, "10-24", for what is there and what must not be cleared).
+- **The floor and a detection-only round.** The 10 GB floor protects cuts. A round that defers media writes
+  little to the internal disk; the watcher's `--min-free-gb` can be lowered for it with the operator's
+  agreement, recorded in the plan. Keep 10 GB for any round that cuts.
 - **Database lost** (2026-10-15):
   1. Restore the last base dump into a side database.
   2. Copy the binlogs to Sonnics.
