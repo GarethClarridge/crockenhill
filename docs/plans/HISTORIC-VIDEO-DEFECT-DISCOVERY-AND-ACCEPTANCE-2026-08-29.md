@@ -1,11 +1,15 @@
 # Historic Video Defect Discovery and Acceptance Plan
 
-> **Status — 2026-10-22, round closed.** The final round ran overnight 10-21/22; step 5's 61 answers led to four
+> **Status — 2026-10-23, round closed.** The final round ran overnight 10-21/22; step 5's 61 answers led to four
 > fixes and six re-cuts (1269, 1288, 1090, 1310), all heard "right"; 1363's "Rejoice" and 1310's "Purify My Heart"
 > approved, quarantined; the round closed under runbook §8 (§5, "10-22 (later): the round closed"). Nothing is
 > public. `partial_recording` is deployed (`3498602e7`, migrated on production 10-22 21:57 UTC). The ruled evidence
 > is scored and its CI ratchet set committed (§4.6). **10-23 overnight** (stopped 01:50 at the usage limit; §5): edge
-> decodes on all 426 eligible runs, 464 never-captured rulings found, audit Pass A clean, Haiku failed calibration. **Next:** triage the 18 open rulings (§4.6); the [post-round audit](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md) (first slice:
+> decodes on all 426 eligible runs, 464 never-captured rulings found, audit Pass A clean, Haiku failed calibration.
+> **10-23 morning:** full ruled-evidence capture and scoring done: 1,351 ledger entries, 1,145 met, 137 failed,
+> 69 unassessable; the CI ratchet grows by 1,145 rulings in 298 run fixtures. **Next:** resolve the 106 failing
+> edges and 23 current unassessable rulings (§4.6 and §5, morning recapture); the
+> [post-round audit](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md) (first slice:
 > inventory, read-only packets, calibration; no processing); acceptance (§4.5). Weekly take-over preparation
 > (§4.2: where it runs, production parity, admin review screens) runs alongside; the canary and the take-over
 > itself come after release, when the historic import is done (register R8). **Deferred:** the second copy of the source masters (§4.6) has
@@ -2406,6 +2410,12 @@ What we would regret not doing while the context exists.
       (423 ok); 464 rulings had never been captured (the 10-22 capture read only the 10-17 ids); 379 of them
       captured mid-pass, 180 of 193 met; 3 rulings to add from the record; 9 moved-and-unheard edges. Owed: a
       full re-capture of the 1,347 on the decoded evidence, scoring, ratchet, then the re-cut list.
+    - **10-23 morning: recapture and scoring complete** (§5 below). Four already-recorded closures bring the
+      ledger to 1,351. All accounted for: 1,282 captured (1,145 met, 137 failed), 69 unassessable. Among current
+      rulings: 808 met, 106 failed, 23 unassessable. The 106 failing edges include 62 moved across sound,
+      36 unmet boundary rulings, five identity/title cases, two fixture/evidence problems and one withheld
+      dead-feed item. Added 1,145 passing captures in 298 merged run fixtures; no old fixtures removed.
+      No new decoding, re-cutting or publication. The planned-vs-recorded re-cut list is still owed.
   - **The re-cut listening.** Gathered 10-22 (`listening-recut-20261020`, `-20261022`, `-1310-`).
   - **Structure answers, the loop page and song stage 1.** Each needs its own replay.
 - [ ] **Before IC8, decide how historic media is repaired after release.** Production receives only
@@ -3102,6 +3112,44 @@ Working files: `storage/scratch/overnight-20261023/` (running notes `running-not
   - Cost: ≈ 2.9 M subagent tokens for Haiku v1 (≈ 120 k a case, 47–187 s), similar for v2's 14; Sonnet ≈ 70–125 k a
     case, 23–75 s. Twice a fourth reviewer was launched by mistake; each was stopped within a minute.
   - Strong reviews: `audit/strong-review-haiku-v1.md`, `-v2.md`, `strong-review-sonnet-v1.md`.
+  - **Luna re-run (2026-10-23): all 24 completed; fails the detection gate.** Three fresh
+    `gpt-6-luna`/medium workers, eight cases each, using frozen `rubric-v2.md`. Detected **5/8**
+    registered material defects (c06, c10, c12, c15, c19); missed c08's two-song clip, c18's
+    registered borderline cut sentence, and c20's start inside another song. Raw material flags
+    occurred on four controls, but these mix transcript leads with false alarms: c04's prayer
+    boundary claim mistakes a long handover cue for prayer content; c05's garbling is minor;
+    c13's stored loop is supported. **Protocol limitation:** c13's source-first outline includes
+    packet information, so it is not clean two-stage evidence. Mechanical citations: **21/22**
+    resolvable; c22's minor quotation fails matching because a word is split across source cues
+    and is excluded. Other claims assuming hymn lyrics were sung remain verification leads.
+    Results, outlines, input hashes, citation checks and case-by-case adjudication are preserved
+    under `storage/scratch/overnight-20261023/audit/luna-v2*`; definitive report:
+    `audit/luna-v2-adjudication.json`. First-outline-to-last-answer interval: 552 s (lower bound,
+    not full invocation latency); per-case timing and token usage unavailable. No cash estimate,
+    corpus scaling, fresh transcription or full decode was performed. Use stronger review for
+    boundaries, omissions and joins; Luna-only routing is not justified by this calibration.
+  - **Bounded lead-discovery batch (2026-10-23), operator-approved despite calibration misses:**
+    20 previously unreviewed frozen services, seeded selection (`20261022`) across run-ID strata,
+    29,205 source cues; Luna/medium reviewed all 20, with 30 flags on 17 services. Sol/high checked
+    every flag: **4 supported material, 16 supported minor, 8 unresolved, 1 rejected, 1 accepted
+    exception**. Material leads: wrong catalogue bindings **948 §706 / SongVideo 573** and
+    **1302 §3840 / SongVideo 369**, corroborated by frozen catalogue lyrics/foreign keys; materially
+    corrupted stored reading transcripts in **1056** and **1320**. No audible defect is asserted.
+    Both flagged song-video records are quarantined; no public exposure was established.
+    All three apparent passes (1027, 1167, 1185) received fresh blind source-first Sol reviews:
+    **1027 loses its sermon introduction/agenda at 42–229 s**, before its retained output starts
+    at 230.11. A targeted opening-class check of all 20 found no additional analogous material
+    omission. 1167's raw sentence-omission finding was preserved but downgraded to a minor thematic
+    song handover after severity review; 1185 had no additional finding. The class check also
+    records unresolved small start edges in 1257/1277 and a separate 1302 reading-packaging question.
+    Detailed selection, immutable packet hashes, all results/rulings, citation checks and the
+    consolidated report are in `storage/scratch/overnight-20261023/audit/luna-batch20/`
+    (`batch-report.json`, `sol/opening-class-check.json`). Work paused at the account usage limit
+    and resumed after the operator confirmed reset; saved results were preserved. **Five supported
+    material findings total; no repairs or publication performed.** This demonstrates useful
+    Luna lead discovery with stronger verification, not clean certification of unflagged outputs.
+    Corpus-wide class expansion/disjoint sampling, full decode and Pass C media verification remain
+    undone; the local evidence has hashes but no new external backup copy was made in this slice.
 - **Leads from the reviews (unverified; Pass C windows or listening):**
   - 1262 §3285 "Rejoice The Lord Is King": its opening line (cue 1698.4–1719.2) is in neither song clip (both
     Haiku runs). 1262's sermon ends after the preacher recites the next hymn's first verse (K16: reading the words
@@ -3128,3 +3176,108 @@ advisories (dependency changes need approval).
 
 **4. Local only:** `/christ/talks` returns 500 here because `.env` has `SERMON_STORAGE_DISK=historic_staging`, so
 published sermons resolve to the staging disk and `HistoricStagingUrlGuard` refuses (production unaffected).
+
+#### 10-23 morning: full ruled-evidence recapture and triage
+
+Operator requested step 1 only: incorporate decisions already in the record, re-capture all rulings against
+banked evidence, score, triage and expand the regression set. No new decodes or provider calls, re-cuts,
+status changes, holds released or production writes. Work: `storage/scratch/rulings-capture-20261023/`.
+
+- **Ledger:** 1,347 → **1,351**. Added the recorded E9 range for 1262 §3284's start (1520.86–1531),
+  the operator's retained 1347 sermon start (1576.7), 1268 §4736's end from the accepted join3 (2338.9),
+  and the operator's retained 1363 §4533 start (201.74, a soft miss). Source timestamps are the 10-22
+  answer or the commit recording the decision, not invented listening times. `gather.py` now permits
+  a sermon entry in its recorded-decision list.
+- **Capture:** all **1,351 accounted for**; **1,282 captured**, **69 unassessable**. Existing capture tooling
+  only, `--current`, planning inside rolled-back transactions; four disjoint batches kept each run together.
+  A title-resolution exception aborts the capture script before its usual per-ruling catch (and exits zero),
+  so the batch wrapper logged the refusal and resumed the remaining IDs. No ambiguous item was substituted.
+- **Scoring:** raw first pass 1,143 met / 138 failed in 677.89 s. Its three new recorded decisions passed;
+  the failures exposed the fourth recorded closure, 1363. Capturing that closure and re-scoring the three
+  original decision entries plus 1363's question and closure: **5 passed**. Final reconciliation:
+
+  | Outcome | All ledger entries | Current (not superseded) rulings |
+  |---|---:|---:|
+  | Met | 1,145 | 808 |
+  | Failed | 137 | 106 |
+  | Unassessable | 69 | 23 |
+  | Total | 1,351 | 937 |
+
+  Scoring copies explicitly set `open_defect=false`: the old open-defect reproduction bypass must not count
+  as a met ruling. The temporary `RULED_FIXTURES` test hook was restored before final validation.
+- **Failing captures collapse to 106 edges**, not 137 distinct defects (`edge-triage.json` and `.tsv`):
+  - **62 moved across sound:** need later recorded acceptance or listening. Includes all nine moves found
+    overnight, plus 1218's sermon end (3875.25 ruled right, now 3869.36), and larger sermon moves. A K16 or
+    other banked model answer is not itself an operator ruling on the changed cut.
+  - **36 unmet boundary rulings:** mechanism investigation before repair. In particular 1115 still ends at
+    1490.96 and 1127 at 4211.7, where the operator said a sentence was cut off to avoid “let's sing”. They
+    remain unmet, as do 992/1244/1294's unwanted following words. Do not infer fixes from direction alone.
+  - **5 identity/title cases:** 1012 §1289 start, 1262 §3286 start and 1314 §3988 start / §3990 start /
+    §3992 end. Resolve the item and the meaning of the answer before treating these as boundary defects.
+    In particular 1012's old wrong-item answer is not safely interpreted as a direction on a re-keyed item.
+  - **2 fixture/evidence cases:** 1038's two captures replay without a required 1370.72–1374.58 word window
+    and return no executable plan; 1148's sermon fixture replays to 1965.41 instead of its live 3540.2.
+    These are capture/replay failures, not proved cut defects; neither enters the new ratchet.
+  - **1 withheld dead-feed item:** 1198 §165130's start (“Silently”) was already explained in the 10-22
+    record as muted, withheld song content. No boundary repair inferred; retained as a disposition case.
+- **Unassessable triage** (`gap-triage.json`, exact reasons in `unassessable.json`):
+  - **50 title-identity refusals:** 40 have one exact current item-name match once the question's explicit
+    type prefix (`Song`, `Bible_reading` / `Bible reading`, `Short_talk` / `Short talk`) is removed. The capture
+    guard compares that prefixed heading to the bare item name. These are tooling limitations, not proved
+    re-identifications. The other ten include renamed/placeholder titles and require identity investigation.
+    Of these 50, only five rulings are current (two prefix cases, three unresolved identities).
+  - **15 missing edge-word windows**, across 11 runs: 949, 954, 1029, 1034, 1070, 1073, 1120, 1262, 1268,
+    1314 and 1371. All are current. The exact run UUID/window is recorded; no decoding was requested here.
+  - **2 superseded runs**, confirmed by the existing `classify-noexec.php` tool; **2 deleted sections**
+    (§1476 and §3181, one current ruling). Overall 46 of the 69 gap entries are superseded rulings.
+- **Ratchet:** added **298** `run-*-2026-10-23.json.gz` fixtures containing all **1,145** passing captures,
+  about **40.0 MiB** compressed. Existing fixtures retained. `merge.py` checked identical shared inputs
+  within each run; no failed or unassessable capture was admitted. Raw captures, score copies, XML/logs,
+  exclusions and reconciliation remain in the session directory.
+- **Validation:** PHPStan zero errors; Pint passed; `git diff --check` clean. Full parallel suite completed
+  **11,441 tests** in **22:34**, with one skipped test, 163 PHPUnit notices and one failure: the existing
+  deletion-trigger guard found the overnight `PrepareHistoricOutputEdgesCommand` missing its required
+  class-docblock trigger. All expanded ruled-edge regression cases passed. Added “delete after IC8 closeout”
+  to that command; focused rerun of the baseline and command tests: **9 passed, 82 assertions** (2.56 s).
+  PHPStan and Pint passed again. The full suite was not repeated for the docblock-only correction.
+
+**Next:** resolve the current identity/evidence gaps and the 106-edge exception list, then prepare the
+planned-versus-recorded re-cut list under step 2. This scoring pass does not authorise automatic repairs
+of disputed moves or substitute for the outstanding audit and listening.
+
+#### 10-24: song boundary evidence backfill, and the current-rules replay (planned, not started)
+
+**Backfill count corrected (`8cd6a1477`).** The `service:backfill-song-boundary-evidence` dry run reported 286
+of 978 stale songs as newly held. Publication holds a doubtful song by `pending_approval` with
+`song_publication_review` reasons, never by `needs_manual_review`; the backfill read only the flag, so 272
+songs already awaiting approval (136 of them for `song_looped_transcript`, current policy since evidence
+version 3) counted as new. No register ruling was needed: the register's only loop ruling (Q9) is about
+pre-recorded segments. Dry run after the fix: 978 assessed, **8 newly held, 287 retained** (all 8 are
+published songs). `--execute` is not run; the operator decides after seeing the 8
+(`storage/scratch/backfill-newly-held-20261024/newly-held.json`): weekly 908 §308 "I Will Glory In My
+Redeemer" and 920 §461 "There Is A Higher Throne" (looped transcript; the only ones that could be public,
+on production); historic 945 §669 (trailing content), 974 §997, 1119 §1983 and 1322 §4089 (possible quiet
+introduction), 1310 §3942 "Purify My Heart" and 1363 §4534 "Rejoice" (looped transcript). **The last two
+were approved by the operator after listening on 10-22**: the backfill would hold an approved clip again for
+the reason it was approved over. Not yet fixed.
+
+**What would differ under the current rules: a detection-only round, not a replay.** Rule changes after
+the round's composition (10-23/24: the musical introduction, the sung-opening hold, quiet introductions,
+readings cut with a passage reading, a song's start reaching into the sermon) have each been replayed
+alone (27 of 1,209 song starts move for the musical introduction); nothing shows the corpus against the
+running commit. Holds are versioned (boundary evidence version 10); section bounds and cut plans are not,
+so stale cuts show only by recomposing. A rolled-back replay harness was planned and dropped (operator,
+10-24): a real `historic-import:rerun-recompose` round composes the banked draws again with no provider
+call, defers media, and `historic-import:rerun-diff` is the report. Recomposition is not re-cutting: changed
+sections no longer describe their recorded clips until a re-cut, which waits for the diff and the 106-edge
+triage so media is cut once.
+
+- **Members:** the eligible runs (`storage/scratch/class-scan-20261024/eligible-runs.txt`, 424) less
+  942, 974 and 1363 (hand-made structural edits; runbook §4.2). Refused recompositions are listed, not
+  re-detected.
+- **Estimate:** 3½–5 h unstopped: preflight and backup 45–75 min, setup 30–45 min, staged start
+  15–20 min, recomposition 1½–2 h (10-17: 282 recompositions in 63 min alongside cutting), diff and close
+  20–40 min.
+- **Preflight found:** the internal disk at **8.7 GB free**, under the 10 GB floor (runbook §6, §9);
+  Sonnics 42 GB free for the ≈13 GB private storage and dump. Ruled-endings regression set on the
+  current tree: 1,452 passed.
