@@ -122,6 +122,7 @@ song digital-zero bar, run 937's retirement).
 | K14 | **Use the longer recording for the service, but never let its sermon replace a better recording's** (higher resolution, then bitrate; the held sermon ≥ 95% of the length). | 10-15 | [Round] §12 |
 | K15 | Two answers that share a seam both keep it: the seam stays in both clips. | 10-14 | [Round] §12 |
 | K16 | **A sermon followed by a song ends at the join to it, and never after the music starts.** The preacher's introduction to the song is part of the sermon when it ties the song to the sermon, because then it works as the sermon's conclusion. A bare announcement, the introduction to an unrelated song, and notices are not. A "let's stand and sing" call on its own is never included. "It's not really about the length, it's about the relevance of the song to the sermon." Notices or housekeeping between the sermon and a tied introduction end the sermon at its own last sentence. The preacher must say how the song relates to the sermon: reading its words aloud is no tie on its own (1040, 1311, 932). The judgement is asked of the model in the routine pipeline; a third answer settles a disagreement on the judgement or the line (a line two name, else the middle, else the earlier). | 10-16 | Edge-tool session 10-16 (`storage/scratch/weekly-edge-tool-20261016/`) |
+| K17 | **Speech left unowned beside the reading before a sermon is not a reason to hold the sermon.** When a song trim leaves speech next to the reading, `structure_sermon_adjacent_speech_unowned` becomes a note on the sermon, not a hold: it is almost always an announcement, which K1 rightly excludes (7 of 7 heard). Speech left beside the **sermon** itself still holds it (3 heard: an announcement, the sermon's own words, a late start). | 10-25 | Operator: "stop now". [Plan] §5 "10-25 (later)" A4 |
 
 ## 6. Edges and cutting
 
@@ -156,6 +157,7 @@ song digital-zero bar, run 937's retirement).
 | A1 | Normalise each part separately, every speech part to −16 LUFS. | 10-08 | [Boundary] §6.3 |
 | A2 | Noise reduction follows the pause level: strong above −30, gentle above −60, otherwise none; per-recording override. | 10-08, 10-09 | [Boundary] §6.3.5 |
 | A3 | Hum filter, de-esser, high-pass and levelling stay off; music gets loudness only; MP3 at 48 kbps, 48 kHz. | 10-08, 10-09 | [Boundary] §6.3.5 |
+| A4 | **The video's true-peak limit (−0.5 dBTP: treatment ceiling −1.5 plus 1.0 tolerance) is a target, not a requirement.** A video true peak over it no longer holds a sermon for listening; it stays measured and reported, and large overshoots stay a treatment defect to investigate. Not covered: integrated-loudness misses and the public MP3's own ceiling (+1.0 dBTP). | 10-25 | Operator: "target" (10 of 10 heard "sounds fine", overshoots 0.1–4.4 dB). [Plan] §5 "10-25 (later)" B8 |
 
 ## 8. Songs
 
@@ -169,6 +171,7 @@ song digital-zero bar, run 937's retirement).
 | S6 | **Song acceptance has no numeric bar.** Rates are reported as measured; every wrong binding gets a fix or leave verdict with a reason. | 10-14 | [Songs] §7 |
 | S7 | 2020–2022 have no workbook; stage 2 adds a 40-service listening sample for those years, reported separately. | 10-14 | [Songs] §9 |
 | S8 | **A looped song transcript is a transcription fault, not a reason to hold the clip.** `song_looped_transcript` stops holding a song for approval. A loop's gaps still count for nothing as boundary evidence (`SongLoopedTranscript::blocksFor`). Not covered: a sermon or talk transcript loop, which is the published text itself (`transcript_repetition_suspect`), and speech hidden under a loop (`song_speech_under_loop`). | 10-24 | [Plan] §5 "10-24 (later)" |
+| S9 | **A sung item may publish itself from 55 s, not 90 s.** `short_song_clip` holds a song only under 55 s (`song_minimum_automatic_duration_seconds`). Fragments under 60 s are still diagnosed and held by `SongSectionWithoutSong`. | 10-25 | Operator: "from the listening it looks like it should be 55s" (10 of 10 whole at 58–81 s). [Plan] §5 "10-25 (later)" A3 |
 
 ## 9. Talks and readings
 

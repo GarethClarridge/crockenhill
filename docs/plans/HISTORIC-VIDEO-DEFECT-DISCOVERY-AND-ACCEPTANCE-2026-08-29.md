@@ -3771,3 +3771,21 @@ removing holds that do not predict faults. The remaining work goes into a few de
 6. Then the corpus class scans and the one recompose-and-re-cut round, as already planned (steps 4–6 of
    "Next, in order").
 
+**Operator decisions (10-25), recorded in the register:**
+- **S9: the song floor is 55 s** ("from the listening it looks like it should be 55s"). 44 queued `short_song_clip`
+  sections run 55 s or more, 21 of them held for nothing else. Fragments under 60 s stay held through
+  `SongSectionWithoutSong`. Item A3 changes from 60 s to 55 s.
+- **K17: reading-side unowned speech stops holding the sermon now** ("stop now"). It becomes a note; sermon-side
+  speech still holds. Item A4 no longer waits for a ruling or more clips.
+- **A4: the video's −0.5 dBTP true-peak limit is a target** ("target"). A video true-peak miss no longer holds a
+  sermon. It stays measured and reported, and the large overshoots (item B8) stay a treatment defect to explain.
+  Integrated-loudness misses and the public MP3's own ceiling are not covered. 34 of the 52 loudness holds carry no
+  other flag, but a hold can mix a peak miss with an integrated one, so count the peak-only holds when this is built.
+- **2659: asked again with the clip.** One follow-up question was added at the top of the Review Queue Sample page
+  (`2659-sermon_start`, 32:05–33:55, `storage/scratch/queue-followup-20261025/`): where does the sermon start?
+  The transcript has no words from the song's end (32:12.4) until 33:30, and the stored start (33:30.3) falls in the
+  middle of a joke, so the sermon probably starts earlier. This is also a lost-opening case for the audit's class
+  scan (step 4 of "Next, in order").
+
+With these, steps 3 and 4 of the order above no longer wait for a decision. The order is unchanged otherwise.
+
