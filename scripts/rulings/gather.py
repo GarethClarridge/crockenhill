@@ -321,6 +321,14 @@ for record in records:
 # Rulings made outside a listening page: the operator's word on a heard edge, or a register entry that
 # settles an edge heard before it. Each allows any cut between the two times.
 RULED = [
+    ('operator-20261022:1363-s4533-start', '2026-10-22T11:44:56Z', 1363, 4533, 'start', (201.74, 201.74),
+     'Plan §5, operator 10-22: left as cut, a recorded soft miss.'),
+    ('register-e9:1262-s3284-start', '2026-10-22T11:38:43Z', 1262, 3284, 'start', (1520.86, 1531),
+     'Plan §5, 10-22 step 5: song introduction asked in error; recorded as a preference. E9 permits either.'),
+    ('operator-20261022:1347-sermon-start', '2026-10-22T11:44:56Z', 1347, None, 'start', (1576.7, 1576.7),
+     'Plan §5, 10-22: the operator kept the mid-verse sermon start as cut.'),
+    ('operator-20261022:1268-s4736-end', '2026-10-22T11:22:42.109Z', 1268, 4736, 'end', (2338.9, 2338.9),
+     'Plan §5, 10-22: sermon join3 at 2338.9 was heard right, superseding the earlier section-end ruling.'),
     # The decisions were recorded at 11:44 UTC (0cb0fa404), after the 11:11 answer.
     ('operator-20261022:1274-s3433-end', '2026-10-22T11:44:56Z', 1274, 3433, 'end', (1704.74, 1713.95),
      'Step 5 chose the old end; the operator left the current one as cut (soft miss, plan §5 10-22).'),
@@ -330,7 +338,7 @@ RULED = [
 ]
 for ruling_id, ruled_at, run, section_id, edge, heard_range, note in RULED:
     records.append({'id': ruling_id, 'source': ruling_id.split(':')[0], 'ruled_on': ruled_at[:10], 'ruled_at': ruled_at, 'run': run,
-                    'output': 'section', 'section_id': section_id, 'section_type': None, 'title': None, 'edge': edge,
+                    'output': 'sermon' if section_id is None else 'section', 'section_id': section_id, 'section_type': None, 'title': None, 'edge': edge,
                     'heard': heard_range[1] if edge == 'end' else heard_range[0], 'answer': None, 'expect': 'between',
                     'ruled_time': None, 'note': note, 'range': list(heard_range)})
 

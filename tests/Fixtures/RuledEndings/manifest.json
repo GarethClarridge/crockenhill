@@ -1,5 +1,5 @@
 {
-    "_comment": "Operator-ruled endings captured as regression fixtures for RuledEndingsRegressionTest (plan §4.5, 2026-10-14). Rulings: the 2026-10 endings listening (340 endings, 274 right / 39 clips_word / 25 cut_sentence / 2 defer). Sample: settled runs only (outside follow-up round snapshot 20261013d), current code at 04f68ef04; every clips_word ending the code now fixes, plus 12 sermon and 10 section endings ruled right, drawn round-robin across listening groups with seed 20261014. Captured with scripts/ruled-endings/capture.php, RMS_WINDOW=35.",
+    "_comment": "Operator-ruled endings captured as regression fixtures for RuledEndingsRegressionTest (plan \u00a74.5, 2026-10-14). Rulings: the 2026-10 endings listening (340 endings, 274 right / 39 clips_word / 25 cut_sentence / 2 defer). Sample: settled runs only (outside follow-up round snapshot 20261013d), current code at 04f68ef04; every clips_word ending the code now fixes, plus 12 sermon and 10 section endings ruled right, drawn round-robin across listening groups with seed 20261014. Captured with scripts/ruled-endings/capture.php, RMS_WINDOW=35.",
     "captured": [
         "end-1036-1476",
         "end-1040-sermon",
@@ -53,5 +53,18 @@
     },
     "excluded": {
         "_comment": "cut_sentence rulings are heterogeneous (recording ends, outward and inward moves; see the follow-up round plan) and defer rulings have no truth, so neither is a fixture."
+    },
+    "ratchet_20261023": {
+        "source": "docs/plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md, \u00a75 morning recapture",
+        "ledger_entries": 1351,
+        "ledger_sha256": "82e08e584d0b58e0f1b10bda6cca6e84ca7ebb61e475863a6af9330793fa8c24",
+        "fixture_glob": "run-*-2026-10-23.json.gz",
+        "run_fixtures": 298,
+        "passing_rulings": 1145,
+        "compressed_bytes": 41966116,
+        "failed_captures_excluded": 137,
+        "unassessable_entries_excluded": 69,
+        "ruling_assertions_enabled": true,
+        "existing_fixtures_retained": true
     }
 }

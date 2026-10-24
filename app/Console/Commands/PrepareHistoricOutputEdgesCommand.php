@@ -14,6 +14,9 @@ use Illuminate\Console\Command;
  * edge decodes and the structure-model questions current code asks of its cuts. Unlike
  * {@see TranscribeOutputEdges} it leaves the run's status alone and cuts nothing, so a
  * re-cut stays a separate, deliberate step. Each run is named; an unknown one refuses them all.
+ *
+ * Deletion trigger: delete after IC8 closeout once historic output-edge evidence, acceptance
+ * and the final re-cuts are complete and the historic import tooling is retired.
  */
 class PrepareHistoricOutputEdgesCommand extends Command
 {
