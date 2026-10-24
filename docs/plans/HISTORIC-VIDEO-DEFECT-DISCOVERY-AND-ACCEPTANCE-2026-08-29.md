@@ -3471,3 +3471,103 @@ wrong-binding class scan.
 5. Fixes from 1–4, alongside the 106-edge triage.
 6. One recompose-and-re-cut round (runbook), then one listening pass. Find disk space for the 10 GB floor
    first.
+
+#### 10-24 (night): the music strata heard — what the operator ruled and what to investigate
+
+The operator heard the four music strata of the review-queue sample (page "Review Queue Sample",
+`https://claude.ai/artifact/E5WCqCf554N8aTXPX89MoR`; build `storage/scratch/queue-listening-20261024/build.php`;
+saved answers `storage/scratch/queue-listening-20261024/answers/rulings/<section>-<stratum>.json`; sample
+`storage/scratch/queue-sample-20261024/sample.json`). **39 of 40 were heard and answered. 628 "Pre-service music"
+(run 939) would not play on the operator's device; the operator is confident it is background music, so it counts as
+background below but was not heard.** The local file decodes cleanly, so the failure is unexplained. The talk and sermon strata are being heard separately and are **not covered here**. Times below are
+service-recording times. "Current end" is the section's `end_time` as stored.
+
+With ten per stratum, 0 defects bounds a reason's defect rate below about 26% (95%). A verdict that drops a hold
+still needs a mechanism, as for S8 (see "Ruling S8" above and `feedback_soft_misses_not_worth_breaking_others`).
+
+**Summary**
+
+| Stratum (hold) | Heard | Defects | Reading |
+|---|---|---|---|
+| Song · short clip (pending approval) | 10 | 0 | all whole; 2 are cut off in the source recording |
+| Other · reads as sung (flagged) | 9 heard, 1 taken on the operator's word | 0 | all background music |
+| Song · low confidence (flagged) | 10 | 3 cut wrongly (+1 right but truncated) | mixed |
+| Song · trailing content (pending approval) | 10 | 7 | a real edge defect: ends 2–11 s off |
+
+**1. Song · short clip: 10 of 10 "whole song, however short"**
+Durations 58.0–81.1 s against the 90 s expectation (`short_song_clip`). Two notes: 2771 "All People That On Earth Do
+Dwell" (run 1225) "cut off in the source recording" (also held for `song_boundary_trailing_content` and
+`song_closing_missing`) and 3285 "Rejoice The Lord Is King" (run 1262) "cut off in the source" (held for the short
+clip alone). Nothing in this stratum was a cutting defect.
+Investigate:
+- What the 90 s floor is based on, and how many sung items under it are whole across the corpus. Population is 43
+  sections (29 held for this reason only). Do not state a rate without counting it
+  (`feedback_measure_frequency_claims_before_stating_them`).
+- 3285 and 2771 are songs the *recording* truncates. Does the partial-recording handling deployed 10-22 see them?
+  3285 is held only for being short, so nothing says "recording ends mid-song". If the operator's "whole" means
+  "everything the source has", the right outcome and the right reason are not the same as for a whole short song.
+
+**2. Other · reads as sung: 9 of 9 heard, plus 628 on the operator's word, "background music before the service"**
+Every sampled section is titled "Pre-service music". This confirms the mechanism noted above: the flag
+(`MistypedSungSections`, `ServiceStructureValidator::FLAG_SECTION_READS_AS_SUNG`) exists to catch songs typed as
+something else, and pre-service music is music by nature. The population is 29 sections flagged: 28 "Pre-service
+music" and one `welcome` section titled "Welcome" (2368, run 1180), which was not sampled.
+Investigate: leave pre-service music out of `MistypedSungSections` (failing test first). Decide how to recognise it
+(type, title, position before the first item), because a title match is fragile. Check what 2368 says before deciding
+the welcome case.
+
+**3. Song · low confidence: 7 "ok", 3 "cut wrongly"**
+
+| Section | Run, service | Confidence | Operator |
+|---|---|---:|---|
+| 752 Father God I Wonder | 941, 2025-02-09 | 0.79 | right song, should be **21:07–22:14**; stored 20:47.8–22:11.6, so the start is ~19 s early and the end ~2.4 s short |
+| 163668 Christ Has Prepared a Place for Us | 985, 2026-08-16 | 0.84 | end slightly clipped, should be ~**70:22**; stored end 70:20.0 (also `song_identity_single_source`, inferred match, no clip) |
+| 3769 Only By Grace | 1295, 2021-12-12 | 0.50 | "It had started before this clip. Ends at **5:52**"; stored 5:00–5:50 (also `structure_unidentified_singing`, `adjacent_same_song`, `song_section_without_song`) |
+| 3353 Praise My Soul The King Of Heaven | 1267, 2022-08-07 | 0.77 | answered "ok" but wrote "detected correctly, but the song itself is cut off"; a 19 s `structure_micro_section` |
+
+The other six (1102, 166015, 2694, 3515, 3781, 4322) were right.
+Observations to check, not conclusions:
+- **Confidence does not separate good from bad.** Nine of ten sit at 0.77–0.84, just under `HIGH_THRESHOLD` (0.85,
+  `ServiceSectionConfidence`); the bad ones are 0.79, 0.84 and 0.50, the fine ones 0.82–0.83 and 0.96.
+- **4322 "O Lord, my Rock and my Redeemer" (run 1342) is flagged `structure_low_confidence` at confidence 0.96.** That
+  is above the threshold, so the flag looks stale (raised on an earlier confidence). See
+  `stale_review_state_reconciliation` and `review_flag_recompute_is_one_directional`. Count how many queued sections
+  carry the flag with confidence at or above 0.85.
+- 3769 has an adjacent section for the same song (`adjacent_same_song`): probably one song split in two. Look at the
+  neighbouring section before treating it as a boundary fault.
+- Four of the twenty songs in strata 3 and 4 have an end ruled about **2 s later** than stored (163668, 3627, 752
+  end, 3769 end). That may be coincidence. Measure it over the ruled-endings set before saying it is systematic.
+
+**4. Song · trailing content: 3 "the song itself", 5 "cut too early", 2 "carries something else"**
+
+| Section | Run, service | Tail | Verdict | Stored end → ruled |
+|---|---|---:|---|---|
+| 1730 What gift of grace… | 1075, 2025-07-27 | 12.5 s | song | fine |
+| 1814 Christ is risen… | 1096, 2025-04-20 | 30.7 s | song | fine |
+| 2513 My hope is built… | 1200, 2023-12-10 | 49.2 s | song | fine |
+| 175905 Restore, O Lord | 1290, 2022-01-16 | 27.8 s | too early | 58:11.5 → ~58:22 (or just after) |
+| 3627 Bless the Lord (10000 reasons) | 1290, 2022-01-16 | 53.6 s | too early | 4:52.1 → ~2 s later |
+| 4336 I Cannot Tell | 1343, 2020-12-27 | 57.4 s | too early | 66:57.0 → ~67:08 |
+| 783 A Debtor To Mercy Alone | 946, 2023-08-20 | 38.5 s | too early | no time given |
+| 959 What love could remember | 976, 2025-01-26 | 13.6 s | too early | no time given |
+| 136468 What gift of grace… | 1200, 2023-12-10 | 11.9 s | something else | 67:57.1 → ~67:53 |
+| 3918 To Him We Come | 1308, 2021-09-05 | 27.0 s | something else | 60:16.4 → ~60:13: the last 3 s are "I'll just close in prayer in a moment", "which the transcript has brought forward" |
+
+Seven of ten are real edge defects, all small (about 2–11 s). The hold is catching something true, so this is a
+detection or cutting fault to fix, not a hold to drop. The tail length does not separate fine from faulty (49.2 s was
+fine, 11.9 s was not).
+Investigate:
+- What the evidence at the edge says in each of the seven (the timed content after the wordless gap) and why the cut
+  lands early (175905, 3627, 4336, 783, 959) or late (136468, 3918). Is the detector using the transcript's timing
+  where the audio disagrees? 3918 suggests the speech's words are timed earlier than the audio carries them.
+- Whether these are already in the ruled-endings regression set (`ruled_endings_regression_set`,
+  `storage/scratch/rulings-capture-20261023/`). If not, they are seven new edge rulings, plus the four low-confidence ends above.
+  Capturing a ruling is a record, not processing; any re-cut still needs the operator's word.
+
+**Boundaries for whoever picks this up**
+- Read-only on processing: no pipeline dispatch, regeneration or re-cut without the operator's word
+  (`feedback_questions_are_not_licence_to_act_on_processing`).
+- Failing test first for every behaviour change (`feedback_bug_reproduction_test_first`). Never run tests in the round
+  clone (`never_run_tests_in_the_round_clone`).
+- Do not touch S8 (`song_looped_transcript`): it is its own step in "Next, in order" above.
+- Report counts from totals, and say which of these are observations and which are measured.
