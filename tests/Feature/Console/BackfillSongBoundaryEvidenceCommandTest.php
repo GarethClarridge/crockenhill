@@ -232,6 +232,40 @@ class BackfillSongBoundaryEvidenceCommandTest extends TestCase
     }
 
     /**
+     * A song waiting for approval is already held: {@see SongPublicationHandler::requiresApproval()}
+     * holds a doubtful clip by its status and records its reasons, and never sets the review flag.
+     * The 10-24 dry run reported 272 such songs as newly held.
+     */
+    #[Test]
+    public function it_does_not_report_a_song_awaiting_approval_as_newly_held(): void
+    {
+        $section = $this->songSection(
+            withArtifacts: true,
+            status: ServiceSectionPublicationStatus::PendingApproval,
+            start: 10.0,
+            end: 12.0,
+        );
+
+        $this->artisan('service:backfill-song-boundary-evidence')
+            ->expectsOutputToContain('would retain hold')
+            ->doesntExpectOutputToContain('would newly hold')
+            ->assertSuccessful();
+
+        $this->artisan('service:backfill-song-boundary-evidence', ['--execute' => true])
+            ->expectsOutputToContain('0 newly hold for review')
+            ->assertSuccessful();
+
+        $fresh = $section->fresh();
+        self::assertFalse($fresh->needs_manual_review, 'its status holds it, as at publication');
+        self::assertSame(ServiceSectionPublicationStatus::PendingApproval, $fresh->publication_status);
+        self::assertContains(
+            'short_song_clip',
+            array_column($fresh->metadata->toArray()['song_publication_review']['reasons'], 'kind'),
+        );
+        self::assertNotNull($this->bankedEvidence($fresh));
+    }
+
+    /**
      * P8-Q17 clamped eighteen section bounds, which left their banked candidates
      * describing clips that no longer exist. Evidence that disagrees with its own
      * section is not evidence about that section, so it has to be re-derived

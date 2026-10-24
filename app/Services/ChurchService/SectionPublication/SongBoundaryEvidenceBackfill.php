@@ -6,6 +6,7 @@ namespace App\Services\ChurchService\SectionPublication;
 
 use App\Data\HistoricStagingContext;
 use App\Data\ServiceSectionMetadata;
+use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\HistoricMedia\HistoricStagingContextRegistry;
@@ -36,7 +37,10 @@ use Throwable;
  * clip is a real doubt, and leaving it unrecorded would be the fail-open
  * reading. Taking a newly held section out of view is deliberately *not* done
  * here — `service:demote-held-publications` owns that, and reads
- * `needs_manual_review`, which is what this sets.
+ * `needs_manual_review`, which is what this sets on a published clip. A clip
+ * awaiting approval is already held by its status, as publication holds it, so
+ * it gains fresh evidence and reasons but not the flag: the 10-24 dry run
+ * counted 272 such songs as newly held.
  *
  * Deletion trigger: delete once every published and pending song section carries
  * banked boundary evidence and the Phase 8 release census has run.
@@ -210,7 +214,7 @@ class SongBoundaryEvidenceBackfill
             'risks' => $risks,
             'reasons' => $reasons,
             'holds' => $reasons !== [],
-            'newly_holds' => $reasons !== [] && ! $section->needs_manual_review,
+            'newly_holds' => $reasons !== [] && ! $this->isHeld($section),
             'detail' => null,
         ];
     }
@@ -240,13 +244,22 @@ class SongBoundaryEvidenceBackfill
 
         $section->metadata = ServiceSectionMetadata::fromArray($metadata);
 
-        if ($reasons !== []) {
+        if ($reasons !== [] && ! $this->isHeld($section)) {
             $section->needs_manual_review = true;
         }
 
         $section->save();
 
         return true;
+    }
+
+    /**
+     * Whether a person already has to look at this section before anyone sees it.
+     */
+    private function isHeld(ServiceSection $section): bool
+    {
+        return $section->needs_manual_review
+            || $section->publication_status === ServiceSectionPublicationStatus::PendingApproval;
     }
 
     private function stagingContextFor(?MediaProcessingLog $log): ?HistoricStagingContext
