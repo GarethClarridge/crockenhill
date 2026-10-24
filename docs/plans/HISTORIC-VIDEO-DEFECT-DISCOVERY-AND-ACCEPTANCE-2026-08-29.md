@@ -3356,3 +3356,118 @@ future rolled-back replay, what the design found:
    nothing about production).
 6. Then the backfill `--execute` (or `--section` for runs the round leaves unchanged), and the 106-edge
    triage and re-cut list as before.
+
+#### 10-24 (later): next step reconsidered — work the review queue as labels; detection-only round deferred
+
+Asked "what next?", with a request to think again rather than carry on from the last session. The
+operator's concern: more defects are likely to be fixable, so reprocessing everything now may be
+premature, but more detection may only re-flag known defects. They also asked whether the review queue
+can teach us anything to automate.
+
+**Decision: the detection-only round above is deferred** until the next batch of fixes lands. It recomposes
+without re-cutting, so all it produces is a forecast of which sections would move. Every later fix makes
+that forecast stale, and the re-cut it feeds needs listening, so running it now risks listening twice. One
+recompose-and-re-cut round follows the fixes below. The watcher-floor question (decision 1 above) is parked
+with it; the re-cut round writes media and needs the 10 GB floor regardless.
+
+**Why "more detection only re-flags what we know" is half true.** For edges it holds: 808 of 914 current
+rulings are met, and the 106 failing edges are already listed (10-23 morning). The audit says the unknown
+defects lie elsewhere. Of 20 services checked on 10-23, 5 had a material defect, none of them an edge:
+wrong song bindings (948 §706, 1302 §3840), corrupt reading transcripts (1056, 1320), and a lost sermon
+introduction (1027). 5 of 20 puts the service rate somewhere between about 1 in 10 and 1 in 2 (95% interval).
+A re-run will not find these classes. Scanning the corpus for each class will.
+
+**The review queue, measured 10-24** (eligible runs, `class-scan-20261024/eligible-runs.txt`, 425 completed
+runs; 1,045 queued sections; read-only export `storage/scratch/queue-sample-20261024/population.json`):
+
+| Held | Sections | Largest reasons |
+|---|---:|---|
+| Songs pending approval | 322 | looped transcript 146 · trailing content 103 · short clip 43 · lyrics outside 17 · uncorroborated partial recording 14 |
+| Songs flagged for review | 184 | low confidence 57 · content hold 27 · unmatched 26 · swallows speech 23 · same-type OoS inversion 21 · identity single source 19 |
+| Short talks (all of them; none published) | 312 | 172 have **no proposed talk type** · cross-type OoS inversion 39 · low confidence 29 · text predates evidence 23 |
+| Sermons flagged | 153 of 422 | loudness missed 52 · adjacent speech unowned 47 · text predates evidence 29 · missing preached reading 22 · transcript repetition 21 |
+| Other / readings / notices | ~76 | reads as sung 28 (all "Pre-service music") · OoS type unresolved 20 · reading low confidence 14 |
+
+**Nothing has been learned from the queue yet because it has never been worked.** Only **2** sections carry a
+human approval over a hold: 1310 §3942 "Purify My Heart" and 1363 §4534 "Rejoice", both looped transcript,
+both approved after listening on 10-22. No talk has ever been approved. So the queue is used here as a
+labelling exercise: a seeded sample per hold reason, heard, gives each reason one of three verdicts:
+- **almost always fine:** stop holding for it;
+- **almost always wrong:** a detection or cutting defect, so fix it;
+- **mixed:** keep holding.
+
+With 10 per stratum, 0 defects bounds a reason's defect rate below about 26% (95%). That is a first reading,
+not licence on its own. Dropping a hold also needs a mechanism explanation (as for S8 and pre-service music
+below) or a larger sample.
+
+**Ruling S8 (operator, 10-24): a looped song transcript is a transcription fault, not a reason to hold the
+clip.** The operator's words: "we've already checked enough to know that repeated words in the transcript is a
+transcription fault." `SongLoopedTranscript`'s own docblock already says "the singing may have been perfectly
+good, and the defect is in the record of it". **120** pending songs are held for it alone; 25 more have
+another reason as well and stay held for that one. Effects on the 10-24 list above:
+- its step 4 (the backfill re-holding 1310 §3942 and 1363 §4534) should disappear;
+- so should step 5 (weekly 908 §308 and 920 §461, both held only for a looped transcript).
+
+Confirm both with the backfill dry run after the change.
+
+**Not for listening (mechanical or text repairs):**
+- `sermon_text_predates_evidence` (29 sermons, 23 talks): the saved text was sliced from a transcript since
+  repaired; `CreateSermonTranscriptFromService` re-slices it and clears the flag. This is processing, so it
+  needs the operator's word, and it goes per run through the regeneration route, never by dispatching the
+  pipeline job.
+- `transcript_repetition_suspect` (21 sermons, 12 talks): a loop in the text a reader sees. S8 does not cover
+  it, because there the transcript *is* the output. The remedy is repetition recovery or re-transcription,
+  not a hold verdict.
+- **Talk type:** 172 of 315 talks have `talk_type.proposed = null`, and every talk needs a confirmed type
+  before approval (Talks D2, PR4). **Hypothesis, unverified:** `ServiceStructureEnsembleComposer` takes the
+  talk type from the representative draw only (`representative()` → `withConfidence()`), so a blank on that
+  draw discards the other draws' types. Reproduce it with a failing test first. Recomposing then fills the
+  proposals without provider calls, which is one more reason for the round to wait until this is fixed.
+
+**The sample** (`storage/scratch/queue-sample-20261024/`: `population.php` export, `sample.py` draw,
+`sample.json` result; seed **20261024**; 10 per stratum; strata drawn largest first, and a section drawn once
+is not drawn again, so each answers one question; `population.json` sha256 `97d49717…`, `sample.json`
+`6942accf…`). Eight strata, chosen as the large holds where a verdict would change code:
+
+| Stratum | Hold | Population | Reason only | Drawn | Runs |
+|---|---|---:|---:|---:|---:|
+| song trailing content | pending approval | 103 | 83 | 10 | 8 |
+| song low confidence | flagged | 57 | 25 | 10 | 10 |
+| sermon loudness missed | flagged | 52 | 34 | 10 | 10 |
+| sermon adjacent speech unowned | flagged | 47 | 33 | 10 | 10 |
+| song short clip | pending approval | 43 | 29 | 10 | 10 |
+| talk cross-type OoS inversion | flagged | 39 | 27 | 10 | 10 |
+| talk low confidence | flagged | 29 | 22 | 10 | 10 |
+| other reads as sung | flagged | 28 | 23 | 10 | 10 |
+
+Notes for building the page:
+- **Loudness missed is a judgement, not a missed measurement.** `FlagSermonAudioLoudnessMissed` holds a sermon
+  whose treated sound missed its loudness or peak target so the operator can hear whether it is acceptable.
+  Before writing questions, read each member's measured miss: if the misses are fractions of a dB, the
+  question is the tolerance, not the sound.
+- **Every "reads as sung" section is titled "Pre-service music".** The flag (`MistypedSungSections`) exists to
+  catch songs typed as something else, and pre-service music is music by nature. The question is therefore
+  "background music, or a congregational song that belongs in the service?". If all ten are background, the
+  likely fix is that the flag leaves pre-service music alone.
+- Sermons, flagged talks and "other" sections have no section clip; play them from the service recording.
+  Each member's `other_reasons` lists its other holds. Ask about the stratum's reason only.
+- House rules for the page: one question per clip; service time; 3× default speed; ask which text matches;
+  build from the last working listening page.
+
+**Deferred strata** (a second page if the first gives clean verdicts): song content hold 27, unmatched 26,
+swallows speech 23, same-type OoS inversion 21, cross-type 17, micro 17, over dead feed 16; song publication
+reasons lyrics outside 17, partial recording 14, closing missing 8; OoS type unresolved 20; missing preached
+reading 22; talk interrupted 15. Identity strata (unmatched, single source) overlap the audit's
+wrong-binding class scan.
+
+**Next, in order:**
+1. Operator reviews the strata; then build the listening page from `sample.json` and publish it.
+2. S8, test-first: `song_looped_transcript` no longer a review risk in
+   `SongPublicationBoundaryEvidenceService`; bump the boundary-evidence version so the backfill finds the stale
+   evidence. Then the backfill dry run, to confirm 10-24 steps 4 and 5 are gone.
+3. Talk-type hypothesis, failing test first.
+4. Corpus scans for the audit's three classes (wrong binding, corrupt reading transcript, lost sermon
+   opening): count them before fixing (`feedback_measure_frequency_claims_before_stating_them`).
+5. Fixes from 1–4, alongside the 106-edge triage.
+6. One recompose-and-re-cut round (runbook), then one listening pass. Find disk space for the 10 GB floor
+   first.

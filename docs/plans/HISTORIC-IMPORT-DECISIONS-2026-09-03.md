@@ -168,6 +168,7 @@ song digital-zero bar, run 937's retirement).
 | S5 | The hymn workbook's held-out half stays unopened until song acceptance measures it; once measured, it is spent. | 09-25, 10-14 | [Songs] §7 |
 | S6 | **Song acceptance has no numeric bar.** Rates are reported as measured; every wrong binding gets a fix or leave verdict with a reason. | 10-14 | [Songs] §7 |
 | S7 | 2020–2022 have no workbook; stage 2 adds a 40-service listening sample for those years, reported separately. | 10-14 | [Songs] §9 |
+| S8 | **A looped song transcript is a transcription fault, not a reason to hold the clip.** `song_looped_transcript` stops holding a song for approval. A loop's gaps still count for nothing as boundary evidence (`SongLoopedTranscript::blocksFor`). Not covered: a sermon or talk transcript loop, which is the published text itself (`transcript_repetition_suspect`), and speech hidden under a loop (`song_speech_under_loop`). | 10-24 | [Plan] §5 "10-24 (later)" |
 
 ## 9. Talks and readings
 
