@@ -68,7 +68,7 @@ song digital-zero bar, run 937's retirement).
 | D3 | `structure_missing_preached_reading` is raised only when the sermon has no Scripture reference at all. | 09-03 | appendix D5 |
 | D4 | Detection reads only independently sourced order-of-service items. Email stays out of the re-run, so the video stays an independent witness. | 09-24, 09-25 | [Log 10-16] §4.0 standing decision 3 |
 | D5 | Holds follow their content; only code-found holds recheck themselves. Rules raise review flags or propose held sections, never retype or delete silently. Exception: Music ruling 2 (E14). | 09-23 | [Music] §3 |
-| D6 | **A music span is judged whole: sung or wholly instrumental.** An instrumental introduction or ending belongs to its song; a spoken introduction is speech. | 09-25 | [Music] §3 |
+| D6 | **A music span is judged whole: sung or wholly instrumental.** An instrumental introduction or ending belongs to its song; a spoken introduction is speech. **Amended 10-24:** a song's spoken introduction is optional, but its musical introduction is always included when detected (36 clips heard; 7 left out an introduction, some with first-verse lines too). | 09-25, 10-24 | [Music] §3; operator 10-24 |
 | D7 | Pre-service and post-service music stays `other`, and the rules never act on a leading or trailing `other`. | 09-25 | [Music] §12 ruling 5 |
 | D8 | Ensemble detection: four equal draws (two `gpt-5.6-luna`, two `gpt-6-luna`) of the whole structure, composed by consensus. No validation retry; a draw that fails validation does not vote. | 09-28 | [Ensemble] 1–4, 6 |
 | D9 | A recurring answer becomes a rule only after a replay over saved draws shows its changes and the operator approves, with a fixture. | 09-29, 10-02 | [Ensemble] 5, 10; [Log 10-16] §4.0 standing decision 8 |
@@ -135,7 +135,7 @@ song digital-zero bar, run 937's retirement).
 | E6 | Uncovered-speech checks look at interior gaps only. | 10-03 | [Cut] "C4 scope ruling" |
 | E7 | A song that runs into speech ends with a 1.5–4 s fade of its sound, not a refused cut. | 10-07 | [Boundary] §6, canary 13 |
 | E8 | A spoken end leaves tail room after its last word (≥ 0.3 s, at most half the pause; `ca0192710`), and an end moved into a sentence stops at the sentence end it passed (`746d5b956`). | 10-12 | [Log 10-16] Part 2, fix round item 9 |
-| E9 | The song ending a sermon may start with or without its introduction (≤ 30 s, nothing spoken between). A song clip keeps its spoken introduction at any length, never held. | 10-10 | [Boundary] §6.3.8 |
+| E9 | The song ending a sermon may start with or without its spoken introduction (≤ 30 s, nothing spoken between). A song clip keeps its spoken introduction at any length, never held. **Amended 10-24 (D6):** a musical introduction is not optional: when detected it is in the song. | 10-10, 10-24 | [Boundary] §6.3.8; operator 10-24 |
 | E10 | **Dead feed:** a spoken edge in ≥ 2 s of dead feed (≤ −80 dB) moves to the sound: a start to 0.3 s before the first sound ("2 seconds is fine at the beginning"), an end to where the feed goes dead. Never reintroduce the clipped endings fixed on 10-12. | 10-15 | [Round] §12 |
 | E11 | **Finished runs are re-cut** wherever the replayed plan differs from the cut at all, with no tolerance; song and talk clips too. | 10-15 | [Round] §12 |
 | E12 | A clip with no recorded cut is re-cut, not reused. All 155 pre-fix runs go into the re-cut round, and its fresh comparison decides. | 10-16 | [Round] §12 |

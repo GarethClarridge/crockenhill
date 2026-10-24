@@ -28,6 +28,7 @@ use App\Services\ChurchService\SectionPublication\SongLyricsOutsideSection;
 use App\Services\ChurchService\SectionPublication\SongOpeningAndClosing;
 use App\Services\ChurchService\SectionPublication\SongPublicationBoundaryEvidenceService;
 use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
+use App\Services\ChurchService\SectionPublication\SongQuietIntroduction;
 use App\Services\ChurchService\SectionPublication\SongSectionWithoutSong;
 use App\Services\ChurchService\SectionPublication\SongSpeechUnderLoop;
 use App\Services\ChurchService\Structure\DeadFeedInsideSection;
@@ -819,6 +820,16 @@ class DetectorCatalogue
                 owningClass: SongPublicationReviewPolicy::class,
             ),
             new DetectorEntry(
+                id: 'song-musical-introduction-moved',
+                surface: DetectorSurface::SongPublicationReview,
+                signals: ['song_musical_introduction_moved'],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Section,
+                summary: 'The start moved back over the music before the song, which is its introduction when the classifier is right; a reviewer confirms it. Heard 10-24: 16 of 20 moves right; 1329, 1232 and 1272 took in 5-10 s that was not.',
+                owningClass: SongPublicationReviewPolicy::class,
+            ),
+            new DetectorEntry(
                 id: 'song-adjacent-same-song',
                 surface: DetectorSurface::SongPublicationReview,
                 signals: ['adjacent_same_song'],
@@ -915,6 +926,16 @@ class DetectorCatalogue
                 unit: DetectorUnit::Section,
                 summary: "Lyrics of this song are sung outside the section's bounds, so the cut lost part of the performance it claims.",
                 owningClass: SongLyricsOutsideSection::class,
+            ),
+            new DetectorEntry(
+                id: 'song-possible-quiet-introduction',
+                surface: DetectorSurface::SongBoundaryEvidence,
+                signals: [SongQuietIntroduction::RISK_KIND],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::ContentLost,
+                unit: DetectorUnit::Section,
+                summary: 'The clip opens on its first words after a long time with no words and no music heard, so a quiet introduction may be left out (1235), or the clip carries silence (947, 962, 1367).',
+                owningClass: SongQuietIntroduction::class,
             ),
             new DetectorEntry(
                 id: 'song-opening-missing',

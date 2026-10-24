@@ -9,6 +9,8 @@ use App\Enums\ServiceSectionType;
 use App\Models\ChurchServiceItem;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\ChurchService\Structure\SongMusicalIntroduction;
+use App\Support\ServiceTimestamp;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -101,6 +103,20 @@ class SongPublicationReviewPolicy
             $reasons[] = [
                 'kind' => 'inferred_song_match',
                 'detail' => 'The catalogue song was inferred rather than confirmed, so the match needs review before publication.',
+            ];
+        }
+
+        $introduction = $section->metadata?->raw[SongMusicalIntroduction::METADATA_KEY] ?? null;
+
+        if (is_array($introduction) && $introduction !== []) {
+            $moved = end($introduction);
+            $reasons[] = [
+                'kind' => 'song_musical_introduction_moved',
+                'detail' => sprintf(
+                    'The start moved from %s to %s over the music before the song (register D6): check it keeps the introduction and nothing else.',
+                    ServiceTimestamp::format((float) ($moved['from'] ?? 0.0)),
+                    ServiceTimestamp::format((float) ($moved['to'] ?? 0.0)),
+                ),
             ];
         }
 

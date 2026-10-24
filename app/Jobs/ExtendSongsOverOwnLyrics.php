@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\Structure\SongLyricEdgeExtension;
+use App\Services\ChurchService\Structure\SongMusicalIntroduction;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -15,7 +16,8 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Runs {@see SongLyricEdgeExtension} once song matching and continuation merging have settled
- * which song each section holds, and before any clip is cut.
+ * which song each section holds, and before any clip is cut; then {@see SongMusicalIntroduction},
+ * so a start the lyrics moved is walked back over the music that introduces it.
  */
 class ExtendSongsOverOwnLyrics implements ShouldQueue
 {
@@ -45,9 +47,10 @@ class ExtendSongsOverOwnLyrics implements ShouldQueue
         ];
     }
 
-    public function handle(SongLyricEdgeExtension $extension): void
+    public function handle(SongLyricEdgeExtension $extension, SongMusicalIntroduction $introduction): void
     {
         $extension->extend($this->processingLog);
+        $introduction->extend($this->processingLog->fresh() ?? $this->processingLog);
     }
 
     public function failed(?\Throwable $exception): void

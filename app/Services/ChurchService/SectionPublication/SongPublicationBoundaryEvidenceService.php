@@ -7,6 +7,8 @@ namespace App\Services\ChurchService\SectionPublication;
 use App\Data\ChurchServiceTranscript;
 use App\Data\SuspectTranscriptBlock;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\OutputEdgeAnswers;
+use App\Services\Media\Audio\AudioTimeline;
 use App\Services\Media\Audio\RmsAnalysisService;
 use App\Services\Media\Audio\SustainedSound;
 use App\Support\ServiceArtifactDisk;
@@ -98,9 +100,12 @@ final class SongPublicationBoundaryEvidenceService
      * 9 (2026-10-24): {@see SongLyricsOutsideSection} holds a song's own opening sung after the
      * introduction up to the start by its loudness, not its pauses (1240, 1345), recorded under
      * each lyric edge's `sung_opening`.
+     * 10 (2026-10-24): the clip is judged as it will be cut, from an operator's "start here" or
+     * "end here" ({@see OutputEdgeAnswers}): 1240's correct cut was held for the sung opening its
+     * answered start took in. Records {@see SongQuietIntroduction} under `quiet_introduction`.
      * Evidence banked under an earlier version is stale, and the backfill re-assesses it.
      */
-    public const VERSION = 9;
+    public const VERSION = 10;
 
     private const LEADING_CUE_WINDOW_SECONDS = 5.0;
 
@@ -122,6 +127,7 @@ final class SongPublicationBoundaryEvidenceService
         private readonly SongSectionWithoutSong $sectionWithoutSong,
         private readonly SongSpeechUnderLoop $speechUnderLoop,
         private readonly SongOpeningAndClosing $openingAndClosing,
+        private readonly SongQuietIntroduction $quietIntroduction,
     ) {}
 
     /**
@@ -129,6 +135,7 @@ final class SongPublicationBoundaryEvidenceService
      */
     public function assess(ServiceSection $section): array
     {
+        $section = $this->asCut($section);
         $start = (float) $section->start_time;
         $end = (float) $section->end_time;
         $inputs = $this->loadInputs($section);
@@ -169,6 +176,7 @@ final class SongPublicationBoundaryEvidenceService
                 'song_content' => null,
                 'speech_under_loop' => null,
                 'song_ends' => [],
+                'quiet_introduction' => null,
                 'inputs_fingerprint' => $this->fingerprintOf($section, $inputs),
                 'risks' => [
                     [
@@ -267,6 +275,14 @@ final class SongPublicationBoundaryEvidenceService
             }
         }
 
+        $quietIntroduction = $inputs['transcript'] instanceof ChurchServiceTranscript
+            ? $this->quietIntroduction->observe($section, $inputs['transcript'], $this->audioTimeline($section))
+            : null;
+
+        if (($quietIntroduction['risk'] ?? false) === true) {
+            $risks[] = ['kind' => SongQuietIntroduction::RISK_KIND, 'detail' => $quietIntroduction['detail']];
+        }
+
         return $this->withRecordedAt($section, [
             'version' => self::VERSION,
             'candidate' => [
@@ -286,6 +302,7 @@ final class SongPublicationBoundaryEvidenceService
             'song_content' => $songContent,
             'speech_under_loop' => $speechUnderLoop,
             'song_ends' => $songEnds,
+            'quiet_introduction' => $quietIntroduction,
             'inputs_fingerprint' => $this->fingerprintOf($section, $inputs),
             'risks' => $risks,
             'decision' => $risks === [] ? 'release_eligible' : 'review',
@@ -301,7 +318,51 @@ final class SongPublicationBoundaryEvidenceService
      */
     public function inputsFingerprint(ServiceSection $section): string
     {
+        $section = $this->asCut($section);
+
         return $this->fingerprintOf($section, $this->loadInputs($section));
+    }
+
+    /**
+     * The section as its clip will be cut: an operator's "start here" or "end here" replaces the
+     * stored bound, as the cut planner applies it after every edge rule. A copy, never saved.
+     */
+    private function asCut(ServiceSection $section): ServiceSection
+    {
+        $answers = OutputEdgeAnswers::recordsOf($section);
+
+        if ($answers === []) {
+            return $section;
+        }
+
+        $cut = clone $section;
+
+        if (isset($answers['start'])) {
+            $cut->start_time = $answers['start']['time'];
+        }
+
+        if (isset($answers['end'])) {
+            $cut->end_time = $answers['end']['time'];
+        }
+
+        $cut->duration = max(0.0, (float) $cut->end_time - (float) $cut->start_time);
+
+        return $cut;
+    }
+
+    private function audioTimeline(ServiceSection $section): ?AudioTimeline
+    {
+        $contents = $section->processingLog->storedAudioTimelineContents();
+
+        if ($contents === null) {
+            return null;
+        }
+
+        try {
+            return AudioTimeline::fromJson($contents);
+        } catch (\UnexpectedValueException) {
+            return null;
+        }
     }
 
     /**

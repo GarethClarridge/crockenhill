@@ -14,13 +14,17 @@ use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
+use App\Services\ChurchService\OutputEdgeAnswers;
 use App\Services\ChurchService\SectionPublication\SongLoopedTranscript;
 use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
+use App\Services\ChurchService\SectionPublication\SongQuietIntroduction;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\ChurchService\Structure\SongMusicalIntroduction;
 use Database\Factories\SongFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Support\AudioTimelineFixture;
 use Tests\TestCase;
 
 class SongPublicationReviewPolicyTest extends TestCase
@@ -581,6 +585,94 @@ class SongPublicationReviewPolicyTest extends TestCase
      * @param  array<string, mixed>  $metadata
      */
     /** A catalogue song other than the one the section under test is assigned. */
+    /**
+     * 1240 §175520, 10-24: an operator's "start here" took in the sung opening, but the check
+     * judged the section's stored start and held the correct cut. It judges the clip as cut.
+     */
+    #[Test]
+    public function it_judges_the_clip_from_the_operators_start(): void
+    {
+        $section = $this->lyricSection('O Father you are sovereign in all the worlds you made your mighty word was spoken');
+        $this->storeLyricArtifacts($section, [
+            ['start' => 578.0, 'end' => 586.0, 'text' => 'O Father, you are sovereign.'],
+            ['start' => 586.0, 'end' => 594.0, 'text' => 'In all the worlds you made,'],
+            ['start' => 600.0, 'end' => 610.0, 'text' => 'Your mighty word was spoken'],
+        ], [[0, 1000, 'sung']]);
+
+        $this->assertContains('song_lyrics_outside_section', array_column($this->policy->assess($section)['reasons'], 'kind'));
+
+        $section->metadata = ServiceSectionMetadata::fromArray([...($section->metadata?->toArray() ?? []),
+            OutputEdgeAnswers::METADATA_KEY => ['start' => ['time' => 578.0, 'set_by_user_id' => 1, 'set_at' => '2026-10-24T08:24:17+00:00', 'from_time' => 600.0, 'section_span' => ['start_time' => 600.0, 'end_time' => 840.0]]],
+        ]);
+        $section->save();
+
+        $assessment = $this->policy->assess($section->fresh());
+
+        $this->assertNotContains('song_lyrics_outside_section', array_column($assessment['reasons'], 'kind'));
+        $this->assertSame(578.0, $assessment['boundary_evidence']['candidate']['start_time']);
+    }
+
+    /**
+     * Register D6 as amended 10-24, operator: a start the musical-introduction rule moved reaches
+     * a reviewer, who approves it or sets the start by ear. Heard 10-24, 3 of 20 moves took in
+     * 5-10 s that was not an introduction (1329, 1232, 1272).
+     */
+    #[Test]
+    public function it_holds_a_song_whose_start_moved_over_its_musical_introduction(): void
+    {
+        $section = $this->section('full', ['livestream'], metadata: [
+            SongMusicalIntroduction::METADATA_KEY => [['from' => 615.0, 'to' => 600.0, 'windows' => 3, 'extended_at' => '2026-10-24T10:00:00+00:00']],
+        ]);
+
+        $reasons = $this->policy->assess($section)['reasons'];
+
+        $this->assertContains('song_musical_introduction_moved', array_column($reasons, 'kind'));
+    }
+
+    /**
+     * 1235 §2918, heard 10-24: the clip opened on the first words after 21 s with no words, and
+     * the classifier heard no music there; the introduction was quiet ("First notes at 15:19").
+     */
+    #[Test]
+    public function it_holds_a_clip_opening_on_its_words_after_a_long_silence_with_no_music_heard(): void
+    {
+        $section = $this->quietOpening(lastWordsEnd: 575.0, music: false);
+
+        $this->assertContains(SongQuietIntroduction::RISK_KIND, array_column($this->policy->assess($section)['reasons'], 'kind'));
+    }
+
+    #[Test]
+    public function it_does_not_hold_a_clip_whose_wordless_time_before_it_is_short(): void
+    {
+        $section = $this->quietOpening(lastWordsEnd: 592.0, music: false);
+
+        $this->assertNotContains(SongQuietIntroduction::RISK_KIND, array_column($this->policy->assess($section)['reasons'], 'kind'));
+    }
+
+    /** Music the classifier heard is the introduction rule's to place, not a quiet one. */
+    #[Test]
+    public function it_does_not_hold_a_clip_whose_wordless_time_before_it_is_music(): void
+    {
+        $section = $this->quietOpening(lastWordsEnd: 575.0, music: true);
+
+        $this->assertNotContains(SongQuietIntroduction::RISK_KIND, array_column($this->policy->assess($section)['reasons'], 'kind'));
+    }
+
+    private function quietOpening(float $lastWordsEnd, bool $music): ServiceSection
+    {
+        config(['media-processing.storage.service_artifact_disk' => 'local']);
+        $section = $this->section('full', ['livestream']);
+        $this->storeBoundaryArtifacts($section, [
+            ['start' => $lastWordsEnd - 4.0, 'end' => $lastWordsEnd, 'text' => 'So let us stand and sing.'],
+            ['start' => 600.5, 'end' => 606.0, 'text' => 'The song begins.'],
+        ], [['time' => 590.0, 'rms' => -20.0], ['time' => 600.0, 'rms' => -20.0], ['time' => 840.0, 'rms' => -20.0]], duration: 1000.0);
+        $path = 'service-transcripts/test-'.$section->processingLog->processing_id.'.classes.json';
+        Storage::disk('local')->put($path, AudioTimelineFixture::json([[0, $lastWordsEnd, 0.02, 0.85], [$lastWordsEnd, 600, $music ? 0.7 : 0.03, 0.02], [600, 1000, 0.7, 0.02]], 1000.0));
+        $section->processingLog->forceFill(['audio_timeline_path' => $path])->save();
+
+        return $section->fresh();
+    }
+
     private function otherSongId(): int
     {
         return Song::factory()->create()->id;
