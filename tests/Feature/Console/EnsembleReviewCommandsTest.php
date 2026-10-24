@@ -138,6 +138,7 @@ class EnsembleReviewCommandsTest extends TestCase
         $this->assertStringContainsString("\"id\":\"{$log->id}-m0\"", $page);
         $this->assertStringContainsString('db.doc("rulings/" + q.id).set(body)', $page);
         $this->assertStringContainsString('Settled by majority vote', $page);
+        $this->assertStringContainsString('Reload audio', $page);
 
         Process::assertRan(fn ($process): bool => in_array("{$this->out}/clips/{$log->id}-q0-0.mp3", $process->command, true)
             && in_array('405', $process->command, true)

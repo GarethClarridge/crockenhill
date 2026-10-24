@@ -200,6 +200,15 @@ function buildQuestion(q, index) {
   const clipBlocks = q.clips.map((c) => {
     const video = el("audio", { controls: "", preload: "none", src: c.src });
     players.push(video);
+    // A first load that drops leaves the player stuck at 0:00 (preload is "none"), so offer a reload and retry when the connection returns.
+    const loadNote = el("div", { class: "saved err", role: "status", hidden: "" });
+    const retryLoad = () => { loadNote.hidden = true; video.load(); };
+    loadNote.append("Audio didn't load. ", el("button", { class: "marker-btn", type: "button", onclick: () => { retryLoad(); video.play().catch(() => {}); } }, "Reload audio"));
+    const showLoadFailure = () => { loadNote.hidden = false; };
+    video.addEventListener("error", showLoadFailure);
+    video.addEventListener("loadedmetadata", () => { loadNote.hidden = true; });
+    video.addEventListener("play", () => { setTimeout(() => { if (video.readyState === 0) showLoadFailure(); }, 8000); });
+    window.addEventListener("online", () => { if (!loadNote.hidden) retryLoad(); });
     video.addEventListener("play", () => { video.playbackRate = speed; players.forEach((p) => { if (p !== video) p.pause(); }); });
     const clock = el("div", { class: "clock" }, c.label + " · service time ", el("b", {}, fmt(c.offset)));
     const seek = (t) => { video.currentTime = Math.max(0, t - c.offset); video.play().catch(() => {}); };
@@ -234,7 +243,7 @@ function buildQuestion(q, index) {
       const b = el("button", { class: "marker-btn speed-btn", type: "button", "data-speed": String(s), onclick: () => setSpeed(s) }, s + "×");
       return b;
     }));
-    return el("div", { class: "media" }, el("div", { class: "player" }, video, clock, speeds), transcript);
+    return el("div", { class: "media" }, el("div", { class: "player" }, video, loadNote, clock, speeds), transcript);
   });
 
   const save = el("button", { class: "save", type: "submit", disabled: "" }, "Save ruling");
