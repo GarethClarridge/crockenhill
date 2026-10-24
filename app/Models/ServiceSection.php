@@ -12,6 +12,7 @@ use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionStatus;
 use App\Enums\ServiceSectionType;
 use App\Enums\TalkType;
+use App\Services\ChurchService\OutputEdgeAnswers;
 use App\Services\ChurchService\TalkReadingPairing;
 use App\Support\MediaAssetPath;
 use App\Support\MediaProcessingVersion;
@@ -250,9 +251,13 @@ class ServiceSection extends Model
      * item bindings and publication facts (speaker, talk type) do not change the
      * bytes, so confirming them never makes a candidate look due for re-cutting.
      *
-     * A talk cut with its reading ({@see TalkReadingPairing}) depends on the reading's bounds too.
+     * A talk cut with its reading ({@see TalkReadingPairing}) depends on the reading's bounds too,
+     * and any cut on the operator's "start here" and "end here" ({@see OutputEdgeAnswers}): the
+     * planner applies them after every rule, so a clip cut before one was set is stale without
+     * its section moving (10-24: nineteen songs' recorded starts reached their clips only through
+     * a whole re-extraction).
      *
-     * @return array{section_type: string, start_time: float, end_time: float, media_processing: array<string, mixed>, with_reading?: array{section_id: int, start_time: float, end_time: float}}
+     * @return array{section_type: string, start_time: float, end_time: float, media_processing: array<string, mixed>, with_reading?: array{section_id: int, start_time: float, end_time: float}, output_edges?: array{start?: float, end?: float}}
      */
     public function mediaSignaturePayload(): array
     {
@@ -265,6 +270,12 @@ class ServiceSection extends Model
 
         if (($reading = $this->pairedReadingPayload()) !== null) {
             $payload['with_reading'] = $reading;
+        }
+
+        $edges = array_map(static fn (array $record): float => $record['time'], OutputEdgeAnswers::recordsOf($this));
+
+        if ($edges !== []) {
+            $payload['output_edges'] = $edges;
         }
 
         return $payload;

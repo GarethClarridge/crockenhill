@@ -25,8 +25,9 @@ use Illuminate\Validation\ValidationException;
  * The answer is kept on the section that owns the output, with who set it, when, the edge it
  * replaced and the section's span at the time; an earlier answer goes to its history. Setting an
  * edge confirms nothing and releases no content hold. Like the talk recut {@see SaveServiceSection}
- * already offers, a talk's clip is returned to candidate preparation; a sermon's re-cut stays
- * explicit (`sermons:re-extract`).
+ * already offers, a talk's clip is returned to candidate preparation. A song's goes back to it
+ * as it is: the edge is part of its media signature, so the clip re-cuts, and a published one
+ * is refreshed in place. A sermon's re-cut stays explicit (`sermons:re-extract`).
  */
 class SetOutputEdge
 {
@@ -101,13 +102,16 @@ class SetOutputEdge
 
         $section->metadata = ServiceSectionMetadata::fromArray($metadata);
 
-        if ($section->section_type !== ServiceSectionType::ShortTalk) {
+        if ($section->section_type === ServiceSectionType::Sermon) {
             $section->save();
 
             return;
         }
 
-        $this->returnForRecut->apply($section);
+        if ($section->section_type === ServiceSectionType::ShortTalk) {
+            $this->returnForRecut->apply($section);
+        }
+
         $section->save();
         PrepareSectionPublicationCandidates::dispatchStandalone($section->processingLog);
     }

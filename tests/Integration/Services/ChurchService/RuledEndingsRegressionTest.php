@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Services\ChurchService;
 
 use App\Actions\ServiceReview\SetOutputEdge;
+use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\User;
@@ -16,6 +17,7 @@ use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Sermon\SermonExtractionPlanResolver;
 use App\Support\ServiceArtifactDisk;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use OpenAI\Laravel\Facades\OpenAI;
@@ -103,6 +105,7 @@ class RuledEndingsRegressionTest extends TestCase
 
         $section = $log->serviceSections()->findOrFail(3803);
         $admin = User::factory()->create(['is_admin' => true]);
+        Bus::fake([PrepareSectionPublicationCandidates::class]);
         app(SetOutputEdge::class)->execute($section, 'end', '28:26', $admin->id,
             'Operator ruling: before the next song introduction.');
 

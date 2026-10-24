@@ -134,8 +134,12 @@ class SetOutputEdgeTest extends TestCase
         $this->action->execute($sermon, 'end', '4012', $this->admin->id);
     }
 
+    /**
+     * The edge is part of the song's media signature, so candidate preparation re-cuts the clip and
+     * keeps its media until then (10-24: the edge had waited for a whole re-extraction).
+     */
     #[Test]
-    public function a_song_records_its_edge_without_dispatching_the_final_round(): void
+    public function a_songs_edge_returns_its_clip_to_candidate_preparation(): void
     {
         Bus::fake();
         $log = MediaProcessingLog::factory()->create(['duration' => 1800.0]);
@@ -155,7 +159,7 @@ class SetOutputEdgeTest extends TestCase
         $this->assertSame([$song->id], $answer['output_section_ids']);
         $this->assertSame(1713.05, (float) $song->end_time);
         $this->assertSame($this->admin->id, $answer['set_by_user_id']);
-        Bus::assertNothingDispatched();
+        Bus::assertDispatched(PrepareSectionPublicationCandidates::class, static fn (PrepareSectionPublicationCandidates $job): bool => $job->standalone);
     }
 
     #[Test]
@@ -180,7 +184,7 @@ class SetOutputEdgeTest extends TestCase
         $this->action->execute($sermon, 'end', '4007.6', $this->admin->id);
     }
 
-    /** A published song's clip is refreshed in place on its next cut, so its edge may still be set. */
+    /** A published song's clip is refreshed in place on its re-cut, so its edge may still be set. */
     #[Test]
     public function a_published_song_records_its_edge(): void
     {
@@ -192,6 +196,7 @@ class SetOutputEdgeTest extends TestCase
             'start_time' => 1570.06,
             'end_time' => 1713.05,
             'publication_status' => ServiceSectionPublicationStatus::Published,
+            'extracted_video_path' => 'songs/published.mp4',
         ]);
 
         $this->action->execute($song, 'end', '28:26', $this->admin->id);
@@ -199,7 +204,8 @@ class SetOutputEdgeTest extends TestCase
         $song->refresh();
         $this->assertSame(1706.0, OutputEdgeAnswers::recordsOf($song)['end']['time']);
         $this->assertSame(ServiceSectionPublicationStatus::Published, $song->publication_status);
-        Bus::assertNothingDispatched();
+        $this->assertSame('songs/published.mp4', $song->extracted_video_path, 'The public clip stays until its re-cut replaces it.');
+        Bus::assertDispatched(PrepareSectionPublicationCandidates::class);
     }
 
     /** As the screen's talk recut does: the stale clip goes, and candidate preparation is queued. */
