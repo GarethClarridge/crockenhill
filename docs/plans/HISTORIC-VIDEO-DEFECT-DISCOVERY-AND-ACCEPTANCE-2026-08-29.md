@@ -3479,7 +3479,7 @@ The operator heard the four music strata of the review-queue sample (page "Revie
 saved answers `storage/scratch/queue-listening-20261024/answers/rulings/<section>-<stratum>.json`; sample
 `storage/scratch/queue-sample-20261024/sample.json`). **39 of 40 were heard and answered. 628 "Pre-service music"
 (run 939) would not play on the operator's device; the operator is confident it is background music, so it counts as
-background below but was not heard.** The local file decodes cleanly, so the failure is unexplained. The talk and sermon strata are being heard separately and are **not covered here**. Times below are
+background below but was not heard.** The local file decodes cleanly, so the failure is unexplained. The talk and sermon strata are written up in the next section ("the talk and sermon strata heard"). Times below are
 service-recording times. "Current end" is the section's `end_time` as stored.
 
 With ten per stratum, 0 defects bounds a reason's defect rate below about 26% (95%). A verdict that drops a hold
@@ -3571,3 +3571,119 @@ Investigate:
   clone (`never_run_tests_in_the_round_clone`).
 - Do not touch S8 (`song_looped_transcript`): it is its own step in "Next, in order" above.
 - Report counts from totals, and say which of these are observations and which are measured.
+
+#### 10-25: the talk and sermon strata heard — what the operator ruled and what to investigate
+
+The operator heard the other four strata of the same sample (page, build, saved answers and sample as in the music
+section above). **All 40 were heard and answered, so the whole 80-question sample is done** (79 heard; 628 taken on
+the operator's word). No answer in these four strata carries a note except 2659 and 3242. Each question played only
+part of the section, so each verdict covers only what was played: the first and last minute of a talk, the
+**loudest minute** of a sermon's overshooting part, 15 s either side of the unowned speech. The middle of a talk
+was not heard. Times are service-recording times.
+
+With ten per stratum, 0 defects bounds a reason's defect rate below about 26% (95%). The same caution as the music
+section applies: a verdict that drops a hold still needs a mechanism.
+
+**Summary**
+
+| Stratum (hold, all `needs_manual_review`) | Population (reason only) | Heard | Defects | Reading |
+|---|---:|---:|---|---|
+| Talk · low confidence (`structure_low_confidence`) | 29 (22) | 10 | 0 | all one whole talk, cut right |
+| Talk · order of service (`structure_oos_cross_type_inversion`) | 39 (27) | 10 | 0 | all one whole talk, cut right |
+| Sermon · loudness missed (`sermon_audio_loudness_missed`) | 52 (34) | 10 | 0 audible | all "sounds fine", overshoots 0.1–4.4 dB |
+| Sermon · unowned speech (`structure_sermon_adjacent_speech_unowned`) | 47 (33) | 10 | 2 | 8 announcements rightly left out; 1 sermon words; 1 sermon starts late |
+
+**1. Talk · low confidence: 10 of 10 "one whole talk, cut right at both ends"**
+Sections 733, 946, 1253, 1273, 1490, 2597, 3541, 3655, 4331 and 191132 (3.3–7.8 min as cut). No notes. Eight of the
+ten carry no other hold (1273 also `sermon_text_predates_evidence`, 2597 also `structure_oos_cross_type_inversion`).
+Investigate:
+- Why the confidence is low for a short talk, and what the confidence value was for each of these ten. The sample
+  file did not record it; read it from the rows. Compare with the music result, where confidence did not separate
+  good from bad either.
+- Whether short talks (cut from `short_talk` sections) get a lower score by construction, for example because no
+  catalogue title or OpenLP item identifies them. If so the flag measures "unidentified", not "badly cut".
+
+**2. Talk · order of service: 10 of 10 "one whole talk, cut right at both ends"**
+Sections 960, 1183, 1330, 1911, 2476, 2567, 2580, 2799, 2947 and 2985 (3.8–10.4 min as cut). Titles include
+"Heidelberg Catechism: …", "Family Talk – Joel", "Zimbabwe Partnership Trust", "The Viper". 960's saved answer is at version 2 (it was saved twice; the
+version read here says "ok"). Six of the ten carry no other hold.
+`structure_oos_cross_type_inversion` fires when the order of service lists a talk in a different place from the
+recording, across item types. Investigate what the rule compares, and why a short talk that was cut correctly
+still reads as out of order: a talk whose slot in the printed order differs from where it was actually given is
+normal. Check whether the flag can only matter when the section's own boundary evidence is weak. Note that 2659 and
+3058 in stratum 4 carry the same flag.
+
+**3. Sermon · loudness missed: 10 of 10 "no: it sounds fine"**
+The overshoot of the true-peak limit was 0.1 to 4.4 dB, and the operator heard the loudest minute of the missed
+part each time.
+
+| Section | Run | Worst true peak over limit | Part |
+|---|---:|---:|---|
+| 1436 | 1032 | 0.1 dB | video part 2 |
+| 2790 | 1226 | 0.1 dB | video part 2 |
+| 3703 | 1068 | 0.4 dB | video part 1 |
+| 1302 | 1014 | 0.8 dB | video part 1 |
+| 3563 | 1284 | 0.8 dB | video part 2 |
+| 4310 | 1341 | 1.4 dB | video part 2 |
+| 1692 | 1067 | 1.6 dB | video part 3 |
+| 2318 | 1171 | 2.0 dB | video part 2 and public audio (3 dBTP against a 1.0 limit) |
+| 1767 | 1085 | 2.7 dB | video part 2 |
+| 1299 | 1013 | 4.4 dB | video part 1 |
+
+Video limit is -0.5 dBTP. Nothing was audible even at 4.4 dB over, so the audible harm of these misses is nil in
+this sample. **That does not show the limit is pointless:** a true peak over the limit is a clipping risk after a
+lossy re-encode or on a playback chain the operator was not using, and a phone speaker would not reveal it.
+Investigate:
+- What the limit protects (platform delivery, transcode headroom) and whether it is a requirement or a target. The
+  answer decides whether this is a hold to drop or a treatment to fix.
+- Why treatment misses by up to 4.4 dB. A limiter that is working should not overshoot by that much. Look at the
+  larger misses first (1299, 1767, 2318): is the limiter missing, applied before a gain stage, or measuring a
+  different stream? This is the mechanism, per `feedback_fix_the_mechanism_not_the_instance`.
+- The flag is derived from the logs (a "Treated sound missed its loudness target…" warning with the segments from
+  the quality assessment), not from a stored row. Check whether it can be re-derived once the logs rotate. Four of
+  the ten also carry other holds (1299, 1302, 3703, 4310), so clearing this reason frees fewer sermons than the
+  population suggests: 34 of 52 are held for this reason alone.
+
+**4. Sermon · unowned speech: 8 announcements, 1 sermon's own words, 1 sermon starts late**
+When a song beside a sermon was trimmed, speech was left belonging to no section. The question asked whether that
+speech belongs to the sermon (or the reading). The operator's verdicts, with the gap between the unowned speech and
+the stored sermon start:
+
+| Section | Run, service | Unowned speech | Sermon start (stored) | Gap | Verdict |
+|---|---|---|---|---:|---|
+| 831 | 961, 2022-07-24 | 32:02.2–32:30.0 | 36:03.1 | 213 s | announcement |
+| 951 | 968, 2022-02-27 | 16:27.4–16:45.0 | 19:07.4 | 142 s | announcement |
+| 965 | 976, 2025-01-26 | 29:14.3–29:30.0 | 32:17.8 | 168 s | announcement |
+| 1607 | 1052, 2025-10-26 | 24:32.3–25:05.0 | 30:00.5 | 296 s | announcement |
+| 2558 | 1208, 2023-10-15 | 25:55.5–26:15.0 | 29:09.2 | 174 s | announcement |
+| 2626 | 1214, 2023-08-27 | 25:53.8–26:15.0 | 28:13.1 | 118 s | announcement |
+| 3058 | 1245, 2023-01-08 | 33:54.0–34:10.0 | 39:20.9 | 311 s | announcement |
+| 3506 | 1279, 2022-04-17 | 23:40.0–24:01.0 | 24:01.1 | 0.1 s | announcement |
+| 2659 | 1216, 2023-08-06 | 33:05.0–33:30.0 | 33:30.3 | 0.3 s | "part of the sermon, but not the start of the sermon" |
+| 3242 | 1259, 2022-10-02 | 35:15.0–35:31.0 | 35:01.8 | inside | "The sermon starts at 35:24. The transcript timestamps are wrong." |
+
+Observations to check, not conclusions:
+- **The seven items whose speech ends 2–5 minutes before the sermon are all announcements.** A reading and prayer sit
+  in between. That is a separable class, but the rule needs the population's gap distribution first: count how many
+  of the 47 fall in each band (`feedback_measure_frequency_claims_before_stating_them`).
+- **Speech within a second of the sermon start is not separable by gap.** 3506 (0.1 s) is an announcement, 2659
+  (0.3 s) is sermon words. Keep the hold for this band.
+- **3242 is a start-edge defect:** the stored start is about 22 s early (35:01.8 against the ruled 35:24), and the
+  operator says the transcript timestamps are wrong. The words are stamped earlier than the audio carries them. The
+  same pattern showed in the music section at 3918 ("which the transcript has brought forward"). The two are
+  different services (run 1308, 2021-09-05, and run 1259, 2022-10-02). Check for a timing offset in the transcripts
+  of those two runs and whether other held edges share it; the early ends noted in the music section (about 2 s) may
+  be related. This is a hypothesis.
+- **2659 needs a clearer answer.** The operator ruled the speech part of the sermon but "not the start". That reads
+  two ways: the sermon begins before 33:05 (so the stored start 33:30.3 is late), or the speech is sermon content
+  but something else precedes it. The transcript at the stored start is a joke ("good news and bad news"), which
+  suggests the sermon proper begins at 33:30. It also carries `structure_oos_cross_type_inversion`. Listen to the
+  minute before 33:05 and ask the operator the one question that decides it, with the clip
+  (`feedback_never_ask_operator_to_recall_a_cut`).
+
+**Boundaries for whoever picks this up**
+- Same as the music section: read-only on processing, failing test first, no round-clone tests, report counts from
+  totals and say which are observations.
+- Dropping a hold is a code change with a mechanism and a count, not a consequence of ten clean samples. 20 of 20 talk
+  answers and 10 of 10 loudness answers say the holds are over-cautious; they do not say why.
+
