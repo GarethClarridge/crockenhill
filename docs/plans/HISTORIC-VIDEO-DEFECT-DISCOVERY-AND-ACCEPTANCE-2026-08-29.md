@@ -3922,3 +3922,78 @@ audible defects, and does not settle the eight moves of previously-right cuts. N
 processing/state changed. Usage was 97% consumed; the next substantive investigation resumes after the
 02:48 UTC reset through the existing hourly continuation, without redeeming a reset credit.
 
+**03:03 UTC continuation — loudness attribution fix and wider read-only class evidence:** usage reset
+without a reset credit. Reproduced a diagnostic defect in `SectionAudioTreatment::modesFromEncode`:
+matching unordered FFmpeg reports by integrated loudness alone swaps linear/dynamic labels between
+parts normalised to almost the same level. Run 1085's parts measure −23.00/−23.01 LUFS but have very
+different peak/range measurements; their stored actual/expected labels are reversed. Among **418**
+eligible runs with treatment reports, **18** have mode disagreements, all involving similar-level
+parts (`mode-disagreement-candidates.json`). These are attribution candidates, not proof that every
+encode followed its expected mode; original encode stderr is not banked for retrospective reassignment.
+The parser now matches the available integrated/peak/range/threshold tuple, retains legacy reports,
+rejects nonfinite/malformed measurements and leaves equally good conflicting reports unattributed.
+The regression failed with swapped modes before the fix; five pure parser cases pass, as do the real
+FFmpeg treatment tests (the initial combined run: **28 tests / 89 assertions**, plus the two added parser
+controls). PHPStan has zero errors and Pint passes. Actual filters, media and stored reports are unchanged.
+This corrects diagnosis, **not the peak overshoot**: 1013 still records +3.9 dBTP video and 1171 +3.0 dBTP
+public audio. Receipt: `large-peak-diagnostics.jsonl`. Full parallel validation passed: **11,514 tests / 102,079 assertions**, 163 PHPUnit notices and one
+skip, exit 0 in 21m24s. Complete log: `mode-attribution-full-suite.log` in the same scratch directory.
+
+The opening scan checked **421/425** eligible runs with sections, transcript and classifier evidence;
+four were unavailable (955 no sections/timeline; 1043, 1051 and 1098 no timeline). It asks only whether
+at least 10 s of classifier speech and 20 transcript words precede the first section: **five candidates**.
+Besides known 1027, **1053** loses its opening discussion of the evening's verses and following week's
+plan, and **1072** loses its introduction to the Jacob series. Saved delivery begins at **72.8074 s** and
+**74.64 s** respectively, with stored transcripts starting at the reading. These are two further
+text-supported omission leads, not new listening acceptance or repaired outputs. The other candidates
+are **1061** (reader handover) and **1247** (welcome/notices), illustrating why the count is not a defect
+count. Evidence: `opening-class-analysis.json` and `opening-candidate-delivery-corrected.json`; the first
+delivery export read a nonexistent model field and its empty transcript strings must not be used.
+No generic leading-speech hold or automatic extension was added.
+
+The existing repetition screen finds **no blocks in either corrupt-reading example (1056/1320)**;
+coverage screening finds **no gaps in those two or 1027** (`corrupt-reading-repetition.json`,
+`audit-transcript-coverage.json`). These failures are semantic corruption and omitted ownership,
+not repetition or missing transcript coverage. A local comparison exported **627 readings**: four lack
+a cached preached passage; **256** of the other 623 have a reading reference contained in that passage.
+Sequence alignment against those cached words yields review leads only. The known corrupt 1320 reading
+matches **47.2%** of its cue words (9th lowest); known corrupt 1056 still matches **92.9%** (200th lowest).
+A global low-similarity cutoff therefore does not isolate the known defect class. Low scores also include
+ordinary introductions and explicitly different spoken translations. The newly inspected 1061 reading
+contains further malformed wording but needs source verification. No provider calls, reference fetches,
+transcript replacements or holds were made. Inputs and limitations: `reading-corpus-export.json`,
+`reading-lexical-leads.json`, `corrupt-reading-cached-passages.json`. Cached Bible text is comparison
+material, never evidence of the precise spoken wording.
+
+Two outstanding A1 reconciliations were also run **dry only**, over the commands' global local-database
+selection rather than just the 425-run cohort. Recomputing existing review flags would change **63 sections /
+42 services**. Re-deriving structure flags inspected **457 runs**, would change **73 sections / 53 services**,
+and reports **15 runs not fully re-derived** (missing banked structure or row drift). It would withdraw
+49 micro, 10 low-confidence, 7 interrupted-talk, 2 macro, 1 title-marker and 1 talk-fragment flags, and raise
+2 micro / 2 low-confidence flags. These two forecasts overlap and must not be summed or treated as approval
+to execute. Logs: `recompute-review-flags-dry-run.log`, `rederive-structure-flags-dry-run.log`.
+
+**B8 measurement-only follow-up:** local sources and delivered files for 1013/1085/1171 are present;
+`peak-local-paths.json` records their locations. FFmpeg 6.1.1 decoded 1171's existing public MP3 to a
+null sink: **three finite audio frames exceed 0 dBFS**, highest **+2.903358 dBFS at output 1360.22 s**.
+This is a decoded sample peak, not an oversampled true peak or a listening verdict. For 1013's existing
+AAC, the highest decoded frame sample peak without seeking is +0.168999 dBFS; whole-file EBU true
+peak is **+2.3 dBTP**. The exact verifier input (`-ss 0 -t 1148.94`) reproduces the stored **+3.9 dBTP**.
+Isolating options gives **+3.9 with `-ss 0` alone**, **+2.3 with `-t` alone**. Raw decoded PCM SHA-256
+also differs between no seek and seek zero despite the same reported size/duration. Thus the input seek
+changes the decoded samples, not merely the mode label; a decoder/priming mechanism is a lead requiring
+a synthetic red test before any measurement change. Do not assume either that all large misses are codec
+overshoots or that all are false measurements. This analysis wrote logs/hashes only, no media or state.
+Receipts: `run1013-video-*.log`, `run1013-pcm-*.sha256`, `run1171-public-frame-peaks.summary.json`.
+
+The 1013 PCM hashes still differ after discarding the first second; do not assume a one-frame startup
+transient from these hashes alone. For **1171 part 2**, replaying the recorded filters and measurements
+against the available source, to a null sink, reproduces all four input statistics exactly
+(−22.99 LUFS, +7.73 dBTP, LRA 13.00, threshold −34.59). `loudnorm` reports **dynamic / −1.50 dBTP**;
+the post-filter 48 kHz EBU meter reads **−1.4 dBTP / −16.1 LUFS**. The existing MP3's +2.90 dBFS decoded
+sample peak is therefore not reproduced by this treatment replay. This points to the lossy encoding
+stage, but the original file identifies Lavc61.19.101 while this replay uses FFmpeg 6.1.1/Lavc60.31.102;
+codec and version effects are not yet isolated. No change to treatment or the MP3 hold is justified by
+this comparison alone. Reproducible arguments and results: `run1171-preencode-null-arguments.json`,
+`run1171-preencode-null.log`, `run1171-treatment-and-spans.json`.
+

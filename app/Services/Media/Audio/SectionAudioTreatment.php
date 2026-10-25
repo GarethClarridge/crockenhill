@@ -209,9 +209,20 @@ class SectionAudioTreatment
     {
         $reports = [];
         foreach ($this->jsonBlocks($stderr) as $block) {
-            if (isset($block['normalization_type'], $block['input_i']) && is_numeric($block['input_i'])) {
-                $reports[] = ['input_i' => (float) $block['input_i'], 'mode' => strtolower((string) $block['normalization_type'])];
+            if (! isset($block['normalization_type'], $block['input_i']) || ! is_string($block['normalization_type'])) {
+                continue;
             }
+            $measurements = [];
+            foreach (['input_i', 'input_tp', 'input_lra', 'input_thresh'] as $key) {
+                if (! array_key_exists($key, $block)) {
+                    continue;
+                }
+                if (! is_numeric($block[$key]) || ! is_finite((float) $block[$key])) {
+                    continue 2;
+                }
+                $measurements[$key] = (float) $block[$key];
+            }
+            $reports[] = ['measurements' => $measurements, 'mode' => strtolower($block['normalization_type'])];
         }
 
         return array_map(function (PartLoudness $part) use (&$reports): ?string {
@@ -222,15 +233,31 @@ class SectionAudioTreatment
             if ($measured === null || $reports === []) {
                 return null;
             }
-            $distances = array_map(static fn (array $report): float => abs($report['input_i'] - $measured['input_i']), $reports);
-            $nearest = array_keys($distances, min($distances))[0];
-            if ($distances[$nearest] > 0.5) {
+            $candidates = [];
+            foreach ($reports as $index => $report) {
+                $distance = 0.0;
+                foreach ($report['measurements'] as $key => $value) {
+                    $difference = abs($value - $measured[$key]);
+                    if (! is_finite($difference) || $difference > 0.5) {
+                        continue 2;
+                    }
+                    $distance += $difference;
+                }
+                $candidates[] = ['index' => $index, 'count' => count($report['measurements']), 'distance' => $distance, 'mode' => $report['mode']];
+            }
+            if ($candidates === []) {
                 return null;
             }
-            $mode = $reports[$nearest]['mode'];
-            array_splice($reports, $nearest, 1);
+            usort($candidates, static fn (array $a, array $b): int => ($b['count'] <=> $a['count']) ?: ($a['distance'] <=> $b['distance']));
+            $nearest = $candidates[0];
+            foreach ($candidates as $candidate) {
+                if ($candidate['count'] === $nearest['count'] && abs($candidate['distance'] - $nearest['distance']) < 0.000001 && $candidate['mode'] !== $nearest['mode']) {
+                    return null;
+                }
+            }
+            array_splice($reports, $nearest['index'], 1);
 
-            return $mode;
+            return $nearest['mode'];
         }, $parts);
     }
 
