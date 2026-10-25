@@ -610,6 +610,65 @@ class WordTimedOutputEdgesTest extends TestCase
         ];
     }
 
+    /**
+     * A detected musical opening is always in (D6): the pause after a decode stretched over a
+     * song's start moved it later and dropped the introduction (corpus measurement, 2026-10-25).
+     * Across a spoken introduction, the move stands.
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  list<array{start: float, end: float, word: string}>  $words
+     * @param  list<array{0: float, 1: float, 2: float, 3: float}>  $timeline
+     */
+    #[Test]
+    #[DataProvider('songStartsAfterStretchedWords')]
+    public function a_song_start_is_not_moved_later_across_its_musical_opening(array $cues, array $words, array $timeline, float $original, float $expected): void
+    {
+        $log = $this->logWithCues($cues);
+        $log->update(['audio_timeline_path' => 'service-transcripts/edge-test.classes.json']);
+        Storage::disk('local')->put('service-transcripts/edge-test.classes.json', AudioTimelineFixture::json($timeline, 5000.0));
+        $this->bankWindow($log, $original, $words);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => $original, 'end_time' => 4900.0]], songEnds: true);
+
+        $this->assertEqualsWithDelta($expected, $plan['segments'][0]['start_time'], 0.001);
+    }
+
+    public static function songStartsAfterStretchedWords(): array
+    {
+        return [
+            '1267 §3352: a 10.7 s "Your" over the introduction' => [
+                [['start' => 1991.2, 'end' => 1992.2, 'text' => 'Of the Christ who died for me'], ['start' => 1992.2, 'end' => 2005.2, 'text' => 'Your word is good']],
+                [['start' => 1991.5, 'end' => 2002.19, 'word' => ' Your'], ['start' => 2002.2, 'end' => 2003.2, 'word' => ' word'], ['start' => 2003.2, 'end' => 2004.2, 'word' => ' is'], ['start' => 2004.2, 'end' => 2005.39, 'word' => ' good,']],
+                [[1980, 1990, 0.5, 0.01], [1990, 2010, 0.8, 0.01]], 1992.2, 1992.2,
+            ],
+            '1267 §3353: a ruled-right start kept from moving 1 s' => [
+                [['start' => 2233.3, 'end' => 2241.9, 'text' => 'For more.'], ['start' => 2241.9, 'end' => 2250.0, 'text' => 'Thank you.']],
+                [['start' => 2232.45, 'end' => 2238.32, 'word' => ' Thank'], ['start' => 2240.51, 'end' => 2242.89, 'word' => ' you.']],
+                [[2230, 2235, 0.58, 0.01], [2235, 2240, 0.22, 0.02], [2240, 2260, 0.85, 0.01]], 2241.9, 2241.9,
+            ],
+            '1275 §3451: a music marker over the introduction' => [
+                [['start' => 4171.0, 'end' => 4200.98, 'text' => 'Thank you.']],
+                [['start' => 4172.01, 'end' => 4184.0, 'word' => 'music*'], ['start' => 4184.1, 'end' => 4188.98, 'word' => ' Thank']],
+                [[4170, 4175, 0.55, 0.07], [4175, 4180, 0.02, 0.01], [4180, 4195, 0.72, 0.0]], 4180.0, 4180.0,
+            ],
+            '1252 §3156: a spoken introduction is still left out' => [
+                [['start' => 1055.48, 'end' => 1058.94, 'text' => "Let's stand and sing from the breaking of the dawn."], ['start' => 1058.94, 'end' => 1079.91, 'text' => 'From the breaking of the dawn to the setting of the sun, I']],
+                [['start' => 1057.02, 'end' => 1057.56, 'word' => ' breaking'], ['start' => 1057.56, 'end' => 1057.79, 'word' => ' of'], ['start' => 1057.84, 'end' => 1058.58, 'word' => ' the'], ['start' => 1058.58, 'end' => 1060.4, 'word' => ' dawn'], ['start' => 1071.03, 'end' => 1080.9, 'word' => ' oh']],
+                [[1045, 1060, 0.01, 0.78], [1060, 1075, 0.72, 0.01]], 1058.94, 1060.4,
+            ],
+            '1180 §165012: a spoken introduction over the band playing in is still left out' => [
+                [['start' => 1808.5, 'end' => 1810.0, 'text' => "Let's stand and sing."], ['start' => 1810.0, 'end' => 1820.0, 'text' => 'O worship the King']],
+                [['start' => 1808.6, 'end' => 1808.9, 'word' => " Let's"], ['start' => 1808.9, 'end' => 1809.3, 'word' => ' stand'], ['start' => 1809.3, 'end' => 1809.85, 'word' => ' and'], ['start' => 1809.85, 'end' => 1810.32, 'word' => ' sing.']],
+                [[1805, 1810, 0.01, 0.86], [1810, 1815, 0.57, 0.63], [1815, 1830, 0.58, 0.02]], 1810.0, 1810.32,
+            ],
+            '1200 §2509: a start detected in the spoken title moves to the cut heard as right' => [
+                [['start' => 308.7, 'end' => 310.46, 'text' => 'I will give thanks to you.'], ['start' => 310.46, 'end' => 320.0, 'text' => 'I will give thanks to you, my God']],
+                [['start' => 307.84, 'end' => 307.97, 'word' => " Let's"], ['start' => 307.97, 'end' => 308.24, 'word' => ' stand'], ['start' => 308.24, 'end' => 308.4, 'word' => ' and'], ['start' => 308.4, 'end' => 308.79, 'word' => ' sing.'], ['start' => 308.79, 'end' => 308.84, 'word' => ' I'], ['start' => 308.84, 'end' => 309.03, 'word' => ' will'], ['start' => 309.03, 'end' => 309.26, 'word' => ' give'], ['start' => 309.26, 'end' => 309.75, 'word' => ' thanks'], ['start' => 309.75, 'end' => 309.94, 'word' => ' to'], ['start' => 309.94, 'end' => 310.48, 'word' => ' you.']],
+                [[300, 310, 0.05, 0.7], [310, 315, 0.63, 0.47], [315, 330, 0.59, 0.02]], 309.58, 310.48,
+            ],
+        ];
+    }
+
     public static function smearedStarts(): array
     {
         return [

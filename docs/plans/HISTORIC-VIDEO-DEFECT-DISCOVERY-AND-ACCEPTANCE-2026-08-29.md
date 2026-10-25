@@ -4389,3 +4389,37 @@ cut heard is a listening question, not a code one.
 (D6: a detected musical opening is always in). That covers stretched words and marker tokens alike, rather than
 special-casing word length. Test-first from 1267 §3353 and §3352 and 1275 §3451, with a speech-skipping control
 (1252 §3156) that must still move.
+
+#### 10-25 night: M2 fixed — a song's start detected in music is not moved later across music
+
+Built test-first on the operator's word. `CueSafeExtractionPlan::keptMusicalOpening()` (song outputs only, after
+`keptAtHeardStart`): a start the pause rule moves later stays where detection put it when the classifier's window at
+detection's start is music **and** at least half the moved stretch is in windows of music alone
+(`classShare(SoundClass::Music)`). Test `a_song_start_is_not_moved_later_across_its_musical_opening` (WordTimedOutputEdgesTest):
+1267 §3352 / §3353 and 1275 §3451 fail without the fix; three controls must still move (1252 §3156 spoken
+introduction; 1180 §165012 "Let's stand and sing." in a mixed window; 1200 §2509, ruled right).
+
+Two narrowings, each found by measuring the first version across the corpus (re-scans `mechanism-scan-after-m2*.jsonl`):
+
+- **`musicShare` (mixed counts as music) moved 94 starts, not 14.** 63 of the extra were a spoken "Let's stand and
+  sing." under the band playing in — a window scored both speech ≥ 0.5 and music ≥ 0.4 — where keeping detection's
+  start cuts into the spoken "sing.". Music alone excludes them.
+- **Music alone still broke a ruling: 1200 §2509** (heard right at 310.48, after the spoken "I will give thanks to
+  you."). Detection's start (309.58) sits in a speech window there; the opening comes later and the move goes toward
+  it. Requiring detection's window to be music leaves it alone.
+
+**Final: 28 song starts change** (`m2-final-changed.json`), every one back to detection's start in music: 12 of the
+14 M2 rows (976 §964 starts in speech; 1365 §4562's 0.04 s is under tolerance) and 16 more on the same mechanism
+with ordinary-length words — largest 1262 §3285 (20.8 s of "Rejoice, the Lord is King" dropped), 1012 §1288 (4.7 s),
+1308 §3918 (3.4 s), 976 §959, 1007 §1259, 1174 §2331 (1–2 s). 1327 §4147 lands at 213.49, not 210: the existing
+digital-silence rule then trims dead feed (the old cut kept 0.5 s of it). 9 of the 28 are published; nothing changes
+until the re-cut round re-cuts them. Some keep a short spoken tail or a fragment of a word (1277 §3470
+0.07 s into "Father.", 1268 §4735 a whole spoken "sing.") — D6/E9 overlap, for the listening page.
+
+Ratchet: 1,468 of 1,469 passed first time; the one failure was fidelity on **canary13:121-1273-start** (live cut
+4050.24 → 4050.00, ruled `keep` at 4050.24: still within 0.31 s). Its `live` block was re-captured with
+`capture.php --current` and transplanted into `run-1273-2026-10-23.json.gz` (shared data otherwise identical but for
+ensemble metadata on five sections, which the planner does not read); all 24 of 1273's rulings pass.
+
+**Next:** one listening page — the moved `keep` edges still open (2513, 4322 and the five near-speech moves), a
+sample of the 28 starts this fix changes, and the six other unmet sample edges; then the 106 older edges.

@@ -1019,7 +1019,9 @@ class CueSafeExtractionPlan
         $decision = $this->wordPause($words, $window, $original, $edge);
 
         if ($edge === 'start') {
-            return $this->keptAtHeardStart($log, $words, $original, $decision);
+            $decision = $this->keptAtHeardStart($log, $words, $original, $decision);
+
+            return $songEnds ? $this->keptMusicalOpening($log, $original, $decision) : $decision;
         }
 
         return $songEnds ? $decision : $this->keptOutOfMusic($log, $original, $decision);
@@ -1074,6 +1076,37 @@ class CueSafeExtractionPlan
         // Speech above music, not confidently speech alone: 932's sermon opened in a window the
         // classifier heard as mixed.
         if ($timeline === null || $window === null || $timeline->windows[$window]['speech'] <= $timeline->windows[$window]['music']) {
+            return $decision;
+        }
+
+        return ['time' => $original, 'chosen_pause' => ['start' => $original, 'end' => $original], 'word_before' => null, 'word_after' => null];
+    }
+
+    /**
+     * A song's start detection put in music, which the pause rule moves later across music, stays
+     * where detection put it: a detected musical opening is always in (D6). The pause after a decode stretched over the
+     * opening dropped it: 1267's "Your" ran 10.7 s and took 10 s of introduction, 1275's `music*`
+     * marker took 4 s, and 1267's "you." 1 s of a start the operator had heard as right
+     * (corpus measurement, 2026-10-25). A move across speech, a spoken introduction, stands, as
+     * does one across a window heard as both: at 63 song starts a band playing in under "Let's stand
+     * and sing." made the window mixed, and keeping the start would cut into the spoken "sing.". 1200's start, detected in the
+     * spoken "I will give thanks to you." and heard right after it, moves too.
+     *
+     * @param  array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, candidate_anchors?: list<array{start: float, end: float, word: string}>}  $decision
+     * @return array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, candidate_anchors?: list<array{start: float, end: float, word: string}>}
+     */
+    private function keptMusicalOpening(MediaProcessingLog $log, float $original, array $decision): array
+    {
+        if ($decision['time'] <= $original + self::CUE_BOUNDARY_TOLERANCE) {
+            return $decision;
+        }
+
+        $timeline = $this->timeline($log);
+        $window = $timeline?->windowAt($original);
+
+        // Where detection's start is still in speech, the opening is later and the move goes toward it.
+        if ($timeline === null || $window === null || $timeline->classOf($window) !== SoundClass::Music
+            || $timeline->classShare(SoundClass::Music, $original, $decision['time']) < 0.5) {
             return $decision;
         }
 
