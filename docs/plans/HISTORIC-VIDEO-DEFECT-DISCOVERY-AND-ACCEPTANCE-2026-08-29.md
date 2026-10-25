@@ -4289,4 +4289,40 @@ Sections: 790, 817, 1208, 1260, 1263, 1286, 1299, 1302, 1318, 1320, 1349, 1418, 
 146885, 173072, 173860, 174345.
 
 **Next:** clear disk (5.6 GiB vs the 10 GB floor; operator decides what); triage the 120 open edges; then the one
-recompose-and-re-cut round, including the runs above.
+recompose-and-re-cut round, including the runs above. *(Disk: done, next entry.)*
+
+#### 10-25 evening: disk cleared — old binlogs purged after a restore check (27 GiB free)
+
+**Does the round need 10 GB?** Not as a size. The cut media do not reach the internal disk: the sermon, temp and
+quarantine disks all resolve to `/Volumes/Staging/HistoricWork` (472 GiB free), and host ffmpeg writes to the
+paths it is given. The internal disk takes database rows and their ROW-format binlogs (inside `Docker.raw`),
+`laravel.log` and small JSON. Past rounds wrote roughly 20–50 MB of binlog per run (10-16/17, ~282 runs: ~5 GB;
+10-21/22, 21 cuts: ~1 GB including other work), so recompose of ~421 runs plus a re-cut subset is estimated at
+3–6 GB. The 10 GB floor is the watcher's stop (`--min-free-gb`), a margin, not the round's need. After the purge
+it is met, so it stays at 10 GB.
+
+**Survey (before):** Mac 5.8 GiB free of 460. `Docker.raw` 52 GB, of which MySQL 35 GB and **binlogs 23.9 GB**
+(41 files from `binlog.000099`; 30-day expiry, the first not before about 11-08). `storage/scratch` 23 GB,
+`storage/app/temp` 12 GB (cleanup paused), service artifacts 11 GB, `storage/logs` 2.3 GB (`testing.log` 423 MB).
+The operator's folders (Application Support 68 GB, Documents 20 GB, Downloads 13 GB) were not touched. The
+watcher read 24.3 GB free at the 10-22 close and the Mac 8.7 GB on 10-24; that ~15 GB fall is not explained
+(the watcher measures from the container, so the figures may not compare). MySQL also holds ~30 old
+rehearsal/recovery/test databases; not sized, not touched.
+
+**Restore check (operator: "A), presuming it's safe"):** the newest full dump is
+`/Volumes/Sonnics/_pre-recut-song-intros-20261024-backup/crockenhill-with-binlog-coordinate.sql.gz`
+(`_pre-clear-stale-song-clips-20261024-backup` holds only `song_videos`). SHA-256 matches `SHA256SUMS`, `gzip -t`
+passes, `Dump completed on 2026-10-24 11:29:14`, coordinate `binlog.000139` position 411771139, 61 tables, 292 MB
+uncompressed, no `USE`/`CREATE DATABASE`. Restored with `sql_log_bin=0` into `crockenhill_restorecheck_20261025`
+(13 s): all 61 tables, every count equal to live except `historic_import_nested_jobs` (live 1,551, dump 1,532:
+rows added since), and sections 669 and 4089 read `published` (the state before the evening demotion). The side
+database was dropped with `sql_log_bin=0`. Gap: `mysqlbinlog` is not installed in the MySQL container, so replay
+from the coordinate was not exercised; `binlog.000139` is kept.
+
+**Purge:** `PURGE BINARY LOGS TO 'binlog.000139'`. Binlogs 23.9 GB → 0.69 GB; MySQL's filesystem 52 → 30 GB used;
+**`Docker.raw` 53 → 30 GB and the Mac 5.2 → 27 GiB free** — Docker's disk does shrink when space inside it is
+freed (the 10-24 note said otherwise; runbook §9 corrected). Point-in-time recovery before 10-24 11:29 is now
+from the full dumps on Sonnics only (10-10, 10-16 ×3, 10-18 ×4, 10-20, 10-21, 10-22 ×2, 10-23, 10-24 ×2).
+
+**Next:** triage the 120 open edges (the 8 moves of previously-right edges first); then the one
+recompose-and-re-cut round, including the 39 A4 runs.

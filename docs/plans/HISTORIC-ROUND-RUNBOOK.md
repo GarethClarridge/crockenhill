@@ -388,10 +388,17 @@ Also:
   2. with the operator's approval, free old Docker images and the build cache;
   3. archive the stop file and resume.
 
-  On 2026-10-14 this took free space from 10 GB to 28 GB. **It will not again** (measured 10-24): every
-  image left is in use and the build cache reports almost nothing reclaimable, and Docker's sparse
-  `Docker.raw` does not shrink when space inside it is freed. Run `docker system df` before counting on it,
-  and look at the Mac's own folders (plan §5, "10-24", for what is there and what must not be cleared).
+  On 2026-10-14 this took free space from 10 GB to 28 GB. It will not again (measured 10-24): every
+  image left is in use and the build cache reports almost nothing reclaimable. Run `docker system df`
+  before counting on it.
+- **The big lever is MySQL's binlogs** (ROW format, 30-day expiry), which live inside `Docker.raw`. Binlogs older
+  than the newest full dump are redundant once that dump is shown to restore. On 2026-10-25 a restore check
+  of the newest dump, then `PURGE BINARY LOGS TO` the file named in the dump's `CHANGE MASTER` coordinate,
+  freed 23 GB and **`Docker.raw` shrank with it** (53 → 30 GB; the Mac 5.2 → 27 GiB free). The 10-24 note
+  that it does not shrink was wrong. Steps: verify the dump's SHA-256, `gzip -t` and its `Dump completed`
+  line; confirm it has no `USE`/`CREATE DATABASE`; restore it into a new side database with
+  `sql_log_bin=0`; compare per-table counts with live; drop the side database (also `sql_log_bin=0`); purge.
+  Keep the file holding the coordinate. Look at the Mac's own folders too (plan §5, "10-24").
 - **The floor and a detection-only round.** The 10 GB floor protects cuts. A round that defers media writes
   little to the internal disk; the watcher's `--min-free-gb` can be lowered for it with the operator's
   agreement, recorded in the plan. Keep 10 GB for any round that cuts.
