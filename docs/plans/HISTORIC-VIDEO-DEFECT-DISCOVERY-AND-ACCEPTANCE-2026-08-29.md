@@ -4356,3 +4356,36 @@ and the planner's own audit, are in `edge-triage-20261025/keep-moves-triage.json
 
 Five of the eight drop adjacent speech or near-silence: the new cut may be as acceptable as the one heard, but
 "keep" was the ruling and only listening can say whether both are fine (E21: the longer acceptable edge wins).
+
+#### 10-25 evening: M1–M3 measured across the corpus — one real class (M2)
+
+Read-only. `storage/scratch/edge-triage-20261025/mechanism-scan.php` planned every song section on the 425 eligible
+runs inside a rolled-back transaction (1,215 songs; 1,209 planned, 6 unplannable on missing edge words in two runs;
+2,025 planned edges). Rows: `mechanism-scan.jsonl`; M1 classifier check: `m1-classes.json`. The audio classifier
+(AudioTimeline, independent of the transcript) is the arbiter where the transcript's words and the cut disagree.
+
+- **M1 (song end past the next speech's first word): 65 candidates, not a demonstrated class.** In **50** the stretch
+  from the first decoded word to the cut is music-dominant (speech mostly 0.01–0.03), including every overrun over
+  2 s (up to 15 s: 1326 §4134, 1328 §176153, 1266 §3330). There the transcript places the next speaker early and the
+  cut follows the sound. **2513 is one of them** (music 0.71, speech 0.01 over its 0.77 s), so its new end most likely
+  adds instrumental play-out, which D6 puts in the song. The other **15** overrun speech-dominant audio by 0.1–0.9 s.
+  No fix proposed without listening to a few of each kind.
+- **M2 (song start moved later past a word longer than 1.5 s): 17, of which 14 skip music-dominant audio** — a
+  musical opening D6 says is always in. Largest: 1267 §3352 +9.99 s over " Your" stretched 10.7 s; 1275 §3451 +4 s
+  over a `music*` marker token (12 s); 1382 §176323 +2.26; 976 §964 +2.45; **1267 §3353** +0.99 (the ruled case).
+  The other 3 (1252 §3156, 1185 §165067, 1028 §1400) skip speech. **This is the one real class.**
+- **M3 (song start moved back ≥1 s): 88; 53 take in speech only, 32 take in music, 3 neither.** The speech-only ones
+  are almost all spoken introductions ("Let's stand and sing…", "Well, shall we sing again?") or the tail of the
+  item before (4322's reading; 1251 §3147). **Register D6/E9 already rules this acceptable:** a spoken introduction is
+  optional and "some overlap is fine" with the spoken section before. Not a defect; the residue is cosmetic (some
+  open mid-sentence, e.g. "of happiness. Our"). **4322's ruled move is therefore acceptable**, and by E21 the
+  longer acceptable start wins.
+
+**The eight `keep` moves, revised:** 3353 is M2 (defect). 2513 and 4322 are most likely acceptable (play-out per D6;
+spoken lead-in per D6/E9). The other five drop adjacent speech or near-silence. Whether those six are as good as the
+cut heard is a listening question, not a code one.
+
+**Proposed fix for M2 (not built):** a song's start never moves later across audio the classifier scores as music
+(D6: a detected musical opening is always in). That covers stretched words and marker tokens alike, rather than
+special-casing word length. Test-first from 1267 §3353 and §3352 and 1275 §3451, with a speech-skipping control
+(1252 §3156) that must still move.
