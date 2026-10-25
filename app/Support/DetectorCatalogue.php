@@ -23,7 +23,6 @@ use App\Enums\DetectorSurface;
 use App\Enums\DetectorUnit;
 use App\Jobs\DetectServiceStructure;
 use App\Jobs\MatchSongsFromTranscript;
-use App\Services\ChurchService\SectionPublication\SongLoopedTranscript;
 use App\Services\ChurchService\SectionPublication\SongLyricsOutsideSection;
 use App\Services\ChurchService\SectionPublication\SongOpeningAndClosing;
 use App\Services\ChurchService\SectionPublication\SongPublicationBoundaryEvidenceService;
@@ -867,8 +866,9 @@ class DetectorCatalogue
      * The risks the boundary evidence pass records about a song cut.
      *
      * Catalogued 2026-09-21, having been written by production and read by no
-     * adapter since the surface was built. `song_looped_transcript` is §4.3a's
-     * song-loop class over 226 sections, so the omission was not a corner.
+     * adapter since the surface was built. `song_looped_transcript`, §4.3a's
+     * song-loop class over 226 sections, was one of them until S8 (2026-10-24)
+     * made it an observation rather than a risk.
      *
      * **Only kinds that actually reach `risks` are here, and that had to be
      * measured rather than grepped.** `SongPublicationBoundaryEvidenceService`
@@ -908,14 +908,14 @@ class DetectorCatalogue
             ),
             new DetectorEntry(
                 id: 'song-looped-transcript',
-                surface: DetectorSurface::SongBoundaryEvidence,
-                signals: [SongLoopedTranscript::RISK_KIND],
-                status: DetectorStatus::Promoted,
+                surface: null,
+                signals: [],
+                status: DetectorStatus::DecidedNotToDetect,
                 severity: DetectorSeverity::PublishedWrongContent,
                 unit: DetectorUnit::Section,
                 summary: "The clip's transcript repeats phrases its bound song does not contain, so the text describes a performance that did not happen.",
-                owningClass: SongLoopedTranscript::class,
                 regressionCases: ['§1216', '§1862', '§3750'],
+                decision: 'Ruled 2026-10-24 (S8): a looped song transcript is a transcription fault, not a reason to hold the clip. Boundary evidence version 11 keeps the loop as an observation and never as a risk; speech hidden under a loop stays with song-speech-under-loop, and a loop\'s gaps still count for nothing as boundary evidence. Evidence banked before version 11 still names the kind until the backfill re-assesses it.',
             ),
             new DetectorEntry(
                 id: 'song-lyrics-outside-section',

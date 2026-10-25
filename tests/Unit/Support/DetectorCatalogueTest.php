@@ -336,7 +336,6 @@ class DetectorCatalogueTest extends TestCase
                 'song_boundary_evidence_unreadable',
                 'song_boundary_trailing_content',
                 'song_closing_missing',
-                'song_looped_transcript',
                 'song_lyrics_outside_section',
                 'song_opening_missing',
                 'song_possible_quiet_introduction',
@@ -366,6 +365,7 @@ class DetectorCatalogueTest extends TestCase
             'song_boundary_without_rms_corroboration',
             'song_boundary_spoken_framing_below_floor',
             'song_boundary_spoken_introduction',
+            'song_looped_transcript',
         ] as $reason) {
             $this->assertNotContains(
                 $reason,
