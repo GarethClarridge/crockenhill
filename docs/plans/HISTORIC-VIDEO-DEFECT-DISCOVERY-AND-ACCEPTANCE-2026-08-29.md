@@ -18,7 +18,7 @@
 > **10-25 morning:** that work was reviewed and merged into `master`, with one catalogue fix (§5, "10-25 morning").
 > **Next** (§5 "10-25 morning", in order): the three dry runs are re-run (§5 "10-25 midday": unchanged; the
 > apply order is constrained: re-derive, recompute, backfill, demote; the guard against recompute clearing publication-review holds is built, §5 "10-25 afternoon"); stored state was applied on the operator's go (§5 "10-25 evening": re-derive, recompute, backfill, 5 songs demoted);
-> decide how A4 reaches the 39 peak-only holds; clear disk (5.6 GiB vs the 10 GB floor); triage the 120 open edges; then the one recompose-and-re-cut round. Alongside: the 23 current unassessable rulings
+> A4 reaches the 39 peak-only holds through the re-cut round (§5 "10-25 evening: how A4 reaches"); clear disk (5.6 GiB vs the 10 GB floor); triage the 120 open edges; then the one recompose-and-re-cut round. Alongside: the 23 current unassessable rulings
 > (§4.6 and §5, morning recapture); the
 > [post-round audit](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md) (first slice:
 > inventory, read-only packets, calibration; no processing); acceptance (§4.5). Weekly take-over preparation
@@ -4253,3 +4253,40 @@ before version 11 that still names `song-looped-transcript` has been re-assessed
 
 **Next:** decide how A4 reaches the 39 peak-only loudness holds (§5 "10-25 morning", step 3); clear disk (5.6 GiB vs
 the 10 GB floor); triage the 120 open edges; then the one recompose-and-re-cut round.
+
+#### 10-25 evening: how A4 reaches the 39 peak-only holds — the re-cut round carries it
+
+**Operator decision (10-25): option A, the re-cut round carries it** ("Do A"). No re-apply command is built.
+Nothing was processed and no stored state changed.
+
+**Measured read-only on `master` at `74bcf3b2e`** (after the evening apply): 52 sermons carry
+`sermon_audio_loudness_missed`, every one with a stored `processing_metadata.audio_treatment` report. 39 are held
+only for video true-peak misses; 13 have an integrated or public-MP3 miss and stay held under A4. If the flag came
+off the 39, **28 would be released** and **11 stay held** by other flags (`structure_missing_preached_reading` 7;
+`structure_low_confidence`, `sermon_text_predates_evidence`, `structure_sermon_adjacent_speech_unowned`,
+`transcript_repetition_suspect` 3 each). None of the 39 has a publication status.
+
+**Why the round, not a command over the stored reports:**
+- The stored reports were measured with the old input seek, which can under-report as well as over-report a peak
+  (§5 "10-25 overnight", `36e1d9242`). A command can only drop the video-peak entries; an MP3 or integrated miss
+  the old seek failed to see would not be in the report to keep the hold. The 3-run re-verification found those
+  values unchanged, but that is 3 of 39, not the class.
+- `ExtractSermon` already re-derives the flag from fresh continuous-playback measurements on every cut, so the
+  mechanism is right; a command would be a second reader of the wording-based filter in
+  `ExtractedMedia::loudnessReviewMisses()`.
+- The holds cost nothing before the round: nothing is public and the queue is a labelling exercise.
+
+**Obligation on the round:** its snapshot must include the 39 sections' runs. Check membership against this list
+when the snapshot is taken; after Tier C, re-count the peak-only holds (expected 0) and the releases (forecast 28,
+re-measured, so may differ).
+
+Runs (39 sections, one sermon each): 939, 953, 958, 998, 1007, 1008, 1009, 1011, 1012, 1013, 1014, 1016, 1017,
+1018, 1021, 1025, 1028, 1030, 1032, 1036, 1038, 1055, 1063, 1067, 1068, 1076, 1078, 1080, 1085, 1155, 1169, 1218,
+1226, 1268, 1284, 1321, 1341, 1346, 1354.
+
+Sections: 790, 817, 1208, 1260, 1263, 1286, 1299, 1302, 1318, 1320, 1349, 1418, 1436, 1479, 1495, 1618, 1667,
+1692, 1737, 1740, 1767, 2315, 2691, 2790, 3563, 3703, 3762, 4077, 4310, 4373, 4464, 4734, 4831, 72823, 135448,
+146885, 173072, 173860, 174345.
+
+**Next:** clear disk (5.6 GiB vs the 10 GB floor; operator decides what); triage the 120 open edges; then the one
+recompose-and-re-cut round, including the runs above.
