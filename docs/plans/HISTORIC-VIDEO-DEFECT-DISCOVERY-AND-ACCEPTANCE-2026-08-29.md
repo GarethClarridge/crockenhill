@@ -12,7 +12,10 @@
 > what they change, not yet set up: blocked on the internal disk's 8.7 GB against the 10 GB floor (§5, "10-24").
 > The song evidence backfill's count is fixed (8 newly held, not 286). **10-24/25:** that round is deferred; an
 > 80-item sample of the review queue was heard (10 real defects, 70 held for nothing), and what to do with it is
-> planned in §5 "10-25 (later)": stale review state first, then talk type, S8 and the hold changes. **Next:** resolve the 106 failing
+> planned in §5 "10-25 (later)". **10-25 overnight:** the stale-state writer, talk proposals, S8/S9, pre-service
+> music, K17, A4 and F11 fixes are built locally; 31 sample edge rulings captured, 17 added to the ratchet.
+> No stored review state or media has been changed; validation and measurements are recorded in the last §5 entry.
+> **Next:** resolve the 106 failing
 > edges and 23 current unassessable rulings (§4.6 and §5, morning recapture); the
 > [post-round audit](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md) (first slice:
 > inventory, read-only packets, calibration; no processing); acceptance (§4.5). Weekly take-over preparation
@@ -3815,4 +3818,97 @@ What this adds to the work (hypotheses until counted):
   sound can place the start where the transcript cannot (the classifier heard the speech), but the operator's
   10-05 ruling for F11 is "mark and ask", not move. Keep to that unless the operator rules otherwise.
 - The text of those 71 s is a re-decode question (H10b route), separate from the cut.
+
+#### 10-25 overnight: implement the review follow-up without processing
+
+Operator authorised implementing as much of this follow-up as possible without further input, with an overnight
+continuation after the usage reset if needed. Work is on `review-queue-follow-up`; evidence is under
+`storage/scratch/review-followup-20261025/`. No dispatch, provider call, re-cut, stored-state reconciliation,
+hold release, publication or production write was performed.
+
+**Built, with reproducing tests before the fixes:**
+- **A1:** `TalkSpeakerService` re-held dispositioned speaker questions whenever *any* flag remained, bypassing
+  `SectionReviewFlagPolicy`. It now asks that policy: cross-type inversion stays a note, while low confidence
+  and content holds remain actionable. The existing recompute dry run reports **63 sections / 42 services**
+  across the local database; structure re-derivation reports **73 sections / 53 services**, withdrawing 10 stale
+  low-confidence flags and raising 2. These are global dry-run counts, not the sample's 29 stale rows; nothing applied.
+- **A5:** the blank representative really did discard the other draws' proposed talk types. The composer now
+  takes the most-supported nonblank proposal from the winning section's supporters. A tied representative's
+  proposal is retained; otherwise slot order settles the tie. All-blank stays blank. This is still a proposal,
+  requiring type confirmation. Of **315** eligible talks, **172** have no proposal; **29** have a nonblank type
+  on a matching valid draw (last banked ensemble, unique overlap over half the shorter span). That is a candidate
+  count, not a promise that exact recomposition fills all 29. The other 143 have no matching typed vote under
+  that scan. `talk-type-votes.json` also records all ten low-confidence talks: the composer uses the **minimum**
+  supporter confidence, so one low estimate holds an otherwise agreed talk. No confidence policy was changed.
+- **S8/S9:** loops remain recorded evidence but no longer create `song_looped_transcript` review risks; the
+  default duration floor is **55 s**. Boundary-evidence version is **11**, making earlier judgements stale.
+  Content/identity checks, including fragments and speech under a loop, remain. The named backfill dry run
+  assessed **3942, 4534, 308 and 461**, with **no review reasons or new holds**: the two approved clips and two
+  weekly clips are no longer re-held for loops. The corpus-wide dry run assessed **1,031**, would newly hold
+  **5**, and retain **158** holds; none names `song_looped_transcript`. Nothing was banked.
+- **A2:** leading `other` sections ending before the first non-`other` service item are exempt from
+  `MistypedSungSections`, by position and without reading the title. The mid-service §1301-shaped control stays
+  flagged. **2368 stays considered:** it is the first `welcome` section, 0–62.6 s, whose transcript only repeats
+  “Good morning” at 0, 30 and 60 s; that is insufficient evidence to exempt a welcome or call it a song.
+- **K17:** speech exposed beside a reading remains in the note without raising the sermon ownership flag.
+  Sermon-side speech still raises it, including when the same song exposes speech on both sides. No cut moves.
+- **A4:** `ExtractedMedia` retains every measurement but exposes a separate actionable-miss list for the sermon
+  hold. Video true-peak misses alone do not hold; integrated and public-MP3 misses still do. Of the **52** eligible
+  loudness-held sermons, **39** have only video peak misses (**26** have no other flag), and **13** have other
+  misses. All 52 have a durable `processing_metadata.audio_treatment` report. The large named misses used
+  `loudnorm`, not plain gain: 1013 dynamic; 1085 reports linear on part 2 despite expected dynamic; 1171 dynamic.
+  A mode attribution ambiguity or codec/transient mechanism still needs investigation; treatment is unchanged.
+- **F11:** failed transcription windows no longer count as transcribed coverage. The classifier must still hear
+  at least ten seconds of speech, and bounds never move. Before changing the rule, a read-only scan of **1,075**
+  post-song sections with artifacts (6 further sections lack artifact paths) found **18 sections on 17 runs**
+  starting within 2 s of an unobservable window's end with at least ten seconds of speech inside it. This includes
+  sermons **2659 / 1216** and **3093 / 1247**; it is a candidate class, not 18 confirmed lost openings. The positive
+  2659-shaped fixture, the failed-window fixture and no-speech control pin the fix (`class-counts.json`).
+
+**B6/B7 evidence:** `scripts/rulings/queue_sample.py` joins the saved answers to sample bounds, tested with
+eight Python tests across the rulings scripts. **31 new edge records**, ledger **1,351 → 1,382**. The two sermon
+start answers refer to **sections 2659 and 3242**, not the earlier reading at the composite video's start.
+Approximate times remain in notes with a directional expectation; they are not invented exact timestamps.
+All 31 were captured on banked version-16 evidence: **17 meet their ruling numerically** and pass real planner
+replay (**17 tests / 51 assertions**); those 17 join the committed ratchet in **13 per-run fixtures**. **14 remain unmet**, including moves
+of previously-right edges; none of those 14 moved only through captured silence. The initial wrong-clock capture
+is preserved separately and superseded by `capture-corrected/`; use `queue-edge-score.json`. A plan meeting a
+directional ruling is not a delivered repair or new listening acceptance.
+
+The stored snap notes confirm four sermon starts moving backwards by ≥2 s (3242 −10.2; 4435 −6.3; 3687 −3.8;
+214227 −2.8). Among song sections carrying a start-snap note, **86/623** move backwards ≥2 s and **4/623** forwards;
+end notes: **85/802** backwards and **196/802** forwards. These are historical notes, sometimes predating later
+boundary rules, not measurements of a fresh recompose. `snap-counts.json` lists the largest. The snap searches
+30 s by default; its cue clamp reads transcript coverage, not a classifier speech barrier. No arbitrary smaller
+window or global transcript offset was imposed.
+
+**Wrong-binding class scan and an additional fix:** the existing `SongLyricIdentityCheck`, run read-only over
+the eligible current sections and saved transcripts, assessed **1,189 bound songs**: 1,000 consistent,
+187 insufficient words, **2 contradicted**, plus 26 unbound sections. These are lexical outcomes, not a clean
+audit: the frozen audit's delivered associations are a different snapshot, and a sparse or looped transcript
+can miss a wrong binding. Both new contradictions are **318 “Great Is The Lord” vs 317 “Great Is The Lord #179”**,
+on **977 §1009** and **1305 §3886**. Their saved OCR lyrics independently agree with 317.
+`SongLyricsMatchingService` disabled the first-*lyric*-line shortcut for OCR but still trusted the first visible
+line as a canonical *title*. That returned 318 at 1.0 before the remaining lyrics were read. Reproduced red;
+untrusted OCR now skips both first-line shortcuts and weighs the full sample, while trusted title probes retain
+their shortcut. Matcher and matching-job tests pass (**76 tests / 202 assertions**). Saved OCR replay changes
+each first sample **318 → 317**, with the other samples retaining 317. No section was rematched. Evidence:
+`lyric-identity-scan.json`, `ocr-collision-replay.json`. The impact scan covered **823 saved samples on 309
+sections**: **54** used the canonical shortcut; exactly **2** change, these two **318 → 317**, with **0** newly
+unmatched samples (`ocr-first-line-impact.json`).
+
+**Validation complete:** the full parallel suite has **no failures: 11,491 tests / 102,021 assertions**, with
+163 PHPUnit notices and one skip (22m12s). Seven affected PHPUnit files passed (**173 tests / 427 assertions**);
+the extra tie/combined-neighbour controls passed (**81 tests / 226 assertions**), the matcher/job files passed
+(**76 tests / 202 assertions**), and video extraction passed (**27 tests / 66 assertions**). The **17 new
+ratchet cases / 51 assertions** also pass after compacting into 13 run fixtures. PHPStan has zero errors and
+Pint passes. Complete logs are in `/tmp/review-followup-*-20261025.log` and copied into the evidence directory.
+
+**Still owed:** diagnose the 14 newly captured failing edges alongside the existing 106-edge triage (do not add
+these populations without deduplication); broader wrong-binding evidence beyond lexical scoring, and the
+corrupt-reading/lost-opening scans; a safe
+snap/timing mechanism fix where justified; explain the large peak overshoots. Stored-state application and the
+single recompose-and-re-cut round still need the operator's go. Disk measured **6.5 GiB free** overnight, below
+the round's 10 GB floor; no files were cleared. An hourly thread continuation is scheduled for the rest of this
+night, without consuming reset credits.
 

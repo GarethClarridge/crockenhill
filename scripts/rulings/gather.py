@@ -23,6 +23,8 @@ import os
 import re
 import sys
 
+from queue_sample import collect as queue_sample_rulings
+
 SCRATCH = 'storage/scratch'
 OUT = 'tests/Fixtures/Rulings/edge-rulings.json'
 
@@ -306,6 +308,12 @@ for source, directory in (('listening-final-round-20261022', 'listening-final-ro
                           ('listening-1310-20261022', 'listening-1310-20261022'),
                           ('listening-open-edges-20261022', 'listening-open-edges-20261022')):
     from_keys(source, directory, {question['id']: question['key'] for question in load(f'{directory}/questions.json')})
+
+records.extend(queue_sample_rulings(
+    load('queue-sample-20261024/sample.json'),
+    list(saved('queue-listening-20261024/answers/rulings').values()),
+    load('queue-followup-20261025/answers/rulings/2659-sermon_start.json'),
+))
 
 # Answers the plan later closed with a reading of its own: the answer heard something true that no
 # cut can fix, so the cut heard stands.
