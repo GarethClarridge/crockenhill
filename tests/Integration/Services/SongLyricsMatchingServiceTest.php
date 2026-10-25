@@ -147,6 +147,26 @@ class SongLyricsMatchingServiceTest extends TestCase
 
     // ---- Fuzzy lyrics matching ----
 
+    /** Runs 977 §1009 and 1305 §3886: an OCR lyric line also titles a different hymn. */
+    #[Test]
+    public function an_ocr_first_line_cannot_override_the_lyrics_as_a_catalogue_title(): void
+    {
+        $wrong = Song::factory()->create([
+            'title' => 'Great Is The Lord',
+            'canonical_key' => 'great is the lord',
+            'lyrics_plain' => "Great is the Lord\nWe gather by a quiet river",
+        ]);
+        $lyrics = "Great is the Lord\nand most worthy of praise";
+        $right = Song::factory()->create([
+            'title' => 'Great Is The Lord #179',
+            'canonical_key' => 'great is the lord 179',
+            'lyrics_plain' => $lyrics,
+        ]);
+
+        $this->assertSame($wrong->id, $this->service->matchFromLyrics($lyrics)['song_id'], 'a trusted title-opening probe still uses its canonical title');
+        $this->assertSame($right->id, $this->service->matchFromLyrics($lyrics, allowFirstLineKeyMatch: false)['song_id']);
+    }
+
     #[Test]
     public function it_matches_via_fuzzy_lyrics_when_first_line_has_no_canonical_key(): void
     {

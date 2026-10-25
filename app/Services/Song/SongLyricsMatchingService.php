@@ -49,8 +49,8 @@ class SongLyricsMatchingService
      * Returns the matched song ID, confidence score (0.0–1.0), and matched title.
      * Returns null song_id when no match meets the minimum threshold.
      *
-     * The first-line-key shortcut (matching the probe's opening line against a
-     * song's stored first lyric line) only holds when the probe genuinely
+     * First-line shortcuts (matching the probe's opening line against a title or
+     * a song's stored first lyric line) only hold when the probe genuinely
      * starts at the song opening — a title hint or a song-opening transcript.
      * OCR frames can be sampled anywhere in the song, so their first visible
      * line is not the opening; callers pass $allowFirstLineKeyMatch = false to
@@ -176,6 +176,10 @@ class SongLyricsMatchingService
      */
     private function tryCanonicalKeyLookup(string $transcript, bool $allowFirstLineKeyMatch): ?array
     {
+        if (! $allowFirstLineKeyMatch) {
+            return null;
+        }
+
         $firstLine = $this->extractFirstLine($transcript);
         if ($firstLine === '') {
             return null;
@@ -205,10 +209,6 @@ class SongLyricsMatchingService
         // frame's first line may be a mid-song verse (guarded by the caller).
         // first_line_key is not unique — when two songs share an opening
         // line, fall through to fuzzy matching rather than pick arbitrarily.
-        if (! $allowFirstLineKeyMatch) {
-            return null;
-        }
-
         $firstLineMatches = Song::query()
             ->whereIn('first_line_key', $keyVariants)
             ->limit(2)
