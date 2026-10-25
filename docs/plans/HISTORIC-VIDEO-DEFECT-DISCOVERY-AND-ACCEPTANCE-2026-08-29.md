@@ -4423,3 +4423,12 @@ ensemble metadata on five sections, which the planner does not read); all 24 of 
 
 **Next:** one listening page — the moved `keep` edges still open (2513, 4322 and the five near-speech moves), a
 sample of the 28 starts this fix changes, and the six other unmet sample edges; then the 106 older edges.
+
+**Listening page published (10-25 night):** "Song Edges" https://claude.ai/artifact/PoBVqehgsMnRf2EvHctKaZ —
+35 questions, `rulings` collection, ids `<section>-<edge>`; builder and A/B times in
+`storage/scratch/edge-listening-20261025/` (`build.php`, `questions.json` `key.times`). Groups: the 7 moved `keep`
+edges (A = heard, B = now); the 24 unruled starts the fix changes (A = before, B = now; 1327 §4147 left out, its only
+change is 0.5 s of digital silence); 4 starts it leaves alone (165012, 2972, 3027 announcements over the band; 976
+§964 detected in speech). **Not on the page:** 2659, 3242, 3769 and 752 already carry an answer with the time in its
+note, so they need code triage, not listening (752's start stays ~19 s before the 21:07 ruled: the fix keeps
+music there that is not this song).
