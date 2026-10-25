@@ -17,7 +17,7 @@
 > No stored review state or media has been changed; validation and measurements are recorded in §5 "10-25 overnight".
 > **10-25 morning:** that work was reviewed and merged into `master`, with one catalogue fix (§5, "10-25 morning").
 > **Next** (§5 "10-25 morning", in order): the three dry runs are re-run (§5 "10-25 midday": unchanged; the
-> apply order is constrained: re-derive, recompute, backfill, demote; the guard against recompute clearing publication-review holds is built, §5 "10-25 afternoon"); apply stored state on the operator's go;
+> apply order is constrained: re-derive, recompute, backfill, demote; the guard against recompute clearing publication-review holds is built, §5 "10-25 afternoon"); stored state was applied on the operator's go (§5 "10-25 evening": re-derive, recompute, backfill, 5 songs demoted);
 > decide how A4 reaches the 39 peak-only holds; clear disk (5.6 GiB vs the 10 GB floor); triage the 120 open edges; then the one recompose-and-re-cut round. Alongside: the 23 current unassessable rulings
 > (§4.6 and §5, morning recapture); the
 > [post-round audit](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md) (first slice:
@@ -4226,3 +4226,30 @@ touched are exactly the publication-review holds counted at midday.
 **Order now.** With the guard in place, a recompute after the backfill no longer clears its holds, so the order
 re-derive → recompute → backfill → `service:demote-held-publications` remains right but is no longer fragile.
 Step 2 still waits for the operator's word.
+
+#### 10-25 evening: stored review state applied (local database only)
+
+On the operator's go, the apply order from §5 "10-25 midday" was run on `master` at `39b222e43`, workers restarted
+after the guard commit. Each command was dry-run first. Nothing public changed and no media was touched.
+
+| Step | Forecast | Applied |
+|---|---|---|
+| `services:rederive-structure-review-flags --execute` | 73 sections / 53 services | 73 / 53 |
+| `services:recompute-section-review-flags --execute` | 28 / 28 (before re-derive) | 29 / 29 |
+| `service:backfill-song-boundary-evidence --execute` (v11) | 1,031 assessed, 5 newly held, 158 kept | identical |
+| `service:demote-held-publications --all --apply` | 5 | 5 demoted to `not_applicable` |
+
+- Recompute was 29, not 28, because re-derive changed the flags it reads; the dry run after re-derive gave 29.
+- The guard held: recompute did not clear any publication-review hold.
+- The 5 demoted songs are sections 669 (run 945), 860 (963), 997 (974), 1983 (1119) and 4089 (1322), all
+  `needs_manual_review` with no recorded flag, none publicly visible, 0 song videos quarantined. Demotion keeps files
+  and rows and the hold that explains it.
+- Re-check dry run afterwards: 694 published sections, 0 to demote.
+- The backfill's own `--execute` output was truncated by `head`; the write is confirmed by the demote dry run
+  listing exactly the 5 newly held songs.
+
+This is the local database only; production is separate (`local_machine_is_separate_from_prod`). Evidence banked
+before version 11 that still names `song-looped-transcript` has been re-assessed by the backfill.
+
+**Next:** decide how A4 reaches the 39 peak-only loudness holds (§5 "10-25 morning", step 3); clear disk (5.6 GiB vs
+the 10 GB floor); triage the 120 open edges; then the one recompose-and-re-cut round.
