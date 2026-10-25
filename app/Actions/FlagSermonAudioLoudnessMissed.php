@@ -12,7 +12,8 @@ use App\Services\Media\Video\ExtractedMedia;
 use App\Support\SectionReviewFlagPolicy;
 
 /**
- * Hold a sermon whose treated sound missed its loudness or peak target.
+ * Hold a sermon whose treated sound missed integrated loudness or the public MP3 ceiling.
+ * Video true-peak misses remain reported targets (register A4).
  *
  * Every treated part of both files is measured again after the encode (§6.3). A
  * miss used to fail the extraction and delete the files, so nobody could hear
@@ -33,7 +34,7 @@ class FlagSermonAudioLoudnessMissed
     public function __invoke(MediaProcessingLog $run, ExtractedMedia $media): array
     {
         $outcome = ['raised' => 0, 'withdrawn' => 0];
-        $owed = $media->loudnessMisses() !== [];
+        $owed = $media->loudnessReviewMisses() !== [];
 
         $sections = $run->serviceSections()
             ->where('section_type', ServiceSectionType::Sermon->value)

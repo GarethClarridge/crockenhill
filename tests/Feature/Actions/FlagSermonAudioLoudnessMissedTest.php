@@ -18,6 +18,35 @@ class FlagSermonAudioLoudnessMissedTest extends TestCase
     use RefreshDatabase;
 
     #[Test]
+    public function video_peak_misses_are_reported_without_holding_the_sermon(): void
+    {
+        [$run, $section] = $this->runWithSermon();
+        $miss = 'part 1 video true peak 3.9 dBTP, limit -0.5';
+        $media = $this->media([$miss]);
+
+        $this->assertSame(['raised' => 0, 'withdrawn' => 0], (new FlagSermonAudioLoudnessMissed)($run, $media));
+        $this->assertSame([$miss], $media->loudnessMisses());
+        $this->assertFalse($section->fresh()->needs_manual_review);
+
+        (new FlagSermonAudioLoudnessMissed)($run, $this->media(['part 1 public audio true peak 3.0 dBTP, limit 1.0']));
+        $this->assertTrue($section->fresh()->needs_manual_review);
+
+        $outcome = (new FlagSermonAudioLoudnessMissed)($run, $media);
+        $this->assertSame(['raised' => 0, 'withdrawn' => 1], $outcome);
+        $this->assertFalse($section->fresh()->needs_manual_review);
+    }
+
+    #[Test]
+    public function a_video_peak_miss_does_not_mask_an_integrated_or_public_audio_miss(): void
+    {
+        foreach (['part 1 video integrated -18.4 LUFS, target -16.0 ±1.0', 'part 1 public audio true peak 3.0 dBTP, limit 1.0'] as $miss) {
+            [$run, $section] = $this->runWithSermon();
+            (new FlagSermonAudioLoudnessMissed)($run, $this->media(['part 1 video true peak 3.9 dBTP, limit -0.5', $miss]));
+            $this->assertTrue($section->fresh()->needs_manual_review);
+        }
+    }
+
+    #[Test]
     public function it_holds_the_sermon_when_a_treated_part_missed_its_target(): void
     {
         [$run, $section] = $this->runWithSermon();

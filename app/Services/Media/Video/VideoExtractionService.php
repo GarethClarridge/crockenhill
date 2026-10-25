@@ -174,7 +174,7 @@ class VideoExtractionService
      * What was done to each part's sound, and how the encoded files measured.
      *
      * A part that missed its target in either file keeps its measurements here and
-     * is named in `loudness_misses`; the caller holds the output rather than failing.
+     * is named in `loudness_misses`; the caller decides which misses require review.
      *
      * @param  list<PartLoudness>  $parts
      * @return array<string, mixed>
@@ -197,7 +197,7 @@ class VideoExtractionService
         }
 
         if ($misses !== []) {
-            Log::warning('Treated sound missed its loudness target; the output is held for review', ['video_path' => $videoPath, 'misses' => $misses]);
+            Log::warning('Treated sound missed its loudness target; review depends on the output and target', ['video_path' => $videoPath, 'misses' => $misses]);
         }
 
         return [

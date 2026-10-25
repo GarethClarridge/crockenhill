@@ -36,6 +36,20 @@ final readonly class ExtractedMedia
     }
 
     /**
+     * A4: video true peak is a reported target; integrated loudness and the public
+     * MP3 ceiling still require review. Unknown report entries remain actionable.
+     *
+     * @return list<string>
+     */
+    public function loudnessReviewMisses(): array
+    {
+        return array_values(array_filter(
+            $this->loudnessMisses(),
+            static fn (string $miss): bool => preg_match('/^part \d+ video true peak /', $miss) !== 1,
+        ));
+    }
+
+    /**
      * Each part whose speech stands less than `$marginDb` above the quietest stretch between its words.
      *
      * @return list<string>
