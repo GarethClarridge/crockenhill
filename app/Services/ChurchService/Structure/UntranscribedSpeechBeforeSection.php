@@ -23,7 +23,7 @@ use App\Services\Media\Audio\AudioTimeline;
  * song: 8.2% hit, and re-decoding reduces it without removing it.
  *
  * The stretch is the speech, unbroken by any cue that is evidence of speech ({@see TranscriptCueEvidence},
- * as recovery reads coverage) or a recorded unobservable window, that runs up to the section's first transcribed
+ * as recovery reads coverage), that runs up to the section's first transcribed
  * words. Only what abuts those words: a gap further back between lines the transcript does hold
  * is not the section's opening.
  *
@@ -31,6 +31,8 @@ use App\Services\Media\Audio\AudioTimeline;
  * is either the section's own opening or the tail of something else, and the sound cannot say
  * which. The interval travels in a note, the record a later re-decode targets.
  *
+ * An unobservable transcript window is not coverage: a failed re-transcription can hide
+ * an entire opening (1216 §2659). The classifier must still hear speech there.
  * Not marked as a transcript unobservable window: the readers of those take them as sound
  * nobody heard ({@see SongPublicationBoundaryEvidenceService}
  * stops trusting a song end beside one), while this is speech the classifier did hear.
@@ -169,7 +171,7 @@ class UntranscribedSpeechBeforeSection
         $edge = $this->openingOf($first['start'], $lines, $song->startTime);
         $floor = $song->startTime;
 
-        foreach ([...$lines, ...$transcript->unobservableWindows] as $covered) {
+        foreach ($lines as $covered) {
             if ($covered['start'] < $edge) {
                 $floor = max($floor, min($covered['end'], $edge));
             }

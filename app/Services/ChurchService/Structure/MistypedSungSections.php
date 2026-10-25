@@ -97,8 +97,21 @@ class MistypedSungSections
         }
 
         $sections = $structure->sections;
+        $serviceStart = null;
+
+        foreach ($structure->sections as $section) {
+            if ($section->type !== ServiceSectionType::Other) {
+                $serviceStart = $section->startTime;
+
+                break;
+            }
+        }
 
         foreach ($structure->sections as $index => $section) {
+            if ($serviceStart !== null && $section->endTime <= $serviceStart) {
+                continue;
+            }
+
             if ($this->readsAsSung($section, $sound, $transcript)) {
                 $sections[$index] = $section->withReviewFlags([ServiceStructureValidator::FLAG_SECTION_READS_AS_SUNG]);
             }

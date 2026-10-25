@@ -115,11 +115,10 @@ class SongSpeechEdgesTest extends TestCase
     }
 
     /**
-     * I2 (1219's shape): the sermon output also holds its reading, so speech a trim leaves beside
-     * that reading is the reading's own words or an excluded announcement, asked like the sermon's.
+     * K17: exposed reading-side speech remains a note, without holding the sermon.
      */
     #[Test]
-    public function speech_trimmed_off_a_song_after_the_sermon_reading_raises_an_ownership_question_on_the_sermon(): void
+    public function speech_trimmed_beside_the_reading_records_a_note_without_holding_the_sermon(): void
     {
         $rmsLog = $this->rmsLog([[0, 340, 'speech'], [340, 600, 'sung'], [600, 700, 'speech'], [700, 900, 'sung']]);
         $structure = ServiceStructure::fromSections([
@@ -134,8 +133,27 @@ class SongSpeechEdgesTest extends TestCase
         $this->assertGreaterThan(300.0, $song->startTime);
         $this->assertSame([0.0, 300.0], [$reading->startTime, $reading->endTime]);
         $this->assertSame([], $reading->reviewFlags);
-        $this->assertSame([ServiceStructureValidator::FLAG_SERMON_ADJACENT_SPEECH_UNOWNED], $sermon->reviewFlags);
+        $this->assertSame([], $sermon->reviewFlags);
         $this->assertContains(SongSpeechEdges::exposedSpeechNote(300.0, $song->startTime, ServiceSectionType::BibleReading), $sermon->notes);
+    }
+
+    #[Test]
+    public function a_reading_side_note_does_not_clear_the_sermon_side_question(): void
+    {
+        $structure = ServiceStructure::fromSections([
+            $this->section('bible_reading', 0.0, 300.0, readingReference: 'John 3:1-21'),
+            $this->section('song', 300.0, 600.0),
+            $this->section('sermon', 600.0, 700.0, sermonReference: 'John 3:16'),
+            $this->section('song', 700.0, 900.0),
+        ]);
+        $rmsLog = $this->rmsLog([[0, 340, 'speech'], [340, 560, 'sung'], [560, 700, 'speech'], [700, 900, 'sung']]);
+
+        [, $song, $sermon] = $this->service->apply($structure, $rmsLog, recordingOmitsSongs: false)->sections;
+
+        $this->assertContains(ServiceStructureValidator::FLAG_SERMON_ADJACENT_SPEECH_UNOWNED, $sermon->reviewFlags);
+        $this->assertContains(SongSpeechEdges::exposedSpeechNote(300.0, $song->startTime, ServiceSectionType::BibleReading), $sermon->notes);
+        $this->assertContains(SongSpeechEdges::exposedSpeechNote($song->endTime, 600.0), $sermon->notes);
+        $this->assertSame(600.0, $sermon->startTime);
     }
 
     /**

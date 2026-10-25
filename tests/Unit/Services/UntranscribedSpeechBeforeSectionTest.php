@@ -170,7 +170,7 @@ class UntranscribedSpeechBeforeSectionTest extends TestCase
     }
 
     #[Test]
-    public function speech_inside_a_recorded_unobservable_window_is_already_marked(): void
+    public function a_failed_transcription_window_does_not_hide_classifier_heard_speech(): void
     {
         $prayer = $this->apply(
             [$this->section('song', 2400.0, 2690.0), $this->section('prayer', 2706.4, 2800.0)],
@@ -180,7 +180,40 @@ class UntranscribedSpeechBeforeSectionTest extends TestCase
             [['start' => 2688.0, 'end' => 2706.0, 'reason' => 'retranscription_failed']],
         )[1];
 
-        $this->assertSame([], $prayer->reviewFlags);
+        $this->assertContains(self::QUESTION, $prayer->reviewFlags);
+        $this->assertSame([UntranscribedSpeechBeforeSection::note(2690.0, 2706.4)], $this->questionNotes($prayer));
+        $this->assertSame(2706.4, $prayer->startTime);
+    }
+
+    /** 1216 §2659: the ruled 32:19 opening is absent from the transcript and the cut. */
+    #[Test]
+    public function the_lost_sermon_opening_inside_a_failed_window_is_marked_without_moving_it(): void
+    {
+        $sermon = $this->apply(
+            [$this->section('song', 1700.0, 1932.4), $this->section('sermon', 2010.3, 3000.0)],
+            [['start' => 2010.3, 'end' => 2015.0, 'text' => 'good news and bad news']],
+            [[0, 1940, 0.9, 0.1], [1940, 3000, 0.05, 0.8]],
+            3000.0,
+            [['start' => 1734.08, 'end' => 2010.08, 'reason' => 'retranscription_failed']],
+        )[1];
+
+        $this->assertContains(self::QUESTION, $sermon->reviewFlags);
+        $this->assertSame([UntranscribedSpeechBeforeSection::note(1940.0, 2010.3)], $this->questionNotes($sermon));
+        $this->assertSame(2010.3, $sermon->startTime);
+    }
+
+    #[Test]
+    public function a_failed_window_without_classifier_heard_speech_does_not_raise_a_question(): void
+    {
+        $sermon = $this->apply(
+            [$this->section('song', 1700.0, 1932.4), $this->section('sermon', 2010.3, 3000.0)],
+            [['start' => 2010.3, 'end' => 2015.0, 'text' => 'good news and bad news']],
+            [[0, 2010, 0.9, 0.1], [2010, 3000, 0.05, 0.8]],
+            3000.0,
+            [['start' => 1734.08, 'end' => 2010.08, 'reason' => 'retranscription_failed']],
+        )[1];
+
+        $this->assertSame([], $sermon->reviewFlags);
     }
 
     #[Test]

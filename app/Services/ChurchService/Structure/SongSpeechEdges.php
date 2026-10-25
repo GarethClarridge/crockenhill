@@ -155,7 +155,8 @@ class SongSpeechEdges
      * to where the singing starts: canary 11's listening (operator, 2026-10-06) heard the end of the
      * closing prayer or its "Amen" there in 4 of 6 services, and the hymn announcement may go
      * either way. Everywhere else the sound cannot tell which, so the sermon is asked about it and
-     * nothing absorbs it or changes bounds.
+     * nothing absorbs it or changes bounds. Under K17, reading-side speech is only
+     * noted; sermon-side speech still raises the ownership question.
      *
      * @param  list<ServiceStructureSection>  $before
      * @param  array<int, ServiceStructureSection>  $after  Indexed alike, one trimmed or held song at a time
@@ -193,7 +194,9 @@ class SongSpeechEdges
 
             foreach ($exposed as [$sermonIndex, $beside, $from, $to]) {
                 $after[$sermonIndex] = $after[$sermonIndex]->withReviewFlags(
-                    [ServiceStructureValidator::FLAG_SERMON_ADJACENT_SPEECH_UNOWNED],
+                    $beside === ServiceSectionType::BibleReading
+                        ? []
+                        : [ServiceStructureValidator::FLAG_SERMON_ADJACENT_SPEECH_UNOWNED],
                     [self::exposedSpeechNote($from, $to, $beside)],
                 );
             }

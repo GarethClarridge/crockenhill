@@ -32,6 +32,22 @@ class MistypedSungSectionsTest extends TestCase
 {
     private MistypedSungSections $service;
 
+    #[Test]
+    public function music_before_the_first_service_item_is_left_alone_regardless_of_title(): void
+    {
+        $music = $this->section('other', 0.0, 290.0);
+        $structure = ServiceStructure::fromSections([
+            $music,
+            $this->section('welcome', 300.0, 340.0),
+            $this->section('other', 350.0, 640.0),
+        ]);
+
+        $result = $this->service->apply($structure, $this->rmsLog([[0, 290, 'sung'], [300, 340, 'speech'], [350, 640, 'sung']]), $this->transcript(350.0, 640.0, 200));
+
+        $this->assertSame([], $result->sections[0]->reviewFlags);
+        $this->assertContains(ServiceStructureValidator::FLAG_SECTION_READS_AS_SUNG, $result->sections[2]->reviewFlags);
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
