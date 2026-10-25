@@ -374,12 +374,14 @@ class SectionAudioTreatment
      */
     private function ebur128(string $path, float $start, float $duration, bool $dualMono): array
     {
+        // Input seeking changes AAC noise synthesis even at zero. Decode from the beginning
+        // before trimming so every part is measured as continuous playback decodes it.
         $process = new Process([
             (string) config('media-processing.ffmpeg.ffmpeg_path', '/usr/bin/ffmpeg'),
             '-hide_banner', '-nostats',
-            '-ss', $this->seconds($start), '-t', $this->seconds($duration), '-i', $path,
+            '-t', $this->seconds($start + $duration), '-i', $path,
             '-map', '0:a:0',
-            '-af', 'ebur128=peak=true'.($dualMono ? ':dualmono=true' : ''),
+            '-af', 'atrim=start='.$this->seconds($start).':duration='.$this->seconds($duration).',asetpts=PTS-STARTPTS,ebur128=peak=true'.($dualMono ? ':dualmono=true' : ''),
             '-f', 'null', '-',
         ]);
         $process->setTimeout(1800);

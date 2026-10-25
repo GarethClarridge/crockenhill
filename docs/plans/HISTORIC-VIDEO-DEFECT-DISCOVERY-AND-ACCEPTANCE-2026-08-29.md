@@ -3997,3 +3997,48 @@ codec and version effects are not yet isolated. No change to treatment or the MP
 this comparison alone. Reproducible arguments and results: `run1171-preencode-null-arguments.json`,
 `run1171-preencode-null.log`, `run1171-treatment-and-spans.json`.
 
+**04:06 UTC continuation — reproduce and fix seek-dependent verification:** a synthetic six-second
+seeded-noise fixture isolates AAC perceptual noise substitution (PNS). Through the application verifier,
+PCM and AAC encoded with PNS disabled agree with decode-from-start measurement; PNS-enabled AAC reports
+**−14.1 dBTP after input seek zero vs −13.2 dBTP without seeking**. The expected agreement fails before
+the fix (`synthetic-seek-red.log`). Thus input seeking can under-report as well as over-report a peak.
+
+`SectionAudioTreatment::ebur128` now decodes from the file's beginning, limits decoding to the requested
+end, and trims the measured span in the filter. Every part is therefore measured from continuous-playback
+samples. Only output verification changes; source trimming, first-pass measurements, normalisation,
+encoding and review thresholds are unchanged. Later parts require decoding their prefix to retain decoder
+state, but no whole-file PCM buffer is held and nothing beyond the requested end is decoded. The regression's
+independent reference first decodes the synthetic file to float PCM, then measures the requested PCM span.
+**Five cases / 40 assertions** cover PCM noise, AAC noise with/without PNS, and PCM/AAC transients,
+at zero and a non-frame-aligned later start. Existing real-FFmpeg treatment tests and mode-parser tests
+also pass: combined focused run **35 tests / 131 assertions**. Final PHPStan has zero errors and Pint passes.
+The full parallel suite passed exit 0: **11,519 tests / 102,119 assertions**, 163 PHPUnit notices, one
+skip, 20m54s. Log: `continuous-measurement-full-suite.log`.
+
+Read-only application verification of the three existing delivered files confirms both directions of the
+AAC effect. Video true peaks (old → continuous playback): **1013 +3.9 → +2.3**, **1085 part 2 +2.2 → +4.5**,
+**1171 part 2 +0.9 → +0.4 dBTP**; their other video parts are unchanged. All public-MP3 peak measurements and
+all integrated-loudness measurements in this sample are unchanged. In particular **1171's public MP3 still
+misses its ceiling at +3.0 dBTP**. Each run's measurement took 30–47 seconds, writing only scratch JSON; no
+stored report or hold was changed (`continuous-playback-reverification.json`). This fixes the measurement's
+relationship to playback, not every large peak or the encoded media.
+
+The existing local host FFmpeg service also replayed 1171 part 2 to a null sink, with the recorded filters
+and parameters: **FFmpeg 7.1.1 / Lavc61.19.101**, matching the delivered encoder's library version. It
+reproduces all four recorded input statistics and the container result: loudnorm dynamic **−1.50 dBTP**,
+post-filter 48 kHz EBU **−1.4 dBTP / −16.1 LUFS**. This removes the previously open FFmpeg-version difference
+from the pre-encode comparison. The MP3's larger peak arises after this filtered signal in the delivery
+path; no extra limiter, codec change or relaxation of the MP3 hold was introduced. Receipts:
+`run1171-host-ffmpeg-version.log`, `run1171-host-preencode-null-arguments.json`,
+`run1171-host-preencode-null.log`. Host calls were local measurements to null, not processing jobs or media writes.
+
+A further A1 writer was traced while validation ran. The original nine high-confidence flagged songs/talks/
+readings, plus **1363 §4532 (`other`)**, also carry the contradiction in the banked structure; this is not just
+row metadata drift. **1342 §4322** is a concrete example: the operator chose the **0.96** song version with
+**no low-confidence flag**, replacing the composition's **0.82** version. The answer applier preserves the
+target's non-ensemble flags, including `structure_low_confidence`; final validation merges its new flags,
+so the obsolete reason survives. `stale-low-confidence-ruling-example.json` binds the saved answer and
+persisted result. A new regression through answer application and final validation fails for choosing 0.96
+and exactly 0.85; controls choosing a still-low version pass (`confidence-ruling-red.log`). Its fix follows
+the measurement batch; no existing flag or stored section was changed by this investigation.
+
