@@ -4042,3 +4042,46 @@ persisted result. A new regression through answer application and final validati
 and exactly 0.85; controls choosing a still-low version pass (`confidence-ruling-red.log`). Its fix follows
 the measurement batch; no existing flag or stored section was changed by this investigation.
 
+**A1 fix: refresh validator-owned annotations after an answer.** The eligible cohort also has
+**48 sections** lasting at least 15 seconds but still carrying `structure_micro_section`, and two songs
+at **182.04 s** (1154 §3753) and exactly **360 s** (1257 §3207) carrying `structure_macro_section`.
+Confidence and duration regressions confirm the same preservation bug. Four further regressions confirm
+that a replacement can also inherit a benediction, interrupted-talk, talk-fragment or song-marker flag
+which its current type no longer earns.
+
+The final patch uses the existing **`REANNOTATED_FLAGS` ownership list**, rather than introducing a second
+list: final validation withdraws only those seven annotations when the predicates it has just calculated
+no longer warrant them. Valid flags retain their order; newly warranted ones are added normally. It does
+not clear other passes' evidence, OoS flags, content holds, F11 intervals or the separate sermon-interruption
+merge flag. No threshold or review policy changes.
+
+The confidence regression went red for choosing 0.96 and 0.85 from 0.82; below-threshold controls retain/add
+the flag and preserve unrelated evidence. Duration regressions went red for lengthening a micro section,
+reaching exactly 15 s, shortening an overlong song, reaching exactly 360 s and changing its type. Controls
+still add/retain genuine micro/macro flags and keep the content hold. The four additional type-annotation
+regressions went red, then pass while preserving content, F11 and sermon-interruption evidence. Final
+focused result: **137 tests / 397 assertions**; PHPStan zero errors; Pint passes. The confidence-only and
+numeric-only full runs were deliberately interrupted as these reproduced cases expanded the patch;
+`confidence-ruling-full-suite.log` and `numeric-ruling-full-suite.log` are partial, not completed gates.
+The authoritative replacement full run **passed exit 0: 11,537 tests / 102,205 assertions**,
+163 PHPUnit notices and one skip, in 20m53s. Complete log: **`owned-ruling-full-suite.log`**.
+
+Read-only validation of current banked structures against their **original saved context** assessed
+**48 runs**, all valid, with **no section-bound changes**. The final ownership-based preview withdraws
+**65 annotations on 64 sections: 48 micro, 10 low-confidence, 4 interrupted-talk, 2 macro, 1 talk-fragment**,
+adds none, and retains all other flags. This is not 64 released holds or an applied repair. The earlier
+numeric-only preview withdrew 60 reasons on 60 sections; these forecasts overlap and must not be summed.
+Receipts: `owned-flag-validation-preview.json`, `numeric-flag-validation-preview.json`,
+`nonmicro-micro-flags.json`, `nonmacro-macro-flags.json`; red/green logs use `confidence-ruling-*`,
+`duration-ruling-red.log`, `owned-flags-red.log` and `owned-ruling-final-green.log`.
+
+**Overnight stopping point:** the feasible, evidenced local fixes are complete for this pass. Remaining
+work is the operator-controlled stored-state application, the one recompose-and-re-cut round and listening
+acceptance, plus source verification/re-decode decisions for the transcript and omitted-introduction leads.
+The 120 unmet edges remain open; no blanket snap/timing offset or extra normalisation policy is justified
+by the banked evidence. Recompute/re-derive/backfill forecasts are previews, not released holds. No provider
+calls, processing jobs, recuts, publication, stored-state application or source/temp-media deletion were
+performed. Local host FFmpeg was used only for the authorised null-output measurements. The hourly
+continuation pauses at this gate rather than repeating unchanged checks; resume after operator authority
+or new evidence permits meaningful progress.
+

@@ -1128,6 +1128,15 @@ class ServiceStructureValidator
                 $flags[] = self::FLAG_TALK_FRAGMENT;
             }
 
+            // An answer can replace the section's facts. Withdraw only annotations owned here
+            // which the current facts no longer earn; other passes' evidence stays intact.
+            $staleFlags = array_diff(self::REANNOTATED_FLAGS, $flags);
+            if (array_intersect($section->reviewFlags, $staleFlags) !== []) {
+                $section = $section->withoutReviewFlags()->withReviewFlags(
+                    array_values(array_diff($section->reviewFlags, $staleFlags)),
+                );
+            }
+
             $sections[] = $flags === [] ? $section : $section->withReviewFlags($flags);
         }
 
