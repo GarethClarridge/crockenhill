@@ -4465,3 +4465,31 @@ only with an exact time in the note. **32 rulings** (4322's approximate time, 28
 rulings on the same edges are superseded (1288's 10-08 "middle of a different song" agrees with B). Captured on
 current code (`capture/`): **31 met, 1 unmet (4735)**. The 31 join the ratchet as 28 run fixtures
 `run-<run>-2026-10-25-edges.json.gz` (named apart from four runs' existing 10-25 fixtures; 3.4 MB); 31 tests pass.
+
+#### 10-25 night: song starts in the middle of a spoken sentence — measured, a real class (not fixed)
+
+Read-only, current code (`73dc073e4`+). `storage/scratch/edge-triage-20261025/mid-sentence-scan.php` planned every song
+on the 425 eligible runs (rolled back) and read **one decode per edge**, the window at the cut as the planner reads
+it. A first pass on `heardWords()` was void: it joins every decode window with no de-duplication, so overlapping windows
+put the same word on both sides of a cut ("Thank | Thank"); kept as `mid-sentence-scan-v1-duplicated.jsonl`.
+Zero-length words are ignored. **969 of 2,418 edges have no single decode at the cut** (mostly song ends placed from
+sound levels), so the counts cover the 1,449 that do.
+
+A hit is a cut inside a decoded word, or between two decoded words each within 1 s of it with no sentence-ending
+punctuation on the first. All three answered cases are found (4735 and 3779 inside a word, 4322 between "rejoiced |
+greatly" in the reading).
+
+- **Song starts in speech windows (speech ≥ 0.5): 135 — 69 published, 36 pending approval, 30 not applicable.** A
+  sample of 20 reads ~17 real: the start lands inside the announcement ("Let's stand | and | sing.", "I will stand
+  on | every | promise", "Jesus | the | name high over all", "so | we'll | sing happy birthday"). The misses are
+  transcripts without punctuation ("The King of Heaven | Let's stand"). Roughly **115 real**.
+- **The classifier cannot separate the class from sung lyrics:** 4735 and 3779 sit in windows scored music. A further
+  34 starts hit in music windows; they mix spoken announcements with sung first lines and are not counted above.
+- **Song ends in speech windows: 150 (105 inside a word, 45 between words), mixed.** Some cut into the next speaker
+  ("brief | prayer.", "Oh Heavenly Father thank you for"); others are sung lyrics scored as speech ("planning our |
+  pathway"). Closer to M1 than to this class; to be looked at separately.
+
+**Which way to move, from the three answers:** every time the operator named was **after** the sentence (3779
+"should be 3:36", after "…King of Kings."; 4322 "something like 26:09"; 4735 preferred A, after "Let's sing."),
+though whole-sentence-in was also accepted (4735 on 10-18; 4322 "B better than A as it keeps a whole sentence").
+Not built: the direction is the operator's call.
