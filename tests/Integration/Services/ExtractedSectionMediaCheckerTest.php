@@ -66,6 +66,7 @@ class ExtractedSectionMediaCheckerTest extends TestCase
     public function it_returns_false_if_audio_path_is_missing(): void
     {
         $section = ServiceSection::factory()->create([
+            'section_type' => ServiceSectionType::Sermon->value,
             'extracted_video_path' => 'video.mp4',
             'extracted_audio_path' => null,
         ]);
@@ -92,6 +93,7 @@ class ExtractedSectionMediaCheckerTest extends TestCase
     public function it_returns_false_if_only_one_file_exists(): void
     {
         $section = ServiceSection::factory()->create([
+            'section_type' => ServiceSectionType::Sermon->value,
             'extracted_video_path' => 'video.mp4',
             'extracted_audio_path' => 'audio.mp3',
         ]);
