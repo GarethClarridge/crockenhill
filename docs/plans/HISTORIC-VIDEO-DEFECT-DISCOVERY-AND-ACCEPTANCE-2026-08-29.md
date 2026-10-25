@@ -4326,3 +4326,33 @@ from the full dumps on Sonnics only (10-10, 10-16 ×3, 10-18 ×4, 10-20, 10-21, 
 
 **Next:** triage the 120 open edges (the 8 moves of previously-right edges first); then the one
 recompose-and-re-cut round, including the 39 A4 runs.
+
+#### 10-25 evening: edge triage begun — the eight moves of previously-right edges
+
+Read-only. The 14 unmet sample edges were re-captured on `master` (`storage/scratch/edge-triage-20261025/capture/`,
+`capture-master.log`): every cut is identical to the overnight capture, so the moves are not stale. For each of
+the eight `keep` moves, the words, sound level and classifier scores between the cut heard and the planned cut,
+and the planner's own audit, are in `edge-triage-20261025/keep-moves-triage.json`.
+
+| Section (run) | Edge | Move | Rule | Between heard and planned | Read |
+|---|---|---|---|---|---|
+| 1102 (983) | end | +0.39 | song_end_silence | near-silence (−60.2 dB max, threshold −61.9) | harmless |
+| 1102 (983) | start | +0.55 | word_pause | spoken tail "anyway, for some" | drops speech; likely fine |
+| 3781 (1296) | end | −1.41 | song_end_speech | "please sit down, I may say it's good" | drops speech; likely fine |
+| 1730 (1075) | end | −5.34 | song_end_silence | music to ~1965, then "I've changed my mind…" | drops speech; music clipped? |
+| 3781 (1296) | start | +0.33 | word_pause | "Lord of Lords." (music 0.63 / speech 0.72) | unclear |
+| 2513 (1200) | end | +7.94 | song_end_fade | instrumental play-out, then prayer "Oh" at 769.17 | **suspect (M1)** |
+| 3353 (1267) | start | +0.99 | word_pause | loud music (−15 dB, music 0.90) | **suspect (M2)** |
+| 4322 (1342) | start | −2.56 | word_pause | reading words "greatly in the Lord…" | **suspect (M3)** |
+
+**Three candidate mechanisms (none yet scanned as a class):**
+- **M1:** `song_end_fade` is bounded by the next speech *cue's* onset (770.04), not the first decoded word
+  (769.17), so the 4 s fade-out ends 0.77 s into the prayer's first word.
+- **M2:** a `word_pause` start trusts a word's end even when Whisper has stretched it over the music (" you."
+  2240.51–2242.89, 2.38 s), moving the start 1 s into a loud musical opening.
+- **M3:** a song start that falls inside a run of words moves *back* to the previous pause, taking a reading's
+  words into the song. The 10-24 snap notes already count 86/623 song starts moving back ≥2 s; that population mixes
+  this with musical openings (which are always in), so it is not M3's size.
+
+Five of the eight drop adjacent speech or near-silence: the new cut may be as acceptable as the one heard, but
+"keep" was the ruling and only listening can say whether both are fine (E21: the longer acceptable edge wins).
