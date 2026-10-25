@@ -185,6 +185,31 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         $this->assertCount(1, $result->structure->sectionsOfType(ServiceSectionType::ShortTalk));
     }
 
+    #[Test]
+    public function talk_type_proposals_survive_a_blank_representative_draw(): void
+    {
+        $draw = fn (?TalkType $type): ServiceStructure => $this->structure(
+            new ServiceStructureSection(ServiceSectionType::ShortTalk, null, 1495.0, 2103.0, 0.9, 3636, null, null, talkType: $type),
+            $this->section(ServiceSectionType::Sermon, 2600, 3800),
+        );
+
+        foreach ([
+            [[null, TalkType::PartnerUpdate, TalkType::PartnerUpdate, null], TalkType::PartnerUpdate],
+            [[TalkType::Testimony, TalkType::PartnerUpdate, TalkType::PartnerUpdate, null], TalkType::PartnerUpdate],
+            [[null, null, null, null], null],
+            [[null, TalkType::Testimony, TalkType::PartnerUpdate, null], TalkType::Testimony],
+            [[TalkType::PartnerUpdate, TalkType::Testimony, TalkType::PartnerUpdate, TalkType::Testimony], TalkType::PartnerUpdate],
+        ] as [$types, $expected]) {
+            $result = app(ServiceStructureEnsembleComposer::class)->compose(array_map(
+                fn (?TalkType $type): ValidationResult => $this->vote($draw($type)),
+                $types,
+            ));
+
+            $this->assertSame($expected, $result->structure->sectionsOfType(ServiceSectionType::ShortTalk)[0]->talkType);
+            $this->assertSame([], $result->disputes);
+        }
+    }
+
     /**
      * Canary 9 and the 232 §6 draws: where the truth was ruled, a three-to-one vote was never
      * wrong about a talk or sermon. The majority decides; each decision is kept for a skim list

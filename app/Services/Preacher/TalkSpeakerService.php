@@ -14,6 +14,7 @@ use App\Models\Preacher;
 use App\Models\ServiceSection;
 use App\Models\SpeakerProfile;
 use App\Support\MediaAssetPath;
+use App\Support\SectionReviewFlagPolicy;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -100,7 +101,10 @@ class TalkSpeakerService
                 unset($metadata['review_reason']);
             }
 
-            $section->needs_manual_review = $metadata['review_flags'] !== [];
+            $section->needs_manual_review = SectionReviewFlagPolicy::requiresManualReview(
+                $section->section_type,
+                $metadata['review_flags'],
+            );
         } else {
             unset($speakerMetadata['reviewed']);
             $metadata['review_reason'] = $this->reviewReasonForOutcome((string) $prediction['outcome']);

@@ -42,6 +42,32 @@ class TalkSpeakerServiceTest extends TestCase
     // ── detectAndStore ────────────────────────────────────────────────────────
 
     #[Test]
+    public function dispositioning_a_speaker_question_recomputes_review_using_current_policy(): void
+    {
+        $speaker = $this->mock(SpeakerIdentificationInterface::class);
+        $speaker->shouldNotReceive('identify');
+
+        foreach ([
+            [['structure_oos_cross_type_inversion'], false],
+            [['structure_low_confidence'], true],
+            [[HoldSectionForContentReview::FLAG], true],
+        ] as [$flags, $expected]) {
+            $section = ServiceSection::factory()->create([
+                'section_type' => ServiceSectionType::ShortTalk,
+                'extracted_audio_path' => null,
+                'needs_manual_review' => true,
+                'metadata' => ['review_flags' => [...$flags, 'talk_speaker_review']],
+            ]);
+
+            app(TalkSpeakerService::class)->detectAndStore($section);
+            $section->save();
+
+            $this->assertSame($expected, $section->fresh()->needs_manual_review);
+            $this->assertSame($flags, $section->fresh()->metadata->reviewFlags);
+        }
+    }
+
+    #[Test]
     public function it_does_nothing_when_section_type_is_not_childrens_talk(): void
     {
         $speaker = $this->mock(SpeakerIdentificationInterface::class);

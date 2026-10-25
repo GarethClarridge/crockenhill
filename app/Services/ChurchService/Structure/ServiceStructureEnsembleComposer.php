@@ -9,14 +9,15 @@ use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Data\SongTitleMatch;
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 use App\Services\Scripture\ScriptureReferenceResolver;
 use App\Services\Song\SongTitleHygiene;
 use App\Services\Song\SongTitleResolver;
 
 /**
- * Deterministically composes complete validated draws. Every selected section is
- * one actual draw's coherent fields and boundary pair; neither arrival order nor
- * arithmetic averaging can invent an extraction cut.
+ * Deterministically composes complete validated draws. Every selected section keeps
+ * one actual draw's boundary pair; neither arrival order nor arithmetic averaging
+ * can invent an extraction cut. Winning supporters supply confidence and talk proposals.
  */
 class ServiceStructureEnsembleComposer
 {
@@ -1305,8 +1306,40 @@ class ServiceStructureEnsembleComposer
             reviewFlags: $section->reviewFlags,
             snapDeltas: $section->snapDeltas,
             summary: $section->summary,
-            talkType: $section->talkType,
+            talkType: $this->supportedTalkType($section, $supporters),
         );
+    }
+
+    /** @param non-empty-list<array{slot:int,index:int,section:ServiceStructureSection}> $supporters */
+    private function supportedTalkType(ServiceStructureSection $section, array $supporters): ?TalkType
+    {
+        if ($section->type !== ServiceSectionType::ShortTalk) {
+            return $section->talkType;
+        }
+
+        $votes = [];
+
+        foreach ($supporters as $supporter) {
+            $type = $supporter['section']->talkType;
+
+            if ($type !== null && ! $type->isSermon()) {
+                $votes[$type->value] = ($votes[$type->value] ?? 0) + 1;
+            }
+        }
+
+        if ($votes === []) {
+            return null;
+        }
+
+        arsort($votes);
+
+        if ($section->talkType !== null && ($votes[$section->talkType->value] ?? 0) === reset($votes)) {
+            return $section->talkType;
+        }
+
+        $winner = array_key_first($votes);
+
+        return $winner === null ? null : TalkType::from($winner);
     }
 
     /**
