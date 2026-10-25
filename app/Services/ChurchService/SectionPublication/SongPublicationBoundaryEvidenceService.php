@@ -103,9 +103,11 @@ final class SongPublicationBoundaryEvidenceService
      * 10 (2026-10-24): the clip is judged as it will be cut, from an operator's "start here" or
      * "end here" ({@see OutputEdgeAnswers}): 1240's correct cut was held for the sung opening its
      * answered start took in. Records {@see SongQuietIntroduction} under `quiet_introduction`.
+     * 11 (2026-10-25): S8 keeps decode loops as observations, never clip-review risks;
+     * S9 lowers the automatic duration floor to 55 seconds.
      * Evidence banked under an earlier version is stale, and the backfill re-assesses it.
      */
-    public const VERSION = 10;
+    public const VERSION = 11;
 
     private const LEADING_CUE_WINDOW_SECONDS = 5.0;
 
@@ -185,7 +187,6 @@ final class SongPublicationBoundaryEvidenceService
                             : 'song_boundary_evidence_unavailable',
                         'detail' => $this->unavailableBoundaryDetail($inputs, $storageError),
                     ],
-                    ...$this->loopedRisks($looped),
                 ],
                 'decision' => 'review',
             ];
@@ -242,8 +243,6 @@ final class SongPublicationBoundaryEvidenceService
                 $risks[] = ['kind' => SongLyricsOutsideSection::RISK_KIND, 'detail' => $lyricEdge['detail']];
             }
         }
-
-        $risks = [...$risks, ...$this->loopedRisks($looped)];
 
         $songContent = $inputs['transcript'] instanceof ChurchServiceTranscript
             ? $this->sectionWithoutSong->observe($section, $inputs['transcript'])
@@ -379,32 +378,6 @@ final class SongPublicationBoundaryEvidenceService
             'verse_inputs' => $this->openingAndClosing->inputs($section),
             'policy' => config('media-processing.section_publishing.song_boundary', []),
         ], JSON_THROW_ON_ERROR));
-    }
-
-    /**
-     * The review risks among {@see SongLoopedTranscript}'s observations.
-     *
-     * An observation that raises nothing is still recorded in the evidence: a reviewer opening
-     * a clip should see that its transcript was screened and what the screen found, rather than
-     * an absence they cannot tell from "never looked".
-     *
-     * @param  list<array<string, mixed>>  $observations
-     * @return list<array{kind: string, detail: string}>
-     */
-    private function loopedRisks(array $observations): array
-    {
-        $risks = [];
-
-        foreach ($observations as $observation) {
-            if (($observation['risk'] ?? false) === true) {
-                $risks[] = [
-                    'kind' => SongLoopedTranscript::RISK_KIND,
-                    'detail' => (string) ($observation['detail'] ?? ''),
-                ];
-            }
-        }
-
-        return $risks;
     }
 
     /**

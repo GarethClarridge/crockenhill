@@ -367,14 +367,14 @@ class SongPublicationReviewPolicy
     /**
      * The shortest clip that may publish itself.
      *
-     * Every pilot clip a reviewer should have seen ran under a minute and every
-     * clip that was fine ran over two, so the default sits in that gap.
+     * S9 (2026-10-25): the review-queue sample's 58–81 second songs were whole;
+     * the operator set the floor to 55 seconds. Content checks still hold fragments.
      */
     private function minimumAutomaticDuration(): float
     {
         return (float) config(
             'media-processing.section_classification.song_minimum_automatic_duration_seconds',
-            90,
+            55,
         );
     }
 

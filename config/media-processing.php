@@ -432,10 +432,10 @@ return [
          *
          * Below this a clip reaches a reviewer instead. A doxology or a chorus
          * really can be this short, so the rule holds the clip rather than
-         * rejecting it. Every historic-video pilot clip that should have been
-         * seen ran under a minute; every clip that was fine ran over two.
+         * rejecting it. S9 (2026-10-25) sets 55 seconds after the review-queue
+         * sample found the 58–81 second clips whole.
          */
-        'song_minimum_automatic_duration_seconds' => (float) env('SERVICE_SECTION_SONG_MIN_AUTO_DURATION', 90),
+        'song_minimum_automatic_duration_seconds' => (float) env('SERVICE_SECTION_SONG_MIN_AUTO_DURATION', 55),
     ],
 
     /*

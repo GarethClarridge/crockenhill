@@ -33,6 +33,20 @@ class SongPublicationReviewPolicyTest extends TestCase
 
     private SongPublicationReviewPolicy $policy;
 
+    #[Test]
+    public function the_song_duration_floor_is_55_seconds_and_remains_configurable(): void
+    {
+        $section = $this->section('full', ['livestream']);
+        foreach ([[54.9, true], [55.0, false], [60.0, false], [81.0, false]] as [$duration, $held]) {
+            $section->duration = (float) $duration;
+            $this->assertSame($held, in_array('short_song_clip', array_column($this->policy->reviewReasons($section), 'kind'), true));
+        }
+
+        config(['media-processing.section_classification.song_minimum_automatic_duration_seconds' => 70]);
+        $section->duration = 60.0;
+        $this->assertContains('short_song_clip', array_column($this->policy->reviewReasons($section), 'kind'));
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -789,20 +803,18 @@ class SongPublicationReviewPolicyTest extends TestCase
         ]);
     }
 
-    /**
-     * A looping transcript claims text the audio did not produce, so it cannot evidence which
-     * song was sung or where it began. The §4.1b census found 226 song sections carrying
-     * repetition blocks and 63 at half loop or more, and no song check had ever read them.
-     */
+    /** S8: a transcription fault alone says nothing about the delivered song's sound. */
     #[Test]
-    public function it_holds_a_clip_whose_transcript_is_mostly_a_decode_loop(): void
+    public function it_records_but_does_not_hold_a_clip_for_a_decode_loop(): void
     {
         $section = $this->section('full', ['livestream']);
         $this->recordLoopBlocks($section, 600.0, 760.0);
 
-        $this->assertContains(
+        $assessment = $this->policy->assess($section->fresh());
+        $this->assertNotEmpty($assessment['boundary_evidence']['looped_transcript']);
+        $this->assertNotContains(
             SongLoopedTranscript::RISK_KIND,
-            array_column($this->policy->reviewReasons($section->fresh()), 'kind'),
+            array_column($assessment['reasons'], 'kind'),
         );
     }
 
@@ -827,18 +839,14 @@ class SongPublicationReviewPolicyTest extends TestCase
         );
     }
 
-    /**
-     * The other half of that change, and the reason it was worth making: a loop covering only a
-     * twelfth of the section still withholds the clip when its phrase is nowhere in the song.
-     * Fourteen such sections were held by hand on 2026-09-16 at shares of 0.22 to 0.48.
-     */
+    /** S8 also covers brief loops, even when the hallucinated words are not lyrics. */
     #[Test]
-    public function it_holds_a_clip_whose_brief_loop_repeats_words_the_song_does_not_contain(): void
+    public function it_does_not_hold_a_clip_for_a_brief_transcription_loop(): void
     {
         $section = $this->section('full', ['livestream']);
         $this->recordLoopBlocks($section, 600.0, 620.0);
 
-        $this->assertContains(
+        $this->assertNotContains(
             SongLoopedTranscript::RISK_KIND,
             array_column($this->policy->reviewReasons($section->fresh()), 'kind'),
         );
