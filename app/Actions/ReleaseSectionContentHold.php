@@ -8,6 +8,7 @@ use App\Data\ServiceSectionMetadata;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ContentHoldRechecker;
 use App\Support\SectionReviewFlagPolicy;
+use App\Support\SongPublicationReviewHold;
 use InvalidArgumentException;
 
 /**
@@ -63,12 +64,13 @@ final class ReleaseSectionContentHold
             $metadata['review_flags'] = array_values(array_diff($section->metadata->reviewFlags ?? [], [HoldSectionForContentReview::FLAG]));
         }
 
+        $keepsPublicationHold = SongPublicationReviewHold::keepsHold($section, $metadata);
         $section->metadata = ServiceSectionMetadata::fromArray($metadata);
         $section->needs_manual_review = SectionReviewFlagPolicy::requiresManualReview(
             $section->section_type,
             is_array($metadata['review_flags'] ?? null) ? $metadata['review_flags'] : [],
             is_string($metadata['sermon_reference'] ?? null) ? $metadata['sermon_reference'] : null,
-        );
+        ) || $keepsPublicationHold;
         $section->save();
 
         return $records[$index];

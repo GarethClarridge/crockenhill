@@ -64,6 +64,29 @@ class ContentHoldRecheckerTest extends TestCase
     }
 
     #[Test]
+    public function a_cleared_loop_hold_leaves_a_songs_publication_review_hold(): void
+    {
+        $run = $this->runWithTranscript($this->loopingCues());
+        $song = $this->section($run, ServiceSectionType::Song, 0.0, 200.0);
+        $this->hold($song, ContentHoldCheck::LoopScreen);
+        $metadata = $song->refresh()->metadata?->toArray() ?? [];
+        $metadata['song_publication_review'] = [
+            'reasons' => [['kind' => 'song_boundary_end_unsupported', 'detail' => 'The clip ends mid-verse.']],
+            'decided_at' => now()->toISOString(),
+        ];
+        $song->forceFill(['metadata' => $metadata])->save();
+
+        $this->rewriteTranscript($run, $this->cleanCues());
+
+        $outcome = app(ContentHoldRechecker::class)->recheck($run->refresh());
+
+        self::assertSame(['cleared' => 1, 'kept' => 0], $outcome);
+        $song->refresh();
+        self::assertNotContains(HoldSectionForContentReview::FLAG, $song->metadata?->toArray()['review_flags'] ?? []);
+        self::assertTrue($song->needs_manual_review);
+    }
+
+    #[Test]
     public function a_loop_hold_stays_when_the_rewritten_transcript_still_loops(): void
     {
         $run = $this->runWithTranscript($this->loopingCues());

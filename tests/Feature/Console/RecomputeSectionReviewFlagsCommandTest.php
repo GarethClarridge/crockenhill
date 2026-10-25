@@ -448,6 +448,111 @@ class RecomputeSectionReviewFlagsCommandTest extends TestCase
         $this->assertTrue($service->fresh()->needs_review);
     }
 
+    /**
+     * The publication review holds a song without a flag, so the flags alone read it as
+     * "no flags, no hold". 35 of the 98 such holds on 10-25 would have been cleared, and
+     * `service:demote-held-publications` would then never take a doubted clip down.
+     */
+    #[Test]
+    public function it_keeps_a_song_held_by_its_publication_review(): void
+    {
+        $section = $this->songHeldForPublicationReview();
+
+        $this->artisan('services:recompute-section-review-flags', ['--execute' => true])
+            ->assertSuccessful();
+
+        $this->assertTrue($section->fresh()->needs_manual_review);
+    }
+
+    #[Test]
+    public function it_clears_a_publication_hold_the_operator_confirmed_after_it_was_decided(): void
+    {
+        $section = $this->songHeldForPublicationReview([
+            'manual_review' => ['confirmed_at' => '2026-10-20T09:00:00+00:00'],
+        ]);
+
+        $this->artisan('services:recompute-section-review-flags', ['--execute' => true])
+            ->assertSuccessful();
+
+        $this->assertFalse($section->fresh()->needs_manual_review);
+    }
+
+    #[Test]
+    public function it_clears_a_publication_hold_on_a_clip_approved_after_it_was_decided(): void
+    {
+        $section = $this->songHeldForPublicationReview([
+            'publication' => ['approved_at' => '2026-10-20T09:00:00+00:00'],
+        ]);
+
+        $this->artisan('services:recompute-section-review-flags', ['--execute' => true])
+            ->assertSuccessful();
+
+        $this->assertFalse($section->fresh()->needs_manual_review);
+    }
+
+    #[Test]
+    public function it_keeps_a_publication_hold_decided_after_the_operator_last_answered(): void
+    {
+        $section = $this->songHeldForPublicationReview([
+            'manual_review' => ['confirmed_at' => '2026-10-10T09:00:00+00:00'],
+        ]);
+
+        $this->artisan('services:recompute-section-review-flags', ['--execute' => true])
+            ->assertSuccessful();
+
+        $this->assertTrue($section->fresh()->needs_manual_review);
+    }
+
+    /**
+     * A song awaiting approval is held by its status; the backfill leaves its boolean
+     * alone, and so must this — the guard keeps holds, it never raises them.
+     */
+    #[Test]
+    public function it_does_not_raise_a_hold_from_publication_review_reasons(): void
+    {
+        $section = $this->songHeldForPublicationReview(needsManualReview: false);
+
+        $this->artisan('services:recompute-section-review-flags', ['--execute' => true])
+            ->assertSuccessful();
+
+        $this->assertFalse($section->fresh()->needs_manual_review);
+    }
+
+    #[Test]
+    public function it_does_not_keep_a_hold_on_a_section_that_is_no_longer_a_song(): void
+    {
+        $section = $this->songHeldForPublicationReview();
+        $section->forceFill(['section_type' => ServiceSectionType::Notices, 'song_match_type' => null])->save();
+
+        $this->artisan('services:recompute-section-review-flags', ['--execute' => true])
+            ->assertSuccessful();
+
+        $this->assertFalse($section->fresh()->needs_manual_review);
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
+    private function songHeldForPublicationReview(array $metadata = [], bool $needsManualReview = true): ServiceSection
+    {
+        $service = ChurchService::factory()->create(['needs_review' => $needsManualReview]);
+
+        return ServiceSection::factory()->create([
+            'media_processing_log_id' => $this->livestreamRun($service)->id,
+            'section_type' => ServiceSectionType::Song,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed,
+            'needs_manual_review' => $needsManualReview,
+            'metadata' => [
+                'review_flags' => [],
+                'song_publication_review' => [
+                    'reasons' => [['kind' => 'song_boundary_end_unsupported', 'detail' => 'The clip ends mid-verse.']],
+                    'decided_at' => '2026-10-17T12:00:00.000000Z',
+                ],
+                ...$metadata,
+            ],
+        ]);
+    }
+
     private function livestreamRun(ChurchService $service): MediaProcessingLog
     {
         return MediaProcessingLog::factory()->livestream()->create([

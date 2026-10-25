@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Actions;
 
 use App\Actions\HoldSectionForContentReview;
+use App\Actions\ReleaseSectionContentHold;
 use App\Actions\ServiceReview\ConfirmServiceSection;
 use App\Enums\ContentHoldCheck;
 use App\Enums\ServiceSectionSongMatchType;
@@ -280,6 +281,41 @@ class HoldSectionForContentReviewTest extends TestCase
 
         self::assertStringContainsString("Sermon {$sermon->id} is held for review", $refusals);
         self::assertStringContainsString("Song video {$songVideo->id} is held for review", $refusals);
+    }
+
+    #[Test]
+    public function releasing_a_content_hold_leaves_a_songs_publication_review_hold(): void
+    {
+        $section = $this->section(ServiceSectionType::Song);
+        app(HoldSectionForContentReview::class)($section, self::REASON, self::EVIDENCE, ContentHoldCheck::Judgement);
+        $this->withPublicationReviewReasons($section);
+
+        app(ReleaseSectionContentHold::class)($section->refresh(), null, 'Listened; the words are right');
+
+        $section->refresh();
+        self::assertNotContains(HoldSectionForContentReview::FLAG, $section->metadata->reviewFlags ?? []);
+        self::assertTrue($section->needs_manual_review);
+    }
+
+    #[Test]
+    public function releasing_a_content_hold_clears_a_song_with_no_publication_review_doubt(): void
+    {
+        $section = $this->section(ServiceSectionType::Song);
+        app(HoldSectionForContentReview::class)($section, self::REASON, self::EVIDENCE, ContentHoldCheck::Judgement);
+
+        app(ReleaseSectionContentHold::class)($section->refresh(), null, 'Listened; the words are right');
+
+        self::assertFalse($section->refresh()->needs_manual_review);
+    }
+
+    private function withPublicationReviewReasons(ServiceSection $section): void
+    {
+        $metadata = $section->refresh()->metadata?->toArray() ?? [];
+        $metadata['song_publication_review'] = [
+            'reasons' => [['kind' => 'song_boundary_end_unsupported', 'detail' => 'The clip ends mid-verse.']],
+            'decided_at' => now()->toISOString(),
+        ];
+        $section->forceFill(['metadata' => $metadata])->save();
     }
 
     /**

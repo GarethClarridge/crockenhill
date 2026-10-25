@@ -16,9 +16,9 @@
 > music, K17, A4 and F11 fixes are built locally; 31 sample edge rulings captured, 17 added to the ratchet.
 > No stored review state or media has been changed; validation and measurements are recorded in §5 "10-25 overnight".
 > **10-25 morning:** that work was reviewed and merged into `master`, with one catalogue fix (§5, "10-25 morning").
-> **Next** (§5 "10-25 morning", in order): re-run the three dry runs on `master`; apply stored state on the
-> operator's go; decide how A4 reaches the 39 peak-only holds; clear disk (5.6 GiB vs the 10 GB floor); triage the
-> 120 open edges; then the one recompose-and-re-cut round. Alongside: the 23 current unassessable rulings
+> **Next** (§5 "10-25 morning", in order): the three dry runs are re-run (§5 "10-25 midday": unchanged; the
+> apply order is constrained: re-derive, recompute, backfill, demote; the guard against recompute clearing publication-review holds is built, §5 "10-25 afternoon"); apply stored state on the operator's go;
+> decide how A4 reaches the 39 peak-only holds; clear disk (5.6 GiB vs the 10 GB floor); triage the 120 open edges; then the one recompose-and-re-cut round. Alongside: the 23 current unassessable rulings
 > (§4.6 and §5, morning recapture); the
 > [post-round audit](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md) (first slice:
 > inventory, read-only packets, calibration; no processing); acceptance (§4.5). Weekly take-over preparation
@@ -4135,3 +4135,94 @@ PHPStan clean. The branch is fast-forwarded into `master`.
    source verification or re-decode (H10b route), not to a hold change.
 
 The post-round audit's first slice, §4.6 unassessable rulings and §4.2 weekly preparation stand as before.
+
+#### 10-25 midday: dry runs re-run on `master`; the apply order is constrained
+
+Nothing was processed and no stored state changed. The three forecasts were re-run on `master` at `6889d535c`
+(output kept in the session scratchpad only):
+
+- `services:rederive-structure-review-flags`: 73 sections / 53 services over 457 runs; 70 flags withdrawn
+  (49 `structure_micro_section`, 10 `structure_low_confidence`, 7 `structure_talk_interrupted`, 2
+  `structure_macro_section`, 1 `song_title_marker_mismatch`, 1 `structure_talk_fragment`), 4 raised (2 micro, 2 low
+  confidence). 15 runs are only partly re-derived: 6 banked no structure (1, 883, 884, 888, 914, 918), 6 have a
+  section that drifted from the banked structure (945, 981, 1020, 1098, 1304, 1305), and 3 have a different section count (942, 974, 1363). For these it re-derives
+  only the flags the rows already carry.
+- `services:recompute-section-review-flags`: 63 sections / 42 services. This was measured **before** re-derive is
+  applied; re-derive changes the flags it reads, so the figure after re-derive will differ. Do not add it to the 73.
+- `service:backfill-song-boundary-evidence`: 1,031 assessed, 5 newly held, 158 holds kept. Identical to overnight.
+
+**The proposed order is right, and the reason is now checked against the code.** The re-derive command's own
+docblock gives re-derive then recompute. The new finding is that the boundary-evidence backfill must come after
+recompute, and nothing may recompute between the backfill and `service:demote-held-publications`:
+
+- `SectionReviewFlagRecalculator::updatesFor()` sets `needs_manual_review` from `SectionReviewFlagPolicy::
+  requiresManualReview()`, which reads only `metadata.review_flags`. Every section already holding
+  `needs_manual_review` is a candidate (`candidateSectionsQuery()`).
+- The backfill's holds are not in `review_flags`. It writes its reasons to `metadata.song_publication_review` and
+  sets `needs_manual_review` directly (`SongBoundaryEvidenceBackfill::writeSection()`). Recompute therefore reads a
+  song held for boundary doubts as "no flags, no hold" and clears it.
+- Measured read-only on 10-25: 98 sections are held with `song_publication_review` reasons; recompute would clear
+  35 of them (20 `not_applicable`, 15 `pending_approval`; none `published`). The 15 are still held by their status.
+  Nothing public is exposed today. After the backfill, the 5 newly held **published** songs would be exposed to
+  the same clearing, and `service:demote-held-publications` reads `needs_manual_review`.
+- Neither command is scheduled (`bootstrap/app.php`, `routes/console.php`), so only a manual run can do this.
+
+So the apply order is: re-derive → recompute → backfill → `service:demote-held-publications`, with no recompute
+afterwards until the guard below exists.
+
+**Proposed fix (not built): recompute must never clear a hold it did not set.** The mechanism is that two writers own
+`needs_manual_review` on a song from different sources (`review_flags`; `song_publication_review.reasons`) and only
+one of them is consulted when the boolean is re-derived. Proposal, in the one-directional spirit of the existing
+recompute (`review_flag_recompute_is_one_directional`):
+
+1. In `SectionReviewFlagRecalculator::updatesFor()`, for a `song` section whose `metadata.song_publication_review.
+   reasons` is non-empty, do not emit `needs_manual_review => false`. It may still set it true. Everything else in
+   the method is unchanged. Retype and residue branches are untouched (a retyped section is no longer a song).
+2. Tests in `RecomputeSectionReviewFlagsCommandTest`: a held song with reasons and no flags keeps its hold; the same
+   song without reasons is cleared as before; a non-song section is unaffected.
+3. Before building, check three things the proposal assumes: (a) how an operator's approval or edit clears a held
+   song — `SaveServiceSection` sets the boolean true (line 245) but I did not find the clearing path, and a guard
+   must not re-hold a clip an operator has answered; (b) whether the other writers that re-derive the boolean from
+   flags (`HoldSectionForContentReview`, the `Flag*` actions) can reach a song section; (c) why 20
+   `not_applicable` sections carry both a hold and reasons — they may be leftovers of the backfill's
+   `--include-not-applicable` option, and then are not a defect.
+
+The guard is not a precondition for the apply: running the commands in the order above is safe without it. It is
+the cure for the next person to run recompute: fix the mechanism, not the instance
+(`feedback_fix_the_mechanism_not_the_instance`). **Decision for the operator:** build the guard before step 2, or apply in order and build
+it afterwards. Either way, step 2 waits for the operator's word.
+
+#### 10-25 afternoon: the guard is built; recompute no longer clears publication-review holds
+
+The operator chose to build the guard before step 2. Nothing was processed and no stored state changed.
+
+**The three checks, answered.**
+
+- (a) **How an operator answers a held song.** `ConfirmServiceSection::apply()` clears `review_flags` and sets
+  `needs_manual_review` false; `ApproveSectionForPublication` writes `publication.approved_at`. Neither removes
+  `song_publication_review.reasons`, so the reasons outlive the answer. On 10-25 no section with reasons had been
+  confirmed; 3 published songs carry reasons with no hold (approved or published past them). The guard therefore
+  treats a reason as answered when `manual_review.confirmed_at` or `publication.approved_at` is at or after its
+  `decided_at`.
+- (b) **Other writers.** Two more re-derive the boolean from flags alone and reach songs:
+  `ReleaseSectionContentHold` (operator) and `ContentHoldRechecker` (after a repair). Both had the same clearing
+  defect. `HoldSectionForContentReview` only raises; the `Flag*` sermon actions do not reach songs;
+  `MatchSongsFromTranscript` runs in the pipeline ahead of `SongPublicationHandler::requiresApproval()`, which
+  re-assesses the reasons, so it is left as is.
+- (c) **The `not_applicable` holds with reasons** (83 held, 16 with no flag of their own; with the 15 pending, the 98 counted at midday) are songs the pipeline
+  moved to `not_applicable` because they were held, and ones the 09-20 backfill assessed with
+  `--include-not-applicable`. They are real recorded doubts, not a defect, and are kept.
+
+**What was built.** `App\Support\SongPublicationReviewHold::keepsHold()` is the single rule: a held `song` with
+unanswered `song_publication_review.reasons` keeps its hold. It keeps holds and never raises one (a song awaiting
+approval without the boolean is held by its status). An undated reason counts as unanswered. Recompute,
+`ReleaseSectionContentHold` and `ContentHoldRechecker` ask it before clearing. Tests: 6 in
+`RecomputeSectionReviewFlagsCommandTest` (the two "keeps" tests fail without the guard), 2 in
+`HoldSectionForContentReviewTest`, 1 in `ContentHoldRecheckerTest`; PHPStan clean.
+
+**Measured (recompute dry run, `master` + guard):** 28 sections / 28 services, down from 63 / 42. The 35 no longer
+touched are exactly the publication-review holds counted at midday.
+
+**Order now.** With the guard in place, a recompute after the backfill no longer clears its holds, so the order
+re-derive → recompute → backfill → `service:demote-held-publications` remains right but is no longer fragile.
+Step 2 still waits for the operator's word.

@@ -11,6 +11,7 @@ use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
 use App\Support\SectionReviewFlagPolicy;
 use App\Support\SongCatalogueTitlePolicy;
+use App\Support\SongPublicationReviewHold;
 
 /**
  * Re-derives a section's review state from its own persisted metadata, so
@@ -76,11 +77,13 @@ class SectionReviewFlagRecalculator
 
         $updates = [];
 
+        // The flags are only one of the two sources of a song's hold; the
+        // publication review's is not in them, and is not this pass's to clear.
         $needsManualReview = SectionReviewFlagPolicy::requiresManualReview(
             $section->section_type,
             $reviewFlags,
             is_string($metadata['sermon_reference'] ?? null) ? $metadata['sermon_reference'] : null,
-        );
+        ) || SongPublicationReviewHold::keepsHold($section, $metadata);
 
         if ($section->needs_manual_review !== $needsManualReview) {
             $updates['needs_manual_review'] = $needsManualReview;
