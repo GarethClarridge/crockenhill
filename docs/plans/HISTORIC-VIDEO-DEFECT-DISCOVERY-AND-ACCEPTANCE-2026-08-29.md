@@ -3912,3 +3912,13 @@ single recompose-and-re-cut round still need the operator's go. Disk measured **
 the round's 10 GB floor; no files were cleared. An hourly thread continuation is scheduled for the rest of this
 night, without consuming reset credits.
 
+**00:56 UTC continuation:** working tree was clean at `8188b52b5`. Deduplicated the 14 sample misses against
+the earlier `edge-triage.json`, using run + output kind + section id + edge: **no overlap**, so the combined
+backlog is **120 distinct edges** (106 earlier + 14 sample). The sample splits into **5 exact-time misses,
+8 moved keeps and 1 unmoved clipped start**. The saved planner reasons distinguish word-pause starts, song-end
+silence/fade/speech decisions and two unchanged starts without an edge rule (2659 and 3769).
+Receipt: `review-followup-20261025/deduplicated-edge-backlog.json`. This counts open edges, not confirmed new
+audible defects, and does not settle the eight moves of previously-right cuts. No tests were repeated or
+processing/state changed. Usage was 97% consumed; the next substantive investigation resumes after the
+02:48 UTC reset through the existing hourly continuation, without redeeming a reset credit.
+
