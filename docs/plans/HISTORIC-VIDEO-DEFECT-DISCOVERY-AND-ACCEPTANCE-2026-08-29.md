@@ -14,9 +14,12 @@
 > 80-item sample of the review queue was heard (10 real defects, 70 held for nothing), and what to do with it is
 > planned in §5 "10-25 (later)". **10-25 overnight:** the stale-state writer, talk proposals, S8/S9, pre-service
 > music, K17, A4 and F11 fixes are built locally; 31 sample edge rulings captured, 17 added to the ratchet.
-> No stored review state or media has been changed; validation and measurements are recorded in the last §5 entry.
-> **Next:** resolve the 106 failing
-> edges and 23 current unassessable rulings (§4.6 and §5, morning recapture); the
+> No stored review state or media has been changed; validation and measurements are recorded in §5 "10-25 overnight".
+> **10-25 morning:** that work was reviewed and merged into `master`, with one catalogue fix (§5, "10-25 morning").
+> **Next** (§5 "10-25 morning", in order): re-run the three dry runs on `master`; apply stored state on the
+> operator's go; decide how A4 reaches the 39 peak-only holds; clear disk (5.6 GiB vs the 10 GB floor); triage the
+> 120 open edges; then the one recompose-and-re-cut round. Alongside: the 23 current unassessable rulings
+> (§4.6 and §5, morning recapture); the
 > [post-round audit](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md) (first slice:
 > inventory, read-only packets, calibration; no processing); acceptance (§4.5). Weekly take-over preparation
 > (§4.2: where it runs, production parity, admin review screens) runs alongside; the canary and the take-over
@@ -4085,3 +4088,50 @@ performed. Local host FFmpeg was used only for the authorised null-output measur
 continuation pauses at this gate rather than repeating unchanged checks; resume after operator authority
 or new evidence permits meaningful progress.
 
+
+#### 10-25 morning: overnight work reviewed and merged; what is next
+
+The overnight commits (`0af777e18`..`f0c622984`) were read against the code around each change. They match the
+plan and the 10-25 rulings, and no stored state was touched. Checks made: the validator's withdrawal covers exactly
+the seven `REANNOTATED_FLAGS`, all of which `annotateSoftFlags` recalculates in the same loop, and it keeps notes
+and every other pass's flags; the only other writers of those flags (`MergeInterruptedTalk`,
+`MatchSongsFromTranscript`) remove or read them on rows, not in the banked structure. The A5 tie order relies on
+PHP 8's stable sort, as the commit says. The A4 filter recognises a video peak miss by the text that
+`VideoExtractionService::audioReport()` writes (`part N video true peak …`); it works, but would break silently if
+that wording changed. A structured read of the `video` measurements would be sturdier. Not urgent.
+
+**One gap, fixed (`e192abee4`):** after S8 the catalogue still listed `song-looped-transcript` as a promoted
+detector, although its signal can no longer reach `risks`, so it would score as a detector that never fires. It is
+now `DecidedNotToDetect`, citing S8, and `DetectorCatalogueTest` pins the kind as non-emitting. Evidence banked
+before version 11 still names the kind until the backfill re-assesses it; until then the review adapter reports it
+as an uncatalogued kind, the same as `song_boundary_spoken_introduction` after 10-10. Detector tests 310 pass;
+PHPStan clean. The branch is fast-forwarded into `master`.
+
+**What is next, in order.** Every step that changes stored state or media waits for the operator's word.
+
+1. **Re-run the dry runs on `master`.** The overnight forecasts were taken at different commits: the
+   re-derivation dry run (73 sections / 53 services) came before `f0c622984`; the ownership preview after it
+   (65 annotations on 64 sections). Neither is current. Re-run all three forecasts before any `--execute`:
+   `services:rederive-structure-review-flags`, `services:recompute-section-review-flags`, and
+   `service:backfill-song-boundary-evidence` (overnight: 1,031 assessed, 5 newly held, 158 kept).
+2. **Apply stored state, operator's go.** Proposed order: re-derive structure flags first (it rewrites the flags);
+   then recompute section review state from those flags against the policy; then the boundary-evidence backfill
+   (version 11). The forecasts overlap and must not be summed. The order is a proposal, not yet checked against
+   what each command reads; check that first.
+3. **A4 has no path to existing holds.** `FlagSermonAudioLoudnessMissed` runs only inside `ExtractSermon`. The
+   39 sermons held only for video peaks (26 with no other flag) stay held until re-extracted in the re-cut round,
+   unless a re-apply command over the stored `processing_metadata.audio_treatment` reports is built. Decide which.
+   Those stored video peaks were measured with the old seek, so they are not continuous-playback values; that
+   matters only if a video peak ever holds again.
+4. **Disk before the round.** 5.6 GiB free on 10-25 morning (6.5 GiB overnight), against the round's 10 GB
+   floor. The recompose-and-re-cut round cannot start until space is cleared or moved; operator decides what.
+5. **The 120 open edges** (106 earlier + 14 from the sample, no overlap; `deduplicated-edge-backlog.json`).
+   Triage before the round. The 8 moves of previously-right edges come first: a fix that breaks a right cut
+   costs more than a soft miss gains (`feedback_soft_misses_not_worth_breaking_others`). No blanket snap or
+   timing offset is justified by the evidence so far.
+6. **Then the one recompose-and-re-cut round**, listening acceptance, and §4.5.
+7. **Leads needing source checks, not yet defects:** lost openings on 1053 and 1072; malformed reading wording on
+   1061; the large public-MP3 peak on 1171 (+3.0 dBTP, arising after the filter in the delivery path). Each goes to
+   source verification or re-decode (H10b route), not to a hold change.
+
+The post-round audit's first slice, §4.6 unassessable rulings and §4.2 weekly preparation stand as before.
