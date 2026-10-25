@@ -23,6 +23,7 @@ import os
 import re
 import sys
 
+from edge_listening import collect as edge_listening_rulings
 from queue_sample import collect as queue_sample_rulings
 
 SCRATCH = 'storage/scratch'
@@ -313,6 +314,10 @@ records.extend(queue_sample_rulings(
     load('queue-sample-20261024/sample.json'),
     list(saved('queue-listening-20261024/answers/rulings').values()),
     load('queue-followup-20261025/answers/rulings/2659-sermon_start.json'),
+))
+records.extend(edge_listening_rulings(
+    'edge-listening-20261025', load('edge-listening-20261025/questions.json'),
+    list(saved('edge-listening-20261025/answers/final/rulings').values()),
 ))
 
 # Answers the plan later closed with a reading of its own: the answer heard something true that no

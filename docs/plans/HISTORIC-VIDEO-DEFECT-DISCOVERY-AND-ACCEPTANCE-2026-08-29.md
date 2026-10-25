@@ -4432,3 +4432,36 @@ change is 0.5 s of digital silence); 4 starts it leaves alone (165012, 2972, 302
 §964 detected in speech). **Not on the page:** 2659, 3242, 3769 and 752 already carry an answer with the time in its
 note, so they need code triage, not listening (752's start stays ~19 s before the 21:07 ruled: the fix keeps
 music there that is not this song).
+
+#### 10-25 night: Song Edges answered — the fix holds; three new findings
+
+Page rebuilt as version 2 on the operator's word ("very hard to use … judge split second differences by ear"):
+each version now has its own clip, played as that cut sounds. All 35 answered (`edge-listening-20261025/answers/final/`).
+
+| Group | Answers |
+|---|---|
+| Moved since heard (7) | **6 × B right too or better** (1102 ×2, 1730, 2513, 3781 ×2); 4322 neither: "something like 26:09", B better than A "as it keeps a whole sentence" |
+| Changed by the fix (24) | **17 either, 3 B better** (1288, 3285, 3352 — the largest moves); **1 A** (1268 §4735); 2 neither; 1 unsure (976 §959, "one song leading straight into another, but hard to tell") |
+| Left alone (4) | 1180 §165012 B; 2972, 3027, 976 §964 either — the mixed-window exclusion confirmed |
+
+**The fix stands:** of 23 judged starts it changed, 20 are as good or better, 1 worse. The 2513 suspect (M1) and the
+other five near-speech moves are acceptable. **1268 §4735 is a recorded soft miss of the fix:** detection's start
+(1855.52) sits inside the spoken "Let's sing." in a window the classifier scored music 0.50 / speech 0.48, just under
+the speech cut-off; the operator prefers A (1856.36) and on 10-18 heard 1854.68 right — whole sentence in or out,
+never half. Not chased alone (one of 24; tightening on the speech score would be fitting the instance).
+
+**New findings, for the next triage:**
+- **A song start in the middle of a spoken sentence is wrong; the whole sentence in or out is fine.** 4735 (above),
+  1296 §3779 ("should really be 3:36 — both these versions cut the introductory sentence partway through"; the cut,
+  215.0, is within the 1 s `at` tolerance of 216 but the operator rejected it), and 4322 (whole sentence better).
+  Measure the class before building anything: song starts whose cut falls between two decoded words of one sentence.
+- **1233 §2867 "Unidentified singing" (91–139 s) is pre-service background music, not a song** — detection split
+  it from the "Pre-service music" section before it (24.7–91 s). Structure, not an edge; unpublished.
+- 976 §959: unresolved by ear on these clips (two songs run together); left out.
+
+**Recorded:** `scripts/rulings/edge_listening.py` (+ `test_edge_listening.py`, 4 tests) joins the answers in
+`gather.py`: a chosen version is `keep`, "either" is `between` the two (heard = the longer, E21), "neither" is `at`
+only with an exact time in the note. **32 rulings** (4322's approximate time, 2867 and 959 give none); 8 older
+rulings on the same edges are superseded (1288's 10-08 "middle of a different song" agrees with B). Captured on
+current code (`capture/`): **31 met, 1 unmet (4735)**. The 31 join the ratchet as 28 run fixtures
+`run-<run>-2026-10-25-edges.json.gz` (named apart from four runs' existing 10-25 fixtures; 3.4 MB); 31 tests pass.
