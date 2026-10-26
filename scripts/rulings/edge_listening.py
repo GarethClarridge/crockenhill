@@ -1,4 +1,5 @@
 """Join the 10-25 song-edges answers (two versions per edge, A and B) to the cuts each version made.
+A key may name its output and section type (the sermon video, a talk); a song section is the default.
 
 A chosen version is kept. "Either is fine" makes the stretch between them optional, so any cut between
 the two is right; `heard` is the one that keeps more, which E21 prefers. "Neither" is edge truth only
@@ -42,8 +43,9 @@ def collect(source, questions, answers):
         records.append({
             'id': f"{source}:{answer['question_id']}", 'source': source,
             'ruled_on': answer['saved_at'][:10], 'ruled_at': answer['saved_at'],
-            'run': int(answer['run']), 'output': 'section', 'section_id': int(key['section']),
-            'section_type': 'song', 'title': answer.get('title'), 'edge': edge,
+            'run': int(answer['run']), 'output': key.get('output', 'section'),
+            'section_id': None if key['section'] is None else int(key['section']),
+            'section_type': key.get('type', 'song'), 'title': answer.get('title'), 'edge': edge,
             'heard': round(float(heard), 3), 'answer': choice, 'expect': expect, 'ruled_time': at,
             'note': answer.get('note', ''),
             **({'range': [round(float(t), 3) for t in between]} if between else {}),

@@ -324,6 +324,11 @@ records.extend(edge_listening_rulings(
     'sentence-listening-20261026', load('sentence-listening-20261026/questions.json'),
     list(saved('sentence-listening-20261026/answers/rulings').values()),
 ))
+# 10-26: ruled edges the clipped-opening rule (E22) moves, heard again; A is the ruled cut, B the rule's.
+records.extend(edge_listening_rulings(
+    'margin-relisten-20261026', load('margin-relisten-20261026/questions.json'),
+    list(saved('margin-relisten-20261026/answers/rulings').values()),
+))
 
 # Answers the plan later closed with a reading of its own: the answer heard something true that no
 # cut can fix, so the cut heard stands.

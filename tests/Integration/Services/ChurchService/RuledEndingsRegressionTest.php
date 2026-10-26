@@ -440,6 +440,14 @@ class RuledEndingsRegressionTest extends TestCase
             return;
         }
 
+        // A cut the clipped-opening rule (10-26, E22) moves from this older ruling, heard again
+        // against it the same day and found as good or better.
+        if (isset($fixture['clipped_opening_relistened'])) {
+            $this->assertEqualsWithDelta($fixture['clipped_opening_relistened']['time'], $cut, self::FIDELITY_TOLERANCE);
+
+            return;
+        }
+
         if ($fixture['open_defect'] ?? false) {
             // Keep the failing cut reproducible until its own red-to-green regression lands.
             $this->assertNotSame('keep', $ruling['expect']);

@@ -316,6 +316,21 @@ class WordTimedOutputEdgesTest extends TestCase
                 ['start' => 1655.27, 'end' => 1657.08, 'word' => ' Oh,'],
                 ['start' => 1657.08, 'end' => 1657.08, 'word' => ' God.'],
             ], 1626.1],
+            // 10-26 listening: the window opens a second before "426", while "just been" is still
+            // being said. Its margin before the first decoded word is clipped speech, not a pause:
+            // taking it started the song on the sermon's "talking about".
+            '1216 song start after the sermon’s closing words' => ['start', 4185.0, [
+                ['start' => 4183.46, 'end' => 4184.08, 'text' => 'just been'],
+                ['start' => 4184.08, 'end' => 4184.84, 'text' => 'talking about'],
+                ['start' => 4184.84, 'end' => 4186.52, 'text' => '426'],
+            ], [
+                ['start' => 4183.98, 'end' => 4183.98, 'word' => ' in'],
+                ['start' => 4183.98, 'end' => 4184.43, 'word' => ' talking'],
+                ['start' => 4184.48, 'end' => 4184.82, 'word' => ' about'],
+                ['start' => 4184.82, 'end' => 4186.50, 'word' => ' 426,'],
+                ['start' => 4186.55, 'end' => 4186.96, 'word' => ' how'],
+                ['start' => 4186.96, 'end' => 4187.51, 'word' => ' deep...'],
+            ], 4184.82],
         ];
     }
 

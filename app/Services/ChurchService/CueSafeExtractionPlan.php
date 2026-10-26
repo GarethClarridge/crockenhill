@@ -346,7 +346,7 @@ class CueSafeExtractionPlan
                     $payload = $evidence->read($log, $window);
                     $words = $payload['words'];
                     if ($words !== []) {
-                        $decision = $this->placedEdge($log, $words, $window, $original, $edge, $songEnds,
+                        $decision = $this->placedEdge($log, $words, $window, $cues, $original, $edge, $songEnds,
                             closingLine: $besideSong ? ($songIntroduction['line'] ?? null) : null);
                         $sentenceStartMoved = false;
                         if ($songEnds && $edge === 'start') {
@@ -834,7 +834,7 @@ class CueSafeExtractionPlan
             if ($placed === null) {
                 continue;
             }
-            $decision = $this->placedEdge($log, $placed['words'], $placed['window'], $original, 'start', songEnds: false);
+            $decision = $this->placedEdge($log, $placed['words'], $placed['window'], $cues, $original, 'start', songEnds: false);
             [$decision, $check] = $this->sentenceChecked($log, $cues, $placed['words'], $placed['window'], $original, 'start', $decision, deadFeedOpening: true);
             // Only a move inward: the dead feed before this opening holds nothing to take back in.
             if (! ($check['moved'] ?? false) || $decision['time'] <= $original || $decision['time'] >= $spans[$index]['end_time']) {
@@ -1029,11 +1029,12 @@ class CueSafeExtractionPlan
      *
      * @param  list<array{start: float, end: float, word: string}>  $words
      * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>, between?: true}  $window
+     * @param  list<array{start: float, end: float, text: string}>  $cues
      * @return array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, candidate_anchors?: list<array{start: float, end: float, word: string}>}
      */
-    private function placedEdge(MediaProcessingLog $log, array $words, array $window, float $original, string $edge, bool $songEnds, ?string $closingLine = null): array
+    private function placedEdge(MediaProcessingLog $log, array $words, array $window, array $cues, float $original, string $edge, bool $songEnds, ?string $closingLine = null): array
     {
-        $decision = $this->wordPause($words, $window, $original, $edge, $closingLine);
+        $decision = $this->wordPause($words, $this->withoutClippedOpening($words, $window, $cues), $original, $edge, $closingLine);
 
         if ($edge === 'start') {
             $decision = $this->keptAtHeardStart($log, $words, $original, $decision);
@@ -1042,6 +1043,27 @@ class CueSafeExtractionPlan
         }
 
         return $songEnds ? $decision : $this->keptOutOfMusic($log, $original, $decision);
+    }
+
+    /**
+     * A window opens a second before its cues. Where another line is still being said there, the
+     * margin before the decode's first word is clipped speech, not a pause: 1216's margin inside
+     * "just been" started a song on the sermon's "talking about" (operator listening, 2026-10-26).
+     * Heard again on 10-26, the cuts it moves in 961, 1221 and 1055 are as good or better. The
+     * closing margin stays: the decode hears to the window's end, and a gap there after the last
+     * word is heard (1200's song start after "to you.", ruled right).
+     *
+     * @param  list<array{start: float, end: float, word: string}>  $words
+     * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>, between?: true}  $window
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @return array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>, between?: true}
+     */
+    private function withoutClippedOpening(array $words, array $window, array $cues): array
+    {
+        $clipped = $words !== [] && array_any($cues, static fn (array $cue): bool => ! in_array($cue, $window['cues'], true)
+            && $cue['start'] < $window['start'] - self::CUE_BOUNDARY_TOLERANCE && $cue['end'] > $window['start'] + self::CUE_BOUNDARY_TOLERANCE);
+
+        return $clipped ? [...$window, 'start' => max($window['start'], min(array_column($words, 'start')))] : $window;
     }
 
     /**
@@ -1591,7 +1613,7 @@ class CueSafeExtractionPlan
         }
 
         // A spoken edge: the sentence check is asked about the cut the plan makes.
-        $decision = $this->placedEdge($log, $words, $window, $original, $edge, songEnds: false);
+        $decision = $this->placedEdge($log, $words, $window, $cues, $original, $edge, songEnds: false);
 
         return isset($decision['candidate_anchors']) ? null : ['time' => $decision['time'], 'window' => $window, 'words' => $words];
     }

@@ -5089,3 +5089,24 @@ each played as its cut sounds). The opening at 1939 was already ruled and was no
   the class first: songs after a sermon whose K16 answer keeps the introduction. Separately, 1221's ruled
   start splits "…save his | people." and predates the 10-26 sentence rule. The rule cannot see it, because no word
   precedes the cut inside the window.
+
+**The guard's moves heard again; E22 built as the guard (10-26 night).** Operator: "Isn't it possible that my rulings
+before were wrong? Or at least, I was choosing the better of two versions?" Of the five failures, 1053's two are open
+defects whose rulings contradict each other (1578.83 heard late, "cut mid sentence"; 1579.72 heard early): neither is a
+ruled-right cut. The other three were each judged right on their own, not against another cut. They went on the
+Margin Re-listen page (`P7iKS3bdqLmEtAYdKfc3cn`; builder `storage/scratch/margin-relisten-20261026/build.php`), A = the
+ruled cut, B = the guard's:
+
+| Edge | A (ruled right) | B (guard) | Answer |
+|---|---|---|---|
+| 961 sermon start | 1517.76 "Good. Well, we're going…" | 1518.62 | **B** |
+| 1221 §2718 "King Of Kings Majesty" start | 111.85 "…his people. Let's stand and sing…" | 113.46 | **B** |
+| 1055 §1613 talk end | 553.19, mid-title | 554.30, title complete | **either**. Operator: "the song could plausibly be referred to by either — it's just reading the first few words." E21 → B |
+
+**So the guard stands** and is restored. It moves 5 of 1,503 ruled edges: 3 heard as good or better, 2 inside an open defect.
+Recorded: `scripts/rulings/edge_listening.py` now reads an optional output, section and type from a page key, and
+`gather.py` adds the `margin-relisten-20261026` source. That adds 3 rulings and supersedes the 3 older ones on those
+edges (1,442 rulings). The three 10-23 run fixtures carry `clipped_opening_relistened` (source, previous cut, new
+cut), which the test honours like `song_start_sentence_policy`. 1053's two `open_defect` fixtures carry
+`clipped_opening_replay` provenance with their new live cut, 1579.72. Their rulings stay open. Next for 1216: commit,
+a fresh snapshot, then `rerun-redetect` (paid, about $0.04, needs the operator's word), recompose, extract and diff.
