@@ -41,7 +41,8 @@ class RepairFailedHistoricTranscriptsCommandTest extends TestCase
 
     private string $donor;
 
-    private bool $plannerMissing = false;
+    /** Which plans lack banked edge words: null, 'after' (only with candidate text) or 'both' (pre-existing) */
+    private ?string $plannerMissing = null;
 
     protected function setUp(): void
     {
@@ -57,7 +58,8 @@ class RepairFailedHistoricTranscriptsCommandTest extends TestCase
         $planner = Mockery::mock(CueSafeExtractionPlan::class);
         $planner->shouldReceive('audioTimeline')->andReturnNull();
         $planner->shouldReceive('forSection')->andReturnUsing(function (ServiceSection $section, ChurchServiceTranscript $transcript): array {
-            if ($this->plannerMissing) {
+            $candidate = $transcript->cues[0]['start'] < 403.0;
+            if ($this->plannerMissing === 'both' || ($this->plannerMissing === 'after' && $candidate)) {
                 throw new RuntimeException('Banked edge words missing');
             }
 
@@ -296,11 +298,26 @@ class RepairFailedHistoricTranscriptsCommandTest extends TestCase
             self::assertStringContainsString('reconciliation', $e->getMessage());
         }
         $review['reconciliation'] = 'The current 271–403 window is still empty and failed.';
-        $this->plannerMissing = true;
+        $this->plannerMissing = 'after';
         $adoption = $repair->prepare($proposal, $review);
         self::assertFalse($adoption['impact_complete']);
         $this->expectExceptionMessage('unresolved planner evidence');
         $repair->apply($adoption);
+    }
+
+    #[Test]
+    public function evidence_missing_identically_before_and_after_is_reported_but_does_not_block(): void
+    {
+        $run = $this->historicRun();
+        $repair = app(HistoricFailedTranscriptRepair::class);
+        $proposal = $repair->inspect($run, $this->donor);
+        $this->plannerMissing = 'both';
+        $adoption = $repair->prepare($proposal, $this->review($proposal));
+
+        self::assertTrue($adoption['impact_complete']);
+        self::assertTrue($adoption['impacts'][0]['pre_existing_error']);
+        self::assertSame([$run->serviceSections()->sole()->id], $adoption['pre_existing_errors']);
+        self::assertSame('applied', $repair->apply($adoption));
     }
 
     #[Test]

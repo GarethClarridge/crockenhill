@@ -4902,3 +4902,17 @@ bundles are `impact_complete: false`, so `apply` refuses, for two reasons:
   transcript too, identically before and after. The gate counts any error on either side, so it blocks on evidence
   the repair does not touch. Proposed: refuse only where a section's after-plan errors or differs and its before-plan
   did not (2658's case), and report identical before/after errors as pre-existing; the re-cut round decodes them.
+
+**Both unblocked (10-26, operator: "You can do both").** (a) One approved local decode for 2658's following speech,
+1938.26–1943.42 (`words --run=1216 --section=2658 --execute`, 1 decode, 2.8 s;
+`storage/app/private/failed-stretch-2658-words-executed-20261026.json`). With it 2658 keeps **1713.82–1932.67**;
+only its end audit gains the opening line as `speech_cue`, and the end stays `song_end_silence`. (b) `prepare`
+now marks an impact `pre_existing_error` when the before and after plans fail with the same error, lists those under
+`pre_existing_errors`, and sets `impact_complete` false only for an after-plan failure the candidate text introduces
+or changes (test: `evidence_missing_identically_before_and_after_is_reported_but_does_not_block`; the existing
+blocking test now fails after-only). Re-prepared on the final code →
+`storage/app/private/failed-stretch-adoption-20261026-v2.json` (the first bundle is stale by code hash): both runs
+`impact_complete: true`; pre-existing gaps 1216 [2648, 2649, 2652, 2661, 2662, 165282], 1295 [3766, 3767, 3770,
+3774, 166092]. Changed cuts: **3769 end 354.90 → 350.69** only; 2658 and both sermon outputs keep their edges.
+`apply` dry run passes for both (`failed-stretch-apply-dry-20261026.json`). Installing needs `apply --execute`
+on the operator's word; 2659's start still needs the separate run-1216 structure rerun.

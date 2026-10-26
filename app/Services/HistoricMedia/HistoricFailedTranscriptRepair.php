@@ -223,13 +223,23 @@ class HistoricFailedTranscriptRepair
                 $impacts[] = ['output' => 'sermon', 'before' => $before, 'after' => $after,
                     'changed' => CanonicalJson::hash($before) !== CanonicalJson::hash($after)];
             }
+            // Evidence missing identically with and without the candidate text is not the repair's to resolve:
+            // report it, and block only on a failure the candidate text introduces or changes.
+            foreach ($impacts as &$impact) {
+                $impact['pre_existing_error'] = isset($impact['before']['error'], $impact['after']['error'])
+                    && $impact['before']['error'] === $impact['after']['error'];
+            }
+            unset($impact);
             $selected = array_values(array_filter($report['candidates'], static fn (array $c): bool => in_array($c['id'], $accepted, true)));
 
             return $this->seal(['schema' => self::SCHEMA, 'kind' => 'adoption', 'proposal' => $proposal, 'review' => $review,
                 'accepted' => $accepted, 'output' => $output->toArray(), 'output_sha256' => CanonicalJson::hash($output->toArray()),
                 'verified_seconds' => array_sum(array_map(static fn (array $c): float => $c['cue']['end'] - $c['cue']['start'], $selected)),
                 'verified_words' => array_sum(array_map(static fn (array $c): int => str_word_count($c['cue']['text']), $selected)),
-                'impacts' => $impacts, 'impact_complete' => ! array_any($impacts, static fn (array $i): bool => isset($i['before']['error']) || isset($i['after']['error']))]);
+                'impacts' => $impacts,
+                'pre_existing_errors' => array_values(array_map(static fn (array $i): int|string => $i['section_id'] ?? 'sermon',
+                    array_filter($impacts, static fn (array $i): bool => $i['pre_existing_error']))),
+                'impact_complete' => ! array_any($impacts, static fn (array $i): bool => isset($i['after']['error']) && ! $i['pre_existing_error'])]);
         });
     }
 
