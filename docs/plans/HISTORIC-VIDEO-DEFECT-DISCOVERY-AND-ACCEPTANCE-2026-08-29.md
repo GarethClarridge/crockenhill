@@ -4885,3 +4885,20 @@ questions — the four clean lines at 1216 1939.26–1953.67 (clip 1935–1956),
 349–361), and 3769's end as two cuts, A 354.90 (4 s fade, stored transcript) and B 350.695 (1.5 s fade, clean
 candidates). `questions.json` keys each text answer to its candidate IDs and clip interval for the `prepare` review
 file. No answer is recorded yet.
+
+**Source listening answered (10-26).** Operator: 1216-opening "Every line matches what is said" (4 lines,
+1939.26–1953.67, clip 1935–1956); 1295-prayer "Every line matches" (5 lines, 351.62–360.18, clip 349–361); 3769-end
+**B** ("it stops before the prayer starts", 350.695; supersedes the whole-second 352 for this edge). Review file
+`storage/app/private/failed-stretch-source-reviews.json` (0600): 9 accepts with source/donor hashes and clip
+intervals, plus a reconciliation note per run (both stored transcripts changed since September; today's windows
+1734.08–2010.08 and 271–403 are still `retranscription_failed` with no stored cues). `prepare --run=1216 --run=1295`
+→ `storage/app/private/failed-stretch-adoption-20261026.json`, nothing installed: 1216 accepts 38 words / 12.95 s,
+1295 19 words / 7.12 s. Planner impact: **3769 end 354.90 → 350.69** (heard right); both sermon outputs keep their
+edges and change only `input_identity` (transcript hash; neither holds an operator composition review). Both
+bundles are `impact_complete: false`, so `apply` refuses, for two reasons:
+- **2658** (1216's published song before the sermon, end 1932.67 `song_end_silence`) now needs edge words for
+  1938.26–1943.42, the speech after it: a second local decode, not yet approved.
+- **Pre-existing gaps:** 6 sections in 1216 and 5 in 1295 fail with `edge_word_timings_missing` on the *current*
+  transcript too, identically before and after. The gate counts any error on either side, so it blocks on evidence
+  the repair does not touch. Proposed: refuse only where a section's after-plan errors or differs and its before-plan
+  did not (2658's case), and report identical before/after errors as pre-existing; the re-cut round decodes them.
