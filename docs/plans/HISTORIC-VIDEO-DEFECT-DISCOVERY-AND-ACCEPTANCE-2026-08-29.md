@@ -4539,3 +4539,58 @@ the decode's last second) was measured and rejected: it undoes 4322 and five sta
 the six confirmed overrides now cite their 10-26 answers; **1130 §2066 is recorded as an open miss, not policy**
 (an introduction reading several lines of the song; its `keep` ruling stands). Still open: 2066, 4663 (one-word
 transcript cues), 752 (structure). Both test classes (1,574), PHPStan and Pint pass; full suite not run.
+
+**10-26: edge code triage — 2659, 3242, 3769, 752 (read-only; nothing built).** Each answer already gave a time, so
+each was replayed through the planner at `08d3fe321` and its class measured. Evidence and scripts:
+`storage/scratch/code-triage-20261026/` (`evidence.json`, `blind-edges.json`, `blind-windows-redecode.json`,
+`silence-scan.jsonl`, `ruled-leads.json`, `after-dead-feed.json`).
+
+| Edge | Ruled | Plan now | Cause | Verdict |
+|---|---|---|---|---|
+| 1216 §2659 start | 1939 (32:19) | 2010.3 | Failed re-transcription window 1734.1–2010.1: no cue, so the start sits on the first one after it | Transcript, not the planner |
+| 1295 §3769 end | 352 (5:52) | 354.9 `song_end_fade` | Failed window 271–403: no speech cue, so the fade runs to the end of the 5 s classifier window that first hears speech (350–355) | Transcript, not the planner |
+| 1295 §3769 start | outward | 300 (no rule) | The feed is digital silence 214–288 s; the song began in 3768 and plays on when sound returns at ~288 | Structure + small rule class |
+| 1259 §3242 start | 2124 (35:24) | 2113.07 (after the song's sound) | The stored start (2101.84) had 10 s of the song's end, from a cue stamped early; the plan already drops it. What is left is 11 s of room silence before the first word | No change: within heard-right silence |
+| 941 §752 start | 1267 (21:07) | 1248.72 | Real silence 1260–1267 between two songs; one 30 s cue spans the change, and the song-change dip rule only moves edges earlier and searches 15 s past the previous song's end | Narrow class; hear before building |
+| 941 §752 end | 1334 (22:14) | 1332.85 `song_end_speech` | The cut is in the gap before the first spoken word ("I", 1332.91; cue "I do please sit down" 1333.78) | No change: 1.15 s is whole-second answer precision |
+
+**1. Failed re-transcription windows (2659, 3769 end): the text already exists.** On the 425 eligible runs, 84 carry
+an unobservable window; **91 are `retranscription_failed`, 18,436 s (5.1 h) in all, and 132 section edges sit in or on
+one** (81 song, 14 prayer, 14 other, 9 sermon, 7 reading, 5 talk; 36 published). The H10b re-decodes of 09-22/24
+(`h10b-corpus-20260922/decodes*/`) hold words in **all 60 of the failed windows that hold an edge**, and they put
+2659's opening at **1939.26** ("Have any of you had a conversation where someone said…", against the ruled 1939) and
+3769's following prayer at **351.62** ("Let's join together in prayer.", against 352). H10b never queued these: its
+screen chose windows whose *stored* text was repetitive, and a failed window has no stored text (`stored_tokens` 0).
+The re-decodes are not all clean: 1295's has two 30 s filler cues ("Thank you.", "The End") over 249–309, and H10b
+listening found the new decode wrong in 58 of 352 windows. So the candidate fix mirrors `SupersededTranscriptFallback`:
+carry the re-decode's cues into `retranscription_failed` windows only, through the pathology screen, with a window
+entry of their own. It changes stored transcripts, so it needs the operator's go and a plan of its own. It also
+raises a routine-processing question: why recovery failed where the whole-run decode succeeded. F11 already holds
+2659 (mark and ask, built 10-25).
+
+**2. 3242: a silence-trim rule would break heard-right starts.** At the 168 ruled sermon/talk starts, measured from
+the planner's levels: **6 heard right (`keep`) start with 8–16 s below the threshold** before the first sound (1012
+14 s, 1149 13 s, 1379 15 s, 1300's talk 11 s, …); 31 with 3 s or more. Across the corpus, 160 of 737 planned
+sermon/talk starts lead with 3 s or more of silence, 34 with 8 s or more. 3242's defect as heard, the song's end
+inside the sermon, is already gone from the plan; its 11 s lead-in is a soft miss of the kind the register keeps
+(`feedback_soft_misses_not_worth_breaking_others`). It stays an open numeric miss, not a rule.
+
+**3. 752: song-after-song silences are not reliable boundaries.** 49 songs start within 5 s of a song ending; **9 have
+a silence of 5 s or more inside their first 40 s** (2332, 2352, 2687, 3051, 186711, 3389, 3416, 3628, 752). Only 752 is
+ruled at its silence; none of the others is ruled either way. Among all ruled song starts, **6 heard right have a
+silence of 5 s or more inside their first 40 s** (954 §899, 1120 §2008 and §2011, 1215 §175132, 1224 §2769, 1292), so
+silence alone is not the change of song. With one ruled case, the 10-20 finding still stands: a later dip was taste or
+wrong in the cases heard then. The next step is to hear the 8 unruled starts with clips (A = now, B = after the
+silence) before any rule. A rule, if heard right, would need: the previous section a song, the transcript breaking
+down across the change (`transcriptBreaksDown`), and a silence at least as long as 752's, with the previous song's end
+moved to the same silence.
+
+**4. 3769 start: one song split by a dead feed.** Four song starts sit 4–13 s after the end of a dead feed (5 s or
+more at the dropout level) with the song already playing: **1100 §1851 (4 s, published), 1106 §1879 (13 s), 1149 §2213
+(4 s, published), 1295 §3769 (12 s)**. Three are round detection times (390, 390, 300). The planner has no rule for a
+start inside a blind transcript. 3768 + 3769 are one song across a 74 s dropout, and dead-feed excision exists for
+sermons and talks only. Whether a song across a dropout is one output is a structure ruling for the operator; the
+4-case start rule (back to where sound returns) is cheap but needs 1879 and 2213 heard.
+
+**Nothing changed:** no code, stored state, rulings or tests. The open lists are unchanged except that 3242 and 752's
+end are now explained misses, not mechanisms.
