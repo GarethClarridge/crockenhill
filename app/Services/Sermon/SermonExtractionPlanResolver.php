@@ -19,6 +19,7 @@ use App\Services\ChurchService\Structure\SermonContinuationScreen;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\Media\Audio\AudioTimeline;
 use App\Services\Scripture\ScriptureReferenceResolver;
+use App\Support\CanonicalJson;
 use App\Support\SermonAutoExtractionPolicy;
 use App\Support\ServiceArtifactDisk;
 use Illuminate\Support\Facades\Storage;
@@ -69,10 +70,10 @@ class SermonExtractionPlanResolver
      *
      * @return array<string, mixed>
      */
-    public function compose(MediaProcessingLog $log): array
+    public function compose(MediaProcessingLog $log, ?ChurchServiceTranscript $transcript = null): array
     {
         $sections = $log->serviceSections()->orderBy('start_time')->orderBy('id')->get()->values()->all();
-        $identity = $this->inputIdentity($log, $sections);
+        $identity = $this->inputIdentity($log, $sections, $transcript);
         $sermons = array_values(array_filter($sections, static fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::Sermon));
         $risks = [];
         $pendingEdgeEvidence = null;
@@ -144,7 +145,7 @@ class SermonExtractionPlanResolver
                 $risks[] = ['kind' => 'sermon_reading_membership_unresolved', 'detail' => 'Choose the sermon reading: references are missing or multiple readings are plausible.'];
             }
             foreach ($membership['could_be_cut'] as $index) {
-                foreach ($this->prayerHandovers($log, $readings[$index]) as $cue) {
+                foreach ($this->prayerHandovers($log, $readings[$index], $transcript) as $cue) {
                     $risks[] = ['kind' => 'sermon_reading_contains_prayer_handover', 'detail' => sprintf('Reading %s hands over to prayer at %.3f–%.3fs ("%s"): is a prayer inside the reading?', $readings[$index]->metadata->readingReference ?? '#'.$readings[$index]->id, $cue['start'], $cue['end'], trim($cue['text'], " \"'"))];
                 }
             }
@@ -171,7 +172,7 @@ class SermonExtractionPlanResolver
                 $risks[] = ['kind' => 'sermon_prayer_membership_unresolved', 'detail' => 'Choose the concluding prayer: intervening sections or multiple prayers make membership uncertain.'];
             }
             try {
-                foreach ($this->uncoveredSpeech($log, $sections, $selected, $sermon->id) as $cue) {
+                foreach ($this->uncoveredSpeech($log, $sections, $selected, $sermon->id, $transcript) as $cue) {
                     $risks[] = ['kind' => 'sermon_uncovered_speech', 'detail' => sprintf('Speech outside identified sections at %.3f–%.3fs: %s', $cue['start'], $cue['end'], $cue['text'])];
                 }
             } catch (OutputEdgeTimingsMissing $exception) {
@@ -221,27 +222,36 @@ class SermonExtractionPlanResolver
             'method' => 'identified_sections',
             'decision' => $risks === [] ? 'section_exact' : 'review',
         ];
+        if ($transcript !== null) {
+            return $composition;
+        }
         $log->writeProcessingMetadata(static function (array $metadata) use ($composition): array {
             $metadata['sermon_composition'] = $composition;
 
             return $metadata;
         });
         if ($sermon !== null) {
-            $metadata = $sermon->metadata?->toArray() ?? [];
-            $metadata['sermon_boundary'] = $composition;
-            $flags = array_values(array_diff($sermon->metadata->reviewFlags ?? [], [SermonAutoExtractionPolicy::COMPOSITION_REVIEW_FLAG]));
-            if ($risks !== []) {
-                $flags[] = SermonAutoExtractionPolicy::COMPOSITION_REVIEW_FLAG;
-                $sermon->needs_manual_review = true;
-            } elseif ($flags === [] && ($sermon->metadata->reviewFlags ?? []) !== []) {
-                $sermon->needs_manual_review = false;
-            }
-            $metadata['review_flags'] = $flags;
-            $sermon->metadata = ServiceSectionMetadata::fromArray($metadata);
+            $this->applyCompositionState($sermon, $composition);
             $sermon->save();
         }
 
         return $composition;
+    }
+
+    /** @param array<string, mixed> $composition */
+    private function applyCompositionState(ServiceSection $sermon, array $composition): void
+    {
+        $metadata = $sermon->metadata?->toArray() ?? [];
+        $metadata['sermon_boundary'] = $composition;
+        $flags = array_values(array_diff($sermon->metadata->reviewFlags ?? [], [SermonAutoExtractionPolicy::COMPOSITION_REVIEW_FLAG]));
+        if (($composition['risks'] ?? []) !== []) {
+            $flags[] = SermonAutoExtractionPolicy::COMPOSITION_REVIEW_FLAG;
+            $sermon->needs_manual_review = true;
+        } elseif ($flags === [] && ($sermon->metadata->reviewFlags ?? []) !== []) {
+            $sermon->needs_manual_review = false;
+        }
+        $metadata['review_flags'] = $flags;
+        $sermon->metadata = ServiceSectionMetadata::fromArray($metadata);
     }
 
     /**
@@ -324,10 +334,11 @@ class SermonExtractionPlanResolver
      *
      * @return list<array{start: float, end: float, text: string}>
      */
-    private function prayerHandovers(MediaProcessingLog $log, ServiceSection $reading): array
+    private function prayerHandovers(MediaProcessingLog $log, ServiceSection $reading, ?ChurchServiceTranscript $candidate = null): array
     {
         $path = $log->serviceTranscriptPath();
-        $raw = $path === null ? null : rescue(static fn (): ?string => Storage::disk(ServiceArtifactDisk::for($path))->get($path), null, false);
+        $raw = $candidate !== null ? CanonicalJson::encode($candidate->toArray())
+            : ($path === null ? null : rescue(static fn (): ?string => Storage::disk(ServiceArtifactDisk::for($path))->get($path), null, false));
 
         if (! is_string($raw)) {
             return [];
@@ -560,13 +571,20 @@ class SermonExtractionPlanResolver
      * @param  array{section_id: int, start_time: float, end_time: float}|null  $heldSpanAuthority
      * @return array{mode: 'single_span'|'concat_spans', source: 'service_sections', segments: list<array{start_time: float, end_time: float}>, metadata: array<string, mixed>}
      */
-    public function resolve(MediaProcessingLog $processingLog, ?array $heldSpanAuthority = null): array
+    public function resolve(MediaProcessingLog $processingLog, ?array $heldSpanAuthority = null, ?ChurchServiceTranscript $transcript = null): array
     {
         // Composed afresh, never read back: a stored composition keeps its identity when the
         // membership rules change (964 kept a cut without its reading). Only the operator's
         // review is reused, and compose() keeps that by identity.
-        $composition = $this->compose($processingLog);
+        $composition = $this->compose($processingLog, $transcript);
         $sections = $processingLog->serviceSections()->orderBy('start_time')->orderBy('id')->get()->values()->all();
+        if ($transcript !== null) {
+            foreach ($sections as $section) {
+                if ($section->id === ($composition['sermon_section_id'] ?? null)) {
+                    $this->applyCompositionState($section, $composition);
+                }
+            }
+        }
         $byId = collect($sections)->keyBy('id');
         $spans = [];
         $held = [];
@@ -613,7 +631,8 @@ class SermonExtractionPlanResolver
         try {
             $sermon = $byId->get($composition['sermon_section_id'] ?? null);
             $cuePlan = app(CueSafeExtractionPlan::class)->forSpans($processingLog, $spans, sermonEnd: true,
-                edgeAnswers: $sermon instanceof ServiceSection ? OutputEdgeAnswers::of($sermon, $selectedSections) : null);
+                edgeAnswers: $sermon instanceof ServiceSection ? OutputEdgeAnswers::of($sermon, $selectedSections) : null,
+                transcript: $transcript);
         } catch (OutputEdgeTimingsMissing $exception) {
             // Nothing can be cut until the edge words are decoded, but the structure's own verdict
             // still stands: a re-cut may decode them first only when the structure needs no review.
@@ -719,7 +738,7 @@ class SermonExtractionPlanResolver
      *
      * @param  array<int, ServiceSection>  $sections
      */
-    private function inputIdentity(MediaProcessingLog $log, array $sections): string
+    private function inputIdentity(MediaProcessingLog $log, array $sections, ?ChurchServiceTranscript $candidate = null): string
     {
         $deadFeed = app(DeadFeedExcision::class);
 
@@ -730,7 +749,7 @@ class SermonExtractionPlanResolver
                 $section->metadata?->sermonContinuation?->toArray() ?? $this->notedContinuation($section),
             ], $this->planDependencies($sections)),
             'duration' => $log->duration,
-            'transcript' => $this->evidenceHash($log->serviceTranscriptPath()),
+            'transcript' => $candidate === null ? $this->evidenceHash($log->serviceTranscriptPath()) : $this->candidateEvidenceHash($log, $candidate),
             'audio_timeline' => $this->evidenceHash($log->audio_timeline_path),
             ...($deadFeed->identity($log) === null ? [] : ['dead_feed_input_identity' => $deadFeed->inputIdentity($log)]),
         ]));
@@ -791,7 +810,7 @@ class SermonExtractionPlanResolver
      * @param  list<ServiceSection>  $selected
      * @return list<array{start: float, end: float, text: string}>
      */
-    private function uncoveredSpeech(MediaProcessingLog $log, array $sections, array $selected, int $sermonId): array
+    private function uncoveredSpeech(MediaProcessingLog $log, array $sections, array $selected, int $sermonId, ?ChurchServiceTranscript $candidate = null): array
     {
         usort($selected, static fn (ServiceSection $a, ServiceSection $b): int => $a->start_time <=> $b->start_time);
         $gaps = [];
@@ -803,7 +822,7 @@ class SermonExtractionPlanResolver
                 $pair = app(CueSafeExtractionPlan::class)->forSpans($log, [
                     ['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time],
                     ['start_time' => (float) $next->start_time, 'end_time' => (float) $next->end_time],
-                ])['segments'];
+                ], transcript: $candidate)['segments'];
                 if (count($pair) === 2) {
                     $gaps[] = [$pair[0]['end_time'], $pair[1]['start_time']];
                 }
@@ -827,7 +846,7 @@ class SermonExtractionPlanResolver
         if (! $transcriptDisk->exists($path) || ! $timelineDisk->exists($timelinePath)) {
             return [['start' => $before, 'end' => $after, 'text' => 'Required coverage evidence is missing.']];
         }
-        $raw = $transcriptDisk->get($path);
+        $raw = $candidate === null ? $transcriptDisk->get($path) : CanonicalJson::encode($candidate->toArray());
         $audio = $timelineDisk->get($timelinePath);
         if (! is_string($raw) || ! is_string($audio)) {
             return [['start' => $before, 'end' => $after, 'text' => 'Required coverage evidence is missing.']];
@@ -869,5 +888,15 @@ class SermonExtractionPlanResolver
         }
 
         return $uncovered;
+    }
+
+    private function candidateEvidenceHash(MediaProcessingLog $log, ChurchServiceTranscript $candidate): string
+    {
+        $raw = $log->storedServiceTranscriptContents();
+        if (is_string($raw) && CanonicalJson::hash(ChurchServiceTranscript::fromArray(json_decode($raw, true, flags: JSON_THROW_ON_ERROR))->toArray()) === CanonicalJson::hash($candidate->toArray())) {
+            return hash('sha256', $raw);
+        }
+
+        return hash('sha256', CanonicalJson::encode($candidate->toArray()));
     }
 }

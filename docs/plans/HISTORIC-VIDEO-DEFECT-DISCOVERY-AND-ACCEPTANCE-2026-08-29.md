@@ -4594,3 +4594,294 @@ sermons and talks only. Whether a song across a dropout is one output is a struc
 
 **Nothing changed:** no code, stored state, rulings or tests. The open lists are unchanged except that 3242 and 752's
 end are now explained misses, not mechanisms.
+
+#### 10-26: failed-stretch recovery plan (option a)
+
+**Status at planning:** planned; implementation and transcript adoption not performed. The operator selected option (a),
+"Plan the failed-stretch fix", after the triage above. This subsection owns that bounded repair; the historic
+convergence plan and rulings register retain their authority. Implementation must produce a concrete candidate
+report before requesting adoption of stored changes. No fresh transcription, structure regeneration, media
+extraction or publication is part of this repair.
+
+**Who benefits:** the operator checking historic cuts, and listeners whose sermon openings or following prayer
+are missing from the boundary evidence.
+**What observably improves:** recover source-verified words inside failed stretches, starting with 1216's sermon
+opening and 1295's following prayer, so the planner can use words rather than coarse sound windows. Count verified
+recovered spans and improved edges; added word count alone is not success.
+
+**Scope and inputs.** Freeze the eligible-run list at
+`storage/scratch/class-scan-20261024/eligible-runs.txt` and reconcile the triage census against current transcripts:
+91 failed windows / 18,436.1 s. The 84 runs above have *any* unobservable reason, not necessarily this reason.
+The 60 edge-bearing failed windows are the first candidate cohort; enumerate the other 31 with dispositions
+rather than assuming their text is available or useful. The 132 edges are not 132 distinct sections or guaranteed
+fixes. The scan includes edges within 0.5 s of a window; retain that convention in comparisons.
+
+Actual local donor files are `storage/scratch/h10b-corpus-20260922/decodes*/run-*.json`, including
+`decodes/run-1216.json` and `decodes/run-1295.json`, with schema `h10b-redecode-v1`. Use existing per-window listening
+answers as well as `listening/routing-20260924.json`. A run-level `new_better` route does not approve an unheard
+failed stretch; a bad window elsewhere does not invalidate every cue in the run. Select and hash an explicit
+donor artifact; report alternatives rather than choose by glob order.
+
+**Existing code and boundaries.** Follow `SupersededTranscriptFallback`'s narrow eligibility and retained window
+provenance. Keep its runtime contract: its donor remains the superseded transcript, not an H10b artifact. Put the
+historic repair beside `HistoricTranscriptRecoveryReplay`, reusing `ServiceTranscriptReader`,
+`ServiceArtifactStorage`, staging contexts and established run transcript-path/window methods. Do not reopen
+runs through `RetranscribeHistoricVideoRun`, widen its allowlist or restart a pipeline to install banked text.
+Any new one-shot command declares its deletion trigger: adopted repairs reconciled and the historic closeout
+retention period expired. No new dependencies or importer changes are needed.
+
+**10-26 review correction (supersedes the original F4 target assumptions below).** Claude's independent
+candidate preview established that this repair cannot itself relocate §2659's structural start: the stored
+start is 2010.30, whereas the missing opening is 1939.26. Candidate injection makes the refiner ask for
+2005.20–2017.36 word evidence around the stored edge; it does not rediscover an opening 71 seconds earlier.
+The §3769 candidate likewise introduces a previously unbanked prayer window, 350.62–354.26. The earlier
+implementation safely refused adoption, but had no way to produce those timings. No edges have been fixed,
+and no listening rollout is authorised by the candidate census alone.
+
+The revised implementation adds a separate **local-only word-evidence step**, dry-run by default and requiring
+explicit execution, one run and exact section IDs. It probes screened edge-window candidates without approving
+or installing them. Only local Whisper may decode; OpenAI and mock configurations are refused. This is a proposed
+bounded exception to the original no-fresh-transcription scope, requiring the operator's approval before the
+first real decode. It banks only the exact windows shown by the dry run; normal preparation must then rebuild
+the complete planner diff before adoption. Structure-model questions, holds, projections and cuts are untouched.
+
+**Separate §2659 follow-on, planned only.** Recover and source-verify the opening text first, retaining its exact
+receipt. Then propose a run-1216-only structure rerun from that candidate transcript through the existing
+structure derivation path. Produce a private before/after section proposal with every boundary/type change,
+check the opening against source audio and the existing 1939 ruling, and enumerate any new edge-word requests.
+Review the resulting extraction plans and all affected heard-right boundaries before installing any section
+changes. Structure adoption and any paid model call need their own explicit decision; this repair must neither
+hard-code 1939 nor silently reproject sections. §2659 is not an exit criterion that transcript-only adoption can
+honestly satisfy. Its structural correction remains open independently of §3769's edge refinement.
+
+**F1 — read-only candidates.** Build a tested application service with a thin, dry-run-first Artisan entry point.
+Take explicit run IDs and donor selections; no implicit whole-corpus write mode. For each window report current
+transcript path/hash, run/processing/source identity, donor path/hash and decode provenance, existing listening
+answers, affected sections/edges, proposed cues, rejected cues with reasons, and unresolved spans. Missing,
+malformed, mismatched or ambiguous inputs are unresolved dispositions, never silently successful repairs.
+
+Bind donor run ID, processing ID and source hash to the current run. Compare its recorded old transcript hash
+with the current one: differences since September require explicit reconciliation that the target window is
+still eligible, not wholesale restoration of the old transcript. Freeze the *current* hash for later application.
+Only current `retranscription_failed` windows qualify. Preserve existing cues and other reasons, including
+`window_holds_no_sound`, `retranscription_unavailable` and repetition-retry reasons. Keep the current duration and
+source; older donors predate the duration clamp. H10b cue times are already absolute seconds: never offset them
+like clip-relative recovery cues. Validate finite, ordered, in-duration times and non-empty text. Quarantine
+cross-boundary cues rather than truncate them to invent word times or extend them into good text. Resolve
+duplicate/overlapping candidates deterministically; preserve legitimate gaps. Identical inputs yield identical
+candidates.
+
+**F2 — filtering and listening.** Run the existing pathology detector over the full donor context before selecting
+window cues: slicing first can hide a longer loop. Exclude detected pathological cues, donor blind spans and
+prompt echoes. A successful pathology screen is insufficient: its defaults require six identical low-information
+cues spanning 120 s, so run 1295's isolated 30 s "Thank you." and "The End" cues pass it.
+
+Flag long low-information cues, filler over measured silence/music, inconsistent timing, conflicts with existing
+listening verdicts and disagreements between decodes for review. Freeze any proposed duration/word thresholds
+in the candidate report and test them against both those filler cues and real short utterances. Do not ban
+genuine "Thank you" or "Amen" globally. Classifier scores can flag suspicious spans but cannot verify words.
+
+Passing screens means *candidate*, not verified text: H10b already had 58 `new_wrong` answers in 352 windows.
+Before adoption, the single operator verifies each proposed recovered span against source audio, reusing an
+existing answer only when its interval, decode and verdict cover that span. Hear the full proposed span and
+context at joins, not only its edge word. Record accept/reject/cannot-tell against the candidate hash; rejected
+or unheard text stays out. Reuse the existing listening workflow; no new website is required. This is transcript
+verification, separate from option (b)'s song-start questions.
+
+Start with 1216 at 1939.26 ("Have any of you had a conversation…") and 1295 at 351.62 ("Let's join together in
+prayer."). Earlier ruled times corroborate these edges, not every word in the failed windows. Show 1295's
+249–309 filler excluded while its following prayer survives. Account explicitly for rejected and unresolved
+spans; do not assume every failed window contained recoverable speech.
+
+**F3 — reversible adoption.** Present accepted-span membership, input/output hashes, unresolved spans and the F4
+planner diff as the concrete result for the later adoption decision. The current request authorises planning.
+On adoption, write distinct create-once transcript artifacts; retain originals and donors. Store donor provenance
+in a repair receipt and use a distinct window reason (proposed `carried_from_h10b_redecode`) for carried spans.
+Keep uncovered/rejected spans failed; never relabel a whole partially repaired window as recovered. Audit prompt
+rendering, projection, publication evidence and F11 consumers before fixing the final representation. Provenance
+must not silently turn borrowed words into independent song corroboration. Report verified word coverage
+separately from the duration of retained provenance windows.
+
+Re-read and lock each run for the pointer update; refuse changed current/candidate hashes. Persist pointer,
+window metadata and receipt together. Object-store writes cannot roll back with a database transaction: an
+interruption may leave an unreferenced immutable artifact, never a half-installed transcript. Make retrying an
+already-installed hash a no-op and conflicting output a refusal. Receipt each run independently for partial-batch
+resume. Preserve prior recovery history and snapshot the old path, windows and repair-related metadata.
+Rollback restores those exact values only if the candidate is still current; refuse to overwrite later work.
+Test restoration of the original reader output without deleting evidence.
+
+**F4 — prove boundary benefit before re-cutting.** Compare the existing planner read-only on original and candidate
+transcripts with identical sections, sound evidence, code and rules. If its entry point only reads stored text,
+add tested candidate injection rather than temporarily swapping a live pointer. Report *every* changed edge,
+rule, hold and published-section impact. Demonstrate whether 3769's end uses the following prayer after its
+required local word evidence exists; report 2659 as requiring the separate structure rerun above. Do not
+hard-code ruled seconds or assume adding cues guarantees either result.
+
+Replay the ruled-edge corpus; investigate every newly moved heard-right edge. Preserve the current decisions
+for 3242 and 752's end. The 752 start and four dead-feed starts remain separate questions. Installation alone
+must not clear F11 or other holds, rewrite rulings, reproject sections, recut media or publish. Re-evaluate holds
+through the existing evidence path. Further planner defects require separate reproducers and scope decisions.
+The later re-cut round consumes this diff and receipt through its existing gates.
+
+**Implementation tests.** First reproduce the missed empty-stored-window route and confirm failure, then implement.
+Unit coverage: absolute timestamps, valid speech, crossing cues, duplicates/overlaps, loops crossing a window,
+isolated 30 s filler, genuine short phrases, donor blind spans, partial recovery, unchanged outside cues and
+ineligible reasons. Feature coverage: dry-run has no stored mutation/provider calls/dispatch; stale or mismatched
+bindings refuse; apply is idempotent; interruption and partial batches resume; rollback restores the old
+transcript/metadata; sections, publication and media stay unchanged. Use minimal fixtures derived from private
+1216/1295 evidence and heard-right controls, not full scratch dumps. Run focused PHPUnit tests, PHPStan, Pint and
+the parallel full suite through Sail for implementation. Dusk applies only if browser behaviour changes.
+This planning-only edit runs no PHP tests.
+
+**Exit evidence:** all 91 baseline windows reconciled or explicitly unresolved; exact candidate/accepted counts,
+verified recovered seconds/words, rejection reasons and residual gaps; source-bound artifacts/listening answers;
+reproducible ruled-corpus planner diff; tested apply/rollback receipts for later adoption. Recovering every window
+is not required. Separately inspect banked retries and settings/logs to explain targeted recovery failure versus
+full-service decode success; that unanswered runtime question is not permission for speculative decoder changes
+or fresh paid calls.
+
+**Implementation record (10-26).** The operator subsequently requested implementation. The working tree now
+contains `historic-import:repair-failed-transcripts`, with separate `inspect`, `prepare`, `apply` and `rollback`
+actions. `inspect` and `prepare` write only new private reports. `apply` and `rollback` default to dry-run and need
+`--execute` to change the transcript pointer. Nothing has been adopted, recut, reprojected, released or published.
+The runtime superseded-transcript fallback is unchanged.
+
+The read-only corpus report is `storage/app/private/failed-stretch-candidates-20261026-final.json` (0600).
+It enumerates the 425 explicit eligible runs: **355 unaffected, 69 proposals, 1 unresolved; all 91 failed windows,
+60 edge-bearing windows and 132 edges accounted for.** It contains **2,273 candidate cues, 327 quarantined**;
+the other 1,946 still require source listening before acceptance. Its summed normalized failed duration is
+18,436.00 s (the earlier census rounded its running total to tenths). Run **955**, 0–509.98, has no donor in any
+of the three banked decode directories; it remains explicitly unresolved, and has no edge in the measured set.
+The candidate at **1216 / 1939.26–1942.42** and **1295 / 351.62–353.26** has no screen flags. The two isolated
+30 s filler cues in 1295 are quarantined. This is a candidate census, not a claim of recovered words or fixed cuts.
+The earlier canary and `corpus`/`corpus-v2` reports predate final code binding and must not be used for adoption.
+
+Inspection takes explicit `--run` IDs and all relevant `--donor-dir` directories. A unique matching `run-ID.json`
+is selected; ambiguous matches require `--donor=ID=/absolute/path.json`. Even with explicit selection, directory
+alternatives are retained, compared, and disagreements quarantined. Pass the existing routing and window-verdict
+files through repeated `--listening` options. The corpus report above binds both 09-24 routing and the 352-answer
+operator-mapping file. `--output` is required for inspection/preparation, must be a new path, and resolves below
+`storage/app/private`. An unresolved member makes the command return failure while preserving other members'
+reports; this is how the missing 955 donor was recorded without losing the census.
+
+The existing `historic-import:replay-transcript-recovery --run=1216 --run=1295 --show-unaffected` also ran read-only:
+both runs report `already replayed`, with zero replayable transcripts. The H10b donor supplies additional evidence
+after that earlier recovery. This check does not establish why the targeted decoder failed; the settings/retry
+root-cause question remains separate and open.
+
+For preparation, supply a JSON review file with a `runs` object keyed by run ID. Each entry contains
+`operator` and a `decisions` list. Every decision names a candidate
+`id`, a `verdict` (`accept`, `reject`, `cannot_tell`) and an `evidence` reference to the source listening. Acceptance
+also requires `source_sha256`, `donor_sha256`, and absolute `audio_start`/`audio_end` covering the entire cue.
+Quarantined, duplicate or unknown IDs cannot be accepted; omitted decisions remain unheard and contribute no text.
+If September's stored-transcript hash differs from today's, also supply a `reconciliation` note confirming the
+specific current failed window. No whole-run H10b verdict substitutes for these decisions.
+
+After Claude's review, a candidate ID hashes the exact line's absolute times and text, independently of the
+mutable failed window. Acceptance binds that ID plus the source and donor hashes and full listening interval.
+`proposal_sha256` in an older review is informational, not a freshness gate. Preparation reinspects current
+eligibility and filtering and creates a fresh proposal/code/run/section/evidence snapshot. Existing answers can
+therefore be reused after unrelated code or run changes, while a previously prepared adoption still refuses
+at apply if any bound state or preview changed. A changed donor, source, line or newly quarantined cue still
+requires a valid answer for the current evidence.
+
+Inspection now retains the complete census for audit but supplies **`listening_candidate_ids`** only for clean
+cues inside the 60 failed windows containing an edge. Cues from the other windows remain reported with no
+default listening membership. No filtered cue is an approved source transcription.
+
+The `words` action selects exact sections and derives their stored-edge windows from the screened candidate
+transcript, including speech that ends a song. That last step is necessary: §3769's stored end 354.90 is outside
+the new prayer cue, so decoding just the stored edge would still miss the required window. The real dry-run
+artifact `storage/app/private/failed-stretch-prayer-words-dry-20261026.json` identifies exactly **350.62–354.26
+(3.64 s)** for run 1295, section 3769. No decoder was called to create that artifact.
+
+```bash
+vendor/bin/sail artisan historic-import:repair-failed-transcripts words --run=1295 --section=3769 \
+  --input=storage/app/private/failed-stretch-candidates-review-20261026.json \
+  --output=failed-stretch-prayer-word-evidence.json
+```
+
+Adding `--execute` is the separate approved local decode step. Repeating it reuses banked exact-window evidence.
+The returned candidate preview remains a probe, not a substitute for source listening or a prepared adoption.
+
+**Review follow-up evidence (10-26).** The operator explicitly approved the single local 350.62–354.26 decode.
+It was executed once: **1 window / 1 decode**, 5.38 s reported compute; the artifact is
+`storage/app/private/failed-stretch-prayer-words-executed-20261026.json`. The candidate §3769 preview now completes
+with an end at **350.695**, reason `song_end_speech`, first decoded word "Let's" at **350.77** and the existing
+1.5 s fade. This is earlier than H10b's cue start 351.62 and the whole-second ruling 352: source listening must
+check that discrepancy before adopting the text or cut. It is evidence of an executable preview, not a claim
+that the operator has accepted the boundary. No source-listening answers were invented, no transcript pointer
+or section changed, and no media was recut. No second decode or structure-model request was authorised.
+
+The refreshed census is `storage/app/private/failed-stretch-candidates-review-20261026.json`: **425 runs, 91 failed
+windows, 60 edge-bearing windows, 132 edges, 2,273 candidates, 327 quarantined**, unchanged census totals. Its
+default listening membership is **1,338 clean cues**, down from 1,946; the remaining clean cues are retained only
+in the audit census. Run 955 still has no donor. The new per-line IDs supersede IDs in the original candidate
+reports; no actual source reviews had yet been collected. Preparation refreshes planner/state bindings after
+the approved evidence write, so that write does not discard future source answers. Listening should start
+with the prayer discrepancy and the opening text, not a bulk 1,338-line rollout.
+
+Example command sequence after those listening decisions exist (paths relative to private storage only for
+`--output`; input/review paths below are repository-relative):
+
+```bash
+vendor/bin/sail artisan historic-import:repair-failed-transcripts prepare --run=1216 \
+  --input=storage/app/private/failed-stretch-candidates-review-20261026.json \
+  --reviews=storage/app/private/failed-stretch-source-reviews.json --output=failed-stretch-adoption.json
+vendor/bin/sail artisan historic-import:repair-failed-transcripts apply --run=1216 \
+  --input=storage/app/private/failed-stretch-adoption.json
+```
+
+Preparation reports the full per-section plans and assembled sermon output, composition risks and holds from
+the existing resolver using supplied candidate text. It never persists composition or hold changes. New required
+edge-word evidence is reported missing; it is not decoded automatically. Application refuses incomplete planner
+evidence, changed proposals/reviews/inputs, or empty acceptance. The adoption bundle's hash binds that impact
+report for review; adding `--execute` to the exact apply selection is the later installation step. Repeat an
+interrupted batch with the same bundle: committed matching members are no-ops and orphan immutable artifacts
+are checked and reused. Both dry-run and execution validate the adoption seal and reproduce the prepared result.
+
+Rollback uses the installed adoption entry's `sha256` as `--receipt`, for example
+`historic-import:repair-failed-transcripts rollback --run=1216 --receipt=HASH`; without `--execute` it only checks
+that restoration is possible. It restores the previous path, windows, suspect-screen key (including absence)
+and service-content stamp, preserving unrelated metadata, replay history and all immutable artifacts. It refuses
+to overwrite a later transcript or repair-field change. Carried cue spans retain their own provenance reason;
+the untouched gaps remain failed. Existing consumers still conservatively treat provenance windows as
+unobservable, so installation alone cannot grant song corroboration or publication.
+
+Regression verification covers the empty-stored-window route (red then green), singleton filler, real short
+phrases, full-context loops, raw invalid donor/blind metadata, classifier-suspect timing, crossings/overlaps,
+ineligible reasons, adverse listening and alternate decodes, exact source coverage, stale bindings, private
+create-once reports, dry runs, interrupted installation/resume, idempotency, rollback and read-only assembled
+sermon previews. Source verification, acceptance, ruled-corpus impact adjudication and adoption remain operational
+steps; this implementation does not claim their completion.
+
+**Verification (10-26):** 148 focused tests / 494 assertions pass, including the historic one-shot deletion-trigger
+gate; PHPStan reports zero errors; Pint passed after explicitly formatting all changed PHP files (Docker's Git
+ownership warning made dirty-file discovery unreliable); `git diff --check` passes. The full
+`--parallel --functional --compact` run completed 11,627 tests / 102,407 assertions but was not clean: 16 errors,
+5 failures and 1 risky test came from shared fixture files and a lock timeout in five existing classes
+(`ExtractSermonTest`, `VideoExtractionServiceTest`, `ImportHistoricSongUsageReportsCommandTest`,
+`HistoricImportArtifactWriterTest`, `ThumbnailGenerationServiceTest`). Their shared workbook, FFmpeg stub/log,
+video and thumbnail paths collide when methods from one class run in separate processes. Re-running those classes
+with normal file-level parallelization passed **90 tests / 431 assertions**. No recovery or ruled-edge regression
+failed in the completed full run. Full output: `/tmp/crockenhill-failed-stretch-suite-final-20261026.txt`;
+normal-mode recheck: `/tmp/crockenhill-failed-stretch-collision-recheck-20261026-v2.txt`. No unrelated fixture-isolation
+changes were made, and this record does not claim a clean single full-suite run.
+
+**Review-correction verification (10-26):** 220 focused tests / 601 assertions pass across candidate screening,
+repair commands, word-timed edges and assembled sermon plans. The final command-report adjustment separately
+passes 15 tests / 88 assertions. The strengthened real-planner prayer regression separately passes 15 assertions:
+candidate speech-edge discovery exposes 351.62, the planner initially refuses missing 350.62–354.26 evidence,
+local preparation banks it once, a second preparation reuses it, and the actual song-end planner then completes
+using `song_end_speech` without installing a transcript. PHPStan remains at zero errors; Pint and
+`git diff --check` pass. The fresh normal file-level parallel full suite completed successfully (exit 0):
+**11,633 tests / 102,512 assertions, no failures or errors**, with 163 PHPUnit notices and 1 skipped test.
+Its complete output is `/tmp/crockenhill-repair-review-full-20261026.txt`; runtime 22m57s. This replaces the earlier
+functional-mode fixture-collision caveat for the current tree. No commits or publication were made.
+
+**Source listening opened (10-26).** Page "Failed Stretch Check" (https://claude.ai/artifact/ApHXF98P3PivUok3qhP32L,
+`rulings` collection; builder and `questions.json` in `storage/scratch/failed-stretch-listening-20261026/`): three
+questions — the four clean lines at 1216 1939.26–1953.67 (clip 1935–1956), the five at 1295 351.62–360.18 (clip
+349–361), and 3769's end as two cuts, A 354.90 (4 s fade, stored transcript) and B 350.695 (1.5 s fade, clean
+candidates). `questions.json` keys each text answer to its candidate IDs and clip interval for the `prepare` review
+file. No answer is recorded yet.

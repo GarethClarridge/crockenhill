@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Services\ChurchService;
 
 use App\Data\ChurchServiceTranscript;
+use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\OutputEdgeWordTimings;
@@ -843,6 +844,44 @@ class WordTimedOutputEdgesTest extends TestCase
         $this->assertSame(100.0, $plan['segments'][0]['start_time']);
         $this->assertTrue($plan['cue_edge_widening'][0]['text_disagreement']);
         $this->assertSame('Thanks', $plan['cue_edge_widening'][0]['word_before']['word']);
+    }
+
+    #[Test]
+    public function candidate_preparation_banks_new_prayer_window_without_installing_text(): void
+    {
+        $log = $this->log(['start' => 403.1, 'end' => 408.0, 'text' => 'The service continues.']);
+        $log->writeProcessingMetadata(fn (array $metadata): array => [...$metadata,
+            'service_artifacts' => [['kind' => 'audio', 'disk' => 'local', 'path' => 'service-audio/test.mp3']]]);
+        $candidate = ChurchServiceTranscript::fromCues([
+            ['start' => 351.62, 'end' => 353.26, 'text' => "Let's join together in prayer."],
+        ], 500, 'local_whisper');
+        $extractor = \Mockery::mock(ServiceAudioWindowExtractor::class);
+        $extractor->shouldReceive('extract')->once()->with('/audio.mp3', 350.62, 354.26, $log->processing_id)->andReturn('/window.mp3');
+        $extractor->shouldReceive('delete')->once()->with('/window.mp3');
+        $storage = \Mockery::mock(StorageAdapterHelper::class);
+        $storage->shouldReceive('downloadToTemp')->once()->andReturn('/audio.mp3');
+        $storage->shouldReceive('isS3CompatibleDisk')->once()->andReturn(false);
+        $whisper = \Mockery::mock(LocalWhisperServiceTranscriptionService::class);
+        $whisper->shouldReceive('transcribeEdgeWindow')->once()->andReturn([['start' => 1.0, 'end' => 1.4, 'word' => "Let's"]]);
+        $service = new PrepareOutputEdgeWordTimings(app(OutputEdgeWordTimings::class), $whisper, $extractor, app(ServiceArtifactStorage::class), $storage);
+        $song = [['start_time' => 300.0, 'end_time' => 350.0]];
+        $planner = app(CueSafeExtractionPlan::class);
+        self::assertSame([], $planner->songEndSpeechEdges($log->fresh(), $song));
+        self::assertSame([351.62], $planner->songEndSpeechEdges($log->fresh(), $song, $candidate));
+        try {
+            $planner->forSpans($log->fresh(), $song, songEnds: true, transcript: $candidate);
+            self::fail('A new prayer edge must require its exact word evidence.');
+        } catch (OutputEdgeTimingsMissing $exception) {
+            self::assertStringContainsString('350.620000', $exception->getMessage());
+        }
+        $spans = [['start_time' => 351.62, 'end_time' => 351.62]];
+        self::assertSame(1, $service->prepare($log->fresh(), $spans, $candidate)['decoded']);
+        self::assertSame(0, $service->prepare($log->fresh(), $spans, $candidate)['decoded']);
+        self::assertSame("Let's", app(OutputEdgeWordTimings::class)->read($log->fresh(), ['start' => 350.62, 'end' => 354.26])['words'][0]['word']);
+        $plan = $planner->forSpans($log->fresh(), $song, songEnds: true, transcript: $candidate);
+        self::assertSame('song_end_speech', $plan['cue_edge_widening'][0]['reason']);
+        self::assertLessThanOrEqual(351.62, $plan['segments'][0]['end_time']);
+        self::assertSame('temp/edge-test.json', $log->fresh()->serviceTranscriptPath());
     }
 
     #[Test]

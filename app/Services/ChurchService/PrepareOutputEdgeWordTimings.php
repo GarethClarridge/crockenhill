@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\ChurchService;
 
 use App\Contracts\ServiceTranscriptionInterface;
+use App\Data\ChurchServiceTranscript;
 use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Jobs\ClassifyServiceAudio;
 use App\Models\MediaProcessingLog;
@@ -27,18 +28,9 @@ class PrepareOutputEdgeWordTimings
     /** @param list<array{start_time: float, end_time: float}> $spans
      * @return array{windows: int, decoded: int, compute_seconds: float}
      */
-    public function prepare(MediaProcessingLog $log, array $spans): array
+    public function prepare(MediaProcessingLog $log, array $spans, ?ChurchServiceTranscript $transcript = null): array
     {
-        $cues = $this->evidence->cues($log);
-        $windows = [];
-        foreach ($spans as $span) {
-            foreach ($span as $edge) {
-                $window = $this->evidence->window($cues, $edge, $log->duration);
-                if ($window !== null) {
-                    $windows[$this->evidence->kind($this->evidence->identity($log, $window))] = $window;
-                }
-            }
-        }
+        $windows = $this->windows($log, $spans, $transcript);
         $pending = [];
         foreach ($windows as $kind => $window) {
             try {
@@ -83,5 +75,24 @@ class PrepareOutputEdgeWordTimings
         }
 
         return $summary;
+    }
+
+    /** @param list<array{start_time: float, end_time: float}> $spans
+     * @return array<string, array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>, between?: true}>
+     */
+    public function windows(MediaProcessingLog $log, array $spans, ?ChurchServiceTranscript $transcript = null): array
+    {
+        $cues = $transcript->cues ?? $this->evidence->cues($log);
+        $windows = [];
+        foreach ($spans as $span) {
+            foreach ($span as $edge) {
+                $window = $this->evidence->window($cues, $edge, $log->duration);
+                if ($window !== null) {
+                    $windows[$this->evidence->kind($this->evidence->identity($log, $window))] = $window;
+                }
+            }
+        }
+
+        return $windows;
     }
 }

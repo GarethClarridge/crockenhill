@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\ChurchService;
 
 use App\Actions\HoldSectionForContentReview;
+use App\Data\ChurchServiceTranscript;
 use App\Enums\ServiceSectionType;
 use App\Enums\SoundClass;
 use App\Exceptions\OutputEdgeTimingsMissing;
@@ -227,7 +228,7 @@ class CueSafeExtractionPlan
      *
      * @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>, audio_fade_out: float|null, dead_feed_excisions?: list<array<string, mixed>>, dead_feed_input_identity?: string}
      */
-    public function forSection(ServiceSection $section): array
+    public function forSection(ServiceSection $section, ?ChurchServiceTranscript $transcript = null): array
     {
         $sections = app(TalkReadingPairing::class)->sectionsCut($section);
         $spans = [];
@@ -242,6 +243,7 @@ class CueSafeExtractionPlan
             $spans,
             songEnds: $section->section_type === ServiceSectionType::Song,
             edgeAnswers: in_array($section->section_type, [ServiceSectionType::ShortTalk, ServiceSectionType::Song], true) ? OutputEdgeAnswers::of($section, $sections) : null,
+            transcript: $transcript,
         );
         if (! in_array($section->section_type, [ServiceSectionType::Sermon, ServiceSectionType::ShortTalk], true)) {
             return $plan;
@@ -258,9 +260,9 @@ class CueSafeExtractionPlan
      * @param  list<array{start_time: float, end_time: float}>  $spans
      * @return list<float>
      */
-    public function songEndSpeechEdges(MediaProcessingLog $log, array $spans): array
+    public function songEndSpeechEdges(MediaProcessingLog $log, array $spans, ?ChurchServiceTranscript $transcript = null): array
     {
-        $cues = app(OutputEdgeWordTimings::class)->cues($log);
+        $cues = $transcript->cues ?? app(OutputEdgeWordTimings::class)->cues($log);
         $levels = $this->levels($log);
         $timeline = $this->timeline($log);
         $starts = $this->songStarts($log);
@@ -283,12 +285,13 @@ class CueSafeExtractionPlan
      * @param  bool  $songEnds  Each span is a song: its end runs on to silence or the next speech
      * @param  bool  $sermonEnd  The last span ends a sermon output: beside a song it ends where the banked introduction answer says (K16, {@see SermonSongIntroductionCheck})
      * @param  OutputEdgeAnswers|null  $edgeAnswers  The operator's start and end for this output, applied after every edge rule
+     * @param  ChurchServiceTranscript|null  $transcript  Read-only candidate evidence; never installs a transcript on the run
      * @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>, audio_fade_out: float|null}
      */
-    public function forSpans(MediaProcessingLog $log, array $spans, bool $songEnds = false, bool $sermonEnd = false, ?OutputEdgeAnswers $edgeAnswers = null): array
+    public function forSpans(MediaProcessingLog $log, array $spans, bool $songEnds = false, bool $sermonEnd = false, ?OutputEdgeAnswers $edgeAnswers = null, ?ChurchServiceTranscript $transcript = null): array
     {
         $evidence = app(OutputEdgeWordTimings::class);
-        $cues = $evidence->cues($log);
+        $cues = $transcript->cues ?? $evidence->cues($log);
         $levels = $songEnds ? $this->levels($log) : null;
         $timeline = $songEnds || $sermonEnd ? $this->timeline($log) : null;
         // K16: a sermon followed by a song ends where the banked introduction answer says.

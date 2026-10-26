@@ -21,6 +21,7 @@ use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\TranscriptCueBoundaries;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Sermon\SermonExtractionPlanResolver;
+use App\Support\SermonAutoExtractionPolicy;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
@@ -43,6 +44,52 @@ class SermonExtractionPlanResolverTest extends TestCase
         parent::setUp();
 
         $this->resolver = app(SermonExtractionPlanResolver::class);
+    }
+
+    #[Test]
+    public function candidate_transcript_preview_uses_the_assembled_sermon_path_without_persisting_composition_or_holds(): void
+    {
+        Storage::fake('local');
+        $log = $this->logWithSermon(100, 200);
+        $log->putServiceTranscriptPath('temp/candidate-preview.json');
+        $current = ChurchServiceTranscript::fromCues([], 500, ChurchServiceTranscript::SOURCE_MOCK);
+        Storage::disk('local')->put('temp/candidate-preview.json', json_encode($current->toArray(), JSON_THROW_ON_ERROR));
+        $candidate = ChurchServiceTranscript::fromCues([['start' => 90, 'end' => 105, 'text' => 'The sermon opening']], 500, ChurchServiceTranscript::SOURCE_MOCK);
+        $this->mock(CueSafeExtractionPlan::class, function (MockInterface $mock) use ($candidate): void {
+            $mock->shouldReceive('forSpans')->once()->withArgs(static fn ($run, $spans, $songEnds, $sermonEnd, $answers, $transcript): bool => $sermonEnd && $transcript === $candidate)
+                ->andReturn(['segments' => [['start_time' => 90.0, 'end_time' => 200.0]], 'cue_edge_widening' => [], 'audio_fade_out' => null]);
+        });
+        $beforeRun = $log->fresh()->getRawOriginal();
+        $beforeSections = $log->serviceSections()->orderBy('id')->get()->map->getRawOriginal()->all();
+
+        $plan = $this->resolver->resolve($log->fresh(), transcript: $candidate);
+
+        self::assertSame(90.0, $plan['segments'][0]['start_time']);
+        self::assertSame($beforeRun, $log->fresh()->getRawOriginal());
+        self::assertSame($beforeSections, $log->serviceSections()->orderBy('id')->get()->map->getRawOriginal()->all());
+        self::assertSame('temp/candidate-preview.json', $log->fresh()->serviceTranscriptPath());
+    }
+
+    #[Test]
+    public function candidate_preview_recomputes_composition_flags_on_transient_sections(): void
+    {
+        Storage::fake('local');
+        $log = $this->logWithSermon(100, 200);
+        $log->update(['duration' => 500]);
+        $sermon = $log->serviceSections()->sole();
+        $sermon->update(['needs_manual_review' => true, 'metadata' => ['confidence_level' => 'high',
+            'review_flags' => [SermonAutoExtractionPolicy::COMPOSITION_REVIEW_FLAG]]]);
+        $log->putServiceTranscriptPath('temp/preview-stale-flag.json');
+        $transcript = ChurchServiceTranscript::fromCues([], 500, ChurchServiceTranscript::SOURCE_MOCK);
+        Storage::disk('local')->put('temp/preview-stale-flag.json', json_encode($transcript->toArray(), JSON_THROW_ON_ERROR));
+        $this->bankNoWordOutputEdges($log);
+        $before = $sermon->fresh()->getRawOriginal();
+
+        $plan = $this->resolver->resolve($log->fresh(), transcript: $transcript);
+
+        self::assertFalse($plan['metadata']['requires_review']);
+        self::assertSame($before, $sermon->fresh()->getRawOriginal());
+        self::assertTrue($sermon->fresh()->needs_manual_review);
     }
 
     #[Test]

@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Media\Audio;
 
 use App\Models\MediaProcessingLog;
+use App\Support\CanonicalJson;
 use App\Support\ServiceArtifactDisk;
 use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 /**
  * Writes the durable per-run service artifacts and records them on the log.
@@ -28,6 +30,33 @@ final class ServiceArtifactStorage
      * rejects it cannot drift apart.
      */
     public const UNRESOLVED_DATE = 'unknown-date';
+
+    /**
+     * Repairs use hash-derived kinds and a locked run transaction. Reuse an orphan
+     * left by an interrupted transaction, but never replace conflicting evidence.
+     *
+     * @param  array<string, mixed>  $payload
+     * @param  array<string, mixed>  $context
+     */
+    public function putJsonOnce(string $processingId, string $kind, array $payload, array $context = []): string
+    {
+        $path = $this->pathForKind($processingId, $kind, $context);
+        $disk = Storage::disk($this->artifactDisk());
+        $bytes = CanonicalJson::encode($payload);
+        if ($disk->exists($path)) {
+            if ($disk->get($path) !== $bytes) {
+                throw new RuntimeException('Conflicting immutable artifact: '.$path);
+            }
+        } elseif (! $disk->put($path, $bytes, ServiceArtifactDisk::WRITE_OPTIONS)) {
+            throw new RuntimeException('Could not write immutable artifact: '.$path);
+        }
+        if ($disk->get($path) !== $bytes) {
+            throw new RuntimeException('Immutable artifact failed read-back verification: '.$path);
+        }
+        $this->record($processingId, $kind, $this->artifactDisk(), $path, $context);
+
+        return $path;
+    }
 
     /**
      * @param  array<string, mixed>  $payload
@@ -114,12 +143,12 @@ final class ServiceArtifactStorage
         $stream = fopen($sourcePath, 'rb');
 
         if (! is_resource($stream)) {
-            throw new \RuntimeException("Unable to open compressed service audio: {$sourcePath}");
+            throw new RuntimeException("Unable to open compressed service audio: {$sourcePath}");
         }
 
         try {
             if (Storage::disk($this->artifactDisk())->put($path, $stream, ServiceArtifactDisk::WRITE_OPTIONS) === false) {
-                throw new \RuntimeException("Unable to archive compressed service audio: {$path}");
+                throw new RuntimeException("Unable to archive compressed service audio: {$path}");
             }
         } finally {
             fclose($stream);
@@ -151,7 +180,7 @@ final class ServiceArtifactStorage
         $stream = Storage::disk($tempDisk)->readStream($temporaryPath);
 
         if (! is_resource($stream)) {
-            throw new \RuntimeException("Unable to read generated RMS log: {$temporaryPath}");
+            throw new RuntimeException("Unable to read generated RMS log: {$temporaryPath}");
         }
 
         try {
