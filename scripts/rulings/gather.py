@@ -319,6 +319,11 @@ records.extend(edge_listening_rulings(
     'edge-listening-20261025', load('edge-listening-20261025/questions.json'),
     list(saved('edge-listening-20261025/answers/final/rulings').values()),
 ))
+# 10-26: song starts the sentence rule moves; A is the cut before it, B after. Same question shape.
+records.extend(edge_listening_rulings(
+    'sentence-listening-20261026', load('sentence-listening-20261026/questions.json'),
+    list(saved('sentence-listening-20261026/answers/rulings').values()),
+))
 
 # Answers the plan later closed with a reading of its own: the answer heard something true that no
 # cut can fix, so the cut heard stands.
