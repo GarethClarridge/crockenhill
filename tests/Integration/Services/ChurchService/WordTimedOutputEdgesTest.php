@@ -669,6 +669,109 @@ class WordTimedOutputEdgesTest extends TestCase
         ];
     }
 
+    /** @param list<array{start: float, end: float, word: string}> $words */
+    #[Test]
+    #[DataProvider('songSentenceStarts')]
+    public function a_song_start_drops_the_rest_of_a_split_sentence(array $words, float $cut, float $expected, float $end = 4900.0): void
+    {
+        $log = $this->log(['start' => 100.0, 'end' => 110.0, 'text' => "Let's stand and sing. Praise the Lord."]);
+        $log->update(['audio_timeline_path' => 'service-transcripts/edge-test.classes.json']);
+        // Announcements can be classified as music; the sentence rule must still work.
+        Storage::disk('local')->put('service-transcripts/edge-test.classes.json', AudioTimelineFixture::json([[90, 120, 0.8, 0.1]], 5000.0));
+        $this->bankWindow($log, $cut, $words);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => $cut, 'end_time' => $end]], songEnds: true);
+
+        $this->assertEqualsWithDelta($expected, $plan['segments'][0]['start_time'], 0.001);
+        if ($expected > $cut) {
+            $this->assertSame('song_start_sentence', $plan['cue_edge_widening'][0]['reason']);
+        }
+    }
+
+    public static function songSentenceStarts(): array
+    {
+        $words = [
+            ['start' => 100.0, 'end' => 100.3, 'word' => " Let's"],
+            ['start' => 100.3, 'end' => 100.7, 'word' => ' stand'],
+            ['start' => 100.9, 'end' => 101.1, 'word' => ' and'],
+            ['start' => 101.1, 'end' => 101.5, 'word' => ' sing.'],
+            ['start' => 103.0, 'end' => 103.6, 'word' => ' Praise'],
+            ['start' => 103.6, 'end' => 104.0, 'word' => ' the'],
+            ['start' => 104.0, 'end' => 105.0, 'word' => ' Lord.'],
+        ];
+        $unpunctuated = $words;
+        $unpunctuated[3]['word'] = ' sing';
+        $unfinished = array_slice($unpunctuated, 0, 3);
+        $smeared = $words;
+        $smeared[1]['end'] = 103.0;
+        $zeroLength = $words;
+        array_splice($zeroLength, 4, 0, [['start' => 102.0, 'end' => 102.0, 'word' => ' phantom']]);
+
+        return [
+            'inside a word in a music window' => [$words, 100.5, 101.5],
+            'between words of the announcement' => [$words, 100.8, 101.5],
+            'pause ends an unpunctuated sentence' => [$unpunctuated, 100.8, 101.5],
+            'complete sentence already excluded' => [$words, 102.0, 102.0],
+            'no evidenced sentence end keeps the existing cut' => [$unfinished, 100.8, 100.8],
+            'a smeared word cannot authorise a trim' => [$smeared, 100.5, 100.5],
+            'zero-length words do not extend the announcement' => [$zeroLength, 100.8, 101.5],
+            'a sentence trim cannot consume the whole song' => [$words, 100.8, 100.8, 101.5],
+        ];
+    }
+
+    /**
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  list<array{start: float, end: float, word: string}>  $words
+     */
+    #[Test]
+    #[DataProvider('sentenceEndsAtTheDecodeEdge')]
+    public function a_song_start_ignores_a_sentence_end_the_decode_heard_only_in_part(array $cues, array $words, float $original, float $expected): void
+    {
+        $log = $this->logWithCues($cues);
+        $this->bankWindow($log, $original, $words);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => $original, 'end_time' => 4900.0]], songEnds: true);
+
+        $this->assertEqualsWithDelta($expected, $plan['segments'][0]['start_time'], 0.001);
+    }
+
+    /** Heard 10-26 (Sentence Starts): B cut mid-sentence where the decode ended inside a cue that ran on. */
+    public static function sentenceEndsAtTheDecodeEdge(): array
+    {
+        return [
+            '948 §711: "the song that we play." is 1 s of "played through before the service began."' => [
+                [['start' => 1898.44, 'end' => 1901.62, 'text' => "We're going to be looking into that passage of Scripture in"], ['start' => 1901.62, 'end' => 1903.32, 'text' => 'just a few moments.'], ['start' => 1903.54, 'end' => 1906.53, 'text' => "But first we're going to stand and sing the song that we"], ['start' => 1906.53, 'end' => 1910.16, 'text' => 'played through before the service began.']],
+                [['start' => 1902.61, 'end' => 1902.61, 'word' => ' A'], ['start' => 1902.69, 'end' => 1902.82, 'word' => ' few'], ['start' => 1902.82, 'end' => 1903.37, 'word' => ' moments,'], ['start' => 1903.48, 'end' => 1903.57, 'word' => ' but'], ['start' => 1903.64, 'end' => 1903.96, 'word' => ' first'], ['start' => 1904.01, 'end' => 1904.08, 'word' => " we're"], ['start' => 1904.12, 'end' => 1904.25, 'word' => ' going'], ['start' => 1904.26, 'end' => 1904.34, 'word' => ' to'], ['start' => 1904.34, 'end' => 1904.62, 'word' => ' stand'], ['start' => 1904.62, 'end' => 1904.79, 'word' => ' and'], ['start' => 1904.8, 'end' => 1905.04, 'word' => ' sing'], ['start' => 1905.04, 'end' => 1905.35, 'word' => ' the'], ['start' => 1905.35, 'end' => 1905.77, 'word' => ' song'], ['start' => 1905.77, 'end' => 1906.25, 'word' => ' that'], ['start' => 1906.25, 'end' => 1906.55, 'word' => ' we'], ['start' => 1906.61, 'end' => 1907.52, 'word' => ' play.']],
+                1903.54, 1903.48,
+            ],
+            '1235 §2916: "Great Is Thy Faith." is 1 s of "Great is Thy Faithfulness."' => [
+                [['start' => 662.16, 'end' => 667.92, 'text' => "And it's good for us to sing about the faithfulness of God."], ['start' => 668.04, 'end' => 669.98, 'text' => "And so that's what we're going to do now."], ['start' => 670.06, 'end' => 674.66, 'text' => "We're going to stand and sing a well-known hymn entitled,"], ['start' => 674.66, 'end' => 676.02, 'text' => 'Great is Thy Faithfulness.'], ['start' => 676.18, 'end' => 679.36, 'text' => "And after we've sung it through, we'll sing a little chorus"]],
+                [['start' => 669.21, 'end' => 669.28, 'word' => ' Now'], ['start' => 669.38, 'end' => 669.64, 'word' => " we're"], ['start' => 669.64, 'end' => 670.01, 'word' => ' going'], ['start' => 670.01, 'end' => 670.15, 'word' => ' to'], ['start' => 670.15, 'end' => 670.52, 'word' => ' stand'], ['start' => 670.52, 'end' => 670.74, 'word' => ' and'], ['start' => 670.74, 'end' => 671.08, 'word' => ' sing'], ['start' => 671.08, 'end' => 671.16, 'word' => ' a'], ['start' => 671.22, 'end' => 672.68, 'word' => ' well-known'], ['start' => 672.9, 'end' => 673.38, 'word' => ' hymn'], ['start' => 673.38, 'end' => 674.66, 'word' => ' entitled'], ['start' => 674.66, 'end' => 674.98, 'word' => ' Great'], ['start' => 674.98, 'end' => 675.08, 'word' => ' Is'], ['start' => 675.11, 'end' => 675.23, 'word' => ' Thy'], ['start' => 675.3, 'end' => 675.64, 'word' => ' Faith.']],
+                670.06, 669.38,
+            ],
+            '1312 §3962: "the mercy." is 1 s of "the mercy of God."' => [
+                [['start' => 322.66, 'end' => 323.8, 'text' => 'Lord.'], ['start' => 325.9, 'end' => 330.04, 'text' => "Our theme for this morning's service is mercy."], ['start' => 330.8, 'end' => 335.73, 'text' => 'And I want us to begin by singing a hymn that picks up on'], ['start' => 335.73, 'end' => 338.16, 'text' => 'the mercy of God.'], ['start' => 338.16, 'end' => 341.76, 'text' => 'Your mercy, my God, is the theme of my song.']],
+                [['start' => 325.7, 'end' => 325.7, 'word' => ' Our'], ['start' => 325.85, 'end' => 325.92, 'word' => ' theme'], ['start' => 325.92, 'end' => 326.3, 'word' => ' for'], ['start' => 326.3, 'end' => 326.81, 'word' => ' this'], ['start' => 327.21, 'end' => 327.95, 'word' => " morning's"], ['start' => 327.95, 'end' => 328.84, 'word' => ' service'], ['start' => 328.84, 'end' => 329.04, 'word' => ' is'], ['start' => 329.2, 'end' => 329.98, 'word' => ' mercy,'], ['start' => 330.25, 'end' => 330.4, 'word' => ' and'], ['start' => 330.43, 'end' => 330.52, 'word' => ' I'], ['start' => 330.52, 'end' => 330.9, 'word' => ' want'], ['start' => 330.9, 'end' => 331.22, 'word' => ' us'], ['start' => 331.22, 'end' => 331.48, 'word' => ' to'], ['start' => 331.71, 'end' => 332.08, 'word' => ' begin'], ['start' => 332.08, 'end' => 332.32, 'word' => ' by'], ['start' => 332.32, 'end' => 333.17, 'word' => ' singing'], ['start' => 333.17, 'end' => 333.29, 'word' => ' a'], ['start' => 333.29, 'end' => 333.82, 'word' => ' hymn'], ['start' => 333.82, 'end' => 334.59, 'word' => ' that'], ['start' => 334.59, 'end' => 335.1, 'word' => ' picks'], ['start' => 335.29, 'end' => 335.37, 'word' => ' up'], ['start' => 335.37, 'end' => 335.57, 'word' => ' on'], ['start' => 335.57, 'end' => 335.83, 'word' => ' the'], ['start' => 335.86, 'end' => 336.72, 'word' => ' mercy.']],
+                330.793, 330.9,
+            ],
+            '1222 §2734: "worthy to be..." is 1 s of a longer line' => [
+                [['start' => 342.26, 'end' => 345.74, 'text' => 'Let us remain standing as we sing,'], ['start' => 345.86, 'end' => 348.52, 'text' => 'Worthy, oh worthy are you Lord.'], ['start' => 348.62, 'end' => 352.42, 'text' => 'Worthy to be thanked and praised and worshipped and adored.']],
+                [['start' => 345.01, 'end' => 345.15, 'word' => ' We'], ['start' => 345.15, 'end' => 345.83, 'word' => ' sing,'], ['start' => 345.83, 'end' => 346.2, 'word' => ' worthy,'], ['start' => 346.2, 'end' => 346.41, 'word' => ' oh'], ['start' => 346.48, 'end' => 347.3, 'word' => ' worthy'], ['start' => 347.3, 'end' => 347.64, 'word' => ' are'], ['start' => 347.78, 'end' => 348.02, 'word' => ' you'], ['start' => 348.02, 'end' => 348.66, 'word' => ' Lord,'], ['start' => 348.66, 'end' => 349.09, 'word' => ' worthy'], ['start' => 349.09, 'end' => 349.25, 'word' => ' to'], ['start' => 349.25, 'end' => 349.48, 'word' => ' be...']],
+                345.86, 345.83,
+            ],
+            '986 §1125: a title the decode heard to the end of its cue still moves' => [
+                [['start' => 247.5, 'end' => 250.8, 'text' => "Let's stand and sing together number 103B"], ['start' => 251.56, 'end' => 256.58, 'text' => 'in the praise hymn, but praise my soul, the King of heaven.']],
+                [['start' => 250.69, 'end' => 251.56, 'word' => ' 103b'], ['start' => 251.56, 'end' => 251.68, 'word' => ' in'], ['start' => 251.68, 'end' => 251.83, 'word' => ' the'], ['start' => 251.96, 'end' => 252.23, 'word' => ' praise'], ['start' => 252.23, 'end' => 252.5, 'word' => ' hymn'], ['start' => 252.5, 'end' => 252.84, 'word' => ' book,'], ['start' => 252.93, 'end' => 253.47, 'word' => ' Praise'], ['start' => 253.47, 'end' => 253.68, 'word' => ' my'], ['start' => 253.68, 'end' => 254.4, 'word' => ' soul,'], ['start' => 254.53, 'end' => 254.62, 'word' => ' the'], ['start' => 254.94, 'end' => 255.32, 'word' => ' King'], ['start' => 255.32, 'end' => 255.52, 'word' => ' of'], ['start' => 255.54, 'end' => 256.58, 'word' => ' heaven.']],
+                251.56, 256.58,
+            ],
+            '1223 §2751: a title ending with its cue still moves' => [
+                [['start' => 811.92, 'end' => 815.78, 'text' => 'our next song, number 462 in the praise hymn books.'], ['start' => 815.84, 'end' => 820.48, 'text' => 'I know that my Redeemer lives.'], ['start' => 821.18, 'end' => 822.26, 'text' => "Let's stand and sing."]],
+                [['start' => 814.98, 'end' => 815.31, 'word' => ' Praise'], ['start' => 815.31, 'end' => 815.55, 'word' => ' him'], ['start' => 815.55, 'end' => 816.1, 'word' => ' because'], ['start' => 816.1, 'end' => 816.18, 'word' => ' I'], ['start' => 816.18, 'end' => 816.51, 'word' => ' know'], ['start' => 816.51, 'end' => 817.37, 'word' => ' that'], ['start' => 817.42, 'end' => 817.9, 'word' => ' my'], ['start' => 817.9, 'end' => 819.1, 'word' => ' Redeemer'], ['start' => 819.1, 'end' => 820.48, 'word' => ' lives.']],
+                815.84, 820.48,
+            ],
+        ];
+    }
+
     public static function smearedStarts(): array
     {
         return [

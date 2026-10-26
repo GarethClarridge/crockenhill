@@ -4492,4 +4492,50 @@ greatly" in the reading).
 **Which way to move, from the three answers:** every time the operator named was **after** the sentence (3779
 "should be 3:36", after "…King of Kings."; 4322 "something like 26:09"; 4735 preferred A, after "Let's sing."),
 though whole-sentence-in was also accepted (4735 on 10-18; 4322 "B better than A as it keeps a whole sentence").
-Not built: the direction is the operator's call.
+**10-26 operator decision:** move the start **after** the split sentence (option a), excluding the rest of the
+announcement. This takes precedence over E21 for this class.
+
+Implemented in `CueSafeExtractionPlan`: after word-pause placement and the musical-opening guard, a song start
+inside a decoded word or a sentence's short inter-word gap moves to the first following sentence end. Punctuation
+or a gap of at least 1 s between decoded words supplies the end; the decode window's margin alone does not.
+The rule uses one decode, ignores zero-length words, refuses to trim across smeared words, and cannot consume the
+whole song. It does not gate on the audio classifier. Operator-set edges still take precedence. Song ends are unchanged.
+
+Regression coverage replays all three named cases from captured evidence: **3779 → 215.48 s, 4322 → 1569.55 s,
+4735 → 1856.36 s**. The latest listening snapshots' seven changed starts all remain within their existing accepted
+ranges/times; their cut snapshots are refreshed without changing the rulings. The full suite exposed another 13 older
+cut snapshots: two still meet their original listening tolerance; eleven record an explicit `song_start_sentence_policy`
+override because the 10-26 direction supersedes their older acceptance of a partial announcement. Their original
+listening rulings remain intact. These are policy-derived cuts, not new listening answers. No recut or publication is dispatched.
+
+Validation: the full parallel suite completed **11,594 tests** with the 13 older snapshot mismatches above and
+one unrelated missing compiled-Blade-file error in `AdminListAccessibilityTest`. All 13 boundary cases pass after
+refresh; the Blade test passes in isolation. The 65 word-timing tests, 51 latest-ruling/target checks, PHPStan
+(0 errors), and Pint pass. The full suite was not repeated after the fixture refresh.
+
+**10-26: the sentence rule reviewed and heard — not committable as built.** A read-only corpus re-scan on the
+uncommitted tree against the post-M2 scan: exactly **90 song starts move** (all `song_start_sentence`, no ends, 89 of
+them in the measured class), by 0.1–6.3 s (median 2.1). The Sentence Starts page (35 starts, one clip per version;
+`storage/scratch/sentence-listening-20261026/`) asked what B leaves out. **34 answered: 11 B, 14 either, 8 neither, 1
+unsure.** No B dropped singing (4916 "O come, O come, Emmanuel" and 3423 were "either"). The eight "neither":
+- **Six cut mid-sentence at B itself** (2734, 2916, 3416, 3962, 711, 4663; "A is better" each time). Cause, five of
+  six: the edge's decode window ends 1 s into a transcript cue that began before B, and the truncated decode
+  punctuates its last word — "play." for "played through before the service began", "Faith." for "Great is Thy
+  Faithfulness.", "mercy." for "the mercy of God." 4663's transcript is one-word cues ("live" | "in me").
+- **2066** (1130): an introduction that reads several lines of the song; B stops after the first ("A is right").
+- **752**: both versions are the previous song's end (structure, already on the triage list).
+Of the 8 heard-before overrides, six are confirmed (4911, 3533, 3656 B; 3415, 3524, 3583 either); **2066 and 3416
+are not** — their old `keep` rulings stand and their `song_start_sentence_policy` overrides are wrong.
+Rulings: `sentence-listening-20261026` in `scripts/rulings/gather.py` → 25 added to `edge-rulings.json` (11 `keep`,
+14 `between`); "neither" without an exact time gives none (`861e8a5b5`).
+
+**10-26: refinement built (operator's go).** A full stop that ends the decode is not a sentence end while a
+transcript cue that began before it runs on past the decode's end (`afterSongOpeningSentence`, now given the cues).
+Test-first from the heard evidence: 711, 2916, 3962 and 2734 failed at exactly the B heard, with 1125 and 2751 as
+controls that still move; all pass, as do the three named cases and the M2 cases. A margin-only rule (any stop in
+the decode's last second) was measured and rejected: it undoes 4322 and five starts heard as B. Corpus re-scan:
+**exactly the 11 predicted starts change, all back to their HEAD cut** (711, 786, 1508, 2734, 2916, 3416, 3484,
+3906, 3962, 4431, 4492), leaving **79 moved starts**. Ratchet: 3416's two overrides removed (its heard cut is back);
+the six confirmed overrides now cite their 10-26 answers; **1130 §2066 is recorded as an open miss, not policy**
+(an introduction reading several lines of the song; its `keep` ruling stands). Still open: 2066, 4663 (one-word
+transcript cues), 752 (structure). Both test classes (1,574), PHPStan and Pint pass; full suite not run.

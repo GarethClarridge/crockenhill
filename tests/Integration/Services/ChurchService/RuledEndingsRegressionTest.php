@@ -15,6 +15,7 @@ use App\Services\ChurchService\SermonSongIntroductionCheck;
 use App\Services\ChurchService\SpokenEdgeSentenceCheck;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Sermon\SermonExtractionPlanResolver;
+use App\Support\MediaProcessingVersion;
 use App\Support\ServiceArtifactDisk;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Bus;
@@ -95,6 +96,38 @@ class RuledEndingsRegressionTest extends TestCase
         }
 
         return $fixtures;
+    }
+
+    #[Test]
+    #[TestWith(['run-1296-2026-10-25-edges', 3779, 215.48])]
+    #[TestWith(['run-1268-2026-10-23', 4735, 1856.36])]
+    #[TestWith(['run-1342-2026-10-25', 4322, 1569.55])]
+    public function a_song_start_inside_an_announcement_moves_after_its_sentence(string $name, int $sectionId, float $expected): void
+    {
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(base_path('tests/Fixtures/RuledEndings/'.$name.'.json.gz'))), true, flags: JSON_THROW_ON_ERROR);
+        $log = $this->rebuild($fixture);
+        $section = ServiceSection::query()->findOrFail($sectionId);
+        $evidence = app(OutputEdgeWordTimings::class);
+        $window = $evidence->window($evidence->cues($log), (float) $section->start_time, $log->duration);
+        $this->assertNotNull($window);
+        $identity = $evidence->identity($log, $window);
+        // Older captures can differ by a floating-point epsilon in their window identity.
+        // Rebank the same recorded words against the window this fixture now computes.
+        foreach ($fixture['files'] as $file) {
+            $payload = json_decode($file['content'], true, flags: JSON_THROW_ON_ERROR);
+            if (isset($payload['words'], $payload['identity']['start'], $payload['identity']['end'])
+                && MediaProcessingVersion::matches($payload['identity']['media_processing'] ?? null)
+                && ($payload['identity']['model'] ?? null) === $identity['model']
+                && abs($payload['identity']['start'] - $window['start']) < 0.00001
+                && abs($payload['identity']['end'] - $window['end']) < 0.00001) {
+                app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($identity), [...$payload, 'identity' => $identity]);
+                break;
+            }
+        }
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section->fresh());
+
+        $this->assertEqualsWithDelta($expected, $plan['segments'][0]['start_time'], 0.001);
     }
 
     #[Test]
@@ -395,6 +428,17 @@ class RuledEndingsRegressionTest extends TestCase
         }
 
         $this->assertEqualsWithDelta($fixture['live']['cut'], $cut, self::FIDELITY_TOLERANCE, $fixture['id'].': the fixture no longer reproduces its live cut');
+
+        // A cut the sentence rule (10-26) makes against this older ruling, with its source: heard
+        // right again on 10-26, or (1130 §2066) an open miss heard wrong whose ruling still stands.
+        if (isset($fixture['song_start_sentence_policy'])) {
+            $this->assertSame('start', $ruling['edge']);
+            $this->assertEqualsWithDelta($fixture['song_start_sentence_policy']['time'], $cut, self::FIDELITY_TOLERANCE);
+            $entry = array_values(array_filter($plan['cue_edge_widening'], static fn (array $entry): bool => $entry['edge'] === 'start'))[0];
+            $this->assertSame('song_start_sentence', $entry['reason']);
+
+            return;
+        }
 
         if ($fixture['open_defect'] ?? false) {
             // Keep the failing cut reproducible until its own red-to-green regression lands.

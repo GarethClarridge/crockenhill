@@ -76,6 +76,9 @@ class CueSafeExtractionPlan
      */
     private const SPOKEN_END_TAIL = 0.3;
 
+    /** Seconds without decoded words that can end an unpunctuated song announcement. */
+    private const SONG_START_SENTENCE_PAUSE = 1.0;
+
     /** Seconds before a spoken part's start within which a song's end runs straight into it. */
     private const SONG_BEFORE_REACH = 2.0;
 
@@ -341,10 +344,20 @@ class CueSafeExtractionPlan
                     $words = $payload['words'];
                     if ($words !== []) {
                         $decision = $this->placedEdge($log, $words, $window, $original, $edge, $songEnds);
+                        $sentenceStartMoved = false;
+                        if ($songEnds && $edge === 'start') {
+                            $afterSentence = $this->afterSongOpeningSentence($words, $window, $cues, $decision);
+                            if ($afterSentence['time'] > $decision['time'] && $afterSentence['time'] < $span['end_time']) {
+                                $decision = $afterSentence;
+                                $sentenceStartMoved = true;
+                            }
+                        }
+
                         if ($besideSong) {
                             $decision = $this->withTail($decision);
                         }
-                        $reason = isset($decision['candidate_anchors']) ? self::AMBIGUOUS_CUE_ANCHOR : 'word_pause';
+                        $reason = isset($decision['candidate_anchors']) ? self::AMBIGUOUS_CUE_ANCHOR
+                            : ($sentenceStartMoved ? 'song_start_sentence' : 'word_pause');
                         $sentenceCheck = null;
                         if ($reason === 'word_pause') {
                             [$decision, $sentenceCheck] = $this->sentenceChecked($log, $cues, $words, $window, $original, $edge, $decision);
@@ -1025,6 +1038,75 @@ class CueSafeExtractionPlan
         }
 
         return $songEnds ? $decision : $this->keptOutOfMusic($log, $original, $decision);
+    }
+
+    /**
+     * A song opening in a sentence drops the remainder of that sentence (operator, 2026-10-26).
+     * Use only this edge's decode: overlapping windows can put the same word on both sides.
+     * The classifier cannot distinguish an announcement over the band from singing (4735).
+     * A full stop or a second without words ends the sentence; a window margin alone does not.
+     * Smeared words cannot establish a sentence's timing, so they never authorise a trim.
+     * The decode runs 1 s past its cues, so a full stop at its end can be its own guess at a cut-off
+     * word ("the song that we play." for "played through before the service began", 948 §711, heard
+     * 10-26); while the transcript has a cue running on past the decode, that stop is not a sentence end.
+     *
+     * @param  list<array{start: float, end: float, word: string}>  $words
+     * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>}  $window
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, candidate_anchors?: list<array{start: float, end: float, word: string}>}  $decision
+     * @return array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, candidate_anchors?: list<array{start: float, end: float, word: string}>}
+     */
+    private function afterSongOpeningSentence(array $words, array $window, array $cues, array $decision): array
+    {
+        if (isset($decision['candidate_anchors'])) {
+            return $decision;
+        }
+
+        $words = array_values(array_filter($words, static fn (array $word): bool => $word['end'] > $word['start']));
+        $cut = $decision['time'];
+        $before = null;
+        $after = null;
+        $inside = null;
+
+        foreach ($words as $word) {
+            if ($word['start'] < $cut && $word['end'] > $cut) {
+                $inside = $word;
+            }
+            if ($word['end'] <= $cut) {
+                $before = $word;
+            }
+            if ($after === null && $word['start'] >= $cut) {
+                $after = $word;
+            }
+        }
+
+        if ($inside === null && ($before === null || $after === null || $this->endsSentence($before['word'])
+            || $after['start'] - $before['end'] >= self::SONG_START_SENTENCE_PAUSE)) {
+            return $decision;
+        }
+
+        foreach ($this->pauses($words, $window) as $pause) {
+            if ($pause['start'] < $cut || $pause['word_before'] === null) {
+                continue;
+            }
+            if (array_any($words, static fn (array $word): bool => $word['end'] > $cut && $word['start'] <= $pause['start']
+                && $word['end'] - $word['start'] > self::ANCHOR_REACH)) {
+                return $decision;
+            }
+            if (! $this->endsSentence($pause['word_before']['word'])
+                && ($pause['word_after'] === null || $pause['length'] < self::SONG_START_SENTENCE_PAUSE)) {
+                continue;
+            }
+            if ($pause['word_after'] === null && array_any($cues, static fn (array $cue): bool => $cue['start'] < $pause['start'] - self::CUE_BOUNDARY_TOLERANCE
+                && $cue['start'] < $window['end'] - self::CUE_BOUNDARY_TOLERANCE && $cue['end'] > $window['end'] + self::CUE_BOUNDARY_TOLERANCE)) {
+                return $decision;
+            }
+
+            return ['time' => $pause['start'], 'chosen_pause' => ['start' => $pause['start'], 'end' => $pause['end']],
+                'word_before' => $pause['word_before'], 'word_after' => $pause['word_after']];
+        }
+
+        return $decision;
     }
 
     /**
