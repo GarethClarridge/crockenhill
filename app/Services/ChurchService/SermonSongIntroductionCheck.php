@@ -196,7 +196,7 @@ TXT;
      * @param  list<array{start_time: float, end_time: float}>  $sermonSpans
      * @return array{end: float, lines: list<array{n: int, start: float, end: float, text: string, music: 'no'|'may'|'yes'}>, prompt: string, identity: array<string, mixed>}|null
      */
-    private function question(MediaProcessingLog $log, array $sermonSpans): ?array
+    public function question(MediaProcessingLog $log, array $sermonSpans): ?array
     {
         $last = array_key_last($sermonSpans);
         $song = $this->song($log, $sermonSpans);

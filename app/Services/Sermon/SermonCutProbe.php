@@ -8,6 +8,7 @@ use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
 use App\Models\MediaProcessingLog;
+use App\Services\ChurchService\SermonSongIntroductionCheck;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use Illuminate\Support\Facades\DB;
@@ -84,7 +85,20 @@ class SermonCutProbe
             $copy->saveQuietly();
 
             $this->sync->sync($copy, $structure->toClassifiedSections($copy, $transcript));
-            $plan = $this->resolver->resolve($copy->fresh() ?? $copy);
+            $candidate = $copy->fresh() ?? $copy;
+            // Sections belong to the temporary row; evidence belongs to the source recording.
+            // The explicit transcript keeps composition read-only, so this ID is never saved.
+            $candidate->processing_id = $log->processing_id;
+            $plan = $this->resolver->resolve($candidate, transcript: $transcript);
+            $evidenceRequest = [];
+            if (($plan['metadata']['reason'] ?? null) === 'edge_word_timings_missing') {
+                $spans = $plan['metadata']['structure_segments'] ?? [];
+                $introduction = app(SermonSongIntroductionCheck::class);
+                $question = $introduction->question($candidate, $spans);
+                if ($question !== null && $question['lines'] !== [] && $introduction->read($candidate, $spans) === null) {
+                    $evidenceRequest['sermon_song_introduction'] = $question;
+                }
+            }
 
             return [
                 'mode' => $plan['mode'],
@@ -92,6 +106,8 @@ class SermonCutProbe
                 'segments' => $plan['segments'],
                 'from_sections' => true,
                 'requires_review' => $plan['metadata']['requires_review'] ?? false,
+                ...array_intersect_key($plan['metadata'], array_flip(['edge_word_timings_error', 'structure_segments'])),
+                ...($evidenceRequest === [] ? [] : ['pending_evidence' => $evidenceRequest]),
             ];
         } catch (Throwable $exception) {
             return ['mode' => 'error', 'error' => $exception::class.': '.$exception->getMessage()];

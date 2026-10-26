@@ -10,15 +10,105 @@ use App\Data\ServiceStructureSection;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\OutputEdgeWordTimings;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
+use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Sermon\SermonCutProbe;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\Support\BanksNoWordOutputEdges;
 use Tests\TestCase;
 
 class SermonCutProbeTest extends TestCase
 {
+    use BanksNoWordOutputEdges;
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Storage::fake('local');
+        config(['media-processing.storage.service_artifact_disk' => 'local']);
+    }
+
+    #[Test]
+    public function it_reads_the_source_runs_banked_edge_evidence_without_changing_its_identity_or_records(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->completed()->create(['duration' => 2430.0]);
+        $existing = ServiceSection::factory()->create(['media_processing_log_id' => $log->id]);
+        $transcript = $this->transcript();
+        $storedCues = $transcript->cues;
+        $storedCues[2]['start'] = 610.0;
+        $storedTranscript = ChurchServiceTranscript::fromCues($storedCues, 2430.0, ChurchServiceTranscript::SOURCE_MOCK);
+        $path = app(ServiceArtifactStorage::class)->putJson($log->processing_id, 'normalized', $storedTranscript->toArray());
+        $log->putServiceTranscriptPath($path);
+        $evidence = app(OutputEdgeWordTimings::class);
+        foreach ([420.0, 600.0, 2200.0] as $edge) {
+            $window = $evidence->window($transcript->cues, $edge, $log->duration);
+            $this->assertNotNull($window);
+            $identity = $evidence->identity($log, $window);
+            app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($identity), [
+                'identity' => $identity, 'words' => [],
+            ]);
+        }
+        $log->refresh();
+        $before = $log->getRawOriginal();
+        $sectionBefore = $existing->fresh()->getRawOriginal();
+        $files = Storage::disk('local')->allFiles();
+
+        $cut = app(SermonCutProbe::class)->probe($log, $this->structure([]), $transcript);
+
+        $this->assertSame('identified_sections', $cut['as_written']['strategy'], $cut['as_written']['edge_word_timings_error'] ?? '');
+        $this->assertNotEmpty($cut['as_written']['segments']);
+        $this->assertEquals(600.0, $cut['as_written']['segments'][1]['start_time']);
+        $this->assertSame($before, $log->fresh()->getRawOriginal());
+        $this->assertSame($sectionBefore, $existing->fresh()->getRawOriginal());
+        $this->assertSame($files, Storage::disk('local')->allFiles());
+        $this->assertSame(1, MediaProcessingLog::query()->count());
+        $this->assertSame(1, ServiceSection::query()->count());
+    }
+
+    #[Test]
+    public function genuinely_missing_edge_evidence_reports_the_source_identity_and_required_window(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->completed()->create(['duration' => 2430.0]);
+
+        $cut = app(SermonCutProbe::class)->probe($log, $this->structure([]), $this->transcript());
+
+        $this->assertSame('edge_word_timings_missing', $cut['as_written']['strategy']);
+        $this->assertStringContainsString($log->processing_id, $cut['as_written']['edge_word_timings_error']);
+        $this->assertStringContainsString('419.000000–591.000000', $cut['as_written']['edge_word_timings_error']);
+        $this->assertNotEmpty($cut['as_written']['structure_segments']);
+        $this->assertSame([], $cut['as_written']['segments']);
+        $this->assertSame(0, ServiceSection::query()->count());
+    }
+
+    #[Test]
+    public function an_unasked_sermon_song_handover_is_reported_without_calling_a_provider(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->completed()->create(['duration' => 2430.0]);
+        $this->bankTranscript($log);
+        $before = $log->fresh()->getRawOriginal();
+        $files = Storage::disk('local')->allFiles();
+        $structure = ServiceStructure::fromSections([
+            ...$this->structure([])->sections,
+            new ServiceStructureSection(ServiceSectionType::Song, 'Praise my soul', 2210.0, 2400.0, 0.95, null, 'Praise my soul', null),
+        ]);
+
+        $cut = app(SermonCutProbe::class)->probe($log, $structure, $this->transcript());
+
+        $request = $cut['as_written']['pending_evidence']['sermon_song_introduction'];
+        $this->assertSame($log->processing_id, $request['identity']['processing_id']);
+        $this->assertSame(2200.0, $request['identity']['sermon_end']);
+        $this->assertNotEmpty($request['lines']);
+        $this->assertNotEmpty($request['prompt']);
+        $this->assertSame([], $cut['as_written']['segments']);
+        $this->assertSame($before, $log->fresh()->getRawOriginal());
+        $this->assertSame($files, Storage::disk('local')->allFiles());
+        $this->assertSame(0, ServiceSection::query()->count());
+    }
 
     #[Test]
     public function it_plans_the_production_cut_from_a_proposal_and_writes_nothing(): void
@@ -27,6 +117,7 @@ class SermonCutProbeTest extends TestCase
         $existing = ServiceSection::factory()->create(['media_processing_log_id' => $log->id]);
         $logs = MediaProcessingLog::query()->count();
         $sections = ServiceSection::query()->count();
+        $this->bankTranscript($log);
 
         $cut = app(SermonCutProbe::class)->probe($log, $this->structure([]), $this->transcript());
 
@@ -46,6 +137,7 @@ class SermonCutProbeTest extends TestCase
             'sermon_start_time' => 610.0,
             'sermon_end_time' => 2190.0,
         ]);
+        $this->bankTranscript($log);
 
         $cut = app(SermonCutProbe::class)->probe(
             $log,
@@ -71,8 +163,14 @@ class SermonCutProbeTest extends TestCase
             new ServiceStructureSection(
                 ServiceSectionType::Sermon, 'Sermon', 600.0, 2200.0, 0.95, null, null, null, 'John 3', reviewFlags: $sermonFlags,
             ),
-            new ServiceStructureSection(ServiceSectionType::Song, 'Praise my soul', 2210.0, 2400.0, 0.95, null, 'Praise my soul', null),
         ]);
+    }
+
+    private function bankTranscript(MediaProcessingLog $log): void
+    {
+        $path = app(ServiceArtifactStorage::class)->putJson($log->processing_id, 'normalized', $this->transcript()->toArray());
+        $log->putServiceTranscriptPath($path);
+        $this->bankNoWordOutputEdges($log);
     }
 
     private function transcript(): ChurchServiceTranscript

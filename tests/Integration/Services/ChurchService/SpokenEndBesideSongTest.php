@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Storage;
 use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Responses\Chat\CreateResponse;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Support\AudioTimelineFixture;
 use Tests\TestCase;
 
@@ -31,6 +32,42 @@ use Tests\TestCase;
 class SpokenEndBesideSongTest extends TestCase
 {
     use DatabaseTransactions;
+
+    /** Run 1216: K16 keeps the unpunctuated last phrase before the repeated hymn number. */
+    #[Test]
+    #[TestWith(['426', 4184.82])]
+    #[TestWith(["Let's stand", 4183.23])]
+    public function the_k16_last_line_is_kept_before_a_bare_hymn_number(string $nextCue, float $expected): void
+    {
+        $log = $this->service([
+            ['start' => 4162.4, 'end' => 4164.22, 'text' => 'Amen'],
+            ['start' => 4182.6, 'end' => 4183.46, 'text' => "us what we've"],
+            ['start' => 4183.46, 'end' => 4184.08, 'text' => 'just been'],
+            ['start' => 4184.08, 'end' => 4184.84, 'text' => 'talking about'],
+            ['start' => 4184.84, 'end' => 4186.52, 'text' => $nextCue],
+            ['start' => 4186.52, 'end' => 4187.3, 'text' => 'how deep'],
+        ], [['sermon', 1939.25, 4185.0], ['song', 4185.0, 4360.0]]);
+        $spans = [['start_time' => 1939.25, 'end_time' => 4185.0]];
+        $this->introduction($log, $spans, [1, true, 4], [1, true, 4]);
+        $this->bank($log, 4184.84, [
+            ['start' => 4183.23, 'end' => 4183.24, 'word' => ' We'],
+            ['start' => 4183.24, 'end' => 4183.47, 'word' => "'ve"],
+            ['start' => 4183.47, 'end' => 4183.82, 'word' => ' just'],
+            ['start' => 4183.82, 'end' => 4184.08, 'word' => ' been'],
+            ['start' => 4184.08, 'end' => 4184.52, 'word' => ' talking'],
+            ['start' => 4184.52, 'end' => 4184.82, 'word' => ' about'],
+            ['start' => 4184.82, 'end' => 4185.28, 'word' => ' 4'],
+            ['start' => 4186.03, 'end' => 4186.2, 'word' => '26'],
+            ['start' => 4186.2, 'end' => 4186.47, 'word' => ','],
+            ['start' => 4186.55, 'end' => 4186.94, 'word' => ' how'],
+            ['start' => 4186.94, 'end' => 4187.21, 'word' => ' deep'],
+            ['start' => 4187.51, 'end' => 4187.51, 'word' => '...'],
+        ]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log, $spans, sermonEnd: true);
+
+        $this->assertEqualsWithDelta($expected, $plan['segments'][0]['end_time'], 0.02);
+    }
 
     /**
      * 1077 and 1023: a looped transcript repeats a line as zero-length cues at one instant. The

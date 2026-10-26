@@ -346,7 +346,8 @@ class CueSafeExtractionPlan
                     $payload = $evidence->read($log, $window);
                     $words = $payload['words'];
                     if ($words !== []) {
-                        $decision = $this->placedEdge($log, $words, $window, $original, $edge, $songEnds);
+                        $decision = $this->placedEdge($log, $words, $window, $original, $edge, $songEnds,
+                            closingLine: $besideSong ? ($songIntroduction['line'] ?? null) : null);
                         $sentenceStartMoved = false;
                         if ($songEnds && $edge === 'start') {
                             $afterSentence = $this->afterSongOpeningSentence($words, $window, $cues, $decision);
@@ -1030,9 +1031,9 @@ class CueSafeExtractionPlan
      * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>, between?: true}  $window
      * @return array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, candidate_anchors?: list<array{start: float, end: float, word: string}>}
      */
-    private function placedEdge(MediaProcessingLog $log, array $words, array $window, float $original, string $edge, bool $songEnds): array
+    private function placedEdge(MediaProcessingLog $log, array $words, array $window, float $original, string $edge, bool $songEnds, ?string $closingLine = null): array
     {
-        $decision = $this->wordPause($words, $window, $original, $edge);
+        $decision = $this->wordPause($words, $window, $original, $edge, $closingLine);
 
         if ($edge === 'start') {
             $decision = $this->keptAtHeardStart($log, $words, $original, $decision);
@@ -2503,15 +2504,20 @@ class CueSafeExtractionPlan
      * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>}  $window
      * @return array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, candidate_anchors?: list<array{start: float, end: float, word: string}>}|null
      */
-    private function cueBoundaryPause(array $words, array $window, float $original, string $edge): ?array
+    private function cueBoundaryPause(array $words, array $window, float $original, string $edge, ?string $closingLine = null): ?array
     {
         $isStart = $edge === 'start';
         // A cue touching the edge from the other side shares the boundary: its words may belong
         // to this output too (949's "thank you Mark"), so only the largest pause can place it.
         // An end on a line that closes a sentence keeps that sentence and none of the next line:
         // the largest pause there sat mid-sentence (1286's "and | preach", canary 13 listening).
+        // Before a bare hymn number, K16 can name an unpunctuated final phrase to keep whole.
         $closing = array_values(array_filter($window['cues'], fn (array $cue): bool => ! $isStart
-            && abs($cue['end'] - $original) <= self::CUE_BOUNDARY_TOLERANCE && $this->endsSentence($cue['text'])));
+            && abs($cue['end'] - $original) <= self::CUE_BOUNDARY_TOLERANCE
+            && ($this->endsSentence($cue['text']) || ($closingLine !== null
+                && $this->normalize($cue['text']) === $this->normalize($closingLine)
+                && count(array_filter($window['cues'], static fn (array $next): bool => abs($next['start'] - $original) <= self::CUE_BOUNDARY_TOLERANCE
+                    && preg_match('/^\d+$/', trim($next['text'])) === 1)) === 1))));
         if (count($window['cues']) !== 1 && count($closing) !== 1) {
             return null;
         }
@@ -2596,10 +2602,17 @@ class CueSafeExtractionPlan
      * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>, between?: true}  $window
      * @return array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, candidate_anchors?: list<array{start: float, end: float, word: string}>}
      */
-    private function wordPause(array $words, array $window, float $original, string $edge): array
+    private function wordPause(array $words, array $window, float $original, string $edge, ?string $closingLine = null): array
     {
         $decision = $this->cueBoundaryPause($words, $window, $original, $edge)
             ?? (isset($window['between']) ? $this->nearestPause($words, $window, $original, $edge) : $this->pause($words, $window, $original, $edge));
+
+        if ($closingLine !== null && $edge === 'end') {
+            $closing = $this->cueBoundaryPause($words, $window, $original, $edge, $closingLine);
+            if ($closing !== null && $closing['time'] > $decision['time']) {
+                $decision = $closing;
+            }
+        }
 
         return $edge === 'end' && ! isset($decision['candidate_anchors']) ? $this->atSentenceEnd($words, $window, $original, $decision) : $decision;
     }

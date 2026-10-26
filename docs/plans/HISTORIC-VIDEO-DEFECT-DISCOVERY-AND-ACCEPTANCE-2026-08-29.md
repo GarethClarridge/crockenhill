@@ -4916,3 +4916,144 @@ blocking test now fails after-only). Re-prepared on the final code →
 3774, 166092]. Changed cuts: **3769 end 354.90 → 350.69** only; 2658 and both sermon outputs keep their edges.
 `apply` dry run passes for both (`failed-stretch-apply-dry-20261026.json`). Installing needs `apply --execute`
 on the operator's word; 2659's start still needs the separate run-1216 structure rerun.
+
+**Both adopted (10-26, operator: "Do those two").** Fresh preflight of the exact v2 bundle passed for
+1216 and 1295 (`failed-stretch-apply-preflight-20261026.json`); `apply --execute` then returned `applied`
+for both (`failed-stretch-applied-20261026.json`). A subsequent read-only apply check returned
+`already_applied` for both, verifying installed transcript hashes and receipt-bound state
+(`failed-stretch-applied-verified-20261026.json`). All three reports are under `storage/app/private/`.
+This installs only the nine source-verified transcript cues, with reversible receipts. Sections, holds
+and media were not changed; 3769's revised end remains a preview until the re-cut round. Nothing was
+released or published. The separate run-1216 structure rerun for 2659 remains outstanding.
+
+**Follow-on preview (10-26, operator: "Carry on").** Captured both adopted runs in
+`storage/app/private/failed-stretch-followon-before-20261026.json`. The operator explicitly approved sending
+1216's repaired transcript and planned items to OpenAI for one four-vote preview, with $1 reserved.
+`structure:ensemble-evaluate` completed four valid votes, composed with zero disputes and passed structure
+validation; reported cost $0.039740 using the saved 09-28 price snapshot. Private manifest, immutable inputs,
+all four draws, proposal and full positional section comparison are in
+`storage/app/private/failed-stretch-followon-20261026/`. No full labelled truth is asserted by this preview.
+
+The proposal finds 2659's opening at **1939.25** (source-verified cue 1939.26, operator ruling 1939).
+It also changes six other material section edges: 2650 end 227 → 223.106; 2651 start 228 → 232;
+2653 start 549 → 565; 2658 end 1932.37 → 1938.99; 2659 end 4164.22 → 4185; 2660 start 4170.26 → 4185.
+Both gated and as-written extraction probes stop at `edge_word_timings_missing`, with no segments.
+Thus structure validation is not extraction readiness: exact missing-window enumeration, candidate word
+evidence and review of all affected edges are still required before adoption. Reuse the retained paid draws;
+do not buy a different proposal just to install one. Nothing was adopted or cut.
+
+1295's `sections:recut --dry-run` passes its source/dispatch checks, but **3769 is ineligible for clip
+preparation**: it has no confirmed/inferred song match and remains `not_applicable`. A run-level recut would
+skip it. `service:merge-split-songs --service=428` finds no group: the 86.25 s section gap exceeds even the
+repair merger's 5 s allowance. The already-recorded operator decision about one song across the 74 s feed
+dropout remains needed; transcript adoption alone does not resolve it. Both runs' free recompose dry runs
+refuse their now-stale banked transcript inputs. Disk headroom is now 25 GiB internally (above the 10 GB
+floor), with 472 GiB on Staging. A final `rerun-diff` confirms **0 of 2 runs changed**, zero attention and
+zero pending media custody (`failed-stretch-followon-state-check-20261026.json`).
+
+**Only By Grace disposition (10-26, operator: "Agree"; register S10).** Leave the incomplete song in
+run 1295 held and move on. Merging fragments 3768/3769, removing the dropout and re-cutting 3769 offer
+too little listener benefit to justify further repair work. This settles the outstanding choice above:
+neither a merged output nor repaired separate fragments are being pursued. Retain the existing source
+evidence and adopted prayer transcript; no holds, sections or media were changed by this decision.
+Revisit only if someone specifically wants the song. Run 1216's missing sermon opening remains the
+priority, with its candidate evidence and affected-edge review still outstanding.
+
+**Sermon-opening follow-on, preview correction (10-26, operator: "Is that next? If so carry on").**
+The missing-evidence report exposed a bug in `SermonCutProbe`: its temporary run UUID invalidated all
+source-bound word-timing receipts. A regression first failed with `edge_word_timings_missing` despite
+banked source evidence. The probe now retains its temporary database row/sections but restores the source
+processing ID in memory and supplies the candidate transcript explicitly to the resolver's read-only path.
+The original run, sections and artifact files remain unchanged. Missing-evidence diagnostics now retain
+the exact error, structural spans and any pending K16 question; `SermonSongIntroductionCheck::question()`
+is exposed read-only for that report. Focused regressions pass (26 tests / 133 assertions); PHPStan is
+clean and Pint passes, including `--dirty`. The normal file-level parallel full suite completed with
+exit 0: **11,637 tests / 102,547 assertions, no failures or errors**, 163 PHPUnit notices and one skipped
+test, in 20m57s. Full output: `/tmp/crockenhill-sermon-opening-full-20261026.txt`.
+
+Replaying the existing four draws cost no new calls. The current report is
+`storage/app/private/failed-stretch-followon-20261026/proposal-pending-question.json`.
+It retains the proposed reading at 1606.41–1703.7 and sermon at 1939.25–4185, but now identifies the
+specific remaining blocker: **K16 has no answer for this proposal's sermon/hymn join at 4185**.
+The private report holds the exact prompt and 98 transcript lines (4109.6–4203.12); the standard check
+uses two calls, with a third if they disagree. Approval for that additional OpenAI request has been asked
+separately; the earlier four-call approval is spent. No additional paid checks, section adoption, re-cut
+or release has occurred. The existing run-1216 K16 receipts concern the old structural boundaries
+4164.22/4170.26; they are retained, not relabelled as answers to the new question.
+
+The committed ruling ledger has three active run-1216 rulings: 2659's opening at 1939; the sermon end
+heard at 4183.23 was **early**, expected outward; and 2655's song end at 1357.42 was heard right.
+The proposal leaves 2655's structural span unchanged. Final refined cuts still need to be checked against
+those rulings and the six other moved edges before adopting the proposal.
+
+The six changed-edge transcript contexts and exact closing question are saved privately as
+`failed-stretch-followon-20261026/moved-edge-context.json`. The final state comparison confirms **0 of 2
+runs changed**, zero attention and zero pending media custody (`sermon-opening-probe-state-check-20261026.json`).
+The additional closing-boundary approval remains pending; the sermon opening is not yet adopted into
+sections or restored in extracted media. No commits or publication were made.
+
+**Approved K16 checks and closing-line repair (10-26, operator: "Continue - calls approved").**
+Revalidated run 1216's exact current input hash, before-state and pending question before sending it.
+Both standard K16 checks agreed: sermon last line 71, tied introduction included through line 86,
+"talking about", ending at **4184.84**; the repeated hymn-number announcement is excluded. **Two calls**
+were made; the conditional third was unnecessary. Each answer is saved separately, and the normal
+K16 artifact is banked on the original run. Receipts are `k16-approved-answer-{0,1}.json` and
+`k16-approved-result.json` in `storage/app/private/failed-stretch-followon-20261026/`.
+
+The replay then requested one local Whisper window, **4183.08–4187.52 (4.44 s)**. It decoded once
+(2.84 s compute, `k16-local-word-result.json`). With that evidence, the planner still cut at **4183.23**,
+the ending already ruled too early. A new isolated regression reproduced that exact cut before the fix:
+the generic pause rule discarded K16's named unpunctuated final line because it shares a cue boundary
+with the next announcement. The fix passes the banked closing line into the existing cue-anchor path
+only for the final sermon edge beside its song. The exact normalized line must match the closing cue;
+existing word matching, ambiguity and tail guards remain. This is shared pipeline behavior, not a
+historic exception or a hand-edited boundary. The same test now keeps the phrase through **4184.82**
+and excludes the following number. The old single-1216 fixture retains its source evidence and original
+outward ruling; its fixed replay expectation is 4184.82 and the defect is no longer marked open.
+Its previous expectation and replay provenance are retained in `k16_named_line_replay`.
+
+`proposal-after-k16-anchor.json` now produces a complete, unheld assembled-sermon plan:
+**1606.41–1703.96** (the reading, unchanged), then **1939.25–4184.82** (the sermon).
+Against the existing recorded output this restores **71.05 s at the opening** and **1.59 s at the end**.
+These are proposed cuts, not extracted media. Replay made no further provider calls.
+
+The full section-impact census additionally exposed four local word windows: **219–228, 231–234,
+562–568 and 4183.84–4187.52**, **21.68 s** total. All four decoded locally once (8.52 s compute;
+`proposal-local-word-result.json`). No additional OpenAI requests were made. The resulting
+`output-impact-after-words.json` shows why full-proposal adoption still needs review:
+
+- 2650's separate Matthew 28 reading ends at 223.16 instead of 227.16; it is not the sermon's reading.
+- Three songs already pending approval change their planned openings: 2651 **227.32 → 233.25**,
+  2653 **548.998 → 566.40**, and 2660 **4170.76 → 4183.98**. Their final ends are unchanged.
+- The heard-right 2655 end remains **1357.42**; 2654's talk, 2657's sermon reading and 2658's song cuts
+  are unchanged. Other missing-word errors are identical before/after and concern existing gaps.
+- The standalone `forSection()` plan for the sermon is not its assembled output; use the assembled
+  K16-aware plan above when reviewing the sermon video.
+
+The operation has **not** adopted any sections, re-cut media or released content. The state comparison
+still reports **0 of 2 runs changed**, zero attention and zero pending custody
+(`k16-followon-state-check-20261026.json`); only evidence and usage records were added.
+The three moved song openings are not accepted by this work. Run 1295's S10 disposition is unchanged.
+Initial focused verification passed **90 tests / 239 assertions**, plus the real 1216 ruling subset
+**3 / 9**. The full run then completed **11,638 tests / 102,530 assertions** in 21m16s with **22 cut-fidelity
+failures**, 163 notices and one skip (`/tmp/crockenhill-k16-anchor-full-20261026.txt`). The first implementation
+applied named-line anchoring too broadly. No other fixture expectations were changed to accept those moves.
+
+The final guard is narrower: it can only extend an earlier cut to retain the named closing phrase before
+a bare numeric hymn-announcement cue; it never shortens an existing cut. All other announcements retain
+their existing placement. The numeric and non-numeric regression cases pass **2 tests / 4 assertions**;
+the 1216/1280/1312/1348 ruling spot check passes **12 / 36**. A broad functional-mode ruling rerun was
+stopped in favour of the exact affected-recording recheck from the retained full-suite failure list;
+that stopped run is not a passing gate. The final normal-mode affected-recording recheck passes
+**41 tests / 125 assertions**, including all 22 cases from the failure list and 1216
+(`/tmp/crockenhill-k16-anchor-rulings-final-20261026.txt`). The remaining suite, excluding only
+`RuledEndingsRegressionTest`, then passes **10,136 tests / 98,042 assertions**, zero failures or errors,
+163 notices and one skip, in 8m40s (`/tmp/crockenhill-k16-anchor-other-final-20261026.txt`). PHPStan
+remains at zero errors; explicit-file Pint and `git diff --check` pass. This records a complete initial
+full run followed by final affected-ruling and remaining-suite checks, not a fresh clean run of all
+1,503 ruled-edge tests under the narrowed guard. No other saved cut expectations were changed.
+
+The free final replay is `proposal-final-guard.json`: **zero calls**, and the assembled sermon remains
+**1606.41–1703.96**, then **1939.25–4184.82**, with no planner hold. Its report has empty labelled truth,
+so this is cut feasibility, not full-service acceptance. Section adoption, media restoration and listening
+review of the affected edges remain outstanding.
