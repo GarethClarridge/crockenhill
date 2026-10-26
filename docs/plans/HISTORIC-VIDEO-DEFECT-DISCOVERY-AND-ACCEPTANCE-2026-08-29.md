@@ -4990,7 +4990,7 @@ The six changed-edge transcript contexts and exact closing question are saved pr
 `failed-stretch-followon-20261026/moved-edge-context.json`. The final state comparison confirms **0 of 2
 runs changed**, zero attention and zero pending media custody (`sermon-opening-probe-state-check-20261026.json`).
 The additional closing-boundary approval remains pending; the sermon opening is not yet adopted into
-sections or restored in extracted media. No commits or publication were made.
+sections or restored in extracted media. Nothing was published; the code and records were later committed as `7a322a54d`.
 
 **Approved K16 checks and closing-line repair (10-26, operator: "Continue - calls approved").**
 Revalidated run 1216's exact current input hash, before-state and pending question before sending it.
@@ -5057,3 +5057,35 @@ The free final replay is `proposal-final-guard.json`: **zero calls**, and the as
 **1606.41–1703.96**, then **1939.25–4184.82**, with no planner hold. Its report has empty labelled truth,
 so this is cut feasibility, not full-service acceptance. Section adoption, media restoration and listening
 review of the affected edges remain outstanding.
+
+**Run 1216 joins: listening and a clipped-opening fix (10-26 evening, operator: "Do all 5").** First, the gate
+the K16 work left open: the full `RuledEndingsRegressionTest` on `7a322a54d` passed **1,503 tests / 4,509
+assertions** (14m58s). Then the moved edges went on the Run 1216 Joins page
+(`ME5o89cnPRsPjRjNJZksLm`; builder `storage/scratch/run1216-joins-20261026/build.php`, one clip per version,
+each played as its cut sounds). The opening at 1939 was already ruled and was not asked again. Answers
+(`rulings` collection, saved in `storage/scratch/run1216-joins-20261026/answers/`):
+
+- **Reading 2650 → song 2651: B.** The reading ends at "worshipped him" (223.16); the song starts after its
+  spoken introduction (233.25). Accepted as proposed.
+- **Song 2653 start: "Either is fine".** Under E21, A (548.998, with the spoken introduction) is preferred. B
+  (566.4, after "Let's stand to sing", still before the instrumental lead-in) is acceptable. It is a soft miss and is
+  adopted with the proposal: keeping A would mean hand-editing one section of the proposal.
+- **Sermon 2659 → song 2660: "mixed", with a note.** The note: B "starts the song mid sentence [of] the introduction.
+  If it skipped the intro completely that would be better". B's song started at 4183.98, inside the sermon's
+  "talking about". Cause: the song-start window (4183.84–4187.52) opens a second before the "426" cue
+  while "just been" is still being said. The 0.14 s before the decode's first word (a zero-length " in") was the
+  largest gap, so it was taken as the pause. A failing case reproduced 4183.98. A trial guard ignored a window's
+  opening margin as a pause while a transcript line outside the window was still being said there. It moved the
+  proposal's 2660 start to **4184.82**, exactly the sermon's end, with nothing else moving
+  (`output-impact-clipped-opening.json`). Heard on the same page: **"The fix is right"** (register E22). A version
+  that also trimmed the closing margin broke 1200 §2509 (a heard gap after "to you."), so it was narrowed to the opening.
+  **The narrowed guard still failed 5 of 1,503 ruled edges and was reverted, uncommitted.** Those edges were 961's sermon
+  start (canary13:065, right at 1517.76 before "Good."), 1221's song start (canary15:043, right at 111.85 before a
+  zero-length "his"), 1055's ending (553.19, right) and 1053's end (two fixtures, already "late", moving later still).
+  In each, the opening margin was a heard gap. A zero-length first word does not separate 1216 from 1221. 1216's
+  window has no punctuation, so only the K16 answer knows "talking about" is the sermon's. **Open: build E22 as a
+  K16-aware song start** (the song's start reads the banked answer through the composed sermon spans, as
+  `PrepareOutputEdgeEvidence` does). This needs a read-only composition path, because `compose()` writes. Measure
+  the class first: songs after a sermon whose K16 answer keeps the introduction. Separately, 1221's ruled
+  start splits "…save his | people." and predates the 10-26 sentence rule. The rule cannot see it, because no word
+  precedes the cut inside the window.

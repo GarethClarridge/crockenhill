@@ -33,6 +33,7 @@ class SermonCutProbe
     public function __construct(
         private readonly ServiceSectionSyncService $sync,
         private readonly SermonExtractionPlanResolver $resolver,
+        private readonly SermonSongIntroductionCheck $introduction,
     ) {}
 
     /**
@@ -93,9 +94,8 @@ class SermonCutProbe
             $evidenceRequest = [];
             if (($plan['metadata']['reason'] ?? null) === 'edge_word_timings_missing') {
                 $spans = $plan['metadata']['structure_segments'] ?? [];
-                $introduction = app(SermonSongIntroductionCheck::class);
-                $question = $introduction->question($candidate, $spans);
-                if ($question !== null && $question['lines'] !== [] && $introduction->read($candidate, $spans) === null) {
+                $question = $this->introduction->question($candidate, $spans);
+                if ($question !== null && $question['lines'] !== [] && $this->introduction->read($candidate, $spans) === null) {
                     $evidenceRequest['sermon_song_introduction'] = $question;
                 }
             }
