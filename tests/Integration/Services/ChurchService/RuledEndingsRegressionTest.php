@@ -459,9 +459,9 @@ class RuledEndingsRegressionTest extends TestCase
         $rulings = $this->latestRulings($fixture, $ruling);
         $heardRight = array_column(array_filter($rulings, static fn (array $latest): bool => $latest['expect'] === 'keep'), 'heard');
         if (count($rulings) > 1 && count($heardRight) === count($rulings)) {
-            // Two cuts heard right the same day: what lies between them is optional (1250 §3127).
+            // Two cuts heard right the same day: either is right (1250 §3127), not the stretch between.
             $rulings = [['id' => implode(' + ', array_column($rulings, 'id')), 'edge' => $ruling['edge'], 'heard' => $heardRight[0],
-                'expect' => 'between', 'ruled_time' => null, 'range' => [min($heardRight), max($heardRight)]]];
+                'expect' => 'either', 'ruled_time' => null, 'points' => $heardRight]];
         }
 
         foreach ($rulings as $latest) {
@@ -473,8 +473,10 @@ class RuledEndingsRegressionTest extends TestCase
             match ($latest['expect']) {
                 'keep' => $this->assertTrue(abs($cut - $heard) <= self::RIGHT_TOLERANCE || $this->onlySilenceBetween($fixture, $heard, $cut),
                     "{$message}: an edge ruled right has moved from {$heard} to {$cut}, across sound"),
-                'between' => $this->assertTrue($cut >= $latest['range'][0] - self::RIGHT_TOLERANCE && $cut <= $latest['range'][1] + self::RIGHT_TOLERANCE,
-                    "{$message}: {$cut} is outside the cuts ruled right, ".implode('–', $latest['range'])),
+                // Either cut was heard right; a cut between them may split a sentence nobody heard.
+                'either' => $this->assertTrue(array_any($latest['points'], fn (float $point): bool => abs($cut - $point) <= self::RIGHT_TOLERANCE
+                    || $this->onlySilenceBetween($fixture, $point, $cut)),
+                    "{$message}: {$cut} is at neither cut ruled right, ".implode(' or ', $latest['points'])),
                 'outward' => $this->assertGreaterThan(self::MOVED, $outward, $message.': an edge ruled to clip its item is back at the clipped cut'),
                 'inward' => $this->assertLessThan(-self::MOVED, $outward, $message.': an edge ruled to take in too much is back at that cut'),
                 'at' => $this->assertEqualsWithDelta($latest['ruled_time'], $cut, self::RULED_TIME_TOLERANCE, $message.': an edge is not at the time the operator gave'),
@@ -509,7 +511,7 @@ class RuledEndingsRegressionTest extends TestCase
      *
      * @param  array<string, mixed>  $fixture
      * @param  array{section_id: int|null, edge: string, heard: float, expect: string, ruled_time: float|null}  $ruling
-     * @return list<array{id: string, edge: string, heard: float, expect: string, ruled_time: float|null, range?: array{float, float}}>
+     * @return list<array{id: string, edge: string, heard: float, expect: string, ruled_time: float|null, points?: list<float>}>
      */
     private function latestRulings(array $fixture, array $ruling): array
     {

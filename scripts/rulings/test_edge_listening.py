@@ -20,12 +20,13 @@ class EdgeListeningRulingsTest(unittest.TestCase):
                                          [self.answer('4735-start', 'a'), self.answer('1730-end', 'b')])
         self.assertEqual([('keep', 1856.36), ('keep', 1964.8)], [(r['expect'], r['heard']) for r in records])
 
-    def test_either_allows_the_stretch_between_and_hears_the_cut_that_keeps_more(self):
+    def test_either_makes_each_cut_right_and_prefers_neither(self):
         records = edge_listening.collect('s', [self.question(1259, 'start', 2419.18, 2417.38), self.question(1102, 'end', 675.141, 675.534)],
                                          [self.answer('1259-start', 'both'), self.answer('1102-end', 'both')])
-        self.assertEqual(['between', 'between'], [r['expect'] for r in records])
+        self.assertEqual(['either', 'either'], [r['expect'] for r in records])
         self.assertEqual([2417.38, 675.534], [r['heard'] for r in records])
-        self.assertEqual([2417.38, 2419.18], records[0]['range'])
+        self.assertEqual([2417.38, 2419.18], records[0]['points'])
+        self.assertNotIn('range', records[0])
 
     def test_neither_is_truth_only_with_an_exact_time(self):
         questions = [self.question(3779, 'start', 215.48, 215.0), self.question(4322, 'start', 1567.44, 1564.88)]

@@ -1,8 +1,9 @@
 """Join the 10-25 song-edges answers (two versions per edge, A and B) to the cuts each version made.
 A key may name its output and section type (the sermon video, a talk); a song section is the default.
 
-A chosen version is kept. "Either is fine" makes the stretch between them optional, so any cut between
-the two is right; `heard` is the one that keeps more, which E21 prefers. "Neither" is edge truth only
+A chosen version is kept. "Either is fine" makes each of the two cuts right, and only those: a cut between
+them may split a sentence nobody heard split (operator, 10-26). `heard` is B, the cut as made when asked;
+neither is preferred. "Neither" is edge truth only
 when the note names the time exactly ("should be 3:36"); an approximate one ("something like 26:09")
 stays in the note.
 """
@@ -28,13 +29,13 @@ def collect(source, questions, answers):
         if key is None:
             continue
         times, edge, choice = key['times'], key['edge'], answer['choice']
-        expect, heard, at, between = 'keep', None, None, None
+        expect, heard, at, points = 'keep', None, None, None
         if choice in ('a', 'b'):
             heard = times[choice]
         elif choice == 'both':
-            between = sorted(times.values())
-            heard = between[1] if edge == 'end' else between[0]
-            expect = 'between'
+            points = sorted(times.values())
+            heard = times['b']
+            expect = 'either'
         elif choice == 'neither' and (match := EXACT.search(answer.get('note', ''))):
             # The cut heard is the one the operator preferred of the two, or B, the cut now.
             heard, at, expect = times['b'], seconds(match.group(1)), 'at'
@@ -48,6 +49,6 @@ def collect(source, questions, answers):
             'section_type': key.get('type', 'song'), 'title': answer.get('title'), 'edge': edge,
             'heard': round(float(heard), 3), 'answer': choice, 'expect': expect, 'ruled_time': at,
             'note': answer.get('note', ''),
-            **({'range': [round(float(t), 3) for t in between]} if between else {}),
+            **({'points': [round(float(t), 3) for t in points]} if points else {}),
         })
     return records

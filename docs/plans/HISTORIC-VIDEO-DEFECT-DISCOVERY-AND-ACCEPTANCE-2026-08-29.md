@@ -5110,3 +5110,35 @@ edges (1,442 rulings). The three 10-23 run fixtures carry `clipped_opening_relis
 cut), which the test honours like `song_start_sentence_policy`. 1053's two `open_defect` fixtures carry
 `clipped_opening_replay` provenance with their new live cut, 1579.72. Their rulings stay open. Next for 1216: commit,
 a fresh snapshot, then `rerun-redetect` (paid, about $0.04, needs the operator's word), recompose, extract and diff.
+
+**Run 1216 redetected and re-cut; "either" no longer a range (10-26 night).** On the operator's word, `rerun-redetect`
+(snapshot `run1216-e22-before-20261026`, commit `7049cd9e5`) bought four new draws. Their structure kept the sermon
+opening at 1939.25 and kept 2653's start at 549. It moved other edges away from what had been heard. `rerun-extract`
+(two K16 calls; local word decodes) cut them into quarantine. Nothing is public. 2651, 2655 and 2658 auto-published into
+quarantine (S9). The Run 1216 Re-cut page (`6t1ZzcJeSR3AJGGGjvHS8U`) compared A (heard before) with B (now cut):
+
+| Edge | A | B (now) | Answer |
+|---|---|---|---|
+| 2651 start | 233.25 | 237.99 | either |
+| 2655 start | 1196.88 | 1206.53 | either |
+| 2655 end | 1357.42 | 1350.88 | **A**: "B cuts off the music" |
+| 2658 start | 1713.82 | 1725.76 | either |
+| sermon → 2660 join | 4184.82 / 4184.82 | 4185.76 / 4190.56 | either |
+
+The operator then said: "The others shouldn't be considered soft misses - I mostly prefer B". So the four "either" edges
+stand as cut. **2655's end is the one defect.** The prayer cue "Well, let's pray again, shall we?" is stretched over 10.7 s
+and opens at 1350.88. The classifier window there (1350–1355) is music 0.59 / speech 0.02. `speechHeardFrom()` still
+accepted it, because the *next* window (1355–1360) holds speech 0.70. The levels show the outro decaying from 1351 to a
+quiet at 1359, with speech at 1360. A trial bound at the next window's start (`speech-heard-from-next-window.patch` in
+`storage/scratch/run1216-recut-20261026/`) gave 1354.9 with a 4 s fade. A regression reproduced this red to green. But
+the full ruled-endings set failed **34 tests over 18 song ends**: 15 moved later (0.7–7.6 s) and 3 moved earlier (<1 s),
+mostly held-word endings heard A/B on 10-21. Reverted, uncommitted. Open: listen to the 18 moves, or find a narrower
+rule, such as the decaying outro's quiet.
+
+**"Either is fine" is either cut, not the stretch between (register E21 amended).** Operator: "Either is fine means either
+is fine, not 'any time between these is fine' … introductory sentences in or out is fine, but split sentences are not
+fine. On preferences - i don't think we should necessarily default to the longest … The aim is to make logic that will
+automate my preferences." The register now writes `expect: either` with two `points` (103 rulings, from
+`edge_listening.py`, `gather.py`'s A/B adapter and RULED list, and the test's same-day pair). A cut passes only within
+tolerance of a point, or across silence from one. All 1,503 ruled-edge tests pass: no current cut relied on the stretch
+between. The re-cut page's four single-edge answers join the register (1,446 rulings).

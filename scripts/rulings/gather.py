@@ -75,7 +75,7 @@ skipped = collections.Counter()
 
 def add(source, ruling, *, run, edge, heard, output, section_id=None, section_type=None, expect=None, heard_range=None):
     choice = ruling['choice']
-    expect = 'between' if heard_range else expect or EXPECT.get(choice)
+    expect = 'either' if heard_range else expect or EXPECT.get(choice)
     at = ruled_time(ruling)
     if at is not None and expect in ('outward', 'inward', 'at'):
         expect = 'at'
@@ -101,7 +101,7 @@ def add(source, ruling, *, run, edge, heard, output, section_id=None, section_ty
         'expect': expect,
         'ruled_time': at,
         'note': ruling.get('note') or '',
-        **({'range': sorted(round(float(time), 3) for time in heard_range)} if heard_range else {}),
+        **({'points': sorted(round(float(time), 3) for time in heard_range)} if heard_range else {}),
     })
 
 
@@ -230,8 +230,8 @@ def single(source, ruling, *, run, edge, heard, output, section_id=None, section
 
 
 def versions(source, ruling, key, *, run, edge, output, section_id=None, section_type=None):
-    """An A/B answer keeps the version chosen. "Both fine" makes what lies between them optional, so any cut
-    between the two is right; `heard` is the one that keeps more, which E21 prefers when cutting."""
+    """An A/B answer keeps the version chosen. "Both fine" makes each of the two cuts right, and only those
+    (operator, 10-26: either is fine, not any time between). `heard` names one of them; neither is preferred."""
     times = key.get('times') or {name: key[f'{name}_end'] for name in (key['1'], key['2'])}
     choice = ruling['choice']
     if choice in ('1', '2'):
@@ -329,6 +329,12 @@ records.extend(edge_listening_rulings(
     'margin-relisten-20261026', load('margin-relisten-20261026/questions.json'),
     list(saved('margin-relisten-20261026/answers/rulings').values()),
 ))
+# 10-26 night: run 1216 re-cut after the E22 redetect; A heard before, B the new cut. The sermon-song
+# join (two edges in one question) has no single-edge key and stays in the page record.
+records.extend(edge_listening_rulings(
+    'run1216-recut-20261026', [q for q in load('run1216-recut-20261026/questions.json') if q['key']['kind'] == 'cut'],
+    list(saved('run1216-recut-20261026/answers/rulings').values()),
+))
 
 # Answers the plan later closed with a reading of its own: the answer heard something true that no
 # cut can fix, so the cut heard stands.
@@ -342,7 +348,7 @@ for record in records:
         record['expect'] = CLOSED[record['id']]
 
 # Rulings made outside a listening page: the operator's word on a heard edge, or a register entry that
-# settles an edge heard before it. Each allows any cut between the two times.
+# settles an edge heard before it. Each allows either of the two times.
 RULED = [
     ('operator-20261022:1363-s4533-start', '2026-10-22T11:44:56Z', 1363, 4533, 'start', (201.74, 201.74),
      'Plan §5, operator 10-22: left as cut, a recorded soft miss.'),
@@ -362,8 +368,8 @@ RULED = [
 for ruling_id, ruled_at, run, section_id, edge, heard_range, note in RULED:
     records.append({'id': ruling_id, 'source': ruling_id.split(':')[0], 'ruled_on': ruled_at[:10], 'ruled_at': ruled_at, 'run': run,
                     'output': 'sermon' if section_id is None else 'section', 'section_id': section_id, 'section_type': None, 'title': None, 'edge': edge,
-                    'heard': heard_range[1] if edge == 'end' else heard_range[0], 'answer': None, 'expect': 'between',
-                    'ruled_time': None, 'note': note, 'range': list(heard_range)})
+                    'heard': heard_range[1] if edge == 'end' else heard_range[0], 'answer': None, 'expect': 'either',
+                    'ruled_time': None, 'note': note, 'points': list(heard_range)})
 
 # A later ruling on the same edge was made on a later cut, so it replaces the earlier ones.
 latest = {}
