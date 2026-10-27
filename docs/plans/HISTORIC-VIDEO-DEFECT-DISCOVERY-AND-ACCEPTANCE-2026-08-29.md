@@ -5586,3 +5586,69 @@ Next: record these 41 answers as rulings, then decide Step 2 adoption (commit on
   12 of the 130 (0.02–0.73 s); 10 stay within their rulings; **1023 §1361** goes to 1489.15 against an A ruling,
   **1348 §4399** moves 0.44 s into quiet against a B ruling, and 1225 §165330 is unruled. Scratch:
   `storage/scratch/sentence-start-margin-20261027/`. Needs those three heard before it is built.
+
+**10-27 night: Song Start Margin listening page** (https://claude.ai/artifact/9i8nYgsg84P2mmrnockMmg, `rulings`;
+builder `storage/scratch/start-margin-listening-20261027/`). The three starts the first-quiet margin moves
+against a ruling or with none: 1023 §1361 (A ruled / B now 24:48.42 / C 24:49.15), 1348 §4399 (B 55:04.86 /
+C 55:05.30), 1225 §165330 (B 41:21.64 / C 41:21.85). The rule is built only if the answers back C.
+
+#### 10-27 night: start margin built; dependent song openings — plan (not built)
+
+**Start margin answered and built (uncommitted).** Song Start Margin answers: 1023 §1361 **C**, 1348 §4399
+**either**, 1225 §165330 **either** (source `start-margin-20261027`, three rulings; they supersede the
+`wider-decode-20261027` rulings on 1023 and 1348). `CueSafeExtractionPlan::afterDroppedWordSounds` applies the
+first-quiet margin to every start the sentence rule moves (`DROPPED_WORD_REACH` 1.0 s); red-to-green in
+`WordTimedOutputEdgesTest::a_song_start_waits_for_the_dropped_sentences_last_word_to_stop_sounding`. The 44
+10-27 datasets were recaptured with it, as were the older fixtures on the 11 runs it moves (Codex's
+`refresh-fixtures.py`; prior captures in `start-margin-listening-20261027/fixtures/captures-before-margin/`).
+
+**The next problem (operator, 10-27).** With the margin, 1023 §1361 opens "And we're going to sing about the
+Lord Jesus, who is the Word of God the Father." It is a new sentence, but it leans on the one dropped before it.
+The operator: target openings like "And …", "And then …", "And secondly …"; **drop the whole leaning sentence
+rather than add earlier speech back.** "So let's stand and sing" stands alone and is out of scope.
+
+Why forward, not back: a spoken introduction is optional and a musical one always in, so dropping more speech
+never breaks a ruling's principle, while adding it back reaches without bound ("And" after "And" into the prayer
+or notices). Forward stops at the first sentence that stands alone, or at the music. It is the sentence rule's
+own step again, and the margin then applies at the new word end.
+
+**On older rulings (operator, 10-27).** "We're gradually improving here, so things that were 80% fine before
+we're trying to fix. It's not a disaster if a song starts with someone saying 'and I've chosen this song in the
+light of what we've just been reading', but if we can avoid it that's better." So a `keep` or `either` ruling that
+kept a leaning opening (1273 §3421, ruled right twice; 981 §1052, either) records an acceptable cut, not the best
+one. This rule may move past it; the listening page confirms the new cut, and its answer supersedes.
+
+**Measured (scratch `storage/scratch/dependent-opening-20261027/`, read-only).** Of 1,224 song starts in the
+gate-free scan, 32 have kept speech that opens with and / but / or / because / then. 13 of those are starts placed
+without decoded words, nearly all misheard lyrics ("And love of God", "And kiss me as I do trade"). Of the 19
+placed from decoded words:
+- **15 are spoken leaning openings**: 948 §711, 1273 §3421, 1023 §1361, 1073 §1715, 1096 §1814, 1104 §164579,
+  1129 §2059, 1174 §2332, 1220 §2707, 1234 §2888, 1270 §3385, 1283 §3546, 1348 §4397, 939 §173071, 981 §1052.
+  Dropping the sentence moves the start about 1–8 s later, usually to "Let's stand and sing." or to the music.
+- **4 must not move**: two sung lines misheard (1226 §2783 "And then he is exalted" in "He is exalted";
+  1241 §2998 "because Christ is our solid rock" in "My Hope Is Built") and two transcript loops (1042 §1521
+  "And then we'll be right back" ×6; 1311 §73576 "and sing" repeated).
+- **Lyric overlap does not separate sung from spoken**: a good introduction names the song, so 1023 ("Word of
+  God the Father", 6 of 14 content word pairs in the lyrics) overlaps more than 1226 does (1 of 1).
+- **The words are mostly not decoded.** For 15 of the 19, the banked edge words stop at or near the current cut;
+  the leaning sentence's end was never decoded. Where it was, sung words are drawn out (1226's "exalted" 1.38 s,
+  1311's "sing." 9.04 s) and spoken ones are not (1096, 1270, 1283: medians 0.24–0.33 s, maxima ≤ 1.06 s).
+
+**Plan (planned, not built; one step at a time, each stopping for the operator):**
+1. **Evidence: decode past the cut.** For a song start whose transcript after the cut opens with a linking word,
+   bank a follow-on decode window from the cut to the first sentence end that does not open with one, by the
+   same pause rule and 15 s cap as `OutputEdgeDecodeWindow`. Local Whisper only; no paid calls. Bank for the
+   19 measured edges first and check what the words show before any rule. Re-measure the whole corpus with the
+   banked words, since the 13 starts without words may change class.
+2. **Rule.** When the first kept sentence opens with and / but / or / because / then (any letter case), and its
+   decoded words are spoken, move the start to that sentence's decoded end and repeat while the next one also
+   opens with one; then apply the first-quiet margin. Never past the span end. Speech, not singing: no decoded word
+   in the sentence longer than a sung-word limit set from step 1's measurements (starting point: the 2.0 s
+   `ANCHOR_REACH`; 1226 suggests lower), and no sentence the transcript repeats back-to-back (loops). Without
+   decoded words for the sentence, the rule does nothing.
+3. **Measure and listen.** Count every start the rule moves, with the text it drops, scored against active
+   rulings. One listening page with one clip per version (now / new): every ruled edge it moves (1273 §3421, 981
+   §1052, 1023 §1361 and any others), every move over 5 s, and a sample of the rest. Per the operator's 10-27
+   statement, an older ruling the rule moves past is expected, not a regression; the page's answer supersedes it.
+4. **Adopt.** Red-to-green tests (1023's opening, a sung "And …" line that must not move, a loop that must not
+   move); rulings gathered; fixtures recaptured; full suite and Dusk; commit on the operator's word.

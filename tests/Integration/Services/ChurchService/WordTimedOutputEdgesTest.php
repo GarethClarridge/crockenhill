@@ -704,6 +704,44 @@ class WordTimedOutputEdgesTest extends TestCase
         }
     }
 
+    /**
+     * Decoded word ends run early: 1023 §1361's "again." ended at 1488.42 but sounded to 1489.15, and the
+     * song opened on its tail (operator, 10-27). A start the sentence rule moves waits for the first quiet.
+     *
+     * @param  list<array{0: float, 1: float, 2: float|null}>  $stretches
+     */
+    #[Test]
+    #[DataProvider('droppedSentenceTails')]
+    public function a_song_start_waits_for_the_dropped_sentences_last_word_to_stop_sounding(array $stretches, float $expected): void
+    {
+        $words = array_map(static fn (array $word): array => [...$word, 'start' => $word['start'] + 3000.0, 'end' => $word['end'] + 3000.0],
+            self::songSentenceStarts()['between words of the announcement'][0]);
+        $cue = ['start' => 3100.0, 'end' => 3110.0, 'text' => "Let's stand and sing. Praise the Lord."];
+        $log = $this->log($cue);
+        // As a_song_start_drops_the_rest_of_a_split_sentence: the trim stops at "sing.".
+        $log->update(['audio_timeline_path' => 'service-transcripts/edge-test.classes.json']);
+        Storage::disk('local')->put('service-transcripts/edge-test.classes.json', AudioTimelineFixture::json([[3090, 3120, 0.8, 0.1]], 5000.0));
+        $this->withLevels($log, $stretches);
+        // With levels, the wide sentence window differs from the cue's own; both decoded the same words.
+        $this->bank($log, $cue, $words);
+        $this->bankWindow($log, 3100.8, $words);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 3100.8, 'end_time' => 4200.0]], songEnds: true);
+
+        $this->assertEqualsWithDelta($expected, $plan['segments'][0]['start_time'], 0.001);
+        $this->assertSame('song_start_sentence', $plan['cue_edge_widening'][0]['reason']);
+    }
+
+    public static function droppedSentenceTails(): array
+    {
+        // "sing." is decoded 3101.1–3101.5 and "Praise" starts at 3103.0; outside the stretches the level is −30 dB.
+        return [
+            'the word sounds on past its decoded end, through a dip between syllables' => [[[3101.6, 3101.7, -60.0], [3102.2, 3103.0, -60.0]], 3102.2],
+            'the word is quiet at its decoded end' => [[[3101.5, 3103.0, -60.0]], 3101.5],
+            'sound runs on past a second: the band has started' => [[[3102.7, 3103.0, -60.0]], 3101.5],
+        ];
+    }
+
     #[Test]
     #[DataProvider('sentenceSoundClasses')]
     public function the_classifier_cannot_veto_a_song_opening_sentence_trim(float $music, float $speech, float $expected): void

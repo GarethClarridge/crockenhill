@@ -79,6 +79,12 @@ class CueSafeExtractionPlan
     /** Seconds without decoded words that can end an unpunctuated song announcement. */
     private const SONG_START_SENTENCE_PAUSE = 1.0;
 
+    /**
+     * Seconds past its decoded end a dropped sentence's last word may still sound (1023's "again",
+     * 0.7 s). Sound running on longer is something else: the band playing in.
+     */
+    private const DROPPED_WORD_REACH = 1.0;
+
     /** Seconds before a spoken part's start within which a song's end runs straight into it. */
     private const SONG_BEFORE_REACH = 2.0;
 
@@ -363,7 +369,7 @@ class CueSafeExtractionPlan
                                 }
                             }
                             if ($afterSentence['time'] > $decision['time'] && $afterSentence['time'] < $span['end_time']) {
-                                $decision = $afterSentence;
+                                $decision = $this->afterDroppedWordSounds($afterSentence, $this->levels($log));
                                 $sentenceStartMoved = true;
                             }
                         }
@@ -525,6 +531,35 @@ class CueSafeExtractionPlan
         }
 
         return [...$decision, 'time' => $pause['start'] + min(self::SONG_END_SILENCE_TAIL, ($pause['end'] - $pause['start']) / 2)];
+    }
+
+    /**
+     * A song start after a dropped sentence, moved off the decoded end of its last word while that word
+     * still sounds: decoded word ends run early, and 1023 §1361 opened on the tail of "again" (operator,
+     * 10-27). The start goes to the first quiet that begins within {@see self::DROPPED_WORD_REACH},
+     * never past the next decoded word; a quiet word end, or sound that runs on, leaves it where it is.
+     *
+     * @param  array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null}  $decision
+     * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}|null  $levels
+     * @return array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null}
+     */
+    private function afterDroppedWordSounds(array $decision, ?array $levels): array
+    {
+        $end = $decision['time'];
+        $nearest = null;
+        foreach ($levels['samples'] ?? [] as $sample) {
+            if ($nearest === null || abs($sample['time'] - $end) < abs($nearest['time'] - $end)) {
+                $nearest = $sample;
+            }
+        }
+
+        if ($levels === null || $nearest === null || $nearest['rms'] < $levels['threshold']) {
+            return $decision;
+        }
+
+        $quiet = $this->firstQuiet($levels, $end, min($decision['chosen_pause']['end'], $end + self::DROPPED_WORD_REACH));
+
+        return $quiet === null ? $decision : [...$decision, 'time' => $quiet['start']];
     }
 
     /**
@@ -1082,10 +1117,10 @@ class CueSafeExtractionPlan
      * A unique three-word match binds text across contexts; uncertain or changed words authorise
      * no stop. Only a sentence ending beyond the old decode may introduce a new timing anchor.
      *
-     * @param list<array{start: float, end: float, word: string}> $timing
-     * @param list<array{start: float, end: float, word: string}> $wide
-     * @param array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>, right_boundary?: string} $window
-     * @param list<array{start: float, end: float, text: string}> $cues
+     * @param  list<array{start: float, end: float, word: string}>  $timing
+     * @param  list<array{start: float, end: float, word: string}>  $wide
+     * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>, right_boundary?: string}  $window
+     * @param  list<array{start: float, end: float, text: string}>  $cues
      * @return list<array{start: float, end: float, word: string}>
      */
     private function sentenceEvidenceAtTiming(array $timing, array $wide, array $window, array $cues): array
@@ -1129,9 +1164,9 @@ class CueSafeExtractionPlan
     }
 
     /**
-     * @param list<array{start: float, end: float, word: string}> $words
-     * @param array{start: float, end: float, right_boundary?: string} $window
-     * @param list<array{start: float, end: float, text: string}> $cues
+     * @param  list<array{start: float, end: float, word: string}>  $words
+     * @param  array{start: float, end: float, right_boundary?: string}  $window
+     * @param  list<array{start: float, end: float, text: string}>  $cues
      */
     private function wideSentenceStop(array $words, int $index, array $window, array $cues): bool
     {

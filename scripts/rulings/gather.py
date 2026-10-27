@@ -343,6 +343,16 @@ records.extend(edge_listening_rulings(
      for q in load('wide-edge-step2-listening-20261027/questions.json')],
     list(saved('wide-edge-step2-listening-20261027/answers/rulings').values()),
 ))
+# 10-27 night: song starts the first-quiet margin moves; B ("now") the cut before it, C ("new") after.
+# 1023 §1361 also played A, the cut ruled right, which was not chosen. In A/B terms: now = a, new = b.
+MARGIN = {'now': 'a', 'new': 'b', 'either': 'both'}
+records.extend(edge_listening_rulings(
+    'start-margin-20261027',
+    [{**q, 'key': {**q['key'], 'times': {'a': q['key']['times']['now'], 'b': q['key']['times']['new']}}}
+     for q in load('start-margin-listening-20261027/questions.json')],
+    [{**answer, 'choice': MARGIN.get(answer['choice'], answer['choice'])}
+     for answer in saved('start-margin-listening-20261027/answers/rulings').values()],
+))
 
 # Answers the plan later closed with a reading of its own: the answer heard something true that no
 # cut can fix, so the cut heard stands.
