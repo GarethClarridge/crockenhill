@@ -5142,3 +5142,103 @@ automate my preferences." The register now writes `expect: either` with two `poi
 `edge_listening.py`, `gather.py`'s A/B adapter and RULED list, and the test's same-day pair). A cut passes only within
 tolerance of a point, or across silence from one. All 1,503 ruled-edge tests pass: no current cut relied on the stretch
 between. The re-cut page's four single-edge answers join the register (1,446 rulings).
+
+#### 10-27: direction review — better evidence before more edge rules (planned, not built)
+
+The operator asked whether the run of edge cases means the pipeline is short of evidence: "the edge cases … are all
+fundamentally obvious to human ears … If I can hear that whisper should be able to as well." Codex reviewed the
+direction. Claude checked its claims against the code and this record. Nothing was built, decoded or processed.
+
+**What the record shows.**
+- **Edge decodes follow the transcript's segments, not the sentence.** `OutputEdgeWordTimings::window()` decodes the
+  cues touching the edge plus 1 s either side. For an edge in a gap, it decodes the cues within `GAP_REACH` (1 s) on
+  each side. Whisper hears neither the end of the sentence nor what follows it.
+- **The 10-26 sentence-start listening: 6 of the 8 "neither" were evidence failures.** 5 were truncated decodes that
+  punctuated their last word ("mercy." for "the mercy of God."). 1 was 4663's one-word transcript cues. Of the other
+  two, 2066 is editorial (an introduction that reads several lines of the song) and 752 is structure.
+- **The 10-26 refinement guards against the missing evidence; it does not supply it.** `afterSongOpeningSentence`
+  stops trusting a full stop at the decode's end while a cue runs on past it. It falls back to the HEAD cut. It does
+  not find where the sentence actually ends.
+- **Recovered words do not by themselves move structure.** The failed-window census stands at 91 windows, 18,436 s,
+  132 edges and 60 edge-bearing windows. 1216's opening was 71 s late. Decoding round the late edge could not have
+  found it.
+- **The model is not the lever.** The local edge decoder is already `large-v3-turbo`
+  (`media-processing.transcription.local_whisper_model`; `.env` sets no override).
+
+**Direction.** Improve the evidence the edge rules read before adding any more rules. Whatever still fails after that
+is the residue that rules (or the deferred ideas below) are for.
+
+**Step 1: measure wide edge decodes. Evidence only, no planner change.**
+- *Window rule to try:* from the edge, extend outwards on each side to the first pause of at least *P* s (from
+  the levels and classifier windows already computed), up to a cap of *C* s per side. Wherever a window still ends
+  in speech, punctuation in its last second is unknown, whatever the decoder writes. *P* and *C* are measured, not
+  chosen. Starting candidates: *P* 0.4–0.8 s, *C* 15–30 s.
+- *Set:*
+  - the 35 Sentence Starts edges of 10-26 (including the 5 truncations, 4663 and 2066);
+  - 1216's heard edges;
+  - a control sample of about 100 edges whose ruling was heard right, drawn from `edge-rulings.json`.
+- *Output:* a scratch script (`storage/scratch/wide-edge-decode-20261027/`) writes decodes to scratch only.
+  Nothing is banked into runs. For each edge it reports whether the edge word or its punctuation differs from the
+  banked decode, and whether the sentence now ends inside the window.
+- *Cost:* local whisper.cpp compute only, no paid calls. The 3.64 s window on 10-26 took 5.38 s. Measure wider
+  windows on a handful of edges before running the set. **Needs the operator's go.**
+- *Success:* the 5 truncations and 4663 show their true sentence end, and no control gains a false stop.
+  *Failure:* if wide context does not fix them, the problem is not context. Steps 2–3 are then moot and the
+  direction is reconsidered.
+
+**Step 2: the planner reads wide decodes (only if Step 1 holds).**
+- Change `window()` to the measured rule, for weekly processing too, not as historic-only behaviour.
+- **Knock-on cost.** The banked decode's identity includes the window's start and end (`identity()`). Every banked
+  edge decode therefore stops matching, and every planned edge with it. That means:
+  - a local re-decode of the edge evidence (operator's go);
+  - re-capturing the ruled-endings fixtures (`scripts/ruled-endings/capture.php`, `tests/Fixtures/RuledEndings/`).
+- Then re-scan the corpus against the 1,446 rulings and the 1,503 ruled-edge tests. Count:
+  - the cuts that move;
+  - the right-heard edges that are damaged;
+  - the rulings newly met.
+
+  Only the moves get a listening page, one clip per version.
+- Delete the 10-26 truncation guard if it no longer changes any cut.
+
+**Step 3: the 60 edge-bearing failed windows as the hard test.** These windows failed re-transcription, and why is
+still open (settings or retry). Run the wide decode over the 132 edges in them.
+- If it hears them, those cuts come from the fresh wide decodes, not from H10b donor text.
+- If it fails again there, that helps answer the root-cause question, and those edges stay held.
+
+**Step 4: routine pipeline, after Step 3.** Keep a failed transcription distinct from silence everywhere the planner
+reads it. Recover a gap that matters before the structure around it is trusted. When recovery shows omitted content,
+re-run the affected structure decision. Keep the provenance and accepted-boundary checks. Step 3 settles whether
+decoding can recover these windows at all, so the design waits for it.
+
+**The failed-stretch repair, narrowed (amends the 10-26 plan above).** `historic-import:repair-failed-transcripts`
+stays the mechanism. Its scope is split by what each piece of text is used for:
+- **Cuts:** from Step 3's decodes, not the donor text.
+- **Structure:** use the donor text to find the runs where omitted content would change structure (the 1216 class:
+  an opening, reading or prayer inside the gap). Listen there, then re-detect (paid; operator's word). Expect a
+  handful of runs.
+- **Display and search text:** screening plus a spot-check sample, not line-by-line listening to the 1,338 clean
+  cues. Whether screened donor text is good enough for display is the operator's decision.
+
+**Recorded, not recommended yet.**
+- **Content-first planning: decide the passage, then the timestamp.** That is, identify the whole announcement,
+  prayer, reading, song or sermon passage first, then locate its first and last words. *Not now:* it is a planner
+  redesign, and the only heard case that clearly needs it is 2066. *Brings it forward:* a class of misses left after
+  Step 2 that turn on which words belong to the passage, not on missing evidence.
+- **An audio-capable verifier: a model that listens to the clip.** Its targets would be singing versus spoken lyrics,
+  musical introductions and changes between songs. *Not now:* it is paid and non-deterministic, its own answers would
+  need listening, and the pilot that asked stronger text models about the same transcript already failed. *Brings it
+  forward:* an acoustic residue after Step 2 that the cheap signals below cannot settle.
+- **Cheap acoustic signals at the edge: pause length, level decay, pitch fall.** The levels and classifier windows
+  already exist. 2655's end shows they can be read too coarsely (`speechHeardFrom()` accepting the next window's
+  speech). *Not now:* Step 1 may remove the spoken cases. 2655's end is acoustic, though, and stays open separately
+  (listen to the 18 moves, or find a narrower rule).
+- **A full controlled comparison (current, wide context, content-first, audio).** It would measure audible sentence
+  cuts, lost content, damage to right-heard cuts, review workload and processing cost. Steps 1–2 are its first arm.
+  The other arms wait on the ideas above.
+- **Listening to all 1,338 donor cues.** Not recommended at all: the cost is too high for what display text needs.
+  The narrowed repair above replaces it.
+- **A larger Whisper model.** The decoder is already `large-v3-turbo`, and Step 1 keeps it so that context is the
+  only thing that changes.
+
+**Still open and not changed by this:** 2655's end (acoustic), 2066 (editorial), 752 (structure). 4663 should be
+re-checked under Step 1.
