@@ -704,6 +704,31 @@ class WordTimedOutputEdgesTest extends TestCase
         }
     }
 
+    #[Test]
+    #[DataProvider('sentenceSoundClasses')]
+    public function the_classifier_cannot_veto_a_song_opening_sentence_trim(float $music, float $speech, float $expected): void
+    {
+        $words = self::songSentenceStarts()['between words of the announcement'][0];
+        $log = $this->log(['start' => 100.0, 'end' => 110.0, 'text' => "Let's stand and sing. Praise the Lord."]);
+        $log->update(['audio_timeline_path' => 'service-transcripts/sentence.classes.json']);
+        Storage::disk('local')->put($log->audio_timeline_path, AudioTimelineFixture::json([[90, 120, $music, $speech]], 5000.0));
+        $this->bankWindow($log, 100.8, $words);
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 100.8, 'end_time' => 4900.0]], songEnds: true);
+        $this->assertEqualsWithDelta($expected, $plan['segments'][0]['start_time'], 0.001);
+    }
+
+    public static function sentenceSoundClasses(): array
+    {
+        return [
+            // It cannot tell an announcement over the band from singing (4735); refusing would leave the split.
+            'leader speaking' => [0.05, 0.85, 105.0],
+            'leader over an intro' => [0.75, 0.75, 105.0],
+            // The end of "Let's stand and sing.", as a_song_start_drops_the_rest_of_a_split_sentence asserts.
+            'announcement classified as music' => [0.8, 0.05, 101.5],
+            'unknown' => [0.05, 0.05, 105.0],
+        ];
+    }
+
     public static function songSentenceStarts(): array
     {
         $words = [
@@ -1142,6 +1167,26 @@ class WordTimedOutputEdgesTest extends TestCase
 
         $log->forceFill(['rms_log_path' => 'service-transcripts/edge-test.rms.log'])->save();
         Storage::disk('local')->put('service-transcripts/edge-test.rms.log', implode("\n", $lines)."\n");
+
+        // These tests supply synthetic words. Bank them against the finalized RMS window.
+        $evidence = app(OutputEdgeWordTimings::class);
+        $cues = $evidence->cues($log);
+        $receipts = ServiceArtifactStorage::recordedFor($log->fresh());
+        foreach ($receipts as $receipt) {
+            if (! str_starts_with($receipt['kind'], 'edge-words-')) {
+                continue;
+            }
+            $payload = json_decode(Storage::disk($receipt['disk'])->get($receipt['path']), true, flags: JSON_THROW_ON_ERROR);
+            foreach ($cues as $cue) {
+                foreach ([$cue['start'], $cue['end']] as $edge) {
+                    $legacy = $evidence->window($cues, $edge, $log->duration);
+                    if ($legacy !== null && abs($legacy['start'] - $payload['identity']['start']) < 0.000001
+                        && abs($legacy['end'] - $payload['identity']['end']) < 0.000001) {
+                        $this->bankWindow($log, $edge, $payload['words']);
+                    }
+                }
+            }
+        }
     }
 
     private function log(array $cue): MediaProcessingLog
@@ -1168,7 +1213,7 @@ class WordTimedOutputEdgesTest extends TestCase
     private function bankWindow(MediaProcessingLog $log, float $edge, array $words): void
     {
         $evidence = app(OutputEdgeWordTimings::class);
-        $identity = $evidence->identity($log, $evidence->window($evidence->cues($log), $edge, 5000.0));
+        $identity = $evidence->identity($log, $evidence->window($evidence->cues($log), $edge, 5000.0, $log));
         app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($identity), ['identity' => $identity, 'words' => $words, 'compute_seconds' => 1.0]);
     }
 

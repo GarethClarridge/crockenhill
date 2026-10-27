@@ -17,8 +17,10 @@ trait BanksNoWordOutputEdges
         $cues = $evidence->cues($log);
         foreach ($cues as $cue) {
             foreach ([$cue['start'], ($cue['start'] + $cue['end']) / 2, $cue['end']] as $edge) {
-                $window = $evidence->window($cues, $edge, $log->duration);
-                if ($window !== null) {
+                foreach ([$evidence->timingWindow($cues, $edge, $log->duration), $evidence->window($cues, $edge, $log->duration, $log)] as $window) {
+                    if ($window === null) {
+                        continue;
+                    }
                     $identity = $evidence->identity($log, $window);
                     app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($identity), ['identity' => $identity, 'words' => [], 'compute_seconds' => 0.0]);
                 }
@@ -35,12 +37,13 @@ trait BanksNoWordOutputEdges
     private function bankOutputEdgeWords(MediaProcessingLog $log, float $edge, array $words): void
     {
         $evidence = app(OutputEdgeWordTimings::class);
-        $window = $evidence->window($evidence->cues($log), $edge, $log->duration);
-        if ($window === null) {
-            throw new \LogicException('No edge window at '.$edge);
+        foreach ([$evidence->timingWindow($evidence->cues($log), $edge, $log->duration), $evidence->window($evidence->cues($log), $edge, $log->duration, $log)] as $window) {
+            if ($window === null) {
+                throw new \LogicException('No edge window at '.$edge);
+            }
+            $identity = $evidence->identity($log, $window);
+            app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($identity), ['identity' => $identity, 'words' => $words, 'compute_seconds' => 0.0]);
         }
-        $identity = $evidence->identity($log, $window);
-        app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($identity), ['identity' => $identity, 'words' => $words, 'compute_seconds' => 0.0]);
         $log->refresh();
     }
 }

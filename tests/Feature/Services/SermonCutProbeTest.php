@@ -46,7 +46,7 @@ class SermonCutProbeTest extends TestCase
         $log->putServiceTranscriptPath($path);
         $evidence = app(OutputEdgeWordTimings::class);
         foreach ([420.0, 600.0, 2200.0] as $edge) {
-            $window = $evidence->window($transcript->cues, $edge, $log->duration);
+            $window = $evidence->window($transcript->cues, $edge, $log->duration, $log);
             $this->assertNotNull($window);
             $identity = $evidence->identity($log, $window);
             app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($identity), [

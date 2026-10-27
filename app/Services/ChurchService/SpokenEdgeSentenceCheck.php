@@ -110,6 +110,11 @@ TXT;
             }
 
             $summary['edges']++;
+            $wide = app(OutputEdgeWordTimings::class)->window($cues, $original, $log->duration, $log);
+            if ($wide !== null && isset($wide['window_rule'])) {
+                $placed['words'] = app(OutputEdgeWordTimings::class)->read($log, $wide)['words'];
+                $placed['window'] = $wide;
+            }
             $prompt = $this->prompt($log, $cues, $placed['words'], $placed['window'], $placed['time'], $edge, $deadFeedOpening);
             $identity = $this->identity($log, $placed['window'], $original, $edge, $placed['time'], $prompt, $deadFeedOpening);
 

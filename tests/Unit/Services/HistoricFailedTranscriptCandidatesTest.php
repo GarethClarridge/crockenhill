@@ -7,6 +7,7 @@ namespace Tests\Unit\Services;
 use App\Data\ChurchServiceTranscript;
 use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\CueSafeExtractionPlan;
+use App\Services\ChurchService\OutputEdgeDecodeWindow;
 use App\Services\ChurchService\OutputEdgeWordTimings;
 use App\Services\HistoricMedia\HistoricFailedTranscriptCandidates;
 use App\Services\Media\Audio\AudioTimeline;
@@ -181,7 +182,7 @@ class HistoricFailedTranscriptCandidatesTest extends TestCase
     #[Test]
     public function the_real_planner_can_use_candidate_cues_without_reading_or_installing_a_transcript(): void
     {
-        $evidence = Mockery::mock(OutputEdgeWordTimings::class)->makePartial();
+        $evidence = Mockery::mock(OutputEdgeWordTimings::class, [app(OutputEdgeDecodeWindow::class)])->makePartial();
         $evidence->shouldNotReceive('cues');
         $evidence->shouldReceive('read')->andReturn(['words' => []]);
         $evidence->shouldReceive('heardWords')->andReturn([]);

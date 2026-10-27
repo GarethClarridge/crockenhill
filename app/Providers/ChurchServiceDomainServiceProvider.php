@@ -7,6 +7,7 @@ namespace App\Providers;
 use App\Events\ChurchServiceCanonicalListChanged;
 use App\Listeners\DispatchChurchServiceReconciliation;
 use App\Services\ChurchService\HistoricConvergenceDispatchGuard;
+use App\Services\ChurchService\OutputEdgeDecodeWindow;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
@@ -19,6 +20,7 @@ class ChurchServiceDomainServiceProvider extends ServiceProvider
          * however many services a batch applies.
          */
         $this->app->singleton(HistoricConvergenceDispatchGuard::class);
+        $this->app->scoped(OutputEdgeDecodeWindow::class);
     }
 
     public function boot(): void

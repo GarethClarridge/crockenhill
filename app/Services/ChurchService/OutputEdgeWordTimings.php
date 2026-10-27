@@ -16,6 +16,8 @@ use RuntimeException;
 /** Durable edge-only evidence. Readers never decode audio or borrow full-service word timings. */
 class OutputEdgeWordTimings
 {
+    public function __construct(private OutputEdgeDecodeWindow $decodeWindows) {}
+
     /** @return list<array{start: float, end: float, text: string}> */
     public function cues(MediaProcessingLog $log): array
     {
@@ -39,14 +41,47 @@ class OutputEdgeWordTimings
     private const GAP_REACH = 1.0;
 
     /**
-     * The audio around an edge: the cues touching it, or, for an edge in a short gap between two
+     * The legacy cue window remains the minimum. With RMS evidence, extend to the nearest 0.8 s
+     * quiet midpoint each side, capped at 15 s of extra reach from the edge; otherwise
+     * retain cue bounds. The eligible cues are those touching the edge, or, for an edge in a short gap between two
      * lines, both lines; a margin of a second either side. Null for an edge in a longer silence,
      * which whole cues place.
      *
      * @param  list<array{start: float, end: float, text: string}>  $cues
-     * @return array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>, between?: true}|null
+     * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}|null $levels
+     * @return array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>, between?: true, window_rule?: string, left_boundary?: string, right_boundary?: string}|null
      */
-    public function window(array $cues, float $edge, ?float $duration): ?array
+    public function window(array $cues, float $edge, ?float $duration, ?MediaProcessingLog $log = null, ?array $levels = null): ?array
+    {
+        $window = $this->timingWindow($cues, $edge, $duration);
+        if ($window === null) {
+            return null;
+        }
+        $levels ??= $log === null ? null : $this->decodeWindows->levels($log);
+        if ($levels === null) {
+            return $window;
+        }
+
+        $bounds = $this->decodeWindows->bounds($levels['samples'], $levels['threshold'], $edge, $duration);
+        if ($window['start'] < $bounds['start']) {
+            $bounds['start'] = $window['start'];
+            $bounds['left_boundary'] = 'cue';
+        }
+        if ($window['end'] > $bounds['end']) {
+            $bounds['end'] = $window['end'];
+            $bounds['right_boundary'] = 'cue';
+        }
+
+        return [...$window, ...$bounds, 'window_rule' => OutputEdgeDecodeWindow::RULE];
+    }
+
+    /**
+     * The original decode remains the sole word/pause timing source. No RMS or wide identity.
+     *
+     * @param list<array{start: float, end: float, text: string}> $cues
+     * @return array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>, between?: true, window_rule?: string, left_boundary?: string, right_boundary?: string}|null
+     */
+    public function timingWindow(array $cues, float $edge, ?float $duration): ?array
     {
         $touching = array_values(array_filter($cues, static fn (array $cue): bool => $cue['start'] <= $edge + 0.001 && $cue['end'] >= $edge - 0.001));
         if ($touching === []) {
@@ -67,7 +102,7 @@ class OutputEdgeWordTimings
         return ['start' => max(0.0, $start - 1), 'end' => min($duration ?? INF, $end + 1), 'cues' => $touching];
     }
 
-    /** @param array{start: float, end: float, cues?: list<array{start: float, end: float, text: string}>} $window
+    /** @param array{start: float, end: float, cues?: list<array{start: float, end: float, text: string}>, window_rule?: string} $window
      * @return array<string, mixed>
      */
     public function identity(MediaProcessingLog $log, array $window): array
@@ -82,6 +117,10 @@ class OutputEdgeWordTimings
         $identity = ['processing_id' => $log->processing_id, 'start' => $window['start'], 'end' => $window['end'],
             'model' => $model, 'media_processing' => MediaProcessingVersion::signature()];
 
+        if (isset($window['window_rule'])) {
+            $identity['window_rule'] = $window['window_rule'];
+        }
+
         // Existing edge artifacts were exclusively local. Preserve those receipts;
         // every other provider gets its own namespace, even with the same model name.
         return $provider === 'local' ? $identity : [...$identity, 'provider' => $provider];
@@ -93,7 +132,7 @@ class OutputEdgeWordTimings
         return 'edge-words-'.hash('sha256', json_encode($identity, JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION));
     }
 
-    /** @param array{start: float, end: float, cues?: list<array{start: float, end: float, text: string}>} $window
+    /** @param array{start: float, end: float, cues?: list<array{start: float, end: float, text: string}>, window_rule?: string} $window
      * @return array<string, mixed>
      */
     public function read(MediaProcessingLog $log, array $window): array
@@ -115,6 +154,7 @@ class OutputEdgeWordTimings
                 && (float) ($payload['identity']['start'] ?? -1) === $window['start']
                 && (float) ($payload['identity']['end'] ?? -1) === $window['end']
                 && ($payload['identity']['provider'] ?? 'local') === ($identity['provider'] ?? 'local')
+                && ($payload['identity']['window_rule'] ?? null) === ($identity['window_rule'] ?? null)
                 && ($payload['identity']['model'] ?? null) === $identity['model'] && is_array($payload['words'] ?? null)) {
                 $words = [];
                 foreach ($payload['words'] as $word) {
@@ -162,6 +202,7 @@ class OutputEdgeWordTimings
     public function heardWords(MediaProcessingLog $log): array
     {
         $words = [];
+        // Wide text evidence must never change a timing guard's union of heard words.
         foreach (ServiceArtifactStorage::recordedFor($log) as $entry) {
             if (! str_starts_with($entry['kind'], 'edge-words-')) {
                 continue;
@@ -173,9 +214,13 @@ class OutputEdgeWordTimings
             }
             $payload = is_string($raw) ? json_decode($raw, true) : null;
             $identity = is_array($payload) && is_array($payload['identity'] ?? null) ? $payload['identity'] : [];
+            if (($identity['window_rule'] ?? null) !== null) {
+                continue;
+            }
             try {
                 if (is_numeric($identity['start'] ?? null) && is_numeric($identity['end'] ?? null)) {
-                    array_push($words, ...$this->read($log, ['start' => (float) $identity['start'], 'end' => (float) $identity['end']])['words']);
+                    $window = ['start' => (float) $identity['start'], 'end' => (float) $identity['end']];
+                    array_push($words, ...$this->read($log, $window)['words']);
                 }
             } catch (OutputEdgeTimingsMissing) {
                 // A decode for another version or model is not this run's evidence.

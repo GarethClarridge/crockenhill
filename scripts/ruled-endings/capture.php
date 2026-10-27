@@ -40,9 +40,10 @@ declare(strict_types=1);
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
+use App\Services\ChurchService\DeadFeedExcision;
+use App\Services\ChurchService\OutputEdgeDecodeWindow;
 use App\Services\ChurchService\CutReviewEvidence;
 use App\Services\ChurchService\SermonSongIntroductionCheck;
-use App\Services\Media\Audio\RmsAnalysisService;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Sermon\SermonExtractionPlanResolver;
 use App\Support\ServiceArtifactDisk;
@@ -53,6 +54,21 @@ use Illuminate\Support\Facades\Storage;
 require __DIR__.'/../../vendor/autoload.php';
 $app = require __DIR__.'/../../bootstrap/app.php';
 $app->make(Kernel::class)->bootstrap();
+
+/** Capture the RMS contexts the planner actually used to compute exact decode identities. */
+$windowRecorder = new class extends OutputEdgeDecodeWindow
+{
+    /** @var list<float> */
+    public array $edges = [];
+
+    public function bounds(array $samples, float $threshold, float $edge, ?float $duration): array
+    {
+        $this->edges[] = max(0.0, min($duration ?? INF, $edge));
+
+        return parent::bounds($samples, $threshold, $edge, $duration);
+    }
+};
+$app->instance(OutputEdgeDecodeWindow::class, $windowRecorder);
 
 // The full pass banked its edge evidence under these (endings-rule/replay.php).
 $current = in_array('--current', $argv, true);
@@ -177,6 +193,7 @@ $resolve = static function (string $id) use ($edgeRulings, $key, $joined): array
 };
 
 foreach ($ids as $id) {
+    $windowRecorder->edges = [];
     [$ruling, $runId, $which, $edge, $ruledCut] = $resolve($id);
     if (in_array('--review-only', $argv, true)) {
         $log = MediaProcessingLog::findOrFail($runId);
@@ -216,15 +233,17 @@ foreach ($ids as $id) {
     $metadata = $log->processing_metadata?->toArray() ?? [];
     $files = [];
     $keepArtifacts = [];
+    $hasDeadPicture = false;
 
     foreach (ServiceArtifactStorage::recordedFor($log) as $entry) {
-        if (! preg_match('/^(edge-(words|sentence)|sermon-song-introduction)-/', $entry['kind'])) {
+        if ($entry['kind'] !== DeadFeedExcision::ARTIFACT_KIND && ! preg_match('/^(edge-(words|sentence)|sermon-song-introduction)-/', $entry['kind'])) {
             continue;
         }
         $raw = rescue(fn () => Storage::disk($entry['disk'])->get($entry['path']), null, false);
         if (is_string($raw)) {
             $files[] = ['disk' => $entry['disk'], 'path' => $entry['path'], 'content' => $raw];
             $keepArtifacts[$entry['path']] = true;
+            $hasDeadPicture = $hasDeadPicture || $entry['kind'] === DeadFeedExcision::ARTIFACT_KIND;
         }
     }
     $metadata[ServiceArtifactStorage::METADATA_KEY] = array_values(array_filter(
@@ -248,13 +267,19 @@ foreach ($ids as $id) {
             fwrite(STDERR, "WARNING {$id}: a song follows the sermon, but the live run has no banked introduction answer (K16); this fixture will fail on missing evidence unless it carries a song_introduction block.\n");
         }
     }
-    // Levels only around the edges this ruling depends on: the ruled cut, the target section's
-    // own edges (every sermon section's, for a sermon edge), and any edge near the cut.
-    $edges = [$ruledCut];
+    // Include every live segment and selected section, including Bible readings. An outer
+    // ruling must also reproduce the plan's internal cuts after sparse RMS capture.
+    $edges = [$ruledCut, ...$windowRecorder->edges,
+        ...array_column($live['segments'], 'start_time'), ...array_column($live['segments'], 'end_time')];
+    $ranges = [];
     foreach ($sections as $section) {
         $isTarget = $which === 'sermon'
-            ? $section->section_type->value === 'sermon'
+            ? ($section->section_type->value === 'sermon' || in_array($section->id, $selected, true))
             : $section->id === (int) $which;
+        if ($isTarget) {
+            // Dead-feed splits depend on continuous levels throughout a selected section.
+            $ranges[] = [(float) $section->start_time - $windowSeconds, (float) $section->end_time + $windowSeconds];
+        }
         foreach ([(float) $section->start_time, (float) $section->end_time] as $edge) {
             if ($isTarget || abs($edge - $ruledCut) <= 120.0) {
                 $edges[] = $edge;
@@ -262,14 +287,19 @@ foreach ($ids as $id) {
         }
     }
 
-    $rmsContent = Storage::disk(ServiceArtifactDisk::for($log->rms_log_path))->get($log->rms_log_path);
-    $rmsService = app(RmsAnalysisService::class);
-    $threshold = (float) $rmsService->determineThreshold($rmsContent)['threshold'];
+    $levels = $windowRecorder->levels($log) ?? throw new RuntimeException('The captured plan has no RMS evidence.');
+    $threshold = $levels['threshold'];
     $samples = [];
-    foreach ($rmsService->extractRmsData($rmsContent) as $sample) {
+    foreach ($levels['samples'] as $sample) {
+        if (array_any($ranges, static fn (array $range): bool => $sample['time'] >= $range[0] && $sample['time'] <= $range[1])) {
+            $samples[] = [$sample['time'], is_finite($sample['rms']) ? $sample['rms'] : -999.0];
+
+            continue;
+        }
         foreach ($edges as $edge) {
             if (abs($sample['time'] - $edge) <= $windowSeconds) {
-                $samples[] = [round($sample['time'], 3), is_finite($sample['rms']) ? round($sample['rms'], 2) : -999.0];
+                // Rounding either input can change the pause and invalidate the decode's exact key.
+                $samples[] = [$sample['time'], is_finite($sample['rms']) ? $sample['rms'] : -999.0];
                 break;
             }
         }
@@ -287,6 +317,7 @@ foreach ($ids as $id) {
             'id' => $log->id,
             'processing_id' => $log->processing_id,
             'processing_type' => $log->processing_type->value,
+            'source_identity' => app(DeadFeedExcision::class)->sourceIdentity($log),
             'status' => $log->status->value,
             'duration' => (float) $log->duration,
             'extracted_date' => $log->extracted_date?->toDateString(),
@@ -304,7 +335,9 @@ foreach ($ids as $id) {
 
             return $row;
         })->all(),
-        'rms' => ['disk' => ServiceArtifactDisk::for($log->rms_log_path), 'threshold' => $threshold, 'window_seconds' => $windowSeconds, 'samples' => $samples],
+        'rms' => ['disk' => ServiceArtifactDisk::for($log->rms_log_path), 'threshold' => $threshold, 'window_seconds' => $windowSeconds,
+            'input_precision' => 'full', 'samples' => $samples,
+            ...($hasDeadPicture ? ['raw_content' => Storage::disk(ServiceArtifactDisk::for($log->rms_log_path))->get($log->rms_log_path)] : [])],
         'files' => $files,
     ];
 

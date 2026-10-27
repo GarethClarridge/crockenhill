@@ -304,7 +304,7 @@ class SpokenEdgeSentenceCheckTest extends TestCase
         ];
         $evidence = app(OutputEdgeWordTimings::class);
         foreach ([1100.0, 1101.0] as $edge) {
-            $window = $evidence->window($evidence->cues($log->fresh()), $edge, 5000.0);
+            $window = $evidence->window($evidence->cues($log->fresh()), $edge, 5000.0, $log);
             app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($evidence->identity($log, $window)), [
                 'identity' => $evidence->identity($log, $window), 'words' => $words, 'compute_seconds' => 1.0,
             ]);
@@ -333,7 +333,7 @@ class SpokenEdgeSentenceCheckTest extends TestCase
         $reading = ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => $next, 'start_time' => $join[1], 'end_time' => 1810.0]);
         $evidence = app(OutputEdgeWordTimings::class);
         foreach ([...$join, 1532.22, 1810.0] as $edge) {
-            $window = $evidence->window($evidence->cues($log->fresh()), $edge, 5000.0);
+            $window = $evidence->window($evidence->cues($log->fresh()), $edge, 5000.0, $log);
             if ($window !== null) {
                 app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($evidence->identity($log, $window)), [
                     'identity' => $evidence->identity($log, $window), 'words' => self::WORDS, 'compute_seconds' => 1.0,

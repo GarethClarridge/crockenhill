@@ -167,6 +167,7 @@ class SongEndEdgesTest extends TestCase
             ['start' => 3899.06, 'end' => 3899.60, 'word' => ' the grace'],
         ];
         $this->bank($section, 3897.92, $words);
+        $this->bank($section, 3897.74, $words);
 
         $plan = app(CueSafeExtractionPlan::class)->forSection($section);
 
@@ -703,11 +704,12 @@ class SongEndEdgesTest extends TestCase
     {
         $log = $section->processingLog->fresh();
         $evidence = app(OutputEdgeWordTimings::class);
-        $window = $evidence->window($evidence->cues($log), $edge, $log->duration);
-        $this->assertNotNull($window);
-        app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($evidence->identity($log, $window)), [
-            'identity' => $evidence->identity($log, $window), 'words' => $words, 'compute_seconds' => 1.0,
-        ]);
+        foreach ([$evidence->timingWindow($evidence->cues($log), $edge, $log->duration), $evidence->window($evidence->cues($log), $edge, $log->duration, $log)] as $window) {
+            $this->assertNotNull($window);
+            app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($evidence->identity($log, $window)), [
+                'identity' => $evidence->identity($log, $window), 'words' => $words, 'compute_seconds' => 1.0,
+            ]);
+        }
         $section->unsetRelation('processingLog');
     }
 

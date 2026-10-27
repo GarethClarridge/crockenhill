@@ -150,7 +150,7 @@ class UnresolvedIntervalInBothOutputsTest extends TestCase
             ] : []),
         ]);
         $evidence = app(OutputEdgeWordTimings::class);
-        $window = $evidence->window($evidence->cues($log->fresh()), 640.0, 5000.0);
+        $window = $evidence->window($evidence->cues($log->fresh()), 640.0, 5000.0, $log);
         app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($evidence->identity($log, $window)), [
             'identity' => $evidence->identity($log, $window), 'words' => [], 'compute_seconds' => 1.0,
         ]);

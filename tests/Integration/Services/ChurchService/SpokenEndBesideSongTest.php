@@ -337,7 +337,7 @@ class SpokenEndBesideSongTest extends TestCase
         ], [['sermon', 2157.84, 3980.15], ['other', 3980.57, 4005.0], ['song', 4013.12, 4175.0]]);
         $evidence = app(OutputEdgeWordTimings::class);
 
-        $window = $evidence->window($evidence->cues($log), 3980.15, $log->duration);
+        $window = $evidence->window($evidence->cues($log), 3980.15, $log->duration, $log);
 
         $this->assertNotNull($window);
         $this->assertSame(['start' => 3978.52, 'end' => 3983.52], ['start' => $window['start'], 'end' => $window['end']]);
@@ -367,7 +367,7 @@ class SpokenEndBesideSongTest extends TestCase
         ], [['sermon', 2051.20, 3755.0]]);
         $evidence = app(OutputEdgeWordTimings::class);
 
-        $this->assertNull($evidence->window($evidence->cues($log), 3755.0, $log->duration));
+        $this->assertNull($evidence->window($evidence->cues($log), 3755.0, $log->duration, $log));
     }
 
     /**
@@ -403,11 +403,12 @@ class SpokenEndBesideSongTest extends TestCase
     private function bank(MediaProcessingLog $log, float $edge, array $words): void
     {
         $evidence = app(OutputEdgeWordTimings::class);
-        $window = $evidence->window($evidence->cues($log), $edge, $log->duration);
-        $this->assertNotNull($window);
-        app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($evidence->identity($log, $window)), [
-            'identity' => $evidence->identity($log, $window), 'words' => $words, 'compute_seconds' => 1.0,
-        ]);
+        foreach ([$evidence->timingWindow($evidence->cues($log), $edge, $log->duration), $evidence->window($evidence->cues($log), $edge, $log->duration, $log)] as $window) {
+            $this->assertNotNull($window);
+            app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($evidence->identity($log, $window)), [
+                'identity' => $evidence->identity($log, $window), 'words' => $words, 'compute_seconds' => 1.0,
+            ]);
+        }
         $log->refresh();
     }
 

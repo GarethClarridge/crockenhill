@@ -66,5 +66,36 @@
         "unassessable_entries_excluded": 69,
         "ruling_assertions_enabled": true,
         "existing_fixtures_retained": true
+    },
+    "wide_edge_rebank_20261027": {
+        "window_rule": "pause-0.8-cap-15-v2",
+        "pause_seconds": 0.8,
+        "cap_seconds_each_side": 15,
+        "rms_input_precision": "full on refreshed captures",
+        "refreshed_files": 482,
+        "held_files_unchanged": [
+            "end-1036-1476.json.gz",
+            "run-1108-2026-10-22.json.gz",
+            "run-1250-2026-10-22.json.gz",
+            "run-1267-2026-10-22.json.gz"
+        ],
+        "held_ruling_datasets": 33,
+        "ruling_datasets_retained": 1470,
+        "original_rulings_and_policy_fields_preserved": true,
+        "ruling_assertions_enabled": true,
+        "register_sha256": "e11b6de89cd9c42fb89868678ed6c00991ec7da788125b0a44812d03501660e0",
+        "acceptance": "blocked; moved cuts need listening and sentence-answer cache needs a decision",
+        "report": "storage/scratch/wide-edge-step2-20261027/listening-handoff.json",
+        "verification": {
+            "total": 1503,
+            "passed": 1125,
+            "total_errors": 29,
+            "total_failures": 349,
+            "held_fixture_errors": 29,
+            "held_fixture_failures": 3,
+            "fresh_capture_fidelity_mismatches": 0,
+            "phpstan_errors": 0,
+            "pint": "passed"
+        }
     }
 }

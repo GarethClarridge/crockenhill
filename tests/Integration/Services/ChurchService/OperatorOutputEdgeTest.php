@@ -390,11 +390,12 @@ class OperatorOutputEdgeTest extends TestCase
     private function bank(MediaProcessingLog $log, float $edge, array $words): void
     {
         $evidence = app(OutputEdgeWordTimings::class);
-        $window = $evidence->window($evidence->cues($log), $edge, $log->duration);
-        $this->assertNotNull($window);
-        app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($evidence->identity($log, $window)), [
-            'identity' => $evidence->identity($log, $window), 'words' => $words, 'compute_seconds' => 1.0,
-        ]);
+        foreach ([$evidence->timingWindow($evidence->cues($log), $edge, $log->duration), $evidence->window($evidence->cues($log), $edge, $log->duration, $log)] as $window) {
+            $this->assertNotNull($window);
+            app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($evidence->identity($log, $window)), [
+                'identity' => $evidence->identity($log, $window), 'words' => $words, 'compute_seconds' => 1.0,
+            ]);
+        }
         $log->refresh();
     }
 }

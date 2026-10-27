@@ -108,7 +108,7 @@ class RuledEndingsRegressionTest extends TestCase
         $log = $this->rebuild($fixture);
         $section = ServiceSection::query()->findOrFail($sectionId);
         $evidence = app(OutputEdgeWordTimings::class);
-        $window = $evidence->window($evidence->cues($log), (float) $section->start_time, $log->duration);
+        $window = $evidence->window($evidence->cues($log), (float) $section->start_time, $log->duration, $log);
         $this->assertNotNull($window);
         $identity = $evidence->identity($log, $window);
         // Older captures can differ by a floating-point epsilon in their window identity.
@@ -118,6 +118,7 @@ class RuledEndingsRegressionTest extends TestCase
             if (isset($payload['words'], $payload['identity']['start'], $payload['identity']['end'])
                 && MediaProcessingVersion::matches($payload['identity']['media_processing'] ?? null)
                 && ($payload['identity']['model'] ?? null) === $identity['model']
+                && ($payload['identity']['window_rule'] ?? null) === ($identity['window_rule'] ?? null)
                 && abs($payload['identity']['start'] - $window['start']) < 0.00001
                 && abs($payload['identity']['end'] - $window['end']) < 0.00001) {
                 app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($identity), [...$payload, 'identity' => $identity]);
@@ -128,6 +129,16 @@ class RuledEndingsRegressionTest extends TestCase
         $plan = app(CueSafeExtractionPlan::class)->forSection($section->fresh());
 
         $this->assertEqualsWithDelta($expected, $plan['segments'][0]['start_time'], 0.001);
+    }
+
+    /** Heard right on 10-26: sentence-listening-20261026:174158-start. */
+    #[Test]
+    public function wide_text_keeps_an_existing_complete_sentence_cut_instead_of_an_earlier_stop(): void
+    {
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(base_path('tests/Fixtures/RuledEndings/run-1049-2026-10-23.json.gz'))), true, flags: JSON_THROW_ON_ERROR);
+        $log = $this->rebuild($fixture);
+        $plan = app(CueSafeExtractionPlan::class)->forSection($log->serviceSections()->findOrFail(174158));
+        $this->assertEqualsWithDelta(3866.22, $plan['segments'][0]['start_time'], self::RIGHT_TOLERANCE);
     }
 
     #[Test]
@@ -165,15 +176,16 @@ class RuledEndingsRegressionTest extends TestCase
         $this->assertEqualsWithDelta($expected, end($plan['segments'])['end_time'], self::RIGHT_TOLERANCE, json_encode($plan['cue_edge_widening'], JSON_THROW_ON_ERROR));
     }
 
+    /** Both songs need RMS contexts for their exact decode identities, including the next song's end. */
     #[Test]
-    #[TestWith(['listening-song-changes-20261020-1154-s3753-end-dip', 3753, 3754])]
-    #[TestWith(['listening-song-changes-20261020-1215-s2639-end-dip', 2639, 2640])]
-    #[TestWith(['listening-song-changes-20261020-1237-s2948-end-dip', 2948, 2949])]
-    #[TestWith(['listening-song-changes-20261020-1267-s3347-end-dip', 3347, 3348])]
-    #[TestWith(['listening-song-changes-20261020-1267-s3349-end-dip', 3348, 3349])]
-    #[TestWith(['listening-song-changes-20261020-1267-s3349-end-dip', 3349, 3350])]
-    #[TestWith(['listening-song-changes-20261020-1272-s3403-end-dip', 3403, 3404])]
-    #[TestWith(['listening-song-changes-20261020-1307-s4652-end-dip', 4652, 4653])]
+    #[TestWith(['run-1154-2026-10-23', 3753, 3754])]
+    #[TestWith(['run-1215-2026-10-23', 2639, 2640])]
+    #[TestWith(['run-1237-2026-10-23', 2948, 2949])]
+    #[TestWith(['run-1267-2026-10-23', 3347, 3348])]
+    #[TestWith(['run-1267-2026-10-23', 3348, 3349])]
+    #[TestWith(['run-1267-2026-10-23', 3349, 3350])]
+    #[TestWith(['run-1272-2026-10-23', 3403, 3404])]
+    #[TestWith(['run-1307-2026-10-23', 4652, 4653])]
     public function the_next_song_starts_at_the_previous_songs_change_dip(string $name, int $beforeId, int $afterId): void
     {
         $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/'.$name.'.json.gz')), true, flags: JSON_THROW_ON_ERROR);
@@ -190,7 +202,7 @@ class RuledEndingsRegressionTest extends TestCase
     #[Test]
     public function a_next_song_does_not_use_a_dip_when_the_previous_song_ends_at_speech(): void
     {
-        $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/listening-song-changes-20261020-1215-s2639-end-dip.json.gz')), true, flags: JSON_THROW_ON_ERROR);
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/run-1215-2026-10-23.json.gz')), true, flags: JSON_THROW_ON_ERROR);
         $log = $this->rebuild($fixture);
         $planner = \Mockery::mock(CueSafeExtractionPlan::class)->makePartial();
         $planner->shouldReceive('forSection')->withArgs(static fn (ServiceSection $section): bool => $section->id === 2639)
@@ -325,7 +337,7 @@ class RuledEndingsRegressionTest extends TestCase
     #[Test]
     public function a_dropout_inside_a_word_is_not_a_pause_to_end_in(): void
     {
-        $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/run-1108-2026-10-22.json.gz')), true, flags: JSON_THROW_ON_ERROR);
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/run-1108-2026-10-23.json.gz')), true, flags: JSON_THROW_ON_ERROR);
         $log = $this->rebuild($fixture);
 
         $plan = app(SermonExtractionPlanResolver::class)->resolve($log);
@@ -405,7 +417,10 @@ class RuledEndingsRegressionTest extends TestCase
         }
         $ruling = $this->ruling($fixture);
         $log = $this->rebuild($fixture);
-        $this->replaySongIntroduction($log, $fixture['song_introduction'] ?? null);
+        // Full captures hold the live bank: an obsolete question must remain unanswered.
+        if (($fixture['rms']['input_precision'] ?? null) !== 'full') {
+            $this->replaySongIntroduction($log, $fixture['song_introduction'] ?? null);
+        }
 
         $plan = $ruling['section_id'] === null
             ? app(SermonExtractionPlanResolver::class)->resolve($log)
@@ -428,6 +443,17 @@ class RuledEndingsRegressionTest extends TestCase
         }
 
         $this->assertEqualsWithDelta($fixture['live']['cut'], $cut, self::FIDELITY_TOLERANCE, $fixture['id'].': the fixture no longer reproduces its live cut');
+        if (isset($fixture['wide_edge_revision'])) {
+            $this->assertArrayHasKey('segments', $fixture['live']);
+            $this->assertCount(count($fixture['live']['segments']), $segments, $fixture['id'].': the fixture no longer reproduces its live segment count: '.json_encode($segments));
+            foreach ($fixture['live']['segments'] as $index => $expectedSegment) {
+                foreach (['start_time', 'end_time'] as $boundary) {
+                    $this->assertEqualsWithDelta($expectedSegment[$boundary], $segments[$index][$boundary], self::FIDELITY_TOLERANCE,
+                        $fixture['id'].': the fixture no longer reproduces its live segment '.$index.' '.$boundary);
+                }
+            }
+        }
+
 
         // A cut the sentence rule (10-26) makes against this older ruling, with its source: heard
         // right again on 10-26, or (1130 §2066) an open miss heard wrong whose ruling still stands.
@@ -607,13 +633,15 @@ class RuledEndingsRegressionTest extends TestCase
             Storage::disk($file['disk'])->put($file['path'], $file['content']);
         }
 
-        Storage::disk($fixture['rms']['disk'])->put($fixture['run']['rms_log_path'], $this->rmsLog($fixture['rms']['samples']));
+        Storage::disk($fixture['rms']['disk'])->put($fixture['run']['rms_log_path'], $fixture['rms']['raw_content'] ?? $this->rmsLog($fixture['rms']['samples']));
 
         $run = $fixture['run'];
+        $source = $run['source_identity'] ?? null;
         $log = MediaProcessingLog::factory()->livestream()->make();
         $log->forceFill([
             'id' => $run['id'],
             'processing_id' => $run['processing_id'],
+            ...($source === null ? [] : ['source_file_path' => $source['path'], 'file_size' => $source['size'], 'file_hash' => $source['sha256']]),
             'status' => $run['status'],
             'duration' => $run['duration'],
             'extracted_date' => $run['extracted_date'],
@@ -651,13 +679,17 @@ class RuledEndingsRegressionTest extends TestCase
             return;
         }
 
-        OpenAI::fake(array_map(static fn (array $call): CreateResponse => CreateResponse::fake(['choices' => [['message' => [
-            'content' => json_encode($call, JSON_THROW_ON_ERROR),
-        ]]]]), $recorded['calls']));
         $selected = $log->processing_metadata?->raw['sermon_composition']['selected_section_ids'] ?? [];
         $spans = array_values($log->serviceSections()->whereIn('id', $selected)->orderBy('start_time')->get()
             ->map(static fn (ServiceSection $section): array => ['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time])->all());
+        // Fresh captures already contain the current bound answer; replay only older captures.
+        if (app(SermonSongIntroductionCheck::class)->read($log, $spans) !== null) {
+            return;
+        }
 
+        OpenAI::fake(array_map(static fn (array $call): CreateResponse => CreateResponse::fake(['choices' => [['message' => [
+            'content' => json_encode($call, JSON_THROW_ON_ERROR),
+        ]]]]), $recorded['calls']));
         app(SermonSongIntroductionCheck::class)->prepare($log, $spans);
 
         OpenAI::assertSent(Chat::class, static fn (string $method, array $parameters): bool => $parameters['messages'][1]['content'] === $recorded['prompt']);
@@ -665,7 +697,7 @@ class RuledEndingsRegressionTest extends TestCase
         // The words at the end the answer moves to, which the edge step decodes after asking.
         $evidence = app(OutputEdgeWordTimings::class);
         foreach ($recorded['edge_words'] ?? [] as $edge) {
-            $window = $evidence->window($evidence->cues($log), (float) $edge['time'], $log->duration) ?? throw new \LogicException('No edge window at '.$edge['time']);
+            $window = $evidence->timingWindow($evidence->cues($log), (float) $edge['time'], $log->duration) ?? throw new \LogicException('No edge window at '.$edge['time']);
             $identity = $evidence->identity($log, $window);
             app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($identity), ['identity' => $identity, 'words' => $edge['words'], 'compute_seconds' => 0.0]);
         }

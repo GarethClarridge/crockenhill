@@ -5242,3 +5242,347 @@ stays the mechanism. Its scope is split by what each piece of text is used for:
 
 **Still open and not changed by this:** 2655's end (acoustic), 2066 (editorial), 752 (structure). 4663 should be
 re-checked under Step 1.
+
+**10-27: Step 1 measured; listening acceptance pending (operator's go, Codex; scratch only).** The operator authorised implementation up to the
+point that a listening page is needed. The experiment is in `storage/scratch/wide-edge-decode-20261027/`:
+`export.php` takes a database-read-only snapshot; `WindowStudy.php` and `decode.php` measure the nine combinations
+of P = 0.4/0.6/0.8 s and C = 15/22.5/30 s per side using the existing run RMS threshold. Each boundary is the
+midpoint of the nearest qualifying quiet interval, otherwise the cap or recording limit. Missing RMS samples do
+not count as quiet. Five-second classifier windows are retained as context, not subsecond pause truth. The frozen
+manifest records the success/failure criteria before decoding. Local `large-v3-turbo` only; HTTP requests are
+restricted to the configured local decoder, and clips/response receipts are written only beside the experiment.
+No run evidence is banked, and no planner, fixture, accepted boundary, output or publication is changed.
+
+The cohort contains **141 edges: all 35 Sentence Starts, six active 1216 ruled edges, and 100 `keep` controls**
+(50 starts/50 ends, one per control run, selected by a fixed hash of the ruling ID). Measurements centre on the
+current raw edge the planner would decode, retaining the heard cut and ruling separately. The current 1216 §2659
+section starts at 1939.25 s; the transcript still supplies no legacy decode window there. In all, 27 cohort edges
+have no banked baseline (including edges with no legacy window); this absence is reported rather than invented.
+
+The pilot recovers the missing phrase in all six known evidence failures with P = 0.8 s at every tested cap.
+P = 0.4 recovers none of the six complete phrases and P = 0.6 recovers four. These are text checks against the
+already recorded phrases, **not new listening rulings or proof of the sentence end**. The first-quiet rule can
+produce a window shorter than the old cue-based one, stop at an intra-sentence breath and invent a full stop;
+longer windows also transcribe nearby singing unreliably. No P/C setting is adopted on phrase recovery alone.
+
+**Full-cohort measurement complete:** 1,269 edge/setting combinations, **379 unique decodes, zero decode errors**;
+6,881.7 s of unique audio, 731.3 s of measured extraction/decode time including the pilot. `summary.json` contains
+the nine setting comparisons, and `review-packet.json` retains scratch decode keys, exact windows, source audio
+identities, old/new text, classifier context and original rulings for a listening handoff. The raw words remain in
+`decodes/`. These are evidence changes, not proposed cuts or new rulings.
+
+At P = 0.8/C = 15, 30 of 141 windows are **shorter** than their legacy window and 32 right boundaries reach the cap.
+52/100 controls change their edge word or punctuation. In the **first trusted stop after the raw edge** comparison,
+35 controls gain a stop where the old decode supplied none that could be trusted, one changes the stop, ten lose
+it, 13 remain similar, and 41 supply no stop in either decode. Those figures do **not** mean 36 false stops or any
+number of damaged cuts: none has been listened to, and this comparison does not run the planner (including for
+end controls). At the 22.5/30 s caps, all six phrases are still recovered, with 56/57 control edge-word/punctuation
+changes. Neither a cap nor a pause threshold is accepted on these text checks.
+
+**Stopped for the listening gate, as requested.** Step 1's actual-sentence-end/no-false-control-stop criterion is
+not established by transcription alone. Claude needs to build the listening page from these receipts before
+Step 2 can adopt a window rule, bank decodes, refresh fixtures or measure moved cuts against the rulings. No
+listening page was built; no paid call, run mutation, re-cut, fixture refresh or planner change was made. The
+2655 end, 2066 and 752 remain open; 4663's full spoken phrase is now present in the scratch wide decode, but its
+correct cut is not newly ruled.
+
+Validation: **7 scratch PHP tests, 4 report/receipt tests and 11 existing local decoder tests pass**; the report
+checks enforce all 1,269 measurements and zero errors without treating a recovered phrase as acceptance. Repository
+PHPStan has zero errors; scratch Pint and `pint --dirty` pass; `git diff --check` passes. The application suite was
+not rerun because application code and fixtures are unchanged. The harness and receipts are gitignored scratch
+artifacts; only this plan update appears in the tracked diff.
+
+**10-27 later: Step 1 acceptance, from partial listening and a text/classifier screen (operator: "Write it").** Page
+"Wide Edge Check" (https://claude.ai/artifact/JCM8AN2ivZfMK4T2ZSyop4, `rulings` collection, ids `wide-<edge id>`; builder
+and `questions.json` in `storage/scratch/wide-edge-listening-20261027/`) put 87 clips at P = 0.8 s / C = 15 s: the 35
+Sentence Starts, the six 1216 edges and the 46 controls whose stop changed (35 gained, 10 lost, 1 changed). The 41
+no-stop controls and 13 "similar" controls were not asked: neither can have a false stop. The operator answered
+17 of the 35 Sentence Starts and stopped, judging that listening added little where the words show a finished sentence.
+- **Answers (17 Sentence Starts):** 15 "a sentence really ends there", including 2066, 752, 711 and 2916; 2 "can't tell"
+  (1648, 4911), both no-stop clips whose question was badly posed (nothing follows the text, so there is nothing to
+  judge). Not answered: 18 Sentence Starts (including truncations 3416, 3962 and 4663), the six 1216 edges and the 46
+  controls.
+- **Screen of the rest, by reading, not listening:** of the 52 non-Sentence rows, 41 have a stop. Every one closes a
+  complete clause; **none splits a sentence**. The other 11 have no stop, so there is nothing to judge. This is a text
+  reading, not a ruling.
+- **Sung lines (corrected twice in the session).** Four stops are lyric text: #40 "how deep the Father's love for us",
+  #75 "to break love's laws", #37 and #80. A catalogue match (`songs.lyrics_plain`, six-word phrase) found #40 and #75
+  and showed the lyric continuing, which first read as a false stop. **That was wrong:** the classifier gives #40
+  speech 0.85/singing 0.00 and #75 speech 0.75/singing 0.00, so both are a leader announcing or quoting the line and
+  are real sentence ends. A catalogue match shows the words are lyrics, not that they are sung. Only #37 (choir 0.62,
+  no speech) and #80 (singing 0.17, choir 0.26, music 0.68, no speech) are sung; neither matches the catalogue. Both
+  are song-end edges whose cuts are already ruled. A decoder stop on a sung line is a line end, not a sentence end.
+- **Step 1 outcome:** "no control gains a false stop" holds on the screen (0 of 41 stops); the targets answered are
+  15 of 15 real where a stop exists. **Not established by ear:** the 18 unanswered Sentence Starts, the 1216 edges,
+  the controls, and any decoder misheard words. 4663's cut is still not ruled.
+- **For Step 2:** whether a stop counts as a sentence end must use speech versus singing from the classifier
+  windows, not the lyric catalogue (it would have discarded #40 and #75). The five-second windows are coarse, so
+  mixed windows (a leader's last words under the intro music, as at #75/#84) need the same care as 2655's end.
+  The harm to right-heard cuts is Step 2's own measurement (planner against the rulings, then listening only for
+  the cuts that move), not more Step 1 listening. **Step 2 still needs the operator's go** (re-bank edge decodes,
+  re-capture the ruled-endings fixtures). No planner, run, fixture, paid-call or publication change was made.
+
+**10-27: Step 2 implementation started (operator's go; Codex).** The shared weekly/historic edge reader and
+preparer now use the measured P = 0.8 s / C = 15 s rule when the run has RMS evidence. The original touching cues
+and short-gap eligibility remain the anchoring evidence; absent transcript windows are still Step 3's hard test,
+not newly classified as silence. Without RMS the existing cue-window fallback remains. A separate `window_rule`
+identity prevents old narrow receipts from leaking into the planner's union of heard words, even with the same
+model and media-processing version. Historical receipts are retained.
+
+The song-opening sentence rule checks speech in the classifier windows covering the words it would remove;
+music-only or missing classifier evidence cannot authorise that sentence trim. Mixed speech/music can still be a
+leader announcing over an introduction; the lyric catalogue is not consulted. Punctuation in the last second at
+a capped decode is unknown. The 10-26 cue-continuation guard remains pending its counterfactual corpus scan.
+
+The explicitly local re-bank is running under `storage/scratch/wide-edge-step2-20261027/`, with original run rows
+saved in `runs/*-before.json`. It calls `PrepareOutputEdgeWordTimings`, not the full preparation orchestrator that
+can ask paid sentence questions. Paid chat access is blocked in this process. Cuts, statuses, publication and
+operator rulings are not changed. Baseline/current/without-10-26-guard scans run in rolled-back transactions;
+fixture recaptures are staged in `captures/` with their original rulings retained. No new listening page is built.
+
+**10-27: Step 2 machine pass finished — acceptance blocked (Codex).** The candidate is implemented, not
+accepted. All 429 runs were attempted: the 425-run core plus four additional ruled/fixture runs. Local re-banking
+succeeded on 426; 1043, 1051 and 1098 have no available archived service audio. These three have no registered
+rulings or ruled-ending fixtures. Both candidate scans and the baseline cover the same 5,048 output plans.
+The run-row audit found no changes outside artifact receipts and `updated_at`. No stored cuts, publication, saved
+answers or operator rulings were changed; no paid questions were asked. The temporary second decoder is stopped.
+
+The comparison against the unchanged register is:
+
+| Ruling scope | Met before | Met now | Previously failing, now met | Previously met, now failing | Now unassessable |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| All 1,446, including 435 superseded | 1,053 | 843 | 41 | 262 | 52 |
+| 1,011 active | 877 | 695 | 31 | 224 | 6 |
+
+Eleven additional rulings in each scope were previously unassessable and are now met. No previously assessable
+ruling became unassessable. Of the 224 newly failing active rulings, 221 were `keep`/`either` rulings on cuts heard
+right. The 224 rulings concern 202 distinct output edges. `Either` still means its discrete heard points, never
+the interval between them. This candidate does not pass the harm-to-right-heard-cuts gate.
+
+**A further cache consequence:** 505 previously answered sentence-check contexts now have `asked: false`; two
+other previously used contexts no longer follow the same planner path. These are scan contexts, not a count of
+unique paid requests. Wider windows invalidate the identity-bound sentence answers too. No old answer was
+rebound to a new question and no paid re-asking was done. Therefore these results measure the wider-window
+candidate together with the missing semantic answers; they do not isolate Whisper's effect. Resolving that
+cache needs a decision before attributing the failures or accepting the planner.
+
+The without-10-26-guard counterfactual moves seven cuts (1049/174158, 1252/3163, 1267/3358, 1271/3398,
+1272/3403, 1305/3886 and 1329/4175, all starts). **Keep the guard.** Its deletion condition is not met.
+
+**Fixtures:** 482 of 486 files were re-captured with full-precision RMS inputs and current word receipts.
+Rounding RMS times had changed exact window identities; the capture tool now records the actual queried RMS
+contexts without that rounding. All 1,470 original ruling datasets, their original ruling fields and their policy
+fields remain. Four files stay unchanged and held: `end-1036-1476`, `run-1108-2026-10-22`,
+`run-1250-2026-10-22` and `run-1267-2026-10-22`. They contain 33 datasets; nine target rulings cannot currently
+be matched to a section. No replacements were guessed and no assertions or tolerances were waived. Fresh
+captures replay the bank as captured, rather than re-asking an obsolete historical model question in a test.
+
+**Listening handoff:** `storage/scratch/wide-edge-step2-20261027/listening-handoff.json` contains the 202
+newly failing active edges first, before/after cuts and the saved rulings. It also includes changed segment plans:
+24 normal-output plans change internally while their outer edges stay fixed. The complete diagnostic scans
+contain 3,659 moved outer edges at a 0.001 s reporting threshold; 2,062 are normal output types or actively ruled
+edges. These counts include small timing changes, not 3,659 newly demonstrated defects. Raw prayer, reading,
+welcome and other section plans are retained as diagnostics alongside aggregate sermons, songs and short talks;
+normal output type does not establish publication eligibility. Full audits are in `moved-cuts.json` and
+`segment-moves.json`; cache contexts, fixture preservation and source holds are linked from the handoff.
+
+The remaining gate is listening/cache resolution, not another edge heuristic. No listening page was built.
+2655's end, 2066, 752 and 4663's cut remain open. Steps 3 and 4 have not started.
+
+**Verification finished:** all 1,503 ruled-ending regression cases were exercised against the final fixture
+hashes (1,470 ruling datasets plus 33 named tests): 1,125 passed, 349 failed and 29 errored. The four held files
+account for 29 errors and three failures; the other failures are 337 saved ruling/policy assertions and nine named
+cut assertions. Refreshed captures have **zero fidelity mismatches**. Named tests that plan the next song now
+use the already captured run-wide RMS snapshot, since a previous-song-only snapshot cannot reproduce the next
+song's exact decode identity. Their original assertions remain. All 486 final fixture hashes match the tested
+snapshots, and all original ruling/policy fields remain unchanged.
+
+The focused implementation checks passed (112 tests / 216 assertions), as did the candidate-transcript checks
+(15 / 43). PHPStan reports zero errors; Pint and `git diff --check` pass. The full 11,673-test suite was run before
+the final fixture refresh, then all affected ruled-ending cases were rechecked as above. Its other findings were
+a partial test mock missing the new constructor dependency (fixed and its tests rerun), and the K16 “Let's stand”
+failure reproduced with the original code. The suite is **not green**: acceptance failures and held evidence
+remain visible. Results and exact cases are in `verification-summary.json` and the test logs in the handoff folder.
+
+
+**10-27: Step 2 revision — preserve timing; separate the mechanisms (in progress, Codex).**
+The first candidate's 202 newly failing active-ruling edges are not a listening queue to accept as-is.
+Claude's read-only overlap analysis found 32 touching a lost sentence-check context, of which only five had
+actually used that answer to move the cut. It identified 170 failures unrelated to that cache, including 98
+`word_pause` → `word_pause` changes, 32 windows narrower than the original cue window, and 18 sentence trims
+that stopped firing when the classifier requirement was introduced. Those categories are diagnostic overlaps,
+not a partition to sum. The five-cache-overlap finding supersedes the earlier suggestion to resolve all 505
+cached contexts before identifying the mechanism.
+
+The revision retains the original cue-only decode as the timing source for ordinary cuts, song ends and the
+union-of-heard-words guard. A separately keyed wide window is the union of that complete cue window and the
+measured pause/cap window; it can never stop at a breath inside the original cue. For sentence text, uniquely
+matching three-word phrases project wide punctuation onto the original word times. Changed or repeated phrases
+supply no new stop. A confirmed ending beyond the old decode can require a new timing anchor; otherwise a
+matching ending keeps its original anchor. Uncertain wide text alone does not retime an existing cut.
+
+Wide sentence-check questions use the original word-pause cut. If no matching wide answer exists, the reader
+may use an answer to the exact original question against its original evidence, and labels that source in the
+audit; it never rebinds the old answer to wide text. No paid re-asks are authorised or running.
+
+A new local re-bank, unchanged-ruling scan and classifier-only ablation are running under
+`storage/scratch/wide-edge-step2-revision-20261027/`. Identical audio intervals may reuse a previous decode only
+with the same exact times, provider, model and processing signature, recording its source identity. Changed
+intervals are decoded locally. Fixture captures remain in scratch until verified. The original candidate's
+artifacts remain in `wide-edge-step2-20261027/` for comparison. No listening page, stored cut, ruling or
+publication change is part of this revision. The first 126 focused tests pass and PHPStan reports zero errors;
+corpus and fixture results are pending, so the revision is not accepted.
+
+
+During the revision's partial scan, 1049 §174158 exposed another use-of-evidence defect: choosing the first
+wide stop from the pre-trim word pause replaced a complete, right-heard 3866.22 s cut with an earlier 3863.04 s
+stop. The wide check now starts at the existing sentence cut. An already complete ending keeps its original
+anchor; evidence of an incomplete opening can finish it later. An explicit test of the unchanged 10-26 ruling
+failed at 3863.04 s, then passed at 3866.22 s with identical fixture inputs. Obsolete comparison/capture jobs were
+stopped and restarted as the `*-anchored` passes; the audio windows and decoder bank did not change.
+
+The final focused checks pass (128 tests / 251 assertions, plus that saved-ruling regression). Revised fixture
+replay also checks every internal segment boundary against its captured plan, using the existing fidelity
+tolerance; it no longer tests only the outer cut. The broad parallel suite outside fixture replay ran 10,178
+cases. Its three non-K16 failures passed in fresh-process follow-up: two missing compiled-view files and the
+UTF-8 regression in a worker that had loaded pre-fix code. The known K16 expectation remains unchanged.
+Final corpus, classifier ablation, fixture replay and source-state audits are still pending.
+
+
+**10-27 revised Step 2: complete local comparison; listening acceptance still blocked.**
+All four anchored scans cover the same 5,048 diagnostic output plans / 429 runs, against the unchanged
+1,446 rulings (1,011 active). Local preparation succeeded for 426 runs; 1043, 1051 and 1098 retain their
+existing missing-source-audio holds and have no registered rulings. The temporary second decoder was stopped.
+The revised geometry contains the entire original cue window. Ordinary cuts use original word/pause
+receipts; wider text is evidence for finishing an incomplete sentence, with existing complete cuts anchored.
+
+| Variant | Active rulings met | Newly failing active edges | Original 202 failing edges recovered |
+| --- | ---: | ---: | ---: |
+| Original baseline | 877 | — | — |
+| Wide text, original timing, without classifier gate | 885 | 2 | 200 |
+| Classifier gate alone, original windows | 883 | 3 | 199 |
+| Wide text plus classifier gate (current candidate) | 882 | 5 | 197 |
+
+The two wide-text extensions are **1221 §2718 start** (113.46 → 115.13 s) and **1304 §3875 start**
+(1132.56 → 1139.88 s). The classifier alone accounts for **1216 §2651 start** (237.99 → 236.73 s),
+**1216 §2655 start** (1206.53 → 1204.88 s), and **1268 §4735 start** (1856.36 → 1855.52 s).
+These are disagreements with existing right-heard rulings, not new acceptance decisions. The classifier
+result must be reviewed independently, with the Step 1 warning about mixed five-second windows.
+No formerly used sentence-check answer is lost in any of the three variants; no previously assessable
+ruling becomes unassessable. Six active rulings remain unassessable. Nine previously unassessable active
+rulings can now be checked and pass because their missing diagnostic timing receipts were banked; that
+coverage gain is not a new listening ruling. There is one previously failing active ruling now met.
+
+The combined candidate has **67 changed outer edges** among normal outputs (aggregate sermon, song,
+short talk) or actively ruled outputs, plus **three normal plans whose changes are internal only**.
+The five regressions are the priority listening set, not the whole set of changed cuts. The wide-text-only
+variant has 50 such outer moves; classifier-only has 25. The 10-26 continuation guard still changes nine
+plans and is retained. Run-state audits of all 429 records find no changes outside artifact receipts and
+updated timestamps. Stored cuts, publication, human answers, policies and tolerances are unchanged.
+
+The machine-readable handoff is `storage/scratch/wide-edge-step2-revision-20261027/listening-handoff.json`;
+its variants retain every changed plan, internal boundary change, failing ruling, cache check and audit.
+It also binds the app diff and original ruling file. Fixture inputs were refreshed in 482 of 486 files;
+four files retain their capture holds. All 1,470 original fixture cases preserve their acceptance fields,
+policy overrides and open-defect flags. Final fixture replay verification is still running and will be
+recorded below. No listening page has been made. 2655 end, 2066, 752 and 4663 cut remain open. Steps 3/4
+have not started; changed cuts are not accepted for import or publication by this machine pass.
+
+
+**Final replay verification (10-27).** The 1,504 distinct cases (1,470 fixture datasets plus 34 named
+regressions) finish with **1,470 passed, 16 failures, 18 errors / 11,479 assertions**. This is deliberately
+not an all-green acceptance claim. All 18 errors are missing-evidence cases in the three held old run
+fixtures (1108, 1250, 1267); the fourth held file remains in the inventory. The remaining failures retain
+their original ruling/policy/named expectations, including the open 2655 end and 1262 discrepancy.
+Their complete messages are in `fixture-replay-summary.json`; they are not 16 newly failing corpus edges.
+The unchanged active-ruling comparison above is the measure of new regressions.
+
+**Zero fixture-fidelity failures remain.** The new full-segment assertions first exposed omitted RMS
+contexts around included readings/internal boundaries. Six runs were recaptured with those contexts.
+1322 additionally exposed an older capture omission: E20's internal dead-feed split requires the banked
+dead-picture artifact, its effective source identity and the exact original RMS bytes. Reconstructed RMS
+cannot satisfy that artifact's hash. Capture now preserves those dependencies, and replay restores them
+without rewriting the evidence or weakening its identity check. The same 1322 segment-count assertion
+failed before capture repair and passes after it; the ordinary 948 controls pass alongside it (five cases /
+43 assertions). Every final fixture hash is checked, and original acceptance/policy/open-defect fields remain
+preserved across all 486 files. The capture tool also retains continuous RMS through selected sections for
+internal dropout checks.
+
+One verification-only overlap was corrected: a second parallel batch briefly reused Laravel worker databases
+and fake disks. It was stopped; its results were discarded. A clean sequential batch rechecked a buffer around
+the affected cases, every changed fixture and all remaining/named cases. The merged JUnit record has exactly
+1,504 distinct cases, with clean rechecks taking precedence. Final exact-input 1322/948 checks supersede their
+prior results. The final replay-input hashes, all error messages and this provenance are in the handoff.
+
+Focused planner tests remain 128/251 passing; PHPStan reports zero errors; final Pint and whitespace checks
+pass. The broad non-fixture suite and its known K16 failure are recorded above. Nothing is committed or
+accepted. Work stops here at listening: the handoff supplies the five priority regressions and all 67 changed
+outer cuts plus the internal-only changes. No listening page, new ruling, paid question, stored-cut change,
+publication change or Step 3/4 work was performed.
+
+**10-27 evening: classifier gate removed; Step 2 listening page built (operator: "I agree. Do all that"; Claude).**
+The song-opening sentence gate (`songOpeningSpeech`) is deleted. It refused the 10-26 sentence trim unless the
+classifier heard speech in every dropped word, and a refusal fell back to the detected cut, which is inside the
+sentence by construction: 11 new mid-sentence starts ("Our next | song is entitled Your Word", 1269 §3369;
+"…to | sing.", 1216 §2651; "this lovely | hymn.", §2655; "stand | and sing", 1232/1237/1260; "Thank | you.",
+1106/1365) and three of the five ruling failures. In 18 of the 19 edges it changed, removing it restores the
+committed cut (five of those are ruled right); the 19th, 1288 §3615, moves 0.23 s. It blocked none of the
+26 later moves it was meant to police, and it disabled the rule for runs with no timeline. The committed note it
+replaced is restored: the classifier cannot tell an announcement over the band from singing (4735). The
+reversed expectations of `a_song_start_drops_the_rest_of_a_split_sentence` are restored; a new
+`the_classifier_cannot_veto_a_song_opening_sentence_trim` pins that no sound class leaves the split.
+
+**Gate-free scan (`after-nogate`, all 5,048 plans): identical to Codex's `without-classifier-anchored`
+variant (0 plans differ).** Active rulings: 885 met (877 before), **2 newly violated** (1221 §2718, 1304 §3875,
+both wide-text starts), 1 newly met, 6 unassessable; no lost sentence answers; run-state audit clean. 62 outer
+edges move. By the words either side, **0 new mid-sentence cuts; 25 old mid-sentence starts now end at a
+sentence end.** Edge tests 180/181 (the known K16 case also fails on HEAD); PHPStan and Pint clean.
+
+**Listening page "Wider Decode Cuts"** (https://claude.ai/artifact/GawZdYjFVtVVi46fPoCQjC, `rulings`
+collection, ids `<run>-<output>-<edge>`; builder `storage/scratch/wide-edge-step2-listening-20261027/`
+`select.py` + `build.php`, key in `questions.json`). 41 song starts, one clip per version (A = before
+Step 2, B = now): 2 that break a ruling, 25 that start ≥ 2 s later (check the dropped words are spoken, not
+sung; e.g. 1288 §3611 "Hallelujah… Amen" before "Hallelujah My Father"), 14 others. Not asked, listed in
+`items.json` `skipped`: end moves ≤ 0.3 s with the same words either side, and ruled edges where B now matches
+the ruling or neither A nor B is the ruled cut. Nothing is committed or accepted; Step 2 adoption waits on
+these answers.
+
+**10-27 night: Wider Decode Cuts answered (41/41, operator: "Listening done"; Claude).** Answers saved under
+`storage/scratch/wide-edge-step2-listening-20261027/answers/rulings/`. **40 of 41 accept B**: 25 "B is right",
+15 "either is fine", 1 "A is right".
+- Ruling disagreements: 1304 §3875 **B** (18:59.9, 7.3 s later; the 10-10 ruling of 18:52.6 is superseded);
+  1221 §2718 **either** (1:53.5 or 1:55.1; the 10-10 and 10-26 rulings join it as two acceptable points).
+- 25 later moves: 18 B, 6 either, 1 A. Nothing sung was lost; 1288 §3611 (7.6 s later) is B.
+- 14 others: 6 B, 8 either.
+- **The one A, 1023 §1361 ("B includes 'again'")**: B starts at the word end of "again." (1488.42), but the
+  audio shows "again" sounding until about 1489.1; the real gap runs to about 1489.8. The 10-26 sentence rule
+  starts a song at `pause['start']`, the previous word's end, with no margin, so a word end timed early leaves
+  the tail of the dropped sentence in. That is a mechanism, not this edge: 130 starts in the scan take that rule,
+  median pause 0.18 s. Not changed yet; measure it before a rule (e.g. the pause midpoint, as `word_pause` uses).
+Next: record these 41 answers as rulings, then decide Step 2 adoption (commit only on the operator's word).
+
+**10-27 night: answers recorded, fixtures refreshed, start-margin idea measured (operator: "Do all three"; Claude).**
+- **Rulings.** `scripts/rulings/gather.py` reads the Wider Decode Cuts page (source `wider-decode-20261027`):
+  41 rulings added, none removed. The register's own supersession retires `margin-relisten-20261026:1221-song-start`;
+  the replay's latest-ruling rule (`captured_on` 10-27) settles canary 15's 1304 and 1221 starts against the new
+  answers. Canary 15's 1221 entry loses its `clipped_opening_relistened` pin (113.46), which the 10-27
+  "either 1:53.5 or 1:55.1" answer replaces. Each of the 41 edges has a dataset (`run-*-2026-10-27.json.gz`,
+  `capture.php --current`); every captured cut equals the B heard.
+- **Fixture drift from the gate removal.** The full replay (1,545 cases) showed seven runs whose fixtures no longer
+  reproduced their recorded cut (1154, 1216, 1222, 1233, 1277, 1296, 1304), all captured by Codex with the gate in.
+  Every entry on those runs was recaptured (Codex's `capture-fixtures.php`; gated captures kept in
+  `wide-edge-step2-listening-20261027/fixtures/captures-gated-backup/`) and refreshed with `refresh-fixtures.py
+  --run`, which keeps every acceptance, policy and open-defect field. Replayed: 83/84 pass; the one failure is
+  the open 2655 end.
+- **Replay after both:** the remaining failures are Codex's recorded baseline (the 18 held-evidence errors on 1108,
+  1250 and 1267; 1053, 1160, 1291, 1149, 1262's discrepancy, 2655's end and the named cases), plus
+  **1023 §1361**, kept red: the operator ruled A, and B is the sentence rule's cut inside "again".
+- **Start margin, measured, not built.** The pause midpoint (as `word_pause` uses) is rejected: of the 130
+  sentence-rule starts it moves 46 by more than 0.31 s, drops sound past the first 0.3 s in 25 and breaks 33
+  rulings, because a long pause before the first sung word holds a musical introduction. The run's levels show
+  1023's "again" sounding to 1489.15 (decoded end 1488.42, 0.7 s early, with a 0.07 s dip between syllables).
+  Candidate: when the dropped sentence's last word is still above the threshold at its decoded end, start at the
+  first quiet (`firstQuiet`, ≥ 0.25 s) that begins within 1 s of it, never past the next decoded word. It moves
+  12 of the 130 (0.02–0.73 s); 10 stay within their rulings; **1023 §1361** goes to 1489.15 against an A ruling,
+  **1348 §4399** moves 0.44 s into quiet against a B ruling, and 1225 §165330 is unruled. Scratch:
+  `storage/scratch/sentence-start-margin-20261027/`. Needs those three heard before it is built.

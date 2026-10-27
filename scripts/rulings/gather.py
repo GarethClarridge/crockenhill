@@ -335,6 +335,14 @@ records.extend(edge_listening_rulings(
     'run1216-recut-20261026', [q for q in load('run1216-recut-20261026/questions.json') if q['key']['kind'] == 'cut'],
     list(saved('run1216-recut-20261026/answers/rulings').values()),
 ))
+# 10-27: song starts the wider edge decode (Step 2) moves; A is the cut before it, B after. The key names
+# the section in `output`.
+records.extend(edge_listening_rulings(
+    'wider-decode-20261027',
+    [{**q, 'key': {**q['key'], 'output': 'section', 'section': q['key']['output'], 'type': 'song'}}
+     for q in load('wide-edge-step2-listening-20261027/questions.json')],
+    list(saved('wide-edge-step2-listening-20261027/answers/rulings').values()),
+))
 
 # Answers the plan later closed with a reading of its own: the answer heard something true that no
 # cut can fix, so the cut heard stands.

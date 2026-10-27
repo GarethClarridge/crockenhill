@@ -83,12 +83,15 @@ class PrepareOutputEdgeWordTimings
     public function windows(MediaProcessingLog $log, array $spans, ?ChurchServiceTranscript $transcript = null): array
     {
         $cues = $transcript->cues ?? $this->evidence->cues($log);
+        $levels = app(OutputEdgeDecodeWindow::class)->levels($log);
         $windows = [];
         foreach ($spans as $span) {
             foreach ($span as $edge) {
-                $window = $this->evidence->window($cues, $edge, $log->duration);
-                if ($window !== null) {
-                    $windows[$this->evidence->kind($this->evidence->identity($log, $window))] = $window;
+                foreach ([$this->evidence->timingWindow($cues, $edge, $log->duration),
+                    $this->evidence->window($cues, $edge, $log->duration, $log, $levels)] as $window) {
+                    if ($window !== null) {
+                        $windows[$this->evidence->kind($this->evidence->identity($log, $window))] = $window;
+                    }
                 }
             }
         }

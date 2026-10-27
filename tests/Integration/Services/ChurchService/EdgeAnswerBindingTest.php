@@ -64,6 +64,10 @@ class EdgeAnswerBindingTest extends TestCase
 
         $log->update(['rms_log_path' => 'service-transcripts/answered-song.rms.log']);
         Storage::disk('local')->put($log->rms_log_path, implode("\n", $lines));
+        $evidence = app(OutputEdgeWordTimings::class);
+        $window = $evidence->window([self::CUE], self::OUTPUT[0]['start_time'], $log->duration, $log);
+        $identity = $evidence->identity($log, $window);
+        app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($identity), ['identity' => $identity, 'words' => self::WORDS]);
         $plan = $this->plans()->forSpans($log->fresh(), self::OUTPUT, songEnds: true);
         $entry = $plan['cue_edge_widening'][0];
         $this->assertSame(CueSafeExtractionPlan::AMBIGUOUS_CUE_ANCHOR, $entry['reason']);

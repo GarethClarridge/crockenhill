@@ -9,7 +9,6 @@ use App\Data\ChurchServiceTranscript;
 use App\Enums\ServiceSectionType;
 use App\Enums\SoundClass;
 use App\Exceptions\OutputEdgeTimingsMissing;
-use App\Exceptions\SegmentationException;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\Structure\DeadFeedInsideSection;
@@ -328,7 +327,7 @@ class CueSafeExtractionPlan
                     }
                 }
                 $time = $original;
-                $window = $evidence->window($cues, $original, $log->duration);
+                $window = $evidence->timingWindow($cues, $original, $log->duration);
                 if ($songEnds && $edge === 'end') {
                     $decision = $this->songEnd($log, $cues, $window, $original, $levels, $timeline);
                     if ($decision !== null) {
@@ -351,6 +350,18 @@ class CueSafeExtractionPlan
                         $sentenceStartMoved = false;
                         if ($songEnds && $edge === 'start') {
                             $afterSentence = $this->afterSongOpeningSentence($words, $window, $cues, $decision);
+                            if ($afterSentence['time'] >= $span['end_time']) {
+                                $afterSentence = $decision;
+                            }
+                            $sentenceWindow = $evidence->window($cues, $original, $log->duration, $log);
+                            if ($sentenceWindow !== null && isset($sentenceWindow['window_rule'])) {
+                                $sentenceWords = $this->sentenceEvidenceAtTiming($words, $evidence->read($log, $sentenceWindow)['words'], $sentenceWindow, $cues);
+                                $wideSentence = $this->afterSongOpeningSentence($sentenceWords, $sentenceWindow, $cues, $afterSentence, textEvidence: true);
+                                // Unknown wide text never retimes an existing cut. A confirmed stop can.
+                                if ($wideSentence['time'] > $afterSentence['time']) {
+                                    $afterSentence = $wideSentence;
+                                }
+                            }
                             if ($afterSentence['time'] > $decision['time'] && $afterSentence['time'] < $span['end_time']) {
                                 $decision = $afterSentence;
                                 $sentenceStartMoved = true;
@@ -587,7 +598,7 @@ class CueSafeExtractionPlan
             }
 
             $songEnd = (float) $song->end_time;
-            $window = app(OutputEdgeWordTimings::class)->window($cues, $songEnd, $log->duration);
+            $window = app(OutputEdgeWordTimings::class)->timingWindow($cues, $songEnd, $log->duration);
             $decision = $this->songEnd($log, $cues, $window, $songEnd, $this->levels($log), $this->timeline($log));
 
             if (! in_array($decision['reason'] ?? null, ['song_end_silence', 'song_end_speech'], true)
@@ -1067,22 +1078,94 @@ class CueSafeExtractionPlan
     }
 
     /**
+     * Wide decoding supplies sentence stops, while matching words retain their original times.
+     * A unique three-word match binds text across contexts; uncertain or changed words authorise
+     * no stop. Only a sentence ending beyond the old decode may introduce a new timing anchor.
+     *
+     * @param list<array{start: float, end: float, word: string}> $timing
+     * @param list<array{start: float, end: float, word: string}> $wide
+     * @param array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>, right_boundary?: string} $window
+     * @param list<array{start: float, end: float, text: string}> $cues
+     * @return list<array{start: float, end: float, word: string}>
+     */
+    private function sentenceEvidenceAtTiming(array $timing, array $wide, array $window, array $cues): array
+    {
+        $result = [];
+        $lastMatch = null;
+        $match = null;
+        foreach ($timing as $index => $word) {
+            $from = max(0, min($index - 1, count($timing) - 3));
+            $phrase = array_map(fn (array $token): string => $this->normalize($token['word']), array_slice($timing, $from, 3));
+            $matches = [];
+            if (count($phrase) === 3 && ! in_array('', $phrase, true)) {
+                for ($i = 0; $i <= count($wide) - 3; $i++) {
+                    if (array_map(fn (array $token): string => $this->normalize($token['word']), array_slice($wide, $i, 3)) === $phrase) {
+                        $matches[] = $i + $index - $from;
+                    }
+                }
+            }
+            $match = count($matches) === 1 ? $matches[0] : null;
+            $text = (string) preg_replace('/[.!?]+[\'"’”)]*$/u', '', trim($word['word']));
+            if ($match !== null) {
+                $lastMatch = $match;
+                if ($this->wideSentenceStop($wide, $match, $window, $cues)) {
+                    $text .= '.';
+                }
+            }
+            $result[] = [...$word, 'word' => $text];
+        }
+        $last = $timing[array_key_last($timing)] ?? null;
+        if ($last !== null && $lastMatch !== null && $match !== null) {
+            foreach (array_slice($wide, $lastMatch + 1, null, true) as $index => $word) {
+                if ($word['start'] < $last['end']) {
+                    continue;
+                }
+                $text = (string) preg_replace('/[.!?]+[\'"’”)]*$/u', '', trim($word['word']));
+                $result[] = [...$word, 'word' => $text.($this->wideSentenceStop($wide, $index, $window, $cues) ? '.' : '')];
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param list<array{start: float, end: float, word: string}> $words
+     * @param array{start: float, end: float, right_boundary?: string} $window
+     * @param list<array{start: float, end: float, text: string}> $cues
+     */
+    private function wideSentenceStop(array $words, int $index, array $window, array $cues): bool
+    {
+        $word = $words[$index];
+        $next = $words[$index + 1] ?? null;
+        if (($window['right_boundary'] ?? null) === 'cap' && $word['end'] > $window['end'] - 1.0) {
+            return false;
+        }
+        if ($next === null && array_any($cues, static fn (array $cue): bool => $cue['start'] < $word['end'] - self::CUE_BOUNDARY_TOLERANCE
+            && $cue['start'] < $window['end'] - self::CUE_BOUNDARY_TOLERANCE && $cue['end'] > $window['end'] + self::CUE_BOUNDARY_TOLERANCE)) {
+            return false;
+        }
+
+        return $this->endsSentence($word['word']) || ($next !== null && $next['start'] - $word['end'] >= self::SONG_START_SENTENCE_PAUSE);
+    }
+
+    /**
      * A song opening in a sentence drops the remainder of that sentence (operator, 2026-10-26).
      * Use only this edge's decode: overlapping windows can put the same word on both sides.
      * The classifier cannot distinguish an announcement over the band from singing (4735).
      * A full stop or a second without words ends the sentence; a window margin alone does not.
      * Smeared words cannot establish a sentence's timing, so they never authorise a trim.
-     * The decode runs 1 s past its cues, so a full stop at its end can be its own guess at a cut-off
-     * word ("the song that we play." for "played through before the service began", 948 §711, heard
-     * 10-26); while the transcript has a cue running on past the decode, that stop is not a sentence end.
+     * A capped window cannot establish a stop in its last second. The 10-26 continuation
+     * guard also remains: a full stop at the decode's end can be its guess at a cut-off word
+     * ("the song that we play." for "played through before the service began", 948 §711).
+     * A transcript cue continuing past it still makes that stop uncertain.
      *
      * @param  list<array{start: float, end: float, word: string}>  $words
-     * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>}  $window
+     * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>, right_boundary?: string}  $window
      * @param  list<array{start: float, end: float, text: string}>  $cues
      * @param  array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, candidate_anchors?: list<array{start: float, end: float, word: string}>}  $decision
      * @return array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, candidate_anchors?: list<array{start: float, end: float, word: string}>}
      */
-    private function afterSongOpeningSentence(array $words, array $window, array $cues, array $decision): array
+    private function afterSongOpeningSentence(array $words, array $window, array $cues, array $decision, bool $textEvidence = false): array
     {
         if (isset($decision['candidate_anchors'])) {
             return $decision;
@@ -1120,7 +1203,10 @@ class CueSafeExtractionPlan
                 return $decision;
             }
             if (! $this->endsSentence($pause['word_before']['word'])
-                && ($pause['word_after'] === null || $pause['length'] < self::SONG_START_SENTENCE_PAUSE)) {
+                && ($textEvidence || $pause['word_after'] === null || $pause['length'] < self::SONG_START_SENTENCE_PAUSE)) {
+                continue;
+            }
+            if (($window['right_boundary'] ?? null) === 'cap' && $pause['word_before']['end'] > $window['end'] - 1.0) {
                 continue;
             }
             if ($pause['word_after'] === null && array_any($cues, static fn (array $cue): bool => $cue['start'] < $pause['start'] - self::CUE_BOUNDARY_TOLERANCE
@@ -1297,7 +1383,7 @@ class CueSafeExtractionPlan
             [$from, $to] = [min($times) - self::SONG_END_REACH, max($times) + self::SONG_END_REACH];
             $words = [];
 
-            foreach (array_filter([$entry['window'] ?? null, isset($entry['speech_cue']['start']) ? $evidence->window($cues, (float) $entry['speech_cue']['start'], $log->duration) : null]) as $window) {
+            foreach (array_filter([$entry['window'] ?? null, isset($entry['speech_cue']['start']) ? $evidence->timingWindow($cues, (float) $entry['speech_cue']['start'], $log->duration) : null]) as $window) {
                 try {
                     $words[] = array_map(static fn (array $word): array => [round($word['start'], 3), round($word['end'], 3), $word['word']], $evidence->read($log, $window)['words']);
                 } catch (OutputEdgeTimingsMissing) {
@@ -1596,7 +1682,7 @@ class CueSafeExtractionPlan
     public function wordPauseEdge(MediaProcessingLog $log, array $cues, float $original, string $edge): ?array
     {
         $evidence = app(OutputEdgeWordTimings::class);
-        $window = $evidence->window($cues, $original, $log->duration);
+        $window = $evidence->timingWindow($cues, $original, $log->duration);
 
         if ($window === null) {
             return null;
@@ -1695,13 +1781,30 @@ class CueSafeExtractionPlan
             return [$decision, null];
         }
 
-        $answer = $check->read($log, $check->identityFor($log, $cues, $words, $window, $original, $edge, $decision['time'], $deadFeedOpening));
+        $evidence = app(OutputEdgeWordTimings::class);
+        $sentenceWindow = $evidence->window($cues, $original, $log->duration, $log);
+        $answer = null;
+        $source = 'timing';
+        if ($sentenceWindow !== null && isset($sentenceWindow['window_rule'])) {
+            try {
+                $sentenceWords = $evidence->read($log, $sentenceWindow)['words'];
+                $answer = $check->read($log, $check->identityFor($log, $cues, $sentenceWords, $sentenceWindow, $original, $edge, $decision['time'], $deadFeedOpening));
+                $source = 'wide';
+            } catch (OutputEdgeTimingsMissing) {
+                // An exact legacy question can still be answered from its original evidence.
+            }
+        }
+        if ($answer === null) {
+            // This is the original question and cut, not an answer rebound to the wider text.
+            $answer = $check->read($log, $check->identityFor($log, $cues, $words, $window, $original, $edge, $decision['time'], $deadFeedOpening));
+            $source = 'timing';
+        }
 
         if ($answer === null) {
             return [$decision, ['asked' => false]];
         }
 
-        $audit = ['asked' => true, ...$answer, 'moved' => false];
+        $audit = ['asked' => true, ...$answer, 'moved' => false, 'evidence_source' => $source];
 
         if (! $answer['agreed'] || ! in_array($answer['decision'], ['extend', 'shrink'], true)) {
             return [$decision, $audit];
@@ -1824,7 +1927,7 @@ class CueSafeExtractionPlan
         $speechWords = [];
 
         if ($speech !== null) {
-            $speechWindow = $evidence->window($cues, $speech['start'], $log->duration);
+            $speechWindow = $evidence->timingWindow($cues, $speech['start'], $log->duration);
             $speechWords = $speechWindow !== null ? $this->withWindow($evidence->read($log, $speechWindow)['words'], $speechWindow) : [];
         }
 
@@ -2458,38 +2561,7 @@ class CueSafeExtractionPlan
      */
     private function levels(MediaProcessingLog $log): ?array
     {
-        $path = $log->rms_log_path;
-
-        if (! is_string($path) || $path === '') {
-            return null;
-        }
-
-        try {
-            $content = Storage::disk(ServiceArtifactDisk::for($path))->get($path);
-        } catch (\Throwable) {
-            return null;
-        }
-
-        if (! is_string($content) || $content === '') {
-            return null;
-        }
-
-        $rms = app(RmsAnalysisService::class);
-        $samples = $rms->extractRmsData($content);
-
-        if ($samples === []) {
-            return null;
-        }
-
-        try {
-            $threshold = (float) $rms->determineThreshold($content)['threshold'];
-        } catch (SegmentationException) {
-            $threshold = $rms->getRmsThreshold();
-        }
-
-        usort($samples, static fn (array $a, array $b): int => $a['time'] <=> $b['time']);
-
-        return ['samples' => $samples, 'threshold' => $threshold];
+        return app(OutputEdgeDecodeWindow::class)->levels($log);
     }
 
     /** The run's classifier timeline, or null when it has none or it cannot be read. */

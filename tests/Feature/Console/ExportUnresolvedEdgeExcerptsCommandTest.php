@@ -212,10 +212,11 @@ class ExportUnresolvedEdgeExcerptsCommandTest extends TestCase
             ['start' => 4141.6, 'end' => 4141.9, 'word' => ' so'],
         ];
         foreach ([[4140.0, $opening], [4170.0, [['start' => 4168.0, 'end' => 4169.5, 'word' => ' stand.']]]] as [$edge, $words]) {
-            $window = $evidence->window($evidence->cues($log), $edge, 5000.0);
-            app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($evidence->identity($log, $window)), [
-                'identity' => $evidence->identity($log, $window), 'words' => $words, 'compute_seconds' => 1.0,
-            ]);
+            foreach ([$evidence->timingWindow($evidence->cues($log), $edge, 5000.0), $evidence->window($evidence->cues($log), $edge, 5000.0, $log)] as $window) {
+                app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($evidence->identity($log, $window)), [
+                    'identity' => $evidence->identity($log, $window), 'words' => $words, 'compute_seconds' => 1.0,
+                ]);
+            }
         }
 
         return $log->fresh();
