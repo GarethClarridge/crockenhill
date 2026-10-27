@@ -33,15 +33,19 @@ class SpokenEndBesideSongTest extends TestCase
 {
     use DatabaseTransactions;
 
-    /** Run 1216: K16 keeps the unpunctuated last phrase before the repeated hymn number. */
+    /**
+     * Run 1216: K16 keeps the unpunctuated last phrase before the repeated hymn number, and only there.
+     * The second case needs a real gap before the phrase: 1216's own line "us what we've" runs past the
+     * window's opening, which is clipped speech, not a pause to end in (7049cd9e5).
+     */
     #[Test]
-    #[TestWith(['426', 4184.82])]
-    #[TestWith(["Let's stand", 4183.23])]
-    public function the_k16_last_line_is_kept_before_a_bare_hymn_number(string $nextCue, float $expected): void
+    #[TestWith(['426', 4183.46, 4184.82])]
+    #[TestWith(["Let's stand", 4182.5, 4183.23])]
+    public function the_k16_last_line_is_kept_before_a_bare_hymn_number(string $nextCue, float $previousLineEnd, float $expected): void
     {
         $log = $this->service([
             ['start' => 4162.4, 'end' => 4164.22, 'text' => 'Amen'],
-            ['start' => 4182.6, 'end' => 4183.46, 'text' => "us what we've"],
+            ['start' => 4182.6, 'end' => $previousLineEnd, 'text' => "us what we've"],
             ['start' => 4183.46, 'end' => 4184.08, 'text' => 'just been'],
             ['start' => 4184.08, 'end' => 4184.84, 'text' => 'talking about'],
             ['start' => 4184.84, 'end' => 4186.52, 'text' => $nextCue],

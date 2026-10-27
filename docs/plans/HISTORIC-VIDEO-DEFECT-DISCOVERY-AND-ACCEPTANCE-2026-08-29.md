@@ -5652,3 +5652,39 @@ placed from decoded words:
    statement, an older ruling the rule moves past is expected, not a regression; the page's answer supersedes it.
 4. **Adopt.** Red-to-green tests (1023's opening, a sung "And …" line that must not move, a loop that must not
    move); rulings gathered; fixtures recaptured; full suite and Dusk; commit on the operator's word.
+
+#### 10-27 night: the suite's failures triaged and fixed (operator: "We should fix the test failures first")
+
+After `92176b679` the parallel suite had 18 errors and 13 failures. Running the pre-Step-2 code (`650a4f54f`) against
+its own fixtures failed only the K16 test, but running it against today's fixtures failed 12 of the 13 as well:
+**Codex's 10-27 refresh replaced approximate level windows with the full level log, which exposed live cuts the
+old fixtures hid.** Codex's `before` scan confirms the live cuts were the same before Step 2. Correction to the
+first reading in this session: Step 2 did not cause them.
+- **18 errors (1108, 1250, 1267).** Rulings there name sections the live runs re-detected away, so Codex held these
+  fixtures; Step 2 asks them for wide windows. All eight missing windows were already in the live bank (same
+  identity, `large-v3-turbo`, version 16); added to the fixtures with their receipts. 32/32 pass.
+- **K16 "Let's stand" case** broke at `7049cd9e5`: the window's opening margin under 1216's own straddling line is
+  clipped speech, so the case never reached the bare-number guard. The case now has a real gap before the phrase
+  (1216's "426" case keeps its real data), so it still tests that the guard is narrow.
+- **1149 §2217 and 1262 §3284 (5 tests).** Both live starts are operator edges set 10-24 (Intro Rule page,
+  `listening-intro-rule-20261024/record-starts.php`), later than the rulings they failed. None of that day's 19
+  starts had reached the register; `gather.py` now adds them (`operator-20261024`). The 1262 named test now pins
+  the operator's 1520.
+- **957's two named tests** check the sentence question's wording; the refreshed fixture carries the live answer,
+  so nothing was asked. The tests drop recorded `edge-sentence-` answers first. The start was already 32.0.
+- **1291's reading start** expected a refusal for missing timings; the timings are banked now, so it is an
+  `open_defect` at the cut ruled too early: the reading section opens on the song's last line ("Your goodness will
+  lead me home."). The classifier cannot carry a fix (79 spoken starts open in "music", including real prayer
+  openings, 1234/1243/1248); a lyric-based rule needs its own plan.
+- **Song-end silence (held, not committed).** 954 §901 and 1216 §2655 ended at a speech cue that opens while the
+  band still plays; the classifier hears speech only in the next window (3.9 s and 2.3 s of silence before the real
+  speech). Patch `storage/scratch/fix-failures-20261027/song-end-silence.patch`: a second of silence before that
+  speech window ends is the song's end. Both cuts then equal their rulings (3833.43, 1357.42). Across all 1,192
+  song-end outputs it moves 45 ends, all later (0.7–8.2 s); 16 are ruled: 2 newly met, 14 older rulings (11 either,
+  3 right) broken. Held for listening.
+- **Listening page "Song End Silence"** (https://claude.ai/artifact/Gec7n8bcG2LETy2p19y1D2, `rulings`; builder
+  `storage/scratch/test-fixes-listening-20261027/`): the 14 ruled moves, 8 of the 29 unruled spread by size, and the
+  two sermon ends the suite still fails on: 1053 (A 1579.72 now; B 1576.9 after "Let's sing again."; C 1573.4 after
+  "Amen."; the 10-18 and 10-19 rulings contradict) and 1160 (A 1976.155 now; B 1994.59, ruled right 10-18).
+- **Suite now:** 4 failures, 0 errors: 954 and 1216 (the held patch), 1053 and 1160 (the page). Dusk 63/63; PHPStan
+  and Pint clean.

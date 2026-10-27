@@ -383,6 +383,12 @@ RULED = [
      'E9: a song clip keeps its spoken introduction ("Now we\'re going to sing a new song."); 10-10: '
      'an introduction may be in or out.'),
 ]
+# 10-24: song starts set by the operator's Intro Rule, Song Intros and Song Openings answers
+# (listening-intro-rule-20261024/record-starts.php; register D6 amended 10-24). They were stored as operator
+# edges on the runs, so they supersede any earlier ruling on the same start.
+for run, section_id, time, status in load('listening-intro-rule-20261024/recorded-starts.json'):
+    RULED.append((f'operator-20261024:{run}-s{section_id}-start', '2026-10-24T11:29:29Z', run, section_id, 'start', (time, time),
+                  'Plan §5, operator 10-24: start set from the Intro Rule / Song Intros / Song Openings listening.'))
 for ruling_id, ruled_at, run, section_id, edge, heard_range, note in RULED:
     records.append({'id': ruling_id, 'source': ruling_id.split(':')[0], 'ruled_on': ruled_at[:10], 'ruled_at': ruled_at, 'run': run,
                     'output': 'sermon' if section_id is None else 'section', 'section_id': section_id, 'section_type': None, 'title': None, 'edge': edge,

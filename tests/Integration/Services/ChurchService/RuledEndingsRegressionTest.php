@@ -241,9 +241,10 @@ class RuledEndingsRegressionTest extends TestCase
 
         $plan = app(CueSafeExtractionPlan::class)->forSection($log->serviceSections()->findOrFail(3284));
 
-        // The plan records 1531 s as heard but 1520.86 s as the existing cut. Resolving
-        // that discrepancy is separate; this rule must not move it (plan §4.0, 10-20).
-        $this->assertEqualsWithDelta(1520.86, $plan['segments'][0]['start_time'], self::FIDELITY_TOLERANCE);
+        // The plan once recorded 1531 s as heard but 1520.86 s as the cut (plan §4.0, 10-20). The operator
+        // settled it on 10-24 (Intro Rule page): 1520, the introduction and nothing else. This rule must not move it.
+        $this->assertEqualsWithDelta(1520.0, $plan['segments'][0]['start_time'], self::FIDELITY_TOLERANCE);
+        $this->assertSame('operator_set_edge', $plan['cue_edge_widening'][0]['reason']);
     }
 
     #[Test]
@@ -375,7 +376,7 @@ class RuledEndingsRegressionTest extends TestCase
     public function an_opening_mic_check_can_be_removed_without_losing_the_sermon_introduction(): void
     {
         $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/listening-edges-20261018-957-start.json.gz')), true, flags: JSON_THROW_ON_ERROR);
-        $log = $this->rebuild($fixture);
+        $log = $this->rebuild($this->withoutSentenceAnswers($fixture));
         OpenAI::fake(array_fill(0, 20, CreateResponse::fake(['choices' => [['message' => ['content' => json_encode([
             'decision' => 'shrink', 'words_to_move' => 'Is that a bit better?', 'reason' => 'The microphone check precedes the introduction.',
         ], JSON_THROW_ON_ERROR)]]]])));
@@ -394,7 +395,7 @@ class RuledEndingsRegressionTest extends TestCase
         // 1269's sermon: the feed came back during "…of a little boy who went to church with his
         // mother", and both answers shrank it away as a fragment (operator, 10-22: words lost).
         $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/listening-edges-20261018-957-start.json.gz')), true, flags: JSON_THROW_ON_ERROR);
-        $log = $this->rebuild($fixture);
+        $log = $this->rebuild($this->withoutSentenceAnswers($fixture));
         OpenAI::fake(array_fill(0, 20, CreateResponse::fake(['choices' => [['message' => ['content' => json_encode([
             'decision' => 'keep', 'words_to_move' => '', 'reason' => 'The cut is right.',
         ], JSON_THROW_ON_ERROR)]]]])));
@@ -603,6 +604,24 @@ class RuledEndingsRegressionTest extends TestCase
             'expect' => ['right' => 'keep', 'clips_word' => 'outward'][$ruling['answer']],
             'ruled_time' => null,
         ];
+    }
+
+    /**
+     * The fixture without its recorded sentence-check answers, so the question is asked again. These tests
+     * check the question; the refreshed capture (10-27) carries the live run's own answer to it.
+     *
+     * @param  array<string, mixed>  $fixture
+     * @return array<string, mixed>
+     */
+    private function withoutSentenceAnswers(array $fixture): array
+    {
+        $isAnswer = static fn (array $entry): bool => str_contains($entry['path'] ?? '', '.edge-sentence-') || str_starts_with($entry['kind'] ?? '', 'edge-sentence-');
+        $metadata = is_string($fixture['run']['processing_metadata']) ? json_decode($fixture['run']['processing_metadata'], true, flags: JSON_THROW_ON_ERROR) : $fixture['run']['processing_metadata'];
+        $metadata['service_artifacts'] = array_values(array_filter($metadata['service_artifacts'] ?? [], static fn (array $entry): bool => ! $isAnswer($entry)));
+        $fixture['run']['processing_metadata'] = is_string($fixture['run']['processing_metadata']) ? json_encode($metadata, JSON_THROW_ON_ERROR) : $metadata;
+        $fixture['files'] = array_values(array_filter($fixture['files'], static fn (array $file): bool => ! $isAnswer($file)));
+
+        return $fixture;
     }
 
     /** @param  array<string, mixed>  $fixture */
