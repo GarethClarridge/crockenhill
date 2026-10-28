@@ -38,8 +38,7 @@ class ChurchServiceProposalQueueTest extends DuskTestCase
                 ->click("@select-class-{$classKey}")
                 ->waitForText('2 of 2 proposals selected')
                 ->click('@apply-decision-rule')
-                ->waitForText('Rationale')
-                ->assertSee('The rationale field is required.')
+                ->waitForText('The rationale field is required.')
                 ->type('@rationale', 'Both are casing variants of the same title.')
                 ->click('@apply-decision-rule')
                 ->waitForText('Decision rule applied');
