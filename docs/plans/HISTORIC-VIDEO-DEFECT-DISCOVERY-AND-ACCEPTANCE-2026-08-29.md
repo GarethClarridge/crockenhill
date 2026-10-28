@@ -28,12 +28,14 @@
 > on until then.
 > **10-27 → 10-28 (edge evidence lane; §5 from "10-27: direction review"):** the wider edge decode (Step 2), the
 > song-start margin and the song-end silence fix (with its cue-end guard) are adopted; the suite was repaired and
-> has **one expected failure, `end-1053-sermon`** (§5 "10-28"). No run has been re-cut; nothing is public.
+> had **one expected failure, `end-1053-sermon`** (§5 "10-28"). That case is now green after the K16 change below;
+> the other affected fixtures await listening and recapture. No run has been re-cut; nothing is public.
 > **Next, for a new session, in order** (each waits for the operator's go; "plan" means write the plan, then stop):
 > 1. **1053's sermon end is a K16 gap, not a new rule** (§5 "10-28 (later)"): no song section follows, so the
 >    introduction check never asks, and 126 of 411 sermon outputs go unjudged (nearly all: the recording ends before
->    the song). Planned (step 1 = code, step 2 = ask on the 126, paid); waiting for the operator's go. The **dependent song
->    openings** plan (§5 "10-27 night") is separate and starts only, unchanged.
+>    the song). Code and the approved Luna batch are complete: 123 answers banked; three are outside the join rule.
+>    Listening done 10-28 (artifact page; 21 operator + 33 Claude under the operator's rule). **Next: the plan in §5
+>    "10-28 (night)"**, in which K16 ends a sermon at its own last line: Codex implements, then hands back at step 4 for listening. All five 1053 fixture cases now pass. The **dependent song openings** plan (§5 "10-27 night") is separate and starts only, unchanged.
 > 2. Plan the **lyric-based rule for 1291** (a reading that opens on the song's last sung line; §5 "10-27 night:
 >    the suite's failures"). The classifier cannot carry it.
 > 3. Put **1267 §3355** (now 44:04.82, unheard) on the next listening page.
@@ -5730,7 +5732,7 @@ The cut runs past "Amen. Let's sing again." into the hymn introduction ("And I'v
 needs a sermon-end rule: the same family as the dependent-openings plan (an introduction that leans on what
 follows belongs with the song, not the sermon). Not planned yet.
 
-#### 10-28 (later): 1053's sermon end is a K16 gap — measured (read-only) and planned (not built)
+#### 10-28 (later): 1053's sermon end is a K16 gap — built and answers banked; listening pending
 
 **Correction to "10-28" above.** 1053 is not in the dependent-openings family. That rule is about where a song
 starts; a sermon may end on a sentence that leans on the one before it (operator, 10-28). What goes wrong on 1053
@@ -5788,3 +5790,261 @@ in for the song's start, and the same question is asked.
    (identity regression); an introduction section and then the recording's end → asked, a tied introduction
    kept. `end-1053-sermon` goes green from its fixture with the banked answer; affected RuledEndings fixtures
    recaptured; rulings gathered; full suite and Dusk; commit on the operator's word.
+
+
+**Implementation and approved evidence batch (10-28).** Operator requested implementation and approved paid
+calls provided they use Luna. `SermonSongIntroductionCheck` now has a join: the existing song, or the last
+transcript cue when the section walk runs out within 150 s. Published items and another sermon still stop it.
+The system prompt, prompt version 2, existing song prompt text and song identity keys are unchanged; an exact
+prompt/identity regression reads an answer saved under the original keys without sending a call. Recording-end
+questions use `song_start: null` and `recording_end`. The new identity also respects the planner's existing
+one-second source-duration cap, so edge preparation and planning reuse the same answer on 1136 and 1310.
+
+- **Batch:** all 126 assessed using `gpt-5.6-luna`; 123 current answers saved (103 no tied introduction,
+  20 tied). The current answers contain 259 model responses. Three correctly remain unasked: 980's transcript
+  ends 150.66 s later, 1014's ends 343.26 s later, and 1198 meets a published short talk. No existing song question
+  was asked. Missing endpoint words were gathered using the local decoder only.
+- **Measurement:** all 126 before/after plans resolve, with the resolver's writes rolled back. 56 ends move by
+  more than 0.31 s. Stored sermon extraction plans, compositions and media descriptors match the pre-batch
+  snapshots. No re-cut, publication or original-media change occurred.
+- **One listening page:** `http://127.0.0.1:8766/`; artifacts in
+  `storage/scratch/sermon-end-no-song-20261028/` (`questions.json`, `report.json`, `comparison.json`, clips,
+  per-run answers and pre-batch snapshots). Its 54 comparisons cover 1053, all moved actively ruled aggregate
+  sermon ends, all 15 specifically named older ruled ends even when unchanged, every added tied introduction,
+  and eight other examples. Each version has one clip. The page also lists all 126 results; the report includes
+  each model response, last line, keyword comparison and scores against active rulings (the existing comparator,
+  including silence tolerance and discrete accepted points). The 56 moves are 33 earlier and 23 later; of 35 active
+  rulings on these ends, 26 cease to match and three now match. Those are review inputs, not changed rulings. Choices save
+  to `answers/` locally and survive reload; the UI save/reload check was moved out of that folder, so it is no
+  operator ruling. Restart the local listener with `python3 storage/scratch/sermon-end-no-song-20261028/serve.py`.
+- **1053:** banked answer says `Amen.` (cue end 1572.54); the word-aware cut is **1572.82**, replacing 1579.72.
+  Its five fixtures now include the real answer and endpoint words, preserve their rulings, and pass, including
+  `end-1053-sermon`. No remaining ruling has been replaced or relaxed for the candidate.
+- **Checks:** 228 focused service/planner/edge-step tests passed; another 31 sentence/operator-edge/meeting tests
+  and the remaining meeting-integrity test passed in fresh-process follow-up. Five sentence/dead-feed/opening
+  cases now mock the independent K16 gate; their assertions are unchanged (the two fixture-backed opening checks
+  also pass: 2 tests / 7 assertions). The two compiled-view errors passed in fresh processes. 27 K16 tests include red-to-green recording-end,
+  introduction-section, source-cap and missing-answer cases, plus exact original song identity reuse. PHPStan
+  has zero errors; Pint passes. Dusk: 63 passed / 154 assertions.
+- **Full parallel run:** completed **11,762 tests / 108,813 assertions**, with 5 errors and 160 failures in that
+  run (`/tmp/k16-full-suite.txt`). Follow-ups clear both compiled-view errors, the three unrelated K16 test-setup
+  errors, the source-cap assertion against the final code, and the two fixture-backed opening checks above.
+  **157 historical fixture cases remain red because their snapshots have no banked recording-end K16 answer.**
+  No 1053 case failed. Those snapshots must be recaptured after listening; no assertion or old ruling has been
+  waived. The final full-suite green gate remains outstanding until that adoption step.
+
+**Next:** operator listening on that page; gather its rulings, recapture the other affected RuledEndings fixtures,
+then finish adoption and the final full-suite gate. Commit only on the operator's word. No commit made.
+
+**Listening (10-28 evening).** The localhost page could not be used from the phone, so it was republished as an
+artifact (https://claude.ai/artifact/Yazb4zDrg7AidMaFba6KeR). The operator answered 21 of the 54. Their rule: a cut
+is acceptable if it does not split a sentence, and unacceptable if what it adds is clearly not sermon. On every
+"either", the shorter version is preferred. Claude applied that rule to the other 33 from the word timings, and
+energy-checked the near-identical cuts. All 54 are in `answers/<id>.json`, each with `source` (`operator` or
+`claude-review`) and `preferred` (the shorter cut wherever the choice is "both"). By kind:
+- **K16 ends the sermon earlier (20):** B is preferred in all 20, 9 of them by the operator.
+- **No real change (13), or only an added "Amen." (3):** either cut is fine; A, the shorter, is preferred.
+- **K16 keeps a tied introduction (18):** A is preferred in 16. The two exceptions are 998 and 1070, where B wins only
+  because A stops inside "let's stand, shall we, | and sing". The ideal cut there is before that sentence; neither
+  version cuts there.
+
+**Implication (needs the operator's decision before adoption):** when the recording ends, a "tied introduction" is
+never wanted. Keep K16's join to the recording's end, but drop the tied-introduction outcome for recording-end
+joins, ending at the sermon's last line. 998 and 1070 then become clean cuts, as 987's note asked
+("ideally it would drop the 'Before we share together…'").
+
+**Scope of the shorter preference (operator, 10-28):** "I only meant sermon ends. Though possibly I might want it
+to apply to talk ends as well. I definitely didn't mean songs — they have different ending logic." Measured
+read-only (`storage/scratch/shorter-either-20261028/`). Of the 140 "either" rulings on record, these sit at the
+longer cut today:
+- **Sermon ends (5):** 1111, 1259, 1280 and 1355 keep a following song's tied introduction (12–41 s); 1366 adds
+  "Amen. Amen. Amen." (3.1 s).
+- **Short-talk ends (3):** 1055 §1613 (+1.1 s) and 1198 §2491 (+0.7 s) differ only by the trailing pause after the
+  last word. 1274 §3433 (+9.2 s) is the sentence check's extension, which the operator left as cut on 10-22.
+- **K16 tied introductions in all:** 113 of 411 sermons (93 with a following song, 20 where the recording ends
+  first). Of the 93, 44 were ruled "right" on pages that played one cut only (mostly 10-18).
+Not planned yet; the talk-end scope is still open.
+
+#### 10-28 (night): plan: K16 ends a sermon at its own last line, with no tied introduction
+
+**Decision (operator, 10-28):** agreed. The shorter preference applies to sermon ends; talks stay as they are (one
+real case, 1274 §3433); songs are out of scope (their ending logic is different). Codex implements. **Codex
+cannot build remote listening pages, so it hands back to Claude at step 4.** "Plan" means plan: nothing starts
+until the operator says go.
+
+**Evidence.** On the "Sermon endings before recording end" page (§5 "Listening (10-28 evening)"), a tied
+introduction lost in 16 of 18 recording-end cases, and the other two won only because the old cut split
+"let's stand, shall we, | and sing". When a song follows, the 4 "either" rulings (1111, 1259, 1280, 1355) prefer the
+cut without it, and 3 rulings say the tied end "took in too much". Against that, 44 were ruled "right", but each was
+heard as a single cut (mostly 10-18), so under the register policy they are acceptable, not best.
+
+**Mechanism.** `SermonSongIntroductionCheck::decision()` ends the video at the agreed `video_last_line`, which
+includes the introduction when `ties_to_sermon` is true. Every banked payload also holds each call's
+`sermon_last_line` (the last line of the sermon itself) and the numbered `lines`. The new end is derived from
+those. **No new model calls; do not change the system prompt, PROMPT_VERSION or the identity keys**, so all
+banked answers (285 song joins + 123 recording-end joins) are reused as they are.
+
+**Steps**
+1. **Code (recording-end joins only).** When the join is the recording's end (`song === null`), end at the agreed
+   `sermon_last_line`. Vote among the calls exactly as `video_last_line` is voted now: the majority line, else the
+   median of three, else the first. Then apply the same step back off any line marked `music: yes`. `ties_to_sermon`
+   is still recorded but no longer moves the end. Song joins are unchanged in this step. The derivation reads the
+   banked `calls`; a payload without them keeps its stored `end`, and the count of such payloads is reported (expect 0).
+   Red-to-green tests in `SermonSongIntroductionCheckTest` first:
+   - a recording-end answer with `ties_to_sermon: true` ends at the sermon's last line;
+   - a song-join answer with `ties_to_sermon: true` still ends at `video_last_line` (step 1 leaves those);
+   - a split vote on `sermon_last_line` follows the same majority/median rule;
+   - a `sermon_last_line` inside music steps back.
+2. **Measure (read-only, rolled back), the same way as `storage/scratch/shorter-either-20261028/scan.php`.**
+   - **The 20 recording-end ties:** 973, 979, 987, 998, 1029, 1050, 1061, 1070, 1076, 1079, 1087, 1093, 1094, 1105,
+     1131, 1137, 1151, 1183, 1202 and 1369. Report each one's new end, its last line, and the agreement with the
+     54 answers in `storage/scratch/sermon-end-no-song-20261028/answers/` (the `preferred` field).
+   - **Expected:** 998 and 1070 end before "let's stand, shall we, and sing"; 987 ends before "Before we share
+     together…" (the operator's 10-28 note). If not, report it rather than adding a special case.
+   - **Untied cases:** for every untied answer, report how often `sermon_last_line` ≠ `video_last_line` (expected
+     near 0, and it is evidence for step 3).
+3. **Measure the song joins as if the same rule applied (no code change).** For the 93 tied song joins, give the
+   end each would take at `sermon_last_line`, the seconds removed and the text removed. Then set it against the
+   rulings: 44 keep, 4 either, 3 inward, 4 outward, and 23 unruled (scan `k16-ties.json` there).
+4. **Hand back to Claude for listening. Stop here.** Leave a `questions.json` in the format of
+   `storage/scratch/sermon-end-no-song-20261028/questions.json`, with one clip per version as that cut sounds
+   (`build.php` there), for:
+   - 998, 1070 and 987;
+   - 1131 and 1183 (never heard);
+   - about 15 of the 44 song joins ruled "right", spread by the seconds removed;
+   - 1111, 1259, 1280 and 1355;
+   - any step-2 case whose last line looks wrong.
+   Claude publishes the page; the operator listens.
+5. **After the answers (Claude records them in the register, then Codex resumes):**
+   - if the song-join sample agrees, extend step 1 to song joins (with its own red-to-green test);
+   - recapture the affected RuledEndings fixtures, including the 157 still red from the K16 recording-end change,
+     from the committed files (`song-end-silence-fixtures-20261028/refresh.py` pattern, never an older backup);
+   - gather the rulings (`scripts/rulings/gather.py`, adding `sermon-end-no-song-20261028` and the new page);
+   - run the full parallel suite, Dusk, PHPStan and Pint;
+   - commit only on the operator's word.
+
+**Not in scope:** song edges, the song-end silence or fade rules, the start margin, talk ends, and 1366's repeated
+"Amen" (a different mechanism). No re-cut, dispatch or publication.
+
+**Step 4 review (10-28, Claude, from transcript word timings; operator listening optional).** The page is
+https://claude.ai/artifact/UpqtT8dhseUAo1zApooUn3. Verdicts are in
+`storage/scratch/sermon-own-last-line-20261028/answers/` (`source: claude-review`). **B (the sermon's own last
+line) is preferred in 27 of the 35**, including all 15 sampled song joins that were heard well. Exceptions:
+- **The closing prayer is dropped (1063, 1114, 1169).** The model's `sermon_last_line` sometimes stops before the
+  closing prayer. Most register rulings end at the prayer's Amen, so the prayer stays: 1063, 1114 and 1169 → A
+  (1169 corrected: A does end at the prayer's Amen).
+- **The next sentence's onset (1164, 1252, 1259, 1280, 1355).** The cut is right in the text, but B ends 0.07–0.3 s
+  after the next sentence's first cue starts. That is a mechanism defect: the end must not cross the start of the
+  next cue. It needs a code fix and its own red-to-green test, not listening.
+**For Codex at step 5:** fix the onset crossing, and decide how to keep a closing prayer when `sermon_last_line`
+excludes it (measure how often that happens first). Then extend to song joins.
+
+**Closing prayers (measured 10-28, Claude's recommendation; awaiting the operator).** Of the 292 untied K16 answers,
+281 give the same end for both votes; the model's own reasons say "the sermon ends with the prayer". Only 4 put
+`sermon_last_line` before a closing prayer that `video_last_line` keeps: 1063, 1114 and 1169 (recording end), and
+1261 (song join). So this is model inconsistency, not a pattern. **Proposed rule:** for an untied answer, end at the
+last line up to `video_last_line` that closes with "Amen", if one follows `sermon_last_line`; otherwise end at
+`sermon_last_line`. This keeps the 4 prayers and the 7 untied wins (958, 1086, 1101, 1128, 1157, 1161, 1191). It
+does not apply to tied answers: there an "Amen" can share a cue with the call to sing (1109, 1291) or sit in the
+introduction (1318), so `sermon_last_line` stands. No new calls are needed.
+
+**Step 5a review (10-28, Claude, of `storage/scratch/sermon-closing-prayers-20261028/`).** The onset cap
+(87 → 0) and the closing-prayer rule (1063, 1114, 1169 restored; 1101 keeps its second Amen) do what was
+asked. Two follow-ups for the same mechanism:
+- **The answering "Amen" (operator, 10-28: "Cutting off the congregation's amen is probably good. That's not really
+  part of the sermon.").** The cap already ends before a line that is only "Amen" after the preacher's Amen (1135,
+  1284, 1238, 1197, 1203): keep that. Make the prayer rule consistent with it: the Amen it extends to is the
+  preacher's, so a line that is only "Amen" straight after an Amen line does not count. 1101 then loses its second
+  "Amen." A double Amen inside one line is left as it is (no word-level split).
+- **The model's line ends mid-sentence.** The cap cannot mend a K16 line that stops mid-sentence. Under the current
+  policy these are tied song joins (1245 "…never changes oh ‖ the deep deep love of jesus", 1341, 1272, 1280, 1288,
+  1164), and the song extension removes them. Under the extension, 968 ("…you ‖ to pieces.") and 1004 ("…for the
+  glory of your ‖ we are going to") remain: list them, with no special case.
+**Proposed next (step 5b), awaiting the operator:**
+1. Make the Amen change above (red-to-green), then extend `sermon_last_line` to song joins. The listening sample supports it: 15 of 15
+   sampled "right" rulings prefer it, and so do all 4 "either" rulings (1111, 1259, 1280, 1355).
+2. Recapture the affected RuledEndings fixtures from the committed files.
+3. Gather the rulings: add sources `sermon-end-no-song-20261028` and `sermon-own-last-line-20261028`, keeping
+   `source: operator|claude-review` per answer.
+4. Run the full parallel suite, Dusk, PHPStan and Pint.
+5. Hand back with the results; commit only on the operator's word.
+
+**Step 5b review (10-28, Claude, of `storage/scratch/sermon-step5b-20261028/`).** Codex's 108 RuledEndings failures
+come from 53 runs. Claude read the transcript text between each old ruled cut and the new cut:
+- **46 runs: the new cut is better.** All that is removed is the song introduction (40 tied song joins, 10–47 s),
+  the congregation's answering "Amen" (1135, 1238, 1272, 1312), or the first words of the next line, which the
+  onset cap now leaves out (1234, 1263, 1270, 1273). Their older "right" rulings were acceptable, not best.
+  Recorded as `claude-review` B answers in `storage/scratch/sermon-own-line-songs-20261028/` (no page), now
+  gathered as a source.
+- **968: the old cut stays (A).** The new cut splits "…tear you ‖ to pieces."; a known K16 line defect, listed
+  without a special case, so it stays red.
+- **932 and 1371: left for Codex.** Both new cuts sit exactly at the next cue's start: 932 is back at the cut ruled
+  "clips a word" (2383.32), and 1371 ends at 1427.0, before the two cuts heard right (1428.45/1428.54) with no word
+  between them. The likely cause is that the onset cap trusts cue starts that run early. Check it with word timings.
+- **998 (gather ordering):** Claude's review answers had saved times with no time of day, so they sorted before
+  the operator's same-day answers. They now carry their write time. As a result, the later step-4 reviews of 958,
+  987, 998, 1070, 1093 and 1114 now supersede the page-1 answers, as intended.
+- **Still for Codex:** the 1108 dropout test should mock K16 off (as the 957 test does). Explain the missing K16
+  evidence for 1021, 1204, 1352 and 1108, with no model calls without the operator's word. `gather.py` should
+  reject a date-only `saved_at`.
+
+**Step 5b follow-up review (10-28, Claude, of `storage/scratch/sermon-step5b-followup-20261028/`).** The cap fix
+(using word timings, not cue starts) puts 932 at 2383.62 and 1371 at 1428.54. It also returns 1234, 1238, 1263 and
+1272 to the cuts first heard right. Claude's B answers for those four were judged from cue times and were wrong:
+B clipped "God" (1263) or the preacher's Amen (1238, 1272), and gained nothing at 1234. They are corrected to A in
+`sermon-own-line-songs-20261028/answers/`. **Lesson:** a review answer about a sub-second edge needs word timings,
+not cue text. What remains is 968 (known) and the missing K16 answers for 1021, 1204 and 1352. Their selected
+output ends with a Prayer section, so the 10-28 batch skipped them. Asking K16 for these three is a model-call
+decision for the operator.
+
+**Scope closed (operator, 10-28):** "Forget the talk ends (one case isn't worth it) and song ends (their logic is
+separate). Nothing needed there." The shorter-preference rule is for sermon ends only; 1274 §3433 and the 44 song
+edges at the longer "either" cut stay as they are.
+
+**K16 for 1021, 1204 and 1352, and the Amen step-back (10-28, operator: "Ask for the model calls").** The three
+prayer-ending outputs were asked (6 calls, both votes agreeing each time; `storage/scratch/k16-prayer-end-20261028/`).
+1204 and 1352 then showed a gap: the answering-Amen exclusion did not cover the line K16 itself chose, so 1204 ended
+on the congregation's "Amen" and 1352 on the third lone "Amen." 44 s after the prayer. Codex built the step-back
+(`SermonSongIntroductionCheck::decision()`: a standalone "Amen" straight after a line ending on one is stepped off,
+for tied and untied answers; red-to-green test). Claude shared the repeated pattern (`ENDS_ON_AMEN`, `answersAmen()`).
+
+- **Measured over every run with a banked K16 answer** (`amen-fixture-refresh-20261028/k16-scan.php`, read-only):
+  476 runs, 426 answered, **83 ends change**. Codex's measurement read only the 411 sermons of the 10-28 batch
+  and missed 962 and 1033 (the batch skipped outputs ending in a Prayer section); the full scan found no others.
+- **Every new cut lands after a decoded "Amen"** (word timings, not cue text), and what each drops is the
+  congregation's lone "Amen." line(s). Six lines move without moving the cut (981, 1052, 1215, 1225, 1264, 1358);
+  1288's cut moves 0.125 s later. No cut moves into the preacher's Amen.
+- **Older rulings moved past: 40**, all "right" (two "either": 1078, 1366, where the new cut lies between the two
+  cuts heard) and all through the congregation's lone Amen; for 962 the hymn introduction too. Codex's report
+  counted 5 because 120 replays stopped at missing word evidence before the ruling check; once the fixtures held
+  the words, the other 36 surfaced. Recorded as `claude-review` B answers, each noting the decoded Amen it ends
+  after, in `storage/scratch/sermon-amen-step-back-20261028/` (no page), gathered as a source.
+- **Fixtures:** the 69 files whose cut moved into an unrecorded window or whose live cut went stale (234 entries)
+  recaptured (`capture-fixtures.php --current`) and refreshed from the committed files
+  (`amen-fixture-refresh-20261028/refresh.py`; prior files in `before/`). 962 and 1033's end windows were decoded
+  with local Whisper only.
+- **890, 893, 894 asked (operator: "Happy for the model calls")**: `storage/scratch/k16-unanswered-20261028/`. 893
+  ends after its prayer's Amen (3772.68), 894 after its prayer's Amen (3878.44, tied, introduction out). 890's
+  answer ends on the Amen (4146.34), but the dead-feed guard moves the cut to 4141.93, into a near-silent stretch
+  where the transcript still has "…set us free today. Amen.", so the guard may clip faint words. 968 stays red.
+- **Listening page** (10-28): https://claude.ai/artifact/U8RdQ9uaRaVx5ynkSiKhX7, built in
+  `storage/scratch/amen-k16-listening-20261028/` (collection `rulings`, ids `<run>-sermon-end`): 1288 (two Amens
+  decoded as one; B in the level dip at 3754.30), 1366 (new cut between the two "either" cuts), 890, 893, 894.
+  **Answered 10-28:** 1288 **B** (3754.30; the current 3755.31 runs into the congregation's Amen), 1366 B, 890
+  **either** (the dead-feed cut is acceptable; no guard change), 893 B, 894 B. Gathered as a source; fixtures
+  `run-{890,893,894,1288,1366}-2026-10-28-amen.json.gz`. 1288 stays red as an open defect (below).
+
+**Open: merged Amens (1288; plan, not built).** When the preacher's Amen and the congregation's decode as one
+word that runs past the start of the lone "Amen" line, `CueSafeExtractionPlan::beforeNextLine()` keeps the
+whole word (its last token matches the closing line), so the cut follows the congregation's Amen. Read-only scan
+(`storage/scratch/amen-k16-listening-20261028/merged-amen-scan.*`): of 426 answered sermon ends, 122 end on an
+Amen followed by a lone Amen line, and 12 have the merged pattern: 972, 981, 1022, 1126, 1182, 1210, 1238, 1285,
+1288, 1311, 1316, 1369. Neither obvious rule is safe:
+- **cut at the next line's cue start**: that clipped the preacher's Amen at 1238 (Claude's review answer, corrected
+  to A on word timings), and 7 of the 12 have zero-length "next" cues (rounded transcripts) with no usable start;
+- **cut in a level dip inside the word**: 1288's heard dip (3754.1–3754.5) does not fall below the planner's
+  threshold, and the quiet runs found elsewhere are mostly the word's padded start (`dips.jsonl`).
+So it needs better evidence first: plan step 1 is a second local-Whisper decode of just the merged span (or a
+narrower window ending before the next line), to see whether it splits the two Amens; then a rule, measure, a
+listening page for the 12, adopt. **Claude's own B answers for 1210 and 1285 (Amen step-back source) rest on
+the same merged evidence and should be re-heard on that page.**
