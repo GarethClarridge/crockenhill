@@ -30,9 +30,10 @@
 > song-start margin and the song-end silence fix (with its cue-end guard) are adopted; the suite was repaired and
 > has **one expected failure, `end-1053-sermon`** (§5 "10-28"). No run has been re-cut; nothing is public.
 > **Next, for a new session, in order** (each waits for the operator's go; "plan" means write the plan, then stop):
-> 1. Plan the **sermon-end rule for 1053**: the sermon runs past "Amen. Let's sing again." into the hymn
->    introduction. Plan it with the **dependent song openings** plan (§5 "10-27 night", step 1 = decode past the
->    cut for the 19 measured starts, not started), since both are an introduction that leans on what follows.
+> 1. **1053's sermon end is a K16 gap, not a new rule** (§5 "10-28 (later)"): no song section follows, so the
+>    introduction check never asks, and 126 of 411 sermon outputs go unjudged (nearly all: the recording ends before
+>    the song). Planned (step 1 = code, step 2 = ask on the 126, paid); waiting for the operator's go. The **dependent song
+>    openings** plan (§5 "10-27 night") is separate and starts only, unchanged.
 > 2. Plan the **lyric-based rule for 1291** (a reading that opens on the song's last sung line; §5 "10-27 night:
 >    the suite's failures"). The classifier cannot carry it.
 > 3. Put **1267 §3355** (now 44:04.82, unheard) on the next listening page.
@@ -5728,3 +5729,62 @@ the register, and the named held-word test pins the new ends.
 The cut runs past "Amen. Let's sing again." into the hymn introduction ("And I've chosen you", 1579.72). It
 needs a sermon-end rule: the same family as the dependent-openings plan (an introduction that leans on what
 follows belongs with the song, not the sermon). Not planned yet.
+
+#### 10-28 (later): 1053's sermon end is a K16 gap — measured (read-only) and planned (not built)
+
+**Correction to "10-28" above.** 1053 is not in the dependent-openings family. That rule is about where a song
+starts; a sermon may end on a sentence that leans on the one before it (operator, 10-28). What goes wrong on 1053
+is that no song section follows the sermon: the run has only the Genesis reading (§1609) and the sermon (§1610),
+and the transcript stops at "Amen. Let's sing again. And I've chosen you." (1579.72), so the recording seems to
+end in the introduction. K16 (`SermonSongIntroductionCheck`) would end the sermon at "Amen." (a bare "let's sing"
+call is never included), but `song()` finds no song within `SONG_REACH`, `question()` returns null and the end
+falls back to the last cue. The 10-19 section ruling on §1610 ("early" at 1579.72) reflects the recording cutting
+off mid-sentence, not a cut to move later (operator agreed, 10-28).
+
+**Measured** (`storage/scratch/sermon-end-no-song-20261028/measure.php` → `rows.json`; 462 runs with a sermon
+plan, 411 ending in a sermon section): K16 asks on 285 and **never asks on 126**:
+- **71: the recording ends within 5 s of the sermon's end** (1053's class).
+- **44: the next section is typed `other`.** Checked section by section (`other.php`): 40 are the song's
+  introduction or announcement as a section of its own ("Introduction to closing hymn", "Hymn announcement"), and
+  the recording ends in it or just after, so these are 1053's class too. Four look like songs typed `other`
+  (950 "Take Time to Be Holy", 973 "O Church Arise", 975 "How Deep the Father's Love", 1014 "Lo He Comes", 264 s),
+  a detection question outside this plan. `song()` passes over `other` (no publication handler) and runs out of
+  reach. (First reading, corrected here: "the closing song typed `other`".)
+- 7 with speech after but no section; 3 notices; 1 short talk.
+
+By the text in the last 15 s: 59 already end on "Amen." and about **30 end on a song announcement**
+("Let's stand, shall we, and sing.", "Let's sing again.") that K16 would drop: 24 where the recording ends, 4
+before an `other` section, 2 others. Where the introduction has its own section, the sermon section already
+ends before it, so asking there can only add an introduction that ties. The match is by keywords, so some are mixed (995 "Let's pray and then
+we'll sing again"; 1122 "let's stir our hearts with a carol … Joy to the World", which may tie).
+
+**Older rulings conflict.** 16 of the 30 have an active sermon-end ruling; **11 are "right" on ends that keep the
+call** (987, 995, 998, 1037, 1058, 1093, 1103, 1122, 1125, 1175, 1371; 1037, 1103, 1122 and 1125 were heard
+10-18, after K16), and 1070, 1072, 1186, 1190 were ruled late or clipped. So these are acceptable cuts, not
+proof the call should stay (operator 10-27: older "right" rulings are acceptable, not best), but a change needs listening on every ruled one.
+
+**Plan: K16 when the recording ends before the song (planned, not built; each step stops for the operator).**
+K16 already states the rule; what is missing is the anchor. Where the walk after the sermon reaches the end of the
+recording within `SONG_REACH` without meeting a published section or another sermon, the recording's end stands
+in for the song's start, and the same question is asked.
+1. **Code, behind no flag.** `SermonSongIntroductionCheck::song()` becomes a join: a song section as now, or the
+   recording's end (last transcript cue, which is what the lines run to) when the walk runs out of sections
+   first. The user prompt says `Next song: not in the recording (it ends after the last line).` in place of the
+   title. **The system prompt and `PROMPT_VERSION` stay as they are, and a song join's identity keeps exactly its
+   current keys**, so none of the 285 banked answers is re-asked; the recording-end join's identity carries
+   `song_start: null` and `recording_end`. `CueSafeExtractionPlan::forSpans` gates on the join, not on
+   `songStart()`; E22 (a song starts no earlier than the sermon's last word) has no song here and is untouched.
+   The planner's existing throw (`OutputEdgeTimingsMissing` when K16 applies and nothing is banked) is what makes
+   the edge step ask before planning, as now.
+2. **Ask, scratch-side.** On the operator's go: `prepare()` on the 126 (2–3 structure-model calls each, about
+   250–380), banking answers in service artifacts only; no plan, re-cut or media change. Report each answer's
+   line and judgement against the keyword reading above, and every end that moves.
+3. **Measure and listen.** Score the moved ends against active rulings. One listening page, one clip per version
+   (now / new): 1053, every ruled end it moves (the 11 "right" ones that keep the call, 1070, 1072, 1186, 1190),
+   any "ties" answer that adds an introduction, and a sample of the rest. Per the operator's 10-27 statement an
+   older "right" ruling the rule moves past is expected; the page's answer supersedes it.
+4. **Adopt.** Red-to-green in `SermonSongIntroductionCheckTest`: 1053's shape (recording ends after "Amen. Let's
+   sing again. And I've chosen you." → asked, ends at "Amen."); a banked song-join answer still read unchanged
+   (identity regression); an introduction section and then the recording's end → asked, a tied introduction
+   kept. `end-1053-sermon` goes green from its fixture with the banked answer; affected RuledEndings fixtures
+   recaptured; rulings gathered; full suite and Dusk; commit on the operator's word.
